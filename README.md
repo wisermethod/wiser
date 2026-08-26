@@ -8,7 +8,13 @@ Harness-agnostic. It carries no dependency on any single agent host and runs whe
 
 Being built as of 2026-08-26. The capability tree is migrating in from an existing source tree under this new name, planned and executed as a Playbook in `wisermethod/wiser-builds`.
 
-Nothing is installable yet, and this repository is private until the migration's identity gate passes.
+Nothing is installable yet. Watch this repository if you want to know when it is.
+
+## Install
+
+Once the first release lands, install the plugin `wiser` from the marketplace at `wisermethod/wiser`, then attach a working folder. The working folder is the root the work is about. Nothing else is required.
+
+The plugin is read-only in use. Everything it produces lands in the attached working folder, in the directories that folder's own `AGENTS.md` declares.
 
 ## License
 

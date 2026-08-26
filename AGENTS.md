@@ -22,6 +22,8 @@ The tree this root is migrating from is composed into the workspace as input. Re
 
 This plugin is published under its own name and carries no trace of the tree it came from. Stripping the source's identity is part of the migration, not cleanup afterward.
 
-The gate is a case-insensitive search of the finished tree, including filenames and paths, that returns zero hits for the source's name. It runs before the first push of migrated content, not before the last, because git history is permanent: an identity pushed once survives squashing, force-pushing, forks, and caches.
+The gate is a case-insensitive search of the working tree, including filenames and paths, that returns zero hits for the source's name.
 
-This repository stays private until that gate passes.
+It runs before the **first push** of migrated content, not before the last. Migration commits land locally and stay local until it passes. A gate failure found before that push is free to fix: rewrite the local history and move on. The same failure found after it is not fixable at all, because published git history is permanent, and a commit survives squashing, force-pushing, forks, and caches once anyone could have fetched it.
+
+This repository is public. That is why the gate is the push and not the merge.
