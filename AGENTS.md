@@ -4,26 +4,75 @@ root: wiser
 
 # Wiser
 
-The general knowledge-work plugin: the experts, skills, tools, and connectors that knowledge workers use for agentic work.
+The general knowledge-work plugin: the skills, experts, and standards that a knowledge worker uses for agentic work, in their own voice, on their own material.
 
-This root is mid-migration as of 2026-08-26. Its capability tree is being brought in from a source tree composed into the workspace, under this new name. Read `../AGENTS.md` first, then this file.
+**This file is this root's constitution.** Where a primitive cites "the constitution", it means this file. The chain starts here: load it before the first read or write under this root.
 
-## Do not author here yet
+This root is a capability product, owned by EffectiveSC.
 
-Do not add skills, experts, tools, connectors, or standards to this root on your own initiative, and do not hand-copy anything in from the source tree. The migration is planned and executed as a Playbook in `WISER Plugins/zBuilds/playbooks/`, and work done outside it is work the gates never see.
+## What this root is
 
-When the migration completes, this file is replaced by the real constitution generated from `zBuilds/templates/repo-scaffold/AGENTS.md.template`.
+An authoring tree, not a working folder. Nothing here is anyone's work product; everything here is the capability that such work uses. Output belongs in the working folder a session attaches, never in this root.
 
-## The source tree is read-only
+## Writes
 
-The tree this root is migrating from is composed into the workspace as input. Reading it is the point; writing it is forbidden, and a workspace that composes it is not permission. Every write from a migration session lands under this root or under `zBuilds/`.
+Writes land only under this root, and in use this root is read-only.
 
-## The identity gate
+Never write to another root composed in the same workspace, whatever its permissions look like on disk. A workspace that happens to compose a root is not permission to edit it.
 
-This plugin is published under its own name and carries no trace of the tree it came from. Stripping the source's identity is part of the migration, not cleanup afterward.
+## Workspace Model
 
-The gate is a case-insensitive search of the working tree, including filenames and paths, that returns zero hits for the source's name.
+The attached working folder is the **owning root**: the personal, org, client, department, or industry folder the user attached for this work. Its own `AGENTS.md` declares its `type` and a **Provides** block binding abstract keys to files. **A root is identified by that declaration, never by its folder name.** Before the first read or write under any path in the working folder, load that directory's `AGENTS.md`, or the nearest ancestor's if it has none; absence is never permission.
 
-It runs before the **first push** of migrated content, not before the last. Migration commits land locally and stay local until it passes. A gate failure found before that push is free to fix: rewrite the local history and move on. The same failure found after it is not fixable at all, because published git history is permanent, and a commit survives squashing, force-pushing, forks, and caches once anyone could have fetched it.
+**Abstract keys and the Provides block.** Primitives do not name files; they request keys, and the owning root's Provides block binds each key to a file.
 
-This repository is public. That is why the gate is the push and not the merge.
+- The keys are `voice`, `about`, `design`, `secrets:<platform>`, and the optional `competitors`.
+- An **unscoped** key resolves in the root that owns the output. A **scoped** key, written `voice:org` or `voice:client`, resolves in the root of that type.
+- More than one plausible root, or none: ask. Never hunt.
+
+**When a key is unbound.**
+
+- A **required** key unbound: stop and ask.
+- An **optional** key unbound: name what degraded, and proceed.
+- `competitors` is optional and is bound only where a competitive set has been confirmed. Unbound means there is no confirmed set, so work that names, ranks, or differentiates against another party says so and proceeds. **Never invent a set to finish the sentence.**
+- **A bound file whose headings say its content is not yet defined counts as unavailable.** Name the degradation the same way, and never invent what it would have said.
+
+**Secrets.** A `secrets:<platform>` key resolves through a Provides binding; unbound, the personal root's `memory/secrets/` is the only default. Found nowhere: stop and ask. **A secret's contents never enter the conversation, a log, a commit, or another file.**
+
+**This plugin is read-only in use.** Never write under this root during a session. Outputs land in the working folder, in the directories that folder's own `AGENTS.md` declares.
+
+## Precedence and routing
+
+A workspace usually composes this root alongside an owning root and any context roots. They are peers on disk and not peers in process.
+
+- **This root governs how work is done:** which skill or expert owns a task, what a deliverable must satisfy, which standards bind.
+- **The owning root governs what the work is about and where it lands:** voice, about, design, domain routing, and filing.
+- Read this root first, then the owning root, then context roots as the task needs.
+- Where they conflict on **how** work is done, this root wins. Where they conflict on **facts, voice, or filing**, the owning root wins.
+- Do not invent parallel rules in a workspace. If a rule seems missing, it is in the chain: find it rather than restating it.
+
+For any deliverable, consult `skills/AGENTS.md` and `experts/AGENTS.md` and pick the skill or expert that owns the work before drafting. Load that file; naming it is not loading it.
+
+## Standards
+
+`standards/` is binding on work in this root, not advisory.
+
+| Standard | Owns |
+|----------|------|
+| `standards/primitives.md` | The four primitive types, how they invoke one another, and the typed-file frontmatter |
+| `standards/instruction-quality.md` | How instructions are written and judged; the sole home of Elegance |
+| `standards/conventions.md` | Formatting, dates, naming, working files, root layout, archives, sourcing, evidence labels |
+| `standards/play.md` | The Play format |
+| `standards/playbook.md` | The Playbook format |
+
+Each family's `AGENTS.md` carries an index of that family. **This root carries no generator, so those indexes are maintained by hand** against the frontmatter of what is actually present.
+
+## What this root does not carry
+
+Stated here so a reader is not left hunting for it. This root ships skills, experts, and the standards binding them. It does not ship tools, connectors, a release gate, a generated plugin projection, or a separate runtime charter. Where a primitive's step depends on one of those, that primitive says so at the step and declares the lost capability in its `gaps` frontmatter. **`system/GAPS.md` collects every declared gap in one place.**
+
+## Working under this root
+
+Work that changes this root is planned as a Playbook, per `standards/playbook.md`.
+
+`system/templates/` holds the root templates a new working folder is created from, and `skills/Onboard Root/` is what reads them. Everything under `system/templates/` is inert: a template's `AGENTS.md` and declarations belong to the copy it will become, not to this chain.
