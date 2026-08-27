@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # gates.sh: the mechanical gate harness for the onboard-root revision.
 #
-# Contract: playbooks/onboard-root-gate/gates.md. Where this script and that
-# file disagree, that file is what gets fixed first.
+# Contract: the gate table in SKILL.md beside this script. Where this script
+# and that table disagree, the table is what gets fixed first.
 #
 # Runs on macOS bash 3.2. No associative arrays, no mapfile/readarray, no
 # ${var,,}. BSD-compatible flags only. Never writes to the root being checked.

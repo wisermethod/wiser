@@ -3,12 +3,13 @@ name: Designer
 type: skill
 category: design
 description: Run a design job end to end, from brief and visual direction through foundations, composition, and validation, producing the wireframe, style guide, or extracted system itself and directing every other phase to the design skill that owns it
-version: 0.1.3
+version: 0.2.0
 memory:
   - design
 gaps:
   - application screen assembly (dashboard, settings, admin panel)
   - brand mark and logo creation
+  - rendering a design to an image for review or handoff
 ---
 
 # Designer
@@ -193,6 +194,7 @@ Group the findings blocking, then major, then minor, each naming its location an
 - **A system file written to a root's top level.** A design system is an output like any other: it goes to the owning root's work area (`standards/conventions.md`), never to a root's top level. Whether it then becomes the root's bound `design` file is the owner's act under the constitution's Workspace Model, not this skill's.
 - **Validation saved for the end.** The intentional-choice and distinctiveness checks run while composing. Run at the end, they find work that has to be redone rather than decisions that have yet to be made.
 - **Ambiguity.** The register, the deliverable, or which of several artifacts is being asked for cannot be settled from the request: ask before designing.
+- **A tool this root does not carry.** Every `tools/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand; the rest of the run proceeds. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
 

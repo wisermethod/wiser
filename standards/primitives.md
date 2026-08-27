@@ -34,7 +34,7 @@ A connector's typed file is always `CONNECTOR.md`. What sits beside it is one of
 
 Both are connectors under the definition above: the hard part of each is authenticating to somewhere else. Only the socket differs. A new-generation connector holds no credential file, so it requests no `secrets:<platform>` key in its frontmatter, and the absence of that key is a declaration rather than an omission.
 
-Two generations live at once on purpose. New connectors are new generation; the CLI connectors already in this root keep `--env` until later Playbooks archive them, and `--env` is not retired. `system/templates/Script Contract.md` owns which of its clauses bind which generation, and `system/templates/Connector Planning.md` owns how a new connector is classified before it is built. Cite those; the rules are not restated here, and neither is the charter's account of where secrets live.
+Two generations live at once on purpose. New connectors are new generation; the CLI connectors already in this root keep `--env` until later Playbooks archive them, and `--env` is not retired. The contracts governing what a connector's scripts do and how a new connector is classified before it is built are not carried in this root, so a connector authored here is held to this standard alone; neither those rules nor the charter's account of where secrets live are restated here.
 
 ## Invocation
 
@@ -48,7 +48,7 @@ An expert may select and sequence skills. It names the skill it picked before ru
 
 - Those four directories are flat. Category is frontmatter metadata, never a folder tier: a primitive is identified by its declaration, not by where it sits.
 - One exception to flatness: a Composite tool, a tool whose directory holds sub-tools exactly one level deeper, `tools/<Name>/<Sub>/TOOL.md`. A sub-tool is a full typed file with `type: tool`; there is no composite type. Sub-tools require their parent's `tools/<Name>/TOOL.md` to exist and route to them. No primitive nests deeper.
-- Overlays live in owned roots per the constitution's Workspace Model, and their typed files follow this standard. The release gate (`infrastructure/validate/`) scans only this root; overlay authors hold their own files to the standard themselves.
+- Overlays live in owned roots per the constitution's Workspace Model, and their typed files follow this standard. A release gate scans only the root it runs in; overlay authors hold their own files to the standard themselves.
 
 ## Names
 
@@ -88,7 +88,7 @@ The block is a flat map in exactly this grammar, deliberately small so that ever
 
 ## Indexes
 
-Each family directory's AGENTS.md carries an index generated from this frontmatter at release, grouped by `category`; `name`, `category`, and `description` carry their rules so those tables stay correct. Sub-tools never appear in an index; their parent routes to them. The generation mechanics belong to `infrastructure/validate/`.
+Each family directory's AGENTS.md carries an index generated from this frontmatter at release, grouped by `category`; `name`, `category`, and `description` carry their rules so those tables stay correct. Sub-tools never appear in an index; their parent routes to them. This root carries no generator, so each family index is maintained by hand against this frontmatter.
 
 ## Done
 

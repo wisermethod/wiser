@@ -3,10 +3,13 @@ name: SEO Assets
 type: skill
 category: seo
 description: Produce the ready-to-use artifacts a site's decided search changes need, each built from evidence pulled for it, held to its own standards, and handed over for someone else to deploy
-version: 0.1.0
+version: 0.2.0
 memory:
   - voice
   - about
+gaps:
+  - automated crawling, keyword research, page analysis and sitemap comparison
+  - search-console readings pulled from the site's own account
 ---
 
 # SEO Assets
@@ -142,6 +145,7 @@ The deployment is the requester's. Where one change has both a file and a platfo
 - **Last period's number reused.** A figure carried forward from an earlier snapshot falls under the labels-travel rule in `standards/conventions.md`; Step 2 says how to label it.
 - **Deployment by drift.** Editing one file "while we are in there", submitting a sitemap because the change is obviously ready, or opening a content platform to paste in a title. Rule 3 has no size threshold.
 - **The ambiguous request.** An artifact type that could mean two things, a keyword whose intent is unsettled, a site with no named platform, a property more than one login reaches. Ask before Step 2; a pull made against the wrong property costs quota and produces an artifact about someone else's site.
+- **A tool or connector this root does not carry.** Every `tools/` and `connectors/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand; the rest of the run proceeds. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
 

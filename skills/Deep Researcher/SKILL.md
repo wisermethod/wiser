@@ -3,9 +3,11 @@ name: Deep Researcher
 type: skill
 category: research
 description: Run a research question end to end, decomposing it into angles, directing each to the research skill that gathers it, and interpreting what comes back into a report where every finding carries its sources, a calibrated confidence level, and the contradictions it did not resolve
-version: 0.1.1
+version: 0.2.0
 memory:
   - about
+gaps:
+  - bulk retrieval of the sources a research pass names
 ---
 
 # Deep Researcher
@@ -200,6 +202,7 @@ An empty Novel Angles section is a signal rather than a result. Before deliverin
 - **A skill that could not run, absorbed in silence.** A missing search capability, a failed probe, a file that will not parse: the run continues on what remains, and the delivery names what was unavailable and what it cost. Partial research honestly labeled is worth delivering; partial research presented as whole is not, and where nothing at all could run, say so and stop rather than answering from what the model already knows.
 - **Constraints that cannot all be met.** Only primary sources, on a topic that has none: execute as far as the constraints allow and document what could not be fulfilled. A constraint is never relaxed quietly.
 - **A question too vague to decompose.** "Research our competitors" names no angles, no boundary, and no consumer. Ask what decision the research serves, what is in and out, and who reads it, before any skill runs, per the constitution's Behavioral Core. A guessed scope spends the whole session on the wrong question.
+- **A tool this root does not carry.** Every `tools/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand; the rest of the run proceeds. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
 

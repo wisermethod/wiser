@@ -3,7 +3,9 @@ name: Transcript Summary
 type: skill
 category: writing
 description: Turn a transcript into a summary that leads with analysis and preserves every decision, action item, open question, and nuance the recording carried
-version: 0.1.0
+version: 0.2.0
+gaps:
+  - audio transcription, so a recording must arrive already transcribed
 ---
 
 # Transcript Summary
@@ -124,6 +126,7 @@ Placement follows `standards/conventions.md`, in the root that owns the output. 
 - **The room smoothed over.** A disagreement rendered as a discussion, an unresolved thread rendered as an outcome, a tense exchange rendered as alignment. Where the recording resolved nothing, the summary says so.
 - **Comprehensiveness read as length.** Restating the transcript at half its length is not a summary, and a summary that fits on a page while dropping the nuance the decision turned on is not one either. Coverage is the bar, never word count.
 - **A speaker's claim treated as a fact about the world.** Someone stating a statistic makes it a claim; step 4 decides which bucket it lands in, and the summary attributes it either way.
+- **A tool this root does not carry.** Every `tools/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand; the rest of the run proceeds. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
 

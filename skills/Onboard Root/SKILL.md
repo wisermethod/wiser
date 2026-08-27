@@ -12,7 +12,7 @@ version: 0.2.0
 
 Use when the workspace needs an owned root it does not have, of one of the five types `system/templates/AGENTS.md` lists.
 
-Not for updating a deployed root of this plugin to a new release; that is `system/UPDATE.md`. Not for authoring a primitive or a Play inside a root that already exists; that is `skills/Play Author/` with the templates under `system/templates/`. Not for writing `memory/voice.md`; that is `skills/Build Voice/`, which this skill hands off to and never absorbs. Not for giving work a second home: when a composed root's scope already fits the request, that root owns it. Not for re-onboarding a root that already exists: no merge or invalidation semantics are defined, so report the state and ask before touching a bound file.
+Not for updating a deployed root of this plugin to a new release, which this root carries no procedure for. Not for authoring a primitive or a Play inside a root that already exists; that is `skills/Play Author/` with the templates under `system/templates/`. Not for writing `memory/voice.md`; that is `skills/Build Voice/`, which this skill hands off to and never absorbs. Not for giving work a second home: when a composed root's scope already fits the request, that root owns it. Not for re-onboarding a root that already exists: no merge or invalidation semantics are defined, so report the state and ask before touching a bound file.
 
 ## Objective
 

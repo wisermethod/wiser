@@ -2,7 +2,7 @@
 
 Personas that carry a perspective and judge work through it; `standards/primitives.md` owns the type's definition, invocation rules, and frontmatter. The directory is flat, and the index below is grouped by category.
 
-The index is **hand-maintained**. `standards/primitives.md` says a family index is generated from primitive frontmatter at release, by the release gate in `infrastructure/validate/`. This root does not carry that gate yet, so nothing generates this file: it is written by hand from the frontmatter of what actually shipped, and it is corrected by hand when a primitive is added, removed, renamed, or recategorised.
+The index is **hand-maintained**. `standards/primitives.md` says a family index is generated from primitive frontmatter at release. This root carries no generator, so nothing generates this file: it is written by hand from the frontmatter of what actually shipped, and it is corrected by hand when a primitive is added, removed, renamed, or recategorised.
 
 <!-- generated:index -->
 

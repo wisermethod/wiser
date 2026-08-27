@@ -87,7 +87,7 @@ A stale line is not documentation debt. Every later session reads this document 
 
 ## Naming and Storage
 
-Default home, if the owning root's AGENTS.md is silent: the `playbooks/` directory of the root that owns the work. Instances are named `YYYY-MM-DD-[slug].plan.md`, dated by creation; a Template master is the same slug undated, `[slug].plan.md`, its Type header declaring what it is. (This root's own build plans live in `infrastructure/build/plans/`.)
+Default home, if the owning root's AGENTS.md is silent: the `playbooks/` directory of the root that owns the work. Instances are named `YYYY-MM-DD-[slug].plan.md`, dated by creation; a Template master is the same slug undated, `[slug].plan.md`, its Type header declaring what it is. (This root does not carry a build-plan directory of its own.)
 
 A root's AGENTS.md may declare a different home. A client root places each Playbook in the `work/<subject>/` folder of the work it plans, named `<does-this-thing>.playbook.md`, with no date in the living filename: the subject folder is the run. A Template master sits in the parent of the runs under the same naming, and each run is a copy into that run's folder, also undated. Completed runs archive next to themselves; the archive prefix carries the date.
 

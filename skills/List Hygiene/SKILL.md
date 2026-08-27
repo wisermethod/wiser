@@ -3,7 +3,10 @@ name: List Hygiene
 type: skill
 category: communication
 description: Decide what an email contact list keeps and drops, verified through the usebouncer connector, with the cost put to the user before it is spent and every drop traced to the result field that caused it
-version: 0.1.0
+version: 0.2.0
+gaps:
+  - parsing and joining a contact list file
+  - address verification against an email validation service
 ---
 
 # List Hygiene
@@ -112,6 +115,7 @@ Into the response: the decision rather than the file listing. How much of the li
 - **Unknown read as dead.** Unknown means the mailbox could not be reached in the time allowed, not that it is gone. Dropping unknowns deletes reachable people permanently, and rechecking them later costs again what was already paid.
 - **Rows that disappear.** A row with no address, a row that did not parse, several rows collapsed onto one deduplicated address: each is a row the caller still counts as on the list. Every one of them is in the record with its number.
 - **The request that has not been asked yet.** An address column that could be two columns, a list whose origin nobody states, a send nobody has described, a balance that will not cover the file: ask before submitting, per the constitution's Behavioral Core. A submitted job cannot be recalled and its credits do not come back.
+- **A tool or connector this root does not carry.** Every `tools/` and `connectors/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand; the rest of the run proceeds. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
 

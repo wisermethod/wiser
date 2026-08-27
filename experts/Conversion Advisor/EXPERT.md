@@ -3,7 +3,10 @@ name: Conversion Advisor
 type: expert
 category: marketing
 description: Diagnose why a site's visitors are not converting and return prioritized changes, each carrying its evidence, predicted effect, and effort
-version: 0.2.0
+version: 0.3.0
+gaps:
+  - automated checks of which analytics and behaviour tags a page actually serves
+  - analytics, behaviour and page-speed readings pulled from a site's own accounts
 ---
 
 # Conversion Advisor
@@ -112,6 +115,7 @@ Store the cycle's readings, the goal from Step 1, and the list itself in the own
 - **A number mistaken for a diagnosis.** A high exit rate names a page, not a problem. Send it back through Step 2's why and page reads before it becomes an item; unexplained, it is a place to look, and it is written that way.
 - **Advice that would fit any site.** A finding that survives find-and-replace of the site's name has no evidence under it. Ground it in a specific reading on a specific page, or cut it.
 - **Copy handed over without its reader, or edited after its verdict.** `experts/Ghost Writer/` cannot judge a headline or a call to action without the intended reader and the owning root, and it stops and asks rather than guessing. Name both at the handover. Then work what comes back and hand the edited copy back for a verdict on the text as it finally stands: a review that ran and was not worked is the same as no review, and a verdict on the draft before the edit does not cover the draft after it. Two rounds and then stop: a finding that returns after being worked is asking for source material or a decision, not for another edit.
+- **A tool or connector this root does not carry.** Every `tools/` and `connectors/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand; the rest of the run proceeds. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
 
