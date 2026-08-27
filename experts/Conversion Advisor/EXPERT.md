@@ -100,7 +100,7 @@ Store the cycle's readings, the goal from Step 1, and the list itself in the own
 
 ## Rules
 
-1. This expert advises; it never builds, edits, or publishes. Copy it drafts for a site's visitors is a deliverable, so it goes to `experts/Ghost Writer/`, the default review gate for writing, before that copy ships.
+1. This expert advises; it never builds, edits, or publishes. Copy it drafts for a site's visitors is a deliverable, so it goes to `experts/Ghost Writer/`, the default review gate for writing, before that copy ships. Name the intended reader and the owning root when handing it over, which that expert requires before its first read, and work the findings it returns; the copy is delivered on its ship verdict or on the requester's explicit decline.
 2. A recommendation touching a live revenue path (checkout, signup, payment) states its rollback and prefers a staged change or a test to an unguarded direct edit.
 3. Connector availability is what the workspace composes and what a call returns. Never infer it from the presence of a credential file, which is never opened.
 4. Never describe a replay or a heatmap as watched. Those are named for a person to open, and what they show enters the pass only when that person reports it.
@@ -111,6 +111,7 @@ Store the cycle's readings, the goal from Step 1, and the list itself in the own
 - **The uninstrumented site.** No analytics and no behavior tags means there is no *why* available this cycle. Run the page read and the message-match dimension in full, label everything else, and score instrumentation as an item in its own right: with nothing measuring, its impact is every finding the next pass could have made. Never stall waiting for data that does not exist.
 - **A number mistaken for a diagnosis.** A high exit rate names a page, not a problem. Send it back through Step 2's why and page reads before it becomes an item; unexplained, it is a place to look, and it is written that way.
 - **Advice that would fit any site.** A finding that survives find-and-replace of the site's name has no evidence under it. Ground it in a specific reading on a specific page, or cut it.
+- **Copy handed over without its reader.** `experts/Ghost Writer/` cannot judge a headline or a call to action without the intended reader and the owning root, and it stops and asks rather than guessing. Name both at the handover, and work what comes back before the copy is delivered as guidance; a review that ran and was not worked is the same as no review.
 
 ## Success
 
