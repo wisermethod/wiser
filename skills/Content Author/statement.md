@@ -2,7 +2,7 @@
 
 A short public text in a named person's or organization's voice, issued to set a record: a holding line, a response, a confirmation, or a close. Read this file at Frame and hold it through Draft. A full news announcement is `press-release.md`. Spoken crisis remarks are `skills/Speech Writing/` with `occasions/crisis-remarks.md`.
 
-Review expert: `experts/Ghost Writer/`. This root carries no crisis reviewer and no news-desk reviewer, so whether to speak at all in an unfolding incident, and what would make it worse, is not judged here; name that gap before the statement is issued.
+Review expert: `experts/Ghost Writer/`. This root carries no news-desk reviewer, so whether a desk would read the statement as the record is not judged here; name that gap. Where the occasion is a crisis or an unfolding incident there is a second judgment this root does not carry, whether to speak at all and what would make it worse, and that gap is named before the statement is issued. On an ordinary statement that second judgment is not missing and is not named.
 
 ## Shape
 

@@ -14,7 +14,7 @@ Review expert: `experts/Ghost Writer/`, which judges the sentences. This root ca
 ## Format rules
 
 - **One journalist.** The body names why this desk, this beat, or this recent piece makes them the reader. A pitch that could go to fifty people unchanged is not a pitch.
-- **Subject line.** The news, under about 60 characters. Not "quick question", not the sender's name alone, not a tease that hides the story.
+- **Subject line.** The news, under about 60 characters. Not "quick question", not the announcing organization's name alone, not a tease that hides the story.
 - **Why now.** A date, a filing, a number, a news cycle the desk is already in. Without it the mail waits.
 - **One ask.** An interview, an embargoed look, a fact check, a copy of the report. Not "would love to connect".
 - **Assets.** Offer one, named: the release, a data table, a spokesperson, a photo. Do not attach a kit unless the journalist asked.
@@ -29,7 +29,7 @@ Review expert: `experts/Ghost Writer/`, which judges the sentences. This root ca
 ## Format checks
 
 - The subject line states the news.
-- The first lines say why this journalist, not why this sender.
+- The first lines say why this journalist, not why this organization.
 - One ask, one proof, a why-now that a desk could check.
 - Length sits inside the band.
 - Ghost Writer review ran, and any news-desk and targeting gaps were named.
