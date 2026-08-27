@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="presentation-width" content="1920">
+  <meta name="presentation-height" content="1080">
+  <title>{{TITLE}}</title>
+  <!-- reveal.js 5.2.1, pinned, loaded from a CDN: presenting this deck needs network access. -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.2.1/dist/reset.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.2.1/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.2.1/dist/theme/white.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.2.1/plugin/highlight/monokai.css">
+  <style>
+    /*
+     * Brand custom properties: the only values in this file a deck edits.
+     * Every one below is a placeholder. Replace all of them with the resolved
+     * design, the bound design source or the brand references gathered when
+     * nothing was bound, before the deck ships; shipping the placeholders
+     * ships a generic look. Everything past the closing brace is locked.
+     */
+    :root {
+      --brand-primary: #2563eb;
+      --brand-secondary: #7c3aed;
+      --brand-accent: #06b6d4;
+      --brand-font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --brand-font-heading: var(--brand-font-body);
+      /* Page color under slides; dark decks must set this to the on-screen field
+         so ?print-pdf / deck-export PDF keeps text readable (see @media print). */
+      --deck-bg: #ffffff;
+    }
+
+    /* Typography wiring for the properties above */
+    .reveal { font-family: var(--brand-font-body); }
+    .reveal h1, .reveal h2, .reveal h3, .reveal h4 { font-family: var(--brand-font-heading); }
+
+    /* Presentation utilities */
+    .reveal section img { border: none; box-shadow: none; }
+    .reveal .slide-number {
+      font-size: 18px;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 4px 10px;
+      border-radius: 4px;
+    }
+
+    /* Section divider text color */
+    .section-slide h1, .section-slide h2, .section-slide h3,
+    .section-slide p, .section-slide li { color: #fff; }
+
+    /* Two-column layout */
+    .columns { display: flex; gap: 2em; text-align: left; width: 100%; }
+    .columns .col { flex: 1; }
+
+    /* Metrics display */
+    .metrics { display: flex; justify-content: center; gap: 4em; margin-top: 1em; }
+    .metric { text-align: center; }
+    .metric .number { font-size: 2.5em; font-weight: bold; line-height: 1.2; }
+    .metric .label { font-size: 0.5em; opacity: 0.6; margin-top: 0.3em; }
+
+    /* Brand color utilities */
+    .brand-primary { color: var(--brand-primary); }
+    .brand-secondary { color: var(--brand-secondary); }
+    .brand-accent { color: var(--brand-accent); }
+
+    /* Card layouts */
+    .cards {
+      display: flex; gap: 1.5em; justify-content: center;
+      margin-top: 1em; width: 100%;
+    }
+    .cards-single { max-width: 60%; margin-left: auto; margin-right: auto; }
+    .cards-three .card { flex: 1; min-width: 0; }
+    .card {
+      flex: 1; padding: 1.5em; border-radius: 8px;
+      background: linear-gradient(135deg, rgba(0,0,0,0.02), rgba(0,0,0,0.05));
+      border: 1px solid rgba(0,0,0,0.08); text-align: left;
+    }
+    .card-label {
+      font-size: 0.4em; text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--brand-accent); margin-bottom: 0.3em;
+    }
+    .card-title { font-size: 0.7em; font-weight: 600; margin-bottom: 0.5em; }
+    .card-description { font-size: 0.5em; opacity: 0.8; line-height: 1.5; }
+    .card-list { font-size: 0.5em; line-height: 1.6; padding-left: 1.2em; }
+    .card-price { font-size: 1.2em; font-weight: 700; color: var(--brand-accent); }
+
+    /* Attribution / footer text */
+    .attribution { font-size: 0.45em; opacity: 0.5; margin-top: 2em; }
+    .text-muted { opacity: 0.6; }
+
+    /* Code block sizing */
+    .reveal pre { width: 100%; font-size: 0.55em; }
+    .reveal pre code { max-height: 500px; }
+
+    /* Quote styling */
+    .reveal blockquote {
+      border-left: 4px solid var(--brand-primary);
+      padding: 0.5em 1em; font-style: italic;
+      width: auto; text-align: left; background: none;
+      box-shadow: none;
+    }
+
+    /* Accessibility: screen reader only */
+    .sr-only {
+      position: absolute; width: 1px; height: 1px;
+      padding: 0; margin: -1px; overflow: hidden;
+      clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+    }
+
+    /*
+     * Print / PDF export (reveal.js ?print-pdf and tools/deck-export pdf).
+     * Each slide is wrapped in a .pdf-page box that defaults to white. A
+     * background on .reveal alone does not paint those boxes, so a dark deck
+     * exports as white pages and white text vanishes. Set --deck-bg (and any
+     * page gradient) to the same field used on screen; keep
+     * print-color-adjust so Chromium does not strip the fill.
+     */
+    @media print {
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      html, body, .reveal, .reveal .slides, .reveal .backgrounds {
+        background: var(--deck-bg, #ffffff) !important;
+      }
+      .reveal .slides .pdf-page {
+        background: var(--deck-bg, #ffffff) !important;
+      }
+      .reveal .slide-background { background: transparent !important; }
+      .reveal .slide-number { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+<!-- SLIDES START -->
+      <!-- Cover: title + attribution -->
+      <section>
+        <h1>{{TITLE}}</h1>
+        <p class="attribution">Prepared by [Author] | [Date]</p>
+      </section>
+
+      <!-- Section divider: gradient background, white text -->
+      <section class="section-slide" data-background-gradient="linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%)">
+        <h2>The Problem</h2>
+        <p>Why the current approach is failing</p>
+      </section>
+
+      <!-- Standard content: conclusion headline + short-phrase bullets -->
+      <section>
+        <h2>Three Barriers Block Adoption Today</h2>
+        <ul>
+          <li>Onboarding takes 6 weeks; competitors do it in 3 days</li>
+          <li>No self-service path for teams under 50 seats</li>
+          <li>Pricing model penalizes the fastest-growing customers</li>
+        </ul>
+        <aside class="notes">
+          Talking points:
+          - Emphasize the 6-week figure; it is from customer interviews
+          - Pause after the pricing point; this is the one that resonates most
+          - Transition: "So what does this cost us?"
+        </aside>
+      </section>
+
+      <!-- Breather: centered statement -->
+      <section>
+        <h2>We Lost 340 Deals to This in Q3 Alone</h2>
+        <p style="opacity: 0.7; margin-top: 0.5em; font-size: 0.8em;">$4.2M in pipeline that cited onboarding complexity as the primary objection</p>
+      </section>
+
+      <!-- Section divider -->
+      <section class="section-slide" data-background-gradient="linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%)">
+        <h2>The Fix</h2>
+        <p>Three changes that unlock the next stage of growth</p>
+      </section>
+
+      <!-- Metrics: key numbers -->
+      <section>
+        <h2>Pilot Results Validate the Approach</h2>
+        <div class="metrics">
+          <div class="metric">
+            <div class="number brand-primary">3 days</div>
+            <div class="label">Onboarding Time</div>
+          </div>
+          <div class="metric">
+            <div class="number brand-primary">+47%</div>
+            <div class="label">Conversion Rate</div>
+          </div>
+          <div class="metric">
+            <div class="number brand-primary">92%</div>
+            <div class="label">Satisfaction Score</div>
+          </div>
+        </div>
+        <aside class="notes">
+          Talking points:
+          - These are from the 60-day pilot with 200 accounts
+          - The satisfaction score is across all segments, not cherry-picked
+          - Transition: "Here is what we need to ship this broadly."
+        </aside>
+      </section>
+
+      <!-- Ordered list: next steps -->
+      <section>
+        <h2>Three Moves to Ship by End of Quarter</h2>
+        <ol>
+          <li><strong>Week 1 to 2.</strong> Rebuild onboarding flow with a self-service path</li>
+          <li><strong>Week 3 to 6.</strong> Migrate pricing model for sub-50-seat tiers</li>
+          <li><strong>Week 7 to 8.</strong> Launch to the waitlist, measure against the pilot baseline</li>
+        </ol>
+      </section>
+
+      <!-- Closing -->
+      <section>
+        <h2>Thank You</h2>
+        <p>Questions?</p>
+        <p class="attribution">name@example.com</p>
+      </section>
+<!-- SLIDES END -->
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.2.1/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.2.1/plugin/highlight/highlight.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.2.1/plugin/notes/notes.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      slideNumber: true,
+      transition: 'slide',
+      width: 1920,
+      height: 1080,
+      margin: 0.04,
+      center: true,
+      pdfSeparateFragments: false,
+      plugins: [RevealHighlight, RevealNotes]
+    });
+  </script>
+</body>
+</html>
