@@ -2,7 +2,7 @@
 
 The general knowledge-work plugin: skills, experts, and the standards that bind them, for doing real work in your own voice on your own material.
 
-Harness-agnostic. It carries no dependency on any single agent host and runs wherever a plugin of its shape can be loaded.
+It carries no dependency on any single agent host: everything in it is instruction text plus one shell script, and it runs wherever a root of this shape can be composed.
 
 ## What is in it
 
@@ -30,10 +30,12 @@ Press and public-affairs judgment is not here either: whether something is a sto
 
 ## Install
 
-Install the plugin `wiser` from the marketplace at `wisermethod/wiser`, then attach your working folder. Nothing else is required.
+Point your harness at this repository as a plugin root, then attach your working folder. **This repository is the source tree**: it ships no generated plugin manifest and no marketplace projection, so a harness that requires one is not yet supported. Install by composing this root, and read `AGENTS.md` first.
 
-If you do not have a working folder yet, `skills/Onboard Root/` creates one from the templates in `system/templates/`.
+If you do not have a working folder yet, `skills/Onboard Root/` creates one from the templates in `system/templates/`. Its gate harness runs on a client root; for the other four types the skill's gate table is worked by hand.
 
 ## License
 
 See `LICENSE`. Free for an individual, including at work.
+
+Two experts adapt material from Apache-2.0 sources. `experts/Creative Director/NOTICE.md` and `experts/Design Advisor/NOTICE.md` carry the attribution, and a copy of the Apache License 2.0 ships at `licenses/Apache-2.0.txt`.

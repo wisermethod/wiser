@@ -53,6 +53,8 @@ Direct, never re-perform. Where a sibling skill owns a phase, this one hands ove
 
 ## Steps
 
+**Before any step below that names a `tools/` or `connectors/` path: this root ships neither.** Where a step needs one, say which step cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+
 Five phases in order. A phase the request or the bound memory has already settled is stated as settled and skipped, never re-run.
 
 ### 1. Brief

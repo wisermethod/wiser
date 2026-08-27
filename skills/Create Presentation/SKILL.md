@@ -36,6 +36,8 @@ An argument designer, not a slide decorator. A deck earns attention by making it
 
 ## Steps
 
+**Before any step below that names a `tools/` or `connectors/` path: this root ships neither.** Where a step needs one, say which step cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+
 Staged composition: resolve design, route the material, calibrate, design the arc, generate slides beat by beat, then assemble and preview. Never generate a whole deck in one pass; a structural change after slides exist is expensive. The reference libraries in this directory are read at the step that needs them, never all at once:
 
 | File | Read from |

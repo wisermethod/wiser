@@ -57,6 +57,8 @@ The three are one composition rather than three settings, because each is a shar
 
 ## Steps
 
+**Before any step below that names a `tools/` or `connectors/` path: this root ships neither.** Where a step needs one, say which step cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+
 1. **Settle the frame, the destination, and the count.** There is no default save location: ask for the directory, and for a name per photograph or the rule that derives one, since a set delivered under names nobody chose is a set nobody can wire into a page. Keep every intermediate file in a work directory per `standards/conventions.md`. Confirm the three frame parameters, then say what the batch will cost: two billed calls per photograph, named as a count before the first one. A set runs one photograph at a time through the steps below, under one frame; never change a parameter part way through a set.
 
 2. **Take the background off.** Ask `connectors/replicate/` what it curates for background removal with `account.js defaults`, read that model's input schema with `models.js get`, and run it with `predictions.js run <model> --input <json> --output-dir <work directory> --env <path>`. The result is a PNG, because the transparency is the entire point of the step and a JPEG has no alpha channel to carry it. The model choice and its judgment belong to the connector's curated pin and to `skills/Media Generator/`; nothing about a model is decided or hardcoded here.
@@ -125,6 +127,8 @@ The three are one composition rather than three settings, because each is a shar
 - **A tool or connector this root does not carry.** Every `tools/` and `connectors/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand; the rest of the run proceeds. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
+
+- **Where a component this root does not ship was needed, success is the honest stop**: the run named which step could not run, what it would have produced, and the gap it belongs to, and produced no file and no figure in its place. **Every criterion below applies to a run in which those components were present.**
 
 - One PNG exists at each path the caller named, square at the frame's output size, carrying transparency where the background was and everywhere the placed picture did not reach the edge of the square.
 - Two finished files from the same standard put their eye midpoints on the same coordinates, and the distance between the eyes is the frame's eye span in both, within the rounding a whole pixel allows: every delivered file carries the standard's eye span and eye line, and a band below, when present, ships named with its height.

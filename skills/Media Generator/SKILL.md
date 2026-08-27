@@ -47,6 +47,8 @@ A director commissioning a shot, not a person typing wishes into a box. The prom
 
 ## Steps
 
+**Before any step below that names a `tools/` or `connectors/` path: this root ships neither.** Where a step needs one, say which step cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+
 1. **Place the request.** Decide which of three it is: an image to generate, a video to generate, or a background to remove. Anything the Context hands to a tool goes there and this skill stops. Then settle two facts before anything is billed. The destination: there is no default save location, so ask for the directory and the filename, and keep intermediate frames in a work directory per `standards/conventions.md`. And the purpose, because purpose picks the medium in Step 2; where the request states none and the surrounding work implies none, ask rather than assume, whenever the user is present to answer. A background removal writes no prompt, so it skips Step 2 and runs Steps 3 to 5 in the background-removal category.
 
 2. **Finish the prompt.** Every request passes this assessment, including one that arrives looking complete. Where the user supplies a still to animate, that image has already fixed the medium and the look, so the assessment runs on what changes, the motion, and the medium row below is already answered.
@@ -121,6 +123,8 @@ A director commissioning a shot, not a person typing wishes into a box. The prom
 - **A tool or connector this root does not carry.** Every `tools/` and `connectors/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand; the rest of the run proceeds. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
+
+- **Where a component this root does not ship was needed, success is the honest stop**: the run named which step could not run, what it would have produced, and the gap it belongs to, and produced no file and no figure in its place. **Every criterion below applies to a run in which those components were present.**
 
 - One file exists at the path the user named, in a format that destination can use, and it holds what was asked for.
 - Every prompt that reached a model carried an explicit medium and either exact wording or an instruction excluding text.

@@ -53,6 +53,8 @@ A research lead who owns the question and hands every act of gathering to the sk
 
 ## Steps
 
+**Before any step below that names a `tools/` or `connectors/` path: this root ships neither.** Where a step needs one, say which step cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+
 Five phases in order.
 
 ### 1. Scope

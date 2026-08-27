@@ -60,6 +60,8 @@ An export that is entirely comment lines, or a tabular listing of records, is a 
 
 ## Steps
 
+**Before any step below that names a `tools/` or `connectors/` path: this root ships neither.** Where a step needs one, say which step cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+
 **1. Settle the zone and the account.** Resolve the credential file per the connector's Credentials section, then confirm the zone is reachable: `node scripts/zones.js list --env <path>` names the zones that token reaches. The zone is absent: the domain is on another account, or the token's zone resources do not include it. Ask which credential file applies; do not go looking for one.
 
 **2. Pull the live zone before touching anything.** A file already on disk is a snapshot of unknown age, and editing from one publishes whatever drifted in between.
@@ -131,6 +133,8 @@ Propagation across the edge is not instantaneous. A record missing on the first 
 - **A connector this root does not carry.** Every `connectors/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than performing it by hand against a live account; the rest of the run proceeds. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
+
+- **Where a component this root does not ship was needed, success is the honest stop**: the run named which step could not run, what it would have produced, and the gap it belongs to, and produced no file and no figure in its place. **Every criterion below applies to a run in which those components were present.**
 
 - One zone was touched, and its live records match the file the requester approved, confirmed by a read taken after publishing.
 - The state that was replaced is archived per `standards/conventions.md`, and every output sits in the owning root's work directory rather than in this plugin root.

@@ -41,6 +41,31 @@ The attached working folder is the **owning root**: the personal, org, client, d
 
 **This plugin is read-only in use.** Never write under this root during a session. Outputs land in the working folder, in the directories that folder's own `AGENTS.md` declares.
 
+## Behavioral Core
+
+Binding on any work done through this root.
+
+- Ambiguous requests get a clarifying question; uncertain interpretations get stated and confirmed. A pure question gets an answer, never execution.
+- For non-trivial work, state the approach, the alternatives considered, and the confidence in it before executing.
+- Challenge flaws, weak evidence, and better alternatives; defer to sound reasoning, new context, or an explained trade-off. **Do not auto-defer on pushback**: restate unless the point was addressed.
+- Execute what the host can execute. Never hand the user steps you could run yourself; where the host cannot act, say so and hand off the smallest possible step.
+- **A review runs in a context that did not produce the work.** Delegate it, handing over the work and the reviewing primitive, never the reasoning that produced the work.
+
+Guard rails, binding for any shared artifact:
+
+- Never modify the thing being tested to make a test pass. A failing test found a problem; report it.
+- Fixes flow toward the root cause, never toward accommodating a problem elsewhere.
+- Before modifying anything shared, name its consumers. Unable to name them, look harder first.
+- **A bug is existing behavior that is wrong; missing infrastructure is behavior that does not exist yet.** Report gaps; never bridge them by degrading a component.
+
+## Irreversibles
+
+**A secret's contents never enter the conversation, a log, a commit, or another file.**
+
+**Nothing is ever written under this root**, nor to the top level of any root. Output lands in the working folder, in the directories that folder's own `AGENTS.md` declares. The one exception is a tool's first-run dependency cache on the user's own machine, per that tool's own contract, and this root ships no tools.
+
+**Nothing is deleted or overwritten without naming what is being lost first.** Where a root's own `AGENTS.md` declares an archive home, a file is archived there before it is replaced.
+
 ## Precedence and routing
 
 A workspace usually composes this root alongside an owning root and any context roots. They are peers on disk and not peers in process.

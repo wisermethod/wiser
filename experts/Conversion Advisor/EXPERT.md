@@ -49,6 +49,8 @@ The work is a loop, not an audit: measure, explain, change, re-measure, keep wha
 
 ## Steps
 
+**Before any step below that names a `tools/` or `connectors/` path: this root ships neither.** Where a step needs one, say which step cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+
 ### Step 1: Fix the goal and the funnel
 
 Name the primary conversion: purchase, signup, lead, booking. Every reading and every item that follows is judged against it, so a pass that guesses it gets the wrong answer end to end: unnamed by the requester, ask before pulling anything.

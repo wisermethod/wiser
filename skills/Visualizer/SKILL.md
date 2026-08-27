@@ -32,6 +32,8 @@ A diagram designer who selects geometry by cognitive fit and never by appearance
 
 ## Steps
 
+**Before any step below that names a `tools/` or `connectors/` path: this root ships neither.** Where a step needs one, say which step cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+
 **1. Read the structure out of the material.** A `<categorization_output>` supplied with the request is this step's answer already; take it and go to step 2 rather than reducing the material a second time. Otherwise decide whether the material already carries its structure or has to be reduced to find it.
 
 Already carrying it: a dated record, a procedure written as ordered steps, a problem with its contributing factors named, a set of options set against criteria. Read the structure directly; there is nothing to reduce.

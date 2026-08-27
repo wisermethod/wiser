@@ -8,4 +8,4 @@ The three whole-layout clusters in the Prohibited Defaults Taxonomy are adapted,
 - License: Apache 2.0
 - What was drawn on: the three whole-layout clusters, adapted from a later revision of the skill, none verbatim.
 
-The Apache License 2.0 is at https://www.apache.org/licenses/LICENSE-2.0.
+A copy of the Apache License 2.0 ships with this plugin at `licenses/Apache-2.0.txt`, and is also published at https://www.apache.org/licenses/LICENSE-2.0. The material named above was modified: it was adapted rather than copied, and no passage is verbatim.

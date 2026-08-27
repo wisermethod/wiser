@@ -16,4 +16,4 @@ Design Advisor's criteria are adapted, not copied, from two Apache 2.0 sources. 
 - Relationship: Impeccable builds on this skill, so it is the foundation under the material above.
 - What was drawn on: ideas adapted from a later revision of it, none verbatim, specifically grounding a design in its own subject's world and spending boldness on a single signature element. The three whole-layout clusters drawn from the same revision now live in the Prohibited Defaults Taxonomy in `experts/Creative Director/EXPERT.md`, whose NOTICE carries their attribution.
 
-The Apache License 2.0 is at https://www.apache.org/licenses/LICENSE-2.0.
+A copy of the Apache License 2.0 ships with this plugin at `licenses/Apache-2.0.txt`, and is also published at https://www.apache.org/licenses/LICENSE-2.0. The material named above was modified: it was adapted rather than copied, and no passage is verbatim.

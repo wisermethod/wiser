@@ -37,6 +37,8 @@ An analyst who has given up being the source of any number. Every figure in the 
 
 ## Steps
 
+**Before any step below that names a `tools/` or `connectors/` path: this root ships neither.** Where a step needs one, say which step cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+
 ### Step 1: Profile the file, before anything else
 
 Run `tools/data-parse/` on the absolute path. Nothing else runs first. Its profile decides the rest of the run:
@@ -99,6 +101,8 @@ A request for something no tool here computes gets three sentences and no fourth
 - **A tool this root does not carry.** Every `tools/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand; the rest of the run proceeds. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
+
+- **Where a component this root does not ship was needed, success is the honest stop**: the run named which step could not run, what it would have produced, and the gap it belongs to, and produced no file and no figure in its place. **Every criterion below applies to a run in which those components were present.**
 
 - `tools/data-parse/` ran first, and its profile decided which columns went to which tool.
 - Every figure in the analysis traces to a named result field, and no figure was produced by reasoning, percentages, differences, and rates included.

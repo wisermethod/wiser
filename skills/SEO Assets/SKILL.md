@@ -62,7 +62,7 @@ The constraints under each, where losing one costs something on a live site:
 
 **Content brief.** Settle the intent before writing the brief; one written over an ambiguous query produces a page that satisfies neither reading. Format and length are calibrated from the pages actually ranking for the query, never from a word-count rule; where no source in Evidence returns them, that reading is taken by hand and carries `Estimated: manual review`. Separate what every ranking page covers from what none of them does, since the second is the only reason the new page wins.
 
-**Competitive documents.** The change list between two snapshots is computed by `tools/sitemap-diff/` and never read off sitemap markup by eye, at any size: the tool is always available to this skill, so there is no case for producing one without it. A change list that arrives already made, from a source that had no such tool, is evidence rather than production and carries `Estimated: manual review`. Gaps are classified and reported; which to pursue, and in what order, arrives as a finding. A roadmap schedules an order it was given and never creates one.
+**Competitive documents.** The change list between two snapshots is computed by `tools/sitemap-diff/` and never read off sitemap markup by eye, at any size: where the tool is present it is always used, and where it is absent the change list is not produced by eye instead: say the comparison cannot run and what it would have shown. A change list that arrives already made, from a source that had no such tool, is evidence rather than production and carries `Estimated: manual review`. Gaps are classified and reported; which to pursue, and in what order, arrives as a finding. A roadmap schedules an order it was given and never creates one.
 
 **Status snapshot.** Every reading carries its date and its source. No recommendation belongs in it: what a movement means is a finding, and a snapshot that starts advising is a judgment nobody reviewed.
 
@@ -90,6 +90,8 @@ What each hand-off needs to be right:
 - Search Console rows arrive two to three days late, stop at sixteen months, and are a top slice with rare queries withheld, so a total summed from them describes the rows and never the property. Any artifact quoting one says which.
 
 ## Steps
+
+**Before any step below that names a `tools/` or `connectors/` path: this root ships neither.** Where a step needs one, say which step cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
 
 ### Step 1: Settle the site, the artifacts, and the order they implement
 
@@ -148,6 +150,8 @@ The deployment is the requester's. Where one change has both a file and a platfo
 - **A tool or connector this root does not carry.** Every `tools/` and `connectors/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand; the rest of the run proceeds. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
+
+- **Where a component this root does not ship was needed, success is the honest stop**: the run named which step could not run, what it would have produced, and the gap it belongs to, and produced no file and no figure in its place. **Every criterion below applies to a run in which those components were present.**
 
 - One site, one artifact set, and every artifact in it appears in The Artifacts and carries what its row names.
 - Every figure traces to a reading this run took or to a finding it was handed, and every reading that did not arrive is labeled in place with which absence it was.

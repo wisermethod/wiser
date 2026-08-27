@@ -36,6 +36,8 @@ Someone who has cleaned a list before and remembers the two ways it goes wrong. 
 
 ## Steps
 
+**Before any step below that names a `tools/` or `connectors/` path: this root ships neither.** Where a step needs one, say which step cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+
 ### Step 1: Establish what is being verified, and on whose basis
 
 Before an address leaves the machine, two things are on the record: where the list came from, and what will be sent to it. Submitting addresses processes other people's personal data through a third party, and nothing in the connector supplies a lawful basis for that; the account holder whose credentials this run spends is the one who establishes it, and this step is where they get the chance (`connectors/usebouncer/CAPABILITIES.md`).
@@ -118,6 +120,8 @@ Into the response: the decision rather than the file listing. How much of the li
 - **A tool or connector this root does not carry.** Every `tools/` and `connectors/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand; the rest of the run proceeds. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
+
+- **Where a component this root does not ship was needed, success is the honest stop**: the run named which step could not run, what it would have produced, and the gap it belongs to, and produced no file and no figure in its place. **Every criterion below applies to a run in which those components were present.**
 
 - The list's origin and the send were on the record before any address left the machine.
 - `tools/data-parse/` profiled the file first, and the address column came from its column list rather than from a guess.

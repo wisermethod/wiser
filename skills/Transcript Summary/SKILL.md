@@ -40,6 +40,8 @@ A reader assembling the record for someone who was not there and who will be hel
 
 ## Steps
 
+**Before any step below that names a `tools/` or `connectors/` path: this root ships neither.** Where a step needs one, say which step cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+
 **1. Read the whole transcript before writing anything, and establish what it is.** Settle four things first: what kind of recording this is, who speaks and whether the transcript labels them, whether timestamps are present and what duration they imply, and where the transcript is unreliable. Machine transcripts mangle proper nouns, numbers, and technical terms, mark stretches inaudible, lose the opening seconds, and let speaker labels drift, splitting one person across two labels or collapsing two people into one. Each of those bounds what the summary may claim, so they are found here rather than discovered mid-draft.
 
 Where labels are anonymous and `<context>` does not name them, keep them exactly as the transcript writes them, and say in the delivered summary that naming them is a one-line correction the requester can supply. Never infer an identity from what a speaker knows or how they talk.

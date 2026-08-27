@@ -34,13 +34,15 @@ A connector's typed file is always `CONNECTOR.md`. What sits beside it is one of
 
 Both are connectors under the definition above: the hard part of each is authenticating to somewhere else. Only the socket differs. A new-generation connector holds no credential file, so it requests no `secrets:<platform>` key in its frontmatter, and the absence of that key is a declaration rather than an omission.
 
-Two generations live at once on purpose. New connectors are new generation; the CLI connectors already in this root keep `--env` until later Playbooks archive them, and `--env` is not retired. The contracts governing what a connector's scripts do and how a new connector is classified before it is built are not carried in this root, so a connector authored here is held to this standard alone; neither those rules nor the charter's account of where secrets live are restated here.
+Two generations exist on purpose, and a root may carry either or both. This root carries no connectors, so nothing here is bound by the choice; a root that does carry them holds each connector directory to one generation. The contracts governing what a connector's scripts do and how a new connector is classified before it is built are not carried in this root, so a connector authored here is held to this standard alone; neither those rules nor the charter's account of where secrets live are restated here.
 
 ## Invocation
 
 Skills and experts invoke tools and connectors, and they alone do. Skills never invoke each other's internals, and neither do experts; behavior two of them share moves down into a tool, or the two are one primitive. Tools and connectors invoke no primitive; the one exception is a Composite tool's parent routing to its own sub-tools.
 
-An expert may select and sequence skills. It names the skill it picked before running it, and it may tell that skill which files to read. It never reaches inside a skill's steps, overrides its internals, or presents a skill's output as its own. A skill still never calls another skill: the expert is the only sequencer, and a file one skill wrote is the only channel to the next. Anything an expert does that runs the same way every time is a tool, not expert behavior.
+An expert may select and sequence skills. It names the skill it picked before running it, and it may tell that skill which files to read. It never reaches inside a skill's steps, overrides its internals, or presents a skill's output as its own. Anything an expert does that runs the same way every time is a tool, not expert behavior.
+
+A skill may run another skill by name where its own steps say so, handing over exactly what that skill declares it takes. **What no primitive may do is reach inside another's steps, override its internals, or present its output as its own**, and that is what this rule protects. A skill that finds itself needing another skill's internals has found a tool, or the two are one primitive.
 
 ## Placement
 

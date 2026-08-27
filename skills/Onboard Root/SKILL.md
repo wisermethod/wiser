@@ -12,7 +12,7 @@ version: 0.2.0
 
 Use when the workspace needs an owned root it does not have, of one of the five types `system/templates/AGENTS.md` lists.
 
-Not for updating a deployed root of this plugin to a new release, which this root carries no procedure for. Not for authoring a primitive or a Play inside a root that already exists; that is `skills/Play Author/` with the templates under `system/templates/`. Not for writing `memory/voice.md`; that is `skills/Build Voice/`, which this skill hands off to and never absorbs. Not for giving work a second home: when a composed root's scope already fits the request, that root owns it. Not for re-onboarding a root that already exists: no merge or invalidation semantics are defined, so report the state and ask before touching a bound file.
+Not for updating a deployed root of this plugin to a new release, which this root carries no procedure for. Not for authoring a primitive or a Play inside a root that already exists; that is `skills/Play Author/`, which carries its own format; this root ships root templates only. Not for writing `memory/voice.md`; that is `skills/Build Voice/`, which this skill hands off to and never absorbs. Not for giving work a second home: when a composed root's scope already fits the request, that root owns it. Not for re-onboarding a root that already exists: no merge or invalidation semantics are defined, so report the state and ask before touching a bound file.
 
 ## Objective
 
@@ -208,7 +208,7 @@ The copied `memory/about.md` is the question list: each heading carries a prompt
 
 **Bind credentials by name only**, where the root ships a secrets home as the Personal Root Template does, or where the requester wants a platform's credentials to live in this root. The Org and Client templates state how such a root adds one; for a type whose template declares no secrets home, ask before adding one, recommending the personal-type default unless the credential must be shared. This happens here rather than at close so the requester has the rest of the run to fill the values.
 
-1. Take the key names from the platform's connector when the workspace has one; its `CONNECTOR.md` and `SETUP.md` name the variables. The connector templates under `system/templates/` are not connectors, and their placeholder names are never real key names. No connector: ask the requester for the names. Never invent a name, which fails at use and looks like a bad credential.
+1. Take the key names from the platform's connector when the workspace has one; its `CONNECTOR.md` and `SETUP.md` name the variables. This root ships no connector templates, and any placeholder names such a template would carry are never real key names. No connector: ask the requester for the names. Never invent a name, which fails at use and looks like a bad credential.
 2. Write the file at the path the binding names, one bare `KEY=` per line, values empty, nothing else in the file. Add the binding where the template directs. A personal root reaches its secrets by the constitution's default and needs no binding; there the file lives in `memory/secrets/`, named for the platform.
 3. Tell the requester to open that file in their own editor and type each value there, bare. Where the platform has a connector, hand them its `SETUP.md`, which owns the credential-issuing walkthrough.
 4. Verify by the two counts at close, never by opening the file. A file still unfilled at close is a legitimate state; a file unfilled and unowned is not, so it takes an operating-file row naming that credential as the blocker.
@@ -271,10 +271,14 @@ Exit: G15, G16.
 
 ### Phase 9: Close, per key
 
+**The harness runs on a client root.** `gates.sh` reads `work/onboarding/` and `todos/current.md`, which is the client-root layout: of the five templates, only `Client Root Template/` ships those directories. **On a personal, org, department or industry root, run the Gates table below by hand instead**, against that root's own declared layout, and record the same verdicts. Running the harness against a root that does not carry the layout reports missing paths that its own template never promised.
+
+**It is `bash`, not `sh`.** The script uses process substitution, which `/bin/sh` rejects before any gate runs.
+
 **Run the harness, then read the Gates section below.** This skill ships the gate suite beside it as `gates.sh`, and Phase 9 executes it against the root:
 
 ```
-sh "<the directory this SKILL.md sits in>/gates.sh" "<absolute path to the root>"
+bash "<the directory this SKILL.md sits in>/gates.sh" "<absolute path to the root>"
 ```
 
 `gates.sh` is a sibling of this file, wherever this skill is installed; resolve it the same way the register companions beside a Content Author brief are resolved. It needs `sh`, `awk`, `grep` and `sed` and nothing else.

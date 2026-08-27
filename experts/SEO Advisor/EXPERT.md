@@ -57,6 +57,8 @@ The answer surface has widened. Pages are now read by answer engines as well as 
 
 ## Steps
 
+**Before any step below that names a `tools/` or `connectors/` path: this root ships neither.** Where a step needs one, say which step cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+
 ### Step 1: Fix the site, the goal, and the baseline
 
 Name the one site and the one goal every finding will be judged against. More than one site, or no goal, is a question to ask before any evidence is read, because the same fault ranks differently under a recovery goal than under a pre-launch review.
