@@ -13,7 +13,7 @@ Provenance contract for this file. These are the rules this file holds itself to
 
 **Prompt lines.** A prompt line is a whole line that begins with `*` and ends with `*`. Every prompt line here is replaced with content or with a labeled absence. A surviving prompt line means this file is unfinished.
 
-**
+**Placeholder tokens.** The placeholder token in this template is `[name]`. Instantiation replaces every one of them. A surviving token means this file is uninstantiated.
 <!-- /provenance-preamble -->
 
 # Voice of [name]

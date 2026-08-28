@@ -2,7 +2,9 @@
 
 How this department's materials look, read against the parent organization's design.
 
+<!-- provenance-preamble -->
 Deferrals and checkable claims here carry their evidence label in square brackets, in place, exactly where the reading would have appeared: `[Verified]`, `[Estimated: <method>]`, `[Unverified: requires confirmation]`, `[Not available: <reason>]`. Those four are the whole vocabulary, defined in `standards/conventions.md`. A value read from a guide, a template, or a stylesheet names the file and the place in it that value was read from. `about.md` in this folder states the prompt-line pattern and the placeholder token.
+<!-- /provenance-preamble -->
 
 ## Where It Differs
 

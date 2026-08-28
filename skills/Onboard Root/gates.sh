@@ -1242,7 +1242,7 @@ gate_G9() {
     while IFS= read -r hit; do
       [ -n "$hit" ] || continue
       add_fail "$r line ${hit%%:*}: a prompt line survives (^\\*.*\\*\$)"
-    done < <(grep -nE '^\*.*\*$' "$f" 2>/dev/null)
+    done < <(strip_preamble "$f" | grep -nE '^\*.*\*$' 2>/dev/null)
     # (b) and (c)
     while IFS= read -r msg; do
       [ -n "$msg" ] || continue

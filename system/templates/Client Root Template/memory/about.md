@@ -11,7 +11,7 @@ Provenance contract for this file. These are the rules this file holds itself to
 
 **Prompt lines.** A prompt line is a whole line that begins with `*` and ends with `*`. Every prompt line in this file is replaced during Instantiation, either with content or with a labeled absence. A surviving prompt line means this file is unfinished.
 
-** A surviving token means this file is uninstantiated.
+**Placeholder tokens.** The placeholder token in this template is `[name]`. Instantiation replaces every one of them. A surviving token means this file is uninstantiated.
 <!-- /provenance-preamble -->
 
 # About [name]
@@ -26,7 +26,9 @@ What an agent needs to know about this client before doing work for them.
 
 <!-- figures -->
 
+<!-- provenance-preamble -->
 Every figure an agent must get right sits in the table below, one row each. A row carries the unit it is counted in, the denominator it is a share of, the tool that produced it, the window it covers, its evidence label, and the source it was read from. A row missing any of those is not ready to enter this file.
+<!-- /provenance-preamble -->
 
 | Figure | Unit | Denominator | Tool | Window | Label | Source |
 |--------|------|-------------|------|--------|-------|--------|

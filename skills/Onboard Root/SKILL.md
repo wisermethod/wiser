@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create an owned root from its matching template and onboard it with verified memory, an operating surface, and a per-key close
-version: 0.4.0
+version: 0.5.0
 ---
 
 # Onboard Root

@@ -2,9 +2,11 @@
 
 How this organization sounds when it speaks in its own name.
 
+<!-- provenance-preamble -->
 Deferrals and checkable claims here carry their evidence label in square brackets, in place: `[Verified]`, `[Estimated: <method>]`, `[Unverified: requires confirmation]`, `[Not available: <reason>]`. Those four are the whole vocabulary, defined in `standards/conventions.md`.
 
 A claim about what an audience knows, believes, or expects carries its register in place as well: `(Firsthand: <person who observed it>)`, `(Secondhand: relayed by <person>)`, `(Public statement: <where>)`, `(Research inference: <evidence row ids>)`. A research inference names the evidence rows it was derived from; a document someone read is never firsthand. `about.md` in this folder states the prompt-line pattern and the placeholder token.
+<!-- /provenance-preamble -->
 
 ## Identity
 

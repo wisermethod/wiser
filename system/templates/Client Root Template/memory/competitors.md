@@ -11,14 +11,16 @@ Provenance contract for this file. These are the rules this file holds itself to
 
 **Prompt lines.** A prompt line is a whole line that begins with `*` and ends with `*`. Every prompt line here is replaced with content or with a labeled absence.
 
-**
+**Placeholder tokens.** The placeholder token in this template is `[name]`. Instantiation replaces every one of them. A surviving token means this file is uninstantiated.
 <!-- /provenance-preamble -->
 
 # Competitors of [name]
 
+<!-- provenance-preamble -->
 Who this client competes with, confirmed with the requester. Downstream work loads this file when a deliverable names, ranks, or differentiates against another party.
 
 This file ships as a stub and is not bound. The `competitors` key is added to the Provides block in this root's `AGENTS.md` only after the set has been confirmed by a named person on a dated exchange, and only once this file has been written from that confirmed set. A Provides line pointing at a stub is a failed close. If the offer is answered **not now**, delete this file at close so an unbound key has no file on disk, and record the deferral in `todos/current.md` with a named owner and a status. If the offer is answered **no**, delete this file at close and record the decline in `work/onboarding/run-record.md` so a later session can see it was asked and settled. A decline opens no operating item and is not asked again this run: turning a settled no into an open gap is how a later session comes back and re-asks it. Either way the per-key close records `competitors: unbound`.
+<!-- /provenance-preamble -->
 
 ## The Set
 

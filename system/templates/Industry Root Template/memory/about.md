@@ -16,7 +16,7 @@ Provenance contract for this file. These are the rules this file holds itself to
 
 # About [name]
 
-Reference knowledge about this industry, for any root whose work touches it.
+What an agent needs to know about this industry before doing work that touches it.
 
 ## What This Industry Is
 

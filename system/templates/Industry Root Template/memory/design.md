@@ -2,7 +2,9 @@
 
 This industry's document and presentation conventions, and when an output should follow them.
 
+<!-- provenance-preamble -->
 Deferrals and checkable claims here carry their evidence label in square brackets, in place, exactly where the reading would have appeared: `[Verified]`, `[Estimated: <method>]`, `[Unverified: requires confirmation]`, `[Not available: <reason>]`. Those four are the whole vocabulary, defined in `standards/conventions.md`. A convention recorded here names the published source it was read from, or it is marked unverified. `about.md` in this folder states the prompt-line pattern and the placeholder token.
+<!-- /provenance-preamble -->
 
 ## When It Applies
 

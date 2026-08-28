@@ -2,9 +2,11 @@
 
 This industry's terminology register, and when an output should adopt it.
 
+<!-- provenance-preamble -->
 Deferrals and checkable claims here carry their evidence label in square brackets, in place: `[Verified]`, `[Estimated: <method>]`, `[Unverified: requires confirmation]`, `[Not available: <reason>]`. Those four are the whole vocabulary, defined in `standards/conventions.md`.
 
 A claim about what a reader in this industry knows, assumes, or expects is a claim that needs a source. Where it was derived, it carries `(Research inference: <evidence row ids>)` in place and names the evidence rows it was derived from. Where a published source states it, it carries `(Public statement: <where>)`. Where a named person is the only source, it carries `(Firsthand: <person who observed it>)` or `(Secondhand: relayed by <person>)`, and a document someone read is never firsthand. `about.md` in this folder states the prompt-line pattern and the placeholder token.
+<!-- /provenance-preamble -->
 
 ## When It Applies
 
