@@ -512,14 +512,20 @@ gate_G0() {
       # is the recorded answer only where that field reads `not-offered`. G1 still requires the
       # competitors-offer field itself to be present and non-empty.
       if [ "$key" = "competitors" ] && printf '%s' "$(kv "$RUNREC" "competitors-offer")" | grep -q '^not-offered'; then
-        add_note "competitors: not offered for this root type, so no per-key close line is owed"
+        add_note "competitors: the offer was not made, so no per-key close line is owed"
         continue
       fi
       add_fail "$(rel "$RUNREC"): '## Per-key close' has no line for key '$key'"
       continue
     fi
     if [ "$key" = "competitors" ] && [ "$val" = "unbound" ]; then
-      add_note "competitors: unbound: competitor classes not applicable"
+      # Unbound is the answer to a declined or deferred offer. Where the offer
+      # was accepted there is a set to record, so unbound would skip the
+      # competitor classes on a key that owes them.
+      case "$(kv "$RUNREC" "competitors-offer")" in
+        yes*) add_fail "$(rel "$RUNREC"): 'competitors-offer: yes' but the per-key close reads unbound; an accepted offer closes complete, provisional or blocked" ;;
+        *)    add_note "competitors: unbound: competitor classes not applicable" ;;
+      esac
       continue
     fi
     [ "$val" = "complete" ] || continue
@@ -1863,8 +1869,15 @@ gate_G17() {
     case "$v" in
       complete) ;;
       unbound)
-        # The grammar allows `unbound` for competitors and for no other key.
-        [ "$key" = "competitors" ] || { add_fail "$(rel "$RUNREC"): per-key close '$key: unbound' is allowed only for competitors"; missing=1; }
+        # The grammar allows `unbound` for competitors and for no other key, and
+        # only where the offer was declined or deferred rather than accepted.
+        if [ "$key" != "competitors" ]; then
+          add_fail "$(rel "$RUNREC"): per-key close '$key: unbound' is allowed only for competitors"; missing=1
+        else
+          case "$(kv "$RUNREC" "competitors-offer")" in
+            yes*) add_fail "$(rel "$RUNREC"): 'competitors-offer: yes' but 'competitors: unbound'; an accepted offer has a set to close"; missing=1 ;;
+          esac
+        fi
         ;;
       provisional|blocked) open_keys="$open_keys $key" ;;
       *) add_fail "$(rel "$RUNREC"): per-key close '$key: $v' is not complete, provisional, blocked or unbound"; missing=1 ;;

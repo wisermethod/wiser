@@ -33,7 +33,9 @@ An authority nobody can name is not an authority. Where the person who set a rul
 
 ## Routing Table
 
+<!-- provenance-preamble -->
 Each output type this root produces, the register that governs it, and why that register and not another. Every output type this root was set up to produce gets a row. The register follows from what the outputs are for, not from whichever surface of the client was read first.
+<!-- /provenance-preamble -->
 
 | Output type | Register | Why |
 |-------------|----------|-----|
