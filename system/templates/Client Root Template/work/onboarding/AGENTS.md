@@ -81,10 +81,10 @@ extract-mechanism: <name>
 extract-measure: <n> <unit>
 check-mechanism: <name>
 check-measure: <n> <unit>
-provenance-author: subject | requester | third-party | unattributed
+provenance-author: subject | first-party | third-party | unattributed
 provenance-status: final | draft
 provenance-date: YYYY-MM-DD
-provenance-audience: internal | client-facing
+provenance-audience: internal | outward-facing
 ```
 
 The two measures carry equal leading numbers and are taken by different mechanisms; a completeness claim measured by the mechanism that did the extracting proves nothing.

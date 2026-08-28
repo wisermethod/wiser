@@ -3,7 +3,7 @@ name: Build Voice
 type: skill
 category: onboarding
 description: Build or rebuild one owned root's voice.md from real writing evidence, routed to the register that root's own outputs need
-version: 0.4.0
+version: 0.5.0
 memory:
   - voice
 ---
@@ -36,7 +36,7 @@ Voice is not one thing. Each root type declares its own in its AGENTS.md, and th
 |-----------|-----------|----------------------|--------------|
 | `personal` | this person's own voice | what they wrote themselves: sent mail, posts, drafts, talk notes | the person |
 | `org` | the organization's public voice | material published or approved under its own name, plus any brand or style guide | whoever owns its communications |
-| `client` | the client's brand voice | what the client published or approved under their name, plus their brand guide; not anyone else's copy about them | the client contact, or whoever the client names to review in their place |
+| `client` | the client's brand voice | what the client published or approved under their name, plus their brand guide; not anyone else's copy about them | a named person the client authorises to approve it |
 | `department` | its register for its own communications | its memos, briefs, updates, specifications, read against the organization's public voice | the department lead |
 | `industry` | the field's terminology register, not a speaker | published material of the field: standards, regulator language, trade press, practitioner writing | a practitioner in the field |
 
@@ -121,7 +121,7 @@ On confirmation: run step 7's grep over the draft one last time and clear every 
 
 **An audience belief written as a finding.** The Audience heading invites confident sentences about readers nobody asked. Every such sentence either names the person who said it, names the evidence rows behind it as a research inference, or comes out of the file.
 
-**An authority named but not qualified.** "The client contact confirmed it" satisfies a name and nothing else, and it is a role rather than a person, which the onboarding harness fails on sight. Record the basis per domain, mark claims outside that basis provisional, and where the authority is a fallback, name whose sign-off is still needed instead of treating the fallback as the subject.
+**An authority named but not qualified.** "The account owner confirmed it" satisfies a name and nothing else. **A role is not a person**, and the onboarding harness fails a `voice-authority-name` that reads as a role or a body rather than as someone identifiable. Record the basis per domain, mark claims outside that basis provisional, and where the authority is a fallback, name whose sign-off is still needed instead of treating the fallback as the subject.
 
 **A derivation deleted once it was overruled.** The tidy move is to remove the wrong default and write the new rule. Write the superseded default in as a prohibition instead, with what its output got wrong and who replaced it, or the next rebuild derives it again from the same samples.
 

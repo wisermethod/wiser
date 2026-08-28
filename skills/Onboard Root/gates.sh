@@ -438,10 +438,19 @@ run_gate() {
 
 # ---- G0 The substantive floor -------------------------------------------
 # Required classes per key, from gates.md. key;class,class,...
-G0_TABLE='about;what-was-bought,who-confirms,hard-constraints
+# `what-was-bought` is a commercial class and only a client root has bought
+# anything. A personal root onboarding someone's own notes is not a purchased
+# engagement, so the other four types owe `what-this-root-is-for` in its place.
+# Round 4 of the pre-push gate found this table applied to every type.
+if [ "$ROOT_TYPE" = "client" ]; then
+  G0_ABOUT='what-was-bought,who-confirms,hard-constraints'
+else
+  G0_ABOUT='what-this-root-is-for,who-confirms,hard-constraints'
+fi
+G0_TABLE="about;$G0_ABOUT
 voice;register-decision,register-confirmation
 design;design-source
-competitors;set,set-confirmed-by,set-date'
+competitors;set,set-confirmed-by,set-date"
 
 perkey_value() {
   # $1 = key. Reads only the ## Per-key close section of run-record.md.
@@ -1513,7 +1522,12 @@ G11BEOF
 # ---- G12 The interview covered its classes -------------------------------
 gate_G12() {
   need_file "$RUNREC" || return
-  for h in "What was bought" "Who confirms and on what basis" "Contradictions" "What the outputs are for"; do
+  if [ "$ROOT_TYPE" = "client" ]; then
+    G12_FIRST="What was bought"
+  else
+    G12_FIRST="What this root is for"
+  fi
+  for h in "$G12_FIRST" "Who confirms and on what basis" "Contradictions" "What the outputs are for"; do
     if ! has_heading "$RUNREC" "### $h"; then
       add_fail "$(rel "$RUNREC"): '### $h' missing"
       continue
