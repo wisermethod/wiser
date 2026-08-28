@@ -26,7 +26,7 @@ Three grammars carry the weight, and they hold inside the bound files under `mem
 
 **The prompt line.** A whole line that begins with `*` and ends with `*`. Every one is replaced before a key can close.
 
-**The placeholder tokens.** Every `memory/` file's own preamble names the tokens that file carries; on every type that is the word name in square brackets, and on a client root the competitor stub adds the word Competitor in square brackets at its own per-competitor heading. None may survive instantiation.
+**The placeholder tokens.** Across the five templates they are the word name in square brackets, plus the word Competitor in square brackets in the client competitor stub. Instantiation replaces every occurrence, and none may survive it.
 
 **The verification anchor.** A load-bearing claim in a bound file ends with a bracketed row id naming its row in `verification.md`, written as `[V<n>]` with the row's number in place of `<n>`: row 7 is anchored as V7 in that form. An anchor written after a full stop belongs to the sentence before it. A key line carrying a date, a count, or any other checkable value takes an anchor too.
 
@@ -60,7 +60,7 @@ vantage-1: <mechanism> -> <n> files
 vantage-2: <mechanism> -> <n> files
 
 ## Interview
-### What was bought
+### <the first interview heading for this root's type>
 ### Who confirms and on what basis
 ### Contradictions
 ### What the outputs are for
@@ -73,7 +73,9 @@ design: complete | provisional | blocked
 competitors: complete | provisional | blocked | unbound
 ```
 
-Under each `## Interview` heading: the answer, or a line beginning `Deferred:` followed by the consequence. `### What the outputs are for` may not be deferred, because the routing table in `memory/voice.md` carries a row for every output type named there, and it is written as a dash list with **one output type per line**. G13b reads it as a list and checks the routing table row by row against it; answered as a sentence, the split produces fragments that are not output types and reports each as an unrouted deliverable. `### Competitor set` is present only when `competitors-offer: yes`. **The first heading varies by type**: `### What was bought` on a client root, as the fence shows, and `### What this root is for` on every other type. Write the heading for the type, exactly, with nothing appended: G12 matches the string. **The `competitors:` per-key line is owed only where the offer was made**; four of the five types are never offered it, and the harness records a missing line there as the answer rather than an omission. **Nothing inside a fence in this file is commentary**: every line is the literal a record carries.
+Under each `## Interview` heading: the answer, or a line beginning `Deferred:` followed by the consequence. `### What the outputs are for` may not be deferred, because the routing table in `memory/voice.md` carries a row for every output type named there, and it is written as a dash list with **one output type per line**. G13b reads it as a list and checks the routing table row by row against it; answered as a sentence, the split produces fragments that are not output types and reports each as an unrouted deliverable. `### Competitor set` is present only when `competitors-offer: yes`. **The first heading varies by type**: write `### What was bought` on a client root and `### What this root is for` on every other type, exactly, with nothing appended. G12 matches the string. **The `competitors:` per-key line follows `competitors-offer` and nothing else**: it is owed for `yes`, `not-now` and `no`, and omitted only for `not-offered: <type>`, which is the value recorded where the offer was never made.
+
+**The fences are shapes, not transcripts.** Angle brackets are a value to supply, `a | b` is a choice of one, and a line or heading marked as varying by type or by a recorded answer is written for the case in hand. Everything else is copied as it stands, punctuation included, because the gates match those strings.
 
 ### `extraction/<source>.md`
 
@@ -115,15 +117,19 @@ retrieval-mechanism: <tool>, <what it does to content>
 
 ## Quotations
 | Row | Quote | URL | Retrieved |
+|-----|-------|-----|-----------|
 
 ## Values
 | Row | Value | File | Line |
+|-----|-------|------|------|
 
 ## Not retrieved
 | Item | Reason |
+|------|--------|
 
 ## Spot checks
 | Row | Check | Outcome |
+|-----|-------|---------|
 ```
 
 Row ids match `E<n>` and are unique across all packages in the run. Quotation rows carry a URL and a YYYY-MM-DD date; value rows carry a file and a line number. `## Spot checks` carries three rows, each naming the check that ran and its outcome.
@@ -133,6 +139,7 @@ A package whose angle is the competitive set carries one further table:
 ```
 ## Suggested names
 | Name | Source | Retrieved | Why suggested |
+|------|--------|-----------|---------------|
 ```
 
 ### `verification.md`
@@ -141,10 +148,12 @@ A package whose angle is the competitive set carries one further table:
 ## Claims
 
 | Row | Key | Class | Claim | Anchor | Bound file | Cites | Mechanism | Exactness | Second mechanism | Outcome | Label | Search |
+|-----|-----|-------|-------|--------|------------|-------|-----------|-----------|------------------|---------|-------|--------|
 
 ## Negative claims
 
 | Row | Claim | Anchor | Containers searched | All containers | Second reader | Outcome |
+|-----|-------|--------|---------------------|----------------|---------------|---------|
 ```
 
 `Row` matches `V<n>` and is unique across both tables.
@@ -169,6 +178,7 @@ rounds: <n>
 ## Findings
 
 | Finding | Claim | Disposition | Deciding check | Where checker looked | Bound file entry |
+|---------|-------|-------------|----------------|----------------------|------------------|
 ```
 
 `Finding` matches `A<n>`. `Disposition` is `accepted`, `rejected`, or `disputed`. A rejected finding says where the checker looked. A disputed finding names the bound file entry that carries its `(Disputed: ...)` parenthetical. An audit's findings are claims, and they are checked before anything is edited on their account.
@@ -179,6 +189,7 @@ The operating file. Onboarding writes it; later sessions keep it. Grammar:
 
 ```
 | Item | Gap | Owner | Status | Blocker | Attempt | Result and date |
+|------|-----|-------|--------|---------|---------|-----------------|
 ```
 
 `Item` matches `O<n>`.

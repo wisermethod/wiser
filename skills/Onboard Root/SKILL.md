@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create an owned root from its matching template and onboard it with verified memory, an operating surface, and a per-key close
-version: 0.13.0
+version: 0.14.0
 ---
 
 # Onboard Root
@@ -255,7 +255,7 @@ Two steps, and the second is not optional.
 
 **Step 1: audit in a context that did not produce the work.** Hand over the root, the standards, the templates, and the source material, and **not** the reasoning that produced the root. The brief instructs the auditor to locate every load-bearing claim in the sources and report what it cannot find, with the search it ran; to check the must-reach lists forward into the bound files; to check labels and registers against `standards/conventions.md`; to run the gates itself; and to say whether the root would let someone deliver.
 
-Who runs it, in order of preference. **A reviewer is independent when it starts from the root and not from the producer**: it gets the root, the standards, the templates and the source material, and nothing else. **Two things disqualify it, and either is enough**: being handed the reasoning that produced the root, and inheriting that reasoning by continuing or being forked from the producing context, however clean the brief it is then given. This binds every option below, the first included:
+Who runs it, in order of preference. **An independent reviewer is a context created for this audit that held no earlier role in the run**, and that has received no part of the producer's reasoning by any route: handed to it, inherited by continuation or fork, carried in shared memory or state, relayed by a third party, or summarised for it. It gets the root, the standards, the templates, the source material and the reviewing primitive it is asked to run, and no account of how any of that was arrived at. **A root handed over as a repository carries the producer's reasoning in its own commit messages**, so where the audit reads history it reads it as evidence and never as the frame. This binds every option below, the first included:
 
 - **A sub-agent this host can spawn.** Where the host can spawn one at all, use it rather than the producer.
 - **Additional independent reviewers**, where the host exposes any: each as a separate agent in the same round, and each from a different model or provider than the last where the host offers more than one. **Every reviewer is read-only.** Say so in the brief and withhold write access where the host lets you choose, because a delegate interface that can write usually defaults to writing unless the brief says otherwise. Frame each brief as verification of the requester's own authorized instruction files, never as an attack. Confirm reachability before launching, wait for every reviewer in the round, and do not edit a bound file while a round is in flight.
@@ -343,7 +343,7 @@ A gate cannot run against a record with no shape. These are the shapes, and they
 
 **The prompt-line pattern** is a whole line beginning with `*` and ending with `*`. Greppable as `^\*.*\*$`.
 
-**The placeholder tokens** are exactly `[name]` and `[Competitor]`. Greppable as `\[name\]|\[Competitor\]`.
+**The placeholder tokens** are `[name]` in every template, and `[Competitor]` in the client competitor stub. Greppable as `\[name\]|\[Competitor\]`.
 
 **A figures heading is marked** with `<!-- figures -->` on the heading line or the line beneath it. A heading holding figures is not otherwise decidable from the text, and the gate that checks denominators must not be left guessing at the one place figure provenance dies.
 

@@ -506,9 +506,10 @@ gate_G0() {
     val=$(perkey_value "$key")
     if [ -z "$val" ]; then
       # A key that was never offered has nothing to close. The competitors
-      # offer is made for client roots, for an org root on request, and not at
-      # all for personal, department or industry, so a missing line there is
-      # the recorded answer rather than an omission. G1 still requires the
+      # offer is made for every client root, for an org root when the requester
+      # wants a set on record, and for the other three when the requester asks,
+      # so what decides is `competitors-offer` and not the type: a missing line
+      # is the recorded answer only where that field reads `not-offered`. G1 still requires the
       # competitors-offer field itself to be present and non-empty.
       if [ "$key" = "competitors" ] && printf '%s' "$(kv "$RUNREC" "competitors-offer")" | grep -q '^not-offered'; then
         add_note "competitors: not offered for this root type, so no per-key close line is owed"
@@ -1860,7 +1861,11 @@ gate_G17() {
       continue
     fi
     case "$v" in
-      complete|unbound) ;;
+      complete) ;;
+      unbound)
+        # The grammar allows `unbound` for competitors and for no other key.
+        [ "$key" = "competitors" ] || { add_fail "$(rel "$RUNREC"): per-key close '$key: unbound' is allowed only for competitors"; missing=1; }
+        ;;
       provisional|blocked) open_keys="$open_keys $key" ;;
       *) add_fail "$(rel "$RUNREC"): per-key close '$key: $v' is not complete, provisional, blocked or unbound"; missing=1 ;;
     esac
