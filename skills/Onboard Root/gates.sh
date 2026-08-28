@@ -207,6 +207,8 @@ bound_files() {
 # from the start; the first real root showed G10 did not, and reported the
 # template's own `(Firsthand: <person who observed it>)` as a register naming
 # no person, four times.
+nonblank_count_stdin() { grep -c '[^[:space:]]' 2>/dev/null || printf '0'; }
+
 strip_preamble() {
   awk '
     /<!--[ \t]*provenance-preamble[ \t]*-->/ { inpre=1; print ""; next }
@@ -461,11 +463,14 @@ perkey_value() {
 }
 
 claims_located_count() {
+  # $3, optional: the only bound file that may satisfy this class. A competitor
+  # set recorded in another memory file is not recorded where downstream work
+  # resolves the key, which is the whole of what this count is asked to prove.
   # $1 key, $2 class. A located row only counts when the claim actually
   # reached a bound file: it carries an anchor, names a bound file, and that
   # file contains that anchor. Counting rows alone let a key close complete on
   # detached bookkeeping while its headings said Not available.
-  awk -v K="$1" -v C="$2" -v US="$US" '
+  awk -v K="$1" -v C="$2" -v US="$US" -v ONLY="${3:-}" '
   BEGIN{ n=0 }
   {
     split($0,f,US)
@@ -485,6 +490,7 @@ claims_located_count() {
       memory/*.md) ;;
       *) continue ;;                 # a bound file, not the record itself
     esac
+    if [ -n "${ONLY_FILE:-}" ] && [ "$bfp" != "$ONLY_FILE" ]; then continue; fi
     [ -f "$ROOT/$bfp" ] || continue
     grep -qF "[$id]" "$ROOT/$bfp" 2>/dev/null || continue
     printf 'x\n'
@@ -535,17 +541,30 @@ gate_G0() {
     if [ "$key" = "competitors" ]; then
       # A competitor set is only recorded where the key resolves. Anchors in
       # another memory file are not that, and neither is an unbound key.
-      if ! grep -qE '^[[:space:]]*-[[:space:]]*competitors:[[:space:]]*memory/competitors\.md[[:space:]]*$' "$AGENTS" 2>/dev/null; then
-        add_fail "$(rel "$AGENTS"): 'competitors: complete' but Provides does not bind competitors to memory/competitors.md"
+      binds=$(section_body "$AGENTS" "## Provides" 2>/dev/null | grep -cE '^[[:space:]]*-[[:space:]]*competitors:[[:space:]]*memory/competitors\.md[[:space:]]*$')
+      if [ "${binds:-0}" -ne 1 ]; then
+        add_fail "$(rel "$AGENTS"): 'competitors: complete' but the Provides block does not carry exactly one binding of competitors to memory/competitors.md"
       fi
-      [ -s "$ROOT/memory/competitors.md" ] || add_fail "$(rel "$RUNREC"): 'competitors: complete' but memory/competitors.md is missing or empty"
+      # Bytes are not a record. Strip the preamble, the comments and any
+      # surviving prompt line, and require something left.
+      subst=$(strip_preamble "$ROOT/memory/competitors.md" 2>/dev/null \
+        | grep -v '^[[:space:]]*<!--' | grep -vE '^\*.*\*$' | grep -vE '^[[:space:]]*#' | nonblank_count_stdin)
+      [ "${subst:-0}" -gt 0 ] || add_fail "$(rel "$RUNREC"): 'competitors: complete' but memory/competitors.md carries no content beyond its own scaffolding"
     fi
     oldifs="$IFS"; IFS=','
     for cls in $classes; do
       IFS="$oldifs"
-      n=$(claims_located_count "$key" "$cls")
+      if [ "$key" = "competitors" ]; then
+        n=$(ONLY_FILE=memory/competitors.md claims_located_count "$key" "$cls")
+      else
+        n=$(claims_located_count "$key" "$cls")
+      fi
       if [ "$n" -lt 1 ]; then
-        add_fail "$(rel "$VERIF"): key '$key' closes complete but '## Claims' has no located row for required class '$cls' whose anchor appears in the bound file it names"
+        if [ "$key" = "competitors" ]; then
+          add_fail "$(rel "$VERIF"): key 'competitors' closes complete but '## Claims' has no located row for required class '$cls' whose anchor appears in memory/competitors.md, which is where the key resolves"
+        else
+          add_fail "$(rel "$VERIF"): key '$key' closes complete but '## Claims' has no located row for required class '$cls' whose anchor appears in the bound file it names"
+        fi
       fi
       IFS=','
     done
@@ -1876,8 +1895,19 @@ gate_G16() {
 }
 
 # ---- G17 Refusal removed only for complete keys -------------------------
+controlled_sections_unique() {
+  # A record carrying the same controlled heading twice is malformed. Every
+  # consumer of it has to choose an occurrence, and whichever it chooses is a
+  # value some other consumer did not see.
+  for h in "## Per-key close" "## Interview" "## Copy vantages"; do
+    c=$(grep -c -F -x "$h" "$1" 2>/dev/null || printf '0')
+    [ "${c:-0}" -le 1 ] || add_fail "$(rel "$1"): '$h' appears $c times; a controlled section appears once or the record is ambiguous"
+  done
+}
+
 gate_G17() {
   need_file "$RUNREC" || return
+  controlled_sections_unique "$RUNREC"
   if ! has_heading "$RUNREC" "## Per-key close"; then
     add_fail "$(rel "$RUNREC"): no '## Per-key close' section"
     return
