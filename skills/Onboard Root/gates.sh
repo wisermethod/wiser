@@ -113,7 +113,7 @@ trap 'rm -rf "$TMPD"' EXIT INT TERM
 # stops this harness demanding a layout the root was never given.
 ROOT_TYPE=""
 if [ -f "$ROOT/AGENTS.md" ]; then
-  ROOT_TYPE=$(awk 'NR==1 && $0!="---" {exit} NR>1 && $0=="---" {exit} /^type:[[:space:]]/ {sub(/^type:[[:space:]]*/,""); print; exit}' "$ROOT/AGENTS.md")
+  ROOT_TYPE=$(awk 'NR==1 && $0!="---" {exit} NR>1 && $0=="---" {exit} /^type:[[:space:]]/ {sub(/^type:[[:space:]]*/,""); sub(/[[:space:]]+$/,""); print; exit}' "$ROOT/AGENTS.md")
 fi
 [ -n "$ROOT_TYPE" ] || ROOT_TYPE=unknown
 
@@ -1915,21 +1915,31 @@ gate_G16() {
 
 # ---- G17 Refusal removed only for complete keys -------------------------
 controlled_sections_unique() {
-  # A record carrying the same controlled heading twice is malformed. Every
-  # consumer has to choose an occurrence, and whichever it chooses is a value
-  # some other consumer did not see. Choosing is what produced the last two
-  # defects here, so the ambiguity is refused instead.
+  # Ambiguity is refused wherever this harness reads a value or a section,
+  # because every consumer would otherwise pick an occurrence and whichever it
+  # picked would be a value some other consumer never saw. That is one defect
+  # with three surfaces, and listing the surfaces is how the third was missed:
+  # the list named `##` sections while section_body merges `###` headings too,
+  # and kv takes the first of duplicate key lines.
   #
-  # Two things this has to get right, both found the hard way. `grep -c` prints
-  # a count and exits 1 when that count is zero, so a `|| printf 0` fallback
-  # appends a second number and the comparison then errors on every clean
-  # record. And the match has to be trimmed, because section_body compares the
-  # trimmed line: an exact match here let a trailing space walk past the guard
-  # while the parser still merged both sections.
-  for h in "## Per-key close" "## Interview" "## Copy vantages"; do
-    c=$(sed 's/^[[:space:]]*//; s/[[:space:]]*$//' "$1" 2>/dev/null | grep -c -F -x "$h")
-    [ "${c:-0}" -le 1 ] || add_fail "$(rel "$1"): $h appears $c times; a controlled section appears once or the record is ambiguous"
-  done
+  # Match the way has_heading and section_body do, on the trimmed line, and
+  # feed the loop by redirection: a pipe would run add_fail in a subshell and
+  # every failure it recorded would be discarded with it.
+  sed 's/^[[:space:]]*//; s/[[:space:]]*$//' "$1" 2>/dev/null > "$TMPD/uniq.txt"
+
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    n=${line%%"$US"*}; h=${line#*"$US"}
+    add_fail "$(rel "$1"): $h appears $n times; a heading appears once or the record is ambiguous"
+  done < <(grep -E '^#{2,}[[:space:]]' "$TMPD/uniq.txt" 2>/dev/null | sort | uniq -c \
+             | awk -v US="$US" '$1 > 1 { c=$1; $1=""; sub(/^ /,""); print c US $0 }')
+
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    n=${line%%"$US"*}; k=${line#*"$US"}
+    add_fail "$(rel "$1"): key $k: appears $n times; kv reads the first and the rest are read by nothing"
+  done < <(grep -E '^[a-z][a-z0-9-]*:' "$TMPD/uniq.txt" 2>/dev/null | sed 's/:.*//' | sort | uniq -c \
+             | awk -v US="$US" '$1 > 1 { print $1 US $2 }')
 }
 
 gate_G17() {
