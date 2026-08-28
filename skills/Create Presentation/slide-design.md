@@ -124,7 +124,7 @@ Data design rules:
 - Highlight the key data point: one number in the brand primary color, the rest in neutral gray.
 - Put source attribution at the bottom in small text.
 - For a simple comparison of two to four numbers, use the `.metrics` pattern instead of a chart; centered big numbers are more immediate than a two-bar chart.
-- For inline visualizations, build bar charts and simple diagrams from HTML and CSS: `div` elements with percentage widths and background colors make effective horizontal bars with no image files.
+- For inline visualizations, build bar charts and simple diagrams from HTML and CSS: `div` elements with percentage widths and background colors make effective horizontal bars with no image files. **This is the two-to-four-number case above and nothing wider.** A quantitative chart of real data is `tools/data-chart/`, which `SKILL.md`'s Context puts outside this skill; drawing one of those by hand from this line is the misreading it exists to prevent.
 
 ## Animations and Transitions
 

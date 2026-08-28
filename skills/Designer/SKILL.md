@@ -3,7 +3,7 @@ name: Designer
 type: skill
 category: design
 description: Run a design job end to end, from brief and visual direction through foundations, composition, and validation, producing the wireframe, style guide, or extracted system itself and directing every other phase to the design skill that owns it
-version: 0.3.0
+version: 0.4.0
 memory:
   - design
 gaps:
@@ -162,6 +162,8 @@ One self-contained HTML page, browsable by opening it, with anchor-linked sectio
 Each section shows the system working rather than listing it. Color: swatches carrying name, value, role, and the contrast result for each pairing that will appear. Typography: a specimen at every scale level with its size, weight, and line height, plus a paragraph at real measure and a heading above body text so the vertical rhythm is visible. Spacing: each step drawn at its size with the context it is for. Components: each one in its variants and states, with its markup beside it. Patterns: the compositions the system expects.
 
 The guide is styled with the system's own tokens, which is what proves they work, and a token the guide cannot style itself with is a finding rather than a footnote. The file opens with no build step.
+
+**A section with no surface to document is named as not applicable rather than dropped or invented**, the same way the Accessibility pass treats an axis with nothing to run against. A system that governs printed material has no components and no interaction patterns; say so in the section and say what governs instead, and never manufacture a component for a system that has none.
 
 ### Brand extraction
 

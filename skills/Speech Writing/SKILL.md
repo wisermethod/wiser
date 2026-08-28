@@ -3,7 +3,7 @@ name: Speech Writing
 type: skill
 category: writing
 description: Write a speech for a given occasion, audience, length, and venue, gated on an approved outline and delivered read-aloud ready in the owning root's bound voice
-version: 0.2.0
+version: 0.3.0
 memory:
   - voice
   - about
@@ -116,8 +116,9 @@ Place the finished speech where `standards/conventions.md` puts the owning root'
 
 - The throughline was locked at the outline gate, and every beat in the delivered draft advances or grounds it.
 - The draft follows the loaded occasion guide's arc, universal or overridden, and no stage is out of order for that occasion.
-- Read aloud end to end there are no stumbles, breath beats are marked and none of them is written as a pause beat, and the length sits within plus or minus 10 percent of the target at the rate Step 5 counts by.
+- Read aloud end to end there are no stumbles, breath beats are marked and none of them is written as a pause beat, and the length sits within plus or minus 10 percent of the target. **Where the loaded occasion guide states a speaking rate, that rate is the one counted at. Where none is stated, the draft sits inside the target at every rate from 130 to 150 words per minute**, because Step 5 gives a range and a draft that only passes at one end of it has not been checked against the other.
 - Where a guide was loaded, the target sits inside its length range, or the requester confirmed an out-of-range target after Step 2 named the conflict.
 - Applause, laugh, and pause beats appear where the loaded occasion guide prescribes them and nowhere it does not; with no guide loaded, every beat present is one Step 5's default earned.
 - Where the speech's subject is not the speaker, every scene in the delivered draft traces to `<source_material>`, and no such speech reached the gate without it.
 - Every expert the loaded occasion guide names returned a verdict, or a degraded review is named, and `experts/Ghost Writer/` returned a ship verdict on prose and on the voice check against the bound voice, or the requester declined that review; where the voice was unbound, the skill stopped at Step 1 rather than shipping.
+- **Where the occasion is a crisis or an unfolding incident, the judgment this root cannot supply was named to the requester before delivery**: whether to speak at all, in whose name, and what would make it worse. A ship verdict on the prose does not stand in for it, and a speech that reached the requester without it did not meet this criterion.
