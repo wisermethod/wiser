@@ -533,7 +533,7 @@ gate_G0() {
     add_fail "$(rel "$RUNREC"): no '## Per-key close' section"
     return
   fi
-  plain_section "$VERIF" "## Claims" "a claims table"
+  plain_file "$VERIF" "verification.md"
   if table_get "$VERIF" "Claims" "Key,Class,Outcome,Anchor,Bound file" > "$TMPD/g0-claims.txt" 2>/dev/null; then :; else
     add_fail "$(rel "$VERIF"): no '## Claims' table carrying the columns Key, Class, Outcome, Anchor, Bound file"
     return
@@ -585,9 +585,9 @@ gate_G0() {
       # readers of this section read the same stripped copy: stripping for one
       # and not the other let a commented-out heading disagree with the
       # binding beneath it. Everything else a renderer hides is refused rather
-      # than filtered, by plain_section.
+      # than filtered, by plain_file.
       strip_comments < "$AGENTS" > "$TMPD/agents-plain.md" 2>/dev/null
-      plain_section "$AGENTS" "## Provides" "a Provides block"
+      plain_file "$AGENTS" "this root's AGENTS.md"
       prov=$(awk -v H="## Provides" '
         function trim(s){ sub(/^[ \t]+/,"",s); sub(/[ \t]+$/,"",s); return s }
         trim($0)==H { n++ } END { print n+0 }' "$TMPD/agents-plain.md" 2>/dev/null)
@@ -600,6 +600,7 @@ gate_G0() {
       if [ "${comp_bind_n:-0}" -ne 1 ] || [ "${comp_bind_ok:-0}" -ne 1 ]; then
         add_fail "$(rel "$AGENTS"): 'competitors: complete' but Provides carries ${comp_bind_n:-0} competitors binding(s), of which ${comp_bind_ok:-0} bind memory/competitors.md; it carries exactly one, and that one"
       fi
+      plain_file "$ROOT/memory/competitors.md" "the file a competitor set resolves in"
       # Bytes are not a record. Strip the preamble, the comments and any
       # surviving prompt line, and require something left.
       subst=$(strip_preamble "$ROOT/memory/competitors.md" 2>/dev/null \
@@ -1966,8 +1967,14 @@ preamble_body() {
   { t=trim($0); if(t ~ /^#{2,}([ \t]|$)/) exit; print }' "$1"
 }
 
-# strip_comments: drop HTML comments and script or style regions from stdin,
-# and the trailing CR with them.
+# strip_comments: drop HTML comments from stdin, and the trailing CR with them.
+#
+# Comments only. Round 23 added script and style regions here and a reviewer
+# showed the cost: with no fence state, a visible `<script>` inside a fenced
+# example was eaten, and a closing tag carrying an attribute was not a closer,
+# so the rest of the file went with it. Containers are refused by plain_file
+# now, so nothing else needs filtering, and a filter with no state cannot be
+# wrong about what encloses what.
 #
 # This is the whole of the filtering this harness does, and it is deliberately
 # small. Text inside an HTML comment is not in the file as far as anything
@@ -1979,20 +1986,13 @@ preamble_body() {
 # added: a fence toggle that any tilde could close, then a fence rule that
 # missed indented code, then an HTML-block rule that ended `<script>` at a
 # blank line and read an autolink as a tag. That is a Markdown implementation,
-# and this harness has no business being one. See plain_section for what
+# and this harness has no business being one. See plain_file for what
 # replaced it.
 strip_comments() {
   awk '
   {
     line=$0
     sub(/\r$/, "", line)
-    if(raw){ if(tolower(line) ~ ("</" rawtag ">")) raw=0; next }
-    lb=line; sub(/^[ \t]+/,"",lb)
-    if(tolower(lb) ~ /^<(script|style)([ \t>]|$)/){
-      rawtag=(tolower(lb) ~ /^<script/) ? "script" : "style"
-      if(!(tolower(line) ~ ("</" rawtag ">"))) raw=1
-      next
-    }
     if(inc){
       k=index(line,"-->")
       if(k==0) next
@@ -2010,100 +2010,50 @@ strip_comments() {
   }'
 }
 
-# plain_section FILE SECTION WHAT
-# A section this harness reads for declarations is reached plainly and is
-# plain. Both halves, because rounds 21 and 22 each closed one and left the
-# other: filtering the whole file missed what sat inside the section, and
-# refusing inside the section missed a container opened above the heading,
-# where a same-level heading in the container ends the body before the closer
-# can reach it. Either way the harness reads a heading and a binding that no
-# renderer shows.
+# plain_file FILE WHAT
+# The records this harness reads are plain text, and this refuses one that is
+# not. No fence, no raw HTML tag or declaration, no HTML comment, no line
+# indented four columns counting a tab as four.
 #
-# So this walks the file from the top, keeping only the state a fence and a
-# script or style region need, and answers one question: does this heading and
-# its body exist as plain text. Anything it cannot place, it refuses. That is
-# the whole difference from the filters of rounds 19 to 21, which had to decide
-# what to keep and got it wrong in a new way each time. A recogniser that
-# refuses what it cannot classify is wrong in one direction only.
+# Rounds 19 to 23 tried five times to tell a declaration apart from an example.
+# Each version knew the constructs the round before had named and not the next
+# one: a tilde closing a backtick, indented code, a script ending at a blank
+# line, an autolink read as a tag, a fence at the content column of a list
+# item, a comment mid-line, a comment-hidden decoy heading disabling the guard
+# for the real section below, and finally `pre`, `textarea`, `div`, `CDATA` and
+# a processing instruction, which is CommonMark's HTML-block types 1 and 6 with
+# two of six members handled. Every one of those was a partial Markdown
+# implementation missing its next construct.
 #
-# Refused: the heading missing from plain text, a code fence, a raw HTML tag,
-# an indent of four columns counting a tab as four, and any line carrying an
-# HTML comment, which is legal mid-line and would otherwise be read away by
-# strip_comments after this ran.
-plain_section() {
-  _f=$1; _sec=$2; _what=$3
+# This has no state at all. It does not pair a fence with its closer, track
+# nesting, or care what order anything comes in, because it never has to decide
+# what a construct contains: a line that could open one fails the file. Five
+# templates carry none of these, and the message names what to remove.
+plain_file() {
+  _f=$1; _what=$2
   [ -f "$_f" ] || return 0
-  _reason=$(awk -v H="$_sec" '
-  function trim(s){ sub(/^[ \t]+/,"",s); sub(/[ \t]+$/,"",s); return s }
+  _bad=$(awk '
   function width(s,   i,c,n){ n=0
     for(i=1;i<=length(s);i++){ c=substr(s,i,1)
       if(c==" ") n++; else if(c=="\t") n+=4-(n%4); else break }
     return n }
-  BEGIN{ hl=0; while(substr(H,hl+1,1)=="#") hl++ }
   {
     line=$0; sub(/\r$/,"",line)
-    ind=width(line)
+    if(line ~ /^[ \t]*$/) next
     body=line; sub(/^[ \t]+/,"",body)
+    ind=width(line)
+    if(index(line,"<!--")>0 || index(line,"-->")>0){ print NR ": an HTML comment"; exit }
     # a fence may open at the content column of a list item, so the marker
-    # comes off first: a dash then a fence is a fence to a renderer, and was
-    # not one to this check
-    find=ind
-    if(body ~ /^([-*+]|[0-9]{1,9}[.)])[ \t]+/){
-      mk=body; sub(/[ \t]+.*$/,"",mk)
-      sub(/^([-*+]|[0-9]{1,9}[.)])[ \t]+/,"",body)
-      find=ind+length(mk)+1
-    }
-    m=0; ch=""
-    if(find<=5){
-      if(substr(body,1,3)=="```") ch="`"
-      else if(substr(body,1,3)=="~~~") ch="~"
-      if(ch!=""){ while(substr(body,m+1,1)==ch) m++ }
-    }
-
-    if(fence){
-      if(m>=3 && ch==fch && m>=flen){
-        rest=substr(body,m+1); sub(/[ \t]+$/,"",rest)
-        if(rest==""){ fence=0 }
-      }
-      next
-    }
-    if(rawhtml){
-      if(tolower(line) ~ ("</" rawtag ">")) rawhtml=0
-      next
-    }
-    if(m>=3){
-      info=substr(body,m+1)
-      # a backtick fence carrying a backtick in its info string is not a fence
-      if(!(ch=="`" && index(info,"`")>0)){
-        if(inb){ print "a code fence"; exit }
-        fence=1; fch=ch; flen=m; next
-      }
-    }
-    if(ind<=3 && tolower(body) ~ /^<(script|style)([ \t>]|$)/){
-      if(inb){ print "a raw HTML tag"; exit }
-      rawhtml=1; rawtag=(tolower(body) ~ /^<script/) ? "script" : "style"
-      if(tolower(line) ~ ("</" rawtag ">")) rawhtml=0
-      next
-    }
-
-    t=trim(line)
-    if(ind<=3 && t ~ /^#+([ \t]|$)/){
-      l=0; while(substr(t,l+1,1)=="#") l++
-      if(inb && l>hl){ } else { if(inb){ inb=0; done=1 } ; if(t==H && !done){ inb=1; seen=1 }; next }
-    }
-    if(!inb) next
-
-    if(index(line,"<!--")>0 || index(line,"-->")>0){ print "a line carrying an HTML comment"; exit }
-    if(ind>=4){ print "a line indented four columns or more"; exit }
-    if(body ~ /^<\/?[A-Za-z][A-Za-z0-9-]*([ \t>\/]|$)/ || body ~ /^<[!?]/){ print "a raw HTML tag"; exit }
-  }
-  END{ if(!seen) print "NOHEAD" }' "$_f" 2>/dev/null)
-  [ -n "$_reason" ] || return 0
-  if [ "$_reason" = "NOHEAD" ]; then
-    add_fail "$(rel "$_f"): $_sec is not present as plain text; a heading inside a code fence or a script block is text, and nothing reads it as a heading"
-  else
-    add_fail "$(rel "$_f"): $_sec carries $_reason; $_what is read as plain lines, and an example in it cannot be told from the real thing"
-  fi
+    # comes off for this test only: a dash then a fence is a fence
+    fbody=body
+    if(fbody ~ /^([-*+]|[0-9]{1,9}[.)])[ \t]+/) sub(/^([-*+]|[0-9]{1,9}[.)])[ \t]+/,"",fbody)
+    if(ind<=3 && (substr(fbody,1,3)=="```" || substr(fbody,1,3)=="~~~")){ print NR ": a code fence"; exit }
+    if(ind<=3 && body ~ /^<[!?\/]/){ print NR ": a raw HTML declaration"; exit }
+    if(ind<=3 && body ~ /^<[A-Za-z][A-Za-z0-9-]*([ \t>\/]|$)/){ print NR ": a raw HTML tag"; exit }
+    if(ind>=4){ print NR ": a line indented four columns or more"; exit }
+  }' "$_f" 2>/dev/null)
+  [ -n "$_bad" ] || return 0
+  add_fail "$(rel "$_f"): line $_bad; $_what is read as plain text, and a declaration written inside a fence, a comment, raw HTML or indented code cannot be told from the real thing"
 }
 
 # dup_keys FILE KEYSET MESSAGE [REPORT_AS]
@@ -2210,7 +2160,7 @@ controlled_sections_unique() {
 gate_G17() {
   need_file "$RUNREC" || return
   controlled_sections_unique "$RUNREC"
-  plain_section "$RUNREC" "## Per-key close" "a per-key close"
+  plain_file "$RUNREC" "the run record"
   if ! has_heading "$RUNREC" "## Per-key close"; then
     add_fail "$(rel "$RUNREC"): no '## Per-key close' section"
     return
