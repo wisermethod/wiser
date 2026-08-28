@@ -87,7 +87,7 @@ check-mechanism: <name>
 check-measure: <n> <unit>
 provenance-author: subject | first-party | third-party | unattributed
 provenance-status: final | draft
-provenance-date: YYYY-MM-DD
+provenance-date: <a date, as YYYY-MM-DD>
 provenance-audience: internal | outward-facing
 ```
 
