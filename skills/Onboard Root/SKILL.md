@@ -271,7 +271,7 @@ Exit: G15, G16.
 
 ### Phase 9: Close, per key
 
-**The harness runs on any of the five types.** `gates.sh` reads the root's declared `type:` and checks the paths Where the records go, by root type gives for it. The gates that read extraction records, evidence packages or supplied originals judge what the root actually holds, never what its type implies: given none, each says so and passes; given some, each checks them. **A root whose `AGENTS.md` declares no recognised type is refused**, because a root is identified by its declaration and this harness will not guess one.
+**The harness runs on any of the five types.** `gates.sh` reads the root's declared `type:` and checks the paths Where the records go, by root type gives for it. The gates that read extraction records, evidence packages or supplied originals judge what the root actually holds, never what its type implies. Given documents, each checks them. **Given none, none of them fails, and they do not all report it the same way**: G2, G6 and G6b say so and pass, while G4 skips unless the run record's tier is `core`, and G2 and G6 skip too where the directory exists and is empty. **A skip is not a pass**, and the close report names whichever it was. **A root whose `AGENTS.md` declares no recognised type is refused**, because a root is identified by its declaration and this harness will not guess one.
 
 **It is `bash`, not `sh`.** The script uses process substitution, which `/bin/sh` rejects before any gate runs.
 
@@ -281,7 +281,7 @@ Exit: G15, G16.
 bash "<the directory this SKILL.md sits in>/gates.sh" "<absolute path to the root>"
 ```
 
-`gates.sh` is a sibling of this file, wherever this skill is installed; resolve it the same way the register companions beside a Content Author brief are resolved. It needs `bash` and the standard POSIX utilities: `awk`, `grep`, `sed`, `find`, `sort`, `cat`, `cut`, `tr`, `wc`, `head`, `uniq`, `basename`, `date`, `mktemp`, `mv` and `rm`. It is `bash` and not `sh`: the script uses process substitution, which `/bin/sh` rejects before any gate runs.
+`gates.sh` is a sibling of this file, wherever this skill is installed; resolve it the same way the register companions beside a Content Author brief are resolved. It needs `bash` and the standard POSIX utilities: `awk`, `grep`, `sed`, `find`, `sort`, `cat`, `cut`, `tr`, `wc`, `head`, `uniq`, `basename`, `mktemp`, `mv` and `rm`. It is `bash` and not `sh`: the script uses process substitution, which `/bin/sh` rejects before any gate runs.
 
 It prints one line per gate, the failures under each, and a summary; it exits non-zero when any gate fails or skips. **A gate you did not execute is a claim about a gate.** The first real run closed reporting that no gate had failed, and the harness, pointed at the same root afterwards, failed eight. Nothing in that run had executed it, because nothing told it to.
 
