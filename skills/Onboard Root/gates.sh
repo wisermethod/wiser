@@ -144,7 +144,7 @@ case "$ROOT_TYPE" in
     SRC_DIR="$ROOT/inbox"
     ;;
   *)
-    echo "$PROG: $ROOT/AGENTS.md declares no recognised type: (personal, org, client, department, industry)" >&2
+    echo "$PROG: $ROOT/AGENTS.md declares no recognized type: (personal, org, client, department, industry)" >&2
     echo "$PROG: a root is identified by its declaration, never by its folder name; fix the declaration and re-run" >&2
     exit 2
     ;;
@@ -850,7 +850,7 @@ gate_G5a() {
           if(low ~ /must not|never|may not|forbidden|prohibited|do not|not permitted/) cand=1
           # A declared absence has nothing to read back against.
           if(s ~ /\[Not available:/) continue
-          # Proper noun: a capitalised word that is not the first word of the
+          # Proper noun: a capitalized word that is not the first word of the
           # sentence, and that is not part of the root name. A sentence whose
           # only proper noun is the subject itself is structural prose, not a
           # claim; anything load-bearing names a person, a competitor, a
@@ -861,7 +861,7 @@ gate_G5a() {
           sub(/^[-*+][ \t]+/,"",body)             # strip a list marker
           sub(/^[0-9]+\.[ \t]+/,"",body)          # strip an ordered marker
           nb=split(body,W,/[ \t]+/)
-          # Word 1 is capitalised in every sentence, so it is tested against a
+          # Word 1 is capitalized in every sentence, so it is tested against a
           # stoplist of ordinary sentence openers instead of being skipped.
           # Skipping it let "Nakamura chairs the review board" close unread.
           if(nb>=1){
@@ -1302,12 +1302,12 @@ gate_G9() {
 
 # ---- G10 Registers used as defined --------------------------------------
 DOC_GRAMMAR='\.pdf|\.docx|\.pptx|\.md|deck|document|report|guide|memo|slide'
-# A person name: at least two capitalised parts, joined by a space or a
+# A person name: at least two capitalized parts, joined by a space or a
 # hyphen. This is a whitelist on purpose. The document blacklist above can
 # always be evaded by naming a document without a document word in it, so the
 # firsthand payload has to positively look like an observer.
 PERSON_GRAMMAR="(^|[^A-Za-z])[A-Z][a-z]+([ -][A-Z][a-z']+)+"
-# The head noun of a role, a body, or a document. A two-capitalised-word phrase
+# The head noun of a role, a body, or a document. A two-capitalized-word phrase
 # ending in one of these is a title or a thing, not an observer. This is a
 # blacklist and it is deliberately a second line of defence behind the person
 # registry, not the primary check.

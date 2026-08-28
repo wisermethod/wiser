@@ -18,6 +18,8 @@ This folder is the working area the onboarding process names, except the operati
 
 ## The record grammars
 
+**These shapes govern every root type. The paths in them are this client root's**, because this file ships beside the client template: `sources/`, `todos/current.md`, `work/onboarding/`. **Another type substitutes the paths its own layout declares**, which `skills/Onboard Root/` sets out under Where the records go, by root type. Where a heading or a field itself varies by type, and not merely its path, this file says so at that heading.
+
 These records are read by the close gates, which parse them by key line and by column position. The shapes below are the contract. A record written in a different shape is not a stricter record, it is an unreadable one, and the gate that depends on it cannot run.
 
 Three grammars carry the weight, and they hold inside the bound files under `memory/` as well as here.
@@ -41,7 +43,7 @@ Two further written forms:
 Key lines, one per line, at the top of the file:
 
 ```
-type: client
+type: <this root's declared type>
 name: <the real name>
 destination: <absolute path>
 tier: full | core
@@ -58,7 +60,8 @@ vantage-1: <mechanism> -> <n> files
 vantage-2: <mechanism> -> <n> files
 
 ## Interview
-### What was bought
+### What was bought          <- on a client root
+### What this root is for    <- on every other type
 ### Who confirms and on what basis
 ### Contradictions
 ### What the outputs are for
@@ -147,7 +150,7 @@ A package whose angle is the competitive set carries one further table:
 
 `Row` matches `V<n>` and is unique across both tables.
 `Key` is `about`, `voice`, `design`, `competitors`, or `none`.
-`Class` is one of `what-was-bought` on a client root or `what-this-root-is-for` on any other type, `who-confirms`, `hard-constraints`, `register-decision`, `register-confirmation`, `design-source`, `set`, `set-confirmed-by`, `set-date`, `other`. **This grammar governs every root type, not only the client one it ships beside.**
+`Class` is one of `who-confirms`, `hard-constraints`, `register-decision`, `register-confirmation`, `design-source`, `set`, `set-confirmed-by`, `set-date`, `other`, and one class that varies by type: **`what-was-bought` on a client root, `what-this-root-is-for` on every other type.**
 `Anchor` is the bracketed row id as it appears in the bound file, or `-` when the claim did not enter a bound file.
 `Exactness` is `yes` for any claim about wording, length, completeness, extent, a count, or a file comparison; `no` otherwise. An exactness claim carries a second mechanism different from the first, or it is labeled Unverified.
 `Outcome` is `located`, `located-elsewhere-and-citation-corrected`, or `not-located`.
