@@ -14,7 +14,7 @@ Working artifacts from creating this root. Downstream work does not load these; 
 
 The living list of open actions is not here. It is `todos/current.md`. This folder is the evidence pack from creating the root: extracts, packages, drafts, verification, audit, close report. Do not delete it at close.
 
-This folder is the working area Part 6 of the onboarding process names, except the operating file, which is the todo list and lives where a later session will actually look for it.
+This folder is the working area the onboarding process names, except the operating file, which is the todo list and lives where a later session will actually look for it.
 
 ## The record grammars
 

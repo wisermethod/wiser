@@ -3,7 +3,7 @@ name: Headshot Normalizer
 type: skill
 category: media
 description: Turn photographs into square transparent PNGs whose faces sit at the same size and the same place in the frame, by removing each background, measuring the eyes, and cutting every frame to one standard, reporting the transparent band left where a photograph is too short to fill its frame
-version: 0.2.0
+version: 0.3.0
 gaps:
   - image cutout, resizing and overlay
   - the vision and image-model calls this skill's automated path depends on
@@ -124,7 +124,7 @@ The three are one composition rather than three settings, because each is a shar
 - **The bystander.** The largest face wins, and in a photograph where the subject stands behind someone the largest face is the wrong person. Say how many faces were found; a count above one is the caller's cue to look before the file ships.
 - **Rerunning a miss.** Both calls bill again and neither is random, so the same photograph returns the same failure at the same cost. Change the photograph.
 - **An ambiguous request.** A request that does not say where the files go, which standard they follow, or which face is the subject gets a question before any billed call, never a default.
-- **A tool or connector this root does not carry.** Every `tools/` and `connectors/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand; the rest of the run proceeds. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
+- **A tool or connector this root does not carry.** Every `tools/` and `connectors/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
 

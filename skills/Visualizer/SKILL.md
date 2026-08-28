@@ -3,7 +3,7 @@ name: Visualizer
 type: skill
 category: design
 description: Turn source material into one diagram whose geometry matches the structure the material actually has, delivered as a self-contained HTML file or as Mermaid for markdown
-version: 0.2.0
+version: 0.3.0
 gaps:
   - rendering a chart or diagram to an image file
 ---
@@ -94,7 +94,7 @@ Then the five-second test: can a reader state the core structure after five seco
 - **Everything on screen at once.** A complete diagram that is unreadable has traded the thing it was made for. Cut to the ceiling and layer the rest.
 - **Hand-positioning at scale.** Misaligned arrows and overlapping nodes are the signature of manual coordinates past the point where they hold. Move to the technique's library rather than nudging values.
 - **The wrong medium for the destination.** Interactive HTML handed to someone who needs it inside a markdown document, or Mermaid attempted for a matrix or a fishbone it cannot express. Settle the destination in step 4 before building anything.
-- **A tool this root does not carry.** Every `tools/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand; the rest of the run proceeds. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
+- **A tool this root does not carry.** Every `tools/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
 

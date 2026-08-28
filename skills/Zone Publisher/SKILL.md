@@ -3,7 +3,7 @@ name: Zone Publisher
 type: skill
 category: development
 description: Bring one Cloudflare zone's live DNS into a reviewable zone file, apply the intended record changes, and publish them back with every removal approved by name and every published record re-read from the platform
-version: 0.2.0
+version: 0.3.0
 gaps:
   - Cloudflare redirect rules API (Page Rules successor / Rulesets)
   - applying DNS and zone changes to the hosting account, so this skill can plan a change it cannot publish
@@ -130,7 +130,7 @@ Propagation across the edge is not instantaneous. A record missing on the first 
 - **Proxy status changed by accident.** A record that stops being proxied stops redirecting and starts exposing the origin address; one that starts being proxied breaks anything that needed to reach the origin directly. It is never inferred, always carried, and always named in the diff.
 - **A placeholder that publishes.** An invented DKIM key or a guessed DMARC policy looks like a working record and is worse than a missing one. Ask, or leave it out and name the gap.
 - **The request that names no zone.** "Fix the DNS", a domain with no account when several are reachable, a change described only by its outcome. Ask before step 2; a pull against the wrong zone is harmless, and everything after it is not.
-- **A connector this root does not carry.** Every `connectors/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than performing it by hand against a live account; the rest of the run proceeds. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
+- **A connector this root does not carry.** Every `connectors/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than performing it by hand against a live account. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
 

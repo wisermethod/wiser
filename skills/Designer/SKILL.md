@@ -3,7 +3,7 @@ name: Designer
 type: skill
 category: design
 description: Run a design job end to end, from brief and visual direction through foundations, composition, and validation, producing the wireframe, style guide, or extracted system itself and directing every other phase to the design skill that owns it
-version: 0.2.0
+version: 0.3.0
 memory:
   - design
 gaps:
@@ -177,7 +177,7 @@ The output is the observed system handed to `skills/Design System/` to compose i
 
 Six axes, run over the artifact before it goes to review. Contrast thresholds live in Contrast Requirements of `skills/Color Palette Design/SKILL.md` and are not restated here. The Accessibility dimension of the Audit in `experts/Design Advisor/EXPERT.md` remains the reference for how those thresholds combine with focus, target size, color independence, and motion in a full review. An axis with no rendered surface to run against, as with an extracted system or a tokens-only delivery, is named as not applicable rather than silently skipped.
 
-- **Contrast.** Every text and background pairing that will appear, and every interface element against what sits next to it. Compute the ratios rather than judging by eye; the computation is Step 6 of `skills/Color Palette Design/`, and the pass thresholds are that skill's Contrast Requirements.
+- **Contrast.** Every text and background pairing that will appear, and every interface element against what sits next to it. Compute the ratios rather than judging by eye; the computation belongs to `skills/Color Palette Design/`, run by name, and the pass thresholds are that skill's Contrast Requirements.
 - **Focus and states.** Every interactive element carries the states its type needs, and a focus indicator that is visible, distinguishable from hover, and not carried by color alone.
 - **Target size.** The visible mark may be small; the hit area may not. Padding extends it.
 - **Semantic structure.** Headings descend without skipping a level, lists are lists, a button is a `<button>` and a link is an `<a>`, navigation and main content sit in their landmarks, every input has a real label rather than a placeholder standing in for one, images carry alternative text (empty for decorative ones), and tables carry scoped headers.
@@ -196,7 +196,7 @@ Group the findings blocking, then major, then minor, each naming its location an
 - **A system file written to a root's top level.** A design system is an output like any other: it goes to the owning root's work area (`standards/conventions.md`), never to a root's top level. Whether it then becomes the root's bound `design` file is the owner's act under the constitution's Workspace Model, not this skill's.
 - **Validation saved for the end.** The intentional-choice and distinctiveness checks run while composing. Run at the end, they find work that has to be redone rather than decisions that have yet to be made.
 - **Ambiguity.** The register, the deliverable, or which of several artifacts is being asked for cannot be settled from the request: ask before designing.
-- **A tool this root does not carry.** Every `tools/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand; the rest of the run proceeds. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
+- **A tool this root does not carry.** Every `tools/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
 

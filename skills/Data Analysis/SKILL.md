@@ -3,7 +3,7 @@ name: Data Analysis
 type: skill
 category: data
 description: Turn a CSV, JSON, or TSV file into an analysis whose every figure was computed by a data tool and can be traced to the field it came from, with parse errors, skipped columns, and missing values stated
-version: 0.2.0
+version: 0.3.0
 gaps:
   - the tabular data operations every run here is routed through, being parsing, describing, aggregating, joining and charting
 ---
@@ -98,7 +98,7 @@ A request for something no tool here computes gets three sentences and no fourth
 - **A denominator nobody can see.** A group's mean divides by the values in that group that parsed as numbers, not by the group's rows, so a group holding blanks reports a mean over fewer values than it has rows. When the profile shows a column with missing or non-numeric values, either say so beside the group figures or describe that column so the count and the missing count are on the record.
 - **Two counts that are not the same count.** The profile's non-null count, the descriptive count, and an aggregate count answer different questions across the tools that produce them. Take each figure's count from the tool that produced that figure, and never combine two of them into a third number.
 - **The request that has not been asked yet.** "Analyze this" over a file of forty columns, a question naming a column that is not there, an ambiguous grouping: ask which columns or which question before running anything, per the constitution's Behavioral Core. A profile is cheap and answers most of it; a guessed analysis is expensive and looks finished.
-- **A tool this root does not carry.** Every `tools/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand; the rest of the run proceeds. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
+- **A tool this root does not carry.** Every `tools/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
 

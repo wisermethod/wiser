@@ -3,7 +3,7 @@ name: Media Generator
 type: skill
 category: media
 description: Produce an image or a video that does not exist yet, or a photograph with its background removed, by finishing the prompt, choosing the model, and running the billed generation through the replicate connector to a file the user named
-version: 0.2.0
+version: 0.3.0
 gaps:
   - image and video conversion, editing and overlay
   - the image and video generation models this skill's whole output depends on
@@ -120,7 +120,7 @@ A director commissioning a shot, not a person typing wishes into a box. The prom
 - **Promising what the model cannot do.** Audio, duration, a reference frame, a seed, and an exact pixel size exist on some models and not on others. The schema decides, and it is read before the user is told.
 - **A destination nobody named.** There is no default save location and nothing is written into this plugin root. Ask first; a file the user cannot find is a run they will pay for twice.
 - **An ambiguous request.** A request that does not say whether it wants an image or a video, what it is for, or where it goes gets a question before any billed call, never a default.
-- **A tool or connector this root does not carry.** Every `tools/` and `connectors/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand; the rest of the run proceeds. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
+- **A tool or connector this root does not carry.** Every `tools/` and `connectors/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
 

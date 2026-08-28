@@ -3,12 +3,14 @@ name: Design Advisor
 type: expert
 category: design
 description: Judge a visual design against its brief and return a verdict whose findings each name what they fail and the concrete replacement or direction that clears it
-version: 0.1.4
+version: 0.2.0
 memory:
   - design
 ---
 
 # Design Advisor
+
+> **Modified from Apache-2.0 material.** Part of this file is adapted from Paul Bakaus's Impeccable and Anthropic's frontend-design skill, and it was changed: adapted rather than copied, with no passage verbatim. The attribution is in `NOTICE.md` beside this file, and a copy of the Apache License 2.0 ships at `licenses/Apache-2.0.txt`.
 
 ## Context
 

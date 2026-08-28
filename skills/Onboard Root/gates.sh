@@ -105,15 +105,62 @@ trap 'rm -rf "$TMPD"' EXIT INT TERM
 
 # ---------------------------------------------------------------- the tree
 
-ONB="$ROOT/work/onboarding"
-RUNREC="$ONB/run-record.md"
-VERIF="$ONB/verification.md"
-AUDIT="$ONB/audit.md"
-OPER="$ROOT/todos/current.md"
-CLOSE="$ONB/close-report.md"
-EXTRACT_DIR="$ONB/extraction"
-EVID_DIR="$ONB/evidence"
-SRC_DIR="$ROOT/sources"
+# The root's own AGENTS.md declares its type, and the type decides where the
+# onboarding records live. A client root carries the full record set under
+# `work/onboarding/` plus `sources/` and `todos/`; the other four types declare
+# none of those, and their own templates say `work/onboarding/` is the
+# client-root layout and does not apply to them. Reading the type here is what
+# stops this harness demanding a layout the root was never given.
+ROOT_TYPE=""
+if [ -f "$ROOT/AGENTS.md" ]; then
+  ROOT_TYPE=$(awk 'NR==1 && $0!="---" {exit} NR>1 && $0=="---" {exit} /^type:[[:space:]]/ {sub(/^type:[[:space:]]*/,""); print; exit}' "$ROOT/AGENTS.md")
+fi
+[ -n "$ROOT_TYPE" ] || ROOT_TYPE=unknown
+
+case "$ROOT_TYPE" in
+  client)
+    ONB="$ROOT/work/onboarding"
+    RUNREC="$ONB/run-record.md"
+    VERIF="$ONB/verification.md"
+    AUDIT="$ONB/audit.md"
+    OPER="$ROOT/todos/current.md"
+    CLOSE="$ONB/close-report.md"
+    EXTRACT_DIR="$ONB/extraction"
+    EVID_DIR="$ONB/evidence"
+    SRC_DIR="$ROOT/sources"
+    HANDOVER_LAYOUT=1
+    ;;
+  personal|org|department|industry)
+    # The run record sits in the working area the template declares, and the
+    # operating file sits beside it. No extraction, evidence, sources or todos
+    # directory exists for these types, and none is created here.
+    ONB="$ROOT/work"
+    RUNREC="$ONB/onboarding-run-record.md"
+    VERIF="$ONB/onboarding-verification.md"
+    AUDIT="$ONB/onboarding-audit.md"
+    OPER="$ONB/onboarding-operating-file.md"
+    CLOSE="$ONB/onboarding-close-report.md"
+    EXTRACT_DIR="$ONB/onboarding-extraction"
+    EVID_DIR="$ONB/onboarding-evidence"
+    SRC_DIR="$ROOT/inbox"
+    HANDOVER_LAYOUT=0
+    ;;
+  *)
+    echo "$PROG: $ROOT/AGENTS.md declares no recognised type: (personal, org, client, department, industry)" >&2
+    echo "$PROG: a root is identified by its declaration, never by its folder name; fix the declaration and re-run" >&2
+    exit 2
+    ;;
+esac
+
+# A gate that reads an artifact only the client layout carries reports SKIP with
+# its reason on the other four types, never FAIL. The distinction is the same
+# one this harness already draws for a run with no supplied documents: not
+# applicable is not the same as not done.
+handover_only() {
+  if [ "$HANDOVER_LAYOUT" = "1" ]; then return 1; fi
+  set_skip "root type is $ROOT_TYPE: $1 belongs to the client-root layout, which this type's template does not declare"
+  return 0
+}
 
 # Count of supplied documents. A run with none is the research-first, nothing-
 # handed-over case, where extraction records cannot exist and the three gates
@@ -527,6 +574,7 @@ gate_G1() {
 lead_number() { printf '%s' "$1" | awk '{print $1}'; }
 
 gate_G2() {
+  handover_only "the extraction records and the supplied-sources directory" && return
   if [ ! -d "$EXTRACT_DIR" ]; then
     if [ "$(source_count)" -eq 0 ]; then
       add_note "no documents were supplied, so there is nothing to extract and this gate does not apply; the close report names it"
@@ -599,10 +647,11 @@ gate_G3() {
 
 # ---- G4 Evidence packages are evidence -----------------------------------
 gate_G4() {
+  handover_only "the per-angle evidence packages" && return
   if [ ! -d "$EVID_DIR" ]; then
     tierv=$(kv "$RUNREC" "tier" 2>/dev/null)
     if [ "$tierv" = "core" ]; then
-      # Part 6 makes per-angle packages a full-tier artifact, and the Tier
+      # the onboarding phases makes per-angle packages a full-tier artifact, and the Tier
       # section retires G4 with them. A skip is not a pass, so without this a
       # correctly run core-tier root could never exit 0 from its own harness.
       add_note "tier: core, so per-angle evidence packages and this gate do not apply; the close report names it"
@@ -1017,6 +1066,7 @@ where_resolves() {
 }
 
 gate_G6() {
+  handover_only "the extraction records and the operating file" && return
   if [ ! -d "$EXTRACT_DIR" ]; then
     if [ "$(source_count)" -eq 0 ]; then
       add_note "no documents were supplied, so there is no must-reach list and this gate does not apply; the close report names it"
@@ -1090,6 +1140,7 @@ gate_G6() {
 CONSTRAINT_GRAMMAR='must not|may not|must only|may only|only |never|not permitted|permitted only|prohibited|forbidden|do not|cannot|shall not|no [a-z]+ may|restricted|require[sd]? approval|sign-?off|approval|cleared|clearance|embargo|compliance|regulat|legal|confidential|under nda|not for|internal only|do not share|fee|retainer|term of|pricing|priced|invoice|scope of work|deliverable count|review note|reviewer|comment|tracked change|redline|struck out'
 
 gate_G6b() {
+  handover_only "the extraction records and the supplied-sources directory" && return
   if [ ! -d "$SRC_DIR" ]; then
     add_note "no documents were supplied, so there is no coverage floor to meet and this gate does not apply; the close report names it"
     return
@@ -1190,6 +1241,7 @@ gate_G8() {
 
 # ---- G9 Headings answered ------------------------------------------------
 gate_G9() {
+  handover_only "the extraction records" && return
   if [ ! -d "$MEM" ]; then
     set_skip "$(rel "$MEM") does not exist: nothing to check"
     return
@@ -1476,6 +1528,7 @@ G11BEOF
 
 # ---- G12 The interview covered its classes -------------------------------
 gate_G12() {
+  handover_only "the per-angle evidence packages" && return
   need_file "$RUNREC" || return
   for h in "What was bought" "Who confirms and on what basis" "Contradictions" "What the outputs are for"; do
     if ! has_heading "$RUNREC" "### $h"; then

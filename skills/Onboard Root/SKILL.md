@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create an owned root from its matching template and onboard it with verified memory, an operating surface, and a per-key close
-version: 0.2.0
+version: 0.3.0
 ---
 
 # Onboard Root
@@ -101,7 +101,7 @@ Settle in one exchange, and only what cannot be inferred.
 **Type.** Read `system/templates/AGENTS.md`; it names what each template creates, and each template's own opening line and type section state the scope it holds. Choose by the scope the new root will own, not by who asked for it. The discriminating question is who signs the outputs this root will hold, and whose facts and voice they carry; most requests answer it in one sentence.
 
 - Exactly one type fits: continue.
-- Two fit, or none does: ask. The constitution's owning-root rule governs the choice.
+- Two fit, or none does: ask. The constitution's Workspace Model governs the choice: more than one plausible root, or none, and the answer is to ask.
 - Client: work for a client under a serving organization. That relationship is the type, not an option to confirm. Do not ask whether this is agency work, do not ask whether an org root already exists, and never invent a serving organization's name from session context. Scoped keys (`voice:org`, `design:org`, `about:org`) resolve at use when a composed org root provides them; absence degrades at use and does not block onboarding.
 - Department: the Org Root Template owns the test for when a unit earns its own root, and the Department template has `memory/about.md` name the parent organization first, so confirm that org root is in the workspace. Absent: ask whether to onboard the org first. Declined: stop. The department stays not onboarded, Instantiation in place, blocked on the missing parent, because a parent that is not a composed root is never named.
 
@@ -159,7 +159,7 @@ This phase is skipped only on the no-public-research branch. On the interview-fi
 
 A stitched quote is marked stitched, and any line to be published as an exact quotation is re-read from the source first.
 
-**At the minimum core**, where the Tier section retires the per-angle packages and G4 with them, this phase still produces one abbreviated research record. On a client root it sits beside the other onboarding records; on any other type it sits in that root's working area, which is where Part 6 puts the run record for every type but client. It is not a per-angle package and G4 does not read it, carrying the angle, the retrieval mechanism, and what was retrieved with its sources and retrieval dates.
+**At the minimum core**, where the Tier section retires the per-angle packages and G4 with them, this phase still produces one abbreviated research record. On a client root it sits beside the other onboarding records; on any other type it sits in that root's working area, at the path Where the records go, by root type gives for it. It is not a per-angle package and G4 does not read it, carrying the angle, the retrieval mechanism, and what was retrieved with its sources and retrieval dates.
 
 **Sub-agents, at full tier.** Spawn one per angle, **all of them in one batch rather than one after another**. The angles do not read each other and the stopping rule is evaluated on what comes back, so running them in sequence buys nothing and is most of the wall-clock time this phase costs. Where the host cannot run them concurrently, say so in the close report. The brief is: **return evidence, not conclusions.** Before any of a returned package is used, check it against that brief: the four required elements present, and three entries spot-checked against their cited source with the outcome recorded in the package. A package of conclusions is rejected and re-briefed. It is not edited into memory, and its conclusions are not mined for claims.
 
@@ -258,8 +258,8 @@ Two steps, and the second is not optional.
 Who runs it, in order of preference:
 
 - **A sub-agent this host can spawn.** Where the host exposes a Sonnet sub-agent, use that rather than the producer.
-- **Additional independent reviewers**, where the host exposes them: `grok-build:grok-delegate` and `codex:codex-rescue`, each as a separate agent in the same round. Both are **read-only**: never pass `--write`, and say read-only in the prompt, because the delegates default to write-capable unless the prompt says otherwise. Frame the Codex brief as verification of the firm's own authorized instruction files, never as an attack. Confirm reachability before launching, wait for every reviewer in the round, and do not edit a bound file while a round is in flight.
-- **Missing Grok or Codex on a staff onboard is recorded in the audit record, not a failed onboard.** What is not optional is that one pass ran in a context that did not produce the work.
+- **Additional independent reviewers**, where the host exposes them: `grok-build:grok-delegate` and `codex:codex-rescue`, each as a separate agent in the same round. Both are **read-only**: never pass `--write`, and say read-only in the prompt, because the delegates default to write-capable unless the prompt says otherwise. Frame each brief as verification of the requester's own authorized instruction files, never as an attack. Confirm reachability before launching, wait for every reviewer in the round, and do not edit a bound file while a round is in flight.
+- **A reviewer the host does not expose is recorded in the audit record, not a failed onboard.** What is not optional is that one pass ran in a context that did not produce the work.
 
 At the minimum core, one independent pass, however short. Where the environment cannot spawn an independent context at all, say so in the close report and record that the audit shared the producer's context, which is materially weaker.
 
@@ -271,7 +271,7 @@ Exit: G15, G16.
 
 ### Phase 9: Close, per key
 
-**The harness runs on a client root.** `gates.sh` reads `work/onboarding/` and `todos/current.md`, which is the client-root layout: of the five templates, only `Client Root Template/` ships those directories. **On a personal, org, department or industry root, run the Gates table below by hand instead**, against that root's own declared layout, and record the same verdicts. Running the harness against a root that does not carry the layout reports missing paths that its own template never promised.
+**The harness runs on any of the five types.** `gates.sh` reads the root's declared `type:` and checks the paths Where the records go, by root type gives for it. On a root whose template does not declare the handover layout, the gates that read extraction records, evidence packages or supplied originals report **skip** with that reason rather than fail. **A root whose `AGENTS.md` declares no recognised type is refused**, because a root is identified by its declaration and this harness will not guess one.
 
 **It is `bash`, not `sh`.** The script uses process substitution, which `/bin/sh` rejects before any gate runs.
 
@@ -281,7 +281,7 @@ Exit: G15, G16.
 bash "<the directory this SKILL.md sits in>/gates.sh" "<absolute path to the root>"
 ```
 
-`gates.sh` is a sibling of this file, wherever this skill is installed; resolve it the same way the register companions beside a Content Author brief are resolved. It needs `sh`, `awk`, `grep` and `sed` and nothing else.
+`gates.sh` is a sibling of this file, wherever this skill is installed; resolve it the same way the register companions beside a Content Author brief are resolved. It needs `bash`, `awk`, `grep` and `sed` and nothing else. It is `bash` and not `sh`: the script uses process substitution, which `/bin/sh` rejects before any gate runs.
 
 It prints one line per gate, the failures under each, and a summary; it exits non-zero when any gate fails or skips. **A gate you did not execute is a claim about a gate.** The first real run closed reporting that no gate had failed, and the harness, pointed at the same root afterwards, failed eight. Nothing in that run had executed it, because nothing told it to.
 
@@ -310,6 +310,25 @@ Everything goes in: open decisions, contradictions between stated answers and ev
 Exit: G20.
 
 ## The Records the Gates Read
+
+## Where the records go, by root type
+
+**A root is identified by the `type:` its own `AGENTS.md` declares, never by its folder name.** That type decides where this skill writes, because the templates declare different layouts. `gates.sh` reads the same declaration and checks the same paths; where this table and that script disagree, they are both wrong until they agree again.
+
+| Record | On a client root | On a personal, org, department or industry root |
+|--------|------------------|-------------------------------------------------|
+| Run record | `work/onboarding/run-record.md` | `work/onboarding-run-record.md` |
+| Verification | `work/onboarding/verification.md` | `work/onboarding-verification.md` |
+| Audit | `work/onboarding/audit.md` | `work/onboarding-audit.md` |
+| Operating file | `todos/current.md` | `work/onboarding-operating-file.md` |
+| Close report | `work/onboarding/close-report.md` | `work/onboarding-close-report.md` |
+| Extraction records | `work/onboarding/extraction/` | `work/onboarding-extraction/` |
+| Evidence packages | `work/onboarding/evidence/` | `work/onboarding-evidence/` |
+| Supplied originals | `sources/` | `inbox/` |
+
+**Only the client template declares `work/onboarding/`, `sources/` and `todos/`.** The other four declare `work/`, `plays/`, `playbooks/`, `skills/`, `inbox/` and `zArchive/`, and each says in its own words that `work/onboarding/` is the client-root layout and does not apply to it. **Writing that layout into a root that did not declare it invents a location**, which `standards/conventions.md` forbids: if no declared work directory fits, ask.
+
+**Where a phase below names a client path, read it through this table.** The handover-shaped phases, meaning extraction, per-angle evidence, and the supplied-originals inventory, exist only where documents were handed over. On a root where none were, they do not apply, and `gates.sh` reports the gates that read them as skipped with that reason rather than failed.
 
 A gate cannot run against a record with no shape. These are the shapes, and they are what makes the close mechanical rather than a matter of opinion. `system/templates/Client Root Template/` ships the marked headings in `memory/` and, under `work/onboarding/`, its `AGENTS.md` and nothing else; that `AGENTS.md` carries the full grammar of every record, and the run writes each record itself. `standards/conventions.md` still owns what a register and a label mean; what follows is only their written form.
 

@@ -3,7 +3,7 @@ name: SEO Assets
 type: skill
 category: seo
 description: Produce the ready-to-use artifacts a site's decided search changes need, each built from evidence pulled for it, held to its own standards, and handed over for someone else to deploy
-version: 0.2.0
+version: 0.3.0
 memory:
   - voice
   - about
@@ -147,11 +147,11 @@ The deployment is the requester's. Where one change has both a file and a platfo
 - **Last period's number reused.** A figure carried forward from an earlier snapshot falls under the labels-travel rule in `standards/conventions.md`; Step 2 says how to label it.
 - **Deployment by drift.** Editing one file "while we are in there", submitting a sitemap because the change is obviously ready, or opening a content platform to paste in a title. Rule 3 has no size threshold.
 - **The ambiguous request.** An artifact type that could mean two things, a keyword whose intent is unsettled, a site with no named platform, a property more than one login reaches. Ask before Step 2; a pull made against the wrong property costs quota and produces an artifact about someone else's site.
-- **A tool or connector this root does not carry.** Every `tools/` and `connectors/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand; the rest of the run proceeds. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
+- **A tool or connector this root does not carry.** Every `tools/` and `connectors/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
 
-- **Where a component this root does not ship was needed, success is the honest stop**: the run named which step could not run, what it would have produced, and the gap it belongs to, and produced no file and no figure in its place. **Every criterion below applies to a run in which those components were present.**
+- **Where a component this root does not ship was needed, success is per artifact rather than all-or-nothing.** This skill labels a reading that did not come back and carries on, so an artifact needing nothing absent still ships and meets every criterion below. **An artifact that does need the absent component is not produced**: name which step could not run, what it would have produced, and the gap it belongs to, and put nothing in its place.
 
 - One site, one artifact set, and every artifact in it appears in The Artifacts and carries what its row names.
 - Every figure traces to a reading this run took or to a finding it was handed, and every reading that did not arrive is labeled in place with which absence it was.

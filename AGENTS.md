@@ -62,7 +62,7 @@ Guard rails, binding for any shared artifact:
 
 **A secret's contents never enter the conversation, a log, a commit, or another file.**
 
-**Nothing is ever written under this root**, nor to the top level of any root. Output lands in the working folder, in the directories that folder's own `AGENTS.md` declares. The one exception is a tool's first-run dependency cache on the user's own machine, per that tool's own contract, and this root ships no tools.
+**Nothing is ever written under this root during a session that uses it**, nor to the top level of any root. Authoring this root is separate work, planned as a Playbook. Output lands in the working folder, in the directories that folder's own `AGENTS.md` declares. The one exception is a tool's first-run dependency cache on the user's own machine, per that tool's own contract, and this root ships no tools.
 
 **Nothing is deleted or overwritten without naming what is being lost first.** Where a root's own `AGENTS.md` declares an archive home, a file is archived there before it is replaced.
 
