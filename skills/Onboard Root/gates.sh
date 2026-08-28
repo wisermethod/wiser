@@ -535,7 +535,10 @@ gate_G0() {
   fi
   for key in $PERKEY_KEYS; do
     classes=$(printf '%s\n' "$G0_TABLE" | awk -F';' -v k="$key" '$1==k { print $2; exit }')
-    [ -n "$classes" ] || continue
+    if [ -z "$classes" ]; then
+      add_fail "gates.sh: close key '$key' has no required classes; the two lists have drifted and this key is checked by nothing"
+      continue
+    fi
     val=$(perkey_value "$key")
     if [ -z "$val" ]; then
       # A key that was never offered has nothing to close. The competitors
@@ -571,8 +574,13 @@ gate_G0() {
         function trim(s){ sub(/^[ \t]+/,"",s); sub(/[ \t]+$/,"",s); return s }
         trim($0)==H { n++ } END { print n+0 }' "$AGENTS" 2>/dev/null)
       [ "${prov:-0}" -eq 1 ] || add_fail "$(rel "$AGENTS"): 'competitors: complete' but the file carries ${prov:-0} '## Provides' sections; it carries exactly one"
-      comp_bind_n=$(section_body "$AGENTS" "## Provides" 2>/dev/null | strip_fences | grep -cE '^[[:space:]]*-[[:space:]]*competitors:' || true)
-      comp_bind_ok=$(section_body "$AGENTS" "## Provides" 2>/dev/null | strip_fences | grep -cE '^[[:space:]]*-[[:space:]]*competitors:[[:space:]]*memory/competitors\.md[[:space:]]*$' || true)
+      # Fences are removed from the whole file before the section is cut out.
+      # Stripping the extract instead left the case where a fence opens in an
+      # earlier section: section_body starts inside it, this filter never sees
+      # the opener, and the example reads as a binding.
+      strip_fences < "$AGENTS" > "$TMPD/agents-nofence.md" 2>/dev/null
+      comp_bind_n=$(section_body "$TMPD/agents-nofence.md" "## Provides" 2>/dev/null | grep -cE '^[[:space:]]*-[[:space:]]*competitors:' || true)
+      comp_bind_ok=$(section_body "$TMPD/agents-nofence.md" "## Provides" 2>/dev/null | grep -cE '^[[:space:]]*-[[:space:]]*competitors:[[:space:]]*memory/competitors\.md[[:space:]]*$' || true)
       if [ "${comp_bind_n:-0}" -ne 1 ] || [ "${comp_bind_ok:-0}" -ne 1 ]; then
         add_fail "$(rel "$AGENTS"): 'competitors: complete' but Provides carries ${comp_bind_n:-0} competitors binding(s), of which ${comp_bind_ok:-0} bind memory/competitors.md; it carries exactly one, and that one"
       fi
@@ -1932,31 +1940,55 @@ gate_G16() {
 }
 
 # ---- G17 Refusal removed only for complete keys -------------------------
-# preamble_body FILE -> every line above the first heading
+# preamble_body FILE -> every line above the first section heading
 # The grammar puts the run record's key lines at the top of the file, above
 # `## Copy vantages`. That is the span kv resolves them in, because kv takes
 # the first line in the file and nothing precedes the preamble.
+#
+# The grammar's sections are `##`; a leading `#` is the document's title, which
+# nothing forbids. Round 19 found this stopped at any heading, so a titled
+# record had an empty preamble and every duplicate in it went unseen. The
+# preamble ends where the first section begins.
 preamble_body() {
   [ -f "$1" ] || return 1
   awk '
   function trim(s){ sub(/^[ \t]+/,"",s); sub(/[ \t]+$/,"",s); return s }
-  { t=trim($0); if(t ~ /^#+([ \t]|$)/) exit; print }' "$1"
+  { t=trim($0); if(t ~ /^#{2,}([ \t]|$)/) exit; print }' "$1"
 }
 
 # strip_fences: drop fenced regions from stdin.
 # section_body has no fence state and this migration is not adding one to it;
 # that reader is inherited and the defect is filed. But the competitors binding
 # check is this migration's own guarantee, and a binding written inside a
-# fenced example is an example, not a binding. Round 18 found a root could
-# close `competitors: complete` on a fenced pseudo-binding and lift the
-# Instantiation refusal with the key genuinely unbound. So the check that
-# carries the guarantee reads the section with its examples removed.
+# fenced example is an example, not a binding.
+#
+# Round 19 found the first version of this was a toggle on any fence-looking
+# line, which is not what a fence is: a run of backticks does not close a run
+# of tildes, a closer is never shorter than its opener, a closer carries no
+# info string, and four spaces of indent is code rather than a fence. Each of
+# those let an example out, or swallowed a real binding. So the opener is
+# remembered and only its own closer ends it.
 strip_fences() {
   awk '
-  { line=$0
-    sub(/^[ \t]+/,"",line)
-    if(line ~ /^(```|~~~)/){ inf = !inf; next }
-    if(!inf) print $0 }'
+  {
+    line=$0
+    ind=match(line, /[^ ]/); if(ind==0) ind=length(line)+1
+    body=substr(line, ind)
+    m=0
+    if(ind<=4){
+      if(body ~ /^```/) { ch="`" } else if(body ~ /^~~~/) { ch="~" } else { ch="" }
+      if(ch!=""){ while(substr(body,m+1,1)==ch) m++ }
+    }
+    if(!inf){
+      if(m>=3){ inf=1; fch=ch; flen=m; next }
+      print; next
+    }
+    if(m>=3 && ch==fch && m>=flen){
+      rest=substr(body,m+1); sub(/[ \t]+$/,"",rest)
+      if(rest==""){ inf=0; next }
+    }
+    next
+  }'
 }
 
 # dup_keys FILE KEYSET MESSAGE [REPORT_AS]
@@ -1981,20 +2013,40 @@ dup_keys() {
       | awk -v US="$US" '$1 > 1 { print $1 US $2 }')
 }
 
+# The record answers a file-scoped key once, in the section that declares it.
+# Three ways to break that, and kv resolves the wrong line in every one:
+# twice inside the span, once inside and again above it, or nowhere inside
+# while present somewhere else. Round 19 found only the first two were checked,
+# so a key declared outside its span, or a span left empty, turned the guard
+# off rather than narrowing it.
+#
+# These take presence from has_key rather than a non-empty value, because a key
+# line with an empty value is present and is what kv would return.
+
 # span_answered_earlier FILE SPANFILE KEYSET SPANNAME
-# For a key the gate reads file-scoped, being declared once in its own span is
-# not enough: an earlier line elsewhere is the one kv returns, and that is the
-# value the gate reads. Ask kv both ways and refuse a disagreement, rather than
-# building a third thing that guesses at what kv would have done.
 span_answered_earlier() {
   _f=$1; _sp=$2; _keys=$3; _span=$4
   [ -f "$_f" ] && [ -f "$_sp" ] || return 0
   for _k in $_keys; do
+    has_key "$_sp" "$_k" || continue
     _sv=$(kv "$_sp" "$_k" 2>/dev/null)
-    [ -n "$_sv" ] || continue
     _fv=$(kv "$_f" "$_k" 2>/dev/null)
     [ "$_fv" = "$_sv" ] && continue
     add_fail "$(rel "$_f"): key $_k: answered above $_span as '$_fv'; kv takes that line and never reaches the one under $_span"
+  done
+}
+
+# declared_outside_span FILE SPANFILE KEYSET SPANNAME
+# Only for keys a gate reads file-scoped: kv reaches outside the span and
+# perkey_value does not, so a stray line elsewhere is a declaration for one and
+# invisible to the other.
+declared_outside_span() {
+  _f=$1; _sp=$2; _keys=$3; _span=$4
+  [ -f "$_f" ] || return 0
+  for _k in $_keys; do
+    has_key "$_f" "$_k" || continue
+    has_key "$_sp" "$_k" && continue
+    add_fail "$(rel "$_f"): key $_k: answered outside $_span, which is where the record declares it; kv takes whichever line comes first and no gate reads the section that should hold it"
   done
 }
 
@@ -2027,11 +2079,13 @@ controlled_sections_unique() {
   preamble_body "$1" > "$TMPD/uniq-preamble.txt" 2>/dev/null
   dup_keys "$TMPD/uniq-preamble.txt" "$G1_KEYS" \
     "kv reads the first and the rest are read by nothing" "$1"
+  declared_outside_span "$1" "$TMPD/uniq-preamble.txt" "$G1_KEYS" "the key block above the first section"
 
   section_body "$1" "## Copy vantages" > "$TMPD/uniq-vantage.txt" 2>/dev/null
   dup_keys "$TMPD/uniq-vantage.txt" "$VANTAGE_KEYS" \
     "kv reads the first and the rest are read by nothing" "$1"
   span_answered_earlier "$1" "$TMPD/uniq-vantage.txt" "$VANTAGE_KEYS" "'## Copy vantages'"
+  declared_outside_span "$1" "$TMPD/uniq-vantage.txt" "$VANTAGE_KEYS" "'## Copy vantages'"
 
   section_body "$1" "## Per-key close" > "$TMPD/uniq-perkey.txt" 2>/dev/null
   dup_keys "$TMPD/uniq-perkey.txt" "$PERKEY_KEYS" \
