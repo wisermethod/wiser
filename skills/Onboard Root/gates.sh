@@ -128,7 +128,6 @@ case "$ROOT_TYPE" in
     EXTRACT_DIR="$ONB/extraction"
     EVID_DIR="$ONB/evidence"
     SRC_DIR="$ROOT/sources"
-    HANDOVER_LAYOUT=1
     ;;
   personal|org|department|industry)
     # The run record sits in the working area the template declares, and the
@@ -143,7 +142,6 @@ case "$ROOT_TYPE" in
     EXTRACT_DIR="$ONB/onboarding-extraction"
     EVID_DIR="$ONB/onboarding-evidence"
     SRC_DIR="$ROOT/inbox"
-    HANDOVER_LAYOUT=0
     ;;
   *)
     echo "$PROG: $ROOT/AGENTS.md declares no recognised type: (personal, org, client, department, industry)" >&2
@@ -1084,13 +1082,13 @@ gate_G6() {
       fi
       # Version 4 closed the operating-file escape: downstream work loads
       # bound files and does not load the todo list, so a prohibition or a
-      # compliance flag routed to todos/current.md reproduces F15 exactly
+      # compliance flag routed to the operating file reproduces F15 exactly
       # while satisfying the disposition check. Those two kinds discharge
       # only in-bound-file; commercial, person and review-note take either.
       case "$kind" in
         prohibition|compliance)
           if [ "$disp" = "in-operating-file" ]; then
-            add_fail "$r line $ln: row $item is kind $kind and disposes in-operating-file; prohibition and compliance items discharge only to a bound file, because downstream work does not load todos/current.md"
+            add_fail "$r line $ln: row $item is kind $kind and disposes in-operating-file; prohibition and compliance items discharge only to a bound file, because downstream work does not load the operating file"
           fi
           ;;
       esac
@@ -1104,9 +1102,9 @@ gate_G6() {
           if [ -z "$oid" ]; then
             add_fail "$r line $ln: row $item is in-operating-file but Where '$where' names no O<n> item"
           elif [ ! -f "$OPER" ]; then
-            add_fail "$r line $ln: row $item points at todos/current.md, which is missing"
+            add_fail "$r line $ln: row $item points at $(rel "$OPER"), which is missing"
           elif ! grep -qE "(^|[^A-Za-z0-9])$oid([^0-9]|$)" "$OPER"; then
-            add_fail "$r line $ln: row $item points at $oid, which is not in todos/current.md"
+            add_fail "$r line $ln: row $item points at $oid, which is not in $(rel "$OPER")"
           fi
           ;;
         *)
@@ -1982,8 +1980,8 @@ gate_G19() {
         add_fail "$(rel "$cf"): carries no KEY= lines (the key list is empty)"
       fi
       # An unfilled credential file is legitimate; an unfilled credential file
-      # nobody owns is not. Empty values above zero pass only when todos/current.md
-      # carries a row whose Blocker names this credential.
+      # nobody owns is not. Empty values above zero pass only when the root's
+      # operating file carries a row whose Blocker names this credential.
       if [ "$empty" -gt 0 ]; then
         cfbase=$(basename "$cf")
         cfstem=${cfbase%.*}
@@ -2003,7 +2001,7 @@ gate_G19() {
         if [ "$owned" = "1" ]; then
           add_note "$(rel "$cf"): $empty empty value(s), owned by an operating row naming the credential"
         else
-          add_fail "$(rel "$cf"): $empty empty value(s) and no todos/current.md row whose Blocker names this credential"
+          add_fail "$(rel "$cf"): $empty empty value(s) and no $(rel "$OPER") row whose Blocker names this credential"
         fi
       fi
     done < <(find "$SECRETS" -type f ! -name '.*' 2>/dev/null | sort)
