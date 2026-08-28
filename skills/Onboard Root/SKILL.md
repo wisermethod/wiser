@@ -281,7 +281,7 @@ Exit: G15, G16.
 bash "<the directory this SKILL.md sits in>/gates.sh" "<absolute path to the root>"
 ```
 
-`gates.sh` is a sibling of this file, wherever this skill is installed; resolve it the same way the register companions beside a Content Author brief are resolved. It needs `bash`, `awk`, `grep` and `sed` and nothing else. It is `bash` and not `sh`: the script uses process substitution, which `/bin/sh` rejects before any gate runs.
+`gates.sh` is a sibling of this file, wherever this skill is installed; resolve it the same way the register companions beside a Content Author brief are resolved. It needs `bash` and the standard POSIX utilities: `awk`, `grep`, `sed`, `find`, `sort`, `cat`, `cut`, `tr`, `wc`, `head`, `uniq`, `basename`, `date`, `mktemp` and `rm`. It is `bash` and not `sh`: the script uses process substitution, which `/bin/sh` rejects before any gate runs.
 
 It prints one line per gate, the failures under each, and a summary; it exits non-zero when any gate fails or skips. **A gate you did not execute is a claim about a gate.** The first real run closed reporting that no gate had failed, and the harness, pointed at the same root afterwards, failed eight. Nothing in that run had executed it, because nothing told it to.
 
@@ -324,11 +324,12 @@ Exit: G20.
 | Close report | `work/onboarding/close-report.md` | `work/onboarding-close-report.md` |
 | Extraction records | `work/onboarding/extraction/` | `work/onboarding-extraction/` |
 | Evidence packages | `work/onboarding/evidence/` | `work/onboarding-evidence/` |
+| Working draft | `work/onboarding/draft/` | `work/onboarding-draft/` |
 | Supplied originals | `sources/` | `inbox/` |
 
 **Only the client template declares `work/onboarding/`, `sources/` and `todos/`.** The other four declare `work/`, `plays/`, `playbooks/`, `skills/`, `inbox/` and `zArchive/`, and each says in its own words that `work/onboarding/` is the client-root layout and does not apply to it. **Writing that layout into a root that did not declare it invents a location**, which `standards/conventions.md` forbids: if no declared work directory fits, ask.
 
-**Where a phase below names a client path, read it through this table.** The handover-shaped phases, meaning extraction, per-angle evidence, and the supplied-originals inventory, exist only where documents were handed over. On a root where none were, they do not apply, and `gates.sh` reports the gates that read them as skipped with that reason rather than failed.
+**Every phase in this file names the client path. Read each one through this table**, whichever type is being onboarded; the client column is what the phases say, and the other column is what they mean on the other four types. The handover-shaped phases, meaning extraction, per-angle evidence, and the supplied-originals inventory, exist only where documents were handed over. On a root where none were, they do not apply, and `gates.sh` reports the gates that read them as skipped with that reason rather than failed.
 
 A gate cannot run against a record with no shape. These are the shapes, and they are what makes the close mechanical rather than a matter of opinion. `system/templates/Client Root Template/` ships the marked headings in `memory/` and, under `work/onboarding/`, its `AGENTS.md` and nothing else; that `AGENTS.md` carries the full grammar of every record, and the run writes each record itself. `standards/conventions.md` still owns what a register and a label mean; what follows is only their written form.
 

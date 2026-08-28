@@ -4,6 +4,8 @@ The three whole-layout clusters in the Prohibited Defaults Taxonomy are adapted,
 
 ## frontend-design, by Anthropic
 
+**Copyright is held by Anthropic.** The upstream notice was not read directly for this record, so its exact wording is not reproduced here; the source is linked below and carries it.
+
 - Source: https://github.com/anthropics/skills/tree/main/skills/frontend-design
 - License: Apache 2.0
 - What was drawn on: the three whole-layout clusters, adapted from a later revision of the skill, none verbatim.

@@ -152,15 +152,6 @@ case "$ROOT_TYPE" in
     ;;
 esac
 
-# A gate that reads an artifact only the client layout carries reports SKIP with
-# its reason on the other four types, never FAIL. The distinction is the same
-# one this harness already draws for a run with no supplied documents: not
-# applicable is not the same as not done.
-handover_only() {
-  if [ "$HANDOVER_LAYOUT" = "1" ]; then return 1; fi
-  set_skip "root type is $ROOT_TYPE: $1 belongs to the client-root layout, which this type's template does not declare"
-  return 0
-}
 
 # Count of supplied documents. A run with none is the research-first, nothing-
 # handed-over case, where extraction records cannot exist and the three gates
@@ -574,7 +565,6 @@ gate_G1() {
 lead_number() { printf '%s' "$1" | awk '{print $1}'; }
 
 gate_G2() {
-  handover_only "the extraction records and the supplied-sources directory" && return
   if [ ! -d "$EXTRACT_DIR" ]; then
     if [ "$(source_count)" -eq 0 ]; then
       add_note "no documents were supplied, so there is nothing to extract and this gate does not apply; the close report names it"
@@ -647,7 +637,6 @@ gate_G3() {
 
 # ---- G4 Evidence packages are evidence -----------------------------------
 gate_G4() {
-  handover_only "the per-angle evidence packages" && return
   if [ ! -d "$EVID_DIR" ]; then
     tierv=$(kv "$RUNREC" "tier" 2>/dev/null)
     if [ "$tierv" = "core" ]; then
@@ -1066,7 +1055,6 @@ where_resolves() {
 }
 
 gate_G6() {
-  handover_only "the extraction records and the operating file" && return
   if [ ! -d "$EXTRACT_DIR" ]; then
     if [ "$(source_count)" -eq 0 ]; then
       add_note "no documents were supplied, so there is no must-reach list and this gate does not apply; the close report names it"
@@ -1140,7 +1128,6 @@ gate_G6() {
 CONSTRAINT_GRAMMAR='must not|may not|must only|may only|only |never|not permitted|permitted only|prohibited|forbidden|do not|cannot|shall not|no [a-z]+ may|restricted|require[sd]? approval|sign-?off|approval|cleared|clearance|embargo|compliance|regulat|legal|confidential|under nda|not for|internal only|do not share|fee|retainer|term of|pricing|priced|invoice|scope of work|deliverable count|review note|reviewer|comment|tracked change|redline|struck out'
 
 gate_G6b() {
-  handover_only "the extraction records and the supplied-sources directory" && return
   if [ ! -d "$SRC_DIR" ]; then
     add_note "no documents were supplied, so there is no coverage floor to meet and this gate does not apply; the close report names it"
     return
@@ -1241,7 +1228,6 @@ gate_G8() {
 
 # ---- G9 Headings answered ------------------------------------------------
 gate_G9() {
-  handover_only "the extraction records" && return
   if [ ! -d "$MEM" ]; then
     set_skip "$(rel "$MEM") does not exist: nothing to check"
     return
@@ -1528,7 +1514,6 @@ G11BEOF
 
 # ---- G12 The interview covered its classes -------------------------------
 gate_G12() {
-  handover_only "the per-angle evidence packages" && return
   need_file "$RUNREC" || return
   for h in "What was bought" "Who confirms and on what basis" "Contradictions" "What the outputs are for"; do
     if ! has_heading "$RUNREC" "### $h"; then

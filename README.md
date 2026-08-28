@@ -32,7 +32,7 @@ Press and public-affairs judgment is not here either: whether something is a sto
 
 Point your harness at this repository as a plugin root, then attach your working folder. **This repository is the source tree**: it ships no generated plugin manifest and no marketplace projection, so a harness that requires one is not yet supported. Install by composing this root, and read `AGENTS.md` first.
 
-If you do not have a working folder yet, `skills/Onboard Root/` creates one from the templates in `system/templates/`. Its gate harness runs on a client root; for the other four types the skill's gate table is worked by hand.
+If you do not have a working folder yet, `skills/Onboard Root/` creates one from the templates in `system/templates/`. Its gate harness runs on all five types, reading each root's own declared type to know where that type keeps its records.
 
 ## License
 

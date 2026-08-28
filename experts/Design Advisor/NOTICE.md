@@ -4,12 +4,16 @@ Design Advisor's criteria are adapted, not copied, from two Apache 2.0 sources. 
 
 ## Impeccable, by Paul Bakaus
 
+**Copyright 2025 Paul Bakaus**, retained from the upstream source under Apache-2.0 section 4(c).
+
 - Source: https://github.com/pbakaus/impeccable
 - License: Apache 2.0
 - What was drawn on: design principles, anti-pattern lists, and reference material from its frontend-design skill and its reference files on typography, color and contrast, spatial design, motion, interaction, responsive behavior, and interface copy.
 - How: read, distilled, and rewritten twice, once for the system this primitive was converted from and again against this root's standards. No passage is verbatim, and the raw source is not redistributed here.
 
 ## frontend-design, by Anthropic
+
+**Copyright is held by Anthropic.** The upstream notice was not read directly for this record, so its exact wording is not reproduced here; the source is linked below and carries it.
 
 - Source: https://github.com/anthropics/skills/tree/main/skills/frontend-design
 - License: Apache 2.0
