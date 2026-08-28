@@ -207,7 +207,13 @@ bound_files() {
 # from the start; the first real root showed G10 did not, and reported the
 # template's own `(Firsthand: <person who observed it>)` as a register naming
 # no person, four times.
-nonblank_count_stdin() { grep -c '[^[:space:]]' 2>/dev/null || printf '0'; }
+nonblank_count_stdin() {
+  # grep -c prints its count and exits 1 when that count is zero. A `||`
+  # fallback here appends a second number and every arithmetic test on the
+  # result then errors. Assign, then default, which is what the rest of this
+  # script does.
+  _n=$(grep -c '[^[:space:]]' 2>/dev/null); [ -n "$_n" ] || _n=0; printf '%s' "$_n"
+}
 
 strip_preamble() {
   awk '
@@ -1921,7 +1927,7 @@ controlled_sections_unique() {
   # trimmed line: an exact match here let a trailing space walk past the guard
   # while the parser still merged both sections.
   for h in "## Per-key close" "## Interview" "## Copy vantages"; do
-    c=$(sed 's/[[:space:]]*$//' "$1" 2>/dev/null | grep -c -F -x "$h")
+    c=$(sed 's/^[[:space:]]*//; s/[[:space:]]*$//' "$1" 2>/dev/null | grep -c -F -x "$h")
     [ "${c:-0}" -le 1 ] || add_fail "$(rel "$1"): $h appears $c times; a controlled section appears once or the record is ambiguous"
   done
 }
