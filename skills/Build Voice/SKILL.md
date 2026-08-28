@@ -3,7 +3,7 @@ name: Build Voice
 type: skill
 category: onboarding
 description: Build or rebuild one owned root's voice.md from real writing evidence, routed to the register that root's own outputs need
-version: 0.2.0
+version: 0.3.0
 memory:
   - voice
 ---
@@ -36,7 +36,7 @@ Voice is not one thing. Each root type declares its own in its AGENTS.md, and th
 |-----------|-----------|----------------------|--------------|
 | `personal` | this person's own voice | what they wrote themselves: sent mail, posts, drafts, talk notes | the person |
 | `org` | the organization's public voice | material published or approved under its own name, plus any brand or style guide | whoever owns its communications |
-| `client` | the client's brand voice | what the client published or approved under their name, plus their brand guide; not the serving organization's copy about them | the client contact, or the account owner when the client cannot review |
+| `client` | the client's brand voice | what the client published or approved under their name, plus their brand guide; not anyone else's copy about them | the client contact, or the account owner when the client cannot review |
 | `department` | its register for its own communications | its memos, briefs, updates, specifications, read against the organization's public voice | the department lead |
 | `industry` | the field's terminology register, not a speaker | published material of the field: standards, regulator language, trade press, practitioner writing | a practitioner in the field |
 
@@ -117,7 +117,7 @@ On confirmation: run step 7's grep over the draft one last time and clear every 
 
 **Aspiration presented as trait.** A requester describing an org or a brand will reach for what it wants to be. Keep what a sample or a stated rule supports; ask for a sample that shows the rest, and drop what no sample shows.
 
-**The wrong speaker.** One executive's mail is not an organization's public voice, and the serving organization's copy about a client is not the client's brand voice. Match the evidence to the table row before analyzing any of it.
+**The wrong speaker.** One executive's mail is not an organization's public voice, and copy written about a client by whoever produces their work is not the client's brand voice. Match the evidence to the table row before analyzing any of it.
 
 **An audience belief written as a finding.** The Audience heading invites confident sentences about readers nobody asked. Every such sentence either names the person who said it, names the evidence rows behind it as a research inference, or comes out of the file.
 

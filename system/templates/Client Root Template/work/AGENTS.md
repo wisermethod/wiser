@@ -1,6 +1,6 @@
 # Work
 
-Deliverables and their drafts we are making for this client. A file and its drafts sit together in a subject folder, never loose here.
+Deliverables and their drafts being made for this client. A file and its drafts sit together in a subject folder, never loose here.
 
 This folder is not the waiting room (`inbox/`), not the originals (`sources/`), and not the open-action list (`todos/current.md`).
 

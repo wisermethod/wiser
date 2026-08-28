@@ -26,8 +26,8 @@ One question: **what are you holding?** If you already know, it does not go in `
 |-----------------|-------------|------------------------|
 | A file or note you have not classified yet | `inbox/` | A waiting room. The moment you know what it is, it leaves. |
 | An action that still needs doing | `todos/current.md` | The living list. Not the file the action produces. |
-| A document they supplied, or that we received about them | `sources/` | The originals, as received. Do not edit in place. |
-| A deliverable or draft we are making | `work/<subject>/` | Our output. Filing is in `work/AGENTS.md`. |
+| A document the client supplied, or that arrived about them | `sources/` | The originals, as received. Do not edit in place. |
+| A deliverable or draft being made for them | `work/<subject>/` | This root's output. Filing is in `work/AGENTS.md`. |
 | A recipe for work in that subject | `work/<subject>/<does-this-thing>.play.md` | Lives with the work it produces. Not a top-level folder. |
 | A multi-session plan for that subject | `work/<subject>/<does-this-thing>.playbook.md` | Lives with the work it plans. The folder is the run; no date in the filename. |
 | Records from creating this root | `work/onboarding/` | Evidence the bound files were checked. Not the todo list. |
@@ -39,19 +39,19 @@ One question: **what are you holding?** If you already know, it does not go in `
 Four different objects. Mixing them is how a root becomes a junk drawer.
 
 - **inbox** is unclassified. A PDF dropped in conversation sits here until someone says what it is.
-- **sources** is classified input. They sent it, or we fetched it as evidence. Inventoried, not rewritten.
-- **work** is classified output. We are making it, or we made it. A draft and its final sit together in a subject folder.
+- **sources** is classified input. The client sent it, or it was gathered as evidence. Inventoried, not rewritten.
+- **work** is classified output. It is being made here, or it was. A draft and its final sit together in a subject folder.
 - **todos** is classified action. Someone still has to do it. The pitch deck is `work/content/`; "Dana owes a quote for slide 4" is a row in `todos/current.md`.
 
 A todo is not a place to put files. The list item lives here; the artifact it points at lives in `work/` or `sources/`. A file named `TODO-pitch.md` in `inbox/` is a misfile: it is a draft (`work/media/`) plus a list row.
 
 ### Play vs Playbook vs Skill
 
-A Skill is not a client-root object. Do not create `skills/` here. How-we-do-X for this client is a Play or a Playbook, filed in the subject folder of the work it serves.
+A Skill is not a client-root object. Do not create `skills/` here. How a recurring piece of work gets done for this client is a Play or a Playbook, filed in the subject folder of the work it serves.
 
-**Skill** (lives in the Wiser root, invoked by name). A shared capability the chain routes to: Content Author, Onboard Root, Deep Researcher. Stateless. No Decision Log. No "where we left off." Many roots reuse it. If every client would need the same thing, it is a Skill in the plugin, not a file in this root.
+**Skill** (lives in the Wiser root, invoked by name). A shared capability the chain routes to: Content Author, Onboard Root, Deep Researcher. Stateless. No Decision Log. No memory of where the last sitting stopped. Many roots reuse it. If every client would need the same thing, it is a Skill in the plugin, not a file in this root.
 
-**Play** (`<does-this-thing>.play.md` in the subject folder). A recipe for one repeatable outcome this client owns. One file is the whole prompt. Recurs with different inputs, one sitting, same quality. "How we write this client's monthly byline" sits in `work/content/monthly-byline.play.md` next to the bylines it produces. You open the file; the chain does not index it.
+**Play** (`<does-this-thing>.play.md` in the subject folder). A recipe for one repeatable outcome this client owns. One file is the whole prompt. Recurs with different inputs, one sitting, same quality. "How this client's monthly byline gets written" sits in `work/content/monthly-byline.play.md` next to the bylines it produces. You open the file; the chain does not index it.
 
 **Playbook** (`<does-this-thing>.playbook.md` in the subject folder). A plan that spans sittings and must remember decisions: checkboxes, Decision Log, Progress, resume instructions. "The Q4 launch" sits in `work/campaigns/Q4-2026/q4-launch.playbook.md`. The folder is the run, so the filename has no date. The deliverables the plan produces sit beside it, not inside it. When the run completes, archive the playbook next to itself.
 
@@ -77,7 +77,7 @@ This root's declared directories under `standards/conventions.md`. The table abo
 
 ## Client Root
 
-`voice` here is the client's brand voice, governing every output this root owns. When an output owned here is signed by the organization serving them, request `voice:org` and `design:org`, and `about:org` for any facts it states about that organization.
+`voice` here is the client's brand voice, governing every output this root owns. When an output owned here goes out under an organization's name rather than the client's, request `voice:org` and `design:org`, and `about:org` for any facts it states about that organization.
 
 `memory/about.md` holds this client's facts. `memory/competitors.md`, when bound, holds the confirmed competitive set. The sourcing rules in `standards/conventions.md` bite hardest here, where most of what is worth recording is a fact about a person.
 

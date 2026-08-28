@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create an owned root from its matching template and onboard it with verified memory, an operating surface, and a per-key close
-version: 0.5.0
+version: 0.6.0
 ---
 
 # Onboard Root
@@ -102,7 +102,7 @@ Settle in one exchange, and only what cannot be inferred.
 
 - Exactly one type fits: continue.
 - Two fit, or none does: ask. The constitution's Workspace Model governs the choice: more than one plausible root, or none, and the answer is to ask.
-- Client: work for a client under a serving organization. That relationship is the type, not an option to confirm. Do not ask whether this is agency work, do not ask whether an org root already exists, and never invent a serving organization's name from session context. Scoped keys (`voice:org`, `design:org`, `about:org`) resolve at use when a composed org root provides them; absence degrades at use and does not block onboarding.
+- Client: work done for a client, whoever does it and at whatever scale. That relationship is the type, not an option to confirm. Do not ask how the work is organised, do not ask whether an org root already exists, and never invent an organization's name from session context. Scoped keys (`voice:org`, `design:org`, `about:org`) resolve at use when a composed org root provides them; absence degrades at use and does not block onboarding.
 - Department: the Org Root Template owns the test for when a unit earns its own root, and the Department template has `memory/about.md` name the parent organization first, so confirm that org root is in the workspace. Absent: ask whether to onboard the org first. Declined: stop. The department stays not onboarded, Instantiation in place, blocked on the missing parent, because a parent that is not a composed root is never named.
 
 **Real name.** Roots carry the real name the people involved use, the person's own name or the organization's short name, never a type name and never a template's name; a folder called `Client` leaves the next reader asking which client. Check the chosen name against the Names rules in `standards/conventions.md`, including the case rule, against the roots already in the workspace. Confirm the exact spelling when the request gives a shorthand, an initialism, or any form that could be written more than one way.
@@ -136,14 +136,14 @@ Exit: G1.
 - A copy is not established because the tool that performed it reported success, or because reading it back through that same tool confirms it. Where this host offers more than one way to reach the destination, a second tool, a separate process, a distinct session, confirm the copy is visible through one of those before continuing. Where only one way exists, this is already satisfied and the close report says so. Where two ways disagree, the path the workspace's own declaration names is ground truth, and the root is not treated as copied until the mismatch is resolved.
 - The template's Instantiation step for filling memory is not finished until Phase 9 clears it. Leave the section in place until then.
 
-**On a client root**, the template ships the canonical layout: `work/AGENTS.md` with standing `work/onboarding/`, root-level `sources/` and `todos/` each with their own AGENTS.md, and a `memory/competitors.md` stub. It does not ship `plays/`, `playbooks/`, or a skills directory. Plays and Playbooks file in the `work/<subject>/` folder they serve, named `<does-this-thing>.play.md` and `<does-this-thing>.playbook.md`. Reasoning, not evidence: the layout is so a person holding a file can tell inbox (unclassified) from sources (their originals) from work (our output) from todos (open actions), and so a recipe sits next to the work it produces. Do not create empty workstream folders; those are canonical names created on first use. Delete the competitors stub at close if the offer was declined or deferred, so an unbound key leaves no file on disk.
+**On a client root**, the template ships the canonical layout: `work/AGENTS.md` with standing `work/onboarding/`, root-level `sources/` and `todos/` each with their own AGENTS.md, and a `memory/competitors.md` stub. It does not ship `plays/`, `playbooks/`, or a skills directory. Plays and Playbooks file in the `work/<subject>/` folder they serve, named `<does-this-thing>.play.md` and `<does-this-thing>.playbook.md`. Reasoning, not evidence: the layout is so a person holding a file can tell inbox (unclassified) from sources (their originals) from work (this root's output) from todos (open actions), and so a recipe sits next to the work it produces. Do not create empty workstream folders; those are canonical names created on first use. Delete the competitors stub at close if the offer was declined or deferred, so an unbound key leaves no file on disk.
 
 **Inventory the supplied files**: name, size, type. Put the originals in `sources/` as received and do not edit them in place.
 
 **Extract each source to text**, one record per source under `work/onboarding/extraction/`, holding four things beyond the text:
 
 - **The completeness measure**, per the standing rule, recorded with both the extraction mechanism and the different mechanism that checked it.
-- **A provenance block**: who authored it (the subject, us, a third party, unattributed), final or draft, its date, internal or client-facing.
+- **A provenance block**: who authored it (the subject, this root, a third party, unattributed), final or draft, its date, internal or client-facing.
 - **Whole tables, whole**, with headers, and every figure's unit, denominator, tool, and window as the source gives them.
 - **The must-reach list**: every prohibition, compliance flag, commercial term, named person with title, date, and internal review note, comment, speaker note, or tracked change, each with the disposition it will later be shown to have reached.
 
@@ -258,7 +258,7 @@ Two steps, and the second is not optional.
 Who runs it, in order of preference:
 
 - **A sub-agent this host can spawn.** Where the host exposes a Sonnet sub-agent, use that rather than the producer.
-- **Additional independent reviewers**, where the host exposes them: `grok-build:grok-delegate` and `codex:codex-rescue`, each as a separate agent in the same round. Both are **read-only**: never pass `--write`, and say read-only in the prompt, because the delegates default to write-capable unless the prompt says otherwise. Frame each brief as verification of the requester's own authorized instruction files, never as an attack. Confirm reachability before launching, wait for every reviewer in the round, and do not edit a bound file while a round is in flight.
+- **Additional independent reviewers**, where the host exposes any: each as a separate agent in the same round, and each from a different model or provider than the last where the host offers more than one. Both are **read-only**: never pass `--write`, and say read-only in the prompt, because the delegates default to write-capable unless the prompt says otherwise. Frame each brief as verification of the requester's own authorized instruction files, never as an attack. Confirm reachability before launching, wait for every reviewer in the round, and do not edit a bound file while a round is in flight.
 - **A reviewer the host does not expose is recorded in the audit record, not a failed onboard.** What is not optional is that one pass ran in a context that did not produce the work.
 
 At the minimum core, one independent pass, however short. Where the environment cannot spawn an independent context at all, say so in the close report and record that the audit shared the producer's context, which is materially weaker.

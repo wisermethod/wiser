@@ -51,7 +51,7 @@ Every figure an agent must get right sits in the table below, one row each. A ro
 
 ## Hard Constraints
 
-*What must not be done: prohibitions, compliance flags, and anything the client or the organization serving them has said is not permitted. This heading takes what the source documents forbid, not what they propose. A constraint found in a source and not written here is the omission this heading exists to stop.*
+*What must not be done: prohibitions, compliance flags, and anything the client, or an organization whose name their work goes out under, has said is not permitted. This heading takes what the source documents forbid, not what they propose. A constraint found in a source and not written here is the omission this heading exists to stop.*
 
 ## Current Focus
 

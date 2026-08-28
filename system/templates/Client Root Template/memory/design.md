@@ -16,7 +16,7 @@ Provenance contract for this file. These are the rules this file holds itself to
 
 # Design of [name]
 
-How this client's material looks as the client publishes it, not as the organization serving them does.
+How this client's material looks as the client publishes it, not as anyone producing work for them does.
 
 ## Source
 
