@@ -462,9 +462,9 @@ design;design-source
 competitors;set,set-confirmed-by,set-date"
 
 # The key lines this harness reads out of the run record, and the span the
-# grammar declares each one in: G1's names in the preamble above the first
-# heading, the vantages under `## Copy vantages`, the four close keys under
-# `## Per-key close`.
+# grammar declares each one in: G1's names in the key block above the first
+# heading below title level, the vantages under `## Copy vantages`, the four
+# close keys under `## Per-key close`.
 #
 # A duplicate is refused where a reader would resolve it wrongly, which is
 # inside the span that declares it. Outside that span the same word is prose:
@@ -483,7 +483,8 @@ PERKEY_KEYS='about voice design competitors'
 perkey_value() {
   # $1 = key. Reads only the ## Per-key close section of run-record.md.
   [ -f "$RUNREC" ] || return 1
-  section_body "$RUNREC" "## Per-key close" > "$TMPD/perkey.txt" 2>/dev/null
+  strip_inert < "$RUNREC" > "$TMPD/runrec-plain.md" 2>/dev/null
+  section_body "$TMPD/runrec-plain.md" "## Per-key close" > "$TMPD/perkey.txt" 2>/dev/null
   kv "$TMPD/perkey.txt" "$1"
 }
 
@@ -517,7 +518,9 @@ claims_located_count() {
     esac
     if [ -n "${ONLY_FILE:-}" ] && [ "$bfp" != "$ONLY_FILE" ]; then continue; fi
     [ -f "$ROOT/$bfp" ] || continue
-    grep -qF "[$id]" "$ROOT/$bfp" 2>/dev/null || continue
+    # An anchor inside a comment, a fence or a raw HTML block is not in the
+    # file as far as anything reading it is concerned.
+    strip_inert < "$ROOT/$bfp" 2>/dev/null | grep -qF "[$id]" || continue
     printf 'x\n'
   done | wc -l | tr -d ' '
 }
@@ -533,6 +536,12 @@ gate_G0() {
     add_fail "$(rel "$VERIF"): no '## Claims' table carrying the columns Key, Class, Outcome, Anchor, Bound file"
     return
   fi
+  for _row in $(printf '%s\n' "$G0_TABLE" | awk -F';' '$1!="" { print $1 }'); do
+    case " $PERKEY_KEYS " in
+      *" $_row "*) ;;
+      *) add_fail "gates.sh: required classes are listed for '$_row', which is not a close key; the two lists have drifted and those classes are checked on nothing" ;;
+    esac
+  done
   for key in $PERKEY_KEYS; do
     classes=$(printf '%s\n' "$G0_TABLE" | awk -F';' -v k="$key" '$1==k { print $2; exit }')
     if [ -z "$classes" ]; then
@@ -570,30 +579,28 @@ gate_G0() {
     if [ "$key" = "competitors" ]; then
       # A competitor set is only recorded where the key resolves. Anchors in
       # another memory file are not that, and neither is an unbound key.
+      # Inert text goes from the whole file before the section is cut out, and
+      # both readers of this section read the same stripped copy. Stripping the
+      # extract left a fence opened in an earlier section unseen; stripping for
+      # one reader and not the other let a fenced example of the heading
+      # false-fail a correct root.
+      strip_inert < "$AGENTS" > "$TMPD/agents-plain.md" 2>/dev/null
       prov=$(awk -v H="## Provides" '
         function trim(s){ sub(/^[ \t]+/,"",s); sub(/[ \t]+$/,"",s); return s }
-        trim($0)==H { n++ } END { print n+0 }' "$AGENTS" 2>/dev/null)
+        trim($0)==H { n++ } END { print n+0 }' "$TMPD/agents-plain.md" 2>/dev/null)
       [ "${prov:-0}" -eq 1 ] || add_fail "$(rel "$AGENTS"): 'competitors: complete' but the file carries ${prov:-0} '## Provides' sections; it carries exactly one"
-      # Fences are removed from the whole file before the section is cut out.
-      # Stripping the extract instead left the case where a fence opens in an
-      # earlier section: section_body starts inside it, this filter never sees
-      # the opener, and the example reads as a binding.
-      strip_fences < "$AGENTS" > "$TMPD/agents-nofence.md" 2>/dev/null
-      comp_bind_n=$(section_body "$TMPD/agents-nofence.md" "## Provides" 2>/dev/null | grep -cE '^[[:space:]]*-[[:space:]]*competitors:' || true)
-      comp_bind_ok=$(section_body "$TMPD/agents-nofence.md" "## Provides" 2>/dev/null | grep -cE '^[[:space:]]*-[[:space:]]*competitors:[[:space:]]*memory/competitors\.md[[:space:]]*$' || true)
+      # Three spaces is where a list item stops being a list item, so past it
+      # the line is code and binds nothing. Matching any indent is what let an
+      # indented example count as the binding.
+      comp_bind_n=$(section_body "$TMPD/agents-plain.md" "## Provides" 2>/dev/null | grep -cE '^ {0,3}-[[:space:]]*competitors:' || true)
+      comp_bind_ok=$(section_body "$TMPD/agents-plain.md" "## Provides" 2>/dev/null | grep -cE '^ {0,3}-[[:space:]]*competitors:[[:space:]]*memory/competitors\.md[[:space:]]*$' || true)
       if [ "${comp_bind_n:-0}" -ne 1 ] || [ "${comp_bind_ok:-0}" -ne 1 ]; then
         add_fail "$(rel "$AGENTS"): 'competitors: complete' but Provides carries ${comp_bind_n:-0} competitors binding(s), of which ${comp_bind_ok:-0} bind memory/competitors.md; it carries exactly one, and that one"
       fi
       # Bytes are not a record. Strip the preamble, the comments and any
       # surviving prompt line, and require something left.
       subst=$(strip_preamble "$ROOT/memory/competitors.md" 2>/dev/null \
-        | awk 'BEGIN{c=0}
-               { l=$0
-                 while(1){
-                   if(c==0){ i=index(l,"<!--"); if(i==0){ print l; break }
-                             print substr(l,1,i-1); l=substr(l,i+4); c=1; continue }
-                   j=index(l,"-->"); if(j==0){ break }
-                   l=substr(l,j+3); c=0 } }' \
+        | strip_inert \
         | grep -vE '^\*.*\*$' | grep -vE '^[[:space:]]*#' \
         | grep -vE '^[[:space:]]*[-=]+[[:space:]]*$' | nonblank_count_stdin)
       [ "${subst:-0}" -gt 0 ] || add_fail "$(rel "$RUNREC"): 'competitors: complete' but memory/competitors.md carries no content beyond its own scaffolding"
@@ -1956,38 +1963,83 @@ preamble_body() {
   { t=trim($0); if(t ~ /^#{2,}([ \t]|$)/) exit; print }' "$1"
 }
 
-# strip_fences: drop fenced regions from stdin.
-# section_body has no fence state and this migration is not adding one to it;
-# that reader is inherited and the defect is filed. But the competitors binding
-# check is this migration's own guarantee, and a binding written inside a
-# fenced example is an example, not a binding.
+# strip_inert: drop text a renderer would not show, from stdin.
+# Fenced blocks, HTML comments, and raw HTML blocks. Trailing CR goes first, so
+# a Windows line ending cannot leave a fence open forever.
 #
-# Round 19 found the first version of this was a toggle on any fence-looking
-# line, which is not what a fence is: a run of backticks does not close a run
-# of tildes, a closer is never shorter than its opener, a closer carries no
-# info string, and four spaces of indent is code rather than a fence. Each of
-# those let an example out, or swallowed a real binding. So the opener is
-# remembered and only its own closer ends it.
-strip_fences() {
+# section_body, kv and has_heading are all blind to every one of these, and
+# this migration is not giving them sight: those readers are inherited and the
+# defect is filed. This filter is for the checks that carry this migration's
+# own guarantees, which ask whether something is really declared, and where an
+# example is not a declaration.
+#
+# Rounds 19 and 20 arrived at this the long way. Round 19 fixed a naive fence
+# toggle; round 20 found the fix had taught one check about one container while
+# three others still read as real, and that four spaces of indent, correctly
+# refused as a fence, was still accepted as a binding by the matcher next to
+# it. Hence one filter rather than a reader per guard, and hence the callers
+# match a list item at CommonMark's own boundary of three spaces, past which
+# the line is code and not a list at all.
+strip_inert() {
   awk '
   {
     line=$0
+    sub(/\r$/, "", line)
+
+    # inside a fence: only its own closer ends it
+    if(inf){
+      ind=match(line, /[^ ]/); if(ind==0) ind=length(line)+1
+      body=substr(line, ind); m=0
+      if(ind<=4){ while(substr(body,m+1,1)==fch) m++ }
+      if(m>=3 && m>=flen){
+        rest=substr(body,m+1); sub(/[ \t]+$/,"",rest)
+        if(rest==""){ inf=0 }
+      }
+      next
+    }
+
+    # inside an HTML comment: keep whatever follows its close
+    if(inc){
+      k=index(line,"-->")
+      if(k==0) next
+      line=substr(line,k+3); inc=0
+    }
+
+    # inside a raw HTML block: a blank line ends it
+    if(inh){
+      if(line ~ /^[ \t]*$/){ inh=0 }
+      next
+    }
+
+    # an HTML comment opening on this line: keep what precedes it
+    while(1){
+      k=index(line,"<!--")
+      if(k==0) break
+      head=substr(line,1,k-1); tail=substr(line,k+4)
+      e=index(tail,"-->")
+      if(e==0){ line=head; inc=1; break }
+      line=head substr(tail,e+3)
+    }
+
     ind=match(line, /[^ ]/); if(ind==0) ind=length(line)+1
     body=substr(line, ind)
-    m=0
+
+    # a fence opening. A backtick fence may not carry a backtick in its info
+    # string, which is what makes it not a fence at all.
     if(ind<=4){
-      if(body ~ /^```/) { ch="`" } else if(body ~ /^~~~/) { ch="~" } else { ch="" }
-      if(ch!=""){ while(substr(body,m+1,1)==ch) m++ }
+      ch=""
+      if(substr(body,1,3)=="```") ch="`"
+      else if(substr(body,1,3)=="~~~") ch="~"
+      if(ch!=""){
+        m=0; while(substr(body,m+1,1)==ch) m++
+        info=substr(body,m+1)
+        if(!(ch=="`" && index(info,"`")>0)){ inf=1; fch=ch; flen=m; next }
+      }
+      # a raw HTML block, which runs to the next blank line
+      if(body ~ /^<[A-Za-z\/!?]/){ inh=1; next }
     }
-    if(!inf){
-      if(m>=3){ inf=1; fch=ch; flen=m; next }
-      print; next
-    }
-    if(m>=3 && ch==fch && m>=flen){
-      rest=substr(body,m+1); sub(/[ \t]+$/,"",rest)
-      if(rest==""){ inf=0; next }
-    }
-    next
+
+    print line
   }'
 }
 
