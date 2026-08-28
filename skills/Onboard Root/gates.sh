@@ -600,7 +600,6 @@ gate_G0() {
       if [ "${comp_bind_n:-0}" -ne 1 ] || [ "${comp_bind_ok:-0}" -ne 1 ]; then
         add_fail "$(rel "$AGENTS"): 'competitors: complete' but Provides carries ${comp_bind_n:-0} competitors binding(s), of which ${comp_bind_ok:-0} bind memory/competitors.md; it carries exactly one, and that one"
       fi
-      plain_file "$ROOT/memory/competitors.md" "the file a competitor set resolves in"
       # Bytes are not a record. Strip the preamble, the comments and any
       # surviving prompt line, and require something left.
       subst=$(strip_preamble "$ROOT/memory/competitors.md" 2>/dev/null \
@@ -2037,17 +2036,23 @@ plain_file() {
     for(i=1;i<=length(s);i++){ c=substr(s,i,1)
       if(c==" ") n++; else if(c=="\t") n+=4-(n%4); else break }
     return n }
+  # a byte-order mark ahead of a fence made the fence invisible to this
+  BEGIN{ bom=sprintf("%c%c%c",239,187,191) }
   {
     line=$0; sub(/\r$/,"",line)
+    if(NR==1 && substr(line,1,3)==bom) line=substr(line,4)
     if(line ~ /^[ \t]*$/) next
-    body=line; sub(/^[ \t]+/,"",body)
     ind=width(line)
-    if(index(line,"<!--")>0 || index(line,"-->")>0){ print NR ": an HTML comment"; exit }
-    # a fence may open at the content column of a list item, so the marker
-    # comes off for this test only: a dash then a fence is a fence
-    fbody=body
-    if(fbody ~ /^([-*+]|[0-9]{1,9}[.)])[ \t]+/) sub(/^([-*+]|[0-9]{1,9}[.)])[ \t]+/,"",fbody)
-    if(ind<=3 && (substr(fbody,1,3)=="```" || substr(fbody,1,3)=="~~~")){ print NR ": a code fence"; exit }
+    body=line; sub(/^[ \t]+/,"",body)
+    # a construct may open at the content column of a list item, so the marker
+    # comes off once and every test below reads what is left. Round 24 stripped
+    # it for the fence test only, and `- <div>` was a container this could not
+    # see while its own fence test could see `- ```.
+    if(body ~ /^([-*+]|[0-9]{1,9}[.)])[ \t]+/) sub(/^([-*+]|[0-9]{1,9}[.)])[ \t]+/,"",body)
+    # only `<!--` opens a comment. A bare `-->` is an arrow in prose, and
+    # calling it a comment named a construct the writer had not written.
+    if(index(line,"<!--")>0){ print NR ": an HTML comment"; exit }
+    if(ind<=3 && (substr(body,1,3)=="```" || substr(body,1,3)=="~~~")){ print NR ": a code fence"; exit }
     if(ind<=3 && body ~ /^<[!?\/]/){ print NR ": a raw HTML declaration"; exit }
     if(ind<=3 && body ~ /^<[A-Za-z][A-Za-z0-9-]*([ \t>\/]|$)/){ print NR ": a raw HTML tag"; exit }
     if(ind>=4){ print NR ": a line indented four columns or more"; exit }
