@@ -461,16 +461,23 @@ voice;register-decision,register-confirmation
 design;design-source
 competitors;set,set-confirmed-by,set-date"
 
-# The key lines this harness reads out of the run record, and where each one is
-# read. G1 owns the file-scoped names and G3 adds the two vantages; kv takes
-# the first occurrence in the whole file, so a second one anywhere is a value
-# some consumer never saw. G0 and G17 read the four close keys through
-# perkey_value, which extracts `## Per-key close` before kv sees it, so for
-# those a second occurrence matters only inside that section. An interview
-# answer written per domain, which Phase 5 asks for, is not a duplicate of the
-# close: nothing reads it as a key.
+# The key lines this harness reads out of the run record, and the span the
+# grammar declares each one in: G1's names in the preamble above the first
+# heading, the vantages under `## Copy vantages`, the four close keys under
+# `## Per-key close`.
+#
+# A duplicate is refused where a reader would resolve it wrongly, which is
+# inside the span that declares it. Outside that span the same word is prose:
+# an interview answered per domain is not a second `about`, and the confirmer's
+# `name:` is not a second `name`, because kv takes the first line in the file
+# and the declaration is above them both. Round 17 refused the first of those
+# and round 18 was still refusing the second.
+#
+# Where the reader is file-scoped, the declaration being in its span is not
+# enough: an earlier line elsewhere would be the one kv returns. That is
+# checked by asking kv both ways and refusing a disagreement.
 G1_KEYS='type name destination tier research-branch consent competitors-offer'
-RUNREC_FILE_KEYS="$G1_KEYS vantage-1 vantage-2"
+VANTAGE_KEYS='vantage-1 vantage-2'
 PERKEY_KEYS='about voice design competitors'
 
 perkey_value() {
@@ -526,8 +533,9 @@ gate_G0() {
     add_fail "$(rel "$VERIF"): no '## Claims' table carrying the columns Key, Class, Outcome, Anchor, Bound file"
     return
   fi
-  while IFS=';' read -r key classes; do
-    [ -n "$key" ] || continue
+  for key in $PERKEY_KEYS; do
+    classes=$(printf '%s\n' "$G0_TABLE" | awk -F';' -v k="$key" '$1==k { print $2; exit }')
+    [ -n "$classes" ] || continue
     val=$(perkey_value "$key")
     if [ -z "$val" ]; then
       # A key that was never offered has nothing to close. The competitors
@@ -563,8 +571,8 @@ gate_G0() {
         function trim(s){ sub(/^[ \t]+/,"",s); sub(/[ \t]+$/,"",s); return s }
         trim($0)==H { n++ } END { print n+0 }' "$AGENTS" 2>/dev/null)
       [ "${prov:-0}" -eq 1 ] || add_fail "$(rel "$AGENTS"): 'competitors: complete' but the file carries ${prov:-0} '## Provides' sections; it carries exactly one"
-      comp_bind_n=$(section_body "$AGENTS" "## Provides" 2>/dev/null | grep -cE '^[[:space:]]*-[[:space:]]*competitors:' || true)
-      comp_bind_ok=$(section_body "$AGENTS" "## Provides" 2>/dev/null | grep -cE '^[[:space:]]*-[[:space:]]*competitors:[[:space:]]*memory/competitors\.md[[:space:]]*$' || true)
+      comp_bind_n=$(section_body "$AGENTS" "## Provides" 2>/dev/null | strip_fences | grep -cE '^[[:space:]]*-[[:space:]]*competitors:' || true)
+      comp_bind_ok=$(section_body "$AGENTS" "## Provides" 2>/dev/null | strip_fences | grep -cE '^[[:space:]]*-[[:space:]]*competitors:[[:space:]]*memory/competitors\.md[[:space:]]*$' || true)
       if [ "${comp_bind_n:-0}" -ne 1 ] || [ "${comp_bind_ok:-0}" -ne 1 ]; then
         add_fail "$(rel "$AGENTS"): 'competitors: complete' but Provides carries ${comp_bind_n:-0} competitors binding(s), of which ${comp_bind_ok:-0} bind memory/competitors.md; it carries exactly one, and that one"
       fi
@@ -600,9 +608,7 @@ gate_G0() {
       IFS=','
     done
     IFS="$oldifs"
-  done <<G0EOF
-$G0_TABLE
-G0EOF
+  done
 }
 
 # ---- G1 Scope recorded ---------------------------------------------------
@@ -1926,6 +1932,33 @@ gate_G16() {
 }
 
 # ---- G17 Refusal removed only for complete keys -------------------------
+# preamble_body FILE -> every line above the first heading
+# The grammar puts the run record's key lines at the top of the file, above
+# `## Copy vantages`. That is the span kv resolves them in, because kv takes
+# the first line in the file and nothing precedes the preamble.
+preamble_body() {
+  [ -f "$1" ] || return 1
+  awk '
+  function trim(s){ sub(/^[ \t]+/,"",s); sub(/[ \t]+$/,"",s); return s }
+  { t=trim($0); if(t ~ /^#+([ \t]|$)/) exit; print }' "$1"
+}
+
+# strip_fences: drop fenced regions from stdin.
+# section_body has no fence state and this migration is not adding one to it;
+# that reader is inherited and the defect is filed. But the competitors binding
+# check is this migration's own guarantee, and a binding written inside a
+# fenced example is an example, not a binding. Round 18 found a root could
+# close `competitors: complete` on a fenced pseudo-binding and lift the
+# Instantiation refusal with the key genuinely unbound. So the check that
+# carries the guarantee reads the section with its examples removed.
+strip_fences() {
+  awk '
+  { line=$0
+    sub(/^[ \t]+/,"",line)
+    if(line ~ /^(```|~~~)/){ inf = !inf; next }
+    if(!inf) print $0 }'
+}
+
 # dup_keys FILE KEYSET MESSAGE [REPORT_AS]
 # Counts a key the way kv counts it: the text before the first colon on the
 # raw line, trimmed. Only the keys in KEYSET, because a duplicate is ambiguous
@@ -1948,26 +1981,40 @@ dup_keys() {
       | awk -v US="$US" '$1 > 1 { print $1 US $2 }')
 }
 
+# span_answered_earlier FILE SPANFILE KEYSET SPANNAME
+# For a key the gate reads file-scoped, being declared once in its own span is
+# not enough: an earlier line elsewhere is the one kv returns, and that is the
+# value the gate reads. Ask kv both ways and refuse a disagreement, rather than
+# building a third thing that guesses at what kv would have done.
+span_answered_earlier() {
+  _f=$1; _sp=$2; _keys=$3; _span=$4
+  [ -f "$_f" ] && [ -f "$_sp" ] || return 0
+  for _k in $_keys; do
+    _sv=$(kv "$_sp" "$_k" 2>/dev/null)
+    [ -n "$_sv" ] || continue
+    _fv=$(kv "$_f" "$_k" 2>/dev/null)
+    [ "$_fv" = "$_sv" ] && continue
+    add_fail "$(rel "$_f"): key $_k: answered above $_span as '$_fv'; kv takes that line and never reaches the one under $_span"
+  done
+}
+
 controlled_sections_unique() {
-  # Ambiguity is refused where something reads it, so this asks the same
-  # questions the readers ask rather than a question of its own shape.
+  # Ambiguity is refused where a reader would resolve it wrongly, so this asks
+  # the same questions the readers ask, over the same spans they read.
   #
-  # Three rounds fixed what this guard matched and none checked what it
-  # covered; the fourth replaced a list of three headings with a regex, and
-  # round 17 found the regex was a third matcher. It counted `#{2,}` while
-  # section_body counts `#+`, so a repeated `# Title` was invisible. It counted
-  # `^[a-z][a-z0-9-]*:` while kv takes everything before the first colon and
-  # trims it, so `type : org` twice was invisible and two citation lines were
-  # refused as a repeated `https` key that no gate has ever asked for. And it
-  # counted keys over the whole file while perkey_value extracts `## Per-key
-  # close` before kv sees it, so an interview answered per domain, which the
-  # skill asks for, was refused for keys nothing reads there.
+  # Rounds 14 to 16 fixed what this guard matched and never checked what it
+  # covered. Round 17 found the repair had become a third matcher, agreeing
+  # with neither parser. Round 18 found the fix for that had scoped only the
+  # per-key close: the file-scoped names were still counted over the whole
+  # record, so the confirmer's `name:` in the mandatory `### Who confirms and
+  # on what basis` was refused, though kv reads the declaration above it and is
+  # never confused. Outside the span that declares a key, the same word is
+  # prose.
   #
-  # So: headings are matched the way section_body matches them, over the whole
-  # file, because has_heading and section_body both scan the whole file. Keys
-  # are matched the way kv matches them, over the span the gate that reads them
-  # actually reads. Feed each loop by redirection: a pipe would run add_fail in
-  # a subshell and every failure it recorded would be discarded with it.
+  # Headings are matched the way section_body matches them, over the whole
+  # file, because has_heading and section_body both scan the whole file. Feed
+  # each loop by redirection: a pipe would run add_fail in a subshell and every
+  # failure it recorded would be discarded with it.
   while IFS= read -r line; do
     [ -n "$line" ] || continue
     n=${line%%"$US"*}; h=${line#*"$US"}
@@ -1977,8 +2024,14 @@ controlled_sections_unique() {
     { t=trim($0); if(t ~ /^#+([ \t]|$)/) print t }' "$1" 2>/dev/null | sort | uniq -c \
       | awk -v US="$US" '$1 > 1 { c=$1; $1=""; sub(/^ /,""); print c US $0 }')
 
-  dup_keys "$1" "$RUNREC_FILE_KEYS" \
-    "kv reads the first and the rest are read by nothing"
+  preamble_body "$1" > "$TMPD/uniq-preamble.txt" 2>/dev/null
+  dup_keys "$TMPD/uniq-preamble.txt" "$G1_KEYS" \
+    "kv reads the first and the rest are read by nothing" "$1"
+
+  section_body "$1" "## Copy vantages" > "$TMPD/uniq-vantage.txt" 2>/dev/null
+  dup_keys "$TMPD/uniq-vantage.txt" "$VANTAGE_KEYS" \
+    "kv reads the first and the rest are read by nothing" "$1"
+  span_answered_earlier "$1" "$TMPD/uniq-vantage.txt" "$VANTAGE_KEYS" "'## Copy vantages'"
 
   section_body "$1" "## Per-key close" > "$TMPD/uniq-perkey.txt" 2>/dev/null
   dup_keys "$TMPD/uniq-perkey.txt" "$PERKEY_KEYS" \
