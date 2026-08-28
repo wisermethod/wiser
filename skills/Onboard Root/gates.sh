@@ -541,14 +541,27 @@ gate_G0() {
     if [ "$key" = "competitors" ]; then
       # A competitor set is only recorded where the key resolves. Anchors in
       # another memory file are not that, and neither is an unbound key.
-      binds=$(section_body "$AGENTS" "## Provides" 2>/dev/null | grep -cE '^[[:space:]]*-[[:space:]]*competitors:[[:space:]]*memory/competitors\.md[[:space:]]*$')
-      if [ "${binds:-0}" -ne 1 ]; then
-        add_fail "$(rel "$AGENTS"): 'competitors: complete' but the Provides block does not carry exactly one binding of competitors to memory/competitors.md"
+      prov=$(awk -v H="## Provides" '
+        function trim(s){ sub(/^[ \t]+/,"",s); sub(/[ \t]+$/,"",s); return s }
+        trim($0)==H { n++ } END { print n+0 }' "$AGENTS" 2>/dev/null)
+      [ "${prov:-0}" -eq 1 ] || add_fail "$(rel "$AGENTS"): 'competitors: complete' but the file carries ${prov:-0} '## Provides' sections; it carries exactly one"
+      comp_bind_n=$(section_body "$AGENTS" "## Provides" 2>/dev/null | grep -cE '^[[:space:]]*-[[:space:]]*competitors:' || true)
+      comp_bind_ok=$(section_body "$AGENTS" "## Provides" 2>/dev/null | grep -cE '^[[:space:]]*-[[:space:]]*competitors:[[:space:]]*memory/competitors\.md[[:space:]]*$' || true)
+      if [ "${comp_bind_n:-0}" -ne 1 ] || [ "${comp_bind_ok:-0}" -ne 1 ]; then
+        add_fail "$(rel "$AGENTS"): 'competitors: complete' but Provides carries ${comp_bind_n:-0} competitors binding(s), of which ${comp_bind_ok:-0} bind memory/competitors.md; it carries exactly one, and that one"
       fi
       # Bytes are not a record. Strip the preamble, the comments and any
       # surviving prompt line, and require something left.
       subst=$(strip_preamble "$ROOT/memory/competitors.md" 2>/dev/null \
-        | grep -v '^[[:space:]]*<!--' | grep -vE '^\*.*\*$' | grep -vE '^[[:space:]]*#' | nonblank_count_stdin)
+        | awk 'BEGIN{c=0}
+               { l=$0
+                 while(1){
+                   if(c==0){ i=index(l,"<!--"); if(i==0){ print l; break }
+                             print substr(l,1,i-1); l=substr(l,i+4); c=1; continue }
+                   j=index(l,"-->"); if(j==0){ break }
+                   l=substr(l,j+3); c=0 } }' \
+        | grep -vE '^\*.*\*$' | grep -vE '^[[:space:]]*#' \
+        | grep -vE '^[[:space:]]*[-=]+[[:space:]]*$' | nonblank_count_stdin)
       [ "${subst:-0}" -gt 0 ] || add_fail "$(rel "$RUNREC"): 'competitors: complete' but memory/competitors.md carries no content beyond its own scaffolding"
     fi
     oldifs="$IFS"; IFS=','
@@ -1897,11 +1910,19 @@ gate_G16() {
 # ---- G17 Refusal removed only for complete keys -------------------------
 controlled_sections_unique() {
   # A record carrying the same controlled heading twice is malformed. Every
-  # consumer of it has to choose an occurrence, and whichever it chooses is a
-  # value some other consumer did not see.
+  # consumer has to choose an occurrence, and whichever it chooses is a value
+  # some other consumer did not see. Choosing is what produced the last two
+  # defects here, so the ambiguity is refused instead.
+  #
+  # Two things this has to get right, both found the hard way. `grep -c` prints
+  # a count and exits 1 when that count is zero, so a `|| printf 0` fallback
+  # appends a second number and the comparison then errors on every clean
+  # record. And the match has to be trimmed, because section_body compares the
+  # trimmed line: an exact match here let a trailing space walk past the guard
+  # while the parser still merged both sections.
   for h in "## Per-key close" "## Interview" "## Copy vantages"; do
-    c=$(grep -c -F -x "$h" "$1" 2>/dev/null || printf '0')
-    [ "${c:-0}" -le 1 ] || add_fail "$(rel "$1"): '$h' appears $c times; a controlled section appears once or the record is ambiguous"
+    c=$(sed 's/[[:space:]]*$//' "$1" 2>/dev/null | grep -c -F -x "$h")
+    [ "${c:-0}" -le 1 ] || add_fail "$(rel "$1"): $h appears $c times; a controlled section appears once or the record is ambiguous"
   done
 }
 
