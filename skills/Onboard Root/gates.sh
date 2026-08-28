@@ -483,7 +483,7 @@ PERKEY_KEYS='about voice design competitors'
 perkey_value() {
   # $1 = key. Reads only the ## Per-key close section of run-record.md.
   [ -f "$RUNREC" ] || return 1
-  strip_inert < "$RUNREC" > "$TMPD/runrec-plain.md" 2>/dev/null
+  strip_comments < "$RUNREC" > "$TMPD/runrec-plain.md" 2>/dev/null
   section_body "$TMPD/runrec-plain.md" "## Per-key close" > "$TMPD/perkey.txt" 2>/dev/null
   kv "$TMPD/perkey.txt" "$1"
 }
@@ -518,9 +518,10 @@ claims_located_count() {
     esac
     if [ -n "${ONLY_FILE:-}" ] && [ "$bfp" != "$ONLY_FILE" ]; then continue; fi
     [ -f "$ROOT/$bfp" ] || continue
-    # An anchor inside a comment, a fence or a raw HTML block is not in the
-    # file as far as anything reading it is concerned.
-    strip_inert < "$ROOT/$bfp" 2>/dev/null | grep -qF "[$id]" || continue
+    # An anchor inside a comment is not in the file as far as anything reading
+    # it is concerned. A fenced one is visible text and counts: this check asks
+    # whether the anchor is there, not whether it is a declaration.
+    strip_comments < "$ROOT/$bfp" 2>/dev/null | grep -qF "[$id]" || continue
     printf 'x\n'
   done | wc -l | tr -d ' '
 }
@@ -579,12 +580,13 @@ gate_G0() {
     if [ "$key" = "competitors" ]; then
       # A competitor set is only recorded where the key resolves. Anchors in
       # another memory file are not that, and neither is an unbound key.
-      # Inert text goes from the whole file before the section is cut out, and
-      # both readers of this section read the same stripped copy. Stripping the
-      # extract left a fence opened in an earlier section unseen; stripping for
-      # one reader and not the other let a fenced example of the heading
-      # false-fail a correct root.
-      strip_inert < "$AGENTS" > "$TMPD/agents-plain.md" 2>/dev/null
+      # Comments go from the whole file before the section is cut out, and both
+      # readers of this section read the same stripped copy: stripping for one
+      # and not the other let a commented-out heading disagree with the
+      # binding beneath it. Everything else a renderer hides is refused rather
+      # than filtered, by plain_lines_only.
+      strip_comments < "$AGENTS" > "$TMPD/agents-plain.md" 2>/dev/null
+      plain_lines_only "$AGENTS" "## Provides" "a Provides block"
       prov=$(awk -v H="## Provides" '
         function trim(s){ sub(/^[ \t]+/,"",s); sub(/[ \t]+$/,"",s); return s }
         trim($0)==H { n++ } END { print n+0 }' "$TMPD/agents-plain.md" 2>/dev/null)
@@ -600,7 +602,7 @@ gate_G0() {
       # Bytes are not a record. Strip the preamble, the comments and any
       # surviving prompt line, and require something left.
       subst=$(strip_preamble "$ROOT/memory/competitors.md" 2>/dev/null \
-        | strip_inert \
+        | strip_comments \
         | grep -vE '^\*.*\*$' | grep -vE '^[[:space:]]*#' \
         | grep -vE '^[[:space:]]*[-=]+[[:space:]]*$' | nonblank_count_stdin)
       [ "${subst:-0}" -gt 0 ] || add_fail "$(rel "$RUNREC"): 'competitors: complete' but memory/competitors.md carries no content beyond its own scaffolding"
@@ -1963,55 +1965,30 @@ preamble_body() {
   { t=trim($0); if(t ~ /^#{2,}([ \t]|$)/) exit; print }' "$1"
 }
 
-# strip_inert: drop text a renderer would not show, from stdin.
-# Fenced blocks, HTML comments, and raw HTML blocks. Trailing CR goes first, so
-# a Windows line ending cannot leave a fence open forever.
+# strip_comments: drop HTML comments from stdin, and the trailing CR with them.
 #
-# section_body, kv and has_heading are all blind to every one of these, and
-# this migration is not giving them sight: those readers are inherited and the
-# defect is filed. This filter is for the checks that carry this migration's
-# own guarantees, which ask whether something is really declared, and where an
-# example is not a declaration.
+# This is the whole of the filtering this harness does, and it is deliberately
+# small. Text inside an HTML comment is not in the file as far as anything
+# reading it is concerned, and the rule for finding it is closed: it starts at
+# `<!--` and ends at `-->`.
 #
-# Rounds 19 and 20 arrived at this the long way. Round 19 fixed a naive fence
-# toggle; round 20 found the fix had taught one check about one container while
-# three others still read as real, and that four spaces of indent, correctly
-# refused as a fence, was still accepted as a binding by the matcher next to
-# it. Hence one filter rather than a reader per guard, and hence the callers
-# match a list item at CommonMark's own boundary of three spaces, past which
-# the line is code and not a list at all.
-strip_inert() {
+# Rounds 19 through 21 tried to filter the rest of what a renderer hides, and
+# each round shipped a gap in exactly the part of the grammar it had just
+# added: a fence toggle that any tilde could close, then a fence rule that
+# missed indented code, then an HTML-block rule that ended `<script>` at a
+# blank line and read an autolink as a tag. That is a Markdown implementation,
+# and this harness has no business being one. See plain_lines_only for what
+# replaced it.
+strip_comments() {
   awk '
   {
     line=$0
     sub(/\r$/, "", line)
-
-    # inside a fence: only its own closer ends it
-    if(inf){
-      ind=match(line, /[^ ]/); if(ind==0) ind=length(line)+1
-      body=substr(line, ind); m=0
-      if(ind<=4){ while(substr(body,m+1,1)==fch) m++ }
-      if(m>=3 && m>=flen){
-        rest=substr(body,m+1); sub(/[ \t]+$/,"",rest)
-        if(rest==""){ inf=0 }
-      }
-      next
-    }
-
-    # inside an HTML comment: keep whatever follows its close
     if(inc){
       k=index(line,"-->")
       if(k==0) next
       line=substr(line,k+3); inc=0
     }
-
-    # inside a raw HTML block: a blank line ends it
-    if(inh){
-      if(line ~ /^[ \t]*$/){ inh=0 }
-      next
-    }
-
-    # an HTML comment opening on this line: keep what precedes it
     while(1){
       k=index(line,"<!--")
       if(k==0) break
@@ -2020,27 +1997,40 @@ strip_inert() {
       if(e==0){ line=head; inc=1; break }
       line=head substr(tail,e+3)
     }
-
-    ind=match(line, /[^ ]/); if(ind==0) ind=length(line)+1
-    body=substr(line, ind)
-
-    # a fence opening. A backtick fence may not carry a backtick in its info
-    # string, which is what makes it not a fence at all.
-    if(ind<=4){
-      ch=""
-      if(substr(body,1,3)=="```") ch="`"
-      else if(substr(body,1,3)=="~~~") ch="~"
-      if(ch!=""){
-        m=0; while(substr(body,m+1,1)==ch) m++
-        info=substr(body,m+1)
-        if(!(ch=="`" && index(info,"`")>0)){ inf=1; fch=ch; flen=m; next }
-      }
-      # a raw HTML block, which runs to the next blank line
-      if(body ~ /^<[A-Za-z\/!?]/){ inh=1; next }
-    }
-
     print line
   }'
+}
+
+# plain_lines_only FILE SECTION WHAT
+# A section this harness reads for declarations is plain lines. Refuse a fence,
+# a raw HTML tag, or code indented past three spaces inside it, rather than
+# trying to tell an example apart from a declaration.
+#
+# This is the answer to three rounds of a growing recognizer. A binding inside
+# a fenced example is indistinguishable from a binding, to a reader that is not
+# a Markdown implementation; so the record does not get to carry one here. The
+# failure says exactly what to remove, and the sections it governs are short
+# and machine-read: nothing legitimate is written this way, and no template
+# writes one.
+plain_lines_only() {
+  _f=$1; _sec=$2; _what=$3
+  [ -f "$_f" ] || return 0
+  # Read the section as written, not comment-stripped. A line that opens with
+  # `<!--` is a whole HTML block including whatever follows the close on that
+  # line, so stripping first turns `<!-- -->- competitors: ...` into a list
+  # item and hands back the binding the comment was hiding.
+  section_body "$_f" "$_sec" 2>/dev/null > "$TMPD/plain.txt" 2>/dev/null
+  while IFS= read -r _bad; do
+    [ -n "$_bad" ] || continue
+    add_fail "$(rel "$_f"): $_sec carries $_bad; $_what is read as plain lines, and an example in it cannot be told from the real thing"
+  done < <(awk '
+    { line=$0
+      ind=match(line, /[^ \t]/); if(ind==0) next
+      body=substr(line, ind)
+      if(substr(body,1,3)=="```" || substr(body,1,3)=="~~~"){ print "a code fence"; exit }
+      if(body ~ /^<\/?[A-Za-z][A-Za-z0-9-]*([ \t>\/]|$)/ || body ~ /^<[!?]/){ print "a raw HTML tag"; exit }
+      if(line ~ /^(    |\t)/){ print "a line indented past three spaces"; exit }
+    }' "$TMPD/plain.txt" 2>/dev/null)
 }
 
 # dup_keys FILE KEYSET MESSAGE [REPORT_AS]
@@ -2147,6 +2137,7 @@ controlled_sections_unique() {
 gate_G17() {
   need_file "$RUNREC" || return
   controlled_sections_unique "$RUNREC"
+  plain_lines_only "$RUNREC" "## Per-key close" "a per-key close"
   if ! has_heading "$RUNREC" "## Per-key close"; then
     add_fail "$(rel "$RUNREC"): no '## Per-key close' section"
     return
