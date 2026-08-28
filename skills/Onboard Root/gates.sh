@@ -534,6 +534,7 @@ gate_G0() {
     return
   fi
   plain_file "$VERIF" "verification.md"
+  plain_file "$AGENTS" "this root's AGENTS.md"
   if table_get "$VERIF" "Claims" "Key,Class,Outcome,Anchor,Bound file" > "$TMPD/g0-claims.txt" 2>/dev/null; then :; else
     add_fail "$(rel "$VERIF"): no '## Claims' table carrying the columns Key, Class, Outcome, Anchor, Bound file"
     return
@@ -587,7 +588,6 @@ gate_G0() {
       # binding beneath it. Everything else a renderer hides is refused rather
       # than filtered, by plain_file.
       strip_comments < "$AGENTS" > "$TMPD/agents-plain.md" 2>/dev/null
-      plain_file "$AGENTS" "this root's AGENTS.md"
       prov=$(awk -v H="## Provides" '
         function trim(s){ sub(/^[ \t]+/,"",s); sub(/[ \t]+$/,"",s); return s }
         trim($0)==H { n++ } END { print n+0 }' "$TMPD/agents-plain.md" 2>/dev/null)
@@ -600,12 +600,16 @@ gate_G0() {
       if [ "${comp_bind_n:-0}" -ne 1 ] || [ "${comp_bind_ok:-0}" -ne 1 ]; then
         add_fail "$(rel "$AGENTS"): 'competitors: complete' but Provides carries ${comp_bind_n:-0} competitors binding(s), of which ${comp_bind_ok:-0} bind memory/competitors.md; it carries exactly one, and that one"
       fi
-      # Bytes are not a record. Strip the preamble, the comments and any
-      # surviving prompt line, and require something left.
+      plain_file "$ROOT/memory/competitors.md" "the file a competitor set resolves in" keep-comments
+      # Bytes are not a record. Strip the preamble, the comments, any
+      # surviving prompt line and any line that is only an absence marker, and
+      # require something left. A file of `[Not available]` sections records no
+      # set, which is what this floor exists to say.
       subst=$(strip_preamble "$ROOT/memory/competitors.md" 2>/dev/null \
         | strip_comments \
         | grep -vE '^\*.*\*$' | grep -vE '^[[:space:]]*#' \
-        | grep -vE '^[[:space:]]*[-=]+[[:space:]]*$' | nonblank_count_stdin)
+        | grep -vE '^[[:space:]]*[-=]+[[:space:]]*$' \
+        | grep -vE '^[[:space:]]*\[Not available[^]]*\][[:space:]]*$' | nonblank_count_stdin)
       [ "${subst:-0}" -gt 0 ] || add_fail "$(rel "$RUNREC"): 'competitors: complete' but memory/competitors.md carries no content beyond its own scaffolding"
     fi
     oldifs="$IFS"; IFS=','
@@ -2029,9 +2033,14 @@ strip_comments() {
 # what a construct contains: a line that could open one fails the file. Five
 # templates carry none of these, and the message names what to remove.
 plain_file() {
-  _f=$1; _what=$2
+  # $3, optional: "keep-comments", for a file the root writes prose in. The
+  # shipped competitor template carries six HTML comments of its own, so
+  # refusing them there left no compliant way to finish it. Containers are
+  # still refused: uncovering that file entirely, which is what round 25 did,
+  # let a competitor set written inside a fence, a div or a pre close the key.
+  _f=$1; _what=$2; _keep=${3:-}
   [ -f "$_f" ] || return 0
-  _bad=$(awk '
+  _bad=$(awk -v KEEP="$_keep" '
   function width(s,   i,c,n){ n=0
     for(i=1;i<=length(s);i++){ c=substr(s,i,1)
       if(c==" ") n++; else if(c=="\t") n+=4-(n%4); else break }
@@ -2041,21 +2050,52 @@ plain_file() {
   {
     line=$0; sub(/\r$/,"",line)
     if(NR==1 && substr(line,1,3)==bom) line=substr(line,4)
+
+    if(KEEP=="keep-comments"){
+      # Comments are the root own provenance markers in this file, so they come
+      # out of the line before anything else reads it. Otherwise `<!--` reads as
+      # a declaration and the shipped template is refused, which is the defect
+      # round 24 found. Containers are still refused below, because round 25
+      # uncovered this file entirely and a set written inside a fence, a div or
+      # a pre closed the key.
+      if(inc){ k=index(line,"-->"); if(k==0) next; line=substr(line,k+3); inc=0 }
+      while(1){
+        k=index(line,"<!--"); if(k==0) break
+        head=substr(line,1,k-1); tail=substr(line,k+4)
+        e=index(tail,"-->")
+        if(e==0){ line=head; inc=1; break }
+        line=head substr(tail,e+3)
+      }
+    } else if(index(line,"<!--")>0){
+      # only `<!--` opens a comment. A bare `-->` is an arrow in prose, and
+      # calling it a comment named a construct the writer had not written.
+      print NR ": an HTML comment"; exit
+    }
+
     if(line ~ /^[ \t]*$/) next
     ind=width(line)
     body=line; sub(/^[ \t]+/,"",body)
-    # a construct may open at the content column of a list item, so the marker
-    # comes off once and every test below reads what is left. Round 24 stripped
-    # it for the fence test only, and `- <div>` was a container this could not
-    # see while its own fence test could see `- ```.
-    if(body ~ /^([-*+]|[0-9]{1,9}[.)])[ \t]+/) sub(/^([-*+]|[0-9]{1,9}[.)])[ \t]+/,"",body)
-    # only `<!--` opens a comment. A bare `-->` is an arrow in prose, and
-    # calling it a comment named a construct the writer had not written.
-    if(index(line,"<!--")>0){ print NR ": an HTML comment"; exit }
+
+    # A construct opens at the content column of whatever contains it, and a
+    # container can contain a container. Round 24 stripped one list marker for
+    # the fence test only; round 25 stripped one for every test and still could
+    # not see a fence or a tag behind `>` or behind a second marker. So every
+    # marker comes off, list and blockquote alike, until none is left.
+    quoted=0
+    while(1){
+      if(body ~ /^>[ \t]?/){ quoted=1; sub(/^>[ \t]?/,"",body); sub(/^[ \t]+/,"",body); continue }
+      if(body ~ /^([-*+]|[0-9]{1,9}[.)])[ \t]+/){ sub(/^([-*+]|[0-9]{1,9}[.)])[ \t]+/,"",body); continue }
+      break
+    }
+
     if(ind<=3 && (substr(body,1,3)=="```" || substr(body,1,3)=="~~~")){ print NR ": a code fence"; exit }
     if(ind<=3 && body ~ /^<[!?\/]/){ print NR ": a raw HTML declaration"; exit }
     if(ind<=3 && body ~ /^<[A-Za-z][A-Za-z0-9-]*([ \t>\/]|$)/){ print NR ": a raw HTML tag"; exit }
     if(ind>=4){ print NR ": a line indented four columns or more"; exit }
+    # A blockquote is quoted prose to a reader and a live line to kv and
+    # table_get, which read the text after the marker. The records this harness
+    # reads do not quote, so they do not get to carry one.
+    if(quoted && KEEP!="keep-comments"){ print NR ": a blockquote"; exit }
   }' "$_f" 2>/dev/null)
   [ -n "$_bad" ] || return 0
   add_fail "$(rel "$_f"): line $_bad; $_what is read as plain text, and a declaration written inside a fence, a comment, raw HTML or indented code cannot be told from the real thing"
