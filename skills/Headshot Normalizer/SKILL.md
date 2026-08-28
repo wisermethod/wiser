@@ -3,7 +3,7 @@ name: Headshot Normalizer
 type: skill
 category: media
 description: Turn photographs into square transparent PNGs whose faces sit at the same size and the same place in the frame, by removing each background, measuring the eyes, and cutting every frame to one standard, reporting the transparent band left where a photograph is too short to fill its frame
-version: 0.4.0
+version: 0.5.0
 gaps:
   - image cutout, resizing and overlay
   - the vision and image-model calls this skill's automated path depends on
@@ -45,7 +45,7 @@ A retoucher preparing a wall, not a picture. A single portrait that looks good o
 
 ## The Frame
 
-Three parameters describe one frame. The defaults are one workable set and carry no authority beyond that; they are not a published standard and nothing here claims they are. A caller with their own states it in `<frame_standard>` and gets it.
+Three parameters describe one frame. The defaults are one workable set and carry no authority beyond that; they are not a published standard and nothing here claims they are. A caller with their own standard states it in `<frame_standard>` and gets it.
 
 | Parameter | Default | What it fixes |
 |-----------|---------|---------------|

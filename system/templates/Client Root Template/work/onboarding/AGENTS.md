@@ -147,7 +147,7 @@ A package whose angle is the competitive set carries one further table:
 
 `Row` matches `V<n>` and is unique across both tables.
 `Key` is `about`, `voice`, `design`, `competitors`, or `none`.
-`Class` is one of `what-was-bought`, `who-confirms`, `hard-constraints`, `register-decision`, `register-confirmation`, `design-source`, `set`, `set-confirmed-by`, `set-date`, `other`.
+`Class` is one of `what-was-bought` on a client root or `what-this-root-is-for` on any other type, `who-confirms`, `hard-constraints`, `register-decision`, `register-confirmation`, `design-source`, `set`, `set-confirmed-by`, `set-date`, `other`. **This grammar governs every root type, not only the client one it ships beside.**
 `Anchor` is the bracketed row id as it appears in the bound file, or `-` when the claim did not enter a bound file.
 `Exactness` is `yes` for any claim about wording, length, completeness, extent, a count, or a file comparison; `no` otherwise. An exactness claim carries a second mechanism different from the first, or it is labeled Unverified.
 `Outcome` is `located`, `located-elsewhere-and-citation-corrected`, or `not-located`.

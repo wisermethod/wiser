@@ -1,7 +1,7 @@
 <!-- provenance-preamble -->
 Provenance contract for this file. These are the rules this file holds itself to, and a claim that does not meet them does not enter. The marker lines above and below delimit this preamble so the close gates can exempt it from the claim scan; keep both.
 
-**Registers.** A claim about a competitor is a claim about an organisation or a person, so it carries its sourcing register as a parenthetical naming the payload that register requires: `(Firsthand: <person who observed it>)`, `(Secondhand: relayed by <person>)`, `(Public statement: <where>)`, `(Research inference: E3, E11)`. `standards/conventions.md` owns what each register means. A name the requester supplied is secondhand from that named person until a public source is found.
+**Registers.** A claim about a competitor is a claim about an organization or a person, so it carries its sourcing register as a parenthetical naming the payload that register requires: `(Firsthand: <person who observed it>)`, `(Secondhand: relayed by <person>)`, `(Public statement: <where>)`, `(Research inference: E3, E11)`. `standards/conventions.md` owns what each register means. A name the requester supplied is secondhand from that named person until a public source is found.
 
 **Labels.** Every comparative, ranking, share and count carries one of the four evidence labels defined in `standards/conventions.md`, written in square brackets in place: `[Verified]`, `[Estimated: <method>]`, `[Unverified: requires confirmation]`, `[Not available: <reason>]`. Those four are the entire vocabulary of this file. Verified means located in the source, not true; a third party's unaudited ranking is not Verified.
 
