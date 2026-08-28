@@ -26,7 +26,7 @@ Three grammars carry the weight, and they hold inside the bound files under `mem
 
 **The prompt line.** A whole line that begins with `*` and ends with `*`. Every one is replaced before a key can close.
 
-**The placeholder tokens.** Exactly two: the word name in square brackets, and the word Competitor in square brackets. Both are defined literally in the preamble of `memory/about.md`, and none may survive instantiation.
+**The placeholder tokens.** Every `memory/` file's own preamble names the tokens that file carries; on every type that is the word name in square brackets, and on a client root the competitor stub adds the word Competitor in square brackets at its own per-competitor heading. None may survive instantiation.
 
 **The verification anchor.** A load-bearing claim in a bound file ends with a bracketed row id naming its row in `verification.md`, written as `[V<n>]` with the row's number in place of `<n>`: row 7 is anchored as V7 in that form. An anchor written after a full stop belongs to the sentence before it. A key line carrying a date, a count, or any other checkable value takes an anchor too.
 
@@ -36,7 +36,7 @@ Two further written forms:
 
 **Registers** are written as a parenthetical naming the payload the register requires: `(Firsthand: <person who observed it>)`, `(Secondhand: relayed by <person>)`, `(Public statement: <where>)`, `(Research inference: E3, E11)`. A disputed claim carries `(Disputed: audit.md A4)`, which is a register-shaped parenthetical and deliberately not a fifth evidence label.
 
-**A figures heading is marked.** A heading whose body is a table of figures carries the marker `<!-- figures -->` on the heading line or on the line under it. `memory/about.md` ships that marker under Key Facts, and its table ships the header row `| Figure | Unit | Denominator | Tool | Window | Label | Source |`.
+**A figures heading is marked.** A heading whose body is a table of figures carries the marker `<!-- figures -->` on the heading line or on the line under it. **This client root's** `memory/about.md` ships that marker under Key Facts, and its table ships the header row `| Figure | Unit | Denominator | Tool | Window | Label | Source |`.
 
 ### `run-record.md`
 
@@ -60,8 +60,7 @@ vantage-1: <mechanism> -> <n> files
 vantage-2: <mechanism> -> <n> files
 
 ## Interview
-### What was bought          <- on a client root
-### What this root is for    <- on every other type
+### What was bought
 ### Who confirms and on what basis
 ### Contradictions
 ### What the outputs are for
@@ -74,7 +73,7 @@ design: complete | provisional | blocked
 competitors: complete | provisional | blocked | unbound
 ```
 
-Under each `## Interview` heading: the answer, or a line beginning `Deferred:` followed by the consequence. `### What the outputs are for` may not be deferred, because the routing table in `memory/voice.md` carries a row for every output type named there, and it is written as a dash list with **one output type per line**. G13b reads it as a list and checks the routing table row by row against it; answered as a sentence, the split produces fragments that are not output types and reports each as an unrouted deliverable. `### Competitor set` is present only when `competitors-offer: yes`.
+Under each `## Interview` heading: the answer, or a line beginning `Deferred:` followed by the consequence. `### What the outputs are for` may not be deferred, because the routing table in `memory/voice.md` carries a row for every output type named there, and it is written as a dash list with **one output type per line**. G13b reads it as a list and checks the routing table row by row against it; answered as a sentence, the split produces fragments that are not output types and reports each as an unrouted deliverable. `### Competitor set` is present only when `competitors-offer: yes`. **The first heading varies by type**: `### What was bought` on a client root, as the fence shows, and `### What this root is for` on every other type. Write the heading for the type, exactly, with nothing appended: G12 matches the string. **The `competitors:` per-key line is owed only where the offer was made**; four of the five types are never offered it, and the harness records a missing line there as the answer rather than an omission. **Nothing inside a fence in this file is commentary**: every line is the literal a record carries.
 
 ### `extraction/<source>.md`
 
