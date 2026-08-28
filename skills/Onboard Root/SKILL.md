@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create an owned root from its matching template and onboard it with verified memory, an operating surface, and a per-key close
-version: 0.8.0
+version: 0.9.0
 ---
 
 # Onboard Root
@@ -143,7 +143,7 @@ Exit: G1.
 **Extract each source to text**, one record per source under `work/onboarding/extraction/`, holding four things beyond the text:
 
 - **The completeness measure**, per the standing rule, recorded with both the extraction mechanism and the different mechanism that checked it.
-- **A provenance block**: who authored it (the subject, the operator, a third party, unattributed), final or draft, its date, internal or client-facing.
+- **A provenance block**: who authored it (the subject, the requester, a third party, unattributed), final or draft, its date, internal or client-facing.
 - **Whole tables, whole**, with headers, and every figure's unit, denominator, tool, and window as the source gives them.
 - **The must-reach list**: every prohibition, compliance flag, commercial term, named person with title, date, and internal review note, comment, speaker note, or tracked change, each with the disposition it will later be shown to have reached.
 
@@ -258,7 +258,7 @@ Two steps, and the second is not optional.
 Who runs it, in order of preference:
 
 - **A sub-agent this host can spawn.** Where the host can spawn one at all, use it rather than the producer.
-- **Additional independent reviewers**, where the host exposes any: each as a separate agent in the same round, and each from a different model or provider than the last where the host offers more than one. **Every reviewer is read-only.** Say so in the brief and withhold write access where the host lets you choose, because a delegate interface that can write usually defaults to writing unless the brief says otherwise. Frame each brief as verification of the requester's own authorized instruction files, never as an attack. Confirm reachability before launching, wait for every reviewer in the round, and do not edit a bound file while a round is in flight.
+- **Additional independent reviewers**, where the host exposes any: each as a separate agent in the same round, and each from a different model or provider than the last where the host offers more than one. **A reviewer that inherits this session's context is not an independent one, whatever it is called**, and an audit counts only where the reviewing context did not produce the work. **Every reviewer is read-only.** Say so in the brief and withhold write access where the host lets you choose, because a delegate interface that can write usually defaults to writing unless the brief says otherwise. Frame each brief as verification of the requester's own authorized instruction files, never as an attack. Confirm reachability before launching, wait for every reviewer in the round, and do not edit a bound file while a round is in flight.
 - **A reviewer the host does not expose is recorded in the audit record, not a failed onboard.** What is not optional is that one pass ran in a context that did not produce the work.
 
 At the minimum core, one independent pass, however short. Where the environment cannot spawn an independent context at all, say so in the close report and record that the audit shared the producer's context, which is materially weaker.
@@ -390,7 +390,7 @@ Twenty-six checks. Run them at Phase 9, per key. Each names what runs and what m
 ## Pitfalls
 
 - **An ambiguous request.** The scope, the type, the real name, or the destination left to inference: ask before copying anything. Each one is expensive to change once paths point at the root.
-- **Over-asking when the answer is already given.** Destination already established, or the root's type already settled by its own declaration: proceed. Sibling inventory, how the work is organised or who else is involved, and inventing an organization's name from context are not gates.
+- **Over-asking when the answer is already given.** Destination already established, or the root's type already settled by its own declaration: proceed. Sibling inventory and inventing an organization's name from context are not gates.
 - **A credential value reaching the conversation.** Pasted by the requester, read back for confirmation, or copied into a note: treat it as compromised. Have them revoke it at the platform, issue a new one, and write the replacement by the same names-only path. Never use it once because it is already there.
 - **A root filled from the model's own knowledge.** A plausible sentence about a real person or company that nobody in the workspace said is a fabrication with its source line missing. Ask, verify against a cited source, or mark the heading unanswered.
 - **A sub-agent returning conclusions.** A package that says what the evidence means rather than what it says has already lost the citation the read-back needs. Reject it, re-brief it, and never mine it for claims; editing conclusions into memory is exactly how a bound file acquires a confident error.

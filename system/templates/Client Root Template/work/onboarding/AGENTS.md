@@ -81,7 +81,7 @@ extract-mechanism: <name>
 extract-measure: <n> <unit>
 check-mechanism: <name>
 check-measure: <n> <unit>
-provenance-author: subject | operator | third-party | unattributed
+provenance-author: subject | requester | third-party | unattributed
 provenance-status: final | draft
 provenance-date: YYYY-MM-DD
 provenance-audience: internal | client-facing
