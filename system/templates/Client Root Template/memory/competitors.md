@@ -28,9 +28,7 @@ This file ships as a stub and is not bound. The `competitors` key is added to th
 
 ## Per Competitor
 
-<!-- provenance-preamble -->
-One heading per confirmed competitor, the competitor's own name.
-<!-- /provenance-preamble -->
+*One heading per confirmed competitor, under its own `###` heading carrying that competitor's name.*
 
 ### [Competitor]
 

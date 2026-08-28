@@ -523,8 +523,10 @@ gate_G0() {
       # was accepted there is a set to record, so unbound would skip the
       # competitor classes on a key that owes them.
       case "$(kv "$RUNREC" "competitors-offer")" in
-        yes*) add_fail "$(rel "$RUNREC"): 'competitors-offer: yes' but the per-key close reads unbound; an accepted offer closes complete, provisional or blocked" ;;
-        *)    add_note "competitors: unbound: competitor classes not applicable" ;;
+        not-now|no) add_note "competitors: unbound: the offer was declined or deferred, so the competitor classes are not applicable" ;;
+        yes)        add_fail "$(rel "$RUNREC"): 'competitors-offer: yes' but the per-key close reads unbound; an accepted offer closes complete, provisional or blocked" ;;
+        not-offered:*) add_fail "$(rel "$RUNREC"): the offer was never made, so no competitors line is owed; unbound is the answer to a declined offer" ;;
+        *)          add_fail "$(rel "$RUNREC"): 'competitors: unbound' but competitors-offer does not record a declined or deferred offer" ;;
       esac
       continue
     fi
@@ -568,7 +570,14 @@ gate_G1() {
           yes|not-now|no) ;;
           not-offered:*)
             rest=$(printf '%s' "$v" | sed 's/^not-offered:[[:space:]]*//')
-            [ -n "$rest" ] || add_fail "$(rel "$RUNREC"): competitors-offer 'not-offered:' names no type" ;;
+            case "$rest" in
+              "")       add_fail "$(rel "$RUNREC"): competitors-offer 'not-offered:' names no type" ;;
+              client)   add_fail "$(rel "$RUNREC"): competitors-offer 'not-offered: client' but the offer is made for every client root; record yes, not-now or no" ;;
+              personal|org|department|industry) ;;
+              *)        add_fail "$(rel "$RUNREC"): competitors-offer 'not-offered: $rest' names no root type" ;;
+            esac
+            [ "$rest" = "$ROOT_TYPE" ] || [ "$rest" = "" ] || [ "$rest" = "client" ] || \
+              add_fail "$(rel "$RUNREC"): competitors-offer 'not-offered: $rest' but this root declares type $ROOT_TYPE" ;;
           *) add_fail "$(rel "$RUNREC"): competitors-offer '$v' is not one of yes, not-now, no, 'not-offered: <type>'" ;;
         esac ;;
     esac
@@ -1534,11 +1543,17 @@ gate_G12() {
   else
     G12_FIRST="What this root is for"
   fi
+  prev_ln=0
   for h in "$G12_FIRST" "Who confirms and on what basis" "Contradictions" "What the outputs are for"; do
     if ! has_heading "$RUNREC" "### $h"; then
       add_fail "$(rel "$RUNREC"): '### $h' missing"
       continue
     fi
+    this_ln=$(grep -n -F -x "### $h" "$RUNREC" 2>/dev/null | head -1 | cut -d: -f1)
+    if [ -n "$this_ln" ] && [ "$this_ln" -lt "$prev_ln" ]; then
+      add_fail "$(rel "$RUNREC"): '### $h' is out of order; the table gives these four in one order and the record has to keep it"
+    fi
+    [ -z "$this_ln" ] || prev_ln="$this_ln"
     section_body "$RUNREC" "### $h" > "$TMPD/g12.txt"
     nb=$(nonblank_count "$TMPD/g12.txt")
     if [ "$nb" -eq 0 ]; then
@@ -1875,7 +1890,10 @@ gate_G17() {
           add_fail "$(rel "$RUNREC"): per-key close '$key: unbound' is allowed only for competitors"; missing=1
         else
           case "$(kv "$RUNREC" "competitors-offer")" in
-            yes*) add_fail "$(rel "$RUNREC"): 'competitors-offer: yes' but 'competitors: unbound'; an accepted offer has a set to close"; missing=1 ;;
+            not-now|no) ;;
+            yes)        add_fail "$(rel "$RUNREC"): 'competitors-offer: yes' but 'competitors: unbound'; an accepted offer has a set to close"; missing=1 ;;
+            not-offered:*) add_fail "$(rel "$RUNREC"): the offer was never made, so no competitors line is owed"; missing=1 ;;
+            *)          add_fail "$(rel "$RUNREC"): 'competitors: unbound' but competitors-offer records no declined or deferred offer"; missing=1 ;;
           esac
         fi
         ;;
