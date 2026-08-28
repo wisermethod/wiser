@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create an owned root from its matching template and onboard it with verified memory, an operating surface, and a per-key close
-version: 0.7.0
+version: 0.8.0
 ---
 
 # Onboard Root
@@ -143,7 +143,7 @@ Exit: G1.
 **Extract each source to text**, one record per source under `work/onboarding/extraction/`, holding four things beyond the text:
 
 - **The completeness measure**, per the standing rule, recorded with both the extraction mechanism and the different mechanism that checked it.
-- **A provenance block**: who authored it (the subject, this root, a third party, unattributed), final or draft, its date, internal or client-facing.
+- **A provenance block**: who authored it (the subject, the operator, a third party, unattributed), final or draft, its date, internal or client-facing.
 - **Whole tables, whole**, with headers, and every figure's unit, denominator, tool, and window as the source gives them.
 - **The must-reach list**: every prohibition, compliance flag, commercial term, named person with title, date, and internal review note, comment, speaker note, or tracked change, each with the disposition it will later be shown to have reached.
 
