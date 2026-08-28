@@ -1604,7 +1604,7 @@ gate_G12() {
       add_fail "$(rel "$RUNREC"): '### $h' missing"
       continue
     fi
-    this_ln=$(grep -n -F -x "### $h" "$RUNREC" 2>/dev/null | head -1 | cut -d: -f1)
+    this_ln=$(sed 's/^[[:space:]]*//; s/[[:space:]]*$//' "$RUNREC" 2>/dev/null | grep -n -F -x "### $h" | head -1 | cut -d: -f1)
     if [ -n "$this_ln" ] && [ "$this_ln" -lt "$prev_ln" ]; then
       add_fail "$(rel "$RUNREC"): '### $h' is out of order; the table gives these four in one order and the record has to keep it"
     fi
