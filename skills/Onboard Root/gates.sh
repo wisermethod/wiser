@@ -461,6 +461,18 @@ voice;register-decision,register-confirmation
 design;design-source
 competitors;set,set-confirmed-by,set-date"
 
+# The key lines this harness reads out of the run record, and where each one is
+# read. G1 owns the file-scoped names and G3 adds the two vantages; kv takes
+# the first occurrence in the whole file, so a second one anywhere is a value
+# some consumer never saw. G0 and G17 read the four close keys through
+# perkey_value, which extracts `## Per-key close` before kv sees it, so for
+# those a second occurrence matters only inside that section. An interview
+# answer written per domain, which Phase 5 asks for, is not a duplicate of the
+# close: nothing reads it as a key.
+G1_KEYS='type name destination tier research-branch consent competitors-offer'
+RUNREC_FILE_KEYS="$G1_KEYS vantage-1 vantage-2"
+PERKEY_KEYS='about voice design competitors'
+
 perkey_value() {
   # $1 = key. Reads only the ## Per-key close section of run-record.md.
   [ -f "$RUNREC" ] || return 1
@@ -596,7 +608,7 @@ G0EOF
 # ---- G1 Scope recorded ---------------------------------------------------
 gate_G1() {
   need_file "$RUNREC" || return
-  for k in type name destination tier research-branch consent competitors-offer; do
+  for k in $G1_KEYS; do
     if ! has_key "$RUNREC" "$k"; then
       add_fail "$(rel "$RUNREC"): key line '$k:' missing"
       continue
@@ -1914,32 +1926,63 @@ gate_G16() {
 }
 
 # ---- G17 Refusal removed only for complete keys -------------------------
-controlled_sections_unique() {
-  # Ambiguity is refused wherever this harness reads a value or a section,
-  # because every consumer would otherwise pick an occurrence and whichever it
-  # picked would be a value some other consumer never saw. That is one defect
-  # with three surfaces, and listing the surfaces is how the third was missed:
-  # the list named `##` sections while section_body merges `###` headings too,
-  # and kv takes the first of duplicate key lines.
-  #
-  # Match the way has_heading and section_body do, on the trimmed line, and
-  # feed the loop by redirection: a pipe would run add_fail in a subshell and
-  # every failure it recorded would be discarded with it.
-  sed 's/^[[:space:]]*//; s/[[:space:]]*$//' "$1" 2>/dev/null > "$TMPD/uniq.txt"
+# dup_keys FILE KEYSET MESSAGE [REPORT_AS]
+# Counts a key the way kv counts it: the text before the first colon on the
+# raw line, trimmed. Only the keys in KEYSET, because a duplicate is ambiguous
+# where something asks for it and nowhere else, and a rule that counts every
+# colon-shaped line refuses two citations as a repeated `https` key.
+dup_keys() {
+  _f=$1; _keys=$2; _msg=$3; _as=${4:-$1}
+  [ -f "$_f" ] || return 0
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    n=${line%%"$US"*}; k=${line#*"$US"}
+    add_fail "$(rel "$_as"): key $k: appears $n times; $_msg"
+  done < <(awk -v KEYS="$_keys" '
+    function trim(s){ sub(/^[ \t]+/,"",s); sub(/[ \t]+$/,"",s); return s }
+    BEGIN{ n=split(KEYS,a," "); for(i=1;i<=n;i++) want[a[i]]=1 }
+    {
+      idx=index($0,":")
+      if(idx>0){ k=trim(substr($0,1,idx-1)); if(k in want) print k }
+    }' "$_f" 2>/dev/null | sort | uniq -c \
+      | awk -v US="$US" '$1 > 1 { print $1 US $2 }')
+}
 
+controlled_sections_unique() {
+  # Ambiguity is refused where something reads it, so this asks the same
+  # questions the readers ask rather than a question of its own shape.
+  #
+  # Three rounds fixed what this guard matched and none checked what it
+  # covered; the fourth replaced a list of three headings with a regex, and
+  # round 17 found the regex was a third matcher. It counted `#{2,}` while
+  # section_body counts `#+`, so a repeated `# Title` was invisible. It counted
+  # `^[a-z][a-z0-9-]*:` while kv takes everything before the first colon and
+  # trims it, so `type : org` twice was invisible and two citation lines were
+  # refused as a repeated `https` key that no gate has ever asked for. And it
+  # counted keys over the whole file while perkey_value extracts `## Per-key
+  # close` before kv sees it, so an interview answered per domain, which the
+  # skill asks for, was refused for keys nothing reads there.
+  #
+  # So: headings are matched the way section_body matches them, over the whole
+  # file, because has_heading and section_body both scan the whole file. Keys
+  # are matched the way kv matches them, over the span the gate that reads them
+  # actually reads. Feed each loop by redirection: a pipe would run add_fail in
+  # a subshell and every failure it recorded would be discarded with it.
   while IFS= read -r line; do
     [ -n "$line" ] || continue
     n=${line%%"$US"*}; h=${line#*"$US"}
     add_fail "$(rel "$1"): $h appears $n times; a heading appears once or the record is ambiguous"
-  done < <(grep -E '^#{2,}[[:space:]]' "$TMPD/uniq.txt" 2>/dev/null | sort | uniq -c \
-             | awk -v US="$US" '$1 > 1 { c=$1; $1=""; sub(/^ /,""); print c US $0 }')
+  done < <(awk '
+    function trim(s){ sub(/^[ \t]+/,"",s); sub(/[ \t]+$/,"",s); return s }
+    { t=trim($0); if(t ~ /^#+([ \t]|$)/) print t }' "$1" 2>/dev/null | sort | uniq -c \
+      | awk -v US="$US" '$1 > 1 { c=$1; $1=""; sub(/^ /,""); print c US $0 }')
 
-  while IFS= read -r line; do
-    [ -n "$line" ] || continue
-    n=${line%%"$US"*}; k=${line#*"$US"}
-    add_fail "$(rel "$1"): key $k: appears $n times; kv reads the first and the rest are read by nothing"
-  done < <(grep -E '^[a-z][a-z0-9-]*:' "$TMPD/uniq.txt" 2>/dev/null | sed 's/:.*//' | sort | uniq -c \
-             | awk -v US="$US" '$1 > 1 { print $1 US $2 }')
+  dup_keys "$1" "$RUNREC_FILE_KEYS" \
+    "kv reads the first and the rest are read by nothing"
+
+  section_body "$1" "## Per-key close" > "$TMPD/uniq-perkey.txt" 2>/dev/null
+  dup_keys "$TMPD/uniq-perkey.txt" "$PERKEY_KEYS" \
+    "the per-key close resolves the first and the rest are read by nothing" "$1"
 }
 
 gate_G17() {
@@ -1955,7 +1998,7 @@ gate_G17() {
   fi
   open_keys=""
   missing=0
-  for key in about voice design competitors; do
+  for key in $PERKEY_KEYS; do
     v=$(perkey_value "$key")
     if [ -z "$v" ]; then
       if [ "$key" = "competitors" ] && printf '%s' "$(kv "$RUNREC" "competitors-offer")" | grep -q '^not-offered'; then
