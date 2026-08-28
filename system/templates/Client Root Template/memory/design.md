@@ -24,7 +24,9 @@ How this client's material looks when the client publishes it under its own name
 
 ## Palette
 
-*The client's colors, one row each, with the source line each value was read from.*
+<!-- provenance-preamble -->
+The client's colors, one row each, with the source line each value was read from.
+<!-- /provenance-preamble -->
 
 | Token | Value | Use | Label | Source |
 |-------|-------|-----|-------|--------|

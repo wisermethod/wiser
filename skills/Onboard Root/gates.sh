@@ -298,8 +298,9 @@ section_body() {
     t=trim($0)
     if(t ~ /^#+([ \t]|$)/){
       l=0; while(substr(t,l+1,1)=="#") l++
-      if(inb){ if(l<=hl){ inb=0; next } else { print $0; next } }
-      if(t==H){ inb=1; next }
+      if(inb && l>hl){ print $0; next }
+      if(inb) inb=0
+      if(t==H){ inb=1 }
       next
     }
     if(inb) print $0
@@ -531,6 +532,14 @@ gate_G0() {
       continue
     fi
     [ "$val" = "complete" ] || continue
+    if [ "$key" = "competitors" ]; then
+      # A competitor set is only recorded where the key resolves. Anchors in
+      # another memory file are not that, and neither is an unbound key.
+      if ! grep -qE '^[[:space:]]*-[[:space:]]*competitors:[[:space:]]*memory/competitors\.md[[:space:]]*$' "$AGENTS" 2>/dev/null; then
+        add_fail "$(rel "$AGENTS"): 'competitors: complete' but Provides does not bind competitors to memory/competitors.md"
+      fi
+      [ -s "$ROOT/memory/competitors.md" ] || add_fail "$(rel "$RUNREC"): 'competitors: complete' but memory/competitors.md is missing or empty"
+    fi
     oldifs="$IFS"; IFS=','
     for cls in $classes; do
       IFS="$oldifs"
@@ -1268,7 +1277,10 @@ gate_G9() {
       [ -n "$hit" ] || continue
       add_fail "$r line ${hit%%:*}: a prompt line survives (^\\*.*\\*\$)"
     done < <(strip_preamble "$f" | grep -nE '^\*.*\*$' 2>/dev/null)
-    # (b) and (c)
+    # (b) and (c). The prompt-line scan above strips the preamble; this one
+    # must too, or fenced instruction reads as a section body. strip_preamble
+    # blanks its lines rather than removing them, so line numbers still match.
+    strip_preamble "$f" > "$TMPD/g9body.txt"
     while IFS= read -r msg; do
       [ -n "$msg" ] || continue
       add_fail "$r $msg"
@@ -1290,6 +1302,11 @@ gate_G9() {
           continue
         }
         if(trim(L[j]) ~ /^#+([ \t]|$)/){
+          # A deeper heading is structure, not an empty section: the parent
+          # holds children rather than prose, and each child is checked on its
+          # own pass. Only a sibling or shallower heading means nothing here.
+          nlvl=0; while(substr(trim(L[j]),nlvl+1,1)=="#") nlvl++
+          if(nlvl>lvl) continue
           if(!title) printf "line %d: heading \"%s\" is followed by another heading with no body\n", i, t
           continue
         }
@@ -1312,7 +1329,7 @@ gate_G9() {
           printf "line %d: heading \"%s\" is answered by a bare sentence with no bracketed label: %s\n", i, t, d
         }
       }
-    }' "$f")
+    }' "$TMPD/g9body.txt")
   done < <(bound_files)
 }
 

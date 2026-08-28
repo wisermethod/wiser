@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create an owned root from its matching template and onboard it with verified memory, an operating surface, and a per-key close
-version: 0.16.0
+version: 0.17.0
 ---
 
 # Onboard Root
@@ -360,7 +360,7 @@ Twenty-six checks. Run them at Phase 9, per key. Each names what runs and what m
 
 | Gate | What runs | Fails when |
 |------|-----------|-----------|
-| G0 The substantive floor | For every key closing complete, its required classes each have at least one row in `verification.md` `## Claims` with outcome located or located-elsewhere-and-citation-corrected, whose anchor appears in the `memory/` file that row names. Required classes: `about` needs who-confirms and hard-constraints, plus what-was-bought on a client root and what-this-root-is-for on the other four; `voice` needs register-decision, register-confirmation; `design` needs design-source; `competitors` needs set, set-confirmed-by, set-date | A key is marked complete and any required class has no located row. An unbound `competitors` key is skipped where `competitors-offer` records a declined or deferred offer, and failed where it records an accepted one or no offer at all. This is what stops a root of `[Not available]` headings closing complete |
+| G0 The substantive floor | For every key closing complete, its required classes each have at least one row in `verification.md` `## Claims` with outcome located or located-elsewhere-and-citation-corrected, whose anchor appears in the `memory/` file that row names. Required classes: `about` needs who-confirms and hard-constraints, plus what-was-bought on a client root and what-this-root-is-for on the other four; `voice` needs register-decision, register-confirmation; `design` needs design-source; `competitors` needs set, set-confirmed-by, set-date | A key is marked complete and any required class has no located row. An unbound `competitors` key is skipped where `competitors-offer` records a declined or deferred offer, and failed where it records an accepted one or no offer at all. **A `competitors` key closing complete needs the Provides block to bind it to `memory/competitors.md` and that file to be non-empty**, because a set recorded anywhere else is not where downstream work resolves it. This is what stops a root of `[Not available]` headings closing complete |
 | G1 Scope recorded | `run-record.md` carries type, name, destination, tier, research-branch, consent, and competitors-offer, each non-empty. `not-offered:` names one of the five types, never `client`, and never a type other than the one this root declares. Tier is full or core; research-branch is one of the three; competitors-offer is yes, not-now, no, or not-offered with the type that made it so | Any of the seven absent or empty, tier included |
 | G2 Extraction complete, duplicates proved | Per file under `extraction/`: extract-measure and check-measure both present with equal leading numbers, and extract-mechanism different from check-mechanism | A missing measure, unequal numbers, or the same mechanism used twice. Not a grep for the word "truncated", which the agent's own prose defeats |
 | G3 Copy established | `run-record.md` carries two vantages with different mechanisms and equal file counts. A single-vantage host records that as the second vantage and the close report says so | Counts disagree, or one vantage is recorded twice under two names |
