@@ -609,7 +609,7 @@ gate_G0() {
         | strip_comments \
         | grep -vE '^\*.*\*$' | grep -vE '^[[:space:]]*#' \
         | grep -vE '^[[:space:]]*[-=]+[[:space:]]*$' \
-        | grep -vE '^[[:space:]]*\[Not available[^]]*\][[:space:]]*$' | nonblank_count_stdin)
+        | substance_only | nonblank_count_stdin)
       [ "${subst:-0}" -gt 0 ] || add_fail "$(rel "$RUNREC"): 'competitors: complete' but memory/competitors.md carries no content beyond its own scaffolding"
     fi
     oldifs="$IFS"; IFS=','
@@ -2013,6 +2013,37 @@ strip_comments() {
   }'
 }
 
+# substance_only: from stdin, drop every line that records no content.
+#
+# Rounds 25 and 26 each named one shape and filtered exactly that shape, and
+# each filter was defeated by the next one: `[Not available]` alone, then the
+# same with a required anchor on the line, then in list form, then behind a
+# blockquote, and finally by the anchors alone, which are the bookkeeping G0
+# itself demands and which a reviewer showed were the leftover doing the
+# passing. So this normalises the line and asks what is left, rather than
+# matching a shape: markers come off, a link reference definition is not
+# content because it renders nothing, and an evidence label and an absence
+# marker are both records about content rather than content.
+substance_only() {
+  awk '
+  {
+    line=$0; sub(/\r$/,"",line)
+    sub(/^[ \t]+/,"",line)
+    while(1){
+      if(line ~ /^>[ \t]?/){ sub(/^>[ \t]?/,"",line); sub(/^[ \t]+/,"",line); continue }
+      if(line ~ /^([-*+]|[0-9]{1,9}[.)])[ \t]+/){ sub(/^([-*+]|[0-9]{1,9}[.)])[ \t]+/,"",line); continue }
+      break
+    }
+    if(line ~ /^\[[^]]+\][ \t]*:/) next
+    while(sub(/\[[A-Za-z]*[0-9]+\]/,"",line)) ;
+    while(sub(/\[[Nn]o[t]? [Aa]vailable[^]]*\]/,"",line)) ;
+    while(sub(/\[[Nn]ot [Yy]et[^]]*\]/,"",line)) ;
+    gsub(/[ \t]+/," ",line); sub(/^ /,"",line); sub(/ $/,"",line)
+    if(line=="") next
+    print line
+  }'
+}
+
 # plain_file FILE WHAT
 # The records this harness reads are plain text, and this refuses one that is
 # not. No fence, no raw HTML tag or declaration, no HTML comment, no line
@@ -2081,21 +2112,26 @@ plain_file() {
     # the fence test only; round 25 stripped one for every test and still could
     # not see a fence or a tag behind `>` or behind a second marker. So every
     # marker comes off, list and blockquote alike, until none is left.
-    quoted=0
+    quoted=0; rest=""
     while(1){
       if(body ~ /^>[ \t]?/){ quoted=1; sub(/^>[ \t]?/,"",body); sub(/^[ \t]+/,"",body); continue }
-      if(body ~ /^([-*+]|[0-9]{1,9}[.)])[ \t]+/){ sub(/^([-*+]|[0-9]{1,9}[.)])[ \t]+/,"",body); continue }
+      if(body ~ /^([-*+]|[0-9]{1,9}[.)])[ \t]/){
+        sub(/^([-*+]|[0-9]{1,9}[.)])[ \t]/,"",body)
+        rest=body; sub(/^[ \t]+/,"",body); continue }
       break
     }
 
     if(ind<=3 && (substr(body,1,3)=="```" || substr(body,1,3)=="~~~")){ print NR ": a code fence"; exit }
     if(ind<=3 && body ~ /^<[!?\/]/){ print NR ": a raw HTML declaration"; exit }
     if(ind<=3 && body ~ /^<[A-Za-z][A-Za-z0-9-]*([ \t>\/]|$)/){ print NR ": a raw HTML tag"; exit }
-    if(ind>=4){ print NR ": a line indented four columns or more"; exit }
+    # measured after the markers, or `-     value` is code to a reader and a
+    # plain line to this. The marker loop eats the whitespace, so what it ate
+    # is measured too.
+    if(ind>=4 || width(rest)>=4){ print NR ": a line indented four columns or more"; exit }
     # A blockquote is quoted prose to a reader and a live line to kv and
     # table_get, which read the text after the marker. The records this harness
     # reads do not quote, so they do not get to carry one.
-    if(quoted && KEEP!="keep-comments"){ print NR ": a blockquote"; exit }
+    if(quoted){ print NR ": a blockquote"; exit }
   }' "$_f" 2>/dev/null)
   [ -n "$_bad" ] || return 0
   add_fail "$(rel "$_f"): line $_bad; $_what is read as plain text, and a declaration written inside a fence, a comment, raw HTML or indented code cannot be told from the real thing"
