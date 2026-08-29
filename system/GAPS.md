@@ -6,7 +6,7 @@ What this plugin does not do, declared by the primitive that names it.
 
 **This file carries capability gaps only.** What the operator plans to build is a separate record and is not a user's business, so nothing about future work appears here. **A gap names the capability that is missing, never where that capability went.**
 
-Counted 2026-08-28: 35 gaps across 21 primitives.
+Counted 2026-08-29: 42 gaps across 21 primitives.
 
 ## Experts
 
@@ -29,6 +29,8 @@ Counted 2026-08-28: 35 gaps across 21 primitives.
 
 - automated site crawling, keyword research, page analysis and sitemap comparison
 - search-console readings pulled from the site's own account
+- automated checks of which analytics and behaviour tags a page actually serves
+- driving a browser to reach a source that sits behind a login
 
 ## Skills
 
@@ -42,6 +44,7 @@ Counted 2026-08-28: 35 gaps across 21 primitives.
 ### Create Presentation
 
 - chart rendering, and export of a built deck to a presentation file
+- scaffolding a deck that presents with no network, which needs the runtime copied in beside it
 
 ### Data Analysis
 
@@ -56,6 +59,7 @@ Counted 2026-08-28: 35 gaps across 21 primitives.
 - application screen assembly (dashboard, settings, admin panel)
 - brand mark and logo creation
 - rendering a design to an image for review or handoff
+- reading a design system back off a live site whose code is not reachable
 
 ### Funnel Design
 
@@ -92,6 +96,8 @@ Counted 2026-08-28: 35 gaps across 21 primitives.
 
 - automated crawling, keyword research, page analysis and sitemap comparison
 - search-console readings pulled from the site's own account
+- traffic, engagement and channel readings pulled from the site's own analytics account
+- driving a browser to reach a page that renders in the browser or sits behind a sign-in
 
 ### Speech Writing
 
@@ -104,6 +110,7 @@ Counted 2026-08-28: 35 gaps across 21 primitives.
 ### Visualizer
 
 - rendering a chart or diagram to an image file
+- opening a rendered diagram in a browser to exercise the interactions it promises
 
 ### Zone Publisher
 

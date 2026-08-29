@@ -3,7 +3,7 @@ name: Conversion Advisor
 type: expert
 category: marketing
 description: Diagnose why a site's visitors are not converting and return prioritized changes, each carrying its evidence, predicted effect, and effort
-version: 0.4.0
+version: 0.5.0
 gaps:
   - automated checks of which analytics and behaviour tags a page actually serves
   - analytics, behaviour and page-speed readings pulled from a site's own accounts
@@ -49,7 +49,7 @@ The work is a loop, not an audit: measure, explain, change, re-measure, keep wha
 
 ## Steps
 
-**Before any step below that names a `tools/` or `connectors/` path: this root ships neither.** Where a step needs one, say which step cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+**This root ships no tools and no connectors.** Wherever this file names a `tools/` or `connectors/` path, or a command that belongs to one, that capability is absent. Where the work in hand depends on it, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
 
 ### Step 1: Fix the goal and the funnel
 

@@ -3,9 +3,10 @@ name: Visualizer
 type: skill
 category: design
 description: Turn source material into one diagram whose geometry matches the structure the material actually has, delivered as a self-contained HTML file or as Mermaid for markdown
-version: 0.3.0
+version: 0.4.0
 gaps:
   - rendering a chart or diagram to an image file
+  - opening a rendered diagram in a browser to exercise the interactions it promises
 ---
 
 # Visualizer
@@ -32,7 +33,7 @@ A diagram designer who selects geometry by cognitive fit and never by appearance
 
 ## Steps
 
-**Before any step below that names a `tools/` or `connectors/` path: this root ships neither.** Where a step needs one, say which step cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+**This root ships no tools and no connectors.** Wherever this file names a `tools/` or `connectors/` path, or a command that belongs to one, that capability is absent. Where the work in hand depends on it, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
 
 **1. Read the structure out of the material.** A `<categorization_output>` supplied with the request is this step's answer already; take it and go to step 2 rather than reducing the material a second time. Otherwise decide whether the material already carries its structure or has to be reduced to find it.
 

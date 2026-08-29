@@ -3,13 +3,15 @@ name: SEO Assets
 type: skill
 category: seo
 description: Produce the ready-to-use artifacts a site's decided search changes need, each built from evidence pulled for it, held to its own standards, and handed over for someone else to deploy
-version: 0.3.0
+version: 0.4.0
 memory:
   - voice
   - about
 gaps:
   - automated crawling, keyword research, page analysis and sitemap comparison
   - search-console readings pulled from the site's own account
+  - traffic, engagement and channel readings pulled from the site's own analytics account
+  - driving a browser to reach a page that renders in the browser or sits behind a sign-in
 ---
 
 # SEO Assets
@@ -91,7 +93,7 @@ What each hand-off needs to be right:
 
 ## Steps
 
-**Before any step below that names a `tools/` or `connectors/` path: this root ships neither.** Where a step needs one, say which step cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+**This root ships no tools and no connectors.** Wherever this file names a `tools/` or `connectors/` path, or a command that belongs to one, that capability is absent. Where the work in hand depends on it, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
 
 ### Step 1: Settle the site, the artifacts, and the order they implement
 

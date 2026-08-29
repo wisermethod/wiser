@@ -3,7 +3,7 @@ name: Media Generator
 type: skill
 category: media
 description: Produce an image or a video that does not exist yet, or a photograph with its background removed, by finishing the prompt, choosing the model, and running the billed generation through the replicate connector to a file the user named
-version: 0.3.0
+version: 0.4.0
 gaps:
   - image and video conversion, editing and overlay
   - the image and video generation models this skill's whole output depends on
@@ -47,7 +47,7 @@ A director commissioning a shot, not a person typing wishes into a box. The prom
 
 ## Steps
 
-**Before any step below that names a `tools/` or `connectors/` path: this root ships neither.** Where a step needs one, say which step cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+**This root ships no tools and no connectors.** Wherever this file names a `tools/` or `connectors/` path, or a command that belongs to one, that capability is absent. Where the work in hand depends on it, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
 
 1. **Place the request.** Decide which of three it is: an image to generate, a video to generate, or a background to remove. Anything the Context hands to a tool goes there and this skill stops. Then settle two facts before anything is billed. The destination: there is no default save location, so ask for the directory and the filename, and keep intermediate frames in a work directory per `standards/conventions.md`. And the purpose, because purpose picks the medium in Step 2; where the request states none and the surrounding work implies none, ask rather than assume, whenever the user is present to answer. A background removal writes no prompt, so it skips Step 2 and runs Steps 3 to 5 in the background-removal category.
 

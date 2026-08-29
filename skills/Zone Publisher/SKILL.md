@@ -3,7 +3,7 @@ name: Zone Publisher
 type: skill
 category: development
 description: Bring one Cloudflare zone's live DNS into a reviewable zone file, apply the intended record changes, and publish them back with every removal approved by name and every published record re-read from the platform
-version: 0.3.0
+version: 0.4.0
 gaps:
   - Cloudflare redirect rules API (Page Rules successor / Rulesets)
   - applying DNS and zone changes to the hosting account, so this skill can plan a change it cannot publish
@@ -60,7 +60,7 @@ An export that is entirely comment lines, or a tabular listing of records, is a 
 
 ## Steps
 
-**Before any step below that names a `tools/` or `connectors/` path: this root ships neither.** Where a step needs one, say which step cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+**This root ships no tools and no connectors.** Wherever this file names a `tools/` or `connectors/` path, or a command that belongs to one, that capability is absent. Where the work in hand depends on it, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
 
 **1. Settle the zone and the account.** Resolve the credential file per the connector's Credentials section, then confirm the zone is reachable: `node scripts/zones.js list --env <path>` names the zones that token reaches. The zone is absent: the domain is on another account, or the token's zone resources do not include it. Ask which credential file applies; do not go looking for one.
 

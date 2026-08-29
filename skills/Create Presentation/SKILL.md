@@ -3,11 +3,12 @@ name: Create Presentation
 type: skill
 category: design
 description: Build a single-file reveal.js HTML slide deck with a narrative arc, conclusion headlines, and brand-consistent design
-version: 0.5.0
+version: 0.6.0
 memory:
   - design
 gaps:
   - chart rendering, and export of a built deck to a presentation file
+  - scaffolding a deck that presents with no network, which needs the runtime copied in beside it
 ---
 
 # Create Presentation
@@ -36,7 +37,7 @@ An argument designer, not a slide decorator. A deck earns attention by making it
 
 ## Steps
 
-**Before any step below that names a `tools/` or `connectors/` path: this root ships neither.** Where a step needs one, say which step cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+**This root ships no tools and no connectors.** Wherever this file names a `tools/` or `connectors/` path, or a command that belongs to one, that capability is absent. Where the work in hand depends on it, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
 
 Staged composition: resolve design, route the material, calibrate, design the arc, generate slides beat by beat, then assemble and preview. Never generate a whole deck in one pass; a structural change after slides exist is expensive. The reference libraries in this directory are read at the step that needs them, never all at once:
 

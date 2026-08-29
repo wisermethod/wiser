@@ -3,7 +3,7 @@ name: Transcript Summary
 type: skill
 category: writing
 description: Turn a transcript into a summary that leads with analysis and preserves every decision, action item, open question, and nuance the recording carried
-version: 0.3.0
+version: 0.4.0
 gaps:
   - audio transcription, so a recording must arrive already transcribed
 ---
@@ -40,7 +40,7 @@ A reader assembling the record for someone who was not there and who will be hel
 
 ## Steps
 
-**Before any step below that names a `tools/` or `connectors/` path: this root ships neither.** Where a step needs one, say which step cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+**This root ships no tools and no connectors.** Wherever this file names a `tools/` or `connectors/` path, or a command that belongs to one, that capability is absent. Where the work in hand depends on it, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
 
 **1. Read the whole transcript before writing anything, and establish what it is.** Settle four things first: what kind of recording this is, who speaks and whether the transcript labels them, whether timestamps are present and what duration they imply, and where the transcript is unreliable. Machine transcripts mangle proper nouns, numbers, and technical terms, mark stretches inaudible, lose the opening seconds, and let speaker labels drift, splitting one person across two labels or collapsing two people into one. Each of those bounds what the summary may claim, so they are found here rather than discovered mid-draft.
 

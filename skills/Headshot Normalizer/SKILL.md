@@ -3,7 +3,7 @@ name: Headshot Normalizer
 type: skill
 category: media
 description: Turn photographs into square transparent PNGs whose faces sit at the same size and the same place in the frame, by removing each background, measuring the eyes, and cutting every frame to one standard, reporting the transparent band left where a photograph is too short to fill its frame
-version: 0.5.0
+version: 0.6.0
 gaps:
   - image cutout, resizing and overlay
   - the vision and image-model calls this skill's automated path depends on
@@ -57,7 +57,7 @@ The three are one composition rather than three settings, because each is a shar
 
 ## Steps
 
-**Before any step below that names a `tools/` or `connectors/` path: this root ships neither.** Where a step needs one, say which step cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+**This root ships no tools and no connectors.** Wherever this file names a `tools/` or `connectors/` path, or a command that belongs to one, that capability is absent. Where the work in hand depends on it, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
 
 1. **Settle the frame, the destination, and the count.** There is no default save location: ask for the directory, and for a name per photograph or the rule that derives one, since a set delivered under names nobody chose is a set nobody can wire into a page. Keep every intermediate file in a work directory per `standards/conventions.md`. Confirm the three frame parameters, then say what the batch will cost: two billed calls per photograph, named as a count before the first one. A set runs one photograph at a time through the steps below, under one frame; never change a parameter part way through a set.
 
