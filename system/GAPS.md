@@ -6,7 +6,7 @@ What this plugin does not do, declared by the primitive that names it.
 
 **This file carries capability gaps only.** What the operator plans to build is a separate record and is not a user's business, so nothing about future work appears here. **A gap names the capability that is missing, never where that capability went.**
 
-Counted 2026-08-27: 34 gaps across 20 primitives.
+Counted 2026-08-28: 35 gaps across 21 primitives.
 
 ## Experts
 
@@ -31,6 +31,10 @@ Counted 2026-08-27: 34 gaps across 20 primitives.
 - search-console readings pulled from the site's own account
 
 ## Skills
+
+### Onboard Root
+
+- judgment on whether a recorded competitor set names a competitor rather than describing one
 
 ### Content Author
 

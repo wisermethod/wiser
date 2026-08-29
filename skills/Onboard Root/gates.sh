@@ -602,43 +602,26 @@ gate_G0() {
         add_fail "$(rel "$AGENTS"): 'competitors: complete' but Provides carries ${comp_bind_n:-0} competitors binding(s), of which ${comp_bind_ok:-0} bind memory/competitors.md; it carries exactly one, and that one"
       fi
       plain_file "$ROOT/memory/competitors.md" "the file a competitor set resolves in" keep-comments
-      # The set the record declares has to be the set the file records.
+      # Whether the located text actually names a competitor is not something
+      # this harness can decide, and it stops pretending it can.
       #
-      # Rounds 25 to 27 asked instead whether the file carried "content", and
-      # every answer was a list of ways to write nothing: an absence marker,
-      # then with its anchor, in a list, behind a blockquote, as a link
-      # reference definition, as the anchors alone, then `N/A`, then
-      # `[Verified]`. A reviewer named why that never ends: it enumerates what
-      # is empty instead of saying what a set is. No grep can tell a named
-      # competitor from a plausible sentence, so this does not try. It asks
-      # whether a word the interview itself wrote as the set appears in the
-      # file the key resolves to, which is a question with an answer.
-      # Headings come off both sides: a heading is the template talking, not
-      # the operator, and the file's own `## The Set` would otherwise match the
-      # record's own words for it. Function words come off for the same reason,
-      # and a word has to be four characters to be worth matching on.
-      section_body "$RUNREC" "### Competitor set" 2>/dev/null \
-        | grep -vE '^[[:space:]]*#' | substance_only > "$TMPD/g0-set.txt" 2>/dev/null
-      strip_comments < "$ROOT/memory/competitors.md" 2>/dev/null \
-        | grep -vE '^[[:space:]]*#' | substance_only > "$TMPD/g0-comp.txt" 2>/dev/null
-      set_words=$(awk '
-        BEGIN{ split("this that they them with from have been were will would could should about which what when where there their than then some such only also into over under more most other than none said says name names competitor competitors set sets confirmed date dates available pending unknown missed", stop, " ")
-               for(i in stop) skip[stop[i]]=1 }
-        { for(i=1;i<=NF;i++){ w=tolower($i); gsub(/[^a-z0-9]/,"",w)
-            if(length(w)>=4 && !(w in skip)) print w } }' \
-        "$TMPD/g0-set.txt" 2>/dev/null | sort -u)
-      matched=0
-      while IFS= read -r w; do
-        [ -n "$w" ] || continue
-        if tr 'A-Z' 'a-z' < "$TMPD/g0-comp.txt" 2>/dev/null | grep -qF "$w"; then matched=1; break; fi
-      done <<G0SETEOF
-$set_words
-G0SETEOF
-      if [ -z "$set_words" ]; then
-        add_fail "$(rel "$RUNREC"): 'competitors: complete' but '### Competitor set' names nothing, so there is no set to record"
-      elif [ "$matched" -eq 0 ]; then
-        add_fail "$(rel "$ROOT/memory/competitors.md"): 'competitors: complete' but nothing the record calls the competitor set appears in the file the key resolves to"
-      fi
+      # Rounds 25 to 28 tried both ways. A blocklist of empty shapes needed one
+      # more spelling every round: `[Not available]`, with its anchor, in a
+      # list, behind a blockquote, as a link reference definition, the anchors
+      # alone, `N/A`, `TBD`, `[Verified]`. Then an allowlist, matching a word
+      # the record itself called the set, which reviewers broke in both
+      # directions at once: the interview names the confirmer and the date
+      # because the template tells it to, so `Confirmed by Jane Doe, 2026-01-15`
+      # passed with no competitor named, while `SAP`, `IBM` and `GE` are under
+      # any sane length floor and a correct root could not close.
+      #
+      # Both were proxies for a judgement. What is mechanical is checked above:
+      # the binding is there as a plain list item, the file is plain text with
+      # comments filtered, and all three required classes anchor in that file.
+      # What is not mechanical is declared, here and in the skill frontmatter
+      # and in system/GAPS.md, rather than approximated by a grep that a
+      # reviewer breaks every round.
+      add_note "whether memory/competitors.md names a competitor rather than describing one is not mechanically checked; G0 checks the binding, the file's plainness and the three anchors, and the close report is where a person confirms the set is real"
     fi
     oldifs="$IFS"; IFS=','
     for cls in $classes; do
@@ -2037,40 +2020,6 @@ strip_comments() {
       if(e==0){ line=head; inc=1; break }
       line=head substr(tail,e+3)
     }
-    print line
-  }'
-}
-
-# substance_only: from stdin, drop every line that records no content.
-#
-# Rounds 25 and 26 each named one shape and filtered exactly that shape, and
-# each filter was defeated by the next one: `[Not available]` alone, then the
-# same with a required anchor on the line, then in list form, then behind a
-# blockquote, and finally by the anchors alone, which are the bookkeeping G0
-# itself demands and which a reviewer showed were the leftover doing the
-# passing. So this normalises the line and asks what is left, rather than
-# matching a shape: markers come off, a link reference definition is not
-# content because it renders nothing, and an evidence label and an absence
-# marker are both records about content rather than content.
-substance_only() {
-  awk '
-  {
-    line=$0; sub(/\r$/,"",line)
-    sub(/^[ \t]+/,"",line)
-    while(1){
-      if(line ~ /^>[ \t]?/){ sub(/^>[ \t]?/,"",line); sub(/^[ \t]+/,"",line); continue }
-      if(line ~ /^([-*+]|[0-9]{1,9}[.)])[ \t]+/){ sub(/^([-*+]|[0-9]{1,9}[.)])[ \t]+/,"",line); continue }
-      break
-    }
-    if(line ~ /^\[[^]]*\][ \t]*:/) next
-    # Every bracketed span is a record about content: an evidence anchor, a
-    # provenance label, an absence marker, an empty link. Rounds 26 and 27
-    # named four spellings and a reviewer produced a fifth each time, so the
-    # shape is taken off rather than the spellings.
-    while(sub(/\[[^]]*\]/,"",line)) ;
-    while(sub(/\([^)]*\)/,"",line)) ;
-    gsub(/[ \t]+/," ",line); sub(/^ /,"",line); sub(/ $/,"",line)
-    if(line=="") next
     print line
   }'
 }
