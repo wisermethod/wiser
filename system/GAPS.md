@@ -32,10 +32,6 @@ Counted 2026-08-28: 35 gaps across 21 primitives.
 
 ## Skills
 
-### Onboard Root
-
-- judgment on whether a recorded competitor set names a competitor rather than describing one
-
 ### Content Author
 
 - recorded script for podcast, video, or voice-over
@@ -83,6 +79,10 @@ Counted 2026-08-28: 35 gaps across 21 primitives.
 
 - image and video conversion, editing and overlay
 - the image and video generation models this skill's whole output depends on
+
+### Onboard Root
+
+- judgment on whether a recorded competitor set names a competitor rather than describing one
 
 ### Proposal Author
 
