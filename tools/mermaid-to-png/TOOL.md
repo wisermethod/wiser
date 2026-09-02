@@ -36,7 +36,7 @@ Usage text, with nothing installed.
 node scripts/render.js render --file /path/to/a/work/directory/flow.mmd --output /path/to/a/work/directory/flow.png
 ```
 
-The first real run installs this tool's dependencies and asks for a re-run; the second does the work and prints one JSON object:
+The first real run reports that it would install this tool's dependencies, and stops. With `--install` it installs and does the work in the same run and prints one JSON object:
 
 ```
 {"path":"/path/to/a/work/directory/flow.png","width":312,"height":996,"scale":2,"maxWidth":800,"theme":"neutral","background":"white"}
@@ -105,7 +105,7 @@ Missing parent directories of the output path are created, so a dated folder tha
 
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
+| `this tool is not installed yet and this run did not authorise an install` | First run in this copy, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
 | `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `the Mermaid renderer is missing at <path>` | The install ran but left the renderer out | Confirm `package.json` lists `mermaid`, then run `npm ci` in this directory |
 | `Chromium cannot launch` | Binary missing, launch blocked, or OS library gap | Follow the `remediation` line from `npm run check:chromium` |

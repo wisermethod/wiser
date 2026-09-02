@@ -50,7 +50,7 @@ Usage text, with nothing installed.
 node scripts/edit.js edit --file /path/to/a/work/directory/photo.png --output /path/to/a/work/directory/photo-card.jpg --crop 1200x1200 --resize 600x600
 ```
 
-The first real run installs the imaging library in this tool's directory and asks for a re-run; the second does the work and prints one JSON object:
+The first real run reports that it would install the imaging library in this tool's directory, and stops. With `--install` it installs and does the work in the same run and prints one JSON object:
 
 ```
 {"output":"/path/to/a/work/directory/photo-card.jpg","format":"jpeg","width":600,"height":600,"sourceWidth":1800,"sourceHeight":1400,"bytes":48213}
@@ -122,7 +122,7 @@ One thing reaches stderr on a run that succeeds: a `Note:` naming what a placeme
 
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
+| `this tool is not installed yet and this run did not authorise an install` | First run in this copy, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
 | `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `Error: --file is required.` | `edit` ran with no image to read | Pass `--file <path>` |
 | `Error: --file must be absolute` or `--output must be absolute` | A relative path was passed | Pass the absolute path; do not rely on the working directory |

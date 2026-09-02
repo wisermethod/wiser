@@ -44,7 +44,7 @@ node scripts/harvest.js validate --request /path/to/a/work/directory/weekly.harv
 {"ok":true,"name":"weekly-roundup","sources":2}
 ```
 
-Then run it. The first real run installs dependencies and asks for a re-run; the second does the work.
+Then run it. The first real run reports that it would install dependencies, and stops. With `--install` it installs and does the work in the same run.
 
 ```bash
 node scripts/harvest.js run --request /path/to/a/work/directory/weekly.harvest.json
@@ -109,7 +109,7 @@ A source that fails does not fail the run. It becomes an entry in `errors` and t
 
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
+| `this tool is not installed yet and this run did not authorise an install` | First run in this copy, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
 | `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `no file at <path>` | The path given to `--request` does not exist | Check the path; an absolute one cannot be misread |
 | `<path> is not valid JSON` | The request file is malformed, or the path landed on something that is not a request | Run `sample` for a request this tool accepts. The parser's own message is withheld on purpose: it quotes the first bytes of whatever it was handed |

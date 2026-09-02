@@ -40,7 +40,7 @@ Usage text, with nothing installed.
 node scripts/capture.js capture --url https://host.example/pricing --output /path/to/a/work/directory/pricing.png
 ```
 
-The first real run installs `playwright` into this tool's directory and its Chromium build where `tools/AGENTS.md` names, and asks for a re-run; the second does the work and prints one JSON object:
+The first real run reports what it would install and stops. With `--install` it installs `playwright` into this tool's directory and its Chromium build where `tools/AGENTS.md` names, and finishes the work in the same run:
 
 ```
 {"output":"/path/to/a/work/directory/pricing.png","url":"https://host.example/pricing","finalUrl":"https://host.example/pricing","status":200,"width":1280,"height":720,"scale":1,"fullPage":false}
@@ -120,7 +120,7 @@ Read `finalUrl` and `status` before trusting the image. A capture that ran clean
 
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
+| `this tool is not installed yet and this run did not authorise an install` | First run in this copy, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
 | `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `Error: Chromium cannot launch` / `chromiumLaunch:false` | Binary missing, launch blocked, or OS library gap | Read `remediation` on the check JSON; follow that single step. Never chase allowlist for a launch failure |
 | `Error: --url is required` | `capture` ran with no address | Pass `--url` with the full address, scheme included |

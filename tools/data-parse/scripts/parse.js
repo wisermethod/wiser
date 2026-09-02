@@ -42,6 +42,10 @@ Options:
   --format <fmt>   Force csv, json, or tsv. Omit to auto-detect from the content.
   --delimiter <c>  Field delimiter for delimited text. Omit to auto-detect.
   --no-header      Treat the first row as data; columns are named column_1, column_2, ...
+  --install   Authorise the first-run install. Without it a tool that is
+              not installed yet reports what it would fetch, and from
+              where, and stops. WISER_ALLOW_INSTALL=1 does the same
+              for an unattended run.
   --help, -h       Print this message
 
 Reads one file the caller names and writes nothing. Needs no credentials and no
@@ -68,7 +72,8 @@ if (!COMMANDS.has(command)) {
 }
 
 const VALUE_FLAGS = new Set(['--file', '--format', '--delimiter']);
-const BARE_FLAGS = new Set(['--no-header', '--help', '-h']);
+const BARE_FLAGS = new Set([
+  '--install','--no-header', '--help', '-h']);
 
 // The position after each value flag belongs to that flag. A path that opens
 // with a dash is a value, not a flag.
@@ -226,8 +231,45 @@ function isWritable(dir) {
   try { accessSync(dir, constants.W_OK); return true; } catch { return false; }
 }
 
+// Consent before an install, per the Script Contract's Dependencies clause.
+//
+// A tool used to install its packages on its own account the first time it was
+// called, then tell the caller to run the command again. That is two problems:
+// several hundred megabytes could arrive on a machine without anyone agreeing
+// to it, and the work then took two runs to do once.
+//
+// A script cannot ask. Nothing here reads stdin, deliberately, so a run with
+// nobody watching fails rather than waiting forever for an answer. So the
+// script reports and stops, and whoever is driving it does the asking: the
+// report names the packages, the hosts they come from, and the size where it is
+// large enough to matter, which is what a person needs in order to answer.
+// `--install` on the same command authorises it and the run then COMPLETES
+// rather than demanding a re-run. WISER_ALLOW_INSTALL=1 authorises it for an
+// unattended run, so automation does not acquire a new way to fail.
+function installPlan() {
+  let names = [];
+  try {
+    names = Object.keys(JSON.parse(readFileSync(join(TOOL_DIR, 'package.json'), 'utf8')).dependencies || {});
+  } catch { /* the report degrades to a generic list; the refusal still stands */ }
+  const browser = names.includes('playwright');
+  return {
+    list: names.length ? names.join(', ') : 'the packages package.json declares',
+    hosts: browser ? 'registry.npmjs.org and cdn.playwright.dev' : 'registry.npmjs.org',
+    size: browser ? ' The Chromium build alone is several hundred megabytes.' : ''
+  };
+}
+
+function requireInstallConsent() {
+  if (process.argv.includes('--install') || process.env.WISER_ALLOW_INSTALL === '1') return;
+  const { list, hosts, size } = installPlan();
+  fail(
+    `Error: this tool is not installed yet and this run did not authorise an install. Installing fetches ${list} from ${hosts} into ${TOOL_DIR}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+  );
+}
+
 // Dependencies. Runs before any package import; keep it above the dynamic import.
 if (!existsSync(DEP_MARKER)) {
+  requireInstallConsent();
   process.stderr.write('First run: installing dependencies in this tool directory.\n');
   try {
     const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
@@ -246,7 +288,6 @@ if (!existsSync(DEP_MARKER)) {
   if (!existsSync(DEP_MARKER)) {
     fail(`Error: npm ci finished but ${DEP_MARKER} is still missing. Check that package.json lists every package this script imports.`);
   }
-  fail('Dependencies installed. Re-run the command.');
 }
 
 // Packages import only below this line, and only dynamically. A static import

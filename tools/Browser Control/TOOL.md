@@ -33,7 +33,7 @@ node scripts/browser.js snapshot --format interactive
 node scripts/browser.js session stop
 ```
 
-The first session start installs dependencies and asks for a re-run; the second opens the browser. Every command prints one JSON object:
+The first `session start` reports what it would install and stops; with `--install` it installs and opens the browser in the same run. Every command prints one JSON object:
 
 ```
 {"url":"[address]","title":"[page title]"}
@@ -155,7 +155,7 @@ Failure prints to stderr, leaves stdout empty, and exits 1. Files are written wh
 
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
+| `this tool is not installed yet and this run did not authorise an install` | First run in this copy, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
 | `Chromium cannot launch` / `chromiumLaunch:false` | Binary missing, launch blocked, or OS library gap | Follow the `remediation` line from `npm run check:chromium` |
 | `no browser host answering on port [n]` | No session, or it was started on another port | `session status`, then `session start --profile [dir]` |
 | `a browser host is already running on port [n]` | A session from earlier work | `session stop`, or pass a different `--port` |

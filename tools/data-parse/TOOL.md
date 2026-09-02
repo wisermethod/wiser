@@ -44,7 +44,7 @@ Usage text, with nothing installed.
 node scripts/parse.js parse --file /path/to/a/work/directory/regions.csv
 ```
 
-The first real run installs `csv-parse` in this tool's directory and asks for a re-run; the second does the work and prints one JSON object:
+The first real run reports that it would install `csv-parse` in this tool's directory, and stops. With `--install` it installs and does the work in the same run and prints one JSON object:
 
 ```
 {"columns":[{"name":"region","type":"string","nonNullCount":3,"sampleValues":["West","East","North"]},{"name":"revenue","type":"number","nonNullCount":3,"sampleValues":["1200","900","1500"]}],"rowCount":3,"raggedRowCount":0,"parseErrors":[]}
@@ -96,7 +96,7 @@ An empty file, a header with no data rows, and a file whose content does not par
 
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
+| `this tool is not installed yet and this run did not authorise an install` | First run in this copy, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
 | `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `Error: --file is required.` | `parse` ran with no file to read | Pass `--file <path>` |
 | `Error: no file at <path>` | The path given to `--file` does not exist | Check the path; an absolute one cannot be misread |

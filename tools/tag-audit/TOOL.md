@@ -70,7 +70,7 @@ This tool needs no credentials and no configuration file, so no command takes `-
 
 ## Script Contract
 
-The script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help answered before anything else, and the stdout and stderr rules. It reads no configuration file, so that contract's `--env` clause has nothing to bind here. It does import one package, `undici`, so the contract's dependency check applies: the first run installs it with `npm ci` and asks for a re-run. Everything a run of this tool writes, and where, is listed in `tools/AGENTS.md`, which is the only place this repository states it. The sections above state what the command does; the contract states how the script behaves getting there.
+The script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help answered before anything else, and the stdout and stderr rules. It reads no configuration file, so that contract's `--env` clause has nothing to bind here. It does import one package, `undici`, so the contract's dependency check applies: the first run reports what it would install and stops; `--install` authorises it and that run then finishes the work. Everything a run of this tool writes, and where, is listed in `tools/AGENTS.md`, which is the only place this repository states it. The sections above state what the command does; the contract states how the script behaves getting there.
 
 ## Output
 

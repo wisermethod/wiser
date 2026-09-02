@@ -50,7 +50,7 @@ Reports what the machine has, installing nothing and downloading nothing:
 {"python":"3.11.9","ffmpeg":true,"packages":false}
 ```
 
-Then transcribe. The first transcription creates this tool's package cache, installs the speech packages into it, and asks for a re-run; the second does the work and prints one JSON object naming the file it wrote.
+Then transcribe. The first transcription reports what it would install and stops; with `--install` it creates this tool's package cache, installs the speech packages into it, and finishes the run; the second does the work and prints one JSON object naming the file it wrote.
 
 ```bash
 python3 scripts/transcribe.py transcribe --audio /path/to/call.m4a \
@@ -110,7 +110,7 @@ Model choice trades time for accuracy, and the weights are downloaded once per m
 
 The script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help before anything else, and the stdout and stderr rules. No command takes `--env`, so that clause has nothing to bind here. Everything a run of this tool writes, and where, is listed in `tools/AGENTS.md`, which is the only place this repository states it. Beyond those, three behaviors are worth knowing.
 
-The package cache is this tool's own, per that contract's Runtimes clause. The first transcription creates a virtual environment beside the scripts, installs the speech packages into it, and asks for a re-run; nothing is installed into the machine or the user's environment, because the install runs with pip's own download cache switched off rather than leaving it at pip's default outside this tool.
+The package cache is this tool's own, per that contract's Runtimes clause. The first transcription creates a virtual environment beside the scripts, installs the speech packages into it, and finishes the run, once `--install` has authorised it; nothing is installed into the machine or the user's environment, because the install runs with pip's own download cache switched off rather than leaving it at pip's default outside this tool.
 
 Arguments are validated before that first run install, so a malformed command or a missing FFmpeg costs no download. Only Python's own standard library is used above the install; the speech packages import after it.
 
@@ -132,7 +132,7 @@ A run that cannot finish prints nothing to stdout, names the cause on stderr, an
 
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `Transcription packages installed. Re-run the command.` | First transcription in this copy | Run the same command again |
+| `this tool is not installed yet and this run did not authorise an install` | First transcription in this copy, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
 | `could not create the package cache` | Python is older than the script needs, or this tool directory is not writable | Confirm `python3 --version`, then that the directory is writable. See SETUP.md |
 | `installing ... packages failed` | The install could not complete, usually no network or a Python the packages do not support | Delete the `.venv` directory in this tool, confirm the interpreter, then run the command again |
 | `missing ffmpeg; check: ffmpeg -version` | The audio decoder is absent | The agent installs it per the Dependencies section. Install steps live nowhere in this tool |

@@ -66,6 +66,10 @@ Options:
   --audio [path]        The audio file, absolute. One of: {formats}
   --output [dir]        Directory the transcript is written into, absolute and
                         outside this tool directory
+  --install             Authorise the first-run install. Without it a tool that
+                        is not installed yet reports what it would fetch, and
+                        from where, and stops. WISER_ALLOW_INSTALL=1 does the
+                        same for an unattended run.
   --model-cache [dir]   Directory model weights are downloaded into, absolute and
                         outside this tool directory. Pass the same one every run
   --model [name]        Speech model: {models}. Default {default}
@@ -94,7 +98,7 @@ def note(message):
 
 # Options that take a value, and options that are their own value.
 VALUE_OPTIONS = ("--audio", "--output", "--model-cache", "--model")
-FLAG_OPTIONS = ()
+FLAG_OPTIONS = ("--install",)
 
 
 # Arguments. Parsed first so help costs nothing: no install, no configuration.
@@ -359,7 +363,34 @@ def install_env():
     return env
 
 
+def install_authorised():
+    return "--install" in sys.argv or os.environ.get("WISER_ALLOW_INSTALL") == "1"
+
+
+def require_install_consent(label):
+    """Consent before an install, matching the Node tools' Dependencies clause.
+
+    This script does not read stdin, so it cannot ask. It reports what would be
+    fetched and stops; whoever is driving it asks the person and re-runs with
+    --install, which authorises the install AND completes the run. Speech
+    packages are the largest install in this repository, which is precisely why
+    it should not happen because somebody typed transcribe once.
+    """
+    if install_authorised():
+        return
+    fail(
+        "this tool is not installed yet and this run did not authorise an install. "
+        "Installing creates a virtual environment at %s and fetches the %s packages into it "
+        "from pypi.org, several hundred megabytes, with pip's own download cache switched off "
+        "so nothing lands outside this tool. tools/AGENTS.md lists every write an install makes. "
+        "Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 "
+        "for an unattended run. Nothing is read from stdin, so this is the only way to answer."
+        % (CACHE_DIR, label)
+    )
+
+
 def install(requirements, marker, label):
+    require_install_consent(label)
     if not CACHE_DIR.exists():
         note("First run: creating the package cache in %s" % CACHE_DIR)
         try:
@@ -407,7 +438,10 @@ def install(requirements, marker, label):
             "the install finished but %s is still missing from %s. Check that %s lists every package this script imports."
             % (marker, CACHE_DIR, requirements.name)
         )
-    stop("%s packages installed. Re-run the command." % label.capitalize())
+    # No re-run. The authorised run finishes the work: below this, the script
+    # re-execs into the cache's own interpreter and carries on, which is why
+    # the packages are imported after that point and not at the top.
+    note("%s packages installed." % label.capitalize())
 
 
 if not package_installed(CORE_MARKER):

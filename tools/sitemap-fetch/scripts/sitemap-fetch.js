@@ -65,6 +65,10 @@ Options:
   --date <date>    YYYY-MM-DD stamped as "fetchedAt" (default: today)
   --output <dir>   Also write the snapshot to a file in this directory, an
                    absolute path that must sit outside this tool directory
+  --install Authorise the first-run install. Without it a tool that is
+          not installed yet reports what it would fetch, and from
+          where, and stops. WISER_ALLOW_INSTALL=1 does the same
+          for an unattended run.
   --help           Print this message
 
 Success prints one JSON object to stdout. Errors go to stderr with exit 1.`;
@@ -168,7 +172,44 @@ function isWritable(dir) {
   try { accessSync(dir, constants.W_OK); return true; } catch { return false; }
 }
 
+// Consent before an install, per the Script Contract's Dependencies clause.
+//
+// A tool used to install its packages on its own account the first time it was
+// called, then tell the caller to run the command again. That is two problems:
+// several hundred megabytes could arrive on a machine without anyone agreeing
+// to it, and the work then took two runs to do once.
+//
+// A script cannot ask. Nothing here reads stdin, deliberately, so a run with
+// nobody watching fails rather than waiting forever for an answer. So the
+// script reports and stops, and whoever is driving it does the asking: the
+// report names the packages, the hosts they come from, and the size where it is
+// large enough to matter, which is what a person needs in order to answer.
+// `--install` on the same command authorises it and the run then COMPLETES
+// rather than demanding a re-run. WISER_ALLOW_INSTALL=1 authorises it for an
+// unattended run, so automation does not acquire a new way to fail.
+function installPlan() {
+  let names = [];
+  try {
+    names = Object.keys(JSON.parse(readFileSync(join(TOOL_DIR, 'package.json'), 'utf8')).dependencies || {});
+  } catch { /* the report degrades to a generic list; the refusal still stands */ }
+  const browser = names.includes('playwright');
+  return {
+    list: names.length ? names.join(', ') : 'the packages package.json declares',
+    hosts: browser ? 'registry.npmjs.org and cdn.playwright.dev' : 'registry.npmjs.org',
+    size: browser ? ' The Chromium build alone is several hundred megabytes.' : ''
+  };
+}
+
+function requireInstallConsent() {
+  if (process.argv.includes('--install') || process.env.WISER_ALLOW_INSTALL === '1') return;
+  const { list, hosts, size } = installPlan();
+  fail(
+    `Error: this tool is not installed yet and this run did not authorise an install. Installing fetches ${list} from ${hosts} into ${TOOL_DIR}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+  );
+}
+
 if (!existsSync(UNDICI_MARKER)) {
+  requireInstallConsent();
   process.stderr.write('First run: installing dependencies in this tool directory.\n');
   try {
     execFileSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['ci'], {
@@ -185,7 +226,6 @@ if (!existsSync(UNDICI_MARKER)) {
     }
     fail(`Error: npm ci failed in ${TOOL_DIR}. Confirm Node 18 or newer, then that package-lock.json is present and matches package.json, which is what npm ci requires. A lockfile missing or out of step with the manifest is a defect in this copy of the plugin, not something a re-run fixes.`);
   }
-  fail('Dependencies installed. Re-run the command.');
 }
 {
   const server =
@@ -219,7 +259,8 @@ function parseArgs(rest) {
       flag !== '--domain' &&
       flag !== '--max' &&
       flag !== '--date' &&
-      flag !== '--output'
+      flag !== '--output' &&
+      flag !== '--install'
     ) {
       fail(`Error: unknown option "${flag}". Run "node scripts/sitemap-fetch.js help" for usage.`);
     }

@@ -20,7 +20,7 @@ node --version
 npm ci
 ```
 
-The entry script does this by itself on the first build that reads a brand file, then asks for a re-run; doing it here means that build works the first time. A build with no brand file needs nothing installed. This tool holds no credentials, so there is nothing else to configure and no `--env` to resolve.
+The entry script will do this on the first build that reads a brand file, given `--install`, and reports what it would fetch rather than installing without one; doing it here means that build works the first time. A build with no brand file needs nothing installed. This tool holds no credentials, so there is nothing else to configure and no `--env` to resolve.
 
 ## 3. Runtimes
 

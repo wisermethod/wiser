@@ -243,7 +243,7 @@ The scripts follow `system/templates/Script Contract.md`: self-contained imports
 
 Replacing an existing **output file** from `build` / `snapshot` / `export` is opt-in via `--confirm`. Mutating an existing **deck** is also opt-in via `--confirm`, and always preceded by a `zArchive/` copy when the deck already exists.
 
-Only a brand file needs an installed package; the first branded command installs and asks for a re-run.
+Only a brand file needs an installed package; the first branded command reports what it would install and stops, and the same command with `--install` installs and does the work in one run.
 
 ## Output
 
@@ -269,7 +269,7 @@ Failure: empty stdout, cause and fix on stderr, exit 1.
 
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `Dependencies installed. Re-run the command.` | First branded run in this copy | Run the same command again |
+| `this tool is not installed yet and this run did not authorise an install` | First run in this copy, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
 | `npm ci failed` | Node missing or old, directory not writable, or the lockfile missing or out of step with the manifest | Node 18+, confirm `package-lock.json` matches `package.json`, then delete `node_modules/` and run `npm ci`. See SETUP.md |
 | `missing osascript` / `missing Keynote` | Wrong host or Keynote not installed | Dependencies section; install steps live nowhere in this tool |
 | `Keynote automation is not permitted for this terminal` | macOS Automation denial | System Settings → Privacy & Security → Automation |

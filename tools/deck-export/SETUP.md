@@ -20,7 +20,7 @@ node --version
 npm ci
 ```
 
-The script does this by itself on the first `scaffold`, `pdf`, or `png` and then asks for a re-run. Doing it here means the first real command works. This tool holds no credentials, so there is nothing else to configure and no `--env` to resolve.
+The script will do this on the first `scaffold`, `pdf`, or `png` given `--install`, and reports what it would fetch rather than installing without one. Doing it here means the first real command works. This tool holds no credentials, so there is nothing else to configure and no `--env` to resolve.
 
 ## 3. The browser build
 

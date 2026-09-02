@@ -36,7 +36,7 @@ Reports what is present, installing nothing:
 {"reveal.js":true,"playwright":true,"chromium":true}
 ```
 
-Then scaffold, and later render. Scaffolding from a template installs nothing; a starter scaffold needs the reveal.js package and a render needs the browser driver, so in a fresh copy the first such command installs and asks for a re-run, and the same command run again does the work and prints one JSON object.
+Then scaffold, and later render. Scaffolding from a template installs nothing; a starter scaffold needs the reveal.js package and a render needs the browser driver, so in a fresh copy the first such command reports what it would install and stops, and the same command with `--install` installs and does the work in one run.
 
 ```bash
 node scripts/deck.js scaffold --output "/path/to/a/work/directory/Board Review" --title "Board Review"
@@ -132,7 +132,7 @@ Failure prints to stderr, leaves stdout empty, and exits 1.
 
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `Dependencies installed. Re-run the command.` | First command in this copy that needs a package | Run the same command again |
+| `this tool is not installed yet and this run did not authorise an install` | First run in this copy, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
 | `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand. See SETUP.md |
 | `Chromium cannot launch` / `chromium:false` on `check` | Binary missing, launch blocked, or OS library gap | Read `remediation` on the check JSON (or the error line); it names the dependency, the check, and one next step. Never `sudo install-deps` |
 | `--output is required` | No destination was named | Resolve a work directory in the owning root and name the path; this tool picks no location |

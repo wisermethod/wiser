@@ -16,7 +16,7 @@ It reports the Python version it is running under, whether FFmpeg is present, an
 
 ## 2. Packages
 
-The first `transcribe` creates a virtual environment in this tool's directory, installs the speech packages into it, and asks for a re-run. That first install downloads several hundred megabytes, so run it once before the machine is needed under time pressure. Nothing is installed into the machine or the user's environment: the install runs with pip's own download cache switched off, so the several hundred megabytes land in the virtual environment and nowhere else, and a re-install after deleting `.venv` downloads them again rather than finding them in a cache outside this tool. A deployment that never transcribes never installs anything.
+The first `transcribe` creates a virtual environment in this tool's directory, installs the speech packages into it, and finishes the run, once `--install` has authorised it. That first install downloads several hundred megabytes, so run it once before the machine is needed under time pressure. Nothing is installed into the machine or the user's environment: the install runs with pip's own download cache switched off, so the several hundred megabytes land in the virtual environment and nowhere else, and a re-install after deleting `.venv` downloads them again rather than finding them in a cache outside this tool. A deployment that never transcribes never installs anything.
 
 ## 3. Model weights
 

@@ -20,7 +20,7 @@ node --version
 npm ci
 ```
 
-First non-help command also installs and asks for a re-run. This tool holds no credentials.
+The first non-help command reports what it would install and stops; `--install` authorises it and that run does the work. This tool holds no credentials.
 
 ## 3. Chromium
 

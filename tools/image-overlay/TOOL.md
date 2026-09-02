@@ -46,7 +46,7 @@ node scripts/overlay.js compose \
   --output /path/to/a/work/directory/framed.png
 ```
 
-The first real run installs `sharp` in this tool's directory and asks for a re-run; the second does the work and prints one JSON object:
+The first real run reports that it would install `sharp` in this tool's directory, and stops. With `--install` it installs and does the work in the same run and prints one JSON object:
 
 ```
 {"base":"...","overlay":"...","output":"...","inPlace":false,"format":"png","width":1600,"height":900,"overlayResized":false,"bytes":412903}
@@ -123,7 +123,7 @@ A stretch also prints a note to stderr naming both dimensions; stdout stays one 
 
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
+| `this tool is not installed yet and this run did not authorise an install` | First run in this copy, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
 | `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `Error: --base is required.` | `compose` ran with nothing to composite | Pass both `--base` and `--overlay` |
 | `Error: --base must be absolute` | A relative path was passed | Pass the full path |
