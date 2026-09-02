@@ -64,7 +64,7 @@ node scripts/render.js sync --md /tmp/slides.md --deck /tmp/deck.key --brand /tm
 
 **`node: command not found`** Node is installed but not on this shell's PATH. Open a new shell; if it persists, reinstall Node and let it update PATH.
 
-**`npm install failed`** Usually Node older than 18, or a directory this account cannot write to. Delete `node_modules/` so a half-finished install cannot mask the retry, check step 1, then confirm the tool directory is writable.
+**`npm ci failed`** Usually Node older than 18, or a directory this account cannot write to. Delete `node_modules/` so a half-finished install cannot mask the retry, check step 1, then confirm the tool directory is writable.
 
 **`missing Keynote`** Neither Keynote bundle name is in `/Applications`. Install Keynote from the App Store, open it once so its themes register, then run `check` again.
 

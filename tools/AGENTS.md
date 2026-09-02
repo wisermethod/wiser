@@ -14,6 +14,8 @@ Two consequences a caller should expect. The first use of a tool is slower than 
 
 **Dependencies are per copy, not per machine.** A tool installs into the copy of the plugin it was called from, so a second copy installs again, and a plugin manager that keeps each version in its own directory means an update starts from nothing. The cost is paid in download time on the first use after an update, not in disk, since the manager removes the version it replaced.
 
+**A browser tool writes outside this plugin as well.** `Browser Control`, `deck-export`, `html-to-png`, `mermaid-to-png`, `svg-to-png` and `web-screenshot` drive Chromium through Playwright, which downloads a browser build of several hundred megabytes into the user's own cache, `PLAYWRIGHT_BROWSERS_PATH` or `~/.cache/ms-playwright`, and the shared launch runtime writes its compatibility shims into a `.wiser-lib` directory beside it. That is the user's cache rather than this plugin, it is shared across copies of the plugin, and it is the one write that does not land under this root.
+
 **An install writes nothing this repository ships.** A Node tool installs with `npm ci`, which builds `node_modules/` from the lockfile exactly as recorded and never rewrites it; `npm install` does rewrite it, and every lockfile here is a file this repository ships, so a tool that installed with `npm install` would dirty a tracked file in your own clone merely by being called. Install every tool and `git status` stays clean. That is a guarantee rather than an observation, and `SETUP.md` names `npm ci` for the same reason wherever it gives the command by hand.
 
 `system/templates/Script Contract.md` is the contract every one of these scripts follows, and it is the file to read before writing or changing one.

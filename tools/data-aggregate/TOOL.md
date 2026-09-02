@@ -104,7 +104,7 @@ One JSON object on stdout, exit 0, whenever the file was read, including a read 
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
-| `npm install failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm install` here by hand |
+| `npm ci failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm ci` here by hand |
 | `Error: --file is required.` | `aggregate` ran with no file to read | Pass `--file <path>` |
 | `Error: no file at <path>` | The path given to `--file` does not exist | Check the path; an absolute one cannot be misread |
 | `Error: --group-by is required.` | No grouping column was named | Name one; repeat the flag to group on a tuple |

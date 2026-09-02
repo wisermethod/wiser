@@ -101,7 +101,7 @@ One JSON object on stdout, exit 0, whenever both paths were read, including a re
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
-| `npm install failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm install` here by hand |
+| `npm ci failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm ci` here by hand |
 | `Error: --left is required.` / `Error: --right is required.` | A side was not named | Pass both absolute paths |
 | `Error: --on is required.` | No key column was named | Pass `--on <column>` |
 | `Error: --how must be one of inner, left` | A mode outside the two | Use `inner` or `left` |

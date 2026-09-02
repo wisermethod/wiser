@@ -66,11 +66,11 @@ Options:
 
 One page per run: auditing a set means one run each, which keeps every result attributable to the URL that produced it.
 
-This tool needs no credentials and no configuration file, so no command takes `--env` and nothing here resolves a Provides binding. It reads and never writes: no file is written anywhere, and the only request it makes is for the page the caller named, plus any redirect that page issues. Redirects are followed and the landing address is reported as `final_url`, so a run that ended somewhere other than where it started says so. The request waits 20 seconds and then fails rather than hanging.
+This tool needs no credentials and no configuration file, so no command takes `--env` and nothing here resolves a Provides binding. It writes no output file: nothing it produces lands anywhere but stdout. **The first run is the exception.** This tool declares one package, `undici`, and installs it into its own directory the first time it is called, which writes `node_modules/` there and reaches the npm registry once. Later runs write nothing and the only request is for the page the caller named, plus any redirect that page issues. Redirects are followed and the landing address is reported as `final_url`, so a run that ended somewhere other than where it started says so. The request waits 20 seconds and then fails rather than hanging.
 
 ## Script Contract
 
-The script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help answered before anything else, and the stdout and stderr rules. It imports no package and reads no configuration file, so that contract's dependency check and `--env` clauses have nothing to bind here, and the tool carries no Dependencies section because Node is all it needs. The sections above state what the command does; the contract states how the script behaves getting there.
+The script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help answered before anything else, and the stdout and stderr rules. It reads no configuration file, so that contract's `--env` clause has nothing to bind here. It does import one package, `undici`, so the contract's dependency check applies: the first run installs it with `npm ci` and asks for a re-run. The sections above state what the command does; the contract states how the script behaves getting there.
 
 ## Output
 
@@ -111,4 +111,4 @@ A page that does not serve is a failure, not a result: a non-2xx status exits 1 
 - `audit` with `--url` omitted exits 1 naming the missing option, stdout empty.
 - A scheme other than http or https is refused before any network call is made.
 - A page whose served HTML carries a covered loader reports that tag `present`, and reports its id when the markup exposes one.
-- No run writes a file, reads a credential, or contacts a host other than the one the URL names and its redirect targets.
+- No credential is read, and after the first-run install no run writes a file or contacts a host other than the one the URL names and its redirect targets.

@@ -18,7 +18,7 @@ It carries no dependency on any single agent host: everything in it is instructi
 
 Install the plugin, then attach a **working folder**: the root the work is about. That folder describes itself in its own `AGENTS.md`, including a `Provides` block that binds what the plugin asks for, like the voice to write in and the facts about you or your organization.
 
-The plugin is **read-only in use**. It never writes into itself. Everything it produces lands in the working folder you attached, in the directories that folder declares.
+The plugin is **read-only in use, with one exception**. Everything it produces lands in the working folder you attached, in the directories that folder declares. **The exception is a tool's dependencies.** A tool that needs packages installs them into its own directory the first time it is called, and a browser tool also downloads its browser build into your user cache outside this plugin. So the plugin directory has to be writable, and a tool that carries dependencies cannot work from a read-only install. `tools/AGENTS.md` says which tools those are and what each one writes.
 
 `AGENTS.md` is the constitution and the place to start reading. `skills/AGENTS.md`, `experts/AGENTS.md` and `tools/AGENTS.md` index what is available.
 

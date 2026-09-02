@@ -124,7 +124,7 @@ A stretch also prints a note to stderr naming both dimensions; stdout stays one 
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
-| `npm install failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm install` here by hand |
+| `npm ci failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm ci` here by hand |
 | `Error: --base is required.` | `compose` ran with nothing to composite | Pass both `--base` and `--overlay` |
 | `Error: --base must be absolute` | A relative path was passed | Pass the full path |
 | `Error: no file at <path>` | One of the two images is not where the command said | Check the path; an absolute one cannot be misread |

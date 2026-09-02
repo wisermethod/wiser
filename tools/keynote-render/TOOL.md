@@ -270,7 +270,7 @@ Failure: empty stdout, cause and fix on stderr, exit 1.
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Dependencies installed. Re-run the command.` | First branded run in this copy | Run the same command again |
-| `npm install failed` | Node missing/old or directory not writable | Node 18+, delete `node_modules/`, `npm install`. See SETUP.md |
+| `npm ci failed` | Node missing/old or directory not writable | Node 18+, delete `node_modules/`, `npm ci`. See SETUP.md |
 | `missing osascript` / `missing Keynote` | Wrong host or Keynote not installed | Dependencies section; install steps live nowhere in this tool |
 | `Keynote automation is not permitted for this terminal` | macOS Automation denial | System Settings → Privacy & Security → Automation |
 | `changes an existing deck. Pass --confirm` | Mutator without confirm | Review ops / intent, pass `--confirm` |

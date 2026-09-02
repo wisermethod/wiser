@@ -121,7 +121,7 @@ Read `finalUrl` and `status` before trusting the image. A capture that ran clean
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
-| `npm install failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm install` here by hand |
+| `npm ci failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm ci` here by hand |
 | `Error: Chromium cannot launch` / `chromiumLaunch:false` | Binary missing, launch blocked, or OS library gap | Read `remediation` on the check JSON; follow that single step. Never chase allowlist for a launch failure |
 | `Error: --url is required` | `capture` ran with no address | Pass `--url` with the full address, scheme included |
 | `Error: --url is not a web address` | The scheme is missing, so there is nothing to navigate to | Write it out in full, as in `https://host/path` |

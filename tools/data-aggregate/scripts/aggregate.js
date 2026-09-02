@@ -288,7 +288,7 @@ if (!existsSync(DEP_MARKER)) {
     if (!isWritable(TOOL_DIR)) {
       fail(`Error: cannot install dependencies because ${TOOL_DIR} is not writable. This tool installs its dependencies into its own directory the first time it runs, so that directory has to be writable. Install this plugin somewhere you own, or make that directory writable, then run the command again.`);
     }
-    fail(`Error: npm ci failed in ${TOOL_DIR}. Delete node_modules there, confirm Node 18 or newer, then run "npm install" by hand.`);
+    fail(`Error: npm ci failed in ${TOOL_DIR}. Delete node_modules there, confirm Node 18 or newer, then run "npm ci" by hand.`);
   }
   if (!existsSync(DEP_MARKER)) {
     fail(`Error: npm ci finished but ${DEP_MARKER} is still missing. Check that package.json lists every package this script imports.`);

@@ -113,7 +113,7 @@ A run that cannot produce the image writes no PNG, prints nothing to stdout, and
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
-| `npm install failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm install` here by hand |
+| `npm ci failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm ci` here by hand |
 | `Error: --file is required.` | `render` ran with no SVG to read | Pass `--file <path>` |
 | `Error: --file must be absolute` or `--output must be absolute` | A relative path was passed | Pass the absolute path; do not rely on the working directory |
 | `Error: no file at <path>` | The input path does not exist | Check the path; an absolute one cannot be misread |

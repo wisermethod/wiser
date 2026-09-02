@@ -62,7 +62,7 @@ Guard rails, binding for any shared artifact:
 
 **A secret's contents never enter the conversation, a log, a commit, or another file.**
 
-**Nothing is ever written under this root during a session that uses it**, nor to the top level of any root. Authoring this root is separate work, planned as a Playbook. Output lands in the working folder, in the directories that folder's own `AGENTS.md` declares. The one exception is a tool's first-run dependency cache, which a tool writes inside its own directory in this root the first time it is called, per that tool's own contract. That is the only write this root ever takes, it is the user's own copy of the plugin, and `tools/AGENTS.md` states it.
+**Nothing is ever written under this root during a session that uses it**, nor to the top level of any root. Authoring this root is separate work, planned as a Playbook. Output lands in the working folder, in the directories that folder's own `AGENTS.md` declares. The one exception is a tool's dependencies, per that tool's own contract. A tool that carries packages writes them into its own directory in this root the first time it is called, which is a write into the user's own copy of the plugin. **A browser tool writes a second place, outside this root**: Playwright's Chromium build and the launch runtime's compatibility shims land in the user's own cache, `PLAYWRIGHT_BROWSERS_PATH` or `~/.cache/ms-playwright`, and that is hundreds of megabytes rather than a token amount. `tools/AGENTS.md` names both.
 
 **Nothing is deleted or overwritten without naming what is being lost first.** Where a root's own `AGENTS.md` declares an archive home, a file is archived there before it is replaced.
 

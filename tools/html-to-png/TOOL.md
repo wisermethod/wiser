@@ -132,7 +132,7 @@ Failure prints to stderr, leaves stdout empty, and exits 1.
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
-| `npm install failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm install` here by hand |
+| `npm ci failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm ci` here by hand |
 | `Chromium cannot launch` / `chromiumLaunch:false` | Binary missing, launch blocked, or OS library gap | Follow the `remediation` line from `npm run check:chromium`; never a root-only install-deps recipe |
 | `Error: --input is required` | `render` ran with nothing to render | Pass `--input <path>` |
 | `Error: --input must be absolute` | A relative path resolves against the caller's directory | Pass the resolved absolute path |

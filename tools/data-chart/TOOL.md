@@ -104,7 +104,7 @@ The HTML is a complete document: UTF-8, a title, minimal inline CSS, and one SVG
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
-| `npm install failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm install` here by hand |
+| `npm ci failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm ci` here by hand |
 | `Error: --file is required.` | No data file was named | Pass `--file <path>` |
 | `Error: --x is required.` / `Error: --y is required.` | A column was not named | Name both columns |
 | `Error: --output is required.` | No destination was named | Pass an absolute `.html` path in a work directory |

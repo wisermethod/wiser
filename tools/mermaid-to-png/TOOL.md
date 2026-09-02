@@ -106,7 +106,7 @@ Missing parent directories of the output path are created, so a dated folder tha
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
-| `npm install failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm install` here by hand |
+| `npm ci failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm ci` here by hand |
 | `the Mermaid renderer is missing at <path>` | The install ran but left the renderer out | Confirm `package.json` lists `mermaid`, then run `npm ci` in this directory |
 | `Chromium cannot launch` | Binary missing, launch blocked, or OS library gap | Follow the `remediation` line from `npm run check:chromium` |
 | `the diagram did not parse; the renderer stopped at line N` | Mermaid syntax the renderer rejected | Fix that line in the source file. Only the line number is reported, by design; the renderer's own message quotes the file back |
