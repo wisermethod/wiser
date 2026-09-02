@@ -97,7 +97,7 @@ An empty file, a header with no data rows, and a file whose content does not par
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
-| `npm ci failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm ci` here by hand |
+| `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `Error: --file is required.` | `parse` ran with no file to read | Pass `--file <path>` |
 | `Error: no file at <path>` | The path given to `--file` does not exist | Check the path; an absolute one cannot be misread |
 | `Error: --format must be one of csv, json, tsv` | A `--format` value outside the three supported formats | Pass one of the three, or omit `--format` to auto-detect |
@@ -117,4 +117,4 @@ An empty file, a header with no data rows, and a file whose content does not par
 - A malformed or empty file exits 0 with `rowCount` 0, `raggedRowCount` 0, no columns, and the reason in `parseErrors`; it does not raise and does not quote the parser's own message.
 - A delimited file with uneven rows exits 0 with those rows still present, `raggedRowCount` equal to how many differed from the header, and a matching entry in `parseErrors`.
 - Numeric, date, word-form boolean, and mixed columns are each detected per the Column Types table, and a headerless file read with `--no-header` names its columns `column_1` onward.
-- No run reads a credential, opens a network connection, or writes any file other than the first-run dependency install in this tool's own directory.
+- No run reads a credential, opens a network connection, or writes any file other than what `tools/AGENTS.md` lists a first run installing.

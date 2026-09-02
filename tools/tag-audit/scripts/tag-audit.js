@@ -141,7 +141,7 @@ if (!existsSync(UNDICI_MARKER)) {
     if (!isWritable(TOOL_DIR)) {
       fail(`Error: cannot install dependencies because ${TOOL_DIR} is not writable. This tool installs its dependencies into its own directory the first time it runs, so that directory has to be writable. Install this plugin somewhere you own, or make that directory writable, then run the command again.`);
     }
-    fail(`Error: npm ci failed in ${TOOL_DIR}. Confirm Node 18 or newer, then run npm ci by hand.`);
+    fail(`Error: npm ci failed in ${TOOL_DIR}. Confirm Node 18 or newer, then that package-lock.json is present and matches package.json, which is what npm ci requires. A lockfile missing or out of step with the manifest is a defect in this copy of the plugin, not something a re-run fixes.`);
   }
   fail('Dependencies installed. Re-run the command.');
 }

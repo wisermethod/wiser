@@ -104,7 +104,7 @@ The HTML is a complete document: UTF-8, a title, minimal inline CSS, and one SVG
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
-| `npm ci failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm ci` here by hand |
+| `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `Error: --file is required.` | No data file was named | Pass `--file <path>` |
 | `Error: --x is required.` / `Error: --y is required.` | A column was not named | Name both columns |
 | `Error: --output is required.` | No destination was named | Pass an absolute `.html` path in a work directory |
@@ -124,4 +124,4 @@ The HTML is a complete document: UTF-8, a title, minimal inline CSS, and one SVG
 - `chart` with a required flag omitted, a bad `--type`, a path that does not exist or is a directory, an occupied `--output` without `--overwrite`, a missing column, or no numeric y values exits 1 with the cause on stderr and stdout empty, and triggers no dependency install when the mistake is a usage one.
 - The written HTML contains an inline SVG, loads no external script or stylesheet, and opens with no network.
 - An unknown option is refused by name before any install, read, or write.
-- No run reads a credential or opens a network connection. The only writes are the first-run dependency install in this tool's own directory and the single HTML file at the caller-named `--output`.
+- No run reads a credential, and after the first-run install no run opens a network connection. The writes are what `tools/AGENTS.md` lists a first run installing, and the chart at `--output`; the install itself is in this tool's own directory and the single HTML file at the caller-named `--output`.

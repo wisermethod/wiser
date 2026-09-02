@@ -40,7 +40,7 @@ Usage text, with nothing installed.
 node scripts/capture.js capture --url https://host.example/pricing --output /path/to/a/work/directory/pricing.png
 ```
 
-The first real run installs `playwright` and its Chromium build in this tool's directory and asks for a re-run; the second does the work and prints one JSON object:
+The first real run installs `playwright` into this tool's directory and its Chromium build into the browser cache `tools/AGENTS.md` names, which is outside this plugin, and asks for a re-run; the second does the work and prints one JSON object:
 
 ```
 {"output":"/path/to/a/work/directory/pricing.png","url":"https://host.example/pricing","finalUrl":"https://host.example/pricing","status":200,"width":1280,"height":720,"scale":1,"fullPage":false}
@@ -121,7 +121,7 @@ Read `finalUrl` and `status` before trusting the image. A capture that ran clean
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
-| `npm ci failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm ci` here by hand |
+| `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `Error: Chromium cannot launch` / `chromiumLaunch:false` | Binary missing, launch blocked, or OS library gap | Read `remediation` on the check JSON; follow that single step. Never chase allowlist for a launch failure |
 | `Error: --url is required` | `capture` ran with no address | Pass `--url` with the full address, scheme included |
 | `Error: --url is not a web address` | The scheme is missing, so there is nothing to navigate to | Write it out in full, as in `https://host/path` |
@@ -160,4 +160,4 @@ Read `finalUrl` and `status` before trusting the image. A capture that ran clean
 - A run whose `--output` names directories that do not exist creates them and writes the file.
 - An unreachable host, a refused connection, and a page that never settles each exit 1 with this tool's own sentence naming the address and what to do, never with the browser's own text; the settling failure names the budget in milliseconds, the caller's when one was set and 30000 when none was.
 - A run without `--full-page` is `--width` by `--height` pixels, times `--scale`; a run with it is `--width` by the document's height, times `--scale`. The defaults, 1280 by 720 at scale 1, are what the tool has always done.
-- No run reads a credential, sends a cookie or a stored session, navigates anywhere but the address `--url` names, or writes any file other than the one `--output` names and the first-run dependency install in this tool's own directory.
+- No run reads a credential, sends a cookie or a stored session, navigates anywhere but the address `--url` names, or writes any file other than the one `--output` names and what `tools/AGENTS.md` lists a first run installing, which includes a Chromium build outside this plugin.

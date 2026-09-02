@@ -101,7 +101,7 @@ One JSON object on stdout, exit 0, whenever both paths were read, including a re
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
-| `npm ci failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm ci` here by hand |
+| `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `Error: --left is required.` / `Error: --right is required.` | A side was not named | Pass both absolute paths |
 | `Error: --on is required.` | No key column was named | Pass `--on <column>` |
 | `Error: --how must be one of inner, left` | A mode outside the two | Use `inner` or `left` |
@@ -122,4 +122,4 @@ One JSON object on stdout, exit 0, whenever both paths were read, including a re
 - A key that is not on one side exits 0 with empty `rows` and the reason in `errors`, naming the columns that side does hold.
 - An inner join drops unmatched left rows; a left join keeps them with right columns null; one-to-many keys produce one result row per match.
 - An unknown option is refused by name before any install or read.
-- No run reads a credential, opens a network connection, or writes any file other than the first-run dependency install in this tool's own directory.
+- No run reads a credential, opens a network connection, or writes any file other than what `tools/AGENTS.md` lists a first run installing.

@@ -14,7 +14,23 @@ Two consequences a caller should expect. The first use of a tool is slower than 
 
 **Dependencies are per copy, not per machine.** A tool installs into the copy of the plugin it was called from, so a second copy installs again, and a plugin manager that keeps each version in its own directory means an update starts from nothing. The cost is paid in download time on the first use after an update, not in disk, since the manager removes the version it replaced.
 
-**A browser tool writes outside this plugin as well.** `Browser Control`, `deck-export`, `html-to-png`, `mermaid-to-png`, `svg-to-png` and `web-screenshot` drive Chromium through Playwright, which downloads a browser build of several hundred megabytes into the user's own cache, `PLAYWRIGHT_BROWSERS_PATH` or `~/.cache/ms-playwright`, and the shared launch runtime writes its compatibility shims into a `.wiser-lib` directory beside it. That is the user's cache rather than this plugin, it is shared across copies of the plugin, and it is the one write that does not land under this root.
+## Everything a tool writes, and where
+
+**This is the authoritative list. Every other file in this repository points here rather than restating it**, because a write inventory kept in two registers goes stale in one of them.
+
+| What | Where | Which tools |
+|------|-------|-------------|
+| Node packages | `node_modules/` inside that tool's own directory | the 17 tools whose `package.json` declares a dependency |
+| npm's own download cache and logs | npm's configured cache, `~/.npm` by default, outside this plugin | the same 17, on first run |
+| Python packages | `.venv/` inside that tool's own directory | `Transcribe Audio` |
+| A Chromium build, a few hundred megabytes | `PLAYWRIGHT_BROWSERS_PATH` if set, otherwise Playwright's own per-platform default: `~/Library/Caches/ms-playwright` on macOS, `~/.cache/ms-playwright` on Linux, `%LOCALAPPDATA%\ms-playwright` on Windows. Set `PLAYWRIGHT_BROWSERS_PATH=0` and it lands inside the tool's `node_modules` instead | `Browser Control`, `deck-export`, `html-to-png`, `mermaid-to-png`, `svg-to-png`, `web-screenshot` |
+| Compatibility shims for a Linux host with no X libraries | a `.wiser-lib` directory beside that browser cache, and only after `ldd` reports a library missing | the same six, on Linux only |
+| Speech model weights | the directory the caller passes as `--model-cache` | `Transcribe Audio` |
+| The deliverable | exactly the path the caller passes as `--output` or `--output-dir` | every tool that writes one |
+
+**Three of those seven are outside this plugin**, and that is the honest shape of it: the npm cache, the browser build, and the Linux shims. **The plugin directory still has to be writable**, because the first two rows land inside it, so a tool that carries dependencies cannot work from a read-only install. A tool that declares no dependency runs anywhere.
+
+**The per-platform browser path is Playwright's, not this repository's.** It is stated here rather than assumed because an earlier revision of this file named the Linux path for every platform, which is wrong on the one platform `keynote-render` requires.
 
 **An install writes nothing this repository ships.** A Node tool installs with `npm ci`, which builds `node_modules/` from the lockfile exactly as recorded and never rewrites it; `npm install` does rewrite it, and every lockfile here is a file this repository ships, so a tool that installed with `npm install` would dirty a tracked file in your own clone merely by being called. Install every tool and `git status` stays clean. That is a guarantee rather than an observation, and `SETUP.md` names `npm ci` for the same reason wherever it gives the command by hand.
 

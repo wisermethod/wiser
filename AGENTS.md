@@ -16,7 +16,7 @@ An authoring tree, not a working folder. Nothing here is anyone's work product; 
 
 ## Writes
 
-Writes land only under this root, and in use this root is read-only.
+In use this root is read-only, with one exception: a tool writes its own dependencies, and a browser tool also writes a browser build outside this root. `tools/AGENTS.md` lists every one of them and where each lands.
 
 Never write to another root composed in the same workspace, whatever its permissions look like on disk. A workspace that happens to compose a root is not permission to edit it.
 
@@ -39,7 +39,7 @@ The attached working folder is the **owning root**: the personal, org, client, d
 
 **Secrets.** A `secrets:<platform>` key resolves through a Provides binding; unbound, the personal root's `memory/secrets/` is the only default. Found nowhere: stop and ask. **A secret's contents never enter the conversation, a log, a commit, or another file.**
 
-**This plugin is read-only in use.** Never write under this root during a session. Outputs land in the working folder, in the directories that folder's own `AGENTS.md` declares.
+**This plugin is read-only in use, apart from what a tool installs for itself.** Never write under this root during a session, and never anywhere but the working folder. `tools/AGENTS.md` lists every one of them and where each lands. Nothing else writes here. Outputs land in the working folder, in the directories that folder's own `AGENTS.md` declares.
 
 ## Behavioral Core
 
@@ -62,7 +62,7 @@ Guard rails, binding for any shared artifact:
 
 **A secret's contents never enter the conversation, a log, a commit, or another file.**
 
-**Nothing is ever written under this root during a session that uses it**, nor to the top level of any root. Authoring this root is separate work, planned as a Playbook. Output lands in the working folder, in the directories that folder's own `AGENTS.md` declares. The one exception is a tool's dependencies, per that tool's own contract. A tool that carries packages writes them into its own directory in this root the first time it is called, which is a write into the user's own copy of the plugin. **A browser tool writes a second place, outside this root**: Playwright's Chromium build and the launch runtime's compatibility shims land in the user's own cache, `PLAYWRIGHT_BROWSERS_PATH` or `~/.cache/ms-playwright`, and that is hundreds of megabytes rather than a token amount. `tools/AGENTS.md` names both.
+**Nothing is ever written under this root during a session that uses it**, nor to the top level of any root. Authoring this root is separate work, planned as a Playbook. Output lands in the working folder, in the directories that folder's own `AGENTS.md` declares. The one exception is what a tool installs for itself, per that tool's own contract: packages into its own directory in this root, and for a browser tool a Chromium build and, on Linux, compatibility shims, both outside this root. **The complete list, with the path for each and the platform it depends on, is in `tools/AGENTS.md` and is not restated here**, because a write inventory kept in two places goes stale in one of them.
 
 **Nothing is deleted or overwritten without naming what is being lost first.** Where a root's own `AGENTS.md` declares an archive home, a file is archived there before it is replaced.
 

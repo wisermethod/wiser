@@ -110,7 +110,7 @@ A source that fails does not fail the run. It becomes an entry in `errors` and t
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
-| `npm ci failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm ci` here by hand |
+| `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `no file at <path>` | The path given to `--request` does not exist | Check the path; an absolute one cannot be misread |
 | `<path> is not valid JSON` | The request file is malformed, or the path landed on something that is not a request | Run `sample` for a request this tool accepts. The parser's own message is withheld on purpose: it quotes the first bytes of whatever it was handed |
 | `is not a valid harvest request` | The file parsed but broke the rules `REQUEST_SCHEMA.md` states, listed one per line | Fix each line, then `validate` again |

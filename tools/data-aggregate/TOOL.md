@@ -104,7 +104,7 @@ One JSON object on stdout, exit 0, whenever the file was read, including a read 
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
-| `npm ci failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm ci` here by hand |
+| `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `Error: --file is required.` | `aggregate` ran with no file to read | Pass `--file <path>` |
 | `Error: no file at <path>` | The path given to `--file` does not exist | Check the path; an absolute one cannot be misread |
 | `Error: --group-by is required.` | No grouping column was named | Name one; repeat the flag to group on a tuple |
@@ -130,4 +130,4 @@ One JSON object on stdout, exit 0, whenever the file was read, including a read 
 - A column that is not in the file, and a non-numeric column asked for anything but `count`, each exit 0 with `groupCount` 0 and the reason in `errors`, naming the columns the file does hold.
 - Grouping on a tuple yields one entry per distinct combination, whatever characters the values carry, and the entries sort by the first grouping column.
 - `count` returns a group's row count on any column; the other five read only values that parse as numbers and skip the rest.
-- No run reads a credential, opens a network connection, or writes any file other than the first-run dependency install in this tool's own directory.
+- No run reads a credential, opens a network connection, or writes any file other than what `tools/AGENTS.md` lists a first run installing.

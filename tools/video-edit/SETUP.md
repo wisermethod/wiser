@@ -18,7 +18,7 @@ node --version
 ffmpeg -version
 ```
 
-Any recent build is enough for trim, resize, speed, concat, frames, and GIF. This tool imports no npm package, so there is no `npm install` step.
+Any recent build is enough for trim, resize, speed, concat, frames, and GIF. This tool imports no npm package, so there is no install step at all.
 
 When FFmpeg is missing, the agent follows the Script Contract's System dependencies clause: it reads FFmpeg's current documentation, runs whatever install the host can run itself, and hands you only the smallest step it cannot. Install steps are deliberately not written in this repository; they rot as platforms change.
 

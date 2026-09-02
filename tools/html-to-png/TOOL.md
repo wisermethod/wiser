@@ -132,7 +132,7 @@ Failure prints to stderr, leaves stdout empty, and exits 1.
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
-| `npm ci failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm ci` here by hand |
+| `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `Chromium cannot launch` / `chromiumLaunch:false` | Binary missing, launch blocked, or OS library gap | Follow the `remediation` line from `npm run check:chromium`; never a root-only install-deps recipe |
 | `Error: --input is required` | `render` ran with nothing to render | Pass `--input <path>` |
 | `Error: --input must be absolute` | A relative path resolves against the caller's directory | Pass the resolved absolute path |
@@ -170,4 +170,4 @@ Failure prints to stderr, leaves stdout empty, and exits 1.
 - The reported `width` and `height` equal the dimensions in the written file's own header, at more than one `--width` and at `--scale 1` and `--scale 2`; the same page at `--scale 2` writes exactly twice the pixels of `--scale 1` in each direction, and no width is capped at an intrinsic default.
 - `--timeout` omitted gives the page five seconds; a lower `--timeout` fails sooner and a higher one waits longer, each naming its own budget.
 - A page referencing only files beside it renders with no network connection open; a page referencing a remote asset reaches that address and no other.
-- No failure message repeats the browser engine's own text, and no run writes any file other than the image at `--output`, the parent directories that image needed, and the first-run dependency install in this tool's own directory.
+- No failure message repeats the browser engine's own text, and no run writes any file other than the image at `--output` and what `tools/AGENTS.md` lists a first run installing, the parent directories that image needed, and what `tools/AGENTS.md` lists a first run installing.

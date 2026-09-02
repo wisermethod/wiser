@@ -113,7 +113,7 @@ A run that cannot produce the image writes no PNG, prints nothing to stdout, and
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
-| `npm ci failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm ci` here by hand |
+| `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `Error: --file is required.` | `render` ran with no SVG to read | Pass `--file <path>` |
 | `Error: --file must be absolute` or `--output must be absolute` | A relative path was passed | Pass the absolute path; do not rely on the working directory |
 | `Error: no file at <path>` | The input path does not exist | Check the path; an absolute one cannot be misread |
@@ -142,4 +142,4 @@ A run that cannot produce the image writes no PNG, prints nothing to stdout, and
 - `render` whose `--output` sits under folders that do not exist yet creates them and writes the PNG there.
 - `--timeout` bounds the page load and defaults to 30000 ms; a run against an SVG referencing an address that never answers exits 1 naming the budget, and lowering the flag reaches that failure sooner.
 - A run against an SVG that references nothing outside itself completes with no network request; a run against one that references a remote asset requests only the addresses written in that SVG.
-- No run reads a credential, and no run writes any file other than the caller's PNG and the first-run dependency install in this tool's own directory.
+- No run reads a credential, and no run writes any file other than the caller's PNG and what `tools/AGENTS.md` lists a first run installing, including the browser build outside this plugin, in this tool's own directory.

@@ -124,7 +124,7 @@ A stretch also prints a note to stderr naming both dimensions; stdout stays one 
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
-| `npm ci failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm ci` here by hand |
+| `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `Error: --base is required.` | `compose` ran with nothing to composite | Pass both `--base` and `--overlay` |
 | `Error: --base must be absolute` | A relative path was passed | Pass the full path |
 | `Error: no file at <path>` | One of the two images is not where the command said | Check the path; an absolute one cannot be misread |
@@ -152,4 +152,4 @@ A stretch also prints a note to stderr naming both dimensions; stdout stays one 
 - An `--output` whose parent directories do not exist writes the file and creates them, and a run that fails before the write creates none.
 - A missing argument, a relative path, a missing file, an unsupported extension, a directory passed as `--output`, an unknown argument, and a destination inside this tool directory are each refused with the cause on stderr, stdout empty, exit 1.
 - An overlay of different dimensions is stretched to the base's, reported as `overlayResized`, and noted on stderr.
-- No run reads a credential, takes `--env`, reads from the keyboard, opens a network connection, or writes any file other than the destination and the first-run dependency install in this tool's own directory.
+- No run reads a credential, takes `--env`, reads from the keyboard, opens a network connection, or writes any file other than the destination and what `tools/AGENTS.md` lists a first run installing.

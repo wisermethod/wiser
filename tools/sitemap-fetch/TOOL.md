@@ -18,7 +18,7 @@ Offline use: when the sitemap already sits on disk, a saved historical export, a
 
 Do not use it to judge what it collects. It reports the URLs a site publishes and nothing about their quality, ranking, or worth; clustering, gap analysis, and roadmaps belong to the skills and experts that call it. Do not use it to learn whether a URL is indexed either, which is a search platform's answer and comes through that platform's connector: a sitemap states what a site claims, not what a search engine accepted. It fetches pages of markup, so it is not a crawler and follows no link that is not a sitemap entry. Offline mode reads only the files the caller names and follows no child loc a local index declares.
 
-It authenticates to nothing, holds no credential, reaches no other primitive, and in network mode requests only the addresses its input names and the child sitemaps those name, none of which may be an address inside this machine or its network. It writes a file only when the caller asks for one, in a directory the caller names.
+It authenticates to nothing, holds no credential, reaches no other primitive, and after the first-run install described in Dependencies it requests, in network mode, only the addresses its input names and the child sitemaps those name, none of which may be an address inside this machine or its network. It writes a file only when the caller asks for one, in a directory the caller names.
 
 ## Snapshot Shape
 
@@ -168,4 +168,4 @@ A file is written only when `--output <dir>` is given, and `Script Contract.md` 
 - An address the caller named that is loopback, private, link-local, or a cloud metadata address, in any spelling, exits 1 naming which it was, with nothing fetched; the same address named by a robots.txt line, a sitemap index, or a redirect is skipped into `errors` with no connection opened to it while the rest of the walk completes.
 - A `--file` path that is relative, inside this tool directory, missing, or not a file exits 1 with the cause on stderr before any other file is read; mixing `--file` with `--domain` or `--url` exits 1 the same way.
 - Every usage mistake exits 1 with the cause on stderr, stdout empty, before any request is made.
-- No run reads a credential, and no run writes any file except the one `--output` asked for.
+- No run reads a credential, and after the first-run install no run writes any file except the one `--output` asked for, or contacts a host other than the addresses its input names.

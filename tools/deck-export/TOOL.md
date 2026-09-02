@@ -133,7 +133,7 @@ Failure prints to stderr, leaves stdout empty, and exits 1.
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Dependencies installed. Re-run the command.` | First command in this copy that needs a package | Run the same command again |
-| `npm ci failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm ci` here by hand. See SETUP.md |
+| `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand. See SETUP.md |
 | `Chromium cannot launch` / `chromium:false` on `check` | Binary missing, launch blocked, or OS library gap | Read `remediation` on the check JSON (or the error line); it names the dependency, the check, and one next step. Never `sudo install-deps` |
 | `--output is required` | No destination was named | Resolve a work directory in the owning root and name the path; this tool picks no location |
 | `--output must be absolute` | A relative path resolves against the caller's directory | Pass the resolved absolute path |
@@ -163,4 +163,4 @@ Failure prints to stderr, leaves stdout empty, and exits 1.
 - A starter deck opens and presents with no network connection available; a deck scaffolded from a template carries that template's own structure with only the title and the assets-folder references changed.
 - `pdf` exits 0 with one parseable JSON object and a PDF at the named path whose page count equals the reported `slides`; `png` exits 0 having written `slides` images, `slide-001.png` upward, and no other file.
 - A deck whose reveal.js configuration sets a size exports at that size with no `--width` or `--height` given.
-- No run reads a credential or takes `--env`; the only network traffic is what the deck itself requests (and, when set, via the process proxy env vars). Content/render failures withhold the engine's own text; launch and timeout failures surface engine detail.
+- No run reads a credential or takes `--env`; the only network traffic after the first-run install, which reaches the npm registry and downloads a Chromium build per `tools/AGENTS.md`, is what the deck itself requests (and, when set, via the process proxy env vars). Content/render failures withhold the engine's own text; launch and timeout failures surface engine detail.

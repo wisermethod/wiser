@@ -8,7 +8,8 @@
  *   node scripts/sitemap-fetch.js fetch --url <sitemap url> [--url ...] [--max n] [--date YYYY-MM-DD] [--output <dir>]
  *   node scripts/sitemap-fetch.js fetch --file <path> [--file ...] [--max n] [--date YYYY-MM-DD] [--output <dir>]
  *
- * Node built-ins only: no package import, no configuration file, no credentials.
+ * One package, undici, installed on first run with npm ci into this tool's own
+ * directory. No configuration file and no credentials.
  * The rules every shipped script follows are stated once, in
  * system/templates/Script Contract.md.
  */
@@ -182,7 +183,7 @@ if (!existsSync(UNDICI_MARKER)) {
     if (!isWritable(TOOL_DIR)) {
       fail(`Error: cannot install dependencies because ${TOOL_DIR} is not writable. This tool installs its dependencies into its own directory the first time it runs, so that directory has to be writable. Install this plugin somewhere you own, or make that directory writable, then run the command again.`);
     }
-    fail(`Error: npm ci failed in ${TOOL_DIR}. Confirm Node 18 or newer, then run npm ci by hand.`);
+    fail(`Error: npm ci failed in ${TOOL_DIR}. Confirm Node 18 or newer, then that package-lock.json is present and matches package.json, which is what npm ci requires. A lockfile missing or out of step with the manifest is a defect in this copy of the plugin, not something a re-run fixes.`);
   }
   fail('Dependencies installed. Re-run the command.');
 }

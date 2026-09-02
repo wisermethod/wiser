@@ -106,7 +106,7 @@ Missing parent directories of the output path are created, so a dated folder tha
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
-| `npm ci failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm ci` here by hand |
+| `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `the Mermaid renderer is missing at <path>` | The install ran but left the renderer out | Confirm `package.json` lists `mermaid`, then run `npm ci` in this directory |
 | `Chromium cannot launch` | Binary missing, launch blocked, or OS library gap | Follow the `remediation` line from `npm run check:chromium` |
 | `the diagram did not parse; the renderer stopped at line N` | Mermaid syntax the renderer rejected | Fix that line in the source file. Only the line number is reported, by design; the renderer's own message quotes the file back |
@@ -136,4 +136,4 @@ Missing parent directories of the output path are created, so a dated folder tha
 - A diagram that does not parse exits 1 naming the line number and nothing else from the renderer, and writes no file.
 - `--scale` changes resolution only: the same diagram at 1 and at 2 differs in pixel count and in nothing else. `--width` changes layout: a diagram wider than the cap scales down, a narrower one is not padded out to it.
 - No run opens a network connection; the renderer loads from this tool's own `node_modules`.
-- No run writes any file other than the PNG the caller named and the first-run dependency install in this tool's own directory.
+- No run writes any file other than the PNG the caller named and what `tools/AGENTS.md` lists a first run installing, which includes a Chromium build outside this plugin.

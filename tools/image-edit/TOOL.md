@@ -123,7 +123,7 @@ One thing reaches stderr on a run that succeeds: a `Note:` naming what a placeme
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
-| `npm ci failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm ci` here by hand |
+| `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `Error: --file is required.` | `edit` ran with no image to read | Pass `--file <path>` |
 | `Error: --file must be absolute` or `--output must be absolute` | A relative path was passed | Pass the absolute path; do not rely on the working directory |
 | `Error: no file at <path>` | The input path does not exist | Check the path; an absolute one cannot be misread |
@@ -168,4 +168,4 @@ One thing reaches stderr on a run that succeeds: a `Note:` naming what a placeme
 - An output that reaches this tool directory through a symbolic link is refused exactly as the direct spelling is, and so is one that reaches the input file that way.
 - `edit` onto a path a file already occupies exits 1 naming the path and `--overwrite`, leaves that file byte-identical, and installs nothing; the same run with `--overwrite` replaces it. `--overwrite` never makes an `--output` equal to `--file` succeed, and never writes into a folder.
 - The input file is byte-identical after every run, successful or failed.
-- No run reads a credential, opens a network connection, reads stdin, or writes anything other than the caller's output, the folders that output needed, and the first-run dependency install in this tool's own directory.
+- No run reads a credential, opens a network connection, reads stdin, or writes anything other than the caller's output, the folders that output needed, and what `tools/AGENTS.md` lists a first run installing.

@@ -149,7 +149,7 @@ Success is one JSON object on stdout and exit 0. Most commands return the page's
 
 `check` is the one to read carefully. It exits 0 when the assertion ran and reports the verdict in `passed`; an assertion that did not hold is a finding to report, never something to work around by loosening the assertion.
 
-Failure prints to stderr, leaves stdout empty, and exits 1. Files are written only where a command's `--output` or `--output-dir` names, which `Script Contract.md` requires to be outside this tool directory.
+Failure prints to stderr, leaves stdout empty, and exits 1. Files are written where a command's `--output` or `--output-dir` names, and a first run also installs what `tools/AGENTS.md` lists, including a Chromium build outside this plugin, which `Script Contract.md` requires to be outside this tool directory.
 
 ## Troubleshooting
 

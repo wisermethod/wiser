@@ -109,7 +109,7 @@ One JSON object on stdout, exit 0, whenever the file was read, including a read 
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Dependencies installed. Re-run the command.` | First run in this copy | Run the same command again |
-| `npm ci failed` | Node missing or older than 18, or the directory is not writable | Confirm `node --version` is 18 or newer, delete `node_modules/`, run `npm ci` here by hand |
+| `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `Error: --file is required.` | `describe` ran with no file to read | Pass `--file <path>` |
 | `Error: no file at <path>` | The path given to `--file` does not exist | Check the path; an absolute one cannot be misread |
 | `Error: --format must be one of csv, json, tsv` | A `--format` value outside the three supported formats | Pass one of the three, or omit `--format` to auto-detect |
@@ -132,4 +132,4 @@ One JSON object on stdout, exit 0, whenever the file was read, including a read 
 - `describe` with `--file` omitted, naming a path that does not exist or is not a file, or carrying an unsupported `--format`, exits 1 with the cause on stderr and stdout empty, and triggers no dependency install.
 - A file with no numeric column, an unparseable file, and an empty file each exit 0 with no columns and the reason in `errors`; none of them raises, and none quotes the parser's own message. A present non-numeric column is listed in `skippedColumns` with its reason; a name absent from the file appears only in `errors`.
 - Every figure matches the definitions above: a population standard deviation, interpolated percentiles, four decimal places, and values that are not numbers counted in `nullCount` rather than treated as zero.
-- No run reads a credential, opens a network connection, or writes any file other than the first-run dependency install in this tool's own directory.
+- No run reads a credential, opens a network connection, or writes any file other than what `tools/AGENTS.md` lists a first run installing.
