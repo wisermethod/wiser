@@ -1,0 +1,17 @@
+{
+  "name": "image-edit",
+  "version": "0.2.0",
+  "description": "Applies local edits to an existing image and writes the result as a new PNG, JPEG, or WEBP",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node scripts/edit.js help",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "sharp": "^0.33.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

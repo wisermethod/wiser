@@ -1,0 +1,39 @@
+---
+template: script-contract
+version: 0.3.0
+description: The rules every script a tool ships follows; the single home other files cite
+---
+
+# Script Contract
+
+Fixed rules for every script a tool ships. Templates and authored primitives cite this file; none restate it.
+
+## What this contract covers here
+
+This plugin ships tools. Every clause below binds every script a tool ships, in every runtime.
+
+Connectors are a second primitive kind and this plugin carries none, so the clauses that govern a connector's credential handling and its transport are not part of this file. A plugin that adds connectors brings the clauses that govern them, and this file is where they attach.
+
+## Rules for every script
+
+**Self-contained.** Scripts import Node built-ins, their own directory's `node_modules/`, and files inside their own tool directory. Nothing else. No import reaches outside the directory and no path into another root is hardcoded; workspace composition differs per customer, so such a path is a portability bug, not a configuration detail.
+
+**Dependencies.** Before importing any package, the entry script checks for one named package's own `package.json` under `node_modules/`, never for the `node_modules/` directory itself: an install that dies partway leaves that directory in place and the packages absent, and the failure then arrives as an opaque import crash. Missing, the script runs `npm install` in the directory holding its `package.json`, tells the user to re-run the command, and exits 1. That install writes `node_modules/` and the lockfile into that directory. Never start a second command in the same tool while a first-run install is running.
+
+**System dependencies.** A runtime a script needs beyond Node and npm (pandoc, ffmpeg, a Python interpreter, a browser binary) is declared in the typed file's Dependencies section: the name, what needs it, and the one command that proves it is present. A script runs that check after help parsing and only on a command that needs the dependency; missing, it fails by naming the dependency and its check command, never with install steps. Install walkthroughs are never written into a primitive; they rot as platforms change. When a check fails, the agent reads the dependency's own current documentation when it is reachable, runs whatever install the host can run itself, machine-level changes only with the user's approval, and hands the user only the smallest step the host cannot; documentation unreachable, it stops and reports the dependency, the failed check, and that guidance could not be fetched, never inventing steps from memory. A primitive whose scripts need only Node and npm carries no Dependencies section.
+
+**Runtimes.** Node is the default runtime and the one the templates ship. A script may use another runtime when the typed file's Dependencies section declares that runtime's interpreter per System dependencies above. The interpreter is the one dependency a script cannot check from inside itself; the agent runs the declared presence check before the script's first invocation. Every other rule here binds unchanged in every runtime: help before configuration, `--env`, the output and error discipline, the write rules. Packages beyond the runtime's standard library install into a first-run cache inside the primitive's own directory (for Python, a virtual environment beside the scripts), by the same pattern as the npm install above: check one named package's own marker inside the cache; missing, create the cache, install, tell the user to re-run, and exit 1. Nothing installs into the system or the user's global environment, and a runtime's standard library is preferred over a package that only saves typing.
+
+**Help without configuration.** `help` and `--help` are parsed and answered before the dependency check, so usage is available on a copy that has never been installed or configured.
+
+**Unknown flags.** An option a script does not name is refused by that name, before any work, any dependency install, and any network request. The refusal points at the script's own help. Silently accepting a flag and printing success is a defect: a mistyped option must not look like it applied.
+
+A tool's option set is closed, and the command's own help declares it. Every flag the command accepts is listed, and anything else is refused.
+
+**Configuration.** Every command needing configuration or credentials takes `--env [path]`, passed as an absolute path. The agent resolves it from the workspace's Provides binding (the constitution's Workspace Model, which also owns the unbound default). Scripts never search for a configuration file and never fall back to a default location. Parse the bound file directly: its values never enter the process environment, a log, or the output (the constitution's Irreversibles). When `--env` is absent or names a file that does not exist, the script says which and tells the agent to resolve the binding instead of guessing a path.
+
+**Output and errors.** Work that succeeds prints one JSON object to stdout and exits 0. `help` and `--help` print usage text to stdout and exit 0. Failure prints to stderr only, leaves stdout empty, and exits 1. A failure message names the cause and the fix; when the cause came from an external service it names the status and the endpoint called, never the raw provider message, which can carry a credential. A successful object must not imply an input the process discarded: input dropped, first-wins among duplicates, or otherwise not applied is either refused before success or named in the object itself.
+
+**Where files are written.** Beyond the dependency install above, a script never writes inside its own directory. A script accepting an output path refuses one that resolves inside that directory; the agent passes a work directory in the owning root, per `standards/conventions.md`.
+
+**Caller-named paths.** Every path a command accepts as a source or a destination is screened before anything opens it; the `--env` path itself is configuration, governed above, not a source. The screen canonicalizes the path against the filesystem, walking up to the deepest ancestor that exists, resolving it, and rejoining the components below, so a symbolic link anywhere in the spelling, including one standing in for a parent of a file that does not exist yet, collapses onto the real path it names; a path that cannot be canonicalized has not been cleared and is refused, never compared as the text it was spelled with. The canonical path is then compared by device and inode, the identity a hard link keeps and no spelling reaches, against the refused set: the file `--env` names; every file resolving inside the directory that holds it, which holds credentials and nothing else; and, for a destination, the primitive's own directory (Where files are written, above). The screen returns the resolved path, and the call site uses that value for every open, read, write, and transmit; a test against a filename runs on the resolved basename, never the caller's spelling. One decoupling: a filename a command transmits, an upload's display name or an attachment's name in a body, may keep the caller's spelling; the bytes always come from the resolved path. The screen answers for the moment it is called, so a file swapped between the check and the open is not caught. Accepted: the vectors this clause closes need only a link planted in advance, while the swap also requires a concurrent process writing in the work directory as the same user, who can already read that user's own credential file, so the race grants essentially no capability not already held; the fix, opening once and reading through the descriptor, would restructure every screen's read path and is not taken.

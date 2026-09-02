@@ -3,12 +3,9 @@ name: Create Presentation
 type: skill
 category: design
 description: Build a single-file reveal.js HTML slide deck with a narrative arc, conclusion headlines, and brand-consistent design
-version: 0.6.0
+version: 0.7.0
 memory:
   - design
-gaps:
-  - chart rendering, and export of a built deck to a presentation file
-  - scaffolding a deck that presents with no network, which needs the runtime copied in beside it
 ---
 
 # Create Presentation
@@ -37,7 +34,7 @@ An argument designer, not a slide decorator. A deck earns attention by making it
 
 ## Steps
 
-**This root ships no tools and no connectors.** Wherever this file names a `tools/` or `connectors/` path, or a command that belongs to one, that capability is absent. Where the work in hand depends on it, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+**This root ships tools and no connectors.** A `tools/` path this file names is present: `tools/AGENTS.md` indexes what ships, each tool installs what it needs the first time it is called, and a tool that cannot run reports that itself rather than returning something wrong. **Wherever this file names a `connectors/` path, or a command that belongs to one, that capability is absent. So is every capability this file's own `gaps` frontmatter declares, whether or not a path names it**: a gap is the authoritative statement of what is missing, and some of them name no path because nothing in this root would have supplied them. Read the frontmatter as part of this rule, not beside it. Where the work in hand depends on something absent, or on a tool that stopped, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
 
 Staged composition: resolve design, route the material, calibrate, design the arc, generate slides beat by beat, then assemble and preview. Never generate a whole deck in one pass; a structural change after slides exist is expensive. The reference libraries in this directory are read at the step that needs them, never all at once:
 
@@ -72,9 +69,11 @@ Staged composition: resolve design, route the material, calibrate, design the ar
 - **Generic default styling.** Missing design sources tempt a generic blue-and-purple look. Ask for real references and design from them instead.
 - **Dark deck, white PDF.** A dark field on `.reveal` without a matching `@media print` rule on `.pdf-page` exports as white pages under `tools/deck-export` pdf. Set `--deck-bg` (and any page gradient) in the print block to the on-screen background; do not rely on `printBackground` alone.
 - **Spec drift.** Editing the built deck without updating the outline, or sharing an export rendered before the last edit. The outline rots into a description of an earlier deck and the stale export goes out. Sync and re-render on every substantive edit, not later.
-- **A tool this root does not carry.** Every `tools/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
+- **A tool that cannot run.** Every `tools/` path this file names ships, and a tool can still stop: a system dependency it names may be absent, or the directory it installs into may not be writable. It says which, and it says so rather than returning something wrong. Where a step depends on a tool that stopped, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
+
+- **Where a tool this run needed could not run, success is the honest stop**: the run named which step could not run, what it would have produced, and why the tool stopped, and produced no file and no figure in its place. **Every criterion below applies to a run in which every tool it needed ran.**
 
 - The deck opens from `file://` with no server and no build step, as one HTML file plus, only with a brand template, one assets folder, and the reveal.js assets load from the pinned CDN the Context names.
 - Every slide communicates one idea, and every headline states a conclusion a reader could dispute, not a topic label.

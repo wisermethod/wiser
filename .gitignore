@@ -6,3 +6,18 @@ infrastructure/release/dist/
 .Spotlight-V100
 .Trashes
 .stversions/
+
+# Tool install artifacts. A tool installs its dependencies on the user's own
+# machine when that tool is called; this repository ships manifests and never
+# packages, and none of what an install leaves behind is committable.
+.venv/
+__pycache__/
+*.egg-info/
+
+# Model and browser caches. Named from the directories the tools actually
+# create: transcribe.py writes speech-models and cache under the --model-cache
+# directory the caller passes, and playwright downloads a Chromium build into
+# ms-playwright.
+.cache/
+speech-models/
+ms-playwright/

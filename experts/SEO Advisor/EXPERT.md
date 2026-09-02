@@ -3,12 +3,11 @@ name: SEO Advisor
 type: expert
 category: seo
 description: Judge a site's search visibility and return findings ordered by what would actually move its rankings, each naming the check that surfaced it, the fix, the expected impact, and the effort
-version: 0.5.0
+version: 0.6.0
 gaps:
-  - automated site crawling, keyword research, page analysis and sitemap comparison
+  - keyword research
+  - automated site crawling
   - search-console readings pulled from the site's own account
-  - automated checks of which analytics and behaviour tags a page actually serves
-  - driving a browser to reach a source that sits behind a login
 ---
 
 # SEO Advisor
@@ -60,7 +59,7 @@ The answer surface has widened. Pages are now read by answer engines as well as 
 
 ## Steps
 
-**This root ships no tools and no connectors.** Wherever this file names a `tools/` or `connectors/` path, or a command that belongs to one, that capability is absent. Where the work in hand depends on it, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+**This root ships tools and no connectors.** A `tools/` path this file names is present: `tools/AGENTS.md` indexes what ships, each tool installs what it needs the first time it is called, and a tool that cannot run reports that itself rather than returning something wrong. **Wherever this file names a `connectors/` path, or a command that belongs to one, that capability is absent. So is every capability this file's own `gaps` frontmatter declares, whether or not a path names it**: a gap is the authoritative statement of what is missing, and some of them name no path because nothing in this root would have supplied them. Read the frontmatter as part of this rule, not beside it. Where the work in hand depends on something absent, or on a tool that stopped, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
 
 ### Step 1: Fix the site, the goal, and the baseline
 
@@ -144,7 +143,7 @@ Where the pass ran against saved state from an earlier pass, compare the two: wh
 - **A missing source read as a finding.** An absent connector is not a fault in the site. Label the reading, score the missing source as its own item, and never let a gap in the evidence become a gap in the coverage.
 - **Certainty about rankings.** Naming a position or a date turns a probabilistic recommendation into a promise. State the mechanism, state the uncertainty, and let the confidence field carry the rest.
 - **Recommending removal.** A page carrying inbound links or impressions is never deleted on this expert's advice without a redirect to the closest live equivalent already specified in the same item.
-- **A tool or connector this root does not carry.** Every `tools/` and `connectors/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
+- **A connector this root does not carry.** Every `connectors/` path this file names, and every command that belongs to one, is capability this plugin does not ship; the `tools/` paths this file names do ship. Where a step depends on a connector, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
 

@@ -3,10 +3,7 @@ name: Visualizer
 type: skill
 category: design
 description: Turn source material into one diagram whose geometry matches the structure the material actually has, delivered as a self-contained HTML file or as Mermaid for markdown
-version: 0.4.0
-gaps:
-  - rendering a chart or diagram to an image file
-  - opening a rendered diagram in a browser to exercise the interactions it promises
+version: 0.5.0
 ---
 
 # Visualizer
@@ -33,7 +30,7 @@ A diagram designer who selects geometry by cognitive fit and never by appearance
 
 ## Steps
 
-**This root ships no tools and no connectors.** Wherever this file names a `tools/` or `connectors/` path, or a command that belongs to one, that capability is absent. Where the work in hand depends on it, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+**This root ships tools and no connectors.** A `tools/` path this file names is present: `tools/AGENTS.md` indexes what ships, each tool installs what it needs the first time it is called, and a tool that cannot run reports that itself rather than returning something wrong. **Wherever this file names a `connectors/` path, or a command that belongs to one, that capability is absent. So is every capability this file's own `gaps` frontmatter declares, whether or not a path names it**: a gap is the authoritative statement of what is missing, and some of them name no path because nothing in this root would have supplied them. Read the frontmatter as part of this rule, not beside it. Where the work in hand depends on something absent, or on a tool that stopped, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
 
 **1. Read the structure out of the material.** A `<categorization_output>` supplied with the request is this step's answer already; take it and go to step 2 rather than reducing the material a second time. Otherwise decide whether the material already carries its structure or has to be reduced to find it.
 
@@ -95,9 +92,11 @@ Then the five-second test: can a reader state the core structure after five seco
 - **Everything on screen at once.** A complete diagram that is unreadable has traded the thing it was made for. Cut to the ceiling and layer the rest.
 - **Hand-positioning at scale.** Misaligned arrows and overlapping nodes are the signature of manual coordinates past the point where they hold. Move to the technique's library rather than nudging values.
 - **The wrong medium for the destination.** Interactive HTML handed to someone who needs it inside a markdown document, or Mermaid attempted for a matrix or a fishbone it cannot express. Settle the destination in step 4 before building anything.
-- **A tool this root does not carry.** Every `tools/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
+- **A tool that cannot run.** Every `tools/` path this file names ships, and a tool can still stop: a system dependency it names may be absent, or the directory it installs into may not be writable. It says which, and it says so rather than returning something wrong. Where a step depends on a tool that stopped, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
+
+- **Where a tool this run needed could not run, success is the honest stop**: the run named which step could not run, what it would have produced, and why the tool stopped, and produced no file and no figure in its place. **Every criterion below applies to a run in which every tool it needed ran.**
 
 - The geometry traces to a row of step 2's table that the material matches, or to the requester's named choice after step 2 stated what the matching geometry would show; where two rows fit and no choice was named, the requester chose between them.
 - Every element carries a label, and every connection carries a relationship verb, hierarchy's parent-to-child lines excepted.

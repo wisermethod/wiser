@@ -1,0 +1,17 @@
+{
+  "name": "content-harvester",
+  "version": "0.1.0",
+  "description": "Turns one harvest request into a timeboxed, deduplicated, ranked bundle of source candidates",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node scripts/harvest.js help"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.7.3",
+    "undici": "^6.21.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

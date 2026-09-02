@@ -1,0 +1,14 @@
+{
+  "name": "video-edit",
+  "version": "0.1.2",
+  "description": "Edits a video with FFmpeg and writes the result where the caller names, covering trim, resize, speed, text overlay, audio removal, concatenation, frame extraction, and GIF conversion",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node scripts/edit.js help"
+  },
+  "dependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

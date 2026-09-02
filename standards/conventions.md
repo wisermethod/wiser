@@ -52,7 +52,7 @@ A subject folder that holds folders of its own, or has outgrown a quick scan, ca
 
 Directories whose structure another standard already fixes are exempt:
 
-- `skills/`, `experts/`, `tools/`, and `connectors/` are flat: `standards/primitives.md`. A client root does not ship these; the primitives live in a plugin root, and this one carries skills and experts.
+- `skills/`, `experts/`, `tools/`, and `connectors/` are flat: `standards/primitives.md`. A client root does not ship these; the primitives live in a plugin root, and this one carries skills, experts, and tools.
 - `plays/` and `playbooks/` hold files in their own formats when those directories exist: `standards/play.md` and `standards/playbook.md`. A root's AGENTS.md may place those files in `work/<subject>/` instead, and then this exemption does not apply: the subject folder's AGENTS.md names them.
 - `memory/` holds the files the root's Provides block binds.
 - `inbox/` holds captures with no subject yet, per Working Files above; a capture whose subject becomes known moves to that subject's folder. `zArchive/` follows Archives, below.

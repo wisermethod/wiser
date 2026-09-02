@@ -1,0 +1,17 @@
+{
+  "name": "web-screenshot",
+  "version": "0.1.0",
+  "description": "Captures a PNG of a live web page at a caller-named viewport size and scale, either the visible viewport or the full scrollable page",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node scripts/capture.js help",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "playwright": "^1.62.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -3,9 +3,8 @@ name: List Hygiene
 type: skill
 category: communication
 description: Decide what an email contact list keeps and drops, verified through the usebouncer connector, with the cost put to the user before it is spent and every drop traced to the result field that caused it
-version: 0.4.0
+version: 0.5.0
 gaps:
-  - parsing and joining a contact list file
   - address verification against an email validation service
 ---
 
@@ -36,7 +35,7 @@ Someone who has cleaned a list before and remembers the two ways it goes wrong. 
 
 ## Steps
 
-**This root ships no tools and no connectors.** Wherever this file names a `tools/` or `connectors/` path, or a command that belongs to one, that capability is absent. Where the work in hand depends on it, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+**This root ships tools and no connectors.** A `tools/` path this file names is present: `tools/AGENTS.md` indexes what ships, each tool installs what it needs the first time it is called, and a tool that cannot run reports that itself rather than returning something wrong. **Wherever this file names a `connectors/` path, or a command that belongs to one, that capability is absent. So is every capability this file's own `gaps` frontmatter declares, whether or not a path names it**: a gap is the authoritative statement of what is missing, and some of them name no path because nothing in this root would have supplied them. Read the frontmatter as part of this rule, not beside it. Where the work in hand depends on something absent, or on a tool that stopped, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
 
 ### Step 1: Establish what is being verified, and on whose basis
 
@@ -105,7 +104,7 @@ Take the cost from the completed job's own credits figure. Step 4's estimate is 
 
 ### Step 6: Deliver the decision
 
-Into the work directory: the group files, and one record naming the source file and its row count, the addresses submitted, the job identifier, the credits the completed job reports, the count in every group, the rows that carried no address, the rows that did not parse, and, for each group, the field that put its addresses there.
+Into the work directory: the group files, and one record naming the source file and its row count, the addresses submitted, the job identifier, the credits the completed job reports, the count in every group, the rows that carried no address, the rows read with a column count different from the header, which `tools/data-parse/` reports as `raggedRowCount` and which are present in `rowCount` rather than dropped, and, for each group, the field that put its addresses there.
 
 Into the response: the decision rather than the file listing. How much of the list is mailable, what it cost, what came off it and why, and what happens to the group that waits.
 
@@ -117,11 +116,11 @@ Into the response: the decision rather than the file listing. How much of the li
 - **Unknown read as dead.** Unknown means the mailbox could not be reached in the time allowed, not that it is gone. Dropping unknowns deletes reachable people permanently, and rechecking them later costs again what was already paid.
 - **Rows that disappear.** A row with no address, a row that did not parse, several rows collapsed onto one deduplicated address: each is a row the caller still counts as on the list. Every one of them is in the record with its number.
 - **The request that has not been asked yet.** An address column that could be two columns, a list whose origin nobody states, a send nobody has described, a balance that will not cover the file: ask before submitting, per the constitution's Behavioral Core. A submitted job cannot be recalled and its credits do not come back.
-- **A tool or connector this root does not carry.** Every `tools/` and `connectors/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
+- **A connector this root does not carry.** Every `connectors/` path this file names, and every command that belongs to one, is capability this plugin does not ship; the `tools/` paths this file names do ship. Where a step depends on a connector, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
 
-- **Where a component this root does not ship was needed, success is the honest stop**: the run named which step could not run, what it would have produced, and the gap it belongs to, and produced no file and no figure in its place. **Every criterion below applies to a run in which those components were present.**
+- **Where a connector this root does not ship was needed, success is the honest stop**: the run named which step could not run, what it would have produced, and the gap it belongs to, and produced no file and no figure in its place. **Every criterion below applies to a run in which those connectors were present and every tool it needed ran.**
 
 - The list's origin and the send were on the record before any address left the machine.
 - `tools/data-parse/` profiled the file first, and the address column came from its column list rather than from a guess.
@@ -129,4 +128,4 @@ Into the response: the decision rather than the file listing. How much of the li
 - The user saw the balance, the address count, and the cost estimate together and answered, before the run was confirmed.
 - No list was submitted twice, and the identifier of the job the results came from is in the record.
 - Every address in the send group traces to the result field that put it there, every drop names the field that dropped it, and every caution travels with the addresses it qualifies.
-- The record states the completed job's own credits figure as the cost, and counts the rows that carried no address and the rows that did not parse.
+- The record states the completed job's own credits figure as the cost, and counts the rows that carried no address and the ragged rows `tools/data-parse/` reported. A ragged row is present in `rowCount` and is not a row that failed to parse; a file that will not parse at all stops the run at Step 2 instead.

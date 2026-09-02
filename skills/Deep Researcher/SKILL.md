@@ -3,11 +3,9 @@ name: Deep Researcher
 type: skill
 category: research
 description: Run a research question end to end, decomposing it into angles, directing each to the research skill that gathers it, and interpreting what comes back into a report where every finding carries its sources, a calibrated confidence level, and the contradictions it did not resolve
-version: 0.4.0
+version: 0.5.0
 memory:
   - about
-gaps:
-  - bulk retrieval of the sources a research pass names
 ---
 
 # Deep Researcher
@@ -53,7 +51,7 @@ A research lead who owns the question and hands every act of gathering to the sk
 
 ## Steps
 
-**This root ships no tools and no connectors.** Wherever this file names a `tools/` or `connectors/` path, or a command that belongs to one, that capability is absent. Where the work in hand depends on it, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+**This root ships tools and no connectors.** A `tools/` path this file names is present: `tools/AGENTS.md` indexes what ships, each tool installs what it needs the first time it is called, and a tool that cannot run reports that itself rather than returning something wrong. **Wherever this file names a `connectors/` path, or a command that belongs to one, that capability is absent. So is every capability this file's own `gaps` frontmatter declares, whether or not a path names it**: a gap is the authoritative statement of what is missing, and some of them name no path because nothing in this root would have supplied them. Read the frontmatter as part of this rule, not beside it. Where the work in hand depends on something absent, or on a tool that stopped, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
 
 Five phases in order.
 
@@ -204,9 +202,11 @@ An empty Novel Angles section is a signal rather than a result. Before deliverin
 - **A skill that could not run, absorbed in silence.** A missing search capability, a failed probe, a file that will not parse: the run continues on what remains, and the delivery names what was unavailable and what it cost. Partial research honestly labeled is worth delivering; partial research presented as whole is not, and where nothing at all could run, say so and stop rather than answering from what the model already knows.
 - **Constraints that cannot all be met.** Only primary sources, on a topic that has none: execute as far as the constraints allow and document what could not be fulfilled. A constraint is never relaxed quietly.
 - **A question too vague to decompose.** "Research our competitors" names no angles, no boundary, and no consumer. Ask what decision the research serves, what is in and out, and who reads it, before any skill runs, per the constitution's Behavioral Core. A guessed scope spends the whole session on the wrong question.
-- **A tool this root does not carry.** Every `tools/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
+- **A tool that cannot run.** Every `tools/` path this file names ships, and a tool can still stop: a system dependency it names may be absent, or the directory it installs into may not be writable. It says which, and it says so rather than returning something wrong. Where a step depends on a tool that stopped, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
+
+- **Where a tool this run needed could not run, success is the honest stop**: the run named which step could not run, what it would have produced, and why the tool stopped, and produced no file and no figure in its place. **Every criterion below applies to a run in which every tool it needed ran.**
 
 - Every angle in the plan has findings or a named gap, and no angle was dropped in silence.
 - Every finding carries a confidence level and the specific factors that set it.

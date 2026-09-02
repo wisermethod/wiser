@@ -1,0 +1,13 @@
+{
+  "name": "sitemap-diff",
+  "version": "0.1.0",
+  "description": "Compares two sitemap snapshots of one site and reports added URLs, removed URLs, lastmod changes, and new path segments",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node scripts/sitemap-diff.js help"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

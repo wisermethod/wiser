@@ -1,5 +1,5 @@
 Wiser Plugins License
-Version 1.1, 2026-08-26
+Version 1.2, 2026-09-02
 
 Copyright 2026 EffectiveSC (effectivesc.org)
 
@@ -14,6 +14,10 @@ Redistribute it, sell it, or offer it as a service. An organization that wants t
 ## Your work is yours
 
 This license covers the software. Anything you make with it belongs to you.
+
+## Third-party packages
+
+This repository's own files are under the Wiser licence. The third-party packages a tool installs on your machine are yours under their own licences; this repository redistributes none of them, and each tool names what it will install.
 
 ## This version is free
 

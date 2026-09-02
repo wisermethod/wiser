@@ -1,0 +1,13 @@
+{
+  "name": "seo-page-analyzer",
+  "version": "0.1.1",
+  "description": "Reports one page's on-page SEO elements from caller-supplied HTML, each element with its measurements and the checks it failed",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node scripts/analyze.js help"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

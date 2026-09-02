@@ -1,0 +1,17 @@
+{
+  "name": "browser-control",
+  "version": "0.1.0",
+  "description": "Drives a persistent Chromium session and returns page state as JSON",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node scripts/browser.js help",
+    "check:chromium": "node --input-type=module -e \"const { check } = await import('./scripts/lib/browser-runtime.js'); const c = await check(); if (!c.chromiumLaunch) { console.error(c.remediation || 'chromiumLaunch:false'); process.exit(1); } console.log(JSON.stringify(c));\""
+  },
+  "dependencies": {
+    "playwright": "^1.62.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

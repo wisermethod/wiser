@@ -1,0 +1,16 @@
+{
+  "name": "image-overlay",
+  "version": "0.1.0",
+  "description": "Composites an overlay image over a base image and writes the flattened result as PNG or JPEG",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node scripts/overlay.js help"
+  },
+  "dependencies": {
+    "sharp": "^0.33.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

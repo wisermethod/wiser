@@ -1,0 +1,17 @@
+{
+  "name": "data-join",
+  "version": "0.1.0",
+  "description": "Joins two CSV, JSON, or TSV files on a shared key column with an inner or left join",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node scripts/join.js help",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "csv-parse": "^5.5.6"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

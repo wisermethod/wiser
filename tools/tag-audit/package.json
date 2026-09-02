@@ -1,0 +1,16 @@
+{
+  "name": "tag-audit",
+  "version": "0.1.0",
+  "description": "Reports which analytics and behavior tags a live page serves",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node scripts/tag-audit.js help"
+  },
+  "dependencies": {
+    "undici": "^6.21.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

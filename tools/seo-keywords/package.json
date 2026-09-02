@@ -1,0 +1,13 @@
+{
+  "name": "seo-keywords",
+  "version": "0.1.0",
+  "description": "Turns Search Console query rows into a keyword report of top performers, opportunities, trends, cannibalization, and target keyword standings",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node scripts/keywords.js help"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>{{TITLE}}</title>
+  <link rel="stylesheet" href="{{ASSETS}}/reset.css">
+  <link rel="stylesheet" href="{{ASSETS}}/reveal.css">
+  <link rel="stylesheet" href="{{ASSETS}}/theme.css">
+  <link rel="stylesheet" href="{{ASSETS}}/monokai.css">
+  <style>
+    /* Layout utilities. Colors and fonts come from the theme, never from here. */
+    .reveal section img { border: none; box-shadow: none; }
+    .reveal .slide-number { font-size: 12px; }
+
+    .section-slide h1, .section-slide h2, .section-slide h3,
+    .section-slide p, .section-slide li { color: #fff; }
+
+    .columns { display: flex; gap: 2em; text-align: left; width: 100%; }
+    .columns .col { flex: 1; }
+
+    .metrics { display: flex; justify-content: center; gap: 4em; margin-top: 1em; }
+    .metric { text-align: center; }
+    .metric .number { font-size: 2.5em; font-weight: bold; line-height: 1.2; }
+    .metric .label { font-size: 0.5em; opacity: 0.6; margin-top: 0.3em; }
+
+    .attribution { font-size: 0.45em; opacity: 0.5; margin-top: 2em; }
+
+    .reveal pre { width: 100%; font-size: 0.55em; }
+    .reveal pre code { max-height: 500px; }
+
+    .reveal blockquote {
+      border-left: 4px solid var(--r-link-color, currentColor);
+      padding: 0.5em 1em; font-style: italic;
+      width: auto; text-align: left; background: none;
+      box-shadow: none;
+    }
+
+    /*
+     * Print / PDF: .pdf-page boxes default to white. Paint --deck-bg (default
+     * white for this light starter) so dark custom themes that set the variable
+     * export with readable text under tools/deck-export pdf.
+     */
+    :root { --deck-bg: #ffffff; }
+    @media print {
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      html, body, .reveal, .reveal .slides, .reveal .backgrounds {
+        background: var(--deck-bg, #ffffff) !important;
+      }
+      .reveal .slides .pdf-page { background: var(--deck-bg, #ffffff) !important; }
+      .reveal .slide-background { background: transparent !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+<!-- SLIDES START -->
+      <section>
+        <h1>{{TITLE}}</h1>
+        <p class="attribution">Replace this line with the author and the date</p>
+      </section>
+
+      <section>
+        <h2>Replace this headline with a conclusion</h2>
+        <p>Replace this line with the point the headline claims</p>
+      </section>
+
+      <section>
+        <h2>Replace this slide with the close</h2>
+      </section>
+<!-- SLIDES END -->
+    </div>
+  </div>
+  <script src="{{ASSETS}}/reveal.js"></script>
+  <script src="{{ASSETS}}/highlight.js"></script>
+  <script src="{{ASSETS}}/notes.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      slideNumber: true,
+      transition: '{{TRANSITION}}',
+      width: {{WIDTH}},
+      height: {{HEIGHT}},
+      margin: 0.04,
+      center: true,
+      pdfSeparateFragments: false,
+      plugins: [RevealHighlight, RevealNotes]
+    });
+  </script>
+</body>
+</html>

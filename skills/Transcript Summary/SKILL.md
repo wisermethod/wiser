@@ -3,9 +3,7 @@ name: Transcript Summary
 type: skill
 category: writing
 description: Turn a transcript into a summary that leads with analysis and preserves every decision, action item, open question, and nuance the recording carried
-version: 0.4.0
-gaps:
-  - audio transcription, so a recording must arrive already transcribed
+version: 0.5.0
 ---
 
 # Transcript Summary
@@ -40,11 +38,11 @@ A reader assembling the record for someone who was not there and who will be hel
 
 ## Steps
 
-**This root ships no tools and no connectors.** Wherever this file names a `tools/` or `connectors/` path, or a command that belongs to one, that capability is absent. Where the work in hand depends on it, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+**This root ships tools and no connectors.** A `tools/` path this file names is present: `tools/AGENTS.md` indexes what ships, each tool installs what it needs the first time it is called, and a tool that cannot run reports that itself rather than returning something wrong. **Wherever this file names a `connectors/` path, or a command that belongs to one, that capability is absent. So is every capability this file's own `gaps` frontmatter declares, whether or not a path names it**: a gap is the authoritative statement of what is missing, and some of them name no path because nothing in this root would have supplied them. Read the frontmatter as part of this rule, not beside it. Where the work in hand depends on something absent, or on a tool that stopped, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
 
-**1. Read the whole transcript before writing anything, and establish what it is.** Settle four things first: what kind of recording this is, who speaks and whether the transcript labels them, whether timestamps are present and what duration they imply, and where the transcript is unreliable. Machine transcripts mangle proper nouns, numbers, and technical terms, mark stretches inaudible, lose the opening seconds, and let speaker labels drift, splitting one person across two labels or collapsing two people into one. Each of those bounds what the summary may claim, so they are found here rather than discovered mid-draft.
+**1. Read the whole transcript before writing anything, and establish what it is.** Settle four things first: what kind of recording this is, who speaks and whether the transcript labels them, whether timestamps are present and what duration they imply, and where the transcript is unreliable. Machine transcripts mangle proper nouns, numbers, and technical terms, mark stretches inaudible, lose the opening seconds, and let speaker labels drift, splitting one person across two labels or collapsing two people into one, **or carry no speaker labels at all**, which is what `tools/Transcribe Audio/` produces: speaker labeling is that tool's declared gap, so its output is one stream of words with no speaker, no timestamp and no line marker. Each of those bounds what the summary may claim, so they are found here rather than discovered mid-draft.
 
-Where labels are anonymous and `<context>` does not name them, keep them exactly as the transcript writes them, and say in the delivered summary that naming them is a one-line correction the requester can supply. Never infer an identity from what a speaker knows or how they talk.
+Where labels are anonymous and `<context>` does not name them, keep them exactly as the transcript writes them, and say in the delivered summary that naming them is a one-line correction the requester can supply. **Where the transcript labels nobody, attribute nothing.** Do not synthesize a label, not even `Speaker A`: an invented label is an attribution, and a summary that carries one cannot be told apart from a summary that knew. Say in the delivery that the transcript carries no attribution and that restoring it needs someone who was in the room or the audio itself, which is not a correction the requester can supply in one line. Never infer an identity from what a speaker knows or how they talk.
 
 A transcript too degraded to recover the substance from is reported as that rather than summarized: say what is unreadable and what would fix it.
 
@@ -56,7 +54,7 @@ A transcript too degraded to recover the substance from is reported as that rath
 - **Open questions**, raised and left unresolved.
 - **Quotes** worth preserving verbatim, the ones carrying a position, a commitment, or an insight in the speaker's own words.
 
-**3. Read for what the words alone do not carry.** Tone shifts, hesitation, enthusiasm, tension, deflection, the point someone kept returning to, the question someone answered next to rather than into, whether agreement was reached or performed. This is what makes the summary worth more than the transcript, and it is where fabrication is easiest: each reading names the passage that produced it and enters as inference with its hedge intact, per the sourcing registers in `standards/conventions.md`. A single-speaker recording has dynamics too: certainty, self-correction, what they circled back to.
+**3. Read for what the words alone do not carry.** Tone shifts, hesitation, enthusiasm, tension, deflection, the point someone kept returning to, the question someone answered next to rather than into, whether agreement was reached or performed. This is what makes the summary worth more than the transcript, and it is where fabrication is easiest: each reading names the passage that produced it and enters as inference with its hedge intact. **Where the transcript carries neither labels nor timestamps, a passage is named by quoting its opening words**, which is the only handle such a transcript offers and is what the Traceability criterion is checked against, per the sourcing registers in `standards/conventions.md`. A single-speaker recording has dynamics too: certainty, self-correction, what they circled back to.
 
 **4. Verify the checkable claims.** Three kinds earn the effort: a statistic, date, figure, or attributed quote that a decision rests on; a reference to an article, video, book, or study; and anything someone in the recording said they would have to look up, which the summary can simply answer. Hand those to `skills/External Research/` as the queries and sort what returns into three buckets. Verified and Unverified carry the meanings the evidence labels in `standards/conventions.md` define; Looked Up is this skill's own bucket, the question the recording left hanging, with the answer and its source. Where the host offers no research capability, or the requester declines this pass, every checkable claim lands in Unverified with that as the reason: the pass is skipped in the open, never faked.
 
@@ -71,7 +69,7 @@ Default shape, used unless the request names its own, which replaces the arrange
 
 **Date:** [YYYY-MM-DD, or not stated in the transcript]
 **Duration:** [from timestamps, or not derivable]
-**Participants:** [names where known, otherwise the transcript's own labels]
+**Participants:** [names where known; the transcript's own labels otherwise; or, where the transcript attributes no turn, say so and name nobody]
 **Transcript:** [its origin if known, and any defect from step 1 that limits this summary]
 
 ## Analysis
@@ -80,7 +78,7 @@ Default shape, used unless the request names its own, which replaces the arrange
 [What would be costly to miss or forget, each with the cost.]
 
 ### Dynamics
-[Tone, tension, enthusiasm, hesitation, agreement patterns, each naming the passage it reads from.]
+[Tone, tension, enthusiasm, hesitation, agreement patterns, each naming the passage it reads from. On an unattributed transcript these are properties of the recording rather than of named people, and are written that way.]
 
 ### Verification
 
@@ -115,7 +113,7 @@ Default shape, used unless the request names its own, which replaces the arrange
 - [Raised and unresolved]
 
 ### Notable Quotes
-> "[Verbatim]" [Speaker]
+> "[Verbatim]" [Speaker, or unattributed where the transcript names nobody]
 ```
 
 Placement follows `standards/conventions.md`, in the root that owns the output. Where the transcript file happens to sit never decides where the summary lands.
@@ -128,9 +126,11 @@ Placement follows `standards/conventions.md`, in the root that owns the output. 
 - **The room smoothed over.** A disagreement rendered as a discussion, an unresolved thread rendered as an outcome, a tense exchange rendered as alignment. Where the recording resolved nothing, the summary says so.
 - **Comprehensiveness read as length.** Restating the transcript at half its length is not a summary, and a summary that fits on a page while dropping the nuance the decision turned on is not one either. Coverage is the bar, never word count.
 - **A speaker's claim treated as a fact about the world.** Someone stating a statistic makes it a claim; step 4 decides which bucket it lands in, and the summary attributes it either way.
-- **A tool this root does not carry.** Every `tools/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
+- **A tool that cannot run.** Every `tools/` path this file names ships, and a tool can still stop: a system dependency it names may be absent, or the directory it installs into may not be writable. It says which, and it says so rather than returning something wrong. Where a step depends on a tool that stopped, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
+
+- **Where a tool this run needed could not run, success is the honest stop**: the run named which step could not run, what it would have produced, and why the tool stopped, and produced no file and no figure in its place. **Every criterion below applies to a run in which every tool it needed ran.**
 
 - Every substantive stretch of the transcript has a home in the summary, or the summary names it and says why it is out.
 - Every quote is verbatim, every attribution traces to a label the transcript wrote, and every claim about tone or motive names its passage and reads as inference.

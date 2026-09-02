@@ -1,0 +1,365 @@
+#!/usr/bin/env node
+/**
+ * svg-to-png - render an SVG file to a PNG file
+ *
+ * Usage:
+ *   node scripts/render.js help
+ *   node scripts/render.js render --file <path> --output <path> [--scale N]
+ *                                 [--width N] [--timeout N] [--overwrite]
+ *
+ * Node built-ins only above the dependency check; nothing here imports from
+ * outside this tool directory. The rules every shipped script follows are
+ * stated once, in system/templates/Script Contract.md.
+ */
+
+import { execFileSync } from 'node:child_process';
+import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { DEFAULT_SCALE, DEFAULT_TIMEOUT_MS, buildDocument, isInsideDirectory, readSvgSize, resolveOutputSize, withViewBox } from './render-core.js';
+
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const TOOL_DIR = resolve(SCRIPT_DIR, '..');
+
+// One installed package's own manifest. An interrupted install leaves
+// node_modules/ behind with nothing in it, so the directory proves nothing.
+const DEP_MARKER = join(TOOL_DIR, 'node_modules', 'playwright', 'package.json');
+
+const BROWSER_CHECK = 'npm run check:chromium';
+const COMMANDS = new Set(['render']);
+
+// Fonts load asynchronously even after the network goes quiet; text rendered
+// before they arrive falls back to a system face and changes the image.
+const FONT_SETTLE_MS = 500;
+
+const USAGE = `svg-to-png - render an SVG file to a PNG file
+
+Usage:
+  node scripts/render.js help
+  node scripts/render.js render --file <path> --output <path> [--scale N]
+                                [--width N] [--timeout N] [--overwrite]
+
+Commands:
+  render           Render the SVG and write the PNG
+  help             Print this message
+
+Options:
+  --file <path>    SVG to render (absolute path). Required.
+  --output <path>  PNG to write (absolute path, .png). Required. Must sit
+                   outside this tool directory; missing parent folders are made.
+  --scale N        Multiply the SVG's own dimensions by N (default: ${DEFAULT_SCALE}).
+  --width N        Render at exactly N pixels wide, height following the aspect
+                   ratio. Overrides --scale.
+  --timeout N      Milliseconds the page may take to load whatever the SVG
+                   references (default: ${DEFAULT_TIMEOUT_MS}).
+  --overwrite      Replace an existing file at --output. Without it, a run that
+                   would replace one refuses.
+  --help           Print this message
+
+Reads the one SVG the caller names and writes the one PNG the caller names.
+Needs no credentials and no configuration file, so no command takes --env.
+Success prints one JSON object to stdout; failures go to stderr with exit 1.`;
+
+function fail(message) {
+  process.stderr.write(`${message}\n`);
+  process.exit(1);
+}
+
+// Arguments. Parsed first so help costs nothing: no install, no file read.
+const argv = process.argv.slice(2);
+const command = argv[0] ?? 'help';
+
+if (command === 'help' || argv.includes('--help') || argv.includes('-h')) {
+  process.stdout.write(`${USAGE}\n`);
+  process.exit(0);
+}
+
+if (!COMMANDS.has(command)) {
+  fail(`Error: unknown command "${command}". Run "node scripts/render.js help" for usage.`);
+}
+
+const VALUE_FLAGS = new Set(['--file', '--output', '--scale', '--width', '--timeout']);
+const BARE_FLAGS = new Set(['--overwrite', '--help', '-h']);
+
+// The position after each value flag belongs to that flag.
+const valuePositions = new Set();
+for (let index = 1; index < argv.length; index += 1) {
+  if (VALUE_FLAGS.has(argv[index])) valuePositions.add(index + 1);
+}
+
+// An unrecognized flag is refused rather than ignored: a silently dropped
+// option returns a file that looks finished and is not what was asked for.
+for (let index = 1; index < argv.length; index += 1) {
+  const option = argv[index];
+  if (valuePositions.has(index)) continue;
+  if (option.startsWith('-') && !VALUE_FLAGS.has(option) && !BARE_FLAGS.has(option)) {
+    fail(`Error: unknown option "${option}". Run "node scripts/render.js help" for usage.`);
+  }
+}
+
+function flag(name) {
+  const index = argv.indexOf(name);
+  if (index === -1) return undefined;
+  const value = argv[index + 1];
+  if (value === undefined || value.startsWith('--')) {
+    fail(`Error: ${name} needs a value. Run "node scripts/render.js help" for usage.`);
+  }
+  return value;
+}
+
+function positiveNumber(name, raw, { integer = false } = {}) {
+  if (raw === undefined) return undefined;
+  // The whole argument has to be the number: parseFloat alone reads "2px" as 2
+  // and would render at a size the caller never asked for.
+  const shape = integer ? /^\d+$/ : /^\d*\.?\d+$/;
+  const value = integer ? Number.parseInt(raw, 10) : Number.parseFloat(raw);
+  if (!shape.test(raw.trim()) || !Number.isFinite(value) || value <= 0) {
+    fail(`Error: ${name} must be a positive ${integer ? 'whole number' : 'number'}; got "${raw}".`);
+  }
+  return value;
+}
+
+/**
+ * The canonical form of a path, following symbolic links wherever the path
+ * exists. Resolving a name is not opening the file it names, so this runs before
+ * anything is read, installed, or written.
+ *
+ * `isInsideDirectory` normalizes lexically and follows nothing on disk, so a
+ * symbolic link standing in for any ancestor is a spelling it does not match. The
+ * output usually does not exist yet, so a path whose leaf is absent is
+ * canonicalized through the deepest ancestor that does exist and the missing
+ * components joined back on: that ancestor is where the write would land.
+ *
+ * Absence is the only reason to keep walking. Any other refusal from the
+ * filesystem, an unreadable ancestor or a loop of symbolic links, means the real
+ * path cannot be known, and a screen that cannot know where a write lands refuses
+ * rather than falling back to comparing the caller's spelling.
+ *
+ * Filesystem work only, so `render-core.js` stays free of it and its rules stay
+ * testable on a copy with nothing installed.
+ */
+function canonical(name, candidate) {
+  const absolute = resolve(candidate);
+  const missing = [];
+  let head = absolute;
+
+  for (;;) {
+    try {
+      const real = realpathSync(head);
+      return missing.length === 0 ? real : join(real, ...missing);
+    } catch (error) {
+      if (error.code !== 'ENOENT' && error.code !== 'ENOTDIR') {
+        fail(`Error: ${name} could not be resolved to a real path at ${head}. Confirm every folder on the way is readable by this account and that no symbolic link on it points at itself.`);
+      }
+      const parent = dirname(head);
+      if (parent === head) return absolute;
+      missing.unshift(basename(head));
+      head = parent;
+    }
+  }
+}
+
+/**
+ * True when `candidate` names `directory` itself or something beneath it,
+ * decided by identity rather than by spelling.
+ *
+ * `isInsideDirectory` compares names, and a name is not enough here.
+ * `realpathSync` preserves whatever case the caller wrote, so on a
+ * case-insensitive volume a variant spelling of this tool's own directory
+ * canonicalizes to a string carrying none of `directory`'s prefix even though it
+ * names that very directory, and the name test alone lets the write through.
+ * Device and inode are a directory's own identity, which no spelling reaches, so
+ * every existing ancestor of `candidate` is compared that way. An output file
+ * does not exist yet and has no inode, which is why the walk climbs to the
+ * deepest ancestor that does: that ancestor is where the write lands.
+ */
+function descendsFrom(candidate, directory) {
+  let rootId;
+  try {
+    rootId = statSync(directory);
+  } catch {
+    return false;
+  }
+
+  let head = candidate;
+  for (;;) {
+    try {
+      const id = statSync(head);
+      if (id.dev === rootId.dev && id.ino === rootId.ino) return true;
+    } catch {
+      // Absent, so it carries no identity of its own; its parent still decides.
+    }
+    const parent = dirname(head);
+    if (parent === head) return false;
+    head = parent;
+  }
+}
+
+// Built-in-only validation, before the dependency check, so a usage mistake
+// never triggers an install and never starts a browser.
+const filePath = flag('--file');
+if (!filePath) {
+  fail('Error: --file is required. Pass the absolute path to the SVG to render. Run "node scripts/render.js help" for usage.');
+}
+if (!isAbsolute(filePath)) {
+  fail(`Error: --file must be absolute; got "${filePath}". A relative path resolves against whichever directory the caller happened to be in.`);
+}
+if (!existsSync(filePath)) {
+  fail(`Error: no file at ${filePath}. Pass the absolute path to the SVG.`);
+}
+
+const outputRaw = flag('--output');
+if (!outputRaw) {
+  fail('Error: --output is required. Pass the absolute path of the PNG to write, in a work directory in the owning root.');
+}
+if (!isAbsolute(outputRaw)) {
+  fail(`Error: --output must be absolute; got "${outputRaw}". A relative path resolves against whichever directory the caller happened to be in.`);
+}
+if (!/\.png$/i.test(outputRaw)) {
+  fail(`Error: --output must end in .png; got "${outputRaw}". This tool writes PNG bytes and will not put them behind another extension.`);
+}
+// Everything below writes `outputPath`, which is the path this screen resolved
+// and cleared, not the string the caller typed. Keeping the caller's spelling
+// past the screen would leave the two equal only for as long as nothing moved
+// between the check and the write. Both sides are canonicalized, so a symbolic
+// link, a relative spelling and a differently spelled ancestor collapse onto one
+// real path; the name test alone is not the whole screen either, which is what
+// `descendsFrom` beside it closes.
+const outputPath = canonical('--output', outputRaw);
+const toolReal = canonical('this tool directory', TOOL_DIR);
+if (isInsideDirectory(outputPath, toolReal) || descendsFrom(outputPath, toolReal)) {
+  fail(`Error: --output resolves inside this tool directory (${toolReal}). Scripts write only to a work directory in the owning root; pass that path instead.`);
+}
+// Replacing a file is opt-in, and the check runs here so a refused run costs no
+// install and starts no browser. A render is cheap to repeat; the file already
+// at that path may be the only copy of something that was not.
+if (existsSync(outputPath) && !argv.includes('--overwrite')) {
+  fail(`Error: ${outputPath} already exists. Pass --overwrite to replace it, or name a path that is free.`);
+}
+
+const scale = positiveNumber('--scale', flag('--scale')) ?? DEFAULT_SCALE;
+const targetWidth = positiveNumber('--width', flag('--width'), { integer: true }) ?? null;
+const timeoutMs = positiveNumber('--timeout', flag('--timeout'), { integer: true }) ?? DEFAULT_TIMEOUT_MS;
+
+let svgContent;
+try {
+  svgContent = readFileSync(filePath, 'utf8');
+} catch {
+  // The runtime's own message is withheld; it can echo the path or file bytes.
+  fail(`Error: could not read ${filePath}. Confirm it is a readable file, not a directory.`);
+}
+
+if (!/<svg\b/i.test(svgContent)) {
+  fail(`Error: ${filePath} holds no <svg> element. Pass an SVG file; a renamed PNG belongs to image-edit and an HTML page to html-to-png.`);
+}
+
+const svgSize = readSvgSize(svgContent);
+const output = resolveOutputSize({
+  svgWidth: svgSize.width,
+  svgHeight: svgSize.height,
+  scale,
+  targetWidth
+});
+
+// Whether this process can create files in a directory. Used only to tell an
+// unwritable install location apart from a failed install, per Output and errors.
+function isWritable(dir) {
+  try { accessSync(dir, constants.W_OK); return true; } catch { return false; }
+}
+
+// Dependencies. Runs before any package import; keep it above the dynamic import.
+if (!existsSync(DEP_MARKER)) {
+  process.stderr.write('First run: installing dependencies in this tool directory.\n');
+  try {
+    const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+    // stderr only: npm output on stdout would break the empty-stdout-on-failure rule.
+    execFileSync(npm, ['ci'], { cwd: TOOL_DIR, stdio: ['ignore', 'ignore', 'inherit'] });
+  } catch {
+    // Two different failures arrive here and they have different fixes, so the
+    // Script Contract's Output and errors clause requires telling them apart:
+    // an unwritable tool directory is not a broken install, and telling someone
+    // to run "npm ci" by hand where they cannot write cannot succeed.
+    if (!isWritable(TOOL_DIR)) {
+      fail(`Error: cannot install dependencies because ${TOOL_DIR} is not writable. This tool installs its dependencies into its own directory the first time it runs, so that directory has to be writable. Install this plugin somewhere you own, or make that directory writable, then run the command again.`);
+    }
+    fail(`Error: npm ci failed in ${TOOL_DIR}. Delete node_modules there, confirm Node 18 or newer, then run "npm install" by hand.`);
+  }
+  if (!existsSync(DEP_MARKER)) {
+    fail(`Error: npm ci finished but ${DEP_MARKER} is still missing. Check that package.json lists every package this script imports.`);
+  }
+  fail('Dependencies installed. Re-run the command.');
+}
+
+// Shared browser runtime: dynamic import only on the command that needs Chromium.
+// Never a top-level static import — help must work on a never-installed copy.
+const runtime = await import('./lib/browser-runtime.js');
+const browserSurvey = await runtime.check();
+if (browserSurvey.chromiumLaunch !== true) {
+  fail(
+    `Error: Chromium cannot launch; check: ${BROWSER_CHECK}. ${browserSurvey.remediation || 'chromiumLaunch:false'}. See the Dependencies section of TOOL.md.`
+  );
+}
+
+try {
+  mkdirSync(dirname(outputPath), { recursive: true });
+} catch {
+  fail(`Error: could not create the folder for ${outputPath}. Confirm the parent path is writable by this account.`);
+}
+
+let browser;
+try {
+  browser = await runtime.launch();
+} catch (error) {
+  const report = await runtime.prepareBrowserRuntime();
+  let detail = report.remediation || '';
+  if (!detail) {
+    const line = String(error.message || '').split('\n')[0];
+    if (/install-deps|missing dependencies to run browsers/i.test(line)) {
+      detail =
+        'dependency: Chromium OS libraries; check: npm run check:chromium. Next: provide a C compiler so userspace stubs can be built, or add the missing libraries to the base image.';
+    } else {
+      detail = line || 'chromiumLaunch:false';
+    }
+  }
+  fail(`Error: Chromium cannot launch; check: ${BROWSER_CHECK}. ${detail}. See the Dependencies section of TOOL.md.`);
+}
+
+let failure = null;
+try {
+  const page = await browser.newPage();
+  await page.setViewportSize({ width: output.width, height: output.height });
+  const markup = withViewBox(svgContent, svgSize);
+  await page.setContent(buildDocument(markup, output.width, output.height), {
+    waitUntil: 'networkidle',
+    timeout: timeoutMs
+  });
+  await page.waitForTimeout(FONT_SETTLE_MS);
+
+  await page.screenshot({
+    path: outputPath,
+    type: 'png',
+    clip: { x: 0, y: 0, width: output.width, height: output.height }
+  });
+} catch (error) {
+  // Playwright's own message is withheld: it can quote the markup it was given.
+  // Only the error's class name is read, and that carries none of the markup.
+  failure = error?.name === 'TimeoutError'
+    ? `Error: ${filePath} did not finish loading within ${timeoutMs} ms. Everything the SVG references is fetched before the screenshot: confirm each remote font or image it names is reachable, embed them in the file, or raise --timeout.`
+    : `Error: could not render ${filePath} at ${output.width}x${output.height}. See Troubleshooting in TOOL.md; an unreachable reference inside the SVG and an output size past what the browser will allocate are the two usual causes.`;
+}
+
+// Closed before reporting either way, so no failure path leaves a browser running.
+await browser.close();
+
+if (failure) {
+  fail(failure);
+}
+
+process.stdout.write(`${JSON.stringify({
+  output: outputPath,
+  width: output.width,
+  height: output.height,
+  scale: output.scale,
+  sizedFrom: svgSize.sizedFrom
+})}\n`);

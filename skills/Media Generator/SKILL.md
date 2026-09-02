@@ -3,10 +3,9 @@ name: Media Generator
 type: skill
 category: media
 description: Produce an image or a video that does not exist yet, or a photograph with its background removed, by finishing the prompt, choosing the model, and running the billed generation through the replicate connector to a file the user named
-version: 0.4.0
+version: 0.5.0
 gaps:
-  - image and video conversion, editing and overlay
-  - the image and video generation models this skill's whole output depends on
+  - the image, video, and background-removal models this skill's whole output depends on
 ---
 
 # Media Generator
@@ -47,7 +46,7 @@ A director commissioning a shot, not a person typing wishes into a box. The prom
 
 ## Steps
 
-**This root ships no tools and no connectors.** Wherever this file names a `tools/` or `connectors/` path, or a command that belongs to one, that capability is absent. Where the work in hand depends on it, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+**This root ships tools and no connectors.** A `tools/` path this file names is present: `tools/AGENTS.md` indexes what ships, each tool installs what it needs the first time it is called, and a tool that cannot run reports that itself rather than returning something wrong. **Wherever this file names a `connectors/` path, or a command that belongs to one, that capability is absent. So is every capability this file's own `gaps` frontmatter declares, whether or not a path names it**: a gap is the authoritative statement of what is missing, and some of them name no path because nothing in this root would have supplied them. Read the frontmatter as part of this rule, not beside it. Where the work in hand depends on something absent, or on a tool that stopped, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
 
 1. **Place the request.** Decide which of three it is: an image to generate, a video to generate, or a background to remove. Anything the Context hands to a tool goes there and this skill stops. Then settle two facts before anything is billed. The destination: there is no default save location, so ask for the directory and the filename, and keep intermediate frames in a work directory per `standards/conventions.md`. And the purpose, because purpose picks the medium in Step 2; where the request states none and the surrounding work implies none, ask rather than assume, whenever the user is present to answer. A background removal writes no prompt, so it skips Step 2 and runs Steps 3 to 5 in the background-removal category.
 
@@ -120,11 +119,11 @@ A director commissioning a shot, not a person typing wishes into a box. The prom
 - **Promising what the model cannot do.** Audio, duration, a reference frame, a seed, and an exact pixel size exist on some models and not on others. The schema decides, and it is read before the user is told.
 - **A destination nobody named.** There is no default save location and nothing is written into this plugin root. Ask first; a file the user cannot find is a run they will pay for twice.
 - **An ambiguous request.** A request that does not say whether it wants an image or a video, what it is for, or where it goes gets a question before any billed call, never a default.
-- **A tool or connector this root does not carry.** Every `tools/` and `connectors/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
+- **A connector this root does not carry.** Every `connectors/` path this file names, and every command that belongs to one, is capability this plugin does not ship; the `tools/` paths this file names do ship. Where a step depends on a connector, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
 
-- **Where a component this root does not ship was needed, success is the honest stop**: the run named which step could not run, what it would have produced, and the gap it belongs to, and produced no file and no figure in its place. **Every criterion below applies to a run in which those components were present.**
+- **Where a connector this root does not ship was needed, success is the honest stop**: the run named which step could not run, what it would have produced, and the gap it belongs to, and produced no file and no figure in its place. **Every criterion below applies to a run in which those connectors were present and every tool it needed ran.**
 
 - One file exists at the path the user named, in a format that destination can use, and it holds what was asked for.
 - Every prompt that reached a model carried an explicit medium and either exact wording or an instruction excluding text.

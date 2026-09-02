@@ -1,0 +1,5 @@
+# Speech transcription. Installed into this tool's own .venv on the first
+# transcription, per the Script Contract's Runtimes clause.
+openai-whisper>=20231117
+torch>=2.0.0
+torchaudio>=2.0.0

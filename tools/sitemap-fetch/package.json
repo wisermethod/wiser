@@ -1,0 +1,16 @@
+{
+  "name": "sitemap-fetch",
+  "version": "0.1.1",
+  "description": "Collects the URLs a site publishes in its sitemaps into one deterministic snapshot",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node scripts/sitemap-fetch.js help"
+  },
+  "dependencies": {
+    "undici": "^6.21.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

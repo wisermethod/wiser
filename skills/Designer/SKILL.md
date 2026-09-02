@@ -3,14 +3,12 @@ name: Designer
 type: skill
 category: design
 description: Run a design job end to end, from brief and visual direction through foundations, composition, and validation, producing the wireframe, style guide, or extracted system itself and directing every other phase to the design skill that owns it
-version: 0.5.0
+version: 0.6.0
 memory:
   - design
 gaps:
   - application screen assembly (dashboard, settings, admin panel)
   - brand mark and logo creation
-  - rendering a design to an image for review or handoff
-  - reading a design system back off a live site whose code is not reachable
 ---
 
 # Designer
@@ -54,7 +52,7 @@ Direct, never re-perform. Where a sibling skill owns a phase, this one hands ove
 
 ## Steps
 
-**This root ships no tools and no connectors.** Wherever this file names a `tools/` or `connectors/` path, or a command that belongs to one, that capability is absent. Where the work in hand depends on it, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+**This root ships tools and no connectors.** A `tools/` path this file names is present: `tools/AGENTS.md` indexes what ships, each tool installs what it needs the first time it is called, and a tool that cannot run reports that itself rather than returning something wrong. **Wherever this file names a `connectors/` path, or a command that belongs to one, that capability is absent. So is every capability this file's own `gaps` frontmatter declares, whether or not a path names it**: a gap is the authoritative statement of what is missing, and some of them name no path because nothing in this root would have supplied them. Read the frontmatter as part of this rule, not beside it. Where the work in hand depends on something absent, or on a tool that stopped, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
 
 Five phases in order. A phase the request or the bound memory has already settled is stated as settled and skipped, never re-run.
 
@@ -199,9 +197,11 @@ Group the findings blocking, then major, then minor, each naming its location an
 - **A system file written to a root's top level.** A design system is an output like any other: it goes to the owning root's work area (`standards/conventions.md`), never to a root's top level. Whether it then becomes the root's bound `design` file is the owner's act under the constitution's Workspace Model, not this skill's.
 - **Validation saved for the end.** The intentional-choice and distinctiveness checks run while composing. Run at the end, they find work that has to be redone rather than decisions that have yet to be made.
 - **Ambiguity.** The register, the deliverable, or which of several artifacts is being asked for cannot be settled from the request: ask before designing.
-- **A tool this root does not carry.** Every `tools/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
+- **A tool that cannot run.** Every `tools/` path this file names ships, and a tool can still stop: a system dependency it names may be absent, or the directory it installs into may not be writable. It says which, and it says so rather than returning something wrong. Where a step depends on a tool that stopped, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
+
+- **Where a tool this run needed could not run, success is the honest stop**: the run named which step could not run, what it would have produced, and why the tool stopped, and produced no file and no figure in its place. **Every criterion below applies to a run in which every tool it needed ran.**
 
 - The delivery names the brief it answers, the direction it committed to, the signature element, and the register.
 - Every phase either ran or is named as already settled, and every foundation and composed piece names the skill that produced it; nothing a sibling owns was produced here.

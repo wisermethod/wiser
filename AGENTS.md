@@ -4,7 +4,7 @@ root: wiser
 
 # Wiser
 
-The general knowledge-work plugin: the skills, experts, and standards that a knowledge worker uses for agentic work, in their own voice, on their own material.
+The general knowledge-work plugin: the skills, experts, tools, and standards that a knowledge worker uses for agentic work, in their own voice, on their own material.
 
 **This file is this root's constitution.** Where a primitive cites "the constitution", it means this file. The chain starts here: load it before the first read or write under this root.
 
@@ -62,7 +62,7 @@ Guard rails, binding for any shared artifact:
 
 **A secret's contents never enter the conversation, a log, a commit, or another file.**
 
-**Nothing is ever written under this root during a session that uses it**, nor to the top level of any root. Authoring this root is separate work, planned as a Playbook. Output lands in the working folder, in the directories that folder's own `AGENTS.md` declares. The one exception is a tool's first-run dependency cache on the user's own machine, per that tool's own contract, and this root ships no tools.
+**Nothing is ever written under this root during a session that uses it**, nor to the top level of any root. Authoring this root is separate work, planned as a Playbook. Output lands in the working folder, in the directories that folder's own `AGENTS.md` declares. The one exception is a tool's first-run dependency cache, which a tool writes inside its own directory in this root the first time it is called, per that tool's own contract. That is the only write this root ever takes, it is the user's own copy of the plugin, and `tools/AGENTS.md` states it.
 
 **Nothing is deleted or overwritten without naming what is being lost first.** Where a root's own `AGENTS.md` declares an archive home, a file is archived there before it is replaced.
 
@@ -76,7 +76,7 @@ A workspace usually composes this root alongside an owning root and any context 
 - Where they conflict on **how** work is done, this root wins. Where they conflict on **facts, voice, or filing**, the owning root wins.
 - Do not invent parallel rules in a workspace. If a rule seems missing, it is in the chain: find it rather than restating it.
 
-For any deliverable, consult `skills/AGENTS.md` and `experts/AGENTS.md` and pick the skill or expert that owns the work before drafting. Load that file; naming it is not loading it.
+For any deliverable, consult `skills/AGENTS.md` and `experts/AGENTS.md` and pick the skill or expert that owns the work before drafting. Load that file; naming it is not loading it. `tools/AGENTS.md` indexes the tools those primitives call, and says what a tool installs and when.
 
 ## Standards
 
@@ -94,7 +94,7 @@ Each family's `AGENTS.md` carries an index of that family. **This root carries n
 
 ## What this root does not carry
 
-Stated here so a reader is not left hunting for it. This root ships skills, experts, and the standards binding them. It does not ship tools, connectors, a release gate, a generated plugin projection, or a separate runtime charter. Where a primitive's step depends on one of those, that primitive says so at the step and declares the lost capability in its `gaps` frontmatter. **`system/GAPS.md` collects every declared gap in one place.**
+Stated here so a reader is not left hunting for it. This root ships skills, experts, tools, and the standards binding them. It does not ship connectors, a release gate, a generated plugin projection, or a separate runtime charter. Where a primitive's step depends on one of those, that primitive says so at the step and declares the lost capability in its `gaps` frontmatter. **`system/GAPS.md` collects every declared gap in one place.**
 
 ## Working under this root
 

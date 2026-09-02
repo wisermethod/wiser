@@ -1,0 +1,16 @@
+{
+  "name": "keynote-render",
+  "version": "0.2.0",
+  "description": "Native Keynote build and in-place markdown sync with zArchive safety",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node scripts/render.js help"
+  },
+  "dependencies": {
+    "yaml": "^2.5.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

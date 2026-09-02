@@ -3,9 +3,9 @@ name: Headshot Normalizer
 type: skill
 category: media
 description: Turn photographs into square transparent PNGs whose faces sit at the same size and the same place in the frame, by removing each background, measuring the eyes, and cutting every frame to one standard, reporting the transparent band left where a photograph is too short to fill its frame
-version: 0.6.0
+version: 0.7.0
 gaps:
-  - image cutout, resizing and overlay
+  - image cutout
   - the vision and image-model calls this skill's automated path depends on
 ---
 
@@ -57,7 +57,9 @@ The three are one composition rather than three settings, because each is a shar
 
 ## Steps
 
-**This root ships no tools and no connectors.** Wherever this file names a `tools/` or `connectors/` path, or a command that belongs to one, that capability is absent. Where the work in hand depends on it, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+**This root ships tools and no connectors.** A `tools/` path this file names is present: `tools/AGENTS.md` indexes what ships, each tool installs what it needs the first time it is called, and a tool that cannot run reports that itself rather than returning something wrong. **Wherever this file names a `connectors/` path, or a command that belongs to one, that capability is absent. So is every capability this file's own `gaps` frontmatter declares, whether or not a path names it**: a gap is the authoritative statement of what is missing, and some of them name no path because nothing in this root would have supplied them. Read the frontmatter as part of this rule, not beside it. Where the work in hand depends on something absent, or on a tool that stopped, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+
+**And so is any value one of those absent sources would have stated**, a ceiling or a threshold included. A number that was going to come from something absent is absent too, and guessing it is the same defect as guessing the output: `tools/image-edit/` ships and will resize to whatever ceiling it is handed, so an invented one silently caps every frame below it.
 
 1. **Settle the frame, the destination, and the count.** There is no default save location: ask for the directory, and for a name per photograph or the rule that derives one, since a set delivered under names nobody chose is a set nobody can wire into a page. Keep every intermediate file in a work directory per `standards/conventions.md`. Confirm the three frame parameters, then say what the batch will cost: two billed calls per photograph, named as a count before the first one. A set runs one photograph at a time through the steps below, under one frame; never change a parameter part way through a set.
 
@@ -112,7 +114,7 @@ The three are one composition rather than three settings, because each is a shar
 
    Both offsets are positive here and nothing reaches an edge, so a clip note on this path means a number is wrong. Deliver it saying in plain words that this file was not normalized and will not line up with the rest of the set. Then say why the detection missed, from what the photograph shows: a face turned too far, sunglasses, a hat brim, motion, a face too small in the frame. The way back is a different photograph, not a second run of this one, which would spend the same two calls to get the same answer.
 
-8. **Deliver.** Open each finished file and check it: it exists where the caller said, it opens, it is square at the output size, and it still carries transparency. Then report, per photograph, the path, the face count and the chosen face's confidence, the scale applied, the height of the band below whenever the placed picture did not reach the bottom of the square, and the two billed calls. For a set, report the same numbers as a list, because a scale far from its neighbors is the file worth looking at.
+8. **Deliver.** Open each finished file and check it: it exists where the caller said, it opens, and `tools/image-edit/` reports it square at the output size in PNG. **Transparency is not checked here**: no tool in this root reports whether a pixel is transparent, a PNG format field is not evidence that any is, and `standards` forbid judging it by eye. It is carried by the cutout and by the fit-and-center step rather than confirmed at delivery, and the transparent band this skill reports is computed from the measured frame rather than read off the image. Then report, per photograph, the path, the face count and the chosen face's confidence, the scale applied, the height of the band below whenever the placed picture did not reach the bottom of the square, and the two billed calls. For a set, report the same numbers as a list, because a scale far from its neighbors is the file worth looking at.
 
 ## Pitfalls
 
@@ -124,11 +126,11 @@ The three are one composition rather than three settings, because each is a shar
 - **The bystander.** The largest face wins, and in a photograph where the subject stands behind someone the largest face is the wrong person. Say how many faces were found; a count above one is the caller's cue to look before the file ships.
 - **Rerunning a miss.** Both calls bill again and neither is random, so the same photograph returns the same failure at the same cost. Change the photograph.
 - **An ambiguous request.** A request that does not say where the files go, which standard they follow, or which face is the subject gets a question before any billed call, never a default.
-- **A tool or connector this root does not carry.** Every `tools/` and `connectors/` path this file names is capability this plugin does not ship. Where a step depends on one, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
+- **A connector this root does not carry.** Every `connectors/` path this file names, and every command that belongs to one, is capability this plugin does not ship; the `tools/` paths this file names do ship. Where a step depends on a connector, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
 
-- **Where a component this root does not ship was needed, success is the honest stop**: the run named which step could not run, what it would have produced, and the gap it belongs to, and produced no file and no figure in its place. **Every criterion below applies to a run in which those components were present.**
+- **Where a connector this root does not ship was needed, success is the honest stop**: the run named which step could not run, what it would have produced, and the gap it belongs to, and produced no file and no figure in its place. **Every criterion below applies to a run in which those connectors were present and every tool it needed ran.**
 
 - One PNG exists at each path the caller named, square at the frame's output size, carrying transparency where the background was and everywhere the placed picture did not reach the edge of the square.
 - Two finished files from the same standard put their eye midpoints on the same coordinates, and the distance between the eyes is the frame's eye span in both, within the rounding a whole pixel allows: every delivered file carries the standard's eye span and eye line, and a band below, when present, ships named with its height.
