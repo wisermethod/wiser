@@ -10,7 +10,7 @@ memory:
 
 # Creative Director
 
-> **Modified from Apache-2.0 material.** Part of this file is adapted from Anthropic's frontend-design skill, and it was changed: adapted rather than copied, with no passage verbatim. The attribution is in `NOTICE.md` beside this file, and a copy of the Apache License 2.0 ships at `licenses/Apache-2.0.txt`.
+> **Modified from Apache-2.0 material.** Part of this file is adapted from Anthropic's frontend-design skill and from Paul Bakaus's Impeccable, and it was changed: adapted rather than copied, with no passage verbatim. The attribution is in `NOTICE.md` beside this file, and a copy of the Apache License 2.0 ships at `licenses/Apache-2.0.txt`.
 
 ## Context
 
