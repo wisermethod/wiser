@@ -35,9 +35,9 @@
  */
 
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { homedir } from 'node:os';
+import { createRequire } from 'node:module';
 
 // Playwright is loaded lazily, never at module load. Importing this module must
 // not pull in playwright, so a tool that vendors it still answers `help`/`--help`
@@ -80,12 +80,48 @@ function proxyServer() {
   return typeof s === 'string' && s.trim() ? s.trim() : '';
 }
 
-// Machine-wide cache beside the Playwright browser cache the platform already
-// blesses (Playwright downloads Chromium here). Not inside any tool directory.
-function libCacheDir() {
-  const base = process.env.PLAYWRIGHT_BROWSERS_PATH ||
-               join(homedir(), '.cache', 'ms-playwright');
-  return join(base, '.wiser-lib');
+// Where the compatibility shims are built.
+//
+// This is deliberately NOT computed from a platform cache path and reads no
+// environment variable, because both of those were wrong here before. An
+// earlier revision hardcoded the Linux browser-cache default for every
+// platform, so on macOS it named an empty directory. It also read the browser
+// path variable so literally that the documented value "0" — truthy in
+// JavaScript — yielded a RELATIVE path and compiled a shared library into a
+// directory named 0 in whatever directory the caller happened to be standing
+// in. And it ignored the XDG cache variable, which Playwright honours on
+// Linux. tools/AGENTS.md holds the paths; no path is repeated here.
+//
+// The shims are not Playwright's, so they do not belong in Playwright's cache.
+// They are this plugin's own build artifacts, per copy like every other
+// dependency, and the one directory that is guaranteed writable (npm ci just
+// wrote it), already ignored by this repository, and already scoped to this
+// tool is the node_modules that supplied `playwright`. So ask Node where
+// playwright actually resolved from and build beside it: no env var, no
+// platform branch, always absolute, always inside this tool's own directory.
+// Exported for the gate check, which calls it rather than reading it. Three
+// rounds of this build produced checks written against the sentence that
+// described this function instead of against the function, and each of them
+// reported zero while the code was wrong. A check that can execute it cannot
+// make that mistake.
+export function libCacheDir() {
+  const require_ = createRequire(import.meta.url);
+  let resolved;
+  try {
+    resolved = require_.resolve('playwright/package.json');
+  } catch {
+    // A publish that restricts "exports" can refuse package.json; the entry
+    // point always resolves and lives inside the same node_modules.
+    resolved = require_.resolve('playwright');
+  }
+  const parts = resolved.split(sep);
+  const i = parts.lastIndexOf('node_modules');
+  if (i === -1) {
+    throw new Error(
+      `cannot place the compatibility shims: playwright resolved outside any node_modules (${resolved})`
+    );
+  }
+  return join(parts.slice(0, i + 1).join(sep) || sep, '.wiser-lib');
 }
 
 function missingLibs(execPath) {

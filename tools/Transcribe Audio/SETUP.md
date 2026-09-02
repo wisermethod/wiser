@@ -2,6 +2,8 @@
 
 Once per machine. Skip it if a real `transcribe` already prints a JSON object.
 
+**Once per machine covers the system dependencies below, not the packages.** A system dependency named below is installed once and every copy of this plugin then finds it; a tool's own packages install per copy of the plugin, on the first call, and a plugin manager that keeps each version in its own directory installs them again after an update. `tools/AGENTS.md` lists everything a run of a tool writes and where, and is the only place this repository states it.
+
 Run every command below from this tool's directory. On Windows, use Git Bash; PowerShell and cmd quote arguments differently.
 
 ## 1. Interpreter and decoder
@@ -14,7 +16,7 @@ It reports the Python version it is running under, whether FFmpeg is present, an
 
 ## 2. Packages
 
-The first `transcribe` creates a virtual environment in this tool's directory, installs the speech packages into it, and asks for a re-run. That first install downloads several hundred megabytes, so run it once before the machine is needed under time pressure. Nothing is installed into the machine or the user's environment, and a deployment that never transcribes never installs anything.
+The first `transcribe` creates a virtual environment in this tool's directory, installs the speech packages into it, and asks for a re-run. That first install downloads several hundred megabytes, so run it once before the machine is needed under time pressure. Nothing is installed into the machine or the user's environment: the install runs with pip's own download cache switched off, so the several hundred megabytes land in the virtual environment and nowhere else, and a re-install after deleting `.venv` downloads them again rather than finding them in a cache outside this tool. A deployment that never transcribes never installs anything.
 
 ## 3. Model weights
 

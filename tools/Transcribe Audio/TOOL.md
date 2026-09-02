@@ -108,9 +108,9 @@ Model choice trades time for accuracy, and the weights are downloaded once per m
 
 ## Script Contract
 
-The script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help before anything else, and the stdout and stderr rules. No command takes `--env`, so that clause has nothing to bind here. Beyond those, three behaviors are worth knowing.
+The script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help before anything else, and the stdout and stderr rules. No command takes `--env`, so that clause has nothing to bind here. Everything a run of this tool writes, and where, is listed in `tools/AGENTS.md`, which is the only place this repository states it. Beyond those, three behaviors are worth knowing.
 
-The package cache is this tool's own, per that contract's Runtimes clause. The first transcription creates a virtual environment beside the scripts, installs the speech packages into it, and asks for a re-run; nothing is installed into the machine or the user's environment.
+The package cache is this tool's own, per that contract's Runtimes clause. The first transcription creates a virtual environment beside the scripts, installs the speech packages into it, and asks for a re-run; nothing is installed into the machine or the user's environment, because the install runs with pip's own download cache switched off rather than leaving it at pip's default outside this tool.
 
 Arguments are validated before that first run install, so a malformed command or a missing FFmpeg costs no download. Only Python's own standard library is used above the install; the speech packages import after it.
 

@@ -91,7 +91,7 @@ This tool authenticates to nothing, holds no credential, and invokes no other pr
 
 ## Script Contract
 
-Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, the dependency check, help without configuration, and the stdout and stderr rules. Two of its rules are worth knowing before the first run, because they are what a request most often collides with.
+Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, the dependency check, help without configuration, and the stdout and stderr rules. Everything a run of this tool writes, and where, is listed in `tools/AGENTS.md`, which is the only place this repository states it. Two of its rules are worth knowing before the first run, because they are what a request most often collides with.
 
 The request file and the output directory must both resolve outside this tool's own directory, and either one pointing inside it is refused before anything is installed and before anything is fetched. Containment is decided by the path's real identity, its device and inode, rather than by how it is spelled, so a differently cased name for this directory and a symbolic link onto it are refused exactly as the direct spelling is. Per `standards/conventions.md` both belong in the owning root's work directory.
 

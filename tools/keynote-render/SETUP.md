@@ -2,6 +2,8 @@
 
 Once per machine. Skip it if `themes` already prints a list of theme names.
 
+**Once per machine covers the system dependencies below, not the packages.** A system dependency named below is installed once and every copy of this plugin then finds it; a tool's own packages install per copy of the plugin, on the first call, and a plugin manager that keeps each version in its own directory installs them again after an update. `tools/AGENTS.md` lists everything a run of a tool writes and where, and is the only place this repository states it.
+
 Run every command below from this tool's directory. macOS only: the tool drives Keynote through JXA, which exists nowhere else.
 
 ## 1. Node

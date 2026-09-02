@@ -239,7 +239,7 @@ node scripts/render.js delete-slide --deck /abs/deck.key --slide 5 --confirm
 
 ## Script Contract
 
-The scripts follow `system/templates/Script Contract.md`: self-contained imports, help before anything else, the npm dependency check, stdout/stderr rules, absolute paths, refusal of unknown flags, no writes inside this tool directory.
+The scripts follow `system/templates/Script Contract.md`: self-contained imports, help before anything else, the npm dependency check, stdout/stderr rules, absolute paths, refusal of unknown flags, no writes inside this tool directory beyond the first-run install. Everything a run of this tool writes, and where, is listed in `tools/AGENTS.md`, which is the only place this repository states it. The `zArchive/` copy taken before every in-place edit has a row of its own there, because its default path is derived from `--deck` rather than named by the caller.
 
 Replacing an existing **output file** from `build` / `snapshot` / `export` is opt-in via `--confirm`. Mutating an existing **deck** is also opt-in via `--confirm`, and always preceded by a `zArchive/` copy when the deck already exists.
 

@@ -169,4 +169,4 @@ Failure prints to stderr, leaves stdout empty, and exits 1.
 - A `--text` carrying a colon, an apostrophe, a comma, a percent sign, or a bracket is drawn in full, and no part of the filter appears in the frame.
 - A `--speed` outside 0.5 to 2.0 reports `audio` as `removed` rather than shipping a track out of sync.
 - A failed FFmpeg pass for `edit`, `concat`, or `gif` leaves no partial or zero-byte file at `--output`.
-- No run opens a network connection, reads stdin, repeats FFmpeg's own output, or writes any file other than the one the caller named.
+- No run opens a network connection, reads stdin, repeats FFmpeg's own output, or writes anywhere other than the path the caller named: one file for every command but `frames`, and one PNG per extracted frame inside that directory for `frames`. A run that fails removes the partial file it had begun at that path, and never removes anything else.

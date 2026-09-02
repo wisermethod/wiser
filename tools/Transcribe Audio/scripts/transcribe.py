@@ -336,7 +336,29 @@ if not present("ffmpeg", ["-version"]):
 
 
 # Packages. Runs before any package import; the cache is this tool's own and
-# nothing installs into the machine or the user's environment.
+# nothing installs into the machine or the user's environment. That is enforced
+# by install_env() and the pip flags below, not asserted.
+#
+# That second clause is enforced below rather than asserted. pip's own download
+# cache is not part of the virtual environment: by default it is
+# ~/Library/Caches/pip on macOS and ~/.cache/pip on Linux, it survives deleting
+# .venv, and on this tool's own dependency set it reached several hundred
+# megabytes outside the tool directory. So the install runs with pip's cache
+# switched off and every cache-shaped variable pip reads pointed inside .venv,
+# and pip's version self-check, which also writes into that cache, disabled.
+# The cost is that a second install re-downloads; the gain is that the sentence
+# above is true, and `install_env()` is what makes it true.
+def install_env():
+    env = dict(os.environ)
+    env["PIP_NO_CACHE_DIR"] = "1"
+    env["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
+    # Belt and braces: if a future pip reads these rather than the flags, they
+    # still resolve inside this tool's own cache directory.
+    env["PIP_CACHE_DIR"] = str(CACHE_DIR / "pip-cache")
+    env["XDG_CACHE_HOME"] = str(CACHE_DIR / "cache")
+    return env
+
+
 def install(requirements, marker, label):
     if not CACHE_DIR.exists():
         note("First run: creating the package cache in %s" % CACHE_DIR)
@@ -361,9 +383,19 @@ def install(requirements, marker, label):
     try:
         # stderr only: install output on stdout would break the one-JSON-object rule.
         subprocess.run(
-            [str(cache_python()), "-m", "pip", "install", "-r", str(requirements)],
+            [
+                str(cache_python()),
+                "-m",
+                "pip",
+                "install",
+                "--no-cache-dir",
+                "--disable-pip-version-check",
+                "-r",
+                str(requirements),
+            ],
             check=True,
             stdout=subprocess.DEVNULL,
+            env=install_env(),
         )
     except Exception:
         fail(

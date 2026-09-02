@@ -81,7 +81,7 @@ This tool needs no credentials and no configuration file, so no command takes `-
 
 Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help and argument checks answered before the dependency install, the system dependency check on the command that needs it, and the stdout and stderr rules. The sections above state what the command does; the contract states how the script behaves getting there.
 
-Two of its rules do visible work here. Nothing is written but the PNG the caller named and the first-run install, so an `--output` resolving inside this tool's own directory is refused rather than written. And no message repeats the renderer's or the browser engine's own text: a Mermaid parse error quotes the file it was given, which is a file this tool will read wherever it is pointed, so only the line number crosses back out to the caller.
+Two of its rules do visible work here. Nothing is written but the PNG the caller named and what `tools/AGENTS.md` lists a first run installing, so an `--output` resolving inside this tool's own directory is refused rather than written. And no message repeats the renderer's or the browser engine's own text: a Mermaid parse error quotes the file it was given, which is a file this tool will read wherever it is pointed, so only the line number crosses back out to the caller.
 
 The diagram reaches the page as text through the DOM and the renderer is attached from this tool's own `node_modules`, so a diagram file cannot close an element or open a script of its own, and a render fetches nothing from anywhere.
 
