@@ -16,7 +16,7 @@ Use it as the first read of any CSV, JSON, or TSV file, before a caller decides 
 
 Do not use it to compute anything. It reports structure, not statistics: it does not sum, average, group, or correlate, and it returns no analysis. A caller that needs descriptive statistics or group-by breakdowns runs those tools on the columns this one identifies. Do not reach for it to transform, clean, or deduplicate data either; it reads a file and reports what is there, and changes nothing.
 
-It authenticates to nothing, holds no credential, reaches no other primitive, and makes no network request. It reads the one file the caller names and writes nothing.
+It authenticates to nothing, holds no credential, reaches no other primitive, and after the first-run install described in `tools/AGENTS.md` it makes no network request. It reads the one file the caller names and writes nothing.
 
 ## Column Types
 
@@ -117,4 +117,4 @@ An empty file, a header with no data rows, and a file whose content does not par
 - A malformed or empty file exits 0 with `rowCount` 0, `raggedRowCount` 0, no columns, and the reason in `parseErrors`; it does not raise and does not quote the parser's own message.
 - A delimited file with uneven rows exits 0 with those rows still present, `raggedRowCount` equal to how many differed from the header, and a matching entry in `parseErrors`.
 - Numeric, date, word-form boolean, and mixed columns are each detected per the Column Types table, and a headerless file read with `--no-header` names its columns `column_1` onward.
-- No run reads a credential, opens a network connection, or writes any file other than what `tools/AGENTS.md` lists a first run installing.
+- No run reads a credential, and after the first-run install no run opens a network connection or writes any file. The install itself reaches `registry.npmjs.org` and writes what `tools/AGENTS.md` lists.

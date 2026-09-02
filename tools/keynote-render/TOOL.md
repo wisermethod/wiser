@@ -18,7 +18,7 @@ Use it when the deliverable is a Keynote file: a deck someone will open, edit, a
 
 Do not use it to author a deck in HTML: reveal.js decks belong to `skills/Create Presentation/`. Do not use it to decide what the slides say. It places the text it is handed; the writing discipline and visual review belong to the skill that calls this tool.
 
-It runs on macOS with Keynote installed, and nowhere else. It authenticates to nothing, holds no credential, takes no `--env`, and opens no network connection.
+It runs on macOS with Keynote installed, and nowhere else. It authenticates to nothing, holds no credential, takes no `--env`, and after the first-run install it opens no network connection. The install itself reaches `registry.npmjs.org`, per `tools/AGENTS.md`.
 
 ## Workstream (primary)
 

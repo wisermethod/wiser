@@ -9,12 +9,34 @@
  *   GET  /status    is a host running, and on what
  *   POST /command   {action, params} -> {ok, result} or {ok, error}
  *   POST /shutdown  close the browser, then exit
+ *
+ * WHO IS ALLOWED TO ASK. Loopback limits who can reach this socket; it does not
+ * say who is asking. Three things do.
+ *
+ *   1. No browser may ask. A page the controlled browser visits can POST here
+ *      with fetch(); the same-origin policy stops it reading the reply but not
+ *      the command running, and a body of text/plain is a "simple request" that
+ *      takes no preflight to send. Every browser attaches Origin (and Sec-Fetch-
+ *      Site) to such a request and no command-line client sends one, so a
+ *      request carrying either is refused. This is the load-bearing check.
+ *   2. Host must be loopback, so a name that resolves here from elsewhere, the
+ *      DNS-rebinding shape, does not reach the actions.
+ *   3. A per-session token, generated at start and readable only by this user,
+ *      must be presented on every endpoint. The client finds it without being
+ *      told, so nobody types it. This is defence in depth for a shared machine.
+ *
+ * WHAT NONE OF THAT DEFENDS AGAINST, said plainly rather than left implied:
+ * another process running AS YOU. It can read the token file exactly as the
+ * client does, and it could read the browser profile off disk without asking
+ * this server at all. That is not solvable at this layer.
  */
 
-import { existsSync, mkdirSync, realpathSync, statSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import http from 'node:http';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { hardenProfile, launchArgs } from './lib/profile.js';
 
@@ -817,6 +839,9 @@ async function shutdown() {
   } catch { /* the browser may already be gone */ }
   context = null;
   page = null;
+  // The token is worthless once this process is gone, and a stale one left on
+  // disk is a file that looks live to whoever reads it next.
+  try { rmSync(TOKEN_FILE, { force: true }); } catch { /* best effort */ }
   if (server) server.close();
   process.exit(0);
 }
@@ -835,7 +860,97 @@ function causeOnly(message) {
   return String(message).split(/\n?Call log:/)[0].trim();
 }
 
+/**
+ * The session token. Written where only this user can read it, and keyed by
+ * port so two hosts never share one. The client reads the same path, so the
+ * token never reaches a flag, an argument list, or a person.
+ *
+ * Outside the plugin, so it has a row in tools/AGENTS.md.
+ */
+const TOKEN_DIR = join(homedir(), '.wiser', 'browser-control');
+const TOKEN_FILE = join(TOKEN_DIR, `${options.port}.token`);
+const SESSION_TOKEN = randomBytes(32).toString('hex');
+
+function publishToken() {
+  mkdirSync(TOKEN_DIR, { recursive: true, mode: 0o700 });
+  // chmod after the write as well as before: a pre-existing directory keeps
+  // whatever mode it had, and mkdirSync's mode argument is ignored then.
+  try { chmodSync(TOKEN_DIR, 0o700); } catch { /* best effort on exotic filesystems */ }
+  writeFileSync(TOKEN_FILE, SESSION_TOKEN, { mode: 0o600 });
+  try { chmodSync(TOKEN_FILE, 0o600); } catch { /* as above */ }
+}
+
+/** Constant-time compare that does not leak length through an early return. */
+function tokenMatches(presented) {
+  if (typeof presented !== 'string') return false;
+  const a = Buffer.from(presented);
+  const b = Buffer.from(SESSION_TOKEN);
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
+
+/**
+ * Why a request is refused, or null if it may proceed. Runs before the route is
+ * read, so /status and /shutdown are held to the same bar as /command: a page
+ * that can shut the host down mid-task is a denial of service, and a /status it
+ * can read discloses the profile path.
+ */
+function refuseReason(req) {
+  // 1. A browser is asking. No command-line client sets either header.
+  if (req.headers.origin !== undefined) return 'a request carrying an Origin header is a browser request, and no browser may drive this session';
+  const fetchSite = req.headers['sec-fetch-site'];
+  if (fetchSite !== undefined && fetchSite !== 'none') return 'a request carrying Sec-Fetch-Site is a browser request, and no browser may drive this session';
+
+  // 2. Host must be loopback, so a name that merely resolves here is refused.
+  const host = String(req.headers.host || '');
+  const bare = host.replace(/:\d+$/, '').replace(/^\[|\]$/g, '');
+  if (bare !== '127.0.0.1' && bare !== 'localhost' && bare !== '::1') {
+    return `Host must be loopback; got "${host}"`;
+  }
+
+  // 3. The session token, which the client reads from the same file this wrote.
+  if (!tokenMatches(req.headers['x-wiser-session'])) {
+    return 'missing or wrong session token; start the host with "session start" and use this tool\'s own client';
+  }
+  return null;
+}
+
+/**
+ * The destructive gate, enforced HERE and not only in the client.
+ *
+ * browser.js refuses these without --confirm before it sends anything, which is
+ * the right place for the message a person reads. It is the wrong place for the
+ * rule: the client sits above this socket, so anything talking to the socket
+ * directly skipped it. The client now marks an authorised call `confirmed:true`
+ * and this refuses the call without it, so the gate holds at the boundary that
+ * actually performs the act.
+ *
+ * Kept in step with browser.js's GATED set by name; the pair is checked by the
+ * gate script rather than by comment.
+ */
+const GATED_ACTIONS = {
+  cookies: new Set(['delete', 'clear']),
+  storage: new Set(['delete', 'clear']),
+  upload: null // every upload
+};
+
+function gateFailure(action, params, confirmed) {
+  if (!Object.hasOwn(GATED_ACTIONS, action)) return null;
+  const subs = GATED_ACTIONS[action];
+  const key = subs === null ? action : `${action} ${params.action}`;
+  if (subs !== null && !subs.has(params.action)) return null;
+  if (confirmed) return null;
+  return `"${key}" changes state that cannot be restored from here, so it needs --confirm`;
+}
+
 function handle(req, res) {
+  const refused = refuseReason(req);
+  if (refused) {
+    // 403 and nothing else: no route echo, no profile path, nothing a caller
+    // that failed the bar can learn from the reply.
+    return respond(res, 403, { ok: false, error: `refused: ${refused}` });
+  }
+
   if (req.method === 'GET' && req.url === '/status') {
     return respond(res, 200, {
       running: true,
@@ -859,6 +974,8 @@ function handle(req, res) {
         const parsed = JSON.parse(raw);
         action = parsed.action;
         if (!Object.hasOwn(actions, action)) throw new Error(`unknown action "${action}"`);
+        const ungated = gateFailure(action, parsed.params ?? {}, parsed.confirmed === true);
+        if (ungated) throw new Error(ungated);
         await ensurePage();
         respond(res, 200, { ok: true, result: await actions[action](parsed.params ?? {}) });
       } catch (error) {
@@ -897,6 +1014,18 @@ page = open.length > 0 ? open[0] : await context.newPage();
 context.on('close', () => { shutdown(); });
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
+
+// Before the socket exists, so there is no window in which the host answers
+// and the client cannot yet authenticate.
+try {
+  publishToken();
+} catch (error) {
+  process.stderr.write(
+    `Error: could not write the session token to ${TOKEN_FILE}: ${error.message}. ` +
+    `The host will not start without it, because an unauthenticated host drives a signed-in browser.\n`
+  );
+  process.exit(1);
+}
 
 server = http.createServer(handle);
 server.listen(options.port, '127.0.0.1');

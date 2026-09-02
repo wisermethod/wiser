@@ -130,12 +130,12 @@ Each of these requires `--confirm`. The gate is checked before anything is read,
 
 ## What This Tool Will Not Do
 
-- **Cookie values never leave the browser.** `cookies list` and `cookies get` return name, domain, path, expiry, flags, and the value's length; the value itself is a live credential, and no command prints it and no command copies it out of the browser, per the constitution's Irreversibles. Chromium's own profile store under `--profile` is where cookie values live, `cookies set` and `cookies delete` change what is in it, and nothing here moves a value out of it. There is no export. `storage get` does return a named key's value, because stored page state is ordinary data and the caller has named exactly what it wants; `storage list` still returns keys alone rather than dumping everything a page has saved.
+- **No cookie command exports a value.** `cookies list` and `cookies get` return name, domain, path, expiry, flags, and the value's length; the value itself is a live credential and neither prints it. There is no export. **Two other paths do carry values out, and the heading above used to deny it.** `execute` runs whatever code it is handed, so `--code "document.cookie"` returns whatever that page's script could read anyway (never an HttpOnly cookie, which is most session cookies); that is the price of an ungated evaluator and it is stated at the `execute` paragraph below. And a trace zip records raw `Cookie` and `Set-Cookie` headers, HttpOnly included. Chromium's own profile store under `--profile` is where cookie values live, and `cookies set` and `cookies delete` change what is in it. `storage get` does return a named key's value, because stored page state is ordinary data and the caller has named exactly what it wants; `storage list` still returns keys alone rather than dumping everything a page has saved.
 - **Sign-ins are not injected.** `cookies set` is for page state such as a consent or locale cookie. Authenticate by having the person sign in in the visible window; the profile keeps it.
 - **Nothing is overwritten.** A screenshot, download, or trace whose target path already exists is refused, not replaced.
 - **Locale, timezone, and touch emulation are not offered.** They are fixed when the context is created and cannot be changed on a live session; a command that appeared to set them would be reporting a change that never happened.
 
-`execute` runs whatever code it is handed, in a page carrying the profile's sign-ins. It is the widest surface here and it is not gated, because its effect is entirely the caller's own code and a gate that fires on every call teaches the caller to ignore it. Blast radius is the caller's to name before running it.
+`execute` runs whatever code it is handed, in a page carrying the profile's sign-ins. It is the widest surface here and it is not gated, because its effect is entirely the caller's own code and a gate that fires on every call teaches the caller to ignore it. Blast radius is the caller's to name before running it. That includes credential material: `--code "document.cookie"` returns what any script on that page could read, which is every non-HttpOnly cookie. It cannot reach an HttpOnly cookie, and most session cookies are HttpOnly.
 
 ## Script Contract
 
@@ -149,7 +149,7 @@ Success is one JSON object on stdout and exit 0. Most commands return the page's
 
 `check` is the one to read carefully. It exits 0 when the assertion ran and reports the verdict in `passed`; an assertion that did not hold is a finding to report, never something to work around by loosening the assertion.
 
-Failure prints to stderr, leaves stdout empty, and exits 1. Files are written where a command's `--output` or `--output-dir` names, and a first run also installs what `tools/AGENTS.md` lists, including a Chromium build outside this plugin, which `Script Contract.md` requires to be outside this tool directory.
+Failure prints to stderr, leaves stdout empty, and exits 1. Files are written where a command's `--output` or `--output-dir` names, and a first run also installs what `tools/AGENTS.md` lists.
 
 ## Troubleshooting
 
@@ -177,6 +177,6 @@ Failure prints to stderr, leaves stdout empty, and exits 1. Files are written wh
 - `session restart` resolves `--profile` before it stops anything: one that names none, or names a relative path or a file, exits 1 with the running session still answering `session status`.
 - A page command with no session running exits 1 naming the port and the start command, stdout empty.
 - Every destructive command run without `--confirm` exits 1 naming the missing confirmation, before it reads a file or contacts the host.
-- No command prints a cookie value, and no file this tool writes at a caller-named output path contains one. `--profile` is not such a path: it is a live Chromium profile and holding cookies, storage, and sign-ins on disk is what it is for, which is the row `tools/AGENTS.md` gives it. A verifier checking that no credential material reaches disk should check every path this tool writes except that one, and should treat that one as the sign-in store it is.
+- No command prints a cookie value. **Exactly two paths this tool writes hold credential material, and a verifier should treat both as such rather than checking around them**: the `--profile` directory, which is a live Chromium profile and exists to keep sign-ins, and a trace zip from `trace stop --output`, which records request and response headers including `Cookie` and `Set-Cookie`. Both have rows in `tools/AGENTS.md`. Every other path this tool writes is free of them. The trace is the one worth saying twice, because a trace's whole purpose is to be handed to someone else.
 - A caller-named path that is relative, inside this tool directory, or already taken is refused rather than written.
 - Acting on an element found by an interactive snapshot changes the page, and the next snapshot shows it.

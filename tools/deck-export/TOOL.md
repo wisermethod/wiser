@@ -16,7 +16,7 @@ Use it at the two mechanical ends of deck work. At the start, when a deck projec
 
 Do not use it to write the deck. Choosing the arc, the slides, and the words is `skills/Create Presentation/`; this tool lays the project down and renders the finished file, and a caller composes the two. Do not use it for a single HTML page rendered to one image, which is `html-to-png`, nor for a long-form document headed to print, which is `Book Publisher`. It holds no opinion about a deck's content: it copies, writes, and renders exactly what it is pointed at.
 
-It authenticates to nothing, holds no credential, and reaches no other primitive. It opens no network connection of its own; a deck is loaded from disk, and whatever that deck references is fetched, which for a deck that loads reveal.js from a CDN means rendering needs network access.
+It authenticates to nothing, holds no credential, and reaches no other primitive. After the first-run install it opens no network connection of its own; a deck is loaded from disk, and whatever that deck references is fetched, which for a deck that loads reveal.js from a CDN means rendering needs network access. The install itself reaches `registry.npmjs.org` and `cdn.playwright.dev`, per `tools/AGENTS.md`.
 
 ## Quick Start
 

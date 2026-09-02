@@ -26,7 +26,7 @@ Rendering is a real browser, so this tool needs a browser binary beyond Node and
 |------------|------------|--------------|
 | Chromium | `capture` and `check` | `node scripts/capture.js check` exits 0 with `"chromiumLaunch":true` |
 
-Missing OS libraries are self-healed in userspace where a C compiler is present; otherwise `check` names the library and the one next step. The runtime also forwards `HTTPS_PROXY` / `HTTP_PROXY` into Chromium. Install steps are never written here. The binary lands in a machine-wide browser cache outside this tool's directory.
+Missing OS libraries are self-healed in userspace where a C compiler is present; otherwise `check` names the library and the one next step. The runtime also forwards `HTTPS_PROXY` / `HTTP_PROXY` into Chromium. Install steps are never written here. The binary lands where `tools/AGENTS.md` says it does, which depends on the platform and on `PLAYWRIGHT_BROWSERS_PATH`.
 
 ## Quick Start
 
@@ -40,7 +40,7 @@ Usage text, with nothing installed.
 node scripts/capture.js capture --url https://host.example/pricing --output /path/to/a/work/directory/pricing.png
 ```
 
-The first real run installs `playwright` into this tool's directory and its Chromium build into the browser cache `tools/AGENTS.md` names, which is outside this plugin, and asks for a re-run; the second does the work and prints one JSON object:
+The first real run installs `playwright` into this tool's directory and its Chromium build where `tools/AGENTS.md` names, and asks for a re-run; the second does the work and prints one JSON object:
 
 ```
 {"output":"/path/to/a/work/directory/pricing.png","url":"https://host.example/pricing","finalUrl":"https://host.example/pricing","status":200,"width":1280,"height":720,"scale":1,"fullPage":false}
@@ -160,4 +160,4 @@ Read `finalUrl` and `status` before trusting the image. A capture that ran clean
 - A run whose `--output` names directories that do not exist creates them and writes the file.
 - An unreachable host, a refused connection, and a page that never settles each exit 1 with this tool's own sentence naming the address and what to do, never with the browser's own text; the settling failure names the budget in milliseconds, the caller's when one was set and 30000 when none was.
 - A run without `--full-page` is `--width` by `--height` pixels, times `--scale`; a run with it is `--width` by the document's height, times `--scale`. The defaults, 1280 by 720 at scale 1, are what the tool has always done.
-- No run reads a credential, sends a cookie or a stored session, navigates anywhere but the address `--url` names, or writes any file other than the one `--output` names and what `tools/AGENTS.md` lists a first run installing, which includes a Chromium build outside this plugin.
+- No run reads a credential, sends a cookie or a stored session, navigates anywhere but the address `--url` names, or writes any file other than the one `--output` names and what `tools/AGENTS.md` lists a first run installing.

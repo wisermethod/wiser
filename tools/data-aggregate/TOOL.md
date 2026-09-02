@@ -16,7 +16,7 @@ Use it whenever an answer is a number over a subset of rows: revenue by region, 
 
 Do not use it to learn what a file contains. It needs the column names before it can group on them, and `data-parse` is what produces those, along with each column's detected type. Do not use it for a whole-column summary either: spread, percentiles, and standard deviation belong to the descriptive-statistics tool, not here, and this one groups rather than describes. It does not filter rows, sort by a computed metric, return the rows behind a group, compute a change between periods, or relate one column to another; it also changes nothing about the file it reads.
 
-It authenticates to nothing, holds no credential, reaches no other primitive, and makes no network request. It reads the one file the caller names and writes nothing.
+It authenticates to nothing, holds no credential, reaches no other primitive, and after the first-run install described in `tools/AGENTS.md` it makes no network request. It reads the one file the caller names and writes nothing.
 
 ## Groups and Metrics
 
@@ -130,4 +130,4 @@ One JSON object on stdout, exit 0, whenever the file was read, including a read 
 - A column that is not in the file, and a non-numeric column asked for anything but `count`, each exit 0 with `groupCount` 0 and the reason in `errors`, naming the columns the file does hold.
 - Grouping on a tuple yields one entry per distinct combination, whatever characters the values carry, and the entries sort by the first grouping column.
 - `count` returns a group's row count on any column; the other five read only values that parse as numbers and skip the rest.
-- No run reads a credential, opens a network connection, or writes any file other than what `tools/AGENTS.md` lists a first run installing.
+- No run reads a credential, and after the first-run install no run opens a network connection or writes any file. The install itself reaches `registry.npmjs.org` and writes what `tools/AGENTS.md` lists.

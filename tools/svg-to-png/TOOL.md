@@ -142,4 +142,4 @@ A run that cannot produce the image writes no PNG, prints nothing to stdout, and
 - `render` whose `--output` sits under folders that do not exist yet creates them and writes the PNG there.
 - `--timeout` bounds the page load and defaults to 30000 ms; a run against an SVG referencing an address that never answers exits 1 naming the budget, and lowering the flag reaches that failure sooner.
 - A run against an SVG that references nothing outside itself completes with no network request; a run against one that references a remote asset requests only the addresses written in that SVG.
-- No run reads a credential, and no run writes any file other than the caller's PNG and what `tools/AGENTS.md` lists a first run installing, some of which is outside this plugin.
+- No run reads a credential, and no run writes any file other than the caller's PNG and what `tools/AGENTS.md` lists a first run installing.

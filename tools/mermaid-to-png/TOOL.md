@@ -16,7 +16,7 @@ Use it whenever a Mermaid diagram has to become an image: a flowchart bound for 
 
 Do not use it on markup that is not Mermaid. An SVG file goes to `svg-to-png`, an HTML page to `html-to-png`, and a page that is live on the web to `web-screenshot`. Mermaid inside a fenced block in a markdown file is not an input either: extract the diagram to its own file first, because this tool reads the whole file as one diagram. Do not reach for it to change an image that already exists; that is `image-edit` and `image-overlay`.
 
-It authenticates to nothing, holds no credential, reaches no other primitive, and makes no network request. It reads the one file the caller names and writes the one file the caller names.
+It authenticates to nothing, holds no credential, reaches no other primitive, and after the first-run install described in `tools/AGENTS.md` it makes no network request. It reads the one file the caller names and writes the one file the caller names.
 
 ## Sizing
 
@@ -135,5 +135,5 @@ Missing parent directories of the output path are created, so a dated folder tha
 - `--timeout` bounds the wait for the diagram to appear, defaults to the 10 second budget, and a run that exhausts it says so and names the flag rather than reporting a browser failure.
 - A diagram that does not parse exits 1 naming the line number and nothing else from the renderer, and writes no file.
 - `--scale` changes resolution only: the same diagram at 1 and at 2 differs in pixel count and in nothing else. `--width` changes layout: a diagram wider than the cap scales down, a narrower one is not padded out to it.
-- No run opens a network connection; the renderer loads from this tool's own `node_modules`.
-- No run writes any file other than the PNG the caller named and what `tools/AGENTS.md` lists a first run installing, which includes a Chromium build outside this plugin.
+- After the first-run install, no run opens a network connection: the renderer loads from this tool's own `node_modules`. The first run is the exception and it is a large one, reaching `registry.npmjs.org` for the packages and `cdn.playwright.dev` for a Chromium build of several hundred megabytes, per `tools/AGENTS.md`.
+- No run writes any file other than the PNG the caller named and what `tools/AGENTS.md` lists a first run installing.

@@ -46,4 +46,4 @@ Run the checks in TOOL.md's Success section. On a correctly set up copy, `help`,
 
 **Proxy-only egress / CDN decks stall** Export `HTTPS_PROXY` or `HTTP_PROXY` in the process environment; the shared runtime forwards them into Chromium automatically.
 
-**Shared browser cache (optional)** Playwright downloads Chromium into a machine-wide cache. To keep that cache on a shared writable volume (and avoid re-fetching on every fresh copy of this tool), set `PLAYWRIGHT_BROWSERS_PATH` to that directory before install and render; leave unset for the Playwright default.
+**Shared browser cache (optional)** To keep the Chromium build on a shared writable volume, and avoid re-fetching it for every fresh copy of this tool, set `PLAYWRIGHT_BROWSERS_PATH` to that directory before install and render. Leave it unset for Playwright's own default, and see `tools/AGENTS.md` for where each setting puts the build, including `PLAYWRIGHT_BROWSERS_PATH=0`, which puts it inside the tool.

@@ -16,7 +16,7 @@ Use it whenever two files share a key and the answer needs columns from both: an
 
 Do not use it to learn what either file contains; profile each side first with `tools/data-parse/` so the key's spelling and case are known. Do not use it for a group-by or a whole-column statistic; those are `tools/data-aggregate/` and `tools/data-describe/`. It does not filter, sort by a computed value, or compute a change between periods, and it changes nothing about the files it reads.
 
-It authenticates to nothing, holds no credential, reaches no other primitive, and makes no network request. It reads the two files the caller names and writes nothing.
+It authenticates to nothing, holds no credential, reaches no other primitive, and after the first-run install described in `tools/AGENTS.md` it makes no network request. It reads the two files the caller names and writes nothing.
 
 ## Join Modes
 
@@ -122,4 +122,4 @@ One JSON object on stdout, exit 0, whenever both paths were read, including a re
 - A key that is not on one side exits 0 with empty `rows` and the reason in `errors`, naming the columns that side does hold.
 - An inner join drops unmatched left rows; a left join keeps them with right columns null; one-to-many keys produce one result row per match.
 - An unknown option is refused by name before any install or read.
-- No run reads a credential, opens a network connection, or writes any file other than what `tools/AGENTS.md` lists a first run installing.
+- No run reads a credential, and after the first-run install no run opens a network connection or writes any file. The install itself reaches `registry.npmjs.org` and writes what `tools/AGENTS.md` lists.

@@ -35,9 +35,9 @@
  */
 
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join, sep } from 'node:path';
+import { dirname, join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 
 // Playwright is loaded lazily, never at module load. Importing this module must
 // not pull in playwright, so a tool that vendors it still answers `help`/`--help`
@@ -82,46 +82,48 @@ function proxyServer() {
 
 // Where the compatibility shims are built.
 //
-// This is deliberately NOT computed from a platform cache path and reads no
-// environment variable, because both of those were wrong here before. An
-// earlier revision hardcoded the Linux browser-cache default for every
-// platform, so on macOS it named an empty directory. It also read the browser
-// path variable so literally that the documented value "0" — truthy in
-// JavaScript — yielded a RELATIVE path and compiled a shared library into a
-// directory named 0 in whatever directory the caller happened to be standing
-// in. And it ignored the XDG cache variable, which Playwright honours on
-// Linux. tools/AGENTS.md holds the paths; no path is repeated here.
+// Derived from THIS TOOL'S OWN ROOT, and from nothing else. No environment
+// variable is read and no platform is branched on, because both were wrong here
+// before: an earlier revision hardcoded the Linux browser-cache default for
+// every platform, and read the browser-path variable so literally that the
+// documented value "0" - truthy in JavaScript - yielded a RELATIVE path and
+// compiled a shared library into a directory named 0 in whatever directory the
+// caller happened to be standing in.
 //
-// The shims are not Playwright's, so they do not belong in Playwright's cache.
-// They are this plugin's own build artifacts, per copy like every other
-// dependency, and the one directory that is guaranteed writable (npm ci just
-// wrote it), already ignored by this repository, and already scoped to this
-// tool is the node_modules that supplied `playwright`. So ask Node where
-// playwright actually resolved from and build beside it: no env var, no
-// platform branch, always absolute, always inside this tool's own directory.
+// The revision after that asked Node where `playwright` resolved from. That is
+// correct under npm and wrong under a store-linked install: require.resolve
+// returns the REALPATH, so with pnpm or a symlinked node_modules the shims land
+// in a shared package store rather than in this tool, which may be shared
+// between copies or read-only. Reviewers disagreed about whether that is
+// reachable on the supported npm ci path. It does not matter: the tool root is
+// knowable without asking the resolver at all.
+//
+// So: walk up from this file to the nearest package.json, which is the tool's
+// own manifest, and build in the node_modules beside it. That directory is
+// guaranteed writable (the install just wrote it), already ignored by this
+// repository, and inside this tool under every package manager. tools/AGENTS.md
+// states exactly that, and now it is true unconditionally.
+export function toolRoot() {
+  let dir = dirname(fileURLToPath(import.meta.url));
+  for (let up = 0; up < 12; up += 1) {
+    if (existsSync(join(dir, 'package.json'))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  throw new Error(
+    'cannot place the compatibility shims: no package.json above ' +
+    fileURLToPath(import.meta.url) + ', so this tool has no root to build in'
+  );
+}
+
 // Exported for the gate check, which calls it rather than reading it. Three
 // rounds of this build produced checks written against the sentence that
 // described this function instead of against the function, and each of them
 // reported zero while the code was wrong. A check that can execute it cannot
 // make that mistake.
 export function libCacheDir() {
-  const require_ = createRequire(import.meta.url);
-  let resolved;
-  try {
-    resolved = require_.resolve('playwright/package.json');
-  } catch {
-    // A publish that restricts "exports" can refuse package.json; the entry
-    // point always resolves and lives inside the same node_modules.
-    resolved = require_.resolve('playwright');
-  }
-  const parts = resolved.split(sep);
-  const i = parts.lastIndexOf('node_modules');
-  if (i === -1) {
-    throw new Error(
-      `cannot place the compatibility shims: playwright resolved outside any node_modules (${resolved})`
-    );
-  }
-  return join(parts.slice(0, i + 1).join(sep) || sep, '.wiser-lib');
+  return join(toolRoot(), 'node_modules', '.wiser-lib');
 }
 
 function missingLibs(execPath) {

@@ -12,10 +12,11 @@
 
 // Node built-ins only. Nothing here may import from outside this tool directory.
 import { execFileSync, spawn } from 'node:child_process';
-import { accessSync, constants, existsSync, realpathSync, statSync } from 'node:fs';
+import { accessSync, constants, existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import http from 'node:http';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { homedir } from 'node:os';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const TOOL_DIR = resolve(SCRIPT_DIR, '..');
@@ -87,8 +88,11 @@ Options:
   --timeout [ms]         Per-action timeout where the command takes one.
   --help                 Print this message
 
-Cookie values are never printed and never written to a file. Sign in by hand in
-the visible window; the profile directory keeps the session.
+No command prints a cookie value. Two paths do hold them on disk: the --profile
+directory, which is the sign-in store and exists to, and a trace zip written by
+"trace stop --output", which records request and response headers including
+Cookie and Set-Cookie. Treat both as credential material. Sign in by hand in the
+visible window; the profile directory keeps the session.
 
 Success prints one JSON object to stdout. Errors go to stderr with exit 1.`;
 
@@ -362,6 +366,23 @@ function callerPath(name, { directory = false } = {}) {
 
 const port = integer('--port', DEFAULT_PORT);
 
+/**
+ * The session token the host wrote when it started. Read from the same path the
+ * host computes, so nobody types it and no flag carries it. Absent means no
+ * host is running, or one is running that this account may not drive; either
+ * way the request goes out without a token and the host answers 403, which is
+ * the message worth showing.
+ */
+const TOKEN_FILE = join(homedir(), '.wiser', 'browser-control', `${port}.token`);
+
+function sessionToken() {
+  try {
+    return readFileSync(TOKEN_FILE, 'utf8').trim();
+  } catch {
+    return '';
+  }
+}
+
 function request(method, path, body) {
   return new Promise((accept, reject) => {
     const payload = body === undefined ? undefined : JSON.stringify(body);
@@ -372,9 +393,12 @@ function request(method, path, body) {
         path,
         method,
         timeout: 120000,
-        headers: payload === undefined
-          ? {}
-          : { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
+        headers: {
+          'X-Wiser-Session': sessionToken(),
+          ...(payload === undefined
+            ? {}
+            : { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) })
+        }
       },
       (res) => {
         let raw = '';
@@ -422,7 +446,11 @@ async function stopHost() {
 async function send(action, params) {
   let answer;
   try {
-    answer = await request('POST', '/command', { action, params });
+    // The host enforces the same gate at its own boundary, so an authorised
+    // call has to say it is authorised. This is the only place that sets it,
+    // and it reads the switch the gate above already checked.
+    const confirmed = switchOn('--confirm');
+    answer = await request('POST', '/command', { action, params, confirmed });
   } catch (error) {
     if (error.code === 'ECONNREFUSED') {
       fail(`Error: no browser host answering on port ${port}. Start one with "node scripts/browser.js session start --profile [absolute dir]".`);

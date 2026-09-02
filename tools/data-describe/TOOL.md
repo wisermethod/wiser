@@ -18,7 +18,7 @@ Do not use it to learn what a file contains. It reports statistics, not structur
 
 It reads CSV, JSON, and TSV. A spreadsheet workbook, a PDF table, and an image of a table are not among them.
 
-It authenticates to nothing, holds no credential, reaches no other primitive, and makes no network request. It reads the one file the caller names and writes nothing.
+It authenticates to nothing, holds no credential, reaches no other primitive, and after the first-run install described in `tools/AGENTS.md` it makes no network request. It reads the one file the caller names and writes nothing.
 
 ## Which Columns Get Statistics
 
@@ -132,4 +132,4 @@ One JSON object on stdout, exit 0, whenever the file was read, including a read 
 - `describe` with `--file` omitted, naming a path that does not exist or is not a file, or carrying an unsupported `--format`, exits 1 with the cause on stderr and stdout empty, and triggers no dependency install.
 - A file with no numeric column, an unparseable file, and an empty file each exit 0 with no columns and the reason in `errors`; none of them raises, and none quotes the parser's own message. A present non-numeric column is listed in `skippedColumns` with its reason; a name absent from the file appears only in `errors`.
 - Every figure matches the definitions above: a population standard deviation, interpolated percentiles, four decimal places, and values that are not numbers counted in `nullCount` rather than treated as zero.
-- No run reads a credential, opens a network connection, or writes any file other than what `tools/AGENTS.md` lists a first run installing.
+- No run reads a credential, and after the first-run install no run opens a network connection or writes any file. The install itself reaches `registry.npmjs.org` and writes what `tools/AGENTS.md` lists.

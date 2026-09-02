@@ -16,7 +16,7 @@ An authoring tree, not a working folder. Nothing here is anyone's work product; 
 
 ## Writes
 
-In use this root is read-only, with one exception: a tool writes its own dependencies, and a browser tool also writes a browser build outside this root. `tools/AGENTS.md` lists every one of them and where each lands.
+In use this root is read-only, with one exception: a tool writes its own dependencies, and a browser tool also writes a browser build whose location depends on the platform and on `PLAYWRIGHT_BROWSERS_PATH`. `tools/AGENTS.md` lists every one of them and where each lands.
 
 Never write to another root composed in the same workspace, whatever its permissions look like on disk. A workspace that happens to compose a root is not permission to edit it.
 

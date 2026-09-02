@@ -18,7 +18,7 @@ Do not use it to capture a live website; that is `web-screenshot`, which takes a
 
 Writing the HTML is the caller's job. This tool renders what it is handed, at the size it is told, and reports what it wrote.
 
-It authenticates to nothing, holds no credential, reaches no other primitive, and opens no network connection of its own. The page is loaded from disk: whatever that page references is fetched, and nothing else is.
+It authenticates to nothing, holds no credential, reaches no other primitive, and after the first-run install it opens no network connection of its own. The page is loaded from disk: whatever that page references is fetched, and nothing else is. The install itself reaches `registry.npmjs.org` and `cdn.playwright.dev`, per `tools/AGENTS.md`.
 
 ## Quick Start
 

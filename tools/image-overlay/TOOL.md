@@ -16,7 +16,7 @@ Use it when both images already exist and the result is one file: a prepared wat
 
 Do not use it to make the overlay. It draws no text, no shape, and no gradient of its own, so the artwork and its transparency arrive already made; a caller holding only the words for a watermark renders that artwork first, from vector source with `svg-to-png` or from markup with `html-to-png`, and composites the PNG here. Do not use it to place the overlay: it takes no position, no offset, no scale, no opacity, and no blend mode, because the overlay covers the base edge to edge every time. Do not use it on one image: resizing, cropping, converting a format, and adjusting color are single-image edits, and they belong to `image-edit`.
 
-It authenticates to nothing, holds no credential, reaches no other primitive, and makes no network request. It reads the two files the caller names and writes the one file the caller names.
+It authenticates to nothing, holds no credential, reaches no other primitive, and after the first-run install described in `tools/AGENTS.md` it makes no network request. It reads the two files the caller names and writes the one file the caller names.
 
 ## Composition
 
@@ -152,4 +152,4 @@ A stretch also prints a note to stderr naming both dimensions; stdout stays one 
 - An `--output` whose parent directories do not exist writes the file and creates them, and a run that fails before the write creates none.
 - A missing argument, a relative path, a missing file, an unsupported extension, a directory passed as `--output`, an unknown argument, and a destination inside this tool directory are each refused with the cause on stderr, stdout empty, exit 1.
 - An overlay of different dimensions is stretched to the base's, reported as `overlayResized`, and noted on stderr.
-- No run reads a credential, takes `--env`, reads from the keyboard, opens a network connection, or writes any file other than the destination and what `tools/AGENTS.md` lists a first run installing.
+- No run reads a credential, takes `--env`, or reads from the keyboard, and after the first-run install no run opens a network connection. A run writes the destination and nothing else; where `--output` is omitted that destination is `--base` itself, which needs `--confirm`. The install reaches `registry.npmjs.org` and writes what `tools/AGENTS.md` lists.

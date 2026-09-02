@@ -16,7 +16,7 @@ Use it whenever a raster image that already exists has to arrive somewhere in a 
 
 Do not use it to change what the picture shows. Removing an object or a background, restyling, extending a scene, and anything else that has to understand the content are generative work, and they belong to `skills/Media Generator/` and the `connectors/replicate/` connector behind it. Do not use it for a different kind of input either: vector artwork is rendered by `svg-to-png`, an HTML page by `html-to-png`, a Mermaid diagram by `mermaid-to-png`, and a live page by `web-screenshot`, each of which sizes its input properly; an SVG handed here is refused rather than quietly flattened at whatever size it declares. Compositing two images into one is `image-overlay`; what is here is one image on an empty canvas, at a position the caller computes, which is a placement rather than a blend.
 
-It authenticates to nothing, holds no credential, reaches no other primitive, and makes no network request. It reads the one file the caller names and writes the one file the caller names.
+It authenticates to nothing, holds no credential, reaches no other primitive, and after the first-run install described in `tools/AGENTS.md` it makes no network request. It reads the one file the caller names and writes the one file the caller names.
 
 ## Operations
 
@@ -168,4 +168,4 @@ One thing reaches stderr on a run that succeeds: a `Note:` naming what a placeme
 - An output that reaches this tool directory through a symbolic link is refused exactly as the direct spelling is, and so is one that reaches the input file that way.
 - `edit` onto a path a file already occupies exits 1 naming the path and `--overwrite`, leaves that file byte-identical, and installs nothing; the same run with `--overwrite` replaces it. `--overwrite` never makes an `--output` equal to `--file` succeed, and never writes into a folder.
 - The input file is byte-identical after every run, successful or failed.
-- No run reads a credential, opens a network connection, reads stdin, or writes anything other than the caller's output, the folders that output needed, and what `tools/AGENTS.md` lists a first run installing.
+- No run reads a credential, reads stdin, or writes anything other than the caller's output and the folders that output needed; and after the first-run install no run opens a network connection. The install itself reaches `registry.npmjs.org` and writes what `tools/AGENTS.md` lists.

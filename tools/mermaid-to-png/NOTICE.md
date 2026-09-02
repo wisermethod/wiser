@@ -116,7 +116,7 @@ This tool installs the 107 packages below on the machine that calls it, into thi
 
 ## The browser build is a separate download
 
-`playwright` is the npm package. The Chromium build it drives is not an npm package and is not in the table above: it is fetched separately, into a browser cache outside this tool, by `playwright install chromium`. That build is roughly half a gigabyte and carries its own licences, chiefly the BSD-style licence of the Chromium project. This repository redistributes neither the package nor the browser.
+`playwright` is the npm package. The Chromium build it drives is not an npm package and is not in the table above: it is fetched separately, by `playwright install chromium`, into whichever location `tools/AGENTS.md` names for this machine's platform and settings. That build is roughly half a gigabyte and carries its own licences, chiefly the BSD-style licence of the Chromium project. This repository redistributes neither the package nor the browser.
 
 ## khroma 2.1.0 records no licence, and that is stated rather than smoothed over
 

@@ -16,7 +16,7 @@ Use it whenever a numeric series or comparison should be seen rather than only s
 
 Do not use it for conceptual diagrams, process maps, or geometry that is not a quantitative encoding; those are `skills/Visualizer/`. Do not use it to compute statistics or group rows; it plots the values as they sit in the file, and aggregation belongs to `tools/data-aggregate/` first when the file needs grouping. It does not join files, filter rows, or invent scales beyond a simple zero-based axis, and it changes nothing about the file it reads.
 
-It authenticates to nothing, holds no credential, reaches no other primitive, and makes no network request. The HTML it writes loads no external script, stylesheet, or font: the chart is inline SVG and opens with no network.
+It authenticates to nothing, holds no credential, reaches no other primitive, and after the first-run install described in `tools/AGENTS.md` it makes no network request. The HTML it writes loads no external script, stylesheet, or font: the chart is inline SVG and opens with no network.
 
 ## Chart Types
 
@@ -124,4 +124,4 @@ The HTML is a complete document: UTF-8, a title, minimal inline CSS, and one SVG
 - `chart` with a required flag omitted, a bad `--type`, a path that does not exist or is a directory, an occupied `--output` without `--overwrite`, a missing column, or no numeric y values exits 1 with the cause on stderr and stdout empty, and triggers no dependency install when the mistake is a usage one.
 - The written HTML contains an inline SVG, loads no external script or stylesheet, and opens with no network.
 - An unknown option is refused by name before any install, read, or write.
-- No run reads a credential, and after the first-run install no run opens a network connection. The writes are what `tools/AGENTS.md` lists a first run installing, and the chart at `--output`; the install itself is in this tool's own directory and the single HTML file at the caller-named `--output`.
+- No run reads a credential, and after the first-run install no run opens a network connection. The install itself reaches `registry.npmjs.org`. The writes are what `tools/AGENTS.md` lists a first run installing, and the chart at `--output`; the install itself is in this tool's own directory and the single HTML file at the caller-named `--output`.
