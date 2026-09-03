@@ -30,7 +30,7 @@ Usage text, with nothing installed.
 node scripts/deck.js check
 ```
 
-Reports what is present, installing nothing:
+Reports what is present, installing nothing (with `--install` it installs first and then reports on what it installed):
 
 ```
 {"reveal.js":true,"playwright":true,"chromium":true}
@@ -56,7 +56,7 @@ Anything else, see Troubleshooting.
 |------------|------------|--------------|
 | The Chromium build Playwright drives | `pdf` and `png` | `node scripts/deck.js check` reports `"chromium":true` (trial launch), or `npm run check:chromium` exits 0 |
 
-The packages install on the run that authorises them with `--install`, and that same run then fetches the browser, which is a separate download version-matched to the package that drives it. Presence is a **trial launch**, not a path on disk: a binary that cannot start reports false. Missing OS libraries are self-healed in userspace where a C compiler is present (shared `scripts/lib/browser-runtime.js`); otherwise `check` names the library and the one next step. Install steps are never written here. The shared runtime also forwards `HTTPS_PROXY` / `HTTP_PROXY` into Chromium for CDN-loaded decks. `scaffold` and `check` never need a successful launch for non-browser work; `check` still surveys Chromium without installing packages.
+The packages install on the run that authorises them with `--install`, and that same run then fetches the browser, which is a separate download version-matched to the package that drives it. Presence is a **trial launch**, not a path on disk: a binary that cannot start reports false. Missing OS libraries are self-healed in userspace where a C compiler is present (shared `scripts/lib/browser-runtime.js`); otherwise `check` names the library and the one next step. Install steps are never written here. The shared runtime also forwards `HTTPS_PROXY` / `HTTP_PROXY` into Chromium for CDN-loaded decks. `scaffold` and `check` never need a successful launch for non-browser work; `check` surveys Chromium without installing packages unless the run authorises an install with `--install`, in which case it installs the packages and the browser and then reports on them.
 
 ## Scaffolding
 
@@ -86,7 +86,7 @@ Size comes from the deck. After the deck initializes, its own reveal.js configur
 | Command | Purpose | Needs the browser |
 |---------|---------|-------------------|
 | `node scripts/deck.js help` | Print usage and exit | No |
-| `node scripts/deck.js check` | Report which dependencies are present, installing nothing | No |
+| `node scripts/deck.js check` | Report which dependencies are present, installing nothing | Only with `--install` |
 | `node scripts/deck.js scaffold --output <dir>` | Write a new deck project | No |
 | `node scripts/deck.js pdf --input <deck.html> --output <file.pdf>` | Render the deck to one PDF | Yes |
 | `node scripts/deck.js png --input <deck.html> --output <dir>` | Render the deck to one PNG per slide | Yes |
@@ -113,7 +113,7 @@ Every path is absolute, because a relative one resolves against whichever direct
 
 The one script this tool ships follows `system/templates/Script Contract.md`: self-contained imports, help answered before anything else, the first-run package install, the system-dependency check on the commands that need it, and the stdout and stderr rules. The sections above state what each command does; the contract states how the script behaves getting there.
 
-Two behaviors are worth knowing beyond it. Every usage mistake the script can judge on its own is caught before the dependency check, so a bad path, a bad size, a bad ratio, or a bad transition never triggers an install and never opens a browser; `--theme` is the one exception, since only the installed package knows which themes it ships, so an unknown theme refuses after that install and still before any browser. And `check` installs nothing at all, so a machine can be surveyed before anything is committed to it: for Chromium it runs a trial launch through the shared browser-runtime, not only a path check. Content and render failures still withhold the engine's own text, which quotes the deck; launch failures name the runtime's remediation (never a root-only install-deps wall); network or navigation timeouts surface the engine detail an operator needs. Per-slide progress goes to stderr, so stdout carries only the final JSON object. Nothing is read from stdin, so a run with nobody watching fails loudly rather than waiting.
+Two behaviors are worth knowing beyond it. Every usage mistake the script can judge on its own is caught before the dependency check, so a bad path, a bad size, a bad ratio, or a bad transition never triggers an install and never opens a browser; `--theme` is the one exception, since only the installed package knows which themes it ships, so an unknown theme refuses after that install and still before any browser. And `check` installs nothing at all unless the run authorises an install with `--install`, so a machine can be surveyed before anything is committed to it and repaired by the same command once someone has answered for the download: for Chromium it runs a trial launch through the shared browser-runtime, not only a path check. Content and render failures still withhold the engine's own text, which quotes the deck; launch failures name the runtime's remediation (never a root-only install-deps wall); network or navigation timeouts surface the engine detail an operator needs. Per-slide progress goes to stderr, so stdout carries only the final JSON object. Nothing is read from stdin, so a run with nobody watching fails loudly rather than waiting.
 
 ## Output
 
@@ -156,7 +156,7 @@ Failure prints to stderr, leaves stdout empty, and exits 1.
 
 ## Success
 
-- `help` prints usage to stdout and exits 0 on a copy with no `node_modules/`, and `check` prints one JSON object of booleans on the same copy, installing nothing; `chromium` is true only after a trial launch succeeds, not merely because the binary path exists.
+- `help` prints usage to stdout and exits 0 on a copy with no `node_modules/`, and `check` prints one JSON object of booleans on the same copy, installing nothing and opening no connection; `chromium` is true only after a trial launch succeeds, not merely because the binary path exists. `check --install` on that same copy installs the packages and the browser first and then reports on them.
 - Every usage mistake exits 1 with the cause on stderr and stdout empty, and none of them opens a browser: a missing, relative, non-existent, or wrong-shaped path, an unknown ratio, or an unknown transition refuses before any install; an unknown theme refuses against the list the installed package really ships, which on a fresh copy is after the first-run install.
 - An `--output` resolving inside this tool directory is refused rather than written.
 - `scaffold` writes exactly one HTML file and one assets folder under `--output`, and a second run at the same path refuses instead of overwriting.

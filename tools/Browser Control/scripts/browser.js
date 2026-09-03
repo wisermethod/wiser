@@ -506,10 +506,22 @@ function installPlan() {
     names = Object.keys(JSON.parse(readFileSync(join(TOOL_DIR, 'package.json'), 'utf8')).dependencies || {});
   } catch { /* the report degrades to a generic list; the refusal still stands */ }
   const browser = names.includes('playwright');
+  // A browser tool's authorised run makes TWO fetches, to two different places,
+  // and this report used to fold them into one clause that was wrong about both
+  // halves: `from registry.npmjs.org and cdn.playwright.dev into <TOOL_DIR>`
+  // read as though the Chromium build landed in this directory, which it does
+  // not, and it omitted the Microsoft fallback host that the browser message a
+  // few lines down gets right. An egress allowlist built from that sentence is
+  // short by a host and a disk-space estimate built from it looks in the wrong
+  // place. So `hosts` is now only what NPM contacts -- which is the whole truth
+  // for the clause it sits in -- and the browser fetch is a sentence of its own
+  // with its own hosts and its own destination.
   return {
     list: names.length ? names.join(', ') : 'the packages package.json declares',
-    hosts: browser ? 'registry.npmjs.org and cdn.playwright.dev' : 'registry.npmjs.org',
-    size: browser ? ' The Chromium build alone is several hundred megabytes.' : ''
+    hosts: 'registry.npmjs.org',
+    size: browser
+      ? ' This run then fetches the Chromium build that package drives, several hundred megabytes, from cdn.playwright.dev, or from playwright.download.prss.microsoft.com when Playwright falls back. That build does NOT land here: it goes wherever Playwright keeps browser builds on this machine, which tools/AGENTS.md names for each platform.'
+      : ''
   };
 }
 
@@ -522,13 +534,16 @@ const PLAYWRIGHT_CLI = join(TOOL_DIR, 'node_modules', 'playwright', 'cli.js');
 // rather than guessed from a path this script builds: `--dry-run` names every
 // artifact and the directory it lands in, so a Playwright release that adds one
 // is covered without editing this file. Null means the question could not be
-// asked -- no package yet, or a CLI that does not answer it.
+// asked -- no package yet, a CLI that does not answer it, or one that does not
+// answer inside the timeout, which is there so an unanswerable question cannot
+// hang the tool. `chromiumInstalled` reads a null plan as NOT installed.
 function chromiumPlan() {
   try {
     const report = execFileSync(process.execPath, [PLAYWRIGHT_CLI, 'install', 'chromium', '--dry-run'], {
       cwd: TOOL_DIR,
       encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore']
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 120000
     });
     const locations = [...report.matchAll(/^\s*Install location:\s*(\S.*)$/gm)].map((m) => m[1].trim());
     return locations.length ? locations : null;
@@ -537,24 +552,40 @@ function chromiumPlan() {
   }
 }
 
-// EVERY artifact, not just the one `chromium.executablePath()` names. `install
-// chromium` fetches three -- Chrome for Testing, FFmpeg and Chrome Headless
-// Shell -- one after another, and a default headless launch uses the headless
-// shell rather than Chrome. Round 6 measured what the old probe did with a
-// download that died after the first: Chrome was present, the probe was
-// satisfied, the installer was never run again, and --install could not repair
-// the state it exists to repair.
-async function chromiumInstalled() {
+// EVERY artifact, and PLAYWRIGHT'S OWN CRITERION for each one.
+//
+// `install chromium` fetches three artifacts -- Chrome for Testing, FFmpeg and
+// Chrome Headless Shell -- one after another, and a default headless launch
+// uses the headless shell rather than Chrome. Round 6 found this probe asking
+// `chromium.executablePath()` alone, so a download that died after the first
+// artifact left it satisfied for good. Round 7 found ITS REPLACEMENT asking
+// `existsSync(location)`, one layer further in and wrong for the same reason:
+// `Install location:` names a DIRECTORY, and Playwright removes and recreates
+// that directory before it extracts into it. Three EMPTY directories satisfied
+// that probe, and --install could not repair them either.
+//
+// The criterion is the marker file Playwright writes INSIDE the directory once
+// the extract has finished, and it is Playwright's own rather than one invented
+// here: in playwright-core, `downloadBrowserWithProgressBar` returns early for
+// an artifact if and only if `INSTALLATION_COMPLETE` is present in its
+// directory, downloads otherwise, and reads that same file's absence afterwards
+// as the download having failed. Matching the installer exactly is the whole of
+// why --install can repair the state: a probe STRICTER than the installer asks
+// for a repair the installer then declines to make, and a probe LOOSER than the
+// installer never asks for one at all. This build has now shipped the loose
+// form twice.
+//
+// A null plan is NOT installed, and there is no second route to an answer. The
+// fallback that stood here -- `chromium.executablePath()` whenever the plan
+// could not be read -- silently restored the round-6 defect: one artifact of
+// three, taken whenever the CLI was missing, exited non-zero, or printed a
+// label this parser does not know. Not being able to ask a question is not an
+// answer to it, and answering it wrongly in silence is worse than failing where
+// the installer can name its own reason.
+function chromiumInstalled() {
   const planned = chromiumPlan();
-  if (planned) return planned.every((location) => existsSync(location));
-  try {
-    const { chromium } = await import('playwright');
-    const binary = chromium.executablePath();
-    return typeof binary === 'string' && binary.length > 0 && existsSync(binary);
-  } catch {
-    // No package, no registry entry, or a build this Playwright does not know.
-    return false;
-  }
+  if (!planned) return false;
+  return planned.every((location) => existsSync(join(location, 'INSTALLATION_COMPLETE')));
 }
 
 // `what` is 'packages' or 'browser'. Round 6 found the browser case reported the
@@ -637,7 +668,7 @@ if (command === 'session') {
   // installs the package and fetches no browser. Same authorisation as above,
   // because it is the same install: the several hundred megabytes the consent
   // report names are the part a person is actually being asked about.
-  if (!(await chromiumInstalled())) {
+  if (!chromiumInstalled()) {
     requireInstallConsent('browser');
     process.stderr.write('Installing the Chromium build this tool drives.\n');
     try {
@@ -659,8 +690,8 @@ if (command === 'session') {
       }
       fail(`Error: the Chromium build could not be installed. Playwright fetches it from https://cdn.playwright.dev, falling back to playwright.download.prss.microsoft.com, so a network that blocks those hosts will stop here even though npm succeeded. Run "node ${PLAYWRIGHT_CLI} install chromium" by hand to see Playwright's own message. tools/AGENTS.md names where the build lands.`);
     }
-    if (!(await chromiumInstalled())) {
-      fail(`Error: the Chromium install reported success but the browser is still incomplete. "install chromium" fetches several artifacts in sequence and this run left at least one of them absent. Run "node ${PLAYWRIGHT_CLI} install chromium --dry-run" to see what it expects and where, then "node ${PLAYWRIGHT_CLI} install chromium" by hand to see Playwright's own message.`);
+    if (!chromiumInstalled()) {
+      fail(`Error: the Chromium install reported success but the browser is still incomplete. "install chromium" fetches several artifacts in sequence and this run left at least one of them without the INSTALLATION_COMPLETE marker Playwright writes once an artifact has finished extracting. Run "node ${PLAYWRIGHT_CLI} install chromium --dry-run" to see what it expects and where, then "node ${PLAYWRIGHT_CLI} install chromium" by hand to see Playwright's own message.`);
     }
   }
 

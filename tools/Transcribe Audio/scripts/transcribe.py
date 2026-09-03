@@ -16,6 +16,7 @@ interpreter under Dependencies.
 
 # Standard library only above the package cache check below. Nothing here
 # imports from outside this tool directory.
+import hashlib
 import json
 import os
 import re
@@ -501,36 +502,81 @@ def as_paragraphs(text):
 #
 # The path is whisper's own, read from its URL map rather than built here: the
 # file is named after the URL, and a whisper release that renames one is covered.
+#
+# WHISPER'S CRITERION IS A CHECKSUM, NOT EXISTENCE, and round 7 found this gate
+# testing existence. `whisper._download` derives `expected_sha256` from the URL
+# it already exposes -- the second-to-last path segment -- reads the file, and
+# re-downloads when the digest does not match, warning "exists, but the SHA256
+# checksum does not match; re-downloading the file". So a 139MB-to-2.9GB
+# download interrupted part-way leaves a file that satisfied this gate, skipped
+# the consent, and was then re-fetched from openaipublic.azureedge.net with
+# nobody having authorised it. This is the same defect the Chromium probe
+# carried, in the same commit, for the same reason: the gate has to test what
+# the downloader tests, or the authorised repair either never runs or runs
+# unauthorised.
+#
+# AND IT FAILS CLOSED. The old `except Exception: weights_present = True` made
+# every unanswerable question -- a whisper that drops the private `_MODELS` map,
+# a URL shaped differently, an unreadable file -- into "already downloaded", so
+# the one path where this script does not know what it is looking at was the one
+# path that skipped consent. `openai-whisper` is unpinned above a floor and
+# there is no lockfile, so that path is a version away at all times. Not knowing
+# is not the same as knowing there is nothing to fetch: the run stops and says
+# so, and `--install` answers it.
 speech_models = model_cache / "speech-models"
+
+
+def weights_verified(path, url):
+    """True only when the file on disk is the file whisper would accept: the
+    SHA-256 in the URL, over the bytes on disk. Streamed, because `large` is
+    about 2.9GB, and whisper itself reads the whole file for the same test."""
+    expected = url.split("/")[-2]
+    if len(expected) != 64 or any(c not in "0123456789abcdef" for c in expected.lower()):
+        return False  # not a digest: we cannot verify, so we have not verified
+    if not path.is_file():
+        return False
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest() == expected.lower()
+
+
 try:
-    weights = speech_models / os.path.basename(whisper._MODELS[model])
-    weights_present = weights.exists()
+    model_url = whisper._MODELS[model]
+    weights = speech_models / os.path.basename(model_url)
+    weights_present = weights_verified(weights, model_url)
 except Exception:
-    # A whisper that does not expose the map: fall through and let it decide,
-    # rather than refusing a run over a question we could not ask.
+    # A whisper that does not expose the map, or a path that cannot be read.
+    # FAIL CLOSED: the question could not be asked, so the download has not been
+    # authorised. --install answers it in the same run.
     weights = None
-    weights_present = True
+    weights_present = False
 
 if not weights_present:
     if not install_authorised():
         fail(
-            "the %s speech model is not on this machine and this run did not authorise a "
-            "download. Loading it fetches the weights from openaipublic.azureedge.net into %s "
-            "-- roughly 139MB for base and about 2.9GB for large -- and nothing else is "
-            "fetched: the packages are already installed. tools/AGENTS.md lists every write "
-            "an install makes. Re-run the same command with --install to authorise it, or set "
-            "WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this "
-            "is the only way to answer." % (model, speech_models)
+            "the %s speech model is not on this machine as a file whisper will accept, and "
+            "this run did not authorise a download. That covers three states and they need the "
+            "same answer: no file at all, a file whose SHA-256 does not match the one in "
+            "whisper's own URL -- which is what an interrupted download leaves, and whisper "
+            "re-downloads on it -- and a whisper this script cannot ask, which it treats as "
+            "not downloaded rather than as done. Loading it fetches the weights from "
+            "openaipublic.azureedge.net into %s -- roughly 139MB for base and about 2.9GB for "
+            "large -- and nothing else is fetched: the packages are already installed. "
+            "tools/AGENTS.md lists every write an install makes. Re-run the same command with "
+            "--install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. "
+            "Nothing is read from stdin, so this is the only way to answer." % (model, speech_models)
         )
     note("Downloading the %s speech model into %s" % (model, speech_models))
 
 selected = device()
-note("Loading the %s speech model (a model absent from the cache is downloaded first)" % model)
+note("Loading the %s speech model (a model absent from the cache, or one whose checksum does not match, is downloaded first)" % model)
 try:
     engine = whisper.load_model(model, device=selected, download_root=str(model_cache / "speech-models"))
 except Exception:
     fail(
-        "could not load the speech model %s. A model absent from %s is downloaded on first use, so this usually means the machine is offline or the download was interrupted."
+        "could not load the speech model %s. A model absent from %s, or one whose SHA-256 does not match whisper's own, is downloaded on first use, so this usually means the machine is offline or the download was interrupted."
         % (model, model_cache)
     )
 

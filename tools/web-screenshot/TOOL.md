@@ -53,7 +53,7 @@ Anything else, see Troubleshooting.
 | Command | Purpose | Reaches the network |
 |---------|---------|---------------------|
 | `node scripts/capture.js help` | Print usage and exit | No |
-| `node scripts/capture.js check` | Report whether the Chromium build is present | No |
+| `node scripts/capture.js check` | Report whether the Chromium build is present | Only with `--install` |
 | `node scripts/capture.js capture --url <address> --output <path>.png` | Load the page and write a PNG of it | Yes |
 
 Options:
@@ -122,7 +122,7 @@ Read `finalUrl` and `status` before trusting the image. A capture that ran clean
 |---------|-------|-----|
 | `this tool is not installed yet and this run did not authorise an install` | First run in this copy, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
 | `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
-| `Error: Chromium cannot launch` / `chromiumLaunch:false` | Binary missing, launch blocked, or OS library gap | Read `remediation` on the check JSON; follow that single step. Never chase allowlist for a launch failure |
+| `Error: Chromium cannot launch` / `chromiumLaunch:false` | Binary missing, launch blocked, or OS library gap | Read `remediation` on the check JSON; follow that single step. `check --install` and `capture --install` both take the install route it names. Never chase allowlist for a launch failure |
 | `Error: --url is required` | `capture` ran with no address | Pass `--url` with the full address, scheme included |
 | `Error: --url is not a web address` | The scheme is missing, so there is nothing to navigate to | Write it out in full, as in `https://host/path` |
 | `Error: --url must use http or https` | A `file:`, `data:`, or other scheme was passed | Those are other tools' inputs: `html-to-png` for an HTML file, `mermaid-to-png` for a diagram, `svg-to-png` for an SVG. This one captures live pages |
@@ -153,7 +153,7 @@ Read `finalUrl` and `status` before trusting the image. A capture that ran clean
 ## Success
 
 - `help` prints usage to stdout and exits 0 on a copy with no `node_modules/` and no browser installed.
-- `check` exits 0 with one JSON object when a trial launch succeeds (`chromiumLaunch:true`), and exits 1 with remediation when it cannot launch.
+- `check` exits 0 with one JSON object when a trial launch succeeds (`chromiumLaunch:true`), and exits 1 with remediation when it cannot launch. Without `--install` it fetches nothing and opens no connection; with `--install` it installs the packages and the browser first, then reports on what it installed, so the `--install` the remediation names works on `check` itself as well as on `capture`.
 - `capture` against a reachable page exits 0 with one parseable JSON object on stdout carrying `output`, `finalUrl`, `status`, `scale`, and the PNG's real dimensions, and the file at `output` opens as a PNG of that page.
 - Every usage mistake, a missing or non-web `--url`, a missing, relative, non-`.png`, or inside-the-tool `--output`, a non-numeric `--width`, `--height`, `--scale`, or `--timeout`, and a `--timeout` under 1000 that was meant as seconds, exits 1 with the cause on stderr and stdout empty, before any install and before any connection is opened.
 - A run naming an `--output` that already holds a file exits 1 naming that path and `--overwrite`, writes nothing, and starts no browser; the same run with `--overwrite` replaces the file.

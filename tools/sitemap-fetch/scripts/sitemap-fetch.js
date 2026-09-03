@@ -194,10 +194,22 @@ function installPlan() {
     names = Object.keys(JSON.parse(readFileSync(join(TOOL_DIR, 'package.json'), 'utf8')).dependencies || {});
   } catch { /* the report degrades to a generic list; the refusal still stands */ }
   const browser = names.includes('playwright');
+  // A browser tool's authorised run makes TWO fetches, to two different places,
+  // and this report used to fold them into one clause that was wrong about both
+  // halves: `from registry.npmjs.org and cdn.playwright.dev into <TOOL_DIR>`
+  // read as though the Chromium build landed in this directory, which it does
+  // not, and it omitted the Microsoft fallback host that the browser message a
+  // few lines down gets right. An egress allowlist built from that sentence is
+  // short by a host and a disk-space estimate built from it looks in the wrong
+  // place. So `hosts` is now only what NPM contacts -- which is the whole truth
+  // for the clause it sits in -- and the browser fetch is a sentence of its own
+  // with its own hosts and its own destination.
   return {
     list: names.length ? names.join(', ') : 'the packages package.json declares',
-    hosts: browser ? 'registry.npmjs.org and cdn.playwright.dev' : 'registry.npmjs.org',
-    size: browser ? ' The Chromium build alone is several hundred megabytes.' : ''
+    hosts: 'registry.npmjs.org',
+    size: browser
+      ? ' This run then fetches the Chromium build that package drives, several hundred megabytes, from cdn.playwright.dev, or from playwright.download.prss.microsoft.com when Playwright falls back. That build does NOT land here: it goes wherever Playwright keeps browser builds on this machine, which tools/AGENTS.md names for each platform.'
+      : ''
   };
 }
 
@@ -227,6 +239,30 @@ function requireInstallConsent(what) {
 // --install cost a full npm fetch before the parser ever saw it. parseArgs is a
 // function declaration and imports nothing, so it runs before the packages do.
 const parsedArgs = parseArgs(argv.slice(1));
+
+// The REQUIRED arguments, checked here too, above the install, for the same
+// reason the unknown-flag refusal is. The Script Contract's clause is "before
+// any work, any dependency install, and any network request", and round 7 found
+// this half still open: `fetch --install` with no seed installed the packages
+// and THEN said it needed one, so a run that named nothing to fetch cost the
+// whole fetch. The check is free here -- parsedArgs is already computed, and
+// this is the same pair of conditions main() applies, stated once as a function
+// so the two cannot drift apart.
+function seedProblem(args) {
+  const offline = args.files.length > 0;
+  const network = args.domain !== null || args.urls.length > 0;
+  if (offline && network) {
+    return 'Error: fetch takes either network seeds (--domain / --url) or offline seeds (--file), not both. Run "node scripts/sitemap-fetch.js help" for usage.';
+  }
+  if (!offline && !network) {
+    return 'Error: fetch needs --domain <host>, at least one --url <sitemap url>, or at least one --file <path>. Run "node scripts/sitemap-fetch.js help" for usage.';
+  }
+  return null;
+}
+{
+  const problem = seedProblem(parsedArgs);
+  if (problem) fail(problem);
+}
 
 if (!existsSync(UNDICI_MARKER)) {
   requireInstallConsent('packages');
@@ -823,15 +859,11 @@ function collectFromFiles(paths, max) {
 async function main() {
   const args = parsedArgs;
 
-  const offline = args.files.length > 0;
-  const network = args.domain !== null || args.urls.length > 0;
-
-  if (offline && network) {
-    fail('Error: fetch takes either network seeds (--domain / --url) or offline seeds (--file), not both. Run "node scripts/sitemap-fetch.js help" for usage.');
-  }
-
-  if (!offline && !network) {
-    fail('Error: fetch needs --domain <host>, at least one --url <sitemap url>, or at least one --file <path>. Run "node scripts/sitemap-fetch.js help" for usage.');
+  // Already refused above the install; kept here so main() stands on its own
+  // and the two can never disagree, because both read the one function.
+  {
+    const problem = seedProblem(args);
+    if (problem) fail(problem);
   }
 
   if (args.date !== null && !DATE_PATTERN.test(args.date)) {

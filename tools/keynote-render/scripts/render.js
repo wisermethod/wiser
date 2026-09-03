@@ -339,10 +339,22 @@ function installPlan() {
     names = Object.keys(JSON.parse(readFileSync(join(TOOL_DIR, 'package.json'), 'utf8')).dependencies || {});
   } catch { /* the report degrades to a generic list; the refusal still stands */ }
   const browser = names.includes('playwright');
+  // A browser tool's authorised run makes TWO fetches, to two different places,
+  // and this report used to fold them into one clause that was wrong about both
+  // halves: `from registry.npmjs.org and cdn.playwright.dev into <TOOL_DIR>`
+  // read as though the Chromium build landed in this directory, which it does
+  // not, and it omitted the Microsoft fallback host that the browser message a
+  // few lines down gets right. An egress allowlist built from that sentence is
+  // short by a host and a disk-space estimate built from it looks in the wrong
+  // place. So `hosts` is now only what NPM contacts -- which is the whole truth
+  // for the clause it sits in -- and the browser fetch is a sentence of its own
+  // with its own hosts and its own destination.
   return {
     list: names.length ? names.join(', ') : 'the packages package.json declares',
-    hosts: browser ? 'registry.npmjs.org and cdn.playwright.dev' : 'registry.npmjs.org',
-    size: browser ? ' The Chromium build alone is several hundred megabytes.' : ''
+    hosts: 'registry.npmjs.org',
+    size: browser
+      ? ' This run then fetches the Chromium build that package drives, several hundred megabytes, from cdn.playwright.dev, or from playwright.download.prss.microsoft.com when Playwright falls back. That build does NOT land here: it goes wherever Playwright keeps browser builds on this machine, which tools/AGENTS.md names for each platform.'
+      : ''
   };
 }
 
