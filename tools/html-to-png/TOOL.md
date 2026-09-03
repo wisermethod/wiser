@@ -49,7 +49,7 @@ Anything else, see Troubleshooting.
 |------------|------------|--------------|
 | The Chromium build Playwright drives | `render` | `npm run check:chromium` exits 0 with `"chromiumLaunch":true` |
 
-The Playwright package itself installs on first run. Presence is a **trial launch** via the shared browser-runtime (`scripts/lib/browser-runtime.js`), not a path on disk. Missing OS libraries are self-healed in userspace where a C compiler is present; otherwise the check names the library and the one next step. Install steps are never written here.
+The Playwright package and the Chromium build it drives both install on the run that authorises them with `--install`. Presence is a **trial launch** via the shared browser-runtime (`scripts/lib/browser-runtime.js`), not a path on disk. Missing OS libraries are self-healed in userspace where a C compiler is present; otherwise the check names the library and the one next step. Install steps are never written here.
 
 ## Sizing
 

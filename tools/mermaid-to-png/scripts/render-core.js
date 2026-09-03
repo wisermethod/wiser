@@ -25,9 +25,18 @@ const VIEWPORT_MARGIN = 40;
 export class UsageError extends Error {}
 
 /** Every flag this tool ships. Anything else is refused by name, never ignored. */
+// `install` is consumed by the entry script from raw process.argv before this
+// parser runs, so it carries no value here and reaches no option. It is still
+// NAMED here, because this Set is what decides whether a flag is refused: a
+// flag the help documents and the parser rejects is the defect this list
+// existed to prevent.
 const KNOWN_FLAGS = new Set([
-  'file', 'output', 'width', 'scale', 'theme', 'background', 'timeout', 'overwrite'
+  'file', 'output', 'width', 'scale', 'theme', 'background', 'timeout', 'overwrite',
+  'install'
 ]);
+// Flags that are their own value. `--install` takes no argument, so the
+// value-consuming branch below must not eat the word after it.
+const BARE_FLAGS = new Set(['overwrite', 'install']);
 
 /**
  * Named flags only. A positional argument is a mistake here, not a shorthand:
@@ -49,6 +58,12 @@ export function parseFlags(argv) {
     const name = word.slice(2);
     if (!KNOWN_FLAGS.has(name)) {
       throw new UsageError(`unknown option "${word}"`);
+    }
+
+    // A bare flag never consumes the next word, even when one follows it.
+    if (BARE_FLAGS.has(name)) {
+      flags[name] = true;
+      continue;
     }
 
     const next = argv[index + 1];

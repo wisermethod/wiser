@@ -66,7 +66,7 @@ Options:
 
 One page per run: auditing a set means one run each, which keeps every result attributable to the URL that produced it.
 
-This tool needs no credentials and no configuration file, so no command takes `--env` and nothing here resolves a Provides binding. It writes no output file: nothing it produces lands anywhere but stdout. **The first run is the exception.** This tool declares one package, `undici`, and installs it the first time it is called, which reaches the npm registry once and writes what `tools/AGENTS.md` lists a first run writing. Later runs write nothing and the only request is for the page the caller named, plus any redirect that page issues. Redirects are followed and the landing address is reported as `final_url`, so a run that ended somewhere other than where it started says so. The request waits 20 seconds and then fails rather than hanging.
+This tool needs no credentials and no configuration file, so no command takes `--env` and nothing here resolves a Provides binding. It writes no output file: nothing it produces lands anywhere but stdout. **The first run is the exception.** This tool declares one package, `undici`, and installs it on the first run that authorises it with `--install`, which reaches the npm registry once and writes what `tools/AGENTS.md` lists a first run writing. Later runs write nothing and the only request is for the page the caller named, plus any redirect that page issues. Redirects are followed and the landing address is reported as `final_url`, so a run that ended somewhere other than where it started says so. The request waits 20 seconds and then fails rather than hanging.
 
 ## Script Contract
 

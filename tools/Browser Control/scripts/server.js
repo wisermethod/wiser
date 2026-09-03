@@ -31,7 +31,7 @@
  * this server at all. That is not solvable at this layer.
  */
 
-import { chmodSync, existsSync, mkdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import http from 'node:http';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
@@ -362,7 +362,9 @@ function targetFor({ selector, index }) {
   return element.selector;
 }
 
-/** Cookie metadata only. A cookie value is a live credential and never leaves the browser. */
+/** Cookie metadata only: no value goes into this object. Other paths DO carry
+ * values out -- `execute` returns whatever the page script reads, and a trace
+ * archive records request headers. TOOL.md's Credentials section is the list. */
 function describeCookie(cookie) {
   return {
     name: cookie.name,
@@ -841,7 +843,13 @@ async function shutdown() {
   page = null;
   // The token is worthless once this process is gone, and a stale one left on
   // disk is a file that looks live to whoever reads it next.
-  try { rmSync(TOKEN_FILE, { force: true }); } catch { /* best effort */ }
+  // Only if it is still OURS. An unconditional remove deleted whatever sat at
+  // that path, including a live host's token written by another process.
+  try {
+    if (readFileSync(TOKEN_FILE, 'utf8').trim() === SESSION_TOKEN) {
+      rmSync(TOKEN_FILE, { force: true });
+    }
+  } catch { /* absent, unreadable, or not ours: leave it alone */ }
   if (server) server.close();
   process.exit(0);
 }
@@ -1017,15 +1025,35 @@ process.on('SIGTERM', shutdown);
 
 // Before the socket exists, so there is no window in which the host answers
 // and the client cannot yet authenticate.
-try {
-  publishToken();
-} catch (error) {
-  process.stderr.write(
-    `Error: could not write the session token to ${TOKEN_FILE}: ${error.message}. ` +
-    `The host will not start without it, because an unauthenticated host drives a signed-in browser.\n`
-  );
-  process.exit(1);
-}
-
+// The port is claimed BEFORE the token is published. Publishing first meant a
+// process that then lost the bind had already overwritten the winner's token
+// file, and died on an unhandled 'error' event without restoring it -- leaving a
+// live signed-in browser that no client could authenticate to. Nothing can reach
+// the socket before 'listening' fires, so there is no window here in which the
+// host answers and the client cannot yet authenticate.
 server = http.createServer(handle);
+
+server.on('error', (error) => {
+  const detail = error && error.code === 'EADDRINUSE'
+    ? `port ${options.port} is already in use. Another browser host or an unrelated process holds it; stop that process or start this one with a different --port.`
+    : `the session host could not listen on port ${options.port}: ${error.message}`;
+  process.stderr.write(`Error: ${detail}\n`);
+  // No token was written, so there is nothing to clean up and nothing of
+  // another host's to damage.
+  process.exit(1);
+});
+
+server.on('listening', () => {
+  try {
+    publishToken();
+  } catch (error) {
+    process.stderr.write(
+      `Error: could not write the session token to ${TOKEN_FILE}: ${error.message}. ` +
+      `The host will not start without it, because an unauthenticated host drives a signed-in browser.\n`
+    );
+    try { server.close(); } catch { /* going down anyway */ }
+    process.exit(1);
+  }
+});
+
 server.listen(options.port, '127.0.0.1');

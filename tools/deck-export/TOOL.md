@@ -56,7 +56,7 @@ Anything else, see Troubleshooting.
 |------------|------------|--------------|
 | The Chromium build Playwright drives | `pdf` and `png` | `node scripts/deck.js check` reports `"chromium":true` (trial launch), or `npm run check:chromium` exits 0 |
 
-The packages themselves install on first run. The browser is a separate download, version-matched to the package that drives it. Presence is a **trial launch**, not a path on disk: a binary that cannot start reports false. Missing OS libraries are self-healed in userspace where a C compiler is present (shared `scripts/lib/browser-runtime.js`); otherwise `check` names the library and the one next step. Install steps are never written here. The shared runtime also forwards `HTTPS_PROXY` / `HTTP_PROXY` into Chromium for CDN-loaded decks. `scaffold` and `check` never need a successful launch for non-browser work; `check` still surveys Chromium without installing packages.
+The packages install on the run that authorises them with `--install`, and that same run then fetches the browser, which is a separate download version-matched to the package that drives it. Presence is a **trial launch**, not a path on disk: a binary that cannot start reports false. Missing OS libraries are self-healed in userspace where a C compiler is present (shared `scripts/lib/browser-runtime.js`); otherwise `check` names the library and the one next step. Install steps are never written here. The shared runtime also forwards `HTTPS_PROXY` / `HTTP_PROXY` into Chromium for CDN-loaded decks. `scaffold` and `check` never need a successful launch for non-browser work; `check` still surveys Chromium without installing packages.
 
 ## Scaffolding
 

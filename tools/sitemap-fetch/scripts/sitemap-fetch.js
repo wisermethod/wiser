@@ -8,7 +8,8 @@
  *   node scripts/sitemap-fetch.js fetch --url <sitemap url> [--url ...] [--max n] [--date YYYY-MM-DD] [--output <dir>]
  *   node scripts/sitemap-fetch.js fetch --file <path> [--file ...] [--max n] [--date YYYY-MM-DD] [--output <dir>]
  *
- * One package, undici, installed on first run with npm ci into this tool's own
+ * One package, undici, installed with npm ci on the run that authorises it with
+ * --install, into this tool's own
  * directory. No configuration file and no credentials.
  * The rules every shipped script follows are stated once, in
  * system/templates/Script Contract.md.
@@ -263,6 +264,15 @@ function parseArgs(rest) {
       flag !== '--install'
     ) {
       fail(`Error: unknown option "${flag}". Run "node scripts/sitemap-fetch.js help" for usage.`);
+    }
+
+    // `--install` is a bare flag: the entry script reads it from raw process.argv
+    // above, so here it neither takes a value nor consumes the next word. It was
+    // added to the name list above without this branch, which made the flag the
+    // help documents and the consent message instructs impossible to pass.
+    if (flag === '--install') {
+      index++;
+      continue;
     }
 
     if (value === undefined || value.startsWith('--')) {

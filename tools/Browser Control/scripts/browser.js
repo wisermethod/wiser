@@ -92,10 +92,12 @@ Options:
           for an unattended run.
   --help                 Print this message
 
-No command prints a cookie value. Two paths do hold them on disk: the --profile
-directory, which is the sign-in store and exists to, and a trace zip written by
+No cookie command prints a value, but "execute" returns whatever its code reads,
+document.cookie included. Three paths hold credential material: the --profile
+directory, which is the sign-in store and exists to, a trace zip written by
 "trace stop --output", which records request and response headers including
-Cookie and Set-Cookie. Treat both as credential material. Sign in by hand in the
+Cookie and Set-Cookie, and the session token at ~/.wiser/browser-control, which
+authorises a caller to drive this signed-in browser. Treat all three as such. Sign in by hand in the
 visible window; the profile directory keeps the session.
 
 Success prints one JSON object to stdout. Errors go to stderr with exit 1.`;
@@ -424,10 +426,16 @@ function request(method, path, body) {
   });
 }
 
+// Three states, not two. A host that answers 403 IS RUNNING and is refusing
+// this caller; reporting that as "no host" let `session start` spawn a second
+// host over a live one, whose token file the loser then clobbered on its way
+// out. `refused` is returned so callers can say which of the two happened.
 async function hostStatus() {
   try {
     const answer = await request('GET', '/status');
-    return answer && answer.running === true ? answer : null;
+    if (answer && answer.running === true) return answer;
+    if (answer && answer.ok === false) return 'refused';
+    return null;
   } catch {
     return null;
   }
@@ -438,6 +446,9 @@ async function hostStatus() {
 async function stopHost() {
   const status = await hostStatus();
   if (status === null) return false;
+  if (status === 'refused') {
+    fail(`Error: a process on port ${port} refused this request, so this session cannot shut it down. It was started by a different session or account. Stop that process directly.`);
+  }
   try {
     await request('POST', '/shutdown');
   } catch {
@@ -502,6 +513,21 @@ function installPlan() {
   };
 }
 
+// Chromium presence, asked of Playwright itself rather than guessed from a path
+// this script builds: the location depends on the platform and on
+// PLAYWRIGHT_BROWSERS_PATH, both of which Playwright already resolves.
+const PLAYWRIGHT_CLI = join(TOOL_DIR, 'node_modules', 'playwright', 'cli.js');
+
+async function chromiumInstalled() {
+  try {
+    const { chromium } = await import('playwright');
+    const binary = chromium.executablePath();
+    return typeof binary === 'string' && binary.length > 0 && existsSync(binary);
+  } catch {
+    return false;
+  }
+}
+
 function requireInstallConsent() {
   if (process.argv.includes('--install') || process.env.WISER_ALLOW_INSTALL === '1') return;
   const { list, hosts, size } = installPlan();
@@ -514,9 +540,13 @@ function requireInstallConsent() {
 if (command === 'session') {
   if (sub === 'status') {
     const status = await hostStatus();
+    // A refusing host is running. Reporting it as running:false was a success
+    // object that misstated the machine, which the Script Contract forbids.
     emit(status === null
       ? { running: false, port }
-      : { running: true, port, url: status.url, profile: status.profile, headless: status.headless });
+      : status === 'refused'
+        ? { running: true, port, managed: false, reason: 'a process on this port refused this session; it was started elsewhere' }
+        : { running: true, port, managed: true, url: status.url, profile: status.profile, headless: status.headless });
   }
 
   if (sub === 'stop') emit({ running: false, port, stopped: await stopHost() });
@@ -532,6 +562,9 @@ if (command === 'session') {
   if (sub === 'restart') await stopHost();
 
   const running = await hostStatus();
+  if (running === 'refused') {
+    fail(`Error: something is already listening on port ${port} and refused this request. If it is a browser host, it was started by a different session or a different account and this session's token does not open it: stop that process, or pass a different --port. Starting a second host here would leave a signed-in browser running that this tool cannot manage.`);
+  }
   if (running !== null) {
     fail(`Error: a browser host is already running on port ${port} with profile ${running.profile}. Stop it first, or pass a different --port.`);
   }
@@ -560,6 +593,26 @@ if (command === 'session') {
     }
   }
 
+  // The Chromium build. `playwright` carries NO install script, so `npm ci`
+  // installs the package and fetches no browser. Same authorisation as above,
+  // because it is the same install: the several hundred megabytes the consent
+  // report names are the part a person is actually being asked about.
+  if (!(await chromiumInstalled())) {
+    requireInstallConsent();
+    process.stderr.write('Installing the Chromium build this tool drives.\n');
+    try {
+      execFileSync(process.execPath, [PLAYWRIGHT_CLI, 'install', 'chromium'], {
+        cwd: TOOL_DIR,
+        stdio: ['ignore', 'ignore', 'inherit']
+      });
+    } catch {
+      fail(`Error: the Chromium build could not be installed. Playwright fetches it from https://cdn.playwright.dev, so a network that blocks that host will stop here even though npm succeeded. Run "node ${PLAYWRIGHT_CLI} install chromium" by hand to see Playwright's own message. tools/AGENTS.md names where the build lands.`);
+    }
+    if (!(await chromiumInstalled())) {
+      fail(`Error: the Chromium install reported success but no browser binary is present. Run "node ${PLAYWRIGHT_CLI} install chromium" by hand to see Playwright's own message.`);
+    }
+  }
+
   // System dependency: trial launch via shared browser-runtime (not path-only).
   // Dynamic import only on session start — help must work without node_modules.
   const runtime = await import('./lib/browser-runtime.js');
@@ -585,7 +638,12 @@ if (command === 'session') {
   );
   child.unref();
 
-  const ready = await waitFor(async () => (await hostStatus()) !== null, 60000);
+  // Only a host that answers our token counts as ready; something that merely
+  // occupies the port and refuses is not this session's host.
+  const ready = await waitFor(async () => {
+    const s = await hostStatus();
+    return s !== null && s !== 'refused';
+  }, 60000);
   if (!ready) {
     fail(`Error: the browser host did not come up on port ${port} within 60 seconds. Run the same command with --headless to see whether a window is being blocked, and confirm "npm run check:chromium" succeeds.`);
   }

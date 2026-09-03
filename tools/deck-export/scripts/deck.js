@@ -341,6 +341,45 @@ function escapeRegExp(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// Chromium presence, asked of Playwright itself rather than guessed from a path
+// this script builds: the location depends on the platform and on
+// PLAYWRIGHT_BROWSERS_PATH, both of which Playwright already resolves.
+const PLAYWRIGHT_CLI = join(TOOL_DIR, 'node_modules', 'playwright', 'cli.js');
+
+async function chromiumInstalled() {
+  try {
+    const { chromium } = await import('playwright');
+    const binary = chromium.executablePath();
+    return typeof binary === 'string' && binary.length > 0 && existsSync(binary);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The Chromium build. `playwright` carries NO install script, so ensurePackage
+ * fetches the package and no browser. Only the render commands need it, so it
+ * is asked for here rather than beside the package, and under the same
+ * authorisation: it is the same install, and the several hundred megabytes are
+ * the part a person is actually being asked about.
+ */
+async function ensureChromium() {
+  if (await chromiumInstalled()) return;
+  requireInstallConsent();
+  log('Installing the Chromium build this tool drives.');
+  try {
+    execFileSync(process.execPath, [PLAYWRIGHT_CLI, 'install', 'chromium'], {
+      cwd: TOOL_DIR,
+      stdio: ['ignore', 'ignore', 'inherit']
+    });
+  } catch {
+    fail(`Error: the Chromium build could not be installed. Playwright fetches it from https://cdn.playwright.dev, so a network that blocks that host will stop here even though npm succeeded. Run "node ${PLAYWRIGHT_CLI} install chromium" by hand to see Playwright's own message. tools/AGENTS.md names where the build lands.`);
+  }
+  if (!(await chromiumInstalled())) {
+    fail(`Error: the Chromium install reported success but no browser binary is present. Run "node ${PLAYWRIGHT_CLI} install chromium" by hand to see Playwright's own message.`);
+  }
+}
+
 // Dependencies. Runs before any package import, and only on a command that
 // imports that package (Script Contract).
 function ensurePackage(name) {
@@ -606,6 +645,7 @@ const timeoutRaw = flag('--timeout');
 const timeout = timeoutRaw === undefined ? DEFAULT_TIMEOUT_MS : positiveInteger('--timeout', timeoutRaw);
 
 ensurePackage('playwright');
+await ensureChromium();
 
 // Shared browser runtime: dynamic import only on commands that need Chromium.
 // Never a top-level static import — help must work on a never-installed copy.

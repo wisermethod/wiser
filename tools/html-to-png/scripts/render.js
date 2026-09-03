@@ -399,6 +399,44 @@ if (!existsSync(DEP_MARKER)) {
   }
 }
 
+// The Chromium build. `playwright` carries NO install script, so `npm ci`
+// installs the package and fetches no browser at all. Until this ran, an
+// authorised install ended at `chromiumLaunch:false` with no step in this
+// repository that would have fixed it, while the consent report above had
+// already named the download and its size. The report is the promise; this is
+// what keeps it. Same authorisation, because it is the same install: the
+// several hundred megabytes are the part a person is actually being asked about.
+const PLAYWRIGHT_CLI = join(TOOL_DIR, 'node_modules', 'playwright', 'cli.js');
+
+async function chromiumInstalled() {
+  try {
+    const { chromium } = await import('playwright');
+    const binary = chromium.executablePath();
+    return typeof binary === 'string' && binary.length > 0 && existsSync(binary);
+  } catch {
+    // No package, no registry entry, or a build this Playwright does not know.
+    return false;
+  }
+}
+
+if (!(await chromiumInstalled())) {
+  requireInstallConsent();
+  process.stderr.write('Installing the Chromium build this tool drives.\n');
+  try {
+    // Playwright's own installer, run from this tool's own copy rather than a
+    // global one, so the version matches the package the lockfile pinned.
+    execFileSync(process.execPath, [PLAYWRIGHT_CLI, 'install', 'chromium'], {
+      cwd: TOOL_DIR,
+      stdio: ['ignore', 'ignore', 'inherit']
+    });
+  } catch {
+    fail(`Error: the Chromium build could not be installed. Playwright fetches it from https://cdn.playwright.dev, so a network that blocks that host will stop here even though npm succeeded. Run "node ${PLAYWRIGHT_CLI} install chromium" by hand to see Playwright's own message. tools/AGENTS.md names where the build lands.`);
+  }
+  if (!(await chromiumInstalled())) {
+    fail(`Error: the Chromium install reported success but no browser binary is present. Run "node ${PLAYWRIGHT_CLI} install chromium" by hand to see Playwright's own message.`);
+  }
+}
+
 // Shared browser runtime: dynamic import only on the command that needs Chromium.
 // Never a top-level static import — help must work on a never-installed copy.
 const runtime = await import('./lib/browser-runtime.js');
