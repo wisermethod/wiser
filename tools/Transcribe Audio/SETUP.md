@@ -2,7 +2,7 @@
 
 Once per machine. Skip it if a real `transcribe` already prints a JSON object.
 
-**Once per machine covers the system dependencies below, not the packages.** A system dependency named below is installed once and every copy of this plugin then finds it; a tool's own packages install per copy of the plugin, on the first call, and a plugin manager that keeps each version in its own directory installs them again after an update. `tools/AGENTS.md` lists everything a run of a tool writes and where, and is the only place this repository states it.
+**Once per machine covers the system dependencies below, not the packages.** A system dependency named below is installed once and every copy of this plugin then finds it; a tool's own packages install per copy of the plugin, on the first run that authorises them with `--install`, and a plugin manager that keeps each version in its own directory needs that authorisation again after an update. `tools/AGENTS.md` lists everything a run of a tool writes and where, and is the only place this repository states it.
 
 Run every command below from this tool's directory. On Windows, use Git Bash; PowerShell and cmd quote arguments differently.
 
@@ -20,7 +20,7 @@ The first `transcribe` creates a virtual environment in this tool's directory, i
 
 ## 3. Model weights
 
-Model weights are not part of setup. They download on first use into the directory the caller passes as `--model-cache`, one download per model, and are reused from then on. Pick one work directory in the owning root for this and pass it on every run; a different directory each time means a fresh download each time.
+Model weights are not part of setup. A model absent from the directory the caller passes as `--model-cache` is **reported and refused, not downloaded**: `--install` or `WISER_ALLOW_INSTALL=1` authorises that download and the same run then does the work. One download per model, reused from then on. Pick one work directory in the owning root for this and pass it on every run; a different directory each time means a fresh download each time.
 
 ## 4. Verify
 

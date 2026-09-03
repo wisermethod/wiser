@@ -20,7 +20,7 @@ It reaches the network by design, which sets it apart from most tools in this fa
 
 ## Dependencies
 
-Rendering is a real browser, so this tool needs a browser binary beyond Node and npm. It is Chromium, installed by the `playwright` package's own postinstall during the first-run dependency install, then proved by a **trial launch** through the shared browser-runtime (`scripts/lib/browser-runtime.js`).
+Rendering is a real browser, so this tool needs a browser binary beyond Node and npm. It is Chromium, and `playwright` carries no postinstall script, so `npm ci` fetches the package and no browser: this tool runs Playwright's own installer under the same `--install` authorisation, in the same run, then proves it by a **trial launch** through the shared browser-runtime (`scripts/lib/browser-runtime.js`).
 
 | Dependency | Needed for | Present when |
 |------------|------------|--------------|
@@ -94,7 +94,7 @@ Step 3 is the one to know: waiting for network silence is what makes the image r
 
 ## Script Contract
 
-Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help answered before the dependency check, the first-run dependency install, the system-dependency check on the commands that need it, and the stdout and stderr rules. The sections above state what the commands do; the contract states how the script behaves getting there.
+Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help answered before the dependency check, the consent-gated dependency install, the system-dependency check on the commands that need it, and the stdout and stderr rules. The sections above state what the commands do; the contract states how the script behaves getting there.
 
 Two of its clauses do visible work here. The browser's own error text is read to classify a failure and never repeated, so every message below is this tool's own sentence about what went wrong. And an `--output` that resolves inside this tool's directory is refused, normalized first so a path that climbs out and back in is caught: the only write this tool makes into its own directory is the first-run install.
 

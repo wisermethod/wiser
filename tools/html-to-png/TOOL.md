@@ -105,7 +105,7 @@ This tool needs no credentials and no configuration file, so no command takes `-
 
 ## Script Contract
 
-The one script this tool ships follows `system/templates/Script Contract.md`: self-contained imports, help answered before the dependency check, the first-run dependency install, the system-dependency check on the one command that needs it, and the stdout and stderr rules. The sections above state what the command does; the contract states how the script behaves getting there.
+The one script this tool ships follows `system/templates/Script Contract.md`: self-contained imports, help answered before the dependency check, the consent-gated dependency install, the system-dependency check on the one command that needs it, and the stdout and stderr rules. The sections above state what the command does; the contract states how the script behaves getting there.
 
 Every usage mistake is caught before the dependency check runs, so a bad path, a bad number, or an occupied `--output` never triggers an install and never opens a browser. No message repeats the browser engine's own text, which quotes the page, the full path, and whatever the page wrote to its console; a run that fails names what to look at instead. Nothing is read from stdin, so a run with nobody watching fails loudly rather than waiting.
 

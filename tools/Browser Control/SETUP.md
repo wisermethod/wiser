@@ -2,7 +2,7 @@
 
 Once per machine. Skip it if `node scripts/browser.js session status` already answers after a successful `session start` on this host, or if `npm run check:chromium` already exits 0.
 
-**Once per machine covers the system dependencies below, not the packages.** A system dependency named below is installed once and every copy of this plugin then finds it; a tool's own packages install per copy of the plugin, on the first call, and a plugin manager that keeps each version in its own directory installs them again after an update. `tools/AGENTS.md` lists everything a run of a tool writes and where, and is the only place this repository states it.
+**Once per machine covers the system dependencies below, not the packages.** A system dependency named below is installed once and every copy of this plugin then finds it; a tool's own packages install per copy of the plugin, on the first run that authorises them with `--install`, and a plugin manager that keeps each version in its own directory needs that authorisation again after an update. `tools/AGENTS.md` lists everything a run of a tool writes and where, and is the only place this repository states it.
 
 Run every command below from this tool's directory. On Windows, use Git Bash; PowerShell and cmd quote arguments differently.
 
@@ -31,6 +31,9 @@ npm run check:chromium
 Expect `"chromiumLaunch":true`. Presence is a trial launch via the shared browser-runtime; missing OS libraries are self-healed where a C compiler is present. On failure, follow the `remediation` line — install walkthroughs are never written here.
 
 A machine that already drives a browser for another primitive in this root usually has the build and any userspace stub cached and needs nothing here.
+
+**Nothing here fetches the browser build, and nothing needs to.** `playwright` carries no postinstall script, so `npm ci` above installs the package and no browser. The first non-help command that needs Chromium reports what it would fetch and stops; `--install` authorises both the packages and the browser build and that one run does the work. Run this check to see what is already present, not to make it present.
+
 
 ## 4. Profile directory
 

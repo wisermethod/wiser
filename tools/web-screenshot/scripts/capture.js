@@ -292,8 +292,19 @@ function installPlan() {
   };
 }
 
-function requireInstallConsent() {
+// `what` is 'packages' or 'browser'. Round 6 found the browser case reported the
+// package case: a tool whose packages are installed and whose browser build is
+// not is a real state -- every machine that ran a browser tool before the
+// installer existed is in it -- and the report a person answers must not open
+// "this tool is not installed yet", nor name a registry fetch and an npm cache
+// write that this install will not make.
+function requireInstallConsent(what) {
   if (process.argv.includes('--install') || process.env.WISER_ALLOW_INSTALL === '1') return;
+  if (what === 'browser') {
+    fail(
+      `Error: this tool's packages are installed but the Chromium build they drive is not, and this run did not authorise an install. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+    );
+  }
   const { list, hosts, size } = installPlan();
   fail(
     `Error: this tool is not installed yet and this run did not authorise an install. Installing fetches ${list} from ${hosts} into ${TOOL_DIR}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
@@ -302,7 +313,7 @@ function requireInstallConsent() {
 
 // Dependencies. Runs before any package import; keep it above the dynamic import.
 if (!existsSync(DEP_MARKER)) {
-  requireInstallConsent();
+  requireInstallConsent('packages');
   process.stderr.write('First run: installing dependencies in this tool directory.\n');
   try {
     const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
@@ -314,7 +325,7 @@ if (!existsSync(DEP_MARKER)) {
     // an unwritable tool directory is not a broken install, and telling someone
     // to run "npm ci" by hand where they cannot write cannot succeed.
     if (!isWritable(TOOL_DIR)) {
-      fail(`Error: cannot install dependencies because ${TOOL_DIR} is not writable. This tool installs its dependencies into its own directory the first time it runs, so that directory has to be writable. Install this plugin somewhere you own, or make that directory writable, then run the command again.`);
+      fail(`Error: cannot install dependencies because ${TOOL_DIR} is not writable. This tool installs its dependencies into its own directory on the run that authorises it with --install, so that directory has to be writable. Install this plugin somewhere you own, or make that directory writable, then run the command again.`);
     }
     fail(`Error: npm ci failed in ${TOOL_DIR}. Confirm Node 18 or newer, then that package-lock.json is present and matches package.json, which is what npm ci requires and will not resolve around. Delete node_modules there and run "npm ci" by hand to see npm's own message. A lockfile that is missing or out of step with the manifest is a defect in this copy of the plugin, not something a re-run fixes.`);
   }
@@ -332,7 +343,35 @@ if (!existsSync(DEP_MARKER)) {
 // several hundred megabytes are the part a person is actually being asked about.
 const PLAYWRIGHT_CLI = join(TOOL_DIR, 'node_modules', 'playwright', 'cli.js');
 
+// What `install chromium` puts on disk, asked of Playwright's own installer
+// rather than guessed from a path this script builds: `--dry-run` names every
+// artifact and the directory it lands in, so a Playwright release that adds one
+// is covered without editing this file. Null means the question could not be
+// asked -- no package yet, or a CLI that does not answer it.
+function chromiumPlan() {
+  try {
+    const report = execFileSync(process.execPath, [PLAYWRIGHT_CLI, 'install', 'chromium', '--dry-run'], {
+      cwd: TOOL_DIR,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore']
+    });
+    const locations = [...report.matchAll(/^\s*Install location:\s*(\S.*)$/gm)].map((m) => m[1].trim());
+    return locations.length ? locations : null;
+  } catch {
+    return null;
+  }
+}
+
+// EVERY artifact, not just the one `chromium.executablePath()` names. `install
+// chromium` fetches three -- Chrome for Testing, FFmpeg and Chrome Headless
+// Shell -- one after another, and a default headless launch uses the headless
+// shell rather than Chrome. Round 6 measured what the old probe did with a
+// download that died after the first: Chrome was present, the probe was
+// satisfied, the installer was never run again, and --install could not repair
+// the state it exists to repair.
 async function chromiumInstalled() {
+  const planned = chromiumPlan();
+  if (planned) return planned.every((location) => existsSync(location));
   try {
     const { chromium } = await import('playwright');
     const binary = chromium.executablePath();
@@ -343,8 +382,18 @@ async function chromiumInstalled() {
   }
 }
 
-if (!(await chromiumInstalled())) {
-  requireInstallConsent();
+/**
+ * The Chromium build, asked for on the commands that need one. `check` is not
+ * one of them: it is this tool's own survey of whether the browser is present,
+ * TOOL.md's troubleshooting row for a missing binary sends the reader to it,
+ * and its Usage row says it reaches no network. Round 6 measured what a
+ * top-level gate did to it -- the documented remedy for a missing browser
+ * answered "authorise an install first", so the one command that reports the
+ * state could not run in it.
+ */
+async function ensureChromium() {
+  if (await chromiumInstalled()) return;
+  requireInstallConsent('browser');
   process.stderr.write('Installing the Chromium build this tool drives.\n');
   try {
     // Playwright's own installer, run from this tool's own copy rather than a
@@ -354,12 +403,27 @@ if (!(await chromiumInstalled())) {
       stdio: ['ignore', 'ignore', 'inherit']
     });
   } catch {
-    fail(`Error: the Chromium build could not be installed. Playwright fetches it from https://cdn.playwright.dev, so a network that blocks that host will stop here even though npm succeeded. Run "node ${PLAYWRIGHT_CLI} install chromium" by hand to see Playwright's own message. tools/AGENTS.md names where the build lands.`);
+    // Two failures arrive here and they have different fixes, which is the same
+    // Script Contract clause the npm block answers a few lines up. A browser
+    // directory the caller cannot write is not a blocked network, and Playwright
+    // prints nothing at all when the permission error throws before its first
+    // request -- so naming the network there leaves the caller with no true text
+    // at all and a remedy that reproduces the same silence.
+    const destination = (chromiumPlan() || [])[0];
+    const browsersRoot = destination ? dirname(destination) : null;
+    if (browsersRoot && !isWritable(browsersRoot)) {
+      fail(`Error: the Chromium build could not be installed because ${browsersRoot} is not writable. That is where Playwright puts browser builds on this machine, and PLAYWRIGHT_BROWSERS_PATH chooses it when that variable is set. Point it at a directory you own, or make this one writable, then run the command again. tools/AGENTS.md names every path Playwright may use.`);
+    }
+    fail(`Error: the Chromium build could not be installed. Playwright fetches it from https://cdn.playwright.dev, falling back to playwright.download.prss.microsoft.com, so a network that blocks those hosts will stop here even though npm succeeded. Run "node ${PLAYWRIGHT_CLI} install chromium" by hand to see Playwright's own message. tools/AGENTS.md names where the build lands.`);
   }
   if (!(await chromiumInstalled())) {
-    fail(`Error: the Chromium install reported success but no browser binary is present. Run "node ${PLAYWRIGHT_CLI} install chromium" by hand to see Playwright's own message.`);
+    fail(`Error: the Chromium install reported success but the browser is still incomplete. "install chromium" fetches several artifacts in sequence and this run left at least one of them absent. Run "node ${PLAYWRIGHT_CLI} install chromium --dry-run" to see what it expects and where, then "node ${PLAYWRIGHT_CLI} install chromium" by hand to see Playwright's own message.`);
   }
 }
+
+// Every command but `check` needs a browser to do its work, and asks for one
+// here. `check` reports on what is there instead, and installs nothing.
+if (command !== 'check') await ensureChromium();
 
 // Shared browser runtime: dynamic import only on commands that need Chromium.
 // Never a top-level static import — help must work on a never-installed copy.

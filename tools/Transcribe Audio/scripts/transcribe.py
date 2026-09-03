@@ -491,8 +491,41 @@ def as_paragraphs(text):
     return re.sub(r'([.!?])\s+(?=[A-Z"\'])', r"\1\n\n", text.strip())
 
 
+# The model weights are the SECOND thing an install fetches, and until round 6
+# nothing asked about them. `pip install` fetches the packages and no weights,
+# exactly as `npm ci` fetches the browser package and no browser: the consent
+# report above names pypi.org and the wheels, and says nothing about several
+# hundred more megabytes arriving from a third host on a tool that is already
+# installed. `tools/AGENTS.md` says no install happens without someone
+# authorising it, and this is an install.
+#
+# The path is whisper's own, read from its URL map rather than built here: the
+# file is named after the URL, and a whisper release that renames one is covered.
+speech_models = model_cache / "speech-models"
+try:
+    weights = speech_models / os.path.basename(whisper._MODELS[model])
+    weights_present = weights.exists()
+except Exception:
+    # A whisper that does not expose the map: fall through and let it decide,
+    # rather than refusing a run over a question we could not ask.
+    weights = None
+    weights_present = True
+
+if not weights_present:
+    if not install_authorised():
+        fail(
+            "the %s speech model is not on this machine and this run did not authorise a "
+            "download. Loading it fetches the weights from openaipublic.azureedge.net into %s "
+            "-- roughly 139MB for base and about 2.9GB for large -- and nothing else is "
+            "fetched: the packages are already installed. tools/AGENTS.md lists every write "
+            "an install makes. Re-run the same command with --install to authorise it, or set "
+            "WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this "
+            "is the only way to answer." % (model, speech_models)
+        )
+    note("Downloading the %s speech model into %s" % (model, speech_models))
+
 selected = device()
-note("Loading the %s speech model (the first run of a model downloads it)" % model)
+note("Loading the %s speech model (a model absent from the cache is downloaded first)" % model)
 try:
     engine = whisper.load_model(model, device=selected, download_root=str(model_cache / "speech-models"))
 except Exception:

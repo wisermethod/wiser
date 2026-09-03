@@ -1,6 +1,6 @@
 # Third-party notice: Transcribe Audio
 
-This tool installs the packages below on the machine that calls it, into a Python virtual environment inside this tool's own directory, the first time a transcription is asked for. **This repository redistributes none of them.**
+This tool installs the packages below on the machine that calls it, into a Python virtual environment inside this tool's own directory, on the first run that authorises it with `--install`. **The speech model weights are a second, separately authorised download**, described below. **This repository redistributes none of them.**
 
 **These versions are a snapshot, not a pin.** `requirements.txt` declares floors (`openai-whisper>=20231117`, `torch>=2.0.0`, `torchaudio>=2.0.0`) and is deliberately left that way, because `torch` publishes wheels specific to a platform, an architecture and a Python version, and an exact pin resolved on one machine can have no matching wheel on another. **What is recorded here is what those floors actually resolved to on one occasion**, so that a licence obligation has a version to attach to.
 

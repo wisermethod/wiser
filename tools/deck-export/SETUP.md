@@ -2,7 +2,7 @@
 
 Once per machine. Skip it if `node scripts/deck.js check` already reports every field true.
 
-**Once per machine covers the system dependencies below, not the packages.** A system dependency named below is installed once and every copy of this plugin then finds it; a tool's own packages install per copy of the plugin, on the first call, and a plugin manager that keeps each version in its own directory installs them again after an update. `tools/AGENTS.md` lists everything a run of a tool writes and where, and is the only place this repository states it.
+**Once per machine covers the system dependencies below, not the packages.** A system dependency named below is installed once and every copy of this plugin then finds it; a tool's own packages install per copy of the plugin, on the first run that authorises them with `--install`, and a plugin manager that keeps each version in its own directory needs that authorisation again after an update. `tools/AGENTS.md` lists everything a run of a tool writes and where, and is the only place this repository states it.
 
 Run every command below from this tool's directory. On Windows, use Git Bash; PowerShell and cmd quote arguments differently.
 
@@ -31,6 +31,9 @@ node scripts/deck.js check
 `chromium: false` is the one system dependency `pdf` and `png` stop on; `scaffold` never needs it. Presence is a trial launch via the shared browser-runtime (`scripts/lib/browser-runtime.js`), which also self-heals the known headless-safe missing-library case where a C compiler is present and forwards `HTTPS_PROXY` / `HTTP_PROXY` into Chromium. When launch still fails, `check` carries a `remediation` line — follow that single step. Install walkthroughs are never written here.
 
 A machine that already drives a browser for another primitive in this root usually has the build cached and needs nothing here.
+
+**Nothing here fetches the browser build, and nothing needs to.** `playwright` carries no postinstall script, so `npm ci` above installs the package and no browser. The first non-help command that needs Chromium reports what it would fetch and stops; `--install` authorises both the packages and the browser build and that one run does the work. Run this check to see what is already present, not to make it present.
+
 
 ## 4. Verify
 

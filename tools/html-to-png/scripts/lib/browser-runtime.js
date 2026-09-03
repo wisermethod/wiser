@@ -178,7 +178,7 @@ export async function prepareBrowserRuntime() {
   if (!report.chromiumBinary) {
     // Name the dependency and its check; do not embed an install walkthrough
     // (Script Contract: System dependencies). The agent reads current docs.
-    report.remediation = 'dependency: Chromium build (Playwright); check: chromium.executablePath() exists; not present.';
+    report.remediation = 'dependency: Chromium build (Playwright); check: node scripts/<entry>.js <command> --install, which fetches it from cdn.playwright.dev in the same run; the build is not on this machine yet.';
     return report;
   }
 
@@ -250,7 +250,7 @@ function remediationFromLaunchError(error, host) {
     );
   }
   if (/Executable doesn't exist|browserType\.launch/i.test(line) && /exist/i.test(line)) {
-    return 'dependency: Chromium build (Playwright); check: chromium.executablePath() exists; not present.';
+    return 'dependency: Chromium build (Playwright); check: node scripts/<entry>.js <command> --install, which fetches it from cdn.playwright.dev in the same run; the build is not on this machine yet.';
   }
   if (line) {
     // Keep a short cause without install walkthroughs; still name the capability.

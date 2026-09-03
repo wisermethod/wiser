@@ -201,16 +201,35 @@ function installPlan() {
   };
 }
 
-function requireInstallConsent() {
+// `what` is 'packages' or 'browser'. Round 6 found the browser case reported the
+// package case: a tool whose packages are installed and whose browser build is
+// not is a real state -- every machine that ran a browser tool before the
+// installer existed is in it -- and the report a person answers must not open
+// "this tool is not installed yet", nor name a registry fetch and an npm cache
+// write that this install will not make.
+function requireInstallConsent(what) {
   if (process.argv.includes('--install') || process.env.WISER_ALLOW_INSTALL === '1') return;
+  if (what === 'browser') {
+    fail(
+      `Error: this tool's packages are installed but the Chromium build they drive is not, and this run did not authorise an install. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+    );
+  }
   const { list, hosts, size } = installPlan();
   fail(
     `Error: this tool is not installed yet and this run did not authorise an install. Installing fetches ${list} from ${hosts} into ${TOOL_DIR}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
   );
 }
 
+// Arguments are parsed here, ABOVE the install. The Script Contract requires an
+// option this script does not name to be refused "before any work, any
+// dependency install, and any network request", and round 5 found this script
+// installing first and refusing after -- which is also what made a misplaced
+// --install cost a full npm fetch before the parser ever saw it. parseArgs is a
+// function declaration and imports nothing, so it runs before the packages do.
+const parsedArgs = parseArgs(argv.slice(1));
+
 if (!existsSync(UNDICI_MARKER)) {
-  requireInstallConsent();
+  requireInstallConsent('packages');
   process.stderr.write('First run: installing dependencies in this tool directory.\n');
   try {
     execFileSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['ci'], {
@@ -223,7 +242,7 @@ if (!existsSync(UNDICI_MARKER)) {
     // an unwritable tool directory is not a broken install, and telling someone
     // to run "npm ci" by hand where they cannot write cannot succeed.
     if (!isWritable(TOOL_DIR)) {
-      fail(`Error: cannot install dependencies because ${TOOL_DIR} is not writable. This tool installs its dependencies into its own directory the first time it runs, so that directory has to be writable. Install this plugin somewhere you own, or make that directory writable, then run the command again.`);
+      fail(`Error: cannot install dependencies because ${TOOL_DIR} is not writable. This tool installs its dependencies into its own directory on the run that authorises it with --install, so that directory has to be writable. Install this plugin somewhere you own, or make that directory writable, then run the command again.`);
     }
     fail(`Error: npm ci failed in ${TOOL_DIR}. Confirm Node 18 or newer, then that package-lock.json is present and matches package.json, which is what npm ci requires. A lockfile missing or out of step with the manifest is a defect in this copy of the plugin, not something a re-run fixes.`);
   }
@@ -267,11 +286,13 @@ function parseArgs(rest) {
     }
 
     // `--install` is a bare flag: the entry script reads it from raw process.argv
-    // above, so here it neither takes a value nor consumes the next word. It was
-    // added to the name list above without this branch, which made the flag the
-    // help documents and the consent message instructs impossible to pass.
+    // above, so here it neither takes a value nor consumes the next word. Round 5
+    // found it named in the allowlist above with no branch here, so it fell into
+    // the value-taking refusal below; round 6 found the branch written with an
+    // `index++` that the `for` already performs, which skipped whatever followed
+    // the flag. `continue` alone is the whole of it: the loop's own increment
+    // moves to the next word, and the next word is not this flag's value.
     if (flag === '--install') {
-      index++;
       continue;
     }
 
@@ -800,7 +821,7 @@ function collectFromFiles(paths, max) {
 }
 
 async function main() {
-  const args = parseArgs(argv.slice(1));
+  const args = parsedArgs;
 
   const offline = args.files.length > 0;
   const network = args.domain !== null || args.urls.length > 0;
