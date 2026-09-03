@@ -171,7 +171,7 @@ function installPlan() {
     list: names.length ? names.join(', ') : 'the packages package.json declares',
     hosts: 'registry.npmjs.org',
     size: browser
-      ? ' This run then fetches the Chromium build that package drives, several hundred megabytes, from cdn.playwright.dev, or from playwright.download.prss.microsoft.com when Playwright falls back. That build does NOT land here: it goes wherever Playwright keeps browser builds on this machine, which tools/AGENTS.md names for each platform.'
+      ? ' A command that drives a browser then fetches the Chromium build, several hundred megabytes, from cdn.playwright.dev, or from playwright.download.prss.microsoft.com when Playwright falls back; a command that does not, such as a scaffold or a survey, fetches no browser. That build does NOT land here: it goes wherever Playwright keeps browser builds on this machine, which tools/AGENTS.md names for each platform.'
       : ''
   };
 }
@@ -428,6 +428,31 @@ function chromiumInstalled() {
   if (!planned) return false;
   return planned.every((location) => existsSync(join(location, 'INSTALLATION_COMPLETE')));
 }
+// TWO QUESTIONS, AND THIS BUILD HAS ANSWERED EACH OF THEM WRONGLY IN TURN.
+//
+// The markers above say the INSTALLER FINISHED. They do not say the thing it
+// installed is still on disk. Round 6 asked only the second question, through
+// `chromium.executablePath()`, and a download that died after the first of three
+// artifacts passed. Rounds 7 and 8 asked only the first, and a marked set whose
+// files were removed afterwards -- an antivirus sweep, a partial restore, a
+// hand-cleared cache -- passed too. That state is worse than the others,
+// because `install chromium` SKIPS a marked artifact: the authorised repair
+// could not repair it, and the tool printed a hand command instead of running
+// one.
+//
+// So both are asked, and the answer says which install to run. `--force` is
+// Playwright's own flag for exactly this, and passing it is what lets the run a
+// caller authorised finish the job rather than describe it.
+async function chromiumState() {
+  if (!chromiumInstalled()) return 'absent';
+  try {
+    const { chromium } = await import('playwright');
+    const binary = chromium.executablePath();
+    if (typeof binary === 'string' && binary.length > 0 && existsSync(binary)) return 'ready';
+  } catch { /* no package, or a build this Playwright does not know */ }
+  return 'marked-but-gone';
+}
+
 
 /**
  * The Chromium build. `playwright` carries NO install script, so ensurePackage
@@ -437,11 +462,24 @@ function chromiumInstalled() {
  * the part a person is actually being asked about.
  */
 async function ensureChromium() {
-  if (chromiumInstalled()) return;
+  // 'ready' means the markers AND the executable; anything else installs, and
+  // 'marked-but-gone' installs with --force because Playwright would otherwise
+  // skip every artifact it has already marked.
+  // 'ready' means the markers AND the executable. Anything else installs, and
+  // 'marked-but-gone' installs with --force, because Playwright skips every
+  // artifact it has already marked and the authorised repair would otherwise do
+  // nothing at all -- which is what round 8 measured.
+  const chromiumStateNow = await chromiumState();
+  if (chromiumStateNow === 'ready') return;
   requireInstallConsent('browser');
-  log('Installing the Chromium build this tool drives.');
+  log(chromiumStateNow === 'marked-but-gone'
+    ? 'Replacing the Chromium build this tool drives: Playwright records it as installed and its files are gone.'
+    : 'Installing the Chromium build this tool drives.');
   try {
-    execFileSync(process.execPath, [PLAYWRIGHT_CLI, 'install', 'chromium'], {
+    const chromiumInstallArgs = chromiumStateNow === 'marked-but-gone'
+      ? [PLAYWRIGHT_CLI, 'install', 'chromium', '--force']
+      : [PLAYWRIGHT_CLI, 'install', 'chromium'];
+    execFileSync(process.execPath, chromiumInstallArgs, {
       cwd: TOOL_DIR,
       stdio: ['ignore', 'ignore', 'inherit']
     });
@@ -457,9 +495,9 @@ async function ensureChromium() {
     if (browsersRoot && !isWritable(browsersRoot)) {
       fail(`Error: the Chromium build could not be installed because ${browsersRoot} is not writable. That is where Playwright puts browser builds on this machine, and PLAYWRIGHT_BROWSERS_PATH chooses it when that variable is set. Point it at a directory you own, or make this one writable, then run the command again. tools/AGENTS.md names every path Playwright may use.`);
     }
-    fail(`Error: the Chromium build could not be installed. Playwright fetches it from https://cdn.playwright.dev, falling back to playwright.download.prss.microsoft.com, so a network that blocks those hosts will stop here even though npm succeeded. Run "node ${PLAYWRIGHT_CLI} install chromium" by hand to see Playwright's own message. tools/AGENTS.md names where the build lands.`);
+    fail(`Error: the Chromium build could not be installed. Playwright fetches it from https://cdn.playwright.dev, falling back to playwright.download.prss.microsoft.com, so a network that blocks those hosts will stop here even though npm succeeded. Run "node ${PLAYWRIGHT_CLI} install chromium${chromiumStateNow === 'marked-but-gone' ? ' --force' : ''}" by hand to see Playwright's own message. tools/AGENTS.md names where the build lands.`);
   }
-  if (!chromiumInstalled()) {
+  if (await chromiumState() !== 'ready') {
     fail(`Error: the Chromium install reported success but the browser is still incomplete. "install chromium" fetches several artifacts in sequence and this run left at least one of them without the INSTALLATION_COMPLETE marker Playwright writes once an artifact has finished extracting. Run "node ${PLAYWRIGHT_CLI} install chromium --dry-run" to see what it expects and where, then "node ${PLAYWRIGHT_CLI} install chromium" by hand to see Playwright's own message.`);
   }
 }

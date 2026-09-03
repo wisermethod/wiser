@@ -178,7 +178,7 @@ export async function prepareBrowserRuntime() {
   if (!report.chromiumBinary) {
     // Name the dependency and its check; do not embed an install walkthrough
     // (Script Contract: System dependencies). The agent reads current docs.
-    report.remediation = 'dependency: Chromium build (Playwright); check: node scripts/<entry>.js <command> --install, which fetches it from cdn.playwright.dev in the same run. --install repairs the state Playwright itself calls incomplete -- an artifact directory without its INSTALLATION_COMPLETE marker. If every marker is present and the binary is still gone, the files were removed after a finished install and only "playwright install chromium --force" replaces them, because --install and Playwright both skip a marked artifact.';
+    report.remediation = 'dependency: Chromium build (Playwright); check: node scripts/<entry>.js <command> --install, which fetches it from cdn.playwright.dev in the same run and repairs an incomplete or emptied build as well as an absent one. tools/AGENTS.md names the states and where the build lands.';
     return report;
   }
 
@@ -250,7 +250,7 @@ function remediationFromLaunchError(error, host) {
     );
   }
   if (/Executable doesn't exist|browserType\.launch/i.test(line) && /exist/i.test(line)) {
-    return 'dependency: Chromium build (Playwright); check: node scripts/<entry>.js <command> --install, which fetches it from cdn.playwright.dev in the same run. --install repairs the state Playwright itself calls incomplete -- an artifact directory without its INSTALLATION_COMPLETE marker. If every marker is present and the binary is still gone, the files were removed after a finished install and only "playwright install chromium --force" replaces them, because --install and Playwright both skip a marked artifact.';
+    return 'dependency: Chromium build (Playwright); check: node scripts/<entry>.js <command> --install, which fetches it from cdn.playwright.dev in the same run and repairs an incomplete or emptied build as well as an absent one. tools/AGENTS.md names the states and where the build lands.';
   }
   if (line) {
     // Keep a short cause without install walkthroughs; still name the capability.

@@ -32,7 +32,7 @@ node scripts/deck.js check
 
 A machine that already drives a browser for another primitive in this root usually has the build cached and needs nothing here.
 
-**Nothing here fetches the browser build, and nothing needs to.** `playwright` carries no postinstall script, so `npm ci` above installs the package and no browser. The first non-help command that needs Chromium reports what it would fetch and stops; `--install` authorises both the packages and the browser build and that one run does the work. Run this check to see what is already present, not to make it present.
+**Nothing here fetches the browser build, and nothing needs to.** `playwright` carries no postinstall script, so `npm ci` above installs the package and no browser. The first non-help command that needs Chromium reports what it would fetch and stops; `--install` authorises both the packages and the browser build and that one run does the work. Run `check` on its own to see what is already present; run `check --install` to make it present and then report on it.
 
 
 ## 4. Verify

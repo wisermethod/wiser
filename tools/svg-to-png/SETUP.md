@@ -30,7 +30,7 @@ npm run check:chromium
 
 Expect `"chromiumLaunch":true`. Trial launch via the shared browser-runtime; on failure follow the `remediation` line.
 
-**Nothing here fetches the browser build, and nothing needs to.** `playwright` carries no postinstall script, so `npm ci` above installs the package and no browser. The first non-help command that needs Chromium reports what it would fetch and stops; `--install` authorises both the packages and the browser build and that one run does the work. Run this check to see what is already present, not to make it present.
+**Nothing here fetches the browser build, and nothing needs to.** `playwright` carries no postinstall script, so `npm ci` above installs the package and no browser. The first non-help command that needs Chromium reports what it would fetch and stops; `--install` authorises both the packages and the browser build and that one run does the work. This step is a survey: it reports what is already present and makes nothing present. The tool's own first browser-needing command with `--install` is what makes it present, in one run.
 
 
 ## 4. Verify

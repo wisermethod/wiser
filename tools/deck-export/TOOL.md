@@ -86,7 +86,7 @@ Size comes from the deck. After the deck initializes, its own reveal.js configur
 | Command | Purpose | Needs the browser |
 |---------|---------|-------------------|
 | `node scripts/deck.js help` | Print usage and exit | No |
-| `node scripts/deck.js check` | Report which dependencies are present, installing nothing | Only with `--install` |
+| `node scripts/deck.js check` | Report which dependencies are present; installs nothing unless `--install` is given, and then installs first | Yes: it proves Chromium by a trial launch |
 | `node scripts/deck.js scaffold --output <dir>` | Write a new deck project | No |
 | `node scripts/deck.js pdf --input <deck.html> --output <file.pdf>` | Render the deck to one PDF | Yes |
 | `node scripts/deck.js png --input <deck.html> --output <dir>` | Render the deck to one PNG per slide | Yes |

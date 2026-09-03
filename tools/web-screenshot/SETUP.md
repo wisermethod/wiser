@@ -30,7 +30,7 @@ node scripts/capture.js check
 
 Expect `"chromiumLaunch":true`. Presence is a trial launch via the shared browser-runtime; missing OS libraries are self-healed where a C compiler is present. On failure, follow the `remediation` line — never a hard-coded install recipe here.
 
-**Nothing here fetches the browser build, and nothing needs to.** `playwright` carries no postinstall script, so `npm ci` above installs the package and no browser. The first non-help command that needs Chromium reports what it would fetch and stops; `--install` authorises both the packages and the browser build and that one run does the work. Run this check to see what is already present, not to make it present.
+**Nothing here fetches the browser build, and nothing needs to.** `playwright` carries no postinstall script, so `npm ci` above installs the package and no browser. The first non-help command that needs Chromium reports what it would fetch and stops; `--install` authorises both the packages and the browser build and that one run does the work. Run `check` on its own to see what is already present; run `check --install` to make it present and then report on it.
 
 
 ## 4. Verify

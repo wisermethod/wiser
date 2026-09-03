@@ -165,7 +165,7 @@ function installPlan() {
     list: names.length ? names.join(', ') : 'the packages package.json declares',
     hosts: 'registry.npmjs.org',
     size: browser
-      ? ' This run then fetches the Chromium build that package drives, several hundred megabytes, from cdn.playwright.dev, or from playwright.download.prss.microsoft.com when Playwright falls back. That build does NOT land here: it goes wherever Playwright keeps browser builds on this machine, which tools/AGENTS.md names for each platform.'
+      ? ' A command that drives a browser then fetches the Chromium build, several hundred megabytes, from cdn.playwright.dev, or from playwright.download.prss.microsoft.com when Playwright falls back; a command that does not, such as a scaffold or a survey, fetches no browser. That build does NOT land here: it goes wherever Playwright keeps browser builds on this machine, which tools/AGENTS.md names for each platform.'
       : ''
   };
 }
@@ -233,6 +233,15 @@ for (let index = 1; index < argv.length; index += 1) {
   if (!raw) {
     fail('Error: --url is required. Run "node scripts/tag-audit.js help" for usage.');
   }
+  // And its VALUE, not only its presence. Round 8 found the first version of
+  // this hoist refusing a MISSING argument above the install and letting a
+  // MALFORMED one buy the whole fetch -- fitted to the four forms round 7 wrote
+  // down, in one of the only two tools of eighteen whose siblings all refuse a
+  // bad value before installing. `resolveTarget` is the same function main()
+  // uses, it is a function declaration, and it imports nothing, so calling it
+  // here costs a parse and nothing else. main() calls it again on its own
+  // account rather than depending on this having run.
+  resolveTarget(raw);
 }
 
 if (!existsSync(UNDICI_MARKER)) {

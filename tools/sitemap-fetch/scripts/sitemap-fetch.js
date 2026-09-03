@@ -208,7 +208,7 @@ function installPlan() {
     list: names.length ? names.join(', ') : 'the packages package.json declares',
     hosts: 'registry.npmjs.org',
     size: browser
-      ? ' This run then fetches the Chromium build that package drives, several hundred megabytes, from cdn.playwright.dev, or from playwright.download.prss.microsoft.com when Playwright falls back. That build does NOT land here: it goes wherever Playwright keeps browser builds on this machine, which tools/AGENTS.md names for each platform.'
+      ? ' A command that drives a browser then fetches the Chromium build, several hundred megabytes, from cdn.playwright.dev, or from playwright.download.prss.microsoft.com when Playwright falls back; a command that does not, such as a scaffold or a survey, fetches no browser. That build does NOT land here: it goes wherever Playwright keeps browser builds on this machine, which tools/AGENTS.md names for each platform.'
       : ''
   };
 }
@@ -248,20 +248,53 @@ const parsedArgs = parseArgs(argv.slice(1));
 // whole fetch. The check is free here -- parsedArgs is already computed, and
 // this is the same pair of conditions main() applies, stated once as a function
 // so the two cannot drift apart.
-function seedProblem(args) {
+// Returns { offline } on a valid pair of seeds, or { problem } on a bad one.
+// It returns the MODE rather than only the verdict, because round 8 found the
+// first version of this extraction had moved `offline` and `network` into the
+// new function and left main()'s two readers of `offline` behind: every valid
+// `fetch` died with `offline is not defined`, and every executed gate row was
+// an invalid-argument case that stopped above them. One definition, handed to
+// the caller, is what makes that impossible rather than merely fixed.
+function seedMode(args) {
   const offline = args.files.length > 0;
   const network = args.domain !== null || args.urls.length > 0;
   if (offline && network) {
-    return 'Error: fetch takes either network seeds (--domain / --url) or offline seeds (--file), not both. Run "node scripts/sitemap-fetch.js help" for usage.';
+    return { problem: 'Error: fetch takes either network seeds (--domain / --url) or offline seeds (--file), not both. Run "node scripts/sitemap-fetch.js help" for usage.' };
   }
   if (!offline && !network) {
-    return 'Error: fetch needs --domain <host>, at least one --url <sitemap url>, or at least one --file <path>. Run "node scripts/sitemap-fetch.js help" for usage.';
+    return { problem: 'Error: fetch needs --domain <host>, at least one --url <sitemap url>, or at least one --file <path>. Run "node scripts/sitemap-fetch.js help" for usage.' };
+  }
+  return { offline };
+}
+
+// The rest of the usage checks, hoisted for the same reason and refusing at the
+// same point. Round 8: the first hoist refused a MISSING argument above the
+// install and left a MALFORMED one buying it -- fitted to the four forms round 7
+// happened to write down, in the only two tools of eighteen whose siblings all
+// refuse a bad value before installing. These are the same tests main() applies,
+// stated once so the two cannot drift.
+function valueProblem(args) {
+  if (args.date !== null && !DATE_PATTERN.test(args.date)) {
+    return `Error: --date must be YYYY-MM-DD; got "${args.date}".`;
+  }
+  if (args.max !== DEFAULT_MAX_URLS) {
+    const parsed = Number(args.max);
+    if (!Number.isInteger(parsed) || parsed < 1) {
+      return `Error: --max must be a whole number of 1 or more; got "${args.max}".`;
+    }
+  }
+  for (const value of args.files) {
+    if (!isAbsolute(value)) {
+      return `Error: --file must be absolute; got "${value}", which would resolve against whatever directory the caller happened to be in.`;
+    }
   }
   return null;
 }
 {
-  const problem = seedProblem(parsedArgs);
-  if (problem) fail(problem);
+  const seeds = seedMode(parsedArgs);
+  if (seeds.problem) fail(seeds.problem);
+  const bad = valueProblem(parsedArgs);
+  if (bad) fail(bad);
 }
 
 if (!existsSync(UNDICI_MARKER)) {
@@ -859,19 +892,21 @@ function collectFromFiles(paths, max) {
 async function main() {
   const args = parsedArgs;
 
-  // Already refused above the install; kept here so main() stands on its own
-  // and the two can never disagree, because both read the one function.
-  {
-    const problem = seedProblem(args);
-    if (problem) fail(problem);
-  }
-
-  if (args.date !== null && !DATE_PATTERN.test(args.date)) {
-    fail(`Error: --date must be YYYY-MM-DD; got "${args.date}".`);
-  }
+  // Already refused above the install; called again so main() stands on its own
+  // and the two can never disagree, because both read the one function -- and
+  // this is where the operating mode comes from, so there is one definition of
+  // it rather than a copy the next refactor can leave behind.
+  const seeds = seedMode(args);
+  if (seeds.problem) fail(seeds.problem);
+  const badValue = valueProblem(args);
+  if (badValue) fail(badValue);
+  const { offline } = seeds;
 
   const max = Number(args.max);
 
+  // valueProblem above already refused a non-integer or sub-1 --max; this is
+  // the same test in its own terms, kept because main() must not depend on
+  // something upstream having run.
   if (!Number.isSafeInteger(max) || max < 1) {
     fail(`Error: --max must be a whole number of 1 or more; got "${args.max}".`);
   }
