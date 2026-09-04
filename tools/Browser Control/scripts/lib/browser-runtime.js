@@ -259,24 +259,111 @@ function remediationFromLaunchError(error, host) {
   return 'dependency: Chromium launch; check: trial launch of about:blank. Next: re-run check after fixing the host environment.';
 }
 
-/** Structured survey: installs nothing beyond a userspace stub; proves launch. */
-export async function check() {
-  const chromium = await getChromium();
-  const report = await prepareBrowserRuntime();
-  if (report.chromiumBinary && !report.remediation) {
-    try {
-      const b = await chromium.launch({ args: DEFAULT_ARGS });
-      const p = await b.newPage();
-      await p.goto('about:blank');
-      await p.close();
-      await b.close();
-      report.chromiumLaunch = true;
-    } catch (e) {
-      report.chromiumLaunch = false;
-      report.remediation = remediationFromLaunchError(e, report.hostClass);
-    }
-  } else {
+/**
+ * WHY A FAILED LAUNCH IS NOT ONE THING.
+ *
+ * Round 10 found every browser tool responding to `chromiumLaunch === false`
+ * with an install and then a forced reinstall, because the caller had reduced
+ * this whole report to a boolean. A missing OS library, an absent C compiler,
+ * an unwritable shim directory, a denied `mkdtemp` and a sandbox policy all
+ * arrive as false -- and all of them sent the run into a destructive browser
+ * replacement that could not fix any of them. Codex printed the live example
+ * from all six runtimes: `chromiumBinary:true, chromiumLaunch:false,
+ * remediation: EPERM ... mkdtemp ... playwright-artifacts-*`.
+ *
+ * So the report says WHICH KIND. 'artifact' means the browser bytes are absent
+ * or damaged and an install is the repair. 'host' means this machine cannot run
+ * the browser it already has, and installing it again changes nothing while
+ * deleting something. 'unknown' is neither, and is treated as host: a repair
+ * nobody can justify is not a repair.
+ */
+function classifyFailure(error, report) {
+  if (report.missingLibs && report.missingLibs.length) return 'host';
+  const line = error && error.message ? String(error.message).split('\n')[0] : '';
+  if (/Executable doesn't exist|please run the following command to download|browserType\.launch.*exist/i.test(line)) {
+    return 'artifact';
+  }
+  // ENOEXEC is a file that is there and is not a program: a truncated or
+  // corrupted download, which is the browser's bytes and not this machine.
+  // Round 10 modelled it by emptying the Chrome for Testing binary, and the
+  // first version of this classifier called it 'unknown' -- which would have
+  // refused to repair a state an install repairs.
+  if (/ENOEXEC|Exec format error/i.test(line)) return 'artifact';
+  if (/EPERM|EACCES|EROFS|ENOSPC|ENOMEM|permission denied|mkdtemp|install-deps|missing dependencies|Host system is missing/i.test(line)) {
+    return 'host';
+  }
+  return 'unknown';
+}
+
+/**
+ * Structured survey: installs nothing beyond a userspace stub; proves launch.
+ *
+ * `options` are the launch options the CALLER is about to use, and passing them
+ * is the whole point. Round 10: this trialled a DEFAULT HEADLESS launch, which
+ * runs Chrome Headless Shell, while `Browser Control` launches headful, which
+ * runs Chrome for Testing -- a different artifact. A hollowed-out Chrome for
+ * Testing left this report green and `session start` broken, and `--install`
+ * never entered the installer. A capability probe has to probe the capability
+ * the caller is about to use.
+ *
+ * Nothing here throws. `getChromium()` and `prepareBrowserRuntime()` used to sit
+ * outside the try, so a partial package install reached the caller as seven
+ * frames of Node internals with no cause and no next step.
+ */
+export async function check(options = {}) {
+  const report = {
+    playwright: false, chromiumBinary: false, chromiumLaunch: false,
+    proxy: Boolean(proxyServer()), hostClass: hostClass(),
+    missingLibs: [], shimmed: [], remediation: null, failure: null
+  };
+  let chromium;
+  try {
+    chromium = await getChromium();
+    report.playwright = true;
+  } catch (e) {
+    const line = e && e.message ? String(e.message).split('\n')[0].trim() : 'the import failed';
+    report.failure = 'host';
+    report.remediation =
+      'dependency: the playwright package; check: import it from this tool directory. ' +
+      `Next: the package is present but did not load (${line}); delete node_modules here and re-run the command with --install.`;
+    return report;
+  }
+  let prepared;
+  try {
+    prepared = await prepareBrowserRuntime();
+  } catch (e) {
+    const line = e && e.message ? String(e.message).split('\n')[0].trim() : 'preparation failed';
+    report.failure = 'host';
+    report.remediation =
+      `dependency: the browser runtime on this host; check: prepareBrowserRuntime(). Next: ${line}`;
+    return report;
+  }
+  Object.assign(report, prepared, { failure: null });
+  if (!report.chromiumBinary) {
     report.chromiumLaunch = false;
+    report.failure = 'artifact';
+    return report;
+  }
+  if (report.remediation) {
+    // prepareBrowserRuntime only sets this for a host it cannot make launchable:
+    // a library it may not stub, or a stubbable one with no compiler.
+    report.chromiumLaunch = false;
+    report.failure = 'host';
+    return report;
+  }
+  try {
+    // A bounded trial. Without a timeout a launch that hangs hangs the tool, and
+    // round 10 measured sixty seconds of exactly that.
+    const b = await chromium.launch({ args: DEFAULT_ARGS, timeout: 60000, ...options });
+    const p = await b.newPage();
+    await p.goto('about:blank');
+    await p.close();
+    await b.close();
+    report.chromiumLaunch = true;
+  } catch (e) {
+    report.chromiumLaunch = false;
+    report.remediation = remediationFromLaunchError(e, report.hostClass);
+    report.failure = classifyFailure(e, report);
   }
   return report;
 }

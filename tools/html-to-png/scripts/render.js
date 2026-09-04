@@ -468,6 +468,11 @@ const PLAYWRIGHT_CLI = join(TOOL_DIR, 'node_modules', 'playwright', 'cli.js');
 // with the browser present and 0.19s without it, against 0.20s for the
 // `--dry-run` subprocess this replaces, and the survey it returns is the one
 // the tool needed anyway.
+// This tool renders headless, which is Playwright's default and runs Chrome
+// Headless Shell. Stated rather than left implicit, because the trial launch
+// must be the launch the work makes.
+const LAUNCH_OPTIONS = { headless: true };
+
 let runtime = null;
 let browserSurvey = null;
 async function chromiumLaunches() {
@@ -475,8 +480,28 @@ async function chromiumLaunches() {
   // `help` must answer on a copy that has never been installed. The module is
   // kept because the work below launches through the same runtime that just
   // proved it can launch, rather than importing a second copy of it.
-  if (runtime === null) runtime = await import('./lib/browser-runtime.js');
-  browserSurvey = await runtime.check();
+  //
+  // LAUNCH_OPTIONS is what THIS tool is about to launch with. Round 10: this
+  // trialled a default headless launch in every tool, which runs Chrome
+  // Headless Shell, while `Browser Control` launches headful and runs Chrome
+  // for Testing -- so a hollowed-out Chrome left the trial green and the tool
+  // broken. A capability probe must probe the capability the caller will use.
+  //
+  // Nothing here throws. The import and the survey are both inside the try, and
+  // a throw becomes a host failure with the reason in the remediation, because
+  // round 10 measured a partial package install reaching the caller as seven
+  // frames of Node internals with no cause and no next step.
+  try {
+    if (runtime === null) runtime = await import('./lib/browser-runtime.js');
+    browserSurvey = await runtime.check(LAUNCH_OPTIONS);
+  } catch (error) {
+    const line = error && error.message ? String(error.message).split('\n')[0].trim() : 'the browser runtime could not be loaded';
+    browserSurvey = {
+      chromiumLaunch: false,
+      failure: 'host',
+      remediation: `dependency: the browser runtime in this tool; check: importing scripts/lib/browser-runtime.js. Next: ${line}`
+    };
+  }
   return browserSurvey.chromiumLaunch === true;
 }
 
@@ -502,42 +527,69 @@ function installDestinationForDiagnosis() {
 }
 
 async function ensureChromium() {
-  // 'ready' means the markers AND the executable; anything else installs, and
-  // 'marked-but-gone' installs with --force because Playwright would otherwise
-  // skip every artifact it has already marked.
   if (await chromiumLaunches()) return;
-  requireInstallConsent('browser');
-  // A PLAIN INSTALL FIRST, and --force only if that did not produce a launch.
-  // Round 9 measured what a FAILED --force does to a complete artifact
-  // directory, and it is reproducible: `install chromium --force` against a
-  // closed download host leaves `chromium-1234` GONE, because Playwright
-  // removes a directory it could not re-download. Ordering --force second is
-  // the mitigation, and the claim it supports is exact rather than comfortable:
-  // it runs only on a set that has ALREADY failed to launch after a plain
-  // install, so nothing that was serving this tool is destroyed. An individual
-  // artifact inside that unlaunchable set may still be complete and may still
-  // be re-fetched, which is the whole point of asking for a replacement.
+
+  // WHAT KIND OF FAILURE. Round 10 found this treating every false the same and
+  // answering all of them with an install and then a forced reinstall. A host
+  // that lacks an OS library or a compiler, cannot write the shim directory, is
+  // denied a temporary directory, or blocks the launch by policy is not a
+  // browser that needs replacing: the install changes nothing, and the forced
+  // reinstall then DELETES a complete artifact and leaves the caller worse off
+  // than before, with a final error blaming the network for a state its own
+  // deletion produced. All three reviewers measured that. So an install happens
+  // only when the survey positively says the browser bytes are the problem.
+  // A HOST failure is refused outright: installing the browser again cannot fix
+  // a machine that cannot run the one it has, and the forced reinstall below
+  // would delete a complete artifact on the way to not fixing it.
   //
-  // The verdict after each attempt is a LAUNCH, not an exit code. An installer
-  // that reports success and produces nothing that runs has not installed
-  // anything, and four rounds of this build were spent on probes that believed
-  // the report instead of trying the thing.
-  for (const extra of [[], ['--force']]) {
-    process.stderr.write(extra.length
-      ? 'Replacing the Chromium build this tool drives.\n'
-      : 'Installing the Chromium build this tool drives.\n');
+  // An UNKNOWN failure is not refused, and is not forced either. A plain
+  // install is non-destructive -- Playwright skips every artifact whose marker
+  // is present and only replaces one it is actually downloading -- so it is
+  // safe to attempt on a failure this script cannot name, and refusing there
+  // would leave a repairable state uncompletable, which is the template's own
+  // non-waivable class. Only a positively identified artifact failure earns the
+  // escalation.
+  if (browserSurvey.failure === 'host') {
+    fail(`Error: Chromium cannot launch, and the reason is this machine rather than the browser build, so installing it again would not fix it. ${browserSurvey.remediation || 'The trial launch reported no reason.'} See the Dependencies section of TOOL.md.`);
+  }
+
+  requireInstallConsent('browser');
+
+  // A PLAIN INSTALL FIRST, and --force ONLY IF THAT ONE SUCCEEDED. Round 9
+  // measured, and round 10 measured again on three different states, that a
+  // FAILED --force deletes a complete artifact directory: Playwright removes a
+  // directory it could not re-download. So the escalation is gated on the plain
+  // install having exited 0 -- which is the state where it had nothing to fetch
+  // because every artifact was already marked, and a forced refetch is the only
+  // remaining repair. A plain install that FAILED is precisely the state where
+  // forcing destroys and cannot repair, and it no longer escalates there.
+  process.stderr.write('Installing the Chromium build this tool drives.\n');
+  let plainInstallSucceeded = true;
+  try {
+    // Playwright's own installer, run from this tool's own copy rather than a
+    // global one, so the version matches the package the lockfile pinned.
+    execFileSync(process.execPath, [PLAYWRIGHT_CLI, 'install', 'chromium'], {
+      cwd: TOOL_DIR,
+      stdio: ['ignore', 'ignore', 'inherit']
+    });
+  } catch {
+    plainInstallSucceeded = false;
+  }
+  if (await chromiumLaunches()) return;
+
+  if (plainInstallSucceeded && browserSurvey.failure === 'artifact') {
+    process.stderr.write('Replacing the Chromium build this tool drives: the install had nothing to fetch and it still will not launch.\n');
     try {
-      // Playwright's own installer, run from this tool's own copy rather than a
-      // global one, so the version matches the package the lockfile pinned.
-      execFileSync(process.execPath, [PLAYWRIGHT_CLI, 'install', 'chromium', ...extra], {
+      execFileSync(process.execPath, [PLAYWRIGHT_CLI, 'install', 'chromium', '--force'], {
         cwd: TOOL_DIR,
         stdio: ['ignore', 'ignore', 'inherit']
       });
     } catch {
-      // Not a verdict; Playwright's own stderr has already reached the caller.
+      // Not a verdict; the launch below is.
     }
     if (await chromiumLaunches()) return;
   }
+
   // Two failures arrive here and they have different fixes, which is the same
   // Script Contract clause the npm block answers a few lines up. A browser
   // directory the caller cannot write is not a blocked network, and Playwright
@@ -548,7 +600,7 @@ async function ensureChromium() {
   if (browsersRoot && !isWritable(browsersRoot)) {
     fail(`Error: the Chromium build could not be installed because ${browsersRoot} is not writable. That is where Playwright puts browser builds on this machine, and PLAYWRIGHT_BROWSERS_PATH chooses it when that variable is set. Point it at a directory you own, or make this one writable, then run the command again. tools/AGENTS.md names every path Playwright may use.`);
   }
-  fail(`Error: the Chromium build still cannot launch after an install and a forced reinstall. ${(browserSurvey && browserSurvey.remediation) || 'The trial launch reported no reason.'} Playwright fetches the build from https://cdn.playwright.dev, falling back to playwright.download.prss.microsoft.com, so a network that blocks those hosts stops here even though npm succeeded. Run "node ${PLAYWRIGHT_CLI} install chromium --force" by hand to see Playwright's own message. tools/AGENTS.md names where the build lands.`);
+  fail(`Error: the Chromium build still cannot launch after an authorised install. ${(browserSurvey && browserSurvey.remediation) || 'The trial launch reported no reason.'} Playwright fetches the build from https://cdn.playwright.dev, falling back to playwright.download.prss.microsoft.com, so a network that blocks those hosts stops here even though npm succeeded. Run "node ${PLAYWRIGHT_CLI} install chromium" by hand to see Playwright's own message. tools/AGENTS.md names where the build lands.`);
 }
 
 
