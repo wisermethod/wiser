@@ -40,6 +40,17 @@ const PRINTED_URL_LIMIT = 500;
 const ALLOWED_PROTOCOLS = new Set(['http:', 'https:']);
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+// Flags that take exactly one value. Declared HERE, with the other constants,
+// rather than beside the function that reads it: `parseArgs` is called at the
+// top of this file, above where a `const` further down has been initialised, so
+// a declaration next to its use is a temporal dead zone and every run dies in
+// the parser. That is the same shape as the round-8 regression -- a restructure
+// that moved a binding out from under its caller -- and it was caught here by
+// running a valid command before committing rather than by a gate round.
+const SINGLETON_FLAGS = new Map([
+  ['--domain', 'domain'], ['--max', 'max'], ['--date', 'date'], ['--output', 'output']
+]);
 const COMMANDS = new Set(['fetch']);
 
 const USAGE = `sitemap-fetch - a deterministic snapshot of the URLs a site publishes in its sitemaps
@@ -188,6 +199,12 @@ function isWritable(dir) {
 // `--install` on the same command authorises it and the run then COMPLETES
 // rather than demanding a re-run. WISER_ALLOW_INSTALL=1 authorises it for an
 // unattended run, so automation does not acquire a new way to fail.
+// Whether THIS RUN will ask for a browser, which is what the consent report has
+// to describe. A tool that CAN drive a browser is not the same as a run that
+// WILL: `deck-export scaffold` and `web-screenshot check` are both commands of
+// browser tools that fetch none.
+const WILL_FETCH_BROWSER = false;
+
 function installPlan() {
   let names = [];
   try {
@@ -207,8 +224,15 @@ function installPlan() {
   return {
     list: names.length ? names.join(', ') : 'the packages package.json declares',
     hosts: 'registry.npmjs.org',
-    size: browser
-      ? ' A command that drives a browser then fetches the Chromium build, several hundred megabytes, from cdn.playwright.dev, or from playwright.download.prss.microsoft.com when Playwright falls back; a command that does not, such as a scaffold or a survey, fetches no browser. That build does NOT land here: it goes wherever Playwright keeps browser builds on this machine, which tools/AGENTS.md names for each platform.'
+    // KEYED ON THIS RUN, not on the tool. Round 8 found this promising a browser
+    // download on `deck-export scaffold --install`, which makes none; round 9
+    // found the hedge that replaced it naming "a survey" as an example of a
+    // command that fetches no browser, which `check --install` had just
+    // falsified in the same commit. `WILL_FETCH_BROWSER` is set by each entry
+    // script from the command it is actually running, so the report describes
+    // this run rather than the tool's general capabilities.
+    size: browser && WILL_FETCH_BROWSER
+      ? ' This run then fetches the Chromium build, several hundred megabytes, from cdn.playwright.dev, or from playwright.download.prss.microsoft.com when Playwright falls back. That build does NOT land here: it goes wherever Playwright keeps browser builds on this machine, which tools/AGENTS.md names for each platform.'
       : ''
   };
 }
@@ -274,12 +298,26 @@ function seedMode(args) {
 // refuse a bad value before installing. These are the same tests main() applies,
 // stated once so the two cannot drift.
 function valueProblem(args) {
-  if (args.date !== null && !DATE_PATTERN.test(args.date)) {
-    return `Error: --date must be YYYY-MM-DD; got "${args.date}".`;
+  // A CALENDAR DATE, not a shape. Round 9: the regex accepted `2026-13-99`,
+  // which then passed the install, passed main()'s identical test, and appeared
+  // in a successful exit-0 JSON object. A pattern that only counts digits is
+  // not a date check.
+  if (args.date !== null) {
+    if (!DATE_PATTERN.test(args.date)) {
+      return `Error: --date must be YYYY-MM-DD; got "${args.date}".`;
+    }
+    const [y, m, d] = args.date.split('-').map(Number);
+    const asDate = new Date(Date.UTC(y, m - 1, d));
+    if (asDate.getUTCFullYear() !== y || asDate.getUTCMonth() !== m - 1 || asDate.getUTCDate() !== d) {
+      return `Error: --date is not a real calendar date; got "${args.date}".`;
+    }
   }
+  // isSafeInteger, matching main() exactly. Round 9 found `isInteger` here and
+  // `isSafeInteger` below -- drifted inside the function whose own comment says
+  // the two cannot drift, which is the drift it was written to prevent.
   if (args.max !== DEFAULT_MAX_URLS) {
     const parsed = Number(args.max);
-    if (!Number.isInteger(parsed) || parsed < 1) {
+    if (!Number.isSafeInteger(parsed) || parsed < 1) {
       return `Error: --max must be a whole number of 1 or more; got "${args.max}".`;
     }
   }
@@ -287,6 +325,11 @@ function valueProblem(args) {
     if (!isAbsolute(value)) {
       return `Error: --file must be absolute; got "${value}", which would resolve against whatever directory the caller happened to be in.`;
     }
+  }
+  // --output, which round 9 found still below the install: the one caller-named
+  // path of the four that was not hoisted with the rest of them.
+  if (args.output !== null && !isAbsolute(args.output)) {
+    return `Error: --output must be absolute; got "${args.output}", which would resolve against whatever directory the caller happened to be in.`;
   }
   return null;
 }
@@ -333,6 +376,7 @@ if (!existsSync(UNDICI_MARKER)) {
 
 function parseArgs(rest) {
   const args = { urls: [], files: [], domain: null, max: DEFAULT_MAX_URLS, date: null, output: null };
+  const seenSingletons = new Set();
 
   for (let index = 0; index < rest.length; index++) {
     const flag = rest[index];
@@ -369,12 +413,21 @@ function parseArgs(rest) {
       fail(`Error: ${flag} needs a value. Run "node scripts/sitemap-fetch.js help" for usage.`);
     }
 
+    // SINGLETON FLAGS ARE REFUSED WHEN REPEATED, not silently last-won. Round 9,
+    // Codex: `--date notadate --date 2026-09-03` exited 0 and the first value
+    // vanished without a word, which is the Script Contract's own rule against
+    // undisclosed dropped input. `--url` and `--file` are repeatable by design
+    // and say so in the help; the other four are not.
     if (flag === '--url') args.urls.push(value);
     else if (flag === '--file') args.files.push(value);
-    else if (flag === '--domain') args.domain = value;
-    else if (flag === '--max') args.max = value;
-    else if (flag === '--date') args.date = value;
-    else if (flag === '--output') args.output = value;
+    else if (SINGLETON_FLAGS.has(flag)) {
+      const key = SINGLETON_FLAGS.get(flag);
+      if (seenSingletons.has(flag)) {
+        fail(`Error: ${flag} was given more than once. It takes a single value; passing two silently discards one. Run "node scripts/sitemap-fetch.js help" for usage.`);
+      }
+      seenSingletons.add(flag);
+      args[key] = value;
+    }
 
     index++;
   }

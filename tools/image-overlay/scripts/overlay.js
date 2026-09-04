@@ -290,6 +290,12 @@ function isWritable(dir) {
 // `--install` on the same command authorises it and the run then COMPLETES
 // rather than demanding a re-run. WISER_ALLOW_INSTALL=1 authorises it for an
 // unattended run, so automation does not acquire a new way to fail.
+// Whether THIS RUN will ask for a browser, which is what the consent report has
+// to describe. A tool that CAN drive a browser is not the same as a run that
+// WILL: `deck-export scaffold` and `web-screenshot check` are both commands of
+// browser tools that fetch none.
+const WILL_FETCH_BROWSER = false;
+
 function installPlan() {
   let names = [];
   try {
@@ -309,8 +315,15 @@ function installPlan() {
   return {
     list: names.length ? names.join(', ') : 'the packages package.json declares',
     hosts: 'registry.npmjs.org',
-    size: browser
-      ? ' A command that drives a browser then fetches the Chromium build, several hundred megabytes, from cdn.playwright.dev, or from playwright.download.prss.microsoft.com when Playwright falls back; a command that does not, such as a scaffold or a survey, fetches no browser. That build does NOT land here: it goes wherever Playwright keeps browser builds on this machine, which tools/AGENTS.md names for each platform.'
+    // KEYED ON THIS RUN, not on the tool. Round 8 found this promising a browser
+    // download on `deck-export scaffold --install`, which makes none; round 9
+    // found the hedge that replaced it naming "a survey" as an example of a
+    // command that fetches no browser, which `check --install` had just
+    // falsified in the same commit. `WILL_FETCH_BROWSER` is set by each entry
+    // script from the command it is actually running, so the report describes
+    // this run rather than the tool's general capabilities.
+    size: browser && WILL_FETCH_BROWSER
+      ? ' This run then fetches the Chromium build, several hundred megabytes, from cdn.playwright.dev, or from playwright.download.prss.microsoft.com when Playwright falls back. That build does NOT land here: it goes wherever Playwright keeps browser builds on this machine, which tools/AGENTS.md names for each platform.'
       : ''
   };
 }
