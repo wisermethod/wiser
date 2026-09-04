@@ -189,8 +189,20 @@ function round(n) {
   return Math.round(n * 10000) / 10000;
 }
 
+// NO VALUES IS NOT ZERO, EXCEPT WHERE IT GENUINELY IS.
+//
+// This returned 0 for every function over an empty set, so a group whose rows
+// all carry a blank in the metric column reported `revenue_mean: 0` -- read by
+// anyone as "that group averaged zero revenue" rather than "that group had no
+// revenue figures". Round 11 found it; `data-describe` gets the same situation
+// right by reporting `nullCount` beside the statistics.
+//
+// `count` of nothing is 0 and `sum` of nothing is 0, which are the two answers
+// that are true. A mean, median, min or max over no values does not exist, and
+// `null` is how the rest of this repository says so -- the same convention the
+// other primitives use for a figure that was not produced.
 function computeAggregate(values, fn) {
-  if (values.length === 0) return 0;
+  if (values.length === 0) return (fn === 'count' || fn === 'sum') ? 0 : null;
   switch (fn) {
     case 'sum': return round(sum(values));
     case 'mean': return round(sum(values) / values.length);

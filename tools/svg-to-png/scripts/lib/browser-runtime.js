@@ -56,6 +56,13 @@ async function getChromium() {
 // unneeded, so they are safe to apply on every host.
 const DEFAULT_ARGS = ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'];
 
+// Playwright's own default launch timeout, DEFAULT_PLAYWRIGHT_LAUNCH_TIMEOUT in
+// playwright-core, stated here rather than assumed. `launch()` passes no
+// timeout and therefore gets this; the trial in `check()` passes it explicitly
+// so the two are bounded identically. A trial that gives up sooner than the
+// launch it is proving reports "not installed" for a browser that works.
+const LAUNCH_TIMEOUT_MS = 3 * 60 * 1000;
+
 // Libraries Chromium links (DT_NEEDED) but only calls on the X11 Ozone backend.
 // Headless Chromium (Ozone 'headless') never connects to X, so these are never
 // invoked and a symbol-only stub is correct. Keep this set SMALL and audited: a
@@ -175,12 +182,24 @@ export async function prepareBrowserRuntime() {
   let execPath = '';
   try { execPath = chromium.executablePath(); } catch { /* */ }
   report.chromiumBinary = Boolean(execPath) && existsSync(execPath);
-  if (!report.chromiumBinary) {
-    // Name the dependency and its check; do not embed an install walkthrough
-    // (Script Contract: System dependencies). The agent reads current docs.
-    report.remediation = 'dependency: Chromium build (Playwright); check: node scripts/<entry>.js <command> --install, which fetches it from cdn.playwright.dev in the same run and repairs an incomplete or emptied build as well as an absent one. tools/AGENTS.md names the states and where the build lands.';
-    return report;
-  }
+
+  // NOTHING IS DECIDED FROM THIS PATH, and an absent one is not a verdict.
+  //
+  // `chromium.executablePath()` names Chrome for Testing whatever `headless`
+  // is, while a default headless launch runs Chrome Headless Shell -- a
+  // different artifact in a different directory. Until round 11 an absent path
+  // returned here with a remediation, and the caller turned that into
+  // "artifact missing, install it": a COMPLETE, WORKING headless shell was
+  // reported absent and a several-hundred-megabyte download demanded, measured
+  // against a root holding the shell and no Chrome. The same commit's own
+  // comment claimed there was no executable path left deciding anything; there
+  // was, and this was it.
+  //
+  // So the report carries `chromiumBinary` as information and the LAUNCH
+  // decides. There is nothing to shim without a binary to inspect, so this
+  // returns early -- but it sets no remediation and no failure, and `check()`
+  // goes on to try the launch.
+  if (!report.chromiumBinary) return report;
 
   const missing = missingLibs(execPath);
   report.missingLibs = missing;
@@ -274,12 +293,42 @@ function remediationFromLaunchError(error, host) {
  * So the report says WHICH KIND. 'artifact' means the browser bytes are absent
  * or damaged and an install is the repair. 'host' means this machine cannot run
  * the browser it already has, and installing it again changes nothing while
- * deleting something. 'unknown' is neither, and is treated as host: a repair
- * nobody can justify is not a repair.
+ * deleting something.
+ *
+ * 'unknown' is neither, and the callers do the one thing that is safe in both
+ * directions: a PLAIN install, which downloads only what is missing and
+ * replaces nothing, and no forced replacement. Refusing outright would leave a
+ * repairable state uncompletable, which is the template's own non-waivable
+ * class; forcing would destroy on a guess. Round 11 found this comment claiming
+ * 'unknown' was "treated as host" while every caller did the above -- a comment
+ * describing safer behaviour than the code is exactly how a later change goes
+ * wrong, so it now describes what the code does.
  */
 function classifyFailure(error, report) {
+  // THE VERDICT IS THE FIRST LINE. THE BODY IS EVIDENCE, NOT A VERDICT.
+  //
+  // Playwright puts its own diagnosis on line one -- "browserType.launch:
+  // <cause>" -- and then appends the browser log, which contains Chromium's
+  // entire command line and Playwright's process-cleanup chatter. Round 11's
+  // first attempt at this fix classified over the WHOLE message and got a
+  // dying browser wrong in the other direction: the cleanup log carries
+  // "exception while trying to kill process: Error: kill EPERM", so an
+  // artifact failure read as 'host' on an EPERM that had nothing to do with
+  // the cause. Matching a whole message means matching arbitrary text.
+  //
+  // So the first line decides, and only a narrow set of signals Playwright
+  // writes into the BODY and that cannot appear incidentally can override it
+  // towards 'host'. Host wins those ties on purpose: installing a browser
+  // cannot fix a machine, and the forced replacement would destroy on the way.
+  const text = error && error.message ? String(error.message) : '';
+  const line = text.split('\n')[0].trim();
   if (report.missingLibs && report.missingLibs.length) return 'host';
-  const line = error && error.message ? String(error.message).split('\n')[0] : '';
+  if (/EPERM|EACCES|EROFS|ENOSPC|ENOMEM|permission denied|mkdtemp/i.test(line)) return 'host';
+  // Body signals for a host that cannot run browsers at all. These are
+  // Playwright's and the dynamic loader's own words; none occurs by accident.
+  if (/Host system is missing dependencies|install-deps|error while loading shared libraries|cannot open shared object/i.test(text)) {
+    return 'host';
+  }
   if (/Executable doesn't exist|please run the following command to download|browserType\.launch.*exist/i.test(line)) {
     return 'artifact';
   }
@@ -289,10 +338,42 @@ function classifyFailure(error, report) {
   // first version of this classifier called it 'unknown' -- which would have
   // refused to repair a state an install repairs.
   if (/ENOEXEC|Exec format error/i.test(line)) return 'artifact';
-  if (/EPERM|EACCES|EROFS|ENOSPC|ENOMEM|permission denied|mkdtemp|install-deps|missing dependencies|Host system is missing/i.test(line)) {
-    return 'host';
+  // A binary that is present and runnable and dies before it is ready. Round 11
+  // built it with a stub that exits 1; an interrupted download, a truncated
+  // extract or a quarantined bundle all land here. Until this line those went
+  // to 'unknown', which withheld the forced refetch that is the ONLY repair for
+  // a marked-but-broken artifact, and the run ended by blaming the network.
+  if (/Failed to launch the browser process|Target page, context or browser has been closed|Target closed|browser has disconnected/i.test(line)) {
+    return 'artifact';
   }
   return 'unknown';
+}
+
+/**
+ * WHICH ARTIFACT A FORCED REPAIR MAY TOUCH, AND WHY NOT ALL OF THEM.
+ *
+ * `playwright install chromium --force` removes and refetches ALL THREE
+ * artifacts -- Chrome for Testing, Chrome Headless Shell and FFmpeg -- because
+ * Playwright deletes each directory before it downloads into it.
+ *
+ * Round 11 measured what that costs. A headless tool repairing a corrupted
+ * shell deleted a COMPLETE, WORKING 356MB Chrome for Testing, could not
+ * refetch it, and aborted before it ever reached the shell it was sent to fix:
+ * the artifact that worked was gone and the broken one was untouched. With no
+ * PLAYWRIGHT_BROWSERS_PATH set that is the machine's SHARED browser cache, so
+ * the loss reaches every other browser tool here and every other Playwright
+ * project on that machine. Three reviewers reproduced it independently.
+ *
+ * Playwright 1.62 can install one artifact: `chromium-headless-shell` is its
+ * own target, and `--no-shell` excludes it. So a forced replacement is scoped
+ * to the launch shape that actually failed, and the two large artifacts can no
+ * longer destroy each other. FFmpeg (2.5MB) is fetched by either target and is
+ * cheap to replace; the guarantee is about the ones that are not.
+ */
+export function forceInstallArgs(options = {}) {
+  return options.headless === false
+    ? ['install', '--no-shell', 'chromium', '--force']
+    : ['install', 'chromium-headless-shell', '--force'];
 }
 
 /**
@@ -339,11 +420,10 @@ export async function check(options = {}) {
     return report;
   }
   Object.assign(report, prepared, { failure: null });
-  if (!report.chromiumBinary) {
-    report.chromiumLaunch = false;
-    report.failure = 'artifact';
-    return report;
-  }
+  // `chromiumBinary` is NOT consulted here. It names Chrome for Testing on
+  // every platform, and a headless tool does not run that binary; round 11
+  // measured this early return refusing a working headless shell. The launch
+  // below is the test, and it is the same launch the caller is about to make.
   if (report.remediation) {
     // prepareBrowserRuntime only sets this for a host it cannot make launchable:
     // a library it may not stub, or a stubbable one with no compiler.
@@ -352,9 +432,22 @@ export async function check(options = {}) {
     return report;
   }
   try {
-    // A bounded trial. Without a timeout a launch that hangs hangs the tool, and
-    // round 10 measured sixty seconds of exactly that.
-    const b = await chromium.launch({ args: DEFAULT_ARGS, timeout: 60000, ...options });
+    // A bounded trial, bounded THE SAME WAY the real launch is.
+    //
+    // Round 10 gave this a timeout because an unbounded hang hangs the tool.
+    // Round 11 measured the cost of picking a tighter one than the launch it
+    // proves: `launch()` passes no timeout and gets Playwright's own
+    // DEFAULT_PLAYWRIGHT_LAUNCH_TIMEOUT of 3 minutes, so a cold machine whose
+    // browser starts in 77 seconds had a trial fail at 60 and was told to
+    // download a browser it already had.
+    //
+    // The args and proxy are merged exactly as `launch()` merges them, for the
+    // same reason: a trial that differs from the launch proves a different
+    // launch, which is the defect this whole file was rewritten to end.
+    const opts = { ...options, args: [...DEFAULT_ARGS, ...(options.args || [])], timeout: LAUNCH_TIMEOUT_MS };
+    const server = proxyServer();
+    if (server && !opts.proxy) opts.proxy = { server };
+    const b = await chromium.launch(opts);
     const p = await b.newPage();
     await p.goto('about:blank');
     await p.close();

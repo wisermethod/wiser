@@ -511,9 +511,24 @@ async function ensureChromium() {
   if (await chromiumLaunches()) return;
 
   if (plainInstallSucceeded && browserSurvey.failure === 'artifact') {
+    // SCOPED TO THE LAUNCH THAT FAILED, and that scoping is the whole point.
+    //
+    // `install chromium --force` removes ALL THREE artifacts before it
+    // refetches. Round 11 measured the cost on a healthy machine: repairing a
+    // corrupted headless shell deleted a COMPLETE 356MB Chrome for Testing,
+    // failed to refetch it, and aborted before it reached the shell it was
+    // sent to fix -- the artifact that worked was gone, the broken one was
+    // untouched, and with no PLAYWRIGHT_BROWSERS_PATH set that is the
+    // machine's SHARED cache, so every other browser tool broke too. Three
+    // reviewers reproduced it independently. The gate above ("the plain
+    // install exited 0") does not help, because exit 0 means every marker was
+    // present, which is exactly when --force has the most to delete.
+    //
+    // So the forced replacement names the one target this tool's launch needs.
+    const forceArgs = runtime.forceInstallArgs(LAUNCH_OPTIONS);
     process.stderr.write('Replacing the Chromium build this tool drives: the install had nothing to fetch and it still will not launch.\n');
     try {
-      execFileSync(process.execPath, [PLAYWRIGHT_CLI, 'install', 'chromium', '--force'], {
+      execFileSync(process.execPath, [PLAYWRIGHT_CLI, ...forceArgs], {
         cwd: TOOL_DIR,
         stdio: ['ignore', 'ignore', 'inherit']
       });
@@ -537,10 +552,12 @@ async function ensureChromium() {
 }
 
 
-// 'ready' means the markers AND the executable. Anything else installs, and
-// 'marked-but-gone' installs with --force, because Playwright skips every
-// artifact it has already marked and the authorised repair would otherwise do
-// nothing at all -- which is what round 8 measured.
+// There are no marker states here any more. The tool tries the launch it is
+// about to make; what happens next depends on WHY that launch failed, and a
+// forced replacement is scoped to the artifact that failed. This comment
+// described 'ready' and 'marked-but-gone' states that round 10 deleted, in
+// four of the six entry scripts but not the other two -- so the six had
+// drifted from each other while the registers were correct. Round 11 found it.
 await ensureChromium();
 
 try {

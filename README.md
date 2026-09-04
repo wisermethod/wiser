@@ -10,7 +10,7 @@ It carries no dependency on any single agent host: everything in it is instructi
 
 **7 experts** that judge work through a perspective rather than producing it: a review gate before writing ships, a marketing strategist, a conversion and an SEO advisor, two design critics, and a first-principles problem solver.
 
-**23 tools** that do the deterministic work a skill or expert calls for: parsing, describing, aggregating, joining and charting tabular data; rendering HTML, SVG and Mermaid diagrams to images; editing images and video; capturing a live page and driving a browser; on-page, sitemap and analytics-tag checks for SEO; building and exporting decks; and transcribing audio on your own machine.
+**23 tools** that do the deterministic work a skill or expert calls for: parsing, describing, aggregating, joining and charting tabular data; rendering HTML, SVG and Mermaid diagrams to images; editing images and video; capturing a live page and driving a browser; on-page, sitemap and analytics-tag checks for SEO; building and exporting decks; gathering candidate source material; and transcribing audio on your own machine.
 
 **5 standards** that bind all of it: how a primitive is shaped, how instructions are written, and the conventions every file follows.
 

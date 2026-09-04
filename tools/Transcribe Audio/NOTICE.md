@@ -4,7 +4,7 @@ This tool installs the packages below on the machine that calls it, into a Pytho
 
 **These versions are a snapshot, not a pin.** `requirements.txt` declares floors (`openai-whisper>=20231117`, `torch>=2.0.0`, `torchaudio>=2.0.0`) and is deliberately left that way, because `torch` publishes wheels specific to a platform, an architecture and a Python version, and an exact pin resolved on one machine can have no matching wheel on another. **What is recorded here is what those floors actually resolved to on one occasion**, so that a licence obligation has a version to attach to.
 
-**Resolved 2026-09-02, on Python 3.9.6, Darwin 25.3.0, arm64**, by the tool's own first-run install. The command that produced this list was `.venv/bin/python3 -m pip list --format=freeze`, and the licences were read from each installed distribution's own metadata. **pip writes no lockfile**, which is why this record names the resolution rather than pointing at a committed one; a different machine will resolve differently and should read its own environment.
+**Resolved 2026-09-02, on a macOS arm64 machine with the system Python 3.9**, by the tool's own first-run install. The command that produced this list was `.venv/bin/python3 -m pip list --format=freeze`, and the licences were read from each installed distribution's own metadata. **pip writes no lockfile**, which is why this record names the resolution rather than pointing at a committed one; a different machine will resolve differently and should read its own environment.
 
 | Package | Version | Licence |
 |---------|---------|---------|

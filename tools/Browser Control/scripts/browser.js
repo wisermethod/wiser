@@ -94,10 +94,11 @@ Options:
 
 No cookie command prints a value, but "execute" returns whatever its code reads,
 document.cookie included. Three paths hold credential material: the --profile
-directory, which is the sign-in store and exists to, a trace zip written by
-"trace stop --output", which records request and response headers including
-Cookie and Set-Cookie, and the session token at ~/.wiser/browser-control, which
-authorises a caller to drive this signed-in browser. Treat all three as such. Sign in by hand in the
+directory, which is the sign-in store and exists to persist a signed-in
+session across runs, a trace zip written by "trace stop --output", which
+records request and response headers including Cookie and Set-Cookie, and the
+session token at ~/.wiser/browser-control, which authorises a caller to drive
+this signed-in browser. Treat all three as such. Sign in by hand in the
 visible window; the profile directory keeps the session.
 
 Success prints one JSON object to stdout. Errors go to stderr with exit 1.`;
@@ -249,8 +250,33 @@ function flagList(name) {
   return Array.isArray(value) ? value : [value];
 }
 
+// A REPEATED BARE FLAG IS AN ERROR, NOT A FALSE.
+//
+// The parser stores a repeat as an array, so `flags.get(name) === true` was
+// false for `--headless --headless`, and round 11 measured what that silently
+// bought:
+//
+//   * `storage clear --session --session --confirm` cleared localStorage --
+//     the PERSISTENT store, on a profile whose purpose is holding sign-ins --
+//     while the caller had asked twice for sessionStorage, which survived.
+//   * `session start --headless --headless` reported "headless":false, so the
+//     trial launch proved Chrome Headless Shell and the tool then launched
+//     Chrome for Testing: round 10's finding A, restored by the line written
+//     to fix it, because `LAUNCH_OPTIONS` reads argv directly and this did not.
+//
+// Twelve call sites read this. The destructive gate at the top of the file
+// happens to fail SAFE under the old behaviour; `--session` failed
+// destructive. So it refuses instead of guessing, exactly as `flag()` already
+// does for a repeated value flag -- the Script Contract's rule against
+// silently dropping accepted input.
 function switchOn(name) {
-  return flags.get(name) === true;
+  const value = flags.get(name);
+  if (value === undefined) return false;
+  if (value === true) return true;
+  if (Array.isArray(value)) {
+    fail(`Error: ${name} was given more than once. It is a switch, so repeating it says nothing new; pass it once. Run "node scripts/browser.js help" for usage.`);
+  }
+  fail(`Error: ${name} is a switch and takes no value; got "${value}". Run "node scripts/browser.js help" for usage.`);
 }
 
 function integer(name, fallback) {
@@ -504,7 +530,17 @@ function isWritable(dir) {
 // to describe. A tool that CAN drive a browser is not the same as a run that
 // WILL: `deck-export scaffold` and `web-screenshot check` are both commands of
 // browser tools that fetch none.
-const WILL_FETCH_BROWSER = command === 'session' && (argv[1] === 'start' || argv[1] === undefined);
+// RESTART FETCHES A BROWSER TOO, and the consent report has to say so.
+//
+// `session restart` stops the host and then falls through to the SAME `npm ci`
+// and `ensureChromium()` that `start` does. This read `start` and an
+// unreachable `undefined` sub-command, so on a copy with no packages yet
+// `restart --install` authorised a several-hundred-megabyte browser download
+// that its own consent text never named -- the caller answered for a registry
+// fetch and got a browser as well. Round 10 named this exact line and it was
+// not changed; round 11 drove both and printed the two consent texts side by
+// side. Derived from the parsed sub-command rather than from argv position.
+const WILL_FETCH_BROWSER = command === 'session' && (sub === 'start' || sub === 'restart');
 
 function installPlan() {
   let names = [];
@@ -570,7 +606,14 @@ const PLAYWRIGHT_CLI = join(TOOL_DIR, 'node_modules', 'playwright', 'cli.js');
 // `session start` launches headful unless --headless is passed, and headful
 // Chromium is Chrome for Testing while headless is Chrome Headless Shell.
 // The trial has to be the same shape or it proves a different artifact.
-const LAUNCH_OPTIONS = { headless: argv.includes('--headless') };
+//
+// ONE READING OF THE FLAG, the same one the spawn below uses. Round 10 wrote
+// this as `argv.includes('--headless')` while the spawn used `switchOn()`, and
+// round 11 measured the gap: `--headless --headless` made this true and the
+// spawn false, so the trial proved the headless shell and the tool launched
+// Chrome for Testing -- round 10's own finding A, restored by its own fix. Two
+// ways of reading one flag is the defect; `switchOn` is now the only way.
+const LAUNCH_OPTIONS = { headless: switchOn('--headless') };
 
 let runtime = null;
 let browserSurvey = null;
@@ -677,9 +720,24 @@ async function ensureChromium() {
   if (await chromiumLaunches()) return;
 
   if (plainInstallSucceeded && browserSurvey.failure === 'artifact') {
+    // SCOPED TO THE LAUNCH THAT FAILED, and that scoping is the whole point.
+    //
+    // `install chromium --force` removes ALL THREE artifacts before it
+    // refetches. Round 11 measured the cost on a healthy machine: repairing a
+    // corrupted headless shell deleted a COMPLETE 356MB Chrome for Testing,
+    // failed to refetch it, and aborted before it reached the shell it was
+    // sent to fix -- the artifact that worked was gone, the broken one was
+    // untouched, and with no PLAYWRIGHT_BROWSERS_PATH set that is the
+    // machine's SHARED cache, so every other browser tool broke too. Three
+    // reviewers reproduced it independently. The gate above ("the plain
+    // install exited 0") does not help, because exit 0 means every marker was
+    // present, which is exactly when --force has the most to delete.
+    //
+    // So the forced replacement names the one target this tool's launch needs.
+    const forceArgs = runtime.forceInstallArgs(LAUNCH_OPTIONS);
     process.stderr.write('Replacing the Chromium build this tool drives: the install had nothing to fetch and it still will not launch.\n');
     try {
-      execFileSync(process.execPath, [PLAYWRIGHT_CLI, 'install', 'chromium', '--force'], {
+      execFileSync(process.execPath, [PLAYWRIGHT_CLI, ...forceArgs], {
         cwd: TOOL_DIR,
         stdio: ['ignore', 'ignore', 'inherit']
       });
@@ -783,10 +841,12 @@ if (command === 'session') {
   // installs the package and fetches no browser. Same authorisation as above,
   // because it is the same install: the several hundred megabytes the consent
   // report names are the part a person is actually being asked about.
-  // 'ready' means the markers AND the executable. Anything else installs, and
-  // 'marked-but-gone' installs with --force, because Playwright skips every
-  // artifact it has already marked and the authorised repair would otherwise do
-  // nothing at all -- which is what round 8 measured.
+  // There are no marker states here any more. The tool tries the launch it is
+  // about to make; what happens next depends on WHY that launch failed, and a
+  // forced replacement is scoped to the artifact that failed. This comment
+  // described 'ready' and 'marked-but-gone' states that round 10 deleted, in
+  // four of the six entry scripts but not the other two -- so the six had
+  // drifted from each other while the registers were correct. Round 11 found it.
   await ensureChromium();
 
   const headless = switchOn('--headless');

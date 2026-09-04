@@ -223,6 +223,22 @@ for (let index = 1; index < argv.length; index += 1) {
 // Round 9, Codex: the same rule was not applied to a REPEATED --url (first won,
 // second vanished) or to a stray positional word (ignored entirely). Both are
 // undisclosed dropped input, which the Script Contract forbids by name.
+// THE UNKNOWN OPTION IS NAMED BEFORE THE WORD AFTER IT.
+//
+// These two loops used to run the other way round, and round 11 measured the
+// cost: `audit --zzz value` blamed "value" as an unexpected argument. An
+// unknown option claims no value slot, so the word following it looks
+// positional, and the caller was pointed at the one word they had typed
+// correctly. Mistyping an option that takes a value is the ordinary case, so
+// the unknown option is diagnosed first and the positional check only ever
+// sees argv that is otherwise well formed.
+for (let index = 1; index < argv.length; index += 1) {
+  const option = argv[index];
+  if (valuePositions.has(index)) continue;
+  if (option.startsWith('-') && !VALUE_FLAGS.has(option) && !BARE_FLAGS.has(option)) {
+    fail(`Error: unknown option "${option}". Run "node scripts/tag-audit.js help" for usage.`);
+  }
+}
 {
   const urlCount = argv.filter((word, i) => i >= 1 && word === '--url').length;
   if (urlCount > 1) {
@@ -233,13 +249,6 @@ for (let index = 1; index < argv.length; index += 1) {
     if (!argv[index].startsWith('-')) {
       fail(`Error: unexpected argument "${argv[index]}". Every value belongs to an option here. Run "node scripts/tag-audit.js help" for usage.`);
     }
-  }
-}
-for (let index = 1; index < argv.length; index += 1) {
-  const option = argv[index];
-  if (valuePositions.has(index)) continue;
-  if (option.startsWith('-') && !VALUE_FLAGS.has(option) && !BARE_FLAGS.has(option)) {
-    fail(`Error: unknown option "${option}". Run "node scripts/tag-audit.js help" for usage.`);
   }
 }
 
