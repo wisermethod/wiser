@@ -89,6 +89,18 @@ function flag(name) {
   const index = argv.indexOf(name);
   if (index === -1) return undefined;
   const value = argv[index + 1];
+  // A SECOND OCCURRENCE IS A USAGE MISTAKE, NOT A PREFERENCE.
+  //
+  // First-wins silently discarded the rest. Round 12 drove two --file paths at
+  // this tool and got a clean, confident, correct-looking object about ONE of
+  // them, exit 0, with no signal that the other had been dropped -- which the
+  // Script Contract forbids by name. Round 11 fixed this class in Browser
+  // Control's switch reader; data-join, data-chart, tag-audit and video-edit
+  // already refused. This is the same refusal, in the tools the fix missed.
+  // Flags that are documented as repeatable are read somewhere other than here.
+  if (argv.indexOf(name, index + 1) !== -1) {
+    fail(`Error: ${name} was given more than once and takes one value. Run "node scripts/audit.js help" for usage.`);
+  }
   if (value === undefined || value.startsWith('--')) {
     fail(`Error: ${name} needs a value. Run "node scripts/audit.js help" for usage.`);
   }

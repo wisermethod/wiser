@@ -14,7 +14,7 @@
  * currently using.
  */
 
-import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 // Chromium content settings: 2 blocks.
@@ -131,6 +131,24 @@ function patchJson(filePath, patch, notes) {
 export function hardenProfile(profileDir, { unattended = false } = {}) {
   const notes = [];
   mkdirSync(profileDir, { recursive: true });
+
+  // THE PROFILE IS THE SIGN-IN STORE, SO ONLY ITS OWNER MAY WALK INTO IT.
+  //
+  // TOOL.md names this the first of three paths that hold credential material.
+  // It was being created at the process umask -- 0755 on a default macOS or
+  // Linux account -- so any other account on the machine could traverse and
+  // read it. Round 12 measured it: 2 of 57 files in a live profile were
+  // world-readable, and while Chromium sets 0600 on the cookie store itself,
+  // the directory around it was open. Twelve gate rounds checked that the
+  // documentation NAMED the three paths and none of them ran `stat`.
+  //
+  // The directory is the durable control: Chromium rewrites Preferences and
+  // Local State on its own schedule, so a mode set on those files does not
+  // survive, while a mode on the directory blocks traversal regardless. Set
+  // after mkdir as well, because a directory that already existed keeps the
+  // mode it had and mkdir's mode argument is ignored then -- the same reason
+  // publishToken() chmods after creating.
+  try { chmodSync(profileDir, 0o700); } catch { /* best effort on exotic filesystems */ }
 
   if (isProfileInUse(profileDir)) {
     notes.push('another browser is using this profile, so its preferences were left as they are');

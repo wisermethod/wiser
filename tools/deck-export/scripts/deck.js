@@ -152,12 +152,20 @@ function isWritable(dir) {
 // `--install` on the same command authorises it and the run then COMPLETES
 // rather than demanding a re-run. WISER_ALLOW_INSTALL=1 authorises it for an
 // unattended run, so automation does not acquire a new way to fail.
-// Whether THIS RUN will ask for a browser, which is what the consent report has
-// to describe. A tool that CAN drive a browser is not the same as a run that
-// WILL: `deck-export scaffold` and `web-screenshot check` are both commands of
-// browser tools that fetch none.
-const WILL_FETCH_BROWSER = command === 'pdf' || command === 'png'
-  || (command === 'check' && (process.argv.includes('--install') || process.env.WISER_ALLOW_INSTALL === '1'));
+// WHAT THIS COMMAND WOULD FETCH IF IT WERE AUTHORISED -- WHICH IS THE QUESTION
+// THE READER IS BEING ASKED. The authorisation must NOT appear in this
+// expression. The consent report is only ever printed when the run is
+// UNauthorised, so an `|| INSTALL_AUTHORISED` disjunct here can never be true
+// where it is read, and it silently made this describe the wrong fetch: round
+// 12 drove `check` on a clean copy and got a packages-only report naming
+// registry.npmjs.org, then `check --install` -- the very next step in this
+// tool's own SETUP.md -- entered the Chromium installer for several hundred
+// megabytes the report had not mentioned. The comment that used to sit here
+// said `check` fetched no browser; that stopped being true when `check
+// --install` was made to install.
+// `scaffold` genuinely fetches no browser. `pdf`, `png` and `check` all reach
+// ensureChromium() once the install is authorised.
+const WILL_FETCH_BROWSER = command === 'pdf' || command === 'png' || command === 'check';
 
 function installPlan() {
   let names = [];
@@ -242,6 +250,18 @@ function flag(name) {
   const index = argv.indexOf(name);
   if (index === -1) return undefined;
   const value = argv[index + 1];
+  // A SECOND OCCURRENCE IS A USAGE MISTAKE, NOT A PREFERENCE.
+  //
+  // First-wins silently discarded the rest. Round 12 drove two --file paths at
+  // this tool and got a clean, confident, correct-looking object about ONE of
+  // them, exit 0, with no signal that the other had been dropped -- which the
+  // Script Contract forbids by name. Round 11 fixed this class in Browser
+  // Control's switch reader; data-join, data-chart, tag-audit and video-edit
+  // already refused. This is the same refusal, in the tools the fix missed.
+  // Flags that are documented as repeatable are read somewhere other than here.
+  if (argv.indexOf(name, index + 1) !== -1) {
+    fail(`Error: ${name} was given more than once and takes one value. Run "node scripts/deck.js help" for usage.`);
+  }
   if (value === undefined || value.startsWith('--')) {
     fail(`Error: ${name} needs a value. Run "node scripts/deck.js help" for usage.`);
   }
@@ -501,6 +521,21 @@ async function ensureChromium() {
   // escalation.
   if (browserSurvey.failure === 'host') {
     fail(`Error: Chromium cannot launch, and the reason is this machine rather than the browser build, so installing it again would not fix it. ${browserSurvey.remediation || 'The trial launch reported no reason.'} See the Dependencies section of TOOL.md.`);
+  }
+
+  // THE PROCESS STARTED AND THEN ENDED, AND NOTHING HERE CAN SAY WHY.
+  //
+  // Round 12 measured a forced repair on exactly this signature deleting a
+  // COMPLETE, WORKING browser -- a real 356MB Chrome for Testing, removed by
+  // the command the documentation gives first -- because a machine that kills
+  // Chromium and a damaged build produce the same sentence. Three reviewers
+  // reproduced it. So this branch does not replace anything. It says what is
+  // ambiguous and names the one scoped command that repairs it, for a reader
+  // who has ruled the machine out. Making someone type one command is a much
+  // smaller cost than destroying a browser they did not break.
+  if (browserSurvey.failure === 'crashed') {
+    const crashedForce = runtime.forceInstallArgs(LAUNCH_OPTIONS).join(' ');
+    fail(`Error: Chromium started and then stopped before it was ready, and this message cannot say whether the cause was this machine -- no display for a window, a security tool, an out-of-memory kill -- or a damaged browser build. ${browserSurvey.remediation || 'The trial launch reported no reason.'} Nothing has been replaced: replacing the build deletes the copy you already have, which is the wrong move when the machine is the cause. If you have ruled the machine out, replace just this build with: node ${PLAYWRIGHT_CLI} ${crashedForce}`);
   }
 
   requireInstallConsent('browser');

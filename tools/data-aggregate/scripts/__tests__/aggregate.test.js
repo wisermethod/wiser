@@ -265,4 +265,53 @@ describe('aggregate', () => {
       assert.equal(result.groupCount, 2);
     });
   });
+
+  // A GROUP WITH NO NUMERIC VALUE AT ALL.
+  //
+  // This behaviour changed and shipped with nothing testing it: the fix that
+  // made an average of nothing `null` instead of `0` touched only the core, and
+  // all 23 tests here passed against the defect afterwards -- a later reviewer
+  // reverted the one line and the suite stayed green. TOOL.md described the old
+  // answer for a further round because of it. These assertions fail if that line
+  // is reverted, in either direction.
+  describe('a group holding no numeric value', () => {
+    const mixed = 'region,units\nNorth,3\nNorth,4\nWest,\nWest,';
+
+    it('reports mean, median, min and max as null rather than 0', () => {
+      const result = executeAggregate({
+        content: mixed,
+        groupBy: ['region'],
+        metrics: ['mean', 'median', 'min', 'max'].map((f) => ({ column: 'units', function: f })),
+      });
+      const west = result.groups.find((g) => g.key.region === 'West');
+      assert.equal(west.values.units_mean, null, 'a mean over no values does not exist');
+      assert.equal(west.values.units_median, null);
+      assert.equal(west.values.units_min, null);
+      assert.equal(west.values.units_max, null);
+    });
+
+    it('still reports sum and count as 0, which are the true answers', () => {
+      const result = executeAggregate({
+        content: mixed,
+        groupBy: ['region'],
+        metrics: [
+          { column: 'units', function: 'sum' },
+          { column: 'units', function: 'count' },
+        ],
+      });
+      const west = result.groups.find((g) => g.key.region === 'West');
+      assert.equal(west.values.units_sum, 0);
+      assert.equal(west.values.units_count, 2, 'count counts rows, not values');
+    });
+
+    it('leaves a group that does have values unaffected', () => {
+      const result = executeAggregate({
+        content: mixed,
+        groupBy: ['region'],
+        metrics: [{ column: 'units', function: 'mean' }],
+      });
+      const north = result.groups.find((g) => g.key.region === 'North');
+      assert.equal(north.values.units_mean, 3.5);
+    });
+  });
 });

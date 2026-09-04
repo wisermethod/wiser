@@ -626,6 +626,21 @@ const actions = {
     if (!tracing) return { tracing: false, note: 'nothing was being recorded' };
     const target = writeTarget(output);
     await context.tracing.stop({ path: target });
+    // A TRACE IS CREDENTIAL MATERIAL AND IS WRITTEN AS SUCH.
+    //
+    // TOOL.md names three paths that hold credential material and tells a
+    // verifier to treat all three alike. Only the session token was ever
+    // written with a mode. Round 12 drove a trace against a server issuing an
+    // HttpOnly Set-Cookie and found the value in the zip in plaintext, twice,
+    // in a file created 0644 -- readable by every other account on the machine,
+    // in the one path TOOL.md calls "worth saying twice, because a trace's
+    // whole purpose is to be handed to someone else". Twelve gate rounds had
+    // checked that the sentence named all three paths and none had run `stat`.
+    //
+    // Same two-step as publishToken(), and for the same reason: a directory
+    // that already existed keeps its own mode, so mkdir's mode is not enough.
+    try { chmodSync(dirname(target), 0o700); } catch { /* best effort */ }
+    try { chmodSync(target, 0o600); } catch { /* best effort */ }
     tracing = false;
     return { tracing: false, file: target };
   },

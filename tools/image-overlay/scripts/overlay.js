@@ -99,6 +99,14 @@ for (let index = 1; index < argv.length; index += 1) {
     if (value === undefined || value.startsWith('--')) {
       fail(`Error: ${argument} needs a value. Run "node scripts/overlay.js help" for usage.`);
     }
+    // A SECOND OCCURRENCE IS A USAGE MISTAKE, NOT A PREFERENCE. The Map was
+    // last-wins, so two --base paths composited the second and discarded the
+    // first with no signal at all -- exit 0 and a correct-looking object about
+    // an image the caller did not name second. None of this tool's flags is
+    // repeatable. The Script Contract forbids silently dropping accepted input.
+    if (values.has(argument)) {
+      fail(`Error: ${argument} was given more than once and takes one value. Run "node scripts/overlay.js help" for usage.`);
+    }
     values.set(argument, value);
     index += 1;
   } else if (SWITCH_FLAGS.has(argument)) {

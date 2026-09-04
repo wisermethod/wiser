@@ -60,6 +60,15 @@ export function parseFlags(argv) {
       throw new UsageError(`unknown option "${word}"`);
     }
 
+    // A SECOND OCCURRENCE IS A USAGE MISTAKE, NOT A PREFERENCE. Assigning into
+    // `flags` was last-wins, so `--file a.mmd --file b.mmd` rendered b and
+    // discarded a with no signal -- exit 0 and a correct-looking object about a
+    // diagram the caller did not name second. None of this tool's flags is
+    // repeatable. The Script Contract forbids silently dropping accepted input.
+    if (Object.prototype.hasOwnProperty.call(flags, name)) {
+      throw new UsageError(`${word} was given more than once and takes one value`);
+    }
+
     // A bare flag never consumes the next word, even when one follows it.
     if (BARE_FLAGS.has(name)) {
       flags[name] = true;

@@ -279,72 +279,94 @@ function remediationFromLaunchError(error, host) {
 }
 
 /**
- * WHY A FAILED LAUNCH IS NOT ONE THING.
+ * WHY A FAILED LAUNCH IS NOT ONE THING, AND WHY THE MESSAGE CANNOT DECIDE ALONE.
  *
  * Round 10 found every browser tool responding to `chromiumLaunch === false`
  * with an install and then a forced reinstall, because the caller had reduced
  * this whole report to a boolean. A missing OS library, an absent C compiler,
  * an unwritable shim directory, a denied `mkdtemp` and a sandbox policy all
  * arrive as false -- and all of them sent the run into a destructive browser
- * replacement that could not fix any of them. Codex printed the live example
- * from all six runtimes: `chromiumBinary:true, chromiumLaunch:false,
- * remediation: EPERM ... mkdtemp ... playwright-artifacts-*`.
+ * replacement that could not fix any of them.
  *
- * So the report says WHICH KIND. 'artifact' means the browser bytes are absent
- * or damaged and an install is the repair. 'host' means this machine cannot run
- * the browser it already has, and installing it again changes nothing while
- * deleting something.
+ * Round 11 then found the opposite: a browser that started and died fell
+ * through to 'unknown' and the forced refetch, its only repair, was withheld.
+ * The fix for that mapped "Failed to launch the browser process" to 'artifact'.
  *
- * 'unknown' is neither, and the callers do the one thing that is safe in both
- * directions: a PLAIN install, which downloads only what is missing and
- * replaces nothing, and no forced replacement. Refusing outright would leave a
- * repairable state uncompletable, which is the template's own non-waivable
- * class; forcing would destroy on a guess. Round 11 found this comment claiming
- * 'unknown' was "treated as host" while every caller did the above -- a comment
- * describing safer behaviour than the code is exactly how a later change goes
- * wrong, so it now describes what the code does.
+ * ROUND 12 MEASURED WHAT THAT COST, AND IT IS THE REASON THIS FUNCTION IS
+ * SHAPED THE WAY IT IS NOW. That same first line is what a COMPLETE, HEALTHY
+ * browser produces when the machine stops it: no display for a headful launch,
+ * a security tool killing the process, an out-of-memory kill, a sandbox policy.
+ * Three reviewers reproduced a forced repair deleting a complete browser on
+ * exactly that signature, one of them a real 356MB Chrome for Testing removed
+ * by `session start`, the command the documentation gives first. And two REAL
+ * damage states were being read backwards at the same time: a truncated binary,
+ * which is what an interrupted download leaves, matched nothing and fell to
+ * 'unknown' so the only repair was withheld; and a browser whose execute bit
+ * had been lost carried EACCES on line one, was read as 'host', and the tool
+ * told the reader that reinstalling would not help, which was false -- `chmod
+ * +x` alone fixed it.
+ *
+ * Six rounds of adding one more string to a pattern list produced six more
+ * wrong answers, so this no longer asks WHICH WORDS the message contains. It
+ * asks WHERE THE FAILURE HAPPENED, which is a structural fact the message
+ * always carries:
+ *
+ *   - The operating system refused to EXECUTE the file. Node reports that as a
+ *     `spawn` error, and Playwright passes it through verbatim: `spawn ENOEXEC`
+ *     for a file that is not a program, `spawn <path> EACCES` for one that may
+ *     not be run, `spawn Unknown system error -88` for a half-written Mach-O.
+ *     The file itself is wrong. That is 'artifact' and an install repairs it.
+ *   - Playwright never got as far as the file, or says outright that it is not
+ *     there. That is 'artifact' too.
+ *   - The process STARTED and then ended. Nothing here can tell you whether the
+ *     bytes were subtly wrong or the machine killed it, because both produce
+ *     the same sentence. That is 'crashed', and the callers DO NOT REPLACE THE
+ *     BUILD ON IT -- they say what is ambiguous and name the exact scoped
+ *     command, so a reader who has ruled out the machine can run it themselves.
+ *     A tool must never destroy a working artifact on a guess; making the
+ *     reader type one command is the smaller cost by a wide margin.
+ *   - Everything else that names a resource this machine denied is 'host'.
+ *
+ * Measured on isolated roots, every state beside a live control: absent,
+ * zero-length, truncated, random bytes and execute-bit-stripped all reach
+ * 'artifact'; a denied `mkdtemp` reaches 'host'; a host-killed healthy browser
+ * reaches 'crashed' and nothing is deleted.
+ *
+ * THIS DELIBERATELY NARROWS ROUND 11's FINDING D. A browser that starts and
+ * dies is no longer repaired automatically. It is repaired by one named
+ * command the reader runs, because the automatic version of that repair was
+ * measured deleting browsers nobody had broken.
  */
 function classifyFailure(error, report) {
-  // THE VERDICT IS THE FIRST LINE. THE BODY IS EVIDENCE, NOT A VERDICT.
-  //
-  // Playwright puts its own diagnosis on line one -- "browserType.launch:
-  // <cause>" -- and then appends the browser log, which contains Chromium's
-  // entire command line and Playwright's process-cleanup chatter. Round 11's
-  // first attempt at this fix classified over the WHOLE message and got a
-  // dying browser wrong in the other direction: the cleanup log carries
-  // "exception while trying to kill process: Error: kill EPERM", so an
-  // artifact failure read as 'host' on an EPERM that had nothing to do with
-  // the cause. Matching a whole message means matching arbitrary text.
-  //
-  // So the first line decides, and only a narrow set of signals Playwright
-  // writes into the BODY and that cannot appear incidentally can override it
-  // towards 'host'. Host wins those ties on purpose: installing a browser
-  // cannot fix a machine, and the forced replacement would destroy on the way.
   const text = error && error.message ? String(error.message) : '';
   const line = text.split('\n')[0].trim();
+
+  // A library this runtime could not stub is the host, whatever else is said.
   if (report.missingLibs && report.missingLibs.length) return 'host';
-  if (/EPERM|EACCES|EROFS|ENOSPC|ENOMEM|permission denied|mkdtemp/i.test(line)) return 'host';
-  // Body signals for a host that cannot run browsers at all. These are
-  // Playwright's and the dynamic loader's own words; none occurs by accident.
+
+  // EXEC-TIME FAILURE: the OS would not run the file. This is checked BEFORE
+  // the host codes on purpose. `spawn <path> EACCES` is a mode bit on the
+  // browser's own binary and an install repairs it; `EACCES ... mkdtemp` is a
+  // directory this machine denied and an install cannot. Round 12 measured the
+  // old order sending the first of those to 'host' and printing a false claim.
+  if (/(^|[^\w])spawn([^\w]|$)/i.test(line)) return 'artifact';
+
+  // Playwright saying outright that the build is not there.
+  if (/Executable doesn't exist|please run the following command to download/i.test(line)) {
+    return 'artifact';
+  }
+
+  // A host that cannot run browsers at all. These are Playwright's and the
+  // dynamic loader's own words; none occurs by accident.
   if (/Host system is missing dependencies|install-deps|error while loading shared libraries|cannot open shared object/i.test(text)) {
     return 'host';
   }
-  if (/Executable doesn't exist|please run the following command to download|browserType\.launch.*exist/i.test(line)) {
-    return 'artifact';
-  }
-  // ENOEXEC is a file that is there and is not a program: a truncated or
-  // corrupted download, which is the browser's bytes and not this machine.
-  // Round 10 modelled it by emptying the Chrome for Testing binary, and the
-  // first version of this classifier called it 'unknown' -- which would have
-  // refused to repair a state an install repairs.
-  if (/ENOEXEC|Exec format error/i.test(line)) return 'artifact';
-  // A binary that is present and runnable and dies before it is ready. Round 11
-  // built it with a stub that exits 1; an interrupted download, a truncated
-  // extract or a quarantined bundle all land here. Until this line those went
-  // to 'unknown', which withheld the forced refetch that is the ONLY repair for
-  // a marked-but-broken artifact, and the run ended by blaming the network.
-  if (/Failed to launch the browser process|Target page, context or browser has been closed|Target closed|browser has disconnected/i.test(line)) {
-    return 'artifact';
+  if (/EPERM|EACCES|EROFS|ENOSPC|ENOMEM|permission denied|mkdtemp/i.test(line)) return 'host';
+
+  // THE PROCESS STARTED AND THEN ENDED, and this message cannot say why.
+  // Never forced. See the note above.
+  if (/Failed to launch the browser process|Target page, context or browser has been closed|Target closed|browser has disconnected|Timeout \d+ms exceeded/i.test(line)) {
+    return 'crashed';
   }
   return 'unknown';
 }

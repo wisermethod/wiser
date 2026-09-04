@@ -45,6 +45,22 @@ SUPPORTED_FORMATS = (
 MODELS = ("tiny", "base", "small", "medium", "large")
 DEFAULT_MODEL = "base"
 
+# THE DOWNLOAD SIZE OF EACH MODEL, BECAUSE CONSENT HAS TO NAME THE RUN'S OWN FETCH.
+#
+# The consent report used to interpolate the model NAME and then hardcode
+# "roughly 139MB for base and about 2.9GB for large" whichever model was asked
+# for, so three of these five quoted a figure for a model they were not
+# downloading. Round 12 drove --model tiny and measured the real fetch at
+# 72.1MB against a report naming 139MB and 2.9GB. Elsewhere in this build
+# installPlan() keys the size on the run; this now does too.
+MODEL_SIZES = {
+    "tiny": "roughly 75MB",
+    "base": "roughly 145MB",
+    "small": "roughly 480MB",
+    "medium": "about 1.5GB",
+    "large": "about 2.9GB",
+}
+
 # The transcription language the engine is pinned to. TOOL.md states the limit.
 LANGUAGE = "en"
 
@@ -562,11 +578,12 @@ if not weights_present:
             "whisper's own URL -- which is what an interrupted download leaves, and whisper "
             "re-downloads on it -- and a whisper this script cannot ask, which it treats as "
             "not downloaded rather than as done. Loading it fetches the weights from "
-            "openaipublic.azureedge.net into %s -- roughly 139MB for base and about 2.9GB for "
-            "large -- and nothing else is fetched: the packages are already installed. "
+            "openaipublic.azureedge.net into %s -- %s for this model -- and nothing else "
+            "is fetched: the packages are already installed. "
             "tools/AGENTS.md lists every write an install makes. Re-run the same command with "
             "--install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. "
-            "Nothing is read from stdin, so this is the only way to answer." % (model, speech_models)
+            "Nothing is read from stdin, so this is the only way to answer."
+            % (model, speech_models, MODEL_SIZES.get(model, "several hundred megabytes"))
         )
     note("Downloading the %s speech model into %s" % (model, speech_models))
 

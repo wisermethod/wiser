@@ -695,6 +695,21 @@ async function ensureChromium() {
     fail(`Error: Chromium cannot launch, and the reason is this machine rather than the browser build, so installing it again would not fix it. ${browserSurvey.remediation || 'The trial launch reported no reason.'} See the Dependencies section of TOOL.md.`);
   }
 
+  // THE PROCESS STARTED AND THEN ENDED, AND NOTHING HERE CAN SAY WHY.
+  //
+  // Round 12 measured a forced repair on exactly this signature deleting a
+  // COMPLETE, WORKING browser -- a real 356MB Chrome for Testing, removed by
+  // the command the documentation gives first -- because a machine that kills
+  // Chromium and a damaged build produce the same sentence. Three reviewers
+  // reproduced it. So this branch does not replace anything. It says what is
+  // ambiguous and names the one scoped command that repairs it, for a reader
+  // who has ruled the machine out. Making someone type one command is a much
+  // smaller cost than destroying a browser they did not break.
+  if (browserSurvey.failure === 'crashed') {
+    const crashedForce = runtime.forceInstallArgs(LAUNCH_OPTIONS).join(' ');
+    fail(`Error: Chromium started and then stopped before it was ready, and this message cannot say whether the cause was this machine -- no display for a window, a security tool, an out-of-memory kill -- or a damaged browser build. ${browserSurvey.remediation || 'The trial launch reported no reason.'} Nothing has been replaced: replacing the build deletes the copy you already have, which is the wrong move when the machine is the cause. If you have ruled the machine out, replace just this build with: node ${PLAYWRIGHT_CLI} ${crashedForce}`);
+  }
+
   requireInstallConsent('browser');
 
   // A PLAIN INSTALL FIRST, and --force ONLY IF THAT ONE SUCCEEDED. Round 9
@@ -795,23 +810,25 @@ if (command === 'session') {
 
   if (sub === 'stop') emit({ running: false, port, stopped: await stopHost() });
 
-  // start, and both halves of restart. The profile is resolved before restart
-  // stops anything, so a restart that named none refuses with the session it was
-  // about to replace still standing.
+  // START, AND BOTH HALVES OF RESTART. NOTHING IS STOPPED UNTIL NOTHING CAN REFUSE.
+  //
+  // `restart` used to call stopHost() here, 44 lines before the first thing that
+  // can decline. Round 12 drove it: a live, signed-in session was CLOSED and the
+  // run then refused for want of install consent, replacing nothing. The reader
+  // lost the browser, its open tabs and its in-memory state to a command that
+  // then did nothing. An earlier round saw half of this and moved the --profile
+  // check above the stop; every other refusal stayed below it.
+  //
+  // So every check that can fail runs first -- the profile, the switches (which
+  // refuse a repeat by name), the packages, and the browser build -- and the
+  // stop happens only once the replacement is known to be possible.
   const profile = callerPath('--profile', { directory: true });
   if (profile === undefined) {
     fail(`Error: session ${sub} needs --profile [absolute dir]. Resolve a work directory in the owning root, per standards/conventions.md; this tool never picks a location of its own.`);
   }
 
-  if (sub === 'restart') await stopHost();
-
-  const running = await hostStatus();
-  if (running === 'refused') {
-    fail(`Error: something is already listening on port ${port} and refused this request. If it is a browser host, it was started by a different session or a different account and this session's token does not open it: stop that process, or pass a different --port. Starting a second host here would leave a signed-in browser running that this tool cannot manage.`);
-  }
-  if (running !== null) {
-    fail(`Error: a browser host is already running on port ${port} with profile ${running.profile}. Stop it first, or pass a different --port.`);
-  }
+  const headless = switchOn('--headless');
+  const unattended = switchOn('--unattended');
 
   // Dependencies. Before the host is spawned, so a missing install is reported
   // here rather than dying inside a detached child.
@@ -849,8 +866,18 @@ if (command === 'session') {
   // drifted from each other while the registers were correct. Round 11 found it.
   await ensureChromium();
 
-  const headless = switchOn('--headless');
-  const unattended = switchOn('--unattended');
+  // EVERYTHING ABOVE CAN REFUSE, AND NOTHING ABOVE HAS CHANGED THE MACHINE.
+  // The running session is closed here, and not one line earlier.
+  if (sub === 'restart') await stopHost();
+
+  const running = await hostStatus();
+  if (running === 'refused') {
+    fail(`Error: something is already listening on port ${port} and refused this request. If it is a browser host, it was started by a different session or a different account and this session's token does not open it: stop that process, or pass a different --port. Starting a second host here would leave a signed-in browser running that this tool cannot manage.`);
+  }
+  if (running !== null) {
+    fail(`Error: a browser host is already running on port ${port} with profile ${running.profile}. Stop it first, or pass a different --port.`);
+  }
+
   const child = spawn(
     process.execPath,
     [

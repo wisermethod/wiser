@@ -33,7 +33,7 @@ Each `--metric` names a column and a function over it.
 | `max` | The largest value | Numeric |
 | `count` | How many rows the group holds | Any, including text and mixed |
 
-`count` counts rows, not values: it is the group's size whatever the named column holds, which is why it is the one function a text column accepts. The other five read only the values that parse as numbers after `$`, commas, and spaces are stripped; a value that does not parse is skipped rather than counted as zero, and a group with no numeric value at all comes back as 0. Results carry four decimal places.
+`count` counts rows, not values: it is the group's size whatever the named column holds, which is why it is the one function a text column accepts. The other five read only the values that parse as numbers after `$`, commas, and spaces are stripped; a value that does not parse is skipped rather than counted as zero, and a group with no numeric value at all comes back as `null` for `mean`, `median`, `min` and `max`, because an average of nothing does not exist and reporting it as `0` reads as "this group averaged zero". `sum` and `count` over nothing are `0`, which is the true answer for both. Results carry four decimal places.
 
 A column qualifies as numeric when at least 80 percent of its non-null values parse as numbers, the same threshold `data-parse` reports a column's type by. A column below that threshold takes `count` and nothing else.
 
