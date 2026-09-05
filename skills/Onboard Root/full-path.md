@@ -273,7 +273,7 @@ Keys are `about`, `voice`, `design`, and `competitors`. **An unbound `competitor
 
 **The competitors file, on the record.** On yes, write `memory/competitors.md` from the confirmed set only and add `competitors: memory/competitors.md` to the Provides block; bind after confirmation, never before. On not now or no, delete the stub the client template shipped, leave the key unbound, and record the deferral in the operating file with an owner, or the decline in the run record so a later session sees the answer was given.
 
-Then confirm the host's workspace definition composes the new root; a root on disk that the workspace never loads is not onboarded. Register it where the host can act, and where it cannot, say so and hand the requester that one step.
+Then confirm the workspace composes the new root, as Step 1 of the personal path in `SKILL.md` says, and hand the requester the one registering step where the host cannot take it.
 
 Exit: G17, G18, G19.
 
@@ -368,7 +368,6 @@ Twenty-six checks. Run them at Phase 9, per key. Each names what runs and what m
 ## Pitfalls
 
 - **An ambiguous request.** The scope, the type, the real name, or the destination left to inference: ask before copying anything. Each one is expensive to change once paths point at the root.
-- **Over-asking when the answer is already given.** Destination already established, or the root's type already settled by its own declaration: proceed. Sibling inventory and inventing an organization's name from context are not gates.
 - **A credential value reaching the conversation.** Pasted by the requester, read back for confirmation, or copied into a note: treat it as compromised. Have them revoke it at the platform, issue a new one, and write the replacement by the same names-only path. Never use it once because it is already there.
 - **A root filled from the model's own knowledge.** A plausible sentence about a real person or company that nobody in the workspace said is a fabrication with its source line missing. Ask, verify against a cited source, or mark the heading unanswered.
 - **A sub-agent returning conclusions.** A package that says what the evidence means rather than what it says has already lost the citation the read-back needs. Reject it, re-brief it, and never mine it for claims; editing conclusions into memory is exactly how a bound file acquires a confident error.

@@ -1,7 +1,7 @@
 <!-- provenance-preamble -->
 Markers delimit this preamble for the gate harness; keep both.
 
-Labels and registers are `standards/conventions.md`'s, written in place and never restated here. A prompt line, a whole line beginning and ending with `*`, or the name placeholder surviving means `skills/Onboard Root/` has not finished.
+Labels and registers are `standards/conventions.md`'s, written in place and never restated here. A prompt line (a whole line in `*`) or the name placeholder surviving means `skills/Onboard Root/` has not finished.
 
 **Anchors.** Every load-bearing claim ends with a verification anchor, a bracketed row id naming its row in `work/onboarding/verification.md`, written as `[V<n>]` with the row's number in place of `<n>`: row 7 is anchored as V7 in that form. A load-bearing claim is one a deliverable would act on: a prohibition, a compliance constraint, a commercial term, a named person's title or quote, a figure a deliverable would state. An anchored claim ends with its row id and carries no full stop after it.
 

@@ -1,7 +1,7 @@
 <!-- provenance-preamble -->
 Markers delimit this preamble for the gate harness; keep both.
 
-Labels and registers are `standards/conventions.md`'s, written in place and never restated here. A prompt line, a whole line beginning and ending with `*`, or the name placeholder surviving means `skills/Onboard Root/` has not finished.
+Labels and registers are `standards/conventions.md`'s, written in place and never restated here. A prompt line (a whole line in `*`) or the name placeholder surviving means `skills/Onboard Root/` has not finished.
 <!-- /provenance-preamble -->
 
 # About [name]
