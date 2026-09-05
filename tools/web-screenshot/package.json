@@ -8,9 +8,6 @@
     "help": "node scripts/capture.js help",
     "test": "node --test"
   },
-  "dependencies": {
-    "playwright": "^1.62.0"
-  },
   "engines": {
     "node": ">=18.0.0"
   }

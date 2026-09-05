@@ -3,7 +3,7 @@ name: deck-export
 type: tool
 category: documents
 description: Writes a new reveal.js deck project on disk, from a brand template or as a self-contained starter, and renders a finished deck to a PDF or to one PNG per slide
-version: 0.1.2
+version: 0.2.0
 ---
 
 # deck-export
@@ -56,7 +56,7 @@ Anything else, see Troubleshooting.
 |------------|------------|--------------|
 | The Chromium build Playwright drives | `pdf` and `png` | `node scripts/deck.js check` reports `"chromium":true` (trial launch), or `npm run check:chromium` exits 0 |
 
-The packages install on the run that authorises them with `--install`, and that same run then fetches the browser, which is a separate download version-matched to the package that drives it. Presence is a **trial launch**, not a path on disk: a binary that cannot start reports false. Missing OS libraries are self-healed in userspace where a C compiler is present (shared `scripts/lib/browser-runtime.js`); otherwise `check` names the library and the one next step. Install steps are never written here. The shared runtime also forwards `HTTPS_PROXY` / `HTTP_PROXY` into Chromium for CDN-loaded decks. `scaffold` and `check` never need a successful launch for non-browser work; `check` surveys Chromium without installing packages unless the run authorises an install with `--install`, in which case it installs the packages and the browser and then reports on them.
+The packages install on the run that authorises them with `--install`, `reveal.js` into this tool's directory and Playwright into `tools/lib/browser-runtime/`, and that same run then fetches the browser, which is a separate download version-matched to the package that drives it. Presence is a **trial launch**, not a path on disk: a binary that cannot start reports false. Missing OS libraries are self-healed in userspace where a C compiler is present (shared runtime at `tools/lib/browser-runtime/`); otherwise `check` names the library and the one next step. Install steps are never written here. The shared runtime also forwards `HTTPS_PROXY` / `HTTP_PROXY` into Chromium for CDN-loaded decks. `scaffold` and `check` never need a successful launch for non-browser work; `check` surveys Chromium without installing packages unless the run authorises an install with `--install`, in which case it installs the packages and the browser and then reports on them. `tools/AGENTS.md` lists every write.
 
 ## Scaffolding
 

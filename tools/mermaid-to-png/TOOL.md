@@ -3,7 +3,7 @@ name: mermaid-to-png
 type: tool
 category: media
 description: Renders a Mermaid diagram file to a PNG drawn at the diagram's own size up to a maximum width, in a chosen theme, background, and device scale factor
-version: 0.1.1
+version: 0.2.0
 ---
 
 # mermaid-to-png
@@ -50,7 +50,7 @@ Anything else, see Troubleshooting.
 |------------|------------|--------------|
 | Chromium | `render`, which draws the diagram in a browser engine | `npm run check:chromium` exits 0 with `"chromiumLaunch":true` |
 
-Presence is a **trial launch** via the shared browser-runtime (`scripts/lib/browser-runtime.js`), not a path on disk. Missing OS libraries are self-healed in userspace where a C compiler is present; otherwise the check names the library and the one next step. Install steps are never written here. The Mermaid renderer itself is an npm package and installs with the rest.
+Presence is a **trial launch** via the shared browser runtime at `tools/lib/browser-runtime/`, not a path on disk. Missing OS libraries are self-healed in userspace where a C compiler is present; otherwise the check names the library and the one next step. Install steps are never written here. The Mermaid renderer itself is an npm package and installs into this tool's directory; Playwright installs into `tools/lib/browser-runtime/`. `tools/AGENTS.md` lists every write.
 
 ## Usage
 

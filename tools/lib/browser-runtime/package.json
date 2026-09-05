@@ -1,0 +1,16 @@
+{
+  "name": "wiser-browser-runtime",
+  "version": "0.1.0",
+  "description": "Shared Playwright runtime for the six browser tools",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check:chromium": "node --input-type=module -e \"const { check } = await import('./browser-runtime.js'); const c = await check(); if (!c.chromiumLaunch) { console.error(c.remediation || 'chromiumLaunch:false'); process.exit(1); } console.log(JSON.stringify(c));\""
+  },
+  "dependencies": {
+    "playwright": "^1.62.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,6 +1,6 @@
 # Third-party notice: mermaid-to-png
 
-This tool installs the 107 packages below on the machine that calls it, into this tool's own directory on the first run that authorises it with `--install`. **This repository redistributes none of them.**
+This tool installs the 104 packages below on the machine that calls it, into this tool's own directory on the first run that authorises it with `--install`. **This repository redistributes none of them.** The Playwright notice is in `tools/lib/browser-runtime/NOTICE.md`.
 
 **Versions and licences are read from this tool's own `package-lock.json`**, on 2026-09-02, rather than from a list of names, because a licence obligation attaches to a version. A package marked optional is installed only where it applies to the machine doing the install, so a single install takes fewer packages than the table lists.
 
@@ -65,7 +65,6 @@ This tool installs the 107 packages below on the machine that calls it, into thi
 | `diff` | 5.2.2 | BSD-3-Clause | required |
 | `dompurify` | 3.4.12 | (MPL-2.0 OR Apache-2.0) | required |
 | `elkjs` | 0.9.3 | EPL-2.0 | required |
-| `fsevents` | 2.3.2 | MIT | optional |
 | `iconv-lite` | 0.6.3 | MIT | required |
 | `internmap` | 1.0.1 | ISC | required |
 | `internmap` | 2.0.3 | ISC | required |
@@ -101,8 +100,6 @@ This tool installs the 107 packages below on the machine that calls it, into thi
 | `mri` | 1.2.0 | MIT | required |
 | `ms` | 2.1.3 | MIT | required |
 | `non-layered-tidy-tree-layout` | 2.0.2 | MIT | required |
-| `playwright` | 1.62.0 | Apache-2.0 | required |
-| `playwright-core` | 1.62.0 | Apache-2.0 | required |
 | `robust-predicates` | 3.0.3 | Unlicense | required |
 | `rw` | 1.3.3 | BSD-3-Clause | required |
 | `sade` | 1.8.1 | MIT | required |
@@ -113,10 +110,6 @@ This tool installs the 107 packages below on the machine that calls it, into thi
 | `uuid` | 14.0.1 | MIT | required |
 | `uvu` | 0.5.6 | MIT | required |
 | `web-worker` | 1.5.0 | Apache-2.0 | required |
-
-## The browser build is a separate download
-
-`playwright` is the npm package. The Chromium build it drives is not an npm package and is not in the table above: it is fetched separately, by `playwright install chromium`, into whichever location `tools/AGENTS.md` names for this machine's platform and settings. That build is roughly half a gigabyte and carries its own licences, chiefly the BSD-style licence of the Chromium project. This repository redistributes neither the package nor the browser.
 
 ## khroma 2.1.0 records no licence, and that is stated rather than smoothed over
 

@@ -3,7 +3,7 @@ name: svg-to-png
 type: tool
 category: media
 description: Renders an SVG file to a PNG at a caller-chosen scale or pixel width, sized from the SVG's own dimensions
-version: 0.1.1
+version: 0.2.0
 ---
 
 # svg-to-png
@@ -46,7 +46,7 @@ Usage text, with nothing installed.
 node scripts/render.js render --file /path/to/a/work/directory/diagram.svg --output /path/to/a/work/directory/diagram.png
 ```
 
-The first real run reports that it would install Playwright in this tool's directory, and stops. With `--install` it installs and does the work in the same run and prints one JSON object:
+The first real run reports that it would install Playwright into `tools/lib/browser-runtime/`, and stops. With `--install` it installs and does the work in the same run and prints one JSON object:
 
 ```
 {"output":"/path/to/a/work/directory/diagram.png","width":1600,"height":1200,"scale":2,"sizedFrom":"attributes"}
@@ -60,7 +60,7 @@ Anything else, see Troubleshooting.
 |------------|------------|--------------|
 | Chromium (Playwright browser) | `render` | `npm run check:chromium` exits 0 with `"chromiumLaunch":true` |
 
-Presence is a **trial launch** via the shared browser-runtime (`scripts/lib/browser-runtime.js`), not a path on disk. Missing OS libraries are self-healed in userspace where a C compiler is present; otherwise the check names the library and the one next step. Install steps are never written here.
+Presence is a **trial launch** via the shared browser runtime at `tools/lib/browser-runtime/`, not a path on disk. Missing OS libraries are self-healed in userspace where a C compiler is present; otherwise the check names the library and the one next step. Install steps are never written here. `tools/AGENTS.md` lists every write.
 
 ## Usage
 

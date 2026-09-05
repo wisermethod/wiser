@@ -7,8 +7,8 @@
  *   node scripts/render.js render --file <path> --output <path> [--scale N]
  *                                 [--width N] [--timeout N] [--overwrite]
  *
- * Node built-ins only above the dependency check; nothing here imports from
- * outside this tool directory. The rules every shipped script follows are
+ * Node built-ins, this tool's own files, and the shared browser runtime at
+ * tools/lib/browser-runtime/. The rules every shipped script follows are
  * stated once, in system/templates/Script Contract.md.
  */
 
@@ -21,10 +21,11 @@ import { DEFAULT_SCALE, DEFAULT_TIMEOUT_MS, buildDocument, isInsideDirectory, re
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const TOOL_DIR = resolve(SCRIPT_DIR, '..');
+const RUNTIME_DIR = resolve(SCRIPT_DIR, '..', '..', 'lib', 'browser-runtime');
 
-// One installed package's own manifest. An interrupted install leaves
-// node_modules/ behind with nothing in it, so the directory proves nothing.
-const DEP_MARKER = join(TOOL_DIR, 'node_modules', 'playwright', 'package.json');
+// Playwright's own manifest, in the shared runtime. An interrupted install
+// leaves node_modules/ behind with nothing in it, so the directory proves nothing.
+const DEP_MARKER = join(RUNTIME_DIR, 'node_modules', 'playwright', 'package.json');
 
 const BROWSER_CHECK = 'npm run check:chromium';
 const COMMANDS = new Set(['render']);
@@ -311,28 +312,12 @@ function installPlan() {
   try {
     names = Object.keys(JSON.parse(readFileSync(join(TOOL_DIR, 'package.json'), 'utf8')).dependencies || {});
   } catch { /* the report degrades to a generic list; the refusal still stands */ }
-  const browser = names.includes('playwright');
-  // A browser tool's authorised run makes TWO fetches, to two different places,
-  // and this report used to fold them into one clause that was wrong about both
-  // halves: `from registry.npmjs.org and cdn.playwright.dev into <TOOL_DIR>`
-  // read as though the Chromium build landed in this directory, which it does
-  // not, and it omitted the Microsoft fallback host that the browser message a
-  // few lines down gets right. An egress allowlist built from that sentence is
-  // short by a host and a disk-space estimate built from it looks in the wrong
-  // place. So `hosts` is now only what NPM contacts -- which is the whole truth
-  // for the clause it sits in -- and the browser fetch is a sentence of its own
-  // with its own hosts and its own destination.
+  const packages = names.length
+    ? `Installing fetches ${names.join(', ')} from registry.npmjs.org into ${TOOL_DIR}, and playwright from registry.npmjs.org into ${RUNTIME_DIR}`
+    : `Installing fetches playwright from registry.npmjs.org into ${RUNTIME_DIR}`;
   return {
-    list: names.length ? names.join(', ') : 'the packages package.json declares',
-    hosts: 'registry.npmjs.org',
-    // KEYED ON THIS RUN, not on the tool. Round 8 found this promising a browser
-    // download on `deck-export scaffold --install`, which makes none; round 9
-    // found the hedge that replaced it naming "a survey" as an example of a
-    // command that fetches no browser, which `check --install` had just
-    // falsified in the same commit. `WILL_FETCH_BROWSER` is set by each entry
-    // script from the command it is actually running, so the report describes
-    // this run rather than the tool's general capabilities.
-    size: browser && WILL_FETCH_BROWSER
+    packages,
+    size: WILL_FETCH_BROWSER
       ? ' This run then fetches the Chromium build, several hundred megabytes, from cdn.playwright.dev, or from playwright.download.prss.microsoft.com when Playwright falls back. That build does NOT land here: it goes wherever Playwright keeps browser builds on this machine, which tools/AGENTS.md names for each platform.'
       : ''
   };
@@ -351,32 +336,32 @@ function requireInstallConsent(what) {
       `Error: this tool's packages are installed but the Chromium build they drive is not, and this run did not authorise an install. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
     );
   }
-  const { list, hosts, size } = installPlan();
+  const { packages, size } = installPlan();
   fail(
-    `Error: this tool is not installed yet and this run did not authorise an install. Installing fetches ${list} from ${hosts} into ${TOOL_DIR}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+    `Error: this tool is not installed yet and this run did not authorise an install. ${packages}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
   );
 }
 
 // Dependencies. Runs before any package import; keep it above the dynamic import.
 if (!existsSync(DEP_MARKER)) {
   requireInstallConsent('packages');
-  process.stderr.write('First run: installing dependencies in this tool directory.\n');
+  process.stderr.write(`First run: installing dependencies in ${RUNTIME_DIR}.\n`);
   try {
     const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
     // stderr only: npm output on stdout would break the empty-stdout-on-failure rule.
-    execFileSync(npm, ['ci'], { cwd: TOOL_DIR, stdio: ['ignore', 'ignore', 'inherit'] });
+    execFileSync(npm, ['ci'], { cwd: RUNTIME_DIR, stdio: ['ignore', 'ignore', 'inherit'] });
   } catch {
     // Two different failures arrive here and they have different fixes, so the
     // Script Contract's Output and errors clause requires telling them apart:
-    // an unwritable tool directory is not a broken install, and telling someone
+    // an unwritable runtime directory is not a broken install, and telling someone
     // to run "npm ci" by hand where they cannot write cannot succeed.
-    if (!isWritable(TOOL_DIR)) {
-      fail(`Error: cannot install dependencies because ${TOOL_DIR} is not writable. This tool installs its dependencies into its own directory on the run that authorises it with --install, so that directory has to be writable. Install this plugin somewhere you own, or make that directory writable, then run the command again.`);
+    if (!isWritable(RUNTIME_DIR)) {
+      fail(`Error: cannot install dependencies because ${RUNTIME_DIR} is not writable. This tool installs Playwright into the shared browser runtime on the run that authorises it with --install, so that directory has to be writable. Install this plugin somewhere you own, or make that directory writable, then run the command again.`);
     }
-    fail(`Error: npm ci failed in ${TOOL_DIR}. Confirm Node 18 or newer, then that package-lock.json is present and matches package.json, which is what npm ci requires and will not resolve around. Delete node_modules there and run "npm ci" by hand to see npm's own message. A lockfile that is missing or out of step with the manifest is a defect in this copy of the plugin, not something a re-run fixes.`);
+    fail(`Error: npm ci failed in ${RUNTIME_DIR}. Confirm Node 18 or newer, then that package-lock.json is present and matches package.json, which is what npm ci requires and will not resolve around. Delete node_modules there and run "npm ci" by hand to see npm's own message. A lockfile that is missing or out of step with the manifest is a defect in this copy of the plugin, not something a re-run fixes.`);
   }
   if (!existsSync(DEP_MARKER)) {
-    fail(`Error: npm ci finished but ${DEP_MARKER} is still missing. Check that package.json lists every package this script imports.`);
+    fail(`Error: npm ci finished but ${DEP_MARKER} is still missing. Check that the shared runtime's package.json lists playwright.`);
   }
 }
 
@@ -387,7 +372,7 @@ if (!existsSync(DEP_MARKER)) {
 // already named the download and its size. The report is the promise; this is
 // what keeps it. Same authorisation, because it is the same install: the
 // several hundred megabytes are the part a person is actually being asked about.
-const PLAYWRIGHT_CLI = join(TOOL_DIR, 'node_modules', 'playwright', 'cli.js');
+const PLAYWRIGHT_CLI = join(RUNTIME_DIR, 'node_modules', 'playwright', 'cli.js');
 
 // THE ONLY QUESTION THAT MATTERS, ASKED THE ONLY WAY THAT ANSWERS IT.
 //
@@ -437,14 +422,14 @@ async function chromiumLaunches() {
   // round 10 measured a partial package install reaching the caller as seven
   // frames of Node internals with no cause and no next step.
   try {
-    if (runtime === null) runtime = await import('./lib/browser-runtime.js');
+    if (runtime === null) runtime = await import(new URL('../../lib/browser-runtime/browser-runtime.js', import.meta.url));
     browserSurvey = await runtime.check(LAUNCH_OPTIONS);
   } catch (error) {
     const line = error && error.message ? String(error.message).split('\n')[0].trim() : 'the browser runtime could not be loaded';
     browserSurvey = {
       chromiumLaunch: false,
       failure: 'host',
-      remediation: `dependency: the browser runtime in this tool; check: importing scripts/lib/browser-runtime.js. Next: ${line}`
+      remediation: `dependency: the shared browser runtime; check: importing tools/lib/browser-runtime/browser-runtime.js. Next: ${line}`
     };
   }
   return browserSurvey.chromiumLaunch === true;
@@ -459,7 +444,7 @@ async function chromiumLaunches() {
 function installDestinationForDiagnosis() {
   try {
     const report = execFileSync(process.execPath, [PLAYWRIGHT_CLI, 'install', 'chromium', '--dry-run'], {
-      cwd: TOOL_DIR,
+      cwd: RUNTIME_DIR,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
       timeout: 120000
@@ -549,7 +534,7 @@ async function ensureChromium() {
     // Playwright's own installer, run from this tool's own copy rather than a
     // global one, so the version matches the package the lockfile pinned.
     execFileSync(process.execPath, [PLAYWRIGHT_CLI, 'install', 'chromium'], {
-      cwd: TOOL_DIR,
+      cwd: RUNTIME_DIR,
       stdio: ['ignore', 'ignore', 'inherit']
     });
   } catch {
@@ -576,7 +561,7 @@ async function ensureChromium() {
     process.stderr.write('Replacing the Chromium build this tool drives: the install had nothing to fetch and it still will not launch.\n');
     try {
       execFileSync(process.execPath, [PLAYWRIGHT_CLI, ...forceArgs], {
-        cwd: TOOL_DIR,
+        cwd: RUNTIME_DIR,
         stdio: ['ignore', 'ignore', 'inherit']
       });
     } catch {

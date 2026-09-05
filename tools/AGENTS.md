@@ -1,10 +1,10 @@
 # Tools
 
-Deterministic operations that skills and experts call; `standards/primitives.md` owns the type. The index below is grouped by category. What a script does when you run it is `tools/RUNNING.md`; the contract its author followed is `standards/script-contract.md`.
+Deterministic operations that skills and experts call; `standards/primitives.md` owns the type. What a script does when you run it is `tools/RUNNING.md`; the contract its author followed is `standards/script-contract.md`.
 
 ## Installing
 
-A tool ships its manifest and never its packages. The first run that needs them reports what it would fetch and stops; `--install` on the same command installs and finishes the work (`tools/RUNNING.md`). Packages land in the tool's own directory, per copy of the plugin, so the plugin directory has to be writable; a tool with no dependency runs anywhere. An install writes nothing this repository ships.
+A tool ships its manifest and never its packages. The first run that needs them reports what it would fetch and stops; `--install` on the same command installs and finishes the work (`tools/RUNNING.md`). Packages land in the tool's own directory, per copy of the plugin, so the plugin directory has to be writable. Playwright for the six browser tools lands once in `tools/lib/browser-runtime/`. An install writes nothing this repository ships.
 
 **Hosts an install reaches.** `registry.npmjs.org` for a Node tool; `cdn.playwright.dev`, with `playwright.download.prss.microsoft.com` as fallback, for a Chromium build; `pypi.org`, `files.pythonhosted.org` and `openaipublic.azureedge.net` for `Transcribe Audio`. At run time a deck or a diagram may name `cdn.jsdelivr.net` or `cdnjs.cloudflare.com` for its own assets.
 
@@ -14,11 +14,11 @@ This is the one list; a tool's own pages point here rather than restating it.
 
 | What | Where | Which tools |
 |------|-------|-------------|
-| Node packages | `node_modules/` in the tool's directory | the 17 tools whose `package.json` declares a dependency |
-| npm's cache and logs | npm's configured cache, `~/.npm` by default, outside this plugin | the same 17 |
+| Node packages | `node_modules/` in the tool's directory | the 13 tools whose `package.json` declares a dependency |
+| npm's cache and logs | npm's configured cache, `~/.npm` by default, outside this plugin | the same 13, and the shared browser runtime |
 | Python packages | `.venv/` in the tool's directory; pip's cache is switched off | `Transcribe Audio` |
-| A Chromium build, a few hundred megabytes | where Playwright keeps it: `PLAYWRIGHT_BROWSERS_PATH` if set to a path; inside the tool's `node_modules/` if set to `0`; otherwise `~/Library/Caches/ms-playwright` on macOS, `~/.cache/ms-playwright` on Linux, `%LOCALAPPDATA%\ms-playwright` on Windows. Usable is decided by a trial launch; macOS is the confirmed platform | the six browser tools |
-| Compatibility shims, compiled on a Linux host missing an X library | `node_modules/.wiser-lib` in the tool's directory; Linux only, untested there | the six browser tools |
+| Playwright and its Chromium build | once, into `tools/lib/browser-runtime/` and Playwright's cache (`PLAYWRIGHT_BROWSERS_PATH` if set to a path; inside `tools/lib/browser-runtime/node_modules/` if set to `0`; otherwise `~/Library/Caches/ms-playwright` on macOS, `~/.cache/ms-playwright` on Linux, `%LOCALAPPDATA%\ms-playwright` on Windows) | the six browser tools |
+| Compatibility shims, compiled on a Linux host missing an X library | `tools/lib/browser-runtime/node_modules/.wiser-lib`; Linux only, untested there | the six browser tools |
 | Speech model weights, 75MB to 3.1GB, a second authorised download | the `--model-cache` directory | `Transcribe Audio` |
 | The deliverable | exactly the path the caller passes | every tool that writes one |
 | A browser profile with live sign-ins, and a trace archive with cookies in it | exactly the `--profile` and `trace stop --output` paths | `Browser Control` |

@@ -3,7 +3,7 @@ name: html-to-png
 type: tool
 category: media
 description: Renders one local HTML file to a PNG or JPEG image at a path the caller names, sized to a given viewport width, either a fixed height or the content's own, and a chosen device scale factor
-version: 0.1.1
+version: 0.2.0
 ---
 
 # html-to-png
@@ -35,7 +35,7 @@ node scripts/render.js render \
   --width 1200 --height 630
 ```
 
-The first real run reports that it would install Playwright in this tool's directory, and stops. With `--install` it installs and does the work in the same run and prints one JSON object:
+The first real run reports that it would install Playwright into `tools/lib/browser-runtime/`, and stops. With `--install` it installs and does the work in the same run and prints one JSON object:
 
 ```
 {"output":"/path/to/a/work/directory/card.png","format":"png","width":1200,"height":630,"scale":1}
@@ -49,7 +49,7 @@ Anything else, see Troubleshooting.
 |------------|------------|--------------|
 | The Chromium build Playwright drives | `render` | `npm run check:chromium` exits 0 with `"chromiumLaunch":true` |
 
-The Playwright package and the Chromium build it drives both install on the run that authorises them with `--install`. Presence is a **trial launch** via the shared browser-runtime (`scripts/lib/browser-runtime.js`), not a path on disk. Missing OS libraries are self-healed in userspace where a C compiler is present; otherwise the check names the library and the one next step. Install steps are never written here.
+The Playwright package and the Chromium build it drives both install on the run that authorises them with `--install`, into `tools/lib/browser-runtime/` and Playwright's cache. Presence is a **trial launch** via the shared browser runtime at `tools/lib/browser-runtime/`, not a path on disk. Missing OS libraries are self-healed in userspace where a C compiler is present; otherwise the check names the library and the one next step. Install steps are never written here. `tools/AGENTS.md` lists every write.
 
 ## Sizing
 

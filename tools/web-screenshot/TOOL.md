@@ -3,7 +3,7 @@ name: web-screenshot
 type: tool
 category: media
 description: Captures a PNG of a live web page at a caller-named viewport size and scale, either the visible viewport or the whole scrollable page
-version: 0.1.1
+version: 0.2.0
 ---
 
 # web-screenshot
@@ -20,7 +20,7 @@ It reaches the network by design, which sets it apart from most tools in this fa
 
 ## Dependencies
 
-Rendering is a real browser, so this tool needs a browser binary beyond Node and npm. It is Chromium, and `playwright` carries no postinstall script, so `npm ci` fetches the package and no browser: this tool runs Playwright's own installer under the same `--install` authorisation, in the same run, then proves it by a **trial launch** through the shared browser-runtime (`scripts/lib/browser-runtime.js`).
+Rendering is a real browser, so this tool needs a browser binary beyond Node and npm. It is Chromium, and `playwright` carries no postinstall script, so `npm ci` fetches the package and no browser: this tool runs Playwright's own installer under the same `--install` authorisation, in the same run, then proves it by a **trial launch** through the shared browser runtime at `tools/lib/browser-runtime/`.
 
 | Dependency | Needed for | Present when |
 |------------|------------|--------------|
@@ -40,7 +40,7 @@ Usage text, with nothing installed.
 node scripts/capture.js capture --url https://host.example/pricing --output /path/to/a/work/directory/pricing.png
 ```
 
-The first real run reports what it would install and stops. With `--install` it installs `playwright` into this tool's directory and its Chromium build where `tools/AGENTS.md` names, and finishes the work in the same run:
+The first real run reports what it would install and stops. With `--install` it installs `playwright` into `tools/lib/browser-runtime/` and its Chromium build where `tools/AGENTS.md` names, and finishes the work in the same run:
 
 ```
 {"output":"/path/to/a/work/directory/pricing.png","url":"https://host.example/pricing","finalUrl":"https://host.example/pricing","status":200,"width":1280,"height":720,"scale":1,"fullPage":false}
@@ -96,7 +96,7 @@ Step 3 is the one to know: waiting for network silence is what makes the image r
 
 Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help answered before the dependency check, the consent-gated dependency install, the system-dependency check on the commands that need it, and the stdout and stderr rules. The sections above state what the commands do; the contract states how the script behaves getting there.
 
-Two of its clauses do visible work here. The browser's own error text is read to classify a failure and never repeated, so every message below is this tool's own sentence about what went wrong. And an `--output` that resolves inside this tool's directory is refused, normalized first so a path that climbs out and back in is caught: the only write this tool makes into its own directory is the first-run install.
+Two of its clauses do visible work here. The browser's own error text is read to classify a failure and never repeated, so every message below is this tool's own sentence about what went wrong. And an `--output` that resolves inside this tool's directory is refused, normalized first so a path that climbs out and back in is caught. The first-run install writes Playwright into `tools/lib/browser-runtime/`, not into this tool; `tools/AGENTS.md` lists every write.
 
 A failed run writes no image, replaces nothing that was already at `--output`, and leaves nothing behind but a parent folder it may have created.
 
@@ -121,7 +121,7 @@ Read `finalUrl` and `status` before trusting the image. A capture that ran clean
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `this tool is not installed yet and this run did not authorise an install` | First run in this copy, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
-| `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
+| `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` in the directory the error names and run `npm ci` there by hand. `tools/AGENTS.md` lists those directories |
 | `Error: Chromium cannot launch` / `chromiumLaunch:false` | Binary missing, launch blocked, or OS library gap | Read `remediation` on the check JSON; follow that single step. `check --install` and `capture --install` both take the install route it names. Never chase allowlist for a launch failure |
 | `Error: --url is required` | `capture` ran with no address | Pass `--url` with the full address, scheme included |
 | `Error: --url is not a web address` | The scheme is missing, so there is nothing to navigate to | Write it out in full, as in `https://host/path` |

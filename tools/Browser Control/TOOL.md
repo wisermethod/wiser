@@ -3,7 +3,7 @@ name: Browser Control
 type: tool
 category: automation
 description: Drives a persistent Chromium session to read, navigate, and act on pages that need a real browser, answering every command with the page state that followed
-version: 0.1.2
+version: 0.2.0
 ---
 
 # Browser Control
@@ -60,7 +60,7 @@ The pattern that reads a site-specific playbook before improvising travels with 
 |------------|------------|--------------|
 | The Chromium build Playwright drives | `session start` | `npm run check:chromium` exits 0 with `"chromiumLaunch":true` |
 
-The Playwright package and the Chromium build it drives both install on the run that authorises them with `--install`. Presence is a **trial launch** via the shared browser-runtime (`scripts/lib/browser-runtime.js`), not a path on disk. Missing OS libraries are self-healed in userspace where a C compiler is present; otherwise the check names the library and the one next step. The runtime also forwards `HTTPS_PROXY` / `HTTP_PROXY` into Chromium. Install steps are never written here.
+The Playwright package and the Chromium build it drives both install on the run that authorises them with `--install`, into `tools/lib/browser-runtime/` and Playwright's cache. Presence is a **trial launch** via the shared browser runtime at `tools/lib/browser-runtime/`, not a path on disk. Missing OS libraries are self-healed in userspace where a C compiler is present; otherwise the check names the library and the one next step. The runtime also forwards `HTTPS_PROXY` / `HTTP_PROXY` into Chromium. Install steps are never written here. `tools/AGENTS.md` lists every write.
 
 ## Session State
 

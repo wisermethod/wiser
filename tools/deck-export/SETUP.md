@@ -24,7 +24,7 @@ Nothing to run by hand. The script installs its packages on the first `scaffold`
 node scripts/deck.js check
 ```
 
-`chromium: false` is the one system dependency `pdf` and `png` stop on; `scaffold` never needs it. Presence is a trial launch via the shared browser-runtime (`scripts/lib/browser-runtime.js`), which also self-heals the known headless-safe missing-library case where a C compiler is present and forwards `HTTPS_PROXY` / `HTTP_PROXY` into Chromium. When launch still fails, `check` carries a `remediation` line, follow that single step. Install walkthroughs are never written here.
+`chromium: false` is the one system dependency `pdf` and `png` stop on; `scaffold` never needs it. Presence is a trial launch via the shared browser runtime at `tools/lib/browser-runtime/`, which also self-heals the known headless-safe missing-library case where a C compiler is present and forwards `HTTPS_PROXY` / `HTTP_PROXY` into Chromium. When launch still fails, `check` carries a `remediation` line, follow that single step. Install walkthroughs are never written here.
 
 A machine that already drives a browser for another primitive in this root usually has the build cached and needs nothing here.
 
@@ -44,4 +44,4 @@ Run the checks in TOOL.md's Success section. On a correctly set up copy, `help`,
 
 **Proxy-only egress / CDN decks stall** Export `HTTPS_PROXY` or `HTTP_PROXY` in the process environment; the shared runtime forwards them into Chromium automatically.
 
-**Shared browser cache (optional)** To keep the Chromium build on a shared writable volume, and avoid re-fetching it for every fresh copy of this tool, set `PLAYWRIGHT_BROWSERS_PATH` to that directory before install and render. Leave it unset for Playwright's own default, and see `tools/AGENTS.md` for where each setting puts the build, including `PLAYWRIGHT_BROWSERS_PATH=0`, which puts it inside the tool.
+**Shared browser cache (optional)** To keep the Chromium build on a shared writable volume, and avoid re-fetching it for every fresh copy of this plugin, set `PLAYWRIGHT_BROWSERS_PATH` to that directory before install and render. Leave it unset for Playwright's own default. `tools/AGENTS.md` names where each setting puts the build.

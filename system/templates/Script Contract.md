@@ -1,6 +1,6 @@
 ---
 template: script-contract
-version: 0.4.0
+version: 0.5.0
 description: Pointer kept at the path every tool cites; the contract lives in standards/script-contract.md
 ---
 
