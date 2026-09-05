@@ -417,8 +417,10 @@ function classifyFailure(error, report) {
     if (spawned.code === 'EACCES') {
       if (lostExecuteBit(spawned.path)) {
         // The caller has to be able to NAME the file, or "restore the execute
-        // bit" is advice nobody can act on.
-        report.executablePath = spawned.path;
+        // bit" is advice nobody can act on. Deliberately NOT called
+        // `executablePath`: the instrument counts that name exactly, so that a
+        // seventh path DECISION fails, and this is a path for a message.
+        report.unrunnablePath = spawned.path;
         return 'permission';
       }
       return 'host';
@@ -488,7 +490,7 @@ export async function check(options = {}) {
     playwright: false, chromiumBinary: false, chromiumLaunch: false,
     proxy: Boolean(proxyServer()), hostClass: hostClass(),
     missingLibs: [], shimmed: [], remediation: null, failure: null,
-    launchPhase: null, executablePath: null
+    launchPhase: null, unrunnablePath: null
   };
   let chromium;
   try {

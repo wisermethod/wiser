@@ -715,7 +715,7 @@ async function ensureChromium() {
   // now confirms the mode with `stat` before saying so, so this branch is
   // reached only on positive evidence, and it replaces nothing.
   if (browserSurvey.failure === 'permission') {
-    const target = browserSurvey.executablePath || 'the Chromium binary named above';
+    const target = browserSurvey.unrunnablePath || 'the Chromium binary named above';
     fail(`Error: the Chromium build is present and complete, but this account may not run it: its file has lost its execute permission. Nothing is wrong with the build, and nothing has been replaced. ${browserSurvey.remediation || ''} Restore the permission and run the command again: chmod +x '${target}'`);
   }
 
