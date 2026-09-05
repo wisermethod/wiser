@@ -10,7 +10,7 @@ It carries no dependency on any single agent host: everything in it is instructi
 
 **7 experts** that judge work through a perspective rather than producing it: a review gate before writing ships, a marketing strategist, a conversion and an SEO advisor, two design critics, and a first-principles problem solver.
 
-**23 tools** that do the deterministic work a skill or expert calls for: parsing, describing, aggregating, joining and charting tabular data; rendering HTML, SVG and Mermaid diagrams to images; editing images and video; capturing a live page and driving a browser; on-page, sitemap and analytics-tag checks for SEO; building and exporting decks; gathering candidate source material; and transcribing audio on your own machine.
+**13 tools** that do the deterministic work a skill or expert calls for: parsing, describing, aggregating, joining, charting and computing over tabular data; rendering HTML, SVG and Mermaid diagrams and live pages to images; editing images and video; driving a browser; on-page, sitemap and analytics-tag checks and Search Console datasets for SEO; building and exporting decks; gathering candidate source material; and transcribing audio on your own machine.
 
 **6 standards** that bind all of it: how a primitive is shaped, how instructions are written, the conventions every file follows, the two shapes for work that spans sessions, and what every script a tool ships must do.
 
@@ -18,7 +18,7 @@ It carries no dependency on any single agent host: everything in it is instructi
 
 Install the plugin, then attach a **working folder**: the root the work is about. That folder describes itself in its own `AGENTS.md`, including a `Provides` block that binds what the plugin asks for, like the voice to write in and the facts about you or your organization.
 
-The plugin is **read-only in use, with one exception**. Everything it produces lands in the working folder you attached, in the directories that folder declares. **The exception is what a tool installs for itself.** A tool that needs packages installs them into its own directory after the first `--install` in this copy, and a browser tool also downloads a Chromium build, which lands outside this plugin unless `PLAYWRIGHT_BROWSERS_PATH=0` puts it inside. So the plugin directory has to be writable, and a tool that carries dependencies cannot work from a read-only install. **`tools/AGENTS.md` has the full list**: what gets written, where, and which of the twenty-three tools it applies to.
+The plugin is **read-only in use, with one exception**. Everything it produces lands in the working folder you attached, in the directories that folder declares. **The exception is what a tool installs for itself.** A tool that needs packages installs them into its own directory after the first `--install` in this copy, and a browser tool also downloads a Chromium build, which lands outside this plugin unless `PLAYWRIGHT_BROWSERS_PATH=0` puts it inside. So the plugin directory has to be writable, and a tool that carries dependencies cannot work from a read-only install. **`tools/AGENTS.md` has the full list**: what gets written, where, and which of the thirteen tools it applies to.
 
 `AGENTS.md` is the constitution and the place to start reading; `GLOSSARY.md` defines the words it uses. `skills/AGENTS.md`, `experts/AGENTS.md` and `tools/AGENTS.md` index what is available.
 
