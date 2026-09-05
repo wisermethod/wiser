@@ -1,0 +1,72 @@
+# Eval questions for one knowledge set. healthcheck --eval runs each through
+# recall scoped to this set's dataset and records pass or fail per question.
+#
+# Minimum for a set to count as built:
+#   5 single-hop  (an exact name, number, date, clause, or title)
+#   5 two-hop     (needs an edge: who wrote the thing that says X; which idea depends on Y)
+#   2 as-of       (the answer at a date, where the set holds a fact that changed)
+#   2 isolation   (must NOT return material from another set in the same store; add once a second set exists)
+#
+# expected: a string the answer must contain, case-insensitive; or a corpus path
+#           the references must include, written as "path:corpus/<file>".
+# must_not_match: for isolation questions, a string from the other set that must not appear.
+
+questions:
+  - id: sh-1
+    type: single-hop
+    question: ""
+    expected: ""
+  - id: sh-2
+    type: single-hop
+    question: ""
+    expected: ""
+  - id: sh-3
+    type: single-hop
+    question: ""
+    expected: ""
+  - id: sh-4
+    type: single-hop
+    question: ""
+    expected: ""
+  - id: sh-5
+    type: single-hop
+    question: ""
+    expected: ""
+  - id: th-1
+    type: two-hop
+    question: ""
+    expected: ""
+  - id: th-2
+    type: two-hop
+    question: ""
+    expected: ""
+  - id: th-3
+    type: two-hop
+    question: ""
+    expected: ""
+  - id: th-4
+    type: two-hop
+    question: ""
+    expected: ""
+  - id: th-5
+    type: two-hop
+    question: ""
+    expected: ""
+  - id: ao-1
+    type: as-of
+    question: ""
+    as_of: "YYYY-MM-DD"
+    expected: ""
+  - id: ao-2
+    type: as-of
+    question: ""
+    as_of: "YYYY-MM-DD"
+    expected: ""
+  - id: iso-1
+    type: isolation
+    question: ""
+    must_not_match: ""
+  - id: iso-2
+    type: isolation
+    question: ""
+    must_not_match: ""

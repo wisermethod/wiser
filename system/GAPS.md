@@ -6,7 +6,7 @@ What this plugin does not do, declared by the primitive that names it.
 
 **This file carries capability gaps only.** What the operator plans to build is a separate record and is not a user's business, so nothing about future work appears here. **A gap names the capability that is missing, never where that capability went.**
 
-Counted 2026-09-02: 32 gaps across 17 primitives. Thirty-one of those are what remains of the forty-two this file carried on 2026-08-29, once four compound gaps were split into their separate assertions and twenty-one closed. The thirty-second is new: speaker labeling, declared by `Transcribe Audio`, which ships without it.
+Counted 2026-09-05: 36 gaps across 20 primitives; four are new, declared by the three knowledge primitives that arrived that day and listed below. Counted 2026-09-02: 32 gaps across 17 primitives. Thirty-one of those are what remains of the forty-two this file carried on 2026-08-29, once four compound gaps were split into their separate assertions and twenty-one closed. The thirty-second is new: speaker labeling, declared by `Transcribe Audio`, which ships without it.
 
 ## Experts
 
@@ -55,6 +55,14 @@ Counted 2026-09-02: 32 gaps across 17 primitives. Thirty-one of those are what r
 - image cutout
 - the vision and image-model calls this skill's automated path depends on
 
+### Knowledge Recall
+
+- temporal filtering of recall by a date, so an as-of question is answered from the facts the set dates rather than filtered by the engine
+
+### Knowledge Set Onboarding
+
+- fully local extraction with no hosted model, so a corpus that may not leave the machine cannot be onboarded
+
 ### List Hygiene
 
 - address verification against an email validation service
@@ -92,6 +100,11 @@ Counted 2026-09-02: 32 gaps across 17 primitives. Thirty-one of those are what r
 - applying DNS and zone changes to the hosting account, so this skill can plan a change it cannot publish
 
 ## Tools
+
+### knowledge-memory
+
+- fully local extraction and embedding with no hosted model, so a corpus that may not leave the machine cannot be built
+- temporal filtering of recall by a date, so an as-of question is answered from the facts the set dates rather than filtered by the engine
 
 ### Transcribe Audio
 

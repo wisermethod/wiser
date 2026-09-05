@@ -47,6 +47,14 @@ The index is **hand-maintained**. `standards/primitives.md` says a family index 
 |-------|-------------|
 | `Zone Publisher/SKILL.md` | Bring one Cloudflare zone's live DNS into a reviewable zone file, apply the intended record changes, and publish them back with every removal approved by name and every published record re-read from the platform |
 
+### Knowledge
+
+| Skill | Description |
+|-------|-------------|
+| `Knowledge Curation/SKILL.md` | Keep an existing knowledge set accurate by ingesting new and changed sources, running the review pass, recording and applying the decisions a human makes on its review items, and rebuilding it from its own sources when its pack or corpus changes |
+| `Knowledge Recall/SKILL.md` | Answer a question from one named knowledge set, scoped to that set alone, with the quotes and sources the answer rests on and an evidence label on every claim, saying Not available when the set does not cover it |
+| `Knowledge Set Onboarding/SKILL.md` | Create a named knowledge set in the owning root from books, blogs, websites, or a domain, establish its canon by ingest, research, and a sharpened interview with every canonical idea quoting its source, and close it with an eval that passes |
+
 ### Marketing
 
 | Skill | Description |

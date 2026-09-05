@@ -13,6 +13,12 @@ The index is **hand-maintained**. `standards/primitives.md` says a family index 
 | `Creative Director/EXPERT.md` | Evaluate and direct visual design, enforcing intentionality and catching generic AI-design patterns, and return findings with specific fixes |
 | `Design Advisor/EXPERT.md` | Judge a visual design against its brief and return a verdict whose findings each name what they fail and the concrete replacement or direction that clears it |
 
+### Knowledge
+
+| Expert | Description |
+|--------|-------------|
+| `Memory Expert/EXPERT.md` | Judge what a knowledge set should hold and how far to trust it, deciding whether a source belongs, what a candidate node deserves, when a set needs rebuilding rather than updating, and whether it is ready to be recalled from, and sequence the knowledge skills accordingly |
+
 ### Marketing
 
 | Expert | Description |
