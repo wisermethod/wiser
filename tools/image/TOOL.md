@@ -116,7 +116,7 @@ One JSON object on stdout and one image on disk, exit 0.
 
 A run that cannot produce the image leaves no image behind, prints nothing to stdout, and exits 1. On a `--canvas` run the written pair is the canvas, so it will not match the source even when no other operation ran; that is the placement, not a resize.
 
-Two things reach stderr on a run that succeeds: the one line a first install prints, and a `Note:` naming what a placement clipped, when it clipped anything. It is not an error, stdout still carries the one JSON object, and the exit code is still 0.
+Two things reach stderr on a run that succeeds: the one line a first install prints, and a `Note:` naming what a placement clipped, when it clipped anything. Neither is an error: stdout still carries the one JSON object, and the exit code is still 0.
 
 ## compose
 

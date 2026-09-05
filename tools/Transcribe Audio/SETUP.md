@@ -2,7 +2,7 @@
 
 Once per machine. Skip it if a real `transcribe` already prints a JSON object.
 
-System dependencies are once per machine; a tool's packages are per copy of the plugin, and `tools/AGENTS.md` says what every install writes (`tools/RUNNING.md`).
+System dependencies are once per machine, packages once per copy (`tools/RUNNING.md`).
 
 Run every command below from this tool's directory. On Windows, use Git Bash; PowerShell and cmd quote arguments differently.
 

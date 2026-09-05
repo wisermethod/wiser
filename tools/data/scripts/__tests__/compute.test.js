@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -246,10 +246,23 @@ describe('compute after Gate 2 round 1', () => {
     assert.doesNotMatch(r.stderr, /missing or not a number/);
   });
 
-  it('never checks for csv-parse: compute runs with no node_modules', () => {
-    const file = writeObject({ a: 3, b: 4 });
-    const r = spawnSync(process.execPath, [SCRIPT, 'compute', '--file', file, '--op', 'rate', '--a', 'a', '--b', 'b'], { encoding: 'utf8', env: { ...process.env, WISER_COMPUTE_TEST_NO_DEPS: '1' } });
-    assert.equal(r.status, 0);
+  it('never checks for csv-parse: compute runs in a copy that has no node_modules and no consent', () => {
+    const root = mkdtempSync(join(tmpdir(), 'compute-nodeps-'));
+    mkdirSync(join(root, 'tools', 'data', 'scripts'), { recursive: true });
+    mkdirSync(join(root, 'tools', 'lib'), { recursive: true });
+    writeFileSync(join(root, 'tools', 'AGENTS.md'), '# Tools\n');
+    const here = dirname(fileURLToPath(import.meta.url));
+    for (const name of ['data.js', 'compute-core.js']) copyFileSync(join(here, '..', name), join(root, 'tools', 'data', 'scripts', name));
+    copyFileSync(join(here, '..', '..', '..', 'lib', 'consent.js'), join(root, 'tools', 'lib', 'consent.js'));
+    writeFileSync(join(root, 'tools', 'data', 'package.json'), JSON.stringify({ name: 'data', type: 'module', dependencies: { 'csv-parse': '^5.5.6' } }));
+    const file = join(root, 'ab.json');
+    writeFileSync(file, JSON.stringify({ a: 3, b: 4 }));
+    const env = { ...process.env };
+    delete env.WISER_ALLOW_INSTALL;
+    const r = spawnSync(process.execPath, [join(root, 'tools', 'data', 'scripts', 'data.js'), 'compute', '--file', file, '--op', 'rate', '--a', 'a', '--b', 'b'], { encoding: 'utf8', env });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stderr, '');
     assert.equal(JSON.parse(r.stdout).value, 0.75);
+    assert.equal(existsSync(join(root, '.wiser-consent')), false);
   });
 });

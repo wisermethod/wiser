@@ -338,7 +338,7 @@ A usage mistake, an unknown flag, a path holding no file, and a field that is mi
 | `difference` | `a - b` |
 | `rate` | `a / b` |
 
-`--a` and `--b` name numeric fields in the object, by dotted path where nested, for example `groups.0.sum` or `columns.revenue.mean`. A numeric path segment indexes an array; a non-numeric segment on an array selects the first object whose `name` equals that segment. The value is a JavaScript double, unrounded unless `--digits` is given, in which case it is rounded to that many decimals.
+`--a` and `--b` name numeric fields in the object, by dotted path where nested, for example `groups.0.values.revenue_sum` in a saved `aggregate` result or `columns.0.mean` in a saved `describe` result. A numeric path segment indexes an array; a non-numeric segment on an array selects the first object whose `name` equals that segment. The value is a JavaScript double, unrounded unless `--digits` is given, in which case it is rounded to that many decimals.
 
 ### Usage
 
@@ -353,8 +353,8 @@ A usage mistake, an unknown flag, a path holding no file, and a field that is mi
 | `--op <op>` | `percentage`, `difference`, or `rate`. Required | None; required |
 | `--a <field>` | Numeric field for a, a dotted path where nested. Required | None; required |
 | `--b <field>` | Numeric field for b, a dotted path where nested. Required | None; required |
-| `--digits <n>` | Round the result to this many decimal places | Unrounded JavaScript double |
-| `--format <fmt>` | Force `json` | JSON |
+| `--digits <n>` | Round the result to this many decimal places, 0 to 20; more is refused by name | Unrounded JavaScript double |
+| `--format <fmt>` | `json` is the only value; any other is refused | JSON |
 | `--delimiter <char>` | Accepted; unused because compute reads JSON | Unused |
 | `--help`, `-h` | Print usage and exit | Off |
 
@@ -393,6 +393,9 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 | `Error: --how must be one of inner, left` | A mode outside the two | Use `inner` or `left` |
 | `Error: --type must be one of bar, line` | A type outside the two | Use `bar` or `line` |
 | `Error: --format must be one of csv, json, tsv` | A `--format` value outside the three supported formats | Pass one of the three, or omit `--format` to auto-detect |
+| `Error: --digits must be an integer from 0 to 20` | `compute` was given more digits than a double carries | Pass 0 to 20, or omit the option |
+| `Error: <file> is not valid JSON` / `does not hold one JSON object` | `compute` read something other than one JSON object | Pass a saved `aggregate` or `describe` result, or a file with one top-level object |
+| `error` is `the result is not a finite number` | The two fields produced an overflow | Check the fields; the object carries both values and no `value` |
 | `Error: --columns needs at least one column name` | `--columns` was given nothing but separators | Name the columns, or omit the option |
 | `Error: no file at <path>` | The path given does not exist | Check the path; an absolute one cannot be misread |
 | `Error: could not read <path>` | The path is a directory or is not readable | Point the flag at a readable file |

@@ -2,7 +2,7 @@
 
 Once per machine. Skip it if `node scripts/deck.js check` already reports every field true.
 
-System dependencies are once per machine; a tool's packages are per copy of the plugin, and `tools/AGENTS.md` says what every install writes (`tools/RUNNING.md`).
+System dependencies are once per machine, packages once per copy (`tools/RUNNING.md`).
 
 Run every command below from this tool's directory. On Windows, use Git Bash; PowerShell and cmd quote arguments differently.
 
@@ -28,7 +28,7 @@ node scripts/deck.js check
 
 A machine that already drives a browser for another primitive in this root usually has the build cached and needs nothing here.
 
-The Chromium build installs with the packages under the same consent, and `tools/AGENTS.md` says where it lands.
+The Chromium build installs under the same consent; `tools/AGENTS.md` says where.
 
 ## 4. Verify
 
@@ -38,7 +38,7 @@ Run the checks in TOOL.md's Success section. On a correctly set up copy, `help`,
 
 **`node: command not found`** Node is installed but not on this shell's PATH. Open a new shell; if it persists, reinstall Node and let it update PATH.
 
-**The package install fails** The causes, Node, the directory or a lockfile out of step, and the retry are in `tools/RUNNING.md`. Then delete `node_modules/` and retry, per `tools/RUNNING.md`.
+**The package install fails** Causes and the retry: `tools/RUNNING.md`.
 
 **`chromium: false` / `Chromium cannot launch`** Read the `remediation` field on `node scripts/deck.js check` (or the error line). It names the gap and one next step. Missing OS libraries are self-healed where possible; otherwise the base image or a C compiler is the next step, never a root-only `install-deps` recipe from this tree.
 

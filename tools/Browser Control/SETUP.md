@@ -2,7 +2,7 @@
 
 Once per machine. Skip it if `node scripts/browser.js session status` already answers after a successful `session start` on this host, or if `npm run check:chromium` already exits 0.
 
-System dependencies are once per machine; a tool's packages are per copy of the plugin, and `tools/AGENTS.md` says what every install writes (`tools/RUNNING.md`).
+System dependencies are once per machine, packages once per copy (`tools/RUNNING.md`).
 
 Run every command below from this tool's directory. On Windows, use Git Bash; PowerShell and cmd quote arguments differently.
 
@@ -28,7 +28,7 @@ Expect `"chromiumLaunch":true`. Presence is a trial launch through the shared ru
 
 A machine that already drives a browser for another primitive in this root usually has the build and any userspace stub cached and needs nothing here.
 
-The Chromium build installs with the packages under the same consent, and `tools/AGENTS.md` says where it lands.
+The Chromium build installs under the same consent; `tools/AGENTS.md` says where.
 
 ## 4. Profile directory
 

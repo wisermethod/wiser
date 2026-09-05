@@ -37,7 +37,7 @@ An analyst who has given up being the source of any number. Every figure in the 
 
 ### Step 1: Profile the file, before anything else
 
-Run `tools/data/` `parse` on the absolute path. Nothing else runs first. Every subcommand named below is `tools/data/`'s, run as `node scripts/data.js <subcommand>` from that directory. Its profile decides the rest of the run:
+Run `tools/data/` `parse` on the absolute path. Nothing else runs first. Every subcommand named below is `tools/data/`'s, run as `node scripts/data.js <subcommand>` from that directory. The profile `parse` returns decides the rest of the run:
 
 - which columns hold numbers, and so which may be described or given a metric other than a count
 - the exact spelling and case of every column name, which the other data tools match literally

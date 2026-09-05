@@ -7,7 +7,8 @@
  *
  * Self-contained per the Script Contract's one allowed exception, tools/lib/: imports
  * only Node built-ins and this directory's own node_modules ('playwright'). No path
- * reaches outside the plugin. *
+ * reaches outside the plugin.
+ *
  * What it does, and why it exists
  * -------------------------------
  * Chromium on a fresh Linux host (notably Claude Cowork's sandbox) links a small

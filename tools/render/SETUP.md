@@ -2,7 +2,7 @@
 
 Once per machine. Skip it if packages are installed and the Chromium check named in TOOL.md Dependencies already passes.
 
-System dependencies are once per machine; a tool's packages are per copy of the plugin, and `tools/AGENTS.md` says what every install writes (`tools/RUNNING.md`).
+System dependencies are once per machine, packages once per copy (`tools/RUNNING.md`).
 
 Run every command from this tool's directory.
 
@@ -26,7 +26,7 @@ node scripts/render.js check
 
 Expect `"chromiumLaunch":true`. Presence is a trial launch through the shared runtime (`tools/AGENTS.md`). On failure, follow the `remediation` line, never a hard-coded install recipe here.
 
-The Chromium build installs with the packages under the same consent, and `tools/AGENTS.md` says where it lands.
+The Chromium build installs under the same consent; `tools/AGENTS.md` says where.
 
 ## 4. Verify
 

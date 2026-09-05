@@ -454,7 +454,8 @@ def require_install_consent(label):
     the first install in this copy, and --install on that run is the answer.
     """
     if install_authorised():
-                return
+        write_consent()
+        return
     fail(
         "this tool is not installed yet and this copy of the plugin has not authorised an install. "
         "The plugin asks once, on the first install in this copy. "
@@ -632,6 +633,8 @@ except Exception:
     weights_present = False
 
 if not weights_present:
+    if install_authorised():
+        write_consent()
     if not install_authorised():
         fail(
             "the %s speech model is not on this machine as a file whisper will accept, and "

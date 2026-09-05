@@ -220,7 +220,7 @@ One JSON object on stdout, exit 0.
 | `growing`, `declining` | Up to 15 entries each, with `query`, `currentClicks`, `previousClicks`, `changePercent`, `currentPosition`; `null` without earlier rows |
 | `cannibalization` | Up to 10 warnings, each with `query`, its competing `pages` ordered by impressions, and a `recommendation`; `null` without query-and-page rows |
 | `targetTracking` | One entry per target keyword, with `found`, `position`, `clicks`, `impressions`, and the `page` ranking for it; `null` without a target file |
-| `file` | Present only when `--output` was given: where the result was also written |
+| `file` | Present only when `--output` was given: where the result was also written, as `seo-keywords-YYYY-MM-DD.json` in that directory, the name both subcommands have always used |
 
 `ctr` and `position` pass through as the API reported them, a fraction and an average rank, unrounded. The `page` in target tracking is the first page the query-and-page rows list for that keyword, which for Search Console output is its strongest page; it is `null` when no query-and-page rows were supplied or the keyword ranks nowhere.
 
@@ -256,11 +256,11 @@ One JSON object on stdout, exit 0.
 |-------|---------|
 | `window` | The reporting window, as given |
 | `previousWindow` | The earlier window of the same length, ending the day before `--start` |
-| `file` | Present only when `--output` was given: where the result was also written |
+| `file` | Present only when `--output` was given: where the result was also written, as `seo-keywords-YYYY-MM-DD.json` in that directory, the name both subcommands have always used |
 
 ## Troubleshooting
 
-The stops every tool shares, an unknown flag, the install consent, an install that fails, and a path that is relative or inside this tool, are in `tools/RUNNING.md`; the rows below are this tool's own.
+The stops every tool shares, an unknown flag and a path that is relative or inside this tool, are in `tools/RUNNING.md`; this tool installs nothing; the rows below are its own.
 
 | Message | Cause | Fix |
 |---------|-------|-----|

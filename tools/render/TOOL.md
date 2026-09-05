@@ -2,7 +2,7 @@
 name: render
 type: tool
 category: media
-description: Renders a local HTML file, an SVG, or a Mermaid diagram to a PNG, and captures a PNG of a live web page
+description: Renders a local HTML file to a PNG or JPEG, an SVG or a Mermaid diagram to a PNG, and captures a PNG of a live web page
 version: 0.2.0
 ---
 
@@ -40,7 +40,7 @@ If this copy of the plugin has not yet authorised an install, the run reports th
 
 ## Script Contract
 
-Every script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. `html`, `svg`, `mermaid`, and `url` write one caller-named image outside this tool directory. `check` writes nothing without `--install`; with it, the install's own writes and no more. Every other write a run makes is a package install, and `tools/AGENTS.md` is the only place this repository lists those. Only `mermaid` checks for and installs `mermaid`. Playwright is the shared runtime's check for all four rendering commands. The contract's `--env` clause has nothing to bind here.
+Every script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. `html`, `svg`, `mermaid`, and `url` write one caller-named image outside this tool directory. `check` writes nothing without `--install`; with it, the install's own writes and no more. Every other write a run makes is a package install, and `tools/AGENTS.md` is the only place this repository lists those. Only `mermaid` checks for and installs `mermaid`. The contract's `--env` clause has nothing to bind here.
 
 No command takes `--env`.
 
@@ -136,7 +136,7 @@ One PNG of the diagram a Mermaid file describes, written where the caller says.
 
 Use it whenever a Mermaid diagram has to become an image. Mermaid inside a fenced block in a markdown file is not an input: extract the diagram to its own file first. An SVG goes to `svg`, HTML to `html`, a live page to `url`.
 
-A diagram is drawn at the size the renderer computes, then capped. Natural width above `--width` scales the whole drawing down; natural width below it leaves the drawing alone. `--scale` multiplies device pixels last and does not reflow text. The renderer loads from this tool's own `node_modules`, so a render fetches nothing from anywhere. The diagram reaches the page as text through the DOM, so a diagram file cannot close an element or open a script of its own.
+A diagram is drawn at the size the renderer computes, then capped. Natural width above `--width` scales the whole drawing down; natural width below it leaves the drawing alone. `--scale` multiplies device pixels last and does not reflow text. The renderer loads from this tool's own `node_modules`, so a render of a diagram fetches nothing; an HTML page or an SVG may still load what it references. The diagram reaches the page as text through the DOM, so a diagram file cannot close an element or open a script of its own.
 
 ### Usage
 
@@ -215,7 +215,7 @@ One JSON object on stdout, exit 0, when an image was written.
 
 One JSON object surveying whether the packages and the Chromium build this tool renders with are present. Exit 0 either way; read `chromiumLaunch` for the verdict.
 
-Without `--install` it fetches nothing and opens no connection. With `--install` it installs first and then reports on what it installed. It is this tool's own survey, and TOOL.md's troubleshooting row for a missing binary sends the reader here.
+Without `--install` it fetches nothing and opens no connection. With `--install` it installs first and then reports on what it installed. It is this tool's own survey, and the troubleshooting row for a missing binary points at it.
 
 ### Usage
 
@@ -233,6 +233,8 @@ One JSON object on stdout, exit 0.
 | `packages` | Whether Playwright's own manifest is present in the shared runtime |
 | `chromiumLaunch` | Whether a trial launch of the Chromium build succeeded |
 | `remediation` | The one next step when the trial launch did not succeed |
+| `playwright`, `chromiumBinary` | Whether the package and the build's binary are present, the two facts behind `chromiumLaunch` |
+| `failure` | Which of `artifact`, `host`, `permission` or `unknown` the trial launch's failure was, or absent when it launched |
 
 ## Troubleshooting
 

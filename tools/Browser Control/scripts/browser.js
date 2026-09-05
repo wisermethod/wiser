@@ -934,7 +934,7 @@ if (command === 'session') {
   // about to make; what happens next depends on WHY that launch failed, and a
   // forced replacement is scoped to the artifact that failed. This comment
   // described 'ready' and 'marked-but-gone' states that round 10 deleted, in
-  // four of the three entry scripts but not the other two -- so the six had
+  // some entry scripts but not others -- so the six had
   // drifted from each other while the registers were correct. Round 11 found it.
   await ensureChromium();
 

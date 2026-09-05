@@ -45,7 +45,7 @@ Press and public-affairs judgment is not here either: whether something is a sto
 
 ## Renamed in this release
 
-Ten tools became subcommands of five, and their old script paths are gone with no shim. A script of your own that named one of these paths breaks and needs the new form:
+Fifteen tools became five, ten fewer, and their old script paths are gone with no shim. A script of your own that named one of these paths breaks and needs the new form:
 
 | Was | Is now |
 |---|---|
