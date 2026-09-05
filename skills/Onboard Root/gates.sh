@@ -1912,7 +1912,19 @@ gate_G14() {
         fi
       fi
     fi
-    if [ -n "$vab" ]; then
+    # On the personal path the owner is the authority on their own voice and
+    # no domain of authority is owed; the basis only has to say more than the
+    # name. The first confirmed personal voice failed here for saying exactly
+    # that in words the domain list does not contain.
+    owner=$(kv "$AGENTS" "root" 2>/dev/null | tr 'A-Z' 'a-z')
+    if [ "$SHORT" = "1" ] && [ -n "$owner" ] && [ "$(printf '%s' "$van" | tr 'A-Z' 'a-z')" = "$owner" ]; then
+      lab=$(printf '%s' "$vab" | tr 'A-Z' 'a-z')
+      if [ -z "$vab" ] || [ "$lab" = "$owner" ]; then
+        add_fail "$(rel "$VOICE"): 'voice-authority-basis' is empty or repeats the name; say that this is the owner's own voice"
+      else
+        add_note "the root's owner is the authority on their own voice; no domain of authority is owed"
+      fi
+    elif [ -n "$vab" ]; then
       lan=$(printf '%s' "$van" | tr 'A-Z' 'a-z')
       lab=$(printf '%s' "$vab" | tr 'A-Z' 'a-z')
       if [ "$lan" = "$lab" ]; then
