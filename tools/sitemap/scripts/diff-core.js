@@ -95,11 +95,11 @@ function loadSnapshot(label, path) {
   } catch {
     // The parser's own message quotes bytes of the file, which is why the
     // message below is ours and says only which file failed to parse.
-    fail(`Error: the ${label} snapshot ${path} is not valid JSON. Pass a snapshot file written by the sitemap-fetch tool.`);
+    fail(`Error: the ${label} snapshot ${path} is not valid JSON. Pass a snapshot file written by the sitemap fetch subcommand.`);
   }
 
   if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.urls)) {
-    fail(`Error: the ${label} snapshot ${path} carries no urls array, so it is not a sitemap snapshot. Pass a snapshot file written by the sitemap-fetch tool.`);
+    fail(`Error: the ${label} snapshot ${path} carries no urls array, so it is not a sitemap snapshot. Pass a snapshot file written by the sitemap fetch subcommand.`);
   }
 
   // Indexed by loc: the comparison is over URLs, so a snapshot that repeats one
