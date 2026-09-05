@@ -14,8 +14,8 @@ This is the one list; a tool's own pages point here rather than restating it.
 
 | What | Where | Which tools |
 |------|-------|-------------|
-| Node packages | `node_modules/` in the tool's directory | the 13 tools whose `package.json` declares a dependency |
-| npm's cache and logs | npm's configured cache, `~/.npm` by default, outside this plugin | the same 13, and the shared browser runtime |
+| Node packages | `node_modules/` in the tool's directory | the 9 tools whose `package.json` declares a dependency |
+| npm's cache and logs | npm's configured cache, `~/.npm` by default, outside this plugin | the same 9, and the shared browser runtime |
 | Python packages | `.venv/` in the tool's directory; pip's cache is switched off | `Transcribe Audio` |
 | Playwright and its Chromium build | once, into `tools/lib/browser-runtime/` and Playwright's cache (`PLAYWRIGHT_BROWSERS_PATH` if set to a path; inside `tools/lib/browser-runtime/node_modules/` if set to `0`; otherwise `~/Library/Caches/ms-playwright` on macOS, `~/.cache/ms-playwright` on Linux, `%LOCALAPPDATA%\ms-playwright` on Windows) | the six browser tools |
 | Compatibility shims, compiled on a Linux host missing an X library | `tools/lib/browser-runtime/node_modules/.wiser-lib`; Linux only, untested there | the six browser tools |
@@ -39,11 +39,7 @@ This is the one list; a tool's own pages point here rather than restating it.
 
 | Tool | Description |
 |------|-------------|
-| `data-aggregate/TOOL.md` | Groups a CSV, JSON, or TSV file's rows by one or more columns and computes sum, mean, median, min, max, or count over named metric columns, one result row per group |
-| `data-chart/TOOL.md` | Builds a self-contained HTML file with an SVG bar or line chart from a CSV, JSON, or TSV file's named x and y columns |
-| `data-describe/TOOL.md` | Computes count, mean, median, min, max, standard deviation, and 25th and 75th percentiles for each numeric column of a CSV, JSON, or TSV file, with the count of values that held no number and the columns it skipped |
-| `data-join/TOOL.md` | Joins two CSV, JSON, or TSV files on a shared key column with an inner or left join, returning the joined rows and match counts as JSON |
-| `data-parse/TOOL.md` | Parses a CSV, JSON, or TSV file into a column profile with each column's detected type, non-null count, and sample values, plus the row count, the count of uneven delimited rows, and any parse errors |
+| `data/TOOL.md` | Parses, describes, aggregates, joins, and charts a CSV, JSON, or TSV file, and computes a percentage, difference, or rate from two numeric fields of a JSON object |
 
 ### Documents
 

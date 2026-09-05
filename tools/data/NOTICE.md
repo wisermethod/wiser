@@ -1,4 +1,4 @@
-# Third-party notice: data-parse
+# Third-party notice: data
 
 This tool installs the single package below on the machine that calls it, into this tool's own directory on the first run that authorises it with `--install`. **This repository redistributes no copy of it.**
 

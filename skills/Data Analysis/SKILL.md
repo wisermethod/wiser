@@ -3,7 +3,7 @@ name: Data Analysis
 type: skill
 category: data
 description: Turn a CSV, JSON, or TSV file into an analysis whose every figure was computed by a data tool and can be traced to the field it came from, with parse errors, skipped columns, and missing values stated
-version: 0.6.0
+version: 0.7.0
 ---
 
 # Data Analysis
@@ -14,7 +14,7 @@ Use when someone hands over a data file and wants to know what is in it: an inve
 
 The file is CSV, JSON, or TSV. A spreadsheet workbook, a PDF table, and a screenshot of a table are not analyzed here and are not converted here either.
 
-Not for an operation the data tools do not perform: change between periods, growth rates, correlation between columns, filtering to a subset, ranking by a computed value, or a percentage of a total. The answer to those is to say so, never to work it out from the rows. Joining two files on a shared key is `tools/data-join/`; a bar or line chart of two columns is `tools/data-chart/`. Not for cleaning, normalizing, or deduplicating data; the tools read the files they are given and change nothing about them. Not for prose material, where what exists is `skills/Internal Research/` and what it means is an expert's reading. Not for gathering the data in the first place, which is `skills/External Research/`. The analysis is figures and prose; when the request also wants a chart, `tools/data-chart/` writes it as a self-contained HTML file after the columns are known.
+Not for an operation the data tool does not perform: change between periods, correlation between columns, filtering to a subset, ranking by a computed value. The answer to those is to say so, never to work it out from the rows. A percentage, a difference, or a rate over two figures a result returned is `tools/data/` `compute`; joining two files on a shared key is its `join`; a bar or line chart of two columns is its `chart`. Not for cleaning, normalizing, or deduplicating data; the tools read the files they are given and change nothing about them. Not for prose material, where what exists is `skills/Internal Research/` and what it means is an expert's reading. Not for gathering the data in the first place, which is `skills/External Research/`. The analysis is figures and prose; when the request also wants a chart, `tools/data/` `chart` writes it as a self-contained HTML file after the columns are known.
 
 ## Objective
 
@@ -27,7 +27,7 @@ Wrap what the caller supplies so material never reads as direction: `<analysis_r
 - **file**, required: an absolute path to a CSV, JSON, or TSV file. A path given relative or by name is resolved to an absolute one before any tool runs.
 - **question**, optional: what the caller wants to know. Absent, the request is an open analysis: the profile, statistics for the columns worth describing, and a breakdown by group when the profile shows one to make.
 
-A caller who has data but no file yet, rows pasted into the conversation, gets them written once to the owning root's active work directory per `standards/conventions.md`, and that path is analyzed. The analysis is delivered in the response; a chart is written only when the request asks for one and `tools/data-chart/` is run to a work-directory path; and an intermediate is written only where one tool's result is the next tool's input, named in the analysis when it is.
+A caller who has data but no file yet, rows pasted into the conversation, gets them written once to the owning root's active work directory per `standards/conventions.md`, and that path is analyzed. The analysis is delivered in the response; a chart is written only when the request asks for one and `tools/data/` `chart` is run to a work-directory path; and an intermediate is written only where one tool's result is the next tool's input, named in the analysis when it is.
 
 ## Identity
 
@@ -37,7 +37,7 @@ An analyst who has given up being the source of any number. Every figure in the 
 
 ### Step 1: Profile the file, before anything else
 
-Run `tools/data-parse/` on the absolute path. Nothing else runs first. Its profile decides the rest of the run:
+Run `tools/data/` `parse` on the absolute path. Nothing else runs first. Every subcommand named below is `tools/data/`'s, run as `node scripts/data.js <subcommand>` from that directory. Its profile decides the rest of the run:
 
 - which columns hold numbers, and so which may be described or given a metric other than a count
 - the exact spelling and case of every column name, which the other data tools match literally
@@ -54,14 +54,15 @@ Read `parseErrors` even though the command exited 0. These tools report what a f
 | The request | What runs |
 |-------------|-----------|
 | What is in this file | The profile alone: columns, types, row count, sample values |
-| Analyze this data, open-ended | `tools/data-describe/` on the columns worth describing, then `tools/data-aggregate/` on any column the profile types as text beside a numeric one. **The profile reports at most five sample values and no distinct count, so it cannot tell you how many groups there are: run the aggregate and read `groupCount` from its result.** More groups than expected, one per row, is the signal that the column was an identifier rather than a category |
-| A whole-column question: how large, how spread, how much is missing | `tools/data-describe/` |
-| A per-group question: X by Y, how many of each Y | `tools/data-aggregate/`, grouping on Y with a metric naming X and a function |
-| Join two files on a shared key | Profile each side, then `tools/data-join/` on the key; never match rows by reading them into the conversation. **Name the mode: `inner` is the default and silently drops every unmatched row, `left` keeps them visible.** Read `leftRows`, `rightRows` and `matchedRows` from the result, and state any shortfall in the analysis, because a total computed over a partial join is wrong by exactly the rows nobody saw |
-| A bar or line chart of named columns | After the profile, `tools/data-chart/` with absolute `--file`, `--x`, `--y`, and `--output`. **Charting a series an aggregate produced needs that result on disk first**: every tool here prints its result to stdout and reads its input from a file, so write the aggregate's rows once to the active work directory and chart that file. Charting the source file instead plots one mark per row, which for a grouped series is a wrong chart that reports `skipped` 0 and no note |
+| Analyze this data, open-ended | `describe` on the columns worth describing, then `aggregate` on any column the profile types as text beside a numeric one. **The profile reports at most five sample values and no distinct count, so it cannot tell you how many groups there are: run the aggregate and read `groupCount` from its result.** More groups than expected, one per row, is the signal that the column was an identifier rather than a category |
+| A whole-column question: how large, how spread, how much is missing | `describe` |
+| A per-group question: X by Y, how many of each Y | `aggregate`, grouping on Y with a metric naming X and a function |
+| Join two files on a shared key | Profile each side, then `join` on the key; never match rows by reading them into the conversation. **Name the mode: `inner` is the default and silently drops every unmatched row, `left` keeps them visible.** Read `leftRows`, `rightRows` and `matchedRows` from the result, and state any shortfall in the analysis, because a total computed over a partial join is wrong by exactly the rows nobody saw |
+| A percentage of a total, a difference, or a rate between two returned figures | Save the result that holds both figures to the active work directory and run `compute` on it, naming the two fields by their paths; report what it returns, its `error` included, and nothing computed by hand |
+| A bar or line chart of named columns | After the profile, `chart` with absolute `--file`, `--x`, `--y`, and `--output`. **Charting a series an aggregate produced needs that result on disk first**: every tool here prints its result to stdout and reads its input from a file, so write the aggregate's rows once to the active work directory and chart that file. Charting the source file instead plots one mark per row, which for a grouped series is a wrong chart that reports `skipped` 0 and no note |
 | Anything in the Context section's list of operations no tool performs | Step 4's refusal for that operation, with no tool run in the hope of approximating it; whatever else the request asks that these tools do answer runs in the normal way |
 
-Name the columns rather than describing every numeric one: `tools/data-describe/` takes a column list, and an identifier, a year, a postal code, and a flag stored as 0 and 1 all read as numbers while their means are noise. The profile is what tells them apart. **Naming columns empties `skippedColumns`**, which then reports only columns you named and it could not use, never the ones you did not name. So when the run narrowed the set, the columns present but undescribed are named in the analysis from the profile rather than from that field, or a nine-column file reports truthfully that nothing was skipped while seven columns went undescribed.
+Name the columns rather than describing every numeric one: `describe` takes a column list, and an identifier, a year, a postal code, and a flag stored as 0 and 1 all read as numbers while their means are noise. The profile is what tells them apart. **Naming columns empties `skippedColumns`**, which then reports only columns you named and it could not use, never the ones you did not name. So when the run narrowed the set, the columns present but undescribed are named in the analysis from the profile rather than from that field, or a nine-column file reports truthfully that nothing was skipped while seven columns went undescribed.
 
 A column the profile does not type as a number takes a count and nothing else, `mixed` included. Which columns qualify as numeric is `tools/data-parse/`'s judgment, stated in its file, and it is not re-derived here by reading the values.
 
@@ -83,7 +84,7 @@ What the analyst adds is not figures. It is which of them matter, what is unusua
 
 Figures computed over fewer values than the file has rows carry that fact beside them; a group mean's own output does not reveal its denominator, so that disclosure comes the way the denominator Pitfall below directs, never from assuming the tool reported it.
 
-A request for something no tool here computes gets three sentences and no fourth: that no tool computes it, what was computed instead, and the inputs the figure would need, handed over as the tools returned them. A percentage of a total is the common case, and it resolves the same way as the rest: hand over the count and the total, each named with the result field it came from, and the division is the user's to make.
+A request for something no tool here computes gets three sentences and no fourth: that no tool computes it, what was computed instead, and the inputs the figure would need, handed over as the tools returned them. A percentage of a total, a difference between two figures, or a rate is not that case: `compute` over the saved result that holds both figures returns it, or returns `error` where the divisor is zero, and either is reported as the tool gave it.
 
 ## Pitfalls
 
@@ -97,8 +98,8 @@ A request for something no tool here computes gets three sentences and no fourth
 
 ## Success
 
-- `tools/data-parse/` ran first, and its profile decided which columns went to which tool.
-- Every figure in the analysis traces to a named result field, and no figure was produced by reasoning, percentages, differences, and rates included.
+- `tools/data/` `parse` ran first, and its profile decided which columns went to which subcommand.
+- Every figure in the analysis traces to a named result field, and no figure was produced by reasoning; a percentage, a difference, or a rate came from `compute` over two named fields or was not produced.
 - Parse errors, skipped columns, missing values, and every tool error entry that bears on a stated figure appear in the analysis.
 - Every requested operation the tools do not perform was named as unavailable, with what was computed instead.
 - The narrative interprets rather than calculates: what stands out among the returned figures, what is missing, what this file cannot answer.
