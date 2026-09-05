@@ -1,6 +1,6 @@
 # Tools
 
-Deterministic operations that skills and experts call; `standards/primitives.md` owns the type's definition, invocation rules, and frontmatter. The directory is flat, and the index below is grouped by category. What a script does when you run it, consent included, is `tools/RUNNING.md`; the contract its author followed is `standards/script-contract.md`.
+Deterministic operations that skills and experts call; `standards/primitives.md` owns the type. The index below is grouped by category. What a script does when you run it is `tools/RUNNING.md`; the contract its author followed is `standards/script-contract.md`.
 
 ## Installing
 
