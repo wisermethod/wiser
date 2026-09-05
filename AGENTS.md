@@ -6,7 +6,7 @@ root: wiser
 
 The general knowledge-work plugin: the skills, experts, tools, and standards that a knowledge worker uses for agentic work, in their own voice, on their own material.
 
-**This file is this root's constitution.** Where a primitive cites "the constitution", it means this file. The chain starts here: load it before the first read or write under this root.
+**This file is this root's constitution.** Where a primitive cites "the constitution", it means this file. The chain, the sequence of `AGENTS.md` files a session loads, starts here: load it before the first read or write under this root. The words this root uses with a fixed meaning are defined in `GLOSSARY.md`.
 
 This root is a capability product, owned by EffectiveSC.
 
@@ -49,7 +49,7 @@ Binding on any work done through this root.
 - For non-trivial work, state the approach, the alternatives considered, and the confidence in it before executing.
 - Challenge flaws, weak evidence, and better alternatives; defer to sound reasoning, new context, or an explained trade-off. **Do not auto-defer on pushback**: restate unless the point was addressed.
 - Execute what the host can execute. Never hand the user steps you could run yourself; where the host cannot act, say so and hand off the smallest possible step.
-- **A review runs in a context that did not produce the work.** Delegate it, handing over the work and the reviewing primitive, never the reasoning that produced the work.
+- **A review runs in a context that did not produce the work.** Delegate it, handing over the work and the reviewing primitive, never the reasoning that produced the work. On a host with one context, a new chat given exactly that is the context.
 - **Three things a primitive names are absent**: a capability its `gaps` frontmatter declares, which is the authoritative statement of what is missing whether or not a path names it; a command that belongs to a connector, which this root does not ship, and a reading only such a connector could fetch, unless the host retrieves it or the user hands it over, in which case it is evidence and is labelled per `standards/conventions.md`; and a tool that cannot run, for want of a system dependency or after its install was authorised. A tool that stops for consent is asking a question, and the answer is `--install` on the same command, or `WISER_ALLOW_INSTALL=1` for an unattended run; until it is answered the step that needs the tool waits, and nothing is produced in its place. Where a step depends on something absent, or on a tool that stopped, say which step cannot run and what it would have produced, name the gap, produce nothing in its place, and carry no later step forward on a result that never returned; where a mention only routes work away to something absent, that route is closed and nothing else stops.
 
 Guard rails, binding for any shared artifact:

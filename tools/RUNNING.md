@@ -1,0 +1,12 @@
+# Running a tool
+
+What every script in `tools/` does when you run it. The rules behind this page are `standards/script-contract.md`.
+
+- **Help needs nothing installed.** `node scripts/<name>.js help` answers on a fresh copy, before any package or configuration is looked for.
+- **An unknown flag is refused by name**, before any work or any network request, and the refusal points at `help`. A mistyped option never looks like it applied.
+- **The first real run asks before it installs.** A tool that needs packages reports what it would fetch, from where, into which directory, and how large it is, then stops with exit 1. That report is the question. Re-run the same command with `--install` and it installs and finishes the work in one run; set `WISER_ALLOW_INSTALL=1` for an unattended run. `tools/AGENTS.md` lists every write an install makes and every host it reaches.
+- **A system dependency is named, not installed.** A tool that needs something beyond Node, such as ffmpeg or a Python interpreter, names it in its `TOOL.md` with the one command that proves it present, and a missing one fails by naming it. No tool carries install steps for your machine.
+- **Credentials arrive as a file path.** A command that needs configuration takes `--env <absolute path>`; the tool reads that file and never searches for one, and its values never reach the output or a log. No tool in this release needs one.
+- **Success is one JSON object on stdout and exit 0.** Failure prints to stderr, leaves stdout empty, and exits 1, naming the cause and the fix. A `check` command exits 0 either way and puts its verdict in the JSON, so read the field, not the exit code.
+- **Files land only where you point.** A tool writes its deliverable to the path you pass and nothing inside its own directory beyond its packages; a path inside the tool directory, or one that resolves onto a credential file, is refused.
+- **A tool that cannot run says so itself**, rather than returning something wrong. What the primitive that called it does next is the constitution's rule.

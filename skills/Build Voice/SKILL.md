@@ -2,7 +2,7 @@
 name: Build Voice
 type: skill
 category: onboarding
-description: Build or rebuild one owned root's voice.md from real writing evidence, routed to the register that root's own outputs need
+description: Build or rebuild one user root's voice.md from real writing evidence, routed to the voice register that root's own outputs need
 version: 0.6.0
 memory:
   - voice
@@ -12,7 +12,7 @@ memory:
 
 ## Context
 
-Use to create or rebuild the `memory/voice.md` of one owned root, the file that root's Provides block binds as `voice`. This skill is the only author of that file: Onboard Root delegates the voice key here and never writes it itself. Not for writing content in a voice; that is Content Author, which reads this file rather than builds it. Not for what is true about a person, an organization, or a client; those facts are `memory/about.md`. Never for this plugin root. This tree holds capability; owned roots hold the work.
+Use to create or rebuild the `memory/voice.md` of one user root, the file that root's Provides block binds as `voice`. This skill is the only author of that file: Onboard Root delegates the voice key here and never writes it itself. Not for writing content in a voice; that is Content Author, which reads this file rather than builds it. Not for what is true about a person, an organization, or a client; those facts are `memory/about.md`. Never for this plugin root. This tree holds capability; user roots hold the work.
 
 ## Objective
 

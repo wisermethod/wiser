@@ -2,7 +2,7 @@
 name: Onboard Root
 type: skill
 category: onboarding
-description: Create an owned root from its matching template and onboard it with verified memory, an operating surface, and a per-key close
+description: Create an user root from its matching template and onboard it with verified memory, an operating surface, and a per-key close
 version: 0.35.0
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
@@ -12,13 +12,13 @@ gaps:
 
 ## Context
 
-Use when the workspace needs an owned root it does not have, of one of the five types `system/templates/AGENTS.md` lists.
+Use when the workspace needs an user root it does not have, of one of the five types `system/templates/AGENTS.md` lists.
 
 Not for updating a deployed root of this plugin to a new release, which this root carries no procedure for. Not for authoring a primitive or a Play inside a root that already exists; that is `skills/Play Author/`, which carries its own format; the templates this root ships are root templates only. Not for writing `memory/voice.md`; that is `skills/Build Voice/`, which this skill hands off to and never absorbs. Not for giving work a second home: when a composed root's scope already fits the request, that root owns it. Not for re-onboarding a root that already exists: no merge or invalidation semantics are defined, so report the state and ask before touching a bound file.
 
 ## Objective
 
-An owned root of the right type stands at its real name beside the workspace's other roots, with every load-bearing claim in a bound file read back against the source it cites, and every constraint in the source material shown to have reached a bound file or an owned item in the operating file. Each memory key closes on the record as complete, provisional, or blocked. The template's Instantiation section is removed only for the keys that closed complete, and retained naming each key that did not. The Gates section states exactly what is verified; a key that cannot pass it is reported provisional or blocked, never closed.
+An user root of the right type stands at its real name beside the workspace's other roots, with every load-bearing claim in a bound file read back against the source it cites, and every constraint in the source material shown to have reached a bound file or an owned item in the operating file. Each memory key closes on the record as complete, provisional, or blocked. The template's Instantiation section is removed only for the keys that closed complete, and retained naming each key that did not. The Gates section states exactly what is verified; a key that cannot pass it is reported provisional or blocked, never closed.
 
 ## Identity
 
@@ -133,7 +133,7 @@ Exit: G1.
 
 **Copy the template.** Each root template carries its own Instantiation section, and it is the authority on the sequence: read it in the copy and work its steps in order. This skill supplies what those steps need and never restates them.
 
-- Place the new root beside the other owned roots, never inside this plugin root. This tree holds capability; owned roots hold the work.
+- Place the new root beside the other user roots, never inside this plugin root. This tree holds capability; user roots hold the work.
 - Copy the whole template directory, hidden files included, so the declared empty directories survive, then confirm the copy holds the same file names as the source.
 - A copy is not established because the tool that performed it reported success, or because reading it back through that same tool confirms it. Where this host offers more than one way to reach the destination, a second tool, a separate process, a distinct session, confirm the copy is visible through one of those before continuing. Where only one way exists, this is already satisfied and the close report says so. Where two ways disagree, the path the workspace's own declaration names is ground truth, and the root is not treated as copied until the mismatch is resolved.
 - The template's Instantiation step for filling memory is not finished until Phase 9 clears it. Leave the section in place until then.

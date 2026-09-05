@@ -20,7 +20,18 @@ Install the plugin, then attach a **working folder**: the root the work is about
 
 The plugin is **read-only in use, with one exception**. Everything it produces lands in the working folder you attached, in the directories that folder declares. **The exception is what a tool installs for itself.** A tool that needs packages installs them into its own directory on the first run that authorises it with `--install`, and a browser tool also downloads a Chromium build, which lands outside this plugin unless `PLAYWRIGHT_BROWSERS_PATH=0` puts it inside. So the plugin directory has to be writable, and a tool that carries dependencies cannot work from a read-only install. **`tools/AGENTS.md` has the full list**: what gets written, the exact path on each platform, and which of the twenty-three tools it applies to.
 
-`AGENTS.md` is the constitution and the place to start reading. `skills/AGENTS.md`, `experts/AGENTS.md` and `tools/AGENTS.md` index what is available.
+`AGENTS.md` is the constitution and the place to start reading; `GLOSSARY.md` defines the words it uses. `skills/AGENTS.md`, `experts/AGENTS.md` and `tools/AGENTS.md` index what is available.
+
+## What each host gives up
+
+The writing skills and the judging experts run on any model that can read the files. The tools need a host that runs commands. Two of the constitution's rules need something a host may not have, and this is what each host does about it.
+
+- **Claude Code.** Everything runs as written: `CLAUDE.md` points at `AGENTS.md`, a command approval covers a tool's consent, and a subagent is the second context the review rule needs. One cost: a plugin cache that keeps each version in its own directory throws away every tool's packages on an update, and the next run installs them again.
+- **Cursor.** Reads `AGENTS.md` at each workspace root. It runs one agent per chat, so a review runs in a new chat given the draft and the reviewing expert, and you carry it across by hand. Cursor already asks before a terminal command, so `--install` is a second approval for the same action.
+- **Codex.** Reads `AGENTS.md` from the working directory upward and works in one directory tree, so put this plugin inside your working folder, or the working folder inside a directory that also holds the plugin, so both files are on the path. Its sandbox has network off by default, and an install stops until you turn it on. A review is a second `codex` session.
+- **A chat model with no filesystem.** Paste `AGENTS.md`, the skill, its type file, the reviewing expert, `standards/conventions.md` and your own `voice.md`. Writing works; every tool step is an honest stop, and Data Analysis in particular refuses to read rows by eye, so a pasted spreadsheet gets a correct refusal.
+
+**The review rule on one context.** The constitution says a review runs in a context that did not produce the work. Where the host has one context, a new chat that receives the work and the reviewing primitive, and nothing of the reasoning that produced the work, is that context.
 
 ## What it does not do yet
 
