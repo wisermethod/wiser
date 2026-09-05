@@ -3,7 +3,7 @@ name: SEO Assets
 type: skill
 category: seo
 description: Produce the ready-to-use artifacts a site's decided search changes need, each built from evidence pulled for it, held to its own standards, and handed over for someone else to deploy
-version: 0.6.0
+version: 0.7.0
 memory:
   - voice
   - about
@@ -64,7 +64,7 @@ The constraints under each, where losing one costs something on a live site:
 
 **Content brief.** Settle the intent before writing the brief; one written over an ambiguous query produces a page that satisfies neither reading. Format and length are calibrated from the pages actually ranking for the query, never from a word-count rule; where no source in Evidence returns them, that reading is taken by hand and carries `Estimated: manual review`. Separate what every ranking page covers from what none of them does, since the second is the only reason the new page wins.
 
-**Competitive documents.** The change list between two snapshots is computed by `tools/sitemap-diff/` and never read off sitemap markup by eye, at any size: where the tool is present it is always used, and where it is absent the change list is not produced by eye instead: say the comparison cannot run and what it would have shown. A change list that arrives already made, from a source that had no such tool, is evidence rather than production and carries `Estimated: manual review`. Gaps are classified and reported; which to pursue, and in what order, arrives as a finding. A roadmap schedules an order it was given and never creates one.
+**Competitive documents.** The change list between two snapshots is computed by `tools/sitemap/` `diff` and never read off sitemap markup by eye, at any size: where the tool is present it is always used, and where it is absent the change list is not produced by eye instead: say the comparison cannot run and what it would have shown. A change list that arrives already made, from a source that had no such tool, is evidence rather than production and carries `Estimated: manual review`. Gaps are classified and reported; which to pursue, and in what order, arrives as a finding. A roadmap schedules an order it was given and never creates one.
 
 **Status snapshot.** Every reading carries its date and its source. No recommendation belongs in it: what a movement means is a finding, and a snapshot that starts advising is a judgment nobody reviewed.
 
@@ -80,7 +80,7 @@ The constraints under each, where losing one costs something on a live site:
 | Which queries sit close, which moved, which pages compete for one query | `tools/seo-keywords/` |
 | Search and traffic as one dataset for a period | `tools/seo-audit/` |
 | One page's head, headings, links, directives, and markup | `tools/seo-page-analyzer/` |
-| What a site publishes, and what changed since last time | `tools/sitemap-fetch/`, then `tools/sitemap-diff/` |
+| What a site publishes, and what changed since last time | `tools/sitemap/` `fetch`, then `tools/sitemap/` `diff` |
 | A page that builds itself in the browser, or sits behind a sign-in | `tools/Browser Control/` |
 
 What each hand-off needs to be right:

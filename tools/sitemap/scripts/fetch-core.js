@@ -1,17 +1,10 @@
-#!/usr/bin/env node
 /**
- * sitemap-fetch - a deterministic snapshot of the URLs a site publishes in its sitemaps
+ * sitemap fetch - a deterministic snapshot of the URLs a site publishes in its sitemaps
  *
- * Usage:
- *   node scripts/sitemap-fetch.js help
- *   node scripts/sitemap-fetch.js fetch --domain <host> [--max n] [--date YYYY-MM-DD] [--output <dir>]
- *   node scripts/sitemap-fetch.js fetch --url <sitemap url> [--url ...] [--max n] [--date YYYY-MM-DD] [--output <dir>]
- *   node scripts/sitemap-fetch.js fetch --file <path> [--file ...] [--max n] [--date YYYY-MM-DD] [--output <dir>]
- *
- * One package, undici, installed with npm ci on the run that authorises it with
- * --install, into this tool's own
- * directory. No configuration file and no credentials.
- * The rules every shipped script follows are stated once, in
+ * Invoked by scripts/sitemap.js after help is answered. One package, undici,
+ * installed with npm ci on the run that authorises it with --install, into this
+ * tool's own directory. No configuration file and no credentials. The rules
+ * every shipped script follows are stated once, in
  * system/templates/Script Contract.md.
  */
 
@@ -51,40 +44,6 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const SINGLETON_FLAGS = new Map([
   ['--domain', 'domain'], ['--max', 'max'], ['--date', 'date'], ['--output', 'output']
 ]);
-const COMMANDS = new Set(['fetch']);
-
-const USAGE = `sitemap-fetch - a deterministic snapshot of the URLs a site publishes in its sitemaps
-
-Usage:
-  node scripts/sitemap-fetch.js help
-  node scripts/sitemap-fetch.js fetch --domain <host> [options]
-  node scripts/sitemap-fetch.js fetch --url <sitemap url> [--url ...] [options]
-  node scripts/sitemap-fetch.js fetch --file <path> [--file ...] [options]
-
-Commands:
-  fetch            Collect the site's sitemaps into one snapshot object
-  help             Print this message
-
-Options:
-  --domain <host>  Discover sitemaps from the host's robots.txt, then from
-                   /sitemap.xml and /sitemap_index.xml
-  --url <url>      An http or https sitemap or sitemap-index URL. Repeatable.
-                   Given, it replaces discovery
-  --file <path>    A local sitemap or sitemap-index XML file, absolute path.
-                   Repeatable. Offline mode: no network. Mutually exclusive
-                   with --domain and --url
-  --max <n>        Stop after this many URLs and set "truncated" (default ${DEFAULT_MAX_URLS})
-  --date <date>    YYYY-MM-DD stamped as "fetchedAt" (default: today)
-  --output <dir>   Also write the snapshot to a file in this directory, an
-                   absolute path that must sit outside this tool directory
-  --install Authorise the first-run install. Without it a tool that is
-          not installed yet reports what it would fetch, and from
-          where, and stops. WISER_ALLOW_INSTALL=1 does the same
-          for an unattended run.
-  --help           Print this message
-
-Success prints one JSON object to stdout. Errors go to stderr with exit 1.`;
-
 function fail(message) {
   process.stderr.write(`${message}\n`);
   process.exit(1);
@@ -161,19 +120,6 @@ function descendsFrom(candidate, directory) {
     if (parent === head) return false;
     head = parent;
   }
-}
-
-// Arguments. Parsed first so help costs nothing.
-const argv = process.argv.slice(2);
-const command = argv[0] ?? 'help';
-
-if (command === 'help' || argv.includes('--help') || argv.includes('-h')) {
-  process.stdout.write(`${USAGE}\n`);
-  process.exit(0);
-}
-
-if (!COMMANDS.has(command)) {
-  fail(`Error: unknown command "${command}". Run "node scripts/sitemap-fetch.js help" for usage.`);
 }
 
 // After help: install undici when needed and honor HTTPS_PROXY for Node fetch.
@@ -256,14 +202,6 @@ function requireInstallConsent(what) {
   );
 }
 
-// Arguments are parsed here, ABOVE the install. The Script Contract requires an
-// option this script does not name to be refused "before any work, any
-// dependency install, and any network request", and round 5 found this script
-// installing first and refusing after -- which is also what made a misplaced
-// --install cost a full npm fetch before the parser ever saw it. parseArgs is a
-// function declaration and imports nothing, so it runs before the packages do.
-const parsedArgs = parseArgs(argv.slice(1));
-
 // The REQUIRED arguments, checked here too, above the install, for the same
 // reason the unknown-flag refusal is. The Script Contract's clause is "before
 // any work, any dependency install, and any network request", and round 7 found
@@ -283,10 +221,10 @@ function seedMode(args) {
   const offline = args.files.length > 0;
   const network = args.domain !== null || args.urls.length > 0;
   if (offline && network) {
-    return { problem: 'Error: fetch takes either network seeds (--domain / --url) or offline seeds (--file), not both. Run "node scripts/sitemap-fetch.js help" for usage.' };
+    return { problem: 'Error: fetch takes either network seeds (--domain / --url) or offline seeds (--file), not both. Run "node scripts/sitemap.js fetch help" for usage.' };
   }
   if (!offline && !network) {
-    return { problem: 'Error: fetch needs --domain <host>, at least one --url <sitemap url>, or at least one --file <path>. Run "node scripts/sitemap-fetch.js help" for usage.' };
+    return { problem: 'Error: fetch needs --domain <host>, at least one --url <sitemap url>, or at least one --file <path>. Run "node scripts/sitemap.js fetch help" for usage.' };
   }
   return { offline };
 }
@@ -333,14 +271,26 @@ function valueProblem(args) {
   }
   return null;
 }
-{
-  const seeds = seedMode(parsedArgs);
-  if (seeds.problem) fail(seeds.problem);
-  const bad = valueProblem(parsedArgs);
-  if (bad) fail(bad);
-}
 
-if (!existsSync(UNDICI_MARKER)) {
+// Arguments are parsed here, ABOVE the install. The Script Contract requires an
+// option this script does not name to be refused "before any work, any
+// dependency install, and any network request", and round 5 found this script
+// installing first and refusing after -- which is also what made a misplaced
+// --install cost a full npm fetch before the parser ever saw it. parseArgs is a
+// function declaration and imports nothing, so it runs before the packages do.
+let parsedArgs;
+
+export async function runFetch(argv) {
+  parsedArgs = parseArgs(argv.slice(1));
+
+  {
+    const seeds = seedMode(parsedArgs);
+    if (seeds.problem) fail(seeds.problem);
+    const bad = valueProblem(parsedArgs);
+    if (bad) fail(bad);
+  }
+
+  if (!existsSync(UNDICI_MARKER)) {
   requireInstallConsent('packages');
   process.stderr.write('First run: installing dependencies in this tool directory.\n');
   try {
@@ -358,20 +308,26 @@ if (!existsSync(UNDICI_MARKER)) {
     }
     fail(`Error: npm ci failed in ${TOOL_DIR}. Confirm Node 18 or newer, then that package-lock.json is present and matches package.json, which is what npm ci requires. A lockfile missing or out of step with the manifest is a defect in this copy of the plugin, not something a re-run fixes.`);
   }
-}
-{
-  const server =
-    process.env.HTTPS_PROXY ||
-    process.env.https_proxy ||
-    process.env.HTTP_PROXY ||
-    process.env.http_proxy ||
-    '';
-  if (typeof server === 'string' && server.trim() !== '') {
-    const undici = await import('undici');
-    if (typeof undici.setGlobalDispatcher === 'function' && undici.ProxyAgent) {
-      undici.setGlobalDispatcher(new undici.ProxyAgent(server.trim()));
+  }
+  {
+    const server =
+      process.env.HTTPS_PROXY ||
+      process.env.https_proxy ||
+      process.env.HTTP_PROXY ||
+      process.env.http_proxy ||
+      '';
+    if (typeof server === 'string' && server.trim() !== '') {
+      const undici = await import('undici');
+      if (typeof undici.setGlobalDispatcher === 'function' && undici.ProxyAgent) {
+        undici.setGlobalDispatcher(new undici.ProxyAgent(server.trim()));
+      }
     }
   }
+
+  // No swallowed failure: a snapshot on stdout means the walk ran.
+  await main().catch((error) => {
+    fail(`Error: fetch failed: ${error.message}`);
+  });
 }
 
 function parseArgs(rest) {
@@ -383,7 +339,7 @@ function parseArgs(rest) {
     const value = rest[index + 1];
 
     if (!flag.startsWith('--')) {
-      fail(`Error: unexpected argument "${flag}". Run "node scripts/sitemap-fetch.js help" for usage.`);
+      fail(`Error: unexpected argument "${flag}". Run "node scripts/sitemap.js fetch help" for usage.`);
     }
 
     if (
@@ -395,7 +351,7 @@ function parseArgs(rest) {
       flag !== '--output' &&
       flag !== '--install'
     ) {
-      fail(`Error: unknown option "${flag}". Run "node scripts/sitemap-fetch.js help" for usage.`);
+      fail(`Error: unknown option "${flag}". Run "node scripts/sitemap.js fetch help" for usage.`);
     }
 
     // `--install` is a bare flag: the entry script reads it from raw process.argv
@@ -410,7 +366,7 @@ function parseArgs(rest) {
     }
 
     if (value === undefined || value.startsWith('--')) {
-      fail(`Error: ${flag} needs a value. Run "node scripts/sitemap-fetch.js help" for usage.`);
+      fail(`Error: ${flag} needs a value. Run "node scripts/sitemap.js fetch help" for usage.`);
     }
 
     // SINGLETON FLAGS ARE REFUSED WHEN REPEATED, not silently last-won. Round 9,
@@ -423,7 +379,7 @@ function parseArgs(rest) {
     else if (SINGLETON_FLAGS.has(flag)) {
       const key = SINGLETON_FLAGS.get(flag);
       if (seenSingletons.has(flag)) {
-        fail(`Error: ${flag} was given more than once. It takes a single value; passing two silently discards one. Run "node scripts/sitemap-fetch.js help" for usage.`);
+        fail(`Error: ${flag} was given more than once. It takes a single value; passing two silently discards one. Run "node scripts/sitemap.js fetch help" for usage.`);
       }
       seenSingletons.add(flag);
       args[key] = value;
@@ -1073,8 +1029,3 @@ async function main() {
 
   process.stdout.write(`${JSON.stringify(snapshot)}\n`);
 }
-
-// No swallowed failure: a snapshot on stdout means the walk ran.
-main().catch((error) => {
-  fail(`Error: fetch failed: ${error.message}`);
-});

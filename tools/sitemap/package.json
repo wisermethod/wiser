@@ -1,0 +1,17 @@
+{
+  "name": "sitemap",
+  "version": "0.1.1",
+  "description": "Collects the URLs a site publishes in its sitemaps into one deterministic snapshot, and compares two snapshots of one site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node scripts/sitemap.js help",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "undici": "^6.21.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

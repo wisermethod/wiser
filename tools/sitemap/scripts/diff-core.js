@@ -1,14 +1,10 @@
-#!/usr/bin/env node
 /**
- * sitemap-diff - what changed between two sitemap snapshots of one site
+ * sitemap diff - what changed between two sitemap snapshots of one site
  *
- * Usage:
- *   node scripts/sitemap-diff.js help
- *   node scripts/sitemap-diff.js diff --previous <path> --current <path> [--output <path>] [--pretty]
- *
- * Node built-ins only: no package import, no configuration file, no credential,
- * and no network call. The rules every shipped script follows are stated once,
- * in system/templates/Script Contract.md.
+ * Invoked by scripts/sitemap.js after help is answered. Node built-ins only:
+ * no package import, no configuration file, no credential, and no network call.
+ * The rules every shipped script follows are stated once, in
+ * system/templates/Script Contract.md.
  */
 
 import { existsSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
@@ -18,51 +14,12 @@ import { fileURLToPath } from 'node:url';
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const TOOL_DIR = resolve(SCRIPT_DIR, '..');
 
-const COMMANDS = new Set(['diff']);
-
-const USAGE = `sitemap-diff - what changed between two sitemap snapshots of one site
-
-Usage:
-  node scripts/sitemap-diff.js help
-  node scripts/sitemap-diff.js diff --previous <path> --current <path> [--output <path>] [--pretty]
-
-Commands:
-  diff              Compare two snapshots and report added URLs, removed URLs,
-                    lastmod changes, and path segments that are new
-  help              Print this message
-
-Options:
-  --previous <path> The earlier snapshot, an absolute path. Required
-  --current <path>  The later snapshot, an absolute path. Required
-  --output <path>   Also write the result to this file, an absolute path
-                    outside this tool directory
-  --pretty          Indent the JSON
-  --help, -h        Print this message
-
-Each snapshot is a JSON object carrying a urls array whose entries each have a
-loc string, and optionally lastmod and segment. Reads the two files named and
-nothing else: no network call, no credential, no configuration file.
-
-Success prints one JSON object to stdout. Errors go to stderr with exit 1.`;
-
 function fail(message) {
   process.stderr.write(`${message}\n`);
   process.exit(1);
 }
 
-// Arguments. Parsed first so help costs nothing: no file is opened to answer it.
-const argv = process.argv.slice(2);
-const command = argv[0] ?? 'help';
-
-if (command === 'help' || argv.includes('--help') || argv.includes('-h')) {
-  process.stdout.write(`${USAGE}\n`);
-  process.exit(0);
-}
-
-if (!COMMANDS.has(command)) {
-  fail(`Error: unknown command "${command}". Run "node scripts/sitemap-diff.js help" for usage.`);
-}
-
+export function runDiff(argv) {
 const VALUE_FLAGS = new Set(['--previous', '--current', '--output']);
 const BARE_FLAGS = new Set(['--pretty', '--help', '-h']);
 
@@ -79,7 +36,7 @@ for (let index = 1; index < argv.length; index += 1) {
   const option = argv[index];
   if (valuePositions.has(index)) continue;
   if (option.startsWith('-') && !VALUE_FLAGS.has(option) && !BARE_FLAGS.has(option)) {
-    fail(`Error: unknown option "${option}". Run "node scripts/sitemap-diff.js help" for usage.`);
+    fail(`Error: unknown option "${option}". Run "node scripts/sitemap.js diff help" for usage.`);
   }
 }
 
@@ -97,10 +54,10 @@ function flag(name) {
   // already refused. This is the same refusal, in the tools the fix missed.
   // Flags that are documented as repeatable are read somewhere other than here.
   if (argv.indexOf(name, index + 1) !== -1) {
-    fail(`Error: ${name} was given more than once and takes one value. Run "node scripts/sitemap-diff.js help" for usage.`);
+    fail(`Error: ${name} was given more than once and takes one value. Run "node scripts/sitemap.js diff help" for usage.`);
   }
   if (value === undefined || value.startsWith('--')) {
-    fail(`Error: ${name} needs a value. Run "node scripts/sitemap-diff.js help" for usage.`);
+    fail(`Error: ${name} needs a value. Run "node scripts/sitemap.js diff help" for usage.`);
   }
   return value;
 }
@@ -398,4 +355,5 @@ try {
 } catch (error) {
   // This message is ours; every read and write path reports its own cause above.
   fail(`Error: the diff failed unexpectedly: ${error && error.message ? error.message : 'no detail available'}`);
+}
 }
