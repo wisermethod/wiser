@@ -1,4 +1,4 @@
-# web-screenshot Setup
+# render Setup
 
 Once per machine. Skip it if packages are installed and the Chromium check named in TOOL.md Dependencies already passes.
 
@@ -16,12 +16,12 @@ node --version
 
 ## 2. Packages
 
-Nothing to run by hand. The first non-help command reports what it would install and stops; `--install` on the same command authorises it and that run does the work. This tool holds no credentials.
+Nothing to run by hand. The first non-help command that needs a package reports what it would install and stops; `--install` on the same command authorises it and that run does the work. Only `mermaid` installs `mermaid` into this tool's directory. Playwright for every subcommand that launches a browser installs into `tools/lib/browser-runtime/`. This tool holds no credentials.
 
 ## 3. Chromium
 
 ```bash
-node scripts/capture.js check
+node scripts/render.js check
 ```
 
 Expect `"chromiumLaunch":true`. Presence is a trial launch via the shared browser-runtime; missing OS libraries are self-healed where a C compiler is present. On failure, follow the `remediation` line, never a hard-coded install recipe here.
@@ -31,7 +31,7 @@ Expect `"chromiumLaunch":true`. Presence is a trial launch via the shared browse
 ## 4. Verify
 
 ```bash
-node scripts/capture.js help
+node scripts/render.js help
 ```
 
 Usage text, then a short successful command from TOOL.md Success when you want a full proof.

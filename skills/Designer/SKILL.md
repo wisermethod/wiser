@@ -3,7 +3,7 @@ name: Designer
 type: skill
 category: design
 description: Run a design job end to end, from brief and visual direction through foundations, composition, and validation, producing the wireframe, style guide, or extracted system itself and directing every other phase to the design skill that owns it
-version: 0.7.0
+version: 0.8.0
 memory:
   - design
 gaps:
@@ -108,7 +108,7 @@ Build the artifact on Phase 3's foundations, routed by what is being made. Every
 
 Two things this root does not compose, each said plainly rather than approximated. A brand mark or logo is out of scope entirely (Context). An application screen, a dashboard, a settings view, an admin panel, is composed by no skill here: `skills/Component Design/` produces the parts and declines the page, and `skills/Marketing Page Design/` declines anything that is not a persuasion page. Say so, deliver what this root does produce, the brief, the direction, the foundations, a wireframe of the screen, and each component through `skills/Component Design/`, and name the assembly as the part that was not composed.
 
-What ships from this phase is code that renders in a browser. Where the user needs a static image instead, produce it rather than handing over the steps: `tools/html-to-png/` for an HTML artifact, `tools/svg-to-png/` for an SVG, `tools/web-screenshot/` for a page already live at an address.
+What ships from this phase is code that renders in a browser. Where the user needs a static image instead, produce it rather than handing over the steps: `tools/render/` `html` for an HTML artifact, `tools/render/` `svg` for an SVG, `tools/render/` `url` for a page already live at an address.
 
 ### 5. Validate
 

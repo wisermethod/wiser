@@ -1,5 +1,5 @@
 /**
- * svg-to-png core - the sizing decisions and the page the browser renders.
+ * render svg core - the sizing decisions and the page the browser renders.
  *
  * Node built-ins only, no I/O, no browser. Everything here is a pure function so
  * the sizing rules can be tested without installing a package or launching a

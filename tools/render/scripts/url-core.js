@@ -1,5 +1,5 @@
 /**
- * web-screenshot - argument validation, failure classification, PNG header read
+ * render url - argument validation, failure classification, PNG header read
  *
  * Node built-ins only and no packages, so the entry script can import this
  * above its dependency check: a usage mistake must never trigger an install.
@@ -34,7 +34,7 @@ export function validateUrl(raw) {
   }
 
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    return { ok: false, message: `Error: --url must use http or https; got "${parsed.protocol}". This tool captures live web pages only; a local HTML file needs html-to-png, a Mermaid diagram mermaid-to-png, and an SVG svg-to-png.` };
+    return { ok: false, message: `Error: --url must use http or https; got "${parsed.protocol}". The url subcommand captures live web pages only; a local HTML file is the html subcommand, a Mermaid diagram mermaid, and an SVG svg.` };
   }
 
   if (!parsed.hostname) {
@@ -204,7 +204,7 @@ export function classifyFailure(rawMessage, { url, timeoutMs = DEFAULT_TIMEOUT_M
     return {
       code: 'browser-missing',
       message:
-        'Error: Chromium cannot launch; check: node scripts/capture.js check (read remediation). See the Dependencies section of TOOL.md.'
+        'Error: Chromium cannot launch; check: node scripts/render.js check (read remediation). See the Dependencies section of TOOL.md.'
     };
   }
   if (text.includes('ERR_NAME_NOT_RESOLVED')) {

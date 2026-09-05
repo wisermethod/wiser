@@ -20,7 +20,7 @@ import {
   validateTimeout,
   validateUrl,
   validateWidth
-} from '../capture-core.js';
+} from '../url-core.js';
 
 const TOOL_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const OUTSIDE = process.platform === 'win32' ? 'C:\\work\\shots' : '/work/shots';
@@ -57,9 +57,9 @@ describe('validateUrl', () => {
 
   it('names the sibling tools that own the schemes it refuses', () => {
     const { message } = validateUrl('file:///page.html');
-    assert.match(message, /html-to-png/);
-    assert.match(message, /mermaid-to-png/);
-    assert.match(message, /svg-to-png/);
+    assert.match(message, /html subcommand/);
+    assert.match(message, /Mermaid diagram mermaid/);
+    assert.match(message, /SVG svg/);
   });
 
   it('refuses a data scheme', () => {
@@ -236,7 +236,7 @@ describe('validateOutput', () => {
   });
 
   it('refuses a path that climbs back into the tool directory', () => {
-    const climb = `${TOOL_DIR}${sep}..${sep}web-screenshot${sep}scripts${sep}page.png`;
+    const climb = `${TOOL_DIR}${sep}..${sep}render${sep}scripts${sep}page.png`;
     assert.equal(validateOutput(climb, TOOL_DIR).ok, false);
   });
 
@@ -413,10 +413,10 @@ describe('screenDestination', () => {
   });
 });
 
-describe('capture --url against an address inside the machine', () => {
-  const SCRIPT = join(TOOL_DIR, 'scripts', 'capture.js');
+describe('url --url against an address inside the machine', () => {
+  const SCRIPT = join(TOOL_DIR, 'scripts', 'render.js');
   const OUTPUT = join(OUTSIDE, 'never-written.png');
-  const run = (url) => spawnSync(process.execPath, [SCRIPT, 'capture', '--url', url, '--output', OUTPUT], { encoding: 'utf8', timeout: 20000 });
+  const run = (url) => spawnSync(process.execPath, [SCRIPT, 'url', '--url', url, '--output', OUTPUT], { encoding: 'utf8', timeout: 20000 });
 
   it('refuses a loopback address by name before any install or launch, stdout empty', () => {
     const result = run('http://127.0.0.1:1/');

@@ -20,9 +20,9 @@ import {
   readTimeout,
   readWidth,
   viewportWidth
-} from '../render-core.js';
+} from '../mermaid-core.js';
 
-const TOOL_DIR = '/tools/mermaid-to-png';
+const TOOL_DIR = '/tools/render';
 
 /**
  * fitDiagram runs inside the browser page, so exercising it here means
@@ -144,7 +144,7 @@ test('an output that is not a PNG is refused', () => {
 test('an output inside the tool directory is refused, climb back in included', () => {
   assert.throws(() => readOutputPath({ output: `${TOOL_DIR}/out.png` }, TOOL_DIR), UsageError);
   assert.throws(() => readOutputPath({ output: `${TOOL_DIR}/scripts/../out.png` }, TOOL_DIR), UsageError);
-  assert.throws(() => readOutputPath({ output: '/work/../tools/mermaid-to-png/out.png' }, TOOL_DIR), UsageError);
+  assert.throws(() => readOutputPath({ output: '/work/../tools/render/out.png' }, TOOL_DIR), UsageError);
   assert.equal(readOutputPath({ output: '/work/out.png' }, TOOL_DIR), '/work/out.png');
 });
 

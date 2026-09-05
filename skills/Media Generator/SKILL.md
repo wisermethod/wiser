@@ -3,7 +3,7 @@ name: Media Generator
 type: skill
 category: media
 description: Produce an image or a video that does not exist yet, or a photograph with its background removed, by finishing the prompt, choosing the model, and running the billed generation through the replicate connector to a file the user named
-version: 0.6.0
+version: 0.7.0
 gaps:
   - the image, video, and background-removal models this skill's whole output depends on
 ---
@@ -16,7 +16,7 @@ One image or video file, at the path the user named, made by a model chosen deli
 
 Use when the picture or the clip does not exist yet and no camera, no file, and no markup can produce it: an illustration or a photograph for an article, a deck, a page, or a post; a scene built from a description; a short clip from a description or from a still frame to animate; a photograph that has to arrive with its background gone.
 
-Do not use it on media that exists already in some other form. Vector artwork becomes pixels through `tools/svg-to-png/`, markup through `tools/html-to-png/`, a Mermaid diagram through `tools/mermaid-to-png/`, and a live page through `tools/web-screenshot/`, each rendering deterministically, for free, at a size it computes properly. An image that has to change shape, format, or color is `tools/image-edit/`; two images that have to become one are `tools/image-overlay/`; a video that has to be cut, resized, captioned, joined, or turned into a GIF is `tools/video-edit/`. Reaching here for any of those buys a paid guess where a deterministic answer was waiting.
+Do not use it on media that exists already in some other form. Vector artwork becomes pixels through `tools/render/` `svg`, markup through `tools/render/` `html`, a Mermaid diagram through `tools/render/` `mermaid`, and a live page through `tools/render/` `url`, each rendering deterministically, for free, at a size it computes properly. An image that has to change shape, format, or color is `tools/image-edit/`; two images that have to become one are `tools/image-overlay/`; a video that has to be cut, resized, captioned, joined, or turned into a GIF is `tools/video-edit/`. Reaching here for any of those buys a paid guess where a deterministic answer was waiting.
 
 Two properties separate this skill from every tool beside it, and both bind every step below. Each generation run spends real money, an image's worth of cents and a video's worth of many times that, and it spends it whether or not the result is usable. And each run is non-repeatable: the same prompt sent twice returns two different results, so a result that missed cannot be nudged, only re-argued.
 

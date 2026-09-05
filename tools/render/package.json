@@ -1,7 +1,7 @@
 {
-  "name": "mermaid-to-png",
+  "name": "render",
   "version": "0.1.0",
-  "description": "Renders a Mermaid diagram file to a PNG at a chosen maximum width, device scale factor, theme, and background",
+  "description": "Renders a local HTML file, an SVG, or a Mermaid diagram to a PNG, and captures a PNG of a live web page",
   "private": true,
   "type": "module",
   "scripts": {

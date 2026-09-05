@@ -11,7 +11,7 @@ import {
   readSvgSize,
   resolveOutputSize,
   withViewBox
-} from '../render-core.js';
+} from '../svg-core.js';
 
 describe('readSvgSize', () => {
   it('reads width and height attributes from the root tag', () => {

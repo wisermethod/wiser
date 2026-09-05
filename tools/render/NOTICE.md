@@ -1,4 +1,4 @@
-# Third-party notice: mermaid-to-png
+# Third-party notice: render
 
 This tool installs the 104 packages below on the machine that calls it, into this tool's own directory on the first run that authorises it with `--install`. **This repository redistributes none of them.** The Playwright notice is in `tools/lib/browser-runtime/NOTICE.md`.
 
