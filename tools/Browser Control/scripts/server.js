@@ -643,15 +643,25 @@ const actions = {
     // mode is asserted again afterwards. The caller's directory is left exactly
     // as it was found. `writeTarget` has already refused a path that exists, so
     // this creates rather than truncates.
-    try { writeFileSync(target, '', { mode: 0o600 }); } catch { /* the write below is the real test */ }
+    // Create the file owner-only BEFORE Playwright writes into it, and REFUSE if
+    // even that cannot be done -- round 14 found this swallowed, so the trace was
+    // written at the umask when the private create failed.
+    try {
+      writeFileSync(target, '', { mode: 0o600 });
+    } catch (createError) {
+      throw new Error(`${target} could not be created owner-only (${(createError && createError.code) || createError}); it would hold request and response headers including Cookie and Set-Cookie, so nothing was written -- name a path on a filesystem this account can create a private file on`);
+    }
     await context.tracing.stop({ path: target });
-    try { chmodSync(target, 0o600); } catch { /* best effort on exotic filesystems */ }
+    try { chmodSync(target, 0o600); } catch { /* best effort on exotic filesystems; verified below */ }
 
-    // Round 13: a chmod that fails must not be reported as ordinary success,
-    // because the sentence TOOL.md prints about this path is unconditional.
-    let mode = null;
-    try { mode = statSync(target).mode & 0o777; } catch { /* reported below as unknown */ }
-    if (mode !== null && (mode & 0o077) !== 0) {
+    // A mode that cannot be verified is NOT a success. Round 13 made a chmod that
+    // fails refuse; round 14 found the verifying stat itself could throw, leaving
+    // mode null so the guard passed and reported owner-only when it was unknown.
+    let mode;
+    try { mode = statSync(target).mode & 0o777; } catch (statError) {
+      throw new Error(`${target} was written but its permissions could not be verified (${(statError && statError.code) || statError}); it holds request and response headers including Cookie and Set-Cookie, so treat it as credential material or delete it`);
+    }
+    if ((mode & 0o077) !== 0) {
       throw new Error(`${target} was written but could not be made owner-only (mode ${mode.toString(8)}); it holds request and response headers including Cookie and Set-Cookie, so treat it as credential material or delete it`);
     }
 

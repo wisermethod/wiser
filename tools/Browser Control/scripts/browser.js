@@ -12,7 +12,7 @@
 
 // Node built-ins only. Nothing here may import from outside this tool directory.
 import { execFileSync, spawn } from 'node:child_process';
-import { accessSync, constants, existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import http from 'node:http';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -792,7 +792,7 @@ async function ensureChromium() {
   if (browsersRoot && !isWritable(browsersRoot)) {
     fail(`Error: the Chromium build could not be installed because ${browsersRoot} is not writable. That is where Playwright puts browser builds on this machine, and PLAYWRIGHT_BROWSERS_PATH chooses it when that variable is set. Point it at a directory you own, or make this one writable, then run the command again. tools/AGENTS.md names every path Playwright may use.`);
   }
-  fail(`Error: the Chromium build still cannot launch after an authorised install. ${(browserSurvey && browserSurvey.remediation) || 'The trial launch reported no reason.'} Playwright fetches the build from https://cdn.playwright.dev, falling back to playwright.download.prss.microsoft.com, so a network that blocks those hosts stops here even though npm succeeded. Run "node ${PLAYWRIGHT_CLI} install chromium" by hand to see Playwright's own message. tools/AGENTS.md names where the build lands.`);
+  fail(`Error: the Chromium build still cannot launch after an authorised install. ${(browserSurvey && browserSurvey.remediation) || 'The trial launch reported no reason.'} Playwright fetches the build from https://cdn.playwright.dev, falling back to playwright.download.prss.microsoft.com, so a network that blocks those hosts stops here even though npm succeeded. Run this by hand: node '${PLAYWRIGHT_CLI}' install chromium to see Playwright's own message. tools/AGENTS.md names where the build lands.`);
 }
 
 
@@ -858,14 +858,31 @@ if (command === 'session') {
   // forced replacement -- all before mentioning the one thing that was actually
   // wrong. `restart` cannot ask this here, because the session it is about to
   // replace is the thing that would answer; it asks again after the stop.
-  if (sub === 'start') {
+  // start refuses ANY occupant; restart expects its OWN host and will stop it,
+  // but a FOREIGN process on the port ('refused') is one stopHost can never shut,
+  // so restart must refuse that here rather than install, download and force
+  // first and learn it afterwards -- round 14 drove `restart --install` deleting
+  // a shell on a refused port before it ever mentioned the port.
+  if (sub === 'start' || sub === 'restart') {
     const occupied = await hostStatus();
     if (occupied === 'refused') {
       fail(`Error: something is already listening on port ${port} and refused this request. If it is a browser host, it was started by a different session or a different account and this session's token does not open it: stop that process, or pass a different --port. Starting a second host here would leave a signed-in browser running that this tool cannot manage.`);
     }
-    if (occupied !== null) {
+    if (sub === 'start' && occupied !== null) {
       fail(`Error: a browser host is already running on port ${port} with profile ${occupied.profile}. Stop it first, or pass a different --port.`);
     }
+  }
+
+  // The replacement uses the SELECTED profile; the preflight further down
+  // launches a TEMPORARY one, so a selected profile that cannot be created would
+  // pass the preflight, let restart stop the live session, and only then time
+  // out. Establish it now, before anything is stopped or downloaded -- round 14
+  // drove a restart into an unwritable profile that killed the session and then
+  // waited sixty seconds blaming a display.
+  try {
+    mkdirSync(profile, { recursive: true });
+  } catch (profileError) {
+    fail(`Error: the profile directory ${profile} could not be created (${(profileError && profileError.code) || profileError}); nothing has been changed. Point --profile at a directory this account can write.`);
   }
 
   // Dependencies. Before the host is spawned, so a missing install is reported

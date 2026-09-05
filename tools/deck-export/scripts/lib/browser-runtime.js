@@ -346,12 +346,15 @@ function remediationFromLaunchError(error, host) {
  * binary that would not start.
  */
 
-// Errnos where the browser's own bytes are at fault. Deliberately short: this
-// is the ONLY set that can earn a destructive repair, so it holds nothing
-// ambiguous. Darwin reports a malformed Mach-O and a bad executable as
-// "Unknown system error -88" and "-85"; -86 (EBADARCH, wrong CPU type) is NOT
-// here, because refetching identical bytes cannot fix an architecture mismatch.
-const BYTES_AT_FAULT = new Set(['ENOENT', 'ENOEXEC']);
+// Errnos where the browser's own bytes are at fault WITHOUT a filesystem check.
+// Deliberately tiny: ENOEXEC means the file was reached and is not a program.
+// ENOENT is NOT here -- round 14 found it forces on a present file, so it is
+// confirmed against the filesystem below, because execve returns ENOENT for a
+// missing interpreter or loader while the named file is present. Darwin reports
+// a malformed Mach-O and a bad executable as "Unknown system error -88" and
+// "-85"; -86 (EBADARCH, wrong CPU type) is NOT here, because refetching
+// identical bytes cannot fix an architecture mismatch.
+const BYTES_AT_FAULT = new Set(['ENOEXEC']);
 const DARWIN_BAD_IMAGE = new Set(['-85', '-88']);
 
 // Errnos that name a resource or a policy of THIS MACHINE. Not exhaustive by
@@ -389,6 +392,26 @@ function lostExecuteBit(path) {
   }
 }
 
+/**
+ * Positive evidence that a named file is ABSENT, and nothing weaker.
+ *
+ * `existsSync` is false for an unsearchable parent as readily as for a missing
+ * file, and Playwright builds "Executable doesn't exist" and Node builds
+ * `spawn ... ENOENT` from exactly that. Round 14 drove a byte-perfect browser to
+ * a forced deletion through both, because the message was trusted as a sentence.
+ * So the path it names is `stat`ed instead: only `ENOENT` from `stat` is
+ * absence. A `stat` that SUCCEEDS proves the file exists, so the failure is the
+ * machine's rather than the bytes'; any other `stat` error is no evidence.
+ *   true  -> the file is gone
+ *   false -> the file is there
+ *   null  -> could not tell (no path, or a non-ENOENT stat error)
+ */
+function fileAbsent(path) {
+  if (!path) return null;
+  try { statSync(path); return false; }
+  catch (e) { return e && e.code === 'ENOENT' ? true : null; }
+}
+
 function classifyFailure(error, report) {
   const text = error && error.message ? String(error.message) : '';
   const line = text.split('\n')[0].trim();
@@ -401,14 +424,35 @@ function classifyFailure(error, report) {
   // This is checked first so no later rule can claim otherwise.
   if (report.launchPhase && report.launchPhase !== 'launch') return 'crashed';
 
-  // Playwright saying outright that the build is not there.
-  if (/Executable doesn't exist|please run the following command to download/i.test(line)) {
-    return 'artifact';
+  // Playwright saying the build is not there -- CONFIRMED against the filesystem,
+  // never trusted as a sentence. "Executable doesn't exist at <path>" is a failed
+  // `existsSync`, which an unsearchable parent fails too, so round 14 drove a
+  // complete browser to a forced deletion through it. Stat the path it names:
+  // a real ENOENT is the artifact, an existing file is the machine (host), and an
+  // unreadable one is unknown rather than destroyed.
+  {
+    const gone = /Executable doesn't exist at (.+?)\s*$/i.exec(line);
+    if (gone) {
+      const absent = fileAbsent(gone[1]);
+      if (absent === true) return 'artifact';
+      if (absent === false) return 'host';
+      return 'unknown';
+    }
+    if (/please run the following command to download/i.test(line)) return 'artifact';
   }
 
   // AN EXEC- OR FORK-TIME FAILURE, DECIDED BY ITS ERRNO AND NEVER BY THE WORD.
   const spawned = spawnFailure(line);
   if (spawned) {
+    // ENOENT from a spawn is not only "the binary is gone": execve reports it for
+    // a missing interpreter or dynamic loader while the named file is present
+    // (a shebang target on macOS, ld-linux on a mismatched Linux image). Confirm
+    // absence before calling it the artifact; a file that is there is the host or
+    // the platform, which a forced replacement cannot fix, so it earns a plain
+    // install at most.
+    if (spawned.code === 'ENOENT') {
+      return fileAbsent(spawned.path) === true ? 'artifact' : 'unknown';
+    }
     if (BYTES_AT_FAULT.has(spawned.code) || DARWIN_BAD_IMAGE.has(spawned.code)) return 'artifact';
     // EACCES is the one that has to be resolved rather than guessed. The mode on
     // the browser's own file says whether this is the build or the machine, and
