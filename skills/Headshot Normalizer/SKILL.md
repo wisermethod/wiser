@@ -59,15 +59,15 @@ The three are one composition rather than three settings, because each is a shar
 
 Both platform calls in these steps, the background removal and the face geometry, belong to connectors this release does not ship. Each step says what the call would do, and until a connector lands the step is an honest stop.
 
-**And so is any value one of those absent sources would have stated**, a ceiling or a threshold included. A number that was going to come from something absent is absent too, and guessing it is the same defect as guessing the output: `tools/image-edit/` ships and will resize to whatever ceiling it is handed, so an invented one silently caps every frame below it.
+**Any value one of those absent sources would have stated is absent too**, a ceiling or a threshold included. A number that was going to come from something absent is absent too, and guessing it is the same defect as guessing the output: `tools/image-edit/` ships and will resize to whatever ceiling it is handed, so an invented one silently caps every frame below it.
 
 1. **Settle the frame, the destination, and the count.** There is no default save location: ask for the directory, and for a name per photograph or the rule that derives one, since a set delivered under names nobody chose is a set nobody can wire into a page. Keep every intermediate file in a work directory per `standards/conventions.md`. Confirm the three frame parameters, then say what the batch will cost: two billed calls per photograph, named as a count before the first one. A set runs one photograph at a time through the steps below, under one frame; never change a parameter part way through a set.
 
-2. **Take the background off.** Ask the generation connector what it curates for background removal, read that model's input schema, and run it with the input, an output directory inside the work directory, and the credential path. The result is a PNG, because the transparency is the entire point of the step and a JPEG has no alpha channel to carry it. The model choice and its judgment belong to the connector's curated pin and to `skills/Media Generator/`; nothing about a model is decided or hardcoded here.
+2. **Take the background off.** Ask the generation connector what it curates for background removal, read that model's input schema, and run it with the input and an output directory inside the work directory. The result is a PNG, because the transparency is the entire point of the step and a JPEG has no alpha channel to carry it. The model choice and its judgment belong to the connector's curated pin and to `skills/Media Generator/`; nothing about a model is decided or hardcoded here.
 
    The photograph has to reach the platform: inside the request, under the inline ceiling the generation connector states, or at an address the platform can fetch. A larger local file with no address does not go as it is. Put the two ways forward to the user, a smaller rendition from `tools/image-edit/` or a reachable address, and say what the first one costs: the cutout can hold no more detail than what was sent, so a downscaled original caps the resolution of everything below.
 
-3. **Find the eyes in the cutout.** One call, the vision connector's face detection over the cutout from Step 2 rather than over the original, with the credential path.
+3. **Find the eyes in the cutout.** One call, the vision connector's face detection over the cutout from Step 2 rather than over the original.
 
    The cutout is what will be scaled and placed, so its pixel space is the one every coordinate below has to live in; measuring the original and applying the numbers to the cutout silently mixes two coordinate systems. If the cutout is past the size ceiling the vision connector states, detect on a smaller rendition from `tools/image-edit/` and multiply every coordinate that comes back by the cutout's width divided by the rendition's width before using it.
 
@@ -125,11 +125,10 @@ Both platform calls in these steps, the background removal and the face geometry
 
 ## Success
 
-
 - One PNG exists at each path the caller named, square at the frame's output size, carrying transparency where the background was and everywhere the placed picture did not reach the edge of the square.
 - Two finished files from the same standard put their eye midpoints on the same coordinates, and the distance between the eyes is the frame's eye span in both, within the rounding a whole pixel allows: every delivered file carries the standard's eye span and eye line, and a band below, when present, ships named with its height.
 - Every measured number came from the vision call or from a tool's reported output, and every frame number was computed from those; nothing was judged by eye.
 - The caller knew the three frame parameters, the destination, and the billed call count before the first call, and afterwards knows the face count, the confidence, the scale, and the height of any band below.
 - A photograph whose face could not be placed was delivered as an unnormalized cutout and named as one, and no unmeasured file was presented as part of the set.
 - Resizing and placement went to `tools/image-edit/`, background removal to the generation connector, and face geometry to the vision connector; no arithmetic those primitives own was duplicated here.
-- No credential value entered the conversation, a log, or any file; both connectors were reached with `--env` and a path resolved through the connector that owns it.
+- No credential value entered the conversation, a log, or any file, and no credential path was guessed.

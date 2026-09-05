@@ -119,7 +119,6 @@ Into the response: the decision rather than the file listing. How much of the li
 
 ## Success
 
-
 - The list's origin and the send were on the record before any address left the machine.
 - `tools/data-parse/` profiled the file first, and the address column came from its column list rather than from a guess.
 - The submission file was built in the work directory, normalized and deduplicated, and nothing was written beside the caller's source file.

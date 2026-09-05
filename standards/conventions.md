@@ -10,7 +10,7 @@ These rules bind every file in this root and every agent working in a workspace 
 
 Division of labor: how instructions are written belongs to `instruction-quality.md`; the Play and Playbook formats, including the file naming specific to each, belong to `play.md` and `playbook.md`. Cite those standards; do not restate them here.
 
-Precedence: an user root's AGENTS.md may localize placement, naming its own work directories and archive home. It may not lift the formatting, date, or naming rules; those hold everywhere.
+Precedence: a user root's AGENTS.md may localize placement, naming its own work directories and archive home. It may not lift the formatting, date, or naming rules; those hold everywhere.
 
 ## Formatting
 

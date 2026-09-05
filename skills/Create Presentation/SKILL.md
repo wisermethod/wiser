@@ -70,7 +70,6 @@ Staged composition: resolve design, route the material, calibrate, design the ar
 
 ## Success
 
-
 - The deck opens from `file://` with no server and no build step, as one HTML file plus, only with a brand template, one assets folder, and the reveal.js assets load from the pinned CDN the Context names.
 - Every slide communicates one idea, and every headline states a conclusion a reader could dispute, not a topic label.
 - Every slide's copy passes the Point-At Test (`experts/Ghost Writer/EXPERT.md`) at the unit that file sets for the deck's context.

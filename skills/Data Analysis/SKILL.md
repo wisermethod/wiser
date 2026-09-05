@@ -97,7 +97,6 @@ A request for something no tool here computes gets three sentences and no fourth
 
 ## Success
 
-
 - `tools/data-parse/` ran first, and its profile decided which columns went to which tool.
 - Every figure in the analysis traces to a named result field, and no figure was produced by reasoning, percentages, differences, and rates included.
 - Parse errors, skipped columns, missing values, and every tool error entry that bears on a stated figure appear in the analysis.

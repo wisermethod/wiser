@@ -93,7 +93,6 @@ Then the five-second test: can a reader state the core structure after five seco
 
 ## Success
 
-
 - The geometry traces to a row of step 2's table that the material matches, or to the requester's named choice after step 2 stated what the matching geometry would show; where two rows fit and no choice was named, the requester chose between them.
 - Every element carries a label, and every connection carries a relationship verb, hierarchy's parent-to-child lines excepted.
 - No view exceeds its technique's complexity ceiling, and anything cut for that reason is reachable through expansion, hover, or a linked diagram.

@@ -203,7 +203,6 @@ An empty Novel Angles section is a signal rather than a result. Before deliverin
 
 ## Success
 
-
 - Every angle in the plan has findings or a named gap, and no angle was dropped in silence.
 - Every finding carries a confidence level and the specific factors that set it.
 - Every claim cites a source, or is marked as this skill's inference.

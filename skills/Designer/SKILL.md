@@ -198,7 +198,6 @@ Group the findings blocking, then major, then minor, each naming its location an
 
 ## Success
 
-
 - The delivery names the brief it answers, the direction it committed to, the signature element, and the register.
 - Every phase either ran or is named as already settled, and every foundation and composed piece names the skill that produced it; nothing a sibling owns was produced here.
 - Every design decision in the artifact can state its job and its reason.

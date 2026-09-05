@@ -74,9 +74,9 @@ The constraints under each, where losing one costs something on a live site:
 
 | Reading | Where it comes from |
 |---------|---------------------|
-| The exact property string, and the sitemaps submitted on it | A search-console reading this release cannot fetch; the user hands it over, or it is labelled absent |
-| Query and page rows for a window | A search-console reading this release cannot fetch, one pull per grouping; the user hands over the saved response, or it is labelled absent |
-| Traffic, engagement, and channel rows | An analytics reading this release cannot fetch, kept as the platform returned it with its headers; the user hands it over, or it is labelled absent |
+| The exact property string, and the sitemaps submitted on it | A search-console reading this release cannot fetch; the host retrieves it or the user hands it over, or it is labelled absent |
+| Query and page rows for a window | A search-console reading this release cannot fetch, one pull per grouping; the host retrieves it or the user hands over the saved response, or it is labelled absent |
+| Traffic, engagement, and channel rows | An analytics reading this release cannot fetch, kept as the platform returned it with its headers; the host retrieves it or the user hands it over, or it is labelled absent |
 | Which queries sit close, which moved, which pages compete for one query | `tools/seo-keywords/` |
 | Search and traffic as one dataset for a period | `tools/seo-audit/` |
 | One page's head, headings, links, directives, and markup | `tools/seo-page-analyzer/` |

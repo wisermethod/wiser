@@ -127,7 +127,6 @@ Placement follows `standards/conventions.md`, in the root that owns the output. 
 
 ## Success
 
-
 - Every substantive stretch of the transcript has a home in the summary, or the summary names it and says why it is out.
 - Every quote is verbatim, every attribution traces to a label the transcript wrote, and every claim about tone or motive names its passage and reads as inference.
 - Decisions carry their stated reasoning or are marked as lacking one; action items carry owner and timing or name the gap.

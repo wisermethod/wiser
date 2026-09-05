@@ -88,7 +88,7 @@ Every platform call in these steps belongs to a generation connector this releas
 
    Frame last, where a frame is being composed: models take named ratios and users state pixels, so pick the closest ratio the schema lists, tell the user the pixel size that ratio actually delivers, and send exact dimensions to `tools/image-edit/` afterward rather than hunting for a model that outputs them natively.
 
-4. **Run the generation.** Say what the run will cost, in shape if not to the cent, before the first call, and say when a request means several calls. That is disclosure and not a gate: no confirmation is required here, and none is invented. The run takes the model, the input, an output directory, and the credential path.
+4. **Run the generation.** Say what the run will cost, in shape if not to the cent, before the first call, and say when a request means several calls. That is disclosure and not a gate: no confirmation is required here, and none is invented. The run takes the model, the input, and an output directory.
 
    A model slow enough to outlast a comfortable wait is started without waiting, which returns a prediction id, and a later wait on that id collects it into the output directory; a timeout moves the ceiling on either, and a timeout that expires stops the waiting, never the prediction, so the same id is picked up again. Never leave a finished prediction undownloaded: the platform serves output files for about an hour and then deletes them, and re-running costs again.
 
@@ -118,10 +118,9 @@ Every platform call in these steps belongs to a generation connector this releas
 
 ## Success
 
-
 - One file exists at the path the user named, in a format that destination can use, and it holds what was asked for.
 - Every prompt that reached a model carried an explicit medium and either exact wording or an instruction excluding text.
 - The model came from the connector's curated default or was named with a reason, its input schema was read before the call, and nothing was promised that the schema does not carry.
 - The user knew the destination and the spend shape before the first billed call, and knows the model and the run count after it.
-- No credential value entered the conversation, a log, or any file; every call ran through the generation connector with a credential path.
+- No credential value entered the conversation, a log, or any file, and no credential path was guessed.
 - Resizing, cropping, format conversion, compositing, and trimming went to the tools that own them, and no second generation was bought to do a tool's work.
