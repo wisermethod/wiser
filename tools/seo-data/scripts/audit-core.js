@@ -1,13 +1,9 @@
-#!/usr/bin/env node
 /**
- * seo-audit - consolidate Search Console and Analytics results into one audit dataset
+ * seo-data audit - consolidate Search Console and Analytics results into one audit dataset
  *
- * Usage:
- *   node scripts/audit.js help
- *   node scripts/audit.js build --input <path>
- *
- * Node built-ins only: no package import, no configuration file, no credential,
- * no network call. The rules every shipped script follows are stated once, in
+ * Invoked by scripts/seo-data.js after help is answered. Node built-ins only:
+ * no package import, no configuration file, no credential, and no network call.
+ * The rules every shipped script follows are stated once, in
  * system/templates/Script Contract.md.
  */
 
@@ -18,52 +14,12 @@ import { fileURLToPath } from 'node:url';
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const TOOL_DIR = resolve(SCRIPT_DIR, '..');
 
-const COMMANDS = new Set(['build']);
-
-const USAGE = `seo-audit - consolidate Search Console and Analytics results into one audit dataset
-
-Usage:
-  node scripts/audit.js help
-  node scripts/audit.js build --input <path>
-
-Commands:
-  build            Read the input bundle and print the audit dataset
-  help             Print this message
-
-Options:
-  --input <path>   Audit input bundle, a JSON file (absolute path), outside
-                   this tool directory. Required.
-  --help, -h       Print this message
-
-The bundle carries results the caller already fetched: site, dateRange,
-searchConsole.topQueries, searchConsole.topPages, searchConsole.sitemaps,
-analytics.trafficOverview, analytics.acquisitionChannels, analytics.topPages,
-analytics.organicTraffic, and an optional targetKeywords list. Each analytics
-section is passed through as the reporting API returned it, headers included;
-TOOL.md names the metric and dimension each one must carry.
-
-Reads one file the caller names and writes nothing. Fetches nothing: it makes no
-network call and holds no credential, so no command takes --env. Success prints
-one JSON object to stdout; a bad option or an input the contract does not accept
-goes to stderr with exit 1.`;
-
 function fail(message) {
   process.stderr.write(`${message}\n`);
   process.exit(1);
 }
 
-// Arguments. Parsed first so help costs nothing: no file read, no work.
-const argv = process.argv.slice(2);
-const command = argv[0] ?? 'help';
-
-if (command === 'help' || argv.includes('--help') || argv.includes('-h')) {
-  process.stdout.write(`${USAGE}\n`);
-  process.exit(0);
-}
-
-if (!COMMANDS.has(command)) {
-  fail(`Error: unknown command "${command}". Run "node scripts/audit.js help" for usage.`);
-}
+export function runAudit(argv) {
 
 const VALUE_FLAGS = new Set(['--input']);
 const BARE_FLAGS = new Set(['--help', '-h']);
@@ -81,7 +37,7 @@ for (let index = 1; index < argv.length; index += 1) {
   const option = argv[index];
   if (valuePositions.has(index)) continue;
   if (option.startsWith('-') && !VALUE_FLAGS.has(option) && !BARE_FLAGS.has(option)) {
-    fail(`Error: unknown option "${option}". Run "node scripts/audit.js help" for usage.`);
+    fail(`Error: unknown option "${option}". Run "node scripts/seo-data.js audit help" for usage.`);
   }
 }
 
@@ -99,10 +55,10 @@ function flag(name) {
   // already refused. This is the same refusal, in the tools the fix missed.
   // Flags that are documented as repeatable are read somewhere other than here.
   if (argv.indexOf(name, index + 1) !== -1) {
-    fail(`Error: ${name} was given more than once and takes one value. Run "node scripts/audit.js help" for usage.`);
+    fail(`Error: ${name} was given more than once and takes one value. Run "node scripts/seo-data.js audit help" for usage.`);
   }
   if (value === undefined || value.startsWith('--')) {
-    fail(`Error: ${name} needs a value. Run "node scripts/audit.js help" for usage.`);
+    fail(`Error: ${name} needs a value. Run "node scripts/seo-data.js audit help" for usage.`);
   }
   return value;
 }
@@ -204,7 +160,7 @@ function screenedInputPath(name, value) {
 
 const inputArgument = flag('--input');
 if (!inputArgument) {
-  fail('Error: --input is required. Pass the absolute path to the audit input bundle. Run "node scripts/audit.js help" for usage.');
+  fail('Error: --input is required. Pass the absolute path to the audit input bundle. Run "node scripts/seo-data.js audit help" for usage.');
 }
 // Screened before the existence check, so a path this tool must not read is
 // refused without the tool ever asking the filesystem about it. Everything
@@ -552,3 +508,4 @@ const result = {
 };
 
 process.stdout.write(`${JSON.stringify(result)}\n`);
+}

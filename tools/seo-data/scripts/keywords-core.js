@@ -1,16 +1,8 @@
-#!/usr/bin/env node
 /**
- * seo-keywords - turn Search Console query rows into a keyword report
+ * seo-data keywords and previous-window - turn Search Console query rows into a keyword report
  *
- * Usage:
- *   node scripts/keywords.js help
- *   node scripts/keywords.js previous-window --start <YYYY-MM-DD> --end <YYYY-MM-DD>
- *   node scripts/keywords.js analyze --queries <path> --start <YYYY-MM-DD> --end <YYYY-MM-DD>
- *     [--query-pages <path>] [--previous-queries <path>] [--targets <path>]
- *     [--min-impressions <n>] [--site <url>] [--output <dir>]
- *
- * Node built-ins only; this script imports no package and reaches nothing outside
- * this tool directory. It opens no network connection and reads no credential.
+ * Invoked by scripts/seo-data.js after help is answered. Node built-ins only:
+ * no package import, no configuration file, no credential, and no network call.
  * The rules every shipped script follows are stated once, in
  * system/templates/Script Contract.md.
  */
@@ -21,8 +13,6 @@ import { fileURLToPath } from 'node:url';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const TOOL_DIR = resolve(SCRIPT_DIR, '..');
-
-const COMMANDS = new Set(['analyze', 'previous-window']);
 
 const DAY_MS = 86400000;
 
@@ -43,64 +33,18 @@ const LIMITS = {
   cannibalWarnings: 10,
 };
 
-const USAGE = `seo-keywords - turn Search Console query rows into a keyword report
-
-Usage:
-  node scripts/keywords.js help
-  node scripts/keywords.js previous-window --start <YYYY-MM-DD> --end <YYYY-MM-DD>
-  node scripts/keywords.js analyze --queries <path> --start <YYYY-MM-DD> --end <YYYY-MM-DD>
-    [--query-pages <path>] [--previous-queries <path>] [--targets <path>]
-    [--min-impressions <n>] [--site <url>] [--output <dir>]
-
-Commands:
-  analyze           Build the keyword report from the row files supplied
-  previous-window   Print the earlier window the trend comparison expects
-  help              Print this message
-
-Options:
-  --queries <path>            Search Console rows for the reporting window,
-                              one "query" dimension. Required by analyze.
-  --query-pages <path>        Rows for the same window with the "query" and
-                              "page" dimensions. Feeds cannibalization and the
-                              page column of target tracking.
-  --previous-queries <path>   Rows with one "query" dimension for the earlier
-                              window. Feeds the growing and declining sections.
-  --targets <path>            Target keywords, one per line. Feeds target tracking.
-  --start <YYYY-MM-DD>        First day of the reporting window. Required.
-  --end <YYYY-MM-DD>          Last day of the reporting window. Required.
-  --min-impressions <n>       Drop rows below this many impressions before
-                              ranking. Default ${LIMITS.defaultMinImpressions}.
-  --site <url>                Label echoed into the report. Not used in any
-                              computation.
-  --output <dir>              Also write the result to a file in this directory,
-                              an absolute path that must sit outside this tool
-                              directory.
-  --help, -h                  Print this message
-
-A section whose input was not supplied comes back null, never as an empty list.
-
-Reads only the files the caller names and writes nothing else. Needs no
-credentials and no configuration file, so no command takes --env, and no run
-opens a network connection. Success prints one JSON object to stdout; a usage
-mistake or an unreadable file goes to stderr with exit 1.`;
-
 function fail(message) {
   process.stderr.write(`${message}\n`);
   process.exit(1);
 }
 
-// Arguments. Parsed first so help costs nothing: no file read, no work.
-const argv = process.argv.slice(2);
-const command = argv[0] ?? 'help';
-
-if (command === 'help' || argv.includes('--help') || argv.includes('-h')) {
-  process.stdout.write(`${USAGE}\n`);
-  process.exit(0);
+function helpRef(command) {
+  if (command === 'previous-window') return 'node scripts/seo-data.js previous-window help';
+  return 'node scripts/seo-data.js keywords help';
 }
 
-if (!COMMANDS.has(command)) {
-  fail(`Error: unknown command "${command}". Run "node scripts/keywords.js help" for usage.`);
-}
+export function runKeywords(argv) {
+const command = argv[0] ?? 'keywords';
 
 const VALUE_FLAGS = new Set([
   '--queries', '--query-pages', '--previous-queries', '--targets',
@@ -121,7 +65,7 @@ for (let index = 1; index < argv.length; index += 1) {
   const option = argv[index];
   if (valuePositions.has(index)) continue;
   if (option.startsWith('-') && !VALUE_FLAGS.has(option) && !BARE_FLAGS.has(option)) {
-    fail(`Error: unknown option "${option}". Run "node scripts/keywords.js help" for usage.`);
+    fail(`Error: unknown option "${option}". Run "${helpRef(command)}" for usage.`);
   }
 }
 
@@ -139,10 +83,10 @@ function flag(name) {
   // already refused. This is the same refusal, in the tools the fix missed.
   // Flags that are documented as repeatable are read somewhere other than here.
   if (argv.indexOf(name, index + 1) !== -1) {
-    fail(`Error: ${name} was given more than once and takes one value. Run "node scripts/keywords.js help" for usage.`);
+    fail(`Error: ${name} was given more than once and takes one value. Run "${helpRef(command)}" for usage.`);
   }
   if (value === undefined || value.startsWith('--')) {
-    fail(`Error: ${name} needs a value. Run "node scripts/keywords.js help" for usage.`);
+    fail(`Error: ${name} needs a value. Run "${helpRef(command)}" for usage.`);
   }
   return value;
 }
@@ -166,7 +110,7 @@ function parseDay(value, name) {
 
 // The earlier window ends the day before the reporting window and covers the
 // same number of days. This is the one definition of "previous period" here:
-// previous-window prints it, and analyze reports it alongside the trends.
+// previous-window prints it, and keywords reports it alongside the trends.
 function previousWindow(startMs, endMs) {
   const previousEndMs = startMs - DAY_MS;
   const previousStartMs = previousEndMs - (endMs - startMs);
@@ -563,3 +507,4 @@ if (outputTarget) {
 }
 
 process.stdout.write(`${JSON.stringify(result)}\n`);
+}

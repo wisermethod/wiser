@@ -1,0 +1,14 @@
+{
+  "name": "seo-data",
+  "version": "0.1.1",
+  "description": "Consolidates Search Console and Analytics results for one site and date range into one audit dataset, and turns Search Console query rows into a keyword report of top performers, opportunities, trends, cannibalization, and target-keyword standings",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node scripts/seo-data.js help",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

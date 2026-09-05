@@ -3,7 +3,7 @@ name: SEO Assets
 type: skill
 category: seo
 description: Produce the ready-to-use artifacts a site's decided search changes need, each built from evidence pulled for it, held to its own standards, and handed over for someone else to deploy
-version: 0.7.0
+version: 0.8.0
 memory:
   - voice
   - about
@@ -77,16 +77,16 @@ The constraints under each, where losing one costs something on a live site:
 | The exact property string, and the sitemaps submitted on it | A search-console reading this release cannot fetch; the host retrieves it or the user hands it over, or it is labelled absent |
 | Query and page rows for a window | A search-console reading this release cannot fetch, one pull per grouping; the host retrieves it or the user hands over the saved response, or it is labelled absent |
 | Traffic, engagement, and channel rows | An analytics reading this release cannot fetch, kept as the platform returned it with its headers; the host retrieves it or the user hands it over, or it is labelled absent |
-| Which queries sit close, which moved, which pages compete for one query | `tools/seo-keywords/` |
-| Search and traffic as one dataset for a period | `tools/seo-audit/` |
+| Which queries sit close, which moved, which pages compete for one query | `tools/seo-data/` `keywords` |
+| Search and traffic as one dataset for a period | `tools/seo-data/` `audit` |
 | One page's head, headings, links, directives, and markup | `tools/seo-page-analyzer/` |
 | What a site publishes, and what changed since last time | `tools/sitemap/` `fetch`, then `tools/sitemap/` `diff` |
 | A page that builds itself in the browser, or sits behind a sign-in | `tools/Browser Control/` |
 
 What each hand-off needs to be right:
 
-- A saved search-console query response is a JSON file holding a `rows` array, and that file is what the tools read. Rows grouped by query feed `seo-keywords`'s `--queries`, rows grouped by query and page feed `--query-pages`, and each refuses the other's rows, so the grouping decides which flag it can serve. Run `node scripts/keywords.js previous-window --start <d> --end <d>` before comparing a trend: it prints the earlier window the comparison assumes.
-- `seo-audit` reads one bundle assembled by this skill. Its search sections take the `rows` array out of each saved response, its sitemap section takes the `sitemap` array a search-console sitemaps reading holds, and its analytics sections take the reports as the platform returned them, headers included and not flattened. The bundle is refused whole if a section is missing, so a period with no analytics data produces no audit dataset.
+- A saved search-console query response is a JSON file holding a `rows` array, and that file is what the tools read. Rows grouped by query feed `seo-data` `keywords`'s `--queries`, rows grouped by query and page feed `--query-pages`, and each refuses the other's rows, so the grouping decides which flag it can serve. Run `node scripts/keywords.js previous-window --start <d> --end <d>` before comparing a trend: it prints the earlier window the comparison assumes.
+- `seo-data` `audit` reads one bundle assembled by this skill. Its search sections take the `rows` array out of each saved response, its sitemap section takes the `sitemap` array a search-console sitemaps reading holds, and its analytics sections take the reports as the platform returned them, headers included and not flattened. The bundle is refused whole if a section is missing, so a period with no analytics data produces no audit dataset.
 - `seo-page-analyzer` opens no connection: it reads HTML from a file and needs `--page-url` to tell the page's own links from links off it. A static page's markup is retrieved however the host retrieves a page; a page that builds itself in JavaScript, or one behind a sign-in, comes through `Browser Control`, whose snapshot returns the markup in its `content` field, which is what gets written out rather than the object around it.
 - `Browser Control` reads no credential and takes no `--env`. It keeps sign-ins in the profile directory `--profile` names, resolved in the owning root per `standards/conventions.md` and never guessed, and a sign-in, a second factor, or a challenge is handed to the person at the window rather than driven.
 - Search Console rows arrive two to three days late, stop at sixteen months, and are a top slice with rare queries withheld, so a total summed from them describes the rows and never the property. Any artifact quoting one says which.
