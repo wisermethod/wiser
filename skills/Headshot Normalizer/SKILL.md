@@ -59,7 +59,7 @@ The three are one composition rather than three settings, because each is a shar
 
 Both platform calls in these steps, the background removal and the face geometry, belong to connectors this release does not ship. Each step says what the call would do, and until a connector lands the step is an honest stop.
 
-**Any value one of those absent sources would have stated is absent too**, a ceiling or a threshold included. A number that was going to come from something absent is absent too, and guessing it is the same defect as guessing the output: `tools/image-edit/` ships and will resize to whatever ceiling it is handed, so an invented one silently caps every frame below it.
+**Any value one of those absent sources would have stated is absent too**, a ceiling or a threshold included. Guessing such a number is the same defect as guessing the output: `tools/image-edit/` ships and will resize to whatever ceiling it is handed, so an invented one silently caps every frame below it.
 
 1. **Settle the frame, the destination, and the count.** There is no default save location: ask for the directory, and for a name per photograph or the rule that derives one, since a set delivered under names nobody chose is a set nobody can wire into a page. Keep every intermediate file in a work directory per `standards/conventions.md`. Confirm the three frame parameters, then say what the batch will cost: two billed calls per photograph, named as a count before the first one. A set runs one photograph at a time through the steps below, under one frame; never change a parameter part way through a set.
 

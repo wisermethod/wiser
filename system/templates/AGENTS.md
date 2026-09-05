@@ -4,7 +4,6 @@ What a user copies to start something new: a root of each type.
 
 **Every template under this directory is inert.** A template's AGENTS.md, frontmatter, and declarations belong to the copy it will become, not to this chain: nothing in a template routes, declares a live root, or registers a primitive. Validation and indexing skip the template directories.
 
-
 | Template | Copy it to create |
 |----------|-------------------|
 | `Personal Root Template/` | One person's root |
