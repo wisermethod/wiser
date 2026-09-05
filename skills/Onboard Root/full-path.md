@@ -261,7 +261,7 @@ bash "<the directory this file sits in>/gates.sh" "<absolute path to the root>"
 
 It prints one line per gate, the failures under each, and a summary; it exits non-zero when any gate fails or skips. **A gate you did not execute is a claim about a gate.** The first real run closed reporting that no gate had failed, and the harness, pointed at the same root afterwards, failed eight. Nothing in that run had executed it, because nothing told it to.
 
-Read every failure. Fix what is real, correct the candidate states where a gate moved a key, and run the harness again until what it reports is what the close report will say; where a failure is the harness misreading a correct root, say so in the close report by gate id with the reason, rather than deleting the line. A skipped gate is named in the close report too: a skip is not a pass. Then record each memory key's close state in the run record:
+Read every failure. Fix what is real, correct the candidate states where a gate moved a key, and run the harness again until what it reports is what the close report will say; where a failure is the harness misreading a correct root, say so in the close report by gate id with the reason, rather than deleting the line. A skipped gate is named in the close report too: a skip is not a pass. Then correct in the run record any candidate state the run moved, using these definitions:
 
 - **complete**: every gate for that key passed, and its required load-bearing claims are located rather than merely dispositioned.
 - **provisional**: a gate failed, with what is outstanding and who owns it.
@@ -269,7 +269,7 @@ Read every failure. Fix what is real, correct the candidate states where a gate 
 
 Keys are `about`, `voice`, `design`, and `competitors`. **An unbound `competitors` key is recorded explicitly as `competitors: unbound`, never marked blocked**: unbound is a complete outcome for a key that was not taken, not a key that failed, and an answer that was given belongs on the record. Bind `competitors: memory/competitors.md` in Provides only once the file is written from the confirmed set. Never bind a stub, and delete the stub where the key stays unbound.
 
-**The `## Onboarding` section of the root's `AGENTS.md`** carries one line per key, `- <key>: <state>`, each state the one the run record closed, and for a provisional or blocked key the owner and what it waits on in the same line. The section stays for the life of the root. Nothing in it is deleted; its state lines change when a key closes, and a later session reads them before a deliverable write. A deferred voice does not block a facts-only deliverable, because the refusal is scoped to the keys that are not complete.
+**The `## Onboarding` section of the root's `AGENTS.md`** carries one line per key, `- <key>: <state>`, each state the one the run record closed, and for a provisional or blocked key the owner and what it waits on in the same line, in the grammar Step 5 of `SKILL.md` gives (`owner:` on a provisional line; `person:`, `credential:` or `capability:` on a blocked one), which G17 reads literally. The section stays for the life of the root. Nothing in it is deleted; its state lines change when a key closes, and a later session reads them before a deliverable write. A deferred voice does not block a facts-only deliverable, because the refusal is scoped to the keys that are not complete.
 
 **The competitors file, on the record.** On yes, write `memory/competitors.md` from the confirmed set only and add `competitors: memory/competitors.md` to the Provides block; bind after confirmation, never before. On not now or no, delete the stub the client template shipped, leave the key unbound, and record the deferral in the operating file with an owner, or the decline in the run record so a later session sees the answer was given.
 
@@ -305,7 +305,7 @@ Exit: G20.
 | Working draft | `work/onboarding/draft/` | `work/onboarding-draft/` |
 | Supplied originals | `sources/` | `inbox/` |
 
-**Only the client template declares `work/onboarding/`, `sources/` and `todos/`.** The other two declare `work/`, `plays/`, `playbooks/`, `skills/`, `inbox/` and `zArchive/`, and each says in its own words that `work/onboarding/` is the client-root layout and does not apply to it. **Writing that layout into a root that did not declare it invents a location**, which `standards/conventions.md` forbids: if no declared work directory fits, ask.
+**Only the client template declares `work/onboarding/`, `sources/` and `todos/`.** The personal and org templates declare `work/`, `plays/`, `playbooks/`, `skills/`, `inbox/` and `zArchive/`, and a department or industry root made from the org template declares what it declares; the table above is where the mapping lives.
 
 **Every phase in this file names the client path. Read each one through this table**, whichever type is being onboarded; the client column is what the phases say, and the other column is what they mean on the other types. The handover-shaped phases, meaning extraction, per-angle evidence, and the supplied-originals inventory, exist only where documents were handed over. On a root where none were, they do not apply, and `gates.sh` says so under the gate that reads them rather than failing it.
 

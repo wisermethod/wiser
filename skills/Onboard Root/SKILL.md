@@ -14,7 +14,7 @@ gaps:
 
 Use when the workspace needs a user root it does not have. `system/templates/AGENTS.md` lists the three templates and says how the other two root types the constitution recognizes are made from one of them.
 
-Not for updating a deployed copy of this plugin to a new release, which the plugin carries no procedure for. Not for authoring a primitive or a Play inside a root that already exists; that is `skills/Play Author/`, which carries its own format; the templates this root ships are root templates only. Not for writing `memory/voice.md`, which `skills/Build Voice/` owns on both paths. Not for giving work a second home: when a composed root's scope already fits the request, that root owns it. Not for re-onboarding a root that already exists: no merge or invalidation semantics are defined, so report the state and ask before touching a bound file.
+Not for updating a deployed copy of this plugin to a new release, which the plugin carries no procedure for. Not for authoring a primitive or a Play inside a root that already exists; that is `skills/Play Author/`, which carries its own format; the templates this plugin ships are root templates only. Not for writing `memory/voice.md`, which `skills/Build Voice/` owns on both paths. Not for giving work a second home: when a composed root's scope already fits the request, that root owns it. Not for re-onboarding a root that already exists: no merge or invalidation semantics are defined, so report the state and ask before touching a bound file.
 
 ## Objective
 
@@ -81,11 +81,11 @@ Rewrite the `## Onboarding` section of the root's `AGENTS.md`. The template ship
 Onboarded <date> on the personal path of `skills/Onboard Root/`. A deliverable that loads a provisional or blocked key waits until that key closes; one that loads only complete keys proceeds.
 
 - about: complete
-- voice: provisional (no writing supplied; Build Voice runs when three pieces are; owner: <the person>)
-- design: blocked (person: <the person>; waits on their design guide)
+- voice: provisional (no writing supplied; Build Voice runs when writing is; owner: <the person>)
+- design: provisional (every heading labeled; owner: <the person>; waits on their design guide)
 ```
 
-A key is **complete** when every heading is answered or labeled, at least one is answered, and every claim survived the read-back. It is **provisional** when the file is usable and a named gap remains, with an owner and what it waits on in the same line; a file whose every heading is a label is provisional, not complete, with the person as owner. It is **blocked** when the file is not usable, with the blocker named on the line as `person:`, `credential:` or `capability:` followed by who or what. Nothing in the section is ever deleted; a later session updates a line when a key closes.
+A key is **complete** when every heading is answered or labeled, at least one is answered, and every claim survived the read-back. It is **provisional** when the file is usable and a named gap remains, with an owner and what it waits on in the same line; a file whose every heading is a label is provisional, not complete, with the person as owner. It is **blocked** when the file is not usable, with the blocker named on the line as `person:`, `credential:` or `capability:` followed by who or what; the form is `blocked (person: <who>; waits on <what>)`. A key that cannot pass its read-back is provisional or blocked, never closed complete. Nothing in the section is ever deleted; a later session updates a line when a key closes.
 
 Then tell the person what is in the three files, which keys are provisional, and what closes them. No run record, no close report, no operating file: the state lines are the record.
 

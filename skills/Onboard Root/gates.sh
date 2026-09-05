@@ -190,9 +190,10 @@ onb_section() {
   section_body "$AGENTS" "## Onboarding" 2>/dev/null
 }
 onb_state() {
-  # $1 = key. The first word after `- <key>:` in the ## Onboarding section.
+  # $1 = key. The first word after `- <key>:` in the ## Onboarding section,
+  # trailing punctuation stripped: `complete.` is complete.
   onb_section | grep -E "^[[:space:]]*-[[:space:]]*$1:" | head -1 \
-    | sed -E "s/^[[:space:]]*-[[:space:]]*$1:[[:space:]]*//" | awk '{print $1}'
+    | sed -E "s/^[[:space:]]*-[[:space:]]*$1:[[:space:]]*//" | awk '{print $1}' | sed -E 's/[.,;:]+$//'
 }
 if [ "$SHORT" = "0" ] && [ "$ROOT_TYPE" = "personal" ] && [ ! -f "$RUNREC" ]; then
   SHORT=1
