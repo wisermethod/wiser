@@ -219,3 +219,37 @@ describe('data help', () => {
     assert.equal(byWord.stdout, byFlag.stdout);
   });
 });
+
+describe('compute after Gate 2 round 1', () => {
+  it('refuses --digits above 20 by name, before any read', () => {
+    const file = writeObject({ a: 5, b: 2 });
+    const r = run(['compute', '--file', file, '--op', 'difference', '--a', 'a', '--b', 'b', '--digits', '309']);
+    assert.equal(r.status, 1);
+    assert.equal(r.stdout, '');
+    assert.match(r.stderr, /--digits must be an integer from 0 to 20/);
+  });
+
+  it('reports a result that is not a finite number as an error field, exit 0', () => {
+    const out = executeCompute({ data: { a: 1e308, b: -1e308 }, op: 'difference', aField: 'a', bField: 'b' });
+    assert.equal(out.ok, true);
+    assert.equal(out.result.error, 'the result is not a finite number');
+    assert.equal('value' in out.result, false);
+  });
+
+  it('names the file when it is not JSON, not a field', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'compute-bad-'));
+    const file = join(dir, 'bad.json');
+    writeFileSync(file, 'not json');
+    const r = run(['compute', '--file', file, '--op', 'rate', '--a', 'a', '--b', 'b']);
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /is not valid JSON/);
+    assert.doesNotMatch(r.stderr, /missing or not a number/);
+  });
+
+  it('never checks for csv-parse: compute runs with no node_modules', () => {
+    const file = writeObject({ a: 3, b: 4 });
+    const r = spawnSync(process.execPath, [SCRIPT, 'compute', '--file', file, '--op', 'rate', '--a', 'a', '--b', 'b'], { encoding: 'utf8', env: { ...process.env, WISER_COMPUTE_TEST_NO_DEPS: '1' } });
+    assert.equal(r.status, 0);
+    assert.equal(JSON.parse(r.stdout).value, 0.75);
+  });
+});

@@ -1,6 +1,6 @@
 # Third-party notice: video-edit
 
-**This tool installs nothing.** It declares no npm dependency and creates no `node_modules`, so no package is fetched when it runs.
+**This tool installs nothing.** No npm dependency is declared; no package is fetched, and FFmpeg is a system dependency named in `TOOL.md`.
 
 ## FFmpeg, which this tool requires and does not install
 

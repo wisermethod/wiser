@@ -1,13 +1,13 @@
 /**
  * browser-runtime.js: the shared Chromium launch runtime for this plugin's browser tools.
  *
- * This file is vendored verbatim into each browser tool's scripts/lib/ directory,
- * so every copy is byte-identical. Change one and change them all in the same act;
- * a copy that drifts is a tool that launches differently from its siblings.
+ * One copy, at tools/lib/browser-runtime/, imported by the browser tools by a relative
+ * path from their own scripts. Playwright installs here, once, and toolRoot() below is
+ * this directory, the nearest package.json above this file.
  *
- * Self-contained per Script Contract: imports only Node built-ins and the tool's
- * own node_modules ('playwright'). No path reaches outside the tool directory.
- *
+ * Self-contained per the Script Contract's one allowed exception, tools/lib/: imports
+ * only Node built-ins and this directory's own node_modules ('playwright'). No path
+ * reaches outside the plugin. *
  * What it does, and why it exists
  * -------------------------------
  * Chromium on a fresh Linux host (notably Claude Cowork's sandbox) links a small

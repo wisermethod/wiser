@@ -40,7 +40,7 @@ If this copy of the plugin has not yet authorised an install, the run reports th
 
 ## Script Contract
 
-Every script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. `html`, `svg`, `mermaid`, and `url` write one caller-named image outside this tool directory. `check` writes nothing. Every other write a run makes is a package install, and `tools/AGENTS.md` is the only place this repository lists those. Only `mermaid` checks for and installs `mermaid`. Playwright is the shared runtime's check for all four rendering commands. The contract's `--env` clause has nothing to bind here.
+Every script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. `html`, `svg`, `mermaid`, and `url` write one caller-named image outside this tool directory. `check` writes nothing without `--install`; with it, the install's own writes and no more. Every other write a run makes is a package install, and `tools/AGENTS.md` is the only place this repository lists those. Only `mermaid` checks for and installs `mermaid`. Playwright is the shared runtime's check for all four rendering commands. The contract's `--env` clause has nothing to bind here.
 
 No command takes `--env`.
 
@@ -51,7 +51,7 @@ No command takes `--env`.
 | The Chromium build Playwright drives | `html`, `svg`, `mermaid`, `url` | `node scripts/render.js check` exits 0 with `"chromiumLaunch":true` |
 | `mermaid` | `mermaid` | `node_modules/mermaid/package.json` inside this tool directory |
 
-The Playwright package and the Chromium build it drives both install on the run that authorises them with `--install`, into `tools/lib/browser-runtime/` and Playwright's cache. Presence is a **trial launch** via the shared runtime at `tools/lib/browser-runtime/`, not a path on disk. Missing OS libraries are self-healed in userspace where a C compiler is present; otherwise the check names the library and the one next step. The `mermaid` package installs into this tool's directory, and only `mermaid` asks for it. Install steps are never written here. `tools/AGENTS.md` lists every write.
+Playwright and its Chromium build install once, into `tools/lib/browser-runtime/` and Playwright's cache (`tools/AGENTS.md`). Presence is a **trial launch** via the shared runtime at `tools/lib/browser-runtime/`, not a path on disk. A missing OS library is shimmed where a compiler is present, or named with one next step (`tools/AGENTS.md`). The `mermaid` package installs into this tool's directory, and only `mermaid` asks for it. Install steps are never written here. `tools/AGENTS.md` lists every write.
 
 ## html
 

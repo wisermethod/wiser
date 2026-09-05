@@ -1,6 +1,6 @@
 {
   "name": "image",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Applies local edits to an existing image or composites an overlay over a base image, and writes the result as a PNG, JPEG, or WEBP",
   "private": true,
   "type": "module",

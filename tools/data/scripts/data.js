@@ -443,7 +443,10 @@ function installPlan() {
 }
 
 function requireInstallConsent(what) {
-  if (installAuthorised(HERE)) return;
+  if (installAuthorised(HERE)) {
+    writeConsent(HERE, 'data');
+    return;
+  }
   if (what === 'browser') {
     fail(
       `Error: this tool's packages are installed but the Chromium build they drive is not, and this copy of the plugin has not authorised an install. The plugin asks once, on the first install in this copy. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
@@ -938,8 +941,8 @@ async function runCompute(argv) {
   const digitsArg = flag('--digits');
   let digits;
   if (digitsArg !== undefined) {
-    if (!/^\d+$/.test(digitsArg)) {
-      fail(`Error: --digits must be a non-negative integer; got "${digitsArg}".`);
+    if (!/^\d+$/.test(digitsArg) || Number(digitsArg) > 20) {
+      fail(`Error: --digits must be an integer from 0 to 20; got "${digitsArg}".`);
     }
     digits = Number(digitsArg);
   }
@@ -962,7 +965,6 @@ async function runCompute(argv) {
     fail(`Error: could not read ${filePath}. Confirm it is a readable file, not a directory.`);
   }
 
-  ensureDependencies();
   const { executeCompute } = await import('./compute-core.js');
 
   let content;
@@ -976,10 +978,10 @@ async function runCompute(argv) {
   try {
     data = JSON.parse(content);
   } catch {
-    fail(`Error: field ${aField} is missing or not a number in ${filePath}`);
+    fail(`Error: ${filePath} is not valid JSON. Pass a file holding one JSON object, such as a saved aggregate or describe result.`);
   }
   if (data === null || typeof data !== 'object' || Array.isArray(data)) {
-    fail(`Error: field ${aField} is missing or not a number in ${filePath}`);
+    fail(`Error: ${filePath} does not hold one JSON object. Pass a file holding one JSON object, such as a saved aggregate or describe result.`);
   }
 
   const computed = executeCompute({ data, op, aField, bField, digits });
@@ -1007,7 +1009,6 @@ if (argv[1] === 'help' || argv.includes('--help') || argv.includes('-h')) {
   process.exit(0);
 }
 
-writeConsent(HERE, 'data');
 
 if (command === 'parse') await runParse(argv);
 else if (command === 'describe') await runDescribe(argv);

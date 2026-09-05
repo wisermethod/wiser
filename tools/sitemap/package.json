@@ -1,6 +1,6 @@
 {
   "name": "sitemap",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Collects the URLs a site publishes in its sitemaps into one deterministic snapshot, and compares two snapshots of one site",
   "private": true,
   "type": "module",

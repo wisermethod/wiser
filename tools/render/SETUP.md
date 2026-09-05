@@ -24,7 +24,7 @@ Nothing to run by hand. Consent is once per copy of the plugin (`tools/RUNNING.m
 node scripts/render.js check
 ```
 
-Expect `"chromiumLaunch":true`. Presence is a trial launch via the shared browser-runtime; missing OS libraries are self-healed where a C compiler is present. On failure, follow the `remediation` line, never a hard-coded install recipe here.
+Expect `"chromiumLaunch":true`. Presence is a trial launch through the shared runtime (`tools/AGENTS.md`). On failure, follow the `remediation` line, never a hard-coded install recipe here.
 
 The Chromium build installs with the packages under the same consent, and `tools/AGENTS.md` says where it lands.
 

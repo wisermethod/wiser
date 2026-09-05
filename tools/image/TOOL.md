@@ -3,7 +3,7 @@ name: image
 type: tool
 category: media
 description: Applies local edits to an existing image or composites an overlay over a base image, and writes the result as a PNG, JPEG, or WEBP
-version: 0.1.0
+version: 0.3.0
 ---
 
 # image
@@ -116,7 +116,7 @@ One JSON object on stdout and one image on disk, exit 0.
 
 A run that cannot produce the image leaves no image behind, prints nothing to stdout, and exits 1. On a `--canvas` run the written pair is the canvas, so it will not match the source even when no other operation ran; that is the placement, not a resize.
 
-One thing reaches stderr on a run that succeeds: a `Note:` naming what a placement clipped, when it clipped anything. It is not an error, stdout still carries the one JSON object, and the exit code is still 0.
+Two things reach stderr on a run that succeeds: the one line a first install prints, and a `Note:` naming what a placement clipped, when it clipped anything. It is not an error, stdout still carries the one JSON object, and the exit code is still 0.
 
 ## compose
 

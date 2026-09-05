@@ -1,6 +1,6 @@
 {
   "name": "data",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Parse, describe, aggregate, join, and chart CSV, JSON, or TSV files, and compute a percentage, difference, or rate from two numeric fields of a JSON object",
   "private": true,
   "type": "module",

@@ -3,7 +3,7 @@ name: data
 type: tool
 category: data
 description: Parses, describes, aggregates, joins, and charts a CSV, JSON, or TSV file, and computes a percentage, difference, or rate from two numeric fields of a JSON object
-version: 0.1.1
+version: 0.2.0
 ---
 
 # data
@@ -326,7 +326,7 @@ The HTML is a complete document: UTF-8, a title, minimal inline CSS, and one SVG
 
 One JSON object holding a percentage, difference, or rate computed from two numeric fields of a JSON object.
 
-Use it when two numbers already sit in a saved `aggregate` or `describe` object, or in an object with a top-level `rows` array, and the answer is their ratio as a percentage, their difference, or their rate. It does not read CSV or TSV; it reads one JSON object. It does not group, join, or chart.
+Use it when two numbers already sit in a saved `aggregate` or `describe` object, or in an object with a top-level `rows` array, and the answer is their ratio as a percentage, their difference, or their rate. It does not read CSV or TSV; it reads one JSON object. It does not group, join, or chart, and it needs no package, so it never stops for an install.
 
 A usage mistake, an unknown flag, a path holding no file, and a field that is missing or not a number name the cause on stderr and exit 1, with stdout empty. A zero `b` for `percentage` or `rate` is not a failure: it prints the object with `error` `b is zero` and no `value` key, exit 0.
 

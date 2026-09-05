@@ -24,7 +24,7 @@ Nothing to run by hand. Consent is once per copy of the plugin (`tools/RUNNING.m
 npm run check:chromium
 ```
 
-Expect `"chromiumLaunch":true`. Presence is a trial launch via the shared browser-runtime; missing OS libraries are self-healed where a C compiler is present. On failure, follow the `remediation` line, install walkthroughs are never written here.
+Expect `"chromiumLaunch":true`. Presence is a trial launch through the shared runtime (`tools/AGENTS.md`). On failure, follow the `remediation` line, install walkthroughs are never written here.
 
 A machine that already drives a browser for another primitive in this root usually has the build and any userspace stub cached and needs nothing here.
 

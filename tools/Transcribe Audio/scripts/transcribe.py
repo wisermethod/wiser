@@ -454,7 +454,7 @@ def require_install_consent(label):
     the first install in this copy, and --install on that run is the answer.
     """
     if install_authorised():
-        return
+                return
     fail(
         "this tool is not installed yet and this copy of the plugin has not authorised an install. "
         "The plugin asks once, on the first install in this copy. "
@@ -522,7 +522,6 @@ def install(requirements, marker, label):
     note("%s packages installed." % label.capitalize())
 
 
-write_consent()
 
 if not package_installed(CORE_MARKER):
     install(CORE_REQUIREMENTS, CORE_MARKER, "transcription")

@@ -60,7 +60,7 @@ The pattern that reads a site-specific playbook before improvising travels with 
 |------------|------------|--------------|
 | The Chromium build Playwright drives | `session start` | `npm run check:chromium` exits 0 with `"chromiumLaunch":true` |
 
-The Playwright package and the Chromium build it drives both install on the run that authorises them with `--install`, into `tools/lib/browser-runtime/` and Playwright's cache. Presence is a **trial launch** via the shared browser runtime at `tools/lib/browser-runtime/`, not a path on disk. Missing OS libraries are self-healed in userspace where a C compiler is present; otherwise the check names the library and the one next step. The runtime also forwards `HTTPS_PROXY` / `HTTP_PROXY` into Chromium. Install steps are never written here. `tools/AGENTS.md` lists every write.
+Playwright and its Chromium build install once, into `tools/lib/browser-runtime/` and Playwright's cache (`tools/AGENTS.md`). Presence is a **trial launch** via the shared browser runtime at `tools/lib/browser-runtime/`, not a path on disk. A missing OS library is shimmed where a compiler is present, or named with one next step (`tools/AGENTS.md`). The runtime also forwards `HTTPS_PROXY` / `HTTP_PROXY` into Chromium. Install steps are never written here. `tools/AGENTS.md` lists every write.
 
 ## Session State
 

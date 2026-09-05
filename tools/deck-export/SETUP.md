@@ -38,7 +38,7 @@ Run the checks in TOOL.md's Success section. On a correctly set up copy, `help`,
 
 **`node: command not found`** Node is installed but not on this shell's PATH. Open a new shell; if it persists, reinstall Node and let it update PATH.
 
-**The package install fails** Usually Node older than 18, a directory this account cannot write to, or a `package-lock.json` that is missing or out of step with `package.json`. `npm ci` installs exactly what the lockfile records and will not resolve around a mismatch, so check the lockfile first: a mismatch is a defect in this copy of the plugin rather than something a re-run fixes. Then delete `node_modules/` so a half-finished install cannot mask the retry, check step 1, and confirm the tool directory is writable.
+**The package install fails** Usually Node older than 18, a directory this account cannot write to, or a `package-lock.json` that is missing or out of step with `package.json`. `npm ci` installs exactly what the lockfile records and will not resolve around a mismatch, so check the lockfile first: a mismatch is a defect in this copy of the plugin rather than something a re-run fixes. Then delete `node_modules/` and retry, per `tools/RUNNING.md`.
 
 **`chromium: false` / `Chromium cannot launch`** Read the `remediation` field on `node scripts/deck.js check` (or the error line). It names the gap and one next step. Missing OS libraries are self-healed where possible; otherwise the base image or a C compiler is the next step, never a root-only `install-deps` recipe from this tree.
 

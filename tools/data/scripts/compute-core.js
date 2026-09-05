@@ -69,6 +69,11 @@ function roundTo(value, digits) {
   return Math.round(value * factor) / factor;
 }
 
+function notFinite(result) {
+  const { value, ...rest } = result;
+  return { ...rest, error: 'the result is not a finite number' };
+}
+
 /**
  * @param {{
  *   data: unknown,
@@ -138,13 +143,14 @@ export function executeCompute(input) {
     value = roundTo(value, digits);
   }
 
-  return {
-    ok: true,
-    result: {
-      op,
-      a: { field: aField, value: a },
-      b: { field: bField, value: b },
-      value,
-    },
+  const result = {
+    op,
+    a: { field: aField, value: a },
+    b: { field: bField, value: b },
+    value,
   };
+  if (!Number.isFinite(value)) {
+    return { ok: true, result: notFinite(result) };
+  }
+  return { ok: true, result };
 }

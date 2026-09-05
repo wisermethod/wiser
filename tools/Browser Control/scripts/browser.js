@@ -238,7 +238,6 @@ for (let i = 0; i < rest.length; i++) {
   else flags.set(word, [existing, value]);
 }
 
-writeConsent(HERE, 'Browser Control');
 
 function flag(name) {
   const value = flags.get(name);
@@ -795,7 +794,10 @@ async function ensureChromium() {
 // "this tool is not installed yet", nor name a registry fetch and an npm cache
 // write that this install will not make.
 function requireInstallConsent(what) {
-  if (installAuthorised(HERE)) return;
+  if (installAuthorised(HERE)) {
+    writeConsent(HERE, 'Browser Control');
+    return;
+  }
   if (what === 'browser') {
     fail(
       `Error: this tool's packages are installed but the Chromium build they drive is not, and this copy of the plugin has not authorised an install. The plugin asks once, on the first install in this copy. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
@@ -932,7 +934,7 @@ if (command === 'session') {
   // about to make; what happens next depends on WHY that launch failed, and a
   // forced replacement is scoped to the artifact that failed. This comment
   // described 'ready' and 'marked-but-gone' states that round 10 deleted, in
-  // four of the six entry scripts but not the other two -- so the six had
+  // four of the three entry scripts but not the other two -- so the six had
   // drifted from each other while the registers were correct. Round 11 found it.
   await ensureChromium();
 

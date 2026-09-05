@@ -43,6 +43,20 @@ This release ships skills, experts, tools, and standards. **It does not ship con
 
 Press and public-affairs judgment is not here either: whether something is a story, who to pitch it to, and what to say during an unfolding incident. Primitives that used to route those questions elsewhere now name them as gaps instead of answering them.
 
+## Renamed in this release
+
+Ten tools became subcommands of five, and their old script paths are gone with no shim. A script of your own that named one of these paths breaks and needs the new form:
+
+| Was | Is now |
+|---|---|
+| `tools/data-parse`, `data-describe`, `data-aggregate`, `data-join`, `data-chart` | `tools/data/scripts/data.js parse`, `describe`, `aggregate`, `join`, `chart`, and a new `compute` |
+| `tools/html-to-png`, `svg-to-png`, `mermaid-to-png`, `web-screenshot` | `tools/render/scripts/render.js html`, `svg`, `mermaid`, `url`, and `check` |
+| `tools/image-edit`, `image-overlay` | `tools/image/scripts/image.js edit`, `compose` |
+| `tools/sitemap-fetch`, `sitemap-diff` | `tools/sitemap/scripts/sitemap.js fetch`, `diff` |
+| `tools/seo-audit` (`build`), `seo-keywords` (`analyze`, `previous-window`) | `tools/seo-data/scripts/seo-data.js audit`, `keywords`, `previous-window` |
+
+Every flag, every JSON field and every exit code is what it was; only the path and the verb changed. The six browser tools' copies of the launch runtime are one file at `tools/lib/browser-runtime/`, and Playwright installs there once.
+
 ## Install
 
 Point your harness at this repository as a plugin root, then attach your working folder. **This repository is the source tree**: it ships no generated plugin manifest and no marketplace projection, so a harness that requires one is not yet supported. Install by composing this root, and read `AGENTS.md` first.

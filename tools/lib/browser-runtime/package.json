@@ -1,7 +1,7 @@
 {
   "name": "wiser-browser-runtime",
   "version": "0.1.0",
-  "description": "Shared Playwright runtime for the six browser tools",
+  "description": "Shared Playwright runtime for the three browser tools",
   "private": true,
   "type": "module",
   "scripts": {

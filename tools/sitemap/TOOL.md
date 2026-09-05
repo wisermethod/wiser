@@ -3,7 +3,7 @@ name: sitemap
 type: tool
 category: seo
 description: One deterministic snapshot of the URLs a site publishes in its sitemaps, and one JSON report of what changed between two snapshots of the same site
-version: 0.1.1
+version: 0.2.0
 ---
 
 # sitemap
