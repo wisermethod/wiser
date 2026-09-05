@@ -73,7 +73,7 @@ This root's declared directories under `standards/conventions.md`. The table abo
 | `sources/` | Documents supplied for this client, as received |
 | `todos/` | The living list of open actions; the file is `todos/current.md` |
 | `inbox/` | Unclassified captures |
-| `zArchive/` | This root's archive home |
+| `zArchive/` | This root's archive home; created on first use |
 
 ## Client Root
 

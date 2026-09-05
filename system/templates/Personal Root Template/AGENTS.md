@@ -27,7 +27,7 @@ This root's declared directories under `standards/conventions.md`:
 | `experts/` | This root's Experts; created on first use |
 | `tools/` | This root's Tools; created on first use |
 | `inbox/` | Quick captures with no home yet |
-| `zArchive/` | This root's archive home |
+| `zArchive/` | This root's archive home; created on first use |
 
 ## Personal Root
 

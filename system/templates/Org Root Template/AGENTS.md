@@ -22,12 +22,12 @@ This root's declared directories under `standards/conventions.md`:
 |-----------|-------|
 | `work/` | This root's deliverables and their drafts |
 | `plays/` | This root's Plays (`standards/play.md`) |
-| `playbooks/` | This root's Playbooks (`standards/playbook.md`) |
+| `playbooks/` | This root's Playbooks (`standards/playbook.md`); created on first use |
 | `skills/` | This root's Skills (`standards/primitives.md`); ships with the template |
 | `experts/` | This root's Experts; created on first use |
 | `tools/` | This root's Tools; created on first use |
 | `inbox/` | Quick captures with no home yet |
-| `zArchive/` | This root's archive home |
+| `zArchive/` | This root's archive home; created on first use |
 
 ## Org Root
 

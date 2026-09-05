@@ -12,8 +12,8 @@
 #   gates.sh --gate G6 <root path>    run one gate
 #   gates.sh --json <root path>       one JSON object per line, plus a summary
 #   gates.sh --short <root path>      the personal-path file gates only; chosen on its
-#                                     own when the root's `## Onboarding` section says
-#                                     the personal path ran and no run record exists
+#                                     own for a personal root with no run record
+#   gates.sh --list                   list the gates and exit
 #
 # Exit 0 only when every gate passes. Exit 1 when any gate fails or skips
 # in a way that is not a pass. Exit 2 on a usage error.
@@ -32,8 +32,8 @@ usage: $PROG [--json] [--gate <id>] <root path>
   --gate <id>   run a single gate (G0 G1 G2 G3 G4 G5a G5b G5c G6 G6b G7 G8
                 G9 G10 G11 G11b G12 G13 G13b G14 G15 G16 G17 G18 G19 G20)
   --json        print one JSON object per gate, then a summary object
-  --short       run the personal-path file gates only (automatic when the root
-                says it took the personal path and keeps no run record)
+  --short       run the personal-path file gates only (automatic for a personal
+                root that keeps no run record)
   --list        list the gates and exit
 USAGE
 }
@@ -1469,7 +1469,8 @@ gate_G9() {
         if(nb<=1 && ns<=1 \
            && body !~ /\[(Verified|Estimated|Unverified|Not available)/ \
            && body !~ /\[V[0-9]+\]/ \
-           && body !~ /\([^)]*\.(md|pdf|docx|pptx|txt|csv)\)/ \
+           && body !~ /\([^)]*\.[A-Za-z0-9]+\)/ \
+           && body !~ /\(E[0-9]+/ \
            && body !~ /\((Firsthand|Secondhand|Public statement|Research inference)/){
           d=body; if(length(d)>70) d=substr(d,1,70) "..."
           printf "line %d: heading \"%s\" is answered by a bare sentence with no bracketed label: %s\n", i, t, d
@@ -1572,7 +1573,7 @@ gate_G10() {
           # checked against the people this run actually recorded: the person
           # rows of the must-reach lists and the interview's who-confirms
           # answer. An observer nobody wrote down is not an observer.
-          if [ "$SHORT" = "1" ] && [ -n "$OWNER_LC" ] && [ "$(printf '%s' "$payload" | tr 'A-Z' 'a-z')" = "$OWNER_LC" ]; then
+          if [ "$SHORT" = "1" ] && [ -n "$OWNER_LC" ] && [ "$(printf '%s' "$payload" | cut -d, -f1 | sed 's/[[:space:]]*$//' | tr 'A-Z' 'a-z')" = "$OWNER_LC" ]; then
             # The root's owner, by the name the root declares, whatever its
             # shape: a mononym or a non-Latin name is a person all the same.
             :
