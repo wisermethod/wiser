@@ -6,7 +6,7 @@ description: How instructions are written in and around Wiser; the sole home of 
 
 # Instruction Quality
 
-Every instruction file in this system (the bodies of SKILL.md, EXPERT.md, TOOL.md, and CONNECTOR.md, Plays, Playbooks, and AGENTS.md routers) is written to this standard. Other files cite this standard; none restate it.
+Every instruction file in this system (the bodies of SKILL.md, EXPERT.md, and TOOL.md, Plays, Playbooks, and AGENTS.md routers) is written to this standard. Other files cite this standard; none restate it.
 
 ## Elegance
 

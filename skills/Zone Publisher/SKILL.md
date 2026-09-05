@@ -135,7 +135,7 @@ Propagation across the edge is not instantaneous. A record missing on the first 
 
 - One zone was touched, and its live records match the file the requester approved, confirmed by a read taken after publishing.
 - The state that was replaced is archived per `standards/conventions.md`, and every output sits in the owning root's work directory rather than in this plugin root.
-- Every removal appears by name in the approval message, and no gated command ran with a `--confirm` this skill supplied on its own initiative.
+- Every removal appears by name in the approval message, and no gated action ran on a confirmation this skill supplied on its own initiative.
 - No record carries a value that was guessed rather than sourced, and any value that could not be sourced is named as missing rather than filled in.
 - Proxy status and automatic TTLs came through the round trip unchanged unless the change request named them.
 - Mismatches found in verification are reported as the run's result, not omitted or explained away.

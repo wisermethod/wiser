@@ -30,7 +30,6 @@ A machine that already drives a browser for another primitive in this root usual
 
 **Nothing here fetches the browser build, and nothing needs to.** `playwright` carries no postinstall script, so the package install fetches no browser. The first non-help command that needs Chromium reports what it would fetch and stops; `--install` authorises both the packages and the browser build and that one run does the work. Run `check` on its own to see what is already present; run `check --install` to make it present and then report on it.
 
-
 ## 4. Verify
 
 Run the checks in TOOL.md's Success section. On a correctly set up copy, `help`, `check`, and a `scaffold` into a work directory all pass, and rendering that scaffolded deck writes the PDF and the images it names.

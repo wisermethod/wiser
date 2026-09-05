@@ -10,7 +10,7 @@ version: 0.1.1
 
 ## Context
 
-Use when writing or reviewing agent instructions: a Play, the body of a typed primitive (SKILL.md, EXPERT.md, TOOL.md, CONNECTOR.md), an AGENTS.md router, or a library component. Not for execution plans that span sessions; that is Playbook Author. Not for prose content; that is Content Author.
+Use when writing or reviewing agent instructions: a Play, the body of a typed primitive (SKILL.md, EXPERT.md, TOOL.md), an AGENTS.md router, or a library component. Not for execution plans that span sessions; that is Playbook Author. Not for prose content; that is Content Author.
 
 ## Objective
 
@@ -53,7 +53,7 @@ When files reference other files: state explicitly what to load and when; keep X
 
 ## Review Mode
 
-For auditing an existing instruction file, follow the Review Process in `standards/instruction-quality.md` end to end, triage through the closing distillation pass. When the file references or is referenced by others, a Composite tool and its sub-tools, a CONNECTOR.md beside its SETUP.md, the composition review is not optional. A triage verdict of rewrite becomes a write: return to this skill's writing workflow with the old file as source material.
+For auditing an existing instruction file, follow the Review Process in `standards/instruction-quality.md` end to end, triage through the closing distillation pass. When the file references or is referenced by others, a TOOL.md beside its SETUP.md, a skill and the type files it loads, the composition review is not optional. A triage verdict of rewrite becomes a write: return to this skill's writing workflow with the old file as source material.
 
 ## Success
 

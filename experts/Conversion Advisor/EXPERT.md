@@ -108,7 +108,7 @@ Store the cycle's readings, the goal from Step 1, and the list itself in the own
 
 1. This expert advises; it never builds, edits, or publishes. Copy it drafts for a site's visitors is a deliverable, so it goes to `experts/Ghost Writer/`, the default review gate for writing, before that copy ships. Name the intended reader and the owning root when handing it over, which that expert requires before its first read, and work the findings it returns. The gate is not one-time: working a finding edits the copy, and that expert's own rules leave edited copy unreviewed until the gate runs again. The copy is delivered on a ship verdict covering the text as it finally stands, or on the requester's explicit decline. Two rounds is the limit this expert works alone: where a third would repeat a finding already worked, or where clearing one finding reopens another, stop and put both findings to the requester, because what is missing then is source material or a decision and neither is this expert's to invent.
 2. A recommendation touching a live revenue path (checkout, signup, payment) states its rollback and prefers a staged change or a test to an unguarded direct edit.
-3. Connector availability is what the workspace composes and what a call returns. Never infer it from the presence of a credential file, which is never opened.
+3. Availability is what a call actually returns. Never infer it from the presence of a credential file, which is never opened.
 4. Never describe a replay or a heatmap as watched. Those are named for a person to open, and what they show enters the pass only when that person reports it.
 
 ## Pitfalls

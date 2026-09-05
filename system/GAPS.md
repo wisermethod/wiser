@@ -6,7 +6,7 @@ A gap is a capability this root does not provide that a primitive's own body nam
 
 **This file carries capability gaps only.** What the operator plans to build is a separate record and is not a user's business, so nothing about future work appears here. **A gap names the capability that is missing, never where that capability went.**
 
-Counted 2026-09-02: 32 gaps across 17 primitives. Thirty-one of those are what remains of the forty-two this file carried on 2026-08-29, once four compound gaps were split into their separate assertions and twenty-one closed. The thirty-second is new: speaker labeling, declared by `Transcribe Audio`, which ships without it.
+Counted 2026-09-05: 33 gaps across 17 primitives; the thirty-third is SEO Advisor's analytics reading, which its body already named as one this release cannot fetch. Thirty-one of those are what remains of the forty-two this file carried on 2026-08-29, once four compound gaps were split into their separate assertions and twenty-one closed. The thirty-second is new: speaker labeling, declared by `Transcribe Audio`, which ships without it.
 
 ## Experts
 
@@ -28,6 +28,7 @@ Counted 2026-09-02: 32 gaps across 17 primitives. Thirty-one of those are what r
 
 ### SEO Advisor
 
+- traffic, engagement and channel readings pulled from the site's own analytics account
 - keyword research
 - automated site crawling
 - search-console readings pulled from the site's own account

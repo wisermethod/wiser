@@ -30,7 +30,6 @@ A machine that already drives a browser for another primitive in this root usual
 
 **Nothing here fetches the browser build, and nothing needs to.** `playwright` carries no postinstall script, so the package install fetches no browser. The first non-help command that needs Chromium reports what it would fetch and stops; `--install` authorises both the packages and the browser build and that one run does the work. This step is a survey: it reports what is already present and makes nothing present. The tool's own first browser-needing command with `--install` is what makes it present, in one run.
 
-
 ## 4. Profile directory
 
 Sessions need an absolute `--profile` directory in the owning root (not inside this tool). Create an empty directory under that root's declared work location before the first `session start`. The profile holds cookies and sign-ins for that root only.

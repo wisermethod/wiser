@@ -28,7 +28,6 @@ Expect `"chromiumLaunch":true`. Presence is a trial launch via the shared browse
 
 **Nothing here fetches the browser build, and nothing needs to.** `playwright` carries no postinstall script, so the package install fetches no browser. The first non-help command that needs Chromium reports what it would fetch and stops; `--install` authorises both the packages and the browser build and that one run does the work. Run `check` on its own to see what is already present; run `check --install` to make it present and then report on it.
 
-
 ## 4. Verify
 
 ```bash
