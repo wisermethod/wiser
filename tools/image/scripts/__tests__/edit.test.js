@@ -33,11 +33,11 @@ test('an extension this tool does not write has no encoder', () => {
 });
 
 test('the tool-directory guard sees a path that climbs out and back in', () => {
-  assert.equal(isInsideDirectory('/tools/image-edit/out.png', '/tools/image-edit'), true);
-  assert.equal(isInsideDirectory('/tools/image-edit', '/tools/image-edit'), true);
-  assert.equal(isInsideDirectory('/work/../tools/image-edit/scripts/out.png', '/tools/image-edit'), true);
-  assert.equal(isInsideDirectory('/tools/image-edit-notes/out.png', '/tools/image-edit'), false);
-  assert.equal(isInsideDirectory('/work/out.png', '/tools/image-edit'), false);
+  assert.equal(isInsideDirectory('/tools/image/out.png', '/tools/image'), true);
+  assert.equal(isInsideDirectory('/tools/image', '/tools/image'), true);
+  assert.equal(isInsideDirectory('/work/../tools/image/scripts/out.png', '/tools/image'), true);
+  assert.equal(isInsideDirectory('/tools/image-notes/out.png', '/tools/image'), false);
+  assert.equal(isInsideDirectory('/work/out.png', '/tools/image'), false);
 });
 
 test('two spellings of one file are one file', () => {

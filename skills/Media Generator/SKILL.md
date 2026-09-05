@@ -3,7 +3,7 @@ name: Media Generator
 type: skill
 category: media
 description: Produce an image or a video that does not exist yet, or a photograph with its background removed, by finishing the prompt, choosing the model, and running the billed generation through the replicate connector to a file the user named
-version: 0.7.0
+version: 0.8.0
 gaps:
   - the image, video, and background-removal models this skill's whole output depends on
 ---
@@ -16,7 +16,7 @@ One image or video file, at the path the user named, made by a model chosen deli
 
 Use when the picture or the clip does not exist yet and no camera, no file, and no markup can produce it: an illustration or a photograph for an article, a deck, a page, or a post; a scene built from a description; a short clip from a description or from a still frame to animate; a photograph that has to arrive with its background gone.
 
-Do not use it on media that exists already in some other form. Vector artwork becomes pixels through `tools/render/` `svg`, markup through `tools/render/` `html`, a Mermaid diagram through `tools/render/` `mermaid`, and a live page through `tools/render/` `url`, each rendering deterministically, for free, at a size it computes properly. An image that has to change shape, format, or color is `tools/image-edit/`; two images that have to become one are `tools/image-overlay/`; a video that has to be cut, resized, captioned, joined, or turned into a GIF is `tools/video-edit/`. Reaching here for any of those buys a paid guess where a deterministic answer was waiting.
+Do not use it on media that exists already in some other form. Vector artwork becomes pixels through `tools/render/` `svg`, markup through `tools/render/` `html`, a Mermaid diagram through `tools/render/` `mermaid`, and a live page through `tools/render/` `url`, each rendering deterministically, for free, at a size it computes properly. An image that has to change shape, format, or color is `tools/image/` `edit`; two images that have to become one are `tools/image/` `compose`; a video that has to be cut, resized, captioned, joined, or turned into a GIF is `tools/video-edit/`. Reaching here for any of those buys a paid guess where a deterministic answer was waiting.
 
 Two properties separate this skill from every tool beside it, and both bind every step below. Each generation run spends real money, an image's worth of cents and a video's worth of many times that, and it spends it whether or not the result is usable. And each run is non-repeatable: the same prompt sent twice returns two different results, so a result that missed cannot be nudged, only re-argued.
 
@@ -86,13 +86,13 @@ Every platform call in these steps belongs to a generation connector this releas
 
    Reference format decides whether the run starts at all. An official model is addressed as `{owner}/{name}`; a community model needs `{owner}/{name}:{version_id}`, and the platform's version list supplies the version.
 
-   Frame last, where a frame is being composed: models take named ratios and users state pixels, so pick the closest ratio the schema lists, tell the user the pixel size that ratio actually delivers, and send exact dimensions to `tools/image-edit/` afterward rather than hunting for a model that outputs them natively.
+   Frame last, where a frame is being composed: models take named ratios and users state pixels, so pick the closest ratio the schema lists, tell the user the pixel size that ratio actually delivers, and send exact dimensions to `tools/image/` `edit` afterward rather than hunting for a model that outputs them natively.
 
 4. **Run the generation.** Say what the run will cost, in shape if not to the cent, before the first call, and say when a request means several calls. That is disclosure and not a gate: no confirmation is required here, and none is invented. The run takes the model, the input, and an output directory.
 
    A model slow enough to outlast a comfortable wait is started without waiting, which returns a prediction id, and a later wait on that id collects it into the output directory; a timeout moves the ceiling on either, and a timeout that expires stops the waiting, never the prediction, so the same id is picked up again. Never leave a finished prediction undownloaded: the platform serves output files for about an hour and then deletes them, and re-running costs again.
 
-   A still handed to an image-to-video model has to be reachable by the platform: small enough to inline, by the ceiling the generation connector states, or at an address the platform can fetch. A larger local file with no address does not go as it is, so say that and put the two ways forward to the user, a smaller rendition made by `tools/image-edit/` or an address the platform can reach. Never fall back to text-to-video without saying so; the still was the point.
+   A still handed to an image-to-video model has to be reachable by the platform: small enough to inline, by the ceiling the generation connector states, or at an address the platform can fetch. A larger local file with no address does not go as it is, so say that and put the two ways forward to the user, a smaller rendition made by `tools/image/` `edit` or an address the platform can reach. Never fall back to text-to-video without saying so; the still was the point.
 
    Video from text alone is two runs and better for it: generate the still first, judge it against the brief, then animate the one that earned it. A clip longer than a single model run is several runs joined by `tools/video-edit/`, never one longer prompt. And a motion prompt describes motion: name the camera move and name what the subject does, and where the movement should barely register, say it in those words, because these models exaggerate anything left vague.
 
@@ -102,7 +102,7 @@ Every platform call in these steps belongs to a generation connector this releas
 
    Two schema fields are worth looking for by name. A model offering a human-segmentation variant gets it whenever the subject is a person, because a general model cuts a person badly at the shoulders and the hair. And alpha matting, where the model offers it, is what keeps hair, fur, and soft edges from turning into a hard sawtooth; its thresholds are the model's own fields, so read them there rather than carrying numbers between models.
 
-   The result is written as PNG. JPEG holds no transparency, so a cutout saved that way arrives with its background back, in black. Removal is the whole of this step: resizing the cutout to a frame is `tools/image-edit/`, and putting it over something is `tools/image-overlay/`.
+   The result is written as PNG. JPEG holds no transparency, so a cutout saved that way arrives with its background back, in black. Removal is the whole of this step: resizing the cutout to a frame is `tools/image/` `edit`, and putting it over something is `tools/image/` `compose`.
 
 6. **Deliver.** Open the file and check it: it exists at the named path, it opens, its dimensions and format are what Step 3 predicted, transparency survived where it was wanted, and it shows what was asked for. Then judge it against the brief before showing it to anyone. A miss is diagnosed rather than rerolled: name which part of the prompt the model did not honor, restate that part, and run again saying what changed. Two runs missing the same way mean the model is wrong for this subject, so change the model rather than the adjectives. Report the final path, the model, and how many billed runs it took, and hand any resizing, compositing, or trimming to the tools that own it.
 

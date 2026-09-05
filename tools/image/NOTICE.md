@@ -1,4 +1,4 @@
-# Third-party notice: image-overlay
+# Third-party notice: image
 
 This tool installs the 30 packages below on the machine that calls it, into this tool's own directory on the first run that authorises it with `--install`. **This repository redistributes none of them.**
 

@@ -14,8 +14,8 @@ This is the one list; a tool's own pages point here rather than restating it.
 
 | What | Where | Which tools |
 |------|-------|-------------|
-| Node packages | `node_modules/` in the tool's directory | the 9 tools whose `package.json` declares a dependency |
-| npm's cache and logs | npm's configured cache, `~/.npm` by default, outside this plugin | the same 9, and the shared browser runtime |
+| Node packages | `node_modules/` in the tool's directory | the 8 tools whose `package.json` declares a dependency |
+| npm's cache and logs | npm's configured cache, `~/.npm` by default, outside this plugin | the same 8, and the shared browser runtime |
 | Python packages | `.venv/` in the tool's directory; pip's cache is switched off | `Transcribe Audio` |
 | Playwright and its Chromium build | once, into `tools/lib/browser-runtime/` and Playwright's cache (`PLAYWRIGHT_BROWSERS_PATH` if set to a path; inside `tools/lib/browser-runtime/node_modules/` if set to `0`; otherwise `~/Library/Caches/ms-playwright` on macOS, `~/.cache/ms-playwright` on Linux, `%LOCALAPPDATA%\ms-playwright` on Windows) | the three browser tools |
 | Compatibility shims, compiled on a Linux host missing an X library | `tools/lib/browser-runtime/node_modules/.wiser-lib`; Linux only, untested there | the three browser tools |
@@ -23,7 +23,7 @@ This is the one list; a tool's own pages point here rather than restating it.
 | The deliverable | exactly the path the caller passes | every tool that writes one |
 | A browser profile with live sign-ins, and a trace archive with cookies in it | exactly the `--profile` and `trace stop --output` paths | `Browser Control` |
 | A session token | `~/.wiser/browser-control/<port>.token`, outside this plugin; left behind by a kill | `Browser Control` |
-| An image written back onto its input | the `--base` path, only with `--confirm` | `image-overlay` |
+| An image written back onto its input | the `--base` path, only with `--confirm` | `image compose` |
 | A dated copy of a deck before an in-place edit | `--archive-dir`, or `zArchive/` beside the deck | `keynote-render` |
 | A harvest bundle | the `output.directory` inside the request file, absent `--output` | `Content Harvester` |
 
@@ -58,8 +58,7 @@ This is the one list; a tool's own pages point here rather than restating it.
 
 | Tool | Description |
 |------|-------------|
-| `image-edit/TOOL.md` | Applies local edits to an existing image, rotate, center crop, resize, grayscale, blur, brightness, contrast, sharpen, and placement on a transparent canvas at a given offset, and writes the result as a new PNG, JPEG, or WEBP |
-| `image-overlay/TOOL.md` | Composites an overlay image over a base image, stretched to the base's pixel dimensions, and writes the flattened result as a PNG or JPEG file |
+| `image/TOOL.md` | Applies local edits to an existing image or composites an overlay over a base image, and writes the result as a PNG, JPEG, or WEBP |
 | `render/TOOL.md` | Renders a local HTML file, an SVG, or a Mermaid diagram to a PNG, and captures a PNG of a live web page; a `--url` that points at a loopback, private-range, link-local, or cloud-metadata address is refused by name before the browser is launched, the same screen `sitemap-fetch` applies |
 | `Transcribe Audio/TOOL.md` | Turns one audio file into a text transcript with a speech model that runs on this machine |
 | `video-edit/TOOL.md` | Edits a video with FFmpeg and writes the result where the caller names, covering trim, resize, speed, text overlay, audio removal, concatenation, frame extraction, and GIF conversion |

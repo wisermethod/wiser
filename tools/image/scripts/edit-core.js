@@ -1,5 +1,5 @@
 /**
- * image-edit core: every decision a run makes before a pixel is touched.
+ * image edit core: every decision a run makes before a pixel is touched.
  *
  * Node built-ins only, and no filesystem or image work, so `node --test` can
  * exercise these rules on a copy with nothing installed.
