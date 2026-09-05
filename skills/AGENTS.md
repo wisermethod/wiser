@@ -20,7 +20,7 @@ The index is **hand-maintained**. `standards/primitives.md` says a family index 
 
 | Skill | Description |
 |-------|-------------|
-| `List Hygiene/SKILL.md` | Decide what an email contact list keeps and drops, verified through the usebouncer connector, with the cost put to the user before it is spent and every drop traced to the result field that caused it |
+| `List Hygiene/SKILL.md` | Decide what an email contact list keeps and drops, verified through the usebouncer connector, with the cost put to the user before it is spent and every drop traced to the result field that caused it. Needs a connector this release does not ship. |
 
 ### Data
 
@@ -45,7 +45,7 @@ The index is **hand-maintained**. `standards/primitives.md` says a family index 
 
 | Skill | Description |
 |-------|-------------|
-| `Zone Publisher/SKILL.md` | Bring one Cloudflare zone's live DNS into a reviewable zone file, apply the intended record changes, and publish them back with every removal approved by name and every published record re-read from the platform |
+| `Zone Publisher/SKILL.md` | Bring one Cloudflare zone's live DNS into a reviewable zone file, apply the intended record changes, and publish them back with every removal approved by name and every published record re-read from the platform. Needs a connector this release does not ship. |
 
 ### Marketing
 
@@ -57,8 +57,8 @@ The index is **hand-maintained**. `standards/primitives.md` says a family index 
 
 | Skill | Description |
 |-------|-------------|
-| `Headshot Normalizer/SKILL.md` | Turn photographs into square transparent PNGs whose faces sit at the same size and the same place in the frame, by removing each background, measuring the eyes, and cutting every frame to one standard, reporting the transparent band left where a photograph is too short to fill its frame |
-| `Media Generator/SKILL.md` | Produce an image or a video that does not exist yet, or a photograph with its background removed, by finishing the prompt, choosing the model, and running the billed generation through the replicate connector to a file the user named |
+| `Headshot Normalizer/SKILL.md` | Turn photographs into square transparent PNGs whose faces sit at the same size and the same place in the frame, by removing each background, measuring the eyes, and cutting every frame to one standard, reporting the transparent band left where a photograph is too short to fill its frame. Needs a connector this release does not ship. |
+| `Media Generator/SKILL.md` | Produce an image or a video that does not exist yet, or a photograph with its background removed, by finishing the prompt, choosing the model, and running the billed generation through the replicate connector to a file the user named. Needs a connector this release does not ship. |
 
 ### Onboarding
 

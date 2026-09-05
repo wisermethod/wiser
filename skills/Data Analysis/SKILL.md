@@ -3,7 +3,7 @@ name: Data Analysis
 type: skill
 category: data
 description: Turn a CSV, JSON, or TSV file into an analysis whose every figure was computed by a data tool and can be traced to the field it came from, with parse errors, skipped columns, and missing values stated
-version: 0.5.0
+version: 0.6.0
 ---
 
 # Data Analysis
@@ -34,8 +34,6 @@ A caller who has data but no file yet, rows pasted into the conversation, gets t
 An analyst who has given up being the source of any number. Every figure in the report is an instrument reading, cited to the instrument; what the analyst contributes is which instrument to run, on which columns, and what the readings mean together. A sentence carrying a figure the analyst worked out is not analysis. It is a guess wearing a decimal point, and it is indistinguishable from a real figure by the time anyone reads it.
 
 ## Steps
-
-**This root ships tools and no connectors.** A `tools/` path this file names is present: `tools/AGENTS.md` indexes what ships, each tool installs what it needs on the first run that authorises it with `--install` (or `WISER_ALLOW_INSTALL=1` unattended) and reports what it would fetch and stops otherwise, so a tool that stops for consent is asking a question rather than failing; a tool that cannot run reports that itself rather than returning something wrong. **Wherever this file names a `connectors/` path, or a command that belongs to one, that capability is absent. So is every capability this file's own `gaps` frontmatter declares, whether or not a path names it**: a gap is the authoritative statement of what is missing, and some of them name no path because nothing in this root would have supplied them. Read the frontmatter as part of this rule, not beside it. Where the work in hand depends on something absent, or on a tool that stopped, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
 
 ### Step 1: Profile the file, before anything else
 
@@ -85,7 +83,7 @@ What the analyst adds is not figures. It is which of them matter, what is unusua
 
 Figures computed over fewer values than the file has rows carry that fact beside them; a group mean's own output does not reveal its denominator, so that disclosure comes the way the denominator Pitfall below directs, never from assuming the tool reported it.
 
-A request for something no tool here computes gets three sentences and no fourth: that no tool computes it, what was computed instead, and what would have to exist to answer it. A percentage of a total is the common case, and it resolves the same way as the rest: report the count and the total as the tools returned them, and leave the division to the reader.
+A request for something no tool here computes gets three sentences and no fourth: that no tool computes it, what was computed instead, and the inputs the figure would need, handed over as the tools returned them. A percentage of a total is the common case, and it resolves the same way as the rest: hand over the count and the total, each named with the result field it came from, and the division is the user's to make.
 
 ## Pitfalls
 
@@ -96,11 +94,9 @@ A request for something no tool here computes gets three sentences and no fourth
 - **A denominator nobody can see.** A group's mean divides by the values in that group that parsed as numbers, not by the group's rows, so a group holding blanks reports a mean over fewer values than it has rows. When the profile shows a column with missing or non-numeric values, either say so beside the group figures or describe that column so the count and the missing count are on the record.
 - **Two counts that are not the same count.** The profile's non-null count, the descriptive count, and an aggregate count answer different questions across the tools that produce them. Take each figure's count from the tool that produced that figure, and never combine two of them into a third number.
 - **The request that has not been asked yet.** "Analyze this" over a file of forty columns, a question naming a column that is not there, an ambiguous grouping: ask which columns or which question before running anything, per the constitution's Behavioral Core. A profile is cheap and answers most of it; a guessed analysis is expensive and looks finished.
-- **A tool that cannot run.** Every `tools/` path this file names ships, and a tool can still stop: a system dependency it names may be absent, or the directory it installs into may not be writable. It says which, and it says so rather than returning something wrong. Where a step depends on a tool that stopped, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
 
-- **Where a tool this run needed could not run, success is the honest stop**: the run named which step could not run, what it would have produced, and why the tool stopped, and produced no file and no figure in its place. **Every criterion below applies to a run in which every tool it needed ran.**
 
 - `tools/data-parse/` ran first, and its profile decided which columns went to which tool.
 - Every figure in the analysis traces to a named result field, and no figure was produced by reasoning, percentages, differences, and rates included.

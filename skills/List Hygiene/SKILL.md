@@ -3,7 +3,7 @@ name: List Hygiene
 type: skill
 category: communication
 description: Decide what an email contact list keeps and drops, verified through the usebouncer connector, with the cost put to the user before it is spent and every drop traced to the result field that caused it
-version: 0.5.0
+version: 0.6.0
 gaps:
   - address verification against an email validation service
 ---
@@ -14,7 +14,7 @@ gaps:
 
 Use when someone holds a list of email addresses and needs to know which of them are safe to mail: before a campaign, before importing into a sending platform, after a list has sat unused for a year, or once bounces have already started. The list arrives as a file with an address column and other columns beside it.
 
-Not for a single address, which is one connector command and needs no skill (`connectors/usebouncer/CONNECTOR.md`). Not for the sending side of deliverability, the sending domain's authentication records, its reputation, or a warming schedule; bounces that began when the sending setup changed are not addresses going bad, and verifying the list finds nothing and bills for the search. Not for growing a list, for writing what gets sent to it, or for judging who on it is worth mailing commercially. Not for a list nobody can account for: verification is a paid operation on other people's personal data, and Step 1 is where that stops.
+Not for a single address, which is one verification call and needs no skill. Not for the sending side of deliverability, the sending domain's authentication records, its reputation, or a warming schedule; bounces that began when the sending setup changed are not addresses going bad, and verifying the list finds nothing and bills for the search. Not for growing a list, for writing what gets sent to it, or for judging who on it is worth mailing commercially. Not for a list nobody can account for: verification is a paid operation on other people's personal data, and Step 1 is where that stops.
 
 ## Objective
 
@@ -35,11 +35,11 @@ Someone who has cleaned a list before and remembers the two ways it goes wrong. 
 
 ## Steps
 
-**This root ships tools and no connectors.** A `tools/` path this file names is present: `tools/AGENTS.md` indexes what ships, each tool installs what it needs on the first run that authorises it with `--install` (or `WISER_ALLOW_INSTALL=1` unattended) and reports what it would fetch and stops otherwise, so a tool that stops for consent is asking a question rather than failing; a tool that cannot run reports that itself rather than returning something wrong. **Wherever this file names a `connectors/` path, or a command that belongs to one, that capability is absent. So is every capability this file's own `gaps` frontmatter declares, whether or not a path names it**: a gap is the authoritative statement of what is missing, and some of them name no path because nothing in this root would have supplied them. Read the frontmatter as part of this rule, not beside it. Where the work in hand depends on something absent, or on a tool that stopped, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+Every verification call in these steps belongs to an email-verification connector this release does not ship. Each step says what the call would do, and until a connector lands the step is an honest stop.
 
 ### Step 1: Establish what is being verified, and on whose basis
 
-Before an address leaves the machine, two things are on the record: where the list came from, and what will be sent to it. Submitting addresses processes other people's personal data through a third party, and nothing in the connector supplies a lawful basis for that; the account holder whose credentials this run spends is the one who establishes it, and this step is where they get the chance (`connectors/usebouncer/CAPABILITIES.md`).
+Before an address leaves the machine, two things are on the record: where the list came from, and what will be sent to it. Submitting addresses processes other people's personal data through a third party, and nothing in the verification service supplies a lawful basis for that; the account holder whose credentials this run spends is the one who establishes it, and this step is where they get the chance.
 
 - The caller can account for the list's origin and name the send: proceed.
 - They cannot: ask. A list whose origin nobody can state does not get submitted on the assumption that someone will remember later.
@@ -72,9 +72,9 @@ The normalized address is the only key results come back on, which makes it the 
 
 ### Step 4: Price the submission, then submit once
 
-The credential is the connector's, not this skill's: resolve the credential file per the Credentials section of `connectors/usebouncer/`, which owns the key and how it resolves, and pass it to every command as `--env <path>`. Never guess a path.
+The credential belongs to the verification connector that would make the calls, which this release does not ship, so nothing here takes a credential path. Never guess one.
 
-Follow the pre-submission sequence in `connectors/usebouncer/CONNECTOR.md` rather than one of your own: the submission refuses first and states what the file holds and what it would cost, the live balance comes from the separate ungated read, both reach the user together with the estimate, and only the user's answer earns the confirmed re-run. Never supply `--confirm` on your own initiative.
+Follow the pre-submission sequence the verification connector defines rather than one of your own: the submission refuses first and states what the file holds and what it would cost, the live balance comes from a separate ungated read, both reach the user together with the estimate, and only the user's answer earns the confirmed re-run. Never confirm on your own initiative.
 
 The judgment this step carries:
 
@@ -116,11 +116,9 @@ Into the response: the decision rather than the file listing. How much of the li
 - **Unknown read as dead.** Unknown means the mailbox could not be reached in the time allowed, not that it is gone. Dropping unknowns deletes reachable people permanently, and rechecking them later costs again what was already paid.
 - **Rows that disappear.** A row with no address, a row that did not parse, several rows collapsed onto one deduplicated address: each is a row the caller still counts as on the list. Every one of them is in the record with its number.
 - **The request that has not been asked yet.** An address column that could be two columns, a list whose origin nobody states, a send nobody has described, a balance that will not cover the file: ask before submitting, per the constitution's Behavioral Core. A submitted job cannot be recalled and its credits do not come back.
-- **A connector this root does not carry.** Every `connectors/` path this file names, and every command that belongs to one, is capability this plugin does not ship; the `tools/` paths this file names do ship. Where a step depends on a connector, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
 
-- **Where a connector this root does not ship was needed, success is the honest stop**: the run named which step could not run, what it would have produced, and the gap it belongs to, and produced no file and no figure in its place. **Every criterion below applies to a run in which those connectors were present and every tool it needed ran.**
 
 - The list's origin and the send were on the record before any address left the machine.
 - `tools/data-parse/` profiled the file first, and the address column came from its column list rather than from a guess.

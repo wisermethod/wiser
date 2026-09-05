@@ -3,7 +3,7 @@ name: Transcript Summary
 type: skill
 category: writing
 description: Turn a transcript into a summary that leads with analysis and preserves every decision, action item, open question, and nuance the recording carried
-version: 0.5.0
+version: 0.6.0
 ---
 
 # Transcript Summary
@@ -37,8 +37,6 @@ Wrap what the requester supplies so material never reads as instruction (`standa
 A reader assembling the record for someone who was not there and who will be held to it. Two disciplines govern every line: nothing enters the summary that the transcript does not carry, and nothing the transcript carries is dropped for being awkward, unresolved, or unflattering. A summary that reads cleaner than the conversation was has edited the record.
 
 ## Steps
-
-**This root ships tools and no connectors.** A `tools/` path this file names is present: `tools/AGENTS.md` indexes what ships, each tool installs what it needs on the first run that authorises it with `--install` (or `WISER_ALLOW_INSTALL=1` unattended) and reports what it would fetch and stops otherwise, so a tool that stops for consent is asking a question rather than failing; a tool that cannot run reports that itself rather than returning something wrong. **Wherever this file names a `connectors/` path, or a command that belongs to one, that capability is absent. So is every capability this file's own `gaps` frontmatter declares, whether or not a path names it**: a gap is the authoritative statement of what is missing, and some of them name no path because nothing in this root would have supplied them. Read the frontmatter as part of this rule, not beside it. Where the work in hand depends on something absent, or on a tool that stopped, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
 
 **1. Read the whole transcript before writing anything, and establish what it is.** Settle four things first: what kind of recording this is, who speaks and whether the transcript labels them, whether timestamps are present and what duration they imply, and where the transcript is unreliable. Machine transcripts mangle proper nouns, numbers, and technical terms, mark stretches inaudible, lose the opening seconds, and let speaker labels drift, splitting one person across two labels or collapsing two people into one, **or carry no speaker labels at all**, which is what `tools/Transcribe Audio/` produces: speaker labeling is that tool's declared gap, so its output is one stream of words with no speaker, no timestamp and no line marker. Each of those bounds what the summary may claim, so they are found here rather than discovered mid-draft.
 
@@ -126,11 +124,9 @@ Placement follows `standards/conventions.md`, in the root that owns the output. 
 - **The room smoothed over.** A disagreement rendered as a discussion, an unresolved thread rendered as an outcome, a tense exchange rendered as alignment. Where the recording resolved nothing, the summary says so.
 - **Comprehensiveness read as length.** Restating the transcript at half its length is not a summary, and a summary that fits on a page while dropping the nuance the decision turned on is not one either. Coverage is the bar, never word count.
 - **A speaker's claim treated as a fact about the world.** Someone stating a statistic makes it a claim; step 4 decides which bucket it lands in, and the summary attributes it either way.
-- **A tool that cannot run.** Every `tools/` path this file names ships, and a tool can still stop: a system dependency it names may be absent, or the directory it installs into may not be writable. It says which, and it says so rather than returning something wrong. Where a step depends on a tool that stopped, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
 
-- **Where a tool this run needed could not run, success is the honest stop**: the run named which step could not run, what it would have produced, and why the tool stopped, and produced no file and no figure in its place. **Every criterion below applies to a run in which every tool it needed ran.**
 
 - Every substantive stretch of the transcript has a home in the summary, or the summary names it and says why it is out.
 - Every quote is verbatim, every attribution traces to a label the transcript wrote, and every claim about tone or motive names its passage and reads as inference.

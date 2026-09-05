@@ -26,7 +26,6 @@ This root's declared directories under `standards/conventions.md`:
 | `skills/` | This root's Skills (`standards/primitives.md`); ships with the template |
 | `experts/` | This root's Experts; created on first use |
 | `tools/` | This root's Tools; created on first use |
-| `connectors/` | This root's Connectors; created on first use |
 | `inbox/` | Quick captures with no home yet |
 | `zArchive/` | This root's archive home |
 
