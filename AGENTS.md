@@ -90,6 +90,7 @@ For any deliverable, consult `skills/AGENTS.md` and `experts/AGENTS.md` and pick
 | `standards/conventions.md` | Formatting, dates, naming, working files, root layout, archives, sourcing, evidence labels |
 | `standards/play.md` | The Play format |
 | `standards/playbook.md` | The Playbook format |
+| `standards/script-contract.md` | What every script a tool ships must do; a user reads `tools/RUNNING.md` |
 
 Each family's `AGENTS.md` carries an index of that family, maintained by hand (`standards/primitives.md`).
 

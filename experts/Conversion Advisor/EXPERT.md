@@ -65,7 +65,7 @@ Run every dimension below. A dimension whose reading this release cannot fetch i
 - **Where they leave.** Top pages by entry and by exit, the goal event and how often it fires, sources split by whether they convert, and the same split by device. The output is a ranked list of leaks.
 - **Why they leave.** Behavior signals for each leak page, read against the pairing instinct above.
 - **What speed costs.** Core Web Vitals for the conversion pages, mobile and desktop.
-- **What the page says.** The heuristic read in Instincts. This one runs even with no connector composed at all.
+- **What the page says.** The heuristic read in Instincts. This one runs even when this release fetches no other reading.
 - **What the traffic was promised.** Message and intent match between each significant source and the page it lands on.
 
 Label unavailable data with the evidence labels in `standards/conventions.md`; the page read enters as `Estimated: manual review`, never as measurement.

@@ -12,7 +12,7 @@ It carries no dependency on any single agent host: everything in it is instructi
 
 **23 tools** that do the deterministic work a skill or expert calls for: parsing, describing, aggregating, joining and charting tabular data; rendering HTML, SVG and Mermaid diagrams to images; editing images and video; capturing a live page and driving a browser; on-page, sitemap and analytics-tag checks for SEO; building and exporting decks; gathering candidate source material; and transcribing audio on your own machine.
 
-**5 standards** that bind all of it: how a primitive is shaped, how instructions are written, and the conventions every file follows.
+**6 standards** that bind all of it: how a primitive is shaped, how instructions are written, the conventions every file follows, the two shapes for work that spans sessions, and what every script a tool ships must do.
 
 ## How it works
 
@@ -26,12 +26,12 @@ The plugin is **read-only in use, with one exception**. Everything it produces l
 
 The writing skills and the judging experts run on any model that can read the files. The tools need a host that runs commands. Two of the constitution's rules need something a host may not have, and this is what each host does about it.
 
-- **Claude Code.** Everything runs as written: `CLAUDE.md` points at `AGENTS.md`, approving the `--install` re-run is a tool's consent, and a subagent is the second context the review rule needs. One cost: a plugin cache that keeps each version in its own directory throws away every tool's packages on an update, and the next run installs them again.
-- **Cursor.** Reads `AGENTS.md` at each workspace root. It runs one agent per chat, so a review runs in a new chat given the draft and the reviewing expert, and you carry it across by hand. Cursor already asks before a terminal command, so `--install` is a second approval for the same action.
+- **Claude Code.** Add this directory and your working folder to the session, and everything runs as written: `CLAUDE.md` points at `AGENTS.md`, approving the `--install` re-run is a tool's consent, and a subagent is the second context the review rule needs.
+- **Cursor.** Reads `AGENTS.md` at each workspace root. Where it offers a subagent, delegate the review to one with the draft and the reviewing expert; where it does not, a new chat given the same is the review, carried across by hand. Where Cursor is set to ask before a terminal command, `--install` is a second approval for the same action.
 - **Codex.** Reads the `AGENTS.md` files from the project root down to the working directory, and nothing beside that path, so a plugin that sits beside or inside the working folder is not read. Start Codex in a directory that holds both, and give that directory a two-line `AGENTS.md` that says to read the plugin's `AGENTS.md` first and the working folder's second. Its sandbox has network off by default, and an install stops until you turn it on. A review is a second `codex` session.
-- **A chat model with no filesystem.** Paste `AGENTS.md`, the skill, the type file for the kind of piece, the reviewing expert, `standards/conventions.md` and your own `voice.md`. Writing works; every tool step is an honest stop, and Data Analysis in particular refuses to read rows by eye, so a pasted spreadsheet gets a correct refusal.
+- **A chat model with no filesystem.** Paste `AGENTS.md`, your working folder's own `AGENTS.md` with its Provides block, the files it binds (`voice.md`, `about.md`), the skill, the type file for the kind of piece, `openings.md` for a piece with a cold reader, `standards/conventions.md` and `standards/instruction-quality.md`. Writing works, and saving the piece is yours to do. The review goes to a fresh chat given the draft, the reviewing expert, the intended reader and the same `voice.md`, and nothing of the reasoning. Every tool step is an honest stop, and Data Analysis in particular refuses to read rows by eye, so a pasted spreadsheet gets a correct refusal.
 
-**The review rule on one context.** The constitution says a review runs in a context that did not produce the work. Where the host has one context, a new chat that receives the work and the reviewing primitive, and nothing of the reasoning that produced the work, is that context.
+**The review rule on one context** is the constitution's, in its Behavioral Core: a new chat given the work and the reviewing primitive, and nothing of the reasoning, is the context.
 
 ## What it does not do yet
 
