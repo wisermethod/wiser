@@ -16,11 +16,7 @@ node --version
 
 ## 2. Packages
 
-```bash
-npm ci
-```
-
-The first non-help command reports what it would install and stops; `--install` authorises it and that run does the work. This tool holds no credentials.
+Nothing to run by hand. The first non-help command reports what it would install and stops; `--install` on the same command authorises it and that run does the work. This tool holds no credentials.
 
 ## 3. Chromium
 
@@ -30,7 +26,7 @@ npm run check:chromium
 
 Expect `"chromiumLaunch":true`. Trial launch via the shared browser-runtime; on failure follow the `remediation` line.
 
-**Nothing here fetches the browser build, and nothing needs to.** `playwright` carries no postinstall script, so `npm ci` above installs the package and no browser. The first non-help command that needs Chromium reports what it would fetch and stops; `--install` authorises both the packages and the browser build and that one run does the work. This step is a survey: it reports what is already present and makes nothing present. The tool's own first browser-needing command with `--install` is what makes it present, in one run.
+**Nothing here fetches the browser build, and nothing needs to.** `playwright` carries no postinstall script, so the package install fetches no browser. The first non-help command that needs Chromium reports what it would fetch and stops; `--install` authorises both the packages and the browser build and that one run does the work. This step is a survey: it reports what is already present and makes nothing present. The tool's own first browser-needing command with `--install` is what makes it present, in one run.
 
 
 ## 4. Verify

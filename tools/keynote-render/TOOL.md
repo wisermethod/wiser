@@ -261,7 +261,7 @@ Each successful command prints one JSON object to stdout and exits 0.
 | `export` | `exported`, `format`, `outPath` |
 | `check` | runtime booleans |
 
-Every entry in `warnings` is a defect: text asked for that is not on the slide (missing or hidden placeholder). Fix the SSOT or brand, not by hand-editing what the next build would replace—except that **in-place update** is designed so the next sync does **not** replace untouched chrome.
+Every entry in `warnings` is a defect: text asked for that is not on the slide (missing or hidden placeholder). Fix the SSOT or brand, not by hand-editing what the next build would replace, except that **in-place update** is designed so the next sync does **not** replace untouched chrome.
 
 Failure: empty stdout, cause and fix on stderr, exit 1.
 

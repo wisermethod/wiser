@@ -452,7 +452,7 @@ try {
 
 /**
  * Archive an existing .key before any mutation. On failure the deck must not
- * be touched — archiveBeside throws and we never reach the mutator.
+ * be touched, archiveBeside throws and we never reach the mutator.
  */
 function archiveDeck(deckPath) {
   const archiveDir = flag('--archive-dir')

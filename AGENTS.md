@@ -63,7 +63,7 @@ Guard rails, binding for any shared artifact:
 
 **A secret's contents never enter the conversation, a log, a commit, or another file.**
 
-**Nothing is ever written under this root during a session that uses it**, nor to the top level of any root. Authoring this root is separate work, planned as a Playbook. Output lands in the working folder, in the directories that folder's own `AGENTS.md` declares. The one exception is what a tool installs for itself, per that tool's own contract, and some of that lands outside this root. **The complete list, with the path for each and the platform it depends on, is in `tools/AGENTS.md` and is not restated here**, because a write inventory kept in two places goes stale in one of them — as the summary that used to stand in this sentence did, naming the Linux compatibility shims as a write outside this root after they had been moved inside the tool that builds them.
+**Nothing is ever written under this root during a session that uses it**, nor to the top level of any root. Authoring this root is separate work, planned as a Playbook. Output lands in the working folder, in the directories that folder's own `AGENTS.md` declares. The one exception is what a tool installs for itself, per that tool's own contract, and some of that lands outside this root. **The complete list, with the path for each and the platform it depends on, is in `tools/AGENTS.md` and is not restated here**, because a write inventory kept in two places goes stale in one of them, as the summary that used to stand in this sentence did, naming the Linux compatibility shims as a write outside this root after they had been moved inside the tool that builds them.
 
 **Nothing is deleted or overwritten without naming what is being lost first.** Where a root's own `AGENTS.md` declares an archive home, a file is archived there before it is replaced.
 
@@ -91,11 +91,11 @@ For any deliverable, consult `skills/AGENTS.md` and `experts/AGENTS.md` and pick
 | `standards/play.md` | The Play format |
 | `standards/playbook.md` | The Playbook format |
 
-Each family's `AGENTS.md` carries an index of that family. **This root carries no generator, so those indexes are maintained by hand** against the frontmatter of what is actually present.
+Each family's `AGENTS.md` carries an index of that family, maintained by hand (`standards/primitives.md`).
 
 ## What this root does not carry
 
-Stated here so a reader is not left hunting for it. This root ships skills, experts, tools, and the standards binding them. It does not ship connectors, a release gate, a generated plugin projection, or a separate runtime charter. Where a primitive's step depends on one of those, that primitive says so at the step and declares the lost capability in its `gaps` frontmatter. **`system/GAPS.md` collects every declared gap in one place.**
+Stated here so a reader is not left hunting for it. This root ships skills, experts, tools, and the standards binding them, and no connectors. Where a primitive's step depends on a connector, that primitive says so at the step and declares the lost capability in its `gaps` frontmatter. **`system/GAPS.md` collects every declared gap in one place.**
 
 ## Working under this root
 

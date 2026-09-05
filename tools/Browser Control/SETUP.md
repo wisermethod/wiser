@@ -16,11 +16,7 @@ node --version
 
 ## 2. Packages
 
-```bash
-npm ci
-```
-
-The script will do this on the first non-help command given `--install`, and reports what it would fetch rather than installing without one. Doing it here means the first real command works. This tool holds no credentials, so there is nothing else to configure and no `--env` to resolve.
+Nothing to run by hand. The script installs its packages on the first non-help command given `--install`, and reports what it would fetch rather than installing without one. This tool holds no credentials, so there is nothing else to configure and no `--env` to resolve.
 
 ## 3. The browser build
 
@@ -28,11 +24,11 @@ The script will do this on the first non-help command given `--install`, and rep
 npm run check:chromium
 ```
 
-Expect `"chromiumLaunch":true`. Presence is a trial launch via the shared browser-runtime; missing OS libraries are self-healed where a C compiler is present. On failure, follow the `remediation` line — install walkthroughs are never written here.
+Expect `"chromiumLaunch":true`. Presence is a trial launch via the shared browser-runtime; missing OS libraries are self-healed where a C compiler is present. On failure, follow the `remediation` line, install walkthroughs are never written here.
 
 A machine that already drives a browser for another primitive in this root usually has the build and any userspace stub cached and needs nothing here.
 
-**Nothing here fetches the browser build, and nothing needs to.** `playwright` carries no postinstall script, so `npm ci` above installs the package and no browser. The first non-help command that needs Chromium reports what it would fetch and stops; `--install` authorises both the packages and the browser build and that one run does the work. This step is a survey: it reports what is already present and makes nothing present. The tool's own first browser-needing command with `--install` is what makes it present, in one run.
+**Nothing here fetches the browser build, and nothing needs to.** `playwright` carries no postinstall script, so the package install fetches no browser. The first non-help command that needs Chromium reports what it would fetch and stops; `--install` authorises both the packages and the browser build and that one run does the work. This step is a survey: it reports what is already present and makes nothing present. The tool's own first browser-needing command with `--install` is what makes it present, in one run.
 
 
 ## 4. Profile directory
@@ -59,6 +55,6 @@ Status should report a live host after start. On a correctly set up copy, help, 
 
 **`node: command not found`** Node is installed but not on this shell's PATH. Open a new shell; if it persists, reinstall Node and let it update PATH.
 
-**Chromium check fails after `npm ci`** Read the `remediation` field from `npm run check:chromium`. Binary missing, launch blocked, and OS library gaps each name one next step there.
+**Chromium check fails after the install** Read the `remediation` field from `npm run check:chromium`. Binary missing, launch blocked, and OS library gaps each name one next step there.
 
 **Automation permission refused** On macOS, the terminal may need permission under System Settings, Privacy & Security, Automation, to control the browser host.

@@ -23,7 +23,7 @@
  *   - For libraries that Chromium hard-links but only calls on the X11 backend
  *     (headless never invokes them), it builds a truthful userspace stub with the
  *     host C compiler and puts it on LD_LIBRARY_PATH. libXdamage's stub reports the
- *     Damage extension absent — the correct answer on a host with no X server.
+ *     Damage extension absent, the correct answer on a host with no X server.
  *   - It sets PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1 (defensive; once the lib
  *     resolves, Playwright's own validator also passes) and passes container-safe
  *     launch args, and forwards HTTPS_PROXY into Chromium for CDN-loaded content.
@@ -31,7 +31,7 @@
  * It NEVER installs system packages and NEVER calls sudo. If a missing library is
  * not in the headless-safe stubbable set, or no compiler is present, it stops and
  * reports the failed check, the missing capability, and the one next step for the
- * host class — per the Script Contract's System dependencies clause.
+ * host class, per the Script Contract's System dependencies clause.
  */
 
 import { existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
@@ -168,7 +168,7 @@ function buildShim(lib, dir, cc) {
 /**
  * Make the browser launchable on this host and return a structured report.
  * Mutates process.env (LD_LIBRARY_PATH, PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS)
- * so a subsequent chromium.launch() in this process — or a child it spawns —
+ * so a subsequent chromium.launch() in this process, or a child it spawns , 
  * inherits the shim. Idempotent; never installs system packages; never sudo.
  */
 export async function prepareBrowserRuntime() {

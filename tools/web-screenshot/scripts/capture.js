@@ -651,7 +651,7 @@ async function ensureChromium() {
 if (command !== 'check' || INSTALL_AUTHORISED) await ensureChromium();
 
 // Shared browser runtime: dynamic import only on commands that need Chromium.
-// Never a top-level static import — help must work on a never-installed copy.
+// Never a top-level static import, help must work on a never-installed copy.
 // The survey the gate above already took, rather than a second trial launch of
 // the same browser: `chromiumLaunches()` keeps it. Only a command that skipped
 // the gate -- `check` without `--install`, which surveys and installs nothing --
@@ -671,7 +671,7 @@ if (browserSurvey === null) await chromiumLaunches();
 // `check` SURVEYS AND EXITS 0, WHATEVER IT FINDS. Every dependency is reported
 // in the one JSON object -- the packages, and the Chromium build with the
 // remediation for whatever stopped its trial launch -- rather than the first
-// problem ending the run with exit 1, which is what a student running `check`
+// problem ending the run with exit 1, which is what a user running `check`
 // to see what is missing needs. `deck-export check` has always done this; the
 // two tools now agree. A caller that wants a pass/fail reads `chromiumLaunch`.
 if (command === 'check') {

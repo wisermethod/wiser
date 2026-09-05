@@ -2,7 +2,7 @@
 
 What this plugin does not do, declared by the primitive that names it.
 
-`standards/primitives.md` defines a gap as a capability this root does not provide that a primitive's own body names as missing, and it says the release gate collects every declared gap into this file. **This root carries no release gate, so this file is maintained by hand** from the `gaps` frontmatter of what is actually present. It is corrected by hand whenever a primitive's gaps change.
+A gap is a capability this root does not provide that a primitive's own body names as missing (`standards/primitives.md`). This file collects every declared `gaps` entry, by hand, and is corrected whenever a primitive's gaps change.
 
 **This file carries capability gaps only.** What the operator plans to build is a separate record and is not a user's business, so nothing about future work appears here. **A gap names the capability that is missing, never where that capability went.**
 

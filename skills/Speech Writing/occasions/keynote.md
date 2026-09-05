@@ -10,7 +10,7 @@ Duration range: 15 to 40 minutes. At 130 to 150 words per minute spoken, that is
 
 ## Register
 
-Authoritative without lecturing. Warm enough to hold the room, firm enough to land the claim. Peer-to-expert is the correct tone: the speaker addresses the audience as colleagues one step along a shared path, not as students. First-person density is medium-high when the material is direct experience, medium when it is synthesis of others' work. Humor is permitted; it is never the load-bearing move.
+Authoritative without lecturing. Warm enough to hold the room, firm enough to land the claim. Peer-to-expert is the correct tone: the speaker addresses the audience as colleagues one step along a shared path, not as pupils. First-person density is medium-high when the material is direct experience, medium when it is synthesis of others' work. Humor is permitted; it is never the load-bearing move.
 
 ## Ritual beats
 

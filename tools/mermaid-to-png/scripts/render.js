@@ -559,7 +559,7 @@ async function ensureChromium() {
 await ensureChromium();
 
 // Shared browser runtime: dynamic import only on the command that needs Chromium.
-// Never a top-level static import — help must work on a never-installed copy.
+// Never a top-level static import, help must work on a never-installed copy.
 // The survey the gate above already took, rather than a second trial launch of
 // the same browser: `chromiumLaunches()` keeps it. Only a command that skipped
 // the gate -- `check` without `--install`, which surveys and installs nothing --
