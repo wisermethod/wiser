@@ -63,7 +63,7 @@ If you need more text, split the slide.
 - Captions: 16 to 20px
 - Never below 16px
 
-**Font selection.** Take fonts from the design resolved before generation: a brand template's own families, the bound design source, or the references gathered when neither was available. A templateless deck loads no webfonts, so its families must be ones the viewer's machine already has; let the resolved direction choose among those rather than settling for the starter's placeholder system stack. The Typography entries of the Prohibited Defaults Taxonomy in `experts/Creative Director/EXPERT.md`, the list's single home, name the families overused to the point of invisibility. None of them is ever a deck's primary family.
+**Font selection.** Take fonts from the design resolved before generation: a brand template's own families, the bound design source, or the references gathered when neither was available. A templateless deck loads no webfonts, so its families must be ones the viewer's machine already has; let the resolved direction choose among those rather than settling for the starter's placeholder system stack. A deck's primary family is never one the Prohibited Defaults Taxonomy names; `skills/Typography Design/` states that rule and `experts/Creative Director/EXPERT.md` holds the list.
 
 ## Color Usage
 
