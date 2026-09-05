@@ -2,7 +2,7 @@
 
 Once per machine. Skip it if `node scripts/browser.js session status` already answers after a successful `session start` on this host, or if `npm run check:chromium` already exits 0.
 
-**Once per machine covers the system dependencies below, not the packages.** A system dependency named below is installed once and every copy of this plugin then finds it; a tool's own packages install per copy of the plugin, after the first `--install` in this copy, and a plugin manager that keeps each version in its own directory needs that authorisation again after an update. `tools/AGENTS.md` lists everything a run of a tool writes and where, and is the only place this repository states it.
+System dependencies are once per machine; a tool's packages are per copy of the plugin, and `tools/AGENTS.md` says what every install writes (`tools/RUNNING.md`).
 
 Run every command below from this tool's directory. On Windows, use Git Bash; PowerShell and cmd quote arguments differently.
 
@@ -16,7 +16,7 @@ node --version
 
 ## 2. Packages
 
-Nothing to run by hand. The plugin asks once, on the first install in this copy; `--install` on that run is the answer, and later tools install without asking. This tool holds no credentials, so there is nothing else to configure and no `--env` to resolve.
+Nothing to run by hand. Consent is once per copy of the plugin (`tools/RUNNING.md`). This tool holds no credentials, so there is nothing else to configure and no `--env` to resolve.
 
 ## 3. The browser build
 
@@ -28,7 +28,7 @@ Expect `"chromiumLaunch":true`. Presence is a trial launch via the shared browse
 
 A machine that already drives a browser for another primitive in this root usually has the build and any userspace stub cached and needs nothing here.
 
-**Nothing here fetches the browser build, and nothing needs to.** `playwright` carries no postinstall script, so the package install fetches no browser. If this copy has not yet authorised an install, the first command that needs Chromium reports what it would fetch and stops; `--install` on that run authorises both the packages and the browser build and that one run does the work. This step is a survey: it reports what is already present and makes nothing present. A browser-needing command with `--install`, or with a matching consent marker, is what makes it present.
+The Chromium build installs with the packages under the same consent, and `tools/AGENTS.md` says where it lands.
 
 ## 4. Profile directory
 

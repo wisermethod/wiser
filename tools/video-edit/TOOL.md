@@ -103,11 +103,11 @@ Options:
 
 Outputs are MP4 for `edit` and `concat` and GIF for `gif`, and the extension has to say so; the video is re-encoded to H.264 with AAC audio every run. Paths are absolute because a relative one resolves against whichever directory the caller happened to be in. This tool never picks an output location and never falls back to one: the caller resolves a work directory in the owning root per `standards/conventions.md` and names the file inside it. Missing parent directories are created; a file already there is replaced.
 
-This tool needs no credentials and no configuration file, so no command takes `--env` and nothing here resolves a Provides binding. Nothing it does is destructive beyond writing what it was told to write, so no command takes `--confirm`.
+No command takes `--env`. Nothing it does is destructive beyond writing what it was told to write, so no command takes `--confirm`.
 
 ## Script Contract
 
-The one script this tool ships follows `system/templates/Script Contract.md`: self-contained imports, help answered before any check, the system-dependency checks on the commands that need them, and the stdout and stderr rules. It imports no package, so the contract's dependency install clause has nothing to install and its `--env` clause has nothing to bind. The sections above state what each command does; the contract states how the script behaves getting there.
+The one script this tool ships follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. It imports no package, so the contract's dependency install clause has nothing to install and its `--env` clause has nothing to bind. The sections above state what each command does; the contract states how the script behaves getting there.
 
 Every usage mistake is caught before FFmpeg is reached, so a bad path, a bad number, or an option that belongs to another command never starts a pass. No message repeats FFmpeg's own output, which quotes full paths and whatever the container's metadata holds; a run that fails names the operation and the input instead. When FFmpeg fails after opening a file destination (`edit`, `concat`, `gif`), any partial or zero-byte file left at `--output` is removed before the error is printed, so a failed concat does not leave a stub that looks like a finished product. A `frames` directory is left as it is. Nothing is read from stdin, and FFmpeg is run with stdin closed, so a run with nobody watching fails rather than waiting for a keystroke.
 
@@ -132,6 +132,8 @@ Failure prints to stderr, leaves stdout empty, and exits 1.
 
 ## Troubleshooting
 
+The stops every tool shares, an unknown flag, the install consent, an install that fails, and a path that is relative or inside this tool, are in `tools/RUNNING.md`; the rows below are this tool's own.
+
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `missing FFmpeg; check: ffmpeg -version` | FFmpeg is absent or not on the path | The agent follows the Script Contract's System dependencies clause; install steps never live here |
@@ -140,7 +142,6 @@ Failure prints to stderr, leaves stdout empty, and exits 1.
 | `Error: --input must be absolute` | A relative path, which resolves against the caller's directory, or a web address, which is not a path at all | Pass the resolved absolute path of a local file; this tool reads nothing over a network |
 | `Error: no file at <path>` | The path does not exist | Check the path; an absolute one cannot be misread |
 | `Error: --output is required` | No destination was named | Resolve a work directory in the owning root and name the file; this tool picks no location |
-| `Error: --output resolves inside this tool directory` | The path landed in the shared root | Pass a work directory in the owning root |
 | `Error: --output must end .mp4 for edit` | An extension the command does not write | Rename the output; `edit` and `concat` write MP4, `gif` writes GIF |
 | `Error: --output must be a directory for frames` | A filename was passed where a directory belongs | Pass the directory; the frame files are named inside it |
 | `Error: edit needs at least one operation` | `edit` ran with paths and nothing to do | Pass one of the five operations, or use `concat`, `frames`, or `gif` |
@@ -150,7 +151,6 @@ Failure prints to stderr, leaves stdout empty, and exits 1.
 | `Error: --speed must be a number above 0` | A zero, a negative, or a non-number | Pass a positive factor; 0.5 halves the speed and 2 doubles it |
 | `Error: --text may not contain newlines, tabs, or other control characters` | A multi-line caption | Pass one line; run the command again for a second line |
 | `Error: <option> does not apply to <command>` | An operation was passed to a command that does not run it | Move it to `edit`, or drop it |
-| `Error: unknown option "<flag>"` | A misspelled or invented flag | Check `help`; the flag was refused rather than ignored |
 | `Error: unexpected argument "<token>"` | A stray value not attached to a flag | Every value follows its own flag; check `help` |
 | `Error: FFmpeg could not join N videos` | An input has no audio track, or the inputs disagree on frame size | Give every input a video and an audio stream at one size; `frames` and `edit` have no such constraint. The partial output file is removed on failure |
 | `Error: FFmpeg could not apply ... to <path>` | The input is not a video FFmpeg can decode, or the output path is not writable | Open the input in a player; confirm the output directory exists and is writable. Any partial file at `--output` is removed on failure |

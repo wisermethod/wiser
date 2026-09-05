@@ -93,7 +93,7 @@ Both platform calls in these steps, the background removal and the face geometry
 6. **Cut the frame.** One run of `tools/image/` `edit`, which owns local pixel work, does the resize and the placement together:
 
    ```
-   node scripts/edit.js edit --file <cutout path> --output <destination PNG> --resize <scaled width>x<scaled height> --canvas <output size>x<output size> --at <offset x>,<offset y>
+   node scripts/image.js edit --file <cutout path> --output <destination PNG> --resize <scaled width>x<scaled height> --canvas <output size>x<output size> --at <offset x>,<offset y>
    ```
 
    One run is enough because that tool applies its operations in a fixed order whatever order the flags are typed in, and the placement is last: the resize is third and the canvas ninth, so `--at` is measured against the picture the resize left rather than against the cutout on disk. At the defaults the canvas is `1000x1000`; a caller's own output size replaces both of its numbers, and the other two flags carry the numbers Step 5 computed for this photograph. Either number in `--at` may be negative, which is the ordinary case for a portrait scaled to put the eyes on the standard, and it is written with a comma because a position can be signed where a size cannot.
@@ -105,7 +105,7 @@ Both platform calls in these steps, the background removal and the face geometry
 7. **When nothing could be measured.** A photograph whose face the vision call could not place still has a background-free cutout worth returning, and returning it is not the same as normalizing it. Fit the cutout inside the square with a ten pixel margin on its long edge, aspect ratio held, centered both ways. The fit scale is the output size less twenty, divided by the larger of the cutout's two dimensions; the fitted size is each of those dimensions times that scale, rounded; and each offset is half the output size less half the fitted size on that axis, rounded. Then the same run as Step 6, carrying those numbers instead:
 
    ```
-   node scripts/edit.js edit --file <cutout path> --output <destination PNG> --resize <fitted width>x<fitted height> --canvas <output size>x<output size> --at <offset x>,<offset y>
+   node scripts/image.js edit --file <cutout path> --output <destination PNG> --resize <fitted width>x<fitted height> --canvas <output size>x<output size> --at <offset x>,<offset y>
    ```
 
    Both offsets are positive here and nothing reaches an edge, so a clip note on this path means a number is wrong. Deliver it saying in plain words that this file was not normalized and will not line up with the rest of the set. Then say why the detection missed, from what the photograph shows: a face turned too far, sunglasses, a hat brim, motion, a face too small in the frame. The way back is a different photograph, not a second run of this one, which would spend the same two calls to get the same answer.

@@ -91,7 +91,7 @@ This tool authenticates to nothing, holds no credential, and invokes no other pr
 
 ## Script Contract
 
-Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, the dependency check, help without configuration, and the stdout and stderr rules. Everything a run of this tool writes, and where, is listed in `tools/AGENTS.md`, which is the only place this repository states it. Two of its rules are worth knowing before a harvest, because they are what a request most often collides with.
+Every script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. What a run writes, and where, is in `tools/AGENTS.md`. Two of its rules are worth knowing before a harvest, because they are what a request most often collides with.
 
 The request file and the output directory must both resolve outside this tool's own directory, and either one pointing inside it is refused before anything is installed and before anything is fetched. Containment is decided by the path's real identity, its device and inode, rather than by how it is spelled, so a differently cased name for this directory and a symbolic link onto it are refused exactly as the direct spelling is. Per `standards/conventions.md` both belong in the owning root's work directory.
 
@@ -107,10 +107,10 @@ A source that fails does not fail the run. It becomes an entry in `errors` and t
 
 ## Troubleshooting
 
+The stops every tool shares, an unknown flag, the install consent, an install that fails, and a path that is relative or inside this tool, are in `tools/RUNNING.md`; the rows below are this tool's own.
+
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `this tool is not installed yet and this copy of the plugin has not authorised an install` | First install in this copy of the plugin, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. Later tools in this copy install without asking. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
-| `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `no file at <path>` | The path given to `--request` does not exist | Check the path; an absolute one cannot be misread |
 | `<path> is not valid JSON` | The request file is malformed, or the path landed on something that is not a request | Run `sample` for a request this tool accepts. The parser's own message is withheld on purpose: it quotes the first bytes of whatever it was handed |
 | `is not a valid harvest request` | The file parsed but broke the rules `REQUEST_SCHEMA.md` states, listed one per line | Fix each line, then `validate` again |
@@ -127,7 +127,6 @@ A source that fails does not fail the run. It becomes an entry in `errors` and t
 | `got no response within <n>ms` in `errors` | The source timed out or refused the connection | Raise `timeout_ms` in the request, or drop the source |
 | `unsupported_adapter_type` in `rejected` | The request named a `type` this tool does not collect | Use one from `REQUEST_SCHEMA.md` |
 | Fewer candidates than expected | Timebox, filters, or deduplication | Read `harvest-summary.md`, which counts rejections by reason |
-| `Error: unknown option "<flag>"` | A misspelled or invented flag | Check `help`; the flag was refused rather than ignored |
 
 ## Reference
 

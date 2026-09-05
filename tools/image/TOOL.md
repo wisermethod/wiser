@@ -32,7 +32,7 @@ Usage text listing the two subcommands, with nothing installed. `node scripts/im
 node scripts/image.js edit --file /path/to/a/work/directory/photo.png --output /path/to/a/work/directory/photo-card.jpg --crop 1200x1200 --resize 600x600
 ```
 
-If this copy of the plugin has not yet authorised an install, the run reports that it would install the imaging library in this tool's directory, and stops. `--install` on that run is the answer: it installs and does the work, and later tools in this copy install without asking. It prints one JSON object:
+If this copy of the plugin has not yet authorised an install, the run reports that it would install the imaging library in this tool's directory, and stops. `--install` on that run is the answer (`tools/RUNNING.md`). It prints one JSON object:
 
 ```
 {"output":"/path/to/a/work/directory/photo-card.jpg","format":"jpeg","width":600,"height":600,"sourceWidth":1800,"sourceHeight":1400,"bytes":48213}
@@ -42,9 +42,9 @@ If this copy of the plugin has not yet authorised an install, the run reports th
 
 ## Script Contract
 
-Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help answered before the dependency check, the consent-gated dependency install, closed unknown flags, and the stdout and stderr rules. `edit` writes one caller-named image outside this tool directory. `compose` writes one caller-named image, or writes back onto `--base` when `--output` is omitted and `--confirm` is passed. Every other write a run makes is a package install, and `tools/AGENTS.md` is the only place this repository lists those. Both subcommands check for and import `sharp`; `help` does not. The contract's `--env` clause has nothing to bind here, and the tool carries no Dependencies section because `sharp` installs by the consent-gated check and Node covers the rest. The sections below state what each command does; the contract states how the script behaves getting there.
+Every script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. `edit` writes one caller-named image outside this tool directory. `compose` writes one caller-named image, or writes back onto `--base` when `--output` is omitted and `--confirm` is passed. Every other write a run makes is a package install, and `tools/AGENTS.md` is the only place this repository lists those. Both subcommands check for and import `sharp`; `help` does not. The contract's `--env` clause has nothing to bind here, and the tool carries no Dependencies section because `sharp` installs by the consent-gated check and Node covers the rest. The sections below state what each command does; the contract states how the script behaves getting there.
 
-This tool needs no credentials and no configuration file, so no command takes `--env` and nothing here resolves a Provides binding.
+No command takes `--env`.
 
 ## edit
 
@@ -192,18 +192,16 @@ A stretch also prints a note to stderr naming both dimensions; stdout stays one 
 
 ## Troubleshooting
 
+The stops every tool shares, an unknown flag, the install consent, an install that fails, and a path that is relative or inside this tool, are in `tools/RUNNING.md`; the rows below are this tool's own.
+
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `this tool is not installed yet and this copy of the plugin has not authorised an install` | First install in this copy of the plugin, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. Later tools in this copy install without asking. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
-| `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `Error: --file is required.` | `edit` ran with no image to read | Pass `--file <path>` |
-| `Error: --file must be absolute` or `--output must be absolute` | A relative path was passed | Pass the absolute path; do not rely on the working directory |
 | `Error: no file at <path>` | The input path does not exist | Check the path; an absolute one cannot be misread |
 | `Error: --file is an SVG` | Vector artwork was passed to `edit` | Render it with `render` `svg` first, then edit the PNG |
 | `Error: could not read <path> as an image` | The file is not image data, or is a format the library does not read | Confirm the file opens as an image elsewhere; an extension is not evidence |
 | `Error: --output must end in .png, .jpg, .jpeg, or .webp` | `edit` was named for a format it does not write | Rename the target, or convert with another tool after this one |
 | `Error: --output must name a different file than --file` | An in-place `edit` was attempted | Write to a new path; keep the original until the result is checked. `--overwrite` does not apply here |
-| `Error: --output resolves inside this tool directory` | The output path landed in the shared root | Pass a work directory in the owning root |
 | `Error: a file already exists at <path>` | The output path is taken, and replacing a file is never the default | Pass `--overwrite` to replace it once you know what is there, or name a path that is free |
 | `Error: --output names an existing directory` | A folder was passed where the file to write belongs | Name the file inside it, extension and all; this tool does not choose filenames |
 | `Error: --crop must be two whole positive numbers as WxH` | A dimension pair was given as one number or carried units | Pass `1440x810`; a single number is not a size |
@@ -220,7 +218,6 @@ A stretch also prints a note to stderr naming both dimensions; stdout stays one 
 | `so this run needs --overwrite` | A file already sits at the separate path `--output` names | Re-run with `--overwrite` to replace that file, or pass an `--output` path that does not exist yet |
 | `this tool writes PNG and JPEG only` | The `compose` destination ends in something else, or the base does on an in-place run | Pass `--output` ending `.png`, `.jpg`, or `.jpeg` |
 | `Error: --output names a file, and <path> is a directory` | A folder was passed to `compose` where the file to write belongs | Add the filename; this command derives no name from the base |
-| `Error: unknown option "<flag>"` | A misspelled or invented flag | Check `help`; the flag was refused rather than ignored |
 | `Error: unexpected argument` | A path passed to `compose` with no flag in front of it | Check `help`; every value is passed by name |
 | `the destination resolves inside this tool directory` | The `compose` result was aimed at the shared root | Pass a work directory in the owning root |
 | `Note: the placement clipped the image` | Expected: part of the image fell outside the canvas, and the canvas is never grown to fit | Nothing to fix if the frame is what was wanted. Otherwise enlarge `--canvas`, move `--at`, or `--resize` the image smaller first |

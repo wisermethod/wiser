@@ -34,7 +34,7 @@ Usage text listing the two subcommands, with nothing installed. `node scripts/si
 node scripts/sitemap.js fetch --domain example.com
 ```
 
-If this copy of the plugin has not yet authorised an install, `fetch` reports that it would install `undici` in this tool's directory, and stops. `--install` on that run is the answer: it installs and does the work, and later tools in this copy install without asking. It prints one JSON object:
+If this copy of the plugin has not yet authorised an install, `fetch` reports that it would install `undici` in this tool's directory, and stops. `--install` on that run is the answer (`tools/RUNNING.md`). It prints one JSON object:
 
 ```
 {"domain":"example.com","fetchedAt":"2026-07-27","sitemaps":["https://example.com/sitemap.xml"],"urls":[{"loc":"https://example.com/guide/naming","path":"/guide/naming","slug":"naming","segment":"guide","lastmod":"2026-06-02"}],"count":1,"truncated":false}
@@ -56,9 +56,9 @@ Anything else, see Troubleshooting.
 
 ## Script Contract
 
-Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help answered before the dependency check, the consent-gated dependency install, closed unknown flags, and the stdout and stderr rules. `fetch` writes a snapshot file only when `--output` names a directory outside this tool directory. `diff` writes a report file only when `--output` names a file outside this tool directory. Every other write a run makes is a package install, and `tools/AGENTS.md` is the only place this repository lists those. `fetch` checks for and imports `undici`; `diff` does not. `help` does not. The contract's `--env` clause has nothing to bind here, and the tool carries no Dependencies section because `undici` installs by the consent-gated check and Node covers the rest. The sections below state what each command does; the contract states how the script behaves getting there.
+Every script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. `fetch` writes a snapshot file only when `--output` names a directory outside this tool directory. `diff` writes a report file only when `--output` names a file outside this tool directory. Every other write a run makes is a package install, and `tools/AGENTS.md` is the only place this repository lists those. `fetch` checks for and imports `undici`; `diff` does not. `help` does not. The contract's `--env` clause has nothing to bind here, and the tool carries no Dependencies section because `undici` installs by the consent-gated check and Node covers the rest. The sections below state what each command does; the contract states how the script behaves getting there.
 
-This tool needs no credentials and no configuration file, so no command takes `--env` and nothing here resolves a Provides binding.
+No command takes `--env`.
 
 ## fetch
 
@@ -213,10 +213,10 @@ Both path options can be pointed at any file on the machine, including one holdi
 
 ## Troubleshooting
 
+The stops every tool shares, an unknown flag, the install consent, an install that fails, and a path that is relative or inside this tool, are in `tools/RUNNING.md`; the rows below are this tool's own.
+
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `this tool is not installed yet and this copy of the plugin has not authorised an install` | First `fetch` in this copy of the plugin, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. Later tools in this copy install without asking. `WISER_ALLOW_INSTALL=1` authorises an unattended run. `diff` never stops for an install |
-| `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around |
 | `Error: fetch needs --domain <host>, at least one --url <sitemap url>, or at least one --file <path>` | The command ran with nothing to fetch | Pass one of them |
 | `Error: fetch takes either network seeds (--domain / --url) or offline seeds (--file), not both` | Network and offline seeds were mixed | Use only `--domain`/`--url`, or only `--file` |
 | `Error: unknown command "<word>"` | A command word other than `fetch` or `diff` | Run `help` |
@@ -225,13 +225,11 @@ Both path options can be pointed at any file on the machine, including one holdi
 | `Error: --url <url> carries an embedded username and password` | The address holds credentials in its userinfo | Remove them. This command sends no credentials, and the message prints the address without them |
 | `Error: --url <url> points at <kind>, which this tool does not fetch` | The caller named an address inside this machine or its network, or a cloud metadata address, in some spelling of it | Sitemaps live at public addresses. Nothing on the local network is one; check the address, including what its hostname resolves to |
 | `Error: --domain "<host>" points at <kind>, which this tool does not fetch` | Same, for the domain discovery would have connected to | Pass a public host. With `--url` given, `--domain` only labels the snapshot and is not requested |
-| `Error: --file must be absolute` | A relative path | Pass an absolute path to the sitemap file |
 | `Error: --file resolves inside this tool directory` | The path landed in the shared root's tool tree | Pass a work directory path in the owning root |
 | `Error: --file <path> could not be read` | Missing file or unreadable path | Confirm the path and permissions |
 | `Error: --file <path> is not a file` | The path names a directory or special node | Pass a regular file |
 | `Error: --date must be YYYY-MM-DD` | A date in another form | Pass an absolute date, per `standards/conventions.md` |
 | `Error: --max must be a whole number of 1 or more` | A non-numeric or zero cap | Pass a positive whole number, or omit it |
-| `Error: --output resolves inside this tool directory` | The output path landed in the shared root | Pass a work directory in the owning root |
 | `Error: --previous is required.` | The command ran with only one snapshot, or with none | Pass both, the earlier as `--previous` and the later as `--current` |
 | `Error: --current is required.` | Same, the other way round | Pass both |
 | `Error: --previous must be an absolute path` | A relative path was passed | Pass the full path the work directory resolves to |
@@ -240,7 +238,6 @@ Both path options can be pointed at any file on the machine, including one holdi
 | `Error: the previous snapshot <path> carries no urls array` | A JSON file that is not a sitemap snapshot | Pass a snapshot written by `fetch`, not a report or a config file |
 | `Error: the current snapshot <path> has N url entries with no loc string` | The snapshot is partial or hand-edited | Re-fetch it; diffing it would report the entries with no URL as removals |
 | `Error: --output names a directory that does not exist` | The parent directory was never created, or the path has a typo | Create the work directory, or fix the path |
-| `Error: unknown option "<flag>"` | A misspelled or invented flag | Check `help`; the flag was refused rather than ignored |
 | `errors` names `HTTP 404` for every candidate, `count` 0 | The site publishes no sitemap at the conventional locations, or robots.txt points elsewhere | Read the site's robots.txt and pass the real address with `--url` |
 | `errors` names `HTTP 403` | The host refuses non-browser clients | Fetch the sitemap with a browser-driving tool, save it, and re-run with `--file` on that path |
 | `errors` names `no response within 20000ms` | The host did not answer inside the fixed timeout | Confirm the host is reachable from this machine, then re-run |

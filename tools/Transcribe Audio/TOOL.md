@@ -108,7 +108,7 @@ Model choice trades time for accuracy, and the weights are downloaded once per m
 
 ## Script Contract
 
-The script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help before anything else, and the stdout and stderr rules. No command takes `--env`, so that clause has nothing to bind here. Everything a run of this tool writes, and where, is listed in `tools/AGENTS.md`, which is the only place this repository states it. Beyond those, three behaviors are worth knowing.
+The script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. No command takes `--env`, so that clause has nothing to bind here. What a run writes, and where, is in `tools/AGENTS.md`. Beyond those, three behaviors are worth knowing.
 
 The package cache is this tool's own, per that contract's Runtimes clause. Once `--install` has authorised this copy, a transcription creates a virtual environment beside the scripts, installs the speech packages into it, and finishes the run; nothing is installed into the machine or the user's environment, because the install runs with pip's own download cache switched off rather than leaving it at pip's default outside this tool.
 
@@ -130,9 +130,10 @@ A run that cannot finish prints nothing to stdout, names the cause on stderr, an
 
 ## Troubleshooting
 
+The stops every tool shares, an unknown flag, the install consent, an install that fails, and a path that is relative or inside this tool, are in `tools/RUNNING.md`; the rows below are this tool's own.
+
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `this tool is not installed yet and this copy of the plugin has not authorised an install` | First install in this copy of the plugin, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. Later tools in this copy install without asking. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
 | `could not create the package cache` | Python is older than the script needs, or this tool directory is not writable | Confirm `python3 --version`, then that the directory is writable. See SETUP.md |
 | `installing ... packages failed` | The install could not complete, usually no network or a Python the packages do not support | Delete the `.venv` directory in this tool, confirm the interpreter, then run the command again |
 | `missing ffmpeg; check: ffmpeg -version` | The audio decoder is absent | The agent installs it per the Dependencies section. Install steps live nowhere in this tool |
@@ -141,11 +142,9 @@ A run that cannot finish prints nothing to stdout, names the cause on stderr, an
 | `no file at ...` | The audio path does not exist | Check the path |
 | `unsupported audio format` | The resolved file's extension is not one this tool reads | Convert it to a listed format first |
 | `could not be resolved to a real path` | A folder on the way is unreadable by this account, or a symbolic link on it points at itself | Confirm the path's permissions and its links, then pass a path that resolves |
-| `--output resolves inside this tool directory` | The output path landed in the shared root | Pass a work directory in the owning root |
 | `--model-cache resolves inside this tool directory` | The model directory landed in the shared root | Pass a work directory in the owning root |
 | `could not load the speech model` | The model download failed, usually no network on the first use of that model | Re-run once the machine is online; a model already in `--model-cache` needs no network |
 | The transcript reads as nonsense and the run reported success | The audio was not in English, which this tool is pinned to | The recording needs a transcriber that reads its language |
-| `Error: unknown option "<flag>"` | A misspelled or invented flag | Check `help`; the flag was refused rather than ignored |
 
 ## Success
 

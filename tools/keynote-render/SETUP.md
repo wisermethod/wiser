@@ -2,7 +2,7 @@
 
 Once per machine. Skip it if `themes` already prints a list of theme names.
 
-**Once per machine covers the system dependencies below, not the packages.** A system dependency named below is installed once and every copy of this plugin then finds it; a tool's own packages install per copy of the plugin, after the first `--install` in this copy, and a plugin manager that keeps each version in its own directory needs that authorisation again after an update. `tools/AGENTS.md` lists everything a run of a tool writes and where, and is the only place this repository states it.
+System dependencies are once per machine; a tool's packages are per copy of the plugin, and `tools/AGENTS.md` says what every install writes (`tools/RUNNING.md`).
 
 Run every command below from this tool's directory. macOS only: the tool drives Keynote through JXA, which exists nowhere else.
 
@@ -16,7 +16,7 @@ node --version
 
 ## 2. Dependency
 
-Nothing to run by hand. The plugin asks once, on the first install in this copy; `--install` on that run is the answer, and later tools install without asking. A build with no brand file needs nothing installed. This tool holds no credentials, so there is nothing else to configure and no `--env` to resolve.
+Nothing to run by hand. Consent is once per copy of the plugin (`tools/RUNNING.md`). A build with no brand file needs nothing installed. This tool holds no credentials, so there is nothing else to configure and no `--env` to resolve.
 
 ## 3. Runtimes
 

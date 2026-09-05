@@ -66,11 +66,11 @@ Options:
 
 One page per run: auditing a set means one run each, which keeps every result attributable to the URL that produced it.
 
-This tool needs no credentials and no configuration file, so no command takes `--env` and nothing here resolves a Provides binding. It writes no output file: nothing it produces lands anywhere but stdout. **The first install in this copy is the exception.** This tool declares one package, `undici`, and installs it once this copy has authorised an install with `--install`, which reaches the npm registry once and writes what `tools/AGENTS.md` lists an install writing. Later runs write nothing and the only request is for the page the caller named, plus any redirect that page issues. Redirects are followed and the landing address is reported as `final_url`, so a run that ended somewhere other than where it started says so. The request waits 20 seconds and then fails rather than hanging.
+No command takes `--env`. It writes no output file: nothing it produces lands anywhere but stdout. **The first install in this copy is the exception.** This tool declares one package, `undici`, and installs it once this copy has authorised an install with `--install`, which reaches the npm registry once and writes what `tools/AGENTS.md` lists an install writing. Later runs write nothing and the only request is for the page the caller named, plus any redirect that page issues. Redirects are followed and the landing address is reported as `final_url`, so a run that ended somewhere other than where it started says so. The request waits 20 seconds and then fails rather than hanging.
 
 ## Script Contract
 
-The script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help answered before anything else, and the stdout and stderr rules. It reads no configuration file, so that contract's `--env` clause has nothing to bind here. It does import one package, `undici`, so the contract's dependency check applies: if this copy has not yet authorised an install, the run reports what it would install and stops; `--install` on that run is the answer, and later tools in this copy install without asking. Everything a run of this tool writes, and where, is listed in `tools/AGENTS.md`, which is the only place this repository states it. The sections above state what the command does; the contract states how the script behaves getting there.
+The script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. It reads no configuration file, so that contract's `--env` clause has nothing to bind here. It does import one package, `undici`, so the contract's dependency check applies: if this copy has not yet authorised an install, the run reports what it would install and stops; `--install` on that run is the answer, and later tools in this copy install without asking. What a run writes, and where, is in `tools/AGENTS.md`. The sections above state what the command does; the contract states how the script behaves getting there.
 
 ## Output
 
@@ -91,6 +91,8 @@ A page that does not serve is a failure, not a result: a non-2xx status exits 1 
 
 ## Troubleshooting
 
+The stops every tool shares, an unknown flag, the install consent, an install that fails, and a path that is relative or inside this tool, are in `tools/RUNNING.md`; the rows below are this tool's own.
+
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Error: --url is required.` | The command ran with no page to audit | Pass `--url <url>` |
@@ -100,7 +102,6 @@ A page that does not serve is a failure, not a result: a non-2xx status exits 1 
 | `Error: could not fetch <url>: the request did not complete` | DNS, TLS, or connection failure | Check the address and the machine's network path to it |
 | `Error: <url> returned HTTP <status>` | The page did not serve | Fix the URL or the access path. A 403 or 429 usually means the host refuses non-browser clients, which this read cannot pass; audit it with a browser-driving tool instead |
 | `Error: unknown command` | A command word other than `audit` | Run `help` |
-| `Error: unknown option "<flag>"` | A misspelled or invented flag | Check `help`; the flag was refused rather than ignored |
 | Every tag reports `present: false` on a site known to be instrumented | The loaders are injected client-side, after the HTML this tool reads | Confirm with a tool that drives a real browser before reporting anything as missing |
 | A tag reports `present: true` with `id: null` | The markup carries the loader but not the id, which is normal for several of these tags | Read the id from the platform's own console if it is needed |
 

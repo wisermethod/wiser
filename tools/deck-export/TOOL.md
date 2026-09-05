@@ -111,7 +111,7 @@ Every path is absolute, because a relative one resolves against whichever direct
 
 ## Script Contract
 
-The one script this tool ships follows `system/templates/Script Contract.md`: self-contained imports, help answered before anything else, the consent-gated package install, the system-dependency check on the commands that need it, and the stdout and stderr rules. The sections above state what each command does; the contract states how the script behaves getting there.
+The one script this tool ships follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. The sections above state what each command does; the contract states how the script behaves getting there.
 
 Two behaviors are worth knowing beyond it. Every usage mistake the script can judge on its own is caught before the dependency check, so a bad path, a bad size, a bad ratio, or a bad transition never triggers an install and never opens a browser; `--theme` is the one exception, since only the installed package knows which themes it ships, so an unknown theme refuses after that install and still before any browser. And `check` installs nothing at all unless the run authorises an install with `--install`, so a machine can be surveyed before anything is committed to it and repaired by the same command once someone has answered for the download: for Chromium it runs a trial launch through the shared browser-runtime, not only a path check. Content and render failures still withhold the engine's own text, which quotes the deck; launch failures name the runtime's remediation (never a root-only install-deps wall); network or navigation timeouts surface the engine detail an operator needs. Per-slide progress goes to stderr, so stdout carries only the final JSON object. Nothing is read from stdin, so a run with nobody watching fails loudly rather than waiting.
 
@@ -130,14 +130,12 @@ Failure prints to stderr, leaves stdout empty, and exits 1.
 
 ## Troubleshooting
 
+The stops every tool shares, an unknown flag, the install consent, an install that fails, and a path that is relative or inside this tool, are in `tools/RUNNING.md`; the rows below are this tool's own.
+
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `this tool is not installed yet and this copy of the plugin has not authorised an install` | First install in this copy of the plugin, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. Later tools in this copy install without asking. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
-| `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand. See SETUP.md |
 | `Chromium cannot launch` / `chromium:false` on `check` | Binary missing, launch blocked, or OS library gap | Read `remediation` on the check JSON (or the error line); it names the dependency, the check, and one next step. Never `sudo install-deps` |
 | `--output is required` | No destination was named | Resolve a work directory in the owning root and name the path; this tool picks no location |
-| `--output must be absolute` | A relative path resolves against the caller's directory | Pass the resolved absolute path |
-| `--output resolves inside this tool directory` | The path landed in the shared root | Pass a work directory in the owning root |
 | `--output must end .pdf` | `pdf` was pointed at something else | Name the PDF file to write |
 | `--output must be a directory for png` | `png` was pointed at a file | Name the directory the slide images go into |
 | `a deck already exists at <path>` | Scaffolding would overwrite work | Pass a different `--output` or `--title`, or move the existing deck aside |
@@ -152,7 +150,6 @@ Failure prints to stderr, leaves stdout empty, and exits 1.
 | Navigation arrows or a slide number appear in the images | They are part of the deck, not of the export | Turn them off in the deck's own reveal.js configuration before rendering |
 | A slide with a progressive reveal exports in its first state | Fragments advance on a click nobody makes here | Split the slide, or drop the fragments before export |
 | Fonts look wrong | A webfont the deck names was not reachable | Keep the font file beside the deck and reference it relatively, or accept the fallback deliberately |
-| `Error: unknown option "<flag>"` | A misspelled or invented flag | Check `help`; the flag was refused rather than ignored |
 
 ## Success
 

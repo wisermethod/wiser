@@ -239,7 +239,7 @@ node scripts/render.js delete-slide --deck /abs/deck.key --slide 5 --confirm
 
 ## Script Contract
 
-The scripts follow `system/templates/Script Contract.md`: self-contained imports, help before anything else, the npm dependency check, stdout/stderr rules, absolute paths, refusal of unknown flags, no writes inside this tool directory beyond a package install. Everything a run of this tool writes, and where, is listed in `tools/AGENTS.md`, which is the only place this repository states it. The `zArchive/` copy taken before every in-place edit has a row of its own there, because its default path is derived from `--deck` rather than named by the caller.
+The scripts follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. What a run writes, and where, is in `tools/AGENTS.md`. The `zArchive/` copy taken before every in-place edit has a row of its own there, because its default path is derived from `--deck` rather than named by the caller.
 
 Replacing an existing **output file** from `build` / `snapshot` / `export` is opt-in via `--confirm`. Mutating an existing **deck** is also opt-in via `--confirm`, and always preceded by a `zArchive/` copy when the deck already exists.
 
@@ -267,10 +267,10 @@ Failure: empty stdout, cause and fix on stderr, exit 1.
 
 ## Troubleshooting
 
+The stops every tool shares, an unknown flag, the install consent, an install that fails, and a path that is relative or inside this tool, are in `tools/RUNNING.md`; the rows below are this tool's own.
+
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `this tool is not installed yet and this copy of the plugin has not authorised an install` | First install in this copy of the plugin, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. Later tools in this copy install without asking. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
-| `npm ci failed` | Node missing or old, directory not writable, or the lockfile missing or out of step with the manifest | Node 18+, confirm `package-lock.json` matches `package.json`, then delete `node_modules/` and run `npm ci`. See SETUP.md |
 | `missing osascript` / `missing Keynote` | Wrong host or Keynote not installed | Dependencies section; install steps live nowhere in this tool |
 | `Keynote automation is not permitted for this terminal` | macOS Automation denial | System Settings → Privacy & Security → Automation |
 | `changes an existing deck. Pass --confirm` | Mutator without confirm | Review ops / intent, pass `--confirm` |

@@ -83,11 +83,11 @@ Options:
 
 One page per run. `--page-url` is required because internal and external links cannot be told apart without a host to compare against; a caller analyzing a build artifact or a staging copy passes the address the page will be served at.
 
-This tool needs no credentials and no configuration file, so no command takes `--env` and nothing here resolves a Provides binding.
+No command takes `--env`.
 
 ## Script Contract
 
-Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help answered before anything is read, and the stdout and stderr rules. It ships no package and no system dependency, so it carries no Dependencies section and there is no package install; it reads one caller-named file and writes nothing, so the contract's `--env` and output-path clauses have nothing to bind here.
+Every script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. It ships no package and no system dependency, so it carries no Dependencies section and there is no package install; it reads one caller-named file and writes nothing, so the contract's `--env` and output-path clauses have nothing to bind here.
 
 Markup that parses to nothing is reported, not raised. A file holding no HTML comes back as a full report of absences with exit 0, because "this page has no title, no headings, and no structured data" is the answer a caller asked for. A usage mistake or an unreadable file is different: it names the cause on stderr and exits 1. No message quotes the file's bytes, and a JSON-LD block that does not parse is counted rather than echoed, since a page can put anything inside one.
 
@@ -108,6 +108,8 @@ Two rules govern the values. Text taken from the page is reported as the page ca
 
 ## Troubleshooting
 
+The stops every tool shares, an unknown flag, the install consent, an install that fails, and a path that is relative or inside this tool, are in `tools/RUNNING.md`; the rows below are this tool's own.
+
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Error: --html is required.` | `analyze` ran with no HTML to read | Pass `--html <path>` |
@@ -116,7 +118,6 @@ Two rules govern the values. Text taken from the page is reported as the page ca
 | `Error: --page-url is not a URL` | A bare host, a path, or a typo was passed | Pass an absolute address including its scheme |
 | `Error: --page-url must be http or https` | A `file://` or other scheme was passed | Pass the address the page is served at, even when the HTML came off disk |
 | `Error: could not read <path>` | The path is a directory or is not readable | Point `--html` at a readable file |
-| `Error: unknown option "<flag>"` | A misspelled or invented flag | Check `help`; the flag was refused rather than ignored |
 | Every group reports absences on a page that plainly has content | The HTML holds a shell that a browser fills in, or the file is not HTML | Hand in the HTML as a browser renders it, not the served source, when the page builds itself client-side |
 | A heading or title the page shows is missing from the report | It is written by script, or it sits inside an HTML comment | Neither is on the page as delivered; both are reported as absent by design |
 | `imagesWithoutAlt` counts images that are decorative | Empty `alt` counts as missing, per What It Checks | Read `imageCount` against `imagesWithAlt` and judge which are decorative |

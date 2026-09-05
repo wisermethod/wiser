@@ -51,9 +51,9 @@ One JSON object on stdout. Anything else, see Troubleshooting.
 
 ## Script Contract
 
-Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help answered before anything else, closed unknown flags, and the stdout and stderr rules. Node built-ins cover the whole tool, so the contract's dependency-install, `--env`, and system-dependency clauses have nothing to bind here and the tool carries no Dependencies section. No command checks for a package or runs an install. `audit` reads one caller-named file and writes nothing. `keywords` and `previous-window` write a file only when `--output` names a directory outside this tool directory. The sections below state what each command does; the contract states how the script behaves getting there.
+Every script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. Node built-ins cover the whole tool, so the contract's dependency-install, `--env`, and system-dependency clauses have nothing to bind here and the tool carries no Dependencies section. No command checks for a package or runs an install. `audit` reads one caller-named file and writes nothing. `keywords` and `previous-window` write a file only when `--output` names a directory outside this tool directory. The sections below state what each command does; the contract states how the script behaves getting there.
 
-This tool needs no credentials and no configuration file, so no command takes `--env` and nothing here resolves a Provides binding.
+No command takes `--env`.
 
 ## audit
 
@@ -260,6 +260,8 @@ One JSON object on stdout, exit 0.
 
 ## Troubleshooting
 
+The stops every tool shares, an unknown flag, the install consent, an install that fails, and a path that is relative or inside this tool, are in `tools/RUNNING.md`; the rows below are this tool's own.
+
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Error: --input is required.` | `audit` ran with no bundle to read | Pass `--input <path>` |
@@ -268,7 +270,6 @@ One JSON object on stdout, exit 0.
 | `Error: --start must be a date in YYYY-MM-DD form` | A date in another format, or a partial one | Pass it as `standards/conventions.md` sets dates everywhere |
 | `Error: --end (...) falls before --start (...)` | The window was passed backwards | Swap them |
 | `Error: the path for ... must be absolute` | A relative path, which resolves against the caller's directory | Pass the absolute path |
-| `Error: unknown option "<flag>"` | A misspelled or invented flag | Check `help`; the flag was refused rather than ignored |
 | `Error: no file at <path>` | The path given does not exist | Check the path; an absolute one cannot be misread |
 | `Error: <path> is not JSON.` | The audit file is not JSON, often the wrong file entirely | Point `--input` at the bundle; the file's own content is never quoted back |
 | `Error: <path> is JSON but not an audit input bundle.` | The top level is an array or a bare value | Wrap the sections in one object per Input Bundle |
@@ -283,7 +284,6 @@ One JSON object on stdout, exit 0.
 | `Error: <path> row N does not carry 2 keys` | Query rows were passed to `--query-pages` | Re-fetch with dimensions `["query","page"]` |
 | `Error: <path> row N is missing a numeric "clicks"` | Rows were reshaped between the fetch and this call | Pass rows as the API returned them |
 | `Error: <path> holds no keywords` | The target file is empty, or holds only headings and blank lines | List one keyword per line |
-| `Error: --output resolves inside this tool directory` | The output path landed in the shared root | Pass a work directory in the owning root |
 | `topPages` entries carry no analytics fields | The page paths in the two reports do not match, or the search address does not parse | Confirm both reports cover the same property and host: the join is on path alone, so a differing host or a path prefix one report carries and the other does not matches nothing |
 | `organicSearchShare` is 0 with organic traffic in the trend | No acquisition row is labeled `Organic Search` | Confirm the channel dimension is `sessionDefaultChannelGroup`; a custom channel grouping uses different labels |
 | A target keyword reads `not_ranking` on a page known to rank | The query fell below the row limit of the query fetch | Re-fetch the queries with a higher row limit, then re-run |

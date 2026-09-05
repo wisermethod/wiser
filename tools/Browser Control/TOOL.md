@@ -139,7 +139,7 @@ Each of these requires `--confirm`. The gate is checked before anything is read,
 
 ## Script Contract
 
-Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, the dependency check, help without configuration, and the stdout and stderr rules. The sections here state what the commands do; the contract states how every script behaves getting there.
+Every script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. The sections here state what the commands do; the contract states how every script behaves getting there.
 
 Two scripts ship. `scripts/browser.js` is the only one a caller runs. `scripts/server.js` is the session host it starts, which holds the browser open so that separate invocations act on the same page; it takes no instruction from anywhere but loopback and is not run by hand.
 
@@ -153,22 +153,19 @@ Failure prints to stderr, leaves stdout empty, and exits 1. Files are written wh
 
 ## Troubleshooting
 
+The stops every tool shares, an unknown flag, the install consent, an install that fails, and a path that is relative or inside this tool, are in `tools/RUNNING.md`; the rows below are this tool's own.
+
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `this tool is not installed yet and this copy of the plugin has not authorised an install` | First install in this copy of the plugin, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. Later tools in this copy install without asking. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
 | `Chromium cannot launch` / `chromiumLaunch:false` | Binary missing, launch blocked, or OS library gap | Follow the `remediation` line from `npm run check:chromium` |
 | `no browser host answering on port [n]` | No session, or it was started on another port | `session status`, then `session start --profile [dir]` |
 | `a browser host is already running on port [n]` | A session from earlier work | `session stop`, or pass a different `--port` |
 | `session [start\|restart] needs --profile` | No location was resolved | Resolve a work directory in the owning root; do not guess one. `restart` resolves it before it stops anything, so a refusal leaves the running session standing |
-| `--output must be absolute` | A relative path resolves against whichever directory the caller was in | Pass the resolved absolute path |
-| `--output resolves inside this tool directory` | The path landed in the shared root | Pass a work directory in the owning root |
-| `--file resolves inside this tool directory` | An `upload` named this tool's own directory or something in it | Pass a file in a work directory in the owning root |
 | `already exists and this tool never overwrites a file` | The artifact path is taken | Name a path that does not exist yet |
 | `needs --confirm` | A destructive command was run without opting in | Re-run with `--confirm` once the effect is intended |
 | `element index [n] is not in the current list` | The page changed since the last interactive snapshot | Snapshot again and use the new index |
 | `no element matched this selector` | The element is absent, or is inside an iframe | `snapshot --format interactive`, and `frame list` if the content sits in an iframe |
 | `the browser host did not come up` | The browser could not launch or the host process died | Confirm `npm run check:chromium` (read `remediation` if launch fails), then retry with `--headless` to rule out a blocked window |
-| `Error: unknown option "<flag>"` | A misspelled or invented flag | Check `help`; the flag was refused rather than ignored |
 
 ## Success
 

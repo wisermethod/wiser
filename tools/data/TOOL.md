@@ -30,7 +30,7 @@ Usage text listing the six subcommands, with nothing installed. `node scripts/da
 node scripts/data.js parse --file /path/to/a/work/directory/regions.csv
 ```
 
-If this copy of the plugin has not yet authorised an install, the run reports that it would install `csv-parse` in this tool's directory, and stops. `--install` on that run is the answer: it installs and does the work, and later tools in this copy install without asking. It prints one JSON object:
+If this copy of the plugin has not yet authorised an install, the run reports that it would install `csv-parse` in this tool's directory, and stops. `--install` on that run is the answer (`tools/RUNNING.md`). It prints one JSON object:
 
 ```
 {"columns":[{"name":"region","type":"string","nonNullCount":3,"sampleValues":["West","East","North"]},{"name":"revenue","type":"number","nonNullCount":3,"sampleValues":["1200","900","1500"]}],"rowCount":3,"raggedRowCount":0,"parseErrors":[]}
@@ -40,9 +40,9 @@ Anything else, see Troubleshooting.
 
 ## Script Contract
 
-Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help answered before the dependency check, the consent-gated dependency install, closed unknown flags, and the stdout and stderr rules. `parse`, `describe`, `aggregate`, `join`, and `compute` read caller-named files and write nothing of their own; `chart` writes one caller-named HTML file outside this tool directory. Every other write a run makes is a package install, and `tools/AGENTS.md` is the only place this repository lists those. The contract's `--env` clause has nothing to bind here, and the tool carries no Dependencies section because `csv-parse` installs by the consent-gated check and Node covers the rest. The sections below state what each command does; the contract states how the script behaves getting there.
+Every script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. `parse`, `describe`, `aggregate`, `join`, and `compute` read caller-named files and write nothing of their own; `chart` writes one caller-named HTML file outside this tool directory. Every other write a run makes is a package install, and `tools/AGENTS.md` is the only place this repository lists those. The contract's `--env` clause has nothing to bind here, and the tool carries no Dependencies section because `csv-parse` installs by the consent-gated check and Node covers the rest. The sections below state what each command does; the contract states how the script behaves getting there.
 
-This tool needs no credentials and no configuration file, so no command takes `--env` and nothing here resolves a Provides binding.
+No command takes `--env`.
 
 ## parse
 
@@ -372,10 +372,10 @@ On success, one JSON object on stdout, exit 0.
 
 ## Troubleshooting
 
+The stops every tool shares, an unknown flag, the install consent, an install that fails, and a path that is relative or inside this tool, are in `tools/RUNNING.md`; the rows below are this tool's own.
+
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `this tool is not installed yet and this copy of the plugin has not authorised an install` | First install in this copy of the plugin, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. Later tools in this copy install without asking. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
-| `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `Error: --file is required.` | A command that takes `--file` ran with no file to read | Pass `--file <path>` |
 | `Error: --left is required.` / `Error: --right is required.` | A join side was not named | Pass both absolute paths |
 | `Error: --on is required.` | No join key column was named | Pass `--on <column>` |
@@ -396,7 +396,6 @@ On success, one JSON object on stdout, exit 0.
 | `Error: --columns needs at least one column name` | `--columns` was given nothing but separators | Name the columns, or omit the option |
 | `Error: no file at <path>` | The path given does not exist | Check the path; an absolute one cannot be misread |
 | `Error: could not read <path>` | The path is a directory or is not readable | Point the flag at a readable file |
-| `Error: unknown option "<flag>"` | A misspelled or invented flag | Check `help`; the flag was refused rather than ignored |
 | Figures read 10x or 100x too large | The column uses decimal commas (`2,50`), which the numeric rule strips as thousands separators | Convert the file to decimal points before reading it |
 | `parseErrors` names a JSON or delimiter problem, `rowCount` 0 | The content did not parse in the detected or forced format | Confirm the format; pass `--format` or `--delimiter` if auto-detection guessed wrong. JSON must be an array of objects |
 | `errors` names a column as not found, `groupCount` 0 | The name does not match a column the file holds | Read the available list the same entry prints; header spelling and case must match |
