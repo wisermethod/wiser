@@ -55,7 +55,7 @@ Ten tools became subcommands of five, and their old script paths are gone with n
 | `tools/sitemap-fetch`, `sitemap-diff` | `tools/sitemap/scripts/sitemap.js fetch`, `diff` |
 | `tools/seo-audit` (`build`), `seo-keywords` (`analyze`, `previous-window`) | `tools/seo-data/scripts/seo-data.js audit`, `keywords`, `previous-window` |
 
-Every flag, every JSON field and every exit code is what it was; only the path and the verb changed. The six browser tools' copies of the launch runtime are one file at `tools/lib/browser-runtime/`, and Playwright installs there once.
+Every flag, every JSON field and every exit code is what it was; only the path and the verb changed. The six copies of the browser launch runtime are one file at `tools/lib/browser-runtime/`, and Playwright installs there once.
 
 ## Install
 

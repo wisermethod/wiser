@@ -62,7 +62,7 @@ node scripts/render.js sync --md /tmp/slides.md --deck /tmp/deck.key --brand /tm
 
 **`node: command not found`** Node is installed but not on this shell's PATH. Open a new shell; if it persists, reinstall Node and let it update PATH.
 
-**The package install fails** Usually Node older than 18, a directory this account cannot write to, or a `package-lock.json` that is missing or out of step with `package.json`. `npm ci` installs exactly what the lockfile records and will not resolve around a mismatch, so check the lockfile first: a mismatch is a defect in this copy of the plugin rather than something a re-run fixes. Delete `node_modules/`, confirm Node and the directory, and retry (`tools/RUNNING.md`).
+**The package install fails** The causes, Node, the directory or a lockfile out of step, and the retry are in `tools/RUNNING.md`. Delete `node_modules/`, confirm Node and the directory, and retry (`tools/RUNNING.md`).
 
 **`missing Keynote`** Neither Keynote bundle name is in `/Applications`. Install Keynote from the App Store, open it once so its themes register, then run `check` again.
 
