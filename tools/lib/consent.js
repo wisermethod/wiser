@@ -17,7 +17,8 @@
  *   writeConsent(fromFile, tool) -> void
  *     When flagAuthorised(), write .wiser-consent at the plugin root: one JSON
  *     object with realpath, date (YYYY-MM-DD), and the tool that wrote it, mode
- *     0600. A mismatched marker is overwritten. check commands never call this.
+ *     0600. A mismatched marker is overwritten. Called at the moment an authorised
+ *     install runs, so a survey check without --install never reaches it.
  */
 
 import { chmodSync, existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';

@@ -7,7 +7,7 @@
  * comes back as a profile with an empty column list and a populated parseErrors,
  * so the caller decides what to do rather than catching an exception.
  *
- * This module is imported by scripts/parse.js after the dependency check has
+ * This module is imported by scripts/data.js after the dependency check has
  * run, and by the test suite once dependencies are installed; it is never an
  * entry point itself. The rules every shipped script follows are stated once,
  * in system/templates/Script Contract.md.

@@ -367,8 +367,8 @@ On success, one JSON object on stdout, exit 0.
 | `op` | The operation that ran |
 | `a` | `{ field, value }` for the a field |
 | `b` | `{ field, value }` for the b field |
-| `value` | The computed number, omitted when `b` is zero for `percentage` or `rate` |
-| `error` | `b is zero` when `percentage` or `rate` divided by zero; omitted otherwise |
+| `value` | The computed number, omitted when `b` is zero for `percentage` or `rate` and when the result is not a finite number |
+| `error` | `b is zero` when `percentage` or `rate` divided by zero, or `the result is not a finite number` on an overflow; omitted otherwise |
 
 ## Troubleshooting
 

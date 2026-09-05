@@ -8,8 +8,8 @@
  * rejection: it comes back as the result object with error "b is zero" and no
  * value, because that is an answer, not a usage mistake.
  *
- * This module is imported by scripts/data.js after the dependency check has
- * run, and by the test suite; it is never an entry point itself. The rules
+ * This module is imported by scripts/data.js with no dependency check, since it
+ * imports only Node built-ins; the test suite imports it directly.
  * every shipped script follows are stated once, in
  * system/templates/Script Contract.md.
  */

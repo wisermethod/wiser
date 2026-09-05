@@ -8,7 +8,7 @@
  *
  * Reading lives here rather than being borrowed from a sibling tool: a tool
  * invokes no primitive (standards/primitives.md). This module is imported by
- * scripts/join.js after the dependency check has run, and by the test suite
+ * scripts/data.js after the dependency check has run, and by the test suite
  * once dependencies are installed; it is never an entry point itself. The rules
  * every shipped script follows are stated once, in
  * system/templates/Script Contract.md.

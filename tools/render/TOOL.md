@@ -234,7 +234,9 @@ One JSON object on stdout, exit 0.
 | `chromiumLaunch` | Whether a trial launch of the Chromium build succeeded |
 | `remediation` | The one next step when the trial launch did not succeed |
 | `playwright`, `chromiumBinary` | Whether the package and the build's binary are present, the two facts behind `chromiumLaunch` |
-| `failure` | Which of `artifact`, `host`, `permission` or `unknown` the trial launch's failure was, or absent when it launched |
+| `failure` | Which of `artifact`, `host`, `permission` or `unknown` the trial launch's failure was; `null` when it launched |
+| `launchPhase`, `unrunnablePath` | Where a failed launch stopped, and the binary a permission failure names for the `chmod +x` in `remediation`; `null` when they do not apply |
+| `proxy`, `hostClass`, `missingLibs`, `shimmed` | Whether a proxy was in use, the host class the runtime detected, and the OS libraries found missing and shimmed, empty lists on macOS |
 
 ## Troubleshooting
 

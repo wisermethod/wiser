@@ -108,7 +108,7 @@ Two rules govern the values. Text taken from the page is reported as the page ca
 
 ## Troubleshooting
 
-The stops every tool shares, an unknown flag, the install consent, an install that fails, and a path that is relative or inside this tool, are in `tools/RUNNING.md`; the rows below are this tool's own.
+The stops every tool shares, an unknown flag and a path that is relative or inside this tool, are in `tools/RUNNING.md`; this tool installs nothing; the rows below are its own.
 
 | Message | Cause | Fix |
 |---------|-------|-----|

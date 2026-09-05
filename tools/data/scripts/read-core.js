@@ -9,7 +9,7 @@
  * output, and this reader deliberately stops short of it.
  *
  * This module is imported by scripts/describe-core.js after the dependency
- * check in scripts/describe.js has run; it is never an entry point itself. The
+ * check in scripts/data.js has run; it is never an entry point itself. The
  * rules every shipped script follows are stated once, in
  * system/templates/Script Contract.md.
  */
