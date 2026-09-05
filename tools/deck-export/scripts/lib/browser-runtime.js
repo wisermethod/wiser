@@ -34,7 +34,7 @@
  * host class — per the Script Contract's System dependencies clause.
  */
 
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -279,64 +279,116 @@ function remediationFromLaunchError(error, host) {
 }
 
 /**
- * WHY A FAILED LAUNCH IS NOT ONE THING, AND WHY THE MESSAGE CANNOT DECIDE ALONE.
+ * WHY A FAILED LAUNCH IS NOT ONE THING, AND WHY NEITHER THE WORDS NOR THE WORD
+ * `spawn` CAN DECIDE IT.
  *
  * Round 10 found every browser tool responding to `chromiumLaunch === false`
  * with an install and then a forced reinstall, because the caller had reduced
- * this whole report to a boolean. A missing OS library, an absent C compiler,
- * an unwritable shim directory, a denied `mkdtemp` and a sandbox policy all
- * arrive as false -- and all of them sent the run into a destructive browser
- * replacement that could not fix any of them.
+ * this whole report to a boolean. Round 11 found the opposite: a browser that
+ * started and died fell to 'unknown' and its only repair was withheld. Round 12
+ * measured what the fix for THAT cost: the same first line is what a COMPLETE,
+ * HEALTHY browser produces when the machine stops it, and three reviewers drove
+ * a forced repair deleting a complete browser on exactly that signature.
  *
- * Round 11 then found the opposite: a browser that started and died fell
- * through to 'unknown' and the forced refetch, its only repair, was withheld.
- * The fix for that mapped "Failed to launch the browser process" to 'artifact'.
+ * ROUND 13 IS WHY THIS FUNCTION LOOKS THE WAY IT DOES NOW. The round-12 fix
+ * replaced word-matching with a substring test for `spawn` on line one, checked
+ * before the host error codes, on the premise that a `spawn` error means the
+ * operating system refused to EXECUTE the file, so the file must be wrong.
+ * THAT PREMISE IS FALSE. Node builds the syscall name as
+ * `this.spawnfile ? 'spawn ' + this.spawnfile : 'spawn'` and reports it for
+ * every failure of `fork` AS WELL AS `exec`, and Playwright passes the error
+ * through verbatim. So a machine out of memory, out of process slots or out of
+ * file descriptors, a `noexec` mount, and an exec refused by policy all said
+ * "the bytes are wrong" and earned a destructive repair. Three parties on three
+ * providers each drove a complete browser out of existence through it, one of
+ * them on a browser whose only defect was a lost execute bit. A directory named
+ * `spawn` anywhere in TMPDIR flipped a host failure onto the same path, because
+ * the test was still a substring match on a line that quotes a caller's path.
  *
- * ROUND 12 MEASURED WHAT THAT COST, AND IT IS THE REASON THIS FUNCTION IS
- * SHAPED THE WAY IT IS NOW. That same first line is what a COMPLETE, HEALTHY
- * browser produces when the machine stops it: no display for a headful launch,
- * a security tool killing the process, an out-of-memory kill, a sandbox policy.
- * Three reviewers reproduced a forced repair deleting a complete browser on
- * exactly that signature, one of them a real 356MB Chrome for Testing removed
- * by `session start`, the command the documentation gives first. And two REAL
- * damage states were being read backwards at the same time: a truncated binary,
- * which is what an interrupted download leaves, matched nothing and fell to
- * 'unknown' so the only repair was withheld; and a browser whose execute bit
- * had been lost carried EACCES on line one, was read as 'host', and the tool
- * told the reader that reinstalling would not help, which was false -- `chmod
- * +x` alone fixed it.
+ * AND THERE IS NO CLOSED LIST OF SPAWN ERRNOS TO EXCLUDE. Node forwards native
+ * errors, unrecognised ones arrive numerically, and the set depends on the
+ * operating system, the filesystem and the spawn options. A fix written as a
+ * deny-list is wrong the first time an unfamiliar code appears, because that
+ * code falls straight back onto the destructive branch.
  *
- * Six rounds of adding one more string to a pattern list produced six more
- * wrong answers, so this no longer asks WHICH WORDS the message contains. It
- * asks WHERE THE FAILURE HAPPENED, which is a structural fact the message
- * always carries:
+ * SO THE DEFAULT IS THAT NOTHING IS REPLACED, AND ONLY POSITIVE EVIDENCE MOVES
+ * OFF IT. The question is never "does this line contain a word" but "WHOSE
+ * failure is this, and what is the smallest repair":
  *
- *   - The operating system refused to EXECUTE the file. Node reports that as a
- *     `spawn` error, and Playwright passes it through verbatim: `spawn ENOEXEC`
- *     for a file that is not a program, `spawn <path> EACCES` for one that may
- *     not be run, `spawn Unknown system error -88` for a half-written Mach-O.
- *     The file itself is wrong. That is 'artifact' and an install repairs it.
- *   - Playwright never got as far as the file, or says outright that it is not
- *     there. That is 'artifact' too.
- *   - The process STARTED and then ended. Nothing here can tell you whether the
- *     bytes were subtly wrong or the machine killed it, because both produce
- *     the same sentence. That is 'crashed', and the callers DO NOT REPLACE THE
- *     BUILD ON IT -- they say what is ambiguous and name the exact scoped
- *     command, so a reader who has ruled out the machine can run it themselves.
- *     A tool must never destroy a working artifact on a guess; making the
- *     reader type one command is the smaller cost by a wide margin.
- *   - Everything else that names a resource this machine denied is 'host'.
+ *   'artifact'   The bytes are absent or are not a program. `ENOENT`, `ENOEXEC`,
+ *                and Darwin's bad-image errnos. An install repairs it, and a
+ *                forced replacement is earned when the plain install had nothing
+ *                to fetch.
+ *   'permission' The build is INTACT and merely not executable: `EACCES` where
+ *                the file's own mode is confirmed by `stat` to have lost its
+ *                execute bit. Round 12 proved `chmod +x` alone repairs this.
+ *                NOTHING IS REPLACED -- destroying a complete browser to restore
+ *                a mode bit is the trade the Script Contract forbids by name.
+ *   'host'       The machine, its policy or its resources. Refuse; installing a
+ *                browser cannot fix a machine and the forced replacement would
+ *                destroy on the way to not fixing it.
+ *   'crashed'    The process demonstrably started and then ended or stopped
+ *                answering. Nothing here can tell a subtly damaged build from a
+ *                machine that killed a healthy one, so nothing is replaced; the
+ *                run names the one scoped command for a reader who has ruled the
+ *                machine out.
+ *   'unknown'    Everything else, including every errno this function does not
+ *                recognise and every case the evidence leaves ambiguous. The
+ *                callers do the one thing safe in both directions: a PLAIN
+ *                install, which downloads only what is missing and replaces
+ *                nothing, and no forced replacement.
  *
- * Measured on isolated roots, every state beside a live control: absent,
- * zero-length, truncated, random bytes and execute-bit-stripped all reach
- * 'artifact'; a denied `mkdtemp` reaches 'host'; a host-killed healthy browser
- * reaches 'crashed' and nothing is deleted.
- *
- * THIS DELIBERATELY NARROWS ROUND 11's FINDING D. A browser that starts and
- * dies is no longer repaired automatically. It is repaired by one named
- * command the reader runs, because the automatic version of that repair was
- * measured deleting browsers nobody had broken.
+ * THE PHASE MATTERS AND IS NOW RECORDED. `check()` reports where its trial got
+ * to. Once the launch has returned a browser object the bytes have demonstrably
+ * been executed, so no later failure can mean "the build is absent or wrong" --
+ * it can only mean the browser died or stopped answering. Without that, a
+ * timeout while closing a page was being classified from the same table as a
+ * binary that would not start.
  */
+
+// Errnos where the browser's own bytes are at fault. Deliberately short: this
+// is the ONLY set that can earn a destructive repair, so it holds nothing
+// ambiguous. Darwin reports a malformed Mach-O and a bad executable as
+// "Unknown system error -88" and "-85"; -86 (EBADARCH, wrong CPU type) is NOT
+// here, because refetching identical bytes cannot fix an architecture mismatch.
+const BYTES_AT_FAULT = new Set(['ENOENT', 'ENOEXEC']);
+const DARWIN_BAD_IMAGE = new Set(['-85', '-88']);
+
+// Errnos that name a resource or a policy of THIS MACHINE. Not exhaustive by
+// design -- anything absent from both sets falls to 'unknown', which is the safe
+// default, rather than being guessed at.
+const HOST_RESOURCE = new Set([
+  'EAGAIN', 'EWOULDBLOCK', 'EMFILE', 'ENFILE', 'ENOMEM', 'EPERM', 'E2BIG',
+  'ETXTBSY', 'EIO', 'EBADF', 'ENOSYS', 'ENOBUFS', 'EBUSY', 'ENOSPC', 'EROFS',
+  'EAFNOSUPPORT', 'EPROTONOSUPPORT', 'EOPNOTSUPP', 'ENOTSUP', 'ENAMETOOLONG'
+]);
+
+/**
+ * Pull the executable path and the errno out of a Node spawn error.
+ *
+ * The errno is the LAST thing on the line, which is what makes this safe where
+ * a substring test was not: a message that merely quotes a path containing the
+ * word `spawn` has no errno in that position and does not match. The path is
+ * optional and may contain spaces, so it is captured non-greedily up to the
+ * errno that ends the line.
+ */
+function spawnFailure(line) {
+  const m = /(?:^|[^\w])spawn(?:\s+(\S.*?))?\s+(E[A-Z0-9]+|Unknown system error\s+(-?\d+))\s*$/.exec(line);
+  if (!m) return null;
+  return { path: m[1] || '', code: m[3] !== undefined ? m[3] : m[2] };
+}
+
+/** True when `path` is a file this account may not execute because of its mode. */
+function lostExecuteBit(path) {
+  if (!path) return false;
+  try {
+    const st = statSync(path);
+    return st.isFile() && (st.mode & 0o111) === 0;
+  } catch {
+    return false; // cannot see it: not positive evidence, so not a repair we may make
+  }
+}
+
 function classifyFailure(error, report) {
   const text = error && error.message ? String(error.message) : '';
   const line = text.split('\n')[0].trim();
@@ -344,16 +396,35 @@ function classifyFailure(error, report) {
   // A library this runtime could not stub is the host, whatever else is said.
   if (report.missingLibs && report.missingLibs.length) return 'host';
 
-  // EXEC-TIME FAILURE: the OS would not run the file. This is checked BEFORE
-  // the host codes on purpose. `spawn <path> EACCES` is a mode bit on the
-  // browser's own binary and an install repairs it; `EACCES ... mkdtemp` is a
-  // directory this machine denied and an install cannot. Round 12 measured the
-  // old order sending the first of those to 'host' and printing a false claim.
-  if (/(^|[^\w])spawn([^\w]|$)/i.test(line)) return 'artifact';
+  // THE PROCESS ALREADY RAN. Once `check()` has a browser object the bytes have
+  // been executed, so nothing after that can mean the build is absent or wrong.
+  // This is checked first so no later rule can claim otherwise.
+  if (report.launchPhase && report.launchPhase !== 'launch') return 'crashed';
 
   // Playwright saying outright that the build is not there.
   if (/Executable doesn't exist|please run the following command to download/i.test(line)) {
     return 'artifact';
+  }
+
+  // AN EXEC- OR FORK-TIME FAILURE, DECIDED BY ITS ERRNO AND NEVER BY THE WORD.
+  const spawned = spawnFailure(line);
+  if (spawned) {
+    if (BYTES_AT_FAULT.has(spawned.code) || DARWIN_BAD_IMAGE.has(spawned.code)) return 'artifact';
+    // EACCES is the one that has to be resolved rather than guessed. The mode on
+    // the browser's own file says whether this is the build or the machine, and
+    // round 12 measured both: `chmod +x` alone repaired one, and nothing an
+    // install can do repairs the other.
+    if (spawned.code === 'EACCES') {
+      if (lostExecuteBit(spawned.path)) {
+        // The caller has to be able to NAME the file, or "restore the execute
+        // bit" is advice nobody can act on.
+        report.executablePath = spawned.path;
+        return 'permission';
+      }
+      return 'host';
+    }
+    if (HOST_RESOURCE.has(spawned.code)) return 'host';
+    return 'unknown';
   }
 
   // A host that cannot run browsers at all. These are Playwright's and the
@@ -363,8 +434,7 @@ function classifyFailure(error, report) {
   }
   if (/EPERM|EACCES|EROFS|ENOSPC|ENOMEM|permission denied|mkdtemp/i.test(line)) return 'host';
 
-  // THE PROCESS STARTED AND THEN ENDED, and this message cannot say why.
-  // Never forced. See the note above.
+  // Started and then ended, or stopped answering. Never forced.
   if (/Failed to launch the browser process|Target page, context or browser has been closed|Target closed|browser has disconnected|Timeout \d+ms exceeded/i.test(line)) {
     return 'crashed';
   }
@@ -417,7 +487,8 @@ export async function check(options = {}) {
   const report = {
     playwright: false, chromiumBinary: false, chromiumLaunch: false,
     proxy: Boolean(proxyServer()), hostClass: hostClass(),
-    missingLibs: [], shimmed: [], remediation: null, failure: null
+    missingLibs: [], shimmed: [], remediation: null, failure: null,
+    launchPhase: null, executablePath: null
   };
   let chromium;
   try {
@@ -453,6 +524,15 @@ export async function check(options = {}) {
     report.failure = 'host';
     return report;
   }
+  // WHERE THE TRIAL GOT TO, RECORDED, BECAUSE IT CHANGES WHAT A FAILURE MEANS.
+  //
+  // This block spans a launch, a page, a navigation and a teardown. Round 13
+  // found a timeout at ANY of them classified as "the browser started and then
+  // stopped before it was ready", which is false for the last three: the browser
+  // is alive. Once `launch()` has returned, the bytes have demonstrably been
+  // executed, so no later failure can mean the build is absent or wrong either.
+  let phase = 'launch';
+  let browser;
   try {
     // A bounded trial, bounded THE SAME WAY the real launch is.
     //
@@ -469,16 +549,33 @@ export async function check(options = {}) {
     const opts = { ...options, args: [...DEFAULT_ARGS, ...(options.args || [])], timeout: LAUNCH_TIMEOUT_MS };
     const server = proxyServer();
     if (server && !opts.proxy) opts.proxy = { server };
-    const b = await chromium.launch(opts);
-    const p = await b.newPage();
+    browser = await chromium.launch(opts);
+    phase = 'page';
+    const p = await browser.newPage();
+    phase = 'navigate';
     await p.goto('about:blank');
+    phase = 'teardown';
     await p.close();
-    await b.close();
+    await browser.close();
+    browser = undefined;
     report.chromiumLaunch = true;
   } catch (e) {
     report.chromiumLaunch = false;
+    report.launchPhase = phase;
     report.remediation = remediationFromLaunchError(e, report.hostClass);
     report.failure = classifyFailure(e, report);
+  } finally {
+    // THE BROWSER THIS FUNCTION OPENED IS THE ONE IT CLOSES, ON EVERY PATH.
+    //
+    // Without this, a throw after a successful launch left the browser running
+    // and its handles held the event loop open: round 13 drove a caller that
+    // printed its complete result and then did not exit for FOUR HOURS, its
+    // browser child still alive. Every shipped caller happens to reach
+    // process.exit() on the failure path, which masked it, but that mask is
+    // accidental and one new caller removes it.
+    if (browser) {
+      try { await browser.close(); } catch { /* best effort: the report is already written */ }
+    }
   }
   return report;
 }

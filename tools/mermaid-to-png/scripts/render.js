@@ -459,9 +459,29 @@ async function ensureChromium() {
   // ambiguous and names the one scoped command that repairs it, for a reader
   // who has ruled the machine out. Making someone type one command is a much
   // smaller cost than destroying a browser they did not break.
+  // THE BUILD IS INTACT AND MERELY NOT EXECUTABLE, AND THAT IS NOT WORTH
+  // DESTROYING IT OVER.
+  //
+  // Round 12 measured this state; round 13 measured what the fix for it cost.
+  // `EACCES` on the browser's own file was read as damaged bytes, and the
+  // authorised repair DELETED a complete browser whose only defect was a mode
+  // bit -- when `chmod +x` alone had already been proved to fix it. The runtime
+  // now confirms the mode with `stat` before saying so, so this branch is
+  // reached only on positive evidence, and it replaces nothing.
+  if (browserSurvey.failure === 'permission') {
+    const target = browserSurvey.executablePath || 'the Chromium binary named above';
+    fail(`Error: the Chromium build is present and complete, but this account may not run it: its file has lost its execute permission. Nothing is wrong with the build, and nothing has been replaced. ${browserSurvey.remediation || ''} Restore the permission and run the command again: chmod +x '${target}'`);
+  }
+
   if (browserSurvey.failure === 'crashed') {
+
     const crashedForce = runtime.forceInstallArgs(LAUNCH_OPTIONS).join(' ');
-    fail(`Error: Chromium started and then stopped before it was ready, and this message cannot say whether the cause was this machine -- no display for a window, a security tool, an out-of-memory kill -- or a damaged browser build. ${browserSurvey.remediation || 'The trial launch reported no reason.'} Nothing has been replaced: replacing the build deletes the copy you already have, which is the wrong move when the machine is the cause. If you have ruled the machine out, replace just this build with: node ${PLAYWRIGHT_CLI} ${crashedForce}`);
+    // Once the launch has returned, the browser was alive; "stopped before it
+    // was ready" is then false and round 13 found all six scripts saying it.
+    const crashedWhat = browserSurvey.launchPhase && browserSurvey.launchPhase !== 'launch'
+      ? 'Chromium started and then stopped answering'
+      : 'Chromium started and then stopped before it was ready';
+    fail(`Error: ${crashedWhat}, and this message cannot say whether the cause was this machine -- a security tool, an out-of-memory kill, a sandbox policy, or a display a visible window needed and could not get -- or a damaged browser build. ${browserSurvey.remediation || 'The trial launch reported no reason.'} Nothing has been replaced: replacing the build deletes the copy you already have, which is the wrong move when the machine is the cause. If you have ruled the machine out, and accepting that a download which then fails leaves you with neither, replace just this build with: node '${PLAYWRIGHT_CLI}' ${crashedForce}`);
   }
 
   requireInstallConsent('browser');

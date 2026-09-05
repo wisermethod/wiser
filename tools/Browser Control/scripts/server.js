@@ -625,22 +625,36 @@ const actions = {
     }
     if (!tracing) return { tracing: false, note: 'nothing was being recorded' };
     const target = writeTarget(output);
+
+    // A TRACE IS CREDENTIAL MATERIAL AND IS CREATED PRIVATE, NOT MADE PRIVATE
+    // AFTERWARDS -- AND THE TOOL OWNS THE FILE, NOT THE FOLDER.
+    //
+    // Round 12 found the zip written 0644 with an HttpOnly session cookie in it
+    // in plaintext. Round 13 found the fix reached one level too far and one
+    // step too late. Too far: it chmod'ed `dirname(target)`, which is any
+    // directory the caller names -- driven, a shared folder holding unrelated
+    // files went 0755 -> 0700 and a world-shared one went 1777 -> 0700, with
+    // nothing said about it in the result. Too late: the archive was written at
+    // the process umask and only then chmod'ed, so there was a window, and if
+    // the write threw, no chmod ran at all.
+    //
+    // So the file is created empty and owner-only BEFORE Playwright writes into
+    // it -- an existing file keeps its mode when it is written through -- and the
+    // mode is asserted again afterwards. The caller's directory is left exactly
+    // as it was found. `writeTarget` has already refused a path that exists, so
+    // this creates rather than truncates.
+    try { writeFileSync(target, '', { mode: 0o600 }); } catch { /* the write below is the real test */ }
     await context.tracing.stop({ path: target });
-    // A TRACE IS CREDENTIAL MATERIAL AND IS WRITTEN AS SUCH.
-    //
-    // TOOL.md names three paths that hold credential material and tells a
-    // verifier to treat all three alike. Only the session token was ever
-    // written with a mode. Round 12 drove a trace against a server issuing an
-    // HttpOnly Set-Cookie and found the value in the zip in plaintext, twice,
-    // in a file created 0644 -- readable by every other account on the machine,
-    // in the one path TOOL.md calls "worth saying twice, because a trace's
-    // whole purpose is to be handed to someone else". Twelve gate rounds had
-    // checked that the sentence named all three paths and none had run `stat`.
-    //
-    // Same two-step as publishToken(), and for the same reason: a directory
-    // that already existed keeps its own mode, so mkdir's mode is not enough.
-    try { chmodSync(dirname(target), 0o700); } catch { /* best effort */ }
-    try { chmodSync(target, 0o600); } catch { /* best effort */ }
+    try { chmodSync(target, 0o600); } catch { /* best effort on exotic filesystems */ }
+
+    // Round 13: a chmod that fails must not be reported as ordinary success,
+    // because the sentence TOOL.md prints about this path is unconditional.
+    let mode = null;
+    try { mode = statSync(target).mode & 0o777; } catch { /* reported below as unknown */ }
+    if (mode !== null && (mode & 0o077) !== 0) {
+      throw new Error(`${target} was written but could not be made owner-only (mode ${mode.toString(8)}); it holds request and response headers including Cookie and Set-Cookie, so treat it as credential material or delete it`);
+    }
+
     tracing = false;
     return { tracing: false, file: target };
   },

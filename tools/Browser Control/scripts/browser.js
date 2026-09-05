@@ -705,9 +705,29 @@ async function ensureChromium() {
   // ambiguous and names the one scoped command that repairs it, for a reader
   // who has ruled the machine out. Making someone type one command is a much
   // smaller cost than destroying a browser they did not break.
+  // THE BUILD IS INTACT AND MERELY NOT EXECUTABLE, AND THAT IS NOT WORTH
+  // DESTROYING IT OVER.
+  //
+  // Round 12 measured this state; round 13 measured what the fix for it cost.
+  // `EACCES` on the browser's own file was read as damaged bytes, and the
+  // authorised repair DELETED a complete browser whose only defect was a mode
+  // bit -- when `chmod +x` alone had already been proved to fix it. The runtime
+  // now confirms the mode with `stat` before saying so, so this branch is
+  // reached only on positive evidence, and it replaces nothing.
+  if (browserSurvey.failure === 'permission') {
+    const target = browserSurvey.executablePath || 'the Chromium binary named above';
+    fail(`Error: the Chromium build is present and complete, but this account may not run it: its file has lost its execute permission. Nothing is wrong with the build, and nothing has been replaced. ${browserSurvey.remediation || ''} Restore the permission and run the command again: chmod +x '${target}'`);
+  }
+
   if (browserSurvey.failure === 'crashed') {
+
     const crashedForce = runtime.forceInstallArgs(LAUNCH_OPTIONS).join(' ');
-    fail(`Error: Chromium started and then stopped before it was ready, and this message cannot say whether the cause was this machine -- no display for a window, a security tool, an out-of-memory kill -- or a damaged browser build. ${browserSurvey.remediation || 'The trial launch reported no reason.'} Nothing has been replaced: replacing the build deletes the copy you already have, which is the wrong move when the machine is the cause. If you have ruled the machine out, replace just this build with: node ${PLAYWRIGHT_CLI} ${crashedForce}`);
+    // Once the launch has returned, the browser was alive; "stopped before it
+    // was ready" is then false and round 13 found all six scripts saying it.
+    const crashedWhat = browserSurvey.launchPhase && browserSurvey.launchPhase !== 'launch'
+      ? 'Chromium started and then stopped answering'
+      : 'Chromium started and then stopped before it was ready';
+    fail(`Error: ${crashedWhat}, and this message cannot say whether the cause was this machine -- a security tool, an out-of-memory kill, a sandbox policy, or a display a visible window needed and could not get -- or a damaged browser build. ${browserSurvey.remediation || 'The trial launch reported no reason.'} Nothing has been replaced: replacing the build deletes the copy you already have, which is the wrong move when the machine is the cause. If you have ruled the machine out, and accepting that a download which then fails leaves you with neither, replace just this build with: node '${PLAYWRIGHT_CLI}' ${crashedForce}`);
   }
 
   requireInstallConsent('browser');
@@ -830,6 +850,24 @@ if (command === 'session') {
   const headless = switchOn('--headless');
   const unattended = switchOn('--unattended');
 
+  // A `start` THAT CANNOT SUCCEED REFUSES BEFORE IT SPENDS ANYTHING.
+  //
+  // Making `restart` transactional moved this check below ensureChromium(), and
+  // round 13 measured the cost: with the port already occupied, `session start`
+  // ran the whole survey, could ask for install consent, and could reach a
+  // forced replacement -- all before mentioning the one thing that was actually
+  // wrong. `restart` cannot ask this here, because the session it is about to
+  // replace is the thing that would answer; it asks again after the stop.
+  if (sub === 'start') {
+    const occupied = await hostStatus();
+    if (occupied === 'refused') {
+      fail(`Error: something is already listening on port ${port} and refused this request. If it is a browser host, it was started by a different session or a different account and this session's token does not open it: stop that process, or pass a different --port. Starting a second host here would leave a signed-in browser running that this tool cannot manage.`);
+    }
+    if (occupied !== null) {
+      fail(`Error: a browser host is already running on port ${port} with profile ${occupied.profile}. Stop it first, or pass a different --port.`);
+    }
+  }
+
   // Dependencies. Before the host is spawned, so a missing install is reported
   // here rather than dying inside a detached child.
   if (!existsSync(DEP_MARKER)) {
@@ -866,8 +904,16 @@ if (command === 'session') {
   // drifted from each other while the registers were correct. Round 11 found it.
   await ensureChromium();
 
-  // EVERYTHING ABOVE CAN REFUSE, AND NOTHING ABOVE HAS CHANGED THE MACHINE.
-  // The running session is closed here, and not one line earlier.
+  // THE RUNNING SESSION IS CLOSED HERE, AND NOT ONE LINE EARLIER.
+  //
+  // Every refusal that can be made without touching the session has been made:
+  // the profile, the switches, an occupied port for `start`, the packages and
+  // the browser build. The previous version of this comment claimed nothing
+  // above it had changed the machine, and round 13 found that false -- the line
+  // directly above installs packages and a browser and, on an artifact failure,
+  // can run a forced replacement. It now says what is true: everything that CAN
+  // refuse has refused, and what remains above is preparation the replacement
+  // needs.
   if (sub === 'restart') await stopHost();
 
   const running = await hostStatus();

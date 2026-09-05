@@ -39,4 +39,4 @@ This tool installs the packages below on the machine that calls it, into a Pytho
 ## FFmpeg and the model weights, neither of which is installed by this list
 
 - **FFmpeg** decodes the audio. It is a third-party program, not in this table, not installed by this tool, and licensed by its own authors under `LGPL-2.1-or-later` or `GPL-2.0-or-later` depending on the build. The tool stops and names it when it is absent.
-- **The speech model weights** are downloaded on first use of a given model, into the directory the caller passes as `--model-cache`, not into this tool. They are supplied by the model's own publisher under its own terms. The base model is roughly 139MB.
+- **The speech model weights** are downloaded on first use of a given model, into the directory the caller passes as `--model-cache`, not into this tool. They are supplied by the model's own publisher under its own terms. The base model is roughly 145MB; the five selectable models run from roughly 75MB for `tiny` to about 3.1GB for `large`.

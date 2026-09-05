@@ -58,7 +58,7 @@ MODEL_SIZES = {
     "base": "roughly 145MB",
     "small": "roughly 480MB",
     "medium": "about 1.5GB",
-    "large": "about 2.9GB",
+    "large": "about 3.1GB",
 }
 
 # The transcription language the engine is pinned to. TOOL.md states the limit.
@@ -158,6 +158,18 @@ def flag(name):
     if name not in argv:
         return None
     index = argv.index(name)
+    # A SECOND OCCURRENCE IS A USAGE MISTAKE, NOT A PREFERENCE.
+    #
+    # argv.index is first-wins and said nothing. Round 13 drove
+    # `--model tiny --model large` and got a transcript from TINY, with the
+    # consent message quoting tiny's size -- internally consistent and not what
+    # the caller asked for, which is worse than the fifteen JavaScript tools
+    # where the same defect produced an object about the wrong file. Round 12
+    # closed this class in Browser Control and round 13's fix reached fifteen
+    # entry scripts; this is the one that reads its arguments in Python.
+    if name in argv[index + 1:]:
+        fail('%s was given more than once and takes one value. '
+             'Run "python3 scripts/transcribe.py help" for usage.' % name)
     value = argv[index + 1] if index + 1 < len(argv) else None
     if value is None or value.startswith("--"):
         fail('%s needs a value. Run "python3 scripts/transcribe.py help" for usage.' % name)
