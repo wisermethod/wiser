@@ -68,7 +68,7 @@ Normalize each value from the address column, because a list assembled from form
 
 Then deduplicate. A duplicate is a credit spent twice for one answer, and there is no case for keeping one.
 
-The normalized address is the only key results come back on, which makes it the only key back to the source rows. Keep the source file, apply this same normalization again when the results land, and merge groups back onto source rows with `tools/data-join/` on that key rather than matching by eye.
+The normalized address is the only key results come back on, which makes it the only key back to the source rows. Keep the source file, apply this same normalization again when the results land, and merge groups back onto source rows with `tools/data/` `join` on that key rather than matching by eye.
 
 ### Step 4: Price the submission, then submit once
 
@@ -104,7 +104,7 @@ Take the cost from the completed job's own credits figure. Step 4's estimate is 
 
 ### Step 6: Deliver the decision
 
-Into the work directory: the group files, and one record naming the source file and its row count, the addresses submitted, the job identifier, the credits the completed job reports, the count in every group, the rows that carried no address, the rows read with a column count different from the header, which `tools/data-parse/` reports as `raggedRowCount` and which are present in `rowCount` rather than dropped, and, for each group, the field that put its addresses there.
+Into the work directory: the group files, and one record naming the source file and its row count, the addresses submitted, the job identifier, the credits the completed job reports, the count in every group, the rows that carried no address, the rows read with a column count different from the header, which `tools/data/` `parse` reports as `raggedRowCount` and which are present in `rowCount` rather than dropped, and, for each group, the field that put its addresses there.
 
 Into the response: the decision rather than the file listing. How much of the list is mailable, what it cost, what came off it and why, and what happens to the group that waits.
 
@@ -125,4 +125,4 @@ Into the response: the decision rather than the file listing. How much of the li
 - The user saw the balance, the address count, and the cost estimate together and answered, before the run was confirmed.
 - No list was submitted twice, and the identifier of the job the results came from is in the record.
 - Every address in the send group traces to the result field that put it there, every drop names the field that dropped it, and every caution travels with the addresses it qualifies.
-- The record states the completed job's own credits figure as the cost, and counts the rows that carried no address and the ragged rows `tools/data-parse/` reported. A ragged row is present in `rowCount` and is not a row that failed to parse; a file that will not parse at all stops the run at Step 2 instead.
+- The record states the completed job's own credits figure as the cost, and counts the rows that carried no address and the ragged rows `tools/data/` `parse` reported. A ragged row is present in `rowCount` and is not a row that failed to parse; a file that will not parse at all stops the run at Step 2 instead.

@@ -64,7 +64,7 @@ Read `parseErrors` even though the command exited 0. These tools report what a f
 
 Name the columns rather than describing every numeric one: `describe` takes a column list, and an identifier, a year, a postal code, and a flag stored as 0 and 1 all read as numbers while their means are noise. The profile is what tells them apart. **Naming columns empties `skippedColumns`**, which then reports only columns you named and it could not use, never the ones you did not name. So when the run narrowed the set, the columns present but undescribed are named in the analysis from the profile rather than from that field, or a nine-column file reports truthfully that nothing was skipped while seven columns went undescribed.
 
-A column the profile does not type as a number takes a count and nothing else, `mixed` included. Which columns qualify as numeric is `tools/data-parse/`'s judgment, stated in its file, and it is not re-derived here by reading the values.
+A column the profile does not type as a number takes a count and nothing else, `mixed` included. Which columns qualify as numeric is `tools/data/` `parse`'s judgment, stated in its file, and it is not re-derived here by reading the values.
 
 ### Step 3: Read everything each tool returned
 
@@ -103,4 +103,4 @@ A request for something no tool here computes gets three sentences and no fourth
 - Parse errors, skipped columns, missing values, and every tool error entry that bears on a stated figure appear in the analysis.
 - Every requested operation the tools do not perform was named as unavailable, with what was computed instead.
 - The narrative interprets rather than calculates: what stands out among the returned figures, what is missing, what this file cannot answer.
-- No data file's rows were read into the conversation to reach a figure, and nothing was written except a file the caller's own pasted data needed a home in, **any intermediate a later tool had to read, which is written once to the active work directory and named in the analysis**, plus any chart HTML the request asked `tools/data-chart/` to write.
+- No data file's rows were read into the conversation to reach a figure, and nothing was written except a file the caller's own pasted data needed a home in, **any intermediate a later tool had to read, which is written once to the active work directory and named in the analysis**, plus any chart HTML the request asked `tools/data/` `chart` to write.

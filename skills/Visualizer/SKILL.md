@@ -12,7 +12,7 @@ version: 0.6.0
 
 Use when material should be seen rather than read: a document, a research set, a process, a set of ideas turned into a diagram that carries its structure. One request yields one diagram.
 
-Not for reducing material to what it amounts to, which is `skills/Categorize Content/` and feeds this skill rather than competing with it. Not for slides, which is `skills/Create Presentation/`. Not for turning a finished diagram into an image, which `tools/mermaid-to-png/`, `tools/svg-to-png/`, and `tools/html-to-png/` do by consuming this skill's output. Out of scope by domain: charts of quantitative data, whose concerns are scales, encodings, and distributions rather than conceptual geometry; those are `tools/data-chart/`, not this skill.
+Not for reducing material to what it amounts to, which is `skills/Categorize Content/` and feeds this skill rather than competing with it. Not for slides, which is `skills/Create Presentation/`. Not for turning a finished diagram into an image, which `tools/mermaid-to-png/`, `tools/svg-to-png/`, and `tools/html-to-png/` do by consuming this skill's output. Out of scope by domain: charts of quantitative data, whose concerns are scales, encodings, and distributions rather than conceptual geometry; those are `tools/data/` `chart`, not this skill.
 
 ## Objective
 
