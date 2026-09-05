@@ -17,6 +17,8 @@ import { accessSync, constants, existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { destinationReason, destinationReasonText } from './lib/destination.js';
+
 const TOOL_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 // Detection patterns. Each tag is present when any of its patterns matches the
@@ -278,7 +280,12 @@ for (let index = 1; index < argv.length; index += 1) {
   // uses, it is a function declaration, and it imports nothing, so calling it
   // here costs a parse and nothing else. main() calls it again on its own
   // account rather than depending on this having run.
-  resolveTarget(raw);
+  //
+  // And WHERE it points. A loopback or private-range address is refused by
+  // name here, before the install, so it never buys one; main() applies the
+  // same screen again before the fetch. This resolves the hostname, which is a
+  // question to the resolver and not a connection to the address.
+  await screenDestination(resolveTarget(raw));
 }
 
 if (!existsSync(UNDICI_MARKER)) {
@@ -358,6 +365,19 @@ function detect(html) {
   return found;
 }
 
+// The address boundary, the same screen and the same sentence as sitemap-fetch:
+// loopback, private-range, link-local, unique-local, and cloud-metadata
+// addresses are refused in every spelling, and a hostname is resolved first so
+// an ordinary-looking name pointing inward is refused too. A hostname that
+// resolves nowhere is not refused here; the fetch reports that on its own.
+async function screenDestination(target) {
+  const destination = await destinationReason(target.hostname);
+  if (destination && destination !== 'unresolvable') {
+    fail(`Error: --url ${target.href} points at ${destinationReasonText(destination)}, which this tool does not fetch.`);
+  }
+  return target;
+}
+
 async function fetchHtml(url) {
   const response = await fetch(url, {
     redirect: 'follow',
@@ -374,7 +394,7 @@ async function main() {
     fail('Error: --url is required. Run "node scripts/tag-audit.js help" for usage.');
   }
 
-  const target = resolveTarget(raw);
+  const target = await screenDestination(resolveTarget(raw));
 
   let fetched;
 

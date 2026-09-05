@@ -268,8 +268,20 @@ function remediationFromLaunchError(error, host) {
       '.'
     );
   }
-  if (/Executable doesn't exist|browserType\.launch/i.test(line) && /exist/i.test(line)) {
-    return 'dependency: Chromium build (Playwright); check: node scripts/<entry>.js <command> --install, which fetches it from cdn.playwright.dev in the same run and repairs an incomplete or emptied build as well as an absent one. tools/AGENTS.md names the states and where the build lands.';
+  // Playwright's "the build is not there", read with the SAME filesystem check
+  // the classifier uses. Round 15 found this sentence trusting the phrase while
+  // the classifier had stopped: a byte-perfect browser behind an unsearchable
+  // parent was classified 'unknown' and then told the build was missing.
+  const gone = MISSING_EXECUTABLE.exec(line);
+  if (gone) {
+    const absent = fileAbsent(gone[1]);
+    if (absent === true) {
+      return 'dependency: Chromium build (Playwright); check: node scripts/<entry>.js <command> --install, which fetches it from cdn.playwright.dev in the same run and repairs an incomplete or emptied build as well as an absent one. tools/AGENTS.md names the states and where the build lands.';
+    }
+    if (absent === false) {
+      return `dependency: Chromium launch; check: trial launch of about:blank. Next: Playwright reported the build at ${gone[1]} as missing, but the file is there, so this machine is refusing it rather than the build being absent; check the permissions on that file and on every directory above it for the account running this tool.`;
+    }
+    return `dependency: Chromium launch; check: trial launch of about:blank. Next: Playwright reported the build at ${gone[1]} as missing and this account could not confirm that, so it was not treated as absent; make every directory above that file searchable by this account, then run the command again.`;
   }
   if (line) {
     // Keep a short cause without install walkthroughs; still name the capability.
@@ -355,6 +367,17 @@ function remediationFromLaunchError(error, host) {
 // "-85"; -86 (EBADARCH, wrong CPU type) is NOT here, because refetching
 // identical bytes cannot fix an architecture mismatch.
 const BYTES_AT_FAULT = new Set(['ENOEXEC']);
+
+// Playwright's own first line for an absent build, and ONLY as the first line:
+// `Executable doesn't exist at ${absolutePath}` (playwright-core, the launcher),
+// optionally prefixed by the API name Playwright wraps its errors in. Round 15
+// found the unanchored form extracting the phrase from INSIDE another path --
+// `spawn /x/Executable doesn't exist at nowhere EACCES` -- and then `stat`ing a
+// string that never existed, which is always absent. Anchoring to the start of
+// the line, and to an absolute path, is what makes the `stat` positive evidence
+// about the browser rather than about the extraction. A relative path cannot
+// be Playwright's: its registry resolves every executable path absolutely.
+const MISSING_EXECUTABLE = /^(?:browserType\.launch(?:PersistentContext)?: )?Executable doesn't exist at ((?:\/|[A-Za-z]:[\\/]).*?)\s*$/i;
 const DARWIN_BAD_IMAGE = new Set(['-85', '-88']);
 
 // Errnos that name a resource or a policy of THIS MACHINE. Not exhaustive by
@@ -424,24 +447,12 @@ function classifyFailure(error, report) {
   // This is checked first so no later rule can claim otherwise.
   if (report.launchPhase && report.launchPhase !== 'launch') return 'crashed';
 
-  // Playwright saying the build is not there -- CONFIRMED against the filesystem,
-  // never trusted as a sentence. "Executable doesn't exist at <path>" is a failed
-  // `existsSync`, which an unsearchable parent fails too, so round 14 drove a
-  // complete browser to a forced deletion through it. Stat the path it names:
-  // a real ENOENT is the artifact, an existing file is the machine (host), and an
-  // unreadable one is unknown rather than destroyed.
-  {
-    const gone = /Executable doesn't exist at (.+?)\s*$/i.exec(line);
-    if (gone) {
-      const absent = fileAbsent(gone[1]);
-      if (absent === true) return 'artifact';
-      if (absent === false) return 'host';
-      return 'unknown';
-    }
-    if (/please run the following command to download/i.test(line)) return 'artifact';
-  }
-
   // AN EXEC- OR FORK-TIME FAILURE, DECIDED BY ITS ERRNO AND NEVER BY THE WORD.
+  //
+  // This runs BEFORE any rule that can return 'artifact' from the wording of the
+  // line. Round 15 found the "doesn't exist" rule ahead of it, so a spawn line
+  // whose PATH happened to contain that phrase was classified from the phrase
+  // and its real errno was never read.
   const spawned = spawnFailure(line);
   if (spawned) {
     // ENOENT from a spawn is not only "the binary is gone": execve reports it for
@@ -471,6 +482,27 @@ function classifyFailure(error, report) {
     }
     if (HOST_RESOURCE.has(spawned.code)) return 'host';
     return 'unknown';
+  }
+
+  // Playwright saying the build is not there -- CONFIRMED against the filesystem,
+  // never trusted as a sentence, and read only when it is the whole first line.
+  // "Executable doesn't exist at <path>" is a failed `existsSync`, which an
+  // unsearchable parent fails too, so round 14 drove a complete browser to a
+  // forced deletion through it. Stat the path it names: a real ENOENT is the
+  // artifact, an existing file is the machine (host), and an unreadable one is
+  // unknown rather than destroyed. Round 15 anchored the extractor (see
+  // MISSING_EXECUTABLE) and removed the sibling rule that matched Playwright's
+  // "please run the following command to download" advice: that advice is
+  // never on the first line of a real launch error, so the rule could only ever
+  // fire on a constructed one, and it returned 'artifact' with no `stat` at all.
+  {
+    const gone = MISSING_EXECUTABLE.exec(line);
+    if (gone) {
+      const absent = fileAbsent(gone[1]);
+      if (absent === true) return 'artifact';
+      if (absent === false) return 'host';
+      return 'unknown';
+    }
   }
 
   // A host that cannot run browsers at all. These are Playwright's and the
@@ -579,6 +611,7 @@ export async function check(options = {}) {
   // executed, so no later failure can mean the build is absent or wrong either.
   let phase = 'launch';
   let browser;
+  let expiry;
   try {
     // A bounded trial, bounded THE SAME WAY the real launch is.
     //
@@ -595,22 +628,63 @@ export async function check(options = {}) {
     const opts = { ...options, args: [...DEFAULT_ARGS, ...(options.args || [])], timeout: LAUNCH_TIMEOUT_MS };
     const server = proxyServer();
     if (server && !opts.proxy) opts.proxy = { server };
-    browser = await chromium.launch(opts);
-    phase = 'page';
-    const p = await browser.newPage();
-    phase = 'navigate';
-    await p.goto('about:blank');
-    phase = 'teardown';
-    await p.close();
-    await browser.close();
-    browser = undefined;
+
+    // THE AWAITED PROMISE ALWAYS SETTLES, AND THIS RUNTIME OWNS THE TIMER THAT
+    // GUARANTEES IT.
+    //
+    // Round 14 drove a browser killed within its first few hundred milliseconds
+    // (a security tool is the everyday case) leaving `chromium.launch()` pending
+    // for ever: Playwright's own timeout did not fire and nothing else held the
+    // event loop, so Node exited 13 with "Detected unsettled top-level await",
+    // no report, no `Error:` line, and this `finally` never ran. Round 15
+    // reproduced it (1 of 18). A Playwright timeout option is not a
+    // runtime-owned timer: it neither keeps the loop alive nor settles an
+    // abandoned promise. So the whole trial -- launch, page, navigation,
+    // teardown -- is raced against a timer this function owns, referenced so the
+    // loop stays alive until one side settles, and cleared on every path so a
+    // healthy check does not hold the process open for three minutes.
+    const trial = (async () => {
+      browser = await chromium.launch(opts);
+      phase = 'page';
+      const p = await browser.newPage();
+      phase = 'navigate';
+      await p.goto('about:blank');
+      phase = 'teardown';
+      await p.close();
+      await browser.close();
+      browser = undefined;
+    })();
+    // If the timer wins, the trial may settle later, or never; a late rejection
+    // must not surface as an unhandled one after this report has been written.
+    trial.catch(() => {});
+    const unsettled = new Promise((_, reject) => {
+      expiry = setTimeout(() => {
+        const error = new Error(`the trial launch did not settle within ${LAUNCH_TIMEOUT_MS}ms`);
+        error.trialUnsettled = true;
+        reject(error);
+      }, LAUNCH_TIMEOUT_MS);
+    });
+    await Promise.race([trial, unsettled]);
     report.chromiumLaunch = true;
   } catch (e) {
     report.chromiumLaunch = false;
     report.launchPhase = phase;
-    report.remediation = remediationFromLaunchError(e, report.hostClass);
-    report.failure = classifyFailure(e, report);
+    if (e && e.trialUnsettled) {
+      // Nothing answered and nothing rejected: the process, if it started, is
+      // gone or hung, and no error text exists to classify. That is the
+      // 'crashed' outcome -- nothing is replaced -- with a sentence that says
+      // what actually happened rather than one borrowed from a launch error.
+      report.failure = 'crashed';
+      report.remediation =
+        `dependency: Chromium launch; check: trial launch of about:blank. Next: the trial did not settle within ${LAUNCH_TIMEOUT_MS}ms (it reached the ${phase} step and then neither answered nor failed), which is what a browser killed by this machine while starting looks like; check for a security tool or a sandbox policy acting on Chromium, then run the command again.`;
+    } else {
+      report.remediation = remediationFromLaunchError(e, report.hostClass);
+      report.failure = classifyFailure(e, report);
+    }
   } finally {
+    // The timer is cleared FIRST, on every path: a settled trial must not leave
+    // a three-minute timer holding the event loop.
+    if (expiry !== undefined) clearTimeout(expiry);
     // THE BROWSER THIS FUNCTION OPENED IS THE ONE IT CLOSES, ON EVERY PATH.
     //
     // Without this, a throw after a successful launch left the browser running

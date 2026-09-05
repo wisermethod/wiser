@@ -12,11 +12,12 @@
 
 // Node built-ins only. Nothing here may import from outside this tool directory.
 import { execFileSync, spawn } from 'node:child_process';
-import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { accessSync, chmodSync, closeSync, constants, existsSync, mkdirSync, openSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import http from 'node:http';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
+import { hardenProfile, launchArgs } from './lib/profile.js';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const TOOL_DIR = resolve(SCRIPT_DIR, '..');
@@ -863,8 +864,10 @@ if (command === 'session') {
   // so restart must refuse that here rather than install, download and force
   // first and learn it afterwards -- round 14 drove `restart --install` deleting
   // a shell on a refused port before it ever mentioned the port.
+  let occupiedByLive = null;
   if (sub === 'start' || sub === 'restart') {
     const occupied = await hostStatus();
+    if (occupied !== null && occupied !== 'refused') occupiedByLive = occupied;
     if (occupied === 'refused') {
       fail(`Error: something is already listening on port ${port} and refused this request. If it is a browser host, it was started by a different session or a different account and this session's token does not open it: stop that process, or pass a different --port. Starting a second host here would leave a signed-in browser running that this tool cannot manage.`);
     }
@@ -873,16 +876,37 @@ if (command === 'session') {
     }
   }
 
-  // The replacement uses the SELECTED profile; the preflight further down
-  // launches a TEMPORARY one, so a selected profile that cannot be created would
-  // pass the preflight, let restart stop the live session, and only then time
-  // out. Establish it now, before anything is stopped or downloaded -- round 14
-  // drove a restart into an unwritable profile that killed the session and then
-  // waited sixty seconds blaming a display.
-  try {
-    mkdirSync(profile, { recursive: true });
-  } catch (profileError) {
-    fail(`Error: the profile directory ${profile} could not be created (${(profileError && profileError.code) || profileError}); nothing has been changed. Point --profile at a directory this account can write.`);
+  // THE SELECTED PROFILE IS SCREENED HERE AND CREATED LATER, AND THE ORDER IS
+  // THE POINT.
+  //
+  // Round 14 drove a restart into an unwritable profile that stopped the live
+  // session and then waited sixty seconds blaming a display, so the profile was
+  // created up here, before anything is stopped or downloaded. Round 15 drove
+  // what THAT cost: the directory was created before the consent refusals, so a
+  // `start` without --install on a machine with no browser refused for consent
+  // and left a world-readable empty profile directory behind, in a run that
+  // said nothing about it. So this screen creates nothing: it asks whether the
+  // nearest existing ancestor is a directory this account can write, which is
+  // the whole of what `mkdir` would need, and refuses in the same sentence as
+  // before. The directory itself is created below, owner-only, after every
+  // consent refusal and before the stop.
+  {
+    let ancestor = profile;
+    while (!existsSync(ancestor)) {
+      const up = dirname(ancestor);
+      if (up === ancestor) break;
+      ancestor = up;
+    }
+    let why = null;
+    try {
+      if (!statSync(ancestor).isDirectory()) why = 'ENOTDIR';
+    } catch (statError) {
+      why = (statError && statError.code) || 'EACCES';
+    }
+    if (why === null && !isWritable(ancestor)) why = 'EACCES';
+    if (ancestor !== profile && why !== null) {
+      fail(`Error: the profile directory ${profile} could not be created (${why} at ${ancestor}); nothing has been changed. Point --profile at a directory this account can write.`);
+    }
   }
 
   // Dependencies. Before the host is spawned, so a missing install is reported
@@ -921,16 +945,68 @@ if (command === 'session') {
   // drifted from each other while the registers were correct. Round 11 found it.
   await ensureChromium();
 
+  // THE PROFILE IS CREATED HERE, OWNER-ONLY, AFTER EVERY REFUSAL AND BEFORE
+  // THE STOP. A profile is the sign-in store (TOOL.md's first credential path),
+  // so it is created 0700 rather than at the umask and hardened again by the
+  // host; a directory that already existed keeps its mode, so one that has
+  // lost its owner's own access is repaired the way the host would repair it.
+  try {
+    mkdirSync(profile, { recursive: true, mode: 0o700 });
+    const st = statSync(profile);
+    if (!st.isDirectory()) throw Object.assign(new Error('not a directory'), { code: 'ENOTDIR' });
+    if ((st.mode & 0o700) !== 0o700) chmodSync(profile, 0o700);
+  } catch (profileError) {
+    fail(`Error: the profile directory ${profile} could not be created (${(profileError && profileError.code) || profileError}); nothing has been stopped. Point --profile at a directory this account can write.`);
+  }
+
+  // THE SELECTED PROFILE IS OPENED BEFORE THE LIVE ONE IS CLOSED.
+  //
+  // The survey above proved the BROWSER launches, on a temporary profile. The
+  // replacement launches the SELECTED profile, and anything about that profile
+  // only Chromium can reject -- a `Default` entry that is a file, a corrupt
+  // preference store, another browser's lock -- passed the survey, so round 15
+  // drove `restart` stopping a signed-in session and then blaming a display
+  // after sixty seconds. When the selected profile is not the live one, it is
+  // opened here in a headless launch of the same artifact the replacement will
+  // run (`channel: 'chromium'` is Chrome for Testing in headless mode, which is
+  // what a headful host runs; without it the headless shell, which is what a
+  // headless host runs), closed at once, and a throw is a refusal that names
+  // the profile and the reason, with the live session untouched. When the
+  // selected profile IS the live one it cannot be opened while the host holds
+  // it, so the stop is unavoidable and the failure below says so.
+  //
+  // The preparation the host makes comes FIRST, because it is what rejects a
+  // profile Chromium would accept: driven in the correction pass, a `Default`
+  // that is a regular file launched cleanly here and then killed the host in
+  // `hardenProfile`'s own `mkdir` (EEXIST). A preflight proves the launch the
+  // host makes only if it makes the host's every step in the host's order.
+  const sameProfile = sub === 'restart' && occupiedByLive !== null && samePath(occupiedByLive.profile, profile);
+  if (sub === 'restart' && occupiedByLive !== null && !sameProfile) {
+    try {
+      hardenProfile(profile, { unattended });
+      const trial = await runtime.launchPersistentContext(profile, {
+        headless: true,
+        ...(headless ? {} : { channel: 'chromium' }),
+        viewport: { width: 1280, height: 800 },
+        args: launchArgs({ unattended })
+      });
+      await trial.close();
+    } catch (profileError) {
+      const line = String((profileError && profileError.message) || profileError).split('\n')[0].trim();
+      fail(`Error: the profile ${profile} cannot be prepared or opened (${line}), so the running session was not stopped and nothing has been replaced. Point --profile at a directory Chromium can use as a profile, or at a new one.`);
+    }
+  }
+
   // THE RUNNING SESSION IS CLOSED HERE, AND NOT ONE LINE EARLIER.
   //
   // Every refusal that can be made without touching the session has been made:
-  // the profile, the switches, an occupied port for `start`, the packages and
-  // the browser build. The previous version of this comment claimed nothing
-  // above it had changed the machine, and round 13 found that false -- the line
-  // directly above installs packages and a browser and, on an artifact failure,
-  // can run a forced replacement. It now says what is true: everything that CAN
-  // refuse has refused, and what remains above is preparation the replacement
-  // needs.
+  // the profile, the switches, an occupied port for `start`, the packages, the
+  // browser build, and the selected profile itself. The previous version of
+  // this comment claimed nothing above it had changed the machine, and round 13
+  // found that false -- the lines above install packages and a browser and, on
+  // an artifact failure, can run a forced replacement. It now says what is
+  // true: everything that CAN refuse has refused, and what remains above is
+  // preparation the replacement needs.
   if (sub === 'restart') await stopHost();
 
   const running = await hostStatus();
@@ -941,6 +1017,20 @@ if (command === 'session') {
     fail(`Error: a browser host is already running on port ${port} with profile ${running.profile}. Stop it first, or pass a different --port.`);
   }
 
+  // THE HOST'S STDERR IS KEPT, NOT DISCARDED. Round 15 found the detached child
+  // started with its stderr on /dev/null, so when it died the failure below
+  // could only guess at a display. It now writes to an owner-only log inside
+  // the profile -- a file, not a pipe, because a pipe to a parent that has
+  // exited would turn the host's next diagnostic into EPIPE -- truncated on
+  // every start so it never grows past one host's lifetime, and the failure
+  // prints its last lines.
+  const hostLog = join(profile, 'host-stderr.log');
+  let logFd;
+  try {
+    logFd = openSync(hostLog, 'w', 0o600);
+  } catch (logError) {
+    fail(`Error: the host's error log ${hostLog} could not be created (${(logError && logError.code) || logError}); ${sub === 'restart' && sameProfile ? 'the running session was stopped, because the replacement uses the same profile, and' : 'the running session was not stopped, and'} no host was started. Point --profile at a directory this account can write.`);
+  }
   const child = spawn(
     process.execPath,
     [
@@ -950,26 +1040,59 @@ if (command === 'session') {
       ...(headless ? ['--headless'] : []),
       ...(unattended ? ['--unattended'] : [])
     ],
-    { detached: true, stdio: 'ignore' }
+    { detached: true, stdio: ['ignore', 'ignore', logFd] }
   );
   child.unref();
+  closeSync(logFd);
+  // A host that has already exited is not going to come up, and a minute spent
+  // waiting for it is a minute spent blaming the wrong thing. The exit event
+  // still fires on a detached, unreferenced child while this process is alive.
+  let exited = null;
+  child.on('exit', (code, signal) => { exited = signal ? `signal ${signal}` : `exit ${code}`; });
 
   // Only a host that answers our token counts as ready; something that merely
   // occupies the port and refuses is not this session's host.
   const ready = await waitFor(async () => {
+    if (exited !== null) return false;
     const s = await hostStatus();
     return s !== null && s !== 'refused';
-  }, 60000);
+  }, 60000, () => exited !== null);
   if (!ready) {
-    fail(`Error: the browser host did not come up on port ${port} within 60 seconds. Run the same command with --headless to see whether a window is being blocked, and confirm "npm run check:chromium" succeeds.`);
+    const tail = lastLines(hostLog, 6);
+    const stopped = sub === 'restart' && sameProfile
+      ? ' The running session was stopped first, because the replacement uses the same profile, so it is gone.'
+      : '';
+    const what = exited !== null
+      ? `the browser host exited (${exited}) before it came up on port ${port}.`
+      : `the browser host did not come up on port ${port} within 60 seconds.`;
+    fail(`Error: ${what}${stopped} ${tail ? `Its last output was: ${tail}` : 'It wrote nothing to its error log.'} That log is ${hostLog}. Confirm "npm run check:chromium" succeeds, then run the command again.`);
   }
   emit({ running: true, port, profile, headless });
 }
 
-async function waitFor(condition, budgetMs) {
+// Two spellings of one directory, compared on the real path where both exist.
+function samePath(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  if (a === b) return true;
+  try { return realpathSync(a) === realpathSync(b); } catch { return false; }
+}
+
+// The last `count` non-empty lines of a text file, joined for one sentence, or
+// '' when there are none or the file cannot be read.
+function lastLines(file, count) {
+  try {
+    const lines = readFileSync(file, 'utf8').split('\n').map((l) => l.trim()).filter(Boolean);
+    return lines.slice(-count).join(' | ');
+  } catch {
+    return '';
+  }
+}
+
+async function waitFor(condition, budgetMs, giveUp = () => false) {
   const deadline = Date.now() + budgetMs;
   while (Date.now() < deadline) {
     if (await condition()) return true;
+    if (giveUp()) return false;
     await new Promise((r) => { setTimeout(r, 250); });
   }
   return false;

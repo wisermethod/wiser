@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -11,6 +12,7 @@ import {
   MINIMUM_TIMEOUT_MS,
   classifyFailure,
   pngSizeFromHeader,
+  screenDestination,
   validateHeight,
   validateOutput,
   validateOverwrite,
@@ -369,5 +371,64 @@ describe('pngSizeFromHeader', () => {
 
   it('returns null on nothing', () => {
     assert.equal(pngSizeFromHeader(undefined), null);
+  });
+});
+
+// The address boundary, the same screen sitemap-fetch applies, with the
+// resolver injected so no test depends on DNS. The CLI runs use literal
+// addresses, which the screen classifies without a lookup.
+describe('screenDestination', () => {
+  const inward = async () => [{ address: '127.0.0.1', family: 4 }];
+  const outward = async () => [{ address: '93.184.216.34', family: 4 }];
+  const nowhere = async () => { throw new Error('ENOTFOUND'); };
+
+  it('refuses a loopback literal by name, with the sitemap-fetch sentence', async () => {
+    const result = await screenDestination('http://127.0.0.1:1/', { lookup: outward });
+    assert.equal(result.ok, false);
+    assert.equal(result.message, 'Error: --url http://127.0.0.1:1/ points at a loopback address, which this tool does not fetch.');
+  });
+
+  it('refuses each private range by name', async () => {
+    for (const host of ['10.0.0.1', '172.16.0.1', '192.168.1.1']) {
+      const result = await screenDestination(`http://${host}/`, { lookup: outward });
+      assert.equal(result.ok, false);
+      assert.match(result.message, /points at a private-range address/);
+    }
+  });
+
+  it('refuses the cloud metadata address and localhost without a resolver', async () => {
+    assert.match((await screenDestination('http://169.254.169.254/', { lookup: outward })).message, /cloud instance metadata/);
+    assert.match((await screenDestination('http://localhost:8080/', { lookup: outward })).message, /loopback/);
+  });
+
+  it('refuses a hostname that resolves inward', async () => {
+    const result = await screenDestination('https://intranet.example/', { lookup: inward });
+    assert.equal(result.ok, false);
+    assert.match(result.message, /loopback/);
+  });
+
+  it('passes a hostname that resolves outward, and one that resolves nowhere', async () => {
+    assert.equal((await screenDestination('https://host.example/', { lookup: outward })).ok, true);
+    assert.equal((await screenDestination('https://nowhere.invalid/', { lookup: nowhere })).ok, true);
+  });
+});
+
+describe('capture --url against an address inside the machine', () => {
+  const SCRIPT = join(TOOL_DIR, 'scripts', 'capture.js');
+  const OUTPUT = join(OUTSIDE, 'never-written.png');
+  const run = (url) => spawnSync(process.execPath, [SCRIPT, 'capture', '--url', url, '--output', OUTPUT], { encoding: 'utf8', timeout: 20000 });
+
+  it('refuses a loopback address by name before any install or launch, stdout empty', () => {
+    const result = run('http://127.0.0.1:1/');
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, '');
+    assert.match(result.stderr, /^Error: --url http:\/\/127\.0\.0\.1:1\/ points at a loopback address, which this tool does not fetch\./m);
+    assert.doesNotMatch(result.stderr, /Chromium|install/);
+  });
+
+  it('refuses a private-range address by name', () => {
+    const result = run('http://192.168.0.1/');
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /points at a private-range address, which this tool does not fetch/);
   });
 });

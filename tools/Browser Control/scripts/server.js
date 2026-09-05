@@ -646,12 +646,58 @@ const actions = {
     // Create the file owner-only BEFORE Playwright writes into it, and REFUSE if
     // even that cannot be done -- round 14 found this swallowed, so the trace was
     // written at the umask when the private create failed.
+    //
+    // Created EXCLUSIVELY (`wx`), so a file that appears between the screen above
+    // and this line is refused rather than truncated and written through at its
+    // own mode -- round 15 drove the default flag doing exactly that.
     try {
-      writeFileSync(target, '', { mode: 0o600 });
+      writeFileSync(target, '', { mode: 0o600, flag: 'wx' });
     } catch (createError) {
+      if (createError && createError.code === 'EEXIST') {
+        throw new Error(`${target} already exists and this tool never overwrites a file; name a path that does not exist yet`);
+      }
       throw new Error(`${target} could not be created owner-only (${(createError && createError.code) || createError}); it would hold request and response headers including Cookie and Set-Cookie, so nothing was written -- name a path on a filesystem this account can create a private file on`);
     }
-    await context.tracing.stop({ path: target });
+
+    // THE WRITE ITSELF CAN FAIL, AND WHEN IT DOES THE RECORDING IS GONE.
+    //
+    // Round 15 drove this on a disk with 8KB free: `tracing.stop` threw ENOSPC
+    // mid-write, Playwright had already stopped recording and discarded the
+    // trace, and this handler left `tracing` true -- so `trace status` said
+    // recording, a retry at the same path hit the overwrite screen, a retry
+    // anywhere else failed on "Must start tracing before stopping" and left
+    // another empty owner-only file, and the partial zip already on disk was
+    // never mentioned. A full disk is an everyday machine state. So: the flag is
+    // reset first, because Playwright has stopped whatever this handler says;
+    // an empty placeholder is removed, because the tool created it and it holds
+    // nothing; a non-empty one is left and NAMED, with its size, because a
+    // partial trace holds whatever headers fit and that is credential material
+    // the caller has to know about.
+    try {
+      await context.tracing.stop({ path: target });
+    } catch (stopError) {
+      // Playwright's OWN state is wedged after a stop that failed to write:
+      // driven in the correction pass, `start` then says "Tracing has been
+      // already started" and a `stop` with a path says "Must start tracing
+      // before stopping", so neither a new recording nor a retry is possible.
+      // A discarding `stop()` -- no path, nothing written -- clears it, and it
+      // is the only call that does; without it the flag below would be true of
+      // this handler and false of the browser.
+      try { await context.tracing.stop(); } catch { /* already cleared, or the browser is gone; the flag below is what the caller sees */ }
+      tracing = false;
+      const cause = String((stopError && stopError.message) || stopError).split('\n')[0].trim();
+      let size = null;
+      try { size = statSync(target).size; } catch { /* left as unknown, and reported as such below */ }
+      if (size === 0) {
+        try { rmSync(target); } catch { /* the empty placeholder stays; it holds nothing */ }
+        throw new Error(`the trace could not be written to ${target} (${cause}); recording has stopped and the trace is lost -- nothing was written, and the empty file was removed. Start a new trace before recording again`);
+      }
+      throw new Error(`the trace could not be written completely to ${target} (${cause}); recording has stopped and the trace is lost, but that file was left holding a partial trace of ${size === null ? 'unknown size' : `${size} bytes`}, which can include request and response headers including Cookie and Set-Cookie, so treat it as credential material or delete it. Start a new trace before recording again`);
+    }
+    // Playwright has stopped recording on a completed stop as well, so the flag
+    // is reset HERE, before the verification below can refuse: a refused mode is
+    // a refusal about the file, not evidence that a recording still exists.
+    tracing = false;
     try { chmodSync(target, 0o600); } catch { /* best effort on exotic filesystems; verified below */ }
 
     // A mode that cannot be verified is NOT a success. Round 13 made a chmod that
@@ -665,7 +711,6 @@ const actions = {
       throw new Error(`${target} was written but could not be made owner-only (mode ${mode.toString(8)}); it holds request and response headers including Cookie and Set-Cookie, so treat it as credential material or delete it`);
     }
 
-    tracing = false;
     return { tracing: false, file: target };
   },
 
@@ -1035,7 +1080,14 @@ function handle(req, res) {
   respond(res, 404, { ok: false, error: 'no such endpoint' });
 }
 
-hardenProfile(options.profile, { unattended: options.unattended });
+// A profile the host cannot prepare is one line on stderr, not a stack trace:
+// the client prints this log's last lines when the host does not come up.
+try {
+  hardenProfile(options.profile, { unattended: options.unattended });
+} catch (error) {
+  process.stderr.write(`Error: the profile ${options.profile} cannot be prepared (${String(error && error.message ? error.message : error).split('\n')[0]}). Point --profile at a directory Chromium can use as a profile, or at a new one.\n`);
+  process.exit(1);
+}
 
 try {
   // Runtime appends caller args after container-safe defaults; profile args merge, not replace.

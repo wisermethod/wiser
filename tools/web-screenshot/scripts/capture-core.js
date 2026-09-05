@@ -7,6 +7,7 @@
 
 import { existsSync } from 'node:fs';
 import { extname, isAbsolute, resolve, sep } from 'node:path';
+import { destinationReason, destinationReasonText } from './lib/destination.js';
 
 export const DEFAULT_WIDTH = 1280;
 export const DEFAULT_HEIGHT = 720;
@@ -63,6 +64,30 @@ function wholePixels(name, raw, fallback) {
 }
 
 /** Viewport width in whole pixels, which decides the responsive layout. */
+/**
+ * The address boundary, applied to the caller's --url after it has parsed and
+ * before anything is installed, launched, or fetched. Loopback, private-range,
+ * link-local, unique-local, and cloud-metadata addresses are refused by name,
+ * in every spelling, and a hostname is resolved first so an ordinary-looking
+ * name pointing inward is refused too. A hostname that resolves nowhere is
+ * not refused here: that is a network condition the navigation reports on its
+ * own. Same screen and same sentence as sitemap-fetch. `lookup` is injectable
+ * so the screen can be tested without a resolver.
+ */
+export async function screenDestination(href, { lookup } = {}) {
+  let hostname;
+  try {
+    hostname = new URL(href).hostname;
+  } catch {
+    return { ok: false, message: `Error: --url is not a web address: "${href}". Pass a full address including the scheme, as in https://host/path.` };
+  }
+  const destination = lookup ? await destinationReason(hostname, lookup) : await destinationReason(hostname);
+  if (destination && destination !== 'unresolvable') {
+    return { ok: false, message: `Error: --url ${href} points at ${destinationReasonText(destination)}, which this tool does not fetch.` };
+  }
+  return { ok: true, value: href };
+}
+
 export function validateWidth(raw) {
   return wholePixels('--width', raw, DEFAULT_WIDTH);
 }

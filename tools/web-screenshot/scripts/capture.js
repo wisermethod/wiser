@@ -25,6 +25,7 @@ import {
   SETTLE_MS,
   classifyFailure,
   pngSizeFromHeader,
+  screenDestination,
   validateHeight,
   validateOutput,
   validateOverwrite,
@@ -242,6 +243,13 @@ if (command === 'capture') {
   if (!checkedUrl.ok) fail(checkedUrl.message);
   url = checkedUrl.value;
 
+  // The address boundary. A loopback or private-range target is refused by
+  // name here, before the dependency check, so it never buys an install and
+  // never has a browser launched at it. This resolves the hostname, which is a
+  // question to the resolver and not a connection to the address.
+  const checkedDestination = await screenDestination(url);
+  if (!checkedDestination.ok) fail(checkedDestination.message);
+
   const checkedOutput = validateOutput(flag('--output'), TOOL_DIR);
   if (!checkedOutput.ok) fail(checkedOutput.message);
   // The screen's decision has to be made about the path the write will use, so
@@ -368,7 +376,11 @@ function requireInstallConsent(what) {
 }
 
 // Dependencies. Runs before any package import; keep it above the dynamic import.
-if (!existsSync(DEP_MARKER)) {
+// `check` without --install is exempt: it SURVEYS what is present, packages
+// included, and installs nothing -- the same contract `deck-export check` keeps
+// and both SETUP.md files promise. Decided by the operator 2026-09-05 after
+// Gate 3 round 15 found the two tools split on it.
+if (!existsSync(DEP_MARKER) && (command !== 'check' || INSTALL_AUTHORISED)) {
   requireInstallConsent('packages');
   process.stderr.write('First run: installing dependencies in this tool directory.\n');
   try {
@@ -645,16 +657,26 @@ if (command !== 'check' || INSTALL_AUTHORISED) await ensureChromium();
 // the gate -- `check` without `--install`, which surveys and installs nothing --
 // arrives here without one, and that command is exactly the one whose job is to
 // take it.
+// A survey with no packages does not trial a launch there is no package for:
+// it reports the packages absent, with the one step that installs them.
+if (browserSurvey === null && command === 'check' && !existsSync(DEP_MARKER)) {
+  browserSurvey = {
+    playwright: false, chromiumBinary: false, chromiumLaunch: false,
+    failure: 'artifact',
+    remediation: 'dependency: this tool\'s npm packages, playwright among them; check: node_modules/playwright/package.json inside this tool directory. Next: run node scripts/capture.js check --install to install the packages and the Chromium build in one authorised run, then report on them.'
+  };
+}
 if (browserSurvey === null) await chromiumLaunches();
 
+// `check` SURVEYS AND EXITS 0, WHATEVER IT FINDS. Every dependency is reported
+// in the one JSON object -- the packages, and the Chromium build with the
+// remediation for whatever stopped its trial launch -- rather than the first
+// problem ending the run with exit 1, which is what a student running `check`
+// to see what is missing needs. `deck-export check` has always done this; the
+// two tools now agree. A caller that wants a pass/fail reads `chromiumLaunch`.
 if (command === 'check') {
-  if (browserSurvey.chromiumLaunch === true) {
-    process.stdout.write(`${JSON.stringify(browserSurvey)}\n`);
-    process.exit(0);
-  }
-  fail(
-    `Error: Chromium cannot launch; check: node scripts/capture.js check. ${browserSurvey.remediation || 'chromiumLaunch:false'}. See the Dependencies section of TOOL.md.`
-  );
+  process.stdout.write(`${JSON.stringify({ packages: existsSync(DEP_MARKER), ...browserSurvey })}\n`);
+  process.exit(0);
 }
 
 if (browserSurvey.chromiumLaunch !== true) {
