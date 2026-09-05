@@ -1,17 +1,11 @@
 <!-- provenance-preamble -->
-Provenance contract for this file. These are the rules this file holds itself to, and a claim that does not meet them does not enter. The marker lines above and below delimit this preamble so the close gates can exempt it from the claim scan; keep both.
+Markers delimit this preamble for the gate harness; keep both.
 
-**Registers.** Every quote, and every fact about a person, carries its sourcing register as a parenthetical naming the payload that register requires: `(Firsthand: <person who observed it>)`, `(Secondhand: relayed by <person>)`, `(Public statement: <where>)`, `(Research inference: E3, E11)`. `standards/conventions.md` owns what each register means and this file does not restate it. Firsthand names a person who observed the thing; a document is not an observer.
-
-**Labels.** Every figure, reading, and checkable claim carries one of the four evidence labels defined in `standards/conventions.md`, written in square brackets in place, exactly where the reading would have appeared: `[Verified]`, `[Estimated: <method>]`, `[Unverified: requires confirmation]`, `[Not available: <reason>]`. Those four are the entire vocabulary of this file. No fifth label is invented, and no shorter set is substituted. An unlabeled figure asserts it was measured.
+Labels and registers are `standards/conventions.md`'s, written in place and never restated here. A prompt line, a whole line beginning and ending with `*`, or the name placeholder surviving means `skills/Onboard Root/` has not finished.
 
 **Anchors.** Every load-bearing claim ends with a verification anchor, a bracketed row id naming its row in `work/onboarding/verification.md`, written as `[V<n>]` with the row's number in place of `<n>`: row 7 is anchored as V7 in that form. A load-bearing claim is one a deliverable would act on: a prohibition, a compliance constraint, a commercial term, a named person's title or quote, a figure a deliverable would state. An anchored claim ends with its row id and carries no full stop after it.
 
 **Figures.** Figures sit in a table with a provenance column, never in prose, because prose is where a unit, a denominator and a window get lost. The Key Facts table below ships its header row and carries the figures marker under its heading. Do not replace that table with a paragraph.
-
-**Prompt lines.** A prompt line is a whole line that begins with `*` and ends with `*`. Every prompt line in this file is replaced during Instantiation, either with content or with a labeled absence. A surviving prompt line means this file is unfinished.
-
-**Placeholder tokens.** The placeholder token in this template is `[name]`. Instantiation replaces every one of them. A surviving token means this file is uninstantiated.
 <!-- /provenance-preamble -->
 
 # About [name]

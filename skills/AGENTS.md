@@ -63,7 +63,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 | Skill | Description |
 |-------|-------------|
 | `Build Voice/SKILL.md` | Build or rebuild one user root's voice.md from real writing evidence, routed to the voice register that root's own outputs need |
-| `Onboard Root/SKILL.md` | Create a user root from its matching template and onboard it with verified memory, an operating surface, and a per-key close |
+| `Onboard Root/SKILL.md` | Create a user root from its template and onboard it, on a short path for one person's own root and a full path for a root whose work leaves the workspace |
 
 ### Research
 

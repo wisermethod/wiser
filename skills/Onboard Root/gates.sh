@@ -10,6 +10,9 @@
 #   gates.sh <root path>              run every gate
 #   gates.sh --gate G6 <root path>    run one gate
 #   gates.sh --json <root path>       one JSON object per line, plus a summary
+#   gates.sh --short <root path>      the personal-path file gates only; chosen on its
+#                                     own when the root's `## Onboarding` section says
+#                                     the personal path ran and no run record exists
 #
 # Exit 0 only when every gate passes. Exit 1 when any gate fails or skips
 # in a way that is not a pass. Exit 2 on a usage error.
@@ -28,6 +31,8 @@ usage: $PROG [--json] [--gate <id>] <root path>
   --gate <id>   run a single gate (G0 G1 G2 G3 G4 G5a G5b G5c G6 G6b G7 G8
                 G9 G10 G11 G11b G12 G13 G13b G14 G15 G16 G17 G18 G19 G20)
   --json        print one JSON object per gate, then a summary object
+  --short       run the personal-path file gates only (automatic when the root
+                says it took the personal path and keeps no run record)
   --list        list the gates and exit
 USAGE
 }
@@ -35,12 +40,14 @@ USAGE
 # ---------------------------------------------------------------- arguments
 
 JSON=0
+SHORT=0
 ONE_GATE=""
 ROOT=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --json) JSON=1; shift ;;
+    --short) SHORT=1; shift ;;
     --gate)
       if [ $# -lt 2 ]; then echo "$PROG: --gate needs an id" >&2; exit 2; fi
       ONE_GATE="$2"; shift 2 ;;
@@ -80,7 +87,7 @@ G13b|The routing table resolves the deliverables|gate_G13b
 G14|Voice authority|gate_G14
 G15|Audit ran independently|gate_G15
 G16|Findings disposed of, disputes preserved|gate_G16
-G17|Refusal removed only for complete keys|gate_G17
+G17|The close is in the root|gate_G17
 G18|No placeholder token survives|gate_G18
 G19|Paths resolve|gate_G19
 G20|Operating file and close report|gate_G20'
@@ -166,6 +173,49 @@ source_count() {
 MEM="$ROOT/memory"
 SECRETS="$MEM/secrets"
 AGENTS="$ROOT/AGENTS.md"
+
+# ---------------------------------------------------------- the personal path
+#
+# A personal root onboarded on SKILL.md's personal path keeps no records: its
+# `## Onboarding` section says which path ran and carries one state line per
+# key. That root has nothing for the record gates to read, and a harness that
+# failed it for records it was told not to keep would teach the user to stop
+# running the harness. So the file gates run and the record gates do not.
+# A personal root with no run record is on that path; --short says so
+# explicitly. A run record present means the full path ran, and then the
+# whole suite applies whatever the section says.
+onb_section() {
+  [ -f "$AGENTS" ] || return 0
+  section_body "$AGENTS" "## Onboarding" 2>/dev/null
+}
+onb_state() {
+  # $1 = key. The first word after `- <key>:` in the ## Onboarding section.
+  onb_section | grep -E "^[[:space:]]*-[[:space:]]*$1:" | head -1 \
+    | sed -E "s/^[[:space:]]*-[[:space:]]*$1:[[:space:]]*//" | awk '{print $1}'
+}
+if [ "$SHORT" = "0" ] && [ "$ROOT_TYPE" = "personal" ] && [ ! -f "$RUNREC" ]; then
+  SHORT=1
+fi
+if [ "$SHORT" = "1" ]; then
+  if [ "$ROOT_TYPE" != "personal" ]; then
+    echo "$PROG: the personal path is for a personal root; this root declares type $ROOT_TYPE" >&2
+    exit 2
+  fi
+  if [ -f "$RUNREC" ]; then
+    echo "$PROG: $(rel "$RUNREC") exists, so the full path ran; --short does not apply" >&2
+    exit 2
+  fi
+  GATES='G9|Headings answered|gate_G9
+G10|Registers used as defined|gate_G10
+G11|Label vocabulary is closed|gate_G11
+G11b|Figure tables carry their provenance|gate_G11b
+G13|Traits are checkable|gate_G13
+G13b|The routing table resolves the deliverables|gate_G13b
+G14|Voice authority|gate_G14
+G17|The close is in the root|gate_G17
+G18|No placeholder token survives|gate_G18
+G19|Paths resolve|gate_G19'
+fi
 
 # The subject's own name, read from the root declaration. G5a's proper-noun
 # clause uses it: a sentence whose only proper noun is the subject itself is
@@ -1463,6 +1513,13 @@ build_person_registry() {
       { split($0,f,US); if(f[3]!="" && f[3]!="-") print f[3]; if(f[4]!="" && f[4]!="-") print f[4] }' \
       >> "$TMPD/people.txt"
   fi
+  # On the personal path the only recorded person is the root's owner, whose
+  # name is the root's `root:` declaration and its title line, and every
+  # firsthand fact in the files is what that person said.
+  if [ "$SHORT" = "1" ]; then
+    kv "$AGENTS" "root" >> "$TMPD/people.txt" 2>/dev/null || :
+    grep -m1 -E '^# ' "$AGENTS" 2>/dev/null | sed 's/^# //' >> "$TMPD/people.txt" || :
+  fi
   # Reduce the registry to NAMES. Matching a payload against raw prose let
   # "Marketing Director" pass because that title sits inside a sentence about a
   # person. A name is compared to a name.
@@ -1637,7 +1694,7 @@ $out
 G11BEOF
   done < <(bound_files)
   if [ "$found_any" -eq 0 ] && [ -z "$G_FAILS" ]; then
-    set_skip "no figures heading and no table with a Figure column under $(rel "$MEM")"
+    if [ "$SHORT" = "1" ]; then add_note "no figures heading under memory; not applicable on the personal path"; else set_skip "no figures heading and no table with a Figure column under $(rel "$MEM")"; fi
   fi
 }
 
@@ -1731,6 +1788,10 @@ BARE_ADJ='measured|institutional|aspirational|sensory|warm|authoritative|playful
 gate_G13() {
   VOICE="$MEM/voice.md"
   need_file "$VOICE" || return
+  if [ "$SHORT" = "1" ] && [ "$(onb_state voice)" != "complete" ]; then
+    add_note "voice closed '$(onb_state voice)' on the personal path; the voice file is not checked until it closes complete"
+    return
+  fi
   while IFS= read -r hit; do
     [ -n "$hit" ] || continue
     ln=${hit%%:*}
@@ -1748,6 +1809,15 @@ gate_G13() {
 gate_G13b() {
   VOICE="$MEM/voice.md"
   need_file "$VOICE" || return
+  if [ "$SHORT" = "1" ] && [ "$(onb_state voice)" != "complete" ]; then
+    add_note "voice closed '$(onb_state voice)' on the personal path; the voice file is not checked until it closes complete"
+    return
+  fi
+  if [ "$SHORT" = "1" ]; then
+    has_heading "$VOICE" "## Routing Table" || add_fail "$(rel "$VOICE"): '## Routing Table' is missing"
+    add_note "no run record on the personal path, so the table is not checked against an outputs list"
+    return
+  fi
   need_file "$RUNREC" || return
   if ! has_heading "$VOICE" "## Routing Table"; then
     add_fail "$(rel "$VOICE"): '## Routing Table' is missing"
@@ -1813,6 +1883,10 @@ gate_G13b() {
 gate_G14() {
   VOICE="$MEM/voice.md"
   need_file "$VOICE" || return
+  if [ "$SHORT" = "1" ] && [ "$(onb_state voice)" != "complete" ]; then
+    add_note "voice closed '$(onb_state voice)' on the personal path; the voice file is not checked until it closes complete"
+    return
+  fi
   for k in voice-authority-name voice-authority-basis voice-confirmation-date; do
     v=$(kv "$VOICE" "$k")
     if [ -z "$v" ]; then
@@ -2219,6 +2293,39 @@ controlled_sections_unique() {
 }
 
 gate_G17() {
+  if [ ! -f "$AGENTS" ]; then
+    add_fail "$(rel "$AGENTS"): missing"
+    return
+  fi
+  if ! has_heading "$AGENTS" "## Onboarding"; then
+    add_fail "$(rel "$AGENTS"): no '## Onboarding' section; the template ships one and the close rewrites it"
+    return
+  fi
+  onb_section > "$TMPD/g17.txt"
+  if grep -qi '^Not onboarded' "$TMPD/g17.txt"; then
+    add_fail "$(rel "$AGENTS"): '## Onboarding' still reads as the template shipped it: not onboarded"
+    return
+  fi
+  if [ "$SHORT" = "1" ]; then
+    # The personal path: the state lines are the whole record. One per key,
+    # a date, and an open key naming what it waits on.
+    grep -qE '[0-9]{4}-[0-9]{2}-[0-9]{2}' "$TMPD/g17.txt" || add_fail "$(rel "$AGENTS"): '## Onboarding' carries no YYYY-MM-DD date"
+    for key in about voice design; do
+      v=$(onb_state "$key")
+      line=$(grep -E "^[[:space:]]*-[[:space:]]*$key:" "$TMPD/g17.txt" | head -1)
+      case "$v" in
+        "") add_fail "$(rel "$AGENTS"): '## Onboarding' has no line for key '$key'" ;;
+        complete) ;;
+        provisional)
+          printf '%s' "$line" | grep -qi 'owner' || add_fail "$(rel "$AGENTS"): '$key: provisional' names no owner" ;;
+        blocked)
+          printf '%s' "$line" | grep -qiE 'person|credential|capability' || add_fail "$(rel "$AGENTS"): '$key: blocked' names no blocker as a person, a credential, or a capability" ;;
+        *) add_fail "$(rel "$AGENTS"): '$key: $v' is not complete, provisional or blocked" ;;
+      esac
+    done
+    return
+  fi
+  # The full path: the state lines match the run record's per-key close.
   need_file "$RUNREC" || return
   controlled_sections_unique "$RUNREC"
   plain_file "$RUNREC" "the run record"
@@ -2226,11 +2333,6 @@ gate_G17() {
     add_fail "$(rel "$RUNREC"): no '## Per-key close' section"
     return
   fi
-  if [ ! -f "$AGENTS" ]; then
-    add_fail "$(rel "$AGENTS"): missing"
-    return
-  fi
-  open_keys=""
   missing=0
   for key in $PERKEY_KEYS; do
     v=$(perkey_value "$key")
@@ -2243,7 +2345,7 @@ gate_G17() {
       continue
     fi
     case "$v" in
-      complete) ;;
+      complete|provisional|blocked) ;;
       unbound)
         # The grammar allows `unbound` for competitors and for no other key, and
         # only where the offer was declined or deferred rather than accepted.
@@ -2258,29 +2360,21 @@ gate_G17() {
           esac
         fi
         ;;
-      provisional|blocked) open_keys="$open_keys $key" ;;
-      *) add_fail "$(rel "$RUNREC"): per-key close '$key: $v' is not complete, provisional, blocked or unbound"; missing=1 ;;
+      *) add_fail "$(rel "$RUNREC"): per-key close '$key: $v' is not complete, provisional, blocked or unbound"; missing=1; continue ;;
     esac
+    a=$(onb_state "$key")
+    line=$(grep -E "^[[:space:]]*-[[:space:]]*$key:" "$TMPD/g17.txt" | head -1)
+    if [ -z "$a" ]; then
+      add_fail "$(rel "$AGENTS"): '## Onboarding' has no line for key '$key', which the run record closes '$v'"
+    elif [ "$a" != "$v" ]; then
+      add_fail "$(rel "$AGENTS"): '## Onboarding' says '$key: $a' but the run record closes '$key: $v'"
+    else
+      case "$v" in
+        provisional) printf '%s' "$line" | grep -qi 'owner' || add_fail "$(rel "$AGENTS"): '$key: provisional' names no owner" ;;
+        blocked) printf '%s' "$line" | grep -qiE 'person|credential|capability' || add_fail "$(rel "$AGENTS"): '$key: blocked' names no blocker as a person, a credential, or a capability" ;;
+      esac
+    fi
   done
-  [ "$missing" = "0" ] || return
-  has_inst=1
-  has_heading "$AGENTS" "## Instantiation" || has_inst=0
-  if [ -z "$open_keys" ]; then
-    if [ "$has_inst" = "1" ]; then
-      add_fail "$(rel "$AGENTS"): every key closes complete or unbound but '## Instantiation' is still present"
-    fi
-  else
-    if [ "$has_inst" = "0" ]; then
-      add_fail "$(rel "$AGENTS"): keys$open_keys are provisional or blocked but '## Instantiation' is absent"
-      return
-    fi
-    section_body "$AGENTS" "## Instantiation" > "$TMPD/g17.txt"
-    for key in $open_keys; do
-      if ! grep -qi "$key" "$TMPD/g17.txt"; then
-        add_fail "$(rel "$AGENTS"): '## Instantiation' does not name the key '$key'"
-      fi
-    done
-  fi
 }
 
 # ---- G18 No placeholder token survives ----------------------------------

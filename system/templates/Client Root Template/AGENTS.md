@@ -7,7 +7,7 @@ type: client
 
 A client's root: the work done for them, the facts known about them, and their brand voice.
 
-The composed Wiser root's constitution and `standards/` govern the work here; this file declares only what is local to this root.
+The Wiser constitution and `standards/` govern the work here; this file declares only what is local.
 
 ## Provides
 - about: memory/about.md
@@ -81,53 +81,15 @@ This root's declared directories under `standards/conventions.md`. The table abo
 
 `memory/about.md` holds this client's facts. `memory/competitors.md`, when bound, holds the confirmed competitive set. The sourcing rules in `standards/conventions.md` bite hardest here, where most of what is worth recording is a fact about a person.
 
-A root that holds shared credentials adds `memory/secrets/`, binds each as `secrets:<platform>` in the Provides block above, and never commits a value.
+Shared credentials live in `memory/secrets/`, bound as `secrets:<platform>` above, per the constitution's Secrets rule.
 
 Brands, markets, and legal entities of this client live in this root until one of them has its own voice, its own facts, and its own engagement. Then ask whether that brand earns its own client root. Do not split on sight.
 
-## Instantiation
+## Onboarding
 
-This section is temporary. It governs the copy, the fill, and the per-key close, and it is deleted only when every memory key is complete or unbound.
+Not onboarded. `skills/Onboard Root/` takes this root down its full path and rewrites these lines at Phase 9, where `full-path.md` says what each state means and the skill's Step 5 what a key that is not complete refuses; the competitors line closes unbound when that offer is declined or deferred.
 
-### Copy and replace
-
-1. Copy this template into the workspace under this root's real name, spelled as the people involved spell the short name. `root:` in the frontmatter matches that folder name.
-2. Replace `[name]` everywhere it appears, here, in every file under `memory/`, and in `todos/current.md`. Leave `type: client` as it is.
-3. The directories that ship with this template are the whole standing tree. Do not create workstream folders under `work/` in advance; `work/AGENTS.md` governs what gets created and when.
-
-### Fill, per key
-
-Fill `memory/about.md` and `memory/design.md` here, replacing each prompt line with content. A prompt line is a whole line that begins with `*` and ends with `*`, and none may survive.
-
-A heading with no answer does not get a sentence of its own invention. It gets one of the four evidence labels from `standards/conventions.md`, written in square brackets in place, exactly where the reading would have appeared: `[Verified]`, `[Estimated: <method>]`, `[Unverified: requires confirmation]`, `[Not available: <reason>]`. Those four are the whole vocabulary. Do not invent a fifth and do not substitute a shorter set.
-
-`memory/voice.md` is not authored here. The Build Voice skill owns that file and writes it, including its routing table and its authority key lines. Instantiation records what that skill returned and nothing more.
-
-### The competitors offer
-
-1. Ask whether this root should hold a competitors file. Three answers: yes, not now, no.
-2. On yes, suggest a set from public sources as an evidence package, each name carrying the source that caused the suggestion and the date it was retrieved. No ranking, no round number, no share figure before confirmation.
-3. Put the whole suggested list to the requester: which to keep, which to drop, which the research missed. Record who confirmed it and on what date.
-4. Write `memory/competitors.md` from the confirmed set only, then add `competitors: memory/competitors.md` to the Provides block above. Bind after confirmation, never before.
-5. On not now, delete `memory/competitors.md`, leave the key unbound, and record the deferral in `todos/current.md` with a named owner and a status. A deferral nobody owns is not a deferral.
-6. On no, delete `memory/competitors.md`, leave the key unbound, and record the answer in `work/onboarding/run-record.md` so the decline is visible to a later session. Do not open an operating item. The offer is not asked again this run, and a declined offer is a complete outcome, not an open gap that a later session picks up and re-asks.
-
-Both outcomes record `competitors: unbound` in the per-key close. An unbound key with no file is the correct declined state; a stub left on disk unbound is inert but pointless.
-
-### Per-key close
-
-Closing is per memory key, not one switch for the root. Each of `about`, `voice`, `design`, and `competitors` when the offer was accepted, closes in one of three states, and the state is recorded under `## Per-key close` in `work/onboarding/run-record.md`:
-
-- **complete**: every heading answered or carrying its label, and every load-bearing claim read back against the source it cites.
-- **provisional**: bound and usable, with named gaps outstanding, each carrying an owner and a status in `todos/current.md`.
-- **blocked**: not usable, with the blocker named as a person, a credential, or a capability.
-
-`competitors` may additionally be **unbound**, which is the declined or deferred offer. Unbound is a complete outcome, not a provisional one, and not a failure.
-
-### What a non-complete key refuses
-
-The refusal is scoped to the keys that are not complete, never to the root as a whole. While a key is provisional or blocked, refuse a deliverable write that would load that key, name the key and its state, and ask to finish it. A deliverable that loads only complete keys proceeds: a deferred voice does not block a facts-only deliverable, and a root with one provisional key is not reported as a failed onboarding.
-
-### Deleting this section
-
-Delete this section when every key is complete or unbound. While any key is provisional or blocked, keep this section, and keep it naming each such key by name and by state, so a later session reads the refusal and knows exactly which keys it covers. A retained section that does not name its keys is no better than no section at all.
+- about: blocked (not onboarded)
+- voice: blocked (not onboarded)
+- design: blocked (not onboarded)
+- competitors: blocked (not onboarded)

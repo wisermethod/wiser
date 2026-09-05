@@ -3,9 +3,9 @@
 How this person sounds writing as themselves.
 
 <!-- provenance-preamble -->
-Deferrals and checkable claims here carry their evidence label in square brackets, in place: `[Verified]`, `[Estimated: <method>]`, `[Unverified: requires confirmation]`, `[Not available: <reason>]`. Those four are the whole vocabulary, defined in `standards/conventions.md`.
+Markers delimit this preamble for the gate harness; keep both.
 
-A claim about what a reader knows, believes, or expects carries its register in place as well: `(Firsthand: <person who observed it>)`, `(Secondhand: relayed by <person>)`, `(Public statement: <where>)`, `(Research inference: <evidence row ids>)`. A research inference names the evidence rows it was derived from; a document someone read is never firsthand. `about.md` in this folder states the prompt-line pattern and the placeholder token.
+Labels and registers are `standards/conventions.md`'s, written in place and never restated here. A prompt line, a whole line beginning and ending with `*`, or the name placeholder surviving means `skills/Onboard Root/` has not finished.
 <!-- /provenance-preamble -->
 
 ## Identity

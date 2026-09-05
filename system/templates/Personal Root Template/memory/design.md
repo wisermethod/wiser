@@ -3,7 +3,9 @@
 How this person's own materials look when nothing else governs them.
 
 <!-- provenance-preamble -->
-Deferrals and checkable claims here carry their evidence label in square brackets, in place, exactly where the reading would have appeared: `[Verified]`, `[Estimated: <method>]`, `[Unverified: requires confirmation]`, `[Not available: <reason>]`. Those four are the whole vocabulary, defined in `standards/conventions.md`. A value read from a file names the file it was read from. `about.md` in this folder states the prompt-line pattern and the placeholder token.
+Markers delimit this preamble for the gate harness; keep both.
+
+Labels and registers are `standards/conventions.md`'s, written in place and never restated here. A prompt line, a whole line beginning and ending with `*`, or the name placeholder surviving means `skills/Onboard Root/` has not finished.
 <!-- /provenance-preamble -->
 
 ## Color

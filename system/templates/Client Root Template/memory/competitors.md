@@ -1,17 +1,11 @@
 <!-- provenance-preamble -->
-Provenance contract for this file. These are the rules this file holds itself to, and a claim that does not meet them does not enter. The marker lines above and below delimit this preamble so the close gates can exempt it from the claim scan; keep both.
+Markers delimit this preamble for the gate harness; keep both.
 
-**Registers.** A claim about a competitor is a claim about an organization or a person, so it carries its sourcing register as a parenthetical naming the payload that register requires: `(Firsthand: <person who observed it>)`, `(Secondhand: relayed by <person>)`, `(Public statement: <where>)`, `(Research inference: E3, E11)`. `standards/conventions.md` owns what each register means. A name the requester supplied is secondhand from that named person until a public source is found.
-
-**Labels.** Every comparative, ranking, share and count carries one of the four evidence labels defined in `standards/conventions.md`, written in square brackets in place: `[Verified]`, `[Estimated: <method>]`, `[Unverified: requires confirmation]`, `[Not available: <reason>]`. Those four are the entire vocabulary of this file. Verified means located in the source, not true; a third party's unaudited ranking is not Verified.
+Labels and registers are `standards/conventions.md`'s, written in place and never restated here. A prompt line, a whole line beginning and ending with `*`, or the name placeholder surviving means `skills/Onboard Root/` has not finished.
 
 **Anchors.** Every load-bearing claim ends with a verification anchor, a bracketed row id naming its row in `work/onboarding/verification.md`, written as `[V<n>]` with the row's number in place of `<n>`: row 4 is anchored as V4 in that form. A ranking, a share, a "larger than" and an "only" are load-bearing and are read back before they enter.
 
 **Comparatives.** Every comparative, ranking and share figure carries its unit, its denominator and the window it covers. Never trim a list to a round number. Never encode a comparative in a heading or a folder name.
-
-**Prompt lines.** A prompt line is a whole line that begins with `*` and ends with `*`. Every prompt line here is replaced with content or with a labeled absence.
-
-**Placeholder tokens.** The placeholder token in this template is `[name]`. Instantiation replaces every one of them. A surviving token means this file is uninstantiated.
 <!-- /provenance-preamble -->
 
 # Competitors of [name]

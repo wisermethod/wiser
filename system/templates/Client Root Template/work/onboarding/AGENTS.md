@@ -18,7 +18,7 @@ This folder is the working area the onboarding process names, except the operati
 
 ## The record grammars
 
-**These shapes govern every root type. The paths in them are this client root's**, because this file ships beside the client template: `sources/`, `todos/current.md`, `work/onboarding/`. **Another type substitutes the paths its own layout declares**, which `skills/Onboard Root/` sets out under Where the records go, by root type. Where a heading or a field itself varies by type, and not merely its path, this file says so at that heading.
+**These shapes govern every root type. The paths in them are this client root's**, because this file ships beside the client template: `sources/`, `todos/current.md`, `work/onboarding/`. **Another type substitutes the paths its own layout declares**, which `skills/Onboard Root/full-path.md` sets out under Where the records go, by root type. Where a heading or a field itself varies by type, and not merely its path, this file says so at that heading.
 
 These records are read by the close gates, which parse them by key line and by column position. The shapes below are the contract. A record written in a different shape is not a stricter record, it is an unreadable one, and the gate that depends on it cannot run.
 
@@ -26,7 +26,7 @@ Three grammars carry the weight, and they hold inside the bound files under `mem
 
 **The prompt line.** A whole line that begins with `*` and ends with `*`. Every one is replaced before a key can close.
 
-**The placeholder tokens.** Across the five templates they are the word name in square brackets, plus the word Competitor in square brackets in the client competitor stub. Instantiation replaces every occurrence, and none may survive it.
+**The placeholder tokens.** Across the three templates they are the word name in square brackets, plus the word Competitor in square brackets in the client competitor stub. Onboarding replaces every occurrence, and none may survive it.
 
 **The verification anchor.** A load-bearing claim in a bound file ends with a bracketed row id naming its row in `verification.md`, written as `[V<n>]` with the row's number in place of `<n>`: row 7 is anchored as V7 in that form. An anchor written after a full stop belongs to the sentence before it. A key line carrying a date, a count, or any other checkable value takes an anchor too.
 
