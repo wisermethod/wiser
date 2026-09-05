@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # gates.sh: the mechanical gate harness for the onboard-root revision.
 #
-# Contract: the gate table in SKILL.md beside this script. Where this script
-# and that table disagree, the table is what gets fixed first.
+# Contract: the gate table in full-path.md beside this script, and the personal
+# path in SKILL.md. Where this script and that table disagree, the table is what
+# gets fixed first.
 #
 # Runs on macOS bash 3.2. No associative arrays, no mapfile/readarray, no
 # ${var,,}. BSD-compatible flags only. Never writes to the root being checked.
@@ -114,9 +115,9 @@ trap 'rm -rf "$TMPD"' EXIT INT TERM
 
 # The root's own AGENTS.md declares its type, and the type decides where the
 # onboarding records live. A client root carries the full record set under
-# `work/onboarding/` plus `sources/` and `todos/`; the other four types declare
-# none of those, and their own templates say `work/onboarding/` is the
-# client-root layout and does not apply to them. Reading the type here is what
+# `work/onboarding/` plus `sources/` and `todos/`; the other types declare none
+# of those, and the personal and org templates (which a department or industry
+# root starts from) say `work/onboarding/` is the client-root layout. Reading the type here is what
 # stops this harness demanding a layout the root was never given.
 ROOT_TYPE=""
 if [ -f "$ROOT/AGENTS.md" ]; then
@@ -196,6 +197,7 @@ onb_state() {
 if [ "$SHORT" = "0" ] && [ "$ROOT_TYPE" = "personal" ] && [ ! -f "$RUNREC" ]; then
   SHORT=1
 fi
+
 if [ "$SHORT" = "1" ]; then
   if [ "$ROOT_TYPE" != "personal" ]; then
     echo "$PROG: the personal path is for a personal root; this root declares type $ROOT_TYPE" >&2
@@ -444,6 +446,10 @@ _json_esc() {
     printf "%s", s
   }'
 }
+
+# The owner's declared name, lower-cased, for the gates that accept it as a
+# person regardless of its shape. Set here, after kv is defined.
+OWNER_LC=$(kv "$AGENTS" "root" 2>/dev/null | tr 'A-Z' 'a-z')
 
 PASS_N=0; FAIL_N=0; SKIP_N=0
 
@@ -1463,6 +1469,7 @@ gate_G9() {
         if(nb<=1 && ns<=1 \
            && body !~ /\[(Verified|Estimated|Unverified|Not available)/ \
            && body !~ /\[V[0-9]+\]/ \
+           && body !~ /\([^)]*\.(md|pdf|docx|pptx|txt|csv)\)/ \
            && body !~ /\((Firsthand|Secondhand|Public statement|Research inference)/){
           d=body; if(length(d)>70) d=substr(d,1,70) "..."
           printf "line %d: heading \"%s\" is answered by a bare sentence with no bracketed label: %s\n", i, t, d
@@ -1565,7 +1572,11 @@ gate_G10() {
           # checked against the people this run actually recorded: the person
           # rows of the must-reach lists and the interview's who-confirms
           # answer. An observer nobody wrote down is not an observer.
-          if printf '%s' "$payload" | tr 'A-Z' 'a-z' | grep -qE "$DOC_GRAMMAR"; then
+          if [ "$SHORT" = "1" ] && [ -n "$OWNER_LC" ] && [ "$(printf '%s' "$payload" | tr 'A-Z' 'a-z')" = "$OWNER_LC" ]; then
+            # The root's owner, by the name the root declares, whatever its
+            # shape: a mononym or a non-Latin name is a person all the same.
+            :
+          elif printf '%s' "$payload" | tr 'A-Z' 'a-z' | grep -qE "$DOC_GRAMMAR"; then
             add_fail "$r line $ln: (Firsthand: $payload) names a document as the observer"
           elif ! printf '%s' "$payload" | grep -qE "$PERSON_GRAMMAR"; then
             add_fail "$r line $ln: (Firsthand: $payload) does not name a person who observed it; firsthand names an observer, never a document or a role alone"
@@ -1899,7 +1910,9 @@ gate_G14() {
   van=$(kv "$VOICE" "voice-authority-name")
   vab=$(kv "$VOICE" "voice-authority-basis")
   if [ -n "$van" ]; then
-    if ! printf '%s' "$van" | grep -qE "$PERSON_GRAMMAR"; then
+    if [ "$SHORT" = "1" ] && [ -n "$OWNER_LC" ] && [ "$(printf '%s' "$van" | tr 'A-Z' 'a-z')" = "$OWNER_LC" ]; then
+      : # the root's owner, by the declared name, whatever its shape
+    elif ! printf '%s' "$van" | grep -qE "$PERSON_GRAMMAR"; then
       add_fail "$(rel "$VOICE"): 'voice-authority-name: $van' does not name a person; a role is not an authority anyone can identify"
     elif printf '%s' "$van" | grep -qE "$NONPERSON_TAIL"; then
       add_fail "$(rel "$VOICE"): 'voice-authority-name: $van' names a role or a body, not a person. An identifiable but unqualified confirmer is the residual risk, and an unidentifiable one is worse"

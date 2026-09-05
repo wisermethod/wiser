@@ -81,13 +81,13 @@ This root's declared directories under `standards/conventions.md`. The table abo
 
 `memory/about.md` holds this client's facts. `memory/competitors.md`, when bound, holds the confirmed competitive set. The sourcing rules in `standards/conventions.md` bite hardest here, where most of what is worth recording is a fact about a person.
 
-Shared credentials live in `memory/secrets/`, bound as `secrets:<platform>` above, per the constitution's Secrets rule.
+A shared credential, when one is taken, lives in `memory/secrets/` and is bound as `secrets:<platform>` in the Provides block above, per the constitution's Secrets rule; none is bound until then.
 
 Brands, markets, and legal entities of this client live in this root until one of them has its own voice, its own facts, and its own engagement. Then ask whether that brand earns its own client root. Do not split on sight.
 
 ## Onboarding
 
-Not onboarded. `skills/Onboard Root/` takes this root down its full path and rewrites these lines at Phase 9, where `full-path.md` says what each state means and the skill's Step 5 what a key that is not complete refuses; the competitors line closes unbound when that offer is declined or deferred.
+Not onboarded. `skills/Onboard Root/` takes this root down its full path and rewrites these lines at Phase 9; `full-path.md` says what each state means, and the skill's Step 5 says what a key that is not complete refuses; the competitors line closes unbound when that offer is declined or deferred.
 
 - about: blocked (not onboarded)
 - voice: blocked (not onboarded)

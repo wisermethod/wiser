@@ -35,7 +35,7 @@ This root's declared directories under `standards/conventions.md`:
 
 A department is not a subdirectory here. A unit with facts or a register of its own becomes a department-type root composed alongside this one.
 
-Shared credentials live in `memory/secrets/`, bound as `secrets:<platform>` above, per the constitution's Secrets rule.
+A shared credential, when one is taken, lives in `memory/secrets/` and is bound as `secrets:<platform>` in the Provides block above, per the constitution's Secrets rule; none is bound until then.
 
 ## Onboarding
 

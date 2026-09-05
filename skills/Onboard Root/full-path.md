@@ -68,7 +68,7 @@ A process that demands everything gets abandoned whole, and what goes first is r
 
 ## Phases
 
-Ten. Each names its work, its decisions, and the gates that close it. All paths are relative to the new root.
+Eleven, numbered 0 to 10. Each names its work, its decisions, and the gates that close it. All paths are relative to the new root.
 
 ### Phase 0: Scope, tier, consent
 
@@ -251,17 +251,17 @@ Exit: G15, G16.
 
 **It is `bash`, not `sh`.** The script uses process substitution, which `/bin/sh` rejects before any gate runs.
 
-**Run the harness, then read the Gates section below.** This skill ships the gate suite beside it as `gates.sh`, and Phase 9 executes it against the root:
+**Write the close first, then run the harness against it.** Record each key's candidate state under `## Per-key close` in the run record and rewrite the `## Onboarding` section of the root's `AGENTS.md` to match (both described below), because G17 reads those lines and a root still saying it is not onboarded fails before anything else is judged. Then this skill's gate suite, `gates.sh` beside it, runs against the root:
 
 ```
-bash "<the directory this SKILL.md sits in>/gates.sh" "<absolute path to the root>"
+bash "<the directory this file sits in>/gates.sh" "<absolute path to the root>"
 ```
 
-`gates.sh` is a sibling of this file, wherever this skill is installed; resolve it the same way the register companions beside a Content Author brief are resolved. It needs `bash` and the standard POSIX utilities: `awk`, `grep`, `sed`, `find`, `sort`, `cat`, `cut`, `tr`, `wc`, `head`, `uniq`, `basename`, `mktemp`, `mv` and `rm`. It is `bash` and not `sh`: the script uses process substitution, which `/bin/sh` rejects before any gate runs.
+`gates.sh` is a sibling of this file and of `SKILL.md`, wherever this skill is installed; resolve it the same way the register companions beside a Content Author brief are resolved. It needs `bash` and the standard POSIX utilities: `awk`, `grep`, `sed`, `find`, `sort`, `cat`, `cut`, `tr`, `wc`, `head`, `uniq`, `basename`, `mktemp`, `mv` and `rm`. It is `bash` and not `sh`: the script uses process substitution, which `/bin/sh` rejects before any gate runs.
 
 It prints one line per gate, the failures under each, and a summary; it exits non-zero when any gate fails or skips. **A gate you did not execute is a claim about a gate.** The first real run closed reporting that no gate had failed, and the harness, pointed at the same root afterwards, failed eight. Nothing in that run had executed it, because nothing told it to.
 
-Read every failure. Fix what is real, and where a failure is the harness misreading a correct root, say so in the close report by gate id with the reason, rather than deleting the line. A skipped gate is named in the close report too: a skip is not a pass. Then record each memory key's close state in the run record:
+Read every failure. Fix what is real, correct the candidate states where a gate moved a key, and run the harness again until what it reports is what the close report will say; where a failure is the harness misreading a correct root, say so in the close report by gate id with the reason, rather than deleting the line. A skipped gate is named in the close report too: a skip is not a pass. Then record each memory key's close state in the run record:
 
 - **complete**: every gate for that key passed, and its required load-bearing claims are located rather than merely dispositioned.
 - **provisional**: a gate failed, with what is outstanding and who owns it.
@@ -269,7 +269,7 @@ Read every failure. Fix what is real, and where a failure is the harness misread
 
 Keys are `about`, `voice`, `design`, and `competitors`. **An unbound `competitors` key is recorded explicitly as `competitors: unbound`, never marked blocked**: unbound is a complete outcome for a key that was not taken, not a key that failed, and an answer that was given belongs on the record. Bind `competitors: memory/competitors.md` in Provides only once the file is written from the confirmed set. Never bind a stub, and delete the stub where the key stays unbound.
 
-**Then rewrite the `## Onboarding` section of the root's `AGENTS.md`**: one line per key, `- <key>: <state>`, each state the one the run record closed, and for a provisional or blocked key the owner and what it waits on in the same line. The section stays for the life of the root. Nothing in it is deleted; its state lines change when a key closes, and a later session reads them before a deliverable write. A deferred voice does not block a facts-only deliverable, because the refusal is scoped to the keys that are not complete.
+**The `## Onboarding` section of the root's `AGENTS.md`** carries one line per key, `- <key>: <state>`, each state the one the run record closed, and for a provisional or blocked key the owner and what it waits on in the same line. The section stays for the life of the root. Nothing in it is deleted; its state lines change when a key closes, and a later session reads them before a deliverable write. A deferred voice does not block a facts-only deliverable, because the refusal is scoped to the keys that are not complete.
 
 **The competitors file, on the record.** On yes, write `memory/competitors.md` from the confirmed set only and add `competitors: memory/competitors.md` to the Provides block; bind after confirmation, never before. On not now or no, delete the stub the client template shipped, leave the key unbound, and record the deferral in the operating file with an owner, or the decline in the run record so a later session sees the answer was given.
 
@@ -307,7 +307,7 @@ Exit: G20.
 
 **Only the client template declares `work/onboarding/`, `sources/` and `todos/`.** The other two declare `work/`, `plays/`, `playbooks/`, `skills/`, `inbox/` and `zArchive/`, and each says in its own words that `work/onboarding/` is the client-root layout and does not apply to it. **Writing that layout into a root that did not declare it invents a location**, which `standards/conventions.md` forbids: if no declared work directory fits, ask.
 
-**Every phase in this file names the client path. Read each one through this table**, whichever type is being onboarded; the client column is what the phases say, and the other column is what they mean on the other types types. The handover-shaped phases, meaning extraction, per-angle evidence, and the supplied-originals inventory, exist only where documents were handed over. On a root where none were, they do not apply, and `gates.sh` says so under the gate that reads them rather than failing it.
+**Every phase in this file names the client path. Read each one through this table**, whichever type is being onboarded; the client column is what the phases say, and the other column is what they mean on the other types. The handover-shaped phases, meaning extraction, per-angle evidence, and the supplied-originals inventory, exist only where documents were handed over. On a root where none were, they do not apply, and `gates.sh` says so under the gate that reads them rather than failing it.
 
 A gate cannot run against a record with no shape. These are the shapes, and they are what makes the close mechanical rather than a matter of opinion. `system/templates/Client Root Template/` ships the marked headings in `memory/` and, under `work/onboarding/`, its `AGENTS.md` and nothing else; that `AGENTS.md` carries the full grammar of every record, and the run writes each record itself. `standards/conventions.md` still owns what a register and a label mean; what follows is only their written form.
 
