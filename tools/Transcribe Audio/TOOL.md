@@ -24,7 +24,7 @@ It authenticates to nothing and holds no credential of its own.
 
 It does not say who was speaking. Every turn arrives unattributed, so a recording with several voices transcribes as one stream of words. No primitive in this root labels speakers: the library that would has to be fetched from a hosted registry behind a read token, and one that needs no credential has to be found first.
 
-A run reaches the network only to fetch what it needs to work, never to send audio: this tool's first run package install and the first use of a given speech model. The packages land in this tool's own cache and the models in the model directory the caller names, so once each of those has happened, later runs on the same machine reach nothing.
+A run reaches the network only to fetch what it needs to work, never to send audio: this tool's package install and the first use of a given speech model. The packages land in this tool's own cache and the models in the model directory the caller names, so once each of those has happened, later runs on the same machine reach nothing.
 
 ## Inputs
 
@@ -50,7 +50,7 @@ Reports what the machine has, installing nothing and downloading nothing:
 {"python":"3.11.9","ffmpeg":true,"packages":false}
 ```
 
-Then transcribe. The first transcription reports what it would install and stops; with `--install` it creates this tool's package cache, installs the speech packages into it, and finishes the run; the second does the work and prints one JSON object naming the file it wrote.
+Then transcribe. If this copy of the plugin has not yet authorised an install, the run reports what it would install and stops; `--install` on that run is the answer: it creates this tool's package cache, installs the speech packages into it, and finishes the work, and later tools in this copy install without asking. It prints one JSON object naming the file it wrote.
 
 ```bash
 python3 scripts/transcribe.py transcribe --audio /path/to/call.m4a \
@@ -110,9 +110,9 @@ Model choice trades time for accuracy, and the weights are downloaded once per m
 
 The script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help before anything else, and the stdout and stderr rules. No command takes `--env`, so that clause has nothing to bind here. Everything a run of this tool writes, and where, is listed in `tools/AGENTS.md`, which is the only place this repository states it. Beyond those, three behaviors are worth knowing.
 
-The package cache is this tool's own, per that contract's Runtimes clause. The first transcription creates a virtual environment beside the scripts, installs the speech packages into it, and finishes the run, once `--install` has authorised it; nothing is installed into the machine or the user's environment, because the install runs with pip's own download cache switched off rather than leaving it at pip's default outside this tool.
+The package cache is this tool's own, per that contract's Runtimes clause. Once `--install` has authorised this copy, a transcription creates a virtual environment beside the scripts, installs the speech packages into it, and finishes the run; nothing is installed into the machine or the user's environment, because the install runs with pip's own download cache switched off rather than leaving it at pip's default outside this tool.
 
-Arguments are validated before that first run install, so a malformed command or a missing FFmpeg costs no download. Only Python's own standard library is used above the install; the speech packages import after it.
+Arguments are validated before that package install, so a malformed command or a missing FFmpeg costs no download. Only Python's own standard library is used above the install; the speech packages import after it.
 
 Progress goes to stderr and stdout carries only the final JSON object, so a caller parses a run without stripping log lines. The two directories a run writes into are the caller's, and each is refused when it resolves inside this tool directory; nothing else is written anywhere but the package cache.
 
@@ -132,7 +132,7 @@ A run that cannot finish prints nothing to stdout, names the cause on stderr, an
 
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `this tool is not installed yet and this run did not authorise an install` | First transcription in this copy, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
+| `this tool is not installed yet and this copy of the plugin has not authorised an install` | First install in this copy of the plugin, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. Later tools in this copy install without asking. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
 | `could not create the package cache` | Python is older than the script needs, or this tool directory is not writable | Confirm `python3 --version`, then that the directory is writable. See SETUP.md |
 | `installing ... packages failed` | The install could not complete, usually no network or a Python the packages do not support | Delete the `.venv` directory in this tool, confirm the interpreter, then run the command again |
 | `missing ffmpeg; check: ffmpeg -version` | The audio decoder is absent | The agent installs it per the Dependencies section. Install steps live nowhere in this tool |
@@ -143,7 +143,7 @@ A run that cannot finish prints nothing to stdout, names the cause on stderr, an
 | `could not be resolved to a real path` | A folder on the way is unreadable by this account, or a symbolic link on it points at itself | Confirm the path's permissions and its links, then pass a path that resolves |
 | `--output resolves inside this tool directory` | The output path landed in the shared root | Pass a work directory in the owning root |
 | `--model-cache resolves inside this tool directory` | The model directory landed in the shared root | Pass a work directory in the owning root |
-| `could not load the speech model` | The model download failed, usually no network on a first run of that model | Re-run once the machine is online; a model already in `--model-cache` needs no network |
+| `could not load the speech model` | The model download failed, usually no network on the first use of that model | Re-run once the machine is online; a model already in `--model-cache` needs no network |
 | The transcript reads as nonsense and the run reported success | The audio was not in English, which this tool is pinned to | The recording needs a transcriber that reads its language |
 | `Error: unknown option "<flag>"` | A misspelled or invented flag | Check `help`; the flag was refused rather than ignored |
 
@@ -154,4 +154,4 @@ A run that cannot finish prints nothing to stdout, names the cause on stderr, an
 - A `transcribe` over a real audio file, on a copy whose packages are installed, exits 0 with one parseable JSON object on stdout naming a transcript file that exists and holds the words of the recording.
 - A `transcribe` missing FFmpeg exits 1 naming the dependency and its check command, stdout empty, having installed nothing.
 - An `--output` or `--model-cache` resolving inside this tool directory is refused before any work runs, whether it is spelled directly, as a case variant, or through a symbolic link standing in for an ancestor.
-- No run sends audio anywhere; the only outbound requests any run makes are the model downloads and the first run package install named in Context, and the only files written are the transcript, the model cache, and this tool's own package cache.
+- No run sends audio anywhere; the only outbound requests any run makes are the model downloads and the package install named in Context, and the only files written are the transcript, the model cache, and this tool's own package cache.

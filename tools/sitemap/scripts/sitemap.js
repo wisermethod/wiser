@@ -9,10 +9,9 @@
  *   node scripts/sitemap.js fetch --file <path> [--file ...] [options]
  *   node scripts/sitemap.js diff --previous <path> --current <path> [--output <path>] [--pretty]
  *
- * Node built-ins only above the dependency check; nothing here imports from
- * outside this tool directory. fetch checks for undici; diff does not. The
- * rules every shipped script follows are stated once, in
- * system/templates/Script Contract.md.
+ * Node built-ins, this tool's own files, and tools/lib/. fetch checks for
+ * undici; diff does not. The rules every shipped script follows are stated
+ * once, in system/templates/Script Contract.md.
  */
 
 const SUBCOMMANDS = new Set(['fetch', 'diff']);
@@ -35,9 +34,11 @@ Commands:
 
 Run "node scripts/sitemap.js <command> help" for that command's options.
 
-  --install   Authorise the first-run install. Without it a tool that is
-              not installed yet reports what it would fetch, and from
-              where, and stops. WISER_ALLOW_INSTALL=1 does the same
+  --install   Authorise the first install in this copy of the plugin.
+              Without it, the first command that needs a package this
+              copy has not installed reports what it would fetch, and
+              from where, and stops. That answer covers every later
+              tool in this copy. WISER_ALLOW_INSTALL=1 does the same
               for an unattended run.
   --help, -h       Print this message
 
@@ -70,9 +71,11 @@ Options:
   --date <date>    YYYY-MM-DD stamped as "fetchedAt" (default: today)
   --output <dir>   Also write the snapshot to a file in this directory, an
                    absolute path that must sit outside this tool directory
-  --install Authorise the first-run install. Without it a tool that is
-          not installed yet reports what it would fetch, and from
-          where, and stops. WISER_ALLOW_INSTALL=1 does the same
+  --install Authorise the first install in this copy of the plugin.
+          Without it, the first command that needs a package this
+          copy has not installed reports what it would fetch, and
+          from where, and stops. That answer covers every later
+          tool in this copy. WISER_ALLOW_INSTALL=1 does the same
           for an unattended run.
   --help           Print this message
 

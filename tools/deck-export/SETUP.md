@@ -2,7 +2,7 @@
 
 Once per machine. Skip it if `node scripts/deck.js check` already reports every field true.
 
-**Once per machine covers the system dependencies below, not the packages.** A system dependency named below is installed once and every copy of this plugin then finds it; a tool's own packages install per copy of the plugin, on the first run that authorises them with `--install`, and a plugin manager that keeps each version in its own directory needs that authorisation again after an update. `tools/AGENTS.md` lists everything a run of a tool writes and where, and is the only place this repository states it.
+**Once per machine covers the system dependencies below, not the packages.** A system dependency named below is installed once and every copy of this plugin then finds it; a tool's own packages install per copy of the plugin, after the first `--install` in this copy, and a plugin manager that keeps each version in its own directory needs that authorisation again after an update. `tools/AGENTS.md` lists everything a run of a tool writes and where, and is the only place this repository states it.
 
 Run every command below from this tool's directory. On Windows, use Git Bash; PowerShell and cmd quote arguments differently.
 
@@ -16,7 +16,7 @@ node --version
 
 ## 2. Packages
 
-Nothing to run by hand. The script installs its packages on the first `scaffold`, `pdf`, or `png` given `--install`, and reports what it would fetch rather than installing without one. This tool holds no credentials, so there is nothing else to configure and no `--env` to resolve.
+Nothing to run by hand. The plugin asks once, on the first install in this copy; `--install` on that run is the answer, and later tools install without asking. This tool holds no credentials, so there is nothing else to configure and no `--env` to resolve.
 
 ## 3. The browser build
 
@@ -28,7 +28,7 @@ node scripts/deck.js check
 
 A machine that already drives a browser for another primitive in this root usually has the build cached and needs nothing here.
 
-**Nothing here fetches the browser build, and nothing needs to.** `playwright` carries no postinstall script, so the package install fetches no browser. The first non-help command that needs Chromium reports what it would fetch and stops; `--install` authorises both the packages and the browser build and that one run does the work. Run `check` on its own to see what is already present; run `check --install` to make it present and then report on it.
+**Nothing here fetches the browser build, and nothing needs to.** `playwright` carries no postinstall script, so the package install fetches no browser. If this copy has not yet authorised an install, the first command that needs Chromium reports what it would fetch and stops; `--install` on that run authorises both the packages and the browser build and that one run does the work. Run `check` on its own to see what is already present; run `check --install` to make it present and then report on it. `check` never writes the consent marker.
 
 ## 4. Verify
 

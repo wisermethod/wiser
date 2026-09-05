@@ -87,7 +87,7 @@ This tool needs no credentials and no configuration file, so no command takes `-
 
 ## Script Contract
 
-Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help answered before anything is read, and the stdout and stderr rules. It ships no package and no system dependency, so it carries no Dependencies section and there is no first-run install; it reads one caller-named file and writes nothing, so the contract's `--env` and output-path clauses have nothing to bind here.
+Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help answered before anything is read, and the stdout and stderr rules. It ships no package and no system dependency, so it carries no Dependencies section and there is no package install; it reads one caller-named file and writes nothing, so the contract's `--env` and output-path clauses have nothing to bind here.
 
 Markup that parses to nothing is reported, not raised. A file holding no HTML comes back as a full report of absences with exit 0, because "this page has no title, no headings, and no structured data" is the answer a caller asked for. A usage mistake or an unreadable file is different: it names the cause on stderr and exits 1. No message quotes the file's bytes, and a JSON-LD block that does not parse is counted rather than echoed, since a page can put anything inside one.
 

@@ -33,7 +33,7 @@ node scripts/browser.js snapshot --format interactive
 node scripts/browser.js session stop
 ```
 
-The first `session start` reports what it would install and stops; with `--install` it installs and opens the browser in the same run. Every command prints one JSON object:
+If this copy of the plugin has not yet authorised an install, `session start` reports what it would install and stops; `--install` on that run is the answer, and later tools in this copy install without asking. Every command prints one JSON object:
 
 ```
 {"url":"[address]","title":"[page title]"}
@@ -149,13 +149,13 @@ Success is one JSON object on stdout and exit 0. Most commands return the page's
 
 `check` is the one to read carefully. It exits 0 when the assertion ran and reports the verdict in `passed`; an assertion that did not hold is a finding to report, never something to work around by loosening the assertion.
 
-Failure prints to stderr, leaves stdout empty, and exits 1. Files are written where a command's `--output` or `--output-dir` names, and a first run also installs what `tools/AGENTS.md` lists.
+Failure prints to stderr, leaves stdout empty, and exits 1. Files are written where a command's `--output` or `--output-dir` names, and an authorised install also writes what `tools/AGENTS.md` lists.
 
 ## Troubleshooting
 
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `this tool is not installed yet and this run did not authorise an install` | First run in this copy, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
+| `this tool is not installed yet and this copy of the plugin has not authorised an install` | First install in this copy of the plugin, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. Later tools in this copy install without asking. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
 | `Chromium cannot launch` / `chromiumLaunch:false` | Binary missing, launch blocked, or OS library gap | Follow the `remediation` line from `npm run check:chromium` |
 | `no browser host answering on port [n]` | No session, or it was started on another port | `session status`, then `session start --profile [dir]` |
 | `a browser host is already running on port [n]` | A session from earlier work | `session stop`, or pass a different `--port` |

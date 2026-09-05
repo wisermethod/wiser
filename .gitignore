@@ -7,6 +7,10 @@ infrastructure/release/dist/
 .Trashes
 .stversions/
 
+# Plugin-copy consent. Written on the first authorised install in this copy;
+# not a file this repository ships.
+.wiser-consent
+
 # Tool install artifacts. A tool installs its dependencies on the user's own
 # machine when that tool is called; this repository ships manifests and never
 # packages, and none of what an install leaves behind is committable.

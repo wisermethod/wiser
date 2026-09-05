@@ -83,10 +83,12 @@ Options:
   --audio [path]        The audio file, absolute. One of: {formats}
   --output [dir]        Directory the transcript is written into, absolute and
                         outside this tool directory
-  --install             Authorise the first-run install. Without it a tool that
-                        is not installed yet reports what it would fetch, and
-                        from where, and stops. WISER_ALLOW_INSTALL=1 does the
-                        same for an unattended run.
+  --install             Authorise the first install in this copy of the plugin.
+                        Without it, the first command that needs a package this
+                        copy has not installed reports what it would fetch, and
+                        from where, and stops. That answer covers every later
+                        tool in this copy. WISER_ALLOW_INSTALL=1 does the same
+                        for an unattended run.
   --model-cache [dir]   Directory model weights are downloaded into, absolute and
                         outside this tool directory. Pass the same one every run
   --model [name]        Speech model: {models}. Default {default}
@@ -104,7 +106,7 @@ def stop(message):
 
 
 def fail(message):
-    """A failure, which is every stop but the first-run install's re-run notice."""
+    """A failure, which is every stop but the consent report's re-run notice."""
     stop("Error: " + message)
 
 
@@ -316,7 +318,7 @@ def inside_tool_dir(existing):
         probe = parent
 
 
-# Validation, before the first-run install: a malformed command or a missing
+# Validation, before the package install: a malformed command or a missing
 # system dependency costs no download.
 
 audio_argument = flag("--audio")
@@ -392,23 +394,70 @@ def install_env():
     return env
 
 
-def install_authorised():
+CONSENT_MARKER = ".wiser-consent"
+
+
+def plugin_root():
+    directory = Path(__file__).resolve().parent
+    while True:
+        if (directory / "tools" / "AGENTS.md").is_file():
+            return directory.resolve()
+        parent = directory.parent
+        if parent == directory:
+            return None
+        directory = parent
+
+
+def flag_authorised():
     return "--install" in sys.argv or os.environ.get("WISER_ALLOW_INSTALL") == "1"
+
+
+def marker_grants():
+    root = plugin_root()
+    if root is None:
+        return False
+    try:
+        data = json.loads((root / CONSENT_MARKER).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    recorded = data.get("realpath") if isinstance(data, dict) else None
+    return isinstance(recorded, str) and recorded == str(root)
+
+
+def install_authorised():
+    return flag_authorised() or marker_grants()
+
+
+def write_consent():
+    if not flag_authorised():
+        return
+    root = plugin_root()
+    if root is None:
+        return
+    payload = {
+        "realpath": str(root),
+        "date": datetime.now().strftime("%Y-%m-%d"),
+        "tool": "Transcribe Audio",
+    }
+    path = root / CONSENT_MARKER
+    try:
+        path.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
 
 
 def require_install_consent(label):
     """Consent before an install, matching the Node tools' Dependencies clause.
 
-    This script does not read stdin, so it cannot ask. It reports what would be
-    fetched and stops; whoever is driving it asks the person and re-runs with
-    --install, which authorises the install AND completes the run. Speech
-    packages are the largest install in this repository, which is precisely why
-    it should not happen because somebody typed transcribe once.
+    This script does not read stdin, so it cannot ask. The plugin asks once, on
+    the first install in this copy, and --install on that run is the answer.
     """
     if install_authorised():
         return
     fail(
-        "this tool is not installed yet and this run did not authorise an install. "
+        "this tool is not installed yet and this copy of the plugin has not authorised an install. "
+        "The plugin asks once, on the first install in this copy. "
         "Installing creates a virtual environment at %s and fetches the %s packages into it "
         "from pypi.org, several hundred megabytes, with pip's own download cache switched off "
         "so nothing lands outside this tool. tools/AGENTS.md lists every write an install makes. "
@@ -472,6 +521,8 @@ def install(requirements, marker, label):
     # the packages are imported after that point and not at the top.
     note("%s packages installed." % label.capitalize())
 
+
+write_consent()
 
 if not package_installed(CORE_MARKER):
     install(CORE_REQUIREMENTS, CORE_MARKER, "transcription")
@@ -585,7 +636,7 @@ if not weights_present:
     if not install_authorised():
         fail(
             "the %s speech model is not on this machine as a file whisper will accept, and "
-            "this run did not authorise a download. That covers three states and they need the "
+            "this copy of the plugin has not authorised a download. That covers three states and they need the "
             "same answer: no file at all, a file whose SHA-256 does not match the one in "
             "whisper's own URL -- which is what an interrupted download leaves, and whisper "
             "re-downloads on it -- and a whisper this script cannot ask, which it treats as "

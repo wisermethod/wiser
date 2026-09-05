@@ -16,7 +16,7 @@ Use it whenever the answer has to be pixels rather than the source that produced
 
 Do not use it to change an image that already exists, which is `image-edit` and `image-overlay`, and do not reach for it to produce imagery from a description, which is generation, not rendering. A spreadsheet, a PDF, and a raster that is already an image are not among the inputs it reads.
 
-`html`, `svg`, and `mermaid` authenticate to nothing, hold no credential, and after the first-run install described in `tools/AGENTS.md` make no network request of their own; the page, SVG, or diagram may still fetch whatever it references. `url` reaches the one address `--url` names, logged out and unauthenticated, and every other request in that run is one the page itself issues. `check` surveys whether the Chromium build is present and, without `--install`, fetches nothing.
+`html`, `svg`, and `mermaid` authenticate to nothing, hold no credential, and after the packages described in `tools/AGENTS.md` are installed make no network request of their own; the page, SVG, or diagram may still fetch whatever it references. `url` reaches the one address `--url` names, logged out and unauthenticated, and every other request in that run is one the page itself issues. `check` surveys whether the Chromium build is present and, without `--install`, fetches nothing.
 
 ## Quick Start
 
@@ -30,7 +30,7 @@ Usage text listing the five subcommands, with nothing installed. `node scripts/r
 node scripts/render.js html --input /path/to/a/work/directory/card.html --output /path/to/a/work/directory/card.png --width 1200 --height 630
 ```
 
-The first real run reports that it would install Playwright into `tools/lib/browser-runtime/`, and stops. With `--install` it installs and does the work in the same run and prints one JSON object:
+If this copy of the plugin has not yet authorised an install, the run reports that it would install Playwright into `tools/lib/browser-runtime/`, and stops. `--install` on that run is the answer: it installs and does the work, and later tools in this copy install without asking. It prints one JSON object:
 
 ```
 {"output":"/path/to/a/work/directory/card.png","format":"png","width":1200,"height":630,"scale":1}
@@ -40,7 +40,7 @@ The first real run reports that it would install Playwright into `tools/lib/brow
 
 ## Script Contract
 
-Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help answered before the dependency check, the consent-gated dependency install, closed unknown flags, and the stdout and stderr rules. `html`, `svg`, `mermaid`, and `url` write one caller-named image outside this tool directory. `check` writes nothing. Every other write a run makes is a first-run install, and `tools/AGENTS.md` is the only place this repository lists those. Only `mermaid` checks for and installs `mermaid`. Playwright is the shared runtime's check for all four rendering commands. The contract's `--env` clause has nothing to bind here.
+Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help answered before the dependency check, the consent-gated dependency install, closed unknown flags, and the stdout and stderr rules. `html`, `svg`, `mermaid`, and `url` write one caller-named image outside this tool directory. `check` writes nothing. Every other write a run makes is a package install, and `tools/AGENTS.md` is the only place this repository lists those. Only `mermaid` checks for and installs `mermaid`. Playwright is the shared runtime's check for all four rendering commands. The contract's `--env` clause has nothing to bind here.
 
 This tool needs no credentials and no configuration file, so no command takes `--env` and nothing here resolves a Provides binding.
 
@@ -238,7 +238,7 @@ One JSON object on stdout, exit 0.
 
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `this tool is not installed yet and this run did not authorise an install` | First run of a subcommand that needs a package, and no `--install` | Read what it says it would fetch and from where. `html`, `svg`, and `url` name Playwright in the shared runtime. `mermaid` names `mermaid` in this tool's directory and Playwright in the shared runtime. Re-run the same command with `--install`. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
+| `this tool is not installed yet and this copy of the plugin has not authorised an install` | First install in this copy of the plugin, and no `--install` | Read what it says it would fetch and from where. `html`, `svg`, and `url` name Playwright in the shared runtime. `mermaid` names `mermaid` in this tool's directory and Playwright in the shared runtime. Re-run the same command with `--install`. Later tools in this copy install without asking. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
 | `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest; then delete `node_modules/` in the directory the error names and run `npm ci` there by hand |
 | `Chromium cannot launch` / `chromiumLaunch:false` | Binary missing, launch blocked, or OS library gap | Read `remediation` on the `check` JSON; follow that single step. Never a root-only install-deps recipe |
 | `Error: --input is required` | `html` ran with nothing to render | Pass `--input <path>` |
@@ -272,4 +272,4 @@ One JSON object on stdout, exit 0.
 - An unknown option is refused by name before any install, read, or write.
 - A `--url` that points at a loopback, private-range, link-local, or cloud-metadata address is refused by name before any install and before a browser is launched.
 - Only `mermaid` checks for and installs `mermaid`. `html`, `svg`, `url`, and `check` never stop for a mermaid install.
-- No run reads a credential. The writes are what `tools/AGENTS.md` lists a first run installing, and the image at the caller-named `--output`.
+- No run reads a credential. The writes are what `tools/AGENTS.md` lists an install writing, and the image at the caller-named `--output`.

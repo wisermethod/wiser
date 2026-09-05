@@ -2,7 +2,7 @@
 
 Once per machine. Skip it if `node scripts/browser.js session status` already answers after a successful `session start` on this host, or if `npm run check:chromium` already exits 0.
 
-**Once per machine covers the system dependencies below, not the packages.** A system dependency named below is installed once and every copy of this plugin then finds it; a tool's own packages install per copy of the plugin, on the first run that authorises them with `--install`, and a plugin manager that keeps each version in its own directory needs that authorisation again after an update. `tools/AGENTS.md` lists everything a run of a tool writes and where, and is the only place this repository states it.
+**Once per machine covers the system dependencies below, not the packages.** A system dependency named below is installed once and every copy of this plugin then finds it; a tool's own packages install per copy of the plugin, after the first `--install` in this copy, and a plugin manager that keeps each version in its own directory needs that authorisation again after an update. `tools/AGENTS.md` lists everything a run of a tool writes and where, and is the only place this repository states it.
 
 Run every command below from this tool's directory. On Windows, use Git Bash; PowerShell and cmd quote arguments differently.
 
@@ -16,7 +16,7 @@ node --version
 
 ## 2. Packages
 
-Nothing to run by hand. The script installs its packages on the first non-help command given `--install`, and reports what it would fetch rather than installing without one. This tool holds no credentials, so there is nothing else to configure and no `--env` to resolve.
+Nothing to run by hand. The plugin asks once, on the first install in this copy; `--install` on that run is the answer, and later tools install without asking. This tool holds no credentials, so there is nothing else to configure and no `--env` to resolve.
 
 ## 3. The browser build
 
@@ -28,11 +28,11 @@ Expect `"chromiumLaunch":true`. Presence is a trial launch via the shared browse
 
 A machine that already drives a browser for another primitive in this root usually has the build and any userspace stub cached and needs nothing here.
 
-**Nothing here fetches the browser build, and nothing needs to.** `playwright` carries no postinstall script, so the package install fetches no browser. The first non-help command that needs Chromium reports what it would fetch and stops; `--install` authorises both the packages and the browser build and that one run does the work. This step is a survey: it reports what is already present and makes nothing present. The tool's own first browser-needing command with `--install` is what makes it present, in one run.
+**Nothing here fetches the browser build, and nothing needs to.** `playwright` carries no postinstall script, so the package install fetches no browser. If this copy has not yet authorised an install, the first command that needs Chromium reports what it would fetch and stops; `--install` on that run authorises both the packages and the browser build and that one run does the work. This step is a survey: it reports what is already present and makes nothing present. A browser-needing command with `--install`, or with a matching consent marker, is what makes it present.
 
 ## 4. Profile directory
 
-Sessions need an absolute `--profile` directory in the owning root (not inside this tool). Create an empty directory under that root's declared work location before the first `session start`. The profile holds cookies and sign-ins for that root only.
+Sessions need an absolute `--profile` directory in the owning root (not inside this tool). Create an empty directory under that root's declared work location before `session start`. The profile holds cookies and sign-ins for that root only.
 
 ## 5. Verify
 

@@ -18,7 +18,7 @@ Do not use it to change what the picture shows. Removing an object or a backgrou
 
 `edit` is one image on its own, including placement on an empty canvas at a position the caller computes. `compose` is two images, the overlay stretched over the base edge to edge. Reach for the matching subcommand instead of wrapping one job as the other.
 
-It authenticates to nothing, holds no credential, reaches no other primitive, and after the first-run install described in `tools/AGENTS.md` it makes no network request.
+It authenticates to nothing, holds no credential, reaches no other primitive, and after the packages described in `tools/AGENTS.md` are installed it makes no network request.
 
 ## Quick Start
 
@@ -32,7 +32,7 @@ Usage text listing the two subcommands, with nothing installed. `node scripts/im
 node scripts/image.js edit --file /path/to/a/work/directory/photo.png --output /path/to/a/work/directory/photo-card.jpg --crop 1200x1200 --resize 600x600
 ```
 
-The first real run reports that it would install the imaging library in this tool's directory, and stops. With `--install` it installs and does the work in the same run and prints one JSON object:
+If this copy of the plugin has not yet authorised an install, the run reports that it would install the imaging library in this tool's directory, and stops. `--install` on that run is the answer: it installs and does the work, and later tools in this copy install without asking. It prints one JSON object:
 
 ```
 {"output":"/path/to/a/work/directory/photo-card.jpg","format":"jpeg","width":600,"height":600,"sourceWidth":1800,"sourceHeight":1400,"bytes":48213}
@@ -42,7 +42,7 @@ The first real run reports that it would install the imaging library in this too
 
 ## Script Contract
 
-Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help answered before the dependency check, the consent-gated dependency install, closed unknown flags, and the stdout and stderr rules. `edit` writes one caller-named image outside this tool directory. `compose` writes one caller-named image, or writes back onto `--base` when `--output` is omitted and `--confirm` is passed. Every other write a run makes is a first-run install, and `tools/AGENTS.md` is the only place this repository lists those. Both subcommands check for and import `sharp`; `help` does not. The contract's `--env` clause has nothing to bind here, and the tool carries no Dependencies section because `sharp` installs by the first-run check and Node covers the rest. The sections below state what each command does; the contract states how the script behaves getting there.
+Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help answered before the dependency check, the consent-gated dependency install, closed unknown flags, and the stdout and stderr rules. `edit` writes one caller-named image outside this tool directory. `compose` writes one caller-named image, or writes back onto `--base` when `--output` is omitted and `--confirm` is passed. Every other write a run makes is a package install, and `tools/AGENTS.md` is the only place this repository lists those. Both subcommands check for and import `sharp`; `help` does not. The contract's `--env` clause has nothing to bind here, and the tool carries no Dependencies section because `sharp` installs by the consent-gated check and Node covers the rest. The sections below state what each command does; the contract states how the script behaves getting there.
 
 This tool needs no credentials and no configuration file, so no command takes `--env` and nothing here resolves a Provides binding.
 
@@ -194,7 +194,7 @@ A stretch also prints a note to stderr naming both dimensions; stdout stays one 
 
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `this tool is not installed yet and this run did not authorise an install` | First run in this copy, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
+| `this tool is not installed yet and this copy of the plugin has not authorised an install` | First install in this copy of the plugin, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. Later tools in this copy install without asking. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
 | `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `Error: --file is required.` | `edit` ran with no image to read | Pass `--file <path>` |
 | `Error: --file must be absolute` or `--output must be absolute` | A relative path was passed | Pass the absolute path; do not rely on the working directory |
@@ -246,4 +246,4 @@ A stretch also prints a note to stderr naming both dimensions; stdout stays one 
 - An overlay of different dimensions is stretched to the base's, reported as `overlayResized`, and noted on stderr.
 - A required flag omitted, a relative path, a path that does not exist, an unsupported extension, a directory passed as `--output`, an unknown option, and a destination inside this tool directory each exit 1 with the cause on stderr and stdout empty, and trigger no dependency install when the mistake is a usage one.
 - An unknown option is refused by name before any install, read, or write.
-- No run reads a credential, and after the first-run install no run opens a network connection. The install itself reaches `registry.npmjs.org`. The writes are what `tools/AGENTS.md` lists a first run installing, and the image at the caller-named destination; where `compose` omits `--output` that destination is `--base` itself, which needs `--confirm`.
+- No run reads a credential, and after packages are installed no run opens a network connection. The install itself reaches `registry.npmjs.org`. The writes are what `tools/AGENTS.md` lists an install writing, and the image at the caller-named destination; where `compose` omits `--output` that destination is `--base` itself, which needs `--confirm`.

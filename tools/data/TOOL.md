@@ -16,7 +16,7 @@ Use it whenever an answer has to come from a CSV, JSON, or TSV file rather than 
 
 Do not use it to transform, clean, or deduplicate data. It reads the files the caller names and, for `chart`, writes one HTML file; it changes nothing about the source. Do not use it for conceptual diagrams, process maps, or geometry that is not a quantitative encoding; those are `skills/Visualizer/`. A spreadsheet workbook, a PDF table, and an image of a table are not among the formats it reads.
 
-It authenticates to nothing, holds no credential, reaches no other primitive, and after the first-run install described in `tools/AGENTS.md` it makes no network request.
+It authenticates to nothing, holds no credential, reaches no other primitive, and after the packages described in `tools/AGENTS.md` are installed it makes no network request.
 
 ## Quick Start
 
@@ -30,7 +30,7 @@ Usage text listing the six subcommands, with nothing installed. `node scripts/da
 node scripts/data.js parse --file /path/to/a/work/directory/regions.csv
 ```
 
-The first real run reports that it would install `csv-parse` in this tool's directory, and stops. With `--install` it installs and does the work in the same run and prints one JSON object:
+If this copy of the plugin has not yet authorised an install, the run reports that it would install `csv-parse` in this tool's directory, and stops. `--install` on that run is the answer: it installs and does the work, and later tools in this copy install without asking. It prints one JSON object:
 
 ```
 {"columns":[{"name":"region","type":"string","nonNullCount":3,"sampleValues":["West","East","North"]},{"name":"revenue","type":"number","nonNullCount":3,"sampleValues":["1200","900","1500"]}],"rowCount":3,"raggedRowCount":0,"parseErrors":[]}
@@ -40,7 +40,7 @@ Anything else, see Troubleshooting.
 
 ## Script Contract
 
-Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help answered before the dependency check, the consent-gated dependency install, closed unknown flags, and the stdout and stderr rules. `parse`, `describe`, `aggregate`, `join`, and `compute` read caller-named files and write nothing of their own; `chart` writes one caller-named HTML file outside this tool directory. Every other write a run makes is a first-run install, and `tools/AGENTS.md` is the only place this repository lists those. The contract's `--env` clause has nothing to bind here, and the tool carries no Dependencies section because `csv-parse` installs by the first-run check and Node covers the rest. The sections below state what each command does; the contract states how the script behaves getting there.
+Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help answered before the dependency check, the consent-gated dependency install, closed unknown flags, and the stdout and stderr rules. `parse`, `describe`, `aggregate`, `join`, and `compute` read caller-named files and write nothing of their own; `chart` writes one caller-named HTML file outside this tool directory. Every other write a run makes is a package install, and `tools/AGENTS.md` is the only place this repository lists those. The contract's `--env` clause has nothing to bind here, and the tool carries no Dependencies section because `csv-parse` installs by the consent-gated check and Node covers the rest. The sections below state what each command does; the contract states how the script behaves getting there.
 
 This tool needs no credentials and no configuration file, so no command takes `--env` and nothing here resolves a Provides binding.
 
@@ -374,7 +374,7 @@ On success, one JSON object on stdout, exit 0.
 
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `this tool is not installed yet and this run did not authorise an install` | First run in this copy, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
+| `this tool is not installed yet and this copy of the plugin has not authorised an install` | First install in this copy of the plugin, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. Later tools in this copy install without asking. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
 | `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `Error: --file is required.` | A command that takes `--file` ran with no file to read | Pass `--file <path>` |
 | `Error: --left is required.` / `Error: --right is required.` | A join side was not named | Pass both absolute paths |
@@ -414,4 +414,4 @@ On success, one JSON object on stdout, exit 0.
 - `compute` over two numeric fields exits 0 with `op`, `a`, `b`, and `value`. A zero `b` for `percentage` or `rate` exits 0 with `error` `b is zero` and no `value`. A missing or non-numeric field exits 1 with the cause on stderr and stdout empty.
 - A required flag omitted, a path that does not exist or is a directory, a bad `--format`, `--how`, `--type`, or `--op`, or an unknown option exits 1 with the cause on stderr and stdout empty, and triggers no dependency install when the mistake is a usage one.
 - An unknown option is refused by name before any install, read, or write.
-- No run reads a credential, and after the first-run install no run opens a network connection. The install itself reaches `registry.npmjs.org`. The writes are what `tools/AGENTS.md` lists a first run installing, and for `chart` the HTML at the caller-named `--output`.
+- No run reads a credential, and after packages are installed no run opens a network connection. The install itself reaches `registry.npmjs.org`. The writes are what `tools/AGENTS.md` lists an install writing, and for `chart` the HTML at the caller-named `--output`.

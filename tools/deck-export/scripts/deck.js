@@ -10,9 +10,8 @@
  *   node scripts/deck.js pdf --input <path> --output <path>
  *   node scripts/deck.js png --input <path> --output <dir>
  *
- * Node built-ins, this tool's own files, and the shared browser runtime at
- * tools/lib/browser-runtime/. The rules every shipped script follows are
- * stated once, in system/templates/Script Contract.md.
+ * Node built-ins, this tool's own files, and tools/lib/. The rules every
+ * shipped script follows are stated once, in system/templates/Script Contract.md.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -20,7 +19,10 @@ import { accessSync, constants, cpSync, copyFileSync, existsSync, mkdirSync, rea
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+import { flagAuthorised, installAuthorised, writeConsent } from '../../lib/consent.js';
+
+const HERE = fileURLToPath(import.meta.url);
+const SCRIPT_DIR = dirname(HERE);
 const TOOL_DIR = resolve(SCRIPT_DIR, '..');
 const RUNTIME_DIR = resolve(SCRIPT_DIR, '..', '..', 'lib', 'browser-runtime');
 const TEMPLATES_DIR = join(TOOL_DIR, 'templates');
@@ -82,10 +84,12 @@ Commands:
   help             Print this message
 
 Global options:
-  --install        Authorise the first-run install. Without it a command that
-                   needs a package this copy has not installed reports what it
-                   would fetch, and from where, and stops. WISER_ALLOW_INSTALL=1
-                   does the same for an unattended run.
+  --install        Authorise the first install in this copy of the plugin.
+                   Without it, the first command that needs a package this
+                   copy has not installed reports what it would fetch, and
+                   from where, and stops. That answer covers every later
+                   tool in this copy. WISER_ALLOW_INSTALL=1 does the same
+                   for an unattended run.
 
 Scaffold options:
   --output <dir>   Deck project directory, absolute. Required.
@@ -191,15 +195,15 @@ function installPlan() {
 // "this tool is not installed yet", nor name a registry fetch and an npm cache
 // write that this install will not make.
 function requireInstallConsent(what) {
-  if (process.argv.includes('--install') || process.env.WISER_ALLOW_INSTALL === '1') return;
+  if (installAuthorised(HERE)) return;
   if (what === 'browser') {
     fail(
-      `Error: this tool's packages are installed but the Chromium build they drive is not, and this run did not authorise an install. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+      `Error: this tool's packages are installed but the Chromium build they drive is not, and this copy of the plugin has not authorised an install. The plugin asks once, on the first install in this copy. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
     );
   }
   const { packages, size } = installPlan();
   fail(
-    `Error: this tool is not installed yet and this run did not authorise an install. ${packages}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+    `Error: this tool is not installed yet and this copy of the plugin has not authorised an install. The plugin asks once, on the first install in this copy. ${packages}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
   );
 }
 
@@ -230,6 +234,8 @@ for (let index = 1; index < argv.length; index += 1) {
     fail(`Error: unknown option "${option}". Run "node scripts/deck.js help" for usage.`);
   }
 }
+
+if (command !== 'check') writeConsent(HERE, 'deck-export');
 
 function flag(name) {
   const index = argv.indexOf(name);
@@ -675,7 +681,7 @@ if (command === 'check') {
   // while the remediation it printed named `--install`; here it did nothing at
   // all. The same one line answers both, so the printed remedy is true on every
   // command of every browser tool rather than on all but the surveying one.
-  if (process.argv.includes('--install') || process.env.WISER_ALLOW_INSTALL === '1') {
+  if (flagAuthorised()) {
     ensurePackage('reveal.js');
     ensurePackage('playwright');
     await ensureChromium();

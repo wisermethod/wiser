@@ -50,7 +50,7 @@ FFmpeg is a separate program, not an npm package, so it is checked rather than i
 
 The second row is the same program in a narrower condition: a build without freetype, or a machine with no font FFmpeg can resolve, runs every other command and fails only on the overlay. It is checked separately so that failure arrives before the pass rather than inside it.
 
-This tool imports no npm package, so there is no first-run install and no re-run prompt; Node and FFmpeg are the whole of what it needs.
+This tool imports no npm package, so there is no package install and no consent prompt; Node and FFmpeg are the whole of what it needs.
 
 ## Operations
 
@@ -107,7 +107,7 @@ This tool needs no credentials and no configuration file, so no command takes `-
 
 ## Script Contract
 
-The one script this tool ships follows `system/templates/Script Contract.md`: self-contained imports, help answered before any check, the system-dependency checks on the commands that need them, and the stdout and stderr rules. It imports no package, so the contract's first-run install clause has nothing to install and its `--env` clause has nothing to bind. The sections above state what each command does; the contract states how the script behaves getting there.
+The one script this tool ships follows `system/templates/Script Contract.md`: self-contained imports, help answered before any check, the system-dependency checks on the commands that need them, and the stdout and stderr rules. It imports no package, so the contract's dependency install clause has nothing to install and its `--env` clause has nothing to bind. The sections above state what each command does; the contract states how the script behaves getting there.
 
 Every usage mistake is caught before FFmpeg is reached, so a bad path, a bad number, or an option that belongs to another command never starts a pass. No message repeats FFmpeg's own output, which quotes full paths and whatever the container's metadata holds; a run that fails names the operation and the input instead. When FFmpeg fails after opening a file destination (`edit`, `concat`, `gif`), any partial or zero-byte file left at `--output` is removed before the error is printed, so a failed concat does not leave a stub that looks like a finished product. A `frames` directory is left as it is. Nothing is read from stdin, and FFmpeg is run with stdin closed, so a run with nobody watching fails rather than waiting for a keystroke.
 

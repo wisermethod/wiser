@@ -10,15 +10,16 @@
  *   node scripts/render.js url --url <address> --output <path>.png
  *   node scripts/render.js check
  *
- * Node built-ins, this tool's own files, and the shared browser runtime at
- * tools/lib/browser-runtime/. The rules every shipped script follows are
- * stated once, in system/templates/Script Contract.md.
+ * Node built-ins, this tool's own files, and tools/lib/. The rules every
+ * shipped script follows are stated once, in system/templates/Script Contract.md.
  */
 
 import { execFileSync } from 'node:child_process';
 import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+
+import { flagAuthorised, installAuthorised, writeConsent } from '../../lib/consent.js';
 
 import {
   DEFAULT_SCALE as HTML_DEFAULT_SCALE,
@@ -69,7 +70,8 @@ import {
   validateWidth
 } from './url-core.js';
 
-const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const HERE = fileURLToPath(import.meta.url);
+const SCRIPT_DIR = dirname(HERE);
 const TOOL_DIR = resolve(SCRIPT_DIR, '..');
 const RUNTIME_DIR = resolve(SCRIPT_DIR, '..', '..', 'lib', 'browser-runtime');
 
@@ -80,8 +82,6 @@ const PLAYWRIGHT_CLI = join(RUNTIME_DIR, 'node_modules', 'playwright', 'cli.js')
 const BROWSER_CHECK = 'npm run check:chromium';
 const SVG_FONT_SETTLE_MS = 500;
 const LAUNCH_OPTIONS = { headless: true };
-
-const INSTALL_AUTHORISED = process.argv.includes('--install') || process.env.WISER_ALLOW_INSTALL === '1';
 
 const SUBCOMMANDS = new Set(['html', 'svg', 'mermaid', 'url', 'check']);
 
@@ -110,9 +110,11 @@ Commands:
 
 Run "node scripts/render.js <command> help" for that command's options.
 
-  --install   Authorise the first-run install. Without it a tool that is
-              not installed yet reports what it would fetch, and from
-              where, and stops. WISER_ALLOW_INSTALL=1 does the same
+  --install   Authorise the first install in this copy of the plugin.
+              Without it, the first command that needs a package this
+              copy has not installed reports what it would fetch, and
+              from where, and stops. That answer covers every later
+              tool in this copy. WISER_ALLOW_INSTALL=1 does the same
               for an unattended run.
   --help, -h       Print this message
 
@@ -144,9 +146,11 @@ Options:
                    Default ${HTML_DEFAULT_TIMEOUT_MS}.
   --overwrite      Replace a file already at --output. Without it, a run that
                    would replace one refuses.
-  --install Authorise the first-run install. Without it a tool that is
-          not installed yet reports what it would fetch, and from
-          where, and stops. WISER_ALLOW_INSTALL=1 does the same
+  --install Authorise the first install in this copy of the plugin.
+          Without it, the first command that needs a package this
+          copy has not installed reports what it would fetch, and
+          from where, and stops. That answer covers every later
+          tool in this copy. WISER_ALLOW_INSTALL=1 does the same
           for an unattended run.
   --help           Print this message
 
@@ -178,9 +182,11 @@ Options:
                    references (default: ${SVG_DEFAULT_TIMEOUT_MS}).
   --overwrite      Replace an existing file at --output. Without it, a run that
                    would replace one refuses.
-  --install Authorise the first-run install. Without it a tool that is
-          not installed yet reports what it would fetch, and from
-          where, and stops. WISER_ALLOW_INSTALL=1 does the same
+  --install Authorise the first install in this copy of the plugin.
+          Without it, the first command that needs a package this
+          copy has not installed reports what it would fetch, and
+          from where, and stops. That answer covers every later
+          tool in this copy. WISER_ALLOW_INSTALL=1 does the same
           for an unattended run.
   --help           Print this message
 
@@ -213,9 +219,11 @@ Options:
                    (default: ${MERMAID_DEFAULTS.timeout})
   --overwrite      Replace a file already at --output. Without it, an occupied
                    path is refused.
-  --install Authorise the first-run install. Without it a tool that is
-          not installed yet reports what it would fetch, and from
-          where, and stops. WISER_ALLOW_INSTALL=1 does the same
+  --install Authorise the first install in this copy of the plugin.
+          Without it, the first command that needs a package this
+          copy has not installed reports what it would fetch, and
+          from where, and stops. That answer covers every later
+          tool in this copy. WISER_ALLOW_INSTALL=1 does the same
           for an unattended run.
   --help           Print this message
 
@@ -244,9 +252,11 @@ Options:
                    stop. Default ${URL_DEFAULT_TIMEOUT_MS}; minimum 1000.
   --full-page      Capture the whole scrollable page instead of the viewport.
   --overwrite      Replace the file at --output when one is already there.
-  --install Authorise the first-run install. Without it a tool that is
-          not installed yet reports what it would fetch, and from
-          where, and stops. WISER_ALLOW_INSTALL=1 does the same
+  --install Authorise the first install in this copy of the plugin.
+          Without it, the first command that needs a package this
+          copy has not installed reports what it would fetch, and
+          from where, and stops. That answer covers every later
+          tool in this copy. WISER_ALLOW_INSTALL=1 does the same
           for an unattended run.
   --help           Print this message
 
@@ -268,9 +278,11 @@ Commands:
   help             Print this message
 
 Options:
-  --install Authorise the first-run install. Without it a tool that is
-          not installed yet reports what it would fetch, and from
-          where, and stops. WISER_ALLOW_INSTALL=1 does the same
+  --install Authorise the first install in this copy of the plugin.
+          Without it, the first command that needs a package this
+          copy has not installed reports what it would fetch, and
+          from where, and stops. That answer covers every later
+          tool in this copy. WISER_ALLOW_INSTALL=1 does the same
           for an unattended run.
   --help           Print this message
 
@@ -388,15 +400,15 @@ function installPlan(needsMermaid) {
 }
 
 function requireInstallConsent(what, { needsMermaid = false } = {}) {
-  if (INSTALL_AUTHORISED) return;
+  if (installAuthorised(HERE)) return;
   if (what === 'browser') {
     fail(
-      `Error: this tool's packages are installed but the Chromium build they drive is not, and this run did not authorise an install. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+      `Error: this tool's packages are installed but the Chromium build they drive is not, and this copy of the plugin has not authorised an install. The plugin asks once, on the first install in this copy. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
     );
   }
   const { packages, size } = installPlan(needsMermaid);
   fail(
-    `Error: this tool is not installed yet and this run did not authorise an install. ${packages}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+    `Error: this tool is not installed yet and this copy of the plugin has not authorised an install. The plugin asks once, on the first install in this copy. ${packages}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
   );
 }
 
@@ -1086,11 +1098,11 @@ async function runCheck(argv) {
   const usageCmd = 'node scripts/render.js help';
   refuseUnknown(argv, URL_VALUE_FLAGS, URL_BARE_FLAGS, usageCmd);
 
-  if (!existsSync(PLAYWRIGHT_MARKER) && INSTALL_AUTHORISED) {
+  if (!existsSync(PLAYWRIGHT_MARKER) && flagAuthorised()) {
     ensurePlaywright();
   }
 
-  if (INSTALL_AUTHORISED) await ensureChromium();
+  if (flagAuthorised()) await ensureChromium();
 
   if (browserSurvey === null && !existsSync(PLAYWRIGHT_MARKER)) {
     browserSurvey = {
@@ -1121,6 +1133,8 @@ if (argv[1] === 'help' || argv.includes('--help') || argv.includes('-h')) {
   process.stdout.write(`${SUB_USAGE[command]}\n`);
   process.exit(0);
 }
+
+if (command !== 'check') writeConsent(HERE, 'render');
 
 if (command === 'html') await runHtml(argv);
 else if (command === 'svg') await runSvg(argv);

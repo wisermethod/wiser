@@ -16,11 +16,11 @@ Use it whenever a question turns on what a site publishes rather than on what a 
 
 Do not use `fetch` to judge what it collects. It reports the URLs a site publishes and nothing about their quality, ranking, or worth; clustering, gap analysis, and roadmaps belong to the skills and experts that call it. Do not use it to learn whether a URL is indexed either, which is a search platform's answer. It fetches pages of markup, so it is not a crawler and follows no link that is not a sitemap entry. Offline mode reads only the files the caller names and follows no child loc a local index declares.
 
-Do not use `diff` to fetch or refresh a sitemap; that is `fetch`, which produces the snapshots `diff` reads. Do not reach for `diff` on a first run: one snapshot has nothing to compare against, and the answer is to keep it as the baseline and diff the next one against it. Do not expect judgment from it. It reports what moved, never what the movement means.
+Do not use `diff` to fetch or refresh a sitemap; that is `fetch`, which produces the snapshots `diff` reads. Do not reach for `diff` against a single snapshot: one snapshot has nothing to compare against, and the answer is to keep it as the baseline and diff the next one against it. Do not expect judgment from it. It reports what moved, never what the movement means.
 
 `diff` compares one site with its earlier self. Snapshots of two different sites are a caller mistake rather than a comparison, and a run whose snapshots name different domains says so in its result and still reports every URL on one side as added and every URL on the other as removed.
 
-It authenticates to nothing, holds no credential, and reaches no other primitive. After the first-run install described in `tools/AGENTS.md`, `fetch` in network mode requests only the addresses its input names and the child sitemaps those name, none of which may be an address inside this machine or its network. `diff` makes no network request. A file is written only when the caller asks for one.
+It authenticates to nothing, holds no credential, and reaches no other primitive. After the packages described in `tools/AGENTS.md` are installed, `fetch` in network mode requests only the addresses its input names and the child sitemaps those name, none of which may be an address inside this machine or its network. `diff` makes no network request. A file is written only when the caller asks for one.
 
 ## Quick Start
 
@@ -34,7 +34,7 @@ Usage text listing the two subcommands, with nothing installed. `node scripts/si
 node scripts/sitemap.js fetch --domain example.com
 ```
 
-The first real `fetch` reports that it would install `undici` in this tool's directory, and stops. With `--install` it installs and does the work in the same run and prints one JSON object:
+If this copy of the plugin has not yet authorised an install, `fetch` reports that it would install `undici` in this tool's directory, and stops. `--install` on that run is the answer: it installs and does the work, and later tools in this copy install without asking. It prints one JSON object:
 
 ```
 {"domain":"example.com","fetchedAt":"2026-07-27","sitemaps":["https://example.com/sitemap.xml"],"urls":[{"loc":"https://example.com/guide/naming","path":"/guide/naming","slug":"naming","segment":"guide","lastmod":"2026-06-02"}],"count":1,"truncated":false}
@@ -56,7 +56,7 @@ Anything else, see Troubleshooting.
 
 ## Script Contract
 
-Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help answered before the dependency check, the consent-gated dependency install, closed unknown flags, and the stdout and stderr rules. `fetch` writes a snapshot file only when `--output` names a directory outside this tool directory. `diff` writes a report file only when `--output` names a file outside this tool directory. Every other write a run makes is a first-run install, and `tools/AGENTS.md` is the only place this repository lists those. `fetch` checks for and imports `undici`; `diff` does not. `help` does not. The contract's `--env` clause has nothing to bind here, and the tool carries no Dependencies section because `undici` installs by the first-run check and Node covers the rest. The sections below state what each command does; the contract states how the script behaves getting there.
+Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, help answered before the dependency check, the consent-gated dependency install, closed unknown flags, and the stdout and stderr rules. `fetch` writes a snapshot file only when `--output` names a directory outside this tool directory. `diff` writes a report file only when `--output` names a file outside this tool directory. Every other write a run makes is a package install, and `tools/AGENTS.md` is the only place this repository lists those. `fetch` checks for and imports `undici`; `diff` does not. `help` does not. The contract's `--env` clause has nothing to bind here, and the tool carries no Dependencies section because `undici` installs by the consent-gated check and Node covers the rest. The sections below state what each command does; the contract states how the script behaves getting there.
 
 This tool needs no credentials and no configuration file, so no command takes `--env` and nothing here resolves a Provides binding.
 
@@ -215,7 +215,7 @@ Both path options can be pointed at any file on the machine, including one holdi
 
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `this tool is not installed yet and this run did not authorise an install` | First `fetch` in this copy, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. `WISER_ALLOW_INSTALL=1` authorises an unattended run. `diff` never stops for an install |
+| `this tool is not installed yet and this copy of the plugin has not authorised an install` | First `fetch` in this copy of the plugin, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. Later tools in this copy install without asking. `WISER_ALLOW_INSTALL=1` authorises an unattended run. `diff` never stops for an install |
 | `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around |
 | `Error: fetch needs --domain <host>, at least one --url <sitemap url>, or at least one --file <path>` | The command ran with nothing to fetch | Pass one of them |
 | `Error: fetch takes either network seeds (--domain / --url) or offline seeds (--file), not both` | Network and offline seeds were mixed | Use only `--domain`/`--url`, or only `--file` |
@@ -275,4 +275,4 @@ Both path options can be pointed at any file on the machine, including one holdi
 - A snapshot carrying `truncated` or a non-empty `errors` still diffs and still exits 0, with `sourceIncomplete` naming the side and the reason; a pair of complete snapshots carries no `sourceIncomplete` key at all.
 - A required flag omitted, a bad `--date` or `--max`, or an unknown option exits 1 with the cause on stderr and stdout empty, and triggers no dependency install when the mistake is a usage one. `diff` never stops for an install.
 - An unknown option is refused by name before any install, read, or write.
-- No run reads a credential. After the first-run install, `fetch` contacts only the addresses its input names. `diff` opens no network connection. The install itself reaches `registry.npmjs.org`. The writes are what `tools/AGENTS.md` lists a first run installing, and the file `--output` asked for.
+- No run reads a credential. After packages are installed, `fetch` contacts only the addresses its input names. `diff` opens no network connection. The install itself reaches `registry.npmjs.org`. The writes are what `tools/AGENTS.md` lists an install writing, and the file `--output` asked for.

@@ -44,7 +44,7 @@ node scripts/harvest.js validate --request /path/to/a/work/directory/weekly.harv
 {"ok":true,"name":"weekly-roundup","sources":2}
 ```
 
-Then run it. The first real run reports that it would install dependencies, and stops. With `--install` it installs and does the work in the same run.
+Then run it. If this copy of the plugin has not yet authorised an install, the run reports that it would install dependencies, and stops. `--install` on that run is the answer; later tools in this copy install without asking.
 
 ```bash
 node scripts/harvest.js run --request /path/to/a/work/directory/weekly.harvest.json
@@ -91,7 +91,7 @@ This tool authenticates to nothing, holds no credential, and invokes no other pr
 
 ## Script Contract
 
-Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, the dependency check, help without configuration, and the stdout and stderr rules. Everything a run of this tool writes, and where, is listed in `tools/AGENTS.md`, which is the only place this repository states it. Two of its rules are worth knowing before the first run, because they are what a request most often collides with.
+Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, the dependency check, help without configuration, and the stdout and stderr rules. Everything a run of this tool writes, and where, is listed in `tools/AGENTS.md`, which is the only place this repository states it. Two of its rules are worth knowing before a harvest, because they are what a request most often collides with.
 
 The request file and the output directory must both resolve outside this tool's own directory, and either one pointing inside it is refused before anything is installed and before anything is fetched. Containment is decided by the path's real identity, its device and inode, rather than by how it is spelled, so a differently cased name for this directory and a symbolic link onto it are refused exactly as the direct spelling is. Per `standards/conventions.md` both belong in the owning root's work directory.
 
@@ -109,7 +109,7 @@ A source that fails does not fail the run. It becomes an entry in `errors` and t
 
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `this tool is not installed yet and this run did not authorise an install` | First run in this copy, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
+| `this tool is not installed yet and this copy of the plugin has not authorised an install` | First install in this copy of the plugin, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. Later tools in this copy install without asking. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
 | `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile is present and matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand |
 | `no file at <path>` | The path given to `--request` does not exist | Check the path; an absolute one cannot be misread |
 | `<path> is not valid JSON` | The request file is malformed, or the path landed on something that is not a request | Run `sample` for a request this tool accepts. The parser's own message is withheld on purpose: it quotes the first bytes of whatever it was handed |

@@ -15,8 +15,10 @@ import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { destinationReason, destinationReasonText } from './lib/destination.js';
+import { installAuthorised, writeConsent } from '../../lib/consent.js';
 
-const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const HERE = fileURLToPath(import.meta.url);
+const SCRIPT_DIR = dirname(HERE);
 const TOOL_DIR = resolve(SCRIPT_DIR, '..');
 
 // Names this tool and nothing about who is running it.
@@ -190,15 +192,15 @@ function installPlan() {
 // "this tool is not installed yet", nor name a registry fetch and an npm cache
 // write that this install will not make.
 function requireInstallConsent(what) {
-  if (process.argv.includes('--install') || process.env.WISER_ALLOW_INSTALL === '1') return;
+  if (installAuthorised(HERE)) return;
   if (what === 'browser') {
     fail(
-      `Error: this tool's packages are installed but the Chromium build they drive is not, and this run did not authorise an install. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+      `Error: this tool's packages are installed but the Chromium build they drive is not, and this copy of the plugin has not authorised an install. The plugin asks once, on the first install in this copy. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
     );
   }
   const { list, hosts, size } = installPlan();
   fail(
-    `Error: this tool is not installed yet and this run did not authorise an install. Installing fetches ${list} from ${hosts} into ${TOOL_DIR}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+    `Error: this tool is not installed yet and this copy of the plugin has not authorised an install. The plugin asks once, on the first install in this copy. Installing fetches ${list} from ${hosts} into ${TOOL_DIR}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
   );
 }
 
@@ -290,24 +292,26 @@ export async function runFetch(argv) {
     if (bad) fail(bad);
   }
 
+  writeConsent(HERE, 'sitemap');
+
   if (!existsSync(UNDICI_MARKER)) {
-  requireInstallConsent('packages');
-  process.stderr.write('First run: installing dependencies in this tool directory.\n');
-  try {
-    execFileSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['ci'], {
-      cwd: TOOL_DIR,
-      stdio: ['ignore', 'ignore', 'inherit']
-    });
-  } catch {
-    // Two different failures arrive here and they have different fixes, so the
-    // Script Contract's Output and errors clause requires telling them apart:
-    // an unwritable tool directory is not a broken install, and telling someone
-    // to run "npm ci" by hand where they cannot write cannot succeed.
-    if (!isWritable(TOOL_DIR)) {
-      fail(`Error: cannot install dependencies because ${TOOL_DIR} is not writable. This tool installs its dependencies into its own directory on the run that authorises it with --install, so that directory has to be writable. Install this plugin somewhere you own, or make that directory writable, then run the command again.`);
+    requireInstallConsent('packages');
+    process.stderr.write('First run: installing dependencies in this tool directory.\n');
+    try {
+      execFileSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['ci'], {
+        cwd: TOOL_DIR,
+        stdio: ['ignore', 'ignore', 'inherit']
+      });
+    } catch {
+      // Two different failures arrive here and they have different fixes, so the
+      // Script Contract's Output and errors clause requires telling them apart:
+      // an unwritable tool directory is not a broken install, and telling someone
+      // to run "npm ci" by hand where they cannot write cannot succeed.
+      if (!isWritable(TOOL_DIR)) {
+        fail(`Error: cannot install dependencies because ${TOOL_DIR} is not writable. This tool installs its dependencies into its own directory on the run that authorises it with --install, so that directory has to be writable. Install this plugin somewhere you own, or make that directory writable, then run the command again.`);
+      }
+      fail(`Error: npm ci failed in ${TOOL_DIR}. Confirm Node 18 or newer, then that package-lock.json is present and matches package.json, which is what npm ci requires. A lockfile missing or out of step with the manifest is a defect in this copy of the plugin, not something a re-run fixes.`);
     }
-    fail(`Error: npm ci failed in ${TOOL_DIR}. Confirm Node 18 or newer, then that package-lock.json is present and matches package.json, which is what npm ci requires. A lockfile missing or out of step with the manifest is a defect in this copy of the plugin, not something a re-run fixes.`);
-  }
   }
   {
     const server =

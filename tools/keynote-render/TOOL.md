@@ -18,7 +18,7 @@ Use it when the deliverable is a Keynote file: a deck someone will open, edit, a
 
 Do not use it to author a deck in HTML: reveal.js decks belong to `skills/Create Presentation/`. Do not use it to decide what the slides say. It places the text it is handed; the writing discipline and visual review belong to the skill that calls this tool.
 
-It runs on macOS with Keynote installed, and nowhere else. It authenticates to nothing, holds no credential, takes no `--env`, and after the first-run install it opens no network connection. The install itself reaches `registry.npmjs.org`, per `tools/AGENTS.md`.
+It runs on macOS with Keynote installed, and nowhere else. It authenticates to nothing, holds no credential, takes no `--env`, and after packages are installed it opens no network connection. The install itself reaches `registry.npmjs.org`, per `tools/AGENTS.md`.
 
 ## Workstream (primary)
 
@@ -239,11 +239,11 @@ node scripts/render.js delete-slide --deck /abs/deck.key --slide 5 --confirm
 
 ## Script Contract
 
-The scripts follow `system/templates/Script Contract.md`: self-contained imports, help before anything else, the npm dependency check, stdout/stderr rules, absolute paths, refusal of unknown flags, no writes inside this tool directory beyond the first-run install. Everything a run of this tool writes, and where, is listed in `tools/AGENTS.md`, which is the only place this repository states it. The `zArchive/` copy taken before every in-place edit has a row of its own there, because its default path is derived from `--deck` rather than named by the caller.
+The scripts follow `system/templates/Script Contract.md`: self-contained imports, help before anything else, the npm dependency check, stdout/stderr rules, absolute paths, refusal of unknown flags, no writes inside this tool directory beyond a package install. Everything a run of this tool writes, and where, is listed in `tools/AGENTS.md`, which is the only place this repository states it. The `zArchive/` copy taken before every in-place edit has a row of its own there, because its default path is derived from `--deck` rather than named by the caller.
 
 Replacing an existing **output file** from `build` / `snapshot` / `export` is opt-in via `--confirm`. Mutating an existing **deck** is also opt-in via `--confirm`, and always preceded by a `zArchive/` copy when the deck already exists.
 
-Only a brand file needs an installed package; the first branded command reports what it would install and stops, and the same command with `--install` installs and does the work in one run.
+Only a brand file needs an installed package; if this copy has not yet authorised an install, the first branded command reports what it would install and stops, and `--install` on that run is the answer. Later tools in this copy install without asking.
 
 ## Output
 
@@ -269,7 +269,7 @@ Failure: empty stdout, cause and fix on stderr, exit 1.
 
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `this tool is not installed yet and this run did not authorise an install` | First run in this copy, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
+| `this tool is not installed yet and this copy of the plugin has not authorised an install` | First install in this copy of the plugin, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. Later tools in this copy install without asking. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
 | `npm ci failed` | Node missing or old, directory not writable, or the lockfile missing or out of step with the manifest | Node 18+, confirm `package-lock.json` matches `package.json`, then delete `node_modules/` and run `npm ci`. See SETUP.md |
 | `missing osascript` / `missing Keynote` | Wrong host or Keynote not installed | Dependencies section; install steps live nowhere in this tool |
 | `Keynote automation is not permitted for this terminal` | macOS Automation denial | System Settings → Privacy & Security → Automation |

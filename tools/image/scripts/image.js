@@ -7,9 +7,8 @@
  *   node scripts/image.js edit --file <path> --output <path> [operations]
  *   node scripts/image.js compose --base <path> --overlay <path> [--output <path>] [--overwrite] [--confirm]
  *
- * Node built-ins only above the dependency check; nothing here imports from
- * outside this tool directory. The rules every shipped script follows are
- * stated once, in system/templates/Script Contract.md.
+ * Node built-ins, this tool's own files, and tools/lib/. The rules every
+ * shipped script follows are stated once, in system/templates/Script Contract.md.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -25,6 +24,8 @@ import {
 } from 'node:fs';
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { installAuthorised, writeConsent } from '../../lib/consent.js';
 
 import {
   ALPHA_ENCODERS,
@@ -49,7 +50,8 @@ import {
   samePath
 } from './edit-core.js';
 
-const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const HERE = fileURLToPath(import.meta.url);
+const SCRIPT_DIR = dirname(HERE);
 const TOOL_DIR = resolve(SCRIPT_DIR, '..');
 
 // One installed package's own manifest. An interrupted install leaves
@@ -87,9 +89,11 @@ Commands:
 
 Run "node scripts/image.js <command> help" for that command's options.
 
-  --install   Authorise the first-run install. Without it a tool that is
-              not installed yet reports what it would fetch, and from
-              where, and stops. WISER_ALLOW_INSTALL=1 does the same
+  --install   Authorise the first install in this copy of the plugin.
+              Without it, the first command that needs a package this
+              copy has not installed reports what it would fetch, and
+              from where, and stops. That answer covers every later
+              tool in this copy. WISER_ALLOW_INSTALL=1 does the same
               for an unattended run.
   --help, -h       Print this message
 
@@ -136,9 +140,11 @@ Operations, applied in this order:
 Other:
   --overwrite         Replace a file already at --output. Without it, an
                       occupied path is refused and nothing is written.
-  --install Authorise the first-run install. Without it a tool that is
-          not installed yet reports what it would fetch, and from
-          where, and stops. WISER_ALLOW_INSTALL=1 does the same
+  --install Authorise the first install in this copy of the plugin.
+          Without it, the first command that needs a package this
+          copy has not installed reports what it would fetch, and
+          from where, and stops. That answer covers every later
+          tool in this copy. WISER_ALLOW_INSTALL=1 does the same
           for an unattended run.
   --help              Print this message
 
@@ -171,9 +177,11 @@ Options:
   --confirm          Permits an in-place run, which destroys the base image
                      irrecoverably. Opt-in; never prompted for. --overwrite does
                      not stand in for it, and it does not stand in for --overwrite.
-  --install Authorise the first-run install. Without it a tool that is
-          not installed yet reports what it would fetch, and from
-          where, and stops. WISER_ALLOW_INSTALL=1 does the same
+  --install Authorise the first install in this copy of the plugin.
+          Without it, the first command that needs a package this
+          copy has not installed reports what it would fetch, and
+          from where, and stops. That answer covers every later
+          tool in this copy. WISER_ALLOW_INSTALL=1 does the same
           for an unattended run.
   --help             Print this message
 
@@ -258,15 +266,15 @@ function installPlan() {
 }
 
 function requireInstallConsent(what) {
-  if (process.argv.includes('--install') || process.env.WISER_ALLOW_INSTALL === '1') return;
+  if (installAuthorised(HERE)) return;
   if (what === 'browser') {
     fail(
-      `Error: this tool's packages are installed but the Chromium build they drive is not, and this run did not authorise an install. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+      `Error: this tool's packages are installed but the Chromium build they drive is not, and this copy of the plugin has not authorised an install. The plugin asks once, on the first install in this copy. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
     );
   }
   const { list, hosts, size } = installPlan();
   fail(
-    `Error: this tool is not installed yet and this run did not authorise an install. Installing fetches ${list} from ${hosts} into ${TOOL_DIR}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+    `Error: this tool is not installed yet and this copy of the plugin has not authorised an install. The plugin asks once, on the first install in this copy. Installing fetches ${list} from ${hosts} into ${TOOL_DIR}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
   );
 }
 
@@ -881,6 +889,8 @@ if (argv[1] === 'help' || argv.includes('--help') || argv.includes('-h')) {
   process.stdout.write(`${SUB_USAGE[command]}\n`);
   process.exit(0);
 }
+
+writeConsent(HERE, 'image');
 
 if (command === 'edit') await runEdit(argv);
 else if (command === 'compose') await runCompose(argv);

@@ -1,19 +1,20 @@
 # Tools
 
-Deterministic operations that skills and experts call; `standards/primitives.md` owns the type. What a script does when you run it is `tools/RUNNING.md`; the contract its author followed is `standards/script-contract.md`.
+Deterministic operations that skills and experts call; `standards/primitives.md` owns the type. Running one is `tools/RUNNING.md`; the contract is `standards/script-contract.md`.
 
 ## Installing
 
-A tool ships its manifest and never its packages. The first run that needs them reports what it would fetch and stops; `--install` on the same command installs and finishes the work (`tools/RUNNING.md`). Packages land in the tool's own directory, per copy of the plugin, so the plugin directory has to be writable. Playwright for the three browser tools lands once in `tools/lib/browser-runtime/`. An install writes nothing this repository ships.
+A tool ships its manifest and never its packages. The plugin asks once, on the first install in this copy; `--install` on that run is the answer, and later tools install without asking (`tools/RUNNING.md`). Packages land in the tool's own directory, per copy of the plugin, so the plugin directory has to be writable. Playwright for the three browser tools lands once in `tools/lib/browser-runtime/`. An install writes nothing this repository ships.
 
 **Hosts an install reaches.** `registry.npmjs.org` for a Node tool; `cdn.playwright.dev`, with `playwright.download.prss.microsoft.com` as fallback, for a Chromium build; `pypi.org`, `files.pythonhosted.org` and `openaipublic.azureedge.net` for `Transcribe Audio`. At run time a deck or a diagram may name `cdn.jsdelivr.net` or `cdnjs.cloudflare.com` for its own assets.
 
 ## Everything a tool writes, and where
 
-This is the one list; a tool's own pages point here rather than restating it.
+The one list; a tool's pages point here.
 
 | What | Where | Which tools |
 |------|-------|-------------|
+| Plugin consent marker | `.wiser-consent` at the plugin root | every tool that installs |
 | Node packages | `node_modules/` in the tool's directory | the 8 tools whose `package.json` declares a dependency |
 | npm's cache and logs | npm's configured cache, `~/.npm` by default, outside this plugin | the same 8, and the shared browser runtime |
 | Python packages | `.venv/` in the tool's directory; pip's cache is switched off | `Transcribe Audio` |

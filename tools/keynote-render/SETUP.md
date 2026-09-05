@@ -2,7 +2,7 @@
 
 Once per machine. Skip it if `themes` already prints a list of theme names.
 
-**Once per machine covers the system dependencies below, not the packages.** A system dependency named below is installed once and every copy of this plugin then finds it; a tool's own packages install per copy of the plugin, on the first run that authorises them with `--install`, and a plugin manager that keeps each version in its own directory needs that authorisation again after an update. `tools/AGENTS.md` lists everything a run of a tool writes and where, and is the only place this repository states it.
+**Once per machine covers the system dependencies below, not the packages.** A system dependency named below is installed once and every copy of this plugin then finds it; a tool's own packages install per copy of the plugin, after the first `--install` in this copy, and a plugin manager that keeps each version in its own directory needs that authorisation again after an update. `tools/AGENTS.md` lists everything a run of a tool writes and where, and is the only place this repository states it.
 
 Run every command below from this tool's directory. macOS only: the tool drives Keynote through JXA, which exists nowhere else.
 
@@ -16,7 +16,7 @@ node --version
 
 ## 2. Dependency
 
-Nothing to run by hand. The entry script installs its packages on the first build that reads a brand file, given `--install`, and reports what it would fetch rather than installing without one. A build with no brand file needs nothing installed. This tool holds no credentials, so there is nothing else to configure and no `--env` to resolve.
+Nothing to run by hand. The plugin asks once, on the first install in this copy; `--install` on that run is the answer, and later tools install without asking. A build with no brand file needs nothing installed. This tool holds no credentials, so there is nothing else to configure and no `--env` to resolve.
 
 ## 3. Runtimes
 
@@ -34,7 +34,7 @@ macOS blocks one program from controlling another until you allow it, per termin
 node scripts/render.js themes
 ```
 
-The first run raises a macOS prompt asking whether your terminal may control Keynote; allow it, and the command prints the installed theme names. If no prompt appears and the command reports that automation is not permitted, open System Settings, Privacy & Security, Automation, find your terminal in the list, and enable Keynote under it. A terminal that was already denied never prompts again, so the setting is the only way back.
+The first `themes` run raises a macOS prompt asking whether your terminal may control Keynote; allow it, and the command prints the installed theme names. If no prompt appears and the command reports that automation is not permitted, open System Settings, Privacy & Security, Automation, find your terminal in the list, and enable Keynote under it. A terminal that was already denied never prompts again, so the setting is the only way back.
 
 The grant belongs to the terminal application, not to this tool, so a different terminal, or one reinstalled, asks again.
 
