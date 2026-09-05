@@ -44,7 +44,7 @@ Five rules bind it. The full set of standing rules in `full-path.md` binds the f
 1. **Nothing enters a memory file that this person did not say or a supplied file does not say.** A sentence about a real person that nobody in the workspace said is a fabrication with its source line missing. Prevents: a plausible role, employer, or location written from the model's own knowledge.
 2. **Every claim carries its source in place.** A fact the person told you in this conversation is `(Firsthand: <their name>)`. A fact read from a file they supplied names the file. A heading nothing answers takes one of the four evidence labels from `standards/conventions.md`, written in square brackets where the answer would have been, never a sentence of invention and never a fifth label. Prevents: a memory file a later session cannot tell apart from a guess.
 3. **The read-back is a separate pass.** After the files are written, read each claim back against what the person said or the file it names, in a pass distinct from the one that wrote it. A claim the pass cannot find becomes `[Unverified: requires confirmation]` in place. Prevents: a transcription slip bound as a fact.
-4. **A credential's value never enters the conversation, a file, or a log.** `memory/secrets/` holds a credential by name, where it is held, and who reaches it. A value pasted into the conversation is treated as compromised: have the person revoke it at the platform and issue a new one. Prevents: a key living in a memory file that every session loads.
+4. **A credential's value never enters the conversation, a file, or a log.** `memory/secrets/` is where the person puts a credential file themselves, one `KEY=value` line per credential, and you never write into it. A credential the person mentions is recorded under Key Facts in `about.md` by name, with who holds it, never by value. A value pasted into the conversation is treated as compromised: have the person revoke it at the platform and issue a new one. Prevents: a key living in a memory file that every session loads.
 5. **Ask only what cannot be inferred.** The person's name as they spell it and the destination are asked when they are not already given. Nothing else is asked before the files exist; the read-back pass produces the sharper questions. Prevents: an interview that outlasts the person's patience before a file exists.
 
 ### Step 1: Copy
@@ -85,7 +85,7 @@ Onboarded <date> on the personal path of `skills/Onboard Root/`. A deliverable t
 - design: complete
 ```
 
-A key is **complete** when every heading is answered or labeled and every claim survived the read-back. It is **provisional** when the file is usable and a named gap remains, with an owner and what it waits on in the same line. It is **blocked** when the file is not usable, with the blocker named as a person, a credential, or a capability. Nothing in the section is ever deleted; a later session updates a line when a key closes.
+A key is **complete** when every heading is answered or labeled, at least one is answered, and every claim survived the read-back. It is **provisional** when the file is usable and a named gap remains, with an owner and what it waits on in the same line; a file whose every heading is a label is provisional, not complete, with the person as owner. It is **blocked** when the file is not usable, with the blocker named as a person, a credential, or a capability. Nothing in the section is ever deleted; a later session updates a line when a key closes.
 
 Then tell the person what is in the three files, which keys are provisional, and what closes them. No run record, no close report, no operating file: the state lines are the record.
 
@@ -107,7 +107,7 @@ It is a check, not a step. A personal root that never runs it is onboarded; one 
 
 - **An ambiguous request.** The path, the real name, or the destination left to inference: ask before copying anything. Each one is expensive to change once paths point at the root.
 - **Over-asking when the answer is already given.** Destination already established, or the root's type already settled by its own declaration: proceed.
-- **A credential value reaching the conversation.** Pasted by the requester, read back for confirmation, or copied into a note: treat it as compromised, have them revoke it, and record only the name and where it is held.
+- **A credential value reaching the conversation.** Pasted by the requester, read back for confirmation, or copied into a note: treat it as compromised, have them revoke it, and record only the name under Key Facts.
 - **A root filled from the model's own knowledge.** A plausible sentence about a real person that nobody in the workspace said is a fabrication with its source line missing. Ask, or label.
 - **A copy confirmed only by the tool that wrote it.** On a host with more than one way to reach the destination, those ways can disagree while each reports success. Confirm through a second one where it exists.
 - **Taking the full path for a personal root because it is more thorough.** It is longer, not more true: its records exist for claims that reach outsiders. A personal root that ran the full path has a run record nobody reads and an interview the person did not need.
