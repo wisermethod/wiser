@@ -57,6 +57,10 @@ Counted 2026-09-06: 39 gaps across 20 primitives; the thirty-sixth is the IT Exp
 - application screen assembly (dashboard, settings, admin panel)
 - brand mark and logo creation
 
+### External Research
+
+- a web search or fetch capability, without which the run proceeds over supplied sources alone and, with none, stops
+
 ### Funnel Design
 
 - earned media judgment, whether something is a story and who to pitch it to

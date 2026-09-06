@@ -3,7 +3,9 @@ name: External Research
 type: skill
 category: research
 description: Gather and credibility-tag sources on a question, surfacing contradictions, returning an evidence package to a calling expert or skill or a verified, confidence-rated brief to a user asking directly
-version: 0.2.0
+version: 0.2.1
+gaps:
+  - a web search or fetch capability, without which the run proceeds over supplied sources alone and, with none, stops
 ---
 
 # External Research
