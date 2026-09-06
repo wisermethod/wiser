@@ -13,7 +13,7 @@ Counted 2026-09-06: 39 gaps across 20 primitives; the thirty-sixth is the IT Exp
 ### Conversion Advisor
 
 - analytics readings pulled from a site's own account
-- behaviour readings pulled from a site's own account
+- behavior readings pulled from a site's own account
 - page-speed readings
 
 ### IT Expert

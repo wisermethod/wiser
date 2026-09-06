@@ -35,7 +35,7 @@ The writing skills and the judging experts run on any model that can read the fi
 
 ## What it does not do yet
 
-This release ships skills, experts, tools, and standards. **It does not ship connectors**, so nothing here reads from an account you hold: analytics, behaviour and search-console figures, keyword research, email address verification, DNS and zone changes, and the vision and image-generation models two skills can use when they are present. Those primitives say so at the step rather than guessing the numbers.
+This release ships skills, experts, tools, and standards. **It does not ship connectors**, so nothing here reads from an account you hold: analytics, behavior and search-console figures, keyword research, email address verification, DNS and zone changes, and the vision and image-generation models two skills can use when they are present. Those primitives say so at the step rather than guessing the numbers.
 
 **Automated site crawling is not here either**, and unlike the readings above it is not waiting on a connector: nothing in this release crawls a site, and the SEO primitives take the pages and sitemaps you give them rather than discovering them.
 

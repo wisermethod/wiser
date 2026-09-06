@@ -268,7 +268,7 @@ describe('aggregate', () => {
 
   // A GROUP WITH NO NUMERIC VALUE AT ALL.
   //
-  // This behaviour changed and shipped with nothing testing it: the fix that
+  // This behavior changed and shipped with nothing testing it: the fix that
   // made an average of nothing `null` instead of `0` touched only the core, and
   // all 23 tests here passed against the defect afterwards -- a later reviewer
   // reverted the one line and the suite stayed green. TOOL.md described the old

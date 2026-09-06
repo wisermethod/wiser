@@ -272,7 +272,7 @@ function flagList(name) {
 //     to fix it, because `LAUNCH_OPTIONS` reads argv directly and this did not.
 //
 // Twelve call sites read this. The destructive gate at the top of the file
-// happens to fail SAFE under the old behaviour; `--session` failed
+// happens to fail SAFE under the old behavior; `--session` failed
 // destructive. So it refuses instead of guessing, exactly as `flag()` already
 // does for a repeated value flag -- the Script Contract's rule against
 // silently dropping accepted input.
