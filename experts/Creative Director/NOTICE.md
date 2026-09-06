@@ -9,6 +9,9 @@ The three whole-layout clusters in the Prohibited Defaults Taxonomy, and the ope
 - Source: https://github.com/anthropics/skills/tree/main/skills/frontend-design
 - License: Apache 2.0
 - What was drawn on: the three whole-layout clusters, adapted from that skill, none verbatim. The clusters moved to this file when the taxonomy was made its single home.
+- Also drawn on, through the same absorbed primitive: grounding a design in its own subject's world, and spending boldness on a single signature element. Neither is verbatim.
+
+**A claim the absorbed primitive's attribution used to make and this file does not.** An earlier record said Impeccable builds on the Anthropic skill. Neither party says that: Impeccable's own `NOTICE.md` credits one upstream, `ehmo/platform-design-skills` under MIT, and never mentions Anthropic; the Anthropic skill never mentions Impeccable. The two sources are recorded here independently, which is all the evidence supports.
 
 ## Impeccable, by Paul Bakaus
 
@@ -17,6 +20,7 @@ The three whole-layout clusters in the Prohibited Defaults Taxonomy, and the ope
 - Source: https://github.com/pbakaus/impeccable
 - License: Apache 2.0
 - What was drawn on: the operation vocabulary and the shape of the audit and review passes. The wording of every operation here is this root's own; no passage is verbatim.
+- Also drawn on, since the verdict mode of this expert absorbed the primitive that used to carry it (2026-09-06): design principles, anti-pattern lists, and reference material from its skill and its reference files on typography, color and contrast, spatial design, motion, interaction, responsive behavior, and interface copy, read, distilled, and rewritten twice, once for the system this material was converted from and again against this root's standards. The upstream's reference files are named `typeset`, `colorize`, `layout`, `animate`, `clarify`, `adapt` and `bolder`.
 
 ## Section 4(d), read rather than assumed
 

@@ -16,21 +16,20 @@ The line starts at the left margin, carries nothing but the paths, backticked an
 
 | Expert | Description | Owns |
 |--------|-------------|------|
-| `Creative Director/EXPERT.md` | Evaluate and direct visual design, enforcing intentionality and catching generic AI-design patterns, and return findings with specific fixes | Not yet declared; a skill's own file names its gate until then |
-| `Design Advisor/EXPERT.md` | Judge a visual design against its brief and return a verdict whose findings each name what they fail and the concrete replacement or direction that clears it | Not yet declared; a skill's own file names its gate until then |
+| `Creative Director/EXPERT.md` | Direct visual design before it is made and judge it against its brief once it exists, enforcing intentionality and catching generic AI-design patterns, and return direction or a verdict whose findings each name what they fail and the fix that clears it | `skills/Color Palette Design/`, `skills/Component Design/`, `skills/Designer/`, `skills/Typography Design/`, `skills/Design System/`, `skills/Marketing Page Design/`, `skills/Create Presentation/`, `skills/Visualizer/`, `skills/Media Generator/`, `skills/Headshot Normalizer/`; a standalone component is gated at the caller's request; Media Generator and Headshot Normalizer take its direction before the first billed call |
 
 ### Marketing
 
 | Expert | Description | Owns |
 |--------|-------------|------|
-| `Conversion Advisor/EXPERT.md` | Diagnose why a site's visitors are not converting and return prioritized changes, each carrying its evidence, predicted effect, and effort | None: it judges a live site's readings, not a skill's output |
-| `Marketing Strategist/EXPERT.md` | Recommend a marketing strategy grounded in the business model and audience psychology, with channels prioritized, the funnel specified, and success metrics made measurable | Not yet declared; a skill's own file names its gate until then |
+| `Conversion Advisor/EXPERT.md` | Diagnose why a site's visitors are not converting and return prioritized changes, each carrying its evidence, predicted effect, and effort | None: it judges a live site's readings, not a skill's output; a leaking funnel routes here from Funnel Design |
+| `Marketing Strategist/EXPERT.md` | Recommend a marketing strategy grounded in the business model and audience psychology, with channels prioritized, the funnel specified, and success metrics made measurable | `skills/Funnel Design/`, `skills/List Hygiene/` |
 
 ### SEO
 
 | Expert | Description | Owns |
 |--------|-------------|------|
-| `SEO Advisor/EXPERT.md` | Judge a site's search visibility and return findings ordered by what would actually move its rankings, each naming the check that surfaced it, the fix, the expected impact, and the effort | Not yet declared; a skill's own file names its gate until then |
+| `SEO Advisor/EXPERT.md` | Judge a site's search visibility and return findings ordered by what would actually move its rankings, each naming the check that surfaced it, the fix, the expected impact, and the effort | `skills/SEO Assets/` |
 
 ### Strategy
 
@@ -48,6 +47,6 @@ The line starts at the left margin, carries nothing but the paths, backticked an
 
 | Expert | Description | Owns |
 |--------|-------------|------|
-| `Ghost Writer/EXPERT.md` | Judge a prose deliverable as its intended reader; the default review gate before writing ships | Not yet declared; a skill's own file names its gate until then |
+| `Ghost Writer/EXPERT.md` | Judge a prose deliverable as its intended reader; the default review gate before writing ships | `skills/Content Author/`, `skills/Proposal Author/`, `skills/Speech Writing/`, `skills/Create Presentation/`, `skills/Build Concepts/`, `skills/Categorize Content/`, `skills/Transcript Summary/`, `skills/Build Voice/` |
 
 <!-- /generated:index -->

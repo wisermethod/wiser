@@ -67,4 +67,4 @@ If you do not have a working folder yet, `skills/Onboard Root/` creates one from
 
 See `LICENSE`. Free for an individual, including at work.
 
-Two experts adapt material from Apache-2.0 sources. `experts/Creative Director/NOTICE.md` and `experts/Design Advisor/NOTICE.md` carry the attribution, and a copy of the Apache License 2.0 ships at `licenses/Apache-2.0.txt`.
+One expert adapts material from Apache-2.0 sources. `experts/Creative Director/NOTICE.md` carries the attribution, and a copy of the Apache License 2.0 ships at `licenses/Apache-2.0.txt`.

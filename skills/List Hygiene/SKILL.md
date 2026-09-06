@@ -3,7 +3,7 @@ name: List Hygiene
 type: skill
 category: communication
 description: Decide what an email contact list keeps and drops, verified through the usebouncer connector, with the cost put to the user before it is spent and every drop traced to the result field that caused it
-version: 0.7.0
+version: 0.8.0
 gaps:
   - address verification against an email validation service
 ---
@@ -108,6 +108,8 @@ Into the work directory: the group files, and one record naming the source file 
 
 Into the response: the decision rather than the file listing. How much of the list is mailable, what it cost, what came off it and why, and what happens to the group that waits.
 
+Before the response ships, the gate: hand the send group, merged back onto the source rows so the columns beside each address travel with it, with the send named in Step 1 and the group counts, to `experts/Marketing Strategist/` in a second context. It judges whether the group can carry the email stage the strategy specified, its size, its segments and its cautions, and returns ship or revise; a revise is answered outside the mechanics above, since nothing in that read touches keep-and-drop; with no strategy on record the gate says so and the requester supplies one or declines; a declined review is named in the response.
+
 ## Pitfalls
 
 - **The second bill.** The expensive failure here, and it arrives disguised as a retry: a lost identifier, an expired wait, a transport failure over a job that was accepted anyway. Nothing on the platform lists past jobs and nothing deduplicates across them. Recover through the identifier every time; when it is gone, check the account before submitting anything again.
@@ -126,3 +128,4 @@ Into the response: the decision rather than the file listing. How much of the li
 - No list was submitted twice, and the identifier of the job the results came from is in the record.
 - Every address in the send group traces to the result field that put it there, every drop names the field that dropped it, and every caution travels with the addresses it qualifies.
 - The record states the completed job's own credits figure as the cost, and counts the rows that carried no address and the ragged rows `tools/data/` `parse` reported. A ragged row is present in `rowCount` and is not a row that failed to parse; a file that will not parse at all stops the run at Step 2 instead.
+- `experts/Marketing Strategist/` read the send group against the email stage its strategy specified, size, segments and cautions, and returned ship, or the requester declined; nothing in that read touched the keep-and-drop mechanics above.

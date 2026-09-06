@@ -3,7 +3,9 @@ name: Typography Design
 type: skill
 category: design
 description: Design a modular type system delivered as CSS custom properties with a type specimen, chosen from brand personality and usage context
-version: 0.1.0
+version: 0.2.0
+gaps:
+  - right-to-left and CJK typography, which need script-specific knowledge this skill does not carry
 memory:
   - design
 ---
@@ -14,7 +16,7 @@ memory:
 
 Use to design a modular type system: selecting fonts, setting a scale, mapping weight hierarchy, and establishing vertical rhythm, for a new project or a redesign, and to produce the type tokens the `skills/Design System/` skill composes.
 
-Not for color, which is `skills/Color Palette Design/`. Not for composing a full design system from existing tokens, which is `skills/Design System/`. Not for auditing an existing type system for quality, which is the `experts/Creative Director/` audit. Out of scope by domain: right-to-left and CJK typography, which need script-specific knowledge this skill does not carry; creating the font files themselves, commercial font licensing, and variable-font axis configuration; and web-font subsetting or performance optimization, which are implementation concerns downstream of the specification this skill produces.
+Not for color, which is `skills/Color Palette Design/`. Not for composing a full design system from existing tokens, which is `skills/Design System/`. Not for auditing an existing type system for quality, which is the `experts/Creative Director/` audit; that same audit is this skill's gate on the type system it delivers, run before it ships. Out of scope by domain: right-to-left and CJK typography, which need script-specific knowledge this skill does not carry; creating the font files themselves, commercial font licensing, and variable-font axis configuration; and web-font subsetting or performance optimization, which are implementation concerns downstream of the specification this skill produces.
 
 ## Objective
 
@@ -74,6 +76,8 @@ Use clamp() for every size above body, derived from the scale config in the Utop
 ### 7. Output
 
 Deliver CSS custom properties organized by category: scale sizes, font families, weights, line heights, letter spacing, and the vertical rhythm base. Include a type specimen, a short HTML block with embedded styles that demonstrates each scale level, weight, and line height in the selected fonts. The output is immediately usable as tokens.
+
+Then the gate: hand the tokens and the specimen as `<design_artifact>`, the tokens it used as `<design_system>`, and a `<brief>` carrying the purpose, the audience and what matters most, to `experts/Creative Director/` for a verdict in a second context that did not produce it. It ships on that verdict with the findings worked, or on the requester's explicit decline; a declined review is named in the delivery. The rationales the Objective requires travel with the tokens as part of the artifact; the specimen's colours are a stated neutral pair, or the bound tokens where they exist, and are not the deliverable.
 
 ## Type Foundations
 
@@ -171,3 +175,4 @@ The preferred value is `base-rem + vw-component`; a higher vw component scales f
 - Vertical rhythm base defined from the body line-height; line heights fit each level; letter spacing adjusted for headings and for small or uppercase text.
 - Type specimen HTML shows every scale level, weight, and line height in the selected fonts.
 - The type system communicates the intended brand personality, and its hierarchy is clear at every scale level.
+- `experts/Creative Director/` returned a verdict on the type system and the findings were worked, or the requester declined the review.

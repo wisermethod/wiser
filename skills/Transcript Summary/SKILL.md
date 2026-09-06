@@ -3,7 +3,7 @@ name: Transcript Summary
 type: skill
 category: writing
 description: Turn a transcript into a summary that leads with analysis and preserves every decision, action item, open question, and nuance the recording carried
-version: 0.6.0
+version: 0.7.0
 ---
 
 # Transcript Summary
@@ -70,6 +70,8 @@ Default shape, used unless the request names its own, which replaces the arrange
 **Participants:** [names where known; the transcript's own labels otherwise; or, where the transcript attributes no turn, say so and name nobody]
 **Transcript:** [its origin if known, and any defect from step 1 that limits this summary]
 
+Then the gate: hand the finished summary, wrapped in `<draft>`, with the reader named (someone who was not in the room) and the owning root, to `experts/Ghost Writer/` in a second context that did not write it; the voice read is dropped, since the summary carries the record's register and other people's words. It ships on the ship verdict or the requester's explicit decline of the Ghost Writer review, which is distinct from declining step 4's verification pass; a declined review is named in the delivery. A degradation report from step 1 is not a summary and does not go to the gate.
+
 ## Analysis
 
 ### Critical Points
@@ -134,3 +136,4 @@ Placement follows `standards/conventions.md`, in the root that owns the output. 
 - Nothing in the delivered summary traces to neither the transcript nor a source the verification pass returned.
 - The analysis leads the document, and a reader who was not in the room can act from it without opening the transcript.
 - Where the transcript was defective or its speakers anonymous, the delivered summary says so.
+- `experts/Ghost Writer/` read the delivered summary as the reader who was not in the room and returned ship, or the requester declined the review.

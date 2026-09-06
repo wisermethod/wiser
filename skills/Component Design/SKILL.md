@@ -3,7 +3,7 @@ name: Component Design
 type: skill
 category: design
 description: Design a single UI component as self-contained, renderable HTML and CSS with every applicable state, semantic markup, and design tokens
-version: 0.1.3
+version: 0.2.0
 memory:
   - design
 ---
@@ -65,7 +65,7 @@ Eight steps, in order.
 
 7. **Responsive behavior.** Define how the component adapts: reflow, resize, hide, or change of interaction. Write the rules mobile-first with `min-width` queries. `responsive-design.md` carries breakpoints, input-method detection, and per-element adaptation.
 
-8. **Output.** Emit one self-contained unit: a `<style>` block carrying the tokens, the component styles for every state designed in step 2, and the responsive rules. For a Tailwind target, put utility classes on the elements instead of a `<style>` block.
+8. **Output.** Emit one self-contained unit: a `<style>` block carrying the tokens, the component styles for every state designed in step 2, and the responsive rules. For a Tailwind target, put utility classes on the elements instead of a `<style>` block. Where the caller asked for a verdict, hand this unit as `<design_artifact>`, the resolved tokens as `<design_system>`, and step 1's purpose with the audience and what matters most as `<brief>`, to `experts/Creative Director/` in a second context, and work the findings before delivering; otherwise the component ships on the checks in Success.
 
 ## Component Patterns
 
@@ -97,3 +97,4 @@ Run each check against the delivered output rather than against intent, and fix 
 - Every visible string and every icon is read in the rendered output, not skimmed in the source, against criteria 6 and 7; skimming is how a placeholder survives.
 - Responsive behavior is defined, and every variant the user named is present.
 - The component renders correctly opened directly in a browser, and its hierarchy survives a squint test.
+- `experts/Creative Director/`, which owns this skill, gated the component only where the caller asked for a verdict; a standalone component ships on the checks above, per `skills/Designer/`.

@@ -3,7 +3,7 @@ name: Designer
 type: skill
 category: design
 description: Run a design job end to end, from brief and visual direction through foundations, composition, and validation, producing the wireframe, style guide, or extracted system itself and directing every other phase to the design skill that owns it
-version: 0.8.0
+version: 0.9.0
 memory:
   - design
 gaps:
@@ -15,13 +15,13 @@ gaps:
 
 ## Context
 
-This skill produces the design. `experts/Design Advisor/` is the ship gate for UI and pages. `experts/Creative Director/` owns taste and the prohibited-defaults list.
+This skill produces the design. `experts/Creative Director/` owns taste, the prohibited-defaults list, and the ship gate for UI and pages, in its verdict mode.
 
 Use when the job is a design outcome rather than one settled artifact: "design me a dashboard", "we need a look for this product", "make this feel like someone designed it". The brief, the visual direction, and the register have to be fixed before anything is composed, and the work then spans several artifacts that must agree with each other. Use it also for the three artifacts no other design skill in this root produces: a structural wireframe, a browsable style guide, and a design system read back out of an existing site or codebase.
 
 Not for a job that is already one artifact with its direction settled. A palette is `skills/Color Palette Design/`, a type system is `skills/Typography Design/`, one component is `skills/Component Design/`, a persuasion page is `skills/Marketing Page Design/`, and a token system composed from existing color and type is `skills/Design System/`. Running the whole arc around a settled single artifact adds phases the request already answered; invoke the owning skill directly.
 
-Not for judging design that exists, which is `experts/Design Advisor/` for a verdict on a deliverable and `experts/Creative Director/` for direction and the standing taxonomy. Not for a brand mark: no primitive in this root covers logo creation, declared as a gap, and no part of it is carried here. Not for slide decks (`skills/Create Presentation/`) or for the words in an interface or page (`skills/Content Author/`). Outside its competence and declined rather than approximated: generating imagery from a description, data visualization and diagrams, print production (CMYK, bleed, registration), motion graphics and video, and user research.
+Not for judging design that exists, which is `experts/Creative Director/`, in its verdict mode for a deliverable and its direction mode for the standing taxonomy. Not for a brand mark: no primitive in this root covers logo creation, declared as a gap, and no part of it is carried here. Not for slide decks (`skills/Create Presentation/`) or for the words in an interface or page (`skills/Content Author/`). Outside its competence and declined rather than approximated: generating imagery from a description, data visualization and diagrams, print production (CMYK, bleed, registration), motion graphics and video, and user research.
 
 ## Objective
 
@@ -122,12 +122,12 @@ Then the review, by surface (ship-gate routing):
 
 | Surface | Pre-ship gate |
 |---------|----------------|
-| UI and page deliverables from this skill (wireframe, style guide, components and persuasion pages composed here) | `experts/Design Advisor/` for a ship-ready verdict |
+| UI and page deliverables from this skill (wireframe, style guide, components and persuasion pages composed here) | `experts/Creative Director/`, verdict mode, for a ship-ready verdict |
 | Slide decks | `skills/Create Presentation/` routes visuals to `experts/Creative Director/` and copy to `experts/Ghost Writer/` |
-| Taxonomy, direction, and Context Registers | `experts/Creative Director/` owns those; it is not the default UI ship gate |
+| Taxonomy, direction, and Context Registers | `experts/Creative Director/` owns those in its direction mode; the same expert's verdict mode is the UI ship gate |
 | A single component composed only through `skills/Component Design/` | No expert ship gate unless the caller requests one; mid-work consult to Creative Director for density or type judgment stays optional |
 
-Hand a UI or page artifact to `experts/Design Advisor/` with Phase 1's brief plus Phase 2's direction and register as its `<brief>`, so any axis a deliberate choice already fixed is judged as fixed, and work the findings before delivering; a finding that forces a structural change sends the affected work back through Phase 4 and re-runs this phase. Where a Phase 4 skill already ran its own pre-ship design review, work those findings first so the expert judges a revised artifact rather than a draft, and never run the same review twice. Where the expert is absent from the workspace, say the review degraded and stand on the three checks above.
+Hand a UI or page artifact to `experts/Creative Director/` for a verdict, with Phase 1's brief plus Phase 2's direction and register as its `<brief>`, so any axis a deliberate choice already fixed is judged as fixed, and work the findings before delivering; a finding that forces a structural change sends the affected work back through Phase 4 and re-runs this phase. Where a Phase 4 skill already ran its own pre-ship design review, work those findings first so the expert judges a revised artifact rather than a draft, and never run the same review twice. Where the expert is absent from the workspace, say the review degraded and stand on the three checks above.
 
 Delivery states, beside the artifact: which phases ran and which were already settled, which skill produced each foundation and each composed piece, and anything Phase 4 named as unproduced.
 
@@ -174,7 +174,7 @@ The output is the observed system handed to `skills/Design System/` to compose i
 
 ### Accessibility pass
 
-Six axes, run over the artifact before it goes to review. Contrast thresholds live in Contrast Requirements of `skills/Color Palette Design/SKILL.md` and are not restated here. The Accessibility dimension of the Audit in `experts/Design Advisor/EXPERT.md` remains the reference for how those thresholds combine with focus, target size, color independence, and motion in a full review. An axis with no rendered surface to run against, as with an extracted system or a tokens-only delivery, is named as not applicable rather than silently skipped.
+Six axes, run over the artifact before it goes to review. Contrast thresholds live in Contrast Requirements of `skills/Color Palette Design/SKILL.md` and are not restated here. The Accessibility dimension of the Audit in `experts/Creative Director/EXPERT.md` remains the reference for how those thresholds combine with focus, target size, color independence, and motion in a full review. An axis with no rendered surface to run against, as with an extracted system or a tokens-only delivery, is named as not applicable rather than silently skipped.
 
 - **Contrast.** Every text and background pairing that will appear, and every interface element against what sits next to it. Compute the ratios rather than judging by eye; the computation belongs to `skills/Color Palette Design/`, run by name, and the pass thresholds are that skill's Contrast Requirements.
 - **Focus and states.** Every interactive element carries the states its type needs, and a focus indicator that is visible, distinguishable from hover, and not carried by color alone.
@@ -203,6 +203,6 @@ Group the findings blocking, then major, then minor, each naming its location an
 - Every design decision in the artifact can state its job and its reason.
 - No unjustified entry of the prohibited-defaults taxonomy survives (a match the brief fixed or Phase 2 chose as the justified signature is exempt per the Distinctiveness Check), and the same-prompt test ran on the whole direction, with any revision it forced stated.
 - The accessibility pass ran on every axis the deliverable gave it, any axis with no surface named as not applicable, and its findings were fixed or reported with severity and location.
-- For a UI or page deliverable, `experts/Design Advisor/` returned a verdict and its findings were worked before delivery, or a degraded review is named. Decks follow Create Presentation's gates, not this row.
+- For a UI or page deliverable, `experts/Creative Director/` returned a verdict and its findings were worked before delivery, or a degraded review is named. Decks follow Create Presentation's gates, not this row.
 - A wireframe is grayscale, system-font, annotated, and readable as hierarchy without color; a style guide opens in a browser and is styled by the system it documents; an extracted system marks what was approximate and names what a person must confirm.
 - Anything the request asked for that no skill in this root produces is named as unproduced, never approximated.

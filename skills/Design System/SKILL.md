@@ -3,7 +3,7 @@ name: Design System
 type: skill
 category: design
 description: Compose existing color and type tokens into a complete design system, delivered as an agent-readable specification, a combined CSS token file, and optional Tailwind configuration
-version: 0.1.1
+version: 0.2.0
 memory:
   - design
 ---
@@ -14,7 +14,7 @@ memory:
 
 Use to compose color tokens and type tokens into one system: the specification another agent builds from, the combined token file it builds with, and the spacing, border, elevation, and motion layers that neither color nor typography covers. Codifying scattered CSS variables into a documented system is the same job arriving from the other direction.
 
-Not for creating the palette (`skills/Color Palette Design/`) or the type system (`skills/Typography Design/`); this skill consumes their output and generates neither. Not for designing individual components, which is `skills/Component Design/`. Not for judging whether an existing system is any good, which is the `experts/Creative Director/` audit. Not for producing a rendered visual style guide, a browsable reference of the system in HTML, which is `skills/Designer/`; the deliverable here is written to be read. Not for versioning, migration, or deprecation workflows: what it produces is a point-in-time system.
+Not for creating the palette (`skills/Color Palette Design/`) or the type system (`skills/Typography Design/`); this skill consumes their output and generates neither. Not for designing individual components, which is `skills/Component Design/`. Not for judging whether an existing system is any good, which is the `experts/Creative Director/` audit; that same audit is this skill's gate on the specification it delivers, run before it ships. Not for producing a rendered visual style guide, a browsable reference of the system in HTML, which is `skills/Designer/`; the deliverable here is written to be read. Not for versioning, migration, or deprecation workflows: what it produces is a point-in-time system.
 
 ## Objective
 
@@ -38,7 +38,7 @@ One memory key, bound per the constitution's Workspace Model:
 
 - `design`, optional. The owning root's brand rules, personality, and shipped system. Bound: the Visual Direction section aligns to it and its rules constrain the composition. Unbound, or bound to a file still carrying its template's prompt lines: proceed, say the brand calibration degraded, and take the direction from the request alone. When the system speaks for a root other than the output's owner, request the scoped key (`design:org`, `design:client`).
 
-Tokens the requester did not paste in are read from the path the request names. Tokens that do not exist yet are produced by running `skills/Color Palette Design/` or `skills/Typography Design/` by name and composing what comes back. Never hand the requester the step of running a sibling skill and saving its output somewhere for this one to find, and never close the gap with values invented here.
+Tokens the requester did not paste in are read from the path the request names. Tokens that do not exist yet are produced by running `skills/Color Palette Design/` or `skills/Typography Design/` by name and composing what comes back. Never hand the requester the step of running a sibling skill and saving its output somewhere for this one to find, and never close the gap with values invented here. The audience and what matters most are named with the project and the register, since the gate's brief needs them.
 
 ## Identity
 
@@ -150,6 +150,8 @@ The specification, `DESIGN.md` unless the project names it otherwise:
 ```markdown
 # Design System: [project]
 
+Then the gate: hand the specification and the token file as `<design_artifact>`, the tokens it used as `<design_system>`, and a `<brief>` carrying the purpose, the audience and what matters most, to `experts/Creative Director/` for a verdict in a second context that did not produce it. It ships on that verdict with the findings worked, or on the requester's explicit decline; a declined review is named in the delivery. A finding against a supplied colour or type value is returned to the skill that owns it, or reported to the owner as on a merge, never rewritten here; a sibling skill run in step 1 carries its own gate, and one decline covers this gate only.
+
 ## Visual Direction
 [Register, personality, references, and the reasoning behind them]
 
@@ -208,3 +210,4 @@ Every criterion covers what this run generated. On a merge, an adopted value tha
 - Three-layer architecture is applied where it applies, and themes override the semantic layer alone.
 - No color value and no type value in the output was generated here: each traces to the supplied tokens or to a named run of the skill that owns them.
 - The transfer test holds: the specification alone is enough for an agent with no other context to build UI consistent with the system.
+- `experts/Creative Director/` returned a verdict on the specification and the findings were worked, or the requester declined the review.

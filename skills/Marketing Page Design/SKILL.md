@@ -3,7 +3,7 @@ name: Marketing Page Design
 type: skill
 category: design
 description: Design a complete marketing page as responsive HTML with a narrative scroll arc, clear visual hierarchy, and one primary action
-version: 0.2.0
+version: 0.3.0
 memory:
   - design
 gaps:
@@ -71,7 +71,7 @@ Staged composition. Design the page in order and never in one shot; each stage s
 
 8. **Define responsive adaptation.** Per section, decide what reflows, resizes, hides, or changes interaction at each breakpoint; this is design, not a shrunk desktop. A hero image may drop on mobile, a feature row may stack, the primary action may become full width.
 
-**Before delivery, review.** Never accept the first output as final. Route the page to `experts/Design Advisor/`, the pre-ship verdict gate for UI and page deliverables (see ship-gate routing in `skills/Designer/`), with the brief and direction as its `<brief>`, for an adversarial pass against generic defaults, weak hierarchy, and flat rhythm, and work its findings before the page ships.
+**Before delivery, review.** Never accept the first output as final. Route the page to `experts/Creative Director/` for a verdict, the pre-ship gate for UI and page deliverables (see ship-gate routing in `skills/Designer/`), with the brief and direction as its `<brief>`, for an adversarial pass against generic defaults, weak hierarchy, and flat rhythm, and work its findings before the page ships.
 
 Output: one complete HTML page with embedded CSS, working web fonts, the defined breakpoints, and realistic placeholder content.
 
@@ -154,7 +154,7 @@ Alternate section backgrounds so adjacent sections separate visually; hero and c
 - **The full page in one shot.** Generating everything at once skips the staged constraints and yields uniform, rhythmless output. Design section by section and run the Squint Test between sections.
 - **Defaults arriving unchosen.** A pattern nothing decided against is invisible until something checks for it. Run that check section by section as each is designed (Reference: Prohibited defaults), and vary layout, size, background, and height where a match turns up.
 - **Placeholder passed off as real.** Realistic content is required so the design can be judged, but invented testimonials and metrics are placeholder: mark them, and replace them with sourced copy before publishing. A fact about a real person enters only with its source and register (`standards/conventions.md`).
-- **Shipping the first draft.** The first output is a starting point. The Design Advisor review is where generic defaults get caught; it is not optional polish.
+- **Shipping the first draft.** The first output is a starting point. The Creative Director verdict is where generic defaults get caught; it is not optional polish.
 - **Ambiguity.** When the page's job, audience, or primary action cannot be inferred and the brief does not settle it, ask before designing rather than guessing.
 
 ## Success

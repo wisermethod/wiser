@@ -3,7 +3,7 @@ name: Funnel Design
 type: skill
 category: marketing
 description: Design a buildable funnel blueprint with the funnel type chosen and reasoned, every stage and page specified, the email sequences that carry them, and per-stage metrics with benchmarks
-version: 0.2.0
+version: 0.3.0
 memory:
   - about
 gaps:
@@ -73,6 +73,8 @@ Two reference libraries sit in this skill's directory and are consulted by name 
 
 Output: one structured document carrying, in order, the funnel type and its reasoning, the stages, the sequences, the pages, the conversion path map, the metrics, and every assumption the design rests on.
 
+Then the gate: hand the blueprint, with its stated assumptions and the `<context>` it was built from standing in for a strategy where none is on record, to `experts/Marketing Strategist/` in a second context that did not design it. It judges the funnel type against the business model and the audience's awareness state, and the stage progression against the strategy, and returns ship or revise with each finding tied to one of those two things; the findings are worked, the blueprint is re-gated only if the funnel type changed, and a declined review is named in the delivery.
+
 ## Pitfalls
 
 - **A business too vague to design against.** Run Step 1's questions, and where the model itself is undecided, route to the strategist rather than designing on a guess. A funnel built on an unnamed offer is wasted whole, not in part.
@@ -95,3 +97,4 @@ Output: one structured document carrying, in order, the funnel type and its reas
 - Every stage metric carries a benchmark and a diagnostic, and every benchmark drawn from a general pattern is marked as one.
 - The blueprint fits what the requester said they could build, or the minimal version was offered.
 - Every assumption the design rests on is stated.
+- `experts/Marketing Strategist/` returned a verdict on the blueprint, its funnel type against the business model and the stage progression against the strategy, and the findings were worked, or the requester declined the review.

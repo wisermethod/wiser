@@ -6,7 +6,7 @@ A gap is a capability this root does not provide that a primitive's own body nam
 
 **This file carries capability gaps only.** What the operator plans to build is a separate record and is not a user's business, so nothing about future work appears here. **A gap names the capability that is missing, never where that capability went.**
 
-Counted 2026-09-05: 33 gaps across 17 primitives; the thirty-third is SEO Advisor's analytics reading, which its body already named as one this release cannot fetch. Thirty-one of those are what remains of the forty-two this file carried on 2026-08-29, once four compound gaps were split into their separate assertions and twenty-one closed. The thirty-second is new: speaker labeling, declared by `Transcribe Audio`, which ships without it.
+Counted 2026-09-06: 35 gaps across 18 primitives; the thirty-fourth is Media Generator's motion judgment, declared when Creative Director took ownership of the skill and its still frame, and the thirty-fifth is Typography Design's script boundary, which its Context had named without a declaration. Counted 2026-09-05: 33 gaps across 17 primitives; the thirty-third is SEO Advisor's analytics reading, which its body already named as one this release cannot fetch. Thirty-one of those are what remains of the forty-two this file carried on 2026-08-29, once four compound gaps were split into their separate assertions and twenty-one closed. The thirty-second is new: speaker labeling, declared by `Transcribe Audio`, which ships without it.
 
 ## Experts
 
@@ -67,6 +67,7 @@ Counted 2026-09-05: 33 gaps across 17 primitives; the thirty-third is SEO Adviso
 ### Media Generator
 
 - the image, video, and background-removal models this skill's whole output depends on
+- judgment of a generated clip's motion, which no expert in this root carries; the clip is judged by its still frame
 
 ### Onboard Root
 
@@ -86,6 +87,10 @@ Counted 2026-09-05: 33 gaps across 17 primitives; the thirty-third is SEO Adviso
 ### Speech Writing
 
 - crisis judgment on remarks delivered during an unfolding incident
+
+### Typography Design
+
+- right-to-left and CJK typography, which need script-specific knowledge this skill does not carry
 
 ### Zone Publisher
 

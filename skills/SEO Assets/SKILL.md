@@ -3,7 +3,7 @@ name: SEO Assets
 type: skill
 category: seo
 description: Produce the ready-to-use artifacts a site's decided search changes need, each built from evidence pulled for it, held to its own standards, and handed over for someone else to deploy
-version: 0.8.0
+version: 0.9.0
 memory:
   - voice
   - about
@@ -20,7 +20,7 @@ gaps:
 
 Use when a search change has been decided and someone needs the thing that implements it: rewritten head elements for named pages, structured data for a page type, an `llms.txt` and the crawler directives that travel with it, a redirect map, a content brief for a keyword, a competitive gap report or the tracker report between two sitemap snapshots, a dated status snapshot of where the site stands this period, or the plan file that tracks a set of findings until each one is live. One run covers one site.
 
-Not for deciding what to change or in what order. That judgment is `experts/SEO Advisor/`, and a request that needs one and arrives without it goes there first and comes back with findings. Not for deploying: nothing here edits a site, submits a sitemap, requests indexing, or writes through a content management platform, and the artifact is finished when it is ready to deploy. Not for measuring either; the sources in Evidence measure, and their numbers are carried into an artifact rather than re-read by eye. Not for the site's prose beyond the elements below, since an article or a page is written in `skills/Content Author/` from the brief this skill produces. And not for paid search, or for search inside a video, app, or retail platform, which rank on signals nothing here reads.
+Not for deciding what to change or in what order. That judgment is `experts/SEO Advisor/`, and a request that needs one and arrives without it goes there first and comes back with findings; the same expert is the gate on the finished artifacts, judging each for the search visibility it gives the site before it is handed over. Not for deploying: nothing here edits a site, submits a sitemap, requests indexing, or writes through a content management platform, and the artifact is finished when it is ready to deploy. Not for measuring either; the sources in Evidence measure, and their numbers are carried into an artifact rather than re-read by eye. Not for the site's prose beyond the elements below, since an article or a page is written in `skills/Content Author/` from the brief this skill produces. And not for paid search, or for search inside a video, app, or retail platform, which rank on signals nothing here reads.
 
 ## Objective
 
@@ -131,6 +131,8 @@ Then say, for each: what it is, which finding it implements, where on the site i
 
 The deployment is the requester's. Where one change has both a file and a platform action, say which order they run in: a crawl or an indexing request made before the change is live sends the crawler to the page that was already there.
 
+Before any file is written, the gate: hand each finished artifact, the finding it was built to close, which stands as the goal, and the evidence it rests on to `experts/SEO Advisor/` in a second context. It returns a verdict per artifact, pass or return with what fails; a returned artifact goes back to Step 3; a declined review is named in the hand-over.
+
 ## Rules
 
 1. This skill writes; it does not rank. An artifact whose content depends on a priority order takes that order from `<findings>` or from the requester. Where neither supplies one and the artifact needs one, ask, and route the question to `experts/SEO Advisor/` when the answer is a judgment about the site rather than a preference.
@@ -158,3 +160,4 @@ The deployment is the requester's. Where one change has both a file and a platfo
 - Every ordering in an artifact came from `<findings>` or from the requester, and none was created here.
 - Every file sits in the owning root's work directory under the site's subject folder, with anything it replaced archived per `standards/conventions.md`, and nothing was written into this root or into the site.
 - Each artifact was handed over with where it goes, what must be true first, and how to confirm it landed, and nothing was deployed, submitted, or published by this run.
+- `experts/SEO Advisor/` returned a verdict on each finished artifact against the finding it was built to close, before hand-over, or the requester declined the review.
