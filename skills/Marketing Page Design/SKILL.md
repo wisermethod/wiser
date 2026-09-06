@@ -166,4 +166,4 @@ Alternate section backgrounds so adjacent sections separate visually; hero and c
 - No prohibited default survives (Reference: Prohibited defaults).
 - Every breakpoint is intentionally designed; content does not merely shrink.
 - Content is realistic throughout, no Lorem ipsum and no anonymous testimonials, and placeholder content is marked for replacement before publish.
-- The pre-ship design review ran: `experts/Creative Director/` returned a verdict on the page and the findings were worked, or the requester declined the review and the delivery says so; it ran and its findings were worked before delivery.
+- The pre-ship design review ran: `experts/Creative Director/` returned a verdict on the page and the findings were worked, or the requester declined the review and the delivery says so.

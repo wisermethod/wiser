@@ -3,7 +3,7 @@ name: Design System
 type: skill
 category: design
 description: Compose existing color and type tokens into a complete design system, delivered as an agent-readable specification, a combined CSS token file, and optional Tailwind configuration
-version: 0.2.0
+version: 0.2.1
 memory:
   - design
 ---

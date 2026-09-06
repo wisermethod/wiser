@@ -99,7 +99,7 @@ Every platform call in these steps belongs to a generation connector this releas
 
    The connector writes into the directory `--output-dir` names, under a name derived from the prediction, so move the file to the name the user asked for and report where it ended up.
 
-5. **Remove a background.** This is Step 4's call with a photograph where the prompt would be: the same connector, the same spend disclosure, the same schema read from Step 3, and the same reachability ceiling on the image going in. Several photographs are several runs, each billed, which is worth saying before the first one.
+5. **Remove a background.** This is Step 4's call with a photograph where the prompt would be: the same connector, the same spend disclosure, the same schema read from Step 3, and the same reachability ceiling on the image going in. Several photographs are several runs, each billed, which is worth saying before the first one. The direction Step 2 takes before a billed call is taken here too, in this context, on the cutout's purpose and where it will sit, before the call is made.
 
    Two schema fields are worth looking for by name. A model offering a human-segmentation variant gets it whenever the subject is a person, because a general model cuts a person badly at the shoulders and the hair. And alpha matting, where the model offers it, is what keeps hair, fur, and soft edges from turning into a hard sawtooth; its thresholds are the model's own fields, so read them there rather than carrying numbers between models.
 
