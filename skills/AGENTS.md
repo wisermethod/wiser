@@ -1,6 +1,6 @@
 # Skills
 
-Capabilities a user invokes by name for their output; `standards/primitives.md` owns the type's definition, invocation rules, and frontmatter. The directory is flat, and the index below is grouped by category.
+Capabilities a user invokes by name for their output; `standards/primitives.md` owns the type's definition, invocation rules, and frontmatter. The directory is flat, and the index below is grouped by category. Every skill here is owned by an expert whose `Owns:` line names it, or says in its own Context why it stands alone; the rule and the routing table are in `experts/AGENTS.md`.
 
 <!-- generated:index -->
 
