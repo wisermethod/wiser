@@ -58,7 +58,7 @@ A transcript too degraded to recover the substance from is reported as that rath
 
 **5. Write the analysis from the finished record.** Critical points first: what would be costly for this reader to miss or forget, and what the cost is. Then the dynamics from step 3, the verification results from step 4, and the references the recording mentioned, carrying the citations step 4 found. The analysis is written last and read first.
 
-**6. Check coverage, then deliver.** Walk the transcript start to end against the assembled summary and answer two questions. Which substantive stretch has no home in the summary: it earns one, or the summary names it and says why it is out, either minor or outside a scope the request drew. Which line of the summary traces to neither a transcript passage nor a step 4 source: it comes out.
+**6. Check coverage, assemble, then gate.** Walk the transcript start to end against the assembled summary and answer two questions. Which substantive stretch has no home in the summary: it earns one, or the summary names it and says why it is out, either minor or outside a scope the request drew. Which line of the summary traces to neither a transcript passage nor a step 4 source: it comes out.
 
 Default shape, used unless the request names its own, which replaces the arrangement and changes none of the steps above. A section the recording gives nothing for is dropped rather than left standing: a lecture has no action items, and filling the table to complete the shape is the fabrication step 6 exists to catch. A request narrowing the summary to one slice, decisions and action items for a project log, gets that slice and one line naming what the recording held outside it.
 
@@ -69,8 +69,6 @@ Default shape, used unless the request names its own, which replaces the arrange
 **Duration:** [from timestamps, or not derivable]
 **Participants:** [names where known; the transcript's own labels otherwise; or, where the transcript attributes no turn, say so and name nobody]
 **Transcript:** [its origin if known, and any defect from step 1 that limits this summary]
-
-Then the gate: hand the finished summary, wrapped in `<draft>`, with the reader named (someone who was not in the room) and the owning root, to `experts/Ghost Writer/` in a second context that did not write it; the voice read is dropped, since the summary carries the record's register and other people's words. It ships on the ship verdict or the requester's explicit decline of the Ghost Writer review, which is distinct from declining step 4's verification pass; a declined review is named in the delivery. A degradation report from step 1 is not a summary and does not go to the gate.
 
 ## Analysis
 
@@ -117,6 +115,8 @@ Then the gate: hand the finished summary, wrapped in `<draft>`, with the reader 
 ```
 
 Placement follows `standards/conventions.md`, in the root that owns the output. Where the transcript file happens to sit never decides where the summary lands.
+
+Then the gate: hand the finished summary, wrapped in `<draft>`, with the reader named (someone who was not in the room) and the owning root, to `experts/Ghost Writer/` in a second context that did not write it, handing that expert's file with the draft; the voice read is dropped, since the summary carries the record's register and other people's words. It ships on the ship verdict or the requester's explicit decline of the Ghost Writer review, which is distinct from declining step 4's verification pass; a declined review is named in the delivery. A degradation report from step 1 is not a summary and does not go to the gate.
 
 ## Pitfalls
 

@@ -145,12 +145,12 @@ Exit animations use about 75% of the matching entrance or layout duration, per t
 
 ### 5. Compose the deliverables
 
+Then the gate: hand the specification and the token file as `<design_artifact>`, the tokens it used as `<design_system>`, and a `<brief>` carrying the purpose, the audience and what matters most, to `experts/Creative Director/` for a verdict in a second context that did not produce it. It ships on that verdict with the findings worked, or on the requester's explicit decline; a declined review is named in the delivery. A finding against a supplied color or type value is returned to the skill that owns it, or reported to the owner as on a merge, never rewritten here; a sibling skill run in step 1 carries its own gate, and one decline covers this gate only.
+
 The specification, `DESIGN.md` unless the project names it otherwise:
 
 ```markdown
 # Design System: [project]
-
-Then the gate: hand the specification and the token file as `<design_artifact>`, the tokens it used as `<design_system>`, and a `<brief>` carrying the purpose, the audience and what matters most, to `experts/Creative Director/` for a verdict in a second context that did not produce it. It ships on that verdict with the findings worked, or on the requester's explicit decline; a declined review is named in the delivery. A finding against a supplied colour or type value is returned to the skill that owns it, or reported to the owner as on a merge, never rewritten here; a sibling skill run in step 1 carries its own gate, and one decline covers this gate only.
 
 ## Visual Direction
 [Register, personality, references, and the reasoning behind them]

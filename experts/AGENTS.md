@@ -16,7 +16,7 @@ The line starts at the left margin, carries nothing but the paths, backticked an
 
 | Expert | Description | Owns |
 |--------|-------------|------|
-| `Creative Director/EXPERT.md` | Direct visual design before it is made and judge it against its brief once it exists, enforcing intentionality and catching generic AI-design patterns, and return direction or a verdict whose findings each name what they fail and the fix that clears it | `skills/Color Palette Design/`, `skills/Component Design/`, `skills/Designer/`, `skills/Typography Design/`, `skills/Design System/`, `skills/Marketing Page Design/`, `skills/Create Presentation/`, `skills/Visualizer/`, `skills/Media Generator/`, `skills/Headshot Normalizer/`; a standalone component is gated at the caller's request; Media Generator and Headshot Normalizer take its direction before the first billed call |
+| `Creative Director/EXPERT.md` | Direct visual design before it is made and judge it against its brief once it exists, enforcing intentionality and catching generic AI-design patterns, and return direction or a verdict whose findings each name what they fail and the fix that clears it | `skills/Color Palette Design/`, `skills/Component Design/`, `skills/Designer/`, `skills/Typography Design/`, `skills/Design System/`, `skills/Marketing Page Design/`, `skills/Create Presentation/`, `skills/Visualizer/`, `skills/Media Generator/`, `skills/Headshot Normalizer/`; a standalone component is gated at the caller's request; Media Generator and Headshot Normalizer take its direction before the first billed call, in the same context, and its read of the result after, in a second |
 
 ### Marketing
 

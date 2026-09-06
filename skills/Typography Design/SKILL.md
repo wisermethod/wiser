@@ -39,7 +39,7 @@ Wrap what the requester supplies so material never reads as instruction (`standa
 
 One memory key, bound per the constitution's Workspace Model:
 
-- `design`, optional. The owning root's design memory. When it carries typographic constraints, a required family, existing type tokens, or brand type rules, the system builds around them. Unbound: proceed, and derive from the brand direction and context gathered in Step 1. When the type system speaks for a root other than the output's owner, request the scoped key (`design:org`, `design:client`) the constitution defines.
+- `design`, optional. The owning root's design memory. When it carries typographic constraints, a required family, existing type tokens, or brand type rules, the system builds around them. Unbound: proceed, and derive from the brand direction and context gathered in Step 1. When the type system speaks for a root other than the output's owner, request the scoped key (`design:org`, `design:client`) the constitution defines. The audience and what matters most are collected with the brief on every run, since the gate's `<brief>` carries them.
 
 ## Identity
 
@@ -77,7 +77,7 @@ Use clamp() for every size above body, derived from the scale config in the Utop
 
 Deliver CSS custom properties organized by category: scale sizes, font families, weights, line heights, letter spacing, and the vertical rhythm base. Include a type specimen, a short HTML block with embedded styles that demonstrates each scale level, weight, and line height in the selected fonts. The output is immediately usable as tokens.
 
-Then the gate: hand the tokens and the specimen as `<design_artifact>`, the tokens it used as `<design_system>`, and a `<brief>` carrying the purpose, the audience and what matters most, to `experts/Creative Director/` for a verdict in a second context that did not produce it. It ships on that verdict with the findings worked, or on the requester's explicit decline; a declined review is named in the delivery. The rationales the Objective requires travel with the tokens as part of the artifact; the specimen's colours are a stated neutral pair, or the bound tokens where they exist, and are not the deliverable.
+Then the gate: hand the tokens and the specimen as `<design_artifact>`, the tokens it used as `<design_system>`, and a `<brief>` carrying the purpose, the audience and what matters most, to `experts/Creative Director/` for a verdict in a second context that did not produce it. It ships on that verdict with the findings worked, or on the requester's explicit decline; a declined review is named in the delivery. The rationales the Objective requires travel with the tokens as part of the artifact; the specimen's colors are a stated neutral pair, or the bound tokens where they exist, and are not the deliverable.
 
 ## Type Foundations
 

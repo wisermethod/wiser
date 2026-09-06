@@ -73,7 +73,7 @@ Two reference libraries sit in this skill's directory and are consulted by name 
 
 Output: one structured document carrying, in order, the funnel type and its reasoning, the stages, the sequences, the pages, the conversion path map, the metrics, and every assumption the design rests on.
 
-Then the gate: hand the blueprint, with its stated assumptions and the `<context>` it was built from standing in for a strategy where none is on record, to `experts/Marketing Strategist/` in a second context that did not design it. It judges the funnel type against the business model and the audience's awareness state, and the stage progression against the strategy, and returns ship or revise with each finding tied to one of those two things; the findings are worked, the blueprint is re-gated only if the funnel type changed, and a declined review is named in the delivery.
+Then the gate: hand the blueprint, with its stated assumptions and the `<context>` it was built from standing in for a strategy where none is on record, to `experts/Marketing Strategist/` in a second context that did not design it. It judges the funnel type against the business model and the audience's awareness state, and the stage progression against the strategy, and returns ship or revise with each finding tied to one of those two things; the findings are worked, the blueprint is re-gated after a substantive change to the funnel type or the stage progression, and a minor correction clears without another review, and a declined review is named in the delivery.
 
 ## Pitfalls
 

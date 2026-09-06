@@ -125,13 +125,13 @@ Copy that a visitor will read follows the owning root's bound `voice`. Facts abo
 
 ### Step 4: Hand it over
 
+Before the hand-over, the gate: hand each finished artifact, the finding it was built to close, which stands as the goal, and the evidence it rests on, never the reasoning that produced it, to `experts/SEO Advisor/` in a second context. It returns a verdict per artifact, pass or return with what fails; a returned artifact goes back to Step 3; a declined review is named in the hand-over.
+
 Write each artifact into the owning root's work directory under a subject folder for the site, per `standards/conventions.md`. Never into this root, and never into the site's own repository. An artifact that replaces an earlier one is archived first, by the same standard, which is what makes the status snapshot's comparison possible next period.
 
 Then say, for each: what it is, which finding it implements, where on the site it goes, what has to be true before it goes there, and how to confirm it landed. Where a platform publishes its own validator for that artifact, name it as the check rather than asserting the artifact passes.
 
 The deployment is the requester's. Where one change has both a file and a platform action, say which order they run in: a crawl or an indexing request made before the change is live sends the crawler to the page that was already there.
-
-Before any file is written, the gate: hand each finished artifact, the finding it was built to close, which stands as the goal, and the evidence it rests on to `experts/SEO Advisor/` in a second context. It returns a verdict per artifact, pass or return with what fails; a returned artifact goes back to Step 3; a declined review is named in the hand-over.
 
 ## Rules
 
