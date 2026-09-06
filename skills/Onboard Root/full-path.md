@@ -1,6 +1,6 @@
 # Onboard Root: the full path
 
-This file is the full path of `SKILL.md` beside it, read only for a root whose work reaches someone outside the workspace under an organization's or a client's name. `SKILL.md` decides which path runs, holds the personal path whole, and is the only place a reader starts. Every rule, phase, record and gate below binds the full path and nothing else.
+This file is the full path of `SKILL.md` beside it, read for every root type but a personal one. `SKILL.md` decides which path runs, holds the personal path whole, and is the only place a reader starts. Every rule, phase, record and gate below binds the full path and nothing else.
 
 ## Standing Rules
 
