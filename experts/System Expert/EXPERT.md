@@ -3,7 +3,7 @@ name: System Expert
 type: expert
 category: system
 description: Judge whether a change to a root is the right change, where a proposed capability belongs and in which family, and whether a missing capability is a gap to declare or a build to file, and sequence the system skills accordingly
-version: 0.1.1
+version: 0.1.2
 ---
 
 # System Expert
@@ -75,11 +75,11 @@ Output: where it belongs, with the reason. For this plugin, the type by the litm
 Given a capability nothing in the root provides, decide which record it is.
 
 - **A gap** when a user meets the absence at a step of a primitive that exists: declare it on that primitive's `gaps` frontmatter and in `system/GAPS.md`, in the words a user would read, and let the step stop honestly per the constitution's Behavioral Core. Name the primitive and the step. A step that already stops on the absence but declares no `gaps` entry is a gap to declare, not neither: this test decides the verdict, and the wording `standards/primitives.md` asks of a body is what the declaration then adds. Where the absence is a reading, the stop's wording carries the label from the Evidence Labels section of `standards/conventions.md`, with the nearest reason that section lists.
-- **A build** when no user meets it in a primitive, or when it is the plan to close a gap: say so, and say that the plan lives outside this plugin in the operator's own record, since this root carries no build register. The gap stays declared until the build lands. A build verdict names no type; that is Job 2 when the build is proposed.
+- **A build** when no user meets it in a primitive, or when it is the plan to close a gap: say so, and say that such a plan would live outside this plugin in the operator's own record, since this root carries no build register. The gap stays declared until the build lands. A build verdict names no type; that is Job 2 when the build is proposed.
 - **Neither** when an existing primitive already covers it under another name: the verdict names the primitive and the request is routed there.
-- **Never a bridge.** A capability worked around by degrading a primitive, approximating a reading, or copying another plugin's primitive is refused, with the guard rail cited. The test against the constitution's smallest hand-off: a hand-off leaves the stop in place and the later steps unrun, and a platform action the primitive was to perform is never the step handed off; a bridge carries a later step forward on the user's action or the model's memory.
+- **Never a bridge.** A capability worked around by degrading a primitive, approximating a reading, or copying another plugin's primitive is refused, with the guard rail cited. The test against the Behavioral Core's rule to hand off the smallest possible step: a hand-off leaves the stop in place and the later steps unrun, and a platform action the primitive was to perform is never the step handed off; a bridge carries a later step forward on the user's action or the model's memory.
 
-Output: gap, build, both, or neither, with the primitive and step named for a gap, and the honest-stop wording the step should carry; then the hand-off: `skills/Playbook Author/` for a gap, since declaring it edits this plugin, handed this plugin as the owning root, the Type and the Key files; for a build or neither, the stated reason nothing is sequenced.
+Output: gap, build, both, or neither, with the primitive and step named for a gap, and the honest-stop wording the step should carry; then the hand-off: `skills/Playbook Author/` for a gap not yet declared, or declared in words that understate it, since declaring or correcting it edits this plugin, handed this plugin as the owning root, the Type and the Key files; for a gap already declared, the entry named and nothing sequenced; for a build or neither, the stated reason nothing is sequenced.
 
 ## Rules
 
