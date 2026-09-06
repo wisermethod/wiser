@@ -2,8 +2,8 @@
 name: Media Generator
 type: skill
 category: media
-description: Produce an image or a video that does not exist yet, or a photograph with its background removed, by finishing the prompt, choosing the model, and running the billed generation through the replicate connector to a file the user named
-version: 0.9.1
+description: Produce an image or a video that does not exist yet, or a photograph with its background removed, by finishing the prompt, choosing the model, and running the billed generation through a generation connector to a file the user named
+version: 0.9.2
 gaps:
   - the image, video, and background-removal models this skill's whole output depends on
   - judgment of a generated clip's motion, which no expert in this root carries; the clip is judged by its still frame

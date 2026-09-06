@@ -56,7 +56,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 | Skill | Description |
 |-------|-------------|
 | `Headshot Normalizer/SKILL.md` | Turn photographs into square transparent PNGs whose faces sit at the same size and the same place in the frame, by removing each background, measuring the eyes, and cutting every frame to one standard, reporting the transparent band left where a photograph is too short to fill its frame. Needs a connector this release does not ship. |
-| `Media Generator/SKILL.md` | Produce an image or a video that does not exist yet, or a photograph with its background removed, by finishing the prompt, choosing the model, and running the billed generation through the replicate connector to a file the user named. Needs a connector this release does not ship. |
+| `Media Generator/SKILL.md` | Produce an image or a video that does not exist yet, or a photograph with its background removed, by finishing the prompt, choosing the model, and running the billed generation through a generation connector to a file the user named. Needs a connector this release does not ship. |
 
 ### Onboarding
 
