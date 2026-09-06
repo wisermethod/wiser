@@ -8,7 +8,7 @@ It carries no dependency on any single agent host: everything in it is instructi
 
 **29 skills** that produce something you asked for by name: writing a post, an essay, a press release, a speech; researching a question; designing a page, a palette, a type system, or a whole design system; analyzing a spreadsheet; building a funnel or a proposal; setting up a new working folder.
 
-**7 experts** that judge work through a perspective rather than producing it: a review gate before writing ships, a marketing strategist, a conversion and an SEO advisor, a creative director who directs design before it is made and judges it after, a system expert for changes to the plugin and to a root, and a first-principles problem solver.
+**9 experts** that judge work through a perspective rather than producing it, and each owns the skills it gates: a review gate before writing ships, a marketing strategist, a conversion and an SEO advisor, a creative director who directs design before it is made and judges it after, a research expert who judges what a finding rests on, an IT expert for a DNS or hosting change, a system expert for changes to the plugin and to a root, and a first-principles problem solver. Every skill is owned by one of them, and `experts/AGENTS.md` is the routing table that says which.
 
 **13 tools** that do the deterministic work a skill or expert calls for: parsing, describing, aggregating, joining, charting and computing over tabular data; rendering HTML, SVG and Mermaid diagrams and live pages to images; editing images and video; driving a browser; on-page, sitemap and analytics-tag checks and Search Console datasets for SEO; building and exporting decks; gathering candidate source material; and transcribing audio on your own machine.
 
