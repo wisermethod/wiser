@@ -2,8 +2,8 @@
 name: Zone Publisher
 type: skill
 category: development
-description: Bring one Cloudflare zone's live DNS into a reviewable zone file, apply the intended record changes, and publish them back with every removal approved by name and every published record re-read from the platform
-version: 0.6.0
+description: Bring one Cloudflare zone's live DNS into a reviewable zone file, apply the intended record changes, and publish them back with every removal approved by name and every published record re-read from the platform. Needs a connector this release does not ship.
+version: 0.6.1
 gaps:
   - Cloudflare redirect rules API (Page Rules successor / Rulesets)
   - reading a zone's live records and applying DNS and zone changes to the hosting account, so this skill can neither pull the state it plans from nor publish the plan; a plan is judged on what the requester can supply of the live state

@@ -2,8 +2,8 @@
 name: List Hygiene
 type: skill
 category: communication
-description: Decide what an email contact list keeps and drops, verified through the usebouncer connector, with the cost put to the user before it is spent and every drop traced to the result field that caused it
-version: 0.8.0
+description: Decide what an email contact list keeps and drops, verified through the usebouncer connector, with the cost put to the user before it is spent and every drop traced to the result field that caused it. Needs a connector this release does not ship.
+version: 0.8.1
 gaps:
   - address verification against an email validation service
 ---

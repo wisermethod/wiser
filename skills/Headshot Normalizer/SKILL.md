@@ -2,8 +2,8 @@
 name: Headshot Normalizer
 type: skill
 category: media
-description: Turn photographs into square transparent PNGs whose faces sit at the same size and the same place in the frame, by removing each background, measuring the eyes, and cutting every frame to one standard, reporting the transparent band left where a photograph is too short to fill its frame
-version: 0.10.0
+description: Turn photographs into square transparent PNGs whose faces sit at the same size and the same place in the frame, by removing each background, measuring the eyes, and cutting every frame to one standard, reporting the transparent band left where a photograph is too short to fill its frame. Needs a connector this release does not ship.
+version: 0.10.1
 gaps:
   - image cutout
   - the vision and image-model calls this skill's automated path depends on
