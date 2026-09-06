@@ -95,7 +95,7 @@ An unlabeled figure asserts it was measured: taken from its source by the proces
 | `Verified` | reported, then checked against a source that confirms it, by a check that actually ran |
 | `Estimated: <method>` | derived by judgment rather than measured, the method saying how; a by-eye read is `Estimated: manual review` |
 | `Unverified: requires confirmation` | supplied by another party (a requester, a document, a generated answer) and not confirmed: unchecked, uncheckable, or checked and not borne out |
-| `Not available: <reason>` | not obtained; the reason names which absence it was: the source is not composed in the workspace, the credential lacks permission, nothing returned for the window, or quota ran out |
+| `Not available: <reason>` | not obtained; the reason names which absence it was: the source is not composed in the workspace, the credential lacks permission, nothing returned for the window, quota ran out, a tool that would have produced it could not run for want of a system dependency or an unanswered install consent, or the source sits behind a paywall nobody here holds |
 
 **Never fabricate.** A value the evidence did not supply is never invented and never filled with text that looks like an answer: it is asked for, marked as what it is (an estimate, an inference, a hypothetical), or dropped, and a reading that did not arrive is labeled `Not available` with its reason.
 
