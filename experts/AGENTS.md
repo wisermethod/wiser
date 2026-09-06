@@ -53,7 +53,7 @@ The line starts at the left margin, carries nothing but the paths, backticked an
 
 | Expert | Description | Owns |
 |--------|-------------|------|
-| `System Expert/EXPERT.md` | Judge whether a change to a root is the right change, where a proposed capability belongs and in which family, and whether a missing capability is a gap to declare or a build to file, and sequence the system skills accordingly | `skills/Play Author/`, `skills/Playbook Author/`, `skills/Onboard Root/`; its gate runs before the skill, on a change to a root, a new root included, never on the file the skill produces; a Play or Playbook for a user's own work takes no gate before the draft |
+| `System Expert/EXPERT.md` | Judge whether a change to a root is the right change, where a proposed capability belongs and in which family, and whether a missing capability is a gap to declare or a build to file, and sequence the system skills accordingly | `skills/Play Author/`, `skills/Playbook Author/`, `skills/Onboard Root/`; its gate runs in the same context before the skill, on a change to a root, a new root included, never on the file the skill produces; a Play or Playbook for a user's own work takes no gate before the draft |
 
 ### Writing
 
