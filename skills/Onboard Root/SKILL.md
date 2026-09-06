@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from its template and onboard it, on a short path for one person's own root and a full path for every other type
-version: 0.36.8
+version: 0.36.9
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -114,7 +114,7 @@ It is a check, not a step. A personal root that never runs it is onboarded; one 
 - **A credential value reaching the conversation.** Pasted by the requester, read back for confirmation, or copied into a note: treat it as compromised, have them revoke it, and record only the name under Key Facts.
 - **A root filled from the model's own knowledge.** A plausible sentence about a real person that nobody in the workspace said is a fabrication with its source line missing. Ask, or label.
 - **A copy confirmed only by the tool that wrote it.** On a host with more than one way to reach the destination, those ways can disagree while each reports success. Confirm through a second one where it exists.
-- **Taking the full path for a personal root because it is more thorough.** It is longer, not more true: its records exist for claims that reach outsiders. A personal root that ran the full path has a run record nobody reads and an interview the person did not need.
+- **Taking the full path for a personal root because it is more thorough.** It is longer, not more true: its records exist for claims other people are held to. A personal root that ran the full path has a run record nobody reads and an interview the person did not need.
 - **Closing a key in the state lines that the read-back did not clear.** The `## Onboarding` section is what a later session reads before a deliverable write. A line saying complete over a file holding an unread claim lets that claim into a deliverable.
 
 ## Success

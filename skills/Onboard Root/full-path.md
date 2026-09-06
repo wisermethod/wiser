@@ -85,7 +85,7 @@ Settle in one exchange, and only what cannot be inferred.
 
 **Destination.** A path the requester named, or an empty folder the host already attached as this root's home, is established; place there and do not ask again. When no path is established, enumerate the workspace's roots and place the copy beside them in the same container. More than one container could hold it, or none is visible and no path was given: ask.
 
-**Tier.** Ask the outside-the-workspace question and record the answer.
+**Tier.** Ask the outside-the-workspace question and record the answer; where the request states it, confirm rather than ask.
 
 **The research-first offer.** Reasoning, not evidence: no recorded failure supports it, and it is recommended anyway, because it produces a shorter interview, sharper questions, and contradictions found early rather than late.
 
