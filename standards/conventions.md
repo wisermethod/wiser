@@ -1,6 +1,6 @@
 ---
 standard: conventions
-version: 0.1.1
+version: 0.1.2
 description: The cross-cutting conventions every file and agent in a Wiser workspace follows: formatting, dates, portable names, working files, root layout, archives, sourcing, and evidence labels
 ---
 
