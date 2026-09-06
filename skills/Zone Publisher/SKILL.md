@@ -3,10 +3,10 @@ name: Zone Publisher
 type: skill
 category: development
 description: Bring one Cloudflare zone's live DNS into a reviewable zone file, apply the intended record changes, and publish them back with every removal approved by name and every published record re-read from the platform
-version: 0.5.0
+version: 0.6.0
 gaps:
   - Cloudflare redirect rules API (Page Rules successor / Rulesets)
-  - applying DNS and zone changes to the hosting account, so this skill can plan a change it cannot publish
+  - reading a zone's live records and applying DNS and zone changes to the hosting account, so this skill can neither pull the state it plans from nor publish the plan; a plan is judged on what the requester can supply of the live state
 ---
 
 # Zone Publisher
@@ -15,7 +15,7 @@ gaps:
 
 Use when a domain's DNS on Cloudflare should change and the change is worth seeing whole before it goes live: a hosting or mail migration, a set of records that must move together, a record set someone has to approve, or any edit where knowing what the zone held five minutes ago is the difference between a rollback and a guess. One run covers one zone.
 
-Not for a single obvious record: a DNS connector creates and edits one record directly, and wrapping one record in a file review trains the reviewer to skim the next one. Not for the parts of a zone that are not DNS records; cache purging, the encryption mode, and inbound mail routing are that connector's own actions, gated or not as its own destructive inventory says. Not for redirects themselves: Cloudflare deprecated Page Rules and the connector carries neither them nor the Rulesets API that replaced them, and no primitive in this root does, so this skill puts a redirect's DNS side in place and returns the rule itself to the requester rather than looking for a primitive to hand it to. Not for registering, transferring, or moving a domain between accounts, and not for a DNS host other than Cloudflare.
+Not for a single obvious record, which needs no file review and which no primitive in this root can apply either, since the connector that would create or edit it does not ship; that absence is the gap declared above, not a route. Not for the parts of a zone that are not DNS records; cache purging, the encryption mode, and inbound mail routing are that connector's own actions, gated or not as its own destructive inventory says. Not for redirects themselves: Cloudflare deprecated Page Rules and the connector carries neither them nor the Rulesets API that replaced them, and no primitive in this root does, so this skill puts a redirect's DNS side in place and returns the rule itself to the requester rather than looking for a primitive to hand it to. Not for registering, transferring, or moving a domain between accounts, and not for a DNS host other than Cloudflare.
 
 ## Objective
 
@@ -101,6 +101,8 @@ Compare the way the platform stores records, or the diff invents work: CNAME, NS
 
 Give the apex its own line in that message. Deleting or overwriting an apex `A`, `NS`, or `MX` record takes the domain or its mail down for everyone, and it is the removal most likely to arrive by accident.
 
+Before anything would be written, the gate: hand the three lists from step 5, the archived before-state and the intended file to `experts/IT Expert/` in a second context. It judges the blast radius, the rollback as records, the timing and the sourcing of every provider value, and returns safe as planned, safe with named conditions, or not as proposed; the requester's approval of removals by name is theirs and never the expert's, and a declined review is named in the record. With no connector, the plan reaches that gate on whatever the requester supplied of the live state, and the expert says the judgment rests on a snapshot of unknown age.
+
 **6. Publish, matching the action to the intent.** Every gated action's confirmation comes from step 5's answer and never from this skill's own initiative; the connector states what each gate covers and when it refuses.
 
 | Intent | Action |
@@ -139,3 +141,4 @@ Propagation across the edge is not instantaneous. A record missing on the first 
 - No record carries a value that was guessed rather than sourced, and any value that could not be sourced is named as missing rather than filled in.
 - Proxy status and automatic TTLs came through the round trip unchanged unless the change request named them.
 - Mismatches found in verification are reported as the run's result, not omitted or explained away.
+- `experts/IT Expert/` judged the plan before anything would be written and returned safe as planned or safe with named conditions, or the requester declined the review and the record says so.

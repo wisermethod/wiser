@@ -3,7 +3,7 @@ name: Data Analysis
 type: skill
 category: data
 description: Turn a CSV, JSON, or TSV file into an analysis whose every figure was computed by a data tool and can be traced to the field it came from, with parse errors, skipped columns, and missing values stated
-version: 0.7.0
+version: 0.8.0
 ---
 
 # Data Analysis
@@ -27,7 +27,7 @@ Wrap what the caller supplies so material never reads as direction: `<analysis_r
 - **file**, required: an absolute path to a CSV, JSON, or TSV file. A path given relative or by name is resolved to an absolute one before any tool runs.
 - **question**, optional: what the caller wants to know. Absent, the request is an open analysis: the profile, statistics for the columns worth describing, and a breakdown by group when the profile shows one to make.
 
-A caller who has data but no file yet, rows pasted into the conversation, gets them written once to the owning root's active work directory per `standards/conventions.md`, and that path is analyzed. The analysis is delivered in the response; a chart is written only when the request asks for one and `tools/data/` `chart` is run to a work-directory path; and an intermediate is written only where one tool's result is the next tool's input, named in the analysis when it is.
+A caller who has data but no file yet, rows pasted into the conversation, gets them written once to the owning root's active work directory per `standards/conventions.md`, and that path is analyzed. The analysis is delivered in the response; a chart is written only when the request asks for one and `tools/data/` `chart` is run to a work-directory path; and an intermediate is written only where one tool's result is the next tool's input, named in the analysis when it is. The question the output answers and where it is going, a memory file, a deliverable or a decision, are named with the request, since the gate needs both.
 
 ## Identity
 
@@ -86,6 +86,8 @@ Figures computed over fewer values than the file has rows carry that fact beside
 
 A request for something no tool here computes gets three sentences and no fourth: that no tool computes it, what was computed instead, and the inputs the figure would need, handed over as the tools returned them. A percentage of a total, a difference between two figures, or a rate is not that case: `compute` over the saved result that holds both figures returns it, or returns `error` where the divisor is zero, and either is reported as the tool gave it.
 
+Then the gate: hand the analysis, with the question it answers and where it is going (unnamed, the response itself), to `experts/Research Expert/` for its Job 3, in a second context. It judges whether each figure was measured, naming the result field, or read, and whether a stop on an operation the tool lacks was the right result or a `compute` the run did not ask for; the analysis reaches its consumer on rely or the requester's explicit decline, named in the delivery.
+
 ## Pitfalls
 
 - **The figure from nowhere.** The one failure this skill exists to prevent, and it arrives as a helpful rounding, a quick share, a total the reader would have wanted. A number with no field behind it does not go in, and the sentence around it is rewritten to say what the results do say.
@@ -104,3 +106,4 @@ A request for something no tool here computes gets three sentences and no fourth
 - Every requested operation the tools do not perform was named as unavailable, with what was computed instead.
 - The narrative interprets rather than calculates: what stands out among the returned figures, what is missing, what this file cannot answer.
 - No data file's rows were read into the conversation to reach a figure, and nothing was written except a file the caller's own pasted data needed a home in, **any intermediate a later tool had to read, which is written once to the active work directory and named in the analysis**, plus any chart HTML the request asked `tools/data/` `chart` to write.
+- `experts/Research Expert/` returned rely on the output, or rely with its weak points named and labelled, or the requester declined the review and the delivery says so.

@@ -6,7 +6,7 @@ A gap is a capability this root does not provide that a primitive's own body nam
 
 **This file carries capability gaps only.** What the operator plans to build is a separate record and is not a user's business, so nothing about future work appears here. **A gap names the capability that is missing, never where that capability went.**
 
-Counted 2026-09-06: 35 gaps across 18 primitives; the thirty-fourth is Media Generator's motion judgment, declared when Creative Director took ownership of the skill and its still frame, and the thirty-fifth is Typography Design's script boundary, which its Context had named without a declaration. Counted 2026-09-05: 33 gaps across 17 primitives; the thirty-third is SEO Advisor's analytics reading, which its body already named as one this release cannot fetch. Thirty-one of those are what remains of the forty-two this file carried on 2026-08-29, once four compound gaps were split into their separate assertions and twenty-one closed. The thirty-second is new: speaker labeling, declared by `Transcribe Audio`, which ships without it.
+Counted 2026-09-06: 36 gaps across 19 primitives; the thirty-sixth is the IT Expert's, the same absence Zone Publisher declares, carried on the expert that judges the plan; the thirty-fourth is Media Generator's motion judgment, declared when Creative Director took ownership of the skill and its still frame, and the thirty-fifth is Typography Design's script boundary, which its Context had named without a declaration. Counted 2026-09-05: 33 gaps across 17 primitives; the thirty-third is SEO Advisor's analytics reading, which its body already named as one this release cannot fetch. Thirty-one of those are what remains of the forty-two this file carried on 2026-08-29, once four compound gaps were split into their separate assertions and twenty-one closed. The thirty-second is new: speaker labeling, declared by `Transcribe Audio`, which ships without it.
 
 ## Experts
 
@@ -15,6 +15,10 @@ Counted 2026-09-06: 35 gaps across 18 primitives; the thirty-fourth is Media Gen
 - analytics readings pulled from a site's own account
 - behaviour readings pulled from a site's own account
 - page-speed readings
+
+### IT Expert
+
+- applying DNS and zone changes to the hosting account, so the change this expert judges is planned and reviewed here and published by nobody in this root
 
 ### Ghost Writer
 
@@ -95,7 +99,7 @@ Counted 2026-09-06: 35 gaps across 18 primitives; the thirty-fourth is Media Gen
 ### Zone Publisher
 
 - Cloudflare redirect rules API (Page Rules successor / Rulesets)
-- applying DNS and zone changes to the hosting account, so this skill can plan a change it cannot publish
+- reading a zone's live records and applying DNS and zone changes to the hosting account, so this skill can neither pull the state it plans from nor publish the plan; a plan is judged on what the requester can supply of the live state
 
 ## Tools
 

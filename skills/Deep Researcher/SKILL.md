@@ -3,7 +3,7 @@ name: Deep Researcher
 type: skill
 category: research
 description: Run a research question end to end, decomposing it into angles, directing each to the research skill that gathers it, and interpreting what comes back into a report where every finding carries its sources, a calibrated confidence level, and the contradictions it did not resolve
-version: 0.6.0
+version: 0.7.0
 memory:
   - about
 ---
@@ -37,7 +37,7 @@ Two settings ride in `<scope>`, and both have a default, so a caller may state n
 
 One memory key, bound per the constitution's Workspace Model:
 
-- `about`, optional. The owning root's market, relationships, and current focus, which sharpen Phase 1's angle decomposition toward what that root actually works on. Unbound, or bound to a file still carrying its template's prompt lines: say the decomposition was calibrated from the request alone, and never invent what the file would have said.
+- `about`, optional. The owning root's market, relationships, and current focus, which sharpen Phase 1's angle decomposition toward what that root actually works on. Unbound, or bound to a file still carrying its template's prompt lines: say the decomposition was calibrated from the request alone, and never invent what the file would have said. The question the output answers and where it is going, a memory file, a deliverable or a decision, are named with the request, since the gate needs both.
 
 ## Identity
 
@@ -123,6 +123,8 @@ Where the findings suggest a different question matters more than the one asked,
 Draft in the consumer's shape (Reference: The report).
 
 ### 5. Deliver
+
+Then the gate: hand the report, with the question it answers and where it is going, to `experts/Research Expert/` in a second context that did not produce it. It returns rely, rely with the weak points named and labelled, or return, each weak point naming its claim, what it lacks and the step that would close it; the output enters a memory file, a map or a deliverable on rely, or on the requester's explicit decline, and a declined review is named in the delivery. This gate runs once on the finished report; the evidence packages External Research returned inside this run are judged here, not separately. A run that stopped in Phase 2 delivers its gap statement and does not reach the gate; the report reaches the board on rely, with its weak points labelled in Gaps and Uncertainties, or on the requester's decline.
 
 Run the Success criteria below as a gate. Anything that fails is fixed where it belongs, a missing confidence in Phase 4, a dropped angle in Phase 2, rather than patched into the report's prose.
 
@@ -212,3 +214,4 @@ An empty Novel Angles section is a signal rather than a result. Before deliverin
 - Novel angles appear wherever the research revealed any, and an empty section was examined before it shipped.
 - The methodology notes name which skills and tools ran, which phases executed, what was unavailable, and every deviation with its reason.
 - Nothing reached disk beyond a report the caller asked to have saved, placed per `standards/conventions.md`, and, on a harvest-route run, the request file and output bundle that `tools/Content Harvester/` declares.
+- `experts/Research Expert/` returned rely on the output, or rely with its weak points named and labelled, or the requester declined the review and the delivery says so.

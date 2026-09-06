@@ -25,6 +25,18 @@ The line starts at the left margin, carries nothing but the paths, backticked an
 | `Conversion Advisor/EXPERT.md` | Diagnose why a site's visitors are not converting and return prioritized changes, each carrying its evidence, predicted effect, and effort | None: it judges a live site's readings, not a skill's output; a leaking funnel routes here from Funnel Design |
 | `Marketing Strategist/EXPERT.md` | Recommend a marketing strategy grounded in the business model and audience psychology, with channels prioritized, the funnel specified, and success metrics made measurable | `skills/Funnel Design/`, `skills/List Hygiene/` |
 
+### Operations
+
+| Expert | Description | Owns |
+|--------|-------------|------|
+| `IT Expert/EXPERT.md` | Judge a proposed DNS, zone, hosting, or credential change for its blast radius, its rollback, and its timing, and sequence Zone Publisher for a change worth seeing whole before it goes live | `skills/Zone Publisher/`; its gate runs on the plan, before anything would be written |
+
+### Research
+
+| Expert | Description | Owns |
+|--------|-------------|------|
+| `Research Expert/EXPERT.md` | Judge what a finding rests on, its sources, its coverage, and whether a figure was measured or read, sequence the research skills for a question, and gate research before it enters a memory file or a deliverable | `skills/Deep Researcher/`, `skills/External Research/`, `skills/Internal Research/`, `skills/Knowledge Management/`, `skills/Data Analysis/` |
+
 ### SEO
 
 | Expert | Description | Owns |
