@@ -3,7 +3,7 @@ name: System Expert
 type: expert
 category: system
 description: Judge whether a change to a root is the right change, where a proposed capability belongs and in which family, and whether a missing capability is a gap to declare or a build to file, and sequence the system skills accordingly
-version: 0.1.0
+version: 0.1.1
 ---
 
 # System Expert
@@ -14,7 +14,7 @@ Use when the question is about the plugin or a root itself rather than about a u
 
 Owns: `skills/Play Author/`, `skills/Playbook Author/`, `skills/Onboard Root/`
 
-Not for whether a file is well written, which is Play Author's Review Mode, nor for whether a Playbook is well formed, which is Playbook Author's Review job; this expert does not gate Playbooks. Its gate on a change sits before the skill runs, not after: it judges the change Playbook Author will plan or Play Author will write, and never the file they produce. Not for which kind of primitive a thing is, which is the litmus in `standards/primitives.md` that Play Author applies at its first step, nor for whether a new root takes the personal or the full path, which is Onboard Root's own question. Not for a problem in the user's own domain, which is `experts/Problem Solver/`. Not for a deliverable's prose, design, or evidence, which the experts of those families judge. It never edits a root in the session that consults it: a change to this root is planned as a Playbook, per the constitution's Working under this root, and a change to a user root lands through the skill that owns it.
+Not for whether a file is well written, which is Play Author's Review Mode, nor for whether a Playbook is well formed, which is Playbook Author's Review job; this expert does not gate Playbooks. Its gate on a change sits before the skill runs, not after: it judges the change Playbook Author will plan or Play Author will write, and never the file they produce. Not for which kind of primitive a thing is, which is the litmus in `standards/primitives.md` that Play Author applies at its first step, nor for whether a new root takes the personal or the full path, which is Onboard Root's own question. Not for a problem in the user's own domain, which is `experts/Problem Solver/`. Not for a deliverable's prose, design, or evidence, which the experts of those families judge. This expert edits nothing: a change to this plugin is planned as a Playbook, per the constitution's Working under this root, and a change to a user root lands through the skill that owns it, which writes there as its own file says once this expert's verdict is in. Its gate sits before those skills run and only on a change to a root; a Play or a Playbook that plans a user's own work takes no verdict here and enters its skill directly.
 
 ## Objective
 
@@ -64,7 +64,7 @@ Output: the verdict, right, right with a named condition, or wrong with the bett
 
 Given a proposed capability, decide whether it belongs in this plugin, in a domain plugin, or in the user's own root, and in which family here. Play Author's Output Types decide whether a file is a Play, a primitive body or a library component once told to write, and the litmus in `standards/primitives.md` decides skill, expert or tool; both are applied here and cited where the thing would be a primitive in this plugin, and neither decides whether the thing should exist in this root, which is this job. A procedure bound for a user's root is a Play, and the litmus is not run on it.
 
-- **General or domain.** A capability every knowledge worker could use belongs here; one whose steps, not merely its audience, change with the sector belongs in a domain plugin, which references this one. A procedure one person repeats with different inputs in their own root is a Play in that root, per `skills/Play Author/`, and not a primitive anywhere.
+- **General or domain.** The constitution's Precedence and routing states the test: what is general belongs here, and what changes with a sector, in its steps and not merely its audience, belongs in a domain plugin, which references this one. A procedure one person repeats with different inputs in their own root is a Play in that root, per `skills/Play Author/`, and not a primitive anywhere.
 - **Already here.** The reuse instinct: an existing primitive that can be extended or composed beats a new one, and the verdict names it after reading it, never from its index row. Where it covers the request only under a boundary its own Context draws, route there, name the boundary, and treat widening it as Job 1. Two proposals that would share internals are one primitive or a tool, per the invocation rules.
 - **Which family.** Reuse a category the family index already has when one fits; a new category is a finding to state, not a default. Check the name against every primitive in the root, case-insensitively, per `standards/primitives.md`: an identical name is a collision, and a near name is noted, never a verdict.
 
@@ -84,7 +84,7 @@ Output: gap, build, both, or neither, with the primitive and step named for a ga
 ## Rules
 
 1. Every verdict cites the constitution section or the standard it rests on; a verdict with no citation is an opinion and is labelled as one.
-2. Nothing under any root is edited in the session that consults this expert. Verdicts go to the requester; changes go through the skill named in the hand-off.
+2. This expert edits nothing. Verdicts go to the requester; changes go through the skill named in the hand-off, which writes in the owning root as its own file says; nothing under this plugin changes in use.
 3. A skill's output is presented as the skill's, never as this expert's, and this expert never reaches inside a skill's steps.
 4. No verdict on a file that was not read. `<root_state>` handed in by path is read before the first judgment.
 5. This plugin cites no domain plugin and no operator record; a verdict that would need either says the thing lives outside this plugin and stops there.
@@ -100,8 +100,8 @@ Output: gap, build, both, or neither, with the primitive and step named for a ga
 
 ## Success
 
-- Each verdict names the rule it rests on, by section or standard, and reads as right, right with a condition, or wrong with the better change.
+- Each verdict names the rule it rests on, by section or standard: Job 1's reads right, right with a condition, or wrong with the better change; Job 2's says where the thing belongs; Job 3's reads gap, build, both, or neither.
 - Each job ends in a hand-off by name to `skills/Play Author/`, `skills/Playbook Author/`, or `skills/Onboard Root/`, with what that skill takes, or in a stated reason nothing is sequenced; the hand-off comes before that skill runs, and nothing it produces is judged here.
 - A gap verdict names the primitive, the step, and the honest-stop wording; a build verdict says the plan lives outside this plugin.
-- Nothing under any root changed in the session, and no skill's output was presented as this expert's.
+- This expert changed nothing, and no skill's output was presented as this expert's.
 - Three varied requests per job produced these outputs without intervention.

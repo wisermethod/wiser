@@ -8,7 +8,7 @@ An expert owns a skill when its Context carries one line of this fixed form, pat
 Owns: `skills/A/`, `skills/B/`
 ```
 
-The line starts at the left margin, carries nothing but the paths, and is never wrapped; a code block is a run of three or more backticks or tildes, indented by at most three spaces. A skill an expert only routes to, or draws a boundary against, is not owned by it; the word `Owns:` in any other Context line is a defect. A skill no expert owns says so in its own Context, `Stands alone: <reason>`. Every skill is one or the other; an expert may own nothing, and its row below says so. The row for each expert lists what it owns and where its gate sits when not at the end, and that makes this index the routing table the constitution's Precedence and routing names.
+The line starts at the left margin, carries nothing but the paths, backticked and separated by a comma and a space, each naming a directory in `skills/` and none twice, and is never wrapped; a code block is a run of three or more backticks or tildes, indented by at most three spaces, closed by a run at least as long of the same character, and a comment is not read. A skill an expert only routes to, or draws a boundary against, is not owned by it; the word `Owns:` in any other Context line is a defect. A skill no expert owns says so in its own Context, `Stands alone: <reason>`, one such line, at the left margin, with a reason. Every skill is one or the other once declared, and a skill carrying neither has no declared owner yet; an expert may own nothing, and its row below says so. The row for each expert lists what it owns and where its gate sits when not at the end, and that makes this index the routing table the constitution's Precedence and routing names.
 
 <!-- generated:index -->
 
@@ -16,21 +16,21 @@ The line starts at the left margin, carries nothing but the paths, and is never 
 
 | Expert | Description | Owns |
 |--------|-------------|------|
-| `Creative Director/EXPERT.md` | Evaluate and direct visual design, enforcing intentionality and catching generic AI-design patterns, and return findings with specific fixes | None declared yet |
-| `Design Advisor/EXPERT.md` | Judge a visual design against its brief and return a verdict whose findings each name what they fail and the concrete replacement or direction that clears it | None declared yet |
+| `Creative Director/EXPERT.md` | Evaluate and direct visual design, enforcing intentionality and catching generic AI-design patterns, and return findings with specific fixes | Not yet declared; a skill's own file names its gate until then |
+| `Design Advisor/EXPERT.md` | Judge a visual design against its brief and return a verdict whose findings each name what they fail and the concrete replacement or direction that clears it | Not yet declared; a skill's own file names its gate until then |
 
 ### Marketing
 
 | Expert | Description | Owns |
 |--------|-------------|------|
-| `Conversion Advisor/EXPERT.md` | Diagnose why a site's visitors are not converting and return prioritized changes, each carrying its evidence, predicted effect, and effort | None declared yet |
-| `Marketing Strategist/EXPERT.md` | Recommend a marketing strategy grounded in the business model and audience psychology, with channels prioritized, the funnel specified, and success metrics made measurable | None declared yet |
+| `Conversion Advisor/EXPERT.md` | Diagnose why a site's visitors are not converting and return prioritized changes, each carrying its evidence, predicted effect, and effort | None: it judges a live site's readings, not a skill's output |
+| `Marketing Strategist/EXPERT.md` | Recommend a marketing strategy grounded in the business model and audience psychology, with channels prioritized, the funnel specified, and success metrics made measurable | Not yet declared; a skill's own file names its gate until then |
 
 ### SEO
 
 | Expert | Description | Owns |
 |--------|-------------|------|
-| `SEO Advisor/EXPERT.md` | Judge a site's search visibility and return findings ordered by what would actually move its rankings, each naming the check that surfaced it, the fix, the expected impact, and the effort | None declared yet |
+| `SEO Advisor/EXPERT.md` | Judge a site's search visibility and return findings ordered by what would actually move its rankings, each naming the check that surfaced it, the fix, the expected impact, and the effort | Not yet declared; a skill's own file names its gate until then |
 
 ### Strategy
 
@@ -42,12 +42,12 @@ The line starts at the left margin, carries nothing but the paths, and is never 
 
 | Expert | Description | Owns |
 |--------|-------------|------|
-| `System Expert/EXPERT.md` | Judge whether a change to a root is the right change, where a proposed capability belongs and in which family, and whether a missing capability is a gap to declare or a build to file, and sequence the system skills accordingly | `skills/Play Author/`, `skills/Playbook Author/`, `skills/Onboard Root/`; its gate runs before the skill, on the change, never on the file the skill produces |
+| `System Expert/EXPERT.md` | Judge whether a change to a root is the right change, where a proposed capability belongs and in which family, and whether a missing capability is a gap to declare or a build to file, and sequence the system skills accordingly | `skills/Play Author/`, `skills/Playbook Author/`, `skills/Onboard Root/`; its gate runs before the skill, on a change to a root, never on the file the skill produces; a Play or Playbook for a user's own work takes no gate before the draft |
 
 ### Writing
 
 | Expert | Description | Owns |
 |--------|-------------|------|
-| `Ghost Writer/EXPERT.md` | Judge a prose deliverable as its intended reader; the default review gate before writing ships | None declared yet |
+| `Ghost Writer/EXPERT.md` | Judge a prose deliverable as its intended reader; the default review gate before writing ships | Not yet declared; a skill's own file names its gate until then |
 
 <!-- /generated:index -->
