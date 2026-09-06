@@ -125,7 +125,7 @@ Copy that a visitor will read follows the owning root's bound `voice`. Facts abo
 
 ### Step 4: Hand it over
 
-Before the hand-over, the gate: hand each finished artifact, the finding it was built to close, which stands as the goal, and the evidence it rests on, never the reasoning that produced it, to `experts/SEO Advisor/` in a second context. It returns a verdict per artifact, pass or return with what fails; a returned artifact goes back to Step 3; a declined review is named in the hand-over.
+Before the hand-over, the gate: hand each finished artifact, the finding it was built to close, which stands as the goal, or its row in the artifacts table where its own evidence settled the scope, and the evidence it rests on, never the reasoning that produced it, to `experts/SEO Advisor/` in a second context. It returns a verdict per artifact, pass or return with what fails; a returned artifact goes back to Step 3; a declined review is named in the hand-over.
 
 Write each artifact into the owning root's work directory under a subject folder for the site, per `standards/conventions.md`. Never into this root, and never into the site's own repository. An artifact that replaces an earlier one is archived first, by the same standard, which is what makes the status snapshot's comparison possible next period.
 
@@ -160,4 +160,4 @@ The deployment is the requester's. Where one change has both a file and a platfo
 - Every ordering in an artifact came from `<findings>` or from the requester, and none was created here.
 - Every file sits in the owning root's work directory under the site's subject folder, with anything it replaced archived per `standards/conventions.md`, and nothing was written into this root or into the site.
 - Each artifact was handed over with where it goes, what must be true first, and how to confirm it landed, and nothing was deployed, submitted, or published by this run.
-- `experts/SEO Advisor/` returned a verdict on each finished artifact against the finding it was built to close, before hand-over, or the requester declined the review.
+- `experts/SEO Advisor/` returned a verdict on each finished artifact against the finding it was built to close, or against its row in the artifacts table where its own evidence settled the scope, before hand-over, or the requester declined the review.

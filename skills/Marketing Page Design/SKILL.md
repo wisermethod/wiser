@@ -71,7 +71,7 @@ Staged composition. Design the page in order and never in one shot; each stage s
 
 8. **Define responsive adaptation.** Per section, decide what reflows, resizes, hides, or changes interaction at each breakpoint; this is design, not a shrunk desktop. A hero image may drop on mobile, a feature row may stack, the primary action may become full width.
 
-**Before delivery, review.** Never accept the first output as final. Route the page to `experts/Creative Director/` for a verdict, the pre-ship gate for UI and page deliverables (see ship-gate routing in `skills/Designer/`), with the brief and direction as its `<brief>`, for an adversarial pass against generic defaults, weak hierarchy, and flat rhythm, and work its findings before the page ships.
+**Before delivery, review.** Never accept the first output as final. Route the page to `experts/Creative Director/` for a verdict, the pre-ship gate for UI and page deliverables (see ship-gate routing in `skills/Designer/`), with the brief and direction as its `<brief>`, for an adversarial pass against generic defaults, weak hierarchy, and flat rhythm, and work its findings before the page ships, or the requester declines the review and the delivery says so.
 
 Output: one complete HTML page with embedded CSS, working web fonts, the defined breakpoints, and realistic placeholder content.
 

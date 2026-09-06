@@ -1,6 +1,6 @@
 # Attribution
 
-The three whole-layout clusters in the Prohibited Defaults Taxonomy, and the operation vocabulary this expert uses, are adapted, not copied, from Apache 2.0 sources. **Verified against the upstreams on 2026-09-02**, replacing an earlier record that carried the relationship forward unchecked from the attribution file of the primitive Design Advisor was converted from, read 2026-07-27.
+The three whole-layout clusters in the Prohibited Defaults Taxonomy, the operation vocabulary this expert uses, and the Audit and Review criteria of its verdict mode are adapted, not copied, from Apache 2.0 sources. **Verified against the upstreams on 2026-09-02**, replacing an earlier record that carried the relationship forward unchecked from the attribution file of the primitive Design Advisor was converted from, read 2026-07-27.
 
 ## frontend-design, by Anthropic
 

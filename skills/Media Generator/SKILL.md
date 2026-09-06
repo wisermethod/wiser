@@ -3,7 +3,7 @@ name: Media Generator
 type: skill
 category: media
 description: Produce an image or a video that does not exist yet, or a photograph with its background removed, by finishing the prompt, choosing the model, and running the billed generation through the replicate connector to a file the user named
-version: 0.9.0
+version: 0.9.1
 gaps:
   - the image, video, and background-removal models this skill's whole output depends on
   - judgment of a generated clip's motion, which no expert in this root carries; the clip is judged by its still frame
@@ -125,4 +125,4 @@ Every platform call in these steps belongs to a generation connector this releas
 - The user knew the destination and the spend shape before the first billed call, and knows the model and the run count after it.
 - No credential value entered the conversation, a log, or any file, and no credential path was guessed.
 - Resizing, cropping, format conversion, compositing, and trimming went to the tools that own them, and no second generation was bought to do a tool's work.
-- `experts/Creative Director/` gave the prompt its references and register before the first billed call and read the result for purpose and register after it, or the requester declined; a clip shipped with its motion unjudged and said so.
+- `experts/Creative Director/` gave the prompt its references and register, or the cutout its purpose and placement, before the first billed call and read the result for purpose and register after it, or the requester declined; a clip shipped with its motion unjudged and said so.
