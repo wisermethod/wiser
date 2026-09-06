@@ -12,7 +12,7 @@ It carries no dependency on any single agent host: everything in it is instructi
 
 **13 tools** that do the deterministic work a skill or expert calls for: parsing, describing, aggregating, joining, charting and computing over tabular data; rendering HTML, SVG and Mermaid diagrams and live pages to images; editing images and video; driving a browser; on-page, sitemap and analytics-tag checks and Search Console datasets for SEO; building and exporting decks; gathering candidate source material; and transcribing audio on your own machine.
 
-**6 standards** that bind all of it: how a primitive is shaped, how instructions are written, the conventions every file follows, the two shapes for work that spans sessions, and what every script a tool ships must do.
+**6 standards** that bind all of it: how a primitive is shaped, how instructions are written, the conventions every file follows, the two shapes for work written down rather than done once, and what every script a tool ships must do.
 
 ## How it works
 
