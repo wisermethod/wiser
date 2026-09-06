@@ -127,7 +127,17 @@ fi
 
 case "$ROOT_TYPE" in
   client)
-    ONB="$ROOT/work/onboarding"
+    # The path is the root's own to declare, not this harness's to assume: the
+    # Client template's layout table carries a row "Records from creating this
+    # root" naming it, and the copy carries that row. Read it there, and fall
+    # back to the template's own value only when the row is missing, saying so,
+    # because a root whose declaration was edited is the case this exists for.
+    ONB_REL=$(awk -F'|' '/Records from creating this root/ { for (i=1;i<=NF;i++) { if (match($i, /`[^`]+`/)) { v=substr($i, RSTART+1, RLENGTH-2); sub(/\/$/,"",v); print v; exit } } }' "$ROOT/AGENTS.md" 2>/dev/null)
+    if [ -z "$ONB_REL" ]; then
+      ONB_REL="work/onboarding"
+      echo "$PROG: $ROOT/AGENTS.md declares no \"Records from creating this root\" row; assuming $ONB_REL, the Client template's own value" >&2
+    fi
+    ONB="$ROOT/$ONB_REL"
     RUNREC="$ONB/run-record.md"
     VERIF="$ONB/verification.md"
     AUDIT="$ONB/audit.md"
