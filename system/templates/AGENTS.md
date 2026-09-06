@@ -10,7 +10,7 @@ What a user copies to start something new: a root.
 | `Org Root Template/` | An organization's root |
 | `Client Root Template/` | A client's root, with the records the full onboarding path keeps |
 
-`skills/Onboard Root/` is what reads this file and these templates. A personal root takes its short path; an org or client root takes its full path.
+`skills/Onboard Root/` is what reads this file and these templates. A personal root takes its short path; every other type takes its full path.
 
 **A department or an industry root starts from the Org template.** Copy it, set `type: department` or `type: industry` in the frontmatter, and have `memory/about.md` name the parent organization, or the field, in its first line. The constitution recognizes both types; neither earns a template of its own, because each differs from an org root in what its about file says first and in nothing the copy could carry.
 
