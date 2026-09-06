@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from its template and onboard it, on a short path for one person's own root and a full path for a root whose work leaves the workspace
-version: 0.36.0
+version: 0.36.1
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -14,7 +14,7 @@ gaps:
 
 Use when the workspace needs a user root it does not have. `system/templates/AGENTS.md` lists the three templates and says how the other two root types the constitution recognizes are made from one of them.
 
-Not for updating a deployed copy of this plugin to a new release, which the plugin carries no procedure for. Not for authoring a primitive or a Play inside a root that already exists; that is `skills/Play Author/`, which carries its own format; the templates this plugin ships are root templates only. Not for writing `memory/voice.md`, which `skills/Build Voice/` owns on both paths. Not for giving work a second home: when a composed root's scope already fits the request, that root owns it. Not for re-onboarding a root that already exists: no merge or invalidation semantics are defined, so report the state and ask before touching a bound file.
+Not for updating a deployed copy of this plugin to a new release, which the plugin carries no procedure for. Not for authoring a primitive or a Play inside a root that already exists; that is `skills/Play Author/`, which carries its own format; the templates this plugin ships are root templates only. Not for writing `memory/voice.md`, which `skills/Build Voice/` owns on both paths. Not for giving work a second home: when a composed root's scope already fits the request, that root owns it. Not for re-onboarding a root that already exists: no merge or invalidation semantics are defined, so report the state and ask before touching a bound file. Whether a new root is the right change at all is judged first by `experts/System Expert/`, on the person's answer to the path question below and the destination, handed the composed roots' `AGENTS.md` files by path as its `<root_state>`, before this skill copies anything; nothing judges the root's files after, since the read-back and the harness are this skill's own gates.
 
 ## Objective
 

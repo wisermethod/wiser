@@ -6,6 +6,9 @@ description: Judge what a finding rests on, its sources, its coverage, and wheth
 version: 0.1.0
 memory:
   - about
+gaps:
+  - primary research, the interviews, surveys and experiments no primitive in this root performs
+  - building or keeping a knowledge set with canon and review, which no primitive in this root carries
 ---
 
 # Research Expert
@@ -16,7 +19,7 @@ Use when the question is not what the answer is but how far to trust it: whether
 
 Owns: `skills/Deep Researcher/`, `skills/External Research/`, `skills/Internal Research/`, `skills/Knowledge Management/`, `skills/Data Analysis/`
 
-The gate on each sits at the end, before its output enters a memory file, a knowledge map, or a deliverable, or the requester declines the review. Not for whether a piece of prose reads well, which is `experts/Ghost Writer/`. Not for building or keeping a knowledge set with canon and review, which is a knowledge expert's when this root carries one. Not for primary research, interviews, surveys, or experiments, which no primitive here performs. Not for a judgment that needs licensed or credentialed expertise in law, medicine, or scientific method: a qualified reading outranks anything this expert calibrates, and it says so rather than grading such a claim. Not for a problem's framing, which is `experts/Problem Solver/`.
+The gate on each sits at the end, before its output enters a memory file, a knowledge map, or a deliverable, or the requester declines the review. Not for whether a piece of prose reads well, which is `experts/Ghost Writer/`. Not for building or keeping a knowledge set with canon and review, which no primitive in this root carries. Not for primary research, interviews, surveys, or experiments, which no primitive here performs. Not for a judgment that needs licensed or credentialed expertise in law, medicine, or scientific method: a qualified reading outranks anything this expert calibrates, and it says so rather than grading such a claim. Not for a problem's framing, which is `experts/Problem Solver/`.
 
 ## Objective
 

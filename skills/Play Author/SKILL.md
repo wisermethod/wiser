@@ -3,14 +3,14 @@ name: Play Author
 type: skill
 category: authoring
 description: Write or review Plays, primitive instruction bodies, and library components
-version: 0.1.1
+version: 0.1.2
 ---
 
 # Play Author
 
 ## Context
 
-Use when writing or reviewing agent instructions: a Play, the body of a typed primitive (SKILL.md, EXPERT.md, TOOL.md), an AGENTS.md router, or a library component. Not for execution plans that span sessions; that is Playbook Author. Not for prose content; that is Content Author.
+Use when writing or reviewing agent instructions: a Play, the body of a typed primitive (SKILL.md, EXPERT.md, TOOL.md), an AGENTS.md router, or a library component. Not for execution plans that span sessions; that is Playbook Author. Not for prose content; that is Content Author. A change to a root, a new root included, is judged first by `experts/System Expert/`, before this skill writes; a Play for a user's own work is not, and this skill's Review Mode is the file's own gate.
 
 ## Objective
 

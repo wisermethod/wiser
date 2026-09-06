@@ -3,14 +3,14 @@ name: Playbook Author
 type: skill
 category: authoring
 description: Create, instantiate, resume, review, or close out a WISER Playbook for work that spans sessions
-version: 0.1.0
+version: 0.1.1
 ---
 
 # Playbook Author
 
 ## Context
 
-Use to create, instantiate, resume, review, or close out a Playbook. Not for work that finishes in one session: execute that directly, and route it to Play Author only when it will recur with different inputs; `standards/playbook.md` states the test that separates the two, so apply it before anything else. Not for prose deliverables; that is Content Author.
+Use to create, instantiate, resume, review, or close out a Playbook. Not for work that finishes in one session: execute that directly, and route it to Play Author only when it will recur with different inputs; `standards/playbook.md` states the test that separates the two, so apply it before anything else. Not for prose deliverables; that is Content Author. A Playbook that changes a root, a new root included, is judged first by `experts/System Expert/`, before this skill plans it; a Playbook for a user's own work is not, and this skill's Review job is the document's own gate.
 
 ## Objective
 

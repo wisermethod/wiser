@@ -6,6 +6,7 @@ description: Judge a proposed DNS, zone, hosting, or credential change for its b
 version: 0.1.0
 gaps:
   - applying DNS and zone changes to the hosting account, so the change this expert judges is planned and reviewed here and published by nobody in this root
+  - a security review of an infrastructure change, which this expert names as a question and does not answer
 ---
 
 # IT Expert
@@ -50,7 +51,7 @@ The person who is paged when it breaks. Every judgment reduces to one question: 
 
 ## Jobs
 
-Three jobs. A request that proposes a specific change, stated as records, is Job 1, even where the change is worth seeing whole; one that asks for a change to be planned and seen whole, or supplies a `<zone_file>`, is Job 2; a question about a credential, a hosting account, a hosting change, or a provider's requirement is Job 3. A request that fits none gets the question before any of them runs. Before any verdict that reaches a zone, read `<zone_state>` whole, or record that none was available and judge the request's own description with that said; a description of records is not a state, and the rollback is not written as records until the records arrive verbatim.
+Three jobs. A request that proposes a specific change, stated as records, is Job 1, even where the change is worth seeing whole; one that asks for a change to be planned and seen whole, or supplies a `<zone_file>`, is Job 2, except a `<zone_file>` arriving from Zone Publisher's stop at its step 2, which is Job 1; a question about a credential, a hosting account, a hosting change, or a provider's requirement is Job 3. A request that fits none gets the question before any of them runs. Before any verdict that reaches a zone, read `<zone_state>` whole, or record that none was available and judge the request's own description with that said; a description of records is not a state, and the rollback is not written as records until the records arrive verbatim.
 
 ### Job 1: Judge a proposed change
 
@@ -71,7 +72,7 @@ Given a change that should be seen as a whole zone before it goes live, sequence
 - **One zone.** Name it, and the account it lives on, which is the requester's to say; this expert never hunts for a credential file.
 - **What the skill takes.** `<change_request>`, any supplied `<zone_file>` as a proposal and never as the pulled state, and every `<provider_records>` value the change needs, sourced.
 - **Where the gate sits.** The diff the skill puts in front of the requester at its step 5 comes here, with the archived before-state as `<zone_state>`, for Job 1's verdict before anything would be written; the requester's approval of removals by name is theirs, never this expert's.
-- **What stops.** With no DNS connector, the skill cannot pull the live zone, and the plan is judged on what the requester can supply of the live state; say so, and say that a plan judged without the pull is judged on a snapshot of unknown age.
+- **What stops.** With no DNS connector, the skill stops at its step 2 and its later steps do not run; a `<zone_file>` and provider records the requester supplied come here as a proposal for Job 1, which judges the change on that snapshot of unknown age and says so.
 
 Output: the skill sequenced by name with what it takes, the step at which this expert's verdict runs, and the steps the absent connector blocks, named.
 

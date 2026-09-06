@@ -3,7 +3,7 @@ name: Designer
 type: skill
 category: design
 description: Run a design job end to end, from brief and visual direction through foundations, composition, and validation, producing the wireframe, style guide, or extracted system itself and directing every other phase to the design skill that owns it
-version: 0.9.0
+version: 0.9.1
 memory:
   - design
 gaps:
@@ -203,6 +203,6 @@ Group the findings blocking, then major, then minor, each naming its location an
 - Every design decision in the artifact can state its job and its reason.
 - No unjustified entry of the prohibited-defaults taxonomy survives (a match the brief fixed or Phase 2 chose as the justified signature is exempt per the Distinctiveness Check), and the same-prompt test ran on the whole direction, with any revision it forced stated.
 - The accessibility pass ran on every axis the deliverable gave it, any axis with no surface named as not applicable, and its findings were fixed or reported with severity and location.
-- For a UI or page deliverable, `experts/Creative Director/` returned a verdict and its findings were worked before delivery, or a degraded review is named. Decks follow Create Presentation's gates, not this row.
+- For a UI or page deliverable, `experts/Creative Director/` returned a verdict in a second context and its findings were worked before delivery, or the requester declined the review and the delivery says so, or a degraded review is named. Decks follow Create Presentation's gates, not this row.
 - A wireframe is grayscale, system-font, annotated, and readable as hierarchy without color; a style guide opens in a browser and is styled by the system it documents; an extracted system marks what was approximate and names what a person must confirm.
 - Anything the request asked for that no skill in this root produces is named as unproduced, never approximated.

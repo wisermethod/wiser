@@ -60,7 +60,7 @@ An export that is entirely comment lines, or a tabular listing of records, is a 
 
 ## Steps
 
-Every platform action in these steps belongs to a DNS connector this release does not ship. Each step says what the action would do, and until a connector lands the step is an honest stop, never performed by hand against a live account.
+Every platform action in these steps belongs to a DNS connector this release does not ship. Each step says what the action would do, and until a connector lands the step is an honest stop, never performed by hand against a live account. With no connector, this skill stops at step 2 and steps 3 to 8 do not run; a `<zone_file>` and `<provider_records>` the requester supplied go, as a proposal and never as the pulled state, straight to `experts/IT Expert/` for its Job 1, which judges the change on that snapshot of unknown age and says so, and nothing in this root publishes it.
 
 **1. Settle the zone and the account.** With a DNS connector present, its zone list names the zones the account's token reaches, and a zone absent from it is on another account or outside the token's zone resources. Which account applies is the user's to say; never go looking for a credential file.
 
@@ -101,7 +101,7 @@ Compare the way the platform stores records, or the diff invents work: CNAME, NS
 
 Give the apex its own line in that message. Deleting or overwriting an apex `A`, `NS`, or `MX` record takes the domain or its mail down for everyone, and it is the removal most likely to arrive by accident.
 
-Before anything would be written, the gate: hand the three lists from step 5, the archived before-state and the intended file to `experts/IT Expert/` in a second context. It judges the blast radius, the rollback as records, the timing and the sourcing of every provider value, and returns safe as planned, safe with named conditions, or not as proposed; the requester's approval of removals by name is theirs and never the expert's, and a declined review is named in the record. With no connector, the plan reaches that gate on whatever the requester supplied of the live state, and the expert says the judgment rests on a snapshot of unknown age.
+Before anything would be written, the gate: hand the three lists from step 5, the archived before-state and the intended file to `experts/IT Expert/` in a second context. It judges the blast radius, the rollback as records, the timing and the sourcing of every provider value, and returns safe as planned, safe with named conditions, or not as proposed; the requester's approval of removals by name is theirs and never the expert's, and a declined review is named in the record. The stop with no connector is stated at the head of these steps.
 
 **6. Publish, matching the action to the intent.** Every gated action's confirmation comes from step 5's answer and never from this skill's own initiative; the connector states what each gate covers and when it refuses.
 
