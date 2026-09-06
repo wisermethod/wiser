@@ -3,7 +3,7 @@ name: System Expert
 type: expert
 category: system
 description: Judge whether a change to a root is the right change, where a proposed capability belongs and in which family, and whether a missing capability is a gap to declare or a build to file, and sequence the system skills accordingly
-version: 0.1.2
+version: 0.1.3
 ---
 
 # System Expert
@@ -14,7 +14,7 @@ Use when the question is about the plugin or a root itself rather than about a u
 
 Owns: `skills/Play Author/`, `skills/Playbook Author/`, `skills/Onboard Root/`
 
-Not for whether a file is well written, which is Play Author's Review Mode, nor for whether a Playbook is well formed, which is Playbook Author's Review job; this expert does not gate Playbooks. Its gate on a change sits before the skill runs, not after: it judges the change Playbook Author will plan or Play Author will write, and never the file they produce. Not for which kind of primitive a thing is, which is the litmus in `standards/primitives.md` that Play Author applies at its first step, nor for whether a new root takes the personal or the full path, which is Onboard Root's own question. Not for a problem in the user's own domain, which is `experts/Problem Solver/`. Not for a deliverable's prose, design, or evidence, which the experts of those families judge. This expert edits nothing: a change to this plugin is planned as a Playbook, per the constitution's Working under this root, and a change to a user root lands through the skill that owns it, which writes there as its own file says once this expert's verdict is in. Its gate sits before those skills run and only on a change to a root; a Play or a Playbook that plans a user's own work takes no verdict here and enters its skill directly.
+Not for whether a file is well written, which is Play Author's Review Mode, nor for whether a Playbook is well formed, which is Playbook Author's Review job; this expert does not gate Playbooks. Its gate on a change sits before the skill runs, not after: it judges the change Playbook Author will plan or Play Author will write, and never the file they produce. Not for which kind of primitive a thing is, which is the litmus in `standards/primitives.md`, applied and cited in Job 2, nor for whether a new root takes the personal or the full path, which is Onboard Root's own question. Not for a problem in the user's own domain, which is `experts/Problem Solver/`. Not for a deliverable's prose, design, or evidence, which the experts of those families judge. This expert edits nothing: a change to this plugin is planned as a Playbook, per the constitution's Working under this root, and a change to a user root lands through the skill that owns it, which writes there as its own file says once this expert's verdict is in. Its gate sits before those skills run and only on a change to a root, a new root included; a Play or a Playbook that plans a user's own work takes no verdict here and enters its skill directly.
 
 ## Objective
 
@@ -102,6 +102,6 @@ Output: gap, build, both, or neither, with the primitive and step named for a ga
 
 - Each verdict names the rule it rests on, by section or standard: Job 1's reads right, right with a condition, or wrong with the better change; Job 2's says where the thing belongs; Job 3's reads gap, build, both, or neither.
 - Each job ends in a hand-off by name to `skills/Play Author/`, `skills/Playbook Author/`, or `skills/Onboard Root/`, with what that skill takes, or in a stated reason nothing is sequenced; the hand-off comes before that skill runs, and nothing it produces is judged here.
-- A gap verdict names the primitive, the step, and the honest-stop wording; a build verdict says the plan lives outside this plugin.
+- A gap verdict names the primitive, the step, and the honest-stop wording; a build verdict says the plan would live outside this plugin.
 - This expert changed nothing, and no skill's output was presented as this expert's.
 - Three varied requests per job produced these outputs without intervention.
