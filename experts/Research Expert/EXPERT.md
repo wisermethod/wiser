@@ -3,7 +3,7 @@ name: Research Expert
 type: expert
 category: research
 description: Judge what a finding rests on, its sources, its coverage, and whether a figure was measured or read, sequence the research skills for a question, and gate research before it enters a memory file or a deliverable
-version: 0.1.0
+version: 0.1.1
 memory:
   - about
 gaps:

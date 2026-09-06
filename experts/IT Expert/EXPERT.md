@@ -3,7 +3,7 @@ name: IT Expert
 type: expert
 category: operations
 description: Judge a proposed DNS, zone, hosting, or credential change for its blast radius, its rollback, and its timing, and sequence Zone Publisher for a change worth seeing whole before it goes live
-version: 0.1.0
+version: 0.1.1
 gaps:
   - applying DNS and zone changes to the hosting account, so the change this expert judges is planned and reviewed here and published by nobody in this root
   - a security review of an infrastructure change, which this expert names as a question and does not answer
