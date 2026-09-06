@@ -1,6 +1,6 @@
 ---
 standard: instruction-quality
-version: 0.1.0
+version: 0.1.1
 description: How instructions are written in and around Wiser; the sole home of the Elegance definition
 ---
 
@@ -31,6 +31,8 @@ Models attend most to beginning and end; the middle receives less focus.
 Short instructions can ignore position; long ones cannot.
 
 Restating is never allowed for convenience. One exception: a rule whose violation is irreversible may be anchored once more at the close.
+
+The constitution is cited, never paraphrased. A primitive that depends on one of its rules names the rule by its heading and sends the reader there; a restatement in the primitive's own words drifts from the source, ships the drift as a fact, and is the harder of the two to catch, since a reviewer who knows the rule reads past a fluent version of it.
 
 ## The Skeleton
 
