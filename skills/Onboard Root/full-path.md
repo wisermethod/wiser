@@ -77,7 +77,7 @@ Settle in one exchange, and only what cannot be inferred.
 **Type.** Read `system/templates/AGENTS.md`; it names what each template creates, and each template's own opening line and type section state the scope it holds. Choose by the scope the new root will own, not by who asked for it. The discriminating question is who signs the outputs this root will hold, and whose facts and voice they carry; most requests answer it in one sentence.
 
 - Exactly one type fits: continue.
-- Two fit, or none does: ask. The constitution's Workspace Model governs the choice: more than one plausible root, or none, and the answer is to ask.
+- Two fit, or none does: ask. The choice is governed by the constitution's Workspace Model, and asking is what it yields here.
 - Client: work done for a client, whoever does it and at whatever scale. That relationship is the type, not an option to confirm. Do not ask how the work is organized, do not ask whether an org root already exists, and never invent an organization's name from session context. Scoped keys (`voice:org`, `design:org`, `about:org`) resolve at use when a composed org root provides them; absence degrades at use and does not block onboarding.
 - Department: the Org Root Template owns the test for when a unit earns its own root. No department template ships; copy the Org template, set `type: department`, and have `memory/about.md` name the parent organization first, so confirm that org root is in the workspace. Absent: ask whether to onboard the org first. Declined: stop. The department stays not onboarded, its `## Onboarding` section still saying so, and the answer is recorded.
 
