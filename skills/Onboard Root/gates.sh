@@ -168,6 +168,13 @@ case "$ROOT_TYPE" in
 esac
 
 
+rel() {
+  case "$1" in
+    "$ROOT"/*) printf '%s' "${1#$ROOT/}" ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
 # Count of supplied documents. A run with none is the research-first, nothing-
 # handed-over case, where extraction records cannot exist and the three gates
 # that read them have nothing to be true or false about. The Tier section
@@ -176,13 +183,6 @@ esac
 # exit clean from its own harness teaches the implementer to stop running it.
 # The distinction that matters: no documents means not applicable, documents
 # with no extraction records means failed.
-rel() {
-  case "$1" in
-    "$ROOT"/*) printf '%s' "${1#$ROOT/}" ;;
-    *) printf '%s' "$1" ;;
-  esac
-}
-
 source_count() {
   [ -d "$SRC_DIR" ] || { echo 0; return; }
   list_any "$SRC_DIR" 2>/dev/null | wc -l | tr -d ' '
@@ -244,22 +244,38 @@ ROOTNAME=$(sed -n 's/^root:[[:space:]]*//p' "$AGENTS" 2>/dev/null | head -1)
 
 # A path a record names is content the run wrote, and a gate must not follow it
 # out of the root: an absolute one, one that walks out with .., or one reached
-# through a symlink pointing outside, would have a gate read another root's file
-# and take what it found as this root's evidence. Spelling alone cannot see the
-# third, so the parent is resolved physically and a final component that is
-# itself a link is refused: a record naming one is naming a file this root does
-# not hold. Every path a gate builds from record content goes through this.
+# through a symlink whose destination is outside, would have a gate read another
+# root's file and take what it found as this root's evidence. Link-ness is not
+# the test and neither is spelling: a symlink that stays inside the root is
+# legitimate and a trailing slash hides a leaf from -L, so the destination is
+# resolved physically and compared. A path whose parent does not exist cannot
+# escape, so it passes here and the caller's own existence test reports it.
 under_root() {
-  case "$1" in
-    "" | /*) return 1 ;;
-    ".." | */..) return 1 ;;
-    *../*) return 1 ;;
-  esac
+  case "$1" in "" | /*) return 1 ;; esac
+  _ur_p=$1
+  while :; do case "$_ur_p" in */) _ur_p=${_ur_p%/} ;; *) break ;; esac; done
+  [ -n "$_ur_p" ] || return 1
   _ur_root=$(CDPATH= cd -P "$ROOT" 2>/dev/null && pwd -P) || return 1
-  _ur_dir=$(CDPATH= cd -P "$ROOT/$(dirname "$1")" 2>/dev/null && pwd -P) || return 1
-  [ "$_ur_dir" = "$_ur_root" ] || case "$_ur_dir" in "$_ur_root"/*) ;; *) return 1 ;; esac
-  [ -L "$ROOT/$1" ] && return 1
-  return 0
+  if [ -d "$ROOT/$_ur_p" ]; then
+    _ur_res=$(CDPATH= cd -P "$ROOT/$_ur_p" 2>/dev/null && pwd -P) || return 1
+  else
+    case "$_ur_p" in */*) _ur_par=${_ur_p%/*} ;; *) _ur_par=. ;; esac
+    _ur_d=$(CDPATH= cd -P "$ROOT/$_ur_par" 2>/dev/null && pwd -P) || {
+      case "$_ur_p" in *..*) return 1 ;; *) return 0 ;; esac
+    }
+    if [ -L "$ROOT/$_ur_p" ]; then
+      _ur_t=$(readlink "$ROOT/$_ur_p") || return 1
+      case "$_ur_t" in
+        /*) _ur_res=$_ur_t ;;
+        *)  case "$_ur_t" in */*) _ur_tp=${_ur_t%/*} ;; *) _ur_tp=. ;; esac
+            _ur_td=$(CDPATH= cd -P "$_ur_d" 2>/dev/null && cd -P "$_ur_tp" 2>/dev/null && pwd -P) || return 1
+            _ur_res=$_ur_td/${_ur_t##*/} ;;
+      esac
+    else
+      _ur_res=$_ur_d/${_ur_p##*/}
+    fi
+  fi
+  case "$_ur_res" in "$_ur_root"|"$_ur_root"/*) return 0 ;; *) return 1 ;; esac
 }
 
 # md files in a collection directory, scaffolding excluded.
@@ -600,7 +616,11 @@ claims_located_count() {
     id=$(printf '%s' "$anch" | tr -d '[]')
     bfp=$(printf '%s' "$bf" | tr -d '`' | sed 's#^\./##')
     case "$bfp" in
-      memory/*.md) under_root "$bfp" || { add_fail "$(rel "$VERIF") names bound file '$bfp', which leaves the root"; continue; } ;;
+      # add_fail cannot be called from here: this loop is on the right of a pipe
+      # inside a command substitution, so G_FAILS would be assigned in a subshell
+      # and discarded twice over, which is the hazard the G13 comment below names.
+      # The escape is written down and gate_G0 reports it after the counting.
+      memory/*.md) under_root "$bfp" || { printf '%s\n' "$bfp" >> "$TMPD/g0-escapes.txt"; continue; } ;;
       *) continue ;;                 # a bound file, not the record itself
     esac
     if [ -n "${ONLY_FILE:-}" ] && [ "$bfp" != "$ONLY_FILE" ]; then continue; fi
@@ -616,6 +636,7 @@ claims_located_count() {
 gate_G0() {
   need_file "$RUNREC" || return
   need_file "$VERIF" || return
+  rm -f "$TMPD/g0-escapes.txt"
   if ! has_heading "$RUNREC" "## Per-key close"; then
     add_fail "$(rel "$RUNREC"): no '## Per-key close' section"
     return
@@ -729,6 +750,17 @@ gate_G0() {
     done
     IFS="$oldifs"
   done
+  # The escapes the counting loop could only write down, reported here, where
+  # add_fail is in the gate's own shell and survives.
+  if [ -s "$TMPD/g0-escapes.txt" ]; then
+    sort -u "$TMPD/g0-escapes.txt" | while IFS= read -r esc; do
+      printf '%s\n' "$esc"
+    done > "$TMPD/g0-escapes-uniq.txt"
+    while IFS= read -r esc; do
+      [ -n "$esc" ] || continue
+      add_fail "$(rel "$VERIF") names bound file '$esc', which leaves the root"
+    done < "$TMPD/g0-escapes-uniq.txt"
+  fi
 }
 
 # ---- G1 Scope recorded ---------------------------------------------------
@@ -1872,8 +1904,9 @@ gate_G13b() {
     add_note "'### What the outputs are for' is deferred; the routing clause did not run (G12 carries that failure)"
     return
   fi
-  # output types: list items where present, otherwise the prose split on
-  # commas and " and ".
+  # output types: list items, and nothing else. The prose splitter this comment
+  # used to describe was withdrawn, because a gate cannot parse prose; a body with
+  # no list item is reported as naming no output type rather than guessed at.
   awk '
   function trim(s){ sub(/^[ \t]+/,"",s); sub(/[ \t]+$/,"",s); return s }
   {
@@ -2025,8 +2058,10 @@ gate_G15() {
   fi
 }
 
-# Containers a claim can hide in. A rejection has to name at least two, which
-# is what distinguishes a search from an assertion that one happened.
+# Containers a claim can hide in. A rejection has to name at least one place it
+# was looked for, which is what distinguishes a search from an assertion that one
+# happened, and a place is a container, a URL, a file or an evidence row: the
+# check below counts all four and requires one, not two containers.
 CONTAINER_GRAMMAR='body|main text|heading|section|notes?|speaker note|comment|footnote|endnote|tracked change|revision|appendix|header|footer|caption|alt text|metadata|margin|annotation|slide|transcript|attachment|table|figure|chart|abstract|summary|title|index|glossary'
 
 # ---- G16 Findings disposed of, disputes preserved -----------------------
