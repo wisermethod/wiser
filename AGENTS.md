@@ -26,7 +26,7 @@ The attached working folder is the **owning root**: the personal, org, client, d
 
 **Abstract keys and the Provides block.** Primitives do not name files; they request keys, and the owning root's Provides block binds each key to a file.
 
-- The keys are `voice`, `about`, `design`, `secrets:<platform>`, and the optional `competitors`.
+- The keys are `voice`, `about`, `design`, `secrets:<platform>` and `competitors`. **Whether a key is required or optional is the primitive's own declaration**, made in its Inputs: `about` and `design` are optional to most that request them and `voice` is required to every one. `competitors` is the exception this file owns, and is optional to all of them for the reason below.
 - An **unscoped** key resolves in the root that owns the output. A **scoped** key, written `voice:org` or `voice:client`, resolves in the root of that type.
 - More than one plausible root, or none: ask. Never hunt.
 
@@ -65,7 +65,7 @@ Guard rails, binding for any shared artifact:
 
 **Nothing is ever written under this root during a session that uses it**, nor to the top level of any root. Authoring this root is separate work, planned as a Playbook. Output lands in the working folder, in the directories that folder's own `AGENTS.md` declares. The one exception is what a tool installs for itself, per that tool's own contract, and some of that lands outside this root. **The complete list, with the path for each and the platform it depends on, is in `tools/AGENTS.md` and is not restated here**, because a write inventory kept in two places goes stale in one of them, as the summary that used to stand in this sentence did, naming the Linux compatibility shims as a write outside this root after they had been moved inside the tool that builds them.
 
-**Nothing is deleted or overwritten without naming what is being lost first.** Where a root's own `AGENTS.md` declares an archive home, a file is archived there before it is replaced.
+**Nothing is deleted or overwritten without naming what is being lost first.** Where a root's own `AGENTS.md` declares an archive home, a file is archived there before it is replaced; where none is declared, including in this root, the Archives rule of `standards/conventions.md` says where it goes instead.
 
 ## Precedence and routing
 
