@@ -134,20 +134,52 @@ case "$ROOT_TYPE" in
     # root" naming it, and the copy carries that row. Read it there, and fall
     # back to the template's own value only when the row is missing, saying so,
     # because a root whose declaration was edited is the case this exists for.
-    # Anchored to a table row, because the phrase in a sentence of prose is not a
-    # declaration: an unanchored match takes the first backticked path on any line
-    # and resolves the records home to whatever that line happened to name, with
-    # no warning, which is the writer-checker split this whole reader exists to end.
-    ONB_REL=$(awk -F'|' '/^[[:space:]]*\|/ && /Records from creating this root/ { for (i=1;i<=NF;i++) { if (match($i, /`[^`]+`/)) { v=substr($i, RSTART+1, RLENGTH-2); sub(/\/$/,"",v); print v; exit } } }' "$ROOT/AGENTS.md" 2>/dev/null)
-    # A declared home is a path inside the root. An absolute one, or one that walks
-    # out with .., would have the harness check outside the root and a session write
-    # there; neither is a records home, so it is refused rather than followed.
-    case "$ONB_REL" in
-      /*|*..*) echo "$PROG: $ROOT/AGENTS.md declares a records home outside the root; ignoring it" >&2; ONB_REL="" ;;
-    esac
+    # The layout table's own row, and the cell after the label, not the first
+    # backticked span on any line beginning with a pipe. Four things went wrong
+    # in earlier rounds and each is closed by one of the conditions below: a
+    # sentence of prose carrying the label is not a row; a backticked row label
+    # is not the path; another table's row is not this table's row, so the row
+    # must sit under the layout heading; and a second row carrying the label is
+    # an ambiguity to report rather than a race the first one wins.
+    ONB_ROW=$(awk -F'|' '
+      /^##[[:space:]]/ { inlayout = ($0 ~ /Put it here/) ? 0 : 0 }
+      /^\|[[:space:]]*You are holding/ { intable = 1; next }
+      intable && $0 !~ /^\|/ { intable = 0 }
+      intable && $2 ~ /Records from creating this root/ { n++; row = $3 }
+      END { if (n == 1) print row; else if (n > 1) print "AMBIGUOUS" }
+    ' "$ROOT/AGENTS.md" 2>/dev/null)
+    ONB_REL=""; ONB_WHY=""
+    if [ "$ONB_ROW" = "AMBIGUOUS" ]; then
+      ONB_WHY="carries more than one records-home row"
+    elif [ -n "$ONB_ROW" ]; then
+      ONB_REL=$(printf '%s' "$ONB_ROW" | sed -n 's/.*`\([^`]*\)`.*/\1/p' | sed 's|/$||')
+      [ -n "$ONB_REL" ] || ONB_WHY="declares a records-home row with no path in it"
+    fi
+    # A records home is a directory inside the root's own work area. An absolute
+    # path, a component that walks out, one of the root's other declared homes,
+    # or something that is already a file are none of them, and each would have
+    # the harness check where a session will not write.
+    if [ -n "$ONB_REL" ]; then
+      case "/$ONB_REL/" in
+        //*|*/../*) ONB_WHY="declares a records home outside the root"; ONB_REL="" ;;
+      esac
+    fi
+    if [ -n "$ONB_REL" ]; then
+      case "$ONB_REL" in
+        work|work/*) ;;
+        *) ONB_WHY="declares a records home outside the root's work area"; ONB_REL="" ;;
+      esac
+    fi
+    if [ -n "$ONB_REL" ] && [ -e "$ROOT/$ONB_REL" ] && [ ! -d "$ROOT/$ONB_REL" ]; then
+      ONB_WHY="declares a records home that is not a directory"; ONB_REL=""
+    fi
     if [ -z "$ONB_REL" ]; then
       ONB_REL="work/onboarding"
-      echo "$PROG: $ROOT/AGENTS.md declares no \"Records from creating this root\" table row; assuming $ONB_REL, the Client template's own value" >&2
+      if [ -n "$ONB_WHY" ]; then
+        echo "$PROG: $ROOT/AGENTS.md $ONB_WHY; assuming $ONB_REL, the Client template's own value" >&2
+      else
+        echo "$PROG: $ROOT/AGENTS.md declares no \"Records from creating this root\" row in its layout table; assuming $ONB_REL, the Client template's own value" >&2
+      fi
     fi
     ONB="$ROOT/$ONB_REL"
     RUNREC="$ONB/run-record.md"
