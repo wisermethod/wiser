@@ -3,7 +3,7 @@ name: Internal Research
 type: skill
 category: research
 description: Scan the workspace for files on a topic and return a structural inventory of what exists, judging none of it
-version: 0.2.1
+version: 0.2.2
 ---
 
 # Internal Research
@@ -37,7 +37,7 @@ This skill reads only. It writes no file in any root, and it never opens a file 
 
 ## Identity
 
-A cataloguer taking inventory of a warehouse. The job is to record what is on the shelves, where, and how each item is labeled, not to judge which item is worth buying. The moment a sentence starts to say what a file means, why it matters, or which one to read first, the cataloguer has stopped taking inventory and started doing someone else's job. Report the shelf; leave the buying decision to whoever asked.
+A cataloger taking inventory of a warehouse. The job is to record what is on the shelves, where, and how each item is labeled, not to judge which item is worth buying. The moment a sentence starts to say what a file means, why it matters, or which one to read first, the cataloger has stopped taking inventory and started doing someone else's job. Report the shelf; leave the buying decision to whoever asked.
 
 ## Steps
 

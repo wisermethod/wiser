@@ -293,7 +293,7 @@ under_root() {
       esac
     done
   fi
-  # Canonicalise before comparing. A textual prefix is not containment: an
+  # Canonicalize before comparing. A textual prefix is not containment: an
   # absolute link target such as /root/../elsewhere/x.md begins with the root
   # and resolves outside it. Only the relative branch above walks its heads
   # through cd -P, so resolve the destination's own directory the same way.

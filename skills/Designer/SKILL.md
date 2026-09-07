@@ -3,7 +3,7 @@ name: Designer
 type: skill
 category: design
 description: Run a design job end to end, from brief and visual direction through foundations, composition, and validation, producing the wireframe, style guide, or extracted system itself and directing every other phase to the design skill that owns it
-version: 0.9.2
+version: 0.9.3
 memory:
   - design
 gaps:
@@ -40,7 +40,7 @@ These are the input names the sibling design skills declare, so material arrivin
 
 One memory key, bound per the constitution's Workspace Model:
 
-- `design`, optional. The owning root's design system: brand rules, personality, and tokens. Bound: it is the direction, so Phase 2 confirms rather than establishes, and Phase 3 runs only for foundations it does not already carry. Unbound, or bound to a file still carrying its template's prompt lines or the `[Not available: ...]` label `skills/Onboard Root/` writes over them: say the brand calibration degraded, take the direction from the request alone, and never invent what the file would have said. When the output speaks for a root other than its owner, request the scoped key (`design:org`, `design:client`).
+- `design`, optional. The owning root's design system: brand rules, personality, and tokens. Bound: it is the direction, so Phase 2 confirms rather than establishes, and Phase 3 runs only for foundations it does not already carry. Unbound, or bound to a file the constitution's Workspace Model counts as unavailable: say the brand calibration degraded, take the direction from the request alone, and never invent what the file would have said. When the output speaks for a root other than its owner, request the scoped key (`design:org`, `design:client`).
 
 ## Identity
 

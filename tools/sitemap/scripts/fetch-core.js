@@ -38,7 +38,7 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 // Flags that take exactly one value. Declared HERE, with the other constants,
 // rather than beside the function that reads it: `parseArgs` is called at the
-// top of this file, above where a `const` further down has been initialised, so
+// top of this file, above where a `const` further down has been initialized, so
 // a declaration next to its use is a temporal dead zone and every run dies in
 // the parser. That is the same shape as the round-8 regression -- a restructure
 // that moved a binding out from under its caller -- and it was caught here by

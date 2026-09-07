@@ -3,7 +3,7 @@ name: SEO Assets
 type: skill
 category: seo
 description: Produce the ready-to-use artifacts a site's decided search changes need, each built from evidence pulled for it, held to its own standards, and handed over for someone else to deploy
-version: 0.9.1
+version: 0.9.2
 memory:
   - voice
   - about
@@ -32,7 +32,7 @@ One artifact set for one site: every artifact carrying what its row in The Artif
 
 Which property, and which account reaches it, are inputs too. A credential for that account is asked for only by a capability that can use it, and none ships in this release; when one does, it arrives as a credential file path, never as a value and never as a flag this skill invents, and its resolution belongs to the connector. Where more than one account could reach the property, ask. An analytics account is a separate consent; one credential never serves both.
 
-Two abstract keys are requested and both are optional, bound per the constitution's Workspace Model. `voice` shapes the copy in any artifact a visitor will read; unbound, say so and write plainly rather than adopting a voice. `about` supplies the entity facts an `llms.txt` and an organization markup block state: legal or brand name, what the organization does, who it is for, and when it started. Unbound, or where the site is not the owning root's own, those facts come from the site and its own public profiles and carry their source per `standards/conventions.md`.
+Two abstract keys are requested and both are optional, bound per the constitution's Workspace Model. `voice` shapes the copy in any artifact a visitor will read; unbound, or bound to a file the constitution's Workspace Model counts as unavailable, say so and write plainly rather than adopting a voice. `about` supplies the entity facts an `llms.txt` and an organization markup block state: legal or brand name, what the organization does, who it is for, and when it started. Unbound, counted unavailable by that same rule, or where the site is not the owning root's own, those facts come from the site and its own public profiles and carry their source per `standards/conventions.md`.
 
 ## Identity
 
