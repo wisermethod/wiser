@@ -128,11 +128,6 @@ fi
 
 case "$ROOT_TYPE" in
   client)
-    # The path is the root's own to declare, not this harness's to assume: the
-    # Client template's layout table carries a row "Records from creating this
-    # root" naming it, and the copy carries that row. Read it there, and fall
-    # back to the template's own value only when the row is missing, saying so,
-    # because a root whose declaration was edited is the case this exists for.
     # `work/onboarding/` on a client root, and nothing parses that out of the
     # root's own AGENTS.md. Reading it from a prose table was tried four ways and
     # broke four ways, each silently sending this harness somewhere the run had
@@ -239,6 +234,19 @@ fi
 # structural prose, not a claim about anything a deliverable would act on.
 ROOTNAME=$(sed -n 's/^root:[[:space:]]*//p' "$AGENTS" 2>/dev/null | head -1)
 [ -n "$ROOTNAME" ] || ROOTNAME=$(basename "$ROOT")
+
+# A path a record names is content the run wrote, and a gate must not follow it
+# out of the root: an absolute one, or one that walks out with .., would have a
+# gate read another root's file and take what it found as this root's evidence.
+# Every path below that comes from a record is passed through this first.
+under_root() {
+  case "$1" in
+    "" | /*) return 1 ;;
+    ".." | */..) return 1 ;;
+    *../*) return 1 ;;
+  esac
+  return 0
+}
 
 rel() {
   case "$1" in
@@ -584,7 +592,7 @@ claims_located_count() {
     id=$(printf '%s' "$anch" | tr -d '[]')
     bfp=$(printf '%s' "$bf" | tr -d '`' | sed 's#^\./##')
     case "$bfp" in
-      memory/*.md) ;;
+      memory/*.md) under_root "$bfp" || continue ;;
       *) continue ;;                 # a bound file, not the record itself
     esac
     if [ -n "${ONLY_FILE:-}" ] && [ "$bfp" != "$ONLY_FILE" ]; then continue; fi
@@ -1224,10 +1232,8 @@ where_resolves() {
     *'#'*) ;;
     *) printf '%s' "Where '$w' carries no #anchor-or-heading"; return ;;
   esac
+  if ! under_root "$path"; then printf '%s' "Where names '$path', which leaves the root"; return; fi
   target="$ROOT/$path"
-  case "$path" in
-    /*) target="$path" ;;
-  esac
   if [ ! -f "$target" ]; then printf '%s' "Where names '$path', which does not exist under the root"; return; fi
   if [ -z "$anchor" ]; then printf '%s' "Where '$w' carries an empty anchor"; return; fi
   if awk -v A="$anchor" "$AWK_LIB"'
@@ -2064,8 +2070,11 @@ gate_G16() {
           add_fail "$(rel "$AUDIT") line $ln: finding $fid is disputed but 'Bound file entry' names no file"
           continue
         fi
+        if ! under_root "$p"; then
+          add_fail "$(rel "$AUDIT") line $ln: finding $fid is disputed but '$p' leaves the root"
+          continue
+        fi
         t="$ROOT/$p"
-        case "$p" in /*) t="$p" ;; esac
         if [ ! -f "$t" ]; then
           add_fail "$(rel "$AUDIT") line $ln: finding $fid is disputed but '$p' does not exist under the root"
         elif ! awk -v id="$fid" 'index($0,"(Disputed:")>0 && index($0,id)>0 {f=1} END{exit(f?0:1)}' "$t"; then
