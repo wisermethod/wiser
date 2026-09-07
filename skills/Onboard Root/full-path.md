@@ -293,6 +293,8 @@ Exit: G20.
 
 **A root is identified by the `type:` its own `AGENTS.md` declares, never by its folder name.** That type decides where this skill writes, because the templates declare different layouts. `gates.sh` reads the same declaration and checks the same paths; where this table and that script disagree, they are both wrong until they agree again.
 
+**The client column's parent is the root's to declare.** Its layout table carries a row naming where records from creating the root live, `work/onboarding/` in the Client template and shown that way below; this skill and `gates.sh` both read that row and write and check beneath whatever it names. A client root that declares another home moves both together, and where the row is absent both fall back to `work/onboarding/` and say so.
+
 | Record | On a client root | On a personal, org, department or industry root |
 |--------|------------------|-------------------------------------------------|
 | Run record | `work/onboarding/run-record.md` | `work/onboarding-run-record.md` |

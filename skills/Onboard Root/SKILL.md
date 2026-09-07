@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from its template and onboard it, on a short path for one person's own root and a full path for every other type
-version: 0.36.9
+version: 0.36.10
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
