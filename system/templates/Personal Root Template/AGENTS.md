@@ -31,7 +31,7 @@ This root's declared directories under `standards/conventions.md`:
 
 ## Personal Root
 
-`memory/secrets/` is this root's secrets home, reached by the constitution's default rather than by a binding: a secret reaches an organization only when that organization's own root Provides it.
+`memory/secrets/` is this root's secrets home, reached by the constitution's default rather than by a binding, and by that same rule it is the only default for a key any other root leaves unbound. An organization root binds its own `secrets:<platform>` where the credential is the organization's rather than this person's.
 
 `voice` here is this person's own. When an output this root owns is signed by an organization, request `voice:org` and `design:org`, and `about:org` for any facts it states about that organization.
 

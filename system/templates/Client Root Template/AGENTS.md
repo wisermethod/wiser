@@ -81,7 +81,7 @@ This root's declared directories under `standards/conventions.md`. The table abo
 
 `memory/about.md` holds this client's facts. `memory/competitors.md`, when bound, holds the confirmed competitive set. The sourcing rules in `standards/conventions.md` bite hardest here, where most of what is worth recording is a fact about a person.
 
-A credential the client shares, when one is taken, lives in `memory/secrets/` and is bound as `secrets:<platform>` in the Provides block above under the constitution's Secrets rule. Until then none is bound. Left unbound, that rule's only default is the personal root's `memory/secrets/`, so a file sitting here is not what it finds and it stops and asks; the binding is what makes a credential this root's.
+A credential the client shares, when one is taken, lives in `memory/secrets/` and is bound as `secrets:<platform>` in the Provides block above under the constitution's Secrets rule. Until then none is bound. Left unbound, that rule's only default is the personal root's `memory/secrets/`, so a file sitting here is not what it finds; the binding is what makes a credential this root's.
 
 Brands, markets, and legal entities of this client live in this root until one of them has its own voice, its own facts, and its own engagement. Then ask whether that brand earns its own client root. Do not split on sight.
 
