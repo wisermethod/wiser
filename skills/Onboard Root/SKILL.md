@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from its template and onboard it, on a short path for one person's own root and a full path for every other type
-version: 0.36.19
+version: 0.36.20
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -95,7 +95,7 @@ Then tell the person what is in the three files, which keys are provisional, and
 
 ### The optional check
 
-The gate harness beside this file can read a personal root afterwards. It sees a personal root with no run record and runs only the file gates: prompt lines, labels, registers, placeholders, paths, and the state lines themselves, with the voice gates only where `voice` closed complete.
+The gate harness beside this file can read a personal root afterwards. It sees a personal root with no run record and runs only the file gates: prompt lines, labels, registers, the provenance a figure table carries, placeholders, paths, and the state lines themselves, with the voice gates only where `voice` closed complete.
 
 ```
 bash "<the directory this SKILL.md sits in>/gates.sh" "<absolute path to the root>"

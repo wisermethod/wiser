@@ -244,38 +244,48 @@ ROOTNAME=$(sed -n 's/^root:[[:space:]]*//p' "$AGENTS" 2>/dev/null | head -1)
 
 # A path a record names is content the run wrote, and a gate must not follow it
 # out of the root: an absolute one, one that walks out with .., or one reached
-# through a symlink whose destination is outside, would have a gate read another
-# root's file and take what it found as this root's evidence. Link-ness is not
-# the test and neither is spelling: a symlink that stays inside the root is
-# legitimate and a trailing slash hides a leaf from -L, so the destination is
-# resolved physically and compared. A path whose parent does not exist cannot
-# escape, so it passes here and the caller's own existence test reports it.
+# through symlinks whose final destination is outside, would have a gate read
+# another root's file and take what it found as this root's evidence. Link-ness
+# is not the test and neither is spelling: a link that stays inside the root is
+# legitimate, a trailing slash hides a leaf from -L, and one hop is not the
+# chain, so every hop is followed to the end and the destination compared.
+# Sets _ur_why to the reason on a refusal, so a caller can say which it was.
 under_root() {
+  _ur_why="leaves the root"
   case "$1" in "" | /*) return 1 ;; esac
   _ur_p=$1
   while :; do case "$_ur_p" in */) _ur_p=${_ur_p%/} ;; *) break ;; esac; done
   [ -n "$_ur_p" ] || return 1
-  _ur_root=$(CDPATH= cd -P "$ROOT" 2>/dev/null && pwd -P) || return 1
+  [ -n "${ROOT_PHYS:-}" ] || ROOT_PHYS=$(CDPATH= cd -P "$ROOT" 2>/dev/null && pwd -P) || { _ur_why="cannot be resolved"; return 1; }
+  _ur_root=$ROOT_PHYS
   if [ -d "$ROOT/$_ur_p" ]; then
-    _ur_res=$(CDPATH= cd -P "$ROOT/$_ur_p" 2>/dev/null && pwd -P) || return 1
+    _ur_res=$(CDPATH= cd -P "$ROOT/$_ur_p" 2>/dev/null && pwd -P) || { _ur_why="cannot be resolved"; return 1; }
   else
     case "$_ur_p" in */*) _ur_par=${_ur_p%/*} ;; *) _ur_par=. ;; esac
     _ur_d=$(CDPATH= cd -P "$ROOT/$_ur_par" 2>/dev/null && pwd -P) || {
-      case "$_ur_p" in *..*) return 1 ;; *) return 0 ;; esac
+      # The parent does not exist or cannot be entered, so nothing can be
+      # resolved and nothing can escape either: the caller's own existence
+      # test is what reports it, and it reports it truthfully.
+      return 0
     }
-    if [ -L "$ROOT/$_ur_p" ]; then
-      _ur_t=$(readlink "$ROOT/$_ur_p") || return 1
+    _ur_res=$_ur_d/${_ur_p##*/}
+    # Follow the whole chain, not one hop. A bound file linked to a link to a
+    # file in another root was certified as contained by the single-hop form.
+    # The counter ends a loop; forty is far past any legitimate depth.
+    _ur_n=0
+    while [ -L "$_ur_res" ]; do
+      _ur_n=$((_ur_n + 1))
+      if [ "$_ur_n" -gt 40 ]; then _ur_why="resolves through a symlink loop"; return 1; fi
+      _ur_t=$(readlink "$_ur_res") || { _ur_why="cannot be resolved"; return 1; }
       case "$_ur_t" in
         /*) _ur_res=$_ur_t ;;
         *)  case "$_ur_t" in */*) _ur_tp=${_ur_t%/*} ;; *) _ur_tp=. ;; esac
-            _ur_td=$(CDPATH= cd -P "$_ur_d" 2>/dev/null && cd -P "$_ur_tp" 2>/dev/null && pwd -P) || return 1
-            _ur_res=$_ur_td/${_ur_t##*/} ;;
+            _ur_hd=$(CDPATH= cd -P "${_ur_res%/*}" 2>/dev/null && cd -P "$_ur_tp" 2>/dev/null && pwd -P) || { _ur_why="cannot be resolved"; return 1; }
+            _ur_res=$_ur_hd/${_ur_t##*/} ;;
       esac
-    else
-      _ur_res=$_ur_d/${_ur_p##*/}
-    fi
+    done
   fi
-  case "$_ur_res" in "$_ur_root"|"$_ur_root"/*) return 0 ;; *) return 1 ;; esac
+  case "$_ur_res" in "$_ur_root"|"$_ur_root"/*) return 0 ;; *) _ur_why="leaves the root"; return 1 ;; esac
 }
 
 # md files in a collection directory, scaffolding excluded.
@@ -620,7 +630,7 @@ claims_located_count() {
       # inside a command substitution, so G_FAILS would be assigned in a subshell
       # and discarded twice over, which is the hazard the G13 comment below names.
       # The escape is written down and gate_G0 reports it after the counting.
-      memory/*.md) under_root "$bfp" || { printf '%s\n' "$bfp" >> "$TMPD/g0-escapes.txt"; continue; } ;;
+      memory/*.md) under_root "$bfp" || { printf '%s|%s\n' "$bfp" "$_ur_why" >> "$TMPD/g0-escapes.txt"; continue; } ;;
       *) continue ;;                 # a bound file, not the record itself
     esac
     if [ -n "${ONLY_FILE:-}" ] && [ "$bfp" != "$ONLY_FILE" ]; then continue; fi
@@ -758,7 +768,7 @@ gate_G0() {
     done > "$TMPD/g0-escapes-uniq.txt"
     while IFS= read -r esc; do
       [ -n "$esc" ] || continue
-      add_fail "$(rel "$VERIF") names bound file '$esc', which leaves the root"
+      add_fail "$(rel "$VERIF") names bound file '${esc%%|*}', which ${esc#*|}"
     done < "$TMPD/g0-escapes-uniq.txt"
   fi
 }
@@ -880,7 +890,7 @@ gate_G4() {
   if [ ! -d "$EVID_DIR" ]; then
     tierv=$(kv "$RUNREC" "tier" 2>/dev/null)
     if [ "$tierv" = "core" ]; then
-      # the onboarding phases makes per-angle packages a full-tier artifact, and the Tier
+      # the onboarding phases make per-angle packages a full-tier artifact, and the Tier
       # section retires G4 with them. A skip is not a pass, so without this a
       # correctly run core-tier root could never exit 0 from its own harness.
       add_note "tier: core, so per-angle evidence packages and this gate do not apply; the close report names it"
@@ -1272,7 +1282,7 @@ where_resolves() {
     *'#'*) ;;
     *) printf '%s' "Where '$w' carries no #anchor-or-heading"; return ;;
   esac
-  if ! under_root "$path"; then printf '%s' "Where names '$path', which leaves the root"; return; fi
+  if ! under_root "$path"; then printf '%s' "Where names '$path', which $_ur_why"; return; fi
   target="$ROOT/$path"
   if [ ! -f "$target" ]; then printf '%s' "Where names '$path', which does not exist under the root"; return; fi
   if [ -z "$anchor" ]; then printf '%s' "Where '$w' carries an empty anchor"; return; fi
@@ -2082,10 +2092,12 @@ gate_G16() {
         if [ -z "$looked" ] || [ "$looked" = "-" ]; then
           add_fail "$(rel "$AUDIT") line $ln: finding $fid is rejected with an empty 'Where checker looked'"
         else
-          # Rejecting a finding costs a real search. A claim is searched in
-          # every container the format has, so the cell must ENUMERATE the
-          # containers, not merely assert that the producer looked. Round 2
-          # found this recorded as fixed while the gate still tested non-empty.
+          # Rejecting a finding costs a real search. Searching every container
+          # the format has is the run's obligation and is wider than a gate can
+          # count: what this checks is that the cell names at least one place,
+          # a container, a URL, a file or an evidence row, not merely that the
+          # producer asserts a search happened. Round 2 found this recorded as
+          # fixed while the gate still tested non-empty.
           # A rejection has to name where the checker looked, specifically
           # enough that someone else can go there. Round 2 established that
           # non-empty is not enough. The count was containers-only until the
@@ -2114,7 +2126,7 @@ gate_G16() {
           continue
         fi
         if ! under_root "$p"; then
-          add_fail "$(rel "$AUDIT") line $ln: finding $fid is disputed but '$p' leaves the root"
+          add_fail "$(rel "$AUDIT") line $ln: finding $fid is disputed but '$p' $_ur_why"
           continue
         fi
         t="$ROOT/$p"
@@ -2510,7 +2522,7 @@ gate_G19() {
         tok=$(printf '%s' "$rec" | sed 's/^[0-9]*://')
         [ -n "$tok" ] || continue
         if ! under_root "$tok"; then
-          add_fail "$r line $ln: path '$tok' leaves the root"
+          add_fail "$r line $ln: path '$tok' $_ur_why"
           continue
         fi
         target="$ROOT/$tok"
