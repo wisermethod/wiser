@@ -2627,6 +2627,15 @@ gate_G19() {
         fi
         if [ "$owned" = "1" ]; then
           add_note "$(rel "$cf"): $empty empty value(s), owned by an operating row naming the credential"
+        elif [ "$SHORT" = "1" ]; then
+          # The personal path writes no operating file at all: SKILL.md says
+          # "the state lines are the record". So there is no row for this clause
+          # to find and the failure was unsatisfiable rather than earned, at
+          # both ends of the range that first recorded it. Name the credential
+          # here instead, which is what the row would have carried.
+          _g19keys=$(grep -E '^[A-Za-z_][A-Za-z0-9_]*=[[:space:]]*$' "$cf" 2>/dev/null \
+            | sed 's/=.*//' | sort -u | tr '\n' ' ' | sed 's/ *$//')
+          add_note "$(rel "$cf"): $empty empty value(s), unowned: ${_g19keys}. The personal path keeps no operating file to carry the row, so the credential is named here"
         else
           add_fail "$(rel "$cf"): $empty empty value(s) and no $(rel "$OPER") row whose Blocker names this credential"
         fi
