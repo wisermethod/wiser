@@ -105,7 +105,7 @@ Then the must-reach list, which is the forward check from source to memory:
 `Kind` is one of `prohibition`, `compliance`, `commercial`, `person`, `review-note`.
 `Disposition` is one of `in-bound-file`, `in-operating-file`.
 A row of kind `prohibition` or `compliance` may only be `in-bound-file`: downstream work loads bound files and does not load the todo list, so a constraint routed to `todos/current.md` is a constraint nothing reads.
-`Where` is `<path>#<anchor or heading>` for `in-bound-file`, or `todos/current.md O<n>` for `in-operating-file`.
+`Where` is `<path>#<anchor or heading>` for `in-bound-file`, or `todos/current.md O<n>` for `in-operating-file`. The path is inside this root: absolute, walking out with `..`, or reached through a link leaving the root are each refused by the gate, since a record cannot make a gate read another root's file and count what it finds as this root's evidence.
 
 An item is never disposed of as absent from the source. The list is drawn from the source, so "none found" and "not present in source" are contradictions, not dispositions.
 
@@ -181,7 +181,7 @@ rounds: <n>
 |---------|-------|-------------|----------------|----------------------|------------------|
 ```
 
-`Finding` matches `A<n>`. `Disposition` is `accepted`, `rejected`, or `disputed`. A rejected finding says where the checker looked. A disputed finding names the bound file entry that carries its `(Disputed: ...)` parenthetical. An audit's findings are claims, and they are checked before anything is edited on their account.
+`Finding` matches `A<n>`. `Disposition` is `accepted`, `rejected`, or `disputed`. A rejected finding says where the checker looked. A disputed finding names the bound file entry, by a path inside this root on the same terms as `Where`, that carries its `(Disputed: ...)` parenthetical. An audit's findings are claims, and they are checked before anything is edited on their account.
 
 ### `todos/current.md`
 

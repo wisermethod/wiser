@@ -176,6 +176,13 @@ esac
 # exit clean from its own harness teaches the implementer to stop running it.
 # The distinction that matters: no documents means not applicable, documents
 # with no extraction records means failed.
+rel() {
+  case "$1" in
+    "$ROOT"/*) printf '%s' "${1#$ROOT/}" ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
 source_count() {
   [ -d "$SRC_DIR" ] || { echo 0; return; }
   list_any "$SRC_DIR" 2>/dev/null | wc -l | tr -d ' '
@@ -236,23 +243,23 @@ ROOTNAME=$(sed -n 's/^root:[[:space:]]*//p' "$AGENTS" 2>/dev/null | head -1)
 [ -n "$ROOTNAME" ] || ROOTNAME=$(basename "$ROOT")
 
 # A path a record names is content the run wrote, and a gate must not follow it
-# out of the root: an absolute one, or one that walks out with .., would have a
-# gate read another root's file and take what it found as this root's evidence.
-# Every path below that comes from a record is passed through this first.
+# out of the root: an absolute one, one that walks out with .., or one reached
+# through a symlink pointing outside, would have a gate read another root's file
+# and take what it found as this root's evidence. Spelling alone cannot see the
+# third, so the parent is resolved physically and a final component that is
+# itself a link is refused: a record naming one is naming a file this root does
+# not hold. Every path a gate builds from record content goes through this.
 under_root() {
   case "$1" in
     "" | /*) return 1 ;;
     ".." | */..) return 1 ;;
     *../*) return 1 ;;
   esac
+  _ur_root=$(CDPATH= cd -P "$ROOT" 2>/dev/null && pwd -P) || return 1
+  _ur_dir=$(CDPATH= cd -P "$ROOT/$(dirname "$1")" 2>/dev/null && pwd -P) || return 1
+  [ "$_ur_dir" = "$_ur_root" ] || case "$_ur_dir" in "$_ur_root"/*) ;; *) return 1 ;; esac
+  [ -L "$ROOT/$1" ] && return 1
   return 0
-}
-
-rel() {
-  case "$1" in
-    "$ROOT"/*) printf '%s' "${1#$ROOT/}" ;;
-    *) printf '%s' "$1" ;;
-  esac
 }
 
 # md files in a collection directory, scaffolding excluded.
@@ -568,14 +575,15 @@ perkey_value() {
 }
 
 claims_located_count() {
-  # $3, optional: the only bound file that may satisfy this class. A competitor
-  # set recorded in another memory file is not recorded where downstream work
+  # ONLY_FILE in the environment, optional: the only bound file that may satisfy
+  # this class, set by the caller for the competitors key. A competitor set
+  # recorded in another memory file is not recorded where downstream work
   # resolves the key, which is the whole of what this count is asked to prove.
   # $1 key, $2 class. A located row only counts when the claim actually
   # reached a bound file: it carries an anchor, names a bound file, and that
   # file contains that anchor. Counting rows alone let a key close complete on
   # detached bookkeeping while its headings said Not available.
-  awk -v K="$1" -v C="$2" -v US="$US" -v ONLY="${3:-}" '
+  awk -v K="$1" -v C="$2" -v US="$US" '
   BEGIN{ n=0 }
   {
     split($0,f,US)
@@ -592,7 +600,7 @@ claims_located_count() {
     id=$(printf '%s' "$anch" | tr -d '[]')
     bfp=$(printf '%s' "$bf" | tr -d '`' | sed 's#^\./##')
     case "$bfp" in
-      memory/*.md) under_root "$bfp" || continue ;;
+      memory/*.md) under_root "$bfp" || { add_fail "$(rel "$VERIF") names bound file '$bfp', which leaves the root"; continue; } ;;
       *) continue ;;                 # a bound file, not the record itself
     esac
     if [ -n "${ONLY_FILE:-}" ] && [ "$bfp" != "$ONLY_FILE" ]; then continue; fi
@@ -2088,7 +2096,7 @@ gate_G16() {
   done < "$TMPD/g16.txt"
 }
 
-# ---- G17 Refusal removed only for complete keys -------------------------
+# ---- preamble_body ------------------------------------------------------
 # preamble_body FILE -> every line above the first section heading
 # The grammar puts the run record's key lines at the top of the file, above
 # `## Copy vantages`. That is the span kv resolves them in, because kv takes
@@ -2466,10 +2474,11 @@ gate_G19() {
         ln=${rec%%:*}
         tok=$(printf '%s' "$rec" | sed 's/^[0-9]*://')
         [ -n "$tok" ] || continue
+        if ! under_root "$tok"; then
+          add_fail "$r line $ln: path '$tok' leaves the root"
+          continue
+        fi
         target="$ROOT/$tok"
-        case "$tok" in
-          /*) target="$tok" ;;
-        esac
         if [ ! -e "$target" ]; then
           add_fail "$r line $ln: path '$tok' does not resolve under the root"
         fi

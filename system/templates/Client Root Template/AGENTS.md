@@ -30,7 +30,7 @@ One question: **what are you holding?** If you already know, it does not go in `
 | A deliverable or draft being made for them | `work/<subject>/` | This root's output. Filing is in `work/AGENTS.md`. |
 | A recipe for work in that subject | `work/<subject>/<does-this-thing>.play.md` | Lives with the work it produces. Not a top-level folder. |
 | A multi-session plan for that subject | `work/<subject>/<does-this-thing>.playbook.md` | Lives with the work it plans. The folder is the run; no date in the filename. |
-| Records from creating this root | `work/onboarding/` | Evidence the bound files were checked. Not the todo list. |
+| Records from creating this root | `work/onboarding/` | Evidence the bound files were checked. Not the todo list. **This path is fixed**: `skills/Onboard Root/` and its harness both check `work/onboarding/` and neither reads this cell, so changing it gives this root two answers and no warning. |
 | A fact, voice rule, or design rule later jobs must get right | `memory/` | What every later skill loads. Provides binds the files. |
 | A replaced file | `zArchive/` next to the original | Recovery. Naming is in `standards/conventions.md`. |
 
