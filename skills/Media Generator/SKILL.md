@@ -3,7 +3,7 @@ name: Media Generator
 type: skill
 category: media
 description: Produce an image or a video that does not exist yet, or a photograph with its background removed, by finishing the prompt, choosing the model, and running the billed generation through a generation connector to a file the user named. Needs a connector this release does not ship.
-version: 0.9.3
+version: 0.9.5
 gaps:
   - the image, video, and background-removal models this skill's whole output depends on
   - judgment of a generated clip's motion, which no expert in this root carries; the clip is judged by its still frame
@@ -51,7 +51,7 @@ Every platform call in these steps belongs to a generation connector this releas
 
 1. **Place the request.** Decide which of three it is: an image to generate, a video to generate, or a background to remove. Anything the Context hands to a tool goes there and this skill stops. Then settle two facts before anything is billed. The destination: there is no default save location, so ask for the directory and the filename, and keep intermediate frames in a work directory per `standards/conventions.md`. And the purpose, because purpose picks the medium in Step 2; where the request states none and the surrounding work implies none, ask rather than assume, whenever the user is present to answer. A background removal writes no prompt, so it skips Step 2 and runs Steps 3 to 5 in the background-removal category.
 
-2. **Finish the prompt.** Every request passes this assessment, including one that arrives looking complete. Where the user supplies a still to animate, that image has already fixed the medium and the look, so the assessment runs on what changes, the motion, and the medium row below is already answered. Then, before any billed call, `experts/Creative Director/` direction, in this context: hand it the purpose, the audience, what matters most and the medium as `<brief>`, and take back the references and the register the prompt carries; the table above fills the medium, the direction refines register and references, and a medium the user stated beats both.
+2. **Finish the prompt.** Every request passes this assessment, including one that arrives looking complete. Where the user supplies a still to animate, that image has already fixed the medium and the look, so the assessment runs on what changes, the motion, and the medium row below is already answered. Then, before any billed call, `experts/Creative Director/` direction, in this context: hand it the purpose, the audience, what matters most and the medium as `<brief>`, and take back the references and the register the prompt carries, or the requester declines that direction and the delivery says so; the table above fills the medium, the direction refines register and references, and a medium the user stated beats both.
 
    | The request | What it carries | What happens |
    |-------------|-----------------|--------------|
@@ -99,7 +99,7 @@ Every platform call in these steps belongs to a generation connector this releas
 
    The connector writes into the directory `--output-dir` names, under a name derived from the prediction, so move the file to the name the user asked for and report where it ended up.
 
-5. **Remove a background.** This is Step 4's call with a photograph where the prompt would be: the same connector, the same spend disclosure, the same schema read from Step 3, and the same reachability ceiling on the image going in. Several photographs are several runs, each billed, which is worth saying before the first one. The direction Step 2 takes before a billed call is taken here too, in this context, on the cutout's purpose and where it will sit, before the call is made.
+5. **Remove a background.** This is Step 4's call with a photograph where the prompt would be: the same connector, the same spend disclosure, the same schema read from Step 3, and the same reachability ceiling on the image going in. Several photographs are several runs, each billed, which is worth saying before the first one. The direction Step 2 takes before a billed call is taken here too, in this context, on the cutout's purpose and where it will sit, before the call is made, or the requester declines that direction and the delivery says so.
 
    Two schema fields are worth looking for by name. A model offering a human-segmentation variant gets it whenever the subject is a person, because a general model cuts a person badly at the shoulders and the hair. And alpha matting, where the model offers it, is what keeps hair, fur, and soft edges from turning into a hard sawtooth; its thresholds are the model's own fields, so read them there rather than carrying numbers between models.
 

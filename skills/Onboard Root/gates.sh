@@ -115,7 +115,8 @@ trap 'rm -rf "$TMPD"' EXIT INT TERM
 
 # The root's own AGENTS.md declares its type, and the type decides where the
 # onboarding records live. A client root carries the full record set under
-# `work/onboarding/` plus `sources/` and `todos/`; the other types declare none
+# a records home its own layout table names, `work/onboarding/` in the template,
+# plus `sources/` and `todos/`; the other types declare none
 # of those, and the personal and org templates (which a department or industry
 # root starts from) declare none of them, and `skills/Onboard Root/full-path.md` says only the
 # client template declares `work/onboarding/`. Reading the type here is what
@@ -133,10 +134,20 @@ case "$ROOT_TYPE" in
     # root" naming it, and the copy carries that row. Read it there, and fall
     # back to the template's own value only when the row is missing, saying so,
     # because a root whose declaration was edited is the case this exists for.
-    ONB_REL=$(awk -F'|' '/Records from creating this root/ { for (i=1;i<=NF;i++) { if (match($i, /`[^`]+`/)) { v=substr($i, RSTART+1, RLENGTH-2); sub(/\/$/,"",v); print v; exit } } }' "$ROOT/AGENTS.md" 2>/dev/null)
+    # Anchored to a table row, because the phrase in a sentence of prose is not a
+    # declaration: an unanchored match takes the first backticked path on any line
+    # and resolves the records home to whatever that line happened to name, with
+    # no warning, which is the writer-checker split this whole reader exists to end.
+    ONB_REL=$(awk -F'|' '/^[[:space:]]*\|/ && /Records from creating this root/ { for (i=1;i<=NF;i++) { if (match($i, /`[^`]+`/)) { v=substr($i, RSTART+1, RLENGTH-2); sub(/\/$/,"",v); print v; exit } } }' "$ROOT/AGENTS.md" 2>/dev/null)
+    # A declared home is a path inside the root. An absolute one, or one that walks
+    # out with .., would have the harness check outside the root and a session write
+    # there; neither is a records home, so it is refused rather than followed.
+    case "$ONB_REL" in
+      /*|*..*) echo "$PROG: $ROOT/AGENTS.md declares a records home outside the root; ignoring it" >&2; ONB_REL="" ;;
+    esac
     if [ -z "$ONB_REL" ]; then
       ONB_REL="work/onboarding"
-      echo "$PROG: $ROOT/AGENTS.md declares no \"Records from creating this root\" row; assuming $ONB_REL, the Client template's own value" >&2
+      echo "$PROG: $ROOT/AGENTS.md declares no \"Records from creating this root\" table row; assuming $ONB_REL, the Client template's own value" >&2
     fi
     ONB="$ROOT/$ONB_REL"
     RUNREC="$ONB/run-record.md"

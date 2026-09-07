@@ -247,7 +247,7 @@ Exit: G15, G16.
 
 ### Phase 9: Close, per key
 
-**The harness runs on every root type.** `gates.sh` reads the root's declared `type:` and checks the paths Where the records go, by root type gives for it. The gates that read extraction records, evidence packages or supplied originals judge what the root actually holds, never what its type implies. Given documents, each checks them. **Given none, none of them fails, and they do not all report it the same way**: G2, G6 and G6b say so and pass, while G4 skips unless the run record's tier is `core`, and G2 and G6 skip too where the directory exists and is empty. **A skip is not a pass**, and the close report names whichever it was. **A root whose `AGENTS.md` declares no recognized type is refused**, because a root is identified by its declaration and this harness will not guess one.
+**The harness runs on every root type.** `gates.sh` reads the root's declared `type:`, and on a client root the records home from that root's own layout table row, and checks the paths Where the records go, by root type gives for it once the records home is resolved. The gates that read extraction records, evidence packages or supplied originals judge what the root actually holds, never what its type implies. Given documents, each checks them. **Given none, none of them fails, and they do not all report it the same way**: G2, G6 and G6b say so and pass, while G4 skips unless the run record's tier is `core`, and G2 and G6 skip too where the directory exists and is empty. **A skip is not a pass**, and the close report names whichever it was. **A root whose `AGENTS.md` declares no recognized type is refused**, because a root is identified by its declaration and this harness will not guess one.
 
 **It is `bash`, not `sh`.** The script uses process substitution, which `/bin/sh` rejects before any gate runs.
 
@@ -297,19 +297,19 @@ Exit: G20.
 
 | Record | On a client root | On a personal, org, department or industry root |
 |--------|------------------|-------------------------------------------------|
-| Run record | `work/onboarding/run-record.md` | `work/onboarding-run-record.md` |
-| Verification | `work/onboarding/verification.md` | `work/onboarding-verification.md` |
-| Audit | `work/onboarding/audit.md` | `work/onboarding-audit.md` |
+| Run record | `<records home>/run-record.md` | `work/onboarding-run-record.md` |
+| Verification | `<records home>/verification.md` | `work/onboarding-verification.md` |
+| Audit | `<records home>/audit.md` | `work/onboarding-audit.md` |
 | Operating file | `todos/current.md` | `work/onboarding-operating-file.md` |
-| Close report | `work/onboarding/close-report.md` | `work/onboarding-close-report.md` |
-| Extraction records | `work/onboarding/extraction/` | `work/onboarding-extraction/` |
-| Evidence packages | `work/onboarding/evidence/` | `work/onboarding-evidence/` |
-| Working draft | `work/onboarding/draft/` | `work/onboarding-draft/` |
+| Close report | `<records home>/close-report.md` | `work/onboarding-close-report.md` |
+| Extraction records | `<records home>/extraction/` | `work/onboarding-extraction/` |
+| Evidence packages | `<records home>/evidence/` | `work/onboarding-evidence/` |
+| Working draft | `<records home>/draft/` | `work/onboarding-draft/` |
 | Supplied originals | `sources/` | `inbox/` |
 
 **Only the client template declares `work/onboarding/`, `sources/` and `todos/`.** The personal and org templates declare `work/`, `plays/`, `playbooks/`, `skills/`, `inbox/` and `zArchive/`, and a department or industry root made from the org template declares what it declares; the table above is where the mapping lives.
 
-**Every phase in this file names the records home, or a path this table maps. Read each one through this table**, whichever type is being onboarded: the client column is this table's default for a client root and the records home is whatever that root declares instead, and the other column is what the phases mean on the other types, where the records home is `work/` and the names are flat. The handover-shaped phases, meaning extraction, per-angle evidence, and the supplied-originals inventory, exist only where documents were handed over. On a root where none were, they do not apply, and `gates.sh` says so under the gate that reads them rather than failing it.
+**Every record in this file sits at the records home, or at a path this table maps. Read each one through this table**, whichever type is being onboarded: on a client root `<records home>` is the directory that root's own layout table declares, `work/onboarding/` in the Client template and in a root that kept it, and on the other types the records home is `work/` and the names are flat, as the second column gives. `todos/current.md` and `sources/` are not under the records home on a client root and the table says where they are; the other types substitute the second column for them too. The handover-shaped phases, meaning extraction, per-angle evidence, and the supplied-originals inventory, exist only where documents were handed over. On a root where none were, they do not apply, and `gates.sh` says so under the gate that reads them rather than failing it.
 
 A gate cannot run against a record with no shape. These are the shapes, and they are what makes the close mechanical rather than a matter of opinion. `system/templates/Client Root Template/` ships the marked headings in `memory/` and, under `work/onboarding/`, its `AGENTS.md` and nothing else; that `AGENTS.md` carries the full grammar of every record, and the run writes each record itself. `standards/conventions.md` still owns what a register and a label mean; what follows is only their written form.
 
