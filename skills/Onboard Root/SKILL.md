@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from its template and onboard it, on a short path for one person's own root and a full path for every other type
-version: 0.36.14
+version: 0.36.15
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -105,7 +105,7 @@ It is a check, not a step. A personal root that never runs it is onboarded; one 
 
 ## The full path
 
-`full-path.md` beside this file. It holds the standing rules, the tier question, the eleven phases, 0 to 10, from scope to operating handover, the records the gates read, where each root type keeps them, and the twenty-six gates. Phase 9 runs the same `gates.sh`, which reads the root's declared type to know where that type keeps its records, and on a client root the records home that root's own layout table declares, and Phase 10 hands over an operating file where every gap has an owner. It is the long path on purpose: an org, a client, a department or an industry root binds facts other people are held to, and the audit and the read-back are what that costs.
+`full-path.md` beside this file. It holds the standing rules, the tier question, the eleven phases, 0 to 10, from scope to operating handover, the records the gates read, where each root type keeps them, and the twenty-six gates. Phase 9 runs the same `gates.sh`, which reads the root's declared type to know where that type keeps its records, and Phase 10 hands over an operating file where every gap has an owner. It is the long path on purpose: an org, a client, a department or an industry root binds facts other people are held to, and the audit and the read-back are what that costs.
 
 ## Pitfalls
 

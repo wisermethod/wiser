@@ -3,7 +3,7 @@ Markers delimit this preamble for the gate harness; keep both.
 
 Labels and registers are `standards/conventions.md`'s, written in place and never restated here. A prompt line (a whole line in `*`) or the name placeholder surviving means `skills/Onboard Root/` has not finished.
 
-**Anchors.** Every load-bearing claim ends with a verification anchor, a bracketed row id naming its row in the `verification.md` of this root's records home, the one its `AGENTS.md` declares, written as `[V<n>]` with the row's number in place of `<n>`: row 12 is anchored as V12 in that form. A value a deliverable would set, a prohibition, and the identity of the source document are load-bearing.
+**Anchors.** Every load-bearing claim ends with a verification anchor, a bracketed row id naming its row in `work/onboarding/verification.md`, written as `[V<n>]` with the row's number in place of `<n>`: row 12 is anchored as V12 in that form. A value a deliverable would set, a prohibition, and the identity of the source document are load-bearing.
 
 **The source is named.** This file says which document each value came from and where in it. A value with no source line is not a token, it is a guess with a hex code.
 <!-- /provenance-preamble -->

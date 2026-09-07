@@ -111,13 +111,12 @@ Exit: G1.
 - Copy the whole template directory, hidden files included, so the declared empty directories survive, then confirm the copy holds the same file names as the source.
 - A copy is not established because the tool that performed it reported success, or because reading it back through that same tool confirms it. Where this host offers more than one way to reach the destination, a second tool, a separate process, a distinct session, confirm the copy is visible through one of those before continuing. Where only one way exists, this is already satisfied and the close report says so. Where two ways disagree, the path the workspace's own declaration names is ground truth, and the root is not treated as copied until the mismatch is resolved.
 - The `## Onboarding` section keeps every key blocked until Phase 9 closes it. Do not rewrite it earlier.
-- **Where this root's layout table declares a records home other than the template's `work/onboarding/`, rename that directory to the declared name and rewrite the `work/AGENTS.md` standing-subject row to match, both before any record is written.** The record grammar ships inside that directory and moves with it; leaving either behind gives the root two answers to where its records live, and the harness reads the layout row while a later session reads `work/AGENTS.md`.
 
 **On a client root**, the template ships the canonical layout: `work/AGENTS.md` with standing `work/onboarding/`, root-level `sources/` and `todos/` each with their own AGENTS.md, and a `memory/competitors.md` stub. It does not ship `plays/`, `playbooks/`, or a skills directory. Plays and Playbooks file in the `work/<subject>/` folder they serve, named `<does-this-thing>.play.md` and `<does-this-thing>.playbook.md`. Reasoning, not evidence: the layout is so a person holding a file can tell inbox (unclassified) from sources (their originals) from work (this root's output) from todos (open actions), and so a recipe sits next to the work it produces. Do not create empty workstream folders; those are canonical names created on first use. Delete the competitors stub at close if the offer was declined or deferred, so an unbound key leaves no file on disk.
 
 **Inventory the supplied files**: name, size, type. Put the originals in `sources/` as received and do not edit them in place.
 
-**Extract each source to text**, one record per source under `extraction/` in the records home, holding four things beyond the text:
+**Extract each source to text**, one record per source under `work/onboarding/extraction/`, holding four things beyond the text:
 
 - **The completeness measure**, per the standing rule, recorded with both the extraction mechanism and the different mechanism that checked it.
 - **A provenance block**: who authored it (the subject, a first party, a third party, unattributed), final or draft, its date, internal or outward-facing.
@@ -132,7 +131,7 @@ Exit: G2, G3.
 
 This phase is skipped only on the no-public-research branch. On the interview-first branch it runs after Phase 5, scoped to what the interview could not answer. The close report names the branch either way.
 
-**The output is an evidence package, not a draft.** One per angle, under `evidence/` in the records home: quotations with URLs and retrieval dates, values with the file and line they were read from, an explicit not-retrieved list with reasons, and the retrieval mechanism named. Naming the mechanism means naming what it does to content: paraphrases, caps quote length, strips script tags, refuses a file type. Phase 3 needs that in order to choose a different one.
+**The output is an evidence package, not a draft.** One per angle, under `work/onboarding/evidence/`: quotations with URLs and retrieval dates, values with the file and line they were read from, an explicit not-retrieved list with reasons, and the retrieval mechanism named. Naming the mechanism means naming what it does to content: paraphrases, caps quote length, strips script tags, refuses a file type. Phase 3 needs that in order to choose a different one.
 
 A stitched quote is marked stitched, and any line to be published as an exact quotation is re-read from the source first.
 
@@ -150,15 +149,15 @@ Exit: G4.
 
 Take every claim that is a candidate for a bound file, at the tier's scope, and check it against the thing it cites. The standing rules on read-back, negative claims, containers, exactness, counts, and what Verified means are the substance of this phase; what follows is how the pass is run and recorded.
 
-**What this phase verifies, given that Phase 4 has not written the bound files yet.** A candidate claim is a claim you are about to write, held in the working draft in the records home, not a line already sitting in `memory/`. Phase 2 returns evidence, Phase 3 checks the claims that evidence would support, and Phase 4 writes only what survived, carrying each claim's anchor with it. That order is the point: a claim verified after it is bound has already been available to a deliverable, and the whole revision exists because claims entered bound files unread.
+**What this phase verifies, given that Phase 4 has not written the bound files yet.** A candidate claim is a claim you are about to write, held in the working draft under `work/onboarding/`, not a line already sitting in `memory/`. Phase 2 returns evidence, Phase 3 checks the claims that evidence would support, and Phase 4 writes only what survived, carrying each claim's anchor with it. That order is the point: a claim verified after it is bound has already been available to a deliverable, and the whole revision exists because claims entered bound files unread.
 
 So the phase runs against the draft, its verification rows are written before the bound file exists, and the anchors those rows name are placed as Phase 4 writes each sentence. The forward check below is the one part that needs the bound file, and it is re-run at Phase 9 against what was actually written.
 
-**Write the draft first.** Phase 2 returns evidence, and evidence is not yet a claim. Open `draft/` in the records home and write, per bound file, the sentences you intend `memory/` to carry, each already in the form it will take. That draft is what this phase verifies and what Phase 4 copies from once it survives. It is a working file, so downstream work never loads it, and it exists so that no claim is ever written straight into a bound file unread.
+**Write the draft first.** Phase 2 returns evidence, and evidence is not yet a claim. Open `work/onboarding/draft/` and write, per bound file, the sentences you intend `memory/` to carry, each already in the form it will take. That draft is what this phase verifies and what Phase 4 copies from once it survives. It is a working file, so downstream work never loads it, and it exists so that no claim is ever written straight into a bound file unread.
 
 **The pass is not the pass that drafted the claim.** Where this host can spawn a sub-agent, the read-back runs in one: hand it the drafts, the sources, and the read-back rules, and not the reasoning that produced the drafts. **Spawn one per bound file, in one batch.** Each reads only its own draft, so they do not need each other, and independence is the requirement rather than a cost of splitting them: one context per bound file is further from the drafting context than one context holding all four. Where it cannot, run a distinct pass yourself and record in the close report that the read-back shared the producer's context, which is materially weaker.
 
-**Claim granularity, so the coverage check is falsifiable.** One claim is one sentence in a bound file containing any of: a number, a proper noun, a quotation, a prohibition, or a comparative. One claim, one row in the records home's `verification.md`, and one anchor in the bound file pointing at that row.
+**Claim granularity, so the coverage check is falsifiable.** One claim is one sentence in a bound file containing any of: a number, a proper noun, a quotation, a prohibition, or a comparative. One claim, one row in `work/onboarding/verification.md`, and one anchor in the bound file pointing at that row.
 
 **Every row's outcome is one of three**: located, located-elsewhere-and-citation-corrected, or not-located. A not-located claim is dropped from the bound file, or enters carrying `Unverified` with the failed search string recorded in its row.
 
@@ -248,7 +247,7 @@ Exit: G15, G16.
 
 ### Phase 9: Close, per key
 
-**The harness runs on every root type.** `gates.sh` reads the root's declared `type:`, and on a client root the records home from that root's own layout table row, and checks the paths Where the records go, by root type gives for it once the records home is resolved. The gates that read extraction records, evidence packages or supplied originals judge what the root actually holds, never what its type implies. Given documents, each checks them. **Given none, none of them fails, and they do not all report it the same way**: G2, G6 and G6b say so and pass, while G4 skips unless the run record's tier is `core`, and G2 and G6 skip too where the directory exists and is empty. **A skip is not a pass**, and the close report names whichever it was. **A root whose `AGENTS.md` declares no recognized type is refused**, because a root is identified by its declaration and this harness will not guess one.
+**The harness runs on every root type.** `gates.sh` reads the root's declared `type:` and checks the paths Where the records go, by root type gives for it. The gates that read extraction records, evidence packages or supplied originals judge what the root actually holds, never what its type implies. Given documents, each checks them. **Given none, none of them fails, and they do not all report it the same way**: G2, G6 and G6b say so and pass, while G4 skips unless the run record's tier is `core`, and G2 and G6 skip too where the directory exists and is empty. **A skip is not a pass**, and the close report names whichever it was. **A root whose `AGENTS.md` declares no recognized type is refused**, because a root is identified by its declaration and this harness will not guess one.
 
 **It is `bash`, not `sh`.** The script uses process substitution, which `/bin/sh` rejects before any gate runs.
 
@@ -284,7 +283,7 @@ Exit: G17, G18, G19.
 
 Everything goes in: open decisions, contradictions between stated answers and evidence, missing assets, unverifiable claims, disputed claims, deferred interview classes with their consequences, a deferred competitors offer, unfilled credential files with the credential named, checks needing a named human or credential with the attempt that established the blocker, and checks already run with their results. That last category matters as much as the others: it stops the next session re-running work, and it shows which source claims did not survive contact.
 
-**Then the close report**, `close-report.md` in the records home: the tier that ran and what was not done; the type and the scope that decided it; the destination; the per-key close state; every open heading named; every gate that failed and every gate that did not apply; what the audit found and how each finding was disposed of; and everything outstanding with its owner.
+**Then the close report**, `work/onboarding/close-report.md`: the tier that ran and what was not done; the type and the scope that decided it; the destination; the per-key close state; every open heading named; every gate that failed and every gate that did not apply; what the audit found and how each finding was disposed of; and everything outstanding with its owner.
 
 Exit: G20.
 
@@ -294,27 +293,27 @@ Exit: G20.
 
 **A root is identified by the `type:` its own `AGENTS.md` declares, never by its folder name.** That type decides where this skill writes, because the templates declare different layouts. `gates.sh` reads the same declaration, so the two never disagree about a path the root declares; where the table below and that script disagree about anything the root does not declare, they are both wrong until they agree again.
 
-**The client column's parent is the root's to declare, and this file calls it the records home.** The root's layout table carries a row naming where records from creating it live, `work/onboarding/` in the Client template and shown that way below; this skill and `gates.sh` both read that row. A records home is a directory under `work/` inside the root: the harness refuses an absolute path, one that walks out with `..`, one naming any other declared home, one that is already a file, and a second row carrying the label, and it says which it refused and falls back to `work/onboarding/`; this skill refuses the same set at Phase 0 and asks. Where the row is absent both fall back and say so. Phase 1 is where a declared home is made real, by renaming the directory and the `work/AGENTS.md` row together, so the grammar file inside it moves with it. Every phase above that names a record says the records home, and on a personal, org, department or industry root the records home is `work/` with the flat names the second column gives.
+**A client root keeps these records at `work/onboarding/`, and nothing here reads that path out of the root's own `AGENTS.md`.** The Client template declares it in its layout table, this file names it, and `gates.sh` checks it; the three agree because all three state it, not because one parses another. **Moving them elsewhere is not supported**, and a root that declares another home is a build to file rather than a shape to guess at: reading a path out of a prose table was tried four ways and broke four ways, each time sending the harness somewhere the run had not written. What the root's declaration does decide is the layout, and that is what `gates.sh` reads its `type:` for, since the other types declare no `work/onboarding/` at all. Every phase above that names a record says the records home, and on a personal, org, department or industry root the records home is `work/` with the flat names the second column gives.
 
 | Record | On a client root | On a personal, org, department or industry root |
 |--------|------------------|-------------------------------------------------|
-| Run record | `<records home>/run-record.md` | `work/onboarding-run-record.md` |
-| Verification | `<records home>/verification.md` | `work/onboarding-verification.md` |
-| Audit | `<records home>/audit.md` | `work/onboarding-audit.md` |
+| Run record | `work/onboarding/run-record.md` | `work/onboarding-run-record.md` |
+| Verification | `work/onboarding/verification.md` | `work/onboarding-verification.md` |
+| Audit | `work/onboarding/audit.md` | `work/onboarding-audit.md` |
 | Operating file | `todos/current.md` | `work/onboarding-operating-file.md` |
-| Close report | `<records home>/close-report.md` | `work/onboarding-close-report.md` |
-| Extraction records | `<records home>/extraction/` | `work/onboarding-extraction/` |
-| Evidence packages | `<records home>/evidence/` | `work/onboarding-evidence/` |
-| Working draft | `<records home>/draft/` | `work/onboarding-draft/` |
+| Close report | `work/onboarding/close-report.md` | `work/onboarding-close-report.md` |
+| Extraction records | `work/onboarding/extraction/` | `work/onboarding-extraction/` |
+| Evidence packages | `work/onboarding/evidence/` | `work/onboarding-evidence/` |
+| Working draft | `work/onboarding/draft/` | `work/onboarding-draft/` |
 | Supplied originals | `sources/` | `inbox/` |
 
 **Only the client template declares `work/onboarding/`, `sources/` and `todos/`.** The personal and org templates declare `work/`, `plays/`, `playbooks/`, `skills/`, `inbox/` and `zArchive/`, and a department or industry root made from the org template declares what it declares; the table above is where the mapping lives.
 
-**Every record in this file sits at the records home, or at a path this table maps. Read each one through this table**, whichever type is being onboarded: on a client root `<records home>` is the directory that root's own layout table declares, `work/onboarding/` in the Client template and in a root that kept it, and on the other types the records home is `work/` and the names are flat, as the second column gives. `todos/current.md` and `sources/` are not under the records home on a client root and the table says where they are; the other types substitute the second column for them too. The handover-shaped phases, meaning extraction, per-angle evidence, and the supplied-originals inventory, exist only where documents were handed over. On a root where none were, they do not apply, and `gates.sh` says so under the gate that reads them rather than failing it.
+**Every phase in this file names the client path. Read each one through this table**, whichever type is being onboarded; the client column is what the phases say, and the other column is what they mean on the other types. The handover-shaped phases, meaning extraction, per-angle evidence, and the supplied-originals inventory, exist only where documents were handed over. On a root where none were, they do not apply, and `gates.sh` says so under the gate that reads them rather than failing it.
 
 A gate cannot run against a record with no shape. These are the shapes, and they are what makes the close mechanical rather than a matter of opinion. `system/templates/Client Root Template/` ships the marked headings in `memory/` and, under `work/onboarding/`, its `AGENTS.md` and nothing else; that `AGENTS.md` carries the full grammar of every record, and the run writes each record itself. `standards/conventions.md` still owns what a register and a label mean; what follows is only their written form.
 
-**The verification anchor.** A load-bearing claim in a bound file ends with a bracketed row id naming its row in the records home's `verification.md`: `[V7]`. Greppable as `\[V[0-9]+\]`. This is what turns read-back coverage into a check on claims rather than a count of rows.
+**The verification anchor.** A load-bearing claim in a bound file ends with a bracketed row id naming its row in `work/onboarding/verification.md`: `[V7]`. Greppable as `\[V[0-9]+\]`. This is what turns read-back coverage into a check on claims rather than a count of rows.
 
 **Evidence labels are written in square brackets, in place**: `[Verified]`, `[Estimated: manual review]`, `[Unverified: requires confirmation]`, `[Not available: no guide supplied]`.
 

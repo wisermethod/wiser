@@ -115,8 +115,7 @@ trap 'rm -rf "$TMPD"' EXIT INT TERM
 
 # The root's own AGENTS.md declares its type, and the type decides where the
 # onboarding records live. A client root carries the full record set under
-# a records home its own layout table names, `work/onboarding/` in the template,
-# plus `sources/` and `todos/`; the other types declare none
+# `work/onboarding/` plus `sources/` and `todos/`; the other types declare none
 # of those, and the personal and org templates (which a department or industry
 # root starts from) declare none of them, and `skills/Onboard Root/full-path.md` says only the
 # client template declares `work/onboarding/`. Reading the type here is what
@@ -134,54 +133,15 @@ case "$ROOT_TYPE" in
     # root" naming it, and the copy carries that row. Read it there, and fall
     # back to the template's own value only when the row is missing, saying so,
     # because a root whose declaration was edited is the case this exists for.
-    # The layout table's own row, and the cell after the label, not the first
-    # backticked span on any line beginning with a pipe. Four things went wrong
-    # in earlier rounds and each is closed by one of the conditions below: a
-    # sentence of prose carrying the label is not a row; a backticked row label
-    # is not the path; another table's row is not this table's row, so the row
-    # must sit under the layout heading; and a second row carrying the label is
-    # an ambiguity to report rather than a race the first one wins.
-    ONB_ROW=$(awk -F'|' '
-      /^##[[:space:]]/ { inlayout = ($0 ~ /Put it here/) ? 0 : 0 }
-      /^\|[[:space:]]*You are holding/ { intable = 1; next }
-      intable && $0 !~ /^\|/ { intable = 0 }
-      intable && $2 ~ /Records from creating this root/ { n++; row = $3 }
-      END { if (n == 1) print row; else if (n > 1) print "AMBIGUOUS" }
-    ' "$ROOT/AGENTS.md" 2>/dev/null)
-    ONB_REL=""; ONB_WHY=""
-    if [ "$ONB_ROW" = "AMBIGUOUS" ]; then
-      ONB_WHY="carries more than one records-home row"
-    elif [ -n "$ONB_ROW" ]; then
-      ONB_REL=$(printf '%s' "$ONB_ROW" | sed -n 's/.*`\([^`]*\)`.*/\1/p' | sed 's|/$||')
-      [ -n "$ONB_REL" ] || ONB_WHY="declares a records-home row with no path in it"
-    fi
-    # A records home is a directory inside the root's own work area. An absolute
-    # path, a component that walks out, one of the root's other declared homes,
-    # or something that is already a file are none of them, and each would have
-    # the harness check where a session will not write.
-    if [ -n "$ONB_REL" ]; then
-      case "/$ONB_REL/" in
-        //*|*/../*) ONB_WHY="declares a records home outside the root"; ONB_REL="" ;;
-      esac
-    fi
-    if [ -n "$ONB_REL" ]; then
-      case "$ONB_REL" in
-        work|work/*) ;;
-        *) ONB_WHY="declares a records home outside the root's work area"; ONB_REL="" ;;
-      esac
-    fi
-    if [ -n "$ONB_REL" ] && [ -e "$ROOT/$ONB_REL" ] && [ ! -d "$ROOT/$ONB_REL" ]; then
-      ONB_WHY="declares a records home that is not a directory"; ONB_REL=""
-    fi
-    if [ -z "$ONB_REL" ]; then
-      ONB_REL="work/onboarding"
-      if [ -n "$ONB_WHY" ]; then
-        echo "$PROG: $ROOT/AGENTS.md $ONB_WHY; assuming $ONB_REL, the Client template's own value" >&2
-      else
-        echo "$PROG: $ROOT/AGENTS.md declares no \"Records from creating this root\" row in its layout table; assuming $ONB_REL, the Client template's own value" >&2
-      fi
-    fi
-    ONB="$ROOT/$ONB_REL"
+    # `work/onboarding/` on a client root, and nothing parses that out of the
+    # root's own AGENTS.md. Reading it from a prose table was tried four ways and
+    # broke four ways, each silently sending this harness somewhere the run had
+    # not written: a sentence carrying the label, a backticked row label, another
+    # table's row, and a cell holding two paths. A relocatable records home is a
+    # capability nothing has asked for, and it is filed as a build rather than
+    # guessed at here. What the type decides is the layout, which is the defect
+    # this branch exists to fix: the other types declare no `work/onboarding/`.
+    ONB="$ROOT/work/onboarding"
     RUNREC="$ONB/run-record.md"
     VERIF="$ONB/verification.md"
     AUDIT="$ONB/audit.md"

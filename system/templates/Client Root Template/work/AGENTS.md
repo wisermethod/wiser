@@ -8,7 +8,7 @@ This folder is not the waiting room (`inbox/`), not the originals (`sources/`), 
 
 | Folder | Holds |
 |--------|-------|
-| `onboarding/` | Records from creating this root, which is what this root's own `AGENTS.md` declares as its records home and what `skills/Onboard Root/` and its harness both read; rename this row and this folder together if that declaration ever names another. The grammar of every record is in the `AGENTS.md` inside it. The living todo list is `todos/current.md`, not a file in this folder. |
+| `onboarding/` | Records from creating this root. The grammar of every record is in the `AGENTS.md` inside it. The living todo list is `todos/current.md`, not a file in this folder. |
 
 ## Adding a subject
 
