@@ -108,6 +108,13 @@ case "$ROOT" in
   */) ROOT="${ROOT%/}" ;;
 esac
 
+# Resolve the root once here rather than inside under_root, which several
+# callers invoke inside command substitutions and pipelines: a value assigned
+# in a subshell dies with it, so the root was resolved again on every call.
+# under_root keeps its own guard, so a root that cannot be entered still
+# refuses there with the same reason.
+ROOT_PHYS=$(CDPATH= cd -P "$ROOT" 2>/dev/null && pwd -P) || ROOT_PHYS=""
+
 TMPD=$(mktemp -d "${TMPDIR:-/tmp}/gates.XXXXXX") || exit 2
 trap 'rm -rf "$TMPD"' EXIT INT TERM
 
@@ -253,10 +260,10 @@ ROOTNAME=$(sed -n 's/^root:[[:space:]]*//p' "$AGENTS" 2>/dev/null | head -1)
 # Sets _ur_why to the reason on a refusal, so a caller can say which it was.
 under_root() {
   _ur_why="leaves the root"
-  case "$1" in "" | /*) return 1 ;; esac
+  case "$1" in "") _ur_why="is empty"; return 1 ;; /*) return 1 ;; esac
   _ur_p=$1
   while :; do case "$_ur_p" in */) _ur_p=${_ur_p%/} ;; *) break ;; esac; done
-  [ -n "$_ur_p" ] || return 1
+  [ -n "$_ur_p" ] || { _ur_why="is empty"; return 1; }
   [ -n "${ROOT_PHYS:-}" ] || ROOT_PHYS=$(CDPATH= cd -P "$ROOT" 2>/dev/null && pwd -P) || { _ur_why="cannot be resolved"; return 1; }
   _ur_root=$ROOT_PHYS
   if [ -d "$ROOT/$_ur_p" ]; then
@@ -1934,7 +1941,7 @@ gate_G13b() {
     if(t ~ /^[-*+][ \t]/ || t ~ /^[0-9]+[.)][ \t]/){
       sub(/^[-*+][ \t]+/,"",t); sub(/^[0-9]+[.)][ \t]+/,"",t)
       items[++ni]=t
-    } else prose = prose " " t
+    }
   }
   END{
     for(i=1;i<=ni;i++) print items[i]
