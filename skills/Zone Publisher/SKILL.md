@@ -3,7 +3,7 @@ name: Zone Publisher
 type: skill
 category: development
 description: Bring one Cloudflare zone's live DNS into a reviewable zone file, apply the intended record changes, and publish them back with every removal approved by name and every published record re-read from the platform. Needs a connector this release does not ship.
-version: 0.6.1
+version: 0.6.2
 gaps:
   - Cloudflare redirect rules API (Page Rules successor / Rulesets)
   - reading a zone's live records and applying DNS and zone changes to the hosting account, so this skill can neither pull the state it plans from nor publish the plan; a plan is judged on what the requester can supply of the live state
@@ -101,7 +101,7 @@ Compare the way the platform stores records, or the diff invents work: CNAME, NS
 
 Give the apex its own line in that message. Deleting or overwriting an apex `A`, `NS`, or `MX` record takes the domain or its mail down for everyone, and it is the removal most likely to arrive by accident.
 
-Before anything would be written, the gate: hand the three lists from step 5, the archived before-state and the intended file to `experts/IT Expert/` in a second context. It judges the blast radius, the rollback as records, the timing and the sourcing of every provider value, and returns safe as planned, safe with named conditions, or not as proposed; the requester's approval of removals by name is theirs and never the expert's, and a declined review is named in the record. The stop with no connector is stated at the head of these steps.
+Before anything would be written, the gate: hand the three lists from step 5 wrapped in `<diff>`, the archived before-state in `<zone_state>` and the intended file in `<intended_file>`, to `experts/IT Expert/` in a second context. It judges the blast radius, the rollback as records, the timing and the sourcing of every provider value, and returns safe as planned, safe with named conditions, or not as proposed; the requester's approval of removals by name is theirs and never the expert's, and a declined review is named in the record. The stop with no connector is stated at the head of these steps.
 
 **6. Publish, matching the action to the intent.** Every gated action's confirmation comes from step 5's answer and never from this skill's own initiative; the connector states what each gate covers and when it refuses.
 
