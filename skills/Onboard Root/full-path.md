@@ -116,7 +116,7 @@ Exit: G1.
 
 **Inventory the supplied files**: name, size, type. Put the originals in `sources/` as received and do not edit them in place.
 
-**Extract each source to text**, one record per source under `work/onboarding/extraction/`, holding four things beyond the text:
+**Extract each source to text**, one record per source under `extraction/` in the records home, holding four things beyond the text:
 
 - **The completeness measure**, per the standing rule, recorded with both the extraction mechanism and the different mechanism that checked it.
 - **A provenance block**: who authored it (the subject, a first party, a third party, unattributed), final or draft, its date, internal or outward-facing.
@@ -131,7 +131,7 @@ Exit: G2, G3.
 
 This phase is skipped only on the no-public-research branch. On the interview-first branch it runs after Phase 5, scoped to what the interview could not answer. The close report names the branch either way.
 
-**The output is an evidence package, not a draft.** One per angle, under `work/onboarding/evidence/`: quotations with URLs and retrieval dates, values with the file and line they were read from, an explicit not-retrieved list with reasons, and the retrieval mechanism named. Naming the mechanism means naming what it does to content: paraphrases, caps quote length, strips script tags, refuses a file type. Phase 3 needs that in order to choose a different one.
+**The output is an evidence package, not a draft.** One per angle, under `evidence/` in the records home: quotations with URLs and retrieval dates, values with the file and line they were read from, an explicit not-retrieved list with reasons, and the retrieval mechanism named. Naming the mechanism means naming what it does to content: paraphrases, caps quote length, strips script tags, refuses a file type. Phase 3 needs that in order to choose a different one.
 
 A stitched quote is marked stitched, and any line to be published as an exact quotation is re-read from the source first.
 
@@ -149,15 +149,15 @@ Exit: G4.
 
 Take every claim that is a candidate for a bound file, at the tier's scope, and check it against the thing it cites. The standing rules on read-back, negative claims, containers, exactness, counts, and what Verified means are the substance of this phase; what follows is how the pass is run and recorded.
 
-**What this phase verifies, given that Phase 4 has not written the bound files yet.** A candidate claim is a claim you are about to write, held in the working draft under `work/onboarding/`, not a line already sitting in `memory/`. Phase 2 returns evidence, Phase 3 checks the claims that evidence would support, and Phase 4 writes only what survived, carrying each claim's anchor with it. That order is the point: a claim verified after it is bound has already been available to a deliverable, and the whole revision exists because claims entered bound files unread.
+**What this phase verifies, given that Phase 4 has not written the bound files yet.** A candidate claim is a claim you are about to write, held in the working draft in the records home, not a line already sitting in `memory/`. Phase 2 returns evidence, Phase 3 checks the claims that evidence would support, and Phase 4 writes only what survived, carrying each claim's anchor with it. That order is the point: a claim verified after it is bound has already been available to a deliverable, and the whole revision exists because claims entered bound files unread.
 
 So the phase runs against the draft, its verification rows are written before the bound file exists, and the anchors those rows name are placed as Phase 4 writes each sentence. The forward check below is the one part that needs the bound file, and it is re-run at Phase 9 against what was actually written.
 
-**Write the draft first.** Phase 2 returns evidence, and evidence is not yet a claim. Open `work/onboarding/draft/` and write, per bound file, the sentences you intend `memory/` to carry, each already in the form it will take. That draft is what this phase verifies and what Phase 4 copies from once it survives. It is a working file, so downstream work never loads it, and it exists so that no claim is ever written straight into a bound file unread.
+**Write the draft first.** Phase 2 returns evidence, and evidence is not yet a claim. Open `draft/` in the records home and write, per bound file, the sentences you intend `memory/` to carry, each already in the form it will take. That draft is what this phase verifies and what Phase 4 copies from once it survives. It is a working file, so downstream work never loads it, and it exists so that no claim is ever written straight into a bound file unread.
 
 **The pass is not the pass that drafted the claim.** Where this host can spawn a sub-agent, the read-back runs in one: hand it the drafts, the sources, and the read-back rules, and not the reasoning that produced the drafts. **Spawn one per bound file, in one batch.** Each reads only its own draft, so they do not need each other, and independence is the requirement rather than a cost of splitting them: one context per bound file is further from the drafting context than one context holding all four. Where it cannot, run a distinct pass yourself and record in the close report that the read-back shared the producer's context, which is materially weaker.
 
-**Claim granularity, so the coverage check is falsifiable.** One claim is one sentence in a bound file containing any of: a number, a proper noun, a quotation, a prohibition, or a comparative. One claim, one row in `work/onboarding/verification.md`, and one anchor in the bound file pointing at that row.
+**Claim granularity, so the coverage check is falsifiable.** One claim is one sentence in a bound file containing any of: a number, a proper noun, a quotation, a prohibition, or a comparative. One claim, one row in the records home's `verification.md`, and one anchor in the bound file pointing at that row.
 
 **Every row's outcome is one of three**: located, located-elsewhere-and-citation-corrected, or not-located. A not-located claim is dropped from the bound file, or enters carrying `Unverified` with the failed search string recorded in its row.
 
@@ -283,7 +283,7 @@ Exit: G17, G18, G19.
 
 Everything goes in: open decisions, contradictions between stated answers and evidence, missing assets, unverifiable claims, disputed claims, deferred interview classes with their consequences, a deferred competitors offer, unfilled credential files with the credential named, checks needing a named human or credential with the attempt that established the blocker, and checks already run with their results. That last category matters as much as the others: it stops the next session re-running work, and it shows which source claims did not survive contact.
 
-**Then the close report**, `work/onboarding/close-report.md`: the tier that ran and what was not done; the type and the scope that decided it; the destination; the per-key close state; every open heading named; every gate that failed and every gate that did not apply; what the audit found and how each finding was disposed of; and everything outstanding with its owner.
+**Then the close report**, `close-report.md` in the records home: the tier that ran and what was not done; the type and the scope that decided it; the destination; the per-key close state; every open heading named; every gate that failed and every gate that did not apply; what the audit found and how each finding was disposed of; and everything outstanding with its owner.
 
 Exit: G20.
 
@@ -293,7 +293,7 @@ Exit: G20.
 
 **A root is identified by the `type:` its own `AGENTS.md` declares, never by its folder name.** That type decides where this skill writes, because the templates declare different layouts. `gates.sh` reads the same declaration and checks the same paths; where this table and that script disagree, they are both wrong until they agree again.
 
-**The client column's parent is the root's to declare.** Its layout table carries a row naming where records from creating the root live, `work/onboarding/` in the Client template and shown that way below; this skill and `gates.sh` both read that row and write and check beneath whatever it names. A client root that declares another home moves both together, and where the row is absent both fall back to `work/onboarding/` and say so.
+**The client column's parent is the root's to declare, and this file calls it the records home.** The root's layout table carries a row naming where records from creating it live, `work/onboarding/` in the Client template and shown that way below; this skill and `gates.sh` both read that row and write and check beneath whatever it names. A client root that declares another home moves both together, and where the row is absent both fall back to `work/onboarding/` and say so. Every phase above that names a record says the records home, and on a personal, org, department or industry root the records home is `work/` with the flat names the second column gives.
 
 | Record | On a client root | On a personal, org, department or industry root |
 |--------|------------------|-------------------------------------------------|
@@ -313,7 +313,7 @@ Exit: G20.
 
 A gate cannot run against a record with no shape. These are the shapes, and they are what makes the close mechanical rather than a matter of opinion. `system/templates/Client Root Template/` ships the marked headings in `memory/` and, under `work/onboarding/`, its `AGENTS.md` and nothing else; that `AGENTS.md` carries the full grammar of every record, and the run writes each record itself. `standards/conventions.md` still owns what a register and a label mean; what follows is only their written form.
 
-**The verification anchor.** A load-bearing claim in a bound file ends with a bracketed row id naming its row in `work/onboarding/verification.md`: `[V7]`. Greppable as `\[V[0-9]+\]`. This is what turns read-back coverage into a check on claims rather than a count of rows.
+**The verification anchor.** A load-bearing claim in a bound file ends with a bracketed row id naming its row in the records home's `verification.md`: `[V7]`. Greppable as `\[V[0-9]+\]`. This is what turns read-back coverage into a check on claims rather than a count of rows.
 
 **Evidence labels are written in square brackets, in place**: `[Verified]`, `[Estimated: manual review]`, `[Unverified: requires confirmation]`, `[Not available: no guide supplied]`.
 
