@@ -291,7 +291,7 @@ Exit: G20.
 
 ## Where the records go, by root type
 
-**A root is identified by the `type:` its own `AGENTS.md` declares, never by its folder name.** That type decides where this skill writes, because the templates declare different layouts. `gates.sh` reads the same declaration and checks the same paths; where this table and that script disagree, they are both wrong until they agree again.
+**A root is identified by the `type:` its own `AGENTS.md` declares, never by its folder name.** That type decides where this skill writes, because the templates declare different layouts. `gates.sh` reads the same declaration, so the two never disagree about a path the root declares; where the table below and that script disagree about anything the root does not declare, they are both wrong until they agree again.
 
 **The client column's parent is the root's to declare, and this file calls it the records home.** The root's layout table carries a row naming where records from creating it live, `work/onboarding/` in the Client template and shown that way below; this skill and `gates.sh` both read that row and write and check beneath whatever it names. A client root that declares another home moves both together, and where the row is absent both fall back to `work/onboarding/` and say so. Every phase above that names a record says the records home, and on a personal, org, department or industry root the records home is `work/` with the flat names the second column gives.
 
@@ -309,7 +309,7 @@ Exit: G20.
 
 **Only the client template declares `work/onboarding/`, `sources/` and `todos/`.** The personal and org templates declare `work/`, `plays/`, `playbooks/`, `skills/`, `inbox/` and `zArchive/`, and a department or industry root made from the org template declares what it declares; the table above is where the mapping lives.
 
-**Every phase in this file names the client path. Read each one through this table**, whichever type is being onboarded; the client column is what the phases say, and the other column is what they mean on the other types. The handover-shaped phases, meaning extraction, per-angle evidence, and the supplied-originals inventory, exist only where documents were handed over. On a root where none were, they do not apply, and `gates.sh` says so under the gate that reads them rather than failing it.
+**Every phase in this file names the records home, or a path this table maps. Read each one through this table**, whichever type is being onboarded: the client column is this table's default for a client root and the records home is whatever that root declares instead, and the other column is what the phases mean on the other types, where the records home is `work/` and the names are flat. The handover-shaped phases, meaning extraction, per-angle evidence, and the supplied-originals inventory, exist only where documents were handed over. On a root where none were, they do not apply, and `gates.sh` says so under the gate that reads them rather than failing it.
 
 A gate cannot run against a record with no shape. These are the shapes, and they are what makes the close mechanical rather than a matter of opinion. `system/templates/Client Root Template/` ships the marked headings in `memory/` and, under `work/onboarding/`, its `AGENTS.md` and nothing else; that `AGENTS.md` carries the full grammar of every record, and the run writes each record itself. `standards/conventions.md` still owns what a register and a label mean; what follows is only their written form.
 

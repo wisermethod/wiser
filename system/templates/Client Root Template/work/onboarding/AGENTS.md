@@ -18,7 +18,7 @@ This folder is the working area the onboarding process names, except the operati
 
 ## The record grammars
 
-**These shapes govern every root type. The paths in them are this client root's**, because this file ships beside the client template: `sources/`, `todos/current.md`, `work/onboarding/`. **Another type substitutes the paths its own layout declares**, which `skills/Onboard Root/full-path.md` sets out under Where the records go, by root type. Where a heading or a field itself varies by type, and not merely its path, this file says so at that heading.
+**These shapes govern every root type. The paths in them are this client root's**, because this file ships beside the client template: `sources/`, `todos/current.md`, and the records home this root's own `AGENTS.md` declares, which is the directory this file sits in and which ships as `work/onboarding/`. **Another type substitutes the paths its own layout declares**, which `skills/Onboard Root/full-path.md` sets out under Where the records go, by root type. Where a heading or a field itself varies by type, and not merely its path, this file says so at that heading.
 
 These records are read by the close gates, which parse them by key line and by column position. The shapes below are the contract. A record written in a different shape is not a stricter record, it is an unreadable one, and the gate that depends on it cannot run.
 

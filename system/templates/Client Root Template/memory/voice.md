@@ -7,7 +7,7 @@ Labels and registers are `standards/conventions.md`'s, written in place and neve
 
 **Traits are moves.** Every trait here is something a reader can look for in a piece of writing and say whether it is present. An adjective is not a trait: "the register is friendly" cannot be checked, "names the object before the feeling" can. A quality that cannot be checked that way does not enter the file.
 
-**Anchors.** Every load-bearing claim ends with a verification anchor, a bracketed row id naming its row in `work/onboarding/verification.md`, written as `[V<n>]` with the row's number in place of `<n>`: row 9 is anchored as V9 in that form. The register decision, its confirmation, and any counted claim about the client's own material are load-bearing. A key line below that carries a date or a count takes an anchor too.
+**Anchors.** Every load-bearing claim ends with a verification anchor, a bracketed row id naming its row in the `verification.md` of this root's records home, the one its `AGENTS.md` declares, written as `[V<n>]` with the row's number in place of `<n>`: row 9 is anchored as V9 in that form. The register decision, its confirmation, and any counted claim about the client's own material are load-bearing. A key line below that carries a date or a count takes an anchor too.
 <!-- /provenance-preamble -->
 
 # Voice of [name]

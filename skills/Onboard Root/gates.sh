@@ -117,7 +117,8 @@ trap 'rm -rf "$TMPD"' EXIT INT TERM
 # onboarding records live. A client root carries the full record set under
 # `work/onboarding/` plus `sources/` and `todos/`; the other types declare none
 # of those, and the personal and org templates (which a department or industry
-# root starts from) say `work/onboarding/` is the client-root layout. Reading the type here is what
+# root starts from) declare none of them, and `skills/Onboard Root/full-path.md` says only the
+# client template declares `work/onboarding/`. Reading the type here is what
 # stops this harness demanding a layout the root was never given.
 ROOT_TYPE=""
 if [ -f "$ROOT/AGENTS.md" ]; then
