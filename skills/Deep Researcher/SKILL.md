@@ -3,7 +3,7 @@ name: Deep Researcher
 type: skill
 category: research
 description: Run a research question end to end, decomposing it into angles, directing each to the research skill that gathers it, and interpreting what comes back into a report where every finding carries its sources, a calibrated confidence level, and the contradictions it did not resolve
-version: 0.7.0
+version: 0.7.1
 memory:
   - about
 ---
@@ -37,7 +37,7 @@ Two settings ride in `<scope>`, and both have a default, so a caller may state n
 
 One memory key, bound per the constitution's Workspace Model:
 
-- `about`, optional. The owning root's market, relationships, and current focus, which sharpen Phase 1's angle decomposition toward what that root actually works on. Unbound, or bound to a file still carrying its template's prompt lines: say the decomposition was calibrated from the request alone, and never invent what the file would have said. The question the output answers and where it is going, a memory file, a deliverable or a decision, are named with the request, since the gate needs both.
+- `about`, optional. The owning root's market, relationships, and current focus, which sharpen Phase 1's angle decomposition toward what that root actually works on. Unbound, or bound to a file still carrying its template's prompt lines or the `[Not available: ...]` label `skills/Onboard Root/` writes over them: say the decomposition was calibrated from the request alone, and never invent what the file would have said. The question the output answers and where it is going, a memory file, a deliverable or a decision, are named with the request, since the gate needs both.
 
 ## Identity
 
