@@ -3,7 +3,7 @@ name: SEO Assets
 type: skill
 category: seo
 description: Produce the ready-to-use artifacts a site's decided search changes need, each built from evidence pulled for it, held to its own standards, and handed over for someone else to deploy
-version: 0.9.2
+version: 0.9.3
 memory:
   - voice
   - about
@@ -121,7 +121,7 @@ A value the evidence did not supply is asked for or left out and named as missin
 
 Every count, change list, and total in an artifact is computed, never estimated. Character counts are counted, the difference between two sitemap snapshots comes from the tool that computes it, and a figure carried from a reading names the reading.
 
-Copy that a visitor will read follows the owning root's bound `voice`. Facts about the organization follow `about` where it is bound, and otherwise carry their source per `standards/conventions.md`.
+Copy that a visitor will read follows the owning root's `voice` where Inputs found it available. Facts about the organization follow `about` on the same test, and otherwise carry their source per `standards/conventions.md`.
 
 ### Step 4: Hand it over
 

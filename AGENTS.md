@@ -35,7 +35,8 @@ The attached working folder is the **owning root**: the personal, org, client, d
 - A **required** key unbound: stop and ask.
 - An **optional** key unbound: name what degraded, and proceed.
 - `competitors` is optional and is bound only where a competitive set has been confirmed. Unbound means there is no confirmed set, so work that names, ranks, or differentiates against another party says so and proceeds. **Never invent a set to finish the sentence.**
-- **A bound file whose headings say its content is not yet defined counts as unavailable.** Name the degradation the same way, and never invent what it would have said.
+- **A heading that says its content is not yet defined is unavailable on its own.** The answered headings around it are used.
+- **A bound file counts as unavailable when no heading is answered.** Name the degradation the same way, and never invent what it would have said.
 
 **Secrets.** A `secrets:<platform>` key resolves through a Provides binding; unbound, the personal root's `memory/secrets/` is the only default. Found nowhere: stop and ask. **A secret's contents never enter the conversation, a log, a commit, or another file.**
 
