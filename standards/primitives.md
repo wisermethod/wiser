@@ -1,6 +1,6 @@
 ---
 standard: primitives
-version: 0.4.1
+version: 0.4.2
 description: The three typed primitives, how they invoke and sequence one another, and the frontmatter every typed file carries
 ---
 
@@ -76,7 +76,7 @@ The block is a flat map in exactly this grammar, deliberately small so that ever
 
 Each family directory's AGENTS.md carries an index of that family, grouped by `category` and maintained by hand from this frontmatter; `name`, `category`, and `description` carry their rules so those tables stay correct.
 
-**A skill whose declared yield cannot be produced at all without a connector this release does not ship says so at the end of its description**, so a reader of the index learns it there rather than after opening the file; one that is merely degraded without a connector declares that in `gaps` alone. The sentence is the skill's own and the index projects it like any other, which is what keeps the index a projection. `zBuilds/playbooks/Connector Build.playbook.md` carries the current membership and removes each sentence as its connector ships.
+**A skill whose declared yield cannot be produced at all without a connector this release does not ship says so at the end of its description**, so a reader of the index learns it there rather than after opening the file; one that is merely degraded without a connector declares that in `gaps` alone. The sentence is the skill's own and the index projects it like any other, which is what keeps the index a projection. The build that ships a connector removes the sentence with it.
 
 ## Done
 
