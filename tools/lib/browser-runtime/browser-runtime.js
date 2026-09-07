@@ -319,7 +319,7 @@ function remediationFromLaunchError(error, host) {
  * the test was still a substring match on a line that quotes a caller's path.
  *
  * AND THERE IS NO CLOSED LIST OF SPAWN ERRNOS TO EXCLUDE. Node forwards native
- * errors, unrecognised ones arrive numerically, and the set depends on the
+ * errors, unrecognized ones arrive numerically, and the set depends on the
  * operating system, the filesystem and the spawn options. A fix written as a
  * deny-list is wrong the first time an unfamiliar code appears, because that
  * code falls straight back onto the destructive branch.
@@ -346,7 +346,7 @@ function remediationFromLaunchError(error, host) {
  *                run names the one scoped command for a reader who has ruled the
  *                machine out.
  *   'unknown'    Everything else, including every errno this function does not
- *                recognise and every case the evidence leaves ambiguous. The
+ *                recognize and every case the evidence leaves ambiguous. The
  *                callers do the one thing safe in both directions: a PLAIN
  *                install, which downloads only what is missing and replaces
  *                nothing, and no forced replacement.

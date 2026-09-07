@@ -3,7 +3,7 @@ name: keynote-render
 type: tool
 category: documents
 description: Builds and edits native Keynote decks from JSON or markdown SSOT, with zArchive safety before every in-place mutation
-version: 0.2.0
+version: 0.2.1
 ---
 
 # keynote-render
@@ -243,7 +243,7 @@ The scripts follows `system/templates/Script Contract.md`; what a user meets whe
 
 Replacing an existing **output file** from `build` / `snapshot` / `export` is opt-in via `--confirm`. Mutating an existing **deck** is also opt-in via `--confirm`, and always preceded by a `zArchive/` copy when the deck already exists.
 
-Only a brand file needs an installed package; if this copy has not yet authorised an install, the first branded command reports what it would install and stops, and `--install` on that run is the answer. Later tools in this copy install without asking.
+Only a brand file needs an installed package; if this copy has not yet authorized an install, the first branded command reports what it would install and stops, and `--install` on that run is the answer. Later tools in this copy install without asking.
 
 ## Output
 

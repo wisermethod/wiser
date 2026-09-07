@@ -749,7 +749,7 @@ gate_G0() {
       # passed with no competitor named, while `SAP`, `IBM` and `GE` are under
       # any sane length floor and a correct root could not close.
       #
-      # Both were proxies for a judgement. What is mechanical is checked above:
+      # Both were proxies for a judgment. What is mechanical is checked above:
       # the binding is there as a plain list item, the file is plain text with
       # comments filtered, and all three required classes anchor in that file.
       # What is not mechanical is declared, here and in the skill frontmatter
@@ -1102,7 +1102,7 @@ gate_G5a() {
           # "a number, a proper noun, a quotation, a prohibition, or a comparative".
           if(s ~ /[0-9]/) cand=1
           # The trigger is "a number", not "a digit". A figure spelled out in
-          # words is still a figure, and F20 in the catalogue is an auditor
+          # words is still a figure, and F20 in the catalog is an auditor
           # missing exactly that.
           if(low ~ /(^|[^a-z])(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|billion|dozen|half|quarter|third|twice|thrice)([^a-z]|$)/) cand=1
           if(index(s,"\"")>0) cand=1
@@ -1576,7 +1576,7 @@ DOC_GRAMMAR='\.pdf|\.docx|\.pptx|\.md|deck|document|report|guide|memo|slide'
 PERSON_GRAMMAR="(^|[^A-Za-z])[A-Z][a-z]+([ -][A-Z][a-z']+)+"
 # The head noun of a role, a body, or a document. A two-capitalized-word phrase
 # ending in one of these is a title or a thing, not an observer. This is a
-# blacklist and it is deliberately a second line of defence behind the person
+# blacklist and it is deliberately a second line of defense behind the person
 # registry, not the primary check.
 NONPERSON_TAIL='(Director|Owner|Manager|Lead|Head|Officer|Chief|Counsel|Partner|Partnership|Analyst|Executive|Coordinator|Specialist|Adviser|Advisor|President|Secretary|Treasurer|Board|Council|Committee|Panel|Group|Team|Department|Division|Review|Summary|Brief|Report|Meeting|Minutes|Session|Workshop|Update|Notes|Note|Log|Register|Record|Series|Programme|Program|Project|Account|Relations|Communications|Marketing|Compliance|Legal|Operations|Function|Practice|Unit|Office|Desk|Bureau|Agency|Authority|Trust|Fund|Holdings|Ventures|Labs|Studio|Works|Outlook|Steward|Insights|Analytics)s?$'
 

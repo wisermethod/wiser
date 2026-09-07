@@ -3,7 +3,7 @@ name: image
 type: tool
 category: media
 description: Applies local edits to an existing image or composites an overlay over a base image, and writes the result as a PNG, JPEG, or WEBP
-version: 0.3.0
+version: 0.3.1
 ---
 
 # image
@@ -32,7 +32,7 @@ Usage text listing the two subcommands, with nothing installed. `node scripts/im
 node scripts/image.js edit --file /path/to/a/work/directory/photo.png --output /path/to/a/work/directory/photo-card.jpg --crop 1200x1200 --resize 600x600
 ```
 
-If this copy of the plugin has not yet authorised an install, the run reports that it would install the imaging library in this tool's directory, and stops. `--install` on that run is the answer (`tools/RUNNING.md`). It prints one JSON object:
+If this copy of the plugin has not yet authorized an install, the run reports that it would install the imaging library in this tool's directory, and stops. `--install` on that run is the answer (`tools/RUNNING.md`). It prints one JSON object:
 
 ```
 {"output":"/path/to/a/work/directory/photo-card.jpg","format":"jpeg","width":600,"height":600,"sourceWidth":1800,"sourceHeight":1400,"bytes":48213}

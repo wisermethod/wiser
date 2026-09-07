@@ -23,7 +23,7 @@
  *      DNS-rebinding shape, does not reach the actions.
  *   3. A per-session token, generated at start and readable only by this user,
  *      must be presented on every endpoint. The client finds it without being
- *      told, so nobody types it. This is defence in depth for a shared machine.
+ *      told, so nobody types it. This is defense in depth for a shared machine.
  *
  * WHAT NONE OF THAT DEFENDS AGAINST, said plainly rather than left implied:
  * another process running AS YOU. It can read the token file exactly as the

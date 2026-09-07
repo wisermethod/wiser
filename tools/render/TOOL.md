@@ -3,7 +3,7 @@ name: render
 type: tool
 category: media
 description: Renders a local HTML file to a PNG or JPEG, an SVG or a Mermaid diagram to a PNG, and captures a PNG of a live web page
-version: 0.2.0
+version: 0.2.1
 ---
 
 # render
@@ -30,7 +30,7 @@ Usage text listing the five subcommands, with nothing installed. `node scripts/r
 node scripts/render.js html --input /path/to/a/work/directory/card.html --output /path/to/a/work/directory/card.png --width 1200 --height 630
 ```
 
-If this copy of the plugin has not yet authorised an install, the run reports that it would install Playwright into `tools/lib/browser-runtime/`, and stops. `--install` on that run is the answer (`tools/RUNNING.md`). It prints one JSON object:
+If this copy of the plugin has not yet authorized an install, the run reports that it would install Playwright into `tools/lib/browser-runtime/`, and stops. `--install` on that run is the answer (`tools/RUNNING.md`). It prints one JSON object:
 
 ```
 {"output":"/path/to/a/work/directory/card.png","format":"png","width":1200,"height":630,"scale":1}

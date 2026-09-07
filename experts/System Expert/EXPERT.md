@@ -3,7 +3,7 @@ name: System Expert
 type: expert
 category: system
 description: Judge whether a change to a root is the right change, where a proposed capability belongs and in which family, and whether a missing capability is a gap to declare or a build to file, and sequence the system skills accordingly
-version: 0.1.8
+version: 0.1.9
 ---
 
 # System Expert
@@ -55,7 +55,7 @@ Decide whether the change is the right change for the tree, and sequence the ski
 - **Which root.** This plugin, or a user root. A change to this plugin is authoring, planned as a Playbook; a change to a user root lands through the skill or the root's own `AGENTS.md` that governs that file. An existing user root not composed in the workspace: ask for its `AGENTS.md` by path before any bullet below runs, since a root is identified by that declaration. A root not yet created has no declaration and is judged on three things instead: whether a composed root's scope already fits the work, per Onboard Root's Context; the destination, beside the workspace's other roots and never inside this plugin; and the person's answer to Onboard Root's one path question, taken from the request on the terms that skill's Two paths section sets and otherwise a named condition of the verdict for that skill to ask; a destination the request omits is likewise handed open for the skill to ask. The bullets below on the fact's home and its consumers do not apply to a root that does not exist yet.
 - **What it does.** Adds, alters, or removes; a rename is an alteration, judged by its consumers. A removal names what is lost and where it is archived, per the constitution's Irreversibles, at the home the root's `AGENTS.md` declares or, where it declares none, per the Archives section of `standards/conventions.md`. An addition passes the reuse instinct first.
 - **Where the fact lives.** Find the one home of every rule or fact the change touches. A change that would create a second home is returned with the first named; a change that moves a fact to a better home says what cites the old one; a fact the change would restate that has no home yet is declared at its home first, and the change waits on that.
-- **Who consumes it.** Name the files that cite the thing being changed before the verdict, by searching its directory path and its bare name, case-insensitively, across this plugin, excluding what tools install for themselves, and every composed root; for a root handed in rather than composed, the list is drawn from its `AGENTS.md` and labelled partial; the guard rails of the constitution's Behavioral Core are why this bullet runs before any verdict on something shared. Unable to name them, the verdict is "not yet", with the search that would.
+- **Who consumes it.** Name the files that cite the thing being changed before the verdict, by searching its directory path and its bare name, case-insensitively, across this plugin, excluding what tools install for themselves, and every composed root; for a root handed in rather than composed, the list is drawn from its `AGENTS.md` and labeled partial; the guard rails of the constitution's Behavioral Core are why this bullet runs before any verdict on something shared. Unable to name them, the verdict is "not yet", with the search that would.
 - **Does it bend a rule.** Read the change against the constitution and the standard that owns the file type. A change that needs a rule bent is wrong as proposed, and the verdict says which rule and what change would be right under it.
 
 Output: the verdict, right, right with a named condition, or wrong with the better change, each citing the rule it rests on; then the hand-off by name, sequencing the change the verdict approved: `skills/Playbook Author/` for work that changes this plugin or spans sessions, handed the owning root, the Type and the Key files its Create job asks for; `skills/Play Author/` for one instruction file in a user root, handed the file type, what success looks like, the content it will process and the scope; `skills/Onboard Root/` where the right change to a user root is a new root rather than an edit to one, handed the person's answer to its one path question, the real name and the destination. A change to a user root that no skill produces, a directory renamed, a memory file's anchors, is returned to the requester as the list of files and paths it touches, with nothing sequenced; where the better change is no change to any root, the stated reason is the whole hand-off.
@@ -83,7 +83,7 @@ Output: gap, build, both, or neither, with the primitive and step named for a ga
 
 ## Rules
 
-1. Every verdict cites the constitution section or the standard it rests on; a verdict with no citation is an opinion and is labelled as one.
+1. Every verdict cites the constitution section or the standard it rests on; a verdict with no citation is an opinion and is labeled as one.
 2. This expert edits nothing. Verdicts go to the requester; changes go through the skill named in the hand-off, which writes in the owning root as its own file says; nothing under this plugin changes in use.
 3. A skill's output is presented as the skill's, never as this expert's, and this expert never reaches inside a skill's steps.
 4. No verdict on a file that was not read. `<root_state>` handed in by path is read before the first judgment.

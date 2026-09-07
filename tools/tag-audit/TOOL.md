@@ -3,7 +3,7 @@ name: tag-audit
 type: tool
 category: marketing
 description: One JSON report of which analytics and behavior tags a live page serves, with each tag's id where the served HTML exposes it
-version: 0.1.1
+version: 0.1.2
 ---
 
 # tag-audit
@@ -66,11 +66,11 @@ Options:
 
 One page per run: auditing a set means one run each, which keeps every result attributable to the URL that produced it.
 
-No command takes `--env`. It writes no output file: nothing it produces lands anywhere but stdout. **The first install in this copy is the exception.** This tool declares one package, `undici`, and installs it once this copy has authorised an install with `--install`, which reaches the npm registry once and writes what `tools/AGENTS.md` lists an install writing. Later runs write nothing and the only request is for the page the caller named, plus any redirect that page issues. Redirects are followed and the landing address is reported as `final_url`, so a run that ended somewhere other than where it started says so. The request waits 20 seconds and then fails rather than hanging.
+No command takes `--env`. It writes no output file: nothing it produces lands anywhere but stdout. **The first install in this copy is the exception.** This tool declares one package, `undici`, and installs it once this copy has authorized an install with `--install`, which reaches the npm registry once and writes what `tools/AGENTS.md` lists an install writing. Later runs write nothing and the only request is for the page the caller named, plus any redirect that page issues. Redirects are followed and the landing address is reported as `final_url`, so a run that ended somewhere other than where it started says so. The request waits 20 seconds and then fails rather than hanging.
 
 ## Script Contract
 
-The script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. It reads no configuration file, so that contract's `--env` clause has nothing to bind here. It does import one package, `undici`, so the contract's dependency check applies: if this copy has not yet authorised an install, the run reports what it would install and stops; `--install` on that run is the answer, and later tools in this copy install without asking. What a run writes, and where, is in `tools/AGENTS.md`. The sections above state what the command does; the contract states how the script behaves getting there.
+The script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. It reads no configuration file, so that contract's `--env` clause has nothing to bind here. It does import one package, `undici`, so the contract's dependency check applies: if this copy has not yet authorized an install, the run reports what it would install and stops; `--install` on that run is the answer, and later tools in this copy install without asking. What a run writes, and where, is in `tools/AGENTS.md`. The sections above state what the command does; the contract states how the script behaves getting there.
 
 ## Output
 

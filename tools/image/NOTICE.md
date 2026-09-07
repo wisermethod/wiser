@@ -1,10 +1,10 @@
 # Third-party notice: image
 
-This tool installs the 30 packages below on the machine that calls it, into this tool's own directory on the first run that authorises it with `--install`. **This repository redistributes none of them.**
+This tool installs the 30 packages below on the machine that calls it, into this tool's own directory on the first run that authorizes it with `--install`. **This repository redistributes none of them.**
 
-Versions and licences are read from this tool's `package-lock.json`, on 2026-09-02. An optional package installs only where it applies, so one install takes fewer than the table lists.
+Versions and licenses are read from this tool's `package-lock.json`, on 2026-09-02. An optional package installs only where it applies, so one install takes fewer than the table lists.
 
-| Package | Version | Licence | |
+| Package | Version | License | |
 |---------|---------|---------|--|
 | `@emnapi/runtime` | 1.11.3 | MIT | optional |
 | `@img/sharp-darwin-arm64` | 0.33.5 | Apache-2.0 | optional |
@@ -41,4 +41,4 @@ Versions and licences are read from this tool's `package-lock.json`, on 2026-09-
 
 `sharp` ships its native image library as a set of per-platform packages, `@img/sharp-*`, and npm installs only the one that matches the machine doing the install. Every one of them is marked optional for that reason, so a single install takes one of the twenty listed above and skips the other nineteen.
 
-**Eleven of those platform packages are licensed `LGPL-3.0-or-later`, alone or in combination**, because they carry a build of the libvips image library. They are named individually in the table rather than summarised, since which one lands depends on the machine and a reader is entitled to know which licence reached theirs. **This repository redistributes none of them**: they are fetched from the npm registry by the user's own `npm ci`, on the first run that authorises it with `--install`.
+**Eleven of those platform packages are licensed `LGPL-3.0-or-later`, alone or in combination**, because they carry a build of the libvips image library. They are named individually in the table rather than summarised, since which one lands depends on the machine and a reader is entitled to know which license reached theirs. **This repository redistributes none of them**: they are fetched from the npm registry by the user's own `npm ci`, on the first run that authorizes it with `--install`.

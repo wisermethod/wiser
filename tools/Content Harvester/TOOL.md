@@ -3,7 +3,7 @@ name: Content Harvester
 type: tool
 category: research
 description: Turns one harvest request into a timeboxed, deduplicated, ranked bundle of source candidates with a record of what was rejected and what failed
-version: 0.1.1
+version: 0.1.2
 ---
 
 # Content Harvester
@@ -44,7 +44,7 @@ node scripts/harvest.js validate --request /path/to/a/work/directory/weekly.harv
 {"ok":true,"name":"weekly-roundup","sources":2}
 ```
 
-Then run it. If this copy of the plugin has not yet authorised an install, the run reports that it would install dependencies, and stops. `--install` on that run is the answer; later tools in this copy install without asking.
+Then run it. If this copy of the plugin has not yet authorized an install, the run reports that it would install dependencies, and stops. `--install` on that run is the answer; later tools in this copy install without asking.
 
 ```bash
 node scripts/harvest.js run --request /path/to/a/work/directory/weekly.harvest.json

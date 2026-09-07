@@ -3,7 +3,7 @@ name: Build Voice
 type: skill
 category: onboarding
 description: Build or rebuild one user root's voice.md from real writing evidence, routed to the voice register that root's own outputs need
-version: 0.7.2
+version: 0.7.3
 memory:
   - voice
 ---
@@ -48,7 +48,7 @@ The table fixes whose voice this is, what evidence counts, and who confirms. It 
 
 **1. Resolve the owning root.** Enumerate the workspace's roots and read each AGENTS.md per the constitution's Workspace Model. The owning root is the one whose scope the request names; if more than one fits or none does, ask. Confirm its declared `type`, and confirm its Provides block binds `voice` to a path. Bound to nothing: stop and ask, because the binding is the root's declaration to make and not this skill's to add; name the repair, declaring `voice:` under Provides or finishing Onboard Root. Bound to a path missing on disk: recreate the stub by copying the headings from that root type's template `memory/voice.md` under `system/templates/`, then continue as a build.
 
-Then read the bound file. Every section still prompt lines: this is a build. A section carrying `[Not available: no writing supplied; Build Voice runs when writing is]`, which `skills/Onboard Root/` writes over a prompt line when no writing was supplied, counts as a prompt line for this test, so a labelled file is a build; the label is replaced like a prompt line, and it is this skill that removes it. Any heading already carrying real content: this is a rebuild, and the current file is archived in step 10 before the bound path is replaced.
+Then read the bound file. Every section still prompt lines: this is a build. A section carrying `[Not available: no writing supplied; Build Voice runs when writing is]`, which `skills/Onboard Root/` writes over a prompt line when no writing was supplied, counts as a prompt line for this test, so a labeled file is a build; the label is replaced like a prompt line, and it is this skill that removes it. Any heading already carrying real content: this is a rebuild, and the current file is archived in step 10 before the bound path is replaced.
 
 **2. Fix what voice means for that type.** The owning root's AGENTS.md governs what its voice means; the table above adds the evidence filter and the confirming authority. If the voice the requester actually wants belongs to a different root, the file to build is that root's, so return to step 1. For a department, read the parent organization's bound voice before deriving; unreachable, note the comparison as thin. Either way the finished file states explicitly whether the register differs from the organization's, or that it does not.
 

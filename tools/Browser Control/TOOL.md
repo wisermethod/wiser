@@ -3,7 +3,7 @@ name: Browser Control
 type: tool
 category: automation
 description: Drives a persistent Chromium session to read, navigate, and act on pages that need a real browser, answering every command with the page state that followed
-version: 0.2.0
+version: 0.2.1
 ---
 
 # Browser Control
@@ -33,7 +33,7 @@ node scripts/browser.js snapshot --format interactive
 node scripts/browser.js session stop
 ```
 
-If this copy of the plugin has not yet authorised an install, `session start` reports what it would install and stops; `--install` on that run is the answer, and later tools in this copy install without asking. Every command prints one JSON object:
+If this copy of the plugin has not yet authorized an install, `session start` reports what it would install and stops; `--install` on that run is the answer, and later tools in this copy install without asking. Every command prints one JSON object:
 
 ```
 {"url":"[address]","title":"[page title]"}
@@ -149,7 +149,7 @@ Success is one JSON object on stdout and exit 0. Most commands return the page's
 
 `check` is the one to read carefully. It exits 0 when the assertion ran and reports the verdict in `passed`; an assertion that did not hold is a finding to report, never something to work around by loosening the assertion.
 
-Failure prints to stderr, leaves stdout empty, and exits 1. Files are written where a command's `--output` or `--output-dir` names, and an authorised install also writes what `tools/AGENTS.md` lists.
+Failure prints to stderr, leaves stdout empty, and exits 1. Files are written where a command's `--output` or `--output-dir` names, and an authorized install also writes what `tools/AGENTS.md` lists.
 
 ## Troubleshooting
 
@@ -174,6 +174,6 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 - `session restart` resolves `--profile` before it stops anything: one that names none, or names a relative path or a file, exits 1 with the running session still answering `session status`. When the selected profile is not the live one, Chromium opens it in a throwaway headless launch before the stop, so a profile Chromium rejects (a `Default` entry that is a file, another browser's lock) exits 1 naming the profile and the reason, with the running session still answering; when the selected profile is the live one that opening is impossible, the stop is unavoidable, and a replacement that then fails says so and prints the last lines of the host's own error log, kept at `host-stderr.log` inside the profile.
 - A page command with no session running exits 1 naming the port and the start command, stdout empty.
 - Every destructive command run without `--confirm` exits 1 naming the missing confirmation, before it reads a file or contacts the host.
-- No *cookie command* prints a value, but `execute` returns whatever its code reads, and `execute --code "document.cookie"` returns cookie values to stdout. **Three paths this tool writes hold credential material, and a verifier should treat all three as such rather than checking around them**: the `--profile` directory, which is a live Chromium profile and exists to keep sign-ins; a trace zip from `trace stop --output`, which records request and response headers including `Cookie` and `Set-Cookie`; and the session token at `~/.wiser/browser-control/<port>.token`, which is what authorises a caller to drive a signed-in browser. All three have rows in `tools/AGENTS.md`. **All three are now written for their owner only** -- the profile directory `0700`, the trace file and the token `0600` -- because a gate round found a trace holding an `HttpOnly` session cookie in plaintext in a world-readable file, and the profile directory open to every other account on the machine, while only the token had ever been given a mode. The trace is the one worth saying twice, because a trace's whole purpose is to be handed to someone else. **This list is the scope of the claim, not a licence to skip the rest**: a path added later is credential-bearing until someone checks it.
+- No *cookie command* prints a value, but `execute` returns whatever its code reads, and `execute --code "document.cookie"` returns cookie values to stdout. **Three paths this tool writes hold credential material, and a verifier should treat all three as such rather than checking around them**: the `--profile` directory, which is a live Chromium profile and exists to keep sign-ins; a trace zip from `trace stop --output`, which records request and response headers including `Cookie` and `Set-Cookie`; and the session token at `~/.wiser/browser-control/<port>.token`, which is what authorizes a caller to drive a signed-in browser. All three have rows in `tools/AGENTS.md`. **All three are now written for their owner only** -- the profile directory `0700`, the trace file and the token `0600` -- because a gate round found a trace holding an `HttpOnly` session cookie in plaintext in a world-readable file, and the profile directory open to every other account on the machine, while only the token had ever been given a mode. The trace is the one worth saying twice, because a trace's whole purpose is to be handed to someone else. **This list is the scope of the claim, not a license to skip the rest**: a path added later is credential-bearing until someone checks it.
 - A caller-named path that is relative, inside this tool directory, or already taken is refused rather than written.
 - Acting on an element found by an interactive snapshot changes the page, and the next snapshot shows it.

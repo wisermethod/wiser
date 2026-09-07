@@ -3,7 +3,7 @@ name: SEO Advisor
 type: expert
 category: seo
 description: Judge a site's search visibility and return findings ordered by what would actually move its rankings, each naming the check that surfaced it, the fix, the expected impact, and the effort
-version: 0.10.0
+version: 0.10.1
 gaps:
   - keyword research
   - automated site crawling
@@ -62,7 +62,7 @@ The answer surface has widened. Pages are now read by answer engines as well as 
 
 ## Steps
 
-The search-console and analytics readings this expert names are ones this release cannot fetch; each is retrieved by the host, handed over by the user, or labelled absent, and the findings say which.
+The search-console and analytics readings this expert names are ones this release cannot fetch; each is retrieved by the host, handed over by the user, or labeled absent, and the findings say which.
 
 ### Step 1: Fix the site, the goal, and the baseline
 

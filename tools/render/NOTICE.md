@@ -1,10 +1,10 @@
 # Third-party notice: render
 
-This tool installs the 104 packages below on the machine that calls it, into this tool's own directory on the first run that authorises it with `--install`. **This repository redistributes none of them.** The Playwright notice is in `tools/lib/browser-runtime/NOTICE.md`.
+This tool installs the 104 packages below on the machine that calls it, into this tool's own directory on the first run that authorizes it with `--install`. **This repository redistributes none of them.** The Playwright notice is in `tools/lib/browser-runtime/NOTICE.md`.
 
-Versions and licences are read from this tool's `package-lock.json`, on 2026-09-02. An optional package installs only where it applies, so one install takes fewer than the table lists.
+Versions and licenses are read from this tool's `package-lock.json`, on 2026-09-02. An optional package installs only where it applies, so one install takes fewer than the table lists.
 
-| Package | Version | Licence | |
+| Package | Version | License | |
 |---------|---------|---------|--|
 | `@braintree/sanitize-url` | 6.0.4 | MIT | required |
 | `@types/d3-scale` | 4.0.9 | MIT | required |
@@ -111,15 +111,15 @@ Versions and licences are read from this tool's `package-lock.json`, on 2026-09-
 | `uvu` | 0.5.6 | MIT | required |
 | `web-worker` | 1.5.0 | Apache-2.0 | required |
 
-## khroma 2.1.0 records no licence, and that is stated rather than smoothed over
+## khroma 2.1.0 records no license, and that is stated rather than smoothed over
 
-`khroma` arrives transitively, pulled in by `mermaid`, and **no licence grant is recorded for it at all.** The survey read the package's own metadata in this tool's `package-lock.json`, which is where a licence field would appear and where every other package in the table declares one, and found none. That is a different situation from a package under a copyleft licence, and it is not answered by pointing at a permissive default, because no default applies where nothing was granted.
+`khroma` arrives transitively, pulled in by `mermaid`, and **no license grant is recorded for it at all.** The survey read the package's own metadata in this tool's `package-lock.json`, which is where a license field would appear and where every other package in the table declares one, and found none. That is a different situation from a package under a copyleft license, and it is not answered by pointing at a permissive default, because no default applies where nothing was granted.
 
 **The disposition, decided 2026-08-30: this tool ships.** The reasoning is that this repository redistributes no copy of `khroma`; it is fetched from the npm registry by the user's own install. **That disposes of this repository's position completely and it does not speak for the user's.** A reader whose own distribution plans depend on the answer should look at the package themselves rather than treat this paragraph as clearance.
 
 **This is written down because a silent disposition cannot be told apart from an oversight.**
 
-## Two further licences worth naming
+## Two further licenses worth naming
 
-- **`elkjs` 0.9.3 is `EPL-2.0`**, the Eclipse Public License, which is a weak copyleft licence rather than a permissive one. It is a required dependency of `mermaid`'s layout engine, so every install of this tool takes it.
+- **`elkjs` 0.9.3 is `EPL-2.0`**, the Eclipse Public License, which is a weak copyleft license rather than a permissive one. It is a required dependency of `mermaid`'s layout engine, so every install of this tool takes it.
 - **`dompurify` 3.4.12 is `(MPL-2.0 OR Apache-2.0)`**, a choice of two, either of which is acceptable here.

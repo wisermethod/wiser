@@ -3,7 +3,7 @@ name: Data Analysis
 type: skill
 category: data
 description: Turn a CSV, JSON, or TSV file into an analysis whose every figure was computed by a data tool and can be traced to the field it came from, with parse errors, skipped columns, and missing values stated
-version: 0.8.0
+version: 0.8.1
 ---
 
 # Data Analysis
@@ -106,4 +106,4 @@ Then the gate: hand the analysis, with the question it answers and where it is g
 - Every requested operation the tools do not perform was named as unavailable, with what was computed instead.
 - The narrative interprets rather than calculates: what stands out among the returned figures, what is missing, what this file cannot answer.
 - No data file's rows were read into the conversation to reach a figure, and nothing was written except a file the caller's own pasted data needed a home in, **any intermediate a later tool had to read, which is written once to the active work directory and named in the analysis**, plus any chart HTML the request asked `tools/data/` `chart` to write.
-- `experts/Research Expert/` returned rely on the output, or rely with its weak points named and labelled, or the requester declined the review and the delivery says so.
+- `experts/Research Expert/` returned rely on the output, or rely with its weak points named and labeled, or the requester declined the review and the delivery says so.

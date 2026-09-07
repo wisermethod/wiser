@@ -3,7 +3,7 @@ name: data
 type: tool
 category: data
 description: Parses, describes, aggregates, joins, and charts a CSV, JSON, or TSV file, and computes a percentage, difference, or rate from two numeric fields of a JSON object
-version: 0.2.0
+version: 0.2.1
 ---
 
 # data
@@ -30,7 +30,7 @@ Usage text listing the six subcommands, with nothing installed. `node scripts/da
 node scripts/data.js parse --file /path/to/a/work/directory/regions.csv
 ```
 
-If this copy of the plugin has not yet authorised an install, the run reports that it would install `csv-parse` in this tool's directory, and stops. `--install` on that run is the answer (`tools/RUNNING.md`). It prints one JSON object:
+If this copy of the plugin has not yet authorized an install, the run reports that it would install `csv-parse` in this tool's directory, and stops. `--install` on that run is the answer (`tools/RUNNING.md`). It prints one JSON object:
 
 ```
 {"columns":[{"name":"region","type":"string","nonNullCount":3,"sampleValues":["West","East","North"]},{"name":"revenue","type":"number","nonNullCount":3,"sampleValues":["1200","900","1500"]}],"rowCount":3,"raggedRowCount":0,"parseErrors":[]}

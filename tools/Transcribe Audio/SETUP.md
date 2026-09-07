@@ -16,11 +16,11 @@ It reports the Python version it is running under, whether FFmpeg is present, an
 
 ## 2. Packages
 
-Once `--install` has authorised this copy, a `transcribe` creates a virtual environment in this tool's directory, installs the speech packages into it, and finishes the run. That install downloads several hundred megabytes, so run it once before the machine is needed under time pressure. Nothing is installed into the machine or the user's environment: the install runs with pip's own download cache switched off, so the several hundred megabytes land in the virtual environment and nowhere else, and a re-install after deleting `.venv` downloads them again rather than finding them in a cache outside this tool. A deployment that never transcribes never installs anything.
+Once `--install` has authorized this copy, a `transcribe` creates a virtual environment in this tool's directory, installs the speech packages into it, and finishes the run. That install downloads several hundred megabytes, so run it once before the machine is needed under time pressure. Nothing is installed into the machine or the user's environment: the install runs with pip's own download cache switched off, so the several hundred megabytes land in the virtual environment and nowhere else, and a re-install after deleting `.venv` downloads them again rather than finding them in a cache outside this tool. A deployment that never transcribes never installs anything.
 
 ## 3. Model weights
 
-Model weights are not part of setup. A model absent from the directory the caller passes as `--model-cache` is **reported and refused, not downloaded**: `--install` or `WISER_ALLOW_INSTALL=1` authorises that download and the same run then does the work. One download per model, reused from then on. Pick one work directory in the owning root for this and pass it on every run; a different directory each time means a fresh download each time.
+Model weights are not part of setup. A model absent from the directory the caller passes as `--model-cache` is **reported and refused, not downloaded**: `--install` or `WISER_ALLOW_INSTALL=1` authorizes that download and the same run then does the work. One download per model, reused from then on. Pick one work directory in the owning root for this and pass it on every run; a different directory each time means a fresh download each time.
 
 ## 4. Verify
 

@@ -3,7 +3,7 @@ name: Funnel Design
 type: skill
 category: marketing
 description: Design a buildable funnel blueprint with the funnel type chosen and reasoned, every stage and page specified, the email sequences that carry them, and per-stage metrics with benchmarks
-version: 0.3.1
+version: 0.3.2
 memory:
   - about
 gaps:
@@ -61,7 +61,7 @@ Two reference libraries sit in this skill's directory and are consulted by name 
 
 3. **Architect the stages.** For each stage the chosen type runs, specify the stage name, its purpose in one sentence, the entry trigger that brings someone into it, the content it needs, the one or two objections that live there, and the exit action that moves someone on. Objection mapping is the load-bearing part: an objection nobody answers becomes the stage where people leave. Where the funnel has no answer for an objection, name it as unanswered rather than leaving the gap silent.
 
-4. **Specify the sequences.** Every stage that runs on email gets a specified sequence, never a bare label. Select the type from `sequence-patterns.md`, then give the cadence, the length, and each message's job in the progression. A sequence the library does not carry, an event reminder, a replay follow-up, a post-purchase upsell, is designed from that file's timing principles and marked as outside the catalogue. Where a stage transition can land mid-sequence, so one person would be inside two sequences at once, reconcile them, suppress one, merge them, or hold the second until the first completes, so the combined load stays inside the library's inbox-frequency ceiling. Deadlines, scarcity, and last-chance language appear only where they are true; an urgency the audience learns to disbelieve costs more than the sale it wins.
+4. **Specify the sequences.** Every stage that runs on email gets a specified sequence, never a bare label. Select the type from `sequence-patterns.md`, then give the cadence, the length, and each message's job in the progression. A sequence the library does not carry, an event reminder, a replay follow-up, a post-purchase upsell, is designed from that file's timing principles and marked as outside the catalog. Where a stage transition can land mid-sequence, so one person would be inside two sequences at once, reconcile them, suppress one, merge them, or hold the second until the first completes, so the combined load stays inside the library's inbox-frequency ceiling. Deadlines, scarcity, and last-chance language appear only where they are true; an urgency the audience learns to disbelieve costs more than the sale it wins.
 
 5. **Specify each page.** For every page name the job its headline must do (the value it lands or the pain it names, clear ahead of clever), what the subheadline adds (who this is for, what they get, how it works), the proof each claim needs placed beside that claim, one primary action whose label states what the person gets rather than what they do, and the stage objections the page answers. A confirmation page states what just happened, where to find what was promised, and one next step. A page that takes money or an application adds trust signals beside the commit action, the least friction the offer allows, and a restatement of what is being bought before the commitment.
 

@@ -32,4 +32,4 @@ One heading per confirmed competitor, under its own `###` heading carrying that 
 
 ## Missed and Unknown
 
-*Competitors the requester named that public research did not surface, each sourced as secondhand from that named person until a public source is found. Areas the requester said they do not compete, as claims, not as colour.*
+*Competitors the requester named that public research did not surface, each sourced as secondhand from that named person until a public source is found. Areas the requester said they do not compete, as claims, not as color.*

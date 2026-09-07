@@ -3,7 +3,7 @@ name: Internal Research
 type: skill
 category: research
 description: Scan the workspace for files on a topic and return a structural inventory of what exists, judging none of it
-version: 0.2.0
+version: 0.2.1
 ---
 
 # Internal Research
@@ -112,4 +112,4 @@ Then the gate: hand the inventory, the question it was scanned for, and where it
 - Gaps, potential duplicates, and overflow are all reported; nothing is silently omitted.
 - The output carries structural metadata only: no summary, no relevance score, no quality judgment, no recommendation.
 - No binary file and no credential-bearing file's content entered the inventory, and no file was written.
-- `experts/Research Expert/` returned rely on the output, or rely with its weak points named and labelled, or the requester declined the review and the delivery says so.
+- `experts/Research Expert/` returned rely on the output, or rely with its weak points named and labeled, or the requester declined the review and the delivery says so.

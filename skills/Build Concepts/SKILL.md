@@ -3,7 +3,7 @@ name: Build Concepts
 type: skill
 category: authoring
 description: Develop one tested core insight from source material or a bare direction, with the angles, specifics, and boundaries a piece can be drafted from
-version: 0.2.0
+version: 0.2.1
 ---
 
 # Build Concepts
@@ -62,7 +62,7 @@ Boundaries are scope information, not hedging. A boundary tells a reader where t
 
 **8. Package it, and decide what it can become.** The package carries the core insight and why it matters, what makes it non-obvious to someone who already knows the field, the angles in order with their specifics marked sourced or constructed, the boundaries, and the gaps left open. It carries no list of discarded candidates and no account of how the work went. What it settles, the drafting step does not settle again.
 
-Name the formats the concept fits by what it holds rather than by a catalogue: depth across several angles carries a long piece, a single sharp angle carries a short post, angles resting on stories carry something spoken. One package can feed several formats at once and usually should, since that is what keeps them saying the same thing. Where the request already named the format, the package names what the concept has to give up to fit it, and says so plainly when the fit is poor; a concept forced into the wrong shape fails as the format's problem long after it was the concept's.
+Name the formats the concept fits by what it holds rather than by a catalog: depth across several angles carries a long piece, a single sharp angle carries a short post, angles resting on stories carry something spoken. One package can feed several formats at once and usually should, since that is what keeps them saying the same thing. Where the request already named the format, the package names what the concept has to give up to fit it, and says so plainly when the fit is poor; a concept forced into the wrong shape fails as the format's problem long after it was the concept's.
 
 Then the gate, before anything is handed on. A vague core insight, angles that are elaborations, no specifics anywhere, nothing that survived step 3, or boundaries covering everything: the package does not go forward. Name what is weak and stop, or go back for another pass. Drafting cannot repair a concept, only conceal it for a paragraph.
 

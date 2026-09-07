@@ -3,7 +3,7 @@ name: Headshot Normalizer
 type: skill
 category: media
 description: Turn photographs into square transparent PNGs whose faces sit at the same size and the same place in the frame, by removing each background, measuring the eyes, and cutting every frame to one standard, reporting the transparent band left where a photograph is too short to fill its frame. Needs a connector this release does not ship.
-version: 0.10.2
+version: 0.10.3
 gaps:
   - image cutout
   - the vision and image-model calls this skill's automated path depends on
@@ -114,7 +114,7 @@ Both platform calls in these steps, the background removal and the face geometry
 
 ## Pitfalls
 
-- **A centered substitute.** The product is that the eyes land on identical coordinates in every file. A centered crop, or a fit-and-center, looks finished and is normalized not at all, so it is never a stand-in for the computed offset when a run refuses or a number looks surprising. Step 7 is the one place centering is correct, and the file it produces ships labelled as unnormalized. Everywhere else the offset is the answer, and getting it wrong costs nothing to redo: the placement is free and the two billed calls that produced its numbers are already spent.
+- **A centered substitute.** The product is that the eyes land on identical coordinates in every file. A centered crop, or a fit-and-center, looks finished and is normalized not at all, so it is never a stand-in for the computed offset when a run refuses or a number looks surprising. Step 7 is the one place centering is correct, and the file it produces ships labeled as unnormalized. Everywhere else the offset is the answer, and getting it wrong costs nothing to redo: the placement is free and the two billed calls that produced its numbers are already spent.
 - **Reading the clip note as a failure.** The placement announces on stderr what it clipped and still writes the file and exits 0. On the main path that note is the normal case rather than a warning, because a picture scaled to put the eyes on the standard is usually larger than the square. Running the photograph again to make the note go away spends both billed calls for the identical answer.
 - **Measuring the original.** Eye coordinates read from the photograph that went in do not describe the cutout that came back, and a model that trims or pads changes the pixel space silently. Every coordinate in Steps 4 to 6 comes from the file Step 2 produced, or from a rendition of it whose ratio has been multiplied back out.
 - **Prose numbers over measured ones.** A frame standard someone remembers, a number in a brief, and the number a file actually carries are three different things. The frame is whatever `<frame_standard>` states or whatever the defaults are; nothing is inferred from a sample file by eye.
