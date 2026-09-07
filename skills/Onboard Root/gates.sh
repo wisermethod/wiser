@@ -248,7 +248,8 @@ ROOTNAME=$(sed -n 's/^root:[[:space:]]*//p' "$AGENTS" 2>/dev/null | head -1)
 # another root's file and take what it found as this root's evidence. Link-ness
 # is not the test and neither is spelling: a link that stays inside the root is
 # legitimate, a trailing slash hides a leaf from -L, and one hop is not the
-# chain, so every hop is followed to the end and the destination compared.
+# chain, so every hop is followed to the end and the destination is resolved
+# before it is compared, because a textual prefix is not containment.
 # Sets _ur_why to the reason on a refusal, so a caller can say which it was.
 under_root() {
   _ur_why="leaves the root"
@@ -285,6 +286,14 @@ under_root() {
       esac
     done
   fi
+  # Canonicalise before comparing. A textual prefix is not containment: an
+  # absolute link target such as /root/../elsewhere/x.md begins with the root
+  # and resolves outside it. Only the relative branch above walks its heads
+  # through cd -P, so resolve the destination's own directory the same way.
+  case "$_ur_res" in */*) _ur_rp=${_ur_res%/*} ;; *) _ur_rp=/ ;; esac
+  [ -n "$_ur_rp" ] || _ur_rp=/
+  _ur_rd=$(CDPATH= cd -P "$_ur_rp" 2>/dev/null && pwd -P) || { _ur_why="cannot be resolved"; return 1; }
+  case "$_ur_rd" in */) _ur_res=$_ur_rd${_ur_res##*/} ;; *) _ur_res=$_ur_rd/${_ur_res##*/} ;; esac
   case "$_ur_res" in "$_ur_root"|"$_ur_root"/*) return 0 ;; *) _ur_why="leaves the root"; return 1 ;; esac
 }
 
