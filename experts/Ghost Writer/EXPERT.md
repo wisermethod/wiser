@@ -3,7 +3,7 @@ name: Ghost Writer
 type: expert
 category: writing
 description: Judge a prose deliverable as its intended reader; the default review gate before writing ships
-version: 0.5.1
+version: 0.5.2
 memory:
   - voice
 gaps:
@@ -29,7 +29,7 @@ Third are three files that never leave but feed prose that will, each judged for
 - A theme set from `skills/Categorize Content/`, read as the reader of whatever it feeds, or as its own reader where the theme set ships as the deliverable.
 - A voice file from `skills/Build Voice/`, read for whether every trait is checkable in a piece of writing and traced to its evidence per that skill's Objective, a named sample or a rule carrying the stating person's name, since that file is the ruler Commitment 3 judges by.
 
-Two of the three change the reads themselves. On a voice file the voice read is that trace check, and no bound file is read. On a transcript summary the voice read is dropped. Whether the voice is right is the confirming authority's, never this expert's.
+On a voice file the voice read is that trace check, and no bound file is read. On a transcript summary the voice read is dropped. Whether the voice is right is the confirming authority's, never this expert's.
 
 Owns: `skills/Content Author/`, `skills/Proposal Author/`, `skills/Speech Writing/`, `skills/Create Presentation/`, `skills/Build Concepts/`, `skills/Categorize Content/`, `skills/Transcript Summary/`, `skills/Build Voice/`
 
