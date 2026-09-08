@@ -20,7 +20,13 @@ One JSON object naming every connector it loaded and every action it will serve.
 
 ## 2. Give it a provider credential
 
-The gateway reaches accounts through a provider. The provider needs a key, and the key lives in a file this plugin never reads into a conversation. Where that file goes is the constitution's `secrets:<platform>` rule: your working folder's `AGENTS.md` may bind `secrets:auth-provider` to a path, and if it does not, the personal root's `memory/secrets/` is the only default. Name the file `auth-provider.env`.
+Two different secrets. Do not mix them.
+
+**Vendor grants (GitHub, Cloudflare, and the rest) never live on this machine.** You approve those at the vendor, or paste an API token into the provider's hosted page. The provider holds the token. The gateway's connection store records that the grant exists and never stores the token. That is the whole point of the provider.
+
+**The one local file is the provider's own project key**, so this process can call the provider at all. It is not a GitHub token, not a Cloudflare token, and not an OAuth grant. A local stdio gateway has no other way to authenticate to the provider: a hosted MCP session still sends the same key as a header, and this plugin does not use the provider's CLI (that CLI writes its own config under the home directory and edits shell startup files).
+
+Where the file goes is the constitution's `secrets:<platform>` rule: your working folder's `AGENTS.md` may bind `secrets:auth-provider` to a path, and if it does not, the personal root's `memory/secrets/` is the only default. Name the file `auth-provider.env`.
 
 The file holds one line:
 
@@ -28,7 +34,7 @@ The file holds one line:
 WISER_AUTH_PROVIDER_KEY=
 ```
 
-Which provider, how to get an account, and how to make the key are the provider's own business: read `gateway/providers/<provider>/SETUP.md` for the one `gateway/providers/default.json` names. A gateway started without this file still starts, and every action that needs the provider answers `needs_provider` with that same walkthrough, so a harness that shows you the gateway's answer shows you the next step.
+Which provider, how to get an account, and how to make that project key are the provider's own business: read `gateway/providers/<provider>/SETUP.md` for the one `gateway/providers/default.json` names. A gateway started without this file still starts, and every action that needs the provider answers `needs_provider` with that same walkthrough, so a harness that shows you the gateway's answer shows you the next step.
 
 ## 3. Attach it
 

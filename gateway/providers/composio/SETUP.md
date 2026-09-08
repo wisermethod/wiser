@@ -10,6 +10,8 @@ The free tier, read on 2026-09-05, allows one hundred thousand tool calls a mont
 
 ## Get a key
 
+This key authenticates the gateway to Composio. It is not a GitHub token, not a Cloudflare token, and not a substitute for connecting an account. Vendor grants are approved in the browser and stay at Composio.
+
 1. Create an account at composio.dev.
 2. In the dashboard, create a project and an API key for it. The key needs permission to execute tools, including proxy execution, and to manage connected accounts.
 3. Write the key to the credential file the gateway's `SETUP.md` names, as one line:
