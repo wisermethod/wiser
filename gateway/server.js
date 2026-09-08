@@ -12,7 +12,7 @@
 import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { homedir } from 'node:os';
+import { defaultGatewayHome, defaultProviderEnvPath } from './src/paths.js';
 
 const GATEWAY_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_POLICY_PATH = join(GATEWAY_DIR, 'policy.default.json');
@@ -33,9 +33,10 @@ Usage:
 
 Options:
   help, --help             Print this message and exit. Reads no files.
-  --env <abs file>         Provider credential file (KEY=value lines). Optional:
-                           without it the gateway starts and every provider-backed
-                           action returns needs_provider.
+  --env <abs file>         Provider project-key file (KEY=value lines). Optional:
+                           if omitted, the platform user-config path in SETUP.md
+                           is used when that file exists; otherwise every
+                           provider-backed action returns needs_provider.
   --home <abs dir>         State directory (default ~/.wiser/gateway), created 0700.
   --role <role>            runtime | readonly (default: policy default_role).
   --harness <name>         Free-text label for the audit log (default: unknown).
@@ -129,11 +130,16 @@ if (flags.role !== null && !ROLES.has(flags.role)) {
   fail(`Error: --role must be runtime or readonly; got "${flags.role}". Run "node server.js help" for usage.`);
 }
 
-if (flags.env && !existsSync(flags.env)) {
-  fail(`Error: --env file does not exist: ${flags.env}. Resolve the workspace Provides binding rather than guessing a path.`);
+if (!flags.env) {
+  const fallback = defaultProviderEnvPath();
+  if (existsSync(fallback)) flags.env = fallback;
 }
 
-const home = flags.home || (flags.check ? null : join(homedir(), '.wiser', 'gateway'));
+if (flags.env && !existsSync(flags.env)) {
+  fail(`Error: --env file does not exist: ${flags.env}. Create it at the platform path SETUP.md names, or pass --env with an absolute path.`);
+}
+
+const home = flags.home || (flags.check ? null : defaultGatewayHome());
 
 /**
  * Canonicalise a path that may not exist yet: walk up to the deepest existing

@@ -38,7 +38,7 @@ The attached working folder is the **owning root**: the personal, org, client, d
 - **A heading that says its content is not yet defined is unavailable on its own.** The answered headings around it are used.
 - **A bound file counts as unavailable when no heading is answered.** Name the degradation the same way, and never invent what it would have said.
 
-**Secrets.** A `secrets:<platform>` key resolves through a Provides binding; unbound, the personal root's `memory/secrets/` is the only default. Found nowhere: stop and ask. **A secret's contents never enter the conversation, a log, a commit, or another file.**
+**Secrets.** Account access to an outside platform is the gateway: a primitive names an action id, a missing grant is `needs_connect`, and the vendor token never lives in a root. The one local file that path needs is the auth provider's project key, once per person on this machine, at the platform user-config path `gateway/SETUP.md` names, never under a composed root and never under `--home`. A local-file connector (a service the catalog does not cover) reads one bound file via `--secret <service>=<abs file>` or a Provides `secrets:<platform>` path the root names; there is no default directory in any root, and `memory/secrets/` is not one. Unbound and no `--secret`: stop and ask. **A secret's contents never enter the conversation, a log, a commit, or another file.**
 
 **This plugin is read-only in use, apart from what a tool installs for itself.** Never write under this root during a session, and never anywhere but the working folder. `tools/AGENTS.md` lists every one of them and where each lands. Nothing else writes here. Outputs land in the working folder, in the directories that folder's own `AGENTS.md` declares.
 

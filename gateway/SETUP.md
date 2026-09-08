@@ -26,13 +26,15 @@ Two different secrets. Do not mix them.
 
 **The one local file is the provider's own project key**, so this process can call the provider at all. It is not a GitHub token, not a Cloudflare token, and not an OAuth grant. A local stdio gateway has no other way to authenticate to the provider: a hosted MCP session still sends the same key as a header, and this plugin does not use the provider's CLI (that CLI writes its own config under the home directory and edits shell startup files).
 
-This file is **once per person on this machine**, not once per root. The harness starts one gateway for every workspace it opens. Put the file outside every composed root (so it is not synced with client work) and outside `--home` (the gateway refuses to keep state beside a credential). A workable path on this kind of laptop:
+This file is **once per person on this machine**, not once per root. The harness starts one gateway for every workspace it opens. Put the file outside every composed root (so it is not synced with client work) and outside `--home` (the gateway refuses to keep state beside a credential). The gateway looks here when `--env` is omitted:
 
-```
-~/.config/wiser/auth-provider.env
-```
+| OS | Path |
+|----|------|
+| macOS | `~/Library/Application Support/wiser/auth-provider.env` |
+| Linux | `$XDG_CONFIG_HOME/wiser/auth-provider.env`, or `~/.config/wiser/auth-provider.env` if that variable is unset |
+| Windows | `%APPDATA%\wiser\auth-provider.env` |
 
-Do not put it in a root's `memory/secrets/`. That default is for a **per-root** local-file connector key (`secrets:usebouncer` and the like), bound by that root's Provides block, because those keys belong to one client's work. The provider project key does not.
+Those paths come from the current user profile. They are never a name baked into this plugin. Do not put the file in a root, including `memory/secrets/`. Account access is the gateway. A local-file connector key, if a root has one, is `--secret` or a Provides path, not this file.
 
 The file holds one line:
 
@@ -49,7 +51,11 @@ Every local harness that speaks MCP over stdio takes the same three things: the 
 Claude Code:
 
 ```bash
-claude mcp add wiser-gateway -- node "/absolute/path/to/wiser/gateway/server.js" --env "$HOME/.config/wiser/auth-provider.env" --harness claude-code
+If the project-key file is at the default path for this OS, omit `--env`. Otherwise pass `--env` with an absolute path.
+
+```bash
+claude mcp add wiser-gateway -- node "/absolute/path/to/wiser/gateway/server.js" --harness claude-code
+```
 ```
 
 Any harness that reads an `mcpServers` JSON block:
@@ -61,7 +67,6 @@ Any harness that reads an `mcpServers` JSON block:
       "command": "node",
       "args": [
         "/absolute/path/to/wiser/gateway/server.js",
-        "--env", "/Users/you/.config/wiser/auth-provider.env",
         "--harness", "cursor"
       ]
     }

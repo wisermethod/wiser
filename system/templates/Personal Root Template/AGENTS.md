@@ -5,7 +5,7 @@ type: personal
 
 # [name]
 
-One person's own root: their work, their memory, and their secrets.
+One person's own root: their work and their memory.
 
 The Wiser constitution and `standards/` govern the work here; this file declares only what is local.
 
@@ -31,7 +31,7 @@ This root's declared directories under `standards/conventions.md`:
 
 ## Personal Root
 
-`memory/secrets/` is this root's secrets home, reached by the constitution's default rather than by a binding, and by that same rule it is the only default for a key any other root leaves unbound. An organization root binds its own `secrets:<platform>` where the credential is the organization's rather than this person's.
+Account access is the gateway, not a file in this root. Vendor tokens never live here. A local-file connector key that is this person's, if one exists, is bound as `secrets:<platform>` to an absolute path outside the tree or passed to the gateway as `--secret`; there is no default secrets directory in this root.
 
 `voice` here is this person's own. When an output this root owns is signed by an organization, request `voice:org` and `design:org`, and `about:org` for any facts it states about that organization.
 

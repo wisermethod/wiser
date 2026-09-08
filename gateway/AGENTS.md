@@ -16,6 +16,7 @@ Not a primitive. Skills and experts invoke connectors by action id, `service.mod
 | The audit log, one JSON line per `execute`, `start_connect` and `connect_status`, including the ones that stopped: time, harness, role, op, action, service, module, privilege, resolution path, provider account id, status, duration, correlation id. No input, no output, no header | `~/.wiser/gateway/audit.jsonl`, same modes | Every call |
 | A local user id, `wiser-<uuid>`, which is what the provider sees as the user. Not a name, not an address | Inside `connections.json` | First run |
 | A policy override, if the person writes one | `~/.wiser/gateway/policy.json` | Only by the person; the gateway reads it and never writes it |
+| The auth provider project key | The platform user-config path `SETUP.md` names (`auth-provider.env`). The gateway reads it and never writes it | When `--env` is passed, or when that default file exists |
 
 `--home` is canonicalised before any of that is written, and refused inside this plugin, inside the directory that holds `--env` or a `--secret` file, under `--secrets`, or on a symbolic link; the store and audit files refuse to write through a symbolic link as well.
 

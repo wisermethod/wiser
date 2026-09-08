@@ -3,7 +3,7 @@ name: IT Expert
 type: expert
 category: operations
 description: Judge a proposed DNS, zone, hosting, or credential change for its blast radius, its rollback, and its timing, and sequence Zone Publisher for a change worth seeing whole before it goes live
-version: 0.1.12
+version: 0.1.13
 gaps:
   - applying DNS and zone changes to the hosting account, so the change this expert judges is planned and reviewed here and published by nobody in this root
   - a security review of an infrastructure change, which this expert names as a question and does not answer
@@ -80,7 +80,7 @@ Output: the skill sequenced by name with what it takes, the step at which this e
 
 Given a question about a hosting account, a provider's requirement, or a credential, answer it as the person who runs the account.
 
-- **A credential to rotate, share, or store.** Where it lives is resolved under the constitution's Secrets rule, for that platform's `secrets:<platform>` key, and this expert names that resolution, whether a bound path, the rule's default, or its stop; it never infers a location from a root's layout. Its value never enters the conversation; a value already pasted is compromised, and the answer is revocation and reissue at the platform. What a rotation or a change of access did, what it reached, when, and by whom is recorded by name, never by value, and that record lands in the owning root's work directory, in the account's own subject folder, per the Working Files and Root Layout rules in `standards/conventions.md`, since filing is among what the constitution's Precedence and routing gives the owning root. That record is an event; the standing fact that the root reaches the platform, and who can revoke that, is `skills/Onboard Root/`'s, under Key Facts in `about.md`.
+- **A credential to rotate, share, or store.** Where it lives is resolved under the constitution's Secrets rule: account access is the gateway; a local-file key is a bound `--secret` or Provides path, never a directory inferred from a root's layout. This expert names that resolution, or the rule's stop. Its value never enters the conversation; a value already pasted is compromised, and the answer is revocation and reissue at the platform. What a rotation or a change of access did, what it reached, when, and by whom is recorded by name, never by value, and that record lands in the owning root's work directory, in the account's own subject folder, per the Working Files and Root Layout rules in `standards/conventions.md`, since filing is among what the constitution's Precedence and routing gives the owning root. That record is an event; the standing fact that the root reaches the platform, and who can revoke that, is `skills/Onboard Root/`'s, under Key Facts in `about.md`.
 - **A provider's requirement.** What a provider needs, records, a verification, a nameserver change, comes from that provider's current documentation, read at need, or from the requester; this expert names what to look for and does not recite a value from memory.
 - **A hosting change.** A migration, a new provider, a plan change: the same three questions, blast radius, rollback, timing, applied to the services the account carries.
 
