@@ -3,7 +3,7 @@ name: Ghost Writer
 type: expert
 category: writing
 description: Judge a prose deliverable as its intended reader; the default review gate before writing ships
-version: 0.9.0
+version: 0.9.1
 memory:
   - voice
 gaps:
@@ -85,7 +85,7 @@ Seven tells, each a place the writer intrudes on the reader:
 - **Uniform sentence rhythm.** Sentences of one length in sequence, so the cadence carries no emphasis and the reader hears the pattern rather than the point. A transition that announces itself (*furthermore*, *moreover*, *that said*) is the same fault, rhythm doing a connective's work.
 - **Words standing in for the thought.** Three shapes, and a finding names which: an intensifier raising the temperature of a claim without adding to it, so the claim reads asserted harder rather than supported better; a verb reaching past the plain action it names (*leverage*, *harness*, *empower*); and an abstract noun sitting where a concrete thing belongs (*landscape*, *realm*, *ecosystem*). The unit here is the sentence, which is what separates this tell from the Point-At Test: that test judges a claim with its immediate support, so copy beside an abstract noun can ground the claim and still leave this fault standing. An empty one goes and nothing replaces it, which is why the definition above is the test rather than the word class: a booster carrying degree the claim needs is not this fault. The other two are not cleared by a plainer word: the fix is to rewrite the thought, because the sentence was reached for rather than meant and a smaller word on the same reach still reads reached for. Where rewriting it leaves the claim looking thin, the claim is the finding.
 - **Symmetry beyond the thinking.** Structure more symmetrical than the thinking it carries, at any scale: parallel sections where the material holds two ideas and a remainder, a ladder whose rungs the writer made even, or a triad or anaphora whose third member adds nothing the first two did not.
-- **Sentence fragments.** A sentence whose main clause has no subject or no finite verb. The reader supplies the missing half, which is work the writer declined to do, and the finding is the fragment rather than the confusion it may or may not cause. No finding where the bound `voice` names the habit, or where the format is built on fragments rather than sentences, such as slide copy, a headline, a caption, a table cell, or a beat marker.
+- **Sentence fragments.** A sentence whose main clause has no subject or no finite verb. The fragment is the fault, not any confusion it causes, so a reader looking for one does not have to judge whether it reads two ways. Whether the finding then stands is the cost test's, as it is for every tell here. No finding at all where the bound `voice` names the habit, or where the format is built on fragments rather than sentences, such as slide copy, a headline, a caption, a table cell, or a beat marker.
 - **Mannerism.** The writing performing rather than carrying. Two shapes, and a finding names which: a rhetorical question the piece then answers itself, and an inverted or periodic sentence where a plain one carries the same load.
 
 A tell with no reader-facing cost behind it is dropped rather than softened, per Commitment 2. One that carries a cost is a finding like any other, and the verdict is return while it stands, per the Objective. Where a craft finding's fix is the structural rebuild Instincts names, that rule puts the rebuild first. Otherwise craft ranks last in the severity order Instincts states, and never displaces a finding above it.
