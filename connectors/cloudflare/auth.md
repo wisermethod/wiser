@@ -12,7 +12,11 @@ Cloudflare authenticates with an API token you make, and the token's permissions
 4. Zone Resources: Include, Specific zone, and pick the zone or zones this connection is for. Do not choose all zones unless you mean every zone this account will ever hold.
 5. Create the token and keep the page open; the value is shown once.
 
-The token reaches exactly the zones you named and can do exactly DNS. A token that can also purge cache, change encryption, or touch Workers is the wrong token for this module.
+The token this module needs reaches exactly the zones you named and can do exactly DNS. A wider token still only unlocks DNS here: Pages, rulesets, and listing every zone wait on other modules and other connects. Do not treat extra permissions on this grant as extra actions.
+
+## On the provider's side
+
+The provider needs a blueprint for Cloudflare as an API-key toolkit. Make that in the provider dashboard without pasting the token. The token is pasted on the hosted page in the next section. The clicks are in the provider's own SETUP.md, the file `gateway/SETUP.md` points at. Do not connect a test account from that dashboard; that authenticates a playground user, not this gateway.
 
 ## Through the gateway
 
@@ -33,4 +37,4 @@ Two places. Revoke the connection through the gateway; then, at Cloudflare, API 
 
 ## Last connected
 
-Not yet. This connector has not been run against a live zone; the first successful connect is recorded here with its date.
+2026-09-08, `dns`, Grok harness with `wiser-gateway`. Grant ACTIVE. Catalog `list_records` and proxy `export_zone` on zone `aa735858d4d115f029c28188ec030a73` both failed vendor 400 (Cloudflare 9106: authentication headers missing). The hosted page completed a grant without the caller seeing a key; that grant does not authenticate to Cloudflare. Reconnect is the next human step. Do not paste the token into chat.

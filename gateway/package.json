@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "help": "node server.js help",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js providers/*/*.test.js"
   },
   "engines": {
     "node": ">=18.0.0"

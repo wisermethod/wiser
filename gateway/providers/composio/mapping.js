@@ -4,7 +4,7 @@
  */
 
 const ROWS = [
-  ['github.repos.get', 'GITHUB_GET_A_REPOSITORY'], // UNVERIFIED; Solve catalog execute
+  ['github.repos.get', 'GITHUB_GET_A_REPOSITORY'], // confirmed 2026-09-08 catalog execute, wisermethod/wiser
   ['github.repos.list_for_user', 'GITHUB_LIST_REPOSITORIES_FOR_THE_AUTHENTICATED_USER'], // UNVERIFIED; Milestone 3
   ['github.issues.list', 'GITHUB_LIST_REPOSITORY_ISSUES'], // UNVERIFIED; Milestone 3
   ['github.issues.create', 'GITHUB_CREATE_AN_ISSUE'], // UNVERIFIED; Milestone 3

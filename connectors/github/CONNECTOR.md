@@ -12,7 +12,7 @@ The reference connector: the smallest complete example of a module the gateway s
 
 ## Status
 
-Scaffold. Built against the gateway's fake provider; not yet run against a live account.
+Live connect 2026-09-08, operator, Grok with `wiser-gateway`: the `repos` module is ACTIVE. Catalog execute of `github.repos.get` on `wisermethod/wiser` returned the repository. `users` and `issues` are separate grants and were not connected. Tests still run against the fake provider.
 
 ## Reaching it
 

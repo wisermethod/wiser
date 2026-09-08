@@ -14,7 +14,9 @@ Not for Cloudflare's developer platform, cache, encryption mode, mail routing, o
 
 ## Status
 
-Scaffold. Built against the gateway's fake provider; not yet run against a live zone.
+Live connect 2026-09-08, operator, Grok with `wiser-gateway`: the `dns` module is ACTIVE. Catalog `list_records` and proxy `export_zone` on `agentfirst.ai` both fail vendor 400 (Cloudflare 9106). The operator's Cloudflare token is wider than `auth.md` documents for this module; extra permissions do not add actions. This module still only serves DNS. Tests still run against the fake provider.
+
+Later modules, each its own grant, not this Playbook's v1 ship: `zones` (list every zone the token reaches), `pages`, `rulesets`. Skills cite those action ids. IT Expert owns zone and ruleset work; Pages ownership versus Webmaster is open.
 
 ## Reaching it
 
@@ -41,7 +43,7 @@ This connector holds none. The grant is an API token you create at Cloudflare an
 |--------|-----------|---------|
 | `dns` | write | the eight above |
 
-One module, one grant, scoped to the zones the token names. A later `workers` or `r2` module is a separate grant with an account-scoped token, never an extension of this one.
+One module, one grant, scoped to the zones the token names. A later `zones`, `pages`, `rulesets`, `workers`, or `r2` module is a separate grant, never an extension of this one. `zones` is how a skill lists every domain the token reaches; `dns` still takes `zone_id` as an input and does not discover.
 
 ## Destructive Actions
 

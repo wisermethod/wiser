@@ -2,6 +2,10 @@
 
 What you do, on which side, to make `github.*` actions run. The Connect Account skill walks this in its own turn; this file is what it reads.
 
+## On the provider's side, first
+
+The provider needs a blueprint for GitHub (OAuth, managed by the provider) before a connect link can work. Make that in the provider dashboard. The clicks are in the provider's own SETUP.md, the file `gateway/SETUP.md` points at. Do not connect a test account from that dashboard; that authenticates a playground user, not this gateway. Connecting is the next section.
+
 ## Through the gateway
 
 1. Say "Connect GitHub" and name the module: `users`, `repos` or `issues`. Each is its own grant.
@@ -21,4 +25,4 @@ Two places. Revoke the connection through the gateway, which asks the provider t
 
 ## Last connected
 
-Not yet. This connector has not been run against a live account; the first successful connect is recorded here with its date.
+2026-09-08, `repos`, Grok harness with `wiser-gateway`. Catalog execute `github.repos.get` on `wisermethod/wiser` returned the repository. `users` and `issues` not connected.

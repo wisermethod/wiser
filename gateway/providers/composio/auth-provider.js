@@ -100,10 +100,14 @@ export function createAuthProvider({ envPath } = {}) {
     setupText() {
       const file = envPath || 'the credential file the gateway created';
       return [
-        'Create a free account at composio.dev.',
-        'In the dashboard, create a project API key.',
+        'Create a free account at composio.dev and sign in.',
+        'Open Settings, Project Settings, API Keys, and create a full-access project API key, not an organisation key.',
         `Open ${file} and paste the key after WISER_AUTH_PROVIDER_KEY=.`,
         'Save. Do not paste the key into chat.',
+        'Then open Platform, Auth Configs, Create Auth Config.',
+        'Add GitHub as OAuth2 with Composio managed auth.',
+        'Add Cloudflare as API Key and do not paste a Cloudflare token there.',
+        'Do not click Connect Account on those configs; connecting is through the gateway later.',
         'Restart the harness.',
       ].join(' ');
     },
@@ -154,7 +158,9 @@ export function createAuthProvider({ envPath } = {}) {
     },
     async proxy({ providerAccountId, endpoint, method, body, parameters }) {
       if (!apiKey) return vendorError('/tools/execute/proxy', 'POST', 0);
-      // UNVERIFIED against live API on 2026-09-05; Solve confirms
+      // Confirmed 2026-09-08: POST /tools/execute/proxy with
+      // connected_account_id, endpoint, method. Inner status 400 is wrapped;
+      // the vendor body stays here.
       const res = await request(apiKey, 'POST', '/tools/execute/proxy', {
         connected_account_id: providerAccountId,
         endpoint,
@@ -164,13 +170,16 @@ export function createAuthProvider({ envPath } = {}) {
       });
       if (!res.ok) return vendorError(endpoint || '/tools/execute/proxy', method || 'POST', res.status);
       const data = res.data || {};
-      // UNVERIFIED against live API on 2026-09-05; Solve confirms the envelope shape.
-      // The transport succeeding says nothing about the vendor call inside it: an inner
-      // status of 400 or more, or an error field, is a vendor failure and its body
-      // never leaves this adapter.
       const inner = Number(data.status);
-      if (data.error || data.successful === false || (Number.isFinite(inner) && inner >= 400)) {
-        return vendorError(endpoint || '/tools/execute/proxy', method || 'POST', Number.isFinite(inner) ? inner : res.status);
+      const payload = data.data && typeof data.data === 'object' ? data.data : null;
+      if (data.error || data.successful === false || data.success === false
+          || (Number.isFinite(inner) && inner >= 400)
+          || (payload && (payload.success === false || payload.successful === false))) {
+        return vendorError(
+          endpoint || '/tools/execute/proxy',
+          method || 'POST',
+          Number.isFinite(inner) && inner >= 400 ? inner : 400,
+        );
       }
       return {
         status: Number.isFinite(inner) ? inner : res.status,

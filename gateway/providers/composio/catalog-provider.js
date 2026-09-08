@@ -64,6 +64,33 @@ function vendorError(endpoint, method, status) {
 }
 
 /**
+ * A 2xx transport can still carry a failed execution. Composio uses
+ * `successful: false` and `error`; Cloudflare's catalog payload uses
+ * `success: false` on the inner object. Confirmed 2026-09-08: GitHub
+ * catalog execute returns the vendor object; Cloudflare nested
+ * `{ success: false }` must not leave this adapter.
+ * @param {object|null} data
+ * @param {boolean} [malformed]
+ * @returns {{ failed: boolean, httpStatus: number|null }}
+ */
+export function providerExecuteFailed(data, malformed = false) {
+  if (malformed) return { failed: true, httpStatus: 0 };
+  if (!data || typeof data !== 'object') return { failed: false, httpStatus: null };
+  const inner = Number(data.status);
+  if (data.successful === false || data.success === false || data.error
+      || (Number.isFinite(inner) && inner >= 400)) {
+    return { failed: true, httpStatus: Number.isFinite(inner) && inner >= 400 ? inner : 400 };
+  }
+  const payload = data.data ?? data.response;
+  if (payload && typeof payload === 'object'
+      && (payload.success === false || payload.successful === false)) {
+    const nested = Number(payload.status);
+    return { failed: true, httpStatus: Number.isFinite(nested) && nested >= 400 ? nested : 400 };
+  }
+  return { failed: false, httpStatus: null };
+}
+
+/**
  * @param {{ envPath?: string | null }} opts
  */
 export function createCatalogProvider({ envPath } = {}) {
@@ -98,7 +125,8 @@ export function createCatalogProvider({ envPath } = {}) {
       const slug = toSlug(actionId);
       if (!slug) return vendorError('/tools/execute', 'POST', 0);
       const path = `/tools/execute/${encodeURIComponent(slug)}`;
-      // UNVERIFIED against live API on 2026-09-05; Solve confirms
+      // Confirmed 2026-09-08: POST /tools/execute/:slug with user_id,
+      // connected_account_id, arguments. GitHub returns the vendor object.
       const res = await request(apiKey, 'POST', path, {
         user_id: userId,
         connected_account_id: providerAccountId,
@@ -106,12 +134,9 @@ export function createCatalogProvider({ envPath } = {}) {
       });
       if (!res.ok) return vendorError(path, 'POST', res.status);
       const data = res.data || {};
-      // UNVERIFIED against live API on 2026-09-05; Solve confirms the envelope shape.
-      // A 2xx transport with `successful: false` or an `error` field is a failed
-      // execution, and its body stays here.
-      const inner = Number(data.status);
-      if (res.malformed || data.successful === false || data.error || (Number.isFinite(inner) && inner >= 400)) {
-        return vendorError(path, 'POST', Number.isFinite(inner) && inner >= 400 ? inner : res.status);
+      const failed = providerExecuteFailed(data, res.malformed);
+      if (failed.failed) {
+        return vendorError(path, 'POST', failed.httpStatus ?? res.status);
       }
       return data.data ?? data.response ?? data;
     },
