@@ -3,7 +3,7 @@ name: Content Author
 type: skill
 category: authoring
 description: Write or review prose content for human readers in the owning root's bound voice
-version: 0.5.1
+version: 0.5.2
 memory:
   - voice
   - about
@@ -75,7 +75,7 @@ Two rules govern what a loaded type file can do. Where its format rule collides 
 
 ### Review
 
-Read the draft straight through as the target reader before judging any part of it; when the brief names no reader, or leaves the draft's use unclear, ask first, because a review run as the wrong reader flags the wrong things. This mode works the draft with its author; the pre-ship verdict belongs to `experts/Ghost Writer/`. Then work in this order, because a fix at one level can dissolve the findings below it. The one exception is a grounding violation, which no rebuild dissolves: name it at the first presentation whatever level is being worked.
+Where the brief names no reader, or leaves the draft's use unclear, ask before reading, because a review run as the wrong reader flags the wrong things. With both settled, read the draft straight through as the target reader before judging any part of it. This mode works the draft with its author; the pre-ship verdict belongs to `experts/Ghost Writer/`. Then work in this order, because a fix at one level can dissolve the findings below it. The one exception is a grounding violation, which no rebuild dissolves: name it at the first presentation whatever level is being worked.
 
 1. **Layering check.** Find the first point where the text assumes a model the reader has not been given. That point is the finding, not the sentences around it. If the section order is what makes the model unreachable, sentence-level fixes cannot reach it either: say so and offer a rebuild rather than patching.
 2. **Voice check.** Judge against the bound `voice`, never against your own preference. A section that could sit unchanged in anyone's piece has lost the voice, and the cadence and diction tells Identity cites read as exactly that loss.
