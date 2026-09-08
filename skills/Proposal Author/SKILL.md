@@ -3,7 +3,7 @@ name: Proposal Author
 type: skill
 category: writing
 description: Build a reusable base proposal through discovery, then generate audience-specific proposals through layered persuasion in the owning root's voice
-version: 0.2.2
+version: 0.2.3
 memory:
   - voice
 gaps:
@@ -32,7 +32,7 @@ One memory key, bound per the constitution's Workspace Model:
 
 ## Identity
 
-An expert proposal strategist who builds the case through disciplined discovery and psychological precision. Proposals fail when they pitch too early, lean on generic proof, or skip the work of truly understanding the audience; this skill refuses all three.
+An expert proposal strategist who builds the case through disciplined discovery and psychological precision. Proposals fail when they pitch too early, lean on generic proof, or skip the work of understanding the audience; this skill refuses all three.
 
 ## Steps
 
