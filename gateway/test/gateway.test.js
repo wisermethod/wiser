@@ -88,11 +88,32 @@ test('bare server start serves rather than printing help', async () => {
   const { spawnSync } = await import('node:child_process');
   const { fileURLToPath } = await import('node:url');
   const server = fileURLToPath(new URL('../server.js', import.meta.url));
-  const home = (await import('node:fs')).mkdtempSync((await import('node:path')).join((await import('node:os')).tmpdir(), 'wiser-gw-'));
+  const { mkdtempSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const { tmpdir } = await import('node:os');
+  const root = mkdtempSync(join(tmpdir(), 'wiser-gw-'));
+  const home = join(root, 'state');
   const init = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } });
-  const run = spawnSync(process.execPath, [server, '--home', home], { input: `${init}\n`, encoding: 'utf8', timeout: 10000 });
+  const run = spawnSync(process.execPath, [server, '--home', home], {
+    input: `${init}\n`,
+    encoding: 'utf8',
+    timeout: 10000,
+    env: {
+      ...process.env,
+      HOME: root,
+      USERPROFILE: root,
+      APPDATA: join(root, 'AppData', 'Roaming'),
+      XDG_CONFIG_HOME: join(root, '.config'),
+    },
+  });
   assert.ok(!run.stdout.includes('Usage:'), 'must not print usage');
   const first = JSON.parse(run.stdout.trim().split('\n')[0]);
   assert.equal(first.id, 1);
   assert.equal(first.result.serverInfo.name, 'wiser-gateway');
+  const { existsSync: exists } = await import('node:fs');
+  const { defaultProviderEnvPath } = await import('../src/paths.js');
+  assert.equal(exists(defaultProviderEnvPath(process.platform, {
+    APPDATA: join(root, 'AppData', 'Roaming'),
+    XDG_CONFIG_HOME: join(root, '.config'),
+  }, root)), true);
 });

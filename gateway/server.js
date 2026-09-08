@@ -12,7 +12,7 @@
 import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { defaultGatewayHome, defaultProviderEnvPath } from './src/paths.js';
+import { defaultGatewayHome, defaultProviderEnvPath, ensureProviderEnvFile } from './src/paths.js';
 
 const GATEWAY_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_POLICY_PATH = join(GATEWAY_DIR, 'policy.default.json');
@@ -131,8 +131,12 @@ if (flags.role !== null && !ROLES.has(flags.role)) {
 }
 
 if (!flags.env) {
-  const fallback = defaultProviderEnvPath();
-  if (existsSync(fallback)) flags.env = fallback;
+  if (flags.check) {
+    const fallback = defaultProviderEnvPath();
+    if (existsSync(fallback)) flags.env = fallback;
+  } else {
+    flags.env = ensureProviderEnvFile();
+  }
 }
 
 if (flags.env && !existsSync(flags.env)) {

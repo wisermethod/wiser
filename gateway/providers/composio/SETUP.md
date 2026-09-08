@@ -14,15 +14,9 @@ This key authenticates the gateway to Composio. It is not a GitHub token, not a 
 
 1. Create an account at composio.dev.
 2. In the dashboard, create a project and an API key for it. The key needs permission to execute tools, including proxy execution, and to manage connected accounts.
-3. Write the key to the credential file the gateway's `SETUP.md` names, as one line:
+3. The gateway has already created the empty file at the path `gateway/SETUP.md` names for this OS. Open that file, paste the key after `WISER_AUTH_PROVIDER_KEY=`, and save. Do not paste the key into chat. `COMPOSIO_API_KEY=` is accepted as an alias. Nothing else goes in the file.
 
-```
-WISER_AUTH_PROVIDER_KEY=<the key>
-```
-
-`COMPOSIO_API_KEY=` is accepted as an alias in that file. Nothing else goes in it.
-
-4. Restart your harness so the gateway starts with `--env` pointing at that file.
+4. Restart the harness.
 
 The key is a project key: anyone holding it can act as every account you have connected. Keep the file where the constitution says secrets live, and nowhere else.
 

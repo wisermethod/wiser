@@ -1,8 +1,15 @@
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { wiserUserConfigDir, defaultProviderEnvPath, defaultGatewayHome } from '../src/paths.js';
+import {
+  wiserUserConfigDir,
+  defaultProviderEnvPath,
+  defaultGatewayHome,
+  ensureProviderEnvFile,
+} from '../src/paths.js';
 
 test('windows uses APPDATA', () => {
   const base = join('C:', 'Users', 'x', 'AppData', 'Roaming');
@@ -50,4 +57,14 @@ test('default env directory is not inside default --home, and --home is not insi
   const config = wiserUserConfigDir('darwin', {}, home);
   assert.equal(state.startsWith(`${config}/`) || state === config, false);
   assert.equal(config.startsWith(`${state}/`) || config === state, false);
+});
+
+test('ensureProviderEnvFile creates an empty KEY= template and does not overwrite', () => {
+  const home = mkdtempSync(join(tmpdir(), 'wiser-cfg-'));
+  const file = ensureProviderEnvFile('darwin', {}, home);
+  assert.equal(file, defaultProviderEnvPath('darwin', {}, home));
+  assert.equal(readFileSync(file, 'utf8'), 'WISER_AUTH_PROVIDER_KEY=\n');
+  writeFileSync(file, 'WISER_AUTH_PROVIDER_KEY=already\n');
+  ensureProviderEnvFile('darwin', {}, home);
+  assert.equal(readFileSync(file, 'utf8'), 'WISER_AUTH_PROVIDER_KEY=already\n');
 });

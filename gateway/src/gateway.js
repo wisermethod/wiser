@@ -212,7 +212,7 @@ export class ConnectionGateway {
   needsProviderResult() {
     const setup = typeof this.authProvider?.setupText === 'function'
       ? this.authProvider.setupText()
-      : 'Write WISER_AUTH_PROVIDER_KEY=... to the credential file and pass --env <abs file>.';
+      : 'Open the credential file the gateway created, paste the project key after WISER_AUTH_PROVIDER_KEY=, save, and restart. Do not paste the key into chat.';
     return statusObject(STATUS.NEEDS_PROVIDER, { setup });
   }
 

@@ -98,11 +98,13 @@ export function createAuthProvider({ envPath } = {}) {
       return Boolean(apiKey);
     },
     setupText() {
+      const file = envPath || 'the credential file the gateway created';
       return [
         'Create a free account at composio.dev.',
         'In the dashboard, create a project API key.',
-        'Write it to the credential file as WISER_AUTH_PROVIDER_KEY=... (one line).',
-        'Restart the harness, then start the gateway with --env pointing at that file.',
+        `Open ${file} and paste the key after WISER_AUTH_PROVIDER_KEY=.`,
+        'Save. Do not paste the key into chat.',
+        'Restart the harness.',
       ].join(' ');
     },
     async initiate({ userId, toolkit, scheme, callbackUrl }) {

@@ -1,3 +1,4 @@
+import { chmodSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -48,4 +49,27 @@ export function defaultProviderEnvPath(platform = process.platform, env = proces
  */
 export function defaultGatewayHome(home = homedir()) {
   return join(home, '.wiser', 'gateway');
+}
+
+const EMPTY_ENV = 'WISER_AUTH_PROVIDER_KEY=\n';
+
+/**
+ * Create the platform config directory and an empty project-key file if they
+ * are missing. Never overwrites a file that already exists. Never writes a
+ * key value. Returns the file path.
+ *
+ * @param {string} [platform]
+ * @param {NodeJS.ProcessEnv} [env]
+ * @param {string} [home]
+ */
+export function ensureProviderEnvFile(platform = process.platform, env = process.env, home = homedir()) {
+  const dir = wiserUserConfigDir(platform, env, home);
+  const file = join(dir, 'auth-provider.env');
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  try { chmodSync(dir, 0o700); } catch { /* windows */ }
+  if (!existsSync(file)) {
+    writeFileSync(file, EMPTY_ENV, { mode: 0o600 });
+    try { chmodSync(file, 0o600); } catch { /* windows */ }
+  }
+  return file;
 }

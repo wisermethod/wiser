@@ -26,7 +26,9 @@ Two different secrets. Do not mix them.
 
 **The one local file is the provider's own project key**, so this process can call the provider at all. It is not a GitHub token, not a Cloudflare token, and not an OAuth grant. A local stdio gateway has no other way to authenticate to the provider: a hosted MCP session still sends the same key as a header, and this plugin does not use the provider's CLI (that CLI writes its own config under the home directory and edits shell startup files).
 
-This file is **once per person on this machine**, not once per root. The harness starts one gateway for every workspace it opens. Put the file outside every composed root (so it is not synced with client work) and outside `--home` (the gateway refuses to keep state beside a credential). The gateway looks here when `--env` is omitted:
+This file is **once per person on this machine**, not once per root. The harness starts one gateway for every workspace it opens. On first start the gateway creates the directory (0700) and an empty `WISER_AUTH_PROVIDER_KEY=` file (0600) if they are missing. It never overwrites a file that already exists and never writes a key value. You open that file, paste the project key after the equals sign, save, and restart the harness. You do not run terminal commands to create the path, and you do not paste the key into chat.
+
+The file sits outside every composed root and outside `--home`. When `--env` is omitted, the gateway uses:
 
 | OS | Path |
 |----|------|
