@@ -3,7 +3,7 @@ name: Proposal Author
 type: skill
 category: writing
 description: Build a reusable base proposal through discovery, then generate audience-specific proposals through layered persuasion in the owning root's voice
-version: 0.2.3
+version: 0.2.4
 memory:
   - voice
 gaps:
@@ -76,7 +76,7 @@ Read the Base Proposal to recover the offer, check `proposals/` for what exists,
 
 ## The Six Persuasion Layers
 
-A proposal builds compounding buy-in: each layer earns the right to present the next, so that by the last the "yes" reads as the obvious conclusion and the reader feels understood and convinced rather than sold to. This is the persuasion application of the dependency-and-bridge discipline defined as Cognitive Layering at the head of `skills/Content Author/SKILL.md`; the prose within and between layers is written to it. Skip a layer and the chain breaks.
+A proposal builds compounding buy-in: each layer earns the right to present the next, so that by the last the "yes" reads as the obvious conclusion and the reader feels understood and convinced rather than sold to. This is the persuasion application of the dependency-and-bridge discipline defined as Cognitive Layering in `experts/Ghost Writer/EXPERT.md`; the prose within and between layers is written to it. Skip a layer and the chain breaks.
 
 | Layer | Purpose | Reader's shift |
 |-------|---------|----------------|

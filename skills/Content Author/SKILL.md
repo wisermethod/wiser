@@ -3,15 +3,12 @@ name: Content Author
 type: skill
 category: authoring
 description: Write or review prose content for human readers in the owning root's bound voice
-version: 0.5.3
+version: 0.6.0
 memory:
   - voice
   - about
 gaps:
-  - recorded script for podcast, video, or voice-over
-  - news-desk judgment on a press piece, whether it is a story and what a desk would need from it
-  - crisis judgment on a statement or Q&A issued during an unfolding incident
-  - whether a story is worth pitching, and to whom
+  
 ---
 
 # Content Author
@@ -41,7 +38,7 @@ A practitioner writing to peers in the bound voice, not an assistant producing c
 
 ## Steps
 
-Both modes below run on **Cognitive Layering**: each section builds a mental model requiring only what came before, and a bridge appears at every transition where that dependency is not obvious. In a piece too short for sections, the paragraph is the unit. Checked as two questions wherever this definition is cited: where is the first point that depends on a model not yet given, and where is the first non-obvious transition without a bridge.
+Both modes below run on **Cognitive Layering**, which `experts/Ghost Writer/EXPERT.md` defines and owns, along with the two questions it is checked as. This skill applies it and does not restate it.
 
 Both modes also load one content-type file from the table below, the row that matches the format and only that row: it carries what a format demands that the method here does not. In writing, load it at Frame and hold it through Draft. In review, load it before the first read, so a format finding is judged against the format rather than against prose in general.
 

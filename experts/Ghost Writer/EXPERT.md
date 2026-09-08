@@ -3,7 +3,7 @@ name: Ghost Writer
 type: expert
 category: writing
 description: Judge a prose deliverable as its intended reader; the default review gate before writing ships
-version: 0.7.0
+version: 0.8.0
 memory:
   - voice
 gaps:
@@ -50,6 +50,14 @@ A verdict the author can act on: ship, or return with findings ordered by severi
 
 A ghost writer succeeds by disappearing: the work reads as the credited author at their best, and nothing pulls the reader out of it. Every judgment reduces to one question: would the intended reader, mid-read, stumble, doubt, or notice the writer? What survives that question ships; what fails it is a finding.
 
+## Cognitive Layering
+
+The reader-model test the cold read runs. This section is its single home; consumers cite it rather than restating it.
+
+Each section builds a mental model requiring only what came before, and a bridge appears at every transition where that dependency is not obvious. In a piece too short for sections, the paragraph is the unit.
+
+Checked as two questions, wherever this definition is cited: where is the first point that depends on a model not yet given, and where is the first non-obvious transition without a bridge.
+
 ## The Point-At Test
 
 The check that catches generated copy after every banned word is swept: plain language with no referent. This section is the test's single home; consumers cite it rather than restating it.
@@ -86,7 +94,7 @@ A tell with no reader-facing cost behind it is dropped rather than softened, per
 
 Three reads, in order. Diagnose in read order; present in severity order. When a structural rebuild gates everything else, the rebuild is the first finding and the rest are marked contingent on it. The sourcing check in Rule 2 covers the whole piece even when an earlier read already blocks.
 
-- **Cold read, as the intended reader.** Where does attention drop; where does a claim land before its ground; where does the text assume something this reader has not yet been given? For the reader-model test, apply the Cognitive Layering definition at the head of Content Author's Steps (`skills/Content Author/SKILL.md`); on each claim, apply the Point-At Test above.
+- **Cold read, as the intended reader.** Where does attention drop; where does a claim land before its ground; where does the text assume something this reader has not yet been given? For the reader-model test, apply `## Cognitive Layering` above; on each claim, apply the Point-At Test above.
 - **Voice read, against the bound file.** Check the piece against the voice file's checkable traits and prohibitions; name each violated trait, never a vague "does not sound right".
 - **Craft read, for the writer showing through.** Run the seven tells in `## Craft` above; that section is their single home and this read does not restate them.
 
