@@ -3,7 +3,7 @@ name: Content Author
 type: skill
 category: authoring
 description: Write or review prose content for human readers in the owning root's bound voice
-version: 0.6.0
+version: 0.6.1
 memory:
   - voice
   - about
@@ -38,7 +38,7 @@ A practitioner writing to peers in the bound voice, not an assistant producing c
 
 ## Steps
 
-Both modes below run on **Cognitive Layering**, which `experts/Ghost Writer/EXPERT.md` defines and owns, along with the two questions it is checked as. This skill applies it and does not restate it.
+Both modes below run on **Cognitive Layering**, which `experts/Ghost Writer/EXPERT.md` defines and owns, along with the two questions it is checked as.
 
 Both modes also load one content-type file from the table below, the row that matches the format and only that row: it carries what a format demands that the method here does not. In writing, load it at Frame and hold it through Draft. In review, load it before the first read, so a format finding is judged against the format rather than against prose in general.
 
