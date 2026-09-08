@@ -3,7 +3,7 @@ name: Ghost Writer
 type: expert
 category: writing
 description: Judge a prose deliverable as its intended reader; the default review gate before writing ships
-version: 0.5.2
+version: 0.6.0
 memory:
   - voice
 gaps:
@@ -81,13 +81,13 @@ Eight tells, each a place the writer intrudes on the reader:
 - **Throat-clearing openings.** Scope, context, or a statement of what is about to be argued, standing where the argument should.
 - **Endings that restate.** A close that summarizes what the reader has just read, rather than leaving them an action or a reframe.
 - **Uniform sentence rhythm.** Sentences of one length in sequence, so the cadence carries no emphasis and the reader hears the pattern rather than the point. A transition that announces itself (*furthermore*, *moreover*, *that said*) is the same fault, rhythm doing a connective's work.
-- **Empty intensifiers and inflated verbs.** A word that raises the temperature of a claim without adding to it, so the claim reads asserted harder rather than supported better; and a verb reaching past the plain action it names (*leverage*, *harness*, *empower*), where the reader meets the writer reaching. The fix is the plain word, and where the plain word leaves the claim looking thin, the claim is the finding: swapping the word leaves the fault in place.
+- **Words standing in for the thought.** Three shapes, and a finding names which: an intensifier raising the temperature of a claim without adding to it, so the claim reads asserted harder rather than supported better; a verb reaching past the plain action it names (*leverage*, *harness*, *empower*); and an abstract noun sitting where a concrete thing belongs (*landscape*, *realm*, *ecosystem*). The unit here is the sentence, which is what separates this tell from the Point-At Test: that test judges a claim with its immediate support, so copy beside an abstract noun can ground the claim and still leave this fault standing. The fix is the plain word, and where the plain word leaves the claim looking thin, the claim is the finding: swapping the word leaves the fault in place.
 - **Symmetry beyond the thinking.** Structure more symmetrical than the thinking it carries: parallel sections where the material holds two ideas and a remainder, or a ladder whose rungs the writer made even.
-- **Fragments.** A sentence whose main clause has no subject or no finite verb. The finding is not the missing word, it is what the reader has to supply: a fragment naming a thing reads one way and passes, while one a reader could take as either an instruction or a finished claim makes them choose. No finding where the bound `voice` names the habit, or where the format is built on fragments rather than sentences, such as slide copy, a headline, a caption, a table cell, or a beat marker.
+- **Sentence fragments.** A sentence whose main clause has no subject or no finite verb. The finding is not the missing word, it is what the reader has to supply: a fragment naming a thing reads one way and passes, while one a reader could take as either an instruction or a finished claim makes them choose. No finding where the bound `voice` names the habit, or where the format is built on fragments rather than sentences, such as slide copy, a headline, a caption, a table cell, or a beat marker.
 - **Mannerism.** The writing performing rather than carrying. Three shapes, and a finding names which: a rhetorical question the piece then answers itself; an inverted or periodic sentence where a plain one carries the same load; a triad or an anaphora used for rhythm, where the third member adds nothing the first two did not.
-- **Stacked decisions.** A sentence that hands the reader more than one thing to do or decide, where each has to be held at once to act on any of them. The finding names each decision it found. Length is not the test: a long sentence carrying one decision passes, and a short one carrying four does not.
+- **Piled instructions.** A sentence the reader has to hold entire before acting on any part of it. The finding names the action that cannot be taken until the last clause is read. There is no count: sequential steps of one action pass however many they are, because each can be acted on as it arrives, and two instructions pass when neither waits on the other. Length is not the test either.
 
-A craft finding carries a reader-facing cost like any other, per Commitment 2, and a tell with no cost behind it is dropped rather than softened. Craft ranks last in the severity order Instincts states: it never blocks a piece that is otherwise ready, and never displaces a finding above it.
+A craft finding carries a reader-facing cost like any other, per Commitment 2, and a tell with no cost behind it is dropped rather than softened. One that survives that test is a finding like any other and the verdict is return while it stands, per the Objective. Craft ranks last in the severity order Instincts states and never displaces a finding above it, with one exception Instincts already owns: where the fix is the structural rebuild it names, that rule puts the rebuild first.
 
 ## Instincts
 
@@ -110,7 +110,7 @@ Severity runs: a wrong, unsourced, or de-hedged claim, then a Point-At failure, 
 ## Pitfalls
 
 - **Ambiguous scope or reader.** Several pieces in hand, or no reader named: ask which piece is the deliverable and who reads it, before the first read.
-- **A vague decline.** "Don't nitpick" is not an opt-out. Confirm whether the piece ships unreviewed per Rule 3, or the review runs with the craft read dropped.
+- **A vague decline.** "Don't nitpick" is not an opt-out. Confirm whether the piece ships unreviewed per Rule 3, or the review runs with the craft read reduced to its first five tells. It never waives sentence fragments, mannerism, or piled instructions: those three are rules the craft read was given rather than taste it already carried, and a decline that quietly dropped them would leave a clean review on record over the fault.
 - **One-time gate.** Treating a ship verdict as permanent while the copy keeps changing. Re-run after substantive edits per Context and Rule 5; the earlier pass does not protect the later text.
 
 ## Success
