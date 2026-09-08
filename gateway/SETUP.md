@@ -26,7 +26,13 @@ Two different secrets. Do not mix them.
 
 **The one local file is the provider's own project key**, so this process can call the provider at all. It is not a GitHub token, not a Cloudflare token, and not an OAuth grant. A local stdio gateway has no other way to authenticate to the provider: a hosted MCP session still sends the same key as a header, and this plugin does not use the provider's CLI (that CLI writes its own config under the home directory and edits shell startup files).
 
-Where the file goes is the constitution's `secrets:<platform>` rule: your working folder's `AGENTS.md` may bind `secrets:auth-provider` to a path, and if it does not, the personal root's `memory/secrets/` is the only default. Name the file `auth-provider.env`.
+This file is **once per person on this machine**, not once per root. The harness starts one gateway for every workspace it opens. Put the file outside every composed root (so it is not synced with client work) and outside `--home` (the gateway refuses to keep state beside a credential). A workable path on this kind of laptop:
+
+```
+~/.config/wiser/auth-provider.env
+```
+
+Do not put it in a root's `memory/secrets/`. That default is for a **per-root** local-file connector key (`secrets:usebouncer` and the like), bound by that root's Provides block, because those keys belong to one client's work. The provider project key does not.
 
 The file holds one line:
 
@@ -43,7 +49,7 @@ Every local harness that speaks MCP over stdio takes the same three things: the 
 Claude Code:
 
 ```bash
-claude mcp add wiser-gateway -- node "/absolute/path/to/wiser/gateway/server.js" --env "/absolute/path/to/memory/secrets/auth-provider.env" --harness claude-code
+claude mcp add wiser-gateway -- node "/absolute/path/to/wiser/gateway/server.js" --env "$HOME/.config/wiser/auth-provider.env" --harness claude-code
 ```
 
 Any harness that reads an `mcpServers` JSON block:
@@ -55,7 +61,7 @@ Any harness that reads an `mcpServers` JSON block:
       "command": "node",
       "args": [
         "/absolute/path/to/wiser/gateway/server.js",
-        "--env", "/absolute/path/to/memory/secrets/auth-provider.env",
+        "--env", "/Users/you/.config/wiser/auth-provider.env",
         "--harness", "cursor"
       ]
     }
