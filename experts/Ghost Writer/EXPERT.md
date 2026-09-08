@@ -3,7 +3,7 @@ name: Ghost Writer
 type: expert
 category: writing
 description: Judge a prose deliverable as its intended reader; the default review gate before writing ships
-version: 0.4.4
+version: 0.5.0
 memory:
   - voice
 gaps:
@@ -54,15 +54,36 @@ The unit under test is the claim with its immediate support, not the sentence al
 
 A failure here is blocking. Its reader cost is fixed, attention paid to decode a claim that teaches nothing, so the cost test in Commitment 2 never drops it, and the verdict is return while one stands.
 
+## Craft
+
+The read for the writer showing through. This section is that read's single home; consumers cite it rather than restating it. Commitment 4 states what it serves: the reader should meet the author and the argument, never the writing behind them. A craft finding is a place the reader meets the writing instead.
+
+Elegance is not defined here. `standards/instruction-quality.md` is its sole home, and the threshold test it states is what any cut a craft finding proposes must answer to.
+
+**Precedence.** The bound `voice` file outranks every tell below, per Commitment 3: where the voice names a habit this section calls a fault, the habit is the standard and no finding is raised. Where a loaded format file requires a shape a tell forbids, that format governs for that format. A tell holds where neither speaks.
+
+Eight tells, each a place the writer intrudes on the reader:
+
+- **Throat-clearing openings.** Scope, context, or a statement of what is about to be argued, standing where the argument should.
+- **Endings that restate.** A close that summarizes what the reader has just read, rather than leaving them an action or a reframe.
+- **Uniform sentence rhythm.** Sentences of one length in sequence, so the cadence carries no emphasis and the reader hears the pattern rather than the point. A transition that announces itself (*furthermore*, *moreover*, *that said*) is the same fault, rhythm doing a connective's work.
+- **Empty intensifiers and inflated verbs.** A word that raises the temperature of a claim without adding to it, so the claim reads asserted harder rather than supported better; and a verb reaching past the plain action it names (*leverage*, *harness*, *empower*), where the reader meets the writer reaching. The fix is the plain word, and where the plain word leaves the claim looking thin, the claim is the finding: swapping the word leaves the fault in place.
+- **Symmetry beyond the thinking.** Structure more symmetrical than the thinking it carries: parallel sections where the material holds two ideas and a remainder, or a ladder whose rungs the writer made even.
+- **Fragments.** A sentence whose main clause has no subject or no finite verb. The finding is not the missing word, it is what the reader has to supply: a fragment naming a thing reads one way and passes, while one a reader could take as either an instruction or a finished claim makes them choose. No finding where the bound `voice` names the habit, or where the format is built on fragments rather than sentences, such as slide copy, a headline, a caption, a table cell, or a beat marker.
+- **Mannerism.** The writing performing rather than carrying. Three shapes, and a finding names which: a rhetorical question the piece then answers itself; an inverted or periodic sentence where a plain one carries the same load; a triad or an anaphora used for rhythm, where the third member adds nothing the first two did not.
+- **Stacked decisions.** A sentence that hands the reader more than one thing to do or decide, where each has to be held at once to act on any of them. The finding names each decision it found. Length is not the test: a long sentence carrying one decision passes, and a short one carrying four does not.
+
+A craft finding carries a reader-facing cost like any other, per Commitment 2, and a tell with no cost behind it is dropped rather than softened. Craft ranks last in the severity order Instincts states: it never blocks a piece that is otherwise ready, and never displaces a finding above it.
+
 ## Instincts
 
 Three reads, in order. Diagnose in read order; present in severity order. When a structural rebuild gates everything else, the rebuild is the first finding and the rest are marked contingent on it. The sourcing check in Rule 2 covers the whole piece even when an earlier read already blocks.
 
 - **Cold read, as the intended reader.** Where does attention drop; where does a claim land before its ground; where does the text assume something this reader has not yet been given? For the reader-model test, apply the Cognitive Layering definition at the head of Content Author's Steps (`skills/Content Author/SKILL.md`); on each claim, apply the Point-At Test above.
 - **Voice read, against the bound file.** Check the piece against the voice file's checkable traits and prohibitions; name each violated trait, never a vague "does not sound right".
-- **Craft read, for the writer showing through.** Throat-clearing openings, endings that restate, uniform sentence rhythm, empty intensifiers, structure more symmetrical than the thinking it carries: each is the writer intruding on the reader.
+- **Craft read, for the writer showing through.** Run the eight tells in `## Craft` above; that section is their single home and this read does not restate them.
 
-Severity runs: a wrong, unsourced, or de-hedged claim, then a Point-At failure, then structure that misleads or loses the reader, then a voice break, then cadence. In the feeder files a trait or an angle is a claim: untraced ranks as unsourced, uncheckable as a Point-At failure.
+Severity runs: a wrong, unsourced, or de-hedged claim, then a Point-At failure, then structure that misleads or loses the reader, then a voice break, then a craft finding, whichever of the eight tells it comes from. In the feeder files a trait or an angle is a claim: untraced ranks as unsourced, uncheckable as a Point-At failure.
 
 ## Rules
 
