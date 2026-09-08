@@ -50,12 +50,10 @@ Every local harness that speaks MCP over stdio takes the same three things: the 
 
 Claude Code:
 
-```bash
 If the project-key file is at the default path for this OS, omit `--env`. Otherwise pass `--env` with an absolute path.
 
 ```bash
 claude mcp add wiser-gateway -- node "/absolute/path/to/wiser/gateway/server.js" --harness claude-code
-```
 ```
 
 Any harness that reads an `mcpServers` JSON block:
