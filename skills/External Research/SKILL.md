@@ -3,7 +3,7 @@ name: External Research
 type: skill
 category: research
 description: Gather and credibility-tag sources on a question, surfacing contradictions, returning an evidence package to a calling expert or skill or a verified, confidence-rated brief to a user asking directly
-version: 0.2.4
+version: 0.2.5
 ---
 
 # External Research
@@ -48,8 +48,8 @@ Use TinyFish first. When an action is unavailable, record the returned stop and 
 
 For each query:
 
-1. **Search or fetch** through `tinyfish.web.search` and `tinyfish.web.fetch` via the gateway; read `connectors/tinyfish/CONNECTOR.md` and its `manifest.json` for the declared request shapes. Use Search to discover sources and Fetch for known URLs. Set `domain_type` from the angle: `web` for general sources, `news` for reporting, `research_paper` for academic evidence. Mixed questions use parallel typed queries where independent. Paper queries carry no recency filter or publication-year bounds. Search returns no date field; date screening waits until Tag. Pass only fields the manifest declares.
-2. **Select** up to five sources, fewer at Quick depth. Favor diversity of domain and source type over volume from one domain, and prefer a primary source to a higher-ranked aggregator of it rather than taking the top results by rank. Honor any domain preferences the request carried. Sources from `<source_material>` enter the pool here rather than through Search, and are read and tagged in the steps below like any other; the cap bounds what search adds, not what the caller supplied.
+1. **Search or fetch** through `tinyfish.web.search` and `tinyfish.web.fetch` via the gateway; read `connectors/tinyfish/CONNECTOR.md` and its `manifest.json` for the declared request shapes. Use Search to discover sources and Fetch for known URLs. Set `domain_type` from the angle: `web` for general sources, `news` for reporting, `research_paper` for academic evidence. Mixed questions use parallel typed queries where independent. Paper queries carry no recency filter or publication-year bounds. Search returns no date field; date screening waits until Tag. When the request named a domain, pass `include_domains` (declared). Pass only fields the manifest declares.
+2. **Select** up to five sources, fewer at Quick depth. Favor diversity of domain and source type over volume from one domain, and prefer a primary source to a higher-ranked aggregator of it rather than taking the top results by rank. Honor any domain preferences the request carried. If a Search hit's `url` is only an origin, no path or path `/`, and the title names a specific page, do not Fetch that origin as the titled page; prefer hits whose `url` path is specific. Never invent a path Search did not return. Sources from `<source_material>` enter the pool here rather than through Search, and are read and tagged in the steps below like any other; the cap bounds what search adds, not what the caller supplied.
 3. **Read and extract** through Fetch the content in each selected source that bears on the query; inspect successes and failures separately so a partial fetch never makes an unread source appear read. Each extracted claim carries the supporting excerpt, the passage on the fetched page the claim rests on, copied not paraphrased. Orchestrated mode returns that excerpt with the claim so the caller can verify; omitting it is a bug.
 4. **Tag** each source with the eight metadata fields below. A source behind a paywall or that will not resolve is recorded with its liveness and left unread; its content is never fabricated, per the evidence labels in `standards/conventions.md`.
 
@@ -68,7 +68,7 @@ Source metadata, structural throughout, read from observable signals and not fro
 
 For a paper, retain the same eight fields: its URL and title in `url` and `title`, authors extracted from the fetched page in `author`, venue extracted from the fetched page in `publication`, and publication year in `date` when no fuller date is available, preserving that precision. Assign `source_type` from the signals below, `liveness` from the read, and `provenance` from any cited original. Missing values remain null. If the fetched page states a citation count, carry it as extra `citation_count` metadata; do not infer one or treat it as independent corroboration.
 
-When the request named a date window, screen each source's `date` here, after it is tagged. A source whose date falls outside that window stays in the index as out-of-scope and is not used as support for a claim inside the window.
+When the request named a date window, screen each source's `date` here, after it is tagged. A source whose date falls outside that window stays in the index as out-of-scope and is not used as support for a claim inside the window. If that drops the usable set below the Select cap, take replacements from unused hits of the same Search, Fetch and Tag them the same way, and stop when the cap is met or those hits are exhausted. Do not run a new Search. If none remain, name the shortage as a gap.
 
 Source type, by the strongest observable signal:
 
@@ -187,7 +187,8 @@ Depth: <level>   Queries: <count>   Sources evaluated: <count>
 - **Counter-evidence forgotten.** It is a required step, not a refinement. A Standard or Deep output with no counter-evidence result or named unavailability is incomplete; deliver it and it reads as thorough while being an echo chamber.
 - **Aggregator copies read as agreement.** Three sources tracing to one wire report are one data point. Run the duplication check before any claim is presented as corroborated.
 - **Answering before gathering.** Drafting claims first and fitting sources to them inverts the skill. Gather and tag first; a claim without evidence is left unanswered, never filled from the model.
-- **Padding a thin lookup.** When credible sources are scarce, state the limitation. Standalone mode calibrates the claims it can support; orchestrated mode returns the shortage to the caller. Do not add a second gather wave or fill the brief with weak sources to look complete.
+- **Padding a thin lookup.** When credible sources are scarce, state the limitation. Standalone mode calibrates the claims it can support; orchestrated mode returns the shortage to the caller. Do not add a second gather wave or fill the brief with weak sources to look complete. Replacements from unused hits of the same Search, after a date window drops tagged sources, are not a second wave.
+- **Origin fetched as the titled page.** A Search hit whose `url` is only the site origin is not that title. Skip it or Fetch a hit with a specific path; never construct the path from the title.
 - **Fabricated content behind a wall.** A paywalled or dead source is tagged and left unread, and a dead URL is never presented as if it were live.
 - **Conflicting constraints.** When a request's constraints cannot all be met (only primary sources, yet ten sources, on a topic with two), execute as far as they allow and document what could not be fulfilled; never silently relax a constraint.
 
