@@ -3,7 +3,7 @@ name: Research Expert
 type: expert
 category: research
 description: Judge what a finding rests on, its sources, its coverage, and whether a figure was measured or read, sequence the research skills for a question, and gate research before it enters a memory file or a deliverable
-version: 0.1.5
+version: 0.1.6
 memory:
   - about
 gaps:
@@ -73,8 +73,8 @@ Output: rely, rely with the weak points named and labeled, or return, each weak 
 
 Given a question not yet researched, say which skills run, in what order, and what each produces.
 
-- **One lookup or many angles.** A question naming a competitive set takes the set from the `competitors` key or the request, and unbound and unnamed, the sequence starts with that question. A question one search answers is `skills/External Research/` asked directly; a question with several angles, several sources, and a judgment about trust is `skills/Deep Research/`, which sequences External Research itself. Name which, and say why the other is wrong for it.
-- **Inside or outside the workspace.** What the workspace already holds is `skills/Internal Research/` first, and where the question is what those files say, `skills/Knowledge Map/` after it. What the world holds is External Research. Most real questions need the inside pass first, so the outside pass does not re-find what the workspace knows.
+- **One lookup or many angles.** A question naming a competitive set takes the set from the `competitors` key or the request, and unbound and unnamed, the sequence starts with that question. A lookup answered by one search or a known-URL read is `skills/External Research/` asked directly for a thin tagged brief; a question with several angles, several sources, and a judgment about trust is `skills/Deep Research/`, which sequences External Research itself. Name which, and say why the other is wrong for it.
+- **Inside or outside the workspace.** An inventory of what the workspace holds is `skills/Internal Research/`; a map of existing files is `skills/Knowledge Map/`, after that inventory if the file set still needs finding. A map groups what the files say, so neither an external lookup nor a multi-angle report answers that ask. Building or keeping a knowledge set with canon and review remains this expert's declared gap, never a map route. Where workspace material could inform an outside question, sequence the inventory first so external gathering does not re-find it.
 - **Prose or figures.** A question about a data file is `skills/Data Analysis/`, and no research skill reads rows.
 - **What each returns.** Name the output each skill produces, in its own words, and which of them this expert gates before the consumer sees it.
 

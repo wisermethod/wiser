@@ -3,9 +3,7 @@ name: External Research
 type: skill
 category: research
 description: Gather and credibility-tag sources on a question, surfacing contradictions, returning an evidence package to a calling expert or skill or a verified, confidence-rated brief to a user asking directly
-version: 0.2.2
-gaps:
-  - a web search or fetch capability, without which the run proceeds over supplied sources alone and, with none, stops
+version: 0.2.3
 ---
 
 # External Research
@@ -14,7 +12,7 @@ gaps:
 
 Use when a question needs facts gathered and checked from the open web, or from sources the caller supplies in its place, and the value is in the sourcing and the credibility judgment as much as in the answer. Two callers invoke it: an expert or skill handing a structured request (explicit queries, a depth level, constraints), and a user asking a question in natural language. The input's shape selects the mode, so a caller never declares one.
 
-Not for a question the model can already answer from what it knows, which is answered directly. Not for opinion or creative work, where there are no facts to gather. Not for primary research, the interviews, surveys, and experiments no search can perform. Not for pulling data from one known site or endpoint, which is a different capability. When the host offers no web search or fetch capability, the run proceeds over supplied sources alone and degrades as Supplied sources only, below, sets out; with neither capability nor supplied sources, say so and stop.
+Not for opinion or creative work, where there are no facts to gather. Not for primary research, the interviews, surveys, and experiments no search can perform. A multi-angle question needing synthesis is `skills/Deep Research/`; a map of existing workspace files is `skills/Knowledge Map/`. A standalone lookup returns a thin tagged brief, with no multi-angle report, novel-angles section, or second-wave promotion. Known-URL reads belong here through Fetch.
 
 ## Objective
 
@@ -46,11 +44,13 @@ Both modes run the same Gather engine and the same Counter-Evidence step; they d
 
 ### Gather (both modes)
 
+Use TinyFish first. When an action is unavailable, record the returned stop and degrade that operation to the host's search/fetch, then to supplied sources only; with no readable sources, say what could not run and stop without an answer. A missing grant is `needs_connect`, not a plugin gap; follow the constitution's Behavioral Core for its next human turn. Do not retry a stopped action or connect an account inside this run. Name which route supplied the evidence and any search or fetch that remained unavailable.
+
 For each query:
 
-1. **Search** using whatever web search or fetch capability the host provides.
+1. **Search or fetch** through `tinyfish.web.search` and `tinyfish.web.fetch` via the gateway; read `connectors/tinyfish/CONNECTOR.md` and its `manifest.json` for the declared request shapes. Use Search to discover sources and Fetch for known URLs. Set `domain_type` from the angle: `web` for general sources, `news` for reporting, `research_paper` for academic evidence. Mixed questions use parallel typed queries where independent. Paper queries carry no recency filter or publication-year bounds; screen returned dates against the requested scope. Pass only fields the manifest declares.
 2. **Select** up to five sources, fewer at Quick depth. Favor diversity of domain and source type over volume from one domain, and prefer a primary source to a higher-ranked aggregator of it rather than taking the top results by rank. Honor any domain preferences the request carried. Sources from `<source_material>` enter the pool here rather than through Search, and are read and tagged in the steps below like any other; the cap bounds what search adds, not what the caller supplied.
-3. **Read and extract** the content in each selected source that bears on the query.
+3. **Read and extract** through Fetch the content in each selected source that bears on the query; inspect successes and failures separately so a partial fetch never makes an unread source appear read.
 4. **Tag** each source with the eight metadata fields below. A source behind a paywall or that will not resolve is recorded with its liveness and left unread; its content is never fabricated, per the evidence labels in `standards/conventions.md`.
 
 Source metadata, structural throughout, read from observable signals and not from domain expertise:
@@ -65,6 +65,8 @@ Source metadata, structural throughout, read from observable signals and not fro
 | `source_type` | structural classification, per the rules below |
 | `liveness` | one of `live`, `dead`, `redirect`, `paywall`, `unchecked` |
 | `provenance` | the original source URL an aggregator cites, else null |
+
+For a paper, retain the same eight fields: its URL and title in `url` and `title`, all returned authors in `author`, venue in `publication`, and publication year in `date` when no fuller date is available, preserving that precision. Assign `source_type` from the signals below, `liveness` from the read, and `provenance` from any cited original. Missing values remain null. If the vendor returns a citation count, carry it as extra `citation_count` metadata; do not infer one or treat it as independent corroboration.
 
 Source type, by the strongest observable signal:
 
@@ -93,7 +95,7 @@ Counter-evidence found is never suppressed. Record the disagreeing source with f
 
 ### Supplied sources only (both modes)
 
-When the host offers no web capability, `<source_material>` is the whole pool, the queries frame the reading rather than a search, and the run degrades in named ways. Nothing outside the supplied set enters, `provenance` is traced no further than the material itself states, `liveness` reads `unchecked` wherever nothing can fetch the source, and no counter-evidence query is possible. The counter-evidence section records this instead of standing empty, and no finding rises above Moderate, on the criterion that the counter-evidence search High requires did not run.
+When neither TinyFish nor the host can search or fetch, `<source_material>` is the whole pool, the queries frame the reading rather than a search, and the run degrades in named ways. Nothing outside the supplied set enters, `provenance` is traced no further than the material itself states, `liveness` reads `unchecked` wherever nothing can fetch the source, and no counter-evidence query is possible. The counter-evidence section records this instead of standing empty, and standalone confidence stays at or below Moderate, on the criterion that the counter-evidence search High requires did not run. Orchestrated mode records the missing search for the caller and assigns no confidence.
 
 ### Depth
 
@@ -118,10 +120,10 @@ The input carries explicit queries and a depth.
 
 The input is a natural-language question.
 
-1. **Scope.** If the question is specific and answerable as stated, proceed. If it is vague, ask for the outcome wanted, what is in and out of scope, and the depth (default Standard) before searching.
+1. **Scope.** Apply the Context routing boundary first. If the lookup is specific and answerable as stated, proceed. If it is vague, ask for the outcome wanted, what is in and out of scope, and the depth (default Standard) before searching.
 2. **Formulate** one to five queries from the scoped question, the count by depth, each specific and factual, none leading or opinion-seeking.
 3. **Gather**, then **seek counter-evidence** at the depth.
-4. **Synthesize.** Group claims by sub-question; for each, note which sources support it and where sources disagree.
+4. **State the answer** as source-backed claims tagged direct, paraphrase, or inference, keeping disagreeing claims paired. Do not interpret patterns across angles or rank competing positions.
 5. **Verify** at the depth (below).
 6. **Assign confidence** to each finding (below).
 7. **Assemble** the brief (Output, below), then the gate, then deliver.
@@ -165,28 +167,25 @@ Orchestrated mode returns an evidence package: per query, the sources with their
   <one row per source: number, url, type, date, liveness, provenance>
 ```
 
-Standalone mode returns a research brief: a short summary, findings each carrying an inline citation, a confidence level with its criterion, and a verification result; a contradictions-and-uncertainties section; the counter-evidence results; a source table; and scope notes.
+Standalone mode returns a thin research brief: the answer as tagged claims, each with an inline source, High / Moderate / Low confidence and its criterion, and the verification result (or why it did not run). Keep contradictions, counter-evidence results, and scope limits in compact evidence notes. Include the full source metadata without repeating it under each claim.
 
 ```markdown
-# Research Brief: <topic>
+# Research Brief: <question>
 Depth: <level>   Queries: <count>   Sources evaluated: <count>
-## Summary
-## Key Findings
-  <per finding: claim with inline citation; Confidence: level (criterion); Source: publication (type), url; Verification: result or, at Quick depth, skipped>
-## Contradictions and Uncertainties
-## Counter-Evidence Results
+<answer claims: direct / paraphrase / inference; inline citation; Confidence: level (criterion); Verification: result or not targeted at this depth>
+## Evidence Notes
+<paired contradictions or none; counter-evidence result or why skipped/unavailable; duplication flags; unanswered points and scope limits>
 ## Sources
-  <one row per source: number, url, type, author, date, liveness>
-## Scope Notes
+<per source: url, title, author, publication, date, source_type, liveness, provenance; citation_count only if returned>
 ```
 
 ## Pitfalls
 
 - **Vague standalone request.** Searching before the outcome is agreed wastes the whole run on the wrong question. Ask the scope questions in standalone step 1 first; never infer the scope from the topic. Material supplied with no ask fails the same way: ask what question it should answer before reading it.
-- **Counter-evidence forgotten.** It is a required step, not a refinement. A Standard or Deep output with no counter-evidence section is incomplete; deliver it and it reads as thorough while being an echo chamber.
+- **Counter-evidence forgotten.** It is a required step, not a refinement. A Standard or Deep output with no counter-evidence result or named unavailability is incomplete; deliver it and it reads as thorough while being an echo chamber.
 - **Aggregator copies read as agreement.** Three sources tracing to one wire report are one data point. Run the duplication check before any claim is presented as corroborated.
-- **Synthesizing before gathering.** Writing the narrative first and fitting sources to it inverts the skill. Gather and tag, then let the synthesis follow what the sources actually say, including where they disagree.
-- **Padding a thin landscape.** When fewer than three credible sources answer a core query, reformulate once; if it stays thin, state the limitation and downgrade confidence rather than filling the gap with low-quality sources to look complete. The thin landscape is itself a finding.
+- **Answering before gathering.** Drafting claims first and fitting sources to them inverts the skill. Gather and tag first; a claim without evidence is left unanswered, never filled from the model.
+- **Padding a thin lookup.** When credible sources are scarce, state the limitation. Standalone mode calibrates the claims it can support; orchestrated mode returns the shortage to the caller. Do not add a second gather wave or fill the brief with weak sources to look complete.
 - **Fabricated content behind a wall.** A paywalled or dead source is tagged and left unread, and a dead URL is never presented as if it were live.
 - **Conflicting constraints.** When a request's constraints cannot all be met (only primary sources, yet ten sources, on a topic with two), execute as far as they allow and document what could not be fulfilled; never silently relax a constraint.
 

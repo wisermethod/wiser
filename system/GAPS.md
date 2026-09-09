@@ -6,7 +6,7 @@ A gap is a capability this root does not provide that a primitive's own body nam
 
 **This file carries capability gaps only.** What the operator plans to build is a separate record and is not a user's business, so nothing about future work appears here. **A gap names the capability that is missing, never where that capability went.**
 
-Counted 2026-09-09: 28 gaps across 19 primitives. Bullet count: `/usr/bin/grep -E '^- ' wiser/system/GAPS.md | wc -l` returns 28. Verify each bullet against its primitive's frontmatter in both directions.
+Counted 2026-09-09: 27 gaps across 18 primitives. Bullet count: `/usr/bin/grep -E '^- ' wiser/system/GAPS.md | wc -l` returns 27. Verify each bullet against its primitive's frontmatter in both directions.
 
 ## Experts
 
@@ -51,10 +51,6 @@ Counted 2026-09-09: 28 gaps across 19 primitives. Bullet count: `/usr/bin/grep -
 
 - application screen assembly (dashboard, settings, admin panel)
 - brand mark and logo creation
-
-### External Research
-
-- a web search or fetch capability, without which the run proceeds over supplied sources alone and, with none, stops
 
 ### Funnel Design
 
