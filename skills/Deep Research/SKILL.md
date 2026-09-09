@@ -1,20 +1,20 @@
 ---
-name: Deep Researcher
+name: Deep Research
 type: skill
 category: research
-description: Run a research question end to end, decomposing it into angles, directing each to the research skill that gathers it, and interpreting what comes back into a report where every finding carries its sources, a calibrated confidence level, and the contradictions it did not resolve
-version: 0.7.3
+description: Run Deep Research on a question end to end, decomposing it into angles, directing each to the research skill that gathers it, and interpreting what comes back into a report where every finding carries its sources, a calibrated confidence level, and the contradictions it did not resolve
+version: 0.7.4
 memory:
   - about
 ---
 
-# Deep Researcher
+# Deep Research
 
 ## Context
 
 Use when a question needs several angles, several sources, and a judgment about how far to trust the answer: a competitive landscape, a market or technology survey, a best-practice review, a decision someone has to defend later. The value is in the synthesis, in what the evidence says across sources, how confident anyone should be in each finding, and where the sources disagree.
 
-Not for a lookup one search answers, which is `skills/External Research/` asked directly. Not for an inventory of what the workspace already holds, which is `skills/Internal Research/`. Not for statistics over one data file, which is `skills/Data Analysis/`, and not for organizing material already gathered, which is `skills/Knowledge Management/`. Not for primary research: no search conducts an interview, runs an experiment, or administers a survey. Not for opinion or creative work, where there are no sources to weigh. Not for domain-specific fact-checking in law, medicine, or scientific methodology, where a qualified reading outranks any calibration produced here; say so rather than grading such a claim. The output is a report and never a picture of one: a diagram of the findings is `skills/Visualizer/`.
+Not for a lookup one search answers, which is `skills/External Research/` asked directly. Not for an inventory of what the workspace already holds, which is `skills/Internal Research/`. Not for statistics over one data file, which is `skills/Data Analysis/`, and not for organizing material already gathered, which is `skills/Knowledge Map/`. Not for primary research: no search conducts an interview, runs an experiment, or administers a survey. Not for opinion or creative work, where there are no sources to weigh. Not for domain-specific fact-checking in law, medicine, or scientific methodology, where a qualified reading outranks any calibration produced here; say so rather than grading such a claim. The output is a report and never a picture of one: a diagram of the findings is `skills/Visualizer/`.
 
 There is no shallow tier. A request that wants speed more than depth is better served by `skills/External Research/` directly, and saying so is the right answer rather than running this skill quickly.
 
@@ -68,7 +68,7 @@ Then write the plan: the angles, the skill each angle is directed to, the depth 
 | What the workspace already holds on the topic | `skills/Internal Research/`, where the probe hit and the material would enrich or deduplicate |
 | A figure out of a CSV, JSON, or TSV file | `skills/Data Analysis/` |
 
-`skills/Knowledge Management/` is never directed to from here. It organizes findings that already exist, so it belongs to Phase 5 as a follow-up.
+`skills/Knowledge Map/` is never directed to from here. It organizes findings that already exist, so it belongs to Phase 5 as a follow-up.
 
 Exit: a plan naming at least one angle and at least one skill.
 
@@ -130,7 +130,7 @@ Run the Success criteria below as a gate. Anything that fails is fixed where it 
 
 Deliver in the response. Nothing is written to disk unless the caller asks for the report as a file, which goes to the owning root's work directory per `standards/conventions.md`.
 
-Then the follow-ups, offered rather than performed: the angles the research opened and did not close, and, where the findings are worth keeping, `skills/Knowledge Management/`. It maps files rather than a conversation, so it needs the report saved first, and it wants the report alongside the workspace material the research touched rather than by itself. Where the consumer is a primitive, the unclosed angles ride in the artifact's gaps instead, and the offer goes to whoever invoked the run.
+Then the follow-ups, offered rather than performed: the angles the research opened and did not close, and, where the findings are worth keeping, `skills/Knowledge Map/`. It maps files rather than a conversation, so it needs the report saved first, and it wants the report alongside the workspace material the research touched rather than by itself. Where the consumer is a primitive, the unclosed angles ride in the artifact's gaps instead, and the offer goes to whoever invoked the run.
 
 ## Reference
 

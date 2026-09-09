@@ -69,10 +69,10 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 
 | Skill | Description |
 |-------|-------------|
-| `Deep Researcher/SKILL.md` | Run a research question end to end, decomposing it into angles, directing each to the research skill that gathers it, and interpreting what comes back into a report where every finding carries its sources, a calibrated confidence level, and the contradictions it did not resolve |
+| `Deep Research/SKILL.md` | Run Deep Research on a question end to end, decomposing it into angles, directing each to the research skill that gathers it, and interpreting what comes back into a report where every finding carries its sources, a calibrated confidence level, and the contradictions it did not resolve |
 | `External Research/SKILL.md` | Gather and credibility-tag sources on a question, surfacing contradictions, returning an evidence package to a calling expert or skill or a verified, confidence-rated brief to a user asking directly |
 | `Internal Research/SKILL.md` | Scan the workspace for files on a topic and return a structural inventory of what exists, judging none of it |
-| `Knowledge Management/SKILL.md` | Analyze a workspace's existing files and produce a knowledge map that groups their ideas by topic, each traced to its source file and section |
+| `Knowledge Map/SKILL.md` | Analyze a workspace's existing files and produce a Knowledge Map that groups their ideas by topic, each traced to its source file and section |
 
 ### SEO
 

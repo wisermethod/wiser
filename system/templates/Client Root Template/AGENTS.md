@@ -49,7 +49,7 @@ A todo is not a place to put files. The list item lives here; the artifact it po
 
 A Skill is not a client-root object. Do not create `skills/` here. How a recurring piece of work gets done for this client is a Play or a Playbook, filed in the subject folder of the work it serves.
 
-**Skill** (lives in the Wiser root, invoked by name). A shared capability the chain routes to: Content Author, Onboard Root, Deep Researcher. Stateless. No Decision Log. No memory of where the last sitting stopped. Many roots reuse it. If every client would need the same thing, it is a Skill in the plugin, not a file in this root.
+**Skill** (lives in the Wiser root, invoked by name). A shared capability the chain routes to: Content Author, Onboard Root, Deep Research. Stateless. No Decision Log. No memory of where the last sitting stopped. Many roots reuse it. If every client would need the same thing, it is a Skill in the plugin, not a file in this root.
 
 **Play** (`<does-this-thing>.play.md` in the subject folder). A recipe for one repeatable outcome this client owns. One file is the whole prompt. Recurs with different inputs, one sitting, same quality. "How this client's monthly byline gets written" sits in `work/content/monthly-byline.play.md` next to the bylines it produces. You open the file; the chain does not index it.
 

@@ -1,18 +1,18 @@
 ---
-name: Knowledge Management
+name: Knowledge Map
 type: skill
 category: research
-description: Analyze a workspace's existing files and produce a knowledge map that groups their ideas by topic, each traced to its source file and section
-version: 0.2.1
+description: Analyze a workspace's existing files and produce a Knowledge Map that groups their ideas by topic, each traced to its source file and section
+version: 0.2.2
 ---
 
-# Knowledge Management
+# Knowledge Map
 
 ## Context
 
 Use to organize knowledge that already lives in a workspace: read the files, group their ideas by topic, and produce one knowledge-map document that summarizes what is there and cites where each idea sits. It works retroactively, on unorganized content, and needs no setup.
 
-Not for inventorying what files exist without summarizing them; that is Internal Research, which produces metadata rather than organized summaries. Not for research beyond the workspace's own files, for authoring or editing content, or for analyzing tabular data; those belong to the other research-family and authoring skills. Not for creating knowledge: this skill organizes and summarizes what the files already say and invents nothing.
+Not for inventorying what files exist without summarizing them; that is Internal Research, which produces metadata rather than organized summaries. Not for research beyond the workspace's own files, for authoring or editing content, or for analyzing tabular data; those belong to the other research-family and authoring skills. Not for creating knowledge: this skill organizes and summarizes what the files already say and invents nothing. A durable canon across sessions is the knowledge-set gap already named by `experts/Research Expert/`, not this skill.
 
 ## Objective
 

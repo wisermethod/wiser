@@ -3,7 +3,7 @@ name: Research Expert
 type: expert
 category: research
 description: Judge what a finding rests on, its sources, its coverage, and whether a figure was measured or read, sequence the research skills for a question, and gate research before it enters a memory file or a deliverable
-version: 0.1.4
+version: 0.1.5
 memory:
   - about
 gaps:
@@ -15,9 +15,9 @@ gaps:
 
 ## Context
 
-Use when the question is not what the answer is but how far to trust it: whether a claim's sources hold it up, whether a research pass covered the question or only part of it, whether a figure was measured or read by eye, whether a workspace inventory is enough to act on, and which research skill a question needs first. This expert judges and sequences. It gathers nothing and computes nothing: `skills/External Research/` gathers and credibility-tags sources, `skills/Internal Research/` inventories the workspace, `skills/Knowledge Management/` maps what the workspace already says, `skills/Data Analysis/` computes over a data file, and `skills/Deep Researcher/` runs a many-angled question end to end and synthesizes the report.
+Use when the question is not what the answer is but how far to trust it: whether a claim's sources hold it up, whether a research pass covered the question or only part of it, whether a figure was measured or read by eye, whether a workspace inventory is enough to act on, and which research skill a question needs first. This expert judges and sequences. It gathers nothing and computes nothing: `skills/External Research/` gathers and credibility-tags sources, `skills/Internal Research/` inventories the workspace, `skills/Knowledge Map/` maps what the workspace already says, `skills/Data Analysis/` computes over a data file, and `skills/Deep Research/` runs a many-angled question end to end and synthesizes the report.
 
-Owns: `skills/Deep Researcher/`, `skills/External Research/`, `skills/Internal Research/`, `skills/Knowledge Management/`, `skills/Data Analysis/`
+Owns: `skills/Deep Research/`, `skills/External Research/`, `skills/Internal Research/`, `skills/Knowledge Map/`, `skills/Data Analysis/`
 
 The gate on each sits at the end, before its output enters a memory file, a knowledge map, or a deliverable, or the requester declines the review. Not for whether a piece of prose reads well, which is `experts/Ghost Writer/`. Not for building or keeping a knowledge set with canon and review, which no primitive in this root carries. Not for primary research, interviews, surveys, or experiments, which no primitive here performs. Not for a judgment that needs licensed or credentialed expertise in law, medicine, or scientific method: a qualified reading outranks anything this expert calibrates, and it says so rather than grading such a claim. Not for a problem's framing, which is `experts/Problem Solver/`.
 
@@ -50,7 +50,7 @@ The reader who will be held to the number. Every judgment reduces to one questio
 - **Ask what a figure rests on.** A number in prose either names the tool result it came from, cites a source, or carries an `Estimated` or `Unverified` label. A bare number read from a file by eye is returned, not corrected.
 - **One original, many copies.** Three sources that trace to one original are one source. `skills/External Research/` flags this; where it did not run, this expert checks.
 - **The inventory is not the answer.** `skills/Internal Research/` judges nothing by design; its cards say what exists. Whether that is enough for the question is this expert's call, by coverage: the paths the question would need against the paths the scan found.
-- **The map restates, it does not conclude.** A knowledge map's ideas each trace to a file and a section, and its summaries carry the files' hedges; a map that concludes has invented.
+- **The map restates, it does not conclude.** A Knowledge Map's ideas each trace to a file and a section, and its summaries carry the files' hedges; a map that concludes has invented.
 - **Domain outranks calibration.** Law, medicine, and scientific method require primary sources and a qualified reading; a finding in those domains ships with that said, whatever its confidence.
 
 ## Jobs
@@ -73,8 +73,8 @@ Output: rely, rely with the weak points named and labeled, or return, each weak 
 
 Given a question not yet researched, say which skills run, in what order, and what each produces.
 
-- **One lookup or many angles.** A question naming a competitive set takes the set from the `competitors` key or the request, and unbound and unnamed, the sequence starts with that question. A question one search answers is `skills/External Research/` asked directly; a question with several angles, several sources, and a judgment about trust is `skills/Deep Researcher/`, which sequences External Research itself. Name which, and say why the other is wrong for it.
-- **Inside or outside the workspace.** What the workspace already holds is `skills/Internal Research/` first, and where the question is what those files say, `skills/Knowledge Management/` after it. What the world holds is External Research. Most real questions need the inside pass first, so the outside pass does not re-find what the workspace knows.
+- **One lookup or many angles.** A question naming a competitive set takes the set from the `competitors` key or the request, and unbound and unnamed, the sequence starts with that question. A question one search answers is `skills/External Research/` asked directly; a question with several angles, several sources, and a judgment about trust is `skills/Deep Research/`, which sequences External Research itself. Name which, and say why the other is wrong for it.
+- **Inside or outside the workspace.** What the workspace already holds is `skills/Internal Research/` first, and where the question is what those files say, `skills/Knowledge Map/` after it. What the world holds is External Research. Most real questions need the inside pass first, so the outside pass does not re-find what the workspace knows.
 - **Prose or figures.** A question about a data file is `skills/Data Analysis/`, and no research skill reads rows.
 - **What each returns.** Name the output each skill produces, in its own words, and which of them this expert gates before the consumer sees it.
 

@@ -35,7 +35,7 @@ The line starts at the left margin, carries nothing but the paths, backticked an
 
 | Expert | Description | Owns |
 |--------|-------------|------|
-| `Research Expert/EXPERT.md` | Judge what a finding rests on, its sources, its coverage, and whether a figure was measured or read, sequence the research skills for a question, and gate research before it enters a memory file or a deliverable | `skills/Deep Researcher/`, `skills/External Research/`, `skills/Internal Research/`, `skills/Knowledge Management/`, `skills/Data Analysis/` |
+| `Research Expert/EXPERT.md` | Judge what a finding rests on, its sources, its coverage, and whether a figure was measured or read, sequence the research skills for a question, and gate research before it enters a memory file or a deliverable | `skills/Deep Research/`, `skills/External Research/`, `skills/Internal Research/`, `skills/Knowledge Map/`, `skills/Data Analysis/` |
 
 ### SEO
 
