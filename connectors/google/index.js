@@ -34,4 +34,8 @@ export const modules = {
     list_events: catalogWith({ calendar_id: 'calendarId', time_min: 'timeMin', time_max: 'timeMax', max_results: 'maxResults', page_token: 'pageToken' }),
     get_event: catalogWith({ calendar_id: 'calendarId', event_id: 'eventId' }),
   },
+  'gmail': {
+    list_messages: viaCatalog,
+    get_message: viaCatalog,
+  },
 };

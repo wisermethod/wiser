@@ -13,6 +13,8 @@ const cases = [
   ['drive', 'get_file', 'write', { file_id: 'file-example' }, 'id'],
   ['calendar', 'list_events', 'write', { calendar_id: 'primary' }, 'items'],
   ['calendar', 'get_event', 'write', { calendar_id: 'primary', event_id: 'event-example' }, 'id'],
+  ['gmail', 'list_messages', 'read', { query: 'from:example@example.com' }, 'messages'],
+  ['gmail', 'get_message', 'read', { message_id: 'msg-example' }, 'id'],
 ];
 for (const [module, action, privilege, input, field] of cases) {
   test(`google.${module}.${action} reaches the fake catalog with its own grant`, async () => {
@@ -25,9 +27,17 @@ for (const [module, action, privilege, input, field] of cases) {
   });
 }
 
-test('Search Console does not unlock the other three Google modules', async () => {
+test('Search Console does not unlock the other Google modules', async () => {
   const { gw, store, fake } = await createTestGateway();
   await putActive(store, fake, { service: 'google', module: 'search-console', privilege: 'read' });
+  for (const action of ['google.analytics.list_account_summaries', 'google.drive.find_file', 'google.calendar.list_events', 'google.gmail.list_messages']) {
+    assert.equal((await gw.execute({ action, input: {} })).status, 'needs_connect');
+  }
+});
+
+test('Gmail does not unlock Drive, Calendar, or Analytics', async () => {
+  const { gw, store, fake } = await createTestGateway();
+  await putActive(store, fake, { service: 'google', module: 'gmail', privilege: 'read' });
   for (const action of ['google.analytics.list_account_summaries', 'google.drive.find_file', 'google.calendar.list_events']) {
     assert.equal((await gw.execute({ action, input: {} })).status, 'needs_connect');
   }

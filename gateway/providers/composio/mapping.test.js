@@ -22,13 +22,13 @@ test('all catalog actions have round-trip mappings and the module toolkit', asyn
   }
   assert.equal(toolkitFor('github'), toolkitFor('github', 'repos'));
   assert.equal(toolkitFor('google'), null);
-  assert.equal(toolkitsFor('google').length, 4);
+  assert.equal(toolkitsFor('google').length, 5);
   assert.deepEqual(toolkitsFor('google', 'unknown'), []);
 });
 
-test('search iterates the four Google toolkits and can restrict one module', async () => {
+test('search iterates the five Google toolkits and can restrict one module', async () => {
   const seen = [];
-  const ids = ['google.search-console.query', 'google.analytics.run_report', 'google.drive.find_file', 'google.calendar.list_events'];
+  const ids = ['google.search-console.query', 'google.analytics.run_report', 'google.drive.find_file', 'google.calendar.list_events', 'google.gmail.list_messages'];
   const request = async (path) => {
     seen.push(new URL(path, 'https://example.com').searchParams.get('toolkit_slug'));
     return { ok: true, data: { items: ids.map((id) => ({ slug: toSlug(id) })) } };

@@ -300,6 +300,87 @@
       },
       "unwrap_token": false,
       "fallback": "catalog"
+    },
+    "gmail": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "GMAIL",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "list_messages": {
+          "description": "List or search messages",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string"
+              },
+              "max_results": {
+                "type": "integer"
+              },
+              "page_token": {
+                "type": "string"
+              },
+              "label_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "include_payload": {
+                "type": "boolean"
+              },
+              "ids_only": {
+                "type": "boolean"
+              },
+              "verbose": {
+                "type": "boolean"
+              },
+              "include_spam_trash": {
+                "type": "boolean"
+              }
+            },
+            "required": []
+          }
+        },
+        "get_message": {
+          "description": "Read one message",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "message_id": {
+                "type": "string"
+              },
+              "format": {
+                "type": "string",
+                "enum": [
+                  "minimal",
+                  "metadata",
+                  "full",
+                  "raw"
+                ]
+              }
+            },
+            "required": [
+              "message_id"
+            ]
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
     }
   }
 }
