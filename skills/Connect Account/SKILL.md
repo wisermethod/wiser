@@ -3,14 +3,14 @@ name: Connect Account
 type: skill
 category: system
 description: Connect one service module in its own human turn through start_connect then connect_status, never taking a key in the conversation
-version: 0.1.0
+version: 0.1.1
 ---
 
 # Connect Account
 
 ## Context
 
-Use when a person needs to grant one service module so its actions can run. This is its own human turn, never a side effect of other work. Planning or writing a connector belongs to Connector Advisor or Connector Author; naming the next stop on a status belongs to Connection Troubleshooter. This skill executes no action. IT Expert does not own it, and System Expert Job 2 decides plugin placement, not grants.
+Use when a person needs to grant one service module so its actions can run. This is its own human turn, never a side effect of other work. Planning or writing a connector belongs to Connector Advisor or Connector Author; naming the next stop on a status belongs to Connection Troubleshooter. Missing gateway tools or `needs_provider` belong to Set Up Connectors as the next human turn, not a vendor connect. This skill executes no action. IT Expert does not own it, and System Expert Job 2 decides plugin placement, not grants.
 
 Connector Advisor owns this skill with no expert gate after it. The person approving at the vendor or writing the local file is the gate; Connector Advisor does not review a connect after the fact.
 
@@ -28,13 +28,13 @@ A steward of the human grant who prefers a hosted grant the person can use acros
 
 ## Steps
 
-1. Load `gateway/SETUP.md` (connect is step 4; `needs_provider` is step 3), `connectors/AGENTS.md`, the owning root's instruction chain, and the named connector's `auth.md`. If the service, module, or owning root is ambiguous or missing, ask. Missing `auth.md`: stop and ask. Grants are per module: two modules on one service require two turns, never one grant.
-2. Call `list_connections`. If it already shows `ACTIVE` for the service and module, say so and stop unless the person explicitly asked to rotate. This skill does not revoke or live-delete. Never reconnect an existing grant to make a later execute pass.
+1. If gateway tools are missing, stop and name Set Up Connectors as the next human turn. Otherwise load `gateway/SETUP.md` (step 4 is the named-service connect recipe), `connectors/AGENTS.md`, the owning root's instruction chain, and the named connector's `auth.md`. If the service, module, or owning root is ambiguous or missing, ask. Missing `auth.md`: stop and ask. Grants are per module: two modules on one service require two turns, never one grant.
+2. Call `list_connections` with `{}`. If it returns `needs_provider`, stop and name Set Up Connectors as the next human turn. If it returns another `status` field, use Connection Troubleshooter. If `connections` already shows `ACTIVE` for the service and module, say so and stop unless the person explicitly asked to rotate. This skill does not revoke or live-delete. Never reconnect an existing grant to make a later execute pass.
 3. Before `start_connect`, cite `auth.md` and state what the person will be asked to do and where it goes. Walk the applicable vendor side: OAuth approval, organisation application approval, a hosted API-key field, or local-file variables. A hosted page collects a key into the gateway's provider; when the toolkit supplies a header prefix, the person enters only the key. For local-file, name the bound path and variable names the person writes themselves, via `--secret` or Provides, never `memory/secrets/`. An unbound path is a stop to ask for the binding. Vendor keys never go in `auth-provider.env`. A key typed into chat has leaked to the model's provider: stop and have the person rotate it as Inputs requires.
 4. Call the gateway tool `start_connect` with `{ service, module }` and handle its result:
    - `{ status: "link", url, next: "connectStatus" }`: hand the person the URL. They open it in their own browser. Wait; do not open it for them in an agent loop.
    - `{ status: "file", path, variables, next: "connectStatus" }`: name the returned path and variable names, never values. The person writes the file.
-   - `needs_provider`: show the setup text and stop. This is SETUP step 3, not a connect.
+   - `needs_provider`: stop and name Set Up Connectors as the next human turn. This is not a connect; never ask for a key in chat.
    - `needs_connector`: name the missing module and stop. Do not invent a connector.
    - `denied`: name the rule and stop. Do not work around policy.
    - `vendor_error`: report `http_status` and `endpoint` only, never the body. Route a stuck case to Connection Troubleshooter.

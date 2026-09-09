@@ -3,7 +3,7 @@ name: Connection Troubleshooter
 type: skill
 category: system
 description: Name one next step for a gateway status object or audit line covering needs_provider, needs_connect, expired, denied, needs_connector, and vendor_error
-version: 0.1.1
+version: 0.1.2
 ---
 
 # Connection Troubleshooter
@@ -36,7 +36,7 @@ A reader of gateway stops who returns the smallest supported next step and never
 
 | Arrives as | Means | One next step |
 |---|---|---|
-| `needs_provider` | No provider project key, or an empty file | Person follows the returned setup text, gateway SETUP step 3. Not Connect Account yet |
+| `needs_provider` | No provider project key, or an empty file | Set Up Connectors in the next human turn, not Connect Account |
 | `needs_connect` | Record absent, failed, inactive, or expired | Connect Account for that service and module, in its own turn |
 | `expired` | Grant expired | Connect Account for that service and module, in its own turn. The gateway does not emit top-level `expired`. `connect_status` returns `needs_connect` with `provider_status: EXPIRED` and may store that on the connection record. A `list_connections` row can then show `status: EXPIRED`. An audit line for the same call is `needs_connect` |
 | `denied` | Policy forbids this role, harness, or privilege | Name the rule: use a different role only where policy permits, or leave it denied. Do not work around policy or change the role yourself |
@@ -45,7 +45,7 @@ A reader of gateway stops who returns the smallest supported next step and never
 
 ## Pitfalls
 
-- Ambiguous or missing status, required service/module, or diagnostic fields: ask only for the missing non-secret fields from the sanitized status response and stop. An audit-only `denied` needs the rule; an audit-only `vendor_error` needs `http_status` and `endpoint`. Do not infer these from audit `path`, widen the audit schema, or request a body, header, or token. For `needs_provider` without setup text, point to `gateway/SETUP.md` step 3. An unknown status is not one of the six; report it without inventing a route.
+- Ambiguous or missing status, required service/module, or diagnostic fields: ask only for the missing non-secret fields from the sanitized status response and stop. An audit-only `denied` needs the rule; an audit-only `vendor_error` needs `http_status` and `endpoint`. Do not infer these from audit `path`, widen the audit schema, or request a body, header, or token. For `needs_provider` without setup text, point to Set Up Connectors. An unknown status is not one of the six; report it without inventing a route.
 - `needs_confirmation` is outside the declared six-status yield: name the caller's next step, show the summary and re-call `execute` with `confirm: true` after the person says yes. This diagnostic turn does not execute it.
 - `needs_provider_capability`: the connector or provider is wrong; report it.
 - `invalid_arguments`: a bad tool call; nothing ran. Name the call correction as the next step.

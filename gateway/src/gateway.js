@@ -50,7 +50,7 @@ const TOOLS = [
   },
   {
     name: 'list_connections',
-    description: 'List connection records. Metadata only; never tokens.',
+    description: 'Check project-key configuration, then list connection records. Returns needs_provider when unconfigured. Metadata only; never tokens.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   },
@@ -258,6 +258,7 @@ export class ConnectionGateway {
   }
 
   listConnections() {
+    if (this.needsProviderCredential()) return this.needsProviderResult();
     const connections = this.store.listConnections();
     return { connections };
   }

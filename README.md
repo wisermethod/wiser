@@ -6,7 +6,7 @@ It carries no dependency on any single agent host: everything in it is instructi
 
 ## What is in it
 
-**32 skills** that produce something you asked for by name: writing a post, an essay, a press release, a speech; researching a question; designing a page, a palette, a type system, or a whole design system; analyzing a spreadsheet; building a funnel or a proposal; setting up a new working folder; authoring a connector from an approved plan; connecting an account; naming the next step when a grant fails.
+**33 skills** that produce something you asked for by name: writing a post, an essay, a press release, a speech; researching a question; designing a page, a palette, a type system, or a whole design system; analyzing a spreadsheet; building a funnel or a proposal; setting up a new working folder; authoring a connector from an approved plan; setting up connectors on a new machine (attach and project key); connecting an account; naming the next step when a grant fails.
 
 **10 experts** that judge work through a perspective rather than producing it, and each owns the skills it gates: a review gate before writing ships, a marketing strategist, a conversion and an SEO advisor, a creative director who directs design before it is made and judges it after, a research expert who judges what a finding rests on, an IT expert for a DNS or hosting change, a system expert for changes to the plugin and to a root, a connector advisor for how a new connector is built, and a first-principles problem solver. Every skill is owned by one of them, and `experts/AGENTS.md` is the routing table that says which.
 
@@ -22,7 +22,7 @@ Install the plugin, then attach a **working folder**: the root the work is about
 
 The plugin is **read-only in use, with one exception**. Everything it produces lands in the working folder you attached, in the directories that folder declares. **The exception is what a tool installs for itself.** A tool that needs packages installs them into its own directory after the first `--install` in this copy, and a browser tool also downloads a Chromium build, which lands outside this plugin unless `PLAYWRIGHT_BROWSERS_PATH=0` puts it inside. So the plugin directory has to be writable, and a tool that carries dependencies cannot work from a read-only install. **`tools/AGENTS.md` has the full list**: what gets written, where, and which of the thirteen tools it applies to.
 
-`AGENTS.md` is the constitution and the place to start reading; `GLOSSARY.md` defines the words it uses. `skills/AGENTS.md`, `experts/AGENTS.md`, `tools/AGENTS.md` and `connectors/AGENTS.md` index what is available. `gateway/SETUP.md` is how a person attaches the gateway.
+`AGENTS.md` is the constitution and the place to start reading; `GLOSSARY.md` defines the words it uses. `skills/AGENTS.md`, `experts/AGENTS.md`, `tools/AGENTS.md` and `connectors/AGENTS.md` index what is available. The named ask **set up connectors** attaches the gateway to a new harness or machine and confirms the project key; `gateway/SETUP.md` is the recipe that skill prints from.
 
 ## What each host gives up
 

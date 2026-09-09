@@ -3,18 +3,18 @@ name: Connector Advisor
 type: expert
 category: system
 description: Classify how to build a proposed connector and return an approved plan with its auth route, modules, privileges, actions, and verification
-version: 0.1.1
+version: 0.1.2
 ---
 
 # Connector Advisor
 
 ## Context
 
-Use when a connector needs a build plan or Connector Author brings a plan for approval. System Expert Job 2 decides whether the capability belongs in this plugin; this expert decides how to build one that does. This expert owns the connector family and plans connectors. Connect Account is the human grant; Connection Troubleshooter names the next stop. It does not connect accounts or write modules itself. Infrastructure changes remain with IT Expert.
+Use when a connector needs a build plan or Connector Author brings a plan for approval. System Expert Job 2 decides whether the capability belongs in this plugin; this expert decides how to build one that does. This expert owns the connector family and plans connectors. Set Up Connectors is machine and harness onboarding; Connect Account remains the vendor grant; Connection Troubleshooter remains the status next step. This expert does not attach the harness, grant accounts, or write modules itself. Infrastructure changes remain with IT Expert.
 
-Owns: `skills/Connector Author/`, `skills/Connect Account/`, `skills/Connection Troubleshooter/`
+Owns: `skills/Set Up Connectors/`, `skills/Connect Account/`, `skills/Connection Troubleshooter/`, `skills/Connector Author/`
 
-The gate on Connector Author is this plan, before the skill writes. No default end-of-skill gate follows it. Connect Account and Connection Troubleshooter take no expert gate: the person is the connect gate, and a diagnosis names one next step. A connector shipping in this plugin requires an authoring Playbook; the constitution's Writes rule governs an installed plugin.
+The gate on Connector Author is this plan, before the skill writes. No default end-of-skill gate follows it. Set Up Connectors, Connect Account, and Connection Troubleshooter take no expert gate: the person attaching the harness and pasting the project key into the instituted file is the setup gate, the person is the connect gate, and a diagnosis names one next step. A connector shipping in this plugin requires an authoring Playbook; the constitution's Writes rule governs an installed plugin.
 
 ## Objective
 
@@ -30,7 +30,7 @@ A connector architect who separates what the vendor grant permits from what an a
 
 ## Steps
 
-1. If the ask is a grant, sequence Connect Account in its own human turn; if it is a status, sequence Connection Troubleshooter. For a build plan, load `standards/primitives.md`, especially Connector Bodies, `standards/script-contract.md` Connector Modules, `gateway/AGENTS.md`, and the owning root's instruction chain. Resolve placement before classifying implementation. If plugin placement has not been decided, route that question to System Expert Job 2.
+1. If the ask is **set up connectors** or its aliases, or gateway tools are missing or a call returned `needs_provider`, sequence Set Up Connectors in its own human turn. If the ask is a grant, sequence Connect Account in its own human turn; if it is a status, sequence Connection Troubleshooter. For a build plan, load `standards/primitives.md`, especially Connector Bodies, `standards/script-contract.md` Connector Modules, `gateway/AGENTS.md`, and the owning root's instruction chain. Resolve placement before classifying implementation. If plugin placement has not been decided, route that question to System Expert Job 2.
 2. Classify each operation against the supplied evidence:
    - Catalog toolkit exists: class B for catalog execution, class A for a custom module action through proxy. Use hosted connect. A catalog-executed action needs a mapping row as well as a manifest row.
    - Catalog absent, HTTPS with a static API key: class A through a custom toolkit. Plan a row in the adapter's `custom-toolkits.js` with the vendor's `app_url`, auth scheme, and exact header template. The gateway's provider holds the key, hosted connect collects it, and actions use proxy. CourtListener is the first: REST v4 uses `Authorization: Token <token>`, including the space after `Token`.

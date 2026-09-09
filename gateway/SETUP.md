@@ -1,6 +1,6 @@
 # Gateway Setup
 
-Attaching the connection gateway to a harness, and what to do when it says it needs something.
+The user-facing named ask is **set up connectors**. `skills/Set Up Connectors/` attaches the gateway to a harness and confirms the project key on this machine; this file is the recipe that skill prints from.
 
 The gateway is one local process. A harness starts it over stdio, it loads the connectors this plugin ships, and every account it reaches is yours, connected by you, in your own browser, through an authentication provider that holds the grant so this machine does not. Nothing here installs: the gateway has no dependencies and starts on a fresh clone.
 
@@ -110,7 +110,7 @@ Every answer is one JSON object. A `status` field on it means the work did not r
 
 | Status | Meaning | Next step |
 |--------|---------|-----------|
-| `needs_provider` | No credential file was given, or it is empty | Step 3 |
+| `needs_provider` | No credential file was given, or it is empty | Set Up Connectors; step 3 supplies the file recipe |
 | `needs_connect` | This service and module is not connected, or its grant expired | Step 4 |
 | `needs_confirmation` | The action is destructive or writes for the first time | Read the summary; say yes or no |
 | `denied` | The policy for this role forbids it | Use a different role, or leave it denied |
