@@ -20,7 +20,7 @@ Use a Google account allowed to access the relevant sites, analytics properties,
 - `drive`: separate connect, write privilege; Last connected: 2026-09-08.
 - `calendar`: separate connect, write privilege; Last connected: 2026-09-08.
 - `gmail`: separate connect, read privilege; Last connected: 2026-09-09.
-- `sheets`: separate connect, read privilege; Last connected: Not yet.
+- `sheets`: separate connect, read privilege; Last connected: 2026-09-09.
 - `docs`: separate connect, read privilege; Last connected: Not yet.
 - `slides`: separate connect, read privilege; Last connected: Not yet.
 
@@ -34,6 +34,6 @@ Revoke each module through the gateway, then revoke the OAuth application in the
 
 ## Last connected
 
-2026-09-09, `gmail` ACTIVE. Hosted OAuth; live envelope UNVERIFIED.
+2026-09-09, `gmail` and `sheets` ACTIVE. Hosted OAuth; live envelopes UNVERIFIED.
 
 2026-09-08, `search-console`, `analytics`, `drive`, and `calendar`, Grok session via the current gateway tree. Search Console: `sites` `{ siteEntry }`; `sitemaps` `{ sitemap }`; `query` `{ responseAggregationType }` with no `rows` for the window used. Analytics: `list_account_summaries` `{ accountSummaries }` with nested `propertySummaries`; `get_property` name, displayName, propertyType, timeZone, currencyCode; `run_report` rows, rowCount, dimensionHeaders, metricHeaders, metadata, kind. Drive: `find_file` `{ files, nextPageToken, incompleteSearch, kind }`; items include id, name, mimeType, webViewLink, display_url. `get_file` `{ display_url, id, kind, link_label, mimeType, name }`. Calendar: `list_events` `{ items, nextPageToken, kind, accessRole, timeZone }`; items include id, status, start, end, htmlLink, display_url. `get_event` `{ id, status, start, end, htmlLink, display_url, kind }`. No account, property, site, file, calendar, or event names are recorded here.
