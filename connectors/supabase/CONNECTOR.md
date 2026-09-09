@@ -12,7 +12,7 @@ Lists projects and reads one project.
 
 ## Status
 
-Shipped unconnected. Verification is fake-provider only, with invented results. Catalog contract from the approved plan dated 2026-09-09; live envelope UNVERIFIED. See `auth.md` for the separate human connect.
+Shipped 2026-09-09. Live connect 2026-09-09: `projects` ACTIVE, envelope UNVERIFIED. Verification otherwise fake-provider only. Catalog contract from the approved plan dated 2026-09-09. See `auth.md` for the separate human connect.
 
 ## Reaching it
 
