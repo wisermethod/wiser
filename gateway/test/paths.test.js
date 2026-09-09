@@ -9,6 +9,8 @@ import {
   defaultProviderEnvPath,
   defaultGatewayHome,
   ensureProviderEnvFile,
+  readProviderUserId,
+  writeProviderUserIdIfEmpty,
 } from '../src/paths.js';
 
 test('windows uses APPDATA', () => {
@@ -59,12 +61,25 @@ test('default env directory is not inside default --home, and --home is not insi
   assert.equal(config.startsWith(`${state}/`) || config === state, false);
 });
 
-test('ensureProviderEnvFile creates an empty KEY= template and does not overwrite', () => {
+test('ensureProviderEnvFile creates an empty KEY= and USER_ID= template and does not overwrite the key', () => {
   const home = mkdtempSync(join(tmpdir(), 'wiser-cfg-'));
   const file = ensureProviderEnvFile('darwin', {}, home);
   assert.equal(file, defaultProviderEnvPath('darwin', {}, home));
-  assert.equal(readFileSync(file, 'utf8'), 'WISER_AUTH_PROVIDER_KEY=\n');
+  assert.equal(readFileSync(file, 'utf8'), 'WISER_AUTH_PROVIDER_KEY=\nWISER_USER_ID=\n');
   writeFileSync(file, 'WISER_AUTH_PROVIDER_KEY=already\n');
   ensureProviderEnvFile('darwin', {}, home);
-  assert.equal(readFileSync(file, 'utf8'), 'WISER_AUTH_PROVIDER_KEY=already\n');
+  assert.equal(readFileSync(file, 'utf8'), 'WISER_AUTH_PROVIDER_KEY=already\nWISER_USER_ID=\n');
+});
+
+test('writeProviderUserIdIfEmpty fills an empty USER_ID line and never changes the key', () => {
+  const home = mkdtempSync(join(tmpdir(), 'wiser-cfg-'));
+  const file = ensureProviderEnvFile('darwin', {}, home);
+  writeFileSync(file, 'WISER_AUTH_PROVIDER_KEY=already\nWISER_USER_ID=\n');
+  const id = 'wiser-01234567-89ab-cdef-0123-456789abcdef';
+  assert.equal(writeProviderUserIdIfEmpty(file, id), true);
+  const text = readFileSync(file, 'utf8');
+  assert.match(text, /^WISER_AUTH_PROVIDER_KEY=already$/m);
+  assert.equal(readProviderUserId(file), id);
+  assert.equal(writeProviderUserIdIfEmpty(file, 'wiser-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'), false);
+  assert.equal(readProviderUserId(file), id);
 });

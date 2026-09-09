@@ -90,11 +90,14 @@ The file sits outside every composed root and outside `--home`. When `--env` is 
 
 Those paths come from the current user profile. They are never a name baked into this plugin. Do not put the file in a root, including `memory/secrets/`. Account access is the gateway. A local-file connector key, if a root has one, is `--secret` or a Provides path, not this file.
 
-The file holds one line:
+The file holds two lines:
 
 ```
 WISER_AUTH_PROVIDER_KEY=
+WISER_USER_ID=
 ```
+
+Paste the project key after the first equals. `WISER_USER_ID` is this person's id at the provider, the same on every machine. If that line is empty, the gateway writes a generated id into it on first use and never changes a key or an id that is already set. Copy this file to a new machine; do not copy `~/.wiser/gateway/`.
 
 Which provider, how to get an account, how to make that project key, and how to add a toolkit blueprint (an auth config) in the provider's dashboard are the provider's own business: read `gateway/providers/<provider>/SETUP.md` for the one `gateway/providers/default.json` names. An auth config is a blueprint, not a grant. Connecting the account is still step 4. A gateway started with an empty file still starts, and every action that needs the provider answers `needs_provider` with that same walkthrough, so a harness that shows you the gateway's answer shows you the next step.
 

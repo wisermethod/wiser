@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { buildContext } from './context.js';
 import { STATUS, StatusSignal, isStatusObject, sanitizeError, statusObject, vendorErrorFrom } from './errors.js';
 import { evaluate } from './policy.js';
+import { readProviderUserId, writeProviderUserIdIfEmpty } from './paths.js';
 import { parseActionId, resolveAction } from './resolve.js';
 
 const TOOLS = [
@@ -154,8 +155,30 @@ export class ConnectionGateway {
       ? Boolean(opts.authConfigured)
       : (typeof this.authProvider?.isConfigured === 'function' ? this.authProvider.isConfigured() : Boolean(this.authProvider));
     this.connectors = Array.isArray(opts.connectors) ? opts.connectors : [];
+    this.envPath = opts.envPath || null;
     /** @type {Set<string>} */
     this.confirmedOnce = new Set();
+  }
+
+  /**
+   * Identity the provider sees. Env `WISER_USER_ID` wins; otherwise the store;
+   * a newly generated id is written into an empty env line and never overwrites
+   * a key or a user id that is already set.
+   * @returns {string}
+   */
+  resolveUserId() {
+    const fromEnv = readProviderUserId(this.envPath);
+    if (fromEnv) {
+      const doc = this.store.read();
+      if (doc.userId !== fromEnv) {
+        doc.userId = fromEnv;
+        this.store.write(doc);
+      }
+      return fromEnv;
+    }
+    const fromStore = this.store.getUserId();
+    writeProviderUserIdIfEmpty(this.envPath, fromStore);
+    return fromStore;
   }
 
   listTools() {
@@ -411,7 +434,7 @@ export class ConnectionGateway {
       if (resolved.path === 'catalog') {
         const result = await this.catalogProvider.execute({
           actionId: action,
-          userId: this.store.getUserId(),
+          userId: this.resolveUserId(),
           providerAccountId: record.provider_account_id,
           arguments: input ?? {},
         });
@@ -452,7 +475,7 @@ export class ConnectionGateway {
         ctx.catalog = async (actionId, catalogInput) => {
           const res = await this.catalogProvider.execute({
             actionId,
-            userId: this.store.getUserId(),
+            userId: this.resolveUserId(),
             providerAccountId: record.provider_account_id,
             arguments: catalogInput ?? input ?? {},
           });
@@ -503,7 +526,7 @@ export class ConnectionGateway {
       }
 
       const initiated = await provider.initiate({
-        userId: this.store.getUserId(),
+        userId: this.resolveUserId(),
         service,
         module,
         toolkit: found.auth.toolkit,

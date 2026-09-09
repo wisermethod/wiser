@@ -327,6 +327,7 @@ async function main() {
     localFileProvider,
     authConfigured,
     connectors,
+    envPath: flags.env,
   });
 
   runStdio({ gateway, version: VERSION });
