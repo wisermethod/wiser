@@ -15,7 +15,7 @@ Redistribute it, sell it, or offer it as a service. An organization that wants t
 
 Two different things, kept apart on purpose.
 
-**Work this repository carries.** Some files here incorporate third-party work, adapted or in part. Where one does, a `NOTICE.md` sits beside that file naming the upstream, its author, and its license, and a copy of that license ships in `licenses/`. Those upstream terms govern their own portions; this license governs everything else, and governs the work as a whole to the extent the upstream terms allow. **Nothing in this license narrows a right an upstream license grants you in its own material.**
+**Work this repository carries.** Some files here incorporate third-party work, adapted or in part. Where one does, a `NOTICE.md` sits beside that file naming the upstream, its author, and its license, and a copy of that license ships in `licenses/`. Those upstream terms govern their own portions; this license governs everything else, and governs the work as a whole to the extent the upstream terms allow. **Nothing in this license narrows a right an upstream license grants you in its own material.** One expert, `experts/Creative Director/`, adapts Apache-2.0 material; attribution is in `experts/Creative Director/NOTICE.md`, and a copy of the Apache License 2.0 is at `licenses/Apache-2.0.txt`.
 
 **Packages a tool installs on your machine.** Those are yours under their own licenses. This repository redistributes none of them, and each tool names what it will install.
 
