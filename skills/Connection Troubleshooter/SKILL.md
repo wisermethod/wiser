@@ -3,7 +3,7 @@ name: Connection Troubleshooter
 type: skill
 category: system
 description: Name one next step for a gateway status object or audit line covering needs_provider, needs_connect, expired, denied, needs_connector, and vendor_error
-version: 0.1.2
+version: 0.1.3
 ---
 
 # Connection Troubleshooter
@@ -51,7 +51,7 @@ A reader of gateway stops who returns the smallest supported next step and never
 - `invalid_arguments`: a bad tool call; nothing ran. Name the call correction as the next step.
 - `INITIATED`: wait for the person, then `connect_status`; do not poll.
 - `connected`: already done; no further step.
-- An execute `vendor_error` while `list_connections` still shows `ACTIVE`: the local record is not yet expired. Report the vendor_error. `connect_status` is what updates the record; do not invent `expired` from the execute result.
+- An execute `vendor_error` while `list_connections` still shows `ACTIVE` is a transport failure or a grant that is still ACTIVE: report the vendor_error. An auth-class catalog or proxy refusal (`http_status` 401 or 403) refreshes provider status during execute; if the grant is no longer ACTIVE the result is `needs_connect` with `provider_status` and the record is updated. A status-transport failure leaves the row ACTIVE and stays `vendor_error`. Do not invent `expired` from a transport `vendor_error`.
 
 ## Success
 

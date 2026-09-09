@@ -484,65 +484,125 @@ export class ConnectionGateway {
         this.confirmedOnce.add(onceKey);
       }
 
-      if (resolved.path === 'catalog') {
-        const result = await this.catalogProvider.execute({
-          actionId: action,
-          userId: this.resolveUserId(),
-          providerAccountId: record.provider_account_id,
-          arguments: input ?? {},
-        });
-        if (result && result.error && result.error.code === 'vendor_error') {
-          return vendorErrorFrom(result);
-        }
-        return result;
-      }
-
-      let unwrap = null;
-      if (resolved.unwrapToken) {
-        const provider = this.providerFor(resolved.auth);
-        if (provider && typeof provider.unwrap === 'function') {
-          unwrap = await provider.unwrap({
-            providerAccountId: record.provider_account_id,
-            service: parsed.service,
-            file: resolved.auth.file,
-            variables: resolved.auth.variables,
-            header: resolved.auth.header,
-            prefix: resolved.auth.prefix,
-          });
-        }
-      }
-
-      const ctx = buildContext({
+      const provider = this.providerFor(authForRun);
+      const statusArgs = {
+        providerAccountId: record.provider_account_id ?? null,
         service: parsed.service,
-        module: parsed.module,
-        action: parsed.action,
-        input: input ?? {},
-        confirm: Boolean(confirm),
-        record,
-        auth: resolved.auth,
-        authProvider: this.providerFor(resolved.auth),
-        catalogProvider: this.catalogProvider,
-        unwrap,
-      });
-      if (this.catalogProvider && typeof this.catalogProvider.execute === 'function') {
-        ctx.catalog = async (actionId, catalogInput) => {
-          const res = await this.catalogProvider.execute({
-            actionId,
+        file: authForRun?.file,
+        variables: authForRun?.variables,
+      };
+      const stopGrant = (providerStatus) => {
+        this.store.putConnection({ ...record, status: providerStatus });
+        return statusObject(STATUS.NEEDS_CONNECT, {
+          service: parsed.service,
+          module: parsed.module,
+          privilege: privilege ?? null,
+          provider_status: providerStatus,
+        });
+      };
+      // Refresh hosted grants only after an auth-class refusal. Provider outages
+      // and unmapped statuses preserve both the original error and the ACTIVE row.
+      const classifyExecuteResult = async (result) => {
+        if (!isStatusObject(result) && result?.error?.code === 'vendor_error') result = vendorErrorFrom(result);
+        if (authForRun?.provider === 'local-file' || result?.status !== STATUS.VENDOR_ERROR ||
+            ![401, 403].includes(result.http_status) || typeof provider?.status !== 'function') {
+          return result;
+        }
+        let raw;
+        try {
+          raw = await provider.status(statusArgs);
+        } catch {
+          return result;
+        }
+        if (raw && typeof raw === 'object' && raw.error) return result;
+        const mapped = typeof raw === 'string' ? raw : raw?.status;
+        if (['EXPIRED', 'FAILED', 'INACTIVE', 'INITIATED'].includes(mapped)) return stopGrant(mapped);
+        return result;
+      };
+
+      if (authForRun?.provider === 'local-file' && typeof provider?.status === 'function') {
+        let raw;
+        try {
+          raw = await provider.status(statusArgs);
+        } catch {
+          // A thrown local-file status is an unreadable grant file, not a hosted
+          // outage. Mark the row inactive rather than leaking an MCP tool error.
+          return stopGrant('INACTIVE');
+        }
+        if (raw && typeof raw === 'object' && raw.error) return vendorErrorFrom(raw);
+        const mapped = typeof raw === 'string' ? raw : raw?.status;
+        if (mapped !== 'ACTIVE') {
+          return stopGrant(['EXPIRED', 'FAILED', 'INACTIVE', 'INITIATED'].includes(mapped) ? mapped : 'INACTIVE');
+        }
+      }
+
+      try {
+        if (resolved.path === 'catalog') {
+          const result = await this.catalogProvider.execute({
+            actionId: action,
             userId: this.resolveUserId(),
             providerAccountId: record.provider_account_id,
-            arguments: catalogInput ?? input ?? {},
+            arguments: input ?? {},
           });
-          if (res && res.error && res.error.code === 'vendor_error') {
-            throw new StatusSignal(vendorErrorFrom(res));
-          }
-          return res;
-        };
-      }
+          return classifyExecuteResult(result);
+        }
 
-      const result = await resolved.fn(input ?? {}, ctx);
-      if (isStatusObject(result)) return result;
-      if (result && result.error && result.error.code === 'vendor_error') return vendorErrorFrom(result);
-      return result;
+        let unwrap = null;
+        if (resolved.unwrapToken) {
+          if (provider && typeof provider.unwrap === 'function') {
+            try {
+              unwrap = await provider.unwrap({
+                providerAccountId: record.provider_account_id,
+                service: parsed.service,
+                file: resolved.auth.file,
+                variables: resolved.auth.variables,
+                header: resolved.auth.header,
+                prefix: resolved.auth.prefix,
+              });
+            } catch (err) {
+              if (authForRun?.provider === 'local-file') return stopGrant('INACTIVE');
+              throw err;
+            }
+          }
+          if (authForRun?.provider === 'local-file' && unwrap?.supported !== true) {
+            return stopGrant('INACTIVE');
+          }
+        }
+
+        const ctx = buildContext({
+          service: parsed.service,
+          module: parsed.module,
+          action: parsed.action,
+          input: input ?? {},
+          confirm: Boolean(confirm),
+          record,
+          auth: resolved.auth,
+          authProvider: this.providerFor(resolved.auth),
+          catalogProvider: this.catalogProvider,
+          unwrap,
+        });
+        if (this.catalogProvider && typeof this.catalogProvider.execute === 'function') {
+          ctx.catalog = async (actionId, catalogInput) => {
+            const res = await this.catalogProvider.execute({
+              actionId,
+              userId: this.resolveUserId(),
+              providerAccountId: record.provider_account_id,
+              arguments: catalogInput ?? input ?? {},
+            });
+            if (res && res.error && res.error.code === 'vendor_error') {
+              throw new StatusSignal(vendorErrorFrom(res));
+            }
+            return res;
+          };
+        }
+
+        const result = await resolved.fn(input ?? {}, ctx);
+        return classifyExecuteResult(result);
+      } catch (err) {
+        // Classify ctx.proxy / ctx.catalog signals before withAudit sees them.
+        if (err instanceof StatusSignal) return classifyExecuteResult(err.object);
+        throw err;
+      }
     });
   }
 

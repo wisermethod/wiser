@@ -57,6 +57,13 @@ export function buildContext({
 
   async function http(req = {}) {
     if (!unwrap || unwrap.supported !== true || !unwrap.header) {
+      if (auth?.provider === 'local-file') {
+        throw statusSignal(STATUS.NEEDS_CONNECT, {
+          service,
+          module,
+          privilege: auth.privilege ?? null,
+        });
+      }
       throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
     }
     // The credential is attached here and nowhere else, so where it may travel is
