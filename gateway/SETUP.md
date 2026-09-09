@@ -40,7 +40,19 @@ Claude Code:
 claude mcp add wiser-gateway -- node "/absolute/path/to/wiser/gateway/server.js" --harness claude-code
 ```
 
-Any harness that reads an `mcpServers` JSON block:
+Run that in the same process that will use the gateway, so `CLAUDE_CONFIG_DIR` is inherited. When that variable is unset, Claude Code reads `~/.claude.json`. Launcher sessions set `CLAUDE_CONFIG_DIR=~/.claude` and read `~/.claude/.claude.json`. Those are two files. An attach in one does not appear in the other.
+
+Codex:
+
+```bash
+codex mcp add wiser-gateway -- node "/absolute/path/to/wiser/gateway/server.js" --harness codex
+```
+
+Then start a new Codex session. The current session does not pick up a newly added server.
+
+Cursor:
+
+Write this block into `~/.cursor/mcp.json` (the user file, not a project file inside this plugin). Merge `wiser-gateway` if the file already has other servers. There is no `cursor mcp add`.
 
 ```json
 {
@@ -55,6 +67,10 @@ Any harness that reads an `mcpServers` JSON block:
   }
 }
 ```
+
+Then start a new Agent chat. The current chat does not pick up a newly added server. If the six tools are still missing, restart Cursor.
+
+Any other harness that reads an `mcpServers` JSON block uses the same shape, with that host's label in `--harness`.
 
 `--harness` is a label for the audit log and nothing else. Two other flags matter:
 
