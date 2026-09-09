@@ -38,4 +38,12 @@ export const modules = {
     list_messages: viaCatalog,
     get_message: viaCatalog,
   },
+  'sheets': {
+    search: viaCatalog,
+    get_values: catalogWith({
+      major_dimension: 'majorDimension',
+      value_render_option: 'valueRenderOption',
+      date_time_render_option: 'dateTimeRenderOption',
+    }),
+  },
 };

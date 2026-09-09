@@ -38,6 +38,8 @@ const ROWS = [
   ['google.calendar.get_event', 'GOOGLECALENDAR_EVENTS_GET'], // confirmed catalog 2026-09-08; id, status, start, end, htmlLink, display_url, kind
   ['google.gmail.list_messages', 'GMAIL_FETCH_EMAILS'], // catalog docs 2026-09-09; live envelope UNVERIFIED
   ['google.gmail.get_message', 'GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['google.sheets.search', 'GOOGLESHEETS_SEARCH_SPREADSHEETS'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['google.sheets.get_values', 'GOOGLESHEETS_BATCH_GET'], // catalog docs 2026-09-09; live envelope UNVERIFIED
   ['clarity.analytics.export', 'MICROSOFT_CLARITY_DATA_EXPORT'],
   ['replicate.models.list_collections', 'REPLICATE_COLLECTIONS_LIST'], // confirmed catalog 2026-09-08; { results, next, previous }, items: name, slug, description
   ['replicate.models.create_prediction', 'REPLICATE_PREDICTIONS_CREATE'],
@@ -63,6 +65,7 @@ const TOOLKITS = {
     drive: 'GOOGLEDRIVE',
     calendar: 'GOOGLECALENDAR',
     gmail: 'GMAIL',
+    sheets: 'GOOGLESHEETS',
   },
   clarity: 'MICROSOFT_CLARITY',
   replicate: 'REPLICATE',
@@ -110,6 +113,7 @@ export function toolkitsFor(service, module) {
 // https://docs.composio.dev/toolkits/googledrive
 // https://docs.composio.dev/toolkits/googlecalendar
 // https://docs.composio.dev/toolkits/gmail
+// https://docs.composio.dev/toolkits/googlesheets
 // https://docs.composio.dev/toolkits/microsoft_clarity
 // https://docs.composio.dev/toolkits/replicate
 // https://docs.composio.dev/toolkits/google_cloud_vision

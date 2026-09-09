@@ -381,6 +381,100 @@
       },
       "unwrap_token": false,
       "fallback": "catalog"
+    },
+    "sheets": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "GOOGLESHEETS",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "search": {
+          "description": "Search spreadsheets",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string"
+              },
+              "max_results": {
+                "type": "integer"
+              },
+              "page_token": {
+                "type": "string"
+              },
+              "order_by": {
+                "type": "string"
+              },
+              "search_type": {
+                "type": "string",
+                "enum": [
+                  "name",
+                  "content",
+                  "both"
+                ]
+              }
+            },
+            "required": []
+          }
+        },
+        "get_values": {
+          "description": "Read cell ranges",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "spreadsheet_id": {
+                "type": "string"
+              },
+              "ranges": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "major_dimension": {
+                "type": "string",
+                "enum": [
+                  "DIMENSION_UNSPECIFIED",
+                  "ROWS",
+                  "COLUMNS"
+                ]
+              },
+              "value_render_option": {
+                "type": "string",
+                "enum": [
+                  "FORMATTED_VALUE",
+                  "UNFORMATTED_VALUE",
+                  "FORMULA"
+                ]
+              },
+              "date_time_render_option": {
+                "type": "string",
+                "enum": [
+                  "SERIAL_NUMBER",
+                  "FORMATTED_STRING"
+                ]
+              }
+            },
+            "required": [
+              "spreadsheet_id"
+            ]
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
     }
   }
 }
