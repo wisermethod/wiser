@@ -22,7 +22,7 @@ This connector uses hosted connect only. No key belongs in this file or the conv
 - `books`: separate connect, read privilege; Last connected: 2026-09-09.
 - `desk`: separate connect, read privilege; Last connected: Not yet.
 - `inventory`: separate connect, read privilege; Last connected: 2026-09-09.
-- `invoice`: separate connect, read privilege; Last connected: Not yet.
+- `invoice`: separate connect, read privilege; Last connected: 2026-09-09.
 - `bigin`: separate connect, read privilege; Last connected: Not yet.
 
 CRM remains a write grant for Leads. Bigin reads Contacts only. Mail, Books, Desk, Inventory, Invoice, and Bigin each require their own connect. Use the Zoho account and organization that hold the requested resources; hosted connect may ask for the applicable data center region and organization.
@@ -39,4 +39,4 @@ Live limits are UNVERIFIED. If a gateway status reports a rate limit, stop and f
 
 ## Last connected
 
-2026-09-09, `crm`, `mail`, `books`, and `inventory` ACTIVE. Hosted OAuth; live envelopes UNVERIFIED. `desk` skipped (no access). `invoice` and `bigin` still Not yet.
+2026-09-09, `crm`, `mail`, `books`, `inventory`, and `invoice` ACTIVE. Hosted OAuth; live envelopes UNVERIFIED. `desk` skipped (no access). `bigin` still Not yet.
