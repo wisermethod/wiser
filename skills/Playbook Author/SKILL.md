@@ -3,7 +3,7 @@ name: Playbook Author
 type: skill
 category: authoring
 description: Create, instantiate, resume, review, or close out a WISER Playbook for work that spans sessions
-version: 0.1.3
+version: 0.1.4
 ---
 
 # Playbook Author
@@ -40,7 +40,7 @@ Decide the job before running any section.
 
 1. Fix ownership and placement. Name the root that owns the work per the constitution's Workspace Model, asking when no root fits or more than one does; then place and name the file per `standards/playbook.md`, stating the path and asking only for a correction.
 2. Choose Type. One-time is the default; choose Template only when the same process will run again with different inputs.
-3. Do the Witness audit for real before drafting anything downstream. Read the Key files and record what you found. If a file cannot be read, say which and stop.
+3. Do the Witness audit for real before drafting anything downstream. Write the Standards pointer in Context per `standards/playbook.md`, as a path that opens, distinct from Key files. Read the Key files and record what you found. If a file cannot be read, say which and stop.
 4. Interrogate before designing the plan. Fill the risk table, then derive the riskiest piece from it, then let that choice set Solve. Drafting Expand first produces a plausible sequence built on nothing.
 5. Confirm the execution mode once risks are on the table, not before; choose by the Execution Mode section of `standards/playbook.md`.
 6. Ask the user only what cannot be inferred or researched, each question carrying a recommended default.
@@ -49,18 +49,18 @@ Decide the job before running any section.
 
 ## Instantiate
 
-Copy the master to a dated instance per the Type section of `standards/playbook.md`, then work the instance from Witness: the copy reset its checkpoints, so this run's Key files are read and its checkpoints earned fresh. Never re-author the structure the master carries.
+Copy the master to a dated instance per the Type section of `standards/playbook.md`, then work the instance from Witness: the copy reset its checkpoints, so this run's Key files are read and its checkpoints earned fresh. Never re-author the structure the master carries. If the copy has no standards pointer, write it; that fills a required section, it does not re-author the plan.
 
 ## Resume
 
-1. Reconcile before doing any work, in the order the Resume discipline in `standards/playbook.md` fixes. Later items get corrected to match earlier ones, never the reverse.
+1. Reconcile before doing any work, in the order the Resume discipline in `standards/playbook.md` fixes. Later items get corrected to match earlier ones, never the reverse. If the standards pointer is missing, write it before any other edit.
 2. If Status is Paused, read the recorded blocker and resolve or escalate it. Never resume past a blocker silently.
 3. Judge staleness before executing anything: re-read the Key files and compare disk against the Witness findings. On divergence, re-run Witness on the affected part and record a learning. If the divergence changes which assumption would invalidate the plan, re-enter Interrogate and re-pick the riskiest piece before touching Expand: set Status to the re-entered canon, mark invalidated checkpoints and dependent task evidence with the date and a learning, and point Progress at the first action of that canon. Otherwise continue from the next action in Progress.
 4. If the document contradicts disk in a way you cannot adjudicate, stop and ask; do not pick a winner and proceed.
 
 ## Review
 
-Follow the Review Process in `standards/instruction-quality.md`. The stress test for a Playbook is a cold read from a mid-execution state, asking one question: what is the next action? A document that cannot answer has already failed. Audit against the sections of `standards/playbook.md` that own the criteria: Required Sections, Risk First, Milestones and Tasks, Living Document with its session-end protocol, and Success. Deliver findings; do not rewrite the document.
+Follow the Review Process in `standards/instruction-quality.md`. The stress test for a Playbook is a cold read from a mid-execution state, asking one question: what is the next action? A document that cannot answer has already failed. Audit against the sections of `standards/playbook.md` that own the criteria: Required Sections (the standards pointer among them), Risk First, Milestones and Tasks, Living Document with its session-end protocol, and Success. Deliver findings; do not rewrite the document.
 
 ## Close Out
 
@@ -76,6 +76,7 @@ Follow the Review Process in `standards/instruction-quality.md`. The stress test
 - **Risks are generic and mitigations hedge.** Rewrite each mitigation as an action someone can take. If no action exists, the risk is not understood yet: return to Witness.
 - **The riskiest piece was picked for looking hard.** Re-derive it per Risk First in `standards/playbook.md`, then re-sequence Solve to build it first.
 - **A Template master is about to be executed, ticked, Completed, or archived.** Stop. Copy it to an instance and work the instance; the master changes only by deliberate learning promotion.
+- **The standards pointer is missing, or the standards are listed only under Key files.** Restore it to the Context line the Structure names, as a path that opens, then continue. Key files remain the Witness targets.
 - **A session is ending with the document behind the work.** Run the session-end protocol in `standards/playbook.md` now; write only what you can attest to, and mark the rest unverified.
 
 ## Success
