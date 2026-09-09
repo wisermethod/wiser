@@ -110,6 +110,14 @@ export function createFakeProviders() {
   const executeResults = { ...DEFAULT_RESULTS };
   const proxyRules = [
     {
+      match: (endpoint, method) => method === 'GET' && typeof endpoint === 'string' && endpoint.startsWith('https://api.search.tinyfish.ai?'),
+      result: { status: 200, data: { query: 'example', results: [{ position: 1, site_name: 'Example', title: 'Example', snippet: 'Example content', url: 'https://example.com/' }], total_results: 1, page: 0 }, headers: {} },
+    },
+    {
+      match: (endpoint, method) => method === 'POST' && endpoint === 'https://api.fetch.tinyfish.ai',
+      result: { status: 200, data: { results: [{ url: 'https://example.com/', content: 'Example content' }], errors: [] }, headers: {} },
+    },
+    {
       match: (endpoint, method) => method === 'GET' && typeof endpoint === 'string' && endpoint.startsWith('/api/rest/v4/search/'),
       result: { status: 200, data: { count: 1, next: null, previous: null, results: [{ id: 1, cluster_id: 1, docket_id: 1 }] }, headers: {} },
     },

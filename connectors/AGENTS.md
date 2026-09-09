@@ -57,5 +57,6 @@ A connection record is keyed by service and module. Two modules on one service a
 | Connector | Description |
 |-----------|-------------|
 | `courtlistener/CONNECTOR.md` | Read CourtListener case law search, one docket, one opinion cluster, and the courts list |
+| `tinyfish/CONNECTOR.md` | Search the web and fetch content from up to ten HTTPS URLs through Tiny Fish |
 
 <!-- /generated:index -->

@@ -90,7 +90,9 @@ test('--check validates all shipped connectors and prints one JSON object', asyn
   const obj = JSON.parse(r.stdout);
   assert.equal(obj.ok, true);
   const ids = obj.connectors.map((c) => c.id).sort();
-  assert.deepEqual(ids, ['clarity', 'cloudflare', 'courtlistener', 'github', 'google', 'google-vision', 'replicate', 'usebouncer', 'vercel']);
+  assert.deepEqual(ids, ['clarity', 'cloudflare', 'courtlistener', 'github', 'google', 'google-vision', 'replicate', 'tinyfish', 'usebouncer', 'vercel']);
+  assert.ok(obj.actions.includes('tinyfish.web.search'));
+  assert.ok(obj.actions.includes('tinyfish.web.fetch'));
   assert.ok(obj.actions.includes('github.repos.get'));
   assert.ok(obj.actions.includes('courtlistener.caselaw.search'));
   assert.ok(obj.actions.includes('courtlistener.caselaw.get_docket'));

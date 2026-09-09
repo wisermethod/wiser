@@ -95,3 +95,23 @@ test('ordinary catalog connect does not upsert a custom toolkit', async (t) => {
   assert.equal(new URL(calls[0].url).pathname, '/api/v3.1/auth_configs');
   assert.equal(calls[1].body.auth_config.type, 'use_composio_managed_auth');
 });
+
+test('Tiny Fish body uses an unprefixed slug and key-only X-API-Key header', () => {
+  const row = CUSTOM_TOOLKITS[1];
+  assert.equal(row.service, 'tinyfish');
+  const body = createCustomToolkitBody(row);
+  assert.deepEqual(body, {
+    slug: 'TINYFISH',
+    toolkit_config: {
+      name: 'TinyFish',
+      app_url: 'https://tinyfish.ai',
+      auth_schemes: [{ mode: 'API_KEY', headers: { 'X-API-Key': '{{generic_api_key}}' } }],
+    },
+  });
+  assert.equal(registeredSlug(row), 'CUSTOM_TINYFISH');
+  for (const name of ['tinyfish', 'TINYFISH', 'CUSTOM_TINYFISH']) assert.equal(findCustomToolkit(name), row);
+  assert.equal(toolkitFor('tinyfish', 'web'), registeredSlug(row));
+  for (const action of ['search', 'fetch']) assert.equal(toSlug(`tinyfish.web.${action}`), null);
+  body.toolkit_config.auth_schemes[0].headers['X-API-Key'] = 'changed';
+  assert.equal(createCustomToolkitBody(row).toolkit_config.auth_schemes[0].headers['X-API-Key'], '{{generic_api_key}}');
+});

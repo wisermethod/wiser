@@ -7,6 +7,13 @@ export const CUSTOM_TOOLKITS = [
     app_url: 'https://www.courtlistener.com',
     auth_schemes: [{ mode: 'API_KEY', headers: { Authorization: 'Token {{generic_api_key}}' } }],
   },
+  {
+    service: 'tinyfish',
+    slug: 'TINYFISH',
+    name: 'TinyFish',
+    app_url: 'https://tinyfish.ai',
+    auth_schemes: [{ mode: 'API_KEY', headers: { 'X-API-Key': '{{generic_api_key}}' } }],
+  },
 ];
 
 export function registeredSlug(row = CUSTOM_TOOLKITS[0]) {
