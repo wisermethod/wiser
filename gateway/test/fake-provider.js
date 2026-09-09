@@ -66,7 +66,7 @@ const DEFAULT_RESULTS = {
   FAKE_GOOGLE_DRIVE_GET_FILE: {"display_url": "https://example.com/file", "id": "file-example", "kind": "drive#file", "link_label": "Open", "mimeType": "text/plain", "name": "Example"},
   FAKE_GOOGLE_CALENDAR_LIST_EVENTS: {"items": [{"id": "event-example", "summary": "Example", "status": "confirmed", "htmlLink": "https://example.com/event", "display_url": "https://example.com/event", "start": {"dateTime": "2026-09-08T12:00:00Z"}, "end": {"dateTime": "2026-09-08T13:00:00Z"}}], "nextPageToken": "token-example", "kind": "calendar#events", "accessRole": "owner", "timeZone": "UTC"},
   FAKE_GOOGLE_CALENDAR_GET_EVENT: {"id": "event-example", "summary": "Example", "status": "confirmed", "kind": "calendar#event", "htmlLink": "https://example.com/event", "display_url": "https://example.com/event", "start": {"dateTime": "2026-09-08T12:00:00Z"}, "end": {"dateTime": "2026-09-08T13:00:00Z"}},
-  FAKE_GMAIL_LIST_MESSAGES: {"messages": [{"messageId": "msg-example", "threadId": "thread-example"}], "nextPageToken": "token-example"},
+  FAKE_GMAIL_LIST_MESSAGES: {"messages": [{"id": "msg-example", "threadId": "thread-example"}], "nextPageToken": "token-example"},
   FAKE_GMAIL_GET_MESSAGE: {"id": "msg-example", "threadId": "thread-example", "labelIds": ["INBOX"]},
   FAKE_CLARITY_ANALYTICS_EXPORT: {"metrics": [{"metricName": "SessionsCount", "information": [{"sessionsCount": "1"}]}]},
   FAKE_REPLICATE_MODELS_LIST_COLLECTIONS: {"results": [{"name": "Example", "slug": "example"}]},

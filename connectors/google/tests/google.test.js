@@ -35,10 +35,10 @@ test('Search Console does not unlock the other Google modules', async () => {
   }
 });
 
-test('Gmail does not unlock Drive, Calendar, or Analytics', async () => {
+test('Gmail does not unlock Search Console, Drive, Calendar, or Analytics', async () => {
   const { gw, store, fake } = await createTestGateway();
   await putActive(store, fake, { service: 'google', module: 'gmail', privilege: 'read' });
-  for (const action of ['google.analytics.list_account_summaries', 'google.drive.find_file', 'google.calendar.list_events']) {
+  for (const action of ['google.search-console.sites', 'google.analytics.list_account_summaries', 'google.drive.find_file', 'google.calendar.list_events']) {
     assert.equal((await gw.execute({ action, input: {} })).status, 'needs_connect');
   }
 });
