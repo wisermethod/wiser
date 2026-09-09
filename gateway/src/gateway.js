@@ -442,7 +442,11 @@ export class ConnectionGateway {
         return this.needsProviderResult();
       }
 
-      const record = this.store.getConnection({ service: parsed.service, module: parsed.module });
+      let record = this.store.getConnection({ service: parsed.service, module: parsed.module });
+      if (!isActive(record) && authForRun?.provider !== 'local-file') {
+        await this.hydrateFromProvider();
+        record = this.store.getConnection({ service: parsed.service, module: parsed.module });
+      }
       line.provider_account_id = record?.provider_account_id ?? null;
       if (!isActive(record)) {
         return statusObject(STATUS.NEEDS_CONNECT, {
