@@ -22,4 +22,4 @@ Revoke the connection through the gateway, then revoke or rotate the API key at 
 
 ## Last connected
 
-2026-09-09, `web` ACTIVE. Hosted connect; the gateway's provider holds the key. Live Search and Fetch not yet executed.
+2026-09-09, `web` ACTIVE. Hosted connect; the gateway's provider holds the key. Rotated the same day after a key in chat; replacement entered on the hosted page only. Live Search executed 2026-09-09: envelope `{ query, results, total_results, page }`, 8 results, each with `position`, `site_name`, `title`, `snippet`, `url`. No titles or URLs recorded here. Fetch not yet executed.

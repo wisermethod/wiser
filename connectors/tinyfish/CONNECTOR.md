@@ -12,7 +12,7 @@ Tiny Fish provides web search and URL content fetching. This connector reaches S
 
 ## Status
 
-Shipped 2026-09-09. Live connect 2026-09-09: `web` ACTIVE. Hosted authentication verified; live Search and Fetch not yet executed. External Research's search and fetch gaps remain open until a live execution and Research Expert cites the action ids. Fake-provider tests still run. See `auth.md` and [gateway setup](../../gateway/SETUP.md).
+Shipped 2026-09-09. Live connect 2026-09-09: `web` ACTIVE. Hosted authentication verified. Live Search executed 2026-09-09: envelope `{ query, results, total_results, page }` with 8 results carrying `position`, `site_name`, `title`, `snippet`, `url`. No titles or URLs recorded here. Fetch not yet executed. External Research's search and fetch gaps remain open until Research Expert cites the action ids. Fake-provider tests still run. See `auth.md` and [gateway setup](../../gateway/SETUP.md).
 
 ## Reaching it
 
@@ -48,6 +48,6 @@ None. Agent, Research, Browser, and wallet spend are excluded.
 
 ## Reference
 
-The implementation follows the approved Connector Advisor plan dated 2026-09-09 and its supplied vendor API evidence. Search endpoint: `https://api.search.tinyfish.ai`. Fetch endpoint: `https://api.fetch.tinyfish.ai`. Live Search and Fetch remain unverified.
+The implementation follows the approved Connector Advisor plan dated 2026-09-09 and its supplied vendor API evidence. Search endpoint: `https://api.search.tinyfish.ai`. Fetch endpoint: `https://api.fetch.tinyfish.ai`. Live Search envelope verified 2026-09-09. Fetch remains unverified.
 
 Connect with `auth.md`; the module contract is in `gateway/AGENTS.md`.
