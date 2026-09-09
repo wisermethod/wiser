@@ -3,7 +3,7 @@ name: Set Up Connectors
 type: skill
 category: system
 description: Attach the gateway to this harness and confirm the project key on this machine, for a new CLI, machine, or OS user
-version: 0.1.1
+version: 0.1.2
 ---
 
 # Set Up Connectors
@@ -34,7 +34,7 @@ A steward of this machine's gateway attachment who prefers one attach command an
 4. Probe the key by calling `list_connections` with `{}` and follow only the matching branch:
    - Tools still missing: attach has not reached this session. Name reload and stop.
    - `needs_provider`: name the instituted file from SETUP.md's OS table: macOS `~/Library/Application Support/wiser/auth-provider.env`; Linux `$XDG_CONFIG_HOME/wiser/auth-provider.env` or `~/.config/wiser/auth-provider.env` if unset; Windows `%APPDATA%\wiser\auth-provider.env`. If they already named a non-default `--env` file, name that file instead. Tell the person to open that file, paste the project key after `WISER_AUTH_PROVIDER_KEY=`, leave or copy `WISER_USER_ID=` as SETUP.md describes, save, and restart the harness. First attach starts the gateway and creates the empty two-line file at the default path; the person does not run `mkdir`. Never ask for the key or the user id in chat. How to mint the key lives only in `gateway/providers/<name>/SETUP.md` for the `"auth"` value in `gateway/providers/default.json`. Stop. This is not Connect Account.
-   - A list of records in `connections`, including an empty list, without `needs_provider`: the key is set. Report the gateway ready on this machine. If they also named a service and module, sequence Connect Account in its own human turn. If the list already shows `ACTIVE` for that pair, say so and stop without reconnecting. If they named no service, stop; they say connect and the service when they want a grant. A service without a module needs that module named for the later Connect Account turn.
+   - A list of records in `connections` without `needs_provider`: the key is set. `list_connections` hydrates ACTIVE grants this user id already has at the provider; do not reconnect those. If the list is still empty, the provider has no grants for this user id yet: say connect and the service when they want a grant. If they also named a service and module, sequence Connect Account in its own human turn. If the list already shows `ACTIVE` for that pair, say so and stop without reconnecting. A service without a module needs that module named for the later Connect Account turn.
    - Any other status: route to Connection Troubleshooter.
 5. Do not walk every shipped module. Do not live-delete, create a ruleset, import a zone, run billed Vision or Replicate, create a Vercel deployment, or run `github.issues.create`.
 

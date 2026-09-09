@@ -282,8 +282,57 @@ export class ConnectionGateway {
 
   listConnections() {
     if (this.needsProviderCredential()) return this.needsProviderResult();
-    const connections = this.store.listConnections();
-    return { connections };
+    return this.hydrateFromProvider().then(() => ({ connections: this.store.listConnections() }));
+  }
+
+  /**
+   * Copy ACTIVE grants the provider already holds for this user id into the
+   * local store as metadata. Never tokens. Do not overwrite an ACTIVE row.
+   * Local-file modules are not hydrated.
+   */
+  async hydrateFromProvider() {
+    const list = this.authProvider?.listAccounts;
+    if (typeof list !== 'function') return;
+    let accounts;
+    try {
+      accounts = await list.call(this.authProvider, { userId: this.resolveUserId() });
+    } catch {
+      return;
+    }
+    if (!Array.isArray(accounts) || accounts.length === 0) return;
+
+    const byToolkit = new Map();
+    for (const account of accounts) {
+      if (!account || account.status !== 'ACTIVE' || !account.id || !account.toolkit) continue;
+      const key = String(account.toolkit).toUpperCase();
+      if (!byToolkit.has(key)) byToolkit.set(key, account.id);
+      const stripped = key.replace(/^CUSTOM_/, '');
+      if (!byToolkit.has(stripped)) byToolkit.set(stripped, account.id);
+    }
+
+    for (const connector of this.connectors) {
+      const service = connector.id || connector.service;
+      const modules = connector.manifest?.modules || {};
+      for (const [module, definition] of Object.entries(modules)) {
+        const auth = definition?.auth;
+        if (!auth || auth.provider === 'local-file') continue;
+        const toolkit = auth.toolkit && String(auth.toolkit).toUpperCase();
+        if (!toolkit) continue;
+        const accountId = byToolkit.get(toolkit) || byToolkit.get(toolkit.replace(/^CUSTOM_/, ''));
+        if (!accountId) continue;
+        const existing = this.store.getConnection({ service, module });
+        if (isActive(existing) && existing.provider_account_id) continue;
+        this.store.putConnection({
+          service,
+          module,
+          privilege: auth.privilege,
+          provider: auth.provider,
+          provider_account_id: accountId,
+          scopes: [],
+          status: 'ACTIVE',
+        });
+      }
+    }
   }
 
   searchActions({ query, service } = {}) {

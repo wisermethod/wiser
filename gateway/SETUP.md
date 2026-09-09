@@ -68,7 +68,7 @@ Any harness that reads an `mcpServers` JSON block:
 
 `--home` is screened before anything opens it: refused inside this plugin, beside a credential file, or on a symbolic link.
 
-Restart the harness. Its tool list now carries `execute`, `start_connect`, `connect_status`, `list_connections`, `search_actions` and `describe_action`. Actions that need the provider answer `needs_provider` until step 3.
+Restart the harness. Its tool list now carries `execute`, `start_connect`, `connect_status`, `list_connections`, `search_actions` and `describe_action`. Actions that need the provider answer `needs_provider` until step 3. `list_connections` fills local metadata from ACTIVE grants this user id already has at the provider; it does not reconnect.
 
 ## 3. Give it a provider credential
 

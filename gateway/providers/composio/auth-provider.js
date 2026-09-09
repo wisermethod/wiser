@@ -162,6 +162,28 @@ export function createAuthProvider({ envPath } = {}) {
         'Restart the harness.',
       ].join(' ');
     },
+    async listAccounts({ userId } = {}) {
+      if (!apiKey) return [];
+      const params = new URLSearchParams();
+      if (userId) params.append('user_ids', userId);
+      params.append('statuses', 'ACTIVE');
+      params.set('limit', '100');
+      const path = `/connected_accounts?${params}`;
+      const res = await request(apiKey, 'GET', path);
+      if (!res.ok || res.malformed) return [];
+      const items = res.data?.items || res.data?.connected_accounts || res.data?.data || [];
+      if (!Array.isArray(items)) return [];
+      const out = [];
+      for (const item of items) {
+        if (!item || typeof item !== 'object') continue;
+        const toolkit = item.toolkit?.slug || item.toolkit_slug || null;
+        const id = item.id || item.nanoid || item.connected_account_id || null;
+        const status = mapStatus(item.status);
+        if (!id || !toolkit || status !== 'ACTIVE') continue;
+        out.push({ id, toolkit, status });
+      }
+      return out;
+    },
     async initiate({ userId, toolkit, scheme, callbackUrl }) {
       if (!apiKey) return { status: 0, error: { code: 'vendor_error', endpoint: '/auth_configs', method: 'GET' } };
       const custom = findCustomToolkit(toolkit);
