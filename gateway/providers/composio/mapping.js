@@ -53,6 +53,31 @@ const ROWS = [
   ['vercel.projects.get', 'VERCEL_GET_PROJECT2'],
   ['vercel.deployments.list', 'VERCEL_GET_DEPLOYMENTS'], // confirmed catalog 2026-09-08; { deployments, pagination }
   ['vercel.deployments.create', 'VERCEL_CREATE_NEW_DEPLOYMENT'],
+  ['zoho.crm.get', 'ZOHO_GET_ZOHO_RECORDS'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['zoho.crm.search', 'ZOHO_SEARCH_LEADS'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['zoho.crm.create', 'ZOHO_CREATE_LEAD'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['hubspot.crm.get_contact', 'HUBSPOT_READ_CONTACT'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['hubspot.crm.search_contacts', 'HUBSPOT_SEARCH_CONTACTS_BY_CRITERIA'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['notion.pages.search', 'NOTION_SEARCH_NOTION_PAGE'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['notion.pages.get', 'NOTION_RETRIEVE_PAGE'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['stripe.billing.list_customers', 'STRIPE_LIST_CUSTOMERS'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['stripe.billing.get_customer', 'STRIPE_RETRIEVE_CUSTOMER'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['stripe.billing.list_charges', 'STRIPE_LIST_CHARGES'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['stripe.billing.get_charge', 'STRIPE_RETRIEVE_CHARGE'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['figma.files.get', 'FIGMA_GET_FILE_METADATA'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['figma.files.list', 'FIGMA_GET_FILES_IN_A_PROJECT'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['zoom.meetings.list', 'ZOOM_LIST_MEETINGS'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['zoom.meetings.get', 'ZOOM_GET_A_MEETING'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['monday.boards.list', 'MONDAY_BOARDS'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['monday.boards.list_items', 'MONDAY_ITEMS_PAGE'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['linkedin.profile.me', 'LINKEDIN_GET_MY_INFO'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['linkedin.profile.get_post', 'LINKEDIN_GET_POST_CONTENT'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['huggingface.hub.get_model', 'HUGGING_FACE_GET_MODEL_INFO'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['huggingface.hub.list_datasets', 'HUGGING_FACE_LIST_DATASETS'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['supabase.projects.list', 'SUPABASE_LIST_ALL_PROJECTS'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['supabase.projects.get', 'SUPABASE_GET_PROJECT'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['microsoft.outlook.list_messages', 'OUTLOOK_LIST_MESSAGES'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['microsoft.outlook.get_message', 'OUTLOOK_GET_MESSAGE'], // catalog docs 2026-09-09; live envelope UNVERIFIED
 ];
 
 const TO_SLUG = new Map(ROWS);
@@ -77,6 +102,19 @@ const TOOLKITS = {
   replicate: 'REPLICATE',
   'google-vision': 'GOOGLE_CLOUD_VISION',
   vercel: 'VERCEL',
+  zoho: 'ZOHO',
+  hubspot: 'HUBSPOT',
+  notion: 'NOTION',
+  stripe: 'STRIPE',
+  figma: 'FIGMA',
+  zoom: 'ZOOM',
+  monday: 'MONDAY',
+  linkedin: 'LINKEDIN',
+  huggingface: 'HUGGING_FACE',
+  supabase: 'SUPABASE',
+  microsoft: {
+    outlook: 'OUTLOOK',
+  },
 };
 
 /**
@@ -126,3 +164,14 @@ export function toolkitsFor(service, module) {
 // https://docs.composio.dev/toolkits/replicate
 // https://docs.composio.dev/toolkits/google_cloud_vision
 // https://docs.composio.dev/toolkits/vercel
+// https://docs.composio.dev/toolkits/zoho
+// https://docs.composio.dev/toolkits/hubspot
+// https://docs.composio.dev/toolkits/notion
+// https://docs.composio.dev/toolkits/stripe
+// https://docs.composio.dev/toolkits/figma
+// https://docs.composio.dev/toolkits/zoom
+// https://docs.composio.dev/toolkits/monday
+// https://docs.composio.dev/toolkits/linkedin
+// https://docs.composio.dev/toolkits/hugging_face
+// https://docs.composio.dev/toolkits/supabase
+// https://docs.composio.dev/toolkits/outlook

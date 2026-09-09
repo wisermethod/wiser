@@ -1,0 +1,80 @@
+{
+  "id": "monday",
+  "service": "monday",
+  "modules": {
+    "boards": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "MONDAY",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "list": {
+          "description": "list",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "ids": {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                }
+              },
+              "page": {
+                "type": "integer"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "workspace_ids": {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                }
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "list_items": {
+          "description": "list items",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "board_id": {
+                "type": "integer"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "cursor": {
+                "type": "string"
+              },
+              "group_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "board_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    }
+  }
+}

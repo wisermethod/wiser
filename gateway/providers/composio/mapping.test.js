@@ -24,6 +24,9 @@ test('all catalog actions have round-trip mappings and the module toolkit', asyn
   assert.equal(toolkitFor('google'), null);
   assert.equal(toolkitsFor('google').length, 8);
   assert.deepEqual(toolkitsFor('google', 'unknown'), []);
+  assert.equal(toolkitFor('microsoft'), null);
+  assert.equal(toolkitsFor('microsoft').length, 1);
+  assert.deepEqual(toolkitsFor('microsoft', 'unknown'), []);
 });
 
 test('search iterates the eight Google toolkits and can restrict one module', async () => {
@@ -38,6 +41,23 @@ test('search iterates the eight Google toolkits and can restrict one module', as
   seen.length = 0;
   assert.deepEqual(await searchMappedActions({ service: 'google', module: 'drive' }, request), ['google.drive.find_file']);
   assert.deepEqual(seen, [toolkitFor('google', 'drive')]);
+});
+
+test('search iterates the Microsoft Outlook toolkit and can restrict outlook', async () => {
+  const seen = [];
+  const ids = ['microsoft.outlook.list_messages', 'microsoft.outlook.get_message'];
+  const request = async (path) => {
+    seen.push(new URL(path, 'https://example.com').searchParams.get('toolkit_slug'));
+    return { ok: true, data: { items: [...ids, 'google.gmail.list_messages'].map((id) => ({ slug: toSlug(id) })) } };
+  };
+  assert.deepEqual(await searchMappedActions({ service: 'microsoft' }, request), ids);
+  assert.deepEqual(seen, toolkitsFor('microsoft'));
+  seen.length = 0;
+  assert.deepEqual(await searchMappedActions({ service: 'microsoft', module: 'outlook' }, request), ids);
+  assert.deepEqual(seen, [toolkitFor('microsoft', 'outlook')]);
+  seen.length = 0;
+  assert.deepEqual(await searchMappedActions({ service: 'microsoft', module: 'unknown' }, request), []);
+  assert.deepEqual(seen, []);
 });
 
 test('proxy request forwards binary_body and parameters without a JSON body', () => {

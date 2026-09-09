@@ -1,0 +1,54 @@
+{
+  "id": "supabase",
+  "service": "supabase",
+  "modules": {
+    "projects": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "SUPABASE",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "list": {
+          "description": "list",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "get": {
+          "description": "get",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "ref": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "ref"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    }
+  }
+}

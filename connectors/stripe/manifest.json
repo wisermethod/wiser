@@ -1,0 +1,116 @@
+{
+  "id": "stripe",
+  "service": "stripe",
+  "modules": {
+    "billing": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "STRIPE",
+        "scheme": "API_KEY",
+        "privilege": "read"
+      },
+      "actions": {
+        "list_customers": {
+          "description": "list customers",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "type": "string"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "starting_after": {
+                "type": "string"
+              },
+              "ending_before": {
+                "type": "string"
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "get_customer": {
+          "description": "get customer",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "customer_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "customer_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "list_charges": {
+          "description": "list charges",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "customer": {
+                "type": "string"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "starting_after": {
+                "type": "string"
+              },
+              "ending_before": {
+                "type": "string"
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "get_charge": {
+          "description": "get charge",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "charge_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "charge_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    }
+  }
+}

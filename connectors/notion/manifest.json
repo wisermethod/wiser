@@ -1,0 +1,71 @@
+{
+  "id": "notion",
+  "service": "notion",
+  "modules": {
+    "pages": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "NOTION",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "search": {
+          "description": "search",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string"
+              },
+              "page_size": {
+                "type": "integer"
+              },
+              "start_cursor": {
+                "type": "string"
+              },
+              "filter_value": {
+                "type": "string",
+                "enum": [
+                  "page",
+                  "database"
+                ]
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "get": {
+          "description": "get",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "page_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "page_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    }
+  }
+}

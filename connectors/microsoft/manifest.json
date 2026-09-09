@@ -1,0 +1,82 @@
+{
+  "id": "microsoft",
+  "service": "microsoft",
+  "modules": {
+    "outlook": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "OUTLOOK",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "list_messages": {
+          "description": "list messages",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "folder": {
+                "type": "string"
+              },
+              "search": {
+                "type": "string"
+              },
+              "top": {
+                "type": "integer"
+              },
+              "skip": {
+                "type": "integer"
+              },
+              "page_token": {
+                "type": "string"
+              },
+              "subject": {
+                "type": "string"
+              },
+              "is_read": {
+                "type": "boolean"
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "get_message": {
+          "description": "get message",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "message_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "select": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "message_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    }
+  }
+}

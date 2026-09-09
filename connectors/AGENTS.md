@@ -31,6 +31,9 @@ A connection record is keyed by service and module. Two modules on one service a
 | `cloudflare/CONNECTOR.md` | Reaches Cloudflare DNS, the account's zones, Pages, and rulesets, with every removal confirmed |
 | `github/CONNECTOR.md` | Reaches one GitHub account's repositories and issues to read them, list them, and open an issue, and reports the authenticated account |
 | `vercel/CONNECTOR.md` | Reads projects and deployments and creates a deployment only with confirmation on every call |
+| `stripe/CONNECTOR.md` | Reads customers and charges through one billing grant |
+| `monday/CONNECTOR.md` | Lists boards and reads a page of board items |
+| `supabase/CONNECTOR.md` | Lists projects and reads one project |
 
 ### Analytics
 
@@ -44,6 +47,9 @@ A connection record is keyed by service and module. Two modules on one service a
 | Connector | Description |
 |-----------|-------------|
 | `usebouncer/CONNECTOR.md` | Reads verification credits, verifies single addresses and batches, and resumes batch results by identifier |
+| `zoom/CONNECTOR.md` | Lists meetings for a user and reads one meeting |
+| `linkedin/CONNECTOR.md` | Reads the connected profile and one post |
+| `microsoft/CONNECTOR.md` | Lists and reads Outlook messages through a separate Outlook grant |
 
 ### Media
 
@@ -51,6 +57,7 @@ A connection record is keyed by service and module. Two modules on one service a
 |-----------|-------------|
 | `replicate/CONNECTOR.md` | Lists curated model collections, starts confirmed predictions, and returns prediction status and output URLs |
 | `google-vision/CONNECTOR.md` | Detects faces and returns eye coordinates for faces with both eyes available |
+| `figma/CONNECTOR.md` | Reads file metadata and lists the files in a project |
 
 ### Research
 
@@ -58,5 +65,14 @@ A connection record is keyed by service and module. Two modules on one service a
 |-----------|-------------|
 | `courtlistener/CONNECTOR.md` | Read CourtListener case law search, one docket, one opinion cluster, and the courts list |
 | `tinyfish/CONNECTOR.md` | Search the web and fetch content from up to ten HTTPS URLs through Tiny Fish |
+| `notion/CONNECTOR.md` | Searches pages and databases and reads page properties |
+| `huggingface/CONNECTOR.md` | Reads model information and lists dataset metadata |
+
+### CRM
+
+| Connector | Description |
+|-----------|-------------|
+| `zoho/CONNECTOR.md` | Reads and searches leads and creates a lead with confirmation |
+| `hubspot/CONNECTOR.md` | Reads and searches contacts |
 
 <!-- /generated:index -->
