@@ -49,7 +49,7 @@ A connection record is keyed by service and module. Two modules on one service a
 | `usebouncer/CONNECTOR.md` | Reads verification credits, verifies single addresses and batches, and resumes batch results by identifier |
 | `zoom/CONNECTOR.md` | Lists meetings for a user and reads one meeting |
 | `linkedin/CONNECTOR.md` | Reads the connected profile and one post |
-| `microsoft/CONNECTOR.md` | Lists and reads Outlook messages through a separate Outlook grant |
+| `microsoft/CONNECTOR.md` | Reads Outlook messages, Calendar events, OneDrive files, SharePoint lists, Excel values, and joined teams through six separate grants |
 
 ### Media
 
@@ -72,7 +72,7 @@ A connection record is keyed by service and module. Two modules on one service a
 
 | Connector | Description |
 |-----------|-------------|
-| `zoho/CONNECTOR.md` | Reads and searches leads and creates a lead with confirmation |
+| `zoho/CONNECTOR.md` | Reads mail, Books and Invoice invoices, Desk tickets, Inventory and Bigin contacts through six read grants, and reads, searches, and creates CRM leads with confirmation |
 | `hubspot/CONNECTOR.md` | Reads and searches contacts |
 
 <!-- /generated:index -->

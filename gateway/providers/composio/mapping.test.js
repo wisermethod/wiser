@@ -25,7 +25,10 @@ test('all catalog actions have round-trip mappings and the module toolkit', asyn
   assert.equal(toolkitsFor('google').length, 8);
   assert.deepEqual(toolkitsFor('google', 'unknown'), []);
   assert.equal(toolkitFor('microsoft'), null);
-  assert.equal(toolkitsFor('microsoft').length, 1);
+  assert.equal(toolkitsFor('microsoft').length, 5);
+  assert.equal(toolkitFor('zoho'), null);
+  assert.equal(toolkitsFor('zoho').length, 7);
+  assert.deepEqual(toolkitsFor('zoho', 'unknown'), []);
   assert.deepEqual(toolkitsFor('microsoft', 'unknown'), []);
 });
 
@@ -43,9 +46,9 @@ test('search iterates the eight Google toolkits and can restrict one module', as
   assert.deepEqual(seen, [toolkitFor('google', 'drive')]);
 });
 
-test('search iterates the Microsoft Outlook toolkit and can restrict outlook', async () => {
+test('search iterates the five unique Microsoft toolkits and can restrict outlook or calendar', async () => {
   const seen = [];
-  const ids = ['microsoft.outlook.list_messages', 'microsoft.outlook.get_message'];
+  const ids = ["microsoft.outlook.list_messages", "microsoft.outlook.get_message", "microsoft.calendar.list_events", "microsoft.calendar.get_event", "microsoft.onedrive.find", "microsoft.onedrive.get", "microsoft.sharepoint.list", "microsoft.sharepoint.get", "microsoft.excel.search", "microsoft.excel.get_values", "microsoft.teams.list", "microsoft.teams.get"];
   const request = async (path) => {
     seen.push(new URL(path, 'https://example.com').searchParams.get('toolkit_slug'));
     return { ok: true, data: { items: [...ids, 'google.gmail.list_messages'].map((id) => ({ slug: toSlug(id) })) } };
@@ -53,8 +56,12 @@ test('search iterates the Microsoft Outlook toolkit and can restrict outlook', a
   assert.deepEqual(await searchMappedActions({ service: 'microsoft' }, request), ids);
   assert.deepEqual(seen, toolkitsFor('microsoft'));
   seen.length = 0;
-  assert.deepEqual(await searchMappedActions({ service: 'microsoft', module: 'outlook' }, request), ids);
+  assert.deepEqual(await searchMappedActions({ service: 'microsoft', module: 'outlook' }, request), ids.filter((id) => id.startsWith('microsoft.outlook.')));
   assert.deepEqual(seen, [toolkitFor('microsoft', 'outlook')]);
+  seen.length = 0;
+  assert.deepEqual(await searchMappedActions({ service: 'microsoft', module: 'calendar' }, request), ['microsoft.calendar.list_events', 'microsoft.calendar.get_event']);
+  assert.deepEqual(seen, [toolkitFor('microsoft', 'calendar')]);
+  assert.equal(toolkitFor('microsoft', 'calendar'), toolkitFor('microsoft', 'outlook'));
   seen.length = 0;
   assert.deepEqual(await searchMappedActions({ service: 'microsoft', module: 'unknown' }, request), []);
   assert.deepEqual(seen, []);
@@ -72,4 +79,23 @@ test('proxy request forwards binary_body and parameters without a JSON body', ()
 test('proxy payload drops headers even without a data wrapper', async () => {
   const result = await resolveProxyPayload({ success: true, result: {}, headers: {}, 'set-cookie': [] });
   assert.deepEqual(result, { success: true, result: {} });
+});
+
+test('search iterates the seven Zoho toolkits and can restrict crm or another module', async () => {
+  const seen = [];
+  const ids = ["zoho.crm.get", "zoho.crm.search", "zoho.crm.create", "zoho.mail.list", "zoho.mail.get", "zoho.books.list", "zoho.books.get", "zoho.desk.list", "zoho.desk.get", "zoho.inventory.list", "zoho.inventory.get", "zoho.invoice.list", "zoho.invoice.get", "zoho.bigin.list", "zoho.bigin.get"];
+  const request = async (path) => {
+    seen.push(new URL(path, 'https://example.com').searchParams.get('toolkit_slug'));
+    return { ok: true, data: { items: [...ids, 'microsoft.outlook.list_messages'].map((id) => ({ slug: toSlug(id) })) } };
+  };
+  assert.deepEqual(await searchMappedActions({ service: 'zoho' }, request), ids);
+  assert.deepEqual(seen, toolkitsFor('zoho'));
+  for (const module of ['crm', 'mail', 'books', 'desk', 'inventory', 'invoice', 'bigin']) {
+    seen.length = 0;
+    assert.deepEqual(await searchMappedActions({ service: 'zoho', module }, request), ids.filter((id) => id.split('.')[1] === module));
+    assert.deepEqual(seen, [toolkitFor('zoho', module)]);
+  }
+  seen.length = 0;
+  assert.deepEqual(await searchMappedActions({ service: 'zoho', module: 'unknown' }, request), []);
+  assert.deepEqual(seen, []);
 });

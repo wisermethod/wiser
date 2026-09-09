@@ -77,6 +77,405 @@
       },
       "unwrap_token": false,
       "fallback": "catalog"
+    },
+    "calendar": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "OUTLOOK",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "list_events": {
+          "description": "List calendar events",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "filter": {
+                "type": "string"
+              },
+              "timezone": {
+                "type": "string"
+              },
+              "page_token": {
+                "type": "string"
+              },
+              "calendar_id": {
+                "type": "string"
+              },
+              "top": {
+                "type": "integer"
+              },
+              "skip": {
+                "type": "integer"
+              },
+              "expand_recurring_events": {
+                "type": "boolean"
+              },
+              "include_sensitivity_label": {
+                "type": "boolean"
+              },
+              "select": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "get_event": {
+          "description": "Read one calendar event",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "event_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "include_sensitivity_label": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "event_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    },
+    "onedrive": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "ONE_DRIVE",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "find": {
+          "description": "Search OneDrive items",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "q": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "expand": {
+                "type": "string"
+              },
+              "select": {
+                "type": "string"
+              },
+              "orderby": {
+                "type": "string"
+              },
+              "drive_id": {
+                "type": "string"
+              },
+              "page_token": {
+                "type": "string"
+              },
+              "top": {
+                "type": "integer"
+              },
+              "search_scope": {
+                "type": "string",
+                "enum": [
+                  "drive",
+                  "root"
+                ]
+              }
+            },
+            "required": [
+              "q"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "get": {
+          "description": "Read one OneDrive item",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "item_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "drive_id": {
+                "type": "string"
+              },
+              "select_fields": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "expand_relations": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "item_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    },
+    "sharepoint": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "SHARE_POINT",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "list": {
+          "description": "List SharePoint lists",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "expand": {
+                "type": "string"
+              },
+              "filter": {
+                "type": "string"
+              },
+              "select": {
+                "type": "string"
+              },
+              "orderby": {
+                "type": "string"
+              },
+              "site_name": {
+                "type": "string"
+              },
+              "top": {
+                "type": "integer"
+              },
+              "skip": {
+                "type": "integer"
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "get": {
+          "description": "Read a SharePoint list by title",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "list_title": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "site_name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "list_title"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    },
+    "excel": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "EXCEL",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "search": {
+          "description": "Search Excel files",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "drive_id": {
+                "type": "string"
+              },
+              "skip_token": {
+                "type": "string"
+              },
+              "top": {
+                "type": "integer"
+              },
+              "scope": {
+                "type": "string",
+                "enum": [
+                  "drive",
+                  "root"
+                ]
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "get_values": {
+          "description": "Read an Excel worksheet range",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "address": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "item_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "worksheet_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "drive_id": {
+                "type": "string"
+              },
+              "session_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "address",
+              "item_id",
+              "worksheet_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    },
+    "teams": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "MICROSOFT_TEAMS",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "list": {
+          "description": "List joined teams",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "page_token": {
+                "type": "string"
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "get": {
+          "description": "Read a team from its group",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "group_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "expand": {
+                "type": "string"
+              },
+              "select": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "group_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
     }
   }
 }

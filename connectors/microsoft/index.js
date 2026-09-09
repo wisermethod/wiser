@@ -35,4 +35,24 @@ export const modules = {
     list_messages: validated(viaCatalog),
     get_message: validated(viaCatalog),
   },
+  calendar: {
+    list_events: validated(viaCatalog),
+    get_event: validated(viaCatalog),
+  },
+  onedrive: {
+    find: validated(viaCatalog),
+    get: validated(viaCatalog),
+  },
+  sharepoint: {
+    list: validated(viaCatalog),
+    get: validated(viaCatalog),
+  },
+  excel: {
+    search: validated(viaCatalog),
+    get_values: validated(viaCatalog),
+  },
+  teams: {
+    list: validated((input, ctx) => viaCatalog({ ...input, user_id: 'me' }, ctx)),
+    get: validated(viaCatalog),
+  },
 };

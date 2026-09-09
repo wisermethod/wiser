@@ -49,4 +49,28 @@ export const modules = {
     search: validated(viaCatalog),
     create: validated(catalogWith({"last_name":"Last_Name","first_name":"First_Name","email":"Email","company":"Company","phone":"Phone","description":"Description","lead_source":"Lead_Source","lead_status":"Lead_Status","website":"Website"})),
   },
+  mail: {
+    list: validated(viaCatalog),
+    get: validated(viaCatalog),
+  },
+  books: {
+    list: validated(viaCatalog),
+    get: validated(viaCatalog),
+  },
+  desk: {
+    list: validated(viaCatalog),
+    get: validated(viaCatalog),
+  },
+  inventory: {
+    list: validated(viaCatalog),
+    get: validated(viaCatalog),
+  },
+  invoice: {
+    list: validated(viaCatalog),
+    get: validated(viaCatalog),
+  },
+  bigin: {
+    list: validated((input, ctx) => viaCatalog({ ...input, module_api_name: 'Contacts' }, ctx)),
+    get: validated((input, ctx) => viaCatalog({ ...input, module_api_name: 'Contacts' }, ctx)),
+  },
 };

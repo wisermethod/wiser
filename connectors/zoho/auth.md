@@ -4,24 +4,34 @@ See [gateway/SETUP.md](../../gateway/SETUP.md) for attachment and the gateway's 
 
 ## On the platform's side, first
 
-Use a Zoho account that can access the requested resources. If the organization restricts third-party apps, obtain its approval for the gateway's provider application. Prepare the OAuth blueprint through the gateway's provider as described by [gateway/SETUP.md](../../gateway/SETUP.md).
+Use a Zoho account that can access the requested resources. If the organization restricts third-party apps, obtain its approval for the gateway's provider application. Prepare an OAuth blueprint for each module through the gateway's provider as described by [gateway/SETUP.md](../../gateway/SETUP.md).
 
 ## Through the gateway
 
-1. Request "Connect Zoho" for `zoho` / `crm`.
+1. Request "Connect Zoho" and name the module.
 2. The skill runs `start_connect` for that service and module. Open its hosted link in your own browser.
 3. Sign in to Zoho and approve the requested access in your browser.
-4. The skill runs `connect_status`. Only ACTIVE unlocks the module.
+4. The skill runs `connect_status`. Only ACTIVE unlocks that module.
 
 This connector uses hosted connect only. No key belongs in this file or the conversation.
 
-## Grant
+## Per-module notes
 
-`crm` has write privilege. Only this module is included in this slice.
+- `crm`: separate connect, write privilege; Last connected: Not yet.
+- `mail`: separate connect, read privilege; Last connected: Not yet.
+- `books`: separate connect, read privilege; Last connected: Not yet.
+- `desk`: separate connect, read privilege; Last connected: Not yet.
+- `inventory`: separate connect, read privilege; Last connected: Not yet.
+- `invoice`: separate connect, read privilege; Last connected: Not yet.
+- `bigin`: separate connect, read privilege; Last connected: Not yet.
+
+CRM remains a write grant for Leads. Bigin reads Contacts only. Mail, Books, Desk, Inventory, Invoice, and Bigin each require their own connect. Use the Zoho account and organization that hold the requested resources; hosted connect may ask for the applicable data center region and organization.
+
+Books and Invoice read invoices, Desk reads tickets, and Inventory reads contacts.
 
 ## Revoking
 
-Revoke the module through the gateway, then remove the application's access at Zoho Accounts connected applications.
+Revoke each module through the gateway, then remove the application's access at Zoho Accounts connected applications.
 
 ## Rate limits
 

@@ -78,6 +78,28 @@ const ROWS = [
   ['supabase.projects.get', 'SUPABASE_GET_PROJECT'], // catalog docs 2026-09-09; live envelope UNVERIFIED
   ['microsoft.outlook.list_messages', 'OUTLOOK_LIST_MESSAGES'], // catalog docs 2026-09-09; live envelope UNVERIFIED
   ['microsoft.outlook.get_message', 'OUTLOOK_GET_MESSAGE'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['microsoft.calendar.list_events', 'OUTLOOK_LIST_EVENTS'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['microsoft.calendar.get_event', 'OUTLOOK_GET_EVENT'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['microsoft.onedrive.find', 'ONE_DRIVE_SEARCH_ITEMS'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['microsoft.onedrive.get', 'ONE_DRIVE_GET_ITEM'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['microsoft.sharepoint.list', 'SHARE_POINT_LIST_ALL_LISTS'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['microsoft.sharepoint.get', 'SHARE_POINT_GET_LIST_BY_TITLE'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['microsoft.excel.search', 'EXCEL_SEARCH_FILES'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['microsoft.excel.get_values', 'EXCEL_GET_RANGE'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['microsoft.teams.list', 'MICROSOFT_TEAMS_LIST_USER_JOINED_TEAMS'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['microsoft.teams.get', 'MICROSOFT_TEAMS_GET_TEAM_FROM_GROUP'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['zoho.mail.list', 'ZOHO_MAIL_MESSAGES_LIST_EMAILS'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['zoho.mail.get', 'ZOHO_MAIL_MESSAGES_GET_MESSAGE_CONTENT'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['zoho.books.list', 'ZOHO_BOOKS_LIST_INVOICES'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['zoho.books.get', 'ZOHO_BOOKS_GET_INVOICE'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['zoho.desk.list', 'ZOHO_DESK_LIST_TICKETS'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['zoho.desk.get', 'ZOHO_DESK_GET_TICKET'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['zoho.inventory.list', 'ZOHO_INVENTORY_LIST_CONTACTS'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['zoho.inventory.get', 'ZOHO_INVENTORY_GET_CONTACT'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['zoho.invoice.list', 'ZOHO_INVOICE_LIST_INVOICES'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['zoho.invoice.get', 'ZOHO_INVOICE_GET_INVOICE'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['zoho.bigin.list', 'ZOHO_BIGIN_GET_RECORDS'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['zoho.bigin.get', 'ZOHO_BIGIN_GET_RECORD'], // catalog docs 2026-09-09; live envelope UNVERIFIED
 ];
 
 const TO_SLUG = new Map(ROWS);
@@ -102,7 +124,15 @@ const TOOLKITS = {
   replicate: 'REPLICATE',
   'google-vision': 'GOOGLE_CLOUD_VISION',
   vercel: 'VERCEL',
-  zoho: 'ZOHO',
+  zoho: {
+    crm: 'ZOHO',
+    mail: 'ZOHO_MAIL',
+    books: 'ZOHO_BOOKS',
+    desk: 'ZOHO_DESK',
+    inventory: 'ZOHO_INVENTORY',
+    invoice: 'ZOHO_INVOICE',
+    bigin: 'ZOHO_BIGIN',
+  },
   hubspot: 'HUBSPOT',
   notion: 'NOTION',
   stripe: 'STRIPE',
@@ -114,6 +144,11 @@ const TOOLKITS = {
   supabase: 'SUPABASE',
   microsoft: {
     outlook: 'OUTLOOK',
+    calendar: 'OUTLOOK',
+    onedrive: 'ONE_DRIVE',
+    sharepoint: 'SHARE_POINT',
+    excel: 'EXCEL',
+    teams: 'MICROSOFT_TEAMS',
   },
 };
 
@@ -175,3 +210,15 @@ export function toolkitsFor(service, module) {
 // https://docs.composio.dev/toolkits/hugging_face
 // https://docs.composio.dev/toolkits/supabase
 // https://docs.composio.dev/toolkits/outlook
+
+// Additional toolkit schemas checked 2026-09-09; live envelope UNVERIFIED.
+// https://docs.composio.dev/toolkits/zoho_mail
+// https://docs.composio.dev/toolkits/zoho_books
+// https://docs.composio.dev/toolkits/zoho_desk
+// https://docs.composio.dev/toolkits/zoho_inventory
+// https://docs.composio.dev/toolkits/zoho_invoice
+// https://docs.composio.dev/toolkits/zoho_bigin
+// https://docs.composio.dev/toolkits/one_drive
+// https://docs.composio.dev/toolkits/share_point
+// https://docs.composio.dev/toolkits/excel
+// https://docs.composio.dev/toolkits/microsoft_teams
