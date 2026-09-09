@@ -39,4 +39,4 @@ Live limits are UNVERIFIED. If a gateway status reports a rate limit, stop and f
 
 ## Last connected
 
-2026-09-09, `crm`, `mail`, `books`, `inventory`, and `invoice` ACTIVE. Hosted OAuth; live envelopes UNVERIFIED. `desk` skipped (no access). `bigin` still Not yet.
+2026-09-09, `crm`, `mail`, `books`, `inventory`, and `invoice` ACTIVE. Hosted OAuth; live envelopes UNVERIFIED. `desk` skipped (no access). `bigin` skipped (no access).
