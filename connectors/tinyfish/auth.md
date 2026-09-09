@@ -22,4 +22,4 @@ Revoke the connection through the gateway, then revoke or rotate the API key at 
 
 ## Last connected
 
-Not yet.
+2026-09-09, `web` ACTIVE. Hosted connect; the gateway's provider holds the key. Live Search and Fetch not yet executed.
