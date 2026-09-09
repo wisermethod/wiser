@@ -1,0 +1,51 @@
+{
+  "id": "clarity",
+  "service": "clarity",
+  "modules": {
+    "analytics": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "MICROSOFT_CLARITY",
+        "scheme": "API_KEY",
+        "privilege": "read"
+      },
+      "actions": {
+        "export": {
+          "description": "Export recent metrics",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "numOfDays": {
+                "type": "integer",
+                "enum": [
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "dimension1": {
+                "type": "string"
+              },
+              "dimension2": {
+                "type": "string"
+              },
+              "dimension3": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "numOfDays"
+            ]
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    }
+  }
+}

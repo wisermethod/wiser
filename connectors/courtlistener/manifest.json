@@ -1,0 +1,104 @@
+{
+  "id": "courtlistener",
+  "service": "courtlistener",
+  "modules": {
+    "caselaw": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "CUSTOM_COURTLISTENER",
+        "scheme": "API_KEY",
+        "privilege": "read"
+      },
+      "actions": {
+        "search": {
+          "description": "Search case law",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "q": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "o",
+                  "r",
+                  "oa",
+                  "p"
+                ]
+              }
+            },
+            "required": [
+              "q"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "get_docket": {
+          "description": "Read one docket",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "get_cluster": {
+          "description": "Read one opinion cluster",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "list_courts": {
+          "description": "Read the courts list",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    }
+  }
+}

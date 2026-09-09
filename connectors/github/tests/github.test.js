@@ -33,6 +33,37 @@ test('github.repos.get returns the fake canned result', async () => {
   assert.equal(result.owner.login, 'example-org');
 });
 
+test('github.repos.list_for_user returns the fake canned list', async () => {
+  const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS] });
+  await putActive(store, fake, { service: 'github', module: 'repos', privilege: 'write' });
+  const result = await gw.execute({
+    action: 'github.repos.list_for_user',
+    input: {},
+  });
+  assert.equal(result.repositories[0].name, 'example-repo');
+});
+
+test('github.issues.list returns the fake canned list', async () => {
+  const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS] });
+  await putActive(store, fake, { service: 'github', module: 'issues', privilege: 'write' });
+  const result = await gw.execute({
+    action: 'github.issues.list',
+    input: { owner: 'example-org', repo: 'example-repo' },
+  });
+  assert.ok(Array.isArray(result.issues));
+  assert.equal(result.issues[0].title, 'Example');
+});
+
+test('github.users.me returns the fake canned account', async () => {
+  const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS] });
+  await putActive(store, fake, { service: 'github', module: 'users', privilege: 'read' });
+  const result = await gw.execute({
+    action: 'github.users.me',
+    input: {},
+  });
+  assert.equal(result.login, 'example-org');
+});
+
 test('github.issues.create needs confirmation', async () => {
   const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS] });
   await putActive(store, fake, { service: 'github', module: 'issues', privilege: 'write' });
@@ -42,4 +73,47 @@ test('github.issues.create needs confirmation', async () => {
   });
   assert.equal(result.status, 'needs_confirmation');
   assert.equal(result.action, 'github.issues.create');
+});
+
+test('github.issues.create runs on confirm', async () => {
+  const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS] });
+  await putActive(store, fake, { service: 'github', module: 'issues', privilege: 'write' });
+  const result = await gw.execute({
+    action: 'github.issues.create',
+    input: { owner: 'example-org', repo: 'example-repo', title: 'Example' },
+    confirm: true,
+  });
+  assert.equal(result.number, 1);
+  assert.equal(result.title, 'Example');
+});
+
+test('a repos grant does not unlock issues', async () => {
+  const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS] });
+  await putActive(store, fake, { service: 'github', module: 'repos', privilege: 'write' });
+  const result = await gw.execute({
+    action: 'github.issues.list',
+    input: { owner: 'example-org', repo: 'example-repo' },
+  });
+  assert.equal(result.status, 'needs_connect');
+  assert.equal(result.module, 'issues');
+});
+
+test('readonly is denied github.repos.get', async () => {
+  const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS], role: 'readonly' });
+  await putActive(store, fake, { service: 'github', module: 'repos', privilege: 'write' });
+  const result = await gw.execute({
+    action: 'github.repos.get',
+    input: { owner: 'example-org', repo: 'example-repo' },
+  });
+  assert.equal(result.status, 'denied');
+});
+
+test('readonly may call github.users.me', async () => {
+  const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS], role: 'readonly' });
+  await putActive(store, fake, { service: 'github', module: 'users', privilege: 'read' });
+  const result = await gw.execute({
+    action: 'github.users.me',
+    input: {},
+  });
+  assert.equal(result.login, 'example-org');
 });

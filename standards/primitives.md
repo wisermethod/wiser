@@ -1,34 +1,45 @@
 ---
 standard: primitives
-version: 0.4.2
-description: The three typed primitives, how they invoke and sequence one another, and the frontmatter every typed file carries
+version: 0.5.0
+description: The four typed primitives, how they invoke and sequence one another, and the frontmatter every typed file carries
 ---
 
 # Primitives
 
-A primitive is an invocable unit of capability: an Expert, a Skill, or a Tool. Each is one directory named for itself, holding its typed file plus whatever supporting files it needs. The typed file declares what the primitive is; this standard owns that taxonomy and that declaration.
+A primitive is an invocable unit of capability: an Expert, a Skill, a Tool, or a Connector. Each is one directory named for itself, holding its typed file plus whatever supporting files it needs. The typed file declares what the primitive is; this standard owns that taxonomy and that declaration.
 
 Division of labor: the body under the frontmatter follows `instruction-quality.md`, which owns how instructions are written and judged; the Play and Playbook formats belong to `play.md` and `playbook.md`; naming characters, formatting, and dates belong to `conventions.md`. Cite those standards; do not restate them here.
 
-## The Three Types
+## The Four Types
 
 | Type | File | What it is |
 |------|------|------------|
 | Skill | `SKILL.md` | A capability a user invokes by name for its output |
 | Expert | `EXPERT.md` | A persona that carries a perspective, judges work through it, and sequences the skills a chain of work needs |
 | Tool | `TOOL.md` | A deterministic operation skills and experts call |
+| Connector | `CONNECTOR.md` | Authenticated access to an outside platform, loaded by the root's gateway |
 
 This table is the single home of these definitions; routers cite it rather than restating it.
 
-Litmus: it produces an output on request (Skill), it judges work through a lens and decides what the work needs next (Expert), or it runs the same way every time (Tool). A fourth type, a connector, is authenticated access to an outside platform; this release ships none, and the build that ships one defines it here.
+Litmus: it produces an output on request (Skill), it judges work through a lens and decides what the work needs next (Expert), it runs the same way every time (Tool), or it reaches an outside account the person connected (Connector).
 
 ## Invocation
 
-Skills and experts invoke tools, and they alone do. Skills never invoke each other's internals, and neither do experts; behavior two of them share moves down into a tool, or the two are one primitive. Tools invoke no primitive.
+Skills and experts invoke tools, and they alone do. Skills never invoke each other's internals, and neither do experts; behavior two of them share moves down into a tool, or the two are one primitive. Tools invoke no primitive. Skills and experts invoke connectors by action id through the gateway; they never import a connector module, never read a credential, and never present a vendor body as their own judgment.
 
 An expert may select and sequence skills. It names the skill it picked before running it, and it may tell that skill which files to read. It never reaches inside a skill's steps, overrides its internals, or presents a skill's output as its own. Anything an expert does that runs the same way every time is a tool, not expert behavior.
 
 A skill may run another skill by name where its own steps say so, handing over exactly what that skill declares it takes. **What no primitive may do is reach inside another's steps, override its internals, or present its output as its own**, and that is what this rule protects. A skill that finds itself needing another skill's internals has found a tool, or the two are one primitive.
+
+## Connector Bodies
+
+A connector is one directory under `connectors/`, named for the service, holding `CONNECTOR.md`, `manifest.json`, `index.js`, and `auth.md`. The directory is flat; modules are files and keys inside that directory, not nested service folders. Templates live at `system/templates/Connector Template/`, never as a directory under `connectors/`.
+
+The New generation is a module the root's gateway loads and serves over stdio. The person attaches one process, `gateway/server.js`. That process loads every connector's manifest, resolves each action id, applies policy, and either runs the action or returns a status object that names the next step. A hosted client that cannot spawn a process gets the provider's hosted catalog only, documented as such in `gateway/SETUP.md`.
+
+A module holds no credential. Vendor grants live with the auth provider. A local-file module's key is `--secret <service>=<abs file>` or a Provides `secrets:<platform>` path the root names, never a default directory in a root, and never `memory/secrets/`. The module receives a context (`catalog`, `proxy`, `http` when unwrap is allowed, `audit`) and never a provider client. It imports Node built-ins and files inside its own directory only. It never reads a credential file, never writes a file, and never names a provider slug. Agent-facing ids are `service.module.action`. A grant is per module: two modules are two `needs_connect` stops.
+
+`CONNECTOR.md` uses the same five required frontmatter keys as the other types, with `type: connector`. Risk, confirmation, privilege, and execution live in `manifest.json`, not in that block. An action no manifest declares never runs.
 
 ## Placement
 

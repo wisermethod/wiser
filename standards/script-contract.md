@@ -1,12 +1,12 @@
 ---
 standard: script-contract
-version: 0.6.1
-description: The rules every script a tool ships follows, for the people who write one; users read tools/RUNNING.md
+version: 0.7.0
+description: The rules every script a tool ships follows, and the clauses that bind a connector module; users read tools/RUNNING.md
 ---
 
 # Script Contract
 
-Fixed rules for every script a tool ships, in every runtime. Tools cite this file by the pointer at `system/templates/Script Contract.md`; none restate it. What a user meets when running a script is `tools/RUNNING.md`, which this file governs. Connectors are a second primitive kind this release does not ship; a build that adds them brings the clauses that govern them, and this file is where they attach.
+Fixed rules for every script a tool ships, in every runtime. Tools cite this file by the pointer at `system/templates/Script Contract.md`; none restate it. What a user meets when running a script is `tools/RUNNING.md`, which this file governs. Connector modules attach their clauses at the end of this file; they are not tools and they do not install.
 
 ## Rules for every script
 
@@ -33,3 +33,15 @@ A tool's option set is closed, and the command's own help declares it. Every fla
 **Where files are written.** Beyond the dependency install above, a script never writes inside its own directory. A script accepting an output path refuses one that resolves inside that directory; the agent passes a work directory in the owning root, per `standards/conventions.md`.
 
 **Caller-named paths.** Every path a command accepts as a source or a destination is screened before anything opens it; the `--env` path itself is configuration, governed above, not a source. The screen canonicalizes the path against the filesystem, walking up to the deepest ancestor that exists, resolving it, and rejoining the components below, so a symbolic link anywhere in the spelling, including one standing in for a parent of a file that does not exist yet, collapses onto the real path it names; a path that cannot be canonicalized has not been cleared and is refused, never compared as the text it was spelled with. The canonical path is then compared by device and inode, the identity a hard link keeps and no spelling reaches, against the refused set: the file `--env` names; every file resolving inside the directory that holds it, which holds credentials and nothing else; and, for a destination, the primitive's own directory (Where files are written, above). The screen returns the resolved path, and the call site uses that value for every open, read, write, and transmit; a test against a filename runs on the resolved basename, never the caller's spelling. One decoupling: a filename a command transmits, an upload's display name or an attachment's name in a body, may keep the caller's spelling; the bytes always come from the resolved path. The screen answers for the moment it is called, so a file swapped between the check and the open is not caught. Accepted: the vectors this clause closes need only a link planted in advance, while the swap also requires a concurrent process writing in the work directory as the same user, who can already read that user's own credential file, so the race grants essentially no capability not already held; the fix, opening once and reading through the descriptor, would restructure every screen's read path and is not taken.
+
+## Connector modules
+
+A connector module is not a tool. It has no `--install`, no `node_modules/`, and no consent marker. The gateway that loads it has no dependencies. These clauses bind the module and the gateway's flags; they do not relax the rules above for tools.
+
+**Imports.** A module imports Node built-ins and files inside its own connector directory. It does not import `tools/lib/` or anything else outside that directory. It never imports a provider adapter.
+
+**Credentials.** A module never reads a credential file, never receives a token on `ctx`, and never writes one. `ctx.http` exists only when the manifest says `unwrap_token: true` and the provider can unwrap; the gateway attaches the value and the module never sees it. Vendor grants are the provider's. A local-file key is `--secret` or a Provides path, never a default directory in a root.
+
+**Gateway flags.** `help` and `--help` print usage and exit 0 with nothing configured. `--check` validates manifests and policy, prints one JSON object, and exits 0; it does not create the project-key file. An unknown flag is refused by name. `--role` is `runtime` or `readonly`; any other value, including `setup`, is refused. `--home` is an absolute path, canonicalised, and refused inside the plugin, beside a credential file, or on a symbolic link. `--env` is optional when the platform user-config file exists. `--connectors` names extra connector directories. `--secret <service>=<abs file>` binds a local-file credential; `--secrets` names a directory of them. `--harness` is an audit label.
+
+**Output.** `help` is usage text. `--check` and every tool result the gateway serves is one JSON object. A status object (`needs_connect`, `needs_provider`, `needs_confirmation`, `denied`, `needs_connector`, `needs_provider_capability`, `vendor_error`, `invalid_arguments`) is a stop, not a retry. `vendor_error` names the status and the endpoint, never the raw body.

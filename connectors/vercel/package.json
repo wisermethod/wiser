@@ -1,0 +1,5 @@
+{
+  "name": "wiser-connector-vercel",
+  "private": true,
+  "type": "module"
+}

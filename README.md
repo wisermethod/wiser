@@ -6,13 +6,15 @@ It carries no dependency on any single agent host: everything in it is instructi
 
 ## What is in it
 
-**29 skills** that produce something you asked for by name: writing a post, an essay, a press release, a speech; researching a question; designing a page, a palette, a type system, or a whole design system; analyzing a spreadsheet; building a funnel or a proposal; setting up a new working folder.
+**32 skills** that produce something you asked for by name: writing a post, an essay, a press release, a speech; researching a question; designing a page, a palette, a type system, or a whole design system; analyzing a spreadsheet; building a funnel or a proposal; setting up a new working folder; authoring a connector from an approved plan; connecting an account; naming the next step when a grant fails.
 
-**9 experts** that judge work through a perspective rather than producing it, and each owns the skills it gates: a review gate before writing ships, a marketing strategist, a conversion and an SEO advisor, a creative director who directs design before it is made and judges it after, a research expert who judges what a finding rests on, an IT expert for a DNS or hosting change, a system expert for changes to the plugin and to a root, and a first-principles problem solver. Every skill is owned by one of them, and `experts/AGENTS.md` is the routing table that says which.
+**10 experts** that judge work through a perspective rather than producing it, and each owns the skills it gates: a review gate before writing ships, a marketing strategist, a conversion and an SEO advisor, a creative director who directs design before it is made and judges it after, a research expert who judges what a finding rests on, an IT expert for a DNS or hosting change, a system expert for changes to the plugin and to a root, a connector advisor for how a new connector is built, and a first-principles problem solver. Every skill is owned by one of them, and `experts/AGENTS.md` is the routing table that says which.
 
 **13 tools** that do the deterministic work a skill or expert calls for: parsing, describing, aggregating, joining, charting and computing over tabular data; rendering HTML, SVG and Mermaid diagrams and live pages to images; editing images and video; driving a browser; on-page, sitemap and analytics-tag checks and Search Console datasets for SEO; building and exporting decks; gathering candidate source material; and transcribing audio on your own machine.
 
-**6 standards** that bind all of it: how a primitive is shaped, how instructions are written, the conventions every file follows, the two shapes for work written down rather than done once, and what every script a tool ships must do.
+**6 standards** that bind all of it: how a primitive is shaped, how instructions are written, the conventions every file follows, the two shapes for work written down rather than done once, and what every script a tool ships, and every connector module, must do.
+
+**A local gateway** and the connectors under `connectors/`. A person attaches one process; account access is that process, not a file in a root. The gateway's provider holds vendor keys through hosted connect, including catalog-absent API-key services registered as custom toolkits. Local-file is last resort when that injection cannot match the vendor.
 
 ## How it works
 
@@ -20,7 +22,7 @@ Install the plugin, then attach a **working folder**: the root the work is about
 
 The plugin is **read-only in use, with one exception**. Everything it produces lands in the working folder you attached, in the directories that folder declares. **The exception is what a tool installs for itself.** A tool that needs packages installs them into its own directory after the first `--install` in this copy, and a browser tool also downloads a Chromium build, which lands outside this plugin unless `PLAYWRIGHT_BROWSERS_PATH=0` puts it inside. So the plugin directory has to be writable, and a tool that carries dependencies cannot work from a read-only install. **`tools/AGENTS.md` has the full list**: what gets written, where, and which of the thirteen tools it applies to.
 
-`AGENTS.md` is the constitution and the place to start reading; `GLOSSARY.md` defines the words it uses. `skills/AGENTS.md`, `experts/AGENTS.md` and `tools/AGENTS.md` index what is available.
+`AGENTS.md` is the constitution and the place to start reading; `GLOSSARY.md` defines the words it uses. `skills/AGENTS.md`, `experts/AGENTS.md`, `tools/AGENTS.md` and `connectors/AGENTS.md` index what is available. `gateway/SETUP.md` is how a person attaches the gateway.
 
 ## What each host gives up
 
@@ -35,7 +37,7 @@ The writing skills and the judging experts run on any model that can read the fi
 
 ## What it does not do yet
 
-This release ships skills, experts, tools, and standards. **It does not ship connectors**, so nothing here reads from an account you hold: analytics, behavior and search-console figures, keyword research, email address verification, DNS and zone changes, and the vision and image-generation models two skills can use when they are present. Those primitives say so at the step rather than guessing the numbers.
+This release ships a local gateway and connectors, including GitHub, Cloudflare, Google Search Console and Analytics, Drive, Calendar, Vercel, Replicate, Google Vision, Clarity, address verification, and CourtListener. Clarity and address verification still need their human connects. Keyword research and page-speed readings are not waiting on those connectors. Primitives that still need an absent service say so at the step rather than guessing the numbers. Zone Publisher still names rulesets as a remaining gap on the skill side.
 
 **Automated site crawling is not here either**, and unlike the readings above it is not waiting on a connector: nothing in this release crawls a site, and the SEO primitives take the pages and sitemaps you give them rather than discovering them.
 

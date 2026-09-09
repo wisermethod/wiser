@@ -4,7 +4,7 @@
   "modules": {
     "{{MODULE}}": {
       "auth": {
-        "provider": "catalog",
+        "provider": "{{AUTH_PROVIDER}}",
         "toolkit": "{{TOOLKIT}}",
         "scheme": "{{SCHEME}}",
         "privilege": "{{PRIVILEGE}}"

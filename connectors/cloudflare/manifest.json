@@ -5,7 +5,7 @@
     "dns": {
       "auth": {
         "provider": "catalog",
-        "toolkit": "CLOUDFLARE",
+        "toolkit": "CLOUDFLARE_API_KEY",
         "scheme": "API_KEY",
         "privilege": "write"
       },
@@ -14,13 +14,15 @@
           "description": "List DNS records in a zone",
           "risk": "low",
           "confirmation": "none",
-          "execution": { "prefer": "catalog" },
+          "execution": { "prefer": "proxy" },
           "input": {
             "type": "object",
             "properties": {
               "zone_id": { "type": "string" },
               "type": { "type": "string" },
-              "name": { "type": "string" }
+              "name": { "type": "string" },
+              "page": { "type": "integer" },
+              "per_page": { "type": "integer" }
             },
             "required": ["zone_id"]
           }
@@ -29,7 +31,7 @@
           "description": "Get one DNS record",
           "risk": "low",
           "confirmation": "none",
-          "execution": { "prefer": "catalog" },
+          "execution": { "prefer": "proxy" },
           "input": {
             "type": "object",
             "properties": {
@@ -43,7 +45,7 @@
           "description": "Create a DNS record",
           "risk": "medium",
           "confirmation": "once",
-          "execution": { "prefer": "catalog" },
+          "execution": { "prefer": "proxy" },
           "input": {
             "type": "object",
             "properties": {
@@ -134,6 +136,236 @@
               "posts": { "type": "array" }
             },
             "required": ["zone_id"]
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    },
+    "zones": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "CLOUDFLARE_API_KEY",
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "actions": {
+        "list": {
+          "description": "List every zone the connected token can see",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "status": { "type": "string" },
+              "account_id": { "type": "string" },
+              "page": { "type": "integer" },
+              "per_page": { "type": "integer" }
+            }
+          }
+        },
+        "get": {
+          "description": "Get one zone",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "zone_id": { "type": "string" }
+            },
+            "required": ["zone_id"]
+          }
+        },
+        "list_accounts": {
+          "description": "List Cloudflare accounts the token can see",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "page": { "type": "integer" },
+              "per_page": { "type": "integer" }
+            }
+          }
+        },
+        "create": {
+          "description": "Create a zone",
+          "risk": "high",
+          "confirmation": "once",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "account_id": { "type": "string" },
+              "type": { "type": "string" }
+            },
+            "required": ["name"]
+          }
+        },
+        "delete": {
+          "description": "Delete a zone",
+          "risk": "destructive",
+          "confirmation": "always",
+          "execution": { "prefer": "catalog" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "zone_id": { "type": "string" }
+            },
+            "required": ["zone_id"]
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    },
+    "pages": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "CLOUDFLARE_API_KEY",
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "actions": {
+        "list_projects": {
+          "description": "List Pages projects in an account",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string" }
+            },
+            "required": ["account_id"]
+          }
+        },
+        "get_project": {
+          "description": "Get one Pages project",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string" },
+              "project_name": { "type": "string" }
+            },
+            "required": ["account_id", "project_name"]
+          }
+        },
+        "list_deployments": {
+          "description": "List deployments for a Pages project",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string" },
+              "project_name": { "type": "string" }
+            },
+            "required": ["account_id", "project_name"]
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    },
+    "rulesets": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "CLOUDFLARE_API_KEY",
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "actions": {
+        "create": {
+          "description": "Create a ruleset",
+          "risk": "high",
+          "confirmation": "once",
+          "execution": { "prefer": "catalog" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "accounts_or_zones": { "type": "string" },
+              "account_or_zone_id": { "type": "string" },
+              "kind": { "type": "string" },
+              "name": { "type": "string" },
+              "phase": { "type": "string" },
+              "description": { "type": "string" }
+            },
+            "required": ["accounts_or_zones", "account_or_zone_id", "kind", "name", "phase"]
+          }
+        },
+        "get": {
+          "description": "Get a ruleset",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "catalog" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "accounts_or_zones": { "type": "string" },
+              "ruleset_id": { "type": "string" },
+              "account_id": { "type": "string" },
+              "zone_id": { "type": "string" }
+            },
+            "required": ["accounts_or_zones", "ruleset_id"]
+          }
+        },
+        "delete": {
+          "description": "Delete a ruleset",
+          "risk": "destructive",
+          "confirmation": "always",
+          "execution": { "prefer": "catalog" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "accounts_or_zones": { "type": "string" },
+              "account_or_zone_id": { "type": "string" },
+              "ruleset_id": { "type": "string" }
+            },
+            "required": ["accounts_or_zones", "account_or_zone_id", "ruleset_id"]
+          }
+        },
+        "add_rule": {
+          "description": "Add a rule to a ruleset",
+          "risk": "high",
+          "confirmation": "once",
+          "execution": { "prefer": "catalog" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "accounts_or_zones": { "type": "string" },
+              "ruleset_id": { "type": "string" },
+              "rule": { "type": "object" },
+              "account_id": { "type": "string" },
+              "zone_id": { "type": "string" }
+            },
+            "required": ["accounts_or_zones", "ruleset_id", "rule"]
+          }
+        },
+        "remove_rule": {
+          "description": "Remove a rule from a ruleset",
+          "risk": "destructive",
+          "confirmation": "always",
+          "execution": { "prefer": "catalog" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "accounts_or_zones": { "type": "string" },
+              "account_or_zone_id": { "type": "string" },
+              "ruleset_id": { "type": "string" },
+              "rule_id": { "type": "string" }
+            },
+            "required": ["accounts_or_zones", "account_or_zone_id", "ruleset_id", "rule_id"]
           }
         }
       },

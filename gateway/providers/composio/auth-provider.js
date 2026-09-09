@@ -1,4 +1,7 @@
 import { readFileSync } from 'node:fs';
+import { createCustomToolkitBody, findCustomToolkit, registeredSlug } from './custom-toolkits.js';
+
+export { createCustomToolkitBody } from './custom-toolkits.js';
 
 const BASE = 'https://backend.composio.dev/api/v3.1';
 
@@ -69,8 +72,56 @@ async function request(apiKey, method, path, body) {
   return { ok, status: res.status, data, malformed, endpoint: path, method };
 }
 
+export function proxyRequestBody({ providerAccountId, endpoint, method, body, parameters, binary_body }) {
+  const payload = { connected_account_id: providerAccountId, endpoint, method: method || 'GET' };
+  if (body !== undefined) payload.body = body;
+  if (binary_body !== undefined) payload.binary_body = binary_body;
+  if (Array.isArray(parameters) && parameters.length > 0) payload.parameters = parameters;
+  return payload;
+}
+
+/**
+ * POST /auth_configs body. OAuth uses managed auth. API-key toolkits have no
+ * managed app; empty credentials means the hosted connect page collects the key.
+ * Never put a vendor token here.
+ */
+export function createAuthConfigBody(toolkit, scheme) {
+  const oauth = String(scheme || '').toUpperCase() === 'OAUTH2';
+  return {
+    toolkit: { slug: toolkit },
+    auth_config: oauth
+      ? { type: 'use_composio_managed_auth', name: toolkit }
+      : { type: 'use_custom_auth', authScheme: scheme, name: toolkit, credentials: {} },
+  };
+}
+
 function vendorError(endpoint, method, status) {
   return { status, error: { code: 'vendor_error', endpoint, method } };
+}
+
+/**
+ * BIND exports and other file bodies arrive as binary_data.url, not JSON.
+ * Fetch that HTTPS URL in-process and return the text. Redirects are refused.
+ * @param {object} data
+ * @param {typeof fetch} [fetchImpl]
+ */
+export async function resolveProxyPayload(data, fetchImpl = fetch) {
+  const binary = data?.binary_data;
+  if (binary && typeof binary.url === 'string') {
+    let parsed;
+    try { parsed = new URL(binary.url); } catch { parsed = null; }
+    if (parsed && parsed.protocol === 'https:') {
+      const res = await fetchImpl(parsed.toString(), { redirect: 'manual' });
+      if (res.ok && !(res.status >= 300 && res.status < 400)) return await res.text();
+    }
+  }
+  if (typeof data?.data === 'string') return data.data;
+  const payload = data?.data ?? data;
+  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+    return Object.fromEntries(Object.entries(payload).filter(([key]) =>
+      !['headers', 'set-cookie'].includes(key.toLowerCase())));
+  }
+  return payload;
 }
 
 /**
@@ -113,22 +164,30 @@ export function createAuthProvider({ envPath } = {}) {
     },
     async initiate({ userId, toolkit, scheme, callbackUrl }) {
       if (!apiKey) return { status: 0, error: { code: 'vendor_error', endpoint: '/auth_configs', method: 'GET' } };
+      const custom = findCustomToolkit(toolkit);
+      if (custom) {
+        const path = '/custom/toolkits/upsert';
+        const upserted = await request(apiKey, 'POST', path, createCustomToolkitBody(custom));
+        // A 409 is a frozen-config conflict. Never delete or replace the toolkit.
+        if (upserted.status !== 200) return vendorError(path, 'POST', upserted.status);
+        toolkit = registeredSlug(custom);
+      }
       const list = await request(apiKey, 'GET', `/auth_configs?toolkit_slug=${encodeURIComponent(toolkit || '')}`);
-      if (!list.ok) return vendorError('/auth_configs', 'GET', list.status);
-      const items = list.data?.items || list.data?.auth_configs || list.data?.data || [];
+      // 404 means no blueprint for this toolkit yet, not a dead grant.
+      if (!list.ok && list.status !== 404) return vendorError('/auth_configs', 'GET', list.status);
+      const items = list.ok ? (list.data?.items || list.data?.auth_configs || list.data?.data || []) : [];
       let authConfigId = null;
       if (Array.isArray(items) && items.length > 0) {
         authConfigId = items[0].id || items[0].auth_config_id || items[0].uuid || null;
       }
       if (!authConfigId) {
-        // UNVERIFIED against live API on 2026-09-05; Solve confirms
-        const created = await request(apiKey, 'POST', '/auth_configs', {
-          toolkit: { slug: toolkit },
-          auth_scheme: scheme,
-          use_composio_managed_auth: true,
-        });
+        const created = await request(apiKey, 'POST', '/auth_configs', createAuthConfigBody(toolkit, scheme));
         if (!created.ok) return vendorError('/auth_configs', 'POST', created.status);
-        authConfigId = created.data?.id || created.data?.auth_config_id || created.data?.data?.id || null;
+        authConfigId = created.data?.auth_config?.id
+          || created.data?.id
+          || created.data?.auth_config_id
+          || created.data?.data?.id
+          || null;
       }
       // UNVERIFIED against live API on 2026-09-05; Solve confirms
       const linkBody = {
@@ -156,18 +215,13 @@ export function createAuthProvider({ envPath } = {}) {
       if (!mapped) return vendorError(path, 'GET', res.status);
       return mapped;
     },
-    async proxy({ providerAccountId, endpoint, method, body, parameters }) {
+    async proxy({ providerAccountId, endpoint, method, body, parameters, binary_body }) {
       if (!apiKey) return vendorError('/tools/execute/proxy', 'POST', 0);
       // Confirmed 2026-09-08: POST /tools/execute/proxy with
       // connected_account_id, endpoint, method. Inner status 400 is wrapped;
       // the vendor body stays here.
-      const res = await request(apiKey, 'POST', '/tools/execute/proxy', {
-        connected_account_id: providerAccountId,
-        endpoint,
-        method: method || 'GET',
-        body,
-        parameters,
-      });
+      const proxyBody = proxyRequestBody({ providerAccountId, endpoint, method, body, parameters, binary_body });
+      const res = await request(apiKey, 'POST', '/tools/execute/proxy', proxyBody);
       if (!res.ok) return vendorError(endpoint || '/tools/execute/proxy', method || 'POST', res.status);
       const data = res.data || {};
       const inner = Number(data.status);
@@ -183,8 +237,7 @@ export function createAuthProvider({ envPath } = {}) {
       }
       return {
         status: Number.isFinite(inner) ? inner : res.status,
-        data: data.data ?? data,
-        headers: data.headers ?? {},
+        data: await resolveProxyPayload(data),
       };
     },
     async unwrap() {

@@ -6,19 +6,16 @@ A gap is a capability this root does not provide that a primitive's own body nam
 
 **This file carries capability gaps only.** What the operator plans to build is a separate record and is not a user's business, so nothing about future work appears here. **A gap names the capability that is missing, never where that capability went.**
 
-Counted 2026-09-06: 40 gaps across 21 primitives; the fortieth is External Research's web search or fetch capability, which its Context already named as one the run degrades without and stops without, declared when the Close-out found the frontmatter silent; the thirty-sixth is the IT Expert's DNS absence, the same one Zone Publisher declares, carried on the expert that judges the plan, and the last three are the two new experts' own boundaries, a security review and primary research and a knowledge set, declared when Gate 3 found their bodies naming them; the thirty-fourth is Media Generator's motion judgment, declared when Creative Director took ownership of the skill and its still frame, and the thirty-fifth is Typography Design's script boundary, which its Context had named without a declaration. Counted 2026-09-05: 33 gaps across 17 primitives; the thirty-third is SEO Advisor's analytics reading, which its body already named as one this release cannot fetch. Thirty-one of those are what remains of the forty-two this file carried on 2026-08-29, once four compound gaps were split into their separate assertions and twenty-one closed. The thirty-second is new: speaker labeling, declared by `Transcribe Audio`, which ships without it.
+Counted 2026-09-09: 28 gaps across 19 primitives. Bullet count: `/usr/bin/grep -E '^- ' wiser/system/GAPS.md | wc -l` returns 28. Verify each bullet against its primitive's frontmatter in both directions.
 
 ## Experts
 
 ### Conversion Advisor
 
-- analytics readings pulled from a site's own account
-- behavior readings pulled from a site's own account
 - page-speed readings
 
 ### IT Expert
 
-- applying DNS and zone changes to the hosting account, so the change this expert judges is planned and reviewed here and published by nobody in this root
 - a security review of an infrastructure change, which this expert names as a question and does not answer
 
 ### Research Expert
@@ -38,10 +35,8 @@ Counted 2026-09-06: 40 gaps across 21 primitives; the fortieth is External Resea
 
 ### SEO Advisor
 
-- traffic, engagement and channel readings pulled from the site's own analytics account
 - keyword research
 - automated site crawling
-- search-console readings pulled from the site's own account
 
 ## Skills
 
@@ -65,22 +60,12 @@ Counted 2026-09-06: 40 gaps across 21 primitives; the fortieth is External Resea
 
 - earned media judgment, whether something is a story and who to pitch it to
 
-### Headshot Normalizer
-
-- image cutout
-- the vision and image-model calls this skill's automated path depends on
-
-### List Hygiene
-
-- address verification against an email validation service
-
 ### Marketing Page Design
 
 - news judgment, whether an announcement is a story at all
 
 ### Media Generator
 
-- the image, video, and background-removal models this skill's whole output depends on
 - judgment of a generated clip's motion, which no expert in this root carries; the clip is judged by its still frame
 
 ### Onboard Root
@@ -95,8 +80,6 @@ Counted 2026-09-06: 40 gaps across 21 primitives; the fortieth is External Resea
 
 - keyword research
 - automated site crawling
-- search-console readings pulled from the site's own account
-- traffic, engagement and channel readings pulled from the site's own analytics account
 
 ### Speech Writing
 
@@ -109,7 +92,6 @@ Counted 2026-09-06: 40 gaps across 21 primitives; the fortieth is External Resea
 ### Zone Publisher
 
 - Cloudflare redirect rules API (Page Rules successor / Rulesets)
-- reading a zone's live records and applying DNS and zone changes to the hosting account, so this skill can neither pull the state it plans from nor publish the plan; a plan is judged on what the requester can supply of the live state
 
 ## Tools
 

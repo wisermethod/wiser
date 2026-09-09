@@ -16,43 +16,25 @@ Usage text, with nothing configured. Then:
 node gateway/server.js --check --connectors "/absolute/path/to/wiser/connectors"
 ```
 
-One JSON object naming every connector it loaded and every action it will serve. A validation error names the file and the field; the gateway refuses to start until it is fixed.
+One JSON object naming every connector it loaded and every action it will serve. A validation error names the file and the field; the gateway refuses to start until it is fixed. `help` and `--check` do not create the project-key file.
 
-## 2. Give it a provider credential
-
-Two different secrets. Do not mix them.
-
-**Vendor grants (GitHub, Cloudflare, and the rest) never live on this machine.** You approve those at the vendor, or paste an API token into the provider's hosted page. The provider holds the token. The gateway's connection store records that the grant exists and never stores the token. That is the whole point of the provider.
-
-**The one local file is the provider's own project key**, so this process can call the provider at all. It is not a GitHub token, not a Cloudflare token, and not an OAuth grant. A local stdio gateway has no other way to authenticate to the provider: a hosted MCP session still sends the same key as a header, and this plugin does not use the provider's CLI (that CLI writes its own config under the home directory and edits shell startup files).
-
-This file is **once per person on this machine**, not once per root. The harness starts one gateway for every workspace it opens. On first start the gateway creates the directory (0700) and an empty `WISER_AUTH_PROVIDER_KEY=` file (0600) if they are missing. It never overwrites a file that already exists and never writes a key value. You open that file, paste the project key after the equals sign, save, and restart the harness. You do not run terminal commands to create the path, and you do not paste the key into chat.
-
-The file sits outside every composed root and outside `--home`. When `--env` is omitted, the gateway uses:
-
-| OS | Path |
-|----|------|
-| macOS | `~/Library/Application Support/wiser/auth-provider.env` |
-| Linux | `$XDG_CONFIG_HOME/wiser/auth-provider.env`, or `~/.config/wiser/auth-provider.env` if that variable is unset |
-| Windows | `%APPDATA%\wiser\auth-provider.env` |
-
-Those paths come from the current user profile. They are never a name baked into this plugin. Do not put the file in a root, including `memory/secrets/`. Account access is the gateway. A local-file connector key, if a root has one, is `--secret` or a Provides path, not this file.
-
-The file holds one line:
-
-```
-WISER_AUTH_PROVIDER_KEY=
-```
-
-Which provider, how to get an account, and how to make that project key are the provider's own business: read `gateway/providers/<provider>/SETUP.md` for the one `gateway/providers/default.json` names. A gateway started without this file still starts, and every action that needs the provider answers `needs_provider` with that same walkthrough, so a harness that shows you the gateway's answer shows you the next step.
-
-## 3. Attach it
+## 2. Attach it
 
 Every local harness that speaks MCP over stdio takes the same three things: the command, its arguments, and nothing in the environment. Use absolute paths; a harness does not start where you think it does.
 
-Claude Code:
+On first start the gateway creates the directory (0700) and an empty `WISER_AUTH_PROVIDER_KEY=` file (0600) if they are missing. It never overwrites a file that already exists and never writes a key value. `help` and `--check` do not do this. You do not run terminal commands to create the path.
 
 If the project-key file is at the default path for this OS, omit `--env`. Otherwise pass `--env` with an absolute path.
+
+Grok:
+
+```bash
+grok mcp add wiser-gateway -- node "/absolute/path/to/wiser/gateway/server.js" --harness grok
+```
+
+Then in this session open `/mcps` and press `r` to reload, or start a new chat. The current session does not pick up a newly added server by itself.
+
+Claude Code:
 
 ```bash
 claude mcp add wiser-gateway -- node "/absolute/path/to/wiser/gateway/server.js" --harness claude-code
@@ -86,7 +68,35 @@ Any harness that reads an `mcpServers` JSON block:
 
 `--home` is screened before anything opens it: refused inside this plugin, beside a credential file, or on a symbolic link.
 
-Restart the harness. Its tool list now carries `execute`, `start_connect`, `connect_status`, `list_connections`, `search_actions` and `describe_action`.
+Restart the harness. Its tool list now carries `execute`, `start_connect`, `connect_status`, `list_connections`, `search_actions` and `describe_action`. Actions that need the provider answer `needs_provider` until step 3.
+
+## 3. Give it a provider credential
+
+Two different secrets. Do not mix them.
+
+**Vendor grants (GitHub, Cloudflare, and the rest) never live on this machine.** You approve those at the vendor, or paste an API token into the provider's hosted page. The provider holds the token. The gateway's connection store records that the grant exists and never stores the token. That is the whole point of the provider.
+
+**The one local file is the provider's own project key**, so this process can call the provider at all. It is not a GitHub token, not a Cloudflare token, and not an OAuth grant. A local stdio gateway has no other way to authenticate to the provider: a hosted MCP session still sends the same key as a header, and this plugin does not use the provider's CLI (that CLI writes its own config under the home directory and edits shell startup files).
+
+This file is **once per person on this machine**, not once per root. The harness starts one gateway for every workspace it opens. Step 2 created the empty file. You open that file, paste the project key after the equals sign, save, and restart the harness. You do not paste the key into chat.
+
+The file sits outside every composed root and outside `--home`. When `--env` is omitted, the gateway uses:
+
+| OS | Path |
+|----|------|
+| macOS | `~/Library/Application Support/wiser/auth-provider.env` |
+| Linux | `$XDG_CONFIG_HOME/wiser/auth-provider.env`, or `~/.config/wiser/auth-provider.env` if that variable is unset |
+| Windows | `%APPDATA%\wiser\auth-provider.env` |
+
+Those paths come from the current user profile. They are never a name baked into this plugin. Do not put the file in a root, including `memory/secrets/`. Account access is the gateway. A local-file connector key, if a root has one, is `--secret` or a Provides path, not this file.
+
+The file holds one line:
+
+```
+WISER_AUTH_PROVIDER_KEY=
+```
+
+Which provider, how to get an account, how to make that project key, and how to add a toolkit blueprint (an auth config) in the provider's dashboard are the provider's own business: read `gateway/providers/<provider>/SETUP.md` for the one `gateway/providers/default.json` names. An auth config is a blueprint, not a grant. Connecting the account is still step 4. A gateway started with an empty file still starts, and every action that needs the provider answers `needs_provider` with that same walkthrough, so a harness that shows you the gateway's answer shows you the next step.
 
 ## 4. Connect an account
 
@@ -100,7 +110,7 @@ Every answer is one JSON object. A `status` field on it means the work did not r
 
 | Status | Meaning | Next step |
 |--------|---------|-----------|
-| `needs_provider` | No credential file was given, or it is empty | Step 2 |
+| `needs_provider` | No credential file was given, or it is empty | Step 3 |
 | `needs_connect` | This service and module is not connected, or its grant expired | Step 4 |
 | `needs_confirmation` | The action is destructive or writes for the first time | Read the summary; say yes or no |
 | `denied` | The policy for this role forbids it | Use a different role, or leave it denied |

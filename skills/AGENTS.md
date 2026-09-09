@@ -18,7 +18,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 
 | Skill | Description |
 |-------|-------------|
-| `List Hygiene/SKILL.md` | Decide what an email contact list keeps and drops, verified through the usebouncer connector, with the cost put to the user before it is spent and every drop traced to the result field that caused it. Needs a connector this release does not ship. |
+| `List Hygiene/SKILL.md` | Decide what an email contact list keeps and drops, verified through the usebouncer connector, with the cost put to the user before it is spent and every drop traced to the result field that caused it. |
 
 ### Data
 
@@ -43,7 +43,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 
 | Skill | Description |
 |-------|-------------|
-| `Zone Publisher/SKILL.md` | Bring one Cloudflare zone's live DNS into a reviewable zone file, apply the intended record changes, and publish them back with every removal approved by name and every published record re-read from the platform. Needs a connector this release does not ship. |
+| `Zone Publisher/SKILL.md` | Bring one Cloudflare zone's live DNS into a reviewable zone file, apply the intended record changes, and publish them back with every removal approved by name and every published record re-read from the platform. |
 
 ### Marketing
 
@@ -55,8 +55,8 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 
 | Skill | Description |
 |-------|-------------|
-| `Headshot Normalizer/SKILL.md` | Turn photographs into square transparent PNGs whose faces sit at the same size and the same place in the frame, by removing each background, measuring the eyes, and cutting every frame to one standard, reporting the transparent band left where a photograph is too short to fill its frame. Needs a connector this release does not ship. |
-| `Media Generator/SKILL.md` | Produce an image or a video that does not exist yet, or a photograph with its background removed, by finishing the prompt, choosing the model, and running the billed generation through a generation connector to a file the user named. Needs a connector this release does not ship. |
+| `Headshot Normalizer/SKILL.md` | Turn photographs into square transparent PNGs whose faces sit at the same size and the same place in the frame, by removing each background, measuring the eyes, and cutting every frame to one standard, reporting the transparent band left where a photograph is too short to fill its frame. |
+| `Media Generator/SKILL.md` | Produce an image or a video that does not exist yet, or a photograph with its background removed, by finishing the prompt, choosing the model, and running the billed generation through a generation connector to a file the user named. |
 
 ### Onboarding
 
@@ -79,6 +79,14 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 | Skill | Description |
 |-------|-------------|
 | `SEO Assets/SKILL.md` | Produce the ready-to-use artifacts a site's decided search changes need, each built from evidence pulled for it, held to its own standards, and handed over for someone else to deploy |
+
+### System
+
+| Skill | Description |
+|-------|-------------|
+| `Connect Account/SKILL.md` | Connect one service module in its own human turn through start_connect then connect_status, never taking a key in the conversation |
+| `Connection Troubleshooter/SKILL.md` | Name one next step for a gateway status object or audit line covering needs_provider, needs_connect, expired, denied, needs_connector, and vendor_error |
+| `Connector Author/SKILL.md` | Build a connector from an approved Connector Advisor plan, with its manifest, module, auth guide, tests, and gateway loading instructions |
 
 ### Writing
 

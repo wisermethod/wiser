@@ -34,7 +34,8 @@ test('execute with confirmation always without confirm returns needs_confirmatio
     confirm: true,
   });
   assert.notEqual(ran.status, 'needs_confirmation');
-  assert.equal(ran.status, 200);
+  assert.equal(ran.success, true);
+  assert.equal(Object.hasOwn(ran, 'headers'), false);
 });
 
 test('policy readonly plus write is denied', async () => {

@@ -36,6 +36,8 @@ const SUBSTITUTIONS = {
   '{{SCHEME}}': 'OAUTH2',
   '{{PRIVILEGE}}': 'write',
   '{{SERVICE_TITLE}}': 'Example',
+  '{{CATEGORY}}': 'development',
+  '{{AUTH_PROVIDER}}': 'catalog',
 };
 
 function substitute(text) {
@@ -49,8 +51,13 @@ function substitute(text) {
 test('template loads through the gateway after substituting placeholders in memory', async () => {
   const manifestSrc = substitute(readFileSync(join(TEMPLATE_DIR, 'manifest.json'), 'utf8'));
   const indexSrc = substitute(readFileSync(join(TEMPLATE_DIR, 'index.js'), 'utf8'));
-  assert.equal(manifestSrc.includes('{{'), false);
-  assert.equal(indexSrc.includes('{{'), false);
+  const typedSrc = substitute(readFileSync(join(TEMPLATE_DIR, 'CONNECTOR.md'), 'utf8'));
+  const authSrc = substitute(readFileSync(join(TEMPLATE_DIR, 'auth.md'), 'utf8'));
+  const leftover = /\{\{[A-Z_]+\}\}/;
+  assert.equal(leftover.test(manifestSrc), false);
+  assert.equal(leftover.test(indexSrc), false);
+  assert.equal(leftover.test(typedSrc), false);
+  assert.equal(leftover.test(authSrc), false);
 
   // The fixture's ids come from the manifest itself, so this test still holds after
   // the placeholders are substituted with a real service and module.
@@ -85,4 +92,21 @@ test('template loads through the gateway after substituting placeholders in memo
     confirm: true,
   });
   assert.equal(ran.status, 200);
+});
+
+test('every placeholder in the template is named', () => {
+  const files = ['CONNECTOR.md', 'auth.md', 'manifest.json', 'index.js', 'package.json'];
+  const found = new Set();
+  for (const name of files) {
+    const text = readFileSync(join(TEMPLATE_DIR, name), 'utf8');
+    for (const m of text.matchAll(/\{\{([A-Z_]+)\}\}/g)) found.add(`{{${m[1]}}}`);
+  }
+  const named = new Set(Object.keys(SUBSTITUTIONS));
+  for (const token of found) {
+    assert.ok(named.has(token), `unnamed placeholder ${token}`);
+  }
+  const table = readFileSync(join(TEMPLATE_DIR, 'CONNECTOR.md'), 'utf8');
+  for (const token of named) {
+    assert.ok(table.includes(`\`${token}\``), `placeholder ${token} missing from the named table`);
+  }
 });

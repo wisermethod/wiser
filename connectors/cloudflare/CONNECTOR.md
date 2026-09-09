@@ -2,71 +2,88 @@
 name: cloudflare
 type: connector
 category: development
-description: Reaches one Cloudflare zone's DNS records to list, export, create, update, delete, import, and batch them, with every removal confirmed
-version: 0.1.0
+description: Reaches Cloudflare DNS, the account's zones, Pages, and rulesets, with every removal confirmed
+version: 0.2.1
 ---
 
 # Cloudflare
 
-The zone control plane for DNS, and the worked example of a connector that mixes stock catalog actions with proxied ones the catalog lacks. Reach for it to read a zone's records, pull the zone as a file, publish and change records, and land a set of changes together. Zone Publisher is its consumer.
+DNS on a named zone, every zone the token can see, Pages projects, and rulesets. Zone Publisher is the DNS consumer. Listing every domain is `cloudflare.zones.list`, not DNS.
 
-Not for Cloudflare's developer platform, cache, encryption mode, mail routing, or redirect rules. Those are other modules or other connectors, and a redirect rule is a gap this connector declares rather than approximates.
+Not for Workers, R2, cache, encryption mode, or mail routing. Those wait on later modules.
 
 ## Status
 
-Live connect 2026-09-08, operator, Grok with `wiser-gateway`: the `dns` module is ACTIVE. Catalog `list_records` and proxy `export_zone` on `agentfirst.ai` both fail vendor 400 (Cloudflare 9106). The operator's Cloudflare token is wider than `auth.md` documents for this module; extra permissions do not add actions. This module still only serves DNS. Tests still run against the fake provider.
-
-Later modules, each its own grant, not this Playbook's v1 ship: `zones` (list every zone the token reaches), `pages`, `rulesets`. Skills cite those action ids. IT Expert owns zone and ruleset work; Pages ownership versus Webmaster is open.
+Four modules, each its own grant on toolkit `CLOUDFLARE_API_KEY` (API token, not Global API Key plus email). `dns`, `zones`, `pages`, and `rulesets` ACTIVE 2026-09-08. `pages.list_projects` is `{ success, result, errors, messages, result_info }` with an empty `result` on every account the zones grant listed (no Pages projects). `get_project` and `list_deployments` not run. `rulesets.create` not run (confirmation: once). `rulesets.get` live envelope UNVERIFIED. Supplied live evidence from 2026-09-08 confirms `dns.get_record`, `list_records`, `create_record`, `update_record`, `export_zone`, and `batch`. Record calls return `{ success, result, errors, messages }`, with `result` an object for one record and an array plus `result_info` for a list; export returns `{ zone_file }`. Import JSON returned HTTP 400. Multipart via `binary_body` confirmed live the same day. Import and batch now return data only, never proxy headers. Tests run against the fake provider. See [gateway/SETUP.md](../../gateway/SETUP.md).
 
 ## Reaching it
 
-Through the gateway, by action id. The zone is always an input, never discovered, because a token that reaches several zones must not let whichever answered first decide.
+Through the gateway, by action id. DNS still takes `zone_id`. Listing domains is `cloudflare.zones.list` and does not invent a zone from the first row.
 
 ```
-cloudflare.dns.list_records    { zone_id, type?, name? }
-cloudflare.dns.get_record      { zone_id, record_id }
-cloudflare.dns.export_zone     { zone_id }                                  proxy
-cloudflare.dns.create_record   { zone_id, type, name, content, ttl?, proxied?, priority? }   confirmation: once
-cloudflare.dns.update_record   { zone_id, record_id, ...fields }            confirmation: once
-cloudflare.dns.delete_record   { zone_id, record_id }                       confirmation: always
-cloudflare.dns.import_zone     { zone_id, zone_file, proxied? }             confirmation: always, proxy
-cloudflare.dns.batch           { zone_id, deletes?, patches?, puts?, posts? }   confirmation: always, proxy
+cloudflare.dns.list_records      { zone_id, type?, name? }
+cloudflare.dns.get_record        { zone_id, record_id }
+cloudflare.dns.export_zone       { zone_id }                                  proxy, BIND text
+cloudflare.dns.create_record     { zone_id, type, name, content, ... }        confirmation: once
+cloudflare.dns.update_record     { zone_id, record_id, ... }                  confirmation: once
+cloudflare.dns.delete_record     { zone_id, record_id }                       confirmation: always
+cloudflare.dns.import_zone       { zone_id, zone_file, proxied? }             confirmation: always
+cloudflare.dns.batch             { zone_id, deletes?, patches?, puts?, posts? }  confirmation: always
+
+cloudflare.zones.list            { name?, status?, account_id?, page? }
+cloudflare.zones.get             { zone_id }
+cloudflare.zones.list_accounts   { name?, page? }
+cloudflare.zones.create          { name, account_id?, type? }                 confirmation: once
+cloudflare.zones.delete          { zone_id }                                  confirmation: always
+
+cloudflare.pages.list_projects   { account_id }
+cloudflare.pages.get_project     { account_id, project_name }
+cloudflare.pages.list_deployments { account_id, project_name }
+
+cloudflare.rulesets.create       { accounts_or_zones, account_or_zone_id, kind, name, phase }
+cloudflare.rulesets.get          { accounts_or_zones, ruleset_id }
+cloudflare.rulesets.delete       { accounts_or_zones, account_or_zone_id, ruleset_id }
+cloudflare.rulesets.add_rule     { accounts_or_zones, ruleset_id, rule }
+cloudflare.rulesets.remove_rule  { accounts_or_zones, account_or_zone_id, ruleset_id, rule_id }
 ```
 
 ## Credentials
 
-This connector holds none. The grant is an API token you create at Cloudflare and give to the gateway's provider through its hosted page; `auth.md` says which permissions the token needs and how narrow to make it. There is no credential file and no `secrets:cloudflare` key.
+This connector holds none. Each module is its own connect. The vendor secret is an API token on the provider's hosted page. A DNS-only token will list nothing on `zones` and 403 on Pages. A token that lists every zone is a different grant, not a wider `dns` row.
 
 ## Modules
 
-| Module | Privilege | Actions |
-|--------|-----------|---------|
-| `dns` | write | the eight above |
+| Module | Privilege | What it is for |
+|--------|-----------|----------------|
+| `dns` | write | Records in a named zone |
+| `zones` | write | Every zone the token can see, plus accounts |
+| `pages` | write | Pages projects and deployments |
+| `rulesets` | write | Rulesets |
 
-One module, one grant, scoped to the zones the token names. A later `zones`, `pages`, `rulesets`, `workers`, or `r2` module is a separate grant, never an extension of this one. `zones` is how a skill lists every domain the token reaches; `dns` still takes `zone_id` as an input and does not discover.
+Workers and R2 are later modules, never extra permissions on these four.
 
 ## Destructive Actions
 
-| Action | Effect on Cloudflare | Undoable there? |
-|--------|----------------------|-----------------|
-| `delete_record` | Removes the record; an apex or service record stops resolving worldwide as caches expire | No. The answer returns the record it deleted, which is the only way back |
-| `batch` | One payload of deletes, patches, puts and posts in that order, so every delete lands before any create | No. One transaction, but propagation is not atomic |
-| `import_zone` | Bulk creation from a BIND file; `proxied` puts every imported record behind the proxy at once | No |
+| Action | Effect | Undoable there? |
+|--------|--------|-----------------|
+| `dns.delete_record` | Removes the record | No |
+| `dns.batch` | Mixed deletes and writes | No |
+| `dns.import_zone` | Bulk create from BIND | No |
+| `zones.delete` | Deletes the zone | No |
+| `rulesets.delete` / `remove_rule` | Removes the ruleset or rule | No |
 
-Each is gated `always`: the gateway returns `needs_confirmation` with the zone and the count of records affected, and runs only on the re-call that carries `confirm: true` after a person said yes. `update_record` and `create_record` are gated `once` per session.
+Each is gated `always`.
 
 ## Troubleshooting
 
-**`needs_connect`** The `dns` module is not connected. Run the Connect Account skill for `cloudflare` and `dns`.
+**`needs_connect` on `zones` while `dns` is ACTIVE** That is the design. Connect `cloudflare` / `zones` as its own turn.
 
-**`vendor_error` with status 403** The token does not reach this zone, or lacks DNS edit. The token's permissions are fixed when it is made; make a new one per `auth.md` rather than widening an old one.
+**`vendor_error` 403 on `zones.list`** The token cannot list zones. Make a token with Zone / Zone / Read (or the account-wide list), connect `zones` with that token. Do not paste it into chat.
 
-**`export_zone` returns something that is all comments** The zone has no records the token can read, or the token reaches the wrong zone. `list_records` on the same `zone_id` says which.
-
-**`import_zone` refused by the provider** The content type the proxy sends for a file upload is unverified as of 2026-09-05 and is Milestone 3 evidence in the build Playbook. Until it is settled, `batch` with `posts` is the route for bulk creation.
+**`list_records` empty while `export_zone` has a file** Use `export_zone` or `list_records` through this build's proxy path, not an older catalog mapping.
 
 ## Reference
 
 - How to connect: `auth.md`
-- The gateway and what a module may do: `gateway/AGENTS.md`
-- Cloudflare's DNS records API: https://developers.cloudflare.com/api/resources/dns/subresources/records/
+- The gateway: `gateway/AGENTS.md`
+- Cloudflare DNS records API: https://developers.cloudflare.com/api/resources/dns/subresources/records/

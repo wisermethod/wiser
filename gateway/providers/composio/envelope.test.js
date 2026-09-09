@@ -44,3 +44,28 @@ test('top-level Cloudflare success:false stays a failure', () => {
   });
   assert.equal(r.failed, true);
 });
+
+test('proxy binary_data URL is fetched as text', async () => {
+  const { resolveProxyPayload } = await import('./auth-provider.js');
+  const r = await resolveProxyPayload(
+    {
+      data: {},
+      binary_data: { url: 'https://example.com/zone.txt', content_type: 'text/plain', size: 4 },
+      status: 200,
+    },
+    async () => ({ ok: true, status: 200, text: async () => ';; BIND' }),
+  );
+  assert.equal(r, ';; BIND');
+});
+
+test('OAuth auth-config create uses managed auth; API key uses empty credentials', async () => {
+  const { createAuthConfigBody } = await import('./auth-provider.js');
+  const oauth = createAuthConfigBody('GITHUB', 'OAUTH2');
+  assert.equal(oauth.toolkit.slug, 'GITHUB');
+  assert.equal(oauth.auth_config.type, 'use_composio_managed_auth');
+  const key = createAuthConfigBody('REPLICATE', 'API_KEY');
+  assert.equal(key.toolkit.slug, 'REPLICATE');
+  assert.equal(key.auth_config.type, 'use_custom_auth');
+  assert.equal(key.auth_config.authScheme, 'API_KEY');
+  assert.deepEqual(key.auth_config.credentials, {});
+});

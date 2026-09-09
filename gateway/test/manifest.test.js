@@ -83,14 +83,27 @@ test('validationError names the file and the field', () => {
   assert.match(err.message, /modules\.dns\.auth\.provider/);
 });
 
-test('--check validates github and cloudflare and prints one JSON object', async () => {
+test('--check validates all shipped connectors and prints one JSON object', async () => {
   await loadConnectors([CONNECTORS]);
   const r = spawnSync(process.execPath, [SERVER, '--check', '--connectors', CONNECTORS], { encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
   const obj = JSON.parse(r.stdout);
   assert.equal(obj.ok, true);
   const ids = obj.connectors.map((c) => c.id).sort();
-  assert.deepEqual(ids, ['cloudflare', 'github']);
+  assert.deepEqual(ids, ['clarity', 'cloudflare', 'courtlistener', 'github', 'google', 'google-vision', 'replicate', 'usebouncer', 'vercel']);
   assert.ok(obj.actions.includes('github.repos.get'));
+  assert.ok(obj.actions.includes('courtlistener.caselaw.search'));
+  assert.ok(obj.actions.includes('courtlistener.caselaw.get_docket'));
+  assert.ok(obj.actions.includes('courtlistener.caselaw.get_cluster'));
+  assert.ok(obj.actions.includes('courtlistener.caselaw.list_courts'));
   assert.ok(obj.actions.includes('cloudflare.dns.export_zone'));
+});
+
+
+test('--check exits nonzero on a module and manifest mismatch', () => {
+  const root = makeHome();
+  writeConnector(join(root, 'sample'), { id: 'sample', extraImplAction: true });
+  const result = spawnSync(process.execPath, [SERVER, '--check', '--connectors', root], { encoding: 'utf8' });
+  assert.notEqual(result.status, 0);
+  assert.ok((result.stderr + result.stdout).includes('not declared in manifest.json'));
 });

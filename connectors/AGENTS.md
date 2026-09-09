@@ -20,7 +20,7 @@ A connection record is keyed by service and module. Two modules on one service a
 
 ## Adding one
 
-`skills/Connector Author/` does this from an approved plan; `experts/Connector Advisor/` produces the plan. In use, the copy lands in the owning root's own `connectors/` and the gateway loads it with `--connectors`; this plugin is read-only in use, so a connector meant to ship here arrives by an authoring Playbook, never by a session. Copy `system/templates/Connector Template/`, never a connector from this directory. Every action id a primitive cites must resolve, and every action a manifest declares must exist in `index.js`; the gateway's `--check` refuses to start otherwise.
+`skills/Connector Author/` does this from an approved plan; `experts/Connector Advisor/` produces the plan. After Connector Author writes the module, Connect Account is the human grant in its own turn. In use, the copy lands in the owning root's own `connectors/` and the gateway loads it with `--connectors`; this plugin is read-only in use, so a connector meant to ship here arrives by an authoring Playbook, never by a session. Copy `system/templates/Connector Template/`, never a connector from this directory. Every action id a primitive cites must resolve, and every action a manifest declares must exist in `index.js`; the gateway's `--check` refuses to start otherwise.
 
 <!-- generated:index -->
 
@@ -28,7 +28,34 @@ A connection record is keyed by service and module. Two modules on one service a
 
 | Connector | Description |
 |-----------|-------------|
-| `cloudflare/CONNECTOR.md` | Reaches one Cloudflare zone's DNS records to list, export, create, update, delete, import, and batch them, with every removal confirmed |
+| `cloudflare/CONNECTOR.md` | Reaches Cloudflare DNS, the account's zones, Pages, and rulesets, with every removal confirmed |
 | `github/CONNECTOR.md` | Reaches one GitHub account's repositories and issues to read them, list them, and open an issue, and reports the authenticated account |
+| `vercel/CONNECTOR.md` | Reads projects and deployments and creates a deployment only with confirmation on every call |
+
+### Analytics
+
+| Connector | Description |
+|-----------|-------------|
+| `google/CONNECTOR.md` | Reads search performance, analytics reports, Drive files, and Calendar events through four separate grants |
+| `clarity/CONNECTOR.md` | Exports Clarity metrics for the last one, two, or three days |
+
+### Communication
+
+| Connector | Description |
+|-----------|-------------|
+| `usebouncer/CONNECTOR.md` | Reads verification credits, verifies single addresses and batches, and resumes batch results by identifier |
+
+### Media
+
+| Connector | Description |
+|-----------|-------------|
+| `replicate/CONNECTOR.md` | Lists curated model collections, starts confirmed predictions, and returns prediction status and output URLs |
+| `google-vision/CONNECTOR.md` | Detects faces and returns eye coordinates for faces with both eyes available |
+
+### Research
+
+| Connector | Description |
+|-----------|-------------|
+| `courtlistener/CONNECTOR.md` | Read CourtListener case law search, one docket, one opinion cluster, and the courts list |
 
 <!-- /generated:index -->

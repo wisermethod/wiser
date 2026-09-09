@@ -1,0 +1,38 @@
+{
+  "id": "google-vision",
+  "service": "google-vision",
+  "modules": {
+    "images": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "GOOGLE_CLOUD_VISION",
+        "scheme": "API_KEY",
+        "privilege": "read"
+      },
+      "actions": {
+        "detect_faces": {
+          "description": "Run billed face detection",
+          "risk": "medium",
+          "confirmation": "once",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "image_base64": {
+                "type": "string"
+              },
+              "image_uri": {
+                "type": "string"
+              }
+            },
+            "required": []
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    }
+  }
+}

@@ -8,7 +8,10 @@ memory:
   - voice
   - about
 gaps:
-  
+  - recorded script for podcast, video, or voice-over
+  - news-desk judgment on a press piece, whether it is a story and what a desk would need from it
+  - crisis judgment on a statement or Q&A issued during an unfolding incident
+  - whether a story is worth pitching, and to whom
 ---
 
 # Content Author

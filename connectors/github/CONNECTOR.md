@@ -3,7 +3,7 @@ name: github
 type: connector
 category: development
 description: Reaches one GitHub account's repositories and issues to read them, list them, and open an issue, and reports the authenticated account
-version: 0.1.0
+version: 0.2.0
 ---
 
 # GitHub
@@ -12,7 +12,7 @@ The reference connector: the smallest complete example of a module the gateway s
 
 ## Status
 
-Live connect 2026-09-08, operator, Grok with `wiser-gateway`: the `repos` module is ACTIVE. Catalog execute of `github.repos.get` on `wisermethod/wiser` returned the repository. `users` and `issues` are separate grants and were not connected. Tests still run against the fake provider.
+Live connect 2026-09-08, operator, Grok with `wiser-gateway`: `repos` and `issues` are ACTIVE. Catalog execute of `github.repos.get` on `wisermethod/wiser` returned the repository. `github.repos.list_for_user` confirmed: `{ repositories }`. `github.issues.list` confirmed: `{ issues }`, empty on `wisermethod/wiser` open. `issues.create` confirmed 2026-09-09: `needs_confirmation` without `confirm`; with `confirm: true`, a vendor issue object with `id`, `number`, `title`, `html_url`, `state`. `users` is a separate grant and is not connected. Tests still run against the fake provider.
 
 ## Reaching it
 
@@ -38,7 +38,7 @@ This connector holds none. The grant lives with the gateway's provider, made by 
 | `repos` | write | `get`, `list_for_user` |
 | `issues` | write | `list`, `create` |
 
-Three modules are three grants. The `users` module asks for the narrowest scope so a person can confirm who they are without granting write to anything; the other two share what the provider's GitHub toolkit asks for.
+Three modules are three grants. Privilege is what the grant can do at the vendor, not the risk of the actions this module currently lists. `users` is read so a person can confirm who they are without granting write; `repos` and `issues` are write because they share the provider's GitHub toolkit, even though `repos` itself only reads. A `readonly` role is denied those two and can still call `github.users.me`.
 
 ## Destructive Actions
 

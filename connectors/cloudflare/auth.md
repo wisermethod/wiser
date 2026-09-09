@@ -1,40 +1,62 @@
-# Connecting Cloudflare DNS
+# Connecting Cloudflare
 
-What you do, on which side, to make `cloudflare.dns.*` actions run. The Connect Account skill walks this in its own turn; this file is what it reads.
+Each module is its own grant. The provider blueprint is **Cloudflare Api Key** (one API token field). A hosted page that asks for an email is the other blueprint, **Cloudflare**, and will fail 9106.
 
-## On Cloudflare's side, first
+Do not paste a token into the conversation.
 
-Cloudflare authenticates with an API token you make, and the token's permissions are fixed when you make it. Make one for this purpose and nothing else.
+## On Cloudflare's side
 
-1. Sign in at Cloudflare. Open your profile, then API Tokens, then Create Token.
-2. Start from the "Edit zone DNS" template.
-3. Permissions: Zone, DNS, Edit. Nothing else.
-4. Zone Resources: Include, Specific zone, and pick the zone or zones this connection is for. Do not choose all zones unless you mean every zone this account will ever hold.
-5. Create the token and keep the page open; the value is shown once.
+Make an API token (not a Global API Key). Permissions are fixed when you make it.
 
-The token this module needs reaches exactly the zones you named and can do exactly DNS. A wider token still only unlocks DNS here: Pages, rulesets, and listing every zone wait on other modules and other connects. Do not treat extra permissions on this grant as extra actions.
+| Module | Token needs |
+|--------|-------------|
+| `dns` | Zone / DNS / Edit on the named zone or zones |
+| `zones` | Zone / Zone / Read, or an account-wide list of zones. `create` and `delete` need Edit |
+| `pages` | Account / Cloudflare Pages / Read (Edit to change) |
+| `rulesets` | Zone / Zone WAF or the rulesets permission for the zones you mean |
+
+One wider token can serve several modules. You still connect each module separately and paste that same token on each hosted page. Extra permissions on the `dns` grant do not unlock `zones`.
+
+Keep the create-token page open; the value is shown once.
 
 ## On the provider's side
 
-The provider needs a blueprint for Cloudflare as an API-key toolkit. Make that in the provider dashboard without pasting the token. The token is pasted on the hosted page in the next section. The clicks are in the provider's own SETUP.md, the file `gateway/SETUP.md` points at. Do not connect a test account from that dashboard; that authenticates a playground user, not this gateway.
+One blueprint, **Cloudflare Api Key**, already created. Do not make **Cloudflare** (email plus Global API Key). Do not click dashboard Connect Account.
 
 ## Through the gateway
 
-1. Say "Connect Cloudflare DNS."
-2. The skill runs `start_connect` and hands you a link. Open it in your own browser.
-3. The provider's hosted page asks for the API token. Paste it there, on that page, and nowhere else. The skill never sees it, and if it asks you to paste the token into the conversation instead, stop.
-4. The skill runs `connect_status`. On `ACTIVE`, the gateway writes a connection record and the module's actions run from then on.
+1. Name the module: "Connect Cloudflare DNS", "Connect Cloudflare zones", "Connect Cloudflare Pages", or "Connect Cloudflare rulesets".
+2. The skill runs `start_connect` with `service=cloudflare` and that module.
+3. Open the link. The page asks for the API token only. Paste it there.
+4. `connect_status`. On `ACTIVE`, that module's actions run.
 
-If the provider's hosted page does not offer a field for an API token, this connector moves to the local-file provider and this section is rewritten to say where the file goes. That is a Solve item in the build Playbook as of 2026-09-05.
+## The route this connector does not use
 
-## Finding your zone id
+A credential file or token in chat is not a route. Use the API-token-only hosted page through the gateway's provider; [gateway/SETUP.md](../../gateway/SETUP.md) links its setup.
 
-Every action takes `zone_id`. It is on the zone's Overview page at Cloudflare, in the right-hand column, and `list_records` with a guessed id answers with a 403 rather than another zone's records.
+## Finding ids
+
+- **zone id**: zone Overview, right-hand column, or `cloudflare.zones.list`.
+- **account id**: `cloudflare.zones.list_accounts`, then Pages calls take it as `account_id`.
 
 ## Revoking
 
-Two places. Revoke the connection through the gateway; then, at Cloudflare, API Tokens, roll or delete the token. Deleting the token is the one that matters: the provider holding a dead token can do nothing.
+Revoke the module through the gateway, then at Cloudflare roll or delete the token.
 
 ## Last connected
 
-2026-09-08, `dns`, Grok harness with `wiser-gateway`. Grant ACTIVE. Catalog `list_records` and proxy `export_zone` on zone `aa735858d4d115f029c28188ec030a73` both failed vendor 400 (Cloudflare 9106: authentication headers missing). The hosted page completed a grant without the caller seeing a key; that grant does not authenticate to Cloudflare. Reconnect is the next human step. Do not paste the token into chat.
+2026-09-08, `dns`, `zones`, `pages`, and `rulesets` ACTIVE. The gateway's provider setup is in [gateway/SETUP.md](../../gateway/SETUP.md).
+
+Supplied live evidence from the operator's 2026-09-08 session, recorded as shapes only:
+
+- `dns.get_record`, confirmed proxy GET: `{ success, result: { id, name, type, content, ttl, ... }, errors, messages }`.
+- `dns.list_records`, confirmed proxy GET: the same envelope with a `result` array and `result_info`.
+- `dns.create_record`, confirmed proxy POST with confirmation: `{ success, result: { id, name, type, content, ttl }, errors, messages }`.
+- `dns.update_record`, confirmed catalog execute with confirmation: `{ success, result, errors, messages }`; the module remaps `record_id` to `dns_record_id`.
+- `dns.export_zone`, confirmed proxy: `{ zone_file }`, BIND text.
+- `dns.batch`, confirmed proxy POST with confirmation: successful vendor data. The module now returns data only; transport headers are dropped.
+- `zones.list` was already proven. No account or zone payload is copied here.
+- `pages.list_projects`: confirmed proxy GET 2026-09-08 after the token gained Account / Cloudflare Pages / Edit. `{ success, result, errors, messages, result_info }` with an empty `result` array on every account `zones.list_accounts` returned (three). Operator: no Pages projects exist. `get_project` and `list_deployments` not run. An earlier 403 was a token without Pages permission; extra permissions on the `dns` or `zones` grant do not unlock `pages`.
+- `rulesets`: grant ACTIVE. `create` without `confirm: true` returned `needs_confirmation` and wrote nothing. `get` with an invented id returned vendor_error HTTP 400 on catalog execute; live envelope UNVERIFIED. `delete`, `add_rule`, and `remove_rule` not run.
+
+`dns.import_zone` JSON returned HTTP 400 on 2026-09-08. Multipart via `binary_body` confirmed live the same day: `{ success, result: { recs_added, total_records_parsed }, errors, messages }`, one TXT parsed and added, no headers on the result.

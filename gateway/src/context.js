@@ -43,6 +43,7 @@ export function buildContext({
       endpoint: req.endpoint,
       method: req.method || 'GET',
       body: req.body,
+      binary_body: req.binary_body,
       parameters: req.parameters,
     });
     if (res && res.supported === false) {

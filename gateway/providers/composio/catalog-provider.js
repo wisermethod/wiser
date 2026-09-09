@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { fromSlug, toSlug, toolkitFor } from './mapping.js';
+import { fromSlug, toSlug, toolkitsFor } from './mapping.js';
 
 const BASE = 'https://backend.composio.dev/api/v3.1';
 
@@ -90,6 +90,31 @@ export function providerExecuteFailed(data, malformed = false) {
   return { failed: false, httpStatus: null };
 }
 
+/** Search all toolkits of a facade, or just the requested module's toolkit. */
+export async function searchMappedActions({ service, module, query }, requestTools) {
+  const toolkits = service ? toolkitsFor(service, module) : [null];
+  const actions = new Set();
+  for (const toolkit of toolkits) {
+    const params = new URLSearchParams();
+    if (toolkit) params.set('toolkit_slug', toolkit);
+    if (query) params.set('query', query);
+    const qs = params.toString();
+    const res = await requestTools(`/tools${qs ? `?${qs}` : ''}`);
+    if (!res.ok) continue;
+    const items = res.data?.items || res.data?.tools || res.data?.data || [];
+    for (const item of Array.isArray(items) ? items : []) {
+      const slug = item.slug || item.tool_slug || item.name;
+      const actionId = slug ? fromSlug(slug) : null;
+      if (!actionId) continue;
+      const [foundService, foundModule] = actionId.split('.');
+      if (service && service !== foundService) continue;
+      if (module && module !== foundModule) continue;
+      actions.add(actionId);
+    }
+  }
+  return [...actions];
+}
+
 /**
  * @param {{ envPath?: string | null }} opts
  */
@@ -102,23 +127,10 @@ export function createCatalogProvider({ envPath } = {}) {
     isConfigured() {
       return Boolean(apiKey);
     },
-    async search({ service, query }) {
+    async search({ service, module, query }) {
       if (!apiKey) return [];
-      const params = new URLSearchParams();
-      const toolkit = service ? toolkitFor(service) : null;
-      if (toolkit) params.set('toolkit_slug', toolkit);
-      if (query) params.set('query', query);
-      const qs = params.toString();
-      const res = await request(apiKey, 'GET', `/tools${qs ? `?${qs}` : ''}`);
-      if (!res.ok) return [];
-      const items = res.data?.items || res.data?.tools || res.data?.data || [];
-      const actions = [];
-      for (const item of Array.isArray(items) ? items : []) {
-        const slug = item.slug || item.tool_slug || item.name;
-        const actionId = slug ? fromSlug(slug) : null;
-        if (actionId) actions.push(actionId);
-      }
-      return actions;
+      return searchMappedActions({ service, module, query },
+        (path) => request(apiKey, 'GET', path));
     },
     async execute({ actionId, userId, providerAccountId, arguments: args }) {
       if (!apiKey) return vendorError('/tools/execute', 'POST', 0);

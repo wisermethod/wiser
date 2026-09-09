@@ -13,6 +13,10 @@ Only if the platform needs something prepared before the grant: an API token mad
 3. For a link: open it in your own browser and approve at the platform, or paste the token into the provider's hosted page. For a file: write the named variables into that file yourself. In neither case does anything get typed into the conversation, and a skill that asks for that is wrong.
 4. The skill runs `connect_status`. On `ACTIVE`, the gateway writes a connection record and the module's actions run from then on.
 
+## The other route
+
+This template covers both: a hosted link (`catalog`) and a bound file (`local-file`). Keep the steps for the one this connector uses. Rewrite this heading as "The route this connector does not use" and name the unused path, so a person is not offered it. A personal token in chat is never a route. The GitHub connector is the worked example.
+
 ## Revoking
 
 Always two places: through the gateway, then at the platform. Name where at the platform.

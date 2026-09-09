@@ -2,10 +2,8 @@
 name: List Hygiene
 type: skill
 category: communication
-description: Decide what an email contact list keeps and drops, verified through the usebouncer connector, with the cost put to the user before it is spent and every drop traced to the result field that caused it. Needs a connector this release does not ship.
-version: 0.8.1
-gaps:
-  - address verification against an email validation service
+description: Decide what an email contact list keeps and drops, verified through the usebouncer connector, with the cost put to the user before it is spent and every drop traced to the result field that caused it.
+version: 0.9.0
 ---
 
 # List Hygiene
@@ -37,7 +35,7 @@ Someone who has cleaned a list before and remembers the two ways it goes wrong. 
 
 ## Steps
 
-Every verification call in these steps belongs to an email-verification connector this release does not ship. Each step says what the call would do, and until a connector lands the step is an honest stop.
+Verification uses the gateway's `execute` tool with `usebouncer.verify.*`. Under the constitution's Behavioral Core, `needs_connect` stops this skill with no yield; `skills/Connect Account/` is the next human turn.
 
 ### Step 1: Establish what is being verified, and on whose basis
 
@@ -74,21 +72,21 @@ The normalized address is the only key results come back on, which makes it the 
 
 ### Step 4: Price the submission, then submit once
 
-The credential belongs to the verification connector that would make the calls, which this release does not ship, so nothing here takes a credential path. Never guess one.
+The local-file grant is bound by `--secret usebouncer=<abs file>` or Provides `secrets:usebouncer`, per the constitution's Secrets rule. This skill never takes a key in conversation or reads its contents.
 
-Follow the pre-submission sequence the verification connector defines rather than one of your own: the submission refuses first and states what the file holds and what it would cost, the live balance comes from a separate ungated read, both reach the user together with the estimate, and only the user's answer earns the confirmed re-run. Never confirm on your own initiative.
+Read `usebouncer.verify.credits` with `{}` for `{ credits }`, then count the normalized, deduplicated addresses in Step 3's file and estimate the credits required. Put the balance, address count, and estimate in front of the user together. After their answer, call `usebouncer.verify.bulk` with `{ emails: [{ email }] }` and `confirm: true`. This action is `confirmation: once`; without the required approval the gateway returns `needs_confirmation`. Never confirm on your own initiative. The connector writes no files and supplies no policy.
 
 The judgment this step carries:
 
-- A refusal reporting lines with no `@` in them, over a file built from a parsed column, means the extraction went wrong rather than the list. Return to Step 3.
+- Before submission, check locally for lines with no `@`: over a file built from a parsed column, these mean the extraction went wrong rather than the list. Return to Step 3.
 - An estimate above the balance is a question, not a smaller batch. Which addresses get verified now and which wait is the caller's call, never a silent truncation to fit the balance.
-- The identifier the submission returns is the only record the platform keeps of that job. Put it in the record before anything else happens.
+- The vendor object returned by `usebouncer.verify.bulk` includes `batchId`. Keep that identifier in the work record before anything else happens.
 
-A run that ends without results has undone nothing. An expired wait, an interrupted session, a transport failure over a submission that was accepted anyway: in every one of them the job is submitted and billed, and is running or already finished. Resume against the identifier, its status and then its results. Resubmitting the file to get results is a second full bill for the same list, and nothing on the platform prevents it.
+A run that ends without results has undone nothing. An expired wait, an interrupted session, a transport failure over a submission that was accepted anyway: in every one of them the job is submitted and billed, and is running or already finished. Resume with `usebouncer.verify.status` and `{ id: batchId }`, then, when completed, `usebouncer.verify.download` with the same `{ id: batchId }`. Resubmitting the file to get results is a second full bill for the same list, and nothing on the platform prevents it.
 
 ### Step 5: Read the results against the policy
 
-Each group comes off the completed job as its own filtered download. Those are reads: they are not confirmed, they are not billed again, and there is no reason to economize by taking one file and splitting it by hand. Take the risky group as JSON, because the fields the policy reads sit under the result's `domain` and `account` objects; the other groups are lists of addresses and travel as CSV.
+`usebouncer.verify.download` retrieves all vendor rows with `download=all`; there is no per-group download action. Credits, status, and download are `confirmation: none` reads and do not bill verification again. Save the returned rows, then split groups locally using `status`, `reason`, `domain.acceptAll`, `domain.disposable`, `account.role`, and `retryAfter`. Preserve the nested vendor fields as JSON for the policy and write the group files locally.
 
 | The result | The decision |
 |------------|--------------|
@@ -102,7 +100,7 @@ Each group comes off the completed job as its own filtered download. Those are r
 
 The policy is a default, not a law, and the send named in Step 1 is what bends it. A transactional message to a customer of record survives a risky address; a first cold campaign from a domain with no sending history does not. Say which way the risky group goes and why. Where the send does not settle it, ask rather than deciding for the caller.
 
-Take the cost from the completed job's own credits figure. Step 4's estimate is an upper bound and is never what gets reported as spent.
+Take the cost from the completed job's own credits figure when returned. If that figure is absent, label actual cost `Not available` per `standards/conventions.md`; Step 4's estimate is an upper bound and is never reported as spent.
 
 ### Step 6: Deliver the decision
 
@@ -129,5 +127,5 @@ Before the response ships, the gate: hand the send group, merged back onto the s
 - The user saw the balance, the address count, and the cost estimate together and answered, before the run was confirmed.
 - No list was submitted twice, and the identifier of the job the results came from is in the record.
 - Every address in the send group traces to the result field that put it there, every drop names the field that dropped it, and every caution travels with the addresses it qualifies.
-- The record states the completed job's own credits figure as the cost, and counts the rows that carried no address and the ragged rows `tools/data/` `parse` reported. A ragged row is present in `rowCount` and is not a row that failed to parse; a file that will not parse at all stops the run at Step 2 instead.
+- The record states the completed job's own credits figure as the cost, or labels actual cost unavailable when it did not return, and counts the rows that carried no address and the ragged rows `tools/data/` `parse` reported. A ragged row is present in `rowCount` and is not a row that failed to parse; a file that will not parse at all stops the run at Step 2 instead.
 - `experts/Marketing Strategist/` read the send group against the email stage its strategy specified, size, segments and cautions, and returned ship, or the requester declined; nothing in that read touched the keep-and-drop mechanics above.

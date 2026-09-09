@@ -28,6 +28,8 @@ The one list; a tool's pages point here.
 | A dated copy of a deck before an in-place edit | `--archive-dir`, or `zArchive/` beside the deck | `keynote-render` |
 | A harvest bundle | the `output.directory` inside the request file, absent `--output` | `Content Harvester` |
 
+The gateway's writes (connection store, audit log, empty project-key template) are listed in `gateway/AGENTS.md` and are not restated here.
+
 <!-- generated:index -->
 
 ### Automation
