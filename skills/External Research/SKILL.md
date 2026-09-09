@@ -3,7 +3,7 @@ name: External Research
 type: skill
 category: research
 description: Gather and credibility-tag sources on a question, surfacing contradictions, returning an evidence package to a calling expert or skill or a verified, confidence-rated brief to a user asking directly
-version: 0.2.3
+version: 0.2.4
 ---
 
 # External Research
@@ -48,9 +48,9 @@ Use TinyFish first. When an action is unavailable, record the returned stop and 
 
 For each query:
 
-1. **Search or fetch** through `tinyfish.web.search` and `tinyfish.web.fetch` via the gateway; read `connectors/tinyfish/CONNECTOR.md` and its `manifest.json` for the declared request shapes. Use Search to discover sources and Fetch for known URLs. Set `domain_type` from the angle: `web` for general sources, `news` for reporting, `research_paper` for academic evidence. Mixed questions use parallel typed queries where independent. Paper queries carry no recency filter or publication-year bounds; screen returned dates against the requested scope. Pass only fields the manifest declares.
+1. **Search or fetch** through `tinyfish.web.search` and `tinyfish.web.fetch` via the gateway; read `connectors/tinyfish/CONNECTOR.md` and its `manifest.json` for the declared request shapes. Use Search to discover sources and Fetch for known URLs. Set `domain_type` from the angle: `web` for general sources, `news` for reporting, `research_paper` for academic evidence. Mixed questions use parallel typed queries where independent. Paper queries carry no recency filter or publication-year bounds. Search returns no date field; date screening waits until Tag. Pass only fields the manifest declares.
 2. **Select** up to five sources, fewer at Quick depth. Favor diversity of domain and source type over volume from one domain, and prefer a primary source to a higher-ranked aggregator of it rather than taking the top results by rank. Honor any domain preferences the request carried. Sources from `<source_material>` enter the pool here rather than through Search, and are read and tagged in the steps below like any other; the cap bounds what search adds, not what the caller supplied.
-3. **Read and extract** through Fetch the content in each selected source that bears on the query; inspect successes and failures separately so a partial fetch never makes an unread source appear read.
+3. **Read and extract** through Fetch the content in each selected source that bears on the query; inspect successes and failures separately so a partial fetch never makes an unread source appear read. Each extracted claim carries the supporting excerpt, the passage on the fetched page the claim rests on, copied not paraphrased. Orchestrated mode returns that excerpt with the claim so the caller can verify; omitting it is a bug.
 4. **Tag** each source with the eight metadata fields below. A source behind a paywall or that will not resolve is recorded with its liveness and left unread; its content is never fabricated, per the evidence labels in `standards/conventions.md`.
 
 Source metadata, structural throughout, read from observable signals and not from domain expertise:
@@ -66,7 +66,9 @@ Source metadata, structural throughout, read from observable signals and not fro
 | `liveness` | one of `live`, `dead`, `redirect`, `paywall`, `unchecked` |
 | `provenance` | the original source URL an aggregator cites, else null |
 
-For a paper, retain the same eight fields: its URL and title in `url` and `title`, all returned authors in `author`, venue in `publication`, and publication year in `date` when no fuller date is available, preserving that precision. Assign `source_type` from the signals below, `liveness` from the read, and `provenance` from any cited original. Missing values remain null. If the vendor returns a citation count, carry it as extra `citation_count` metadata; do not infer one or treat it as independent corroboration.
+For a paper, retain the same eight fields: its URL and title in `url` and `title`, authors extracted from the fetched page in `author`, venue extracted from the fetched page in `publication`, and publication year in `date` when no fuller date is available, preserving that precision. Assign `source_type` from the signals below, `liveness` from the read, and `provenance` from any cited original. Missing values remain null. If the fetched page states a citation count, carry it as extra `citation_count` metadata; do not infer one or treat it as independent corroboration.
+
+When the request named a date window, screen each source's `date` here, after it is tagged. A source whose date falls outside that window stays in the index as out-of-scope and is not used as support for a claim inside the window.
 
 Source type, by the strongest observable signal:
 
@@ -128,7 +130,7 @@ The input is a natural-language question.
 6. **Assign confidence** to each finding (below).
 7. **Assemble** the brief (Output, below), then the gate, then deliver.
 
-Then the gate: hand the evidence package or the brief, with the question it answers and where it is going, to `experts/Research Expert/` in a second context that did not produce it. It returns rely, rely with the weak points named and labeled, or return, each weak point naming its claim, what it lacks and the step that would close it; the output enters a memory file, a map or a deliverable on rely, or on the requester's explicit decline, and a declined review is named in the delivery. In orchestrated mode the caller carries the package to that gate with its own output; in standalone mode the brief goes there before delivery.
+Then the gate: hand the evidence package or the brief, with the question it answers and where it is going, to `experts/Research Expert/` in a second context that did not produce it. It returns rely, rely with the weak points named and labeled, or return, each weak point naming its claim, what it lacks and the step that would close it. On rely the output enters the named consumer. On rely with weak points a deliverable or a decision may carry it if the labels travel with it, and a memory file does not. On return it does not ship unless the requester declines the review, and a declined review is named in the delivery. In orchestrated mode the caller carries the package to that gate with its own output; in standalone mode the brief goes there before delivery.
 
 ### Verification (standalone only)
 
@@ -154,13 +156,13 @@ Every finding states its level and the specific criterion met, not the label alo
 
 Delivered in the response, not written to disk. Formatting, dates, and the sourcing register carried by any quote or person-fact follow `standards/conventions.md`.
 
-Orchestrated mode returns an evidence package: per query, the sources with their eight fields and their extracted claims tagged direct, paraphrase, or inference; then a cross-query section carrying contradictions, duplications, gaps, and counter-evidence results; then a source index.
+Orchestrated mode returns an evidence package: per query, the sources with their eight fields and their extracted claims tagged direct, paraphrase, or inference, each claim with its supporting excerpt; then a cross-query section carrying contradictions, duplications, gaps, and counter-evidence results; then a source index.
 
 ```markdown
 # Evidence Package: <topic or query set>
 ## <each query as executed>
   Sources found: <count>   Gaps: <what was not found, or none>
-  <per source: url, title, source_type, author, publication, date, liveness, provenance; then extracted claims, each tagged>
+  <per source: url, title, source_type, author, publication, date, liveness, provenance; then extracted claims, each tagged, each with its supporting excerpt>
 ## Cross-Query Analysis
   Contradictions | Duplications | Gaps | Counter-Evidence (or why it did not run: Quick depth, or no search capability)
 ## Source Index
@@ -176,7 +178,7 @@ Depth: <level>   Queries: <count>   Sources evaluated: <count>
 ## Evidence Notes
 <paired contradictions or none; counter-evidence result or why skipped/unavailable; duplication flags; unanswered points and scope limits>
 ## Sources
-<per source: url, title, author, publication, date, source_type, liveness, provenance; citation_count only if returned>
+<per source: url, title, author, publication, date, source_type, liveness, provenance; citation_count only if the fetched page states it>
 ```
 
 ## Pitfalls
@@ -198,4 +200,5 @@ Depth: <level>   Queries: <count>   Sources evaluated: <count>
 - Sources tracing to one original are flagged, and no aggregator copy is presented as independent corroboration.
 - Every sub-question with no credible source is named as a gap.
 - In standalone mode: verification ran per depth, and every finding carries a confidence level with the specific criterion it met.
+- In orchestrated mode: every extracted claim carries its supporting excerpt; a claim without one is incomplete.
 - `experts/Research Expert/` returned rely on the output, or rely with its weak points named and labeled, or the requester declined the review and the delivery says so; in orchestrated mode the package was returned to the caller, which carries it to that gate.

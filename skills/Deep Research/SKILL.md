@@ -3,7 +3,7 @@ name: Deep Research
 type: skill
 category: research
 description: Run Deep Research on a question end to end, decomposing it into angles, directing each to the research skill that gathers it, and interpreting what comes back into a report where every finding carries its sources, a calibrated confidence level, and the contradictions it did not resolve
-version: 0.7.5
+version: 0.7.6
 memory:
   - about
 ---
@@ -78,7 +78,7 @@ Override: a question tightly scoped to one angle and one skill collapses to a tw
 
 Run each named skill by name, handing it what it declares it takes, in parallel where the angles are independent. Nothing is gathered here directly.
 
-- **`skills/External Research/`** takes `<research_request>` carrying the queries formulated for the angle, the angles themselves, the gathering depth, and, on escalation, the counter-evidence targets Phase 3 named; `<scope>` carrying what is in and out with the constraints and any domains to prefer or skip; and `<source_material>` for anything the caller supplied or a harvest returned. For academic angles, tell External to use `domain_type=research_paper`, without recency filters or publication-year bounds. For mixed questions, name parallel queries typed `web`, `news`, or `research_paper` as the angles require. The Quick level it offers is never passed. It returns tagged sources and tagged claims, and deliberately no confidence and no verification: those are Phases 3 and 4 here. Where External exhausts its Gather fallback without readable sources, it says so and stops; report that missing evidence rather than filling it. A returned `needs_connect` is a grant stop, not a plugin gap.
+- **`skills/External Research/`** takes `<research_request>` carrying the queries formulated for the angle, the angles themselves, the gathering depth, and, on escalation, the counter-evidence targets Phase 3 named; `<scope>` carrying what is in and out with the constraints and any domains to prefer or skip; and `<source_material>` for anything the caller supplied or a harvest returned. For academic angles, tell External to use `domain_type=research_paper`, without recency filters or publication-year bounds. For mixed questions, name parallel queries typed `web`, `news`, or `research_paper` as the angles require. The Quick level it offers is never passed. It returns tagged sources and tagged claims, each claim with its supporting excerpt, and deliberately no confidence and no verification: those are Phases 3 and 4 here. Where External exhausts its Gather fallback without readable sources, it says so and stops; report that missing evidence rather than filling it. A returned `needs_connect` is a grant stop, not a plugin gap.
 - **`skills/Internal Research/`** takes `<scan_request>` with the topic keywords, required, and a scope where the plan narrows it. It returns structural cards and no judgment, by design; its read cap and any overflow note travel into the methodology notes.
 - **`skills/Data Analysis/`** takes `<analysis_request>` naming an absolute path to a CSV, JSON, or TSV file and the question asked of it. Every figure it returns was computed by a tool, and an operation it reports no tool performs is reported that way here too, never worked out to fill the hole.
 - **`tools/Content Harvester/`** takes a request file in the shape its `REQUEST_SCHEMA.md` defines and an output directory in the owning root's work directory, per `standards/conventions.md`. What it returns is ranked candidates rather than findings; selecting among them is this skill's judgment, and the selected addresses go to External Research inside `<source_material>` to be read and tagged like any other source. A harvest candidate's `adapter_type` (rss, manual_urls, and the rest) names how it was collected and is never External Research's credibility `source_type`; External always re-tags from page signals.
@@ -100,6 +100,8 @@ Then add the judgment structural metadata cannot carry. An educational domain ho
 
 Name the gaps: which angles came back thin, and what is missing rather than merely absent. A topic whose market is not English-language is named for that too, since search coverage skews toward English and thin coverage there is a limit of the search rather than a finding about the market.
 
+Claim-to-source. External Research's orchestrated package tags claims and does not verify them. For each claim that will appear in the report, read the supporting excerpt External returned with that claim and judge it supported if the excerpt states or clearly implies the claim, partially supported if the excerpt is related but the claim overstates it, or not supported if the excerpt does not carry it. Qualify a partially supported claim; drop a not-supported claim or retag it as this skill's inference. If the package omitted the excerpt, the claim is not supported by this check; do not infer the passage from the paraphrase, and do not fetch the source here. This check is this skill's and is not handed back to External Research.
+
 **Escalation.** Evaluated here, and it fires at most once in a session.
 
 | Trigger | Condition |
@@ -108,7 +110,7 @@ Name the gaps: which angles came back thin, and what is missing rather than mere
 | Unresolved contradictions | Two or more contradictions on central claims, with credible sources on both sides |
 | Thin landscape | Fewer than five credible sources across all angles together |
 
-If a trigger fires and the extra pass is unused, return to Phase 2 once with expanded queries, counter-evidence targets for every contradiction, and relevant adjacent domains or unfilled angles. Keep the chosen gathering depth. This second wave is the one extra gather pass, whether the initial setting was Standard or Deep. Reanalyze what returns, then proceed; no trigger, or the extra pass already spent, means no further gathering. Report remaining uncertainty as a finding.
+If a trigger fires and the extra pass is unused, return to Phase 2 once with expanded queries, using the reformulated queries Phase 2 recorded when those exist, counter-evidence targets for every contradiction, and relevant adjacent domains or unfilled angles. Keep the chosen gathering depth. This second wave is the one extra gather pass, whether the initial setting was Standard or Deep. Reanalyze what returns, then proceed; no trigger, or the extra pass already spent, means no further gathering. Reformulated queries Phase 2 recorded that do not run stay in the named gap for that angle. Report remaining uncertainty as a finding.
 
 ### 4. Synthesize
 
@@ -124,7 +126,7 @@ Draft in the consumer's shape (Reference: The report).
 
 ### 5. Deliver
 
-Then the gate: hand the report, with the question it answers and where it is going, to `experts/Research Expert/` in a second context that did not produce it. It returns rely, rely with the weak points named and labeled, or return, each weak point naming its claim, what it lacks and the step that would close it; the output enters a memory file, a map or a deliverable on rely, or on the requester's explicit decline, and a declined review is named in the delivery. This gate runs once on the finished report; the evidence packages External Research returned inside this run are judged here, not separately. A run that stopped in Phase 2 delivers its gap statement and does not reach the gate; the report reaches the board on rely, with its weak points labeled in Gaps and Uncertainties, or on the requester's decline.
+Then the gate: hand the report, with the question it answers and where it is going, to `experts/Research Expert/` in a second context that did not produce it. It returns rely, rely with the weak points named and labeled, or return, each weak point naming its claim, what it lacks and the step that would close it. On rely the report ships to the named consumer. On rely with weak points it ships to a deliverable or a decision with those labels in Gaps and Uncertainties, and a memory file does not take it. On return it does not ship unless the requester declines the review, and a declined review is named in the delivery. This gate runs once on the finished report; the evidence packages External Research returned inside this run are judged here, not separately. A run that stopped in Phase 2 delivers its gap statement and does not reach the gate.
 
 Run the Success criteria below as a gate. Anything that fails is fixed where it belongs, a missing confidence in Phase 4, a dropped angle in Phase 2, rather than patched into the report's prose.
 
@@ -149,7 +151,9 @@ Each finding starts at the level its strongest supporting source sets, then move
 
 Those source types are the ones `skills/External Research/` assigns. They are read from what it returned and never re-derived here.
 
-Each of these drops the finding one level: a contradiction from a credible source; fewer than two independent sources; evidence reaching the claim only indirectly; a source with an interest in the conclusion; provenance duplication, where several sources trace to one original and count as one; and staleness, two years or more on a topic that moves.
+Each of these drops the finding one level: a contradiction from a credible source; fewer than two independent sources; evidence reaching the claim only indirectly; a source with an interest in the conclusion; provenance duplication, where several sources trace to one original and count as one; staleness, two years or more on a topic that moves; and a partially supported claim-to-source check.
+
+High is not available when the counter-evidence search did not run: supplied sources only, or both TinyFish and host search unavailable. That finding starts at Moderate or below. A claim retagged as this skill's inference after a not-supported check starts at Very Low.
 
 Each of these raises it one, and High is the ceiling: corroboration across skills, where external and workspace evidence agree; a figure from `skills/Data Analysis/` confirming a qualitative finding; three or more sources of different types converging independently.
 
