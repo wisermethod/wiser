@@ -17,7 +17,7 @@ This connector uses hosted connect only. No key belongs in this file or the conv
 
 ## Per-module notes
 
-- `crm`: separate connect, write privilege; Last connected: Not yet.
+- `crm`: separate connect, write privilege; Last connected: 2026-09-09.
 - `mail`: separate connect, read privilege; Last connected: Not yet.
 - `books`: separate connect, read privilege; Last connected: Not yet.
 - `desk`: separate connect, read privilege; Last connected: Not yet.
@@ -39,4 +39,4 @@ Live limits are UNVERIFIED. If a gateway status reports a rate limit, stop and f
 
 ## Last connected
 
-Not yet.
+2026-09-09, `crm` ACTIVE. Hosted OAuth; live envelope UNVERIFIED. `mail`, `books`, `desk`, `inventory`, `invoice`, and `bigin` still Not yet.
