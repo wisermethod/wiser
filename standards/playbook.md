@@ -1,6 +1,6 @@
 ---
 standard: playbook
-version: 0.1.1
+version: 0.1.2
 description: The Playbook format; the WISER method for multi-session execution with decision tracking and learning capture
 ---
 
@@ -31,7 +31,7 @@ Interrogate drives Solve. This ordering is the load-bearing idea of the method: 
 
 ## Required Sections
 
-Every Playbook carries a Header (created and updated dates, Type, Collaboration, Status, Method), Context with Key files, Preconditions, Authority, the five canons, Final Check, Decision Log, Learnings, Resume Instructions, Progress, and Success Criteria. The Structure section below shows what each holds. A section with nothing in it says "None" rather than disappearing.
+Every Playbook carries a Header (created and updated dates, Type, Collaboration, Status, Method), Context with the standards pointer and Key files, Preconditions, Authority, the five canons, Final Check, Decision Log, Learnings, Resume Instructions, Progress, and Success Criteria. The Structure section below shows what each holds. A section with nothing in it says "None" rather than disappearing.
 
 Order is fixed and cognitive: constraints, then objective, then unknowns, then plan, then tracking. Optional: an **Execution Model** section after Authority when the work has a specific orchestration approach (how sessions are run, how work is delegated, what review a load-bearing artifact receives). Add it only when that approach is not evident from the tasks.
 
@@ -106,6 +106,7 @@ Dates, naming charset, and archiving follow `standards/conventions.md`.
 
 ## Context
 [Why this work matters; what a new context needs to know]
+**Standards:** load `<path>/standards/AGENTS.md` before any write; those files bind this run. Cite them; do not restate them.
 **Key files:** [What to read first]
 
 ## Preconditions
@@ -185,10 +186,11 @@ Dates, naming charset, and archiving follow `standards/conventions.md`.
 
 ## Resume Instructions
 1. Read this Playbook end to end
-2. Read the Key files
-3. Check Progress for the current canon and next action
-4. Verify checkboxes against actual disk state; correct drift
-5. Continue from the documented next action
+2. Load the standards this Playbook names; they bind this run
+3. Read the Key files
+4. Check Progress for the current canon and next action
+5. Verify checkboxes against actual disk state; correct drift
+6. Continue from the documented next action
 
 ## Progress
 **Last worked:** YYYY-MM-DD
@@ -204,4 +206,4 @@ Dates, naming charset, and archiving follow `standards/conventions.md`.
 
 ## Success
 
-A Playbook is ready when an agent with no prior context can read it, resume it, and know exactly what to do next. The file itself passes `standards/instruction-quality.md`.
+A Playbook is ready when an agent with no prior context can read it, resume it, and know exactly what to do next, and the standards pointer is present as a path that opens. The file itself passes `standards/instruction-quality.md`.
