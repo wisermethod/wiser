@@ -12,13 +12,13 @@ const key = { service: 'github', module: 'repos' };
 const input = { owner: 'example', repo: 'example' };
 const refusal = (status) => ({ status, error: { code: 'vendor_error', endpoint: '/example', method: 'POST' } });
 
-function connector(auth, fn, unwrapToken = false) {
+function connector(auth, fn, unwrapToken = false, confirmation = 'none') {
   return {
     id: 'github',
     manifest: { modules: { repos: {
       auth,
       unwrap_token: unwrapToken,
-      actions: { get: { risk: 'low', confirmation: 'none' } },
+      actions: { get: { risk: 'low', confirmation } },
     } } },
     impl: { modules: { repos: fn ? { get: fn } : {} } },
   };
@@ -116,7 +116,7 @@ test('auth refusal plus thrown status transport failure preserves vendor_error a
   assertUnchanged(store, record);
 });
 
-async function local(t) {
+async function local(t, confirmation = 'none') {
   const home = makeHome();
   t.after(() => rmSync(home, { recursive: true, force: true }));
   const file = 'credential.txt';
@@ -124,7 +124,7 @@ async function local(t) {
   const provider = createAuthProvider({ secretsDir: home });
   const setup = await createTestGateway({
     home, localFileProvider: provider,
-    connectors: [connector(auth, (_input, ctx) => ctx.http({ url: 'https://example.invalid/items' }), true)],
+    connectors: [connector(auth, (_input, ctx) => ctx.http({ url: 'https://example.invalid/items' }), true, confirmation)],
   });
   const record = await putActive(setup.store, setup.fake, { ...key, provider: 'local-file' });
   const fetch = t.mock.method(globalThis, 'fetch', async () => { throw new Error('unexpected HTTP call'); });
@@ -147,6 +147,26 @@ for (const state of ['missing', 'empty', 'missing variable']) {
     assert.equal(fetch.mock.callCount(), 0);
   });
 }
+
+test('local-file confirmation once with a missing file is needs_connect, not needs_confirmation', async (t) => {
+  const { gw, store, fetch } = await local(t, 'once');
+  const result = await gw.execute({ action, input });
+  assert.equal(result.status, 'needs_connect');
+  assert.equal(result.provider_status, 'INACTIVE');
+  assert.equal(store.getConnection(key).status, 'INACTIVE');
+  assert.equal(fetch.mock.callCount(), 0);
+});
+
+test('local-file unwrap of an empty credential after ACTIVE status marks INACTIVE', async (t) => {
+  const { gw, store, path, provider, fetch } = await local(t);
+  writeFileSync(path, '');
+  provider.status = async () => 'ACTIVE';
+  const result = await gw.execute({ action, input });
+  assert.equal(result.status, 'needs_connect');
+  assert.equal(result.provider_status, 'INACTIVE');
+  assert.equal(store.getConnection(key).status, 'INACTIVE');
+  assert.equal(fetch.mock.callCount(), 0);
+});
 
 test('local-file status throw marks the grant INACTIVE', async (t) => {
   const { gw, store, status, unwrap, fetch } = await local(t);

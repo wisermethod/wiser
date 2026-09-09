@@ -456,6 +456,39 @@ export class ConnectionGateway {
         });
       }
 
+      const provider = this.providerFor(authForRun);
+      const statusArgs = {
+        providerAccountId: record.provider_account_id ?? null,
+        service: parsed.service,
+        file: authForRun?.file,
+        variables: authForRun?.variables,
+      };
+      const stopGrant = (providerStatus) => {
+        this.store.putConnection({ ...record, status: providerStatus });
+        return statusObject(STATUS.NEEDS_CONNECT, {
+          service: parsed.service,
+          module: parsed.module,
+          privilege: privilege ?? null,
+          provider_status: providerStatus,
+        });
+      };
+
+      if (authForRun?.provider === 'local-file' && typeof provider?.status === 'function') {
+        let raw;
+        try {
+          raw = await provider.status(statusArgs);
+        } catch {
+          // A thrown local-file status is an unreadable grant file, not a hosted
+          // outage. Mark the row inactive rather than leaking an MCP tool error.
+          return stopGrant('INACTIVE');
+        }
+        if (raw && typeof raw === 'object' && raw.error) return vendorErrorFrom(raw);
+        const mapped = typeof raw === 'string' ? raw : raw?.status;
+        if (mapped !== 'ACTIVE') {
+          return stopGrant(['EXPIRED', 'FAILED', 'INACTIVE', 'INITIATED'].includes(mapped) ? mapped : 'INACTIVE');
+        }
+      }
+
       const confirmation = act?.confirmation || 'none';
       const onceKey = action;
       const needsConfirm =
@@ -484,22 +517,6 @@ export class ConnectionGateway {
         this.confirmedOnce.add(onceKey);
       }
 
-      const provider = this.providerFor(authForRun);
-      const statusArgs = {
-        providerAccountId: record.provider_account_id ?? null,
-        service: parsed.service,
-        file: authForRun?.file,
-        variables: authForRun?.variables,
-      };
-      const stopGrant = (providerStatus) => {
-        this.store.putConnection({ ...record, status: providerStatus });
-        return statusObject(STATUS.NEEDS_CONNECT, {
-          service: parsed.service,
-          module: parsed.module,
-          privilege: privilege ?? null,
-          provider_status: providerStatus,
-        });
-      };
       // Refresh hosted grants only after an auth-class refusal. Provider outages
       // and unmapped statuses preserve both the original error and the ACTIVE row.
       const classifyExecuteResult = async (result) => {
@@ -519,22 +536,6 @@ export class ConnectionGateway {
         if (['EXPIRED', 'FAILED', 'INACTIVE', 'INITIATED'].includes(mapped)) return stopGrant(mapped);
         return result;
       };
-
-      if (authForRun?.provider === 'local-file' && typeof provider?.status === 'function') {
-        let raw;
-        try {
-          raw = await provider.status(statusArgs);
-        } catch {
-          // A thrown local-file status is an unreadable grant file, not a hosted
-          // outage. Mark the row inactive rather than leaking an MCP tool error.
-          return stopGrant('INACTIVE');
-        }
-        if (raw && typeof raw === 'object' && raw.error) return vendorErrorFrom(raw);
-        const mapped = typeof raw === 'string' ? raw : raw?.status;
-        if (mapped !== 'ACTIVE') {
-          return stopGrant(['EXPIRED', 'FAILED', 'INACTIVE', 'INITIATED'].includes(mapped) ? mapped : 'INACTIVE');
-        }
-      }
 
       try {
         if (resolved.path === 'catalog') {

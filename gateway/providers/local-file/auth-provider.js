@@ -76,9 +76,16 @@ export function createAuthProvider({ secretsDir, secretFiles } = {}) {
       const vars = Array.isArray(variables) && variables.length ? variables : ['API_KEY'];
       const path = resolvePath(dir, file, bound[service]);
       if (!path || !existsSync(path)) return { supported: false };
-      const text = readFileSync(path, 'utf8');
+      let text;
+      try {
+        text = readFileSync(path, 'utf8');
+      } catch {
+        return { supported: false };
+      }
+      if (!text.trim()) return { supported: false };
       const map = parseEnvText(text);
       const raw = map[vars[0]] || '';
+      if (!raw) return { supported: false };
       const h = header || 'Authorization';
       const pre = prefix !== undefined ? prefix : 'Bearer ';
       return { supported: true, header: h, value: `${pre}${raw}` };
