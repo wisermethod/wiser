@@ -475,6 +475,124 @@
       },
       "unwrap_token": false,
       "fallback": "catalog"
+    },
+    "docs": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "GOOGLEDOCS",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "search": {
+          "description": "Search documents",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string"
+              },
+              "max_results": {
+                "type": "integer"
+              },
+              "page_token": {
+                "type": "string"
+              },
+              "order_by": {
+                "type": "string"
+              }
+            },
+            "required": []
+          }
+        },
+        "get": {
+          "description": "Read one document",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "document_id": {
+                "type": "string"
+              },
+              "include_tabs_content": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "document_id"
+            ]
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    },
+    "slides": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "GOOGLESLIDES",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "get": {
+          "description": "Read one presentation",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "presentation_id": {
+                "type": "string"
+              },
+              "presentation_name": {
+                "type": "string"
+              },
+              "fields": {
+                "type": "string"
+              }
+            },
+            "required": []
+          }
+        },
+        "get_page": {
+          "description": "Read one page",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "presentation_id": {
+                "type": "string"
+              },
+              "page_object_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "presentation_id",
+              "page_object_id"
+            ]
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
     }
   }
 }

@@ -37,7 +37,7 @@ The writing skills and the judging experts run on any model that can read the fi
 
 ## What it does not do yet
 
-This release ships a local gateway and connectors, including GitHub, Cloudflare, Google Search Console and Analytics, Drive, Calendar, Gmail, Sheets, Vercel, Replicate, Google Vision, Clarity, address verification, CourtListener, and Tiny Fish search and fetch. Gmail, Sheets, Clarity, and address verification still need their human connects. Keyword research and page-speed readings are not waiting on those connectors. Primitives that still need an absent service say so at the step rather than guessing the numbers. Zone Publisher still names rulesets as a remaining gap on the skill side.
+This release ships a local gateway and connectors, including GitHub, Cloudflare, Google Search Console and Analytics, Drive, Calendar, Gmail, Sheets, Docs, Slides, Vercel, Replicate, Google Vision, Clarity, address verification, CourtListener, and Tiny Fish search and fetch. Gmail, Sheets, Docs, Slides, Clarity, and address verification still need their human connects. Keyword research and page-speed readings are not waiting on those connectors. Primitives that still need an absent service say so at the step rather than guessing the numbers. Zone Publisher still names rulesets as a remaining gap on the skill side.
 
 **Automated site crawling is not here either**, and unlike the readings above it is not waiting on a connector: nothing in this release crawls a site, and the SEO primitives take the pages and sitemaps you give them rather than discovering them.
 

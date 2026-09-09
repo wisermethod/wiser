@@ -4,7 +4,7 @@ See [gateway/SETUP.md](../../gateway/SETUP.md) for attachment and the gateway's 
 
 ## On the platform's side, first
 
-Use a Google account allowed to access the relevant sites, analytics properties, files, calendars, mailbox, or spreadsheets. An organisation may need to approve the OAuth application. Prepare an OAuth blueprint for each module through the gateway's provider.
+Use a Google account allowed to access the relevant sites, analytics properties, files, calendars, mailbox, spreadsheets, documents, or presentations. An organisation may need to approve the OAuth application. Prepare an OAuth blueprint for each module through the gateway's provider.
 
 ## Through the gateway
 
@@ -21,10 +21,12 @@ Use a Google account allowed to access the relevant sites, analytics properties,
 - `calendar`: separate connect, write privilege; Last connected: 2026-09-08.
 - `gmail`: separate connect, read privilege; Last connected: Not yet.
 - `sheets`: separate connect, read privilege; Last connected: Not yet.
+- `docs`: separate connect, read privilege; Last connected: Not yet.
+- `slides`: separate connect, read privilege; Last connected: Not yet.
 
 ## The route this connector does not use
 
-A Google service-account JSON in a file or in chat is not a route. Each of the six modules uses its own hosted OAuth connect.
+A Google service-account JSON in a file or in chat is not a route. Each of the eight modules uses its own hosted OAuth connect.
 
 ## Revoking
 

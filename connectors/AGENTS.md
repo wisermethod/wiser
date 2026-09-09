@@ -36,7 +36,7 @@ A connection record is keyed by service and module. Two modules on one service a
 
 | Connector | Description |
 |-----------|-------------|
-| `google/CONNECTOR.md` | Reads search performance, analytics reports, Drive files, Calendar events, Gmail messages, and spreadsheet values through six separate grants |
+| `google/CONNECTOR.md` | Reads search performance, analytics reports, Drive files, Calendar events, Gmail messages, spreadsheet values, documents, and presentations through eight separate grants |
 | `clarity/CONNECTOR.md` | Exports Clarity metrics for the last one, two, or three days |
 
 ### Communication

@@ -40,6 +40,10 @@ const ROWS = [
   ['google.gmail.get_message', 'GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID'], // catalog docs 2026-09-09; live envelope UNVERIFIED
   ['google.sheets.search', 'GOOGLESHEETS_SEARCH_SPREADSHEETS'], // catalog docs 2026-09-09; live envelope UNVERIFIED
   ['google.sheets.get_values', 'GOOGLESHEETS_BATCH_GET'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['google.docs.search', 'GOOGLEDOCS_SEARCH_DOCUMENTS'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['google.docs.get', 'GOOGLEDOCS_GET_DOCUMENT_BY_ID'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['google.slides.get', 'GOOGLESLIDES_PRESENTATIONS_GET'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['google.slides.get_page', 'GOOGLESLIDES_PRESENTATIONS_PAGES_GET'], // catalog docs 2026-09-09; live envelope UNVERIFIED
   ['clarity.analytics.export', 'MICROSOFT_CLARITY_DATA_EXPORT'],
   ['replicate.models.list_collections', 'REPLICATE_COLLECTIONS_LIST'], // confirmed catalog 2026-09-08; { results, next, previous }, items: name, slug, description
   ['replicate.models.create_prediction', 'REPLICATE_PREDICTIONS_CREATE'],
@@ -66,6 +70,8 @@ const TOOLKITS = {
     calendar: 'GOOGLECALENDAR',
     gmail: 'GMAIL',
     sheets: 'GOOGLESHEETS',
+    docs: 'GOOGLEDOCS',
+    slides: 'GOOGLESLIDES',
   },
   clarity: 'MICROSOFT_CLARITY',
   replicate: 'REPLICATE',
@@ -114,6 +120,8 @@ export function toolkitsFor(service, module) {
 // https://docs.composio.dev/toolkits/googlecalendar
 // https://docs.composio.dev/toolkits/gmail
 // https://docs.composio.dev/toolkits/googlesheets
+// https://docs.composio.dev/toolkits/googledocs
+// https://docs.composio.dev/toolkits/googleslides
 // https://docs.composio.dev/toolkits/microsoft_clarity
 // https://docs.composio.dev/toolkits/replicate
 // https://docs.composio.dev/toolkits/google_cloud_vision

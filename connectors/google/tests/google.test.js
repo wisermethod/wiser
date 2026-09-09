@@ -17,6 +17,10 @@ const cases = [
   ['gmail', 'get_message', 'read', { message_id: 'msg-example' }, 'id'],
   ['sheets', 'search', 'read', { query: 'Example' }, 'spreadsheets'],
   ['sheets', 'get_values', 'read', { spreadsheet_id: 'sheet-example', ranges: ['Sheet1!A1:B1'] }, 'valueRanges'],
+  ['docs', 'search', 'read', { query: 'Example' }, 'documents'],
+  ['docs', 'get', 'read', { document_id: 'doc-example' }, 'documentId'],
+  ['slides', 'get', 'read', { presentation_id: 'slides-example' }, 'presentationId'],
+  ['slides', 'get_page', 'read', { presentation_id: 'slides-example', page_object_id: 'page-example' }, 'objectId'],
 ];
 for (const [module, action, privilege, input, field] of cases) {
   test(`google.${module}.${action} reaches the fake catalog with its own grant`, async () => {
@@ -32,23 +36,39 @@ for (const [module, action, privilege, input, field] of cases) {
 test('Search Console does not unlock the other Google modules', async () => {
   const { gw, store, fake } = await createTestGateway();
   await putActive(store, fake, { service: 'google', module: 'search-console', privilege: 'read' });
-  for (const action of ['google.analytics.list_account_summaries', 'google.drive.find_file', 'google.calendar.list_events', 'google.gmail.list_messages', 'google.sheets.search']) {
+  for (const action of ['google.analytics.list_account_summaries', 'google.drive.find_file', 'google.calendar.list_events', 'google.gmail.list_messages', 'google.sheets.search', 'google.docs.search', 'google.slides.get']) {
     assert.equal((await gw.execute({ action, input: {} })).status, 'needs_connect');
   }
 });
 
-test('Gmail does not unlock Search Console, Drive, Calendar, Analytics, or Sheets', async () => {
+test('Gmail does not unlock Search Console, Drive, Calendar, Analytics, Sheets, Docs, or Slides', async () => {
   const { gw, store, fake } = await createTestGateway();
   await putActive(store, fake, { service: 'google', module: 'gmail', privilege: 'read' });
-  for (const action of ['google.search-console.sites', 'google.analytics.list_account_summaries', 'google.drive.find_file', 'google.calendar.list_events', 'google.sheets.search']) {
+  for (const action of ['google.search-console.sites', 'google.analytics.list_account_summaries', 'google.drive.find_file', 'google.calendar.list_events', 'google.sheets.search', 'google.docs.search', 'google.slides.get']) {
     assert.equal((await gw.execute({ action, input: {} })).status, 'needs_connect');
   }
 });
 
-test('Sheets does not unlock Gmail, Drive, Calendar, Analytics, or Search Console', async () => {
+test('Sheets does not unlock Gmail, Drive, Calendar, Analytics, Search Console, Docs, or Slides', async () => {
   const { gw, store, fake } = await createTestGateway();
   await putActive(store, fake, { service: 'google', module: 'sheets', privilege: 'read' });
-  for (const action of ['google.search-console.sites', 'google.analytics.list_account_summaries', 'google.drive.find_file', 'google.calendar.list_events', 'google.gmail.list_messages']) {
+  for (const action of ['google.search-console.sites', 'google.analytics.list_account_summaries', 'google.drive.find_file', 'google.calendar.list_events', 'google.gmail.list_messages', 'google.docs.search', 'google.slides.get']) {
+    assert.equal((await gw.execute({ action, input: {} })).status, 'needs_connect');
+  }
+});
+
+test('Docs does not unlock Sheets, Gmail, Drive, Calendar, Analytics, Search Console, or Slides', async () => {
+  const { gw, store, fake } = await createTestGateway();
+  await putActive(store, fake, { service: 'google', module: 'docs', privilege: 'read' });
+  for (const action of ['google.search-console.sites', 'google.analytics.list_account_summaries', 'google.drive.find_file', 'google.calendar.list_events', 'google.gmail.list_messages', 'google.sheets.search', 'google.slides.get']) {
+    assert.equal((await gw.execute({ action, input: {} })).status, 'needs_connect');
+  }
+});
+
+test('Slides does not unlock Docs, Sheets, Gmail, Drive, Calendar, Analytics, or Search Console', async () => {
+  const { gw, store, fake } = await createTestGateway();
+  await putActive(store, fake, { service: 'google', module: 'slides', privilege: 'read' });
+  for (const action of ['google.search-console.sites', 'google.analytics.list_account_summaries', 'google.drive.find_file', 'google.calendar.list_events', 'google.gmail.list_messages', 'google.sheets.search', 'google.docs.search']) {
     assert.equal((await gw.execute({ action, input: {} })).status, 'needs_connect');
   }
 });
@@ -63,6 +83,9 @@ test('Google facade remaps public inputs to documented catalog fields', async ()
     ['calendar', 'list_events', 'write', { calendar_id: 'primary' }, 'calendar_id', 'calendarId'],
     ['calendar', 'get_event', 'write', { calendar_id: 'primary', event_id: 'event-example' }, 'event_id', 'eventId'],
     ['sheets', 'get_values', 'read', { spreadsheet_id: 'sheet-example', major_dimension: 'ROWS' }, 'major_dimension', 'majorDimension'],
+    ['docs', 'get', 'read', { document_id: 'doc-example' }, 'document_id', 'id'],
+    ['slides', 'get', 'read', { presentation_id: 'slides-example' }, 'presentation_id', 'presentationId'],
+    ['slides', 'get_page', 'read', { presentation_id: 'slides-example', page_object_id: 'page-example' }, 'page_object_id', 'pageObjectId'],
   ];
   for (const [module, action, privilege, input, from, to] of examples) {
     await putActive(store, fake, { service: 'google', module, privilege });

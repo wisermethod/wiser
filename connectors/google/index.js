@@ -46,4 +46,21 @@ export const modules = {
       date_time_render_option: 'dateTimeRenderOption',
     }),
   },
+  'docs': {
+    search: viaCatalog,
+    get: catalogWith({
+      document_id: 'id',
+      include_tabs_content: 'includeTabsContent',
+    }),
+  },
+  'slides': {
+    get: catalogWith({
+      presentation_id: 'presentationId',
+      presentation_name: 'presentationName',
+    }),
+    get_page: catalogWith({
+      presentation_id: 'presentationId',
+      page_object_id: 'pageObjectId',
+    }),
+  },
 };
