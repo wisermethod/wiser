@@ -1,6 +1,6 @@
 ---
 standard: primitives
-version: 0.5.0
+version: 0.6.0
 description: The four typed primitives, how they invoke and sequence one another, and the frontmatter every typed file carries
 ---
 
@@ -85,7 +85,7 @@ The block is a flat map in exactly this grammar, deliberately small so that ever
 
 ## Indexes
 
-Each family directory's AGENTS.md carries an index of that family, grouped by `category` and maintained by hand from this frontmatter; `name`, `category`, and `description` carry their rules so those tables stay correct.
+Each family directory's AGENTS.md carries an index of that family, grouped by `category` and maintained by hand from this frontmatter; `name`, `category`, and `description` carry their rules so those tables stay correct. Ownership is a projection of `Owns:` / `Stands alone:`, never of frontmatter: the experts index projects each `Owns:` line and the skills index projects the inverse as Owner; category headings remain the grouping.
 
 **A skill whose declared yield cannot be produced at all without a connector this release does not ship says so at the end of its description**, so a reader of the index learns it there rather than after opening the file; one that is merely degraded without a connector declares that in `gaps` alone. The sentence is the skill's own and the index projects it like any other, which is what keeps the index a projection. The build that ships a connector removes the sentence with it.
 
