@@ -3,7 +3,7 @@ name: Build Voice
 type: skill
 category: onboarding
 description: Build or rebuild one user root's voice.md from real writing evidence, routed to the voice register that root's own outputs need
-version: 0.7.4
+version: 0.7.5
 memory:
   - voice
 ---
@@ -46,7 +46,7 @@ The table fixes whose voice this is, what evidence counts, and who confirms. It 
 
 ## Steps
 
-**1. Resolve the owning root.** Enumerate the workspace's roots and read each AGENTS.md per the constitution's Workspace Model. The owning root is the one whose scope the request names; if more than one fits or none does, ask. Confirm its declared `type`, and confirm its Provides block binds `voice` to a path. Bound to nothing: stop and ask, because the binding is the root's declaration to make and not this skill's to add; name the repair, declaring `voice:` under Provides or finishing Onboard Root. Bound to a path missing on disk: recreate the stub by copying the headings from that root type's template `memory/voice.md` under `system/templates/`, then continue as a build.
+**1. Resolve the owning root.** Enumerate the workspace's roots and read each AGENTS.md per the constitution's Workspace Model. The owning root is the one whose scope the request names; if more than one fits or none does, ask. Confirm its declared `type`, and confirm its Provides block binds `voice` to a path. Bound to nothing: stop and ask, because the binding is the root's declaration to make and not this skill's to add; name the repair, declaring `voice:` under Provides or finishing Onboard Root. Bound to a path missing on disk: recreate the stub by copying the headings from `system/templates/User Root Template/memory/voice.md`, then continue as a build.
 
 Then read the bound file. Every section still prompt lines: this is a build. A section carrying `[Not available: no writing supplied; Build Voice runs when writing is]`, which `skills/Onboard Root/` writes over a prompt line when no writing was supplied, counts as a prompt line for this test, so a labeled file is a build; the label is replaced like a prompt line, and it is this skill that removes it. Any heading already carrying real content: this is a rebuild, and the current file is archived in step 10 before the bound path is replaced.
 
@@ -84,7 +84,7 @@ Then grep the draft for the closed list the close greps for: measured, instituti
 
 Decision: does every deliverable this root exists to produce have a row? Every one: mark the table in the file as the agent's working answer and put its confirmation on the decision list for step 10. Any deliverable unrouted: the table is incomplete, so name the unrouted deliverables in the file and close the voice key provisional until they are routed.
 
-**9. Draft the file.** Keep the headings the root's own stub carries, which differ by type, and replace every prompt line with content. Draft in the session or the owning root's `work/` directory; the bound path is written only in step 10. A section with no evidence behind it says what is not yet known and what would settle it; it never guesses. Describe patterns rather than pasting passages, because a pasted paragraph is reproduced verbatim in later work. General craft belongs to whoever writes the content; this file holds only what is specific to this voice. The governing register decision and its confirmation each stand as their own statement in the file, because they are the voice key's load-bearing claims. Where personal evidence included model-assisted samples, the file says the corpus included them, so a later rebuild can re-weight.
+**9. Draft the file.** Keep the headings the root's own stub carries, whose speaker follows the declared type, and replace every prompt line with content. Draft in the session or the owning root's `work/` directory; the bound path is written only in step 10. A section with no evidence behind it says what is not yet known and what would settle it; it never guesses. Describe patterns rather than pasting passages, because a pasted paragraph is reproduced verbatim in later work. General craft belongs to whoever writes the content; this file holds only what is specific to this voice. The governing register decision and its confirmation each stand as their own statement in the file, because they are the voice key's load-bearing claims. Where personal evidence included model-assisted samples, the file says the corpus included them, so a later rebuild can re-weight.
 
 **The audience section.** A statement about what an audience believes is a research inference unless a person told you so or a source states it. Each one names the evidence rows it derives from, by identifier, in the register form `standards/conventions.md` defines, written `(Research inference: E3, E11)`. An inference citing nothing fails the register check at close. Under that heading the file says plainly that these are its weakest claims and the first thing to re-check, because an unsourced belief written as a finding is a fabrication wearing a heading.
 

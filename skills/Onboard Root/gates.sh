@@ -120,13 +120,7 @@ trap 'rm -rf "$TMPD"' EXIT INT TERM
 
 # ---------------------------------------------------------------- the tree
 
-# The root's own AGENTS.md declares its type, and the type decides where the
-# onboarding records live. A client root carries the full record set under
-# `work/onboarding/` plus `sources/` and `todos/`; the other types declare none
-# of those, and the personal and org templates (which a department or industry
-# root starts from) declare none of them, and `skills/Onboard Root/full-path.md` says only the
-# client template declares `work/onboarding/`. Reading the type here is what
-# stops this harness demanding a layout the root was never given.
+# standards/user-root.md C10 fixes records for every type. Type controls close intensity.
 ROOT_TYPE=""
 if [ -f "$ROOT/AGENTS.md" ]; then
   ROOT_TYPE=$(awk 'NR==1 && $0!="---" {exit} NR>1 && $0=="---" {exit} /^type:[[:space:]]/ {sub(/^type:[[:space:]]*/,""); sub(/[[:space:]]+$/,""); print; exit}' "$ROOT/AGENTS.md")
@@ -134,38 +128,16 @@ fi
 [ -n "$ROOT_TYPE" ] || ROOT_TYPE=unknown
 
 case "$ROOT_TYPE" in
-  client)
-    # `work/onboarding/` on a client root, and nothing parses that out of the
-    # root's own AGENTS.md. Reading it from a prose table was tried four ways and
-    # broke four ways, each silently sending this harness somewhere the run had
-    # not written: a sentence carrying the label, a backticked row label, another
-    # table's row, and a cell holding two paths. A relocatable records home is a
-    # capability nothing has asked for, and it is filed as a build rather than
-    # guessed at here. What the type decides is the layout, which is the defect
-    # this branch exists to fix: the other types declare no `work/onboarding/`.
+  personal|org|client|department|industry)
     ONB="$ROOT/work/onboarding"
     RUNREC="$ONB/run-record.md"
     VERIF="$ONB/verification.md"
     AUDIT="$ONB/audit.md"
-    OPER="$ROOT/todos/current.md"
+    OPER="$ONB/operating-file.md"
     CLOSE="$ONB/close-report.md"
     EXTRACT_DIR="$ONB/extraction"
     EVID_DIR="$ONB/evidence"
     SRC_DIR="$ROOT/sources"
-    ;;
-  personal|org|department|industry)
-    # The run record sits in the working area the template declares, and the
-    # operating file sits beside it. No extraction, evidence, sources or todos
-    # directory exists for these types, and none is created here.
-    ONB="$ROOT/work"
-    RUNREC="$ONB/onboarding-run-record.md"
-    VERIF="$ONB/onboarding-verification.md"
-    AUDIT="$ONB/onboarding-audit.md"
-    OPER="$ONB/onboarding-operating-file.md"
-    CLOSE="$ONB/onboarding-close-report.md"
-    EXTRACT_DIR="$ONB/onboarding-extraction"
-    EVID_DIR="$ONB/onboarding-evidence"
-    SRC_DIR="$ROOT/inbox"
     ;;
   *)
     echo "$PROG: $ROOT/AGENTS.md declares no recognized type: (personal, org, client, department, industry)" >&2

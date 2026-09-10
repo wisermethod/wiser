@@ -80,4 +80,19 @@ The gateway's writes (connection store, audit log, empty project-key template) a
 | `seo-page-analyzer/TOOL.md` | Reports one page's on-page SEO elements from caller-supplied HTML, each element with its measurements and the checks it failed |
 | `sitemap/TOOL.md` | One deterministic snapshot of the URLs a site publishes in its sitemaps, and one JSON report of what changed between two snapshots of the same site |
 
+### System
+
+| Tool | Description |
+|------|-------------|
+| `reference-check/TOOL.md` | Return a JSON scan of path-shaped and family-name references under --root, or take and restore an approved structural snapshot |
+
 <!-- /generated:index -->
+
+## Structural recovery writes
+
+| Tool command | Writes |
+|--------------|--------|
+| `reference-check` snapshot `take` | Caller-named disjoint snapshot directory, manifest and eligible copies, outside the tool; `reference-check/snapshot.md` |
+| `reference-check` snapshot `restore` | Approved paths under the caller-named target only; same contract |
+
+`reference-check scan`, snapshot `verify`, snapshot `g3` and help write nothing and install nothing.

@@ -63,7 +63,9 @@ Every flag, every JSON field and every exit code is what it was; only the path a
 
 Point your harness at this repository as a plugin root, then attach your working folder. **This repository is the source tree**: it ships no generated plugin manifest and no marketplace projection, so a harness that requires one is not yet supported. Install by composing this root, and read `AGENTS.md` first.
 
-If you do not have a working folder yet, `skills/Onboard Root/` creates one from the templates in `system/templates/`. Your own root takes its personal path: three files and a read-back pass. Every other type takes the full path, which keeps records and runs a gate harness.
+`skills/Onboard Root/` creates a user root from `system/templates/User Root Template/`, or adopts a folder that already holds work, against `standards/user-root.md`. Your own root takes its personal path: three bound files and a read-back pass. Every other type takes the full path, which keeps records and runs a gate harness.
+
+`skills/Housekeeping/` proposes a clause-cited structural plan for a pointed-at directory and applies the approved transaction with verified recovery. Already-Wiser layout drift takes Housekeeping; adoption composes it before declaring and rebuilding memory.
 
 ## License
 

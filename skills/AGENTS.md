@@ -63,7 +63,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 | Skill | Description | Owner |
 |-------|-------------|-------|
 | `Build Voice/SKILL.md` | Build or rebuild one user root's voice.md from real writing evidence, routed to the voice register that root's own outputs need | Ghost Writer |
-| `Onboard Root/SKILL.md` | Create a user root from its template and onboard it, on a short path for one person's own root and a full path for every other type | System Expert |
+| `Onboard Root/SKILL.md` | Create a user root from the unified template or adopt a populated folder, with a personal short path and a full path for other types | System Expert |
 
 ### Research
 
@@ -84,6 +84,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 
 | Skill | Description | Owner |
 |-------|-------------|-------|
+| `Housekeeping/SKILL.md` | Propose a clause-cited layout plan for a directory and apply its approved transaction with verified recovery | System Expert |
 | `Set Up Connectors/SKILL.md` | Attach the gateway to this harness and confirm the project key on this machine, for a new CLI, machine, or OS user | Connector Advisor |
 | `Connect Account/SKILL.md` | Connect one service module in its own human turn through start_connect then connect_status, never taking a key in the conversation | Connector Advisor |
 | `Connection Troubleshooter/SKILL.md` | Name one next step for a gateway status object or audit line covering needs_provider, needs_connect, expired, denied, needs_connector, and vendor_error | Connector Advisor |

@@ -1,0 +1,169 @@
+# Onboarding record grammars
+
+Supporting reference for `full-path.md`, The Records the Gates Read. `standards/user-root.md` C10 owns placement; `full-path.md` owns common written forms, phase applicability and the personal short-path exception. These are parser-facing record schemas for every type, transferred from the former client router. Populate choices and placeholders for the run; do not copy shape fences into produced records.
+
+### `run-record.md`
+
+Key lines, one per line, at the top of the file:
+
+```
+type: <this root's declared type>
+name: <the real name>
+destination: <absolute path>
+tier: full | core
+research-branch: research-first | interview-first | no-research
+consent: <the answer, or "not-applicable: <reason>">
+competitors-offer: yes | not-now | no | not-offered: <type>
+```
+
+Then:
+
+```
+## Copy vantages
+vantage-1: <mechanism> -> <n> files
+vantage-2: <mechanism> -> <n> files
+
+## Interview
+### <the first interview heading for this root's type>
+### Who confirms and on what basis
+### Contradictions
+### What the outputs are for
+### Competitor set
+
+## Per-key close
+about: complete | provisional | blocked
+voice: complete | provisional | blocked
+design: complete | provisional | blocked
+competitors: complete | provisional | blocked | unbound
+```
+
+Under each `## Interview` heading: the answer, or a line beginning `Deferred:` followed by the consequence. `### What the outputs are for` may not be deferred, because the routing table in `memory/voice.md` carries a row for every output type named there, and it is written as a dash list with **one output type per line**. G13b reads it as a list and checks the routing table row by row against it; answered as a sentence rather than as a list, no output type is read from it at all and G13b says the answer names none, because a gate does not parse prose. `### Competitor set` is present only when `competitors-offer: yes`. **The first heading varies by type**: write `### What was bought` on a client root and `### What this root is for` on every other type, exactly, with nothing appended. G12 matches the string. **The `competitors:` per-key line follows `competitors-offer` and nothing else**: it is owed for `yes`, `not-now` and `no`, and omitted only for `not-offered: <type>`, which is the value recorded where the offer was never made.
+
+**The fences are shapes, not transcripts.** Angle brackets are a value to supply, `a | b` is a choice of one, and a line or heading marked as varying by type or by a recorded answer is written for the case in hand. Everything else is copied as it stands, punctuation included, because the gates match those strings.
+
+### `extraction/<source>.md`
+
+```
+source: sources/<file>
+extract-mechanism: <name>
+extract-measure: <n> <unit>
+check-mechanism: <name>
+check-measure: <n> <unit>
+provenance-author: subject | first-party | third-party | unattributed
+provenance-status: final | draft
+provenance-date: <a date, as YYYY-MM-DD>
+provenance-audience: internal | outward-facing
+```
+
+The two measures carry equal leading numbers and are taken by different mechanisms; a completeness claim measured by the mechanism that did the extracting proves nothing.
+
+Then the must-reach list, which is the forward check from source to memory:
+
+```
+## Must-reach list
+
+| Item | Kind | Text | Disposition | Where |
+|------|------|------|-------------|-------|
+```
+
+`Kind` is one of `prohibition`, `compliance`, `commercial`, `person`, `review-note`.
+`Disposition` is one of `in-bound-file`, `in-operating-file`.
+A row of kind `prohibition` or `compliance` may only be `in-bound-file`: downstream work loads bound files and does not load the todo list, so a constraint routed to `work/onboarding/operating-file.md` is a constraint nothing reads.
+`Where` is `<path>#<anchor or heading>` for `in-bound-file`, or `work/onboarding/operating-file.md O<n>` for `in-operating-file`. The path is inside this root: absolute, walking out with `..`, or reached through a link leaving the root are each refused by the gate, since a record cannot make a gate read another root's file and count what it finds as this root's evidence.
+
+An item is never disposed of as absent from the source. The list is drawn from the source, so "none found" and "not present in source" are contradictions, not dispositions.
+
+### `evidence/<angle>.md`
+
+```
+angle: <name>
+retrieval-mechanism: <tool>, <what it does to content>
+
+## Quotations
+| Row | Quote | URL | Retrieved |
+|-----|-------|-----|-----------|
+
+## Values
+| Row | Value | File | Line |
+|-----|-------|------|------|
+
+## Not retrieved
+| Item | Reason |
+|------|--------|
+
+## Spot checks
+| Row | Check | Outcome |
+|-----|-------|---------|
+```
+
+Row ids match `E<n>` and are unique across all packages in the run. Quotation rows carry a URL and a YYYY-MM-DD date; value rows carry a file and a line number. `## Spot checks` carries three rows, each naming the check that ran and its outcome.
+
+A package whose angle is the competitive set carries one further table:
+
+```
+## Suggested names
+| Name | Source | Retrieved | Why suggested |
+|------|--------|-----------|---------------|
+```
+
+### `verification.md`
+
+```
+## Claims
+
+| Row | Key | Class | Claim | Anchor | Bound file | Cites | Mechanism | Exactness | Second mechanism | Outcome | Label | Search |
+|-----|-----|-------|-------|--------|------------|-------|-----------|-----------|------------------|---------|-------|--------|
+
+## Negative claims
+
+| Row | Claim | Anchor | Containers searched | All containers | Second reader | Outcome |
+|-----|-------|--------|---------------------|----------------|---------------|---------|
+```
+
+`Row` matches `V<n>` and is unique across both tables.
+`Key` is `about`, `voice`, `design`, `competitors`, or `none`.
+`Class` is one of `who-confirms`, `hard-constraints`, `register-decision`, `register-confirmation`, `design-source`, `set`, `set-confirmed-by`, `set-date`, `other`, and one class that varies by type: **`what-was-bought` on a client root, `what-this-root-is-for` on every other type.**
+`Anchor` is the bracketed row id as it appears in the bound file, or `-` when the claim did not enter a bound file.
+`Bound file` is the file the claim reached, by a path inside this root: absolute, walking out with `..`, or resolving through a link to somewhere outside are each refused by the gate, on the same terms as `Where`.
+`Exactness` is `yes` for any claim about wording, length, completeness, extent, a count, or a file comparison; `no` otherwise. An exactness claim carries a second mechanism different from the first, or it is labeled Unverified.
+`Outcome` is `located`, `located-elsewhere-and-citation-corrected`, or `not-located`.
+`Label` is one of the four labels' first words (`Verified`, `Estimated`, `Unverified`, `Not available`) or `-`.
+`Search` is the search string actually run; required when `Outcome` is `not-located`.
+`All containers` is `yes` or `no`. `Second reader` names a person or an agent, or `-`.
+
+The two tables join by `Anchor`, not by `Row`, because row ids are unique across both and therefore cannot join them.
+
+### `audit.md`
+
+```
+independent-context: yes | no
+reviewers: <what ran, by name or type>
+rounds: <n>
+
+## Findings
+
+| Finding | Claim | Disposition | Deciding check | Where checker looked | Bound file entry |
+|---------|-------|-------------|----------------|----------------------|------------------|
+```
+
+`Finding` matches `A<n>`. `Disposition` is `accepted`, `rejected`, or `disputed`. A rejected finding says where the checker looked. A disputed finding names the bound file entry, by a path inside this root on the same terms as `Where`, that carries its `(Disputed: ...)` parenthetical. An audit's findings are claims, and they are checked before anything is edited on their account.
+
+### `work/onboarding/operating-file.md`
+
+The operating file. Onboarding writes it; later sessions keep it. Grammar:
+
+```
+| Item | Gap | Owner | Status | Blocker | Attempt | Result and date |
+|------|-----|-------|--------|---------|---------|-----------------|
+```
+
+`Item` matches `O<n>`.
+`Owner` is a named person or a named role. "the requester", "the client", "TBD", "whoever asked", and an empty cell all fail.
+`Status` is `gating`, `blocking`, `needed`, or `done`.
+`Blocker` matches `person: <who>`, `credential: <which>`, or `capability: <what>` for `gating` and `blocking` rows, and is `-` otherwise. A category with no name after it is not a blocker.
+`Attempt` records the attempt that established the blocker; required for `gating` and `blocking`.
+`Result and date` is required for `done` rows and carries a YYYY-MM-DD date.
+
+### `close-report.md`
+
+Prose, under these headings, each non-empty: `## Tier`, `## Type and scope`, `## Destination`, `## Per-key close`, `## Open headings`, `## Gates that failed`, `## Audit disposition`, `## Outstanding`.

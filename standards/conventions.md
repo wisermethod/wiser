@@ -1,6 +1,6 @@
 ---
 standard: conventions
-version: 0.1.2
+version: 0.2.0
 description: The cross-cutting conventions every file and agent in a Wiser workspace follows: formatting, dates, portable names, working files, root layout, archives, sourcing, and evidence labels
 ---
 
@@ -46,14 +46,14 @@ Where a write is forbidden outright, the top level of any root and a composed sh
 
 ## Root Layout
 
-Beneath a declared directory, the next tier is subject folders: one per project, engagement, or standing topic, each named for its subject, the body of work inside this root, never the root's own name. A file and its drafts sit together in their subject folder, never loose beneath the declared directory.
+User-root layout is governed by `standards/user-root.md`. Its C4 distinguishes completion-bounded work from standing programs and places projects within programs. Beneath a directory that takes subject folders, name each folder for its subject, never the root's own name. A file and its drafts sit together in that subject folder.
 
 A subject folder that holds folders of its own, or has outgrown a quick scan, carries its own AGENTS.md naming what it holds and where its parts sit. The constitution's chain reaches it with no further declaration.
 
 Directories whose structure another standard already fixes are exempt:
 
-- `skills/`, `experts/`, and `tools/` are flat: `standards/primitives.md`. A client root does not ship these; the primitives live in a plugin root, and this one carries skills, experts, and tools.
-- `plays/` and `playbooks/` hold files in their own formats when those directories exist: `standards/play.md` and `standards/playbook.md`. A root's AGENTS.md may place those files in `work/<subject>/` instead, and then this exemption does not apply: the subject folder's AGENTS.md names them.
+- Plugin `skills/`, `experts/`, and `tools/` are flat under `standards/primitives.md`; user-root overlays follow `standards/user-root.md` C7.
+- Play and Playbook files follow `standards/play.md` and `standards/playbook.md` inside the homes `standards/user-root.md` C3 and C8 permit. This grants no root-level directory exemption.
 - `memory/` holds the files the root's Provides block binds.
 - `inbox/` holds captures with no subject yet, per Working Files above; a capture whose subject becomes known moves to that subject's folder. `zArchive/` follows Archives, below.
 

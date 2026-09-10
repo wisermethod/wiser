@@ -3,7 +3,7 @@ name: Play Author
 type: skill
 category: authoring
 description: Write or review Plays, primitive instruction bodies, and library components
-version: 0.1.3
+version: 0.2.0
 ---
 
 # Play Author
@@ -28,7 +28,7 @@ The requesting owner rides with the request: Before Writing's reuse check search
 
 If the request is unclear, ask: What type of file? What does success look like? What content will it process? What scope? Do not guess; wrong assumptions waste time.
 
-Reuse check: search this root's skills, the requesting owner's existing Plays (the home its AGENTS.md names, `plays/` if it is silent), and existing primitives before writing new. Extend or compose rather than duplicate.
+Reuse check: search this root's skills, the requesting owner's existing Plays (the home its AGENTS.md names, the default in `standards/play.md` if it is silent), and existing primitives before writing new. Extend or compose rather than duplicate.
 
 ## Output Types
 
@@ -40,7 +40,7 @@ Reuse check: search this root's skills, the requesting owner's existing Plays (t
 
 Litmus: a file containing verbs that direct agent action is a Play or a primitive body, never a library component.
 
-Play instances belong in the requesting owner's root, never in this plugin root. Default home is `plays/`. If that root's AGENTS.md names a different home, use it: a client root files the Play in the `work/<subject>/` folder of the work it produces, as `<does-this-thing>.play.md`.
+Play instances belong in the requesting owner's root, never in this plugin root. Default home follows `standards/play.md`, projecting `standards/user-root.md` C3. If that root's AGENTS.md names a different home, use it: a client root files the Play in the `work/<subject>/` folder of the work it produces, as `<does-this-thing>.play.md`.
 
 ## Writing Process
 
