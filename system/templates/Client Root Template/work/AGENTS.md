@@ -32,7 +32,7 @@ The deliverable the Play or Playbook produces sits in the same subject folder. T
 
 ## When a subject folder gets AGENTS.md
 
-When it holds folders of its own, or has outgrown a quick scan. That file names what the folder holds and where its parts sit. The constitution's chain reaches it with no further declaration.
+When it holds folders of its own, or has outgrown a quick scan. That file names what the folder holds and where its parts sit. When the subject holds a site that dies with that work, its `AGENTS.md` declares `sites/` as a table row and names `sites/<domain>/`, the envelope wrapping `site/`. A standing property remains at the root's `sites/<domain>/`. The constitution's chain reaches it with no further declaration.
 
 ## Two-hop test
 

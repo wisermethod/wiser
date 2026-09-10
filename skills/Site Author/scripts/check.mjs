@@ -4,11 +4,16 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const site = process.argv[2] && path.resolve(process.argv[2]);
-if (!site) {
-  console.error("usage: node check.mjs <site-folder>");
+import { currentKit } from "./envelope.mjs";
+const envelope = process.argv[2] && path.resolve(process.argv[2]);
+if (!envelope) {
+  console.error("usage: node check.mjs <envelope-folder>");
   process.exit(2);
 }
+
+let site;
+try { site = currentKit(envelope); }
+catch (error) { console.error(`check FAIL ${envelope}: ${error.message}`); process.exit(1); }
 
 const failures = [];
 function fail(msg) {

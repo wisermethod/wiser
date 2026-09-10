@@ -54,7 +54,7 @@ The line starts at the left margin, carries nothing but the paths, backticked an
 
 | Expert | Description | Owns |
 |--------|-------------|------|
-| `Webmaster/EXPERT.md` | Judge a live site's findability, broken URLs, content vs code, and publish safety, sequence the work it needs, and gate a change before it goes live | `skills/Site Author/`, `skills/SEO Assets/`, `skills/Cloudflare Pages/`, `skills/Vercel Deploy/`; Job 3 in a second context gates Stand-up, Upgrade, Wrangler live-host upload, and Vercel Deploy deployment creation before publish, not after every file write; content-only edits take Job 3 for a new URL, slug change, or redirect; Check and host list/get operations, including deployment lists, have no gate; SEO Assets keeps the per-artifact second-context gate |
+| `Webmaster/EXPERT.md` | Judge a site's findability, broken URLs, content vs code, and publish safety, sequence a kit envelope or foreign-site work, and gate a change before it goes live | `skills/Site Author/`, `skills/SEO Assets/`, `skills/Cloudflare Pages/`, `skills/Vercel Deploy/`; Job 3 in a second context gates Stand-up, Wrap, Upgrade, Wrangler live-host upload, and Vercel Deploy deployment creation before publish, not after every file write; content-only edits take Job 3 for a new URL, slug change, or redirect; Check and host list/get operations, including deployment lists, have no gate; SEO Assets keeps the per-artifact second-context gate |
 
 ### Writing
 

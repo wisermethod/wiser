@@ -21,7 +21,7 @@ This root's declared directories under `standards/conventions.md`:
 | Directory | Holds |
 |-----------|-------|
 | `work/` | This root's deliverables and their drafts |
-| `sites/` | One folder per domain, named for the registrable host, lowercase, no scheme, no `www` unless `www` is a distinct property. Created on first use |
+| `sites/` | One envelope per domain wrapping `site/` (the kit), named for the registrable host, lowercase, no scheme, no `www` unless `www` is a distinct property. Created on first use |
 | `plays/` | This root's Plays (`standards/play.md`) |
 | `playbooks/` | This root's Playbooks (`standards/playbook.md`); created on first use |
 | `skills/` | This root's Skills (`standards/primitives.md`); ships with the template |

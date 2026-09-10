@@ -14,7 +14,7 @@ Next.js as primary. Astro SSR / authenticated areas. A Node API, queue, or datab
 
 ## kit.json
 
-Required at the domain-folder root. Schema:
+Required at the kit-folder root, the envelope's `site/`. Invoke `check` on the envelope; it walks `site/`. Schema:
 
 ```json
 {
@@ -75,19 +75,19 @@ A request to add a component or edit `astro.config.mjs` is refused. A request to
 
 ## Replication, check, upgrade
 
-`check` compares `kitVersion` to this file, and **fails if a `.git` exists inside the domain folder** (nested git is never the silent default). Fail if any required SEO slot is missing.
+`check` compares `kitVersion` to this file, and **fails if a `.git` exists in the envelope or kit folder** (nested git is never the silent default). Fail if any required SEO slot is missing.
 
 `upgrade` archives every kit-owned file it will replace, per `standards/conventions.md` (a `zArchive/` next to the file, unless that root declares git history as recovery **and** the site is in a committed current repo), then copies kit code files over and refuses to merge content. Two sites on the same `kitVersion` are maintainable as a class; a site that failed `check` is a foreign site until it is upgraded or declared foreign.
 
-Kit-owned means everything except `src/content/**` and `public/images/**`. Those two trees stay byte-identical across Upgrade.
+Paths in this contract are relative to `site/`. Envelope `AGENTS.md`, `memory/`, `builds.md`, and Playbooks are outside Upgrade. Kit-owned means everything except `src/content/**` and `public/images/**`. Those two trees stay byte-identical across Upgrade.
 
 ## Git and hosting
 
-Content is file-backed, not CMS-backed. Git is optional plumbing, not the content model. **Never connect an owning Wiser root to a public host.**
+Content is file-backed, not CMS-backed. Git is optional plumbing, not the content model. **Never connect the envelope or owning Wiser root to a host.** Host payload is `site/` or `site/dist/`; envelope `memory/` stays local.
 
 No `git init` by default. The kit writes a site `.gitignore` (`node_modules/`, `dist/`, `.astro/`). A site with no git is not a failed stand-up.
 
-Live host is not this contract. Wrangler upload of the site folder is the interim human path until `skills/Cloudflare Pages/` and `skills/Vercel Deploy/` exist.
+Live host is not this contract. Load `skills/Cloudflare Pages/` or `skills/Vercel Deploy/` for upload of the kit folder only.
 
 ## Optional kit furniture, not jobs
 
@@ -95,19 +95,19 @@ Live host is not this contract. Wrangler upload of the site folder is the interi
 
 ## System dependencies
 
-Node 22.12 or newer (Astro 7's floor). The 2026-09-08 Playbook said 18; current stable Astro 7.3.2 requires `>=22.12.0`. The host runs `npm install` and `npm run dev` in the site folder. Not wrapped as a Wiser tool.
+Node 22.12 or newer (Astro 7's floor). The 2026-09-08 Playbook said 18; current stable Astro 7.3.2 requires `>=22.12.0`. The host runs `npm install` and `npm run dev` in the envelope's `site/` folder. Not wrapped as a Wiser tool.
 
 ## Stand-up rules this contract encodes
 
 - Owning root `AGENTS.md` must declare `sites/`. Otherwise stop and name the missing declaration.
-- Domain folder is `sites/<domain>/`, lowercase, no scheme, no `www` unless `www` is a distinct property.
-- Do not stand up over a folder that has no `kit.json` (foreign). Leave it untouched.
+- Domain folder is an envelope at `sites/<domain>/`, or `work/<slug>/sites/<domain>/` when it dies with existing work. The root and that work subject must declare `sites/`. The host is lowercase, no scheme, no `www` unless `www` is a distinct property. The kit lives in `site/`.
+- A current envelope has `site/kit.json`. A domain-folder `kit.json` without it is the Milestone 1 to 3 shape: wrap to envelope, or declare foreign. Neither file means foreign. Stand-up refuses all existing folders and leaves them untouched.
 - Do not `git init`.
 - First-party kit only. No vendored theme (not AstroWind, not AstroPaper, not a named magazine starter).
 
 ## How `check` walks this file
 
-1. Confirm the domain folder has no `.git`.
+1. Invoke Check on the envelope. Confirm the envelope and kit folder have no nested `.git`; walk `site/` for steps 2 to 5.
 2. Read `kit.json`. `kitVersion` matches this file. `siteUrl` has no trailing path or slash.
 3. Confirm `trailingSlash: 'never'` in the Astro config.
 4. Confirm collections schema includes `pages`, `articles`, `authors`, and disabled `sections` / `issues` unless magazine.

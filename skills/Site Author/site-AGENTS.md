@@ -1,28 +1,40 @@
 ---
-root: {{domain}}
+domain: {{domain}}
 kitVersion: {{kitVersion}}
 ---
 
 # {{domain}}
 
-A kit site. Domain folder `sites/{{domain}}/`. `SITE_URL` is `{{siteUrl}}`.
+This site envelope wraps the kit in `site/`. Its origin is `{{siteUrl}}`. It is not a Wiser root, has no constitution of its own, and does not run Onboard Root.
 
-Attach this folder for content work. The Wiser plugin must still be in the workspace to invoke Webmaster or Site Author.
+Attach this envelope for content work, with the Wiser plugin and owning root available for the instruction chain and inherited keys.
 
-## Collections
+## Provides
 
-Enabled: `pages`, `articles`, `authors`. `sections` and `issues` stay disabled unless stand-up was magazine.
+{{provides}}
+
+These local keys overlay the owning root's Provides. Stand-up copies available owning-root memory, then the skill asks what changes, if anything. Missing or unavailable local keys fall back to the owning root; say when that happens.
+
+## Layout
+
+| Path | Holds |
+|------|-------|
+| `memory/` | Site about, voice, and design bound above |
+| `site/` | Kit tree and host payload |
+| `builds.md` | This site's planned-change roster |
+| `<does-this-thing>.playbook.md` | A plan for this site, per `standards/playbook.md` |
+| `zArchive/` | Envelope recovery, per `standards/conventions.md` |
 
 ## Content vs code
 
-Agents and content jobs may change `src/content/**`, `public/images/**`, and `public/llms.txt` when SEO Assets writes it.
+Content jobs may change `site/src/content/**` and `site/public/images/**`. SEO Assets may write `site/public/llms.txt`. A changed published slug needs a `site/public/_redirects` row and Webmaster Job 3 before publish.
 
-They may not change `src/components/**`, `src/layouts/**`, `src/pages/**` (routes), `astro.config.mjs`, `package.json`, `package-lock.json`, `src/styles/**` except through a Designer-gated token update, `.github/**`, `KIT.md`, or `kit.json` (Upgrade's).
+Content jobs may not change `site/src/components/**`, `site/src/layouts/**`, `site/src/pages/**`, `site/astro.config.mjs`, `site/package.json`, `site/package-lock.json`, `site/src/styles/**` except a Designer-gated token update, `site/.github/**`, `site/KIT.md`, or `site/kit.json`. Load `site/KIT.md` for collection schemas, required frontmatter, and SEO mechanics.
 
-## Mechanics
+## Check and preview
 
-`trailingSlash` is `never`. A published slug is not deleted without a `public/_redirects` row. Drafts (`draft: true`) stay out of sitemap, RSS, and the canonical index.
+Invoke Site Author Check on this envelope; it walks `site/` against `site/KIT.md`. Run `npm install` and `npm run dev` in `site/`. Report the check result and served-HTML verification before stand-up is done.
 
-`check` walks `KIT.md` in this folder. It is not a tool.
+## Publish boundary
 
-Never connect the owning Wiser root to a host. No `git init` unless the requester opted in and a human confirmed.
+Host payload is `site/` or `site/dist/`. Never connect this envelope or the owning root to a host. Envelope `memory/` never rides to a host. Site Author does not publish or run `git init`; the host skill takes the kit folder, and Webmaster Job 3 gates publish.

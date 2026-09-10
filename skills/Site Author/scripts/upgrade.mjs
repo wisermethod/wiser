@@ -17,13 +17,17 @@ function fail(msg) {
   process.exit(1);
 }
 
-const site = values.site && path.resolve(values.site);
+import { currentKit, safeTree } from "./envelope.mjs";
+const envelope = values.site && path.resolve(values.site);
 const kit = values.kit && path.resolve(values.kit);
-if (!site || !kit) fail("required: --site --kit");
-if (!fs.existsSync(path.join(site, "kit.json"))) fail(`${site} has no kit.json (foreign). Refusing`);
-if (fs.existsSync(path.join(site, ".git"))) fail(`nested .git in ${site}. Refusing`);
+if (!envelope || !kit) fail("required: --site --kit");
+let site;
+try { site = currentKit(envelope); } catch (error) { fail(error.message); }
+if (!fs.existsSync(path.join(kit, "KIT.md")) || !fs.existsSync(path.join(kit, "package.json"))) fail("kit missing KIT.md or package.json");
+const template = JSON.parse(fs.readFileSync(path.join(kit, "kit.json"), "utf8"));
+if (template.kitVersion !== "0.1.0") fail("unsupported kitVersion");
 
-const skipTop = new Set(["node_modules", "dist", ".astro", ".git", "src", "public", "kit.json"]);
+const skipTop = new Set(["node_modules", "dist", ".astro", ".git", "src", "public", "kit.json", "site-AGENTS.md", "AGENTS.md", "memory", "builds.md", "zArchive"]);
 const preserved = new Set();
 const originalKit = JSON.parse(fs.readFileSync(path.join(site, "kit.json"), "utf8"));
 
@@ -60,7 +64,7 @@ function copyFile(src, dest) {
 function copyTree(from, to, { preserveContentImages = false } = {}) {
   fs.mkdirSync(to, { recursive: true });
   for (const name of fs.readdirSync(from)) {
-    if (name === "node_modules" || name === "dist" || name === ".astro" || name === ".git") continue;
+    if (["node_modules", "dist", ".astro", ".git", "zArchive", "site-AGENTS.md", "AGENTS.md", "memory", "builds.md"].includes(name)) continue;
     const src = path.join(from, name);
     const out = path.join(to, name);
     const st = fs.lstatSync(src);
@@ -91,9 +95,13 @@ if (fs.existsSync(kitSrc)) copyTree(kitSrc, path.join(site, "src"), { preserveCo
 const kitPublic = path.join(kit, "public");
 if (fs.existsSync(kitPublic)) copyTree(kitPublic, path.join(site, "public"), { preserveContentImages: true });
 
-const template = JSON.parse(fs.readFileSync(path.join(kit, "kit.json"), "utf8"));
 originalKit.kitVersion = template.kitVersion;
-fs.writeFileSync(path.join(site, "kit.json"), JSON.stringify(originalKit, null, 2) + "\n");
+const configPath = path.join(site, "kit.json");
+const updated = JSON.stringify(originalKit, null, 2) + "\n";
+if (fs.readFileSync(configPath, "utf8") !== updated) {
+  fs.copyFileSync(configPath, archivePath(configPath));
+  fs.writeFileSync(configPath, updated);
+}
 
 console.log(`upgrade: applied kit ${template.kitVersion} onto ${site}`);
 console.log("upgrade: left src/content and public/images untouched");

@@ -1,111 +1,42 @@
 #!/usr/bin/env node
-// Stand up a kit site at <root>/sites/<domain>/. Not a Wiser tool.
-// Refuses: undeclared sites/, foreign folder, nested git, git init.
-import fs from "node:fs";
-import path from "node:path";
-import { parseArgs } from "node:util";
+// Stand up a site envelope from the existing kit. Not a Wiser tool.
+import fs from 'node:fs';
+import path from 'node:path';
+import { parseArgs } from 'node:util';
+import { exists, reject, parentFor, safeTree, noLinks, templateText, prepareMemory, writeEnvelope } from './envelope.mjs';
 
-const { values } = parseArgs({
-  options: {
-    root: { type: "string" },
-    domain: { type: "string" },
-    "site-url": { type: "string" },
-    kit: { type: "string" },
-    magazine: { type: "boolean", default: false },
-  },
-});
-
-function fail(msg) {
-  console.error(`stand-up: ${msg}`);
-  process.exit(1);
-}
-
-const root = values.root && path.resolve(values.root);
-const domain = values.domain;
-const siteUrl = values["site-url"];
-const kit = values.kit && path.resolve(values.kit);
-if (!root || !domain || !siteUrl || !kit) {
-  fail("required: --root --domain --site-url --kit");
-}
-function isHost(d) {
-  return /^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*$/.test(d);
-}
-if (domain.includes("/") || domain.includes(":") || isHost(domain) === false) {
-  fail(`domain must be a lowercase registrable host, no scheme: ${domain}`);
-}
-let parsed;
 try {
-  parsed = new URL(siteUrl);
-} catch {
-  fail(`site-url is not a URL: ${siteUrl}`);
-}
-if (siteUrl.endsWith("/") || (parsed.pathname !== "/" && parsed.pathname !== "")) {
-  fail(`site-url must have no trailing path or slash: ${siteUrl}`);
-}
-
-const agents = path.join(root, "AGENTS.md");
-if (!fs.existsSync(agents)) fail(`no AGENTS.md at ${root}`);
-const agentsText = fs.readFileSync(agents, "utf8");
-// Only a declared-directory table row counts. Prose that names `sites/` is not a declaration.
-if (!/^\| `sites\/` \|/m.test(agentsText)) {
-  fail(`owning root AGENTS.md does not declare sites/. Refusing stand-up into ${root}`);
-}
-
-const dest = path.join(root, "sites", domain);
-const sitesDir = path.join(root, "sites");
-if (path.resolve(dest) === path.resolve(sitesDir) || path.dirname(path.resolve(dest)) !== path.resolve(sitesDir)) {
-  fail(`domain must resolve to a folder inside sites/: ${domain}`);
-}
-if (fs.existsSync(path.join(dest, ".git"))) {
-  fail(`nested .git in ${dest}. Refusing`);
-}
-if (fs.existsSync(dest)) {
-  const hasKit = fs.existsSync(path.join(dest, "kit.json"));
-  if (!hasKit) fail(`foreign folder (no kit.json) at ${dest}. Leaving it untouched`);
-  fail(`${dest} already exists. Upgrade, do not stand up over a kit site`);
-}
-
-if (!fs.existsSync(path.join(kit, "KIT.md")) || !fs.existsSync(path.join(kit, "package.json"))) {
-  fail(`kit at ${kit} is missing KIT.md or package.json`);
-}
-
-const skip = new Set(["node_modules", "dist", ".astro", ".git"]);
-function copyTree(from, to) {
-  fs.mkdirSync(to, { recursive: true });
-  for (const name of fs.readdirSync(from)) {
-    if (skip.has(name)) continue;
-    const src = path.join(from, name);
-    const out = path.join(to, name);
-    const st = fs.lstatSync(src);
-    if (st.isDirectory()) copyTree(src, out);
-    else fs.copyFileSync(src, out);
+  const { values } = parseArgs({ options: { root: { type: 'string' }, domain: { type: 'string' }, 'site-url': { type: 'string' }, kit: { type: 'string' }, work: { type: 'string' }, magazine: { type: 'boolean', default: false } } });
+  if (!values.root || !values.domain || !values['site-url'] || !values.kit) reject('required: --root --domain --site-url --kit');
+  const root = path.resolve(values.root), kit = path.resolve(values.kit), domain = values.domain, siteUrl = values['site-url'];
+  if (!/^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/.test(domain)) reject(`domain must be a lowercase registrable host, no scheme: ${domain}`);
+  const origin = new URL(siteUrl);
+  if (!['http:', 'https:'].includes(origin.protocol) || origin.origin !== siteUrl) reject(`site-url must be an HTTP(S) origin, no path, query, credentials or trailing slash: ${siteUrl}`);
+  const parent = parentFor(root, values.work), dest = path.join(parent, 'sites', domain);
+  noLinks(dest);
+  safeTree(dest);
+  if (exists(dest)) {
+    if (exists(path.join(dest, 'site/kit.json'))) reject(`${dest} already is an envelope. Upgrade, do not stand up`);
+    if (exists(path.join(dest, 'kit.json'))) reject('Milestone 1 to 3 shape: wrap to envelope, or declare foreign. Do not stand up');
+    reject(`foreign folder (no kit.json) at ${dest}. Leaving it untouched`);
   }
-}
-
-fs.mkdirSync(path.dirname(dest), { recursive: true });
-copyTree(kit, dest);
-
-const kitJson = {
-  kitVersion: "0.1.0",
-  domain,
-  siteUrl,
-  collections: {
-    pages: true,
-    articles: true,
-    authors: true,
-    sections: Boolean(values.magazine),
-    issues: Boolean(values.magazine),
-  },
-};
-fs.writeFileSync(path.join(dest, "kit.json"), JSON.stringify(kitJson, null, 2) + "\n");
-
-const siteAgentsSrc = path.join(kit, "site-AGENTS.md");
-const siteAgentsDest = path.join(dest, "AGENTS.md");
-if (fs.existsSync(siteAgentsSrc)) {
-  let text = fs.readFileSync(siteAgentsSrc, "utf8");
-  text = text.replaceAll("{{domain}}", domain).replaceAll("{{siteUrl}}", siteUrl).replaceAll("{{kitVersion}}", kitJson.kitVersion);
-  fs.writeFileSync(siteAgentsDest, text);
-}
-
-console.log(`stand-up: wrote ${dest}`);
-console.log("stand-up: run npm install and npm run dev in that folder. check is next. no git init.");
+  if (!exists(path.join(kit, 'KIT.md')) || !exists(path.join(kit, 'package.json'))) reject(`kit at ${kit} is missing KIT.md or package.json`);
+  const template = templateText(kit);
+  prepareMemory(root, dest);
+  const skip = new Set(['node_modules', 'dist', '.astro', '.git', 'site-AGENTS.md', 'AGENTS.md', 'memory', 'builds.md', 'zArchive']);
+  function copyTree(from, to) {
+    fs.mkdirSync(to, { recursive: true });
+    for (const name of fs.readdirSync(from)) {
+      if (skip.has(name)) continue;
+      const src = path.join(from, name), out = path.join(to, name), stat = fs.lstatSync(src);
+      if (stat.isSymbolicLink()) reject(`symbolic link in kit: ${src}`);
+      if (stat.isDirectory()) copyTree(src, out); else fs.copyFileSync(src, out);
+    }
+  }
+  copyTree(kit, path.join(dest, 'site'));
+  const config = { kitVersion: '0.1.0', domain, siteUrl, collections: { pages: true, articles: true, authors: true, sections: values.magazine, issues: values.magazine } };
+  fs.writeFileSync(path.join(dest, 'site/kit.json'), JSON.stringify(config, null, 2) + '\n');
+  writeEnvelope(root, dest, config, template);
+  console.log(`stand-up: wrote ${dest}`);
+  console.log(`stand-up: run npm install and npm run dev in ${path.join(dest, 'site')}. check is next. No git init.`);
+} catch (error) { console.error(`stand-up: ${error.message}`); process.exit(1); }

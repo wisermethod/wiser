@@ -78,7 +78,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 
 | Skill | Description |
 |-------|-------------|
-| `SEO Assets/SKILL.md` | Produce the ready-to-use artifacts a site's decided search changes need, each built from evidence pulled for it, held to its own standards, and written into a kit tree or handed over for someone else to deploy |
+| `SEO Assets/SKILL.md` | Produce the ready-to-use artifacts a site's decided search changes need, each built from evidence pulled for it, held to its own standards, and written into an envelope's site/ kit tree or handed over for someone else to deploy
 
 ### System
 
@@ -93,9 +93,9 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 
 | Skill | Description |
 |-------|-------------|
-| `Site Author/SKILL.md` | Stand up, content-edit, check, and upgrade a kit site at sites/<domain>/ in an owning root that declares sites/ |
-| `Cloudflare Pages/SKILL.md` | List and get a Cloudflare Pages project, list its deployments, and take a kit site live by Wrangler upload of the site folder only |
-| `Vercel Deploy/SKILL.md` | List and get a Vercel project, list deployments, and create a deployment with confirmation always |
+| `Site Author/SKILL.md` | Stand up, content-edit, check, wrap, and upgrade a kit site envelope at sites/<domain>/ or work/<slug>/sites/<domain>/ when the site dies with that work, with the kit in site/, in an owning root that declares sites/
+| `Cloudflare Pages/SKILL.md` | List and get a Cloudflare Pages project, list its deployments, and take a kit site live by Wrangler upload of the envelope's site/dist/ payload only
+| `Vercel Deploy/SKILL.md` | List and get a Vercel project, list deployments, and create a deployment from the isolated site/ payload with confirmation always
 
 ### Writing
 
