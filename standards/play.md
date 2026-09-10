@@ -1,6 +1,6 @@
 ---
 standard: play
-version: 0.1.2
+version: 0.2.0
 description: The Play format; what a Play is, its frontmatter, where it lives, and when it is done
 ---
 
@@ -42,7 +42,7 @@ All four fields are required; the one optional field, `memory`, lists the abstra
 ## Placement and Naming
 
 - Play instances live in the owning root, never in this plugin root. This root ships the format and the authoring skill (`skills/Play Author/`), not Play instances.
-- Default home, if the owning root's AGENTS.md is silent: `plays/<name>.md`.
+- Default home, if the owning root's AGENTS.md is silent: `work/<slug>/<name>.play.md`, per `standards/user-root.md` C3.
 - A root's AGENTS.md may declare a different home. A client root places each Play in the `work/<subject>/` folder of the work it produces, named `<does-this-thing>.play.md`.
 - One Play is one file. A Play that has grown to need supporting instruction files is no longer standing alone. If other clients would need the same capability, make it a Skill in this root. If only this client needs it, keep the supporting files in that subject folder; do not create a client `skills/` overlay to hold a Play that got long.
 - Naming characters, casing, and dates follow `standards/conventions.md`.

@@ -598,7 +598,7 @@ export function deleteSlide(deckPath, slideNumber) {
 /**
  * Attempt to move slide `from` to after position `after` (0 = to front).
  * Returns { moved: true, ... } on success. On failure returns { moved: false,
- * reason } without mutating — callers that need reorder should fall back to
+ * reason } without mutating, callers that need reorder should fall back to
  * content-preserving delete+insert only when they accept that custom shapes
  * on that slide will not survive.
  */

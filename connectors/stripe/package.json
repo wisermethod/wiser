@@ -1,0 +1,5 @@
+{
+  "name": "wiser-connector-stripe",
+  "private": true,
+  "type": "module"
+}

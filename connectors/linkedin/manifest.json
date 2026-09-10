@@ -1,0 +1,54 @@
+{
+  "id": "linkedin",
+  "service": "linkedin",
+  "modules": {
+    "profile": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "LINKEDIN",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "me": {
+          "description": "me",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "get_post": {
+          "description": "get post",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "post_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "post_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    }
+  }
+}

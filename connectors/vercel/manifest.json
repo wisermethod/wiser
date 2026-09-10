@@ -1,0 +1,141 @@
+{
+  "id": "vercel",
+  "service": "vercel",
+  "modules": {
+    "projects": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "VERCEL",
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "actions": {
+        "list": {
+          "description": "List projects",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "team_id": {
+                "type": "string"
+              },
+              "limit": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              }
+            },
+            "required": []
+          }
+        },
+        "get": {
+          "description": "Read a project",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "id_or_name": {
+                "type": "string"
+              },
+              "team_id": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id_or_name"
+            ]
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    },
+    "deployments": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "VERCEL",
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "actions": {
+        "list": {
+          "description": "List deployments",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "project_id": {
+                "type": "string"
+              },
+              "team_id": {
+                "type": "string"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "slug": {
+                "type": "string"
+              }
+            },
+            "required": []
+          }
+        },
+        "create": {
+          "description": "Publish a deployment",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "project": {
+                "type": "string"
+              },
+              "files": {
+                "type": "array"
+              },
+              "git_source": {
+                "type": "object"
+              },
+              "target": {
+                "type": "string"
+              },
+              "team_id": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    }
+  }
+}

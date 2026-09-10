@@ -1,0 +1,5 @@
+{
+  "name": "wiser-connector-huggingface",
+  "private": true,
+  "type": "module"
+}

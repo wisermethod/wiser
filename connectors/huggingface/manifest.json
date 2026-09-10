@@ -1,0 +1,73 @@
+{
+  "id": "huggingface",
+  "service": "huggingface",
+  "modules": {
+    "hub": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "HUGGING_FACE",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "get_model": {
+          "description": "get model",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "namespace": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "repo": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "namespace",
+              "repo"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "list_datasets": {
+          "description": "list datasets",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "search": {
+                "type": "string"
+              },
+              "author": {
+                "type": "string"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "cursor": {
+                "type": "string"
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    }
+  }
+}

@@ -2,19 +2,26 @@
 
 What this plugin does not do, declared by the primitive that names it.
 
-`standards/primitives.md` defines a gap as a capability this root does not provide that a primitive's own body names as missing, and it says the release gate collects every declared gap into this file. **This root carries no release gate, so this file is maintained by hand** from the `gaps` frontmatter of what is actually present. It is corrected by hand whenever a primitive's gaps change.
+A gap is a capability this root does not provide that a primitive's own body names as missing (`standards/primitives.md`). This file collects every declared `gaps` entry, by hand, and is corrected whenever a primitive's gaps change.
 
 **This file carries capability gaps only.** What the operator plans to build is a separate record and is not a user's business, so nothing about future work appears here. **A gap names the capability that is missing, never where that capability went.**
 
-Counted 2026-09-05: 36 gaps across 20 primitives; four are new, declared by the three knowledge primitives that arrived that day and listed below. Counted 2026-09-02: 32 gaps across 17 primitives. Thirty-one of those are what remains of the forty-two this file carried on 2026-08-29, once four compound gaps were split into their separate assertions and twenty-one closed. The thirty-second is new: speaker labeling, declared by `Transcribe Audio`, which ships without it.
+Counted 2026-09-09: 27 gaps across 18 primitives. Counted 2026-09-09 after Webmaster kit ship: 33 gaps across 19 primitives. Counted 2026-09-09 after Webmaster host skills: 35 gaps across 21 primitives. Counted 2026-09-10 after knowledge-memory merge: 39 gaps across 24 primitives. Bullet count: `/usr/bin/grep -E '^- ' wiser/system/GAPS.md | wc -l` returns 39. Verify each bullet against its primitive's frontmatter in both directions.
 
 ## Experts
 
 ### Conversion Advisor
 
-- analytics readings pulled from a site's own account
-- behaviour readings pulled from a site's own account
 - page-speed readings
+
+### IT Expert
+
+- a security review of an infrastructure change, which this expert names as a question and does not answer
+
+### Research Expert
+
+- primary research, the interviews, surveys and experiments no primitive in this root performs
+- building or keeping a knowledge set with canon and review, which no primitive in this root carries
 
 ### Ghost Writer
 
@@ -26,13 +33,18 @@ Counted 2026-09-05: 36 gaps across 20 primitives; four are new, declared by the 
 - earned media strategy, reporter targeting, and whether something is a story
 - crisis communications judgment
 
-### SEO Advisor
+### Webmaster
 
 - keyword research
 - automated site crawling
-- search-console readings pulled from the site's own account
+- page-speed readings
+- keyword and backlink data source
 
 ## Skills
+
+### Cloudflare Pages
+
+- create a Pages deployment through the gateway
 
 ### Content Author
 
@@ -50,11 +62,6 @@ Counted 2026-09-05: 36 gaps across 20 primitives; four are new, declared by the 
 
 - earned media judgment, whether something is a story and who to pitch it to
 
-### Headshot Normalizer
-
-- image cutout
-- the vision and image-model calls this skill's automated path depends on
-
 ### Knowledge Recall
 
 - temporal filtering of recall by a date, so an as-of question is answered from the facts the set dates rather than filtered by the engine
@@ -63,17 +70,13 @@ Counted 2026-09-05: 36 gaps across 20 primitives; four are new, declared by the 
 
 - fully local extraction with no hosted model, so a corpus that may not leave the machine cannot be onboarded
 
-### List Hygiene
-
-- address verification against an email validation service
-
 ### Marketing Page Design
 
 - news judgment, whether an announcement is a story at all
 
 ### Media Generator
 
-- the image, video, and background-removal models this skill's whole output depends on
+- judgment of a generated clip's motion, which no expert in this root carries; the clip is judged by its still frame
 
 ### Onboard Root
 
@@ -87,17 +90,29 @@ Counted 2026-09-05: 36 gaps across 20 primitives; four are new, declared by the 
 
 - keyword research
 - automated site crawling
-- search-console readings pulled from the site's own account
-- traffic, engagement and channel readings pulled from the site's own analytics account
+
+### Site Author
+
+- a site whose engine is not the shipped kit
+- application, authenticated, or database-backed sites
+- creating a nested git repository for the site
 
 ### Speech Writing
 
 - crisis judgment on remarks delivered during an unfolding incident
 
+### Typography Design
+
+- right-to-left and CJK typography, which need script-specific knowledge this skill does not carry
+
+### Vercel Deploy
+
+- read or modify environment variables
+- delete a Vercel project
+
 ### Zone Publisher
 
 - Cloudflare redirect rules API (Page Rules successor / Rulesets)
-- applying DNS and zone changes to the hosting account, so this skill can plan a change it cannot publish
 
 ## Tools
 

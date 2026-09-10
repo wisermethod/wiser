@@ -1,12 +1,12 @@
 ---
 standard: instruction-quality
-version: 0.1.0
+version: 0.1.2
 description: How instructions are written in and around Wiser; the sole home of the Elegance definition
 ---
 
 # Instruction Quality
 
-Every instruction file in this system (the bodies of SKILL.md, EXPERT.md, TOOL.md, and CONNECTOR.md, Plays, Playbooks, and AGENTS.md routers) is written to this standard. Other files cite this standard; none restate it.
+Every instruction file in this system (the bodies of SKILL.md, EXPERT.md, and TOOL.md, Plays, Playbooks, and AGENTS.md routers) is written to this standard. Other files cite this standard; none restate it.
 
 ## Elegance
 
@@ -31,6 +31,8 @@ Models attend most to beginning and end; the middle receives less focus.
 Short instructions can ignore position; long ones cannot.
 
 Restating is never allowed for convenience. One exception: a rule whose violation is irreversible may be anchored once more at the close.
+
+The constitution's rules are cited by heading, never redefined. A primitive that depends on one of them names the rule and says what it yields for the task at hand; it does not restate what the rule says in its own words, because a restatement drifts from the source, ships the drift as a fact, and is the harder of the two to catch, since a reviewer who knows the rule reads past a fluent version of it. The closing exception above still applies.
 
 ## The Skeleton
 

@@ -1,0 +1,98 @@
+---
+root: [name]
+type: client
+---
+
+# [name]
+
+A client's root: the work done for them, the facts known about them, and their brand voice.
+
+The Wiser constitution and `standards/` govern the work here; this file declares only what is local.
+
+## Provides
+- about: memory/about.md
+- voice: memory/voice.md
+- design: memory/design.md
+
+`competitors` is deliberately not bound here. `memory/competitors.md` ships as a stub of headings and prompt lines, and a Provides line pointing at a stub is a failed close. The key is bound, as `competitors: memory/competitors.md`, only after the set has been confirmed by a named person on a dated exchange and the file has been written from that confirmed set. Until then the key stays unbound, which is a complete state and not a missing file.
+
+Bind abstract keys to files that exist. Never bind `memory/` as a directory, and never bind a key to a path that is not there yet.
+
+## Where to put something
+
+One question: **what are you holding?** If you already know, it does not go in `inbox/`. If you do not know yet, it does not go anywhere else.
+
+| You are holding | Put it here | Why this folder exists |
+|-----------------|-------------|------------------------|
+| A file or note you have not classified yet | `inbox/` | A waiting room. The moment you know what it is, it leaves. |
+| An action that still needs doing | `todos/current.md` | The living list. Not the file the action produces. |
+| A document the client supplied, or that arrived about them | `sources/` | The originals, as received. Do not edit in place. |
+| A deliverable or draft being made for them | `work/<subject>/` | This root's output. Filing is in `work/AGENTS.md`. |
+| A website this root is known by, even the only site | `sites/<domain>/` | Envelope wrapping `site/` (the kit), named for the registrable host. A pitch deck is still `work/`. |
+| A site that dies with a body of work | `work/<subject>/sites/<domain>/` | Same envelope, named in that subject's `AGENTS.md`; archives with the work. |
+| A recipe for work in that subject | `work/<subject>/<does-this-thing>.play.md` | Lives with the work it produces. Not a top-level folder. |
+| A multi-session plan for that subject | `work/<subject>/<does-this-thing>.playbook.md` | Lives with the work it plans. The folder is the run; no date in the filename. |
+| Records from creating this root | `work/onboarding/` | Evidence the bound files were checked. Not the todo list. **This path is fixed**: `skills/Onboard Root/` and its harness both check `work/onboarding/` and neither reads this cell, so changing it gives this root two answers and no warning. |
+| A fact, voice rule, or design rule later jobs must get right | `memory/` | What every later skill loads. Provides binds the files. |
+| A replaced file | `zArchive/` next to the original | Recovery. Naming is in `standards/conventions.md`. |
+
+### inbox vs work vs sources vs todos
+
+Four different objects. Mixing them is how a root becomes a junk drawer.
+
+- **inbox** is unclassified. A PDF dropped in conversation sits here until someone says what it is.
+- **sources** is classified input. The client sent it, or it was gathered as evidence. Inventoried, not rewritten.
+- **work** is classified output. It is being made here, or it was. A draft and its final sit together in a subject folder.
+- **todos** is classified action. Someone still has to do it. The pitch deck is `work/content/`; "Dana owes a quote for slide 4" is a row in `todos/current.md`.
+
+A todo is not a place to put files. The list item lives here; the artifact it points at lives in `work/` or `sources/`. A file named `TODO-pitch.md` in `inbox/` is a misfile: it is a draft (`work/media/`) plus a list row.
+
+### Play vs Playbook vs Skill
+
+A Skill is not a client-root object. Do not create `skills/` here. How a recurring piece of work gets done for this client is a Play or a Playbook, filed in the subject folder of the work it serves.
+
+**Skill** (lives in the Wiser root, invoked by name). A shared capability the chain routes to: Content Author, Onboard Root, Deep Research. Stateless. No Decision Log. No memory of where the last sitting stopped. Many roots reuse it. If every client would need the same thing, it is a Skill in the plugin, not a file in this root.
+
+**Play** (`<does-this-thing>.play.md` in the subject folder). A recipe for one repeatable outcome this client owns. One file is the whole prompt. Recurs with different inputs, one sitting, same quality. "How this client's monthly byline gets written" sits in `work/content/monthly-byline.play.md` next to the bylines it produces. You open the file; the chain does not index it.
+
+**Playbook** (`<does-this-thing>.playbook.md` in the subject folder). A plan that spans sittings and must remember decisions: checkboxes, Decision Log, Progress, resume instructions. "The Q4 launch" sits in `work/campaigns/Q4-2026/q4-launch.playbook.md`. The folder is the run, so the filename has no date. The deliverables the plan produces sit beside it, not inside it. When the run completes, archive the playbook next to itself.
+
+**Reusable Playbook** (Type: Template). Same process, many runs. The master is undated and named for the process, in the parent of the runs: `work/campaigns/launch.playbook.md`. Each new campaign copies it into that campaign's folder as `launch.playbook.md` and executes the copy. Learnings that generalize go back to the master on purpose; the copy's checkboxes stay in the campaign.
+
+The difference that matters: a reusable Playbook still has a run. It accumulates state, then you copy it for the next campaign. A Skill has no run. It is the same capability every time, for every client, with no memory of the last time. Promoting a client Playbook into a Skill because it "feels reusable" is how this client's Q4 decisions leak into the next client's launch.
+
+A one-off job is none of these: just do it, and file the output in `work/<subject>/`.
+
+This root's AGENTS.md is the home declaration `standards/play.md` and `standards/playbook.md` allow: Plays and Playbooks live in the subject folder they serve, not in top-level `plays/` or `playbooks/`. Do not create those directories. Do not create `skills/`.
+
+## Work Directories
+
+This root's declared directories under `standards/conventions.md`. The table above is what a person uses; this table is what an agent files against.
+
+| Directory | Holds |
+|-----------|-------|
+| `work/` | Deliverables, drafts, and the Plays and Playbooks of the subject they serve. Filing is in `work/AGENTS.md`. |
+| `sites/` | One envelope per domain wrapping `site/` (the kit), named for the registrable host, lowercase, no scheme, no `www` unless `www` is a distinct property. Created on first use |
+| `sources/` | Documents supplied for this client, as received |
+| `todos/` | The living list of open actions; the file is `todos/current.md` |
+| `inbox/` | Unclassified captures |
+| `zArchive/` | This root's archive home; created on first use |
+
+## Client Root
+
+`voice` here is the client's brand voice, governing every output this root owns. When an output owned here goes out under an organization's name rather than the client's, request `voice:org` and `design:org`, and `about:org` for any facts it states about that organization.
+
+`memory/about.md` holds this client's facts. `memory/competitors.md`, when bound, holds the confirmed competitive set. The sourcing rules in `standards/conventions.md` bite hardest here, where most of what is worth recording is a fact about a person.
+
+Account access is the gateway, not a file in this root. Vendor tokens never live here. A local-file connector key the client shares, when one is taken, is bound as `secrets:<platform>` in the Provides block above to an absolute path outside the tree, or passed to the gateway as `--secret`. Until then none is bound. Unbound and no `--secret`: stop and ask. The binding is what makes a credential this root's.
+
+Brands, markets, and legal entities of this client live in this root until one of them has its own voice, its own facts, and its own engagement. Then ask whether that brand earns its own client root. Do not split on sight.
+
+## Onboarding
+
+Not onboarded. `skills/Onboard Root/` takes this root down its full path and rewrites these lines at Phase 9; `full-path.md` says what each state means, and the skill's Step 5 says what a key that is not complete refuses; the competitors line closes unbound when that offer is declined or deferred.
+
+- about: blocked (not onboarded)
+- voice: blocked (not onboarded)
+- design: blocked (not onboarded)
+- competitors: blocked (not onboarded)

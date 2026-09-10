@@ -1,0 +1,126 @@
+{
+  "id": "usebouncer",
+  "service": "usebouncer",
+  "modules": {
+    "verify": {
+      "auth": {
+        "provider": "local-file",
+        "file": "usebouncer.env",
+        "scheme": "API_KEY",
+        "privilege": "write",
+        "hosts": [
+          "api.usebouncer.com"
+        ],
+        "header": "x-api-key",
+        "prefix": "",
+        "variables": [
+          "API_KEY"
+        ]
+      },
+      "unwrap_token": true,
+      "fallback": "none",
+      "actions": {
+        "credits": {
+          "description": "Read remaining credits",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "local_http"
+          },
+          "input": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        },
+        "single": {
+          "description": "Verify one address using credits",
+          "risk": "medium",
+          "confirmation": "once",
+          "execution": {
+            "prefer": "local_http"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "email"
+            ]
+          }
+        },
+        "bulk": {
+          "description": "Submit addresses for billed batch verification",
+          "risk": "medium",
+          "confirmation": "once",
+          "execution": {
+            "prefer": "local_http"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "emails": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "email": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "email"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "emails"
+            ]
+          }
+        },
+        "status": {
+          "description": "Read batch status",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "local_http"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ]
+          }
+        },
+        "download": {
+          "description": "Download completed batch results",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "local_http"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

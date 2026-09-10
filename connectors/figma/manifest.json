@@ -1,0 +1,65 @@
+{
+  "id": "figma",
+  "service": "figma",
+  "modules": {
+    "files": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "FIGMA",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "get": {
+          "description": "get",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "file_key": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "file_key"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "list": {
+          "description": "list",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "project_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "branch_data": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "project_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    }
+  }
+}

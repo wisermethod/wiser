@@ -1,0 +1,598 @@
+{
+  "id": "google",
+  "service": "google",
+  "modules": {
+    "search-console": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "GOOGLE_SEARCH_CONSOLE",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "query": {
+          "description": "Read search analytics",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "site_url": {
+                "type": "string"
+              },
+              "start_date": {
+                "type": "string"
+              },
+              "end_date": {
+                "type": "string"
+              },
+              "dimensions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "row_limit": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "site_url",
+              "start_date",
+              "end_date"
+            ]
+          }
+        },
+        "sites": {
+          "description": "List accessible sites",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        },
+        "sitemaps": {
+          "description": "List sitemaps",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "site_url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "site_url"
+            ]
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    },
+    "analytics": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "GOOGLE_ANALYTICS",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "run_report": {
+          "description": "Read an analytics report",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "property": {
+                "type": "string"
+              },
+              "date_ranges": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "startDate": {
+                      "type": "string"
+                    },
+                    "endDate": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "startDate",
+                    "endDate"
+                  ]
+                }
+              },
+              "dimensions": {
+                "type": "array"
+              },
+              "metrics": {
+                "type": "array"
+              }
+            },
+            "required": [
+              "property",
+              "date_ranges",
+              "metrics"
+            ]
+          }
+        },
+        "list_account_summaries": {
+          "description": "List account summaries",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "page_size": {
+                "type": "integer"
+              },
+              "page_token": {
+                "type": "string"
+              }
+            },
+            "required": []
+          }
+        },
+        "get_property": {
+          "description": "Read a property",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    },
+    "drive": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "GOOGLEDRIVE",
+        "scheme": "OAUTH2",
+        "privilege": "write"
+      },
+      "actions": {
+        "find_file": {
+          "description": "Find files",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "q": {
+                "type": "string"
+              },
+              "page_size": {
+                "type": "integer"
+              },
+              "page_token": {
+                "type": "string"
+              }
+            },
+            "required": []
+          }
+        },
+        "get_file": {
+          "description": "Read file metadata",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "file_id": {
+                "type": "string"
+              },
+              "fields": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "file_id"
+            ]
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    },
+    "calendar": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "GOOGLECALENDAR",
+        "scheme": "OAUTH2",
+        "privilege": "write"
+      },
+      "actions": {
+        "list_events": {
+          "description": "List calendar events",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "calendar_id": {
+                "type": "string"
+              },
+              "time_min": {
+                "type": "string"
+              },
+              "time_max": {
+                "type": "string"
+              },
+              "max_results": {
+                "type": "integer"
+              },
+              "page_token": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "calendar_id"
+            ]
+          }
+        },
+        "get_event": {
+          "description": "Read one event",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "calendar_id": {
+                "type": "string"
+              },
+              "event_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "calendar_id",
+              "event_id"
+            ]
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    },
+    "gmail": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "GMAIL",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "list_messages": {
+          "description": "List or search messages",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string"
+              },
+              "max_results": {
+                "type": "integer"
+              },
+              "page_token": {
+                "type": "string"
+              },
+              "label_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "include_payload": {
+                "type": "boolean"
+              },
+              "ids_only": {
+                "type": "boolean"
+              },
+              "verbose": {
+                "type": "boolean"
+              },
+              "include_spam_trash": {
+                "type": "boolean"
+              }
+            },
+            "required": []
+          }
+        },
+        "get_message": {
+          "description": "Read one message",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "message_id": {
+                "type": "string"
+              },
+              "format": {
+                "type": "string",
+                "enum": [
+                  "minimal",
+                  "metadata",
+                  "full",
+                  "raw"
+                ]
+              }
+            },
+            "required": [
+              "message_id"
+            ]
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    },
+    "sheets": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "GOOGLESHEETS",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "search": {
+          "description": "Search spreadsheets",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string"
+              },
+              "max_results": {
+                "type": "integer"
+              },
+              "page_token": {
+                "type": "string"
+              },
+              "order_by": {
+                "type": "string"
+              },
+              "search_type": {
+                "type": "string",
+                "enum": [
+                  "name",
+                  "content",
+                  "both"
+                ]
+              }
+            },
+            "required": []
+          }
+        },
+        "get_values": {
+          "description": "Read cell ranges",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "spreadsheet_id": {
+                "type": "string"
+              },
+              "ranges": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "major_dimension": {
+                "type": "string",
+                "enum": [
+                  "DIMENSION_UNSPECIFIED",
+                  "ROWS",
+                  "COLUMNS"
+                ]
+              },
+              "value_render_option": {
+                "type": "string",
+                "enum": [
+                  "FORMATTED_VALUE",
+                  "UNFORMATTED_VALUE",
+                  "FORMULA"
+                ]
+              },
+              "date_time_render_option": {
+                "type": "string",
+                "enum": [
+                  "SERIAL_NUMBER",
+                  "FORMATTED_STRING"
+                ]
+              }
+            },
+            "required": [
+              "spreadsheet_id"
+            ]
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    },
+    "docs": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "GOOGLEDOCS",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "search": {
+          "description": "Search documents",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string"
+              },
+              "max_results": {
+                "type": "integer"
+              },
+              "page_token": {
+                "type": "string"
+              },
+              "order_by": {
+                "type": "string"
+              }
+            },
+            "required": []
+          }
+        },
+        "get": {
+          "description": "Read one document",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "document_id": {
+                "type": "string"
+              },
+              "include_tabs_content": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "document_id"
+            ]
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    },
+    "slides": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "GOOGLESLIDES",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "get": {
+          "description": "Read one presentation",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "presentation_id": {
+                "type": "string"
+              },
+              "presentation_name": {
+                "type": "string"
+              },
+              "fields": {
+                "type": "string"
+              }
+            },
+            "required": []
+          }
+        },
+        "get_page": {
+          "description": "Read one page",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "presentation_id": {
+                "type": "string"
+              },
+              "page_object_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "presentation_id",
+              "page_object_id"
+            ]
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    }
+  }
+}

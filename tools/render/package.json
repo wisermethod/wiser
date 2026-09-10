@@ -1,0 +1,18 @@
+{
+  "name": "render",
+  "version": "0.2.0",
+  "description": "Renders a local HTML file, an SVG, or a Mermaid diagram to a PNG, and captures a PNG of a live web page",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node scripts/render.js help",
+    "test": "node --test",
+    "check:chromium": "node --input-type=module -e \"const { check } = await import('../lib/browser-runtime/browser-runtime.js'); const c = await check(); if (!c.chromiumLaunch) { console.error(c.remediation || 'chromiumLaunch:false'); process.exit(1); } console.log(JSON.stringify(c));\""
+  },
+  "dependencies": {
+    "mermaid": "^10.9.6"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

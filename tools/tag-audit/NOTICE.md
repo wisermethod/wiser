@@ -1,9 +1,9 @@
 # Third-party notice: tag-audit
 
-This tool installs the single package below on the machine that calls it, into this tool's own directory on the first run that authorises it with `--install`. **This repository redistributes no copy of it.**
+Installed on the calling machine on the first authorized install; this repository redistributes no copy.
 
-**Versions and licences are read from this tool's own `package-lock.json`**, on 2026-09-02, rather than from a list of names, because a licence obligation attaches to a version.
+Versions and licenses are read from this tool's `package-lock.json`, on 2026-09-02.
 
-| Package | Version | Licence | |
+| Package | Version | License | |
 |---------|---------|---------|--|
 | `undici` | 6.28.0 | MIT | required |

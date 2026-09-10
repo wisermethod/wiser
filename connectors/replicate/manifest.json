@@ -1,0 +1,73 @@
+{
+  "id": "replicate",
+  "service": "replicate",
+  "modules": {
+    "models": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "REPLICATE",
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "actions": {
+        "list_collections": {
+          "description": "List curated collections",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        },
+        "create_prediction": {
+          "description": "Start a billed prediction",
+          "risk": "medium",
+          "confirmation": "once",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "string"
+              },
+              "input": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "version",
+              "input"
+            ]
+          }
+        },
+        "get_prediction": {
+          "description": "Read prediction status and output",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "prediction_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "prediction_id"
+            ]
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    }
+  }
+}

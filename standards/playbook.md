@@ -1,6 +1,6 @@
 ---
 standard: playbook
-version: 0.1.1
+version: 0.2.0
 description: The Playbook format; the WISER method for multi-session execution with decision tracking and learning capture
 ---
 
@@ -31,7 +31,7 @@ Interrogate drives Solve. This ordering is the load-bearing idea of the method: 
 
 ## Required Sections
 
-Every Playbook carries a Header (created and updated dates, Type, Collaboration, Status, Method), Context with Key files, Preconditions, Authority, the five canons, Final Check, Decision Log, Learnings, Resume Instructions, Progress, and Success Criteria. The Structure section below shows what each holds. A section with nothing in it says "None" rather than disappearing.
+Every Playbook carries a Header (created and updated dates, Type, Collaboration, Status, Method), Context with the standards pointer and Key files, Preconditions, Authority, the five canons, Final Check, Decision Log, Learnings, Resume Instructions, Progress, and Success Criteria. The Structure section below shows what each holds. A section with nothing in it says "None" rather than disappearing.
 
 Order is fixed and cognitive: constraints, then objective, then unknowns, then plan, then tracking. Optional: an **Execution Model** section after Authority when the work has a specific orchestration approach (how sessions are run, how work is delegated, what review a load-bearing artifact receives). Add it only when that approach is not evident from the tasks.
 
@@ -87,7 +87,7 @@ A stale line is not documentation debt. Every later session reads this document 
 
 ## Naming and Storage
 
-Default home, if the owning root's AGENTS.md is silent: the `playbooks/` directory of the root that owns the work. Instances are named `YYYY-MM-DD-[slug].plan.md`, dated by creation; a Template master is the same slug undated, `[slug].plan.md`, its Type header declaring what it is. (This root does not carry a build-plan directory of its own.)
+Default home, if the owning root's AGENTS.md is silent: `zBuilds/playbooks/` for a run that changes the root, per `standards/user-root.md` C8. Work-subject Playbooks stay with their work under C3. Instances are named `YYYY-MM-DD-[slug].plan.md`, dated by creation; a Template master is the same slug undated, `[slug].plan.md`, its Type header declaring what it is.
 
 A root's AGENTS.md may declare a different home. A client root places each Playbook in the `work/<subject>/` folder of the work it plans, named `<does-this-thing>.playbook.md`, with no date in the living filename: the subject folder is the run. A Template master sits in the parent of the runs under the same naming, and each run is a copy into that run's folder, also undated. Completed runs archive next to themselves; the archive prefix carries the date.
 
@@ -106,6 +106,7 @@ Dates, naming charset, and archiving follow `standards/conventions.md`.
 
 ## Context
 [Why this work matters; what a new context needs to know]
+**Standards:** load `<path>/standards/AGENTS.md` before any write; those files bind this run. Cite them; do not restate them.
 **Key files:** [What to read first]
 
 ## Preconditions
@@ -185,10 +186,11 @@ Dates, naming charset, and archiving follow `standards/conventions.md`.
 
 ## Resume Instructions
 1. Read this Playbook end to end
-2. Read the Key files
-3. Check Progress for the current canon and next action
-4. Verify checkboxes against actual disk state; correct drift
-5. Continue from the documented next action
+2. Load the standards this Playbook names; they bind this run
+3. Read the Key files
+4. Check Progress for the current canon and next action
+5. Verify checkboxes against actual disk state; correct drift
+6. Continue from the documented next action
 
 ## Progress
 **Last worked:** YYYY-MM-DD
@@ -204,4 +206,4 @@ Dates, naming charset, and archiving follow `standards/conventions.md`.
 
 ## Success
 
-A Playbook is ready when an agent with no prior context can read it, resume it, and know exactly what to do next. The file itself passes `standards/instruction-quality.md`.
+A Playbook is ready when an agent with no prior context can read it, resume it, and know exactly what to do next, and the standards pointer is present as a path that opens. The file itself passes `standards/instruction-quality.md`.

@@ -1,0 +1,45 @@
+{
+  "id": "{{SERVICE}}",
+  "service": "{{SERVICE}}",
+  "modules": {
+    "{{MODULE}}": {
+      "auth": {
+        "provider": "{{AUTH_PROVIDER}}",
+        "toolkit": "{{TOOLKIT}}",
+        "scheme": "{{SCHEME}}",
+        "privilege": "{{PRIVILEGE}}"
+      },
+      "actions": {
+        "get": {
+          "description": "Read one item",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "catalog" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" }
+            },
+            "required": ["id"]
+          }
+        },
+        "update": {
+          "description": "Update an item",
+          "risk": "medium",
+          "confirmation": "once",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" }
+            },
+            "required": ["id"]
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    }
+  }
+}

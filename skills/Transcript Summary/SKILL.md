@@ -3,7 +3,7 @@ name: Transcript Summary
 type: skill
 category: writing
 description: Turn a transcript into a summary that leads with analysis and preserves every decision, action item, open question, and nuance the recording carried
-version: 0.5.0
+version: 0.7.0
 ---
 
 # Transcript Summary
@@ -38,8 +38,6 @@ A reader assembling the record for someone who was not there and who will be hel
 
 ## Steps
 
-**This root ships tools and no connectors.** A `tools/` path this file names is present: `tools/AGENTS.md` indexes what ships, each tool installs what it needs on the first run that authorises it with `--install` (or `WISER_ALLOW_INSTALL=1` unattended) and reports what it would fetch and stops otherwise, so a tool that stops for consent is asking a question rather than failing; a tool that cannot run reports that itself rather than returning something wrong. **Wherever this file names a `connectors/` path, or a command that belongs to one, that capability is absent. So is every capability this file's own `gaps` frontmatter declares, whether or not a path names it**: a gap is the authoritative statement of what is missing, and some of them name no path because nothing in this root would have supplied them. Read the frontmatter as part of this rule, not beside it. Where the work in hand depends on something absent, or on a tool that stopped, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
-
 **1. Read the whole transcript before writing anything, and establish what it is.** Settle four things first: what kind of recording this is, who speaks and whether the transcript labels them, whether timestamps are present and what duration they imply, and where the transcript is unreliable. Machine transcripts mangle proper nouns, numbers, and technical terms, mark stretches inaudible, lose the opening seconds, and let speaker labels drift, splitting one person across two labels or collapsing two people into one, **or carry no speaker labels at all**, which is what `tools/Transcribe Audio/` produces: speaker labeling is that tool's declared gap, so its output is one stream of words with no speaker, no timestamp and no line marker. Each of those bounds what the summary may claim, so they are found here rather than discovered mid-draft.
 
 Where labels are anonymous and `<context>` does not name them, keep them exactly as the transcript writes them, and say in the delivered summary that naming them is a one-line correction the requester can supply. **Where the transcript labels nobody, attribute nothing.** Do not synthesize a label, not even `Speaker A`: an invented label is an attribution, and a summary that carries one cannot be told apart from a summary that knew. Say in the delivery that the transcript carries no attribution and that restoring it needs someone who was in the room or the audio itself, which is not a correction the requester can supply in one line. Never infer an identity from what a speaker knows or how they talk.
@@ -60,7 +58,7 @@ A transcript too degraded to recover the substance from is reported as that rath
 
 **5. Write the analysis from the finished record.** Critical points first: what would be costly for this reader to miss or forget, and what the cost is. Then the dynamics from step 3, the verification results from step 4, and the references the recording mentioned, carrying the citations step 4 found. The analysis is written last and read first.
 
-**6. Check coverage, then deliver.** Walk the transcript start to end against the assembled summary and answer two questions. Which substantive stretch has no home in the summary: it earns one, or the summary names it and says why it is out, either minor or outside a scope the request drew. Which line of the summary traces to neither a transcript passage nor a step 4 source: it comes out.
+**6. Check coverage, assemble, then gate.** Walk the transcript start to end against the assembled summary and answer two questions. Which substantive stretch has no home in the summary: it earns one, or the summary names it and says why it is out, either minor or outside a scope the request drew. Which line of the summary traces to neither a transcript passage nor a step 4 source: it comes out.
 
 Default shape, used unless the request names its own, which replaces the arrangement and changes none of the steps above. A section the recording gives nothing for is dropped rather than left standing: a lecture has no action items, and filling the table to complete the shape is the fabrication step 6 exists to catch. A request narrowing the summary to one slice, decisions and action items for a project log, gets that slice and one line naming what the recording held outside it.
 
@@ -118,6 +116,8 @@ Default shape, used unless the request names its own, which replaces the arrange
 
 Placement follows `standards/conventions.md`, in the root that owns the output. Where the transcript file happens to sit never decides where the summary lands.
 
+Then the gate: hand the finished summary, wrapped in `<draft>`, with the reader named (someone who was not in the room) and the owning root, to `experts/Ghost Writer/` in a second context that did not write it, handing that expert's file with the draft; the voice read is dropped, since the summary carries the record's register and other people's words. It ships on the ship verdict or the requester's explicit decline of the Ghost Writer review, which is distinct from declining step 4's verification pass; a declined review is named in the delivery. A degradation report from step 1 is not a summary and does not go to the gate.
+
 ## Pitfalls
 
 - **Ambiguous ask.** "Summarize this" over a transcript can mean this skill's record or `skills/Categorize Content/`'s theme structure, and they answer different questions. Where the request does not settle it, ask before reading. Everything else is read out of the transcript rather than asked about.
@@ -126,11 +126,8 @@ Placement follows `standards/conventions.md`, in the root that owns the output. 
 - **The room smoothed over.** A disagreement rendered as a discussion, an unresolved thread rendered as an outcome, a tense exchange rendered as alignment. Where the recording resolved nothing, the summary says so.
 - **Comprehensiveness read as length.** Restating the transcript at half its length is not a summary, and a summary that fits on a page while dropping the nuance the decision turned on is not one either. Coverage is the bar, never word count.
 - **A speaker's claim treated as a fact about the world.** Someone stating a statistic makes it a claim; step 4 decides which bucket it lands in, and the summary attributes it either way.
-- **A tool that cannot run.** Every `tools/` path this file names ships, and a tool can still stop: a system dependency it names may be absent, or the directory it installs into may not be writable. It says which, and it says so rather than returning something wrong. Where a step depends on a tool that stopped, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
 
 ## Success
-
-- **Where a tool this run needed could not run, success is the honest stop**: the run named which step could not run, what it would have produced, and why the tool stopped, and produced no file and no figure in its place. **Every criterion below applies to a run in which every tool it needed ran.**
 
 - Every substantive stretch of the transcript has a home in the summary, or the summary names it and says why it is out.
 - Every quote is verbatim, every attribution traces to a label the transcript wrote, and every claim about tone or motive names its passage and reads as inference.
@@ -139,3 +136,4 @@ Placement follows `standards/conventions.md`, in the root that owns the output. 
 - Nothing in the delivered summary traces to neither the transcript nor a source the verification pass returned.
 - The analysis leads the document, and a reader who was not in the room can act from it without opening the transcript.
 - Where the transcript was defective or its speakers anonymous, the delivered summary says so.
+- `experts/Ghost Writer/` read the delivered summary as the reader who was not in the room and returned ship, or the requester declined the review.

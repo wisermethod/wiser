@@ -3,7 +3,7 @@ name: Browser Control
 type: tool
 category: automation
 description: Drives a persistent Chromium session to read, navigate, and act on pages that need a real browser, answering every command with the page state that followed
-version: 0.1.2
+version: 0.2.1
 ---
 
 # Browser Control
@@ -33,7 +33,7 @@ node scripts/browser.js snapshot --format interactive
 node scripts/browser.js session stop
 ```
 
-The first `session start` reports what it would install and stops; with `--install` it installs and opens the browser in the same run. Every command prints one JSON object:
+If this copy of the plugin has not yet authorized an install, `session start` reports what it would install and stops; `--install` on that run is the answer, and later tools in this copy install without asking. Every command prints one JSON object:
 
 ```
 {"url":"[address]","title":"[page title]"}
@@ -60,7 +60,7 @@ The pattern that reads a site-specific playbook before improvising travels with 
 |------------|------------|--------------|
 | The Chromium build Playwright drives | `session start` | `npm run check:chromium` exits 0 with `"chromiumLaunch":true` |
 
-The Playwright package and the Chromium build it drives both install on the run that authorises them with `--install`. Presence is a **trial launch** via the shared browser-runtime (`scripts/lib/browser-runtime.js`), not a path on disk. Missing OS libraries are self-healed in userspace where a C compiler is present; otherwise the check names the library and the one next step. The runtime also forwards `HTTPS_PROXY` / `HTTP_PROXY` into Chromium. Install steps are never written here.
+Playwright and its Chromium build install once, into `tools/lib/browser-runtime/` and Playwright's cache (`tools/AGENTS.md`). Presence is a **trial launch** via the shared browser runtime at `tools/lib/browser-runtime/`, not a path on disk. A missing OS library is shimmed where a compiler is present, or named with one next step (`tools/AGENTS.md`). The runtime also forwards `HTTPS_PROXY` / `HTTP_PROXY` into Chromium. Install steps are never written here. `tools/AGENTS.md` lists every write.
 
 ## Session State
 
@@ -139,7 +139,7 @@ Each of these requires `--confirm`. The gate is checked before anything is read,
 
 ## Script Contract
 
-Every script in this tool follows `system/templates/Script Contract.md`: self-contained imports, the dependency check, help without configuration, and the stdout and stderr rules. The sections here state what the commands do; the contract states how every script behaves getting there.
+Every script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. The sections here state what the commands do; the contract states how every script behaves getting there.
 
 Two scripts ship. `scripts/browser.js` is the only one a caller runs. `scripts/server.js` is the session host it starts, which holds the browser open so that separate invocations act on the same page; it takes no instruction from anywhere but loopback and is not run by hand.
 
@@ -149,34 +149,31 @@ Success is one JSON object on stdout and exit 0. Most commands return the page's
 
 `check` is the one to read carefully. It exits 0 when the assertion ran and reports the verdict in `passed`; an assertion that did not hold is a finding to report, never something to work around by loosening the assertion.
 
-Failure prints to stderr, leaves stdout empty, and exits 1. Files are written where a command's `--output` or `--output-dir` names, and a first run also installs what `tools/AGENTS.md` lists.
+Failure prints to stderr, leaves stdout empty, and exits 1. Files are written where a command's `--output` or `--output-dir` names, and an authorized install also writes what `tools/AGENTS.md` lists.
 
 ## Troubleshooting
 
+The stops every tool shares, an unknown flag, the install consent, an install that fails, and a path that is relative or inside this tool, are in `tools/RUNNING.md`; the rows below are this tool's own.
+
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `this tool is not installed yet and this run did not authorise an install` | First run in this copy, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
 | `Chromium cannot launch` / `chromiumLaunch:false` | Binary missing, launch blocked, or OS library gap | Follow the `remediation` line from `npm run check:chromium` |
 | `no browser host answering on port [n]` | No session, or it was started on another port | `session status`, then `session start --profile [dir]` |
 | `a browser host is already running on port [n]` | A session from earlier work | `session stop`, or pass a different `--port` |
 | `session [start\|restart] needs --profile` | No location was resolved | Resolve a work directory in the owning root; do not guess one. `restart` resolves it before it stops anything, so a refusal leaves the running session standing |
-| `--output must be absolute` | A relative path resolves against whichever directory the caller was in | Pass the resolved absolute path |
-| `--output resolves inside this tool directory` | The path landed in the shared root | Pass a work directory in the owning root |
-| `--file resolves inside this tool directory` | An `upload` named this tool's own directory or something in it | Pass a file in a work directory in the owning root |
 | `already exists and this tool never overwrites a file` | The artifact path is taken | Name a path that does not exist yet |
 | `needs --confirm` | A destructive command was run without opting in | Re-run with `--confirm` once the effect is intended |
 | `element index [n] is not in the current list` | The page changed since the last interactive snapshot | Snapshot again and use the new index |
 | `no element matched this selector` | The element is absent, or is inside an iframe | `snapshot --format interactive`, and `frame list` if the content sits in an iframe |
 | `the browser host did not come up` | The browser could not launch or the host process died | Confirm `npm run check:chromium` (read `remediation` if launch fails), then retry with `--headless` to rule out a blocked window |
-| `Error: unknown option "<flag>"` | A misspelled or invented flag | Check `help`; the flag was refused rather than ignored |
 
 ## Success
 
 - `help` prints usage to stdout and exits 0 on a copy with no `node_modules/` and no session.
 - `session start --profile [dir]` exits 0, and `session status` then reports that host and profile.
-- `session restart` resolves `--profile` before it stops anything: one that names none, or names a relative path or a file, exits 1 with the running session still answering `session status`.
+- `session restart` resolves `--profile` before it stops anything: one that names none, or names a relative path or a file, exits 1 with the running session still answering `session status`. When the selected profile is not the live one, Chromium opens it in a throwaway headless launch before the stop, so a profile Chromium rejects (a `Default` entry that is a file, another browser's lock) exits 1 naming the profile and the reason, with the running session still answering; when the selected profile is the live one that opening is impossible, the stop is unavoidable, and a replacement that then fails says so and prints the last lines of the host's own error log, kept at `host-stderr.log` inside the profile.
 - A page command with no session running exits 1 naming the port and the start command, stdout empty.
 - Every destructive command run without `--confirm` exits 1 naming the missing confirmation, before it reads a file or contacts the host.
-- No *cookie command* prints a value, but `execute` returns whatever its code reads, and `execute --code "document.cookie"` returns cookie values to stdout. **Three paths this tool writes hold credential material, and a verifier should treat all three as such rather than checking around them**: the `--profile` directory, which is a live Chromium profile and exists to keep sign-ins; a trace zip from `trace stop --output`, which records request and response headers including `Cookie` and `Set-Cookie`; and the session token at `~/.wiser/browser-control/<port>.token`, which is what authorises a caller to drive a signed-in browser. All three have rows in `tools/AGENTS.md`. **All three are now written for their owner only** -- the profile directory and the trace's directory `0700`, the trace file and the token `0600` -- because a gate round found a trace holding an `HttpOnly` session cookie in plaintext in a world-readable file, and the profile directory open to every other account on the machine, while only the token had ever been given a mode. The trace is the one worth saying twice, because a trace's whole purpose is to be handed to someone else. **This list is the scope of the claim, not a licence to skip the rest**: a path added later is credential-bearing until someone checks it.
+- No *cookie command* prints a value, but `execute` returns whatever its code reads, and `execute --code "document.cookie"` returns cookie values to stdout. **Three paths this tool writes hold credential material, and a verifier should treat all three as such rather than checking around them**: the `--profile` directory, which is a live Chromium profile and exists to keep sign-ins; a trace zip from `trace stop --output`, which records request and response headers including `Cookie` and `Set-Cookie`; and the session token at `~/.wiser/browser-control/<port>.token`, which is what authorizes a caller to drive a signed-in browser. All three have rows in `tools/AGENTS.md`. **All three are now written for their owner only** -- the profile directory `0700`, the trace file and the token `0600` -- because a gate round found a trace holding an `HttpOnly` session cookie in plaintext in a world-readable file, and the profile directory open to every other account on the machine, while only the token had ever been given a mode. The trace is the one worth saying twice, because a trace's whole purpose is to be handed to someone else. **This list is the scope of the claim, not a license to skip the rest**: a path added later is credential-bearing until someone checks it.
 - A caller-named path that is relative, inside this tool directory, or already taken is refused rather than written.
 - Acting on an element found by an interactive snapshot changes the page, and the next snapshot shows it.

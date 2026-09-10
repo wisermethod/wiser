@@ -13,7 +13,7 @@ Confirm four parameters before choosing an arc. Each shapes a different part of 
 | Parameter | Options | Default | Effect |
 |-----------|---------|---------|--------|
 | Type | pitch, technical, educational, strategy, general | general | Selects the structural arc below |
-| Duration | 5, 15, 30, 45, 60 min | 15 min | Sets the slide-count range |
+| Duration | Any stated duration; the table below carries rows for 5, 15, 30, and 45 to 60 min | 15 min | Sets the slide-count range; a duration with no row of its own resolves by the rule the Calibrate step states |
 | Context | live, screen share, PDF, self-guided | screen share | Sets text density; self-guided decks carry more on-slide text, live talks less |
 | Tone | formal, conversational, technical, inspirational | conversational | Sets register and word choice |
 

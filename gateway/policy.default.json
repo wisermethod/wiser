@@ -1,0 +1,11 @@
+{
+  "roles": ["runtime", "readonly"],
+  "default_role": "runtime",
+  "rules": [
+    { "role": "readonly", "privilege": ["write", "admin"], "effect": "deny" },
+    { "role": "runtime",  "privilege": "admin",            "effect": "deny" },
+    { "role": "runtime",  "risk": "destructive",           "effect": "confirm" },
+    { "role": "runtime",  "op": "startConnect",            "effect": "allow" },
+    { "role": "*",        "effect": "allow" }
+  ]
+}

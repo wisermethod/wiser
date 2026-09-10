@@ -3,7 +3,7 @@ name: deck-export
 type: tool
 category: documents
 description: Writes a new reveal.js deck project on disk, from a brand template or as a self-contained starter, and renders a finished deck to a PDF or to one PNG per slide
-version: 0.1.2
+version: 0.2.1
 ---
 
 # deck-export
@@ -14,9 +14,9 @@ One run either lays down a deck project ready for slides to be written into, or 
 
 Use it at the two mechanical ends of deck work. At the start, when a deck project has to exist before any slide is written: a brand template copied and retitled, or an offline starter with the reveal.js runtime bundled beside it. At the end, when the deck is finished and something other than a browser has to receive it: a PDF to attach or print, or per-slide images to drop into a document, a page, or a thread.
 
-Do not use it to write the deck. Choosing the arc, the slides, and the words is `skills/Create Presentation/`; this tool lays the project down and renders the finished file, and a caller composes the two. Do not use it for a single HTML page rendered to one image, which is `html-to-png`, nor for a long-form document headed to print, which this root does not ship. It holds no opinion about a deck's content: it copies, writes, and renders exactly what it is pointed at.
+Do not use it to write the deck. Choosing the arc, the slides, and the words is `skills/Create Presentation/`; this tool lays the project down and renders the finished file, and a caller composes the two. Do not use it for a single HTML page rendered to one image, which is `render` `html`, nor for a long-form document headed to print, which this root does not ship. It holds no opinion about a deck's content: it copies, writes, and renders exactly what it is pointed at.
 
-It authenticates to nothing, holds no credential, and reaches no other primitive. After the first-run install it opens no network connection of its own; a deck is loaded from disk, and whatever that deck references is fetched, which for a deck that loads reveal.js from a CDN means rendering needs network access. The install itself reaches `registry.npmjs.org` and `cdn.playwright.dev`, per `tools/AGENTS.md`.
+It authenticates to nothing, holds no credential, and reaches no other primitive. After packages are installed it opens no network connection of its own; a deck is loaded from disk, and whatever that deck references is fetched, which for a deck that loads reveal.js from a CDN means rendering needs network access. The install itself reaches `registry.npmjs.org` and `cdn.playwright.dev`, per `tools/AGENTS.md`.
 
 ## Quick Start
 
@@ -36,7 +36,7 @@ Reports what is present, installing nothing (with `--install` it installs first 
 {"reveal.js":true,"playwright":true,"chromium":true}
 ```
 
-Then scaffold, and later render. Scaffolding from a template installs nothing; a starter scaffold needs the reveal.js package and a render needs the browser driver, so in a fresh copy the first such command reports what it would install and stops, and the same command with `--install` installs and does the work in one run.
+Then scaffold, and later render. Scaffolding from a template installs nothing; a starter scaffold needs the reveal.js package and a render needs the browser driver, so in a copy that has not yet authorized an install the first such command reports what it would install and stops, and `--install` on that run is the answer. Later tools in this copy install without asking.
 
 ```bash
 node scripts/deck.js scaffold --output "/path/to/a/work/directory/Board Review" --title "Board Review"
@@ -56,7 +56,7 @@ Anything else, see Troubleshooting.
 |------------|------------|--------------|
 | The Chromium build Playwright drives | `pdf` and `png` | `node scripts/deck.js check` reports `"chromium":true` (trial launch), or `npm run check:chromium` exits 0 |
 
-The packages install on the run that authorises them with `--install`, and that same run then fetches the browser, which is a separate download version-matched to the package that drives it. Presence is a **trial launch**, not a path on disk: a binary that cannot start reports false. Missing OS libraries are self-healed in userspace where a C compiler is present (shared `scripts/lib/browser-runtime.js`); otherwise `check` names the library and the one next step. Install steps are never written here. The shared runtime also forwards `HTTPS_PROXY` / `HTTP_PROXY` into Chromium for CDN-loaded decks. `scaffold` and `check` never need a successful launch for non-browser work; `check` surveys Chromium without installing packages unless the run authorises an install with `--install`, in which case it installs the packages and the browser and then reports on them.
+The packages install on the run that authorizes them with `--install`, `reveal.js` into this tool's directory and Playwright into `tools/lib/browser-runtime/`, and that same run then fetches the browser, which is a separate download version-matched to the package that drives it. Presence is a **trial launch**, not a path on disk: a binary that cannot start reports false. Missing OS libraries are self-healed in userspace where a C compiler is present (shared runtime at `tools/lib/browser-runtime/`); otherwise `check` names the library and the one next step. Install steps are never written here. The shared runtime also forwards `HTTPS_PROXY` / `HTTP_PROXY` into Chromium for CDN-loaded decks. `scaffold` and `check` never need a successful launch for non-browser work; `check` surveys Chromium without installing packages unless the run authorizes an install with `--install`, in which case it installs the packages and the browser and then reports on them. `tools/AGENTS.md` lists every write.
 
 ## Scaffolding
 
@@ -111,9 +111,9 @@ Every path is absolute, because a relative one resolves against whichever direct
 
 ## Script Contract
 
-The one script this tool ships follows `system/templates/Script Contract.md`: self-contained imports, help answered before anything else, the first-run package install, the system-dependency check on the commands that need it, and the stdout and stderr rules. The sections above state what each command does; the contract states how the script behaves getting there.
+The one script this tool ships follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. The sections above state what each command does; the contract states how the script behaves getting there.
 
-Two behaviors are worth knowing beyond it. Every usage mistake the script can judge on its own is caught before the dependency check, so a bad path, a bad size, a bad ratio, or a bad transition never triggers an install and never opens a browser; `--theme` is the one exception, since only the installed package knows which themes it ships, so an unknown theme refuses after that install and still before any browser. And `check` installs nothing at all unless the run authorises an install with `--install`, so a machine can be surveyed before anything is committed to it and repaired by the same command once someone has answered for the download: for Chromium it runs a trial launch through the shared browser-runtime, not only a path check. Content and render failures still withhold the engine's own text, which quotes the deck; launch failures name the runtime's remediation (never a root-only install-deps wall); network or navigation timeouts surface the engine detail an operator needs. Per-slide progress goes to stderr, so stdout carries only the final JSON object. Nothing is read from stdin, so a run with nobody watching fails loudly rather than waiting.
+Two behaviors are worth knowing beyond it. Every usage mistake the script can judge on its own is caught before the dependency check, so a bad path, a bad size, a bad ratio, or a bad transition never triggers an install and never opens a browser; `--theme` is the one exception, since only the installed package knows which themes it ships, so an unknown theme refuses after that install and still before any browser. And `check` installs nothing at all unless the run authorizes an install with `--install`, so a machine can be surveyed before anything is committed to it and repaired by the same command once someone has answered for the download: for Chromium it runs a trial launch through the shared browser-runtime, not only a path check. Content and render failures still withhold the engine's own text, which quotes the deck; launch failures name the runtime's remediation (never a root-only install-deps wall); network or navigation timeouts surface the engine detail an operator needs. Per-slide progress goes to stderr, so stdout carries only the final JSON object. Nothing is read from stdin, so a run with nobody watching fails loudly rather than waiting.
 
 ## Output
 
@@ -130,14 +130,12 @@ Failure prints to stderr, leaves stdout empty, and exits 1.
 
 ## Troubleshooting
 
+The stops every tool shares, an unknown flag, the install consent, an install that fails, and a path that is relative or inside this tool, are in `tools/RUNNING.md`; the rows below are this tool's own.
+
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `this tool is not installed yet and this run did not authorise an install` | First run in this copy, and no `--install` | Read what it says it would fetch and from where, then re-run the same command with `--install`, which installs and does the work in one run. `WISER_ALLOW_INSTALL=1` authorises an unattended run |
-| `npm ci failed` | Node missing or older than 18, the directory is not writable, or `package-lock.json` is missing or out of step with `package.json` | Confirm `node --version` is 18 or newer and that the lockfile matches the manifest, which `npm ci` requires and will not resolve around; then delete `node_modules/` and run `npm ci` here by hand. See SETUP.md |
 | `Chromium cannot launch` / `chromium:false` on `check` | Binary missing, launch blocked, or OS library gap | Read `remediation` on the check JSON (or the error line); it names the dependency, the check, and one next step. Never `sudo install-deps` |
 | `--output is required` | No destination was named | Resolve a work directory in the owning root and name the path; this tool picks no location |
-| `--output must be absolute` | A relative path resolves against the caller's directory | Pass the resolved absolute path |
-| `--output resolves inside this tool directory` | The path landed in the shared root | Pass a work directory in the owning root |
 | `--output must end .pdf` | `pdf` was pointed at something else | Name the PDF file to write |
 | `--output must be a directory for png` | `png` was pointed at a file | Name the directory the slide images go into |
 | `a deck already exists at <path>` | Scaffolding would overwrite work | Pass a different `--output` or `--title`, or move the existing deck aside |
@@ -152,15 +150,14 @@ Failure prints to stderr, leaves stdout empty, and exits 1.
 | Navigation arrows or a slide number appear in the images | They are part of the deck, not of the export | Turn them off in the deck's own reveal.js configuration before rendering |
 | A slide with a progressive reveal exports in its first state | Fragments advance on a click nobody makes here | Split the slide, or drop the fragments before export |
 | Fonts look wrong | A webfont the deck names was not reachable | Keep the font file beside the deck and reference it relatively, or accept the fallback deliberately |
-| `Error: unknown option "<flag>"` | A misspelled or invented flag | Check `help`; the flag was refused rather than ignored |
 
 ## Success
 
 - `help` prints usage to stdout and exits 0 on a copy with no `node_modules/`, and `check` prints one JSON object of booleans on the same copy, installing nothing and opening no connection; `chromium` is true only after a trial launch succeeds, not merely because the binary path exists. `check --install` on that same copy installs the packages and the browser first and then reports on them.
-- Every usage mistake exits 1 with the cause on stderr and stdout empty, and none of them opens a browser: a missing, relative, non-existent, or wrong-shaped path, an unknown ratio, or an unknown transition refuses before any install; an unknown theme refuses against the list the installed package really ships, which on a fresh copy is after the first-run install.
+- Every usage mistake exits 1 with the cause on stderr and stdout empty, and none of them opens a browser: a missing, relative, non-existent, or wrong-shaped path, an unknown ratio, or an unknown transition refuses before any install; an unknown theme refuses against the list the installed package really ships, which on a fresh copy is after that install.
 - An `--output` resolving inside this tool directory is refused rather than written.
 - `scaffold` writes exactly one HTML file and one assets folder under `--output`, and a second run at the same path refuses instead of overwriting.
 - A starter deck opens and presents with no network connection available; a deck scaffolded from a template carries that template's own structure with only the title and the assets-folder references changed.
 - `pdf` exits 0 with one parseable JSON object and a PDF at the named path whose page count equals the reported `slides`; `png` exits 0 having written `slides` images, `slide-001.png` upward, and no other file.
 - A deck whose reveal.js configuration sets a size exports at that size with no `--width` or `--height` given.
-- No run reads a credential or takes `--env`; the only network traffic after the first-run install, which reaches the npm registry and downloads a Chromium build per `tools/AGENTS.md`, is what the deck itself requests (and, when set, via the process proxy env vars). Content/render failures withhold the engine's own text; launch and timeout failures surface engine detail.
+- No run reads a credential or takes `--env`; the only network traffic after packages are installed, which reaches the npm registry and downloads a Chromium build per `tools/AGENTS.md`, is what the deck itself requests (and, when set, via the process proxy env vars). Content/render failures withhold the engine's own text; launch and timeout failures surface engine detail.

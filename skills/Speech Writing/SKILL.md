@@ -3,7 +3,7 @@ name: Speech Writing
 type: skill
 category: writing
 description: Write a speech for a given occasion, audience, length, and venue, gated on an approved outline and delivered read-aloud ready in the owning root's bound voice
-version: 0.3.0
+version: 0.3.2
 memory:
   - voice
   - about
@@ -41,8 +41,8 @@ Four things are needed before the outline gate, and a fifth whenever the speech'
 
 Two memory keys, bound per the constitution's Workspace Model:
 
-- `voice`, required. The speaker's voice governs register, vocabulary, structure, and prohibitions. Unbound, or bound to a file still carrying its template's prompt lines: stop; building it is `skills/Build Voice/`, not a voice to improvise. When the speech speaks for a root other than the output's owner, request the scoped key (`voice:client`, `voice:org`) the constitution defines.
-- `about`, optional. Speaker facts, phrases, and prior public statements the draft can draw from. Unbound: proceed and say so; every speaker-fact then comes from `<source_material>`, and one carrying no source and no register stays out of the draft (`standards/conventions.md`).
+- `voice`, required. The speaker's voice governs register, vocabulary, structure, and prohibitions. Unbound, or bound to a file the constitution's Workspace Model counts as unavailable: stop; building it is `skills/Build Voice/`, not a voice to improvise. When the speech speaks for a root other than the output's owner, request the scoped key (`voice:client`, `voice:org`) the constitution defines.
+- `about`, optional. Speaker facts, phrases, and prior public statements the draft can draw from. Unbound, or counted unavailable by the constitution's Workspace Model: proceed and say so; every speaker-fact then comes from `<source_material>`, and one carrying no source and no register stays out of the draft (`standards/conventions.md`).
 
 ## Identity
 
@@ -54,7 +54,7 @@ A speechwriter who writes for the ear and for one room. Each line is heard once,
 
 On the first turn, if any required input is missing, ask for all of them in one batched turn, not as a rigid form. On a subject-centered occasion the batched ask includes the subject material and says what counts: two or three moments the speaker was there for, in enough detail to write a scene from, rather than a list of the subject's qualities. Where the request does not yet say which occasion this is, settle that first (Step 2) and put the subject-material ask in the same turn as that clarification; both close before the gate.
 
-Speaker context is the most-skipped and the most load-bearing: if the speaker cannot say what the audience should feel or do, name the gap, offer a best-fit outcome from the occasion and audience as a starting point, and do not guess silently. Load the bound `voice` here; if it is unbound or still a stub, stop and route to `skills/Build Voice/` before any outlining.
+Speaker context is the most-skipped and the most load-bearing: if the speaker cannot say what the audience should feel or do, name the gap, offer a best-fit outcome from the occasion and audience as a starting point, and do not guess silently. Load the bound `voice` here; if it is unbound, or the constitution's Workspace Model counts it as unavailable, stop and route to `skills/Build Voice/` before any outlining.
 
 ### 2. Match the occasion
 
@@ -110,7 +110,7 @@ Place the finished speech where `standards/conventions.md` puts the owning root'
 - **Speaker cannot name the outcome.** Do not guess what the audience should feel or do. Name the gap, offer a best-fit outcome from the occasion and audience, and flag the working assumption in the delivered draft.
 - **Skipping the gate to save time.** The gate runs at every length. The overhead is under a minute of reading for a short speech, and the throughline lock is the memorability the skill exists to buy.
 - **Patching prose around a broken outline.** A structural change mid-draft returns to Step 3; prose written to bridge a broken outline hides the break rather than fixing it.
-- **Voice absent.** An unbound or stub `voice` is `skills/Build Voice/`'s work, not a voice to improvise; a speech drafted against no voice cannot meet its own voice check. Stop and route.
+- **Voice absent.** An unbound `voice`, or one the constitution's Workspace Model counts as unavailable, is `skills/Build Voice/`'s work, not a voice to improvise; a speech drafted against no voice cannot meet its own voice check. Stop and route.
 
 ## Success
 
@@ -120,5 +120,5 @@ Place the finished speech where `standards/conventions.md` puts the owning root'
 - Where a guide was loaded, the target sits inside its length range, or the requester confirmed an out-of-range target after Step 2 named the conflict.
 - Applause, laugh, and pause beats appear where the loaded occasion guide prescribes them and nowhere it does not; with no guide loaded, every beat present is one Step 5's default earned.
 - Where the speech's subject is not the speaker, every scene in the delivered draft traces to `<source_material>`, and no such speech reached the gate without it.
-- Every expert the loaded occasion guide names returned a verdict, or a degraded review is named, and `experts/Ghost Writer/` returned a ship verdict on prose and on the voice check against the bound voice, or the requester declined that review; where the voice was unbound, the skill stopped at Step 1 rather than shipping.
+- Every expert the loaded occasion guide names returned a verdict, or a degraded review is named, and `experts/Ghost Writer/` returned a ship verdict on prose and on the voice check against the bound voice, or the requester declined that review; where the voice was unbound or counted unavailable, the skill stopped at Step 1 rather than shipping.
 - **Where the occasion is a crisis or an unfolding incident, the judgment this root cannot supply was named to the requester before delivery**: whether to speak at all, in whose name, and what would make it worse. A ship verdict on the prose does not stand in for it, and a speech that reached the requester without it did not meet this criterion.

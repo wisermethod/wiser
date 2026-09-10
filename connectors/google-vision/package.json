@@ -1,0 +1,5 @@
+{
+  "name": "wiser-connector-google-vision",
+  "private": true,
+  "type": "module"
+}

@@ -1,101 +1,117 @@
 # Skills
 
-Capabilities a user invokes by name for their output; `standards/primitives.md` owns the type's definition, invocation rules, and frontmatter. The directory is flat, and the index below is grouped by category.
-
-The index is **hand-maintained**. `standards/primitives.md` says a family index is generated from primitive frontmatter at release. This root carries no generator, so nothing generates this file: it is written by hand from the frontmatter of what actually shipped, and it is corrected by hand when a primitive is added, removed, renamed, or recategorized.
+Capabilities a user invokes by name for their output; `standards/primitives.md` owns the type's definition, invocation rules, and frontmatter. The directory is flat, and the index below is grouped by category. Every skill here is owned by an expert whose `Owns:` line names it, or says in its own Context why it stands alone, and one carrying neither has no declared owner yet; the rule and the routing table are in `experts/AGENTS.md`. The Owner column projects that rule: each cell lists the experts whose `Owns:` line names the skill, or `Stands alone` when the skill's own Context says so. Two owners are comma-space separated, in the order the skill's file states its gates. The column is not the declaration.
 
 <!-- generated:index -->
 
 ### Authoring
 
-| Skill | Description |
-|-------|-------------|
-| `Build Concepts/SKILL.md` | Develop one tested core insight from source material or a bare direction, with the angles, specifics, and boundaries a piece can be drafted from |
-| `Categorize Content/SKILL.md` | Reduce source material to a minimal set of themes, each an action a practitioner can take and the insight that makes that action non-obvious |
-| `Content Author/SKILL.md` | Write or review prose content for human readers in the owning root's bound voice |
-| `Play Author/SKILL.md` | Write or review Plays, primitive instruction bodies, and library components |
-| `Playbook Author/SKILL.md` | Create, instantiate, resume, review, or close out a WISER Playbook for work that spans sessions |
+| Skill | Description | Owner |
+|-------|-------------|-------|
+| `Build Concepts/SKILL.md` | Develop one tested core insight from source material or a bare direction, with the angles, specifics, and boundaries a piece can be drafted from | Ghost Writer |
+| `Categorize Content/SKILL.md` | Reduce source material to a minimal set of themes, each an action a practitioner can take and the insight that makes that action non-obvious | Ghost Writer |
+| `Content Author/SKILL.md` | Write or review prose content for human readers in the owning root's bound voice | Ghost Writer |
+| `Play Author/SKILL.md` | Write or review Plays, primitive instruction bodies, and library components | System Expert |
+| `Playbook Author/SKILL.md` | Create, instantiate, resume, review, or close out a WISER Playbook for work that spans sessions | System Expert |
 
 ### Communication
 
-| Skill | Description |
-|-------|-------------|
-| `List Hygiene/SKILL.md` | Decide what an email contact list keeps and drops, verified through the usebouncer connector, with the cost put to the user before it is spent and every drop traced to the result field that caused it |
+| Skill | Description | Owner |
+|-------|-------------|-------|
+| `List Hygiene/SKILL.md` | Decide what an email contact list keeps and drops, verified through the usebouncer connector, with the cost put to the user before it is spent and every drop traced to the result field that caused it. | Marketing Strategist |
 
 ### Data
 
-| Skill | Description |
-|-------|-------------|
-| `Data Analysis/SKILL.md` | Turn a CSV, JSON, or TSV file into an analysis whose every figure was computed by a data tool and can be traced to the field it came from, with parse errors, skipped columns, and missing values stated |
+| Skill | Description | Owner |
+|-------|-------------|-------|
+| `Data Analysis/SKILL.md` | Turn a CSV, JSON, or TSV file into an analysis whose every figure was computed by a data tool and can be traced to the field it came from, with parse errors, skipped columns, and missing values stated | Research Expert |
 
 ### Design
 
-| Skill | Description |
-|-------|-------------|
-| `Color Palette Design/SKILL.md` | Produce a complete OKLCH color palette with defined roles, WCAG-validated contrast, and optional dark mode, derived from brand context and delivered as CSS custom properties |
-| `Component Design/SKILL.md` | Design a single UI component as self-contained, renderable HTML and CSS with every applicable state, semantic markup, and design tokens |
-| `Create Presentation/SKILL.md` | Build a single-file reveal.js HTML slide deck with a narrative arc, conclusion headlines, and brand-consistent design |
-| `Design System/SKILL.md` | Compose existing color and type tokens into a complete design system, delivered as an agent-readable specification, a combined CSS token file, and optional Tailwind configuration |
-| `Designer/SKILL.md` | Run a design job end to end, from brief and visual direction through foundations, composition, and validation, producing the wireframe, style guide, or extracted system itself and directing every other phase to the design skill that owns it |
-| `Marketing Page Design/SKILL.md` | Design a complete marketing page as responsive HTML with a narrative scroll arc, clear visual hierarchy, and one primary action |
-| `Typography Design/SKILL.md` | Design a modular type system delivered as CSS custom properties with a type specimen, chosen from brand personality and usage context |
-| `Visualizer/SKILL.md` | Turn source material into one diagram whose geometry matches the structure the material actually has, delivered as a self-contained HTML file or as Mermaid for markdown |
+| Skill | Description | Owner |
+|-------|-------------|-------|
+| `Color Palette Design/SKILL.md` | Produce a complete OKLCH color palette with defined roles, WCAG-validated contrast, and optional dark mode, derived from brand context and delivered as CSS custom properties | Creative Director |
+| `Component Design/SKILL.md` | Design a single UI component as self-contained, renderable HTML and CSS with every applicable state, semantic markup, and design tokens | Creative Director |
+| `Create Presentation/SKILL.md` | Build a single-file reveal.js HTML slide deck with a narrative arc, conclusion headlines, and brand-consistent design | Ghost Writer, Creative Director |
+| `Design System/SKILL.md` | Compose existing color and type tokens into a complete design system, delivered as an agent-readable specification, a combined CSS token file, and optional Tailwind configuration | Creative Director |
+| `Designer/SKILL.md` | Run a design job end to end, from brief and visual direction through foundations, composition, and validation, producing the wireframe, style guide, or extracted system itself and directing every other phase to the design skill that owns it | Creative Director |
+| `Marketing Page Design/SKILL.md` | Design a complete marketing page as responsive HTML with a narrative scroll arc, clear visual hierarchy, and one primary action | Creative Director |
+| `Typography Design/SKILL.md` | Design a modular type system delivered as CSS custom properties with a type specimen, chosen from brand personality and usage context | Creative Director |
+| `Visualizer/SKILL.md` | Turn source material into one diagram whose geometry matches the structure the material actually has, delivered as a self-contained HTML file or as Mermaid for markdown | Creative Director |
 
 ### Development
 
-| Skill | Description |
-|-------|-------------|
-| `Zone Publisher/SKILL.md` | Bring one Cloudflare zone's live DNS into a reviewable zone file, apply the intended record changes, and publish them back with every removal approved by name and every published record re-read from the platform |
+| Skill | Description | Owner |
+|-------|-------------|-------|
+| `Zone Publisher/SKILL.md` | Bring one Cloudflare zone's live DNS into a reviewable zone file, apply the intended record changes, and publish them back with every removal approved by name and every published record re-read from the platform. | IT Expert |
 
 ### Knowledge
 
-| Skill | Description |
-|-------|-------------|
-| `Knowledge Curation/SKILL.md` | Keep an existing knowledge set accurate by ingesting new and changed sources, running the review pass, recording and applying the decisions a human makes on its review items, and rebuilding it from its own sources when its pack or corpus changes |
-| `Knowledge Recall/SKILL.md` | Answer a question from one named knowledge set, scoped to that set alone, with the quotes and sources the answer rests on and an evidence label on every claim, saying Not available when the set does not cover it |
-| `Knowledge Set Onboarding/SKILL.md` | Create a named knowledge set in the owning root from books, blogs, websites, or a domain, establish its canon by ingest, research, and a sharpened interview with every canonical idea quoting its source, and close it with an eval that passes |
+| Skill | Description | Owner |
+|-------|-------------|-------|
+| `Knowledge Curation/SKILL.md` | Keep an existing knowledge set accurate by ingesting new and changed sources, running the review pass, recording and applying the decisions a human makes on its review items, and rebuilding it from its own sources when its pack or corpus changes | Memory Expert |
+| `Knowledge Recall/SKILL.md` | Answer a question from one named knowledge set, scoped to that set alone, with the quotes and sources the answer rests on and an evidence label on every claim, saying Not available when the set does not cover it | Memory Expert |
+| `Knowledge Set Onboarding/SKILL.md` | Create a named knowledge set in the owning root from books, blogs, websites, or a domain, establish its canon by ingest, research, and a sharpened interview with every canonical idea quoting its source, and close it with an eval that passes | Memory Expert |
 
 ### Marketing
 
-| Skill | Description |
-|-------|-------------|
-| `Funnel Design/SKILL.md` | Design a buildable funnel blueprint with the funnel type chosen and reasoned, every stage and page specified, the email sequences that carry them, and per-stage metrics with benchmarks |
+| Skill | Description | Owner |
+|-------|-------------|-------|
+| `Funnel Design/SKILL.md` | Design a buildable funnel blueprint with the funnel type chosen and reasoned, every stage and page specified, the email sequences that carry them, and per-stage metrics with benchmarks | Marketing Strategist |
 
 ### Media
 
-| Skill | Description |
-|-------|-------------|
-| `Headshot Normalizer/SKILL.md` | Turn photographs into square transparent PNGs whose faces sit at the same size and the same place in the frame, by removing each background, measuring the eyes, and cutting every frame to one standard, reporting the transparent band left where a photograph is too short to fill its frame |
-| `Media Generator/SKILL.md` | Produce an image or a video that does not exist yet, or a photograph with its background removed, by finishing the prompt, choosing the model, and running the billed generation through the replicate connector to a file the user named |
+| Skill | Description | Owner |
+|-------|-------------|-------|
+| `Headshot Normalizer/SKILL.md` | Turn photographs into square transparent PNGs whose faces sit at the same size and the same place in the frame, by removing each background, measuring the eyes, and cutting every frame to one standard, reporting the transparent band left where a photograph is too short to fill its frame. | Creative Director |
+| `Media Generator/SKILL.md` | Produce an image or a video that does not exist yet, or a photograph with its background removed, by finishing the prompt, choosing the model, and running the billed generation through a generation connector to a file the user named. | Creative Director |
 
 ### Onboarding
 
-| Skill | Description |
-|-------|-------------|
-| `Build Voice/SKILL.md` | Build or rebuild one owned root's voice.md from real writing evidence, routed to the register that root's own outputs need |
-| `Onboard Root/SKILL.md` | Create an owned root from its matching template and onboard it with verified memory, an operating surface, and a per-key close |
+| Skill | Description | Owner |
+|-------|-------------|-------|
+| `Build Voice/SKILL.md` | Build or rebuild one user root's voice.md from real writing evidence, routed to the voice register that root's own outputs need | Ghost Writer |
+| `Onboard Root/SKILL.md` | Create a user root from the unified template or adopt a populated folder, with a personal short path and a full path for other types | System Expert |
 
 ### Research
 
-| Skill | Description |
-|-------|-------------|
-| `Deep Researcher/SKILL.md` | Run a research question end to end, decomposing it into angles, directing each to the research skill that gathers it, and interpreting what comes back into a report where every finding carries its sources, a calibrated confidence level, and the contradictions it did not resolve |
-| `External Research/SKILL.md` | Gather and credibility-tag sources on a question, surfacing contradictions, returning an evidence package to a calling expert or skill or a verified, confidence-rated brief to a user asking directly |
-| `Internal Research/SKILL.md` | Scan the workspace for files on a topic and return a structural inventory of what exists, judging none of it |
-| `Knowledge Management/SKILL.md` | Analyze a workspace's existing files and produce a knowledge map that groups their ideas by topic, each traced to its source file and section |
+| Skill | Description | Owner |
+|-------|-------------|-------|
+| `Deep Research/SKILL.md` | Run Deep Research on a question end to end, decomposing it into angles, directing each to the research skill that gathers it, and interpreting what comes back into a report where every finding carries its sources, a calibrated confidence level, and the contradictions it did not resolve | Research Expert |
+| `External Research/SKILL.md` | Gather and credibility-tag sources on a question, surfacing contradictions, returning an evidence package to a calling expert or skill or a verified, confidence-rated brief to a user asking directly | Research Expert |
+| `Internal Research/SKILL.md` | Scan the workspace for files on a topic and return a structural inventory of what exists, judging none of it | Research Expert |
+| `Knowledge Map/SKILL.md` | Analyze a workspace's existing files and produce a Knowledge Map that groups their ideas by topic, each traced to its source file and section | Research Expert |
 
 ### SEO
 
-| Skill | Description |
-|-------|-------------|
-| `SEO Assets/SKILL.md` | Produce the ready-to-use artifacts a site's decided search changes need, each built from evidence pulled for it, held to its own standards, and handed over for someone else to deploy |
+| Skill | Description | Owner |
+|-------|-------------|-------|
+| `SEO Assets/SKILL.md` | Produce the ready-to-use artifacts a site's decided search changes need, each built from evidence pulled for it, held to its own standards, and written into an envelope's site/ kit tree or handed over for someone else to deploy | Webmaster |
+
+### System
+
+| Skill | Description | Owner |
+|-------|-------------|-------|
+| `Housekeeping/SKILL.md` | Propose a clause-cited layout plan for a directory and apply its approved transaction with verified recovery | System Expert |
+| `Set Up Connectors/SKILL.md` | Attach the gateway to this harness and confirm the project key on this machine, for a new CLI, machine, or OS user | Connector Advisor |
+| `Connect Account/SKILL.md` | Connect one service module in its own human turn through start_connect then connect_status, never taking a key in the conversation | Connector Advisor |
+| `Connection Troubleshooter/SKILL.md` | Name one next step for a gateway status object or audit line covering needs_provider, needs_connect, expired, denied, needs_connector, and vendor_error | Connector Advisor |
+| `Connector Author/SKILL.md` | Build a connector from an approved Connector Advisor plan, with its manifest, module, auth guide, tests, and gateway loading instructions | Connector Advisor |
+
+### Web
+
+| Skill | Description | Owner |
+|-------|-------------|-------|
+| `Site Author/SKILL.md` | Stand up, content-edit, check, wrap, and upgrade a kit site envelope at sites/<domain>/ or work/<slug>/sites/<domain>/ when the site dies with that work, with the kit in site/, in an owning root that declares sites/ | Webmaster |
+| `Cloudflare Pages/SKILL.md` | List and get a Cloudflare Pages project, list its deployments, and take a kit site live by Wrangler upload of the envelope's site/dist/ payload only | Webmaster |
+| `Vercel Deploy/SKILL.md` | List and get a Vercel project, list deployments, and create a deployment from the isolated site/ payload with confirmation always | Webmaster |
 
 ### Writing
 
-| Skill | Description |
-|-------|-------------|
-| `Proposal Author/SKILL.md` | Build a reusable base proposal through discovery, then generate audience-specific proposals through layered persuasion in the owning root's voice |
-| `Speech Writing/SKILL.md` | Write a speech for a given occasion, audience, length, and venue, gated on an approved outline and delivered read-aloud ready in the owning root's bound voice |
-| `Transcript Summary/SKILL.md` | Turn a transcript into a summary that leads with analysis and preserves every decision, action item, open question, and nuance the recording carried |
+| Skill | Description | Owner |
+|-------|-------------|-------|
+| `Proposal Author/SKILL.md` | Build a reusable base proposal through discovery, then generate audience-specific proposals through layered persuasion in the owning root's voice | Ghost Writer |
+| `Speech Writing/SKILL.md` | Write a speech for a given occasion, audience, length, and venue, gated on an approved outline and delivered read-aloud ready in the owning root's bound voice | Ghost Writer |
+| `Transcript Summary/SKILL.md` | Turn a transcript into a summary that leads with analysis and preserves every decision, action item, open question, and nuance the recording carried | Ghost Writer |
 
 <!-- /generated:index -->

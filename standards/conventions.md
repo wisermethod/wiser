@@ -1,6 +1,6 @@
 ---
 standard: conventions
-version: 0.1.1
+version: 0.2.0
 description: The cross-cutting conventions every file and agent in a Wiser workspace follows: formatting, dates, portable names, working files, root layout, archives, sourcing, and evidence labels
 ---
 
@@ -10,7 +10,7 @@ These rules bind every file in this root and every agent working in a workspace 
 
 Division of labor: how instructions are written belongs to `instruction-quality.md`; the Play and Playbook formats, including the file naming specific to each, belong to `play.md` and `playbook.md`. Cite those standards; do not restate them here.
 
-Precedence: an owned root's AGENTS.md may localize placement, naming its own work directories and archive home. It may not lift the formatting, date, or naming rules; those hold everywhere.
+Precedence: a user root's AGENTS.md may localize placement, naming its own work directories and archive home. It may not lift the formatting, date, or naming rules; those hold everywhere.
 
 ## Formatting
 
@@ -46,14 +46,14 @@ Where a write is forbidden outright, the top level of any root and a composed sh
 
 ## Root Layout
 
-Beneath a declared directory, the next tier is subject folders: one per project, engagement, or standing topic, each named for its subject, the body of work inside this root, never the root's own name. A file and its drafts sit together in their subject folder, never loose beneath the declared directory.
+User-root layout is governed by `standards/user-root.md`. Its C4 distinguishes completion-bounded work from standing programs and places projects within programs. Beneath a directory that takes subject folders, name each folder for its subject, never the root's own name. A file and its drafts sit together in that subject folder.
 
 A subject folder that holds folders of its own, or has outgrown a quick scan, carries its own AGENTS.md naming what it holds and where its parts sit. The constitution's chain reaches it with no further declaration.
 
 Directories whose structure another standard already fixes are exempt:
 
-- `skills/`, `experts/`, `tools/`, and `connectors/` are flat: `standards/primitives.md`. A client root does not ship these; the primitives live in a plugin root, and this one carries skills, experts, and tools.
-- `plays/` and `playbooks/` hold files in their own formats when those directories exist: `standards/play.md` and `standards/playbook.md`. A root's AGENTS.md may place those files in `work/<subject>/` instead, and then this exemption does not apply: the subject folder's AGENTS.md names them.
+- Plugin `skills/`, `experts/`, and `tools/` are flat under `standards/primitives.md`; user-root overlays follow `standards/user-root.md` C7.
+- Play and Playbook files follow `standards/play.md` and `standards/playbook.md` inside the homes `standards/user-root.md` C3 and C8 permit. This grants no root-level directory exemption.
 - `memory/` holds the files the root's Provides block binds.
 - `inbox/` holds captures with no subject yet, per Working Files above; a capture whose subject becomes known moves to that subject's folder. `zArchive/` follows Archives, below.
 
@@ -95,7 +95,7 @@ An unlabeled figure asserts it was measured: taken from its source by the proces
 | `Verified` | reported, then checked against a source that confirms it, by a check that actually ran |
 | `Estimated: <method>` | derived by judgment rather than measured, the method saying how; a by-eye read is `Estimated: manual review` |
 | `Unverified: requires confirmation` | supplied by another party (a requester, a document, a generated answer) and not confirmed: unchecked, uncheckable, or checked and not borne out |
-| `Not available: <reason>` | not obtained; the reason names which absence it was: the source is not composed in the workspace, the credential lacks permission, nothing returned for the window, or quota ran out |
+| `Not available: <reason>` | not obtained; the reason names which absence it was: the source is not composed in the workspace, the credential lacks permission, nothing returned for the window, quota ran out, a tool that would have produced it could not run for want of a system dependency or an unanswered install consent, or the source sits behind a paywall nobody here holds |
 
 **Never fabricate.** A value the evidence did not supply is never invented and never filled with text that looks like an answer: it is asked for, marked as what it is (an estimate, an inference, a hypothetical), or dropped, and a reading that did not arrive is labeled `Not available` with its reason.
 

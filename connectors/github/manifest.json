@@ -1,0 +1,110 @@
+{
+  "id": "github",
+  "service": "github",
+  "modules": {
+    "repos": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "GITHUB",
+        "scheme": "OAUTH2",
+        "privilege": "write"
+      },
+      "actions": {
+        "get": {
+          "description": "Get one repository",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "catalog" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "owner": { "type": "string" },
+              "repo": { "type": "string" }
+            },
+            "required": ["owner", "repo"]
+          }
+        },
+        "list_for_user": {
+          "description": "List repositories the connected account can see",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "catalog" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "per_page": { "type": "integer" },
+              "page": { "type": "integer" }
+            }
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    },
+    "issues": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "GITHUB",
+        "scheme": "OAUTH2",
+        "privilege": "write"
+      },
+      "actions": {
+        "list": {
+          "description": "List issues in a repository",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "catalog" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "owner": { "type": "string" },
+              "repo": { "type": "string" },
+              "state": { "type": "string" }
+            },
+            "required": ["owner", "repo"]
+          }
+        },
+        "create": {
+          "description": "Open an issue",
+          "risk": "medium",
+          "confirmation": "once",
+          "execution": { "prefer": "catalog" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "owner": { "type": "string" },
+              "repo": { "type": "string" },
+              "title": { "type": "string" },
+              "body": { "type": "string" }
+            },
+            "required": ["owner", "repo", "title"]
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    },
+    "users": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "GITHUB",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "me": {
+          "description": "The connected account",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "catalog" },
+          "input": {
+            "type": "object",
+            "properties": {}
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    }
+  }
+}

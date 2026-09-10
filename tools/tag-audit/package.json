@@ -5,7 +5,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "help": "node scripts/tag-audit.js help"
+    "help": "node scripts/tag-audit.js help",
+    "test": "node --test"
   },
   "dependencies": {
     "undici": "^6.21.0"

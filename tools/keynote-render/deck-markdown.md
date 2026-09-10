@@ -56,7 +56,7 @@ Presenter notes:
 
 ### Headings
 
-- `## Slide N. Title` or `## Slide N: Title` — preferred; `N` is documentary (order is file order).
+- `## Slide N. Title` or `## Slide N: Title`, preferred; `N` is documentary (order is file order).
 - `## Title` alone is also a slide boundary when it is not a reserved non-slide heading.
 
 ### Optional per-slide keys (before `On slide:`)

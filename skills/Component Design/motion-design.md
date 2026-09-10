@@ -4,7 +4,7 @@ Reference material for UI animation and transitions. Covers duration rules, easi
 
 ## Duration Scale
 
-This table is the single home of UI motion durations for this root. `skills/Design System/` ships tokens that map onto these bands; `experts/Design Advisor/` audits against this scale by citation, not by a second copy of the numbers.
+This table is the single home of UI motion durations for this root. `skills/Design System/` ships tokens that map onto these bands; `experts/Creative Director/` audits against this scale by citation, not by a second copy of the numbers.
 
 | Duration | Use Case | Examples | Design System token |
 |----------|----------|----------|---------------------|

@@ -1,0 +1,83 @@
+{
+  "id": "zoom",
+  "service": "zoom",
+  "modules": {
+    "meetings": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "ZOOM",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "list": {
+          "description": "list",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "user_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "type": {
+                "type": "string"
+              },
+              "from": {
+                "type": "string"
+              },
+              "to": {
+                "type": "string"
+              },
+              "page_size": {
+                "type": "integer"
+              },
+              "page_number": {
+                "type": "integer"
+              },
+              "next_page_token": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "user_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "get": {
+          "description": "get",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "meeting_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "occurrence_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "meeting_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    }
+  }
+}

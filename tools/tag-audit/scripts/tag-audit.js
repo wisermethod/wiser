@@ -8,8 +8,8 @@
  *
  * No configuration file and no credentials. undici is installed on first
  * network run so Node fetch honors HTTPS_PROXY in proxy-mediated sandboxes.
- * The rules every shipped script follows are stated once, in
- * system/templates/Script Contract.md.
+ * Node built-ins, this tool's own files, and tools/lib/. The rules every
+ * shipped script follows are stated once, in system/templates/Script Contract.md.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -17,7 +17,11 @@ import { accessSync, constants, existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const TOOL_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+import { destinationReason, destinationReasonText } from './lib/destination.js';
+import { installAuthorised, writeConsent } from '../../lib/consent.js';
+
+const HERE = fileURLToPath(import.meta.url);
+const TOOL_DIR = resolve(dirname(HERE), '..');
 
 // Detection patterns. Each tag is present when any of its patterns matches the
 // served HTML; the first capturing match supplies the id, where one exists.
@@ -88,9 +92,11 @@ Commands:
 
 Options:
   --url <url>      Page to audit. http or https only; a bare host gains https://
-  --install   Authorise the first-run install. Without it a tool that is
-              not installed yet reports what it would fetch, and from
-              where, and stops. WISER_ALLOW_INSTALL=1 does the same
+  --install   Authorise the first install in this copy of the plugin.
+              Without it, the first command that needs a package this
+              copy has not installed reports what it would fetch, and
+              from where, and stops. That answer covers every later
+              tool in this copy. WISER_ALLOW_INSTALL=1 does the same
               for an unattended run.
   --help, -h       Print this message
 
@@ -190,15 +196,18 @@ function installPlan() {
 // "this tool is not installed yet", nor name a registry fetch and an npm cache
 // write that this install will not make.
 function requireInstallConsent(what) {
-  if (process.argv.includes('--install') || process.env.WISER_ALLOW_INSTALL === '1') return;
+  if (installAuthorised(HERE)) {
+    writeConsent(HERE, 'tag-audit');
+    return;
+  }
   if (what === 'browser') {
     fail(
-      `Error: this tool's packages are installed but the Chromium build they drive is not, and this run did not authorise an install. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+      `Error: this tool's packages are installed but the Chromium build they drive is not, and this copy of the plugin has not authorised an install. The plugin asks once, on the first install in this copy. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
     );
   }
   const { list, hosts, size } = installPlan();
   fail(
-    `Error: this tool is not installed yet and this run did not authorise an install. Installing fetches ${list} from ${hosts} into ${TOOL_DIR}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+    `Error: this tool is not installed yet and this copy of the plugin has not authorised an install. The plugin asks once, on the first install in this copy. Installing fetches ${list} from ${hosts} into ${TOOL_DIR}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
   );
 }
 
@@ -278,8 +287,14 @@ for (let index = 1; index < argv.length; index += 1) {
   // uses, it is a function declaration, and it imports nothing, so calling it
   // here costs a parse and nothing else. main() calls it again on its own
   // account rather than depending on this having run.
-  resolveTarget(raw);
+  //
+  // And WHERE it points. A loopback or private-range address is refused by
+  // name here, before the install, so it never buys one; main() applies the
+  // same screen again before the fetch. This resolves the hostname, which is a
+  // question to the resolver and not a connection to the address.
+  await screenDestination(resolveTarget(raw));
 }
+
 
 if (!existsSync(UNDICI_MARKER)) {
   requireInstallConsent('packages');
@@ -358,6 +373,19 @@ function detect(html) {
   return found;
 }
 
+// The address boundary, the same screen and the same sentence as sitemap-fetch:
+// loopback, private-range, link-local, unique-local, and cloud-metadata
+// addresses are refused in every spelling, and a hostname is resolved first so
+// an ordinary-looking name pointing inward is refused too. A hostname that
+// resolves nowhere is not refused here; the fetch reports that on its own.
+async function screenDestination(target) {
+  const destination = await destinationReason(target.hostname);
+  if (destination && destination !== 'unresolvable') {
+    fail(`Error: --url ${target.href} points at ${destinationReasonText(destination)}, which this tool does not fetch.`);
+  }
+  return target;
+}
+
 async function fetchHtml(url) {
   const response = await fetch(url, {
     redirect: 'follow',
@@ -374,7 +402,7 @@ async function main() {
     fail('Error: --url is required. Run "node scripts/tag-audit.js help" for usage.');
   }
 
-  const target = resolveTarget(raw);
+  const target = await screenDestination(resolveTarget(raw));
 
   let fetched;
 

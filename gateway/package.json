@@ -1,0 +1,13 @@
+{
+  "name": "wiser-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node server.js help",
+    "test": "node --test test/*.test.js providers/*/*.test.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -14,6 +14,8 @@ memory:
 
 Use when a body of knowledge is being built, kept, or relied on and the question is a judgment rather than an operation: whether this book, blog, site, or domain is worth a knowledge set and of what kind; whether a proposed canonical idea is canonical or a passing mention; what a review item deserves; whether a set that has drifted needs an incremental update or a rebuild; whether a set is trustworthy enough for a deliverable to lean on. This expert judges and sequences. It does not build: `skills/Knowledge Set Onboarding/` creates a set, `skills/Knowledge Curation/` keeps it, `skills/Knowledge Recall/` queries it, and `tools/knowledge-memory/` does the deterministic work all three call.
 
+Owns: `skills/Knowledge Set Onboarding/`, `skills/Knowledge Curation/`, `skills/Knowledge Recall/`
+
 Not for organizing files already in a workspace into one map, which is `skills/Knowledge Management/` and needs no judgment about canon. Not for research itself, which is `skills/Deep Researcher/`. Not for a decision that is a human's to make: promoting a Candidate to Canonical, merging two protected nodes, deleting anything, or confirming a set's canon. This expert recommends each of those with its evidence and never performs one.
 
 ## Objective

@@ -1,12 +1,12 @@
 # Third-party notice: Transcribe Audio
 
-This tool installs the packages below on the machine that calls it, into a Python virtual environment inside this tool's own directory, on the first run that authorises it with `--install`. **The speech model weights are a second, separately authorised download**, described below. **This repository redistributes none of them.**
+This tool installs the packages below on the machine that calls it, into a Python virtual environment inside this tool's own directory, on the first run that authorizes it with `--install`. **The speech model weights are a second, separately authorized download**, described below. **This repository redistributes none of them.**
 
-**These versions are a snapshot, not a pin.** `requirements.txt` declares floors (`openai-whisper>=20231117`, `torch>=2.0.0`, `torchaudio>=2.0.0`) and is deliberately left that way, because `torch` publishes wheels specific to a platform, an architecture and a Python version, and an exact pin resolved on one machine can have no matching wheel on another. **What is recorded here is what those floors actually resolved to on one occasion**, so that a licence obligation has a version to attach to.
+**These versions are a snapshot, not a pin.** `requirements.txt` declares floors (`openai-whisper>=20231117`, `torch>=2.0.0`, `torchaudio>=2.0.0`) and is deliberately left that way, because `torch` publishes wheels specific to a platform, an architecture and a Python version, and an exact pin resolved on one machine can have no matching wheel on another. **What is recorded here is what those floors actually resolved to on one occasion**, so that a license obligation has a version to attach to.
 
-**Resolved 2026-09-02, on a macOS arm64 machine with the system Python 3.9**, by the tool's own first-run install. The command that produced this list was `.venv/bin/python3 -m pip list --format=freeze`, and the licences were read from each installed distribution's own metadata. **pip writes no lockfile**, which is why this record names the resolution rather than pointing at a committed one; a different machine will resolve differently and should read its own environment.
+**Resolved 2026-09-02, on a macOS arm64 machine with the system Python 3.9**, by the tool's own first-run install. The command that produced this list was `.venv/bin/python3 -m pip list --format=freeze`, and the licenses were read from each installed distribution's own metadata. **pip writes no lockfile**, which is why this record names the resolution rather than pointing at a committed one; a different machine will resolve differently and should read its own environment.
 
-| Package | Version | Licence |
+| Package | Version | License |
 |---------|---------|---------|
 | `certifi` | 2026.7.22 | MPL-2.0 |
 | `charset-normalizer` | 3.5.1 | MIT |
@@ -34,7 +34,7 @@ This tool installs the packages below on the machine that calls it, into a Pytho
 | `typing_extensions` | 4.16.0 | PSF-2.0 |
 | `urllib3` | 2.6.3 | MIT |
 
-**`setuptools` 58.0.4 records its licence as `UNKNOWN` in its own metadata, and `tiktoken` 0.14.0 carries a licence field too long to reproduce as a name.** Both are stated as found rather than tidied, and a reader who needs either should read that package's own metadata in the installed environment.
+**`setuptools` 58.0.4 records its license as `UNKNOWN` in its own metadata, and `tiktoken` 0.14.0 carries a license field too long to reproduce as a name.** Both are stated as found rather than tidied, and a reader who needs either should read that package's own metadata in the installed environment.
 
 ## FFmpeg and the model weights, neither of which is installed by this list
 

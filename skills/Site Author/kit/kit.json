@@ -1,0 +1,12 @@
+{
+  "kitVersion": "0.1.0",
+  "domain": "example.test",
+  "siteUrl": "http://127.0.0.1:4321",
+  "collections": {
+    "pages": true,
+    "articles": true,
+    "authors": true,
+    "sections": false,
+    "issues": false
+  }
+}

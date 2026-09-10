@@ -1,0 +1,18 @@
+---
+import { getCollection, getEntry, render } from 'astro:content';
+import SiteLayout from '../../layouts/SiteLayout.astro';
+
+export async function getStaticPaths() {
+  const articles = await getCollection('articles', ({ data }) => !data.draft);
+  return articles.map((article) => ({ params: { slug: article.id }, props: { article } }));
+}
+const { article } = Astro.props;
+const author = await getEntry(article.data.author);
+if (!author) throw new Error(`Unknown author for article ${article.id}`);
+const { Content } = await render(article);
+---
+<SiteLayout title={article.data.title} description={article.data.description} article={article}>
+  <p>By {author.data.name} · <time datetime={article.data.pubDate.toISOString()}>{article.data.pubDate.toISOString().slice(0, 10)}</time></p>
+  {article.data.hero && <img src={article.data.hero} alt="" />}
+  <Content />
+</SiteLayout>

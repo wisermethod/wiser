@@ -1,0 +1,87 @@
+---
+import { getCollection, getEntry, type CollectionEntry } from 'astro:content';
+import kit from '../../kit.json';
+import '../styles/tokens.css';
+
+interface Props {
+  title: string;
+  description: string;
+  article?: CollectionEntry<'articles'>;
+}
+const { title, description, article } = Astro.props;
+if (!title?.trim() || !description?.trim()) {
+  throw new Error('Every page requires a title and description.');
+}
+const SITE_URL = kit.siteUrl;
+const path = Astro.url.pathname.replace(/\/+$/, '') || '/';
+const canonical = SITE_URL + path;
+const image = new URL(article?.data.hero ?? '/images/og-default.png', SITE_URL).href;
+const home = await getEntry('pages', 'index');
+const [about] = await getCollection('pages', ({ id, data }) => id === 'about' && !data.draft);
+const organization = about && !about.data.draft ? about.data.organization : undefined;
+const organizationId = `${SITE_URL}/#organization`;
+const websiteId = `${SITE_URL}/#website`;
+const graph: Record<string, unknown>[] = [
+  {
+    '@type': 'WebSite',
+    '@id': websiteId,
+    url: `${SITE_URL}/`,
+    name: home?.data.title ?? title,
+    inLanguage: 'en',
+    publisher: { '@id': organizationId },
+  },
+  {
+    '@type': 'Organization',
+    '@id': organizationId,
+    ...(organization ? {
+      ...organization,
+      ...(organization.logo ? { logo: new URL(organization.logo, SITE_URL).href } : {}),
+    } : {}),
+  },
+];
+if (article) {
+  const author = await getEntry(article.data.author);
+  if (!author) throw new Error(`Unknown author for article ${article.id}`);
+  graph.push({
+    '@type': 'Article',
+    '@id': `${canonical}#article`,
+    headline: title,
+    description,
+    datePublished: article.data.pubDate.toISOString(),
+    image,
+    url: canonical,
+    mainEntityOfPage: canonical,
+    isPartOf: { '@id': websiteId },
+    ...(organization ? { publisher: { '@id': organizationId } } : {}),
+    author: { '@type': 'Person', name: author.data.name, ...(author.data.url ? { url: author.data.url } : {}) },
+    keywords: article.data.tags,
+  });
+}
+const jsonLd = JSON.stringify({ '@context': 'https://schema.org', '@graph': graph }).replace(/</g, '\\u003c');
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content={article ? 'article' : 'website'} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={image} />
+    {!organization && <meta name="kit:organization" content="Organization facts omitted: no published about page with organization details is bound." />}
+    <script type="application/ld+json" set:html={jsonLd} />
+    <link rel="alternate" type="application/rss+xml" title="Articles" href={`${SITE_URL}/rss.xml`} />
+  </head>
+  <body>
+    <a class="skip-link" href="#content">Skip to content</a>
+    <header><nav aria-label="Main"><a href="/">Home</a><a href="/rss.xml">RSS</a></nav></header>
+    <main id="content" class="prose" data-pagefind-body>
+      <h1>{title}</h1>
+      <slot />
+    </main>
+  </body>
+</html>

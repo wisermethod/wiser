@@ -1,0 +1,559 @@
+{
+  "id": "zoho",
+  "service": "zoho",
+  "modules": {
+    "crm": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "ZOHO",
+        "scheme": "OAUTH2",
+        "privilege": "write"
+      },
+      "actions": {
+        "get": {
+          "description": "get",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "fields": {
+                "type": "string"
+              },
+              "page": {
+                "type": "integer"
+              },
+              "per_page": {
+                "type": "integer"
+              },
+              "page_token": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "search": {
+          "description": "search",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "word": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              },
+              "phone": {
+                "type": "string"
+              },
+              "criteria": {
+                "type": "string"
+              },
+              "fields": {
+                "type": "string"
+              },
+              "page": {
+                "type": "integer"
+              },
+              "per_page": {
+                "type": "integer"
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "create": {
+          "description": "create",
+          "risk": "medium",
+          "confirmation": "once",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "last_name": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "first_name": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              },
+              "company": {
+                "type": "string"
+              },
+              "phone": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "lead_source": {
+                "type": "string"
+              },
+              "lead_status": {
+                "type": "string"
+              },
+              "website": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "last_name"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    },
+    "mail": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "ZOHO_MAIL",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "list": {
+          "description": "List mail messages",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "status": {
+                "type": "string"
+              },
+              "sort_by": {
+                "type": "string"
+              },
+              "folder_id": {
+                "type": "string"
+              },
+              "search_key": {
+                "type": "string"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "start": {
+                "type": "integer"
+              },
+              "flagged": {
+                "type": "boolean"
+              },
+              "sort_order": {
+                "type": "boolean"
+              },
+              "threaded_mails": {
+                "type": "boolean"
+              },
+              "only_attachment": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "account_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "get": {
+          "description": "Read message content",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "folder_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "account_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "message_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "include_block_content": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "folder_id",
+              "account_id",
+              "message_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    },
+    "books": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "ZOHO_BOOKS",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "list": {
+          "description": "List Books invoices",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "date_end": {
+                "type": "string"
+              },
+              "page": {
+                "type": "integer"
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "get": {
+          "description": "Read a Books invoice",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "invoice_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "print": {
+                "type": "boolean"
+              },
+              "accept": {
+                "type": "string",
+                "enum": [
+                  "json",
+                  "pdf",
+                  "html"
+                ]
+              }
+            },
+            "required": [
+              "invoice_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    },
+    "desk": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "ZOHO_DESK",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "list": {
+          "description": "List Desk tickets",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "orgId": {
+                "type": "string"
+              },
+              "viewId": {
+                "type": "string"
+              },
+              "from": {
+                "type": "integer"
+              },
+              "limit": {
+                "type": "integer"
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "get": {
+          "description": "Read a Desk ticket",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "orgId": {
+                "type": "string"
+              },
+              "include": {
+                "type": "string"
+              },
+              "ticket_id": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "ticket_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    },
+    "inventory": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "ZOHO_INVENTORY",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "list": {
+          "description": "List Inventory contacts",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "organization_id": {
+                "type": "string"
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "get": {
+          "description": "Read an Inventory contact",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "contact_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "organization_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "contact_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    },
+    "invoice": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "ZOHO_INVOICE",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "list": {
+          "description": "List Invoice invoices",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              },
+              "organization_id": {
+                "type": "string"
+              },
+              "page": {
+                "type": "integer"
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "get": {
+          "description": "Read an Invoice invoice",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "invoice_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "organization_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "invoice_id",
+              "organization_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    },
+    "bigin": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "ZOHO_BIGIN",
+        "scheme": "OAUTH2",
+        "privilege": "read"
+      },
+      "actions": {
+        "list": {
+          "description": "List Bigin contacts",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "fields": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "cvid": {
+                "type": "string"
+              },
+              "page_token": {
+                "type": "string"
+              },
+              "page": {
+                "type": "integer"
+              },
+              "per_page": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "fields"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "get": {
+          "description": "Read a Bigin contact",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "record_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "record_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "catalog"
+    }
+  }
+}

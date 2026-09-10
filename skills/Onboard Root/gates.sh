@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # gates.sh: the mechanical gate harness for the onboard-root revision.
 #
-# Contract: the gate table in SKILL.md beside this script. Where this script
-# and that table disagree, the table is what gets fixed first.
+# Contract: the gate table in full-path.md beside this script, and the personal
+# path in SKILL.md. Where this script and that table disagree, the table is what
+# gets fixed first.
 #
 # Runs on macOS bash 3.2. No associative arrays, no mapfile/readarray, no
 # ${var,,}. BSD-compatible flags only. Never writes to the root being checked.
@@ -10,6 +11,9 @@
 #   gates.sh <root path>              run every gate
 #   gates.sh --gate G6 <root path>    run one gate
 #   gates.sh --json <root path>       one JSON object per line, plus a summary
+#   gates.sh --short <root path>      the personal-path file gates only; chosen on its
+#                                     own for a personal root with no run record
+#   gates.sh --list                   list the gates and exit
 #
 # Exit 0 only when every gate passes. Exit 1 when any gate fails or skips
 # in a way that is not a pass. Exit 2 on a usage error.
@@ -28,6 +32,8 @@ usage: $PROG [--json] [--gate <id>] <root path>
   --gate <id>   run a single gate (G0 G1 G2 G3 G4 G5a G5b G5c G6 G6b G7 G8
                 G9 G10 G11 G11b G12 G13 G13b G14 G15 G16 G17 G18 G19 G20)
   --json        print one JSON object per gate, then a summary object
+  --short       run the personal-path file gates only (automatic for a personal
+                root that keeps no run record)
   --list        list the gates and exit
 USAGE
 }
@@ -35,12 +41,14 @@ USAGE
 # ---------------------------------------------------------------- arguments
 
 JSON=0
+SHORT=0
 ONE_GATE=""
 ROOT=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --json) JSON=1; shift ;;
+    --short) SHORT=1; shift ;;
     --gate)
       if [ $# -lt 2 ]; then echo "$PROG: --gate needs an id" >&2; exit 2; fi
       ONE_GATE="$2"; shift 2 ;;
@@ -80,7 +88,7 @@ G13b|The routing table resolves the deliverables|gate_G13b
 G14|Voice authority|gate_G14
 G15|Audit ran independently|gate_G15
 G16|Findings disposed of, disputes preserved|gate_G16
-G17|Refusal removed only for complete keys|gate_G17
+G17|The close is in the root|gate_G17
 G18|No placeholder token survives|gate_G18
 G19|Paths resolve|gate_G19
 G20|Operating file and close report|gate_G20'
@@ -100,17 +108,19 @@ case "$ROOT" in
   */) ROOT="${ROOT%/}" ;;
 esac
 
+# Resolve the root once here rather than inside under_root, which several
+# callers invoke inside command substitutions and pipelines: a value assigned
+# in a subshell dies with it, so the root was resolved again on every call.
+# under_root keeps its own guard, so a root that cannot be entered still
+# refuses there with the same reason.
+ROOT_PHYS=$(CDPATH= cd -P "$ROOT" 2>/dev/null && pwd -P) || ROOT_PHYS=""
+
 TMPD=$(mktemp -d "${TMPDIR:-/tmp}/gates.XXXXXX") || exit 2
 trap 'rm -rf "$TMPD"' EXIT INT TERM
 
 # ---------------------------------------------------------------- the tree
 
-# The root's own AGENTS.md declares its type, and the type decides where the
-# onboarding records live. A client root carries the full record set under
-# `work/onboarding/` plus `sources/` and `todos/`; the other four types declare
-# none of those, and their own templates say `work/onboarding/` is the
-# client-root layout and does not apply to them. Reading the type here is what
-# stops this harness demanding a layout the root was never given.
+# standards/user-root.md C10 fixes records for every type. Type controls close intensity.
 ROOT_TYPE=""
 if [ -f "$ROOT/AGENTS.md" ]; then
   ROOT_TYPE=$(awk 'NR==1 && $0!="---" {exit} NR>1 && $0=="---" {exit} /^type:[[:space:]]/ {sub(/^type:[[:space:]]*/,""); sub(/[[:space:]]+$/,""); print; exit}' "$ROOT/AGENTS.md")
@@ -118,30 +128,16 @@ fi
 [ -n "$ROOT_TYPE" ] || ROOT_TYPE=unknown
 
 case "$ROOT_TYPE" in
-  client)
+  personal|org|client|department|industry)
     ONB="$ROOT/work/onboarding"
     RUNREC="$ONB/run-record.md"
     VERIF="$ONB/verification.md"
     AUDIT="$ONB/audit.md"
-    OPER="$ROOT/todos/current.md"
+    OPER="$ONB/operating-file.md"
     CLOSE="$ONB/close-report.md"
     EXTRACT_DIR="$ONB/extraction"
     EVID_DIR="$ONB/evidence"
     SRC_DIR="$ROOT/sources"
-    ;;
-  personal|org|department|industry)
-    # The run record sits in the working area the template declares, and the
-    # operating file sits beside it. No extraction, evidence, sources or todos
-    # directory exists for these types, and none is created here.
-    ONB="$ROOT/work"
-    RUNREC="$ONB/onboarding-run-record.md"
-    VERIF="$ONB/onboarding-verification.md"
-    AUDIT="$ONB/onboarding-audit.md"
-    OPER="$ONB/onboarding-operating-file.md"
-    CLOSE="$ONB/onboarding-close-report.md"
-    EXTRACT_DIR="$ONB/onboarding-extraction"
-    EVID_DIR="$ONB/onboarding-evidence"
-    SRC_DIR="$ROOT/inbox"
     ;;
   *)
     echo "$PROG: $ROOT/AGENTS.md declares no recognized type: (personal, org, client, department, industry)" >&2
@@ -150,6 +146,13 @@ case "$ROOT_TYPE" in
     ;;
 esac
 
+
+rel() {
+  case "$1" in
+    "$ROOT"/*) printf '%s' "${1#$ROOT/}" ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
 
 # Count of supplied documents. A run with none is the research-first, nothing-
 # handed-over case, where extraction records cannot exist and the three gates
@@ -167,17 +170,110 @@ MEM="$ROOT/memory"
 SECRETS="$MEM/secrets"
 AGENTS="$ROOT/AGENTS.md"
 
+# ---------------------------------------------------------- the personal path
+#
+# A personal root onboarded on SKILL.md's personal path keeps no records: its
+# `## Onboarding` section says which path ran and carries one state line per
+# key. That root has nothing for the record gates to read, and a harness that
+# failed it for records it was told not to keep would teach the user to stop
+# running the harness. So the file gates run and the record gates do not.
+# A personal root with no run record is on that path; --short says so
+# explicitly. A run record present means the full path ran, and then the
+# whole suite applies whatever the section says.
+onb_section() {
+  [ -f "$AGENTS" ] || return 0
+  section_body "$AGENTS" "## Onboarding" 2>/dev/null
+}
+onb_state() {
+  # $1 = key. The first word after `- <key>:` in the ## Onboarding section,
+  # trailing punctuation stripped: `complete.` is complete.
+  onb_section | grep -E "^[[:space:]]*-[[:space:]]*$1:" | head -1 \
+    | sed -E "s/^[[:space:]]*-[[:space:]]*$1:[[:space:]]*//" | awk '{print $1}' | sed -E 's/[.,;:]+$//'
+}
+if [ "$SHORT" = "0" ] && [ "$ROOT_TYPE" = "personal" ] && [ ! -f "$RUNREC" ]; then
+  SHORT=1
+fi
+
+if [ "$SHORT" = "1" ]; then
+  if [ "$ROOT_TYPE" != "personal" ]; then
+    echo "$PROG: the personal path is for a personal root; this root declares type $ROOT_TYPE" >&2
+    exit 2
+  fi
+  if [ -f "$RUNREC" ]; then
+    echo "$PROG: $(rel "$RUNREC") exists, so the full path ran; --short does not apply" >&2
+    exit 2
+  fi
+  GATES='G9|Headings answered|gate_G9
+G10|Registers used as defined|gate_G10
+G11|Label vocabulary is closed|gate_G11
+G11b|Figure tables carry their provenance|gate_G11b
+G13|Traits are checkable|gate_G13
+G13b|The routing table resolves the deliverables|gate_G13b
+G14|Voice authority|gate_G14
+G17|The close is in the root|gate_G17
+G18|No placeholder token survives|gate_G18
+G19|Paths resolve|gate_G19'
+fi
+
 # The subject's own name, read from the root declaration. G5a's proper-noun
 # clause uses it: a sentence whose only proper noun is the subject itself is
 # structural prose, not a claim about anything a deliverable would act on.
 ROOTNAME=$(sed -n 's/^root:[[:space:]]*//p' "$AGENTS" 2>/dev/null | head -1)
 [ -n "$ROOTNAME" ] || ROOTNAME=$(basename "$ROOT")
 
-rel() {
-  case "$1" in
-    "$ROOT"/*) printf '%s' "${1#$ROOT/}" ;;
-    *) printf '%s' "$1" ;;
-  esac
+# A path a record names is content the run wrote, and a gate must not follow it
+# out of the root: an absolute one, one that walks out with .., or one reached
+# through symlinks whose final destination is outside, would have a gate read
+# another root's file and take what it found as this root's evidence. Link-ness
+# is not the test and neither is spelling: a link that stays inside the root is
+# legitimate, a trailing slash hides a leaf from -L, and one hop is not the
+# chain, so every hop is followed to the end and the destination is resolved
+# before it is compared, because a textual prefix is not containment.
+# Sets _ur_why to the reason on a refusal, so a caller can say which it was.
+under_root() {
+  _ur_why="leaves the root"
+  case "$1" in "") _ur_why="is empty"; return 1 ;; /*) return 1 ;; esac
+  _ur_p=$1
+  while :; do case "$_ur_p" in */) _ur_p=${_ur_p%/} ;; *) break ;; esac; done
+  [ -n "$_ur_p" ] || { _ur_why="is empty"; return 1; }
+  [ -n "${ROOT_PHYS:-}" ] || ROOT_PHYS=$(CDPATH= cd -P "$ROOT" 2>/dev/null && pwd -P) || { _ur_why="cannot be resolved"; return 1; }
+  _ur_root=$ROOT_PHYS
+  if [ -d "$ROOT/$_ur_p" ]; then
+    _ur_res=$(CDPATH= cd -P "$ROOT/$_ur_p" 2>/dev/null && pwd -P) || { _ur_why="cannot be resolved"; return 1; }
+  else
+    case "$_ur_p" in */*) _ur_par=${_ur_p%/*} ;; *) _ur_par=. ;; esac
+    _ur_d=$(CDPATH= cd -P "$ROOT/$_ur_par" 2>/dev/null && pwd -P) || {
+      # The parent does not exist or cannot be entered, so nothing can be
+      # resolved and nothing can escape either: the caller's own existence
+      # test is what reports it, and it reports it truthfully.
+      return 0
+    }
+    _ur_res=$_ur_d/${_ur_p##*/}
+    # Follow the whole chain, not one hop. A bound file linked to a link to a
+    # file in another root was certified as contained by the single-hop form.
+    # The counter ends a loop; forty is far past any legitimate depth.
+    _ur_n=0
+    while [ -L "$_ur_res" ]; do
+      _ur_n=$((_ur_n + 1))
+      if [ "$_ur_n" -gt 40 ]; then _ur_why="resolves through a symlink loop"; return 1; fi
+      _ur_t=$(readlink "$_ur_res") || { _ur_why="cannot be resolved"; return 1; }
+      case "$_ur_t" in
+        /*) _ur_res=$_ur_t ;;
+        *)  case "$_ur_t" in */*) _ur_tp=${_ur_t%/*} ;; *) _ur_tp=. ;; esac
+            _ur_hd=$(CDPATH= cd -P "${_ur_res%/*}" 2>/dev/null && cd -P "$_ur_tp" 2>/dev/null && pwd -P) || { _ur_why="cannot be resolved"; return 1; }
+            _ur_res=$_ur_hd/${_ur_t##*/} ;;
+      esac
+    done
+  fi
+  # Canonicalize before comparing. A textual prefix is not containment: an
+  # absolute link target such as /root/../elsewhere/x.md begins with the root
+  # and resolves outside it. Only the relative branch above walks its heads
+  # through cd -P, so resolve the destination's own directory the same way.
+  case "$_ur_res" in */*) _ur_rp=${_ur_res%/*} ;; *) _ur_rp=/ ;; esac
+  [ -n "$_ur_rp" ] || _ur_rp=/
+  _ur_rd=$(CDPATH= cd -P "$_ur_rp" 2>/dev/null && pwd -P) || { _ur_why="cannot be resolved"; return 1; }
+  case "$_ur_rd" in */) _ur_res=$_ur_rd${_ur_res##*/} ;; *) _ur_res=$_ur_rd/${_ur_res##*/} ;; esac
+  case "$_ur_res" in "$_ur_root"|"$_ur_root"/*) return 0 ;; *) _ur_why="leaves the root"; return 1 ;; esac
 }
 
 # md files in a collection directory, scaffolding excluded.
@@ -395,6 +491,10 @@ _json_esc() {
   }'
 }
 
+# The owner's declared name, lower-cased, for the gates that accept it as a
+# person regardless of its shape. Set here, after kv is defined.
+OWNER_LC=$(kv "$AGENTS" "root" 2>/dev/null | tr 'A-Z' 'a-z')
+
 PASS_N=0; FAIL_N=0; SKIP_N=0
 
 report_gate() {
@@ -489,14 +589,15 @@ perkey_value() {
 }
 
 claims_located_count() {
-  # $3, optional: the only bound file that may satisfy this class. A competitor
-  # set recorded in another memory file is not recorded where downstream work
+  # ONLY_FILE in the environment, optional: the only bound file that may satisfy
+  # this class, set by the caller for the competitors key. A competitor set
+  # recorded in another memory file is not recorded where downstream work
   # resolves the key, which is the whole of what this count is asked to prove.
   # $1 key, $2 class. A located row only counts when the claim actually
   # reached a bound file: it carries an anchor, names a bound file, and that
   # file contains that anchor. Counting rows alone let a key close complete on
   # detached bookkeeping while its headings said Not available.
-  awk -v K="$1" -v C="$2" -v US="$US" -v ONLY="${3:-}" '
+  awk -v K="$1" -v C="$2" -v US="$US" '
   BEGIN{ n=0 }
   {
     split($0,f,US)
@@ -513,7 +614,11 @@ claims_located_count() {
     id=$(printf '%s' "$anch" | tr -d '[]')
     bfp=$(printf '%s' "$bf" | tr -d '`' | sed 's#^\./##')
     case "$bfp" in
-      memory/*.md) ;;
+      # add_fail cannot be called from here: this loop is on the right of a pipe
+      # inside a command substitution, so G_FAILS would be assigned in a subshell
+      # and discarded twice over, which is the hazard the G13 comment below names.
+      # The escape is written down and gate_G0 reports it after the counting.
+      memory/*.md) under_root "$bfp" || { printf '%s|%s\n' "$bfp" "$_ur_why" >> "$TMPD/g0-escapes.txt"; continue; } ;;
       *) continue ;;                 # a bound file, not the record itself
     esac
     if [ -n "${ONLY_FILE:-}" ] && [ "$bfp" != "$ONLY_FILE" ]; then continue; fi
@@ -529,6 +634,7 @@ claims_located_count() {
 gate_G0() {
   need_file "$RUNREC" || return
   need_file "$VERIF" || return
+  rm -f "$TMPD/g0-escapes.txt"
   if ! has_heading "$RUNREC" "## Per-key close"; then
     add_fail "$(rel "$RUNREC"): no '## Per-key close' section"
     return
@@ -615,7 +721,7 @@ gate_G0() {
       # passed with no competitor named, while `SAP`, `IBM` and `GE` are under
       # any sane length floor and a correct root could not close.
       #
-      # Both were proxies for a judgement. What is mechanical is checked above:
+      # Both were proxies for a judgment. What is mechanical is checked above:
       # the binding is there as a plain list item, the file is plain text with
       # comments filtered, and all three required classes anchor in that file.
       # What is not mechanical is declared, here and in the skill frontmatter
@@ -642,6 +748,17 @@ gate_G0() {
     done
     IFS="$oldifs"
   done
+  # The escapes the counting loop could only write down, reported here, where
+  # add_fail is in the gate's own shell and survives.
+  if [ -s "$TMPD/g0-escapes.txt" ]; then
+    sort -u "$TMPD/g0-escapes.txt" | while IFS= read -r esc; do
+      printf '%s\n' "$esc"
+    done > "$TMPD/g0-escapes-uniq.txt"
+    while IFS= read -r esc; do
+      [ -n "$esc" ] || continue
+      add_fail "$(rel "$VERIF") names bound file '${esc%%|*}', which ${esc#*|}"
+    done < "$TMPD/g0-escapes-uniq.txt"
+  fi
 }
 
 # ---- G1 Scope recorded ---------------------------------------------------
@@ -761,7 +878,7 @@ gate_G4() {
   if [ ! -d "$EVID_DIR" ]; then
     tierv=$(kv "$RUNREC" "tier" 2>/dev/null)
     if [ "$tierv" = "core" ]; then
-      # the onboarding phases makes per-angle packages a full-tier artifact, and the Tier
+      # the onboarding phases make per-angle packages a full-tier artifact, and the Tier
       # section retires G4 with them. A skip is not a pass, so without this a
       # correctly run core-tier root could never exit 0 from its own harness.
       add_note "tier: core, so per-angle evidence packages and this gate do not apply; the close report names it"
@@ -957,7 +1074,7 @@ gate_G5a() {
           # "a number, a proper noun, a quotation, a prohibition, or a comparative".
           if(s ~ /[0-9]/) cand=1
           # The trigger is "a number", not "a digit". A figure spelled out in
-          # words is still a figure, and F20 in the catalogue is an auditor
+          # words is still a figure, and F20 in the catalog is an auditor
           # missing exactly that.
           if(low ~ /(^|[^a-z])(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|billion|dozen|half|quarter|third|twice|thrice)([^a-z]|$)/) cand=1
           if(index(s,"\"")>0) cand=1
@@ -1153,10 +1270,8 @@ where_resolves() {
     *'#'*) ;;
     *) printf '%s' "Where '$w' carries no #anchor-or-heading"; return ;;
   esac
+  if ! under_root "$path"; then printf '%s' "Where names '$path', which $_ur_why"; return; fi
   target="$ROOT/$path"
-  case "$path" in
-    /*) target="$path" ;;
-  esac
   if [ ! -f "$target" ]; then printf '%s' "Where names '$path', which does not exist under the root"; return; fi
   if [ -z "$anchor" ]; then printf '%s' "Where '$w' carries an empty anchor"; return; fi
   if awk -v A="$anchor" "$AWK_LIB"'
@@ -1413,6 +1528,8 @@ gate_G9() {
         if(nb<=1 && ns<=1 \
            && body !~ /\[(Verified|Estimated|Unverified|Not available)/ \
            && body !~ /\[V[0-9]+\]/ \
+           && body !~ /\([^)]*\.[A-Za-z0-9]+\)/ \
+           && body !~ /\(E[0-9]+/ \
            && body !~ /\((Firsthand|Secondhand|Public statement|Research inference)/){
           d=body; if(length(d)>70) d=substr(d,1,70) "..."
           printf "line %d: heading \"%s\" is answered by a bare sentence with no bracketed label: %s\n", i, t, d
@@ -1431,7 +1548,7 @@ DOC_GRAMMAR='\.pdf|\.docx|\.pptx|\.md|deck|document|report|guide|memo|slide'
 PERSON_GRAMMAR="(^|[^A-Za-z])[A-Z][a-z]+([ -][A-Z][a-z']+)+"
 # The head noun of a role, a body, or a document. A two-capitalized-word phrase
 # ending in one of these is a title or a thing, not an observer. This is a
-# blacklist and it is deliberately a second line of defence behind the person
+# blacklist and it is deliberately a second line of defense behind the person
 # registry, not the primary check.
 NONPERSON_TAIL='(Director|Owner|Manager|Lead|Head|Officer|Chief|Counsel|Partner|Partnership|Analyst|Executive|Coordinator|Specialist|Adviser|Advisor|President|Secretary|Treasurer|Board|Council|Committee|Panel|Group|Team|Department|Division|Review|Summary|Brief|Report|Meeting|Minutes|Session|Workshop|Update|Notes|Note|Log|Register|Record|Series|Programme|Program|Project|Account|Relations|Communications|Marketing|Compliance|Legal|Operations|Function|Practice|Unit|Office|Desk|Bureau|Agency|Authority|Trust|Fund|Holdings|Ventures|Labs|Studio|Works|Outlook|Steward|Insights|Analytics)s?$'
 
@@ -1462,6 +1579,13 @@ build_person_registry() {
     table_get "$VERIF" "Claims" "Row,Mechanism,Second mechanism" 2>/dev/null | awk -v US="$US" '
       { split($0,f,US); if(f[3]!="" && f[3]!="-") print f[3]; if(f[4]!="" && f[4]!="-") print f[4] }' \
       >> "$TMPD/people.txt"
+  fi
+  # On the personal path the only recorded person is the root's owner, whose
+  # name is the root's `root:` declaration and its title line, and every
+  # firsthand fact in the files is what that person said.
+  if [ "$SHORT" = "1" ]; then
+    kv "$AGENTS" "root" >> "$TMPD/people.txt" 2>/dev/null || :
+    grep -m1 -E '^# ' "$AGENTS" 2>/dev/null | sed 's/^# //' >> "$TMPD/people.txt" || :
   fi
   # Reduce the registry to NAMES. Matching a payload against raw prose let
   # "Marketing Director" pass because that title sits inside a sentence about a
@@ -1508,7 +1632,11 @@ gate_G10() {
           # checked against the people this run actually recorded: the person
           # rows of the must-reach lists and the interview's who-confirms
           # answer. An observer nobody wrote down is not an observer.
-          if printf '%s' "$payload" | tr 'A-Z' 'a-z' | grep -qE "$DOC_GRAMMAR"; then
+          if [ "$SHORT" = "1" ] && [ -n "$OWNER_LC" ] && [ "$(printf '%s' "$payload" | cut -d, -f1 | sed 's/[[:space:]]*$//' | tr 'A-Z' 'a-z')" = "$OWNER_LC" ]; then
+            # The root's owner, by the name the root declares, whatever its
+            # shape: a mononym or a non-Latin name is a person all the same.
+            :
+          elif printf '%s' "$payload" | tr 'A-Z' 'a-z' | grep -qE "$DOC_GRAMMAR"; then
             add_fail "$r line $ln: (Firsthand: $payload) names a document as the observer"
           elif ! printf '%s' "$payload" | grep -qE "$PERSON_GRAMMAR"; then
             add_fail "$r line $ln: (Firsthand: $payload) does not name a person who observed it; firsthand names an observer, never a document or a role alone"
@@ -1637,7 +1765,7 @@ $out
 G11BEOF
   done < <(bound_files)
   if [ "$found_any" -eq 0 ] && [ -z "$G_FAILS" ]; then
-    set_skip "no figures heading and no table with a Figure column under $(rel "$MEM")"
+    if [ "$SHORT" = "1" ]; then add_note "no figures heading under memory; not applicable on the personal path"; else set_skip "no figures heading and no table with a Figure column under $(rel "$MEM")"; fi
   fi
 }
 
@@ -1731,6 +1859,10 @@ BARE_ADJ='measured|institutional|aspirational|sensory|warm|authoritative|playful
 gate_G13() {
   VOICE="$MEM/voice.md"
   need_file "$VOICE" || return
+  if [ "$SHORT" = "1" ] && [ "$(onb_state voice)" != "complete" ]; then
+    add_note "voice closed '$(onb_state voice)' on the personal path; the voice file is not checked until it closes complete"
+    return
+  fi
   while IFS= read -r hit; do
     [ -n "$hit" ] || continue
     ln=${hit%%:*}
@@ -1748,6 +1880,15 @@ gate_G13() {
 gate_G13b() {
   VOICE="$MEM/voice.md"
   need_file "$VOICE" || return
+  if [ "$SHORT" = "1" ] && [ "$(onb_state voice)" != "complete" ]; then
+    add_note "voice closed '$(onb_state voice)' on the personal path; the voice file is not checked until it closes complete"
+    return
+  fi
+  if [ "$SHORT" = "1" ]; then
+    has_heading "$VOICE" "## Routing Table" || add_fail "$(rel "$VOICE"): '## Routing Table' is missing"
+    add_note "no run record on the personal path, so the table is not checked against an outputs list"
+    return
+  fi
   need_file "$RUNREC" || return
   if ! has_heading "$VOICE" "## Routing Table"; then
     add_fail "$(rel "$VOICE"): '## Routing Table' is missing"
@@ -1761,8 +1902,9 @@ gate_G13b() {
     add_note "'### What the outputs are for' is deferred; the routing clause did not run (G12 carries that failure)"
     return
   fi
-  # output types: list items where present, otherwise the prose split on
-  # commas and " and ".
+  # output types: list items, and nothing else. The prose splitter this comment
+  # used to describe was withdrawn, because a gate cannot parse prose; a body with
+  # no list item is reported as naming no output type rather than guessed at.
   awk '
   function trim(s){ sub(/^[ \t]+/,"",s); sub(/[ \t]+$/,"",s); return s }
   {
@@ -1771,7 +1913,7 @@ gate_G13b() {
     if(t ~ /^[-*+][ \t]/ || t ~ /^[0-9]+[.)][ \t]/){
       sub(/^[-*+][ \t]+/,"",t); sub(/^[0-9]+[.)][ \t]+/,"",t)
       items[++ni]=t
-    } else prose = prose " " t
+    }
   }
   END{
     for(i=1;i<=ni;i++) print items[i]
@@ -1813,6 +1955,10 @@ gate_G13b() {
 gate_G14() {
   VOICE="$MEM/voice.md"
   need_file "$VOICE" || return
+  if [ "$SHORT" = "1" ] && [ "$(onb_state voice)" != "complete" ]; then
+    add_note "voice closed '$(onb_state voice)' on the personal path; the voice file is not checked until it closes complete"
+    return
+  fi
   for k in voice-authority-name voice-authority-basis voice-confirmation-date; do
     v=$(kv "$VOICE" "$k")
     if [ -z "$v" ]; then
@@ -1825,7 +1971,9 @@ gate_G14() {
   van=$(kv "$VOICE" "voice-authority-name")
   vab=$(kv "$VOICE" "voice-authority-basis")
   if [ -n "$van" ]; then
-    if ! printf '%s' "$van" | grep -qE "$PERSON_GRAMMAR"; then
+    if [ "$SHORT" = "1" ] && [ -n "$OWNER_LC" ] && [ "$(printf '%s' "$van" | tr 'A-Z' 'a-z')" = "$OWNER_LC" ]; then
+      : # the root's owner, by the declared name, whatever its shape
+    elif ! printf '%s' "$van" | grep -qE "$PERSON_GRAMMAR"; then
       add_fail "$(rel "$VOICE"): 'voice-authority-name: $van' does not name a person; a role is not an authority anyone can identify"
     elif printf '%s' "$van" | grep -qE "$NONPERSON_TAIL"; then
       add_fail "$(rel "$VOICE"): 'voice-authority-name: $van' names a role or a body, not a person. An identifiable but unqualified confirmer is the residual risk, and an unidentifiable one is worse"
@@ -1838,7 +1986,19 @@ gate_G14() {
         fi
       fi
     fi
-    if [ -n "$vab" ]; then
+    # On the personal path the owner is the authority on their own voice and
+    # no domain of authority is owed; the basis only has to say more than the
+    # name. The first confirmed personal voice failed here for saying exactly
+    # that in words the domain list does not contain.
+    owner=$(kv "$AGENTS" "root" 2>/dev/null | tr 'A-Z' 'a-z')
+    if [ "$SHORT" = "1" ] && [ -n "$owner" ] && [ "$(printf '%s' "$van" | tr 'A-Z' 'a-z')" = "$owner" ]; then
+      lab=$(printf '%s' "$vab" | tr 'A-Z' 'a-z')
+      if [ -z "$vab" ] || [ "$lab" = "$owner" ]; then
+        add_fail "$(rel "$VOICE"): 'voice-authority-basis' is empty or repeats the name; say that this is the owner's own voice"
+      else
+        add_note "the root's owner is the authority on their own voice; no domain of authority is owed"
+      fi
+    elif [ -n "$vab" ]; then
       lan=$(printf '%s' "$van" | tr 'A-Z' 'a-z')
       lab=$(printf '%s' "$vab" | tr 'A-Z' 'a-z')
       if [ "$lan" = "$lab" ]; then
@@ -1896,8 +2056,10 @@ gate_G15() {
   fi
 }
 
-# Containers a claim can hide in. A rejection has to name at least two, which
-# is what distinguishes a search from an assertion that one happened.
+# Containers a claim can hide in. A rejection has to name at least one place it
+# was looked for, which is what distinguishes a search from an assertion that one
+# happened, and a place is a container, a URL, a file or an evidence row: the
+# check below counts all four and requires one, not two containers.
 CONTAINER_GRAMMAR='body|main text|heading|section|notes?|speaker note|comment|footnote|endnote|tracked change|revision|appendix|header|footer|caption|alt text|metadata|margin|annotation|slide|transcript|attachment|table|figure|chart|abstract|summary|title|index|glossary'
 
 # ---- G16 Findings disposed of, disputes preserved -----------------------
@@ -1918,10 +2080,12 @@ gate_G16() {
         if [ -z "$looked" ] || [ "$looked" = "-" ]; then
           add_fail "$(rel "$AUDIT") line $ln: finding $fid is rejected with an empty 'Where checker looked'"
         else
-          # Rejecting a finding costs a real search. A claim is searched in
-          # every container the format has, so the cell must ENUMERATE the
-          # containers, not merely assert that the producer looked. Round 2
-          # found this recorded as fixed while the gate still tested non-empty.
+          # Rejecting a finding costs a real search. Searching every container
+          # the format has is the run's obligation and is wider than a gate can
+          # count: what this checks is that the cell names at least one place,
+          # a container, a URL, a file or an evidence row, not merely that the
+          # producer asserts a search happened. Round 2 found this recorded as
+          # fixed while the gate still tested non-empty.
           # A rejection has to name where the checker looked, specifically
           # enough that someone else can go there. Round 2 established that
           # non-empty is not enough. The count was containers-only until the
@@ -1949,8 +2113,11 @@ gate_G16() {
           add_fail "$(rel "$AUDIT") line $ln: finding $fid is disputed but 'Bound file entry' names no file"
           continue
         fi
+        if ! under_root "$p"; then
+          add_fail "$(rel "$AUDIT") line $ln: finding $fid is disputed but '$p' $_ur_why"
+          continue
+        fi
         t="$ROOT/$p"
-        case "$p" in /*) t="$p" ;; esac
         if [ ! -f "$t" ]; then
           add_fail "$(rel "$AUDIT") line $ln: finding $fid is disputed but '$p' does not exist under the root"
         elif ! awk -v id="$fid" 'index($0,"(Disputed:")>0 && index($0,id)>0 {f=1} END{exit(f?0:1)}' "$t"; then
@@ -1964,7 +2131,7 @@ gate_G16() {
   done < "$TMPD/g16.txt"
 }
 
-# ---- G17 Refusal removed only for complete keys -------------------------
+# ---- preamble_body ------------------------------------------------------
 # preamble_body FILE -> every line above the first section heading
 # The grammar puts the run record's key lines at the top of the file, above
 # `## Copy vantages`. That is the span kv resolves them in, because kv takes
@@ -2219,6 +2386,39 @@ controlled_sections_unique() {
 }
 
 gate_G17() {
+  if [ ! -f "$AGENTS" ]; then
+    add_fail "$(rel "$AGENTS"): missing"
+    return
+  fi
+  if ! has_heading "$AGENTS" "## Onboarding"; then
+    add_fail "$(rel "$AGENTS"): no '## Onboarding' section; the template ships one and the close rewrites it"
+    return
+  fi
+  onb_section > "$TMPD/g17.txt"
+  if grep -qi '^Not onboarded' "$TMPD/g17.txt"; then
+    add_fail "$(rel "$AGENTS"): '## Onboarding' still reads as the template shipped it: not onboarded"
+    return
+  fi
+  if [ "$SHORT" = "1" ]; then
+    # The personal path: the state lines are the whole record. One per key,
+    # a date, and an open key naming what it waits on.
+    grep -qE '[0-9]{4}-[0-9]{2}-[0-9]{2}' "$TMPD/g17.txt" || add_fail "$(rel "$AGENTS"): '## Onboarding' carries no YYYY-MM-DD date"
+    for key in about voice design; do
+      v=$(onb_state "$key")
+      line=$(grep -E "^[[:space:]]*-[[:space:]]*$key:" "$TMPD/g17.txt" | head -1)
+      case "$v" in
+        "") add_fail "$(rel "$AGENTS"): '## Onboarding' has no line for key '$key'" ;;
+        complete) ;;
+        provisional)
+          printf '%s' "$line" | grep -qi 'owner' || add_fail "$(rel "$AGENTS"): '$key: provisional' names no owner" ;;
+        blocked)
+          printf '%s' "$line" | grep -qiE 'person|credential|capability' || add_fail "$(rel "$AGENTS"): '$key: blocked' names no blocker as a person, a credential, or a capability" ;;
+        *) add_fail "$(rel "$AGENTS"): '$key: $v' is not complete, provisional or blocked" ;;
+      esac
+    done
+    return
+  fi
+  # The full path: the state lines match the run record's per-key close.
   need_file "$RUNREC" || return
   controlled_sections_unique "$RUNREC"
   plain_file "$RUNREC" "the run record"
@@ -2226,11 +2426,6 @@ gate_G17() {
     add_fail "$(rel "$RUNREC"): no '## Per-key close' section"
     return
   fi
-  if [ ! -f "$AGENTS" ]; then
-    add_fail "$(rel "$AGENTS"): missing"
-    return
-  fi
-  open_keys=""
   missing=0
   for key in $PERKEY_KEYS; do
     v=$(perkey_value "$key")
@@ -2243,7 +2438,7 @@ gate_G17() {
       continue
     fi
     case "$v" in
-      complete) ;;
+      complete|provisional|blocked) ;;
       unbound)
         # The grammar allows `unbound` for competitors and for no other key, and
         # only where the offer was declined or deferred rather than accepted.
@@ -2258,29 +2453,21 @@ gate_G17() {
           esac
         fi
         ;;
-      provisional|blocked) open_keys="$open_keys $key" ;;
-      *) add_fail "$(rel "$RUNREC"): per-key close '$key: $v' is not complete, provisional, blocked or unbound"; missing=1 ;;
+      *) add_fail "$(rel "$RUNREC"): per-key close '$key: $v' is not complete, provisional, blocked or unbound"; missing=1; continue ;;
     esac
+    a=$(onb_state "$key")
+    line=$(grep -E "^[[:space:]]*-[[:space:]]*$key:" "$TMPD/g17.txt" | head -1)
+    if [ -z "$a" ]; then
+      add_fail "$(rel "$AGENTS"): '## Onboarding' has no line for key '$key', which the run record closes '$v'"
+    elif [ "$a" != "$v" ]; then
+      add_fail "$(rel "$AGENTS"): '## Onboarding' says '$key: $a' but the run record closes '$key: $v'"
+    else
+      case "$v" in
+        provisional) printf '%s' "$line" | grep -qi 'owner' || add_fail "$(rel "$AGENTS"): '$key: provisional' names no owner" ;;
+        blocked) printf '%s' "$line" | grep -qiE 'person|credential|capability' || add_fail "$(rel "$AGENTS"): '$key: blocked' names no blocker as a person, a credential, or a capability" ;;
+      esac
+    fi
   done
-  [ "$missing" = "0" ] || return
-  has_inst=1
-  has_heading "$AGENTS" "## Instantiation" || has_inst=0
-  if [ -z "$open_keys" ]; then
-    if [ "$has_inst" = "1" ]; then
-      add_fail "$(rel "$AGENTS"): every key closes complete or unbound but '## Instantiation' is still present"
-    fi
-  else
-    if [ "$has_inst" = "0" ]; then
-      add_fail "$(rel "$AGENTS"): keys$open_keys are provisional or blocked but '## Instantiation' is absent"
-      return
-    fi
-    section_body "$AGENTS" "## Instantiation" > "$TMPD/g17.txt"
-    for key in $open_keys; do
-      if ! grep -qi "$key" "$TMPD/g17.txt"; then
-        add_fail "$(rel "$AGENTS"): '## Instantiation' does not name the key '$key'"
-      fi
-    done
-  fi
 }
 
 # ---- G18 No placeholder token survives ----------------------------------
@@ -2322,10 +2509,11 @@ gate_G19() {
         ln=${rec%%:*}
         tok=$(printf '%s' "$rec" | sed 's/^[0-9]*://')
         [ -n "$tok" ] || continue
+        if ! under_root "$tok"; then
+          add_fail "$r line $ln: path '$tok' $_ur_why"
+          continue
+        fi
         target="$ROOT/$tok"
-        case "$tok" in
-          /*) target="$tok" ;;
-        esac
         if [ ! -e "$target" ]; then
           add_fail "$r line $ln: path '$tok' does not resolve under the root"
         fi
@@ -2411,6 +2599,15 @@ gate_G19() {
         fi
         if [ "$owned" = "1" ]; then
           add_note "$(rel "$cf"): $empty empty value(s), owned by an operating row naming the credential"
+        elif [ "$SHORT" = "1" ]; then
+          # The personal path writes no operating file at all: SKILL.md says
+          # "the state lines are the record". So there is no row for this clause
+          # to find and the failure was unsatisfiable rather than earned, at
+          # both ends of the range that first recorded it. Name the credential
+          # here instead, which is what the row would have carried.
+          _g19keys=$(grep -E '^[A-Za-z_][A-Za-z0-9_]*=[[:space:]]*$' "$cf" 2>/dev/null \
+            | sed 's/=.*//' | sort -u | tr '\n' ' ' | sed 's/ *$//')
+          add_note "$(rel "$cf"): $empty empty value(s), unowned: ${_g19keys}. The personal path keeps no operating file to carry the row, so the credential is named here"
         else
           add_fail "$(rel "$cf"): $empty empty value(s) and no $(rel "$OPER") row whose Blocker names this credential"
         fi
