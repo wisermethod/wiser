@@ -28,6 +28,7 @@ One question: **what are you holding?** If you already know, it does not go in `
 | An action that still needs doing | `todos/current.md` | The living list. Not the file the action produces. |
 | A document the client supplied, or that arrived about them | `sources/` | The originals, as received. Do not edit in place. |
 | A deliverable or draft being made for them | `work/<subject>/` | This root's output. Filing is in `work/AGENTS.md`. |
+| A website, even the only site | `sites/<domain>/` | Not a campaign deliverable. Named for the registrable host. A pitch deck is still `work/`. |
 | A recipe for work in that subject | `work/<subject>/<does-this-thing>.play.md` | Lives with the work it produces. Not a top-level folder. |
 | A multi-session plan for that subject | `work/<subject>/<does-this-thing>.playbook.md` | Lives with the work it plans. The folder is the run; no date in the filename. |
 | Records from creating this root | `work/onboarding/` | Evidence the bound files were checked. Not the todo list. **This path is fixed**: `skills/Onboard Root/` and its harness both check `work/onboarding/` and neither reads this cell, so changing it gives this root two answers and no warning. |
@@ -70,6 +71,7 @@ This root's declared directories under `standards/conventions.md`. The table abo
 | Directory | Holds |
 |-----------|-------|
 | `work/` | Deliverables, drafts, and the Plays and Playbooks of the subject they serve. Filing is in `work/AGENTS.md`. |
+| `sites/` | One folder per domain, named for the registrable host, lowercase, no scheme, no `www` unless `www` is a distinct property. Created on first use |
 | `sources/` | Documents supplied for this client, as received |
 | `todos/` | The living list of open actions; the file is `todos/current.md` |
 | `inbox/` | Unclassified captures |

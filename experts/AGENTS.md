@@ -37,12 +37,6 @@ The line starts at the left margin, carries nothing but the paths, backticked an
 |--------|-------------|------|
 | `Research Expert/EXPERT.md` | Judge what a finding rests on, its sources, its coverage, and whether a figure was measured or read, sequence the research skills for a question, and gate research before it enters a memory file or a deliverable | `skills/Deep Research/`, `skills/External Research/`, `skills/Internal Research/`, `skills/Knowledge Map/`, `skills/Data Analysis/` |
 
-### SEO
-
-| Expert | Description | Owns |
-|--------|-------------|------|
-| `SEO Advisor/EXPERT.md` | Judge a site's search visibility and return findings ordered by what would actually move its rankings, each naming the check that surfaced it, the fix, the expected impact, and the effort | `skills/SEO Assets/` |
-
 ### Strategy
 
 | Expert | Description | Owns |
@@ -55,6 +49,12 @@ The line starts at the left margin, carries nothing but the paths, backticked an
 |--------|-------------|------|
 | `Connector Advisor/EXPERT.md` | Classify how to build a proposed connector and return an approved plan with its auth route, modules, privileges, actions, and verification | `skills/Set Up Connectors/`, `skills/Connect Account/`, `skills/Connection Troubleshooter/`, `skills/Connector Author/`; Connector Author is gated on the plan, before the skill writes, with no default end-of-skill gate after; Set Up Connectors, Connect Account, and Connection Troubleshooter take no expert gate, the person attaching and pasting the project key into the instituted file is the setup gate, the person is the connect gate and a diagnosis names one next step |
 | `System Expert/EXPERT.md` | Judge whether a change to a root is the right change, where a proposed capability belongs and in which family, and whether a missing capability is a gap to declare or a build to file, and sequence the system skills accordingly | `skills/Play Author/`, `skills/Playbook Author/`, `skills/Onboard Root/`; its gate runs in the same context before the skill, on a change to a root, a new root included, never on the file the skill produces; a Play or Playbook for a user's own work takes no gate before the draft |
+
+### Web
+
+| Expert | Description | Owns |
+|--------|-------------|------|
+| `Webmaster/EXPERT.md` | Judge a live site's findability, broken URLs, content vs code, and publish safety, sequence the work it needs, and gate a change before it goes live | `skills/Site Author/`, `skills/SEO Assets/`, `skills/Cloudflare Pages/`, `skills/Vercel Deploy/`; Job 3 in a second context gates Stand-up, Upgrade, Wrangler live-host upload, and Vercel Deploy deployment creation before publish, not after every file write; content-only edits take Job 3 for a new URL, slug change, or redirect; Check and host list/get operations, including deployment lists, have no gate; SEO Assets keeps the per-artifact second-context gate |
 
 ### Writing
 

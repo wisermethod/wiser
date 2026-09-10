@@ -6,7 +6,7 @@ A gap is a capability this root does not provide that a primitive's own body nam
 
 **This file carries capability gaps only.** What the operator plans to build is a separate record and is not a user's business, so nothing about future work appears here. **A gap names the capability that is missing, never where that capability went.**
 
-Counted 2026-09-09: 27 gaps across 18 primitives. Bullet count: `/usr/bin/grep -E '^- ' wiser/system/GAPS.md | wc -l` returns 27. Verify each bullet against its primitive's frontmatter in both directions.
+Counted 2026-09-09: 27 gaps across 18 primitives. Counted 2026-09-09 after Webmaster kit ship: 33 gaps across 19 primitives. Counted 2026-09-09 after Webmaster host skills: 35 gaps across 21 primitives. Bullet count: `/usr/bin/grep -E '^- ' wiser/system/GAPS.md | wc -l` returns 35. Verify each bullet against its primitive's frontmatter in both directions.
 
 ## Experts
 
@@ -33,12 +33,18 @@ Counted 2026-09-09: 27 gaps across 18 primitives. Bullet count: `/usr/bin/grep -
 - earned media strategy, reporter targeting, and whether something is a story
 - crisis communications judgment
 
-### SEO Advisor
+### Webmaster
 
 - keyword research
 - automated site crawling
+- page-speed readings
+- keyword and backlink data source
 
 ## Skills
+
+### Cloudflare Pages
+
+- create a Pages deployment through the gateway
 
 ### Content Author
 
@@ -77,6 +83,12 @@ Counted 2026-09-09: 27 gaps across 18 primitives. Bullet count: `/usr/bin/grep -
 - keyword research
 - automated site crawling
 
+### Site Author
+
+- a site whose engine is not the shipped kit
+- application, authenticated, or database-backed sites
+- creating a nested git repository for the site
+
 ### Speech Writing
 
 - crisis judgment on remarks delivered during an unfolding incident
@@ -84,6 +96,11 @@ Counted 2026-09-09: 27 gaps across 18 primitives. Bullet count: `/usr/bin/grep -
 ### Typography Design
 
 - right-to-left and CJK typography, which need script-specific knowledge this skill does not carry
+
+### Vercel Deploy
+
+- read or modify environment variables
+- delete a Vercel project
 
 ### Zone Publisher
 

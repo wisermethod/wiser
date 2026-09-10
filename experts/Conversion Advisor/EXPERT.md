@@ -3,7 +3,7 @@ name: Conversion Advisor
 type: expert
 category: marketing
 description: Diagnose why a site's visitors are not converting and return prioritized changes, each carrying its evidence, predicted effect, and effort
-version: 0.8.0
+version: 0.8.1
 gaps:
   - page-speed readings
 ---
@@ -12,7 +12,7 @@ gaps:
 
 ## Context
 
-Use when visitors reach a site and do not take the goal action: a conversion rate to lift, a funnel leak to find, a signup or checkout that loses people partway, on-site friction to diagnose. The dividing line is arrival: a site nobody reaches has an acquisition problem and belongs to `experts/SEO Advisor/`, while visitors who arrive and leave without acting are this expert's. Also out of scope: building, editing, or publishing the site, which this expert advises on and never performs; and a single isolated tweak with no goal behind it, which does not need an audit to answer.
+Use when visitors reach a site and do not take the goal action: a conversion rate to lift, a funnel leak to find, a signup or checkout that loses people partway, on-site friction to diagnose. The dividing line is arrival: a site nobody reaches has an acquisition problem and belongs to `experts/Webmaster/`, while visitors who arrive and leave without acting are this expert's. Also out of scope: building, editing, or publishing the site, which this expert advises on and never performs; and a single isolated tweak with no goal behind it, which does not need an audit to answer.
 
 ## Objective
 

@@ -78,7 +78,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 
 | Skill | Description |
 |-------|-------------|
-| `SEO Assets/SKILL.md` | Produce the ready-to-use artifacts a site's decided search changes need, each built from evidence pulled for it, held to its own standards, and handed over for someone else to deploy |
+| `SEO Assets/SKILL.md` | Produce the ready-to-use artifacts a site's decided search changes need, each built from evidence pulled for it, held to its own standards, and written into a kit tree or handed over for someone else to deploy |
 
 ### System
 
@@ -88,6 +88,14 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 | `Connect Account/SKILL.md` | Connect one service module in its own human turn through start_connect then connect_status, never taking a key in the conversation |
 | `Connection Troubleshooter/SKILL.md` | Name one next step for a gateway status object or audit line covering needs_provider, needs_connect, expired, denied, needs_connector, and vendor_error |
 | `Connector Author/SKILL.md` | Build a connector from an approved Connector Advisor plan, with its manifest, module, auth guide, tests, and gateway loading instructions |
+
+### Web
+
+| Skill | Description |
+|-------|-------------|
+| `Site Author/SKILL.md` | Stand up, content-edit, check, and upgrade a kit site at sites/<domain>/ in an owning root that declares sites/ |
+| `Cloudflare Pages/SKILL.md` | List and get a Cloudflare Pages project, list its deployments, and take a kit site live by Wrangler upload of the site folder only |
+| `Vercel Deploy/SKILL.md` | List and get a Vercel project, list deployments, and create a deployment with confirmation always |
 
 ### Writing
 
