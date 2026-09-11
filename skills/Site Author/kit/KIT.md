@@ -2,7 +2,7 @@
 
 `check` walks this file. It is not a tool. Every file in the kit exists to satisfy a line here. Copy this file into `kit/KIT.md` beside the Astro tree. Expand later copies the proven tree into `wiser/skills/Site Author/kit/`.
 
-Prep copy, 2026-09-09, taken from `playbooks/Webmaster.playbook.md` Context. If that subsection and this file disagree, the Playbook Context wins until Solve reconciles them.
+Prep copy, 2026-09-09, from the Webmaster Playbook Context. This file is the live contract. `check` walks it.
 
 ## Engine (v1)
 
