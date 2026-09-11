@@ -30,7 +30,7 @@ usage() {
 usage: $PROG [--json] [--gate <id>] <root path>
 
   --gate <id>   run a single gate (G0 G1 G2 G3 G4 G5a G5b G5c G6 G6b G7 G8
-                G9 G10 G11 G11b G12 G13 G13b G14 G15 G16 G17 G18 G19 G20)
+                G9 G10 G11 G11b G12 G13 G13b G14 G15 G16 G17 G18 G19 G20 G21)
   --json        print one JSON object per gate, then a summary object
   --short       run the personal-path file gates only (automatic for a personal
                 root that keeps no run record)
@@ -91,7 +91,8 @@ G16|Findings disposed of, disputes preserved|gate_G16
 G17|The close is in the root|gate_G17
 G18|No placeholder token survives|gate_G18
 G19|Paths resolve|gate_G19
-G20|Operating file and close report|gate_G20'
+G20|Operating file and close report|gate_G20
+G21|Layout stamp agrees with C1|gate_G21'
 
 if [ "$LIST_ONLY" = "1" ]; then
   printf '%s\n' "$GATES" | awk -F'|' '{printf "%-5s %s\n", $1, $2}'
@@ -140,9 +141,14 @@ case "$ROOT_TYPE" in
     SRC_DIR="$ROOT/sources"
     ;;
   *)
-    echo "$PROG: $ROOT/AGENTS.md declares no recognized type: (personal, org, client, department, industry)" >&2
-    echo "$PROG: a root is identified by its declaration, never by its folder name; fix the declaration and re-run" >&2
-    exit 2
+    # Only `--gate G21` reports a missing declaration as SKIP. A full-suite
+    # run, or any other `--gate`, still requires a recognized type and never
+    # runs other gates on an unidentified root.
+    if [ "$ONE_GATE" != "G21" ]; then
+      echo "$PROG: $ROOT/AGENTS.md declares no recognized type: (personal, org, client, department, industry)" >&2
+      echo "$PROG: a root is identified by its declaration, never by its folder name; fix the declaration and re-run" >&2
+      exit 2
+    fi
     ;;
 esac
 
@@ -212,7 +218,8 @@ G13b|The routing table resolves the deliverables|gate_G13b
 G14|Voice authority|gate_G14
 G17|The close is in the root|gate_G17
 G18|No placeholder token survives|gate_G18
-G19|Paths resolve|gate_G19'
+G19|Paths resolve|gate_G19
+G21|Layout stamp agrees with C1|gate_G21'
 fi
 
 # The subject's own name, read from the root declaration. G5a's proper-noun
@@ -2662,6 +2669,90 @@ gate_G20() {
       [ "$nb" -gt 0 ] || add_fail "$(rel "$CLOSE"): heading '$h' has an empty body"
     done
   fi
+}
+
+# ---- G21 Layout stamp agrees with C1 ------------------------------------
+# Keep every occurrence, including empty values, so duplicate keys cannot
+# disappear in command substitution. Only the declaration frontmatter counts.
+g21_scalar() {
+  awk -v key="$1" '
+    NR == 1 { sub(/\r$/, ""); if ($0 != "---") exit; next }
+    { sub(/\r$/, "") }
+    /^---[[:space:]]*$/ { exit }
+    $0 ~ "^" key ":[[:space:]]*" {
+      sub("^" key ":[[:space:]]*", ""); sub(/[[:space:]]*$/, "")
+      print "value:" $0
+    }
+  ' "$AGENTS"
+}
+
+gate_G21() {
+  local declared_type missing standard expected observed fields count
+  if [ ! -f "$AGENTS" ]; then
+    set_skip "not a declared Wiser user root: AGENTS.md missing (type, Provides, Wiser constitution citation unavailable)"
+    return
+  fi
+  declared_type=$(g21_scalar type)
+  missing=""
+  case "$declared_type" in
+    value:personal|value:org|value:client|value:department|value:industry) ;;
+    *) missing="recognized frontmatter type" ;;
+  esac
+  if ! grep -qE '^## Provides[[:space:]]*$' "$AGENTS"; then
+    missing="${missing}${missing:+, }Provides block"
+  fi
+  if ! grep -qiF 'Wiser constitution' "$AGENTS"; then
+    missing="${missing}${missing:+, }Wiser constitution citation"
+  fi
+  if [ -n "$missing" ]; then
+    set_skip "not a declared Wiser user root: missing $missing"
+    return
+  fi
+
+  standard="$(dirname "$0")/../../standards/user-root.md"
+  if [ ! -r "$standard" ]; then
+    add_fail "layout authority unreadable or missing: $standard"
+    return
+  fi
+  # Count mentions, not lines: two declarations on one line are ambiguous too.
+  expected=$(awk '
+    /^## C1 / { sections++; c=1; next }
+    /^## / { c=0 }
+    c {
+      line=$0
+      while (match(line, /current tree version/)) {
+        mentions++
+        line=substr(line, RSTART+RLENGTH)
+        if (line !~ /^ \([0-9]+\)/) bad=1
+        else {
+          value=line; sub(/^ \(/, "", value); sub(/\).*/, "", value)
+        }
+      }
+    }
+    END {
+      if (sections != 1 || mentions != 1 || bad || value == "") exit 1
+      print value
+    }
+  ' "$standard") || {
+    add_fail "layout authority $standard: expected exactly one C1 current tree version (N); missing, ambiguous, or malformed authority"
+    return
+  }
+  fields=$(g21_scalar layout)
+  count=$(printf '%s\n' "$fields" | grep -c '^value:')
+  if [ "$count" != "1" ]; then
+    add_fail "layout: expected $expected; observed $count frontmatter layout declarations (missing or duplicate)"
+    return
+  fi
+  observed=${fields#value:}
+  case "$observed" in
+    ''|*[!0-9]*) add_fail "layout: expected $expected; observed '$observed' is not a nonnegative integer"; return ;;
+  esac
+  # Compare decimal spellings without arithmetic overflow or octal parsing.
+  if [ "$(printf '%s' "$observed" | sed 's/^0*//')" != "$(printf '%s' "$expected" | sed 's/^0*//')" ]; then
+    add_fail "layout: expected $expected from C1; observed $observed"
+    return
+  fi
+  add_note "layout: expected $expected from C1; observed $observed; stamp agreement only, not every C-clause"
 }
 
 # ================================================================== driver

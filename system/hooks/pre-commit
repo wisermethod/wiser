@@ -1,0 +1,51 @@
+#!/bin/sh
+# One check, on the staged set only.
+#
+# Why this one and not the others: over the 52 commits of the Close-out range,
+# the em-dash sweep fired zero times, the retired-word sweep fired zero times,
+# and this one fired once, on a path the producer committed the same morning
+# after writing the rule into ten separate briefs. A checklist whose items
+# never fire trains its reader to skip the list, so the list is one item long.
+#
+# wiser ships on its own. A reader who installs it and follows a path into the
+# build workspace finds nothing, which is why the arrow runs one way. LICENSE
+# carries "Wiser Plugins License" as a title, so the product name is not a
+# pattern here; only unambiguous build-workspace paths are.
+#
+# The user-root homonym declared by standards/user-root.md C3 and C8 is not a
+# reject. Bare "zBuilds" and "zBuilds/builds.md" are therefore not atoms.
+#
+# Deliberate exception: git commit --no-verify.
+#
+# A clone does not enable this file. Copy the tracked copy in system/hooks/
+# to .git/hooks/pre-commit once per clone.
+
+GREP=/usr/bin/grep
+PATTERN='zBuilds/playbooks/gates/|zBuilds/registry\.md|zBuilds/templates/|wiser-builds|/Volumes'
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -n "$staged" ] || exit 0
+
+printf '%s\n' "$staged" | while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  git show ":$f" 2>/dev/null | $GREP -nE -- "$PATTERN" | while IFS= read -r hit; do
+    # Narrow disposition for this check's own pattern-definition line.
+    # Do not exempt the whole file, other lines, or a directory.
+    rest=${hit#*:}
+    if [ "$rest" = "PATTERN='$PATTERN'" ]; then continue; fi
+    printf '  %s:%s\n' "$f" "$hit"
+  done
+done > /tmp/.wiser-precommit-hits.$$
+
+if [ -s /tmp/.wiser-precommit-hits.$$ ]; then
+  echo "pre-commit: a build-workspace path is in the staged set." >&2
+  echo "wiser ships alone; this path resolves to nothing for a reader who installs it." >&2
+  echo >&2
+  cat /tmp/.wiser-precommit-hits.$$ >&2
+  echo >&2
+  echo "Remove it, or commit with --no-verify if it is genuinely intended." >&2
+  rm -f /tmp/.wiser-precommit-hits.$$
+  exit 1
+fi
+rm -f /tmp/.wiser-precommit-hits.$$
+exit 0

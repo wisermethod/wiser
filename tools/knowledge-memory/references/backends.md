@@ -4,7 +4,7 @@ The one home of the four-option design. The expert, the three skills, and the to
 
 **Version:** 0.1.5, 2026-09-11. Changelog: eval size is counted from the confirmed catalog, not from corpus bytes.
 
-This is the shipped home. The build-time copy is a projection; drift is reconciled toward this file.
+This is the shipped home.
 
 ## Three questions, never one word
 

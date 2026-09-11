@@ -2,8 +2,8 @@
 name: Onboard Root
 type: skill
 category: onboarding
-description: Create a user root from the unified template or adopt a populated folder, with a personal short path and a full path for other types
-version: 0.37.1
+description: Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types
+version: 0.38.0
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -12,9 +12,9 @@ gaps:
 
 ## Context
 
-Use when the workspace needs a user root it does not have, including adoption of a populated folder. `existing-root.md` beside this file is the adopt companion; load it only after the discriminator selects adoption. `system/templates/AGENTS.md` names the one template and five type-specific prompt sheets under `standards/user-root.md`.
+Use when the workspace needs a new user root or an existing folder brought up to current specs. `existing-root.md` beside this file is the existing-folder companion; load it when the discriminator routes there. `system/templates/AGENTS.md` names the one template and five type-specific prompt sheets under `standards/user-root.md`.
 
-Not for updating a deployed copy of this plugin to a new release, which the plugin carries no procedure for. Not for authoring a primitive or a Play inside a root that already exists; that is `skills/Play Author/`, which carries its own format; the templates this plugin ships are root templates only. Not for writing `memory/voice.md`, which `skills/Build Voice/` owns on both paths. Not for giving work a second home: when a composed root's scope already fits the request, that root owns it. Not for re-onboarding a declared Wiser user root: report its state and ask before touching a bound file; structural drift routes to `skills/Housekeeping/`. Adopting a populated undeclared or predecessor-shaped folder is the companion path, not re-onboarding. Whether a new root is the right change at all is judged first by `experts/System Expert/`, on the person's answer to the path question below, taken as that section says, and the destination, handed the composed roots' `AGENTS.md` files by path as its `<root_state>`, before this skill copies anything; that expert does not judge the produced files, and this skill's read-back, the full path's independent audit and harness, and the gates of the skills it invokes still apply. An edit to a bound file that a re-onboarding request calls for is a change to a root, judged by `experts/System Expert/` first.
+Not for updating a deployed copy of this plugin to a new release, which the plugin carries no procedure for. Not for authoring a primitive or a Play inside a root that already exists; that is `skills/Play Author/`, which carries its own format; the templates this plugin ships are root templates only. Not for writing `memory/voice.md`, which `skills/Build Voice/` owns on both paths. Not for giving work a second home: when a composed root's scope already fits the request, that root owns it. A conformance request on a declared Wiser root needs no adoption request or identity production; `existing-root.md` handles remaining shelves work and any undefined memory key, preserving defined bound files. Whether a new root is the right change at all is judged first by `experts/System Expert/`, on the person's answer to the path question below, taken as that section says, and the destination, handed the composed roots' `AGENTS.md` files by path as its `<root_state>`, before this skill copies anything; that expert does not judge the produced files, and this skill's read-back, the full path's independent audit and harness, and the gates of the skills it invokes still apply. An edit to a bound file that a re-onboarding request calls for is a change to a root, judged by `experts/System Expert/` first.
 
 ## Objective
 
@@ -35,13 +35,13 @@ Before any copy, inspect the established destination under the constitution's Wo
 | Class | Evidence | Route |
 |-------|----------|-------|
 | empty | No working files | Select the personal or full copy path below |
-| wiser-current | Recognized type, Provides and Wiser constitution citation, matching layout version | Return to `skills/Housekeeping/` for clause scoring; never adopt or copy |
-| wiser-old | That Wiser declaration with missing or different layout version | `skills/Housekeeping/` only, preserving bound memory |
+| wiser-current | Recognized type, Provides and Wiser constitution citation, matching layout version | Enter `existing-root.md` with identity satisfied; first score clauses and run only actual missing shelves work; evaluate memory per key |
+| wiser-old | That Wiser declaration with missing, malformed, duplicate, or different layout version | Enter `existing-root.md` with identity satisfied; require shelves convergence to the current layout; evaluate memory per key |
 | predecessor-plugin | A declared predecessor constitution | `existing-root.md` if adoption was requested |
 | shared-toolkit | Explicit toolkit workspace paths | `existing-root.md` if adoption was requested |
 | populated-undeclared | Other populated destination | `existing-root.md` if adoption was requested |
 
-A missing Onboarding section or directory table on a declared Wiser root is drift. Matching layout alone does not prove conformance. Missing type or Provides alone does not establish toolkit identity. A nonempty destination with no adoption request is reported for a scope decision before writes. The companion owns predecessor search targets and the adoption procedure; this entry file does not duplicate them.
+A missing Onboarding section or directory table on a declared Wiser root is drift. Matching layout alone does not prove conformance. Missing type or Provides alone does not establish toolkit identity. A nonempty undeclared destination with no adoption request is reported for a scope decision before writes. Declared Wiser classes enter the companion without an adoption request. The companion owns predecessor search targets and the adoption procedure; this entry file does not duplicate them.
 
 ## Two paths
 
@@ -120,7 +120,7 @@ It is a check, not a step. A personal root that never runs it is onboarded; one 
 
 ## The full path
 
-`full-path.md` beside this file. It holds the standing rules, the tier question, the eleven phases, 0 to 10, from scope to operating handover, the records the gates read, where each root type keeps them, and the twenty-six gates. Phase 9 runs the same `gates.sh`, which reads the root's declared type for close intensity and uses `standards/user-root.md` C10 for all record paths, and Phase 10 hands over an operating file where every gap has an owner. It is the long path on purpose: an org, a client, a department or an industry root binds facts other people are held to, and the audit and the read-back are what that costs.
+`full-path.md` beside this file. It holds the standing rules, the tier question, the eleven phases, 0 to 10, from scope to operating handover, the records the gates read, where each root type keeps them, and the twenty-seven gates. Phase 9 runs the same `gates.sh`, which reads the root's declared type for close intensity and uses `standards/user-root.md` C10 for all record paths, and Phase 10 hands over an operating file where every gap has an owner. It is the long path on purpose: an org, a client, a department or an industry root binds facts other people are held to, and the audit and the read-back are what that costs.
 
 ## Pitfalls
 

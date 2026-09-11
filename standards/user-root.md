@@ -1,6 +1,6 @@
 ---
 standard: user-root
-version: 0.2.0
+version: 0.3.0
 description: One declared user-root tree and the clauses used to score its layout
 ---
 
@@ -12,7 +12,7 @@ Applies to personal, org, client, department, and industry user roots. This is t
 
 ## C1 Identification
 
-The constitution's Workspace Model (`wiser/AGENTS.md`) owns root identification. Its declaration is in root `AGENTS.md`: `type:`, a Provides block, the Wiser constitution citation, Onboarding state lines, and the declared-directory table. A folder set never identifies a user root. The frontmatter also carries `root:` and `layout:`, the latter this standard's current tree version (2). Increment that integer when this standard changes the tree; a version difference is a converge input, never permission to re-onboard. A missing layout version on an already-declared Wiser root is drift, not foreign identity.
+The constitution's Workspace Model (`wiser/AGENTS.md`) owns root identification. Its declaration is in root `AGENTS.md`: `type:`, a Provides block, the Wiser constitution citation, Onboarding state lines, and the declared-directory table. A folder set never identifies a user root. The frontmatter also carries `root:` and `layout:`, the latter this standard's current tree version (2). Increment that integer when this standard changes the tree; a version difference is a converge input, never permission to re-onboard. `skills/Housekeeping/` owns layout migration on a declared Wiser user root and is callable any time to bring its shelves and filing declarations into conformance with this standard. A missing layout version on an already-declared Wiser root is drift, not foreign identity.
 
 ## C2 One tree
 
