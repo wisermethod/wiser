@@ -1372,23 +1372,29 @@ def healthcheck(v):
         if not isinstance(questions, list):
             fail('eval questions must be a list of flat mappings.')
         checks = []
+
+        def eval_row(q, **extra):
+            row = {key: q.get(key) for key in ('id', 'type', 'question', 'expected', 'must_not_match', 'as_of') if q.get(key)}
+            row.update(extra)
+            return row
+
         for q in questions:
             if not isinstance(q, dict) or set(q) - set('id type question expected must_not_match as_of'.split()):
                 fail('eval question has unknown keys or is not a flat mapping.')
             if any(k in q and not isinstance(q[k], str) for k in ('id', 'type', 'question', 'expected', 'must_not_match', 'as_of')):
                 fail('eval question fields must be strings.')
             if not q.get('question') or not (q.get('expected') or q.get('must_not_match')):
-                checks.append(dict(id=q.get('id'), passed=False, reason='question and at least one of expected or must_not_match must be filled'))
+                checks.append(eval_row(q, passed=False, reason='question and at least one of expected or must_not_match must be filled'))
                 continue
             if q.get('type') == 'as-of':
-                checks.append(dict(id=q.get('id'), passed=False, reason='as-of filtering is a declared gap; human dated-item read required'))
+                checks.append(eval_row(q, passed=False, reason='as-of filtering is a declared gap; human dated-item read required'))
                 continue
             retrieved = query(dict(store=str(path), dataset=dataset, query=q['question']))['items']
             blob = json.dumps(retrieved, ensure_ascii=False).casefold()
             expected = q.get('expected', '')
             matched = any(x['source_path'] == expected[5:] for x in retrieved) if expected.startswith('path:') else expected.casefold() in blob
             forbidden = q.get('must_not_match', '')
-            checks.append(dict(id=q.get('id'), passed=matched and (not forbidden or forbidden.casefold() not in blob), items=len(retrieved)))
+            checks.append(eval_row(q, passed=matched and (not forbidden or forbidden.casefold() not in blob), items=len(retrieved)))
         result['eval'] = dict(scope='databased retrieval only', passed=bool(checks) and all(r['passed'] for r in checks), questions=checks)
     write_json(report_path(root, 'healthcheck'), result)
     return result

@@ -578,6 +578,9 @@ class MemoryContract(unittest.TestCase):
         self.assertEqual(evaluated['eval']['scope'], 'databased retrieval only')
         self.assertTrue(evaluated['eval']['passed'])
         self.assertEqual({q['id'] for q in evaluated['eval']['questions']}, {'retrieve', 'isolate'})
+        retrieve = next(q for q in evaluated['eval']['questions'] if q['id'] == 'retrieve')
+        self.assertEqual(retrieve['question'], 'economy')
+        self.assertEqual(retrieve['expected'], 'path:corpus/source.md')
         self.assertNotIn('answer', json.dumps(evaluated))
         saved = [json.loads(p.read_text()) for p in (self.set / 'reports').glob('healthcheck-*.json')]
         self.assertIn(evaluated, saved)

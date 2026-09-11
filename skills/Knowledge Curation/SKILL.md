@@ -3,7 +3,7 @@ name: Knowledge Curation
 type: skill
 category: knowledge
 description: Keep an existing knowledge set accurate through source updates, wiki lint or databased review, human decisions, reproducible rebuilds, and supported backend upgrades
-version: 0.2.2
+version: 0.2.4
 gaps:
   - graph-unspecified, so local graph query, embed and ingest stop before a source is read
   - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
@@ -80,13 +80,13 @@ A decided node rejection uses `promote --decided` and sets Rejected. A human dec
 
 State the reason and source/chunk counts before rebuilding. Wiki recompiles from immutable `corpus/`, keeping Status blocks and archive pages, then runs the coverage pass in `tools/knowledge-memory/references/backends.md` Organizing pass so a load-bearing located idea cannot disappear because the old theme list was short, then checks the index and runs lint. A recompile is not permission to erase disputes.
 
-Databased: check extraction reuse before dropping memory. An entry is reusable only when dataset, source hash, chunk hash and pack hash match. Report reused and new extraction counts. With the rebuild authorized, run `forget --memory-only --confirm`, chunk, extract only entries needing it, ingest every extraction, `promote --replay`, `review-pass`, then `healthcheck --eval`. Compare with the last passing retrieval checks and have a human read the composed answers. Report a regression instead of weakening a correct eval.
+Databased: check extraction reuse before dropping memory. An entry is reusable only when dataset, source hash, chunk hash and pack hash match. Report reused and new extraction counts. With the rebuild authorized, run `forget --memory-only --confirm`, chunk, extract only entries needing it, ingest every extraction, `promote --replay`, `review-pass`, then `healthcheck --eval`. Compare with the last pack filled per `tools/knowledge-memory/references/backends.md` Databased eval; a template-floor self-hit is not that baseline. Have a human read the composed answers. Report a regression instead of weakening a correct eval.
 
 Upgrade uses `tools/knowledge-memory/references/backends.md`. Wiki to databased keeps corpus and human-kept pages as Candidate Idea inputs to the canon interview, then initializes the authorized upgrade: record the prior backend and kept pages in the run record, set `backend: databased` in the recipe, create `extraction/` and `review/`, copy the databased eval template, and run `bootstrap --store <file>`. Enter Knowledge Set Onboarding at Phase 3's databased branch and continue through confirmation and evaluation, without re-entering its new-set guard. No kept wiki page becomes Canonical automatically. Databased to graph stops on `experts/Memory Expert/graph.md` before any recipe change or source read. Graph to hosted stops on `experts/Memory Expert/hosted.md`; no export runs. A direct Pro request without a databased set follows the graph stub; it does not bootstrap SQLite. Down is not a defined path.
 
 ### 6. Check
 
-Wiki: run lint, then have a human read cited answers and the unresolved Status blocks. Databased: run `healthcheck --eval`, reporting type/status counts, missing provenance, backlog ages, last ingest and retrieval rows. As-of filtering remains a declared gap; the answer-quality read is separate. Hand readiness judgment to `experts/Memory Expert/` with these results.
+Wiki: run lint, then have a human read cited answers and the unresolved Status blocks. Databased: run `healthcheck --eval`, reporting type/status counts, missing provenance, backlog ages, last ingest and retrieval rows. Read each eval row's `question` and `expected` (re-open `eval.questions.yaml` if a row lacks those keys). The pack must already be filled per `tools/knowledge-memory/references/backends.md` Databased eval; filling it is Onboarding Phase 7, or a return there if it is still the template floor, if any retrieval question is the expected node name, compared case-insensitively, or a paste or leading stretch of that item's canon quote or definition, or if a Canonical idea is missing from `expected`. As-of filtering remains a declared gap; `eval.passed` is false while as-of rows exist, and that is not a reason to drop them. The answer-quality read is separate. Hand readiness judgment to `experts/Memory Expert/` with these results.
 
 ### 7. Close the sitting
 

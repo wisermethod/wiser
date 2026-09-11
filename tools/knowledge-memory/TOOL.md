@@ -3,7 +3,7 @@ name: knowledge-memory
 type: tool
 category: knowledge
 description: Lints local knowledge wikis and builds, queries, reviews, and rebuilds a dataset-scoped databased store (SQLite FTS5) from session-extracted knowledge with located provenance
-version: 0.2.1
+version: 0.2.2
 gaps:
   - temporal filtering of recall by a date, so an as-of question is answered from the facts the set dates rather than filtered by the engine
   - graph-unspecified, so local graph query, embed and ingest stop before a source is read
@@ -41,7 +41,7 @@ Run `python3.11 scripts/knowledge_memory.py` followed by one row below. Help als
 | `review-pass --set DIR --store FILE` | Write new findings, stale candidates, merge proposals and conflicts with filled Subject blocks |
 | `promote --set DIR --store FILE --decided FILE` | Apply only `status: decided` items under `review/decided/`; use `--from-canon` instead to write and apply confirmed canon entries, or `--replay` for applied items |
 | `mark-stale --set DIR --store FILE --id NODE` | Set Stale and `valid_to`, no deletion; optional `--valid-to YYYY-MM-DD`, default today's date |
-| `healthcheck --set DIR --store FILE` | Counts by type and status, facts missing provenance, backlog ages, last ingest; `--eval` runs databased retrieval checks only |
+| `healthcheck --set DIR --store FILE` | Counts by type and status, facts missing provenance, backlog ages, last ingest; `--eval` scores the caller's `eval.questions.yaml` as retrieval checks only and writes each row's `question` and `expected` into the report. Filling that file is the skill, per `references/backends.md` Databased eval. As-of rows fail by the declared gap, so `eval.passed` is false while they exist; that is not a reason to drop them |
 | `forget --set DIR --store FILE --confirm` | Exactly one of `--memory-only`, `--dataset`, `--data-id ID`; without confirmation, describe and stop without writes |
 
 The forget modes change only this dataset's store rows. Memory-only keeps the dataset registration; dataset removes it too. Data-id names one source by corpus path or full source hash. Every mode keeps the corpus, extraction files and human decisions. Wiki lint also accepts a corpus/wiki fixture without a recipe; when a recipe exists it must name wiki and record session permission.

@@ -3,7 +3,7 @@ name: Knowledge Set Onboarding
 type: skill
 category: knowledge
 description: Create a named knowledge set from permitted sources, compile its chosen backend, confirm kept knowledge with located provenance, and record the checks and close intensity that ran
-version: 0.2.2
+version: 0.2.4
 memory:
   - about
 gaps:
@@ -119,7 +119,7 @@ Record every question, the default offered, and the answer in the run record.
 
 **Wiki.** Have a human read representative answers with their cited pages and corpus, including an uncovered question and a conflict where one exists. Record the read and lint results. Wiki eval is not `healthcheck --eval`.
 
-**Databased.** Fill `eval.questions.yaml` from located evidence: at least five single-hop, five two-hop, two as-of where dated facts exist, and two isolation questions once a second dataset exists. `expected` and `must_not_match` check returned items. Run `healthcheck --eval` for the retrieval half, then have a human judge composed answers separately. As-of filtering is absent; the dated-item read and its limitation are recorded separately, never called a filtered pass. Fix a retrieval regression in sources, extraction or links and retry; never change a correct question to make it pass.
+**Databased.** Fill `eval.questions.yaml` per `tools/knowledge-memory/references/backends.md` Databased eval. Count retrieval `expected` values against Canonical ideas, and human questions against themes and coverage-pass heads, before calling the pack filled. Offer question-mining in a second context that has not seen the canon, in the same sitting as the fill. Do not hand External Research the eval file; if the owner wants field questions from public sources, run that skill for those questions as its request, then turn returned topics into candidates here. Locate each candidate in `corpus/` before it enters the retrieval file; an unlocated candidate becomes a human-half `Not available` row, not a retrieval `expected`. Run `healthcheck --eval` for the retrieval half, then have a human judge composed answers separately: practitioner questions from items only, one uncovered, a conflict where one is open, and the dated-item read. As-of filtering is absent; `eval.passed` is false while as-of rows exist; the dated-item read and its limitation are recorded separately, never called a filtered pass. Fix a retrieval regression in sources, extraction or links and retry; never change a correct question to make it pass.
 
 ### Phase 8: Close, per set
 
@@ -171,11 +171,14 @@ The run record states the memory option, backend and close intensity that ran an
 - **A provisional close called complete.** Name the missing confirmation or check; the recall labels travel with it.
 - **Theme list treated as a ceiling.** Categorize Content compresses for insight. Stopping compile or extract at that count, and omitting a load-bearing located idea, is a coverage miss. Run the coverage pass; add the page or Candidate.
 - **Comma-split aliases.** The Aliases column splits on semicolon only. A comma is part of a name (`Gettysburg, Pennsylvania`), not a second alias.
+- **Eval filled from node names.** A retrieval question whose query equals its expected node name, or is that item's canon quote or definition or a leading stretch of either, is not a check. Rewrite as a practitioner question, per `tools/knowledge-memory/references/backends.md` Databased eval, or the pack is not filled.
+- **Eval sized from corpus bytes.** Chunk count estimates extract work. A pack smaller than the Canonical idea count, or a human read that skips a theme or a coverage-pass head, is not filled.
+- **A research-mined question treated as an answer.** External Research may propose questions. It does not fill `expected` from a report, and it does not enter `corpus/` unless Phase 2 gathered the cited primary.
 
 ## Success
 
 - The run record names memory option, backend, kind, close intensity, session permission, questions, answers, declined sources and gaps with owners.
 - Wiki leaves kept pages and index, located precise claims, Status blocks where needed, a lint report and a human cited-answer read.
-- Databased leaves source and chunk hashes, validated extraction, located canon quotes, human confirmation or a named provisional state, retrieval results and the separate answer read.
+- Databased leaves source and chunk hashes, validated extraction, located canon quotes, human confirmation or a named provisional state, a retrieval pack filled per `tools/knowledge-memory/references/backends.md` Databased eval, and the separate answer read.
 - The set row and run record agree with disk. Graph and hosted leave their named stops and no compiled layer.
 - Three varied requests, book, blog or site, and domain, follow the appropriate backend branch without intervention.

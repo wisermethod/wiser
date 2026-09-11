@@ -3,7 +3,7 @@ name: Memory Expert
 type: expert
 category: knowledge
 description: Judge what a knowledge set should hold and how far to trust it, deciding whether a source belongs, what a candidate node deserves, when a set needs rebuilding rather than updating, and whether it is ready to be recalled from, and sequence the knowledge skills accordingly
-version: 0.2.2
+version: 0.2.4
 memory:
   - about
 gaps:
@@ -105,7 +105,7 @@ Put the source and chunk counts to the requester, including reused and newly ext
 
 Before a deliverable leans on a set, say whether it should.
 
-For wiki, read the lint report, kept index and cited pages. Ready means grounding checked, broken links resolved, and conflicts carried in Status blocks; unresolved issues produce named degradation or not ready where they affect the requested use. For databased, read the latest healthcheck and retrieval eval plus the human answer read. Four gates: filled single-hop and two-hop checks pass; no relevant conflict is open; facts missing provenance are zero; `canon_confirmed` names a person and date. Only missing confirmation permits ready with `Unverified: requires confirmation`; a failed evidence gate is not ready. As-of limitations travel with dated uses. Graph and hosted are not ready and stop on their named stubs.
+For wiki, read the lint report, kept index and cited pages. Ready means grounding checked, broken links resolved, and conflicts carried in Status blocks; unresolved issues produce named degradation or not ready where they affect the requested use. For databased, read the latest healthcheck, its eval rows' `question` and `expected` text (re-open `eval.questions.yaml` if a row lacks those keys), and the human answer read. Gates: the pack is filled per `tools/knowledge-memory/references/backends.md` Databased eval, not the template floor alone; every Canonical idea appears as an eval `expected`; filled single-hop and two-hop checks pass; no retrieval row's question is the expected node name, compared case-insensitively, or a paste or leading stretch of that item's canon quote or definition; the human answer read exists; no relevant conflict is open; facts missing provenance are zero; `canon_confirmed` names a person and date. A pack whose questions are the node names is not filled, even when `eval.passed` is true. Only missing confirmation permits ready with `Unverified: requires confirmation`; a failed evidence gate is not ready. As-of limitations travel with dated uses. Graph and hosted are not ready and stop on their named stubs.
 
 Output: the verdict, the evidence rows it rests on, and, where not ready, the review items or ingest that would change it.
 
@@ -124,6 +124,7 @@ Output: the verdict, the evidence rows it rests on, and, where not ready, the re
 - **Triage that decides.** Filling a Recommendation is advice; moving an item to `decided/` or setting a status is a decision. The line is the directory, and this expert stays on its side of it.
 - **Rebuild as a reflex.** A rebuild on every change spends a full session extraction pass to fix what an incremental ingest and a review pass would have fixed. Apply the table in Job 3 and say which row applied.
 - **Theme count treated as done.** Categorize Content compresses for insight. A knowledge set that stops at that count and omits a load-bearing located idea has failed completeness. Send it back for a coverage pass; do not praise the short catalog.
+- **Eval floor treated as ready.** Five passing node-name rows are not Databased eval. Send the set back to Onboarding Phase 7; do not call it ready on the template count.
 
 
 ## Success
