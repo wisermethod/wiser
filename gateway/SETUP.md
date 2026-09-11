@@ -106,6 +106,8 @@ The file sits outside every composed root and outside `--home`. When `--env` is 
 
 Those paths come from the current user profile. They are never a name baked into this plugin. Do not put the file in a root, including `memory/secrets/`. Account access is the gateway. A local-file connector key, if a root has one, is `--secret` or a Provides path, not this file.
 
+The directory that holds this file is the **platform user-config directory**. Person-scoped model weights land in `models/` under it, listed in `tools/AGENTS.md`. Do not write weights into the key file. `--home` is not that `models/` folder.
+
 The file holds two lines:
 
 ```

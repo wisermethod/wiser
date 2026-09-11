@@ -3,7 +3,7 @@ name: Transcribe Audio
 type: tool
 category: media
 description: Turns one audio file into a text transcript with a speech model that runs on this machine
-version: 0.2.1
+version: 0.2.2
 gaps:
   - Speaker labeling, which would say which speaker said each turn
 ---
@@ -24,13 +24,13 @@ It authenticates to nothing and holds no credential of its own.
 
 It does not say who was speaking. Every turn arrives unattributed, so a recording with several voices transcribes as one stream of words. No primitive in this root labels speakers: the library that would has to be fetched from a hosted registry behind a read token, and one that needs no credential has to be found first.
 
-A run reaches the network only to fetch what it needs to work, never to send audio: this tool's package install and the first use of a given speech model. The packages land in this tool's own cache and the models in the model directory the caller names, so once each of those has happened, later runs on the same machine reach nothing.
+A run reaches the network only to fetch what it needs to work, never to send audio: this tool's package install and the first use of a given speech model. The packages land in this tool's own cache and the models in the person-scoped `models/` folder named in `tools/AGENTS.md`, or in an explicit `--model-cache` if the caller passed one, so once each of those has happened, later runs on the same machine reach nothing.
 
 ## Inputs
 
 One audio file, named by `--audio` as an absolute path, in one of these formats: `.flac`, `.m4a`, `.mp3`, `.mp4`, `.mpeg`, `.mpga`, `.ogg`, `.wav`, `.webm`. Length is unbounded; processing time scales with it and with the model chosen.
 
-Two directories, both absolute and both outside this tool's directory: `--output`, where the transcript file is written, and `--model-cache`, where downloaded model weights live. Pass the same model directory on every run in a workspace, or each run downloads its model again.
+One required directory, `--output`, absolute and outside this tool's directory, where the transcript file is written. `--model-cache` is optional: omit it and weights use the person-scoped `models/` folder in `tools/AGENTS.md`. An explicit absolute `--model-cache` still wins. A destination that is the connector key file is refused. Do not put weights in a root: the tool screens the key file, not a composed root, so the caller must not pass one.
 
 ## Quick Start
 
@@ -54,7 +54,7 @@ Then transcribe. If this copy of the plugin has not yet authorized an install, t
 
 ```bash
 python3 scripts/transcribe.py transcribe --audio /path/to/call.m4a \
-  --output /path/to/work/transcripts --model-cache /path/to/work/models
+  --output /path/to/work/transcripts
 ```
 
 ```
@@ -76,7 +76,7 @@ The interpreter is the one dependency a script cannot check from inside itself, 
 
 ## Configuration
 
-None. No command takes `--env`, no key is read, and no credential is held: the audio file and the two directories are the whole input.
+None. No command takes `--env`, no key is read, and no credential is held: the audio file, `--output`, and an optional `--model-cache` are the whole input.
 
 ## Usage
 
@@ -84,7 +84,7 @@ None. No command takes `--env`, no key is read, and no credential is held: the a
 |---------|---------|
 | `python3 scripts/transcribe.py help` | Print usage and exit |
 | `python3 scripts/transcribe.py check` | Report the interpreter, FFmpeg, and whether the speech packages are installed |
-| `python3 scripts/transcribe.py transcribe --audio [path] --output [dir] --model-cache [dir]` | Write a transcript of one audio file |
+| `python3 scripts/transcribe.py transcribe --audio [path] --output [dir] [--model-cache [dir]]` | Write a transcript of one audio file |
 
 Options:
 
@@ -92,11 +92,11 @@ Options:
 |--------|--------|---------|
 | `--audio [path]` | The audio file, absolute | None; required |
 | `--output [dir]` | Directory the transcript is written into, absolute and outside this tool directory | None; required |
-| `--model-cache [dir]` | Directory model weights are downloaded into, absolute and outside this tool directory | None; required |
+| `--model-cache [dir]` | Directory model weights are downloaded into, absolute and outside this tool directory. Omit for the person-scoped `models/` folder in `tools/AGENTS.md`. The connector key file is refused. | that `models/` folder |
 | `--model [name]` | Speech model: `tiny`, `base`, `small`, `medium`, `large` | `base` |
 | `--help` | Print usage and exit | Off |
 
-Model choice trades time for accuracy, and the weights are downloaded once per model into `--model-cache`:
+Model choice trades time for accuracy, and the weights are downloaded once per model into the person-scoped `models/` folder, or into `--model-cache` when that flag is passed:
 
 | Model | Weights | Choose it when |
 |-------|---------|----------------|
@@ -114,7 +114,7 @@ The package cache is this tool's own, per that contract's Runtimes clause. Once 
 
 Arguments are validated before that package install, so a malformed command or a missing FFmpeg costs no download. Only Python's own standard library is used above the install; the speech packages import after it.
 
-Progress goes to stderr and stdout carries only the final JSON object, so a caller parses a run without stripping log lines. The two directories a run writes into are the caller's, and each is refused when it resolves inside this tool directory; nothing else is written anywhere but the package cache.
+Progress goes to stderr and stdout carries only the final JSON object, so a caller parses a run without stripping log lines. `--output` is the caller's. Model weights land in the person-scoped default, or in `--model-cache` when passed; each is refused when it resolves inside this tool directory or onto the connector key file. Nothing else is written anywhere but the package cache.
 
 Every caller named path is judged by the file it reaches rather than by the way it is spelled. The format test reads the resolved name, so an audio extension standing in front of another file carries nothing through. `--output` and `--model-cache` are held outside this tool's directory by the same identity comparison, climbing to the deepest ancestor that exists, so a case variant or a symbolic link standing in for an ancestor is refused exactly as the direct spelling is. Where a path cannot be resolved at all, an unreadable folder on the way or a symbolic link pointing at itself, the run refuses by name rather than reporting the interpreter's own error.
 
@@ -142,7 +142,8 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 | `no file at ...` | The audio path does not exist | Check the path |
 | `unsupported audio format` | The resolved file's extension is not one this tool reads | Convert it to a listed format first |
 | `could not be resolved to a real path` | A folder on the way is unreadable by this account, or a symbolic link on it points at itself | Confirm the path's permissions and its links, then pass a path that resolves |
-| `--model-cache resolves inside this tool directory` | The model directory landed in the shared root | Pass a work directory in the owning root |
+| `--model-cache resolves inside this tool directory` | The model directory landed in this tool | Pass an absolute directory outside this tool, or omit the flag for the default in `tools/AGENTS.md` |
+| `--model-cache is the connector key file and is refused as a destination` | `--model-cache` resolved onto `auth-provider.env` | Omit the flag, or pass the `models/` folder in `tools/AGENTS.md`, never the key file |
 | `could not load the speech model` | The model download failed, usually no network on the first use of that model | Re-run once the machine is online; a model already in `--model-cache` needs no network |
 | The transcript reads as nonsense and the run reported success | The audio was not in English, which this tool is pinned to | The recording needs a transcriber that reads its language |
 
@@ -153,4 +154,5 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 - A `transcribe` over a real audio file, on a copy whose packages are installed, exits 0 with one parseable JSON object on stdout naming a transcript file that exists and holds the words of the recording.
 - A `transcribe` missing FFmpeg exits 1 naming the dependency and its check command, stdout empty, having installed nothing.
 - An `--output` or `--model-cache` resolving inside this tool directory is refused before any work runs, whether it is spelled directly, as a case variant, or through a symbolic link standing in for an ancestor.
+- A `transcribe` with no `--model-cache` uses the person-scoped `models/` folder in `tools/AGENTS.md`. A destination that is the connector key file is refused. Missing weights stop named, with no download, until `--install` or `WISER_ALLOW_INSTALL=1`.
 - No run sends audio anywhere; the only outbound requests any run makes are the model downloads and the package install named in Context, and the only files written are the transcript, the model cache, and this tool's own package cache.

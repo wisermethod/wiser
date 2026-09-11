@@ -5,8 +5,8 @@ Transcribe Audio - turns one audio file into a text transcript on this machine.
 Usage:
   python3 scripts/transcribe.py help
   python3 scripts/transcribe.py check
-  python3 scripts/transcribe.py transcribe --audio [path] --output [dir] --model-cache [dir]
-      [--model base]
+  python3 scripts/transcribe.py transcribe --audio [path] --output [dir]
+      [--model-cache [dir]] [--model base]
 
 The rules this file follows are stated once, in
 system/templates/Script Contract.md. This script runs under Python rather than
@@ -34,6 +34,66 @@ TOOL_DIR = SCRIPT_DIR.parent
 CACHE_DIR = TOOL_DIR / ".venv"
 
 CORE_REQUIREMENTS = TOOL_DIR / "requirements.txt"
+
+
+def platform_user_config_dir(home=None):
+    """Directory that holds auth-provider.env. Cite gateway/SETUP.md."""
+    home = Path(home) if home is not None else Path.home()
+    if sys.platform == "darwin":
+        return home / "Library" / "Application Support" / "wiser"
+    if sys.platform == "win32":
+        base = os.environ.get("APPDATA")
+        if base:
+            return Path(base) / "wiser"
+        return home / "AppData" / "Roaming" / "wiser"
+    xdg = os.environ.get("XDG_CONFIG_HOME")
+    if xdg:
+        return Path(xdg) / "wiser"
+    return home / ".config" / "wiser"
+
+
+def default_model_cache_dir(home=None):
+    return platform_user_config_dir(home) / "models"
+
+
+def connector_key_file(home=None):
+    return platform_user_config_dir(home) / "auth-provider.env"
+
+
+def _inode_same(left, right):
+    try:
+        here = os.stat(left)
+        there = os.stat(right)
+    except OSError:
+        return False
+    return (here.st_dev, here.st_ino) == (there.st_dev, there.st_ino)
+
+
+def is_key_file(resolved, key):
+    """True when resolved names the connector key. Stat/resolve only; no read of bytes."""
+    key = Path(key)
+    resolved = Path(resolved)
+    try:
+        if key.exists() and _inode_same(resolved, key):
+            return True
+    except OSError:
+        pass
+    try:
+        return resolved == key.resolve()
+    except OSError:
+        return resolved == key
+
+
+def destination_is_connector_key(resolved, home=None):
+    """Refuse a --model-cache that is the key file. models/ as a sibling is not the key."""
+    keys = [connector_key_file(home=home)]
+    live = connector_key_file()
+    if live not in keys:
+        keys.append(live)
+    for key in keys:
+        if is_key_file(resolved, key):
+            return True
+    return False
 
 # One installed package's own directory, not the cache directory itself: an
 # install that dies partway leaves the cache in place and the packages absent.
@@ -71,8 +131,8 @@ USAGE = """Transcribe Audio - turns one audio file into a text transcript on thi
 Usage:
   python3 scripts/transcribe.py help
   python3 scripts/transcribe.py check
-  python3 scripts/transcribe.py transcribe --audio [path] --output [dir] --model-cache [dir]
-      [--model [name]]
+  python3 scripts/transcribe.py transcribe --audio [path] --output [dir]
+      [--model-cache [dir]] [--model [name]]
 
 Commands:
   check            Report the interpreter, FFmpeg, and whether the speech packages are installed
@@ -90,7 +150,9 @@ Options:
                         tool in this copy. WISER_ALLOW_INSTALL=1 does the same
                         for an unattended run.
   --model-cache [dir]   Directory model weights are downloaded into, absolute and
-                        outside this tool directory. Pass the same one every run
+                        outside this tool directory. Omit to use the person-scoped
+                        models/ folder named in tools/AGENTS.md. An explicit path
+                        still wins. The connector key file is refused.
   --model [name]        Speech model: {models}. Default {default}
   --help                Print this message
 
@@ -347,9 +409,19 @@ def directory_outside_tool(value, option):
         fail('%s is required. Run "python3 scripts/transcribe.py help" for usage.' % option)
     path = Path(value)
     if not path.is_absolute():
+        if option == "--model-cache":
+            fail(
+                '%s must be absolute; got "%s". Pass an absolute directory, or omit the flag to use the person-scoped models folder in tools/AGENTS.md.'
+                % (option, value)
+            )
         fail('%s must be absolute; got "%s". Pass a work directory in the owning root.' % (option, value))
     resolved = canonical(option, path)
     if inside_tool_dir(deepest_existing(option, resolved)):
+        if option == "--model-cache":
+            fail(
+                "%s resolves inside this tool directory (%s). Pass an absolute directory outside this tool, or omit the flag for the person-scoped default."
+                % (option, TOOL_DIR)
+            )
         fail(
             "%s resolves inside this tool directory (%s). Scripts write only to a work directory in the owning root; pass that path instead."
             % (option, TOOL_DIR)
@@ -358,7 +430,14 @@ def directory_outside_tool(value, option):
 
 
 output_dir = directory_outside_tool(flag("--output"), "--output")
-model_cache = directory_outside_tool(flag("--model-cache"), "--model-cache")
+_raw_cache = flag("--model-cache")
+if _raw_cache is None:
+    _raw_cache = str(default_model_cache_dir())
+model_cache = directory_outside_tool(_raw_cache, "--model-cache")
+if destination_is_connector_key(model_cache) or destination_is_connector_key(
+    deepest_existing("--model-cache", model_cache)
+):
+    fail("--model-cache is the connector key file and is refused as a destination.")
 
 model = flag("--model") or DEFAULT_MODEL
 if model not in MODELS:
@@ -545,9 +624,9 @@ if Path(sys.prefix).resolve() != CACHE_DIR.resolve():
     target = str(cache_python())
     os.execv(target, [target, str(Path(__file__).resolve())] + argv)
 
-# Model weights are downloaded into the caller's directory, never into this tool
-# and never into the user's home. Both variables below are paths, not values from
-# a bound file.
+# Model weights land in the person-scoped models/ folder when --model-cache is
+# omitted, or in the absolute directory the caller passed. Never into this tool.
+# Both variables below are paths, not values from a bound file.
 model_cache.mkdir(parents=True, exist_ok=True)
 os.environ["XDG_CACHE_HOME"] = str(model_cache / "cache")
 

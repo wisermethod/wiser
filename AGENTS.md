@@ -18,6 +18,8 @@ An authoring tree, not a working folder. Nothing here is anyone's work product; 
 
 In use this root is read-only, with one exception: a tool writes its own dependencies, and a browser tool also writes a browser build whose location depends on the platform and on `PLAYWRIGHT_BROWSERS_PATH`. `tools/AGENTS.md` lists every one of them and where each lands. The gateway's writes sit outside this plugin and are listed in `gateway/AGENTS.md`.
 
+Three install bases. This plugin copy holds a tool's own packages. The owning root holds work product. Person-scoped machine files that have no root context, including model weights, land in `models/` under the platform user-config directory `gateway/SETUP.md` names, never in this plugin, never in a root, never in the connector key file. An explicit absolute path still wins. A destination that is the key file is refused by the tool. A root path on an explicit `--model-cache` is the calling agent's refusal; the tool does not know the composed roots. A knowledge-set recipe names a file inside that folder; primitives name no model. **Roots do not receive models or libraries that have no root context.** `tools/AGENTS.md` is the inventory for those writes; do not restate the OS paths here.
+
 Never write to another root composed in the same workspace, whatever its permissions look like on disk. A workspace that happens to compose a root is not permission to edit it.
 
 ## Workspace Model
@@ -40,7 +42,7 @@ The attached working folder is the **owning root**: the personal, org, client, d
 
 **Secrets.** Account access to an outside platform is the gateway: a primitive names an action id, a missing grant is `needs_connect`, and the vendor token never lives in a root. The one local file that path needs is the auth provider's project key, once per person on this machine, at the platform user-config path `gateway/SETUP.md` names, never under a composed root and never under `--home`. A person reaches that file by the named ask **set up connectors**, not by inventing a `mkdir` recipe. A local-file connector (a service the catalog does not cover) reads one bound file via `--secret <service>=<abs file>` or a Provides `secrets:<platform>` path the root names; there is no default directory in any root, and `memory/secrets/` is not one. Unbound and no `--secret`: stop and ask. **A secret's contents never enter the conversation, a log, a commit, or another file.**
 
-**This plugin is read-only in use, apart from what a tool installs for itself.** Never write under this root during a session, and never anywhere but the working folder. `tools/AGENTS.md` lists every one of them and where each lands. Nothing else writes here. Outputs land in the working folder, in the directories that folder's own `AGENTS.md` declares.
+**This plugin is read-only in use, apart from what a tool installs for itself.** Never write under this root during a session. Outputs land in the working folder, in the directories that folder's own `AGENTS.md` declares. What a tool installs for itself lands where `tools/AGENTS.md` lists, including person-scoped model weights outside every root. Nothing else writes here.
 
 ## Behavioral Core
 

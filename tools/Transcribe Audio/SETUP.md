@@ -20,7 +20,7 @@ Once `--install` has authorized this copy, a `transcribe` creates a virtual envi
 
 ## 3. Model weights
 
-Model weights are not part of setup. A model absent from the directory the caller passes as `--model-cache` is **reported and refused, not downloaded**: `--install` or `WISER_ALLOW_INSTALL=1` authorizes that download and the same run then does the work. One download per model, reused from then on. Pick one work directory in the owning root for this and pass it on every run; a different directory each time means a fresh download each time.
+Model weights are not part of setup. Omit `--model-cache` and the run uses the person-scoped `models/` folder named in `tools/AGENTS.md` (under the platform user-config directory `gateway/SETUP.md` names). A model absent from that folder, or from an explicit `--model-cache` you pass instead, is **reported and refused, not downloaded**: `--install` or `WISER_ALLOW_INSTALL=1` authorizes that download and the same run then does the work. One download per model, reused from then on. Do not put weights in a root. An explicit absolute path still wins. A destination that is the connector key file is refused.
 
 ## 4. Verify
 
