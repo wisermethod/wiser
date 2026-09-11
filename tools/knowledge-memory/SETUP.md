@@ -1,33 +1,17 @@
 # knowledge-memory setup
 
-What has to be true before the first real run, and what that run does. `TOOL.md` is the contract; this is the walk-through.
+Read `tools/knowledge-memory/references/backends.md` for the memory-option contract and `TOOL.md` for command details.
 
-## The interpreter
+**Simple.** Keep sources and compiled wiki pages locally. No install is needed. The session compiles from permitted corpus text; `wiki-lint --set DIR` checks the index, links and high-signal grounding with Python 3.9+.
 
-The script needs Python 3.11 or newer and below 3.15. A Mac's system `python3` is 3.9 and is refused by version. Run `check` with the interpreter you intend to use:
+**Standard.** Keep session-extracted knowledge in the local databased store. Run `python3.11 scripts/knowledge_memory.py check` with the intended interpreter; databased work requires Python 3.11+ and SQLite FTS5. A successful check reports both, and installs nothing.
 
-```bash
-python3.11 scripts/knowledge_memory.py check
-```
+**Pro.** Read `experts/Memory Expert/graph.md`. Local graph query, embed and ingest are unspecified; stop before reading a source or creating a compiled layer.
 
-It lists the newer interpreters it can see on the path. Pick one and use the same one every time in a workspace, because the package cache is created with it.
+**Enterprise.** Read `experts/Memory Expert/hosted.md`. Hosted lookup, ingest and export are unspecified; stop before reading a source or creating a compiled layer.
 
-## The first run
+## First set
 
-The first command that needs the engine reports what it would install and stops. Read the report: it names the packages, the hosts they come from, the directory they land in, and an estimate of the size, which is on the order of several hundred megabytes. Then re-run the same command with `--install`. That run creates a virtual environment beside the scripts, installs into it with pip's own download cache switched off, and finishes the command. Nothing is installed into the machine or your user environment, and nothing this repository ships is modified.
+`skills/Knowledge Set Onboarding/` settles the memory option, kind, close intensity and session permission. It creates `memory/knowledge/<set>/` in the owning root using the templates. Convert PDFs and other binary material to UTF-8 markdown or text first. Keep the supplied original under `corpus/originals/`; the conversion's provenance header names it.
 
-Everything a run writes, and where, is in `tools/AGENTS.md` and nowhere else.
-
-## The credential
-
-Every command but `help` and `check` takes `--env`, the file the workspace binds as `secrets:openai`. The script parses it directly, reads `OPENAI_API_KEY`, and hands the value to the engine in-process. The value never enters the environment, a log, or any output, and every report records `key_in_environ: false` as the check that it did not.
-
-The engine is the one piece of this tool that reaches the network on an ordinary run: extraction and embedding call the provider on every ingest and every recall. A knowledge set is therefore not local in the sense of never leaving the machine, and the recipe's `provider_consent` records that its owner knows.
-
-## The store
-
-One per owning root, at `knowledge/store/`, created by `bootstrap`. It is engine data, rebuilt from the sets beside it, and it is ignored by git and by drive sync. Back up the sets, never the store: a set's `review/decided/` is part of what makes the store reconstructible, because a rebuild replays it. A store that holds a `.env` file is refused, because the engine would load it on import.
-
-## The first set
-
-`skills/Knowledge Set Onboarding/` creates a set. Done by hand, the order is: copy `templates/set.yaml` to `knowledge/<set>/set.yaml` and fill it; put the sources under `corpus/`; write `canon.md` with the confirmed canonical ideas, each with its quote; copy `templates/eval.questions.yaml` and fill at least the minimum it states; run `ingest` without `--proceed`, read the estimate, run it again with `--proceed`; run `healthcheck --eval`. A set whose eval does not exist is not built, whatever the graph holds.
+For a databased set, create the SQLite file with `bootstrap --store /absolute/owning-root/memory/knowledge/store/databased.sqlite`, then chunk. The session extracts one chunk at a time in the pack schema; `ingest --set DIR --store FILE --extraction FILE` validates and loads it. The skill conducts confirmation and evaluation. For a wiki set, compile pages, confirm the kept pages and index, then lint. The write inventory is `tools/AGENTS.md`.

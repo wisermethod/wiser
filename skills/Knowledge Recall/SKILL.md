@@ -3,8 +3,10 @@ name: Knowledge Recall
 type: skill
 category: knowledge
 description: Answer a question from one named knowledge set, scoped to that set alone, with the quotes and sources the answer rests on and an evidence label on every claim, saying Not available when the set does not cover it
-version: 0.1.0
+version: 0.2.1
 gaps:
+  - graph-unspecified, so local graph query, embed and ingest stop before a source is read
+  - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
   - temporal filtering of recall by a date, so an as-of question is answered from the facts the set dates rather than filtered by the engine
 ---
 
@@ -14,7 +16,7 @@ gaps:
 
 Use when someone asks a question of a knowledge set that exists: what a book says about a thing, what a site claims, what a domain set holds on a point, what was true as of a date. The answer comes from that set and carries its sources.
 
-Not for a question no set covers, which is `skills/External Research/` or `skills/Deep Researcher/`. Not for a question across sets: every recall is scoped to one dataset, and a question that needs two is asked twice, with the two answers presented as two. Not for creating or keeping a set. Not for a judgment about whether the set should be trusted for a deliverable; that is `experts/Memory Expert/`, and this skill reports what the set returned and how it is labeled.
+Not for a question no set covers, which is `skills/External Research/` or `skills/Deep Research/`. Not for a question across sets: every recall is scoped to one dataset, and a question that needs two is asked twice, with the two answers presented as two. Not for creating or keeping a set. Not for a judgment about whether the set should be trusted for a deliverable; that is `experts/Memory Expert/`, and this skill reports what the set returned and how it is labeled.
 
 ## Objective
 
@@ -32,45 +34,55 @@ A reference librarian at a closed collection. The answer is what the shelves hol
 
 ## Steps
 
-**This root ships tools and no connectors.** A `tools/` path this file names is present: `tools/AGENTS.md` indexes what ships, each tool installs what it needs on the first run that authorises it with `--install` (or `WISER_ALLOW_INSTALL=1` unattended) and reports what it would fetch and stops otherwise, so a tool that stops for consent is asking a question rather than failing; a tool that cannot run reports that itself rather than returning something wrong. **Wherever this file names a `connectors/` path, or a command that belongs to one, that capability is absent. So is every capability this file's own `gaps` frontmatter declares, whether or not a path names it**: a gap is the authoritative statement of what is missing, and some of them name no path because nothing in this root would have supplied them. Read the frontmatter as part of this rule, not beside it. Where the work in hand depends on something absent, or on a tool that stopped, say what cannot run and what it would have produced, name the gap it belongs to, and produce nothing in its place; where a mention only routes work away to it, that route is closed and nothing else stops. Do not approximate the missing output by hand, and do not carry a later step forward on a result the missing one never returned.
+Apply the constitution's Behavioral Core for the three absences and honest stops. Read `tools/knowledge-memory/references/backends.md` before choosing a backend; its mapping and inference rules are authoritative. For memory-option clarification, ask Simple / Standard / Pro / Enterprise through that contract. Graph stops on `experts/Memory Expert/graph.md` before a source is read. Hosted stops on `experts/Memory Expert/hosted.md` before a source is read.
 
 ### 1. Resolve the set and its state
 
-Read the set's `set.yaml` for `dataset`, `kind`, `canon_confirmed`, and the domain node sets, and the head of `canon.md` for a domain disclaimer. Read the newest healthcheck in `reports/` if one exists, for open conflicts. These decide the labels in Step 3 before the answer exists, so they are read first.
+Read the set's `set.yaml` for `backend`, `dataset`, `kind`, `session_permission`, `canon_confirmed`, and the domain node sets. For graph or hosted, take its Step 2 stub stop immediately; read no catalog or source. Otherwise read the backend-specific catalog for a domain disclaimer (`wiki/index.md` or `canon.md`). Read the newest healthcheck in `reports/` if one exists, for open conflicts. These decide the labels in Step 3 before the answer exists, so they are read first.
 
 ### 2. Recall
 
-Run `tools/knowledge-memory/` `recall --set <set> --store <root>/knowledge/store --env <bound secrets:openai file> --query "<question>"`, with `--as-of` where the scope gives a date and `--mode context` where the requester wants the material rather than an answer. Read the object it prints: the answer or null, the context items, the references, and `canon_confirmed`.
+Check session permission before opening source material. Storage is local for wiki, databased, and (later) graph; extraction is as local as the harness.
 
-### 3. Label
+**Wiki.** Read `wiki/index.md`, search it for the question's terms, then search `wiki/` and open matching pages. Cite pages with paths relative to the owning root. Respect their Status blocks and source hedges. If both index and page searches are empty, return `Not available: the set does not cover it`. If matches exist but do not support an answer, state that coverage limit. No outside knowledge fills the gap. A date question is answered only to the extent the cited pages establish it; no databased temporal labels are implied.
 
-Apply `standards/conventions.md`'s four labels and no others.
+**Databased.** Run `tools/knowledge-memory/` `recall --set <absolute set> --store <owning-root>/memory/knowledge/store/databased.sqlite --query "<question>"`, with `--as-of YYYY-MM-DD` when asked. Read the items object in `tools/knowledge-memory/references/schemas.md` section 3, including `canon_confirmed`. Compose from returned items alone. Empty items mean `Not available`; no `answer` field is expected.
 
-- A claim whose quote is present in the returned context and whose reference names a corpus path: open that file and locate the quote. Located: the claim is unlabeled, which asserts it was taken from its source, and the quote and path are shown. Not located: `Unverified: requires confirmation`, with the failed search noted.
+**Graph.** Read `experts/Memory Expert/graph.md`, name graph-unspecified, and stop before reading sources or creating a compiled layer.
+
+**Hosted.** Read `experts/Memory Expert/hosted.md`, name hosted-unspecified, and stop before reading a source.
+
+### 3. Label databased claims
+
+The databased branch applies the following rules. Wiki retains page citations, Status blocks and evidence labels already established in its cited content. Apply `standards/conventions.md`'s four labels and no others.
+
+- Exclude Rejected items from claim support. Stale items describe recorded past knowledge and carry their end date; never present them as current. Alias items require the referenced canonical identity to be returned and supported, or are reported only as surface forms. Candidate items remain `Unverified: requires confirmation`, even when the set canon is confirmed.
+- A claim whose quote is present in the returned items and whose item names a corpus path: open that file and locate the quote. Located: the claim is unlabeled, which asserts it was taken from its source, and the quote and path are shown. Not located: `Unverified: requires confirmation`, with the failed search noted.
 - The set's `canon_confirmed` is blank: every claim carries `Unverified: requires confirmation`, and the answer says the canon awaits confirmation.
 - An open conflict touches the claim: both positions are given with their quotes and sources, and neither is chosen.
-- Absence is judged by mode. In answer mode, a null answer with empty context; in context mode, empty context: `Not available: the set does not cover it`. Nothing is supplied from outside the set, and the response offers `skills/External Research/` as the route. In context mode a null answer with context returned is the requested output, delivered as passages with their sources.
+- Empty `items`: `Not available: the set does not cover it`. Offer `skills/External Research/` as a separate route; do not run it to fill this answer.
 - A sentence that bridges two returned quotes and appears in neither is this skill's inference, marked as such.
-- An as-of date: the engine does not filter by date, per this skill's declared gap. State that the date was passed with the question and recorded, and show each returned fact's `valid_from` and `valid_to`. Classify by those fields alone, inclusive at both ends: `valid_from` on or before the date and `valid_to` on or after it, or absent, is in force as far as the set records, and an absent `valid_to` is reported as no recorded end, never as confirmed current; `valid_to` before the date is ended; `valid_from` after the date is not yet in force; no `valid_from` is undated and its standing on the date is indeterminate. Say indeterminate where the fields do not settle it.
+- An as-of date: the engine does not filter by date, per this skill's declared gap. State that the date was recorded on the retrieval object, and show each returned fact's `valid_from` and `valid_to`. Classify by those fields alone, inclusive at both ends: `valid_from` on or before the date and `valid_to` on or after it, or absent, is in force as far as the set records, and an absent `valid_to` is reported as no recorded end, never as confirmed current; `valid_to` before the date is ended; `valid_from` after the date is not yet in force; no `valid_from` is undated and its standing on the date is indeterminate. Say indeterminate where the fields do not settle it.
 - A domain set: the disclaimer from `canon.md` opens the answer.
 
 ### 4. Deliver
 
-The answer, then a sources block: each quote with its corpus path, in the order the answer used them. Nothing is written to disk unless the requester asks for the answer as a file, which goes to the owning root's work directory per `standards/conventions.md`.
+The answer, then a sources block: wiki pages cited, or each databased quote with its corpus path, in the order the answer used them. Nothing is written to disk unless the requester asks for the answer as a file, which goes to the owning root's work directory per `standards/conventions.md`.
 
 ## Pitfalls
 
 - **No set named and several exist.** Ask which. Never recall from each in turn and merge; the merge is exactly the cross-set leak the scoping prevents.
 - **Filling the hole.** The set returned nothing and the answer is known. It is still `Not available`; the set is the collection, and the requester is told where the answer could be researched.
 - **A quote not located.** The engine returned text and a path, and the text is not in the file. It is labeled, not trusted; the discrepancy goes to `skills/Knowledge Curation/` as a review note.
-- **An as-of answer presented as filtered.** The engine appended the date to the query and did not filter. Say so every time; a reader who thinks the graph filtered will act on facts that had ended.
-- **A tool that cannot run.** Every `tools/` path this file names ships, and a tool can still stop: a system dependency it names may be absent, or the directory it installs into may not be writable. It says which, and it says so rather than returning something wrong. Where a step depends on a tool that stopped, say which step cannot run and what it would have produced, then stop that step rather than approximating its output by hand. Whatever does not depend on it still runs, and where everything downstream does depend on it, the honest stop is the whole result. An improvised result is worse than a named gap, because nothing downstream can tell the two apart.
+- **An as-of answer presented as filtered.** The tool recorded the date on the retrieval object and did not filter. Say so every time; a reader who thinks the databased filtered will act on facts that had ended.
+
 
 ## Success
 
-- Every claim in the answer shows a quote and a corpus path, or is marked as inference, and every quote shown was located in its file or labeled.
-- The answer from an unconfirmed set carries `Unverified: requires confirmation` on every claim and says why.
+- Every databased claim in the answer shows a quote and a corpus path, or is marked as inference, and every quote shown was located in its file or labeled.
+- The answer from an unconfirmed databased set carries `Unverified: requires confirmation` on every claim and says why.
 - A question the set does not cover returned `Not available` with the reason and a route, and nothing from outside the set.
 - An as-of answer states how the date was handled and reports dated facts by their own fields.
 - A domain set's answer opens with its disclaimer.
-- Three varied questions, one answered, one uncovered, one as-of, each produced this output without intervention.
+- Wiki answers cite pages, and an empty index plus page search yields Not available. Graph and hosted produce only their named stops.
+- Three varied questions, one answered, one uncovered, one as-of, each produced the appropriate backend output without intervention.

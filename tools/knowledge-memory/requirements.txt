@@ -1,6 +1,0 @@
-# Installed into this tool's own .venv/ on the first run that authorises it with
-# --install, per system/templates/Script Contract.md. Nothing here is redistributed.
-# cognee is Apache-2.0 (PyPI, read 2026-09-05). Its resolved tree is surveyed in
-# Solve of the build Playbook before this tool ships.
-cognee>=1.5.4,<2
-pyyaml>=6,<7

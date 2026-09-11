@@ -1,15 +1,12 @@
-# Eval questions for one knowledge set. healthcheck --eval runs each through
-# recall scoped to this set's dataset and records pass or fail per question.
-#
-# Minimum for a set to count as built:
-#   5 single-hop  (an exact name, number, date, clause, or title)
-#   5 two-hop     (needs an edge: who wrote the thing that says X; which idea depends on Y)
-#   2 as-of       (the answer at a date, where the set holds a fact that changed)
-#   2 isolation   (must NOT return material from another set in the same store; add once a second set exists)
-#
-# expected: a string the answer must contain, case-insensitive; or a corpus path
-#           the references must include, written as "path:corpus/<file>".
-# must_not_match: for isolation questions, a string from the other set that must not appear.
+# Databased retrieval checks over returned items, per references/schemas.md section 3.
+# expected is a case-insensitive item string or "path:corpus/<file>".
+# must_not_match is a string that must not appear in returned items.
+# healthcheck --eval is databased-only; it cannot grade composed answers or filter as-of.
+# Wiki eval is a human read of cited pages. Do not send it to healthcheck --eval.
+# Minimum databased close: 5 single-hop, 5 two-hop, 2 as-of where dated facts exist,
+# and 2 isolation questions once another dataset exists. As-of rows require a human
+# dated-item read and are reported as an unresolved filtering gap by the tool.
+# Backend contract: tools/knowledge-memory/references/backends.md
 
 questions:
   - id: sh-1

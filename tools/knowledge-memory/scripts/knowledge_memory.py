@@ -1,3316 +1,1486 @@
 #!/usr/bin/env python3
+"""Local wiki lint and databased memory. Shapes: references/schemas.md and wiki-schemas.md.
+
+Extraction belongs to the calling session; this script makes no model calls.
 """
-knowledge-memory - curated knowledge graph over an embedded Cognee store.
-
-Usage:
-  python3.11 scripts/knowledge_memory.py help
-  python3.11 scripts/knowledge_memory.py check
-  python3.11 scripts/knowledge_memory.py bootstrap --store [dir] --env [file] [--install]
-  python3.11 scripts/knowledge_memory.py ingest --set [dir] --store [dir] --env [file]
-      [--report [dir]] [--proceed] [--install]
-  python3.11 scripts/knowledge_memory.py recall --set [dir] --store [dir] --env [file]
-      --query [text] [--as-of YYYY-MM-DD] [--top-k N] [--mode context|answer]
-  python3.11 scripts/knowledge_memory.py review-pass --set [dir] --store [dir] --env [file]
-  python3.11 scripts/knowledge_memory.py promote --set [dir] --store [dir] --env [file]
-      --decided [file]
-  python3.11 scripts/knowledge_memory.py mark-stale --set [dir] --store [dir] --env [file]
-      --id [node-id] [--valid-to YYYY-MM-DD]
-  python3.11 scripts/knowledge_memory.py healthcheck --set [dir] --store [dir] --env [file]
-      [--eval]
-  python3.11 scripts/knowledge_memory.py forget --set [dir] --store [dir] --env [file]
-      (--memory-only | --data-id [id] | --dataset) --confirm
-
-The rules this file follows are stated once, in
-system/templates/Script Contract.md. This script runs under Python rather than
-Node, which that contract's Runtimes clause allows because TOOL.md declares the
-interpreter under Dependencies. Python 3.11 or newer is required for every
-command except help and check.
-"""
-
 from __future__ import annotations
 
-# Standard library only above the package cache check below. Nothing here
-# imports from outside this tool directory.
-import asyncio
-import hashlib
-import importlib.metadata
-import importlib.util
-import inspect
-import json
-import os
-import re
-import shutil
-import subprocess
 import sys
-import tempfile
-from datetime import datetime, date
-from pathlib import Path
-from typing import Any
-from uuid import UUID
-
-SCRIPT_DIR = Path(__file__).resolve().parent
-TOOL_DIR = SCRIPT_DIR.parent
-
-# The first-run package cache: a virtual environment beside the scripts, which
-# is the one thing this script writes inside its own directory.
-CACHE_DIR = TOOL_DIR / ".venv"
-
-CORE_REQUIREMENTS = TOOL_DIR / "requirements.txt"
-GENERAL_PACK = TOOL_DIR / "packs" / "general"
-REVIEW_ITEM_TEMPLATE = TOOL_DIR / "templates" / "review_item.md"
-
-# One installed package's own metadata directory, not the cache directory
-# itself: an install that dies partway leaves the cache in place and the
-# packages absent.
-CORE_MARKER = "cognee"
 
 MIN_PYTHON = (3, 11)
-INTERPRETER_CANDIDATES = ("python3.11", "python3.12", "python3.13", "python3.14")
+USAGE = """Usage: knowledge_memory.py help | --help | -h
+  check
+  bootstrap --store FILE
+  chunk --set DIR
+  chunk --source FILE --out DIR --dataset NAME [--max-chars N]
+  ingest --set DIR --store FILE --extraction FILE
+  recall --set DIR --store FILE --query TEXT [--as-of YYYY-MM-DD] [--top-k N]
+  wiki-lint --set DIR
+  review-pass --set DIR --store FILE
+  promote --set DIR --store FILE (--decided FILE | --from-canon | --replay)
+  mark-stale --set DIR --store FILE --id NODE [--valid-to YYYY-MM-DD]
+  healthcheck --set DIR --store FILE [--eval]
+  forget --set DIR --store FILE (--memory-only | --dataset | --data-id ID) [--confirm]
 
-GRAPH_PROVIDER = "ladybug"
-VECTOR_PROVIDER = "lancedb"
-DB_PROVIDER = "sqlite"
+Paths are absolute; set, store and outputs must be outside this tool.
+Store is a SQLite FILE, conventionally memory/knowledge/store/databased.sqlite.
+Python 3.11+ and FTS5 for databased work; wiki-lint needs neither and runs on 3.9+.
+check reports Python and FTS5 without installing anything. Standard library only.
+chunk accepts UTF-8 .md/.txt, preserves text, splits at headings then paragraphs
+and sentences, at most 6000 characters by default. Convert binaries first.
+recall returns items only, using lexical terms and outgoing idea links (one hop).
+as-of is recorded, never filtered. Default top-k is 15.
+Unknown, repeated and command-inapplicable flags are refused by name.
+forget without confirm reports the planned store changes and writes nothing.
+No model calls, downloads, configuration discovery, or installs."""
 
-DATASET_RE = re.compile(r"^[a-z0-9_]+$")
-SET_SLUG_RE = re.compile(r"^[a-z0-9-]+$")
-DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-KNOWN_KINDS = ("book", "blog", "website", "domain", "mixed")
-KNOWN_SENSITIVITY = ("public", "internal", "confidential")
-KNOWN_CHUNKING = ("heading-aware", "paragraph")
-KNOWN_MODES = ("context", "answer")
+class ProbeError(Exception):
+    """A caller-correctable failure, printed only on stderr."""
 
-REQUIRED_RECIPE_KEYS = (
-    "set",
-    "dataset",
-    "kind",
-    "owner",
-    "sensitivity",
-    "provider_consent",
-    "pack",
-    "node_sets",
-    "eval",
-)
-KNOWN_RECIPE_KEYS = {
-    "set",
-    "dataset",
-    "kind",
-    "owner",
-    "sensitivity",
-    "provider_consent",
-    "canon_confirmed",
-    "sources",
-    "pack",
-    "node_sets",
-    "chunking",
-    "llm",
-    "review_cadence_days",
-    "stale_after_days",
-    "write_policy",
-    "promotion_policy",
-    "eval",
+
+def fail(message):
+    raise ProbeError(message)
+
+
+# Help precedes even filesystem-dependent standard-library imports.
+if __name__ == "__main__" and (not sys.argv[1:] or sys.argv[1] == "help"
+                               or "--help" in sys.argv[1:] or "-h" in sys.argv[1:]):
+    print(USAGE)
+    sys.exit(0)
+
+import datetime
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+
+TOOL_DIR = Path(__file__).resolve().parent.parent
+GENERAL_PACK = TOOL_DIR / "packs" / "general"
+OPTIONS = {
+    "check": (set(), set()),
+    "bootstrap": ({"--store"}, set()),
+    "chunk": (set(), {"--set", "--source", "--out", "--dataset", "--max-chars"}),
+    "ingest": ({"--set", "--store", "--extraction"}, set()),
+    "recall": ({"--set", "--store", "--query"}, {"--as-of", "--top-k"}),
+    "wiki-lint": ({"--set"}, set()),
+    "review-pass": ({"--set", "--store"}, set()),
+    "promote": ({"--set", "--store"}, {"--decided", "--from-canon", "--replay"}),
+    "mark-stale": ({"--set", "--store", "--id"}, {"--valid-to"}),
+    "healthcheck": ({"--set", "--store"}, {"--eval"}),
+    "forget": ({"--set", "--store"}, {"--memory-only", "--dataset", "--data-id", "--confirm"}),
 }
-KNOWN_SOURCES_KEYS = {"include", "exclude"}
-KNOWN_LLM_KEYS = {"provider", "model", "embedding_model"}
-KNOWN_WRITE_POLICY_KEYS = {"agents_may_remember_episodes"}
-KNOWN_PROMOTION_POLICY_KEYS = {"auto_accept"}
-
-LEGAL_SUFFIXES = frozenset(
-    ("inc", "corp", "corporation", "llc", "ltd", "gmbh", "co")
-)
-
-REVIEW_TYPE_DIRS = {
-    "new_finding": "new_findings",
-    "stale": "stale",
-    "merge_proposal": "merge_proposals",
-    "conflict": "conflicts",
+FLAGS = {"--from-canon", "--replay", "--eval", "--memory-only", "--confirm"}
+ARRAYS = {
+    "entities": ("entity", "name entity_type aliases summary status quote"),
+    "ideas": ("idea", "name definition domain status quote"),
+    "idea_links": ("idea_link", "source_name relation target_name quote"),
+    "facts": ("fact", "subject predicate object valid_from valid_to confidence quote"),
+    "decisions": ("decision", "summary decided_by decided_on quote"),
+    "open_questions": ("open_question", "question quote"),
 }
-
-COMMANDS = (
-    "check",
-    "bootstrap",
-    "ingest",
-    "recall",
-    "review-pass",
-    "promote",
-    "mark-stale",
-    "healthcheck",
-    "forget",
-)
-
-VALUE_OPTIONS = (
-    "--store",
-    "--env",
-    "--set",
-    "--report",
-    "--query",
-    "--as-of",
-    "--top-k",
-    "--mode",
-    "--decided",
-    "--id",
-    "--valid-to",
-    "--data-id",
-)
-FLAG_OPTIONS = (
-    "--install",
-    "--proceed",
-    "--eval",
-    "--memory-only",
-    "--dataset",
-    "--confirm",
-)
-
-ALLOWED_OPTIONS = {
-    "check": frozenset(("--store", "--install")),
-    "bootstrap": frozenset(("--store", "--env", "--install")),
-    "ingest": frozenset(
-        ("--set", "--store", "--env", "--report", "--proceed", "--install")
-    ),
-    "recall": frozenset(
-        (
-            "--set",
-            "--store",
-            "--env",
-            "--query",
-            "--as-of",
-            "--top-k",
-            "--mode",
-            "--install",
-        )
-    ),
-    "review-pass": frozenset(("--set", "--store", "--env", "--install")),
-    "promote": frozenset(("--set", "--store", "--env", "--decided", "--install")),
-    "mark-stale": frozenset(
-        ("--set", "--store", "--env", "--id", "--valid-to", "--install")
-    ),
-    "healthcheck": frozenset(("--set", "--store", "--env", "--eval", "--install")),
-    "forget": frozenset(
-        (
-            "--set",
-            "--store",
-            "--env",
-            "--memory-only",
-            "--data-id",
-            "--dataset",
-            "--confirm",
-            "--install",
-        )
-    ),
-    "selftest": frozenset(("--install",)),
+REQUIRED = {
+    "entities": "name entity_type status quote", "ideas": "name definition status quote",
+    "idea_links": "source_name relation target_name quote", "facts": "subject predicate object quote",
+    "decisions": "summary quote", "open_questions": "question quote",
 }
-
-USAGE = """knowledge-memory - curated knowledge graph over an embedded Cognee store.
-
-Usage:
-  python3.11 scripts/knowledge_memory.py help
-  python3.11 scripts/knowledge_memory.py check
-  python3.11 scripts/knowledge_memory.py bootstrap --store [dir] --env [file] [--install]
-  python3.11 scripts/knowledge_memory.py ingest --set [dir] --store [dir] --env [file]
-      [--report [dir]] [--proceed] [--install]
-  python3.11 scripts/knowledge_memory.py recall --set [dir] --store [dir] --env [file]
-      --query [text] [--as-of YYYY-MM-DD] [--top-k N] [--mode context|answer]
-  python3.11 scripts/knowledge_memory.py review-pass --set [dir] --store [dir] --env [file]
-  python3.11 scripts/knowledge_memory.py promote --set [dir] --store [dir] --env [file]
-      --decided [file]
-  python3.11 scripts/knowledge_memory.py mark-stale --set [dir] --store [dir] --env [file]
-      --id [node-id] [--valid-to YYYY-MM-DD]
-  python3.11 scripts/knowledge_memory.py healthcheck --set [dir] --store [dir] --env [file]
-      [--eval]
-  python3.11 scripts/knowledge_memory.py forget --set [dir] --store [dir] --env [file]
-      (--memory-only | --data-id [id] | --dataset) --confirm
-
-Commands:
-  check            Report the interpreter, venv, and whether cognee is installed
-  bootstrap        Create the store directories and configure Cognee against them
-  ingest           Hash sources, estimate or remember new files, then improve once
-  recall           Query one dataset and print answer, context, and references
-  review-pass      Write review items for candidates, merges, stale nodes, conflicts
-  promote          Apply one decided review item
-  mark-stale       Set status Stale and valid_to on one node; never deletes
-  healthcheck      Counts, backlogs, last ingest; optionally run eval questions
-  forget           Remove memory, one data_id, or a dataset; requires --confirm
-  help             Print this message
-
-Options:
-  --store [dir]         Owning-root store directory, absolute, outside this tool
-  --set [dir]           Knowledge set directory holding set.yaml, absolute
-  --env [file]          Bound credential file, absolute. Values never enter the
-                        process environment, a log, or the output
-  --report [dir]        Directory ingest writes its JSON report into, absolute.
-                        Default: <set>/reports/
-  --query [text]        Recall query text
-  --as-of YYYY-MM-DD    Appended to the query as "(as of YYYY-MM-DD)"; recorded
-                        in the output. This API does not filter by date
-  --top-k N             Recall neighbour cap. Default 15
-  --mode [name]         context (only_context) or answer (default, with references)
-  --proceed             Actually ingest; without it ingest dry-runs and stops
-  --decided [file]      A review item under <set>/review/decided/
-  --id [node-id]        Graph node id for mark-stale
-  --valid-to YYYY-MM-DD valid_to to set; default today
-  --data-id [id]        UUID of one ingested file to forget
-  --memory-only         Forget derived memory and keep source hashes
-  --dataset             Forget the whole dataset named in the recipe
-  --eval                Run the recipe's eval questions during healthcheck
-  --confirm             Required for forget; without it the script says what it
-                        would forget and stops
-  --install             Authorise the first-run install. Without it a tool that
-                        is not installed yet reports what it would fetch, and
-                        from where, and stops. WISER_ALLOW_INSTALL=1 does the
-                        same for an unattended run.
-  --help                Print this message
-
-Success prints one JSON object to stdout. Errors go to stderr with exit 1.
-Progress lines go to stderr prefixed knowledge-memory:."""
+RELATIONS = {"EXEMPLIFIES", "DEPENDS_ON", "CONTRADICTS", "SPECIALIZES", "DECIDED_IN", "APPLIES_TO"}
+ENTITY_TYPES = {"person", "organization", "work", "place", "term", "other"}
+REASONS = ("quote_not_located", "bad_type", "bad_status", "bad_relation", "too_long", "unknown_key", "hash_mismatch")
+HASH = re.compile(r"sha256:[0-9a-f]{64}\Z")
 
 
-def stop(message: str) -> None:
-    """Stop the run: stderr only, stdout empty, exit 1."""
-    sys.stderr.write(message + "\n")
-    sys.exit(1)
-
-
-def fail(message: str) -> None:
-    """A failure, which is every stop but the first-run install's re-run notice."""
-    stop("Error: " + message)
-
-
-def note(message: str) -> None:
-    """Progress: stderr, so stdout carries only the final JSON object."""
-    sys.stderr.write("knowledge-memory: " + message + "\n")
-
-
-def emit(result: Any) -> None:
-    """One JSON object on stdout, and nothing else ever reaches stdout."""
-    sys.stdout.write(json.dumps(json_ready(result), separators=(",", ":")) + "\n")
-
-
-def usage_hint() -> str:
-    return 'Run "python3.11 scripts/knowledge_memory.py help" for usage.'
-
-
-def parse(args: list[str], allowed: frozenset[str]) -> tuple[dict[str, str], set[str]]:
-    """Every word is claimed by name or refused by name; nothing is ignored."""
-    values: dict[str, str] = {}
-    flags: set[str] = set()
-    index = 0
-    while index < len(args):
-        word = args[index]
-        if word in VALUE_OPTIONS:
-            value = args[index + 1] if index + 1 < len(args) else None
-            if value is None or value.startswith("-"):
-                fail("%s needs a value. %s" % (word, usage_hint()))
-            if word in values:
-                fail(
-                    "%s was given more than once and takes one value. %s"
-                    % (word, usage_hint())
-                )
-            if word not in allowed:
-                fail('unknown option "%s". %s' % (word, usage_hint()))
-            values[word] = value
-            index += 2
-            continue
-        if word in FLAG_OPTIONS:
-            if word in flags:
-                fail(
-                    "%s was given more than once and takes no value. %s"
-                    % (word, usage_hint())
-                )
-            if word not in allowed:
-                fail('unknown option "%s". %s' % (word, usage_hint()))
-            flags.add(word)
+def parse(argv):
+    command = argv[0]
+    if command not in OPTIONS:
+        fail('unknown command "%s". Run knowledge_memory.py help.' % command)
+    required, optional = OPTIONS[command]
+    values = {}
+    index = 1
+    while index < len(argv):
+        word = argv[index]
+        if word not in required | optional:
+            fail('unknown option "%s"; this tool installs nothing. Run knowledge_memory.py help.' % word)
+        key = word[2:].replace('-', '_')
+        if key in values:
+            fail('%s was given more than once.' % word)
+        index += 1
+        if word in FLAGS or (word == '--dataset' and command == 'forget'):
+            values[key] = True
+        else:
+            if index == len(argv) or argv[index].startswith('--'):
+                fail('%s needs a value.' % word)
+            values[key] = argv[index]
             index += 1
-            continue
-        if word.startswith("-"):
-            fail('unknown option "%s". %s' % (word, usage_hint()))
-        fail('unexpected argument "%s". %s' % (word, usage_hint()))
-    return values, flags
+    missing = sorted(k for k in required if k[2:].replace('-', '_') not in values)
+    if missing:
+        fail('required option(s): ' + ', '.join(missing))
+    if command == 'chunk':
+        if 'set' in values:
+            if set(values) != {'set'}:
+                fail('chunk --set cannot combine with source, out, dataset or max-chars.')
+        elif not {'source', 'out', 'dataset'} <= set(values):
+            fail('chunk requires --set or --source, --out and --dataset.')
+    for cmd, modes in [('promote', ('decided', 'from_canon', 'replay')), ('forget', ('memory_only', 'dataset', 'data_id'))]:
+        if command == cmd and sum(k in values for k in modes) != 1:
+            fail(cmd + ' requires exactly one mode: ' + ', '.join('--' + k.replace('_', '-') for k in modes))
+    return command, values
 
 
-def python_version_string() -> str:
-    return "%d.%d.%d" % sys.version_info[:3]
-
-
-def python_is_ok() -> bool:
-    return sys.version_info[:2] >= MIN_PYTHON
-
-
-def interpreters_found() -> list[str]:
-    found = []
-    for name in INTERPRETER_CANDIDATES:
-        if shutil.which(name):
-            found.append(name)
-    return found
-
-
-def require_python() -> None:
-    if python_is_ok():
-        return
-    fail(
-        "this script needs Python 3.11 or newer; this interpreter is %s. "
-        "Run it with python3.11 (or python3.12, python3.13, python3.14) instead of python3."
-        % python_version_string()
-    )
-
-
-def cache_python() -> Path:
-    if os.name == "nt":
-        return CACHE_DIR / "Scripts" / "python.exe"
-    return CACHE_DIR / "bin" / "python3"
-
-
-def cognee_marker_present() -> bool:
-    """True when cognee's own dist-info directory is inside the venv.
-
-    The marker is the installed package's metadata, never the .venv directory
-    itself: an install that dies partway leaves that directory in place.
-    """
-    roots = list(CACHE_DIR.glob("lib/python*/site-packages"))
-    roots.append(CACHE_DIR / "Lib" / "site-packages")
-    for root in roots:
-        if list(root.glob("cognee-*.dist-info")):
-            return True
-    return False
-
-
-def requirement_names() -> list[str]:
-    names = []
-    if not CORE_REQUIREMENTS.is_file():
-        return names
-    for raw in CORE_REQUIREMENTS.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#"):
-            continue
-        name = re.split(r"[<>=!~\[]", line, 1)[0].strip()
-        if name:
-            names.append(name)
-    return names
-
-
-def same_file(left: Path, right: Path) -> bool:
-    """True when two paths name one file, however each of them is spelled.
-
-    Device and inode are the file's own identity, which is the thing a
-    comparison of resolved strings cannot see. Path.resolve preserves the case
-    it was handed, so on a case insensitive filesystem, which is where this root
-    ships, two spellings of one file canonicalize to two different strings and a
-    string comparison misses. A hard link is not a link to a path either: it is a
-    second name for one inode and it canonicalizes to itself, so resolving both
-    sides is not enough on its own. A path that does not exist has no identity to
-    compare, so this answers False there and the caller compares the deepest
-    ancestor that does exist instead.
-    """
+def same_file(left, right):
     try:
-        here = os.stat(left)
-        there = os.stat(right)
-    except OSError:
+        a, b = os.stat(left), os.stat(right)
+    except FileNotFoundError:
         return False
-    return (here.st_dev, here.st_ino) == (there.st_dev, there.st_ino)
+    return (a.st_dev, a.st_ino) == (b.st_dev, b.st_ino)
 
 
-def unresolvable(option: str, where: Path | str) -> str:
-    return (
-        "%s could not be resolved to a real path at %s. Confirm every folder on the way is readable by this account and that no symbolic link on it points at itself."
-        % (option, where)
-    )
-
-
-def canonical(option: str, candidate: Path) -> Path:
-    """The path with every component that exists resolved through symbolic links.
-
-    Path.resolve follows links on the components present on disk and appends the
-    rest, so a link standing in for the file itself, or for any ancestor of it,
-    collapses onto the one real path that a lexical comparison would spell
-    differently and let through. Resolving a path opens nothing, so this runs
-    before any file is read or written.
-
-    Absence is the only reason resolution may keep going. Any other refusal from
-    the filesystem, an unreadable ancestor or a loop of symbolic links, means the
-    real path cannot be known, and a screen that cannot know which file it is
-    looking at refuses by name rather than letting the interpreter report a
-    traceback carrying host paths.
-    """
+def canonical(option, candidate):
     try:
         return Path(candidate).resolve()
     except (OSError, RuntimeError):
-        fail(unresolvable(option, candidate))
-        raise
+        fail('%s cannot be canonicalized: %s. Fix its permissions or symbolic links.' % (option, candidate))
 
 
-def deepest_existing(option: str, path: Path) -> Path:
-    """The deepest component of a path that exists on disk.
-
-    A directory named for the first time does not exist yet, and a path that does
-    not exist has no inode to compare, so the screen compares the identity of the
-    deepest ancestor that does exist: that is the directory the write would land
-    in. Absence is the only reason to keep climbing; any other refusal means the
-    real path cannot be known, and the run refuses.
-    """
-    probe = path
+def deepest_existing(option, path):
     while True:
         try:
-            os.stat(probe)
-            return probe
-        except (FileNotFoundError, NotADirectoryError):
-            pass
+            os.stat(path)
+            return path
+        except FileNotFoundError:
+            if path.parent == path:
+                fail('%s has no existing ancestor. Pass an accessible absolute path.' % option)
+            path = path.parent
         except OSError:
-            fail(unresolvable(option, probe))
-        parent = probe.parent
-        if parent == probe:
-            return probe
-        probe = parent
+            fail('%s has an inaccessible or non-directory ancestor. Fix the path.' % option)
 
 
-def inside_dir(existing: Path, root: Path) -> bool:
-    """True when an existing path is root or sits beneath it, by identity."""
-    probe = existing
+def inside_dir(existing, root):
     while True:
-        if same_file(probe, root):
+        if same_file(existing, root):
             return True
-        parent = probe.parent
-        if parent == probe:
+        if existing.parent == existing:
             return False
-        probe = parent
+        existing = existing.parent
 
 
-def inside_tool_dir(existing: Path) -> bool:
-    return inside_dir(existing, TOOL_DIR)
-
-
-def require_absolute(option: str, value: str) -> Path:
-    path = Path(value)
-    if not path.is_absolute():
-        fail(
-            '%s must be absolute; got "%s". Pass the full path, not one relative to the current directory.'
-            % (option, value)
-        )
-    return path
-
-
-def screen_path(
-    option: str,
-    value: str,
-    *,
-    destination: bool,
-    env_file: Path | None = None,
-    must_exist: bool = False,
-    as_file: bool = False,
-    as_dir: bool = False,
-) -> Path:
-    """Canonicalize a caller path and refuse the credential file, its directory, and this tool."""
-    given = require_absolute(option, value)
+def screen_path(option, value, *, destination=False, must_exist=False, as_dir=False):
+    given = Path(value)
+    if not given.is_absolute():
+        fail('%s must be absolute: %s. Pass an absolute work path.' % (option, value))
     resolved = canonical(option, given)
     existing = deepest_existing(option, resolved)
-    if destination or as_dir:
-        if inside_tool_dir(existing):
-            fail(
-                "%s resolves inside this tool directory (%s). Scripts write only to a work directory in the owning root; pass that path instead."
-                % (option, TOOL_DIR)
-            )
-    else:
-        if inside_tool_dir(existing):
-            fail(
-                "%s resolves inside this tool directory (%s). Pass a path in the owning root."
-                % (option, TOOL_DIR)
-            )
-    if env_file is not None:
-        try:
-            env_dir = env_file.parent
-            if same_file(existing, env_file) or inside_dir(existing, env_dir):
-                fail(
-                    "%s resolves to the --env file or inside the directory that holds it. Pass a work path, not the credential file."
-                    % option
-                )
-        except OSError:
-            pass
+    if destination:
+        forbidden = inside_dir(existing, TOOL_DIR)
+        # An outside hard link retains the identity of a file inside TOOL_DIR.
+        if resolved.is_file() and not forbidden:
+            for root, dirs, files in os.walk(TOOL_DIR, followlinks=False):
+                for name in files:
+                    if same_file(resolved, Path(root) / name):
+                        forbidden = True
+                        break
+                if forbidden:
+                    break
+        if forbidden:
+            fail('%s resolves inside this tool directory or aliases one of its files: %s. Pass an outside work path.' % (option, resolved))
     if must_exist and not resolved.exists():
-        fail("no path at %s. Check %s." % (resolved, option))
-    if as_file and resolved.exists() and not resolved.is_file():
-        fail("%s is not a file at %s." % (option, resolved))
-    if as_file and must_exist and not resolved.is_file():
-        fail("no file at %s. Check %s." % (resolved, option))
-    if as_dir and resolved.exists() and not resolved.is_dir():
-        fail("%s is not a directory at %s." % (option, resolved))
+        fail('%s does not exist: %s. Supply an existing path.' % (option, resolved))
+    if resolved.exists() and (not resolved.is_dir() if as_dir else not resolved.is_file()):
+        fail('%s is not a %s: %s. Correct the path.' % (option, 'directory' if as_dir else 'file', resolved))
     return resolved
 
 
-def env_missing_message(option_present: bool, named: str | None) -> str:
-    if not option_present:
-        return (
-            "--env is required. Ask the agent to resolve the workspace Provides binding "
-            "and pass that absolute path; this script does not search for a credential file. "
-            + usage_hint()
-        )
-    return (
-        "--env names a file that does not exist at %s. Ask the agent to resolve the binding "
-        "instead of guessing a path."
-        % named
-    )
+def digest(data):
+    return "sha256:" + hashlib.sha256(data).hexdigest()
 
 
-def load_env_path(value: str | None) -> Path:
-    if not value:
-        fail(env_missing_message(False, None))
-    given = require_absolute("--env", value)
-    if not given.exists():
-        fail(env_missing_message(True, value))
-    resolved = canonical("--env", given)
-    if not resolved.is_file():
-        fail("--env is not a file at %s. Ask the agent to resolve the binding." % resolved)
-    if not os.access(resolved, os.R_OK):
-        fail("--env is not readable at the path the agent passed. Resolve the binding again.")
-    return resolved
-
-
-def parse_env_text(text: str) -> dict[str, str]:
-    """Parse KEY=value lines. Blank lines and full-line # comments are ignored.
-
-    Optional surrounding double quotes on the value are stripped. The values are
-    returned to the caller and must never be logged or printed.
-    """
-    values: dict[str, str] = {}
-    for raw in text.splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#"):
-            continue
-        if "=" not in line:
-            fail(
-                "the --env file has a line that is not KEY=value. Fix the file; this script does not print the line."
-            )
-        key, value = line.split("=", 1)
-        key = key.strip()
-        value = value.strip()
-        if len(value) >= 2 and value[0] == '"' and value[-1] == '"':
-            value = value[1:-1]
-        if not key:
-            fail(
-                "the --env file has a line with an empty key. Fix the file; this script does not print the line."
-            )
-        values[key] = value
-    return values
-
-
-def parse_env_file(path: Path) -> dict[str, str]:
+def positive(value, name):
     try:
-        text = path.read_text(encoding="utf-8")
-    except OSError:
-        fail("--env could not be read. Ask the agent to resolve the binding.")
-        raise
-    return parse_env_text(text)
-
-
-def openai_key(env_values: dict[str, str]) -> str:
-    key = env_values.get("OPENAI_API_KEY")
-    if not key:
-        fail(
-            "OPENAI_API_KEY is missing from the --env file. "
-            "Ask the agent to resolve the secrets:openai binding and pass that file as --env."
-        )
-    return key
-
-
-def refuse_store_env(store_dir: Path) -> None:
-    env_path = store_dir / ".env"
-    if env_path.exists():
-        fail(
-            "the store contains a file named .env at %s. Remove that file before running this tool; "
-            "Cognee loads .env from the working directory at import and would put those values into the process environment."
-            % env_path
-        )
-
-
-def store_is_writable(store_dir: Path) -> bool:
-    probe = store_dir if store_dir.exists() else store_dir.parent
-    while True:
-        try:
-            return os.access(probe, os.W_OK)
-        except OSError:
-            parent = probe.parent
-            if parent == probe:
-                return False
-            probe = parent
-
-
-def install_authorised() -> bool:
-    return "--install" in sys.argv or os.environ.get("WISER_ALLOW_INSTALL") == "1"
-
-
-def consent_message() -> str:
-    packages = requirement_names() or [CORE_MARKER, "pyyaml"]
-    named = ", ".join(packages)
-    return (
-        "this tool is not installed yet and this run did not authorise an install. "
-        "Installing creates a virtual environment at %s (the .venv/ directory inside this tool) "
-        "and fetches %s from pypi.org and files.pythonhosted.org into it. "
-        "The resolved tree is on the order of one hundred packages and several hundred megabytes "
-        "(an estimate). pip's own download cache is switched off, and PIP_CACHE_DIR and "
-        "XDG_CACHE_HOME in the install child point at a temporary directory that is removed "
-        "afterwards, so the installer's cache does not land outside this tool. "
-        "tools/AGENTS.md lists every write an install makes. "
-        "Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 "
-        "for an unattended run. Nothing is read from stdin, so this is the only way to answer."
-        % (CACHE_DIR, named)
-    )
-
-
-def require_install_consent() -> None:
-    """Consent before an install, matching the Node tools' Dependencies clause.
-
-    This script does not read stdin, so it cannot ask. It reports what would be
-    fetched and stops; whoever is driving it asks the person and re-runs with
-    --install, which authorises the install AND completes the run.
-    """
-    if install_authorised():
-        return
-    fail(consent_message())
-
-
-def install() -> None:
-    require_install_consent()
-    if not CORE_REQUIREMENTS.is_file():
-        fail("requirements.txt is missing from %s." % TOOL_DIR)
-    if not CACHE_DIR.exists():
-        note("First run: creating the package cache in %s" % CACHE_DIR)
-        try:
-            subprocess.run(
-                [sys.executable, "-m", "venv", str(CACHE_DIR)],
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-        except Exception:
-            fail(
-                "could not create the package cache at %s. Confirm python3.11 -m venv works and that this tool directory is writable."
-                % CACHE_DIR
-            )
-    interpreter = cache_python()
-    if not interpreter.exists():
-        fail(
-            "the package cache at %s holds no interpreter. Delete that directory and run the command again."
-            % CACHE_DIR
-        )
-    note(
-        "Installing packages into %s. The resolved tree is on the order of one hundred packages and several hundred megabytes (an estimate)."
-        % CACHE_DIR
-    )
-    cache_tmp = tempfile.mkdtemp(prefix="knowledge-memory-pip-")
-    try:
-        env = dict(os.environ)
-        env["PIP_NO_CACHE_DIR"] = "1"
-        env["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
-        env["PIP_CACHE_DIR"] = cache_tmp
-        env["XDG_CACHE_HOME"] = cache_tmp
-        subprocess.run(
-            [
-                str(interpreter),
-                "-m",
-                "pip",
-                "install",
-                "--no-cache-dir",
-                "--disable-pip-version-check",
-                "-r",
-                str(CORE_REQUIREMENTS),
-            ],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            env=env,
-        )
-    except Exception:
-        fail(
-            "installing packages failed (%s). Delete %s, confirm python3.11 --version is 3.11 or newer, then run the command again with --install."
-            % ("CalledProcessError", CACHE_DIR)
-        )
-    finally:
-        shutil.rmtree(cache_tmp, ignore_errors=True)
-    if not cognee_marker_present():
-        fail(
-            "the install finished but cognee is still missing from %s. Check that %s lists every package this script imports."
-            % (CACHE_DIR, CORE_REQUIREMENTS.name)
-        )
-    note("Packages installed.")
-
-
-def in_venv() -> bool:
-    try:
-        return same_file(Path(sys.prefix), CACHE_DIR)
-    except OSError:
-        return Path(sys.prefix).resolve() == CACHE_DIR.resolve()
-
-
-def ensure_packages() -> None:
-    if not cognee_marker_present():
-        install()
-    if in_venv():
-        return
-    interpreter = cache_python()
-    if not interpreter.exists():
-        fail(
-            "the package cache at %s holds no interpreter. Delete that directory and run the command again."
-            % CACHE_DIR
-        )
-    if os.environ.get("KNOWLEDGE_MEMORY_CACHE_RUN") == "1":
-        fail(
-            "the package cache at %s did not take over the run. Delete that directory and run the command again."
-            % CACHE_DIR
-        )
-    os.environ["KNOWLEDGE_MEMORY_CACHE_RUN"] = "1"
-    target = str(interpreter)
-    os.execv(target, [target, str(Path(__file__).resolve())] + sys.argv[1:])
-
-
-def json_ready(value: Any) -> Any:
-    if value is None or isinstance(value, (bool, int, float, str)):
-        return value
-    if isinstance(value, Path):
-        return str(value)
-    if isinstance(value, UUID):
-        return str(value)
-    if isinstance(value, (datetime, date)):
-        return value.isoformat()
-    if isinstance(value, bytes):
-        return value.decode("utf-8", "replace")
-    if isinstance(value, dict):
-        return {str(key): json_ready(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple, set)):
-        return [json_ready(item) for item in value]
-    dump = getattr(value, "model_dump", None) or getattr(value, "dict", None)
-    if callable(dump):
-        try:
-            return json_ready(dump())
-        except Exception:
-            pass
-    if hasattr(value, "__dict__"):
-        try:
-            return json_ready(
-                {
-                    key: item
-                    for key, item in vars(value).items()
-                    if not key.startswith("_")
-                }
-            )
-        except Exception:
-            pass
-    return str(value)
-
-
-def parse_date_flag(option: str, value: str) -> str:
-    if not DATE_RE.match(value):
-        fail('%s must be YYYY-MM-DD; got "%s".' % (option, value))
-    try:
-        datetime.strptime(value, "%Y-%m-%d")
+        result = int(value)
     except ValueError:
-        fail('%s must be YYYY-MM-DD; got "%s".' % (option, value))
-    return value
-
-
-def today_iso() -> str:
-    return datetime.now().strftime("%Y-%m-%d")
-
-
-def now_stamp() -> str:
-    return datetime.now().strftime("%Y-%m-%d-%H%M%S")
-
-
-def hash_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with open(path, "rb") as handle:
-        for block in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
-
-
-def unknown_keys(mapping: dict[str, Any], known: set[str], prefix: str) -> list[str]:
-    problems = []
-    for key in mapping:
-        if key not in known:
-            labelled = "%s.%s" % (prefix, key) if prefix else str(key)
-            problems.append(
-                'unknown key "%s" in set.yaml. This script reads only the keys in tools/knowledge-memory/templates/set.yaml.'
-                % labelled
-            )
-    return problems
-
-
-def recipe_problems(data: Any) -> list[str]:
-    """Validate recipe shape against templates/set.yaml. Stdlib only; no YAML."""
-    problems: list[str] = []
-    if not isinstance(data, dict):
-        return ["set.yaml must be a mapping of keys to values."]
-    problems.extend(unknown_keys(data, KNOWN_RECIPE_KEYS, ""))
-    for key in REQUIRED_RECIPE_KEYS:
-        if key not in data:
-            problems.append('set.yaml is missing required key "%s".' % key)
-    sources = data.get("sources")
-    if "sources" not in data:
-        problems.append('set.yaml is missing required key "sources.include".')
-    elif not isinstance(sources, dict):
-        problems.append('set.yaml key "sources" must be a mapping with include and optional exclude.')
-    else:
-        problems.extend(unknown_keys(sources, KNOWN_SOURCES_KEYS, "sources"))
-        if "include" not in sources:
-            problems.append('set.yaml is missing required key "sources.include".')
-        elif not isinstance(sources.get("include"), list) or not sources.get("include"):
-            problems.append('set.yaml key "sources.include" must be a non-empty list of globs.')
-        if "exclude" in sources and sources.get("exclude") is not None and not isinstance(
-            sources.get("exclude"), list
-        ):
-            problems.append('set.yaml key "sources.exclude" must be a list of globs.')
-    dataset = data.get("dataset")
-    if isinstance(dataset, str) and dataset and not DATASET_RE.match(dataset):
-        problems.append(
-            'dataset "%s" is not allowed. Use only lowercase letters, digits, and underscores ([a-z0-9_]+).'
-            % dataset
-        )
-    slug = data.get("set")
-    if isinstance(slug, str) and slug and not SET_SLUG_RE.match(slug):
-        problems.append(
-            'set "%s" is not allowed. Use only lowercase letters, digits, and hyphens.'
-            % slug
-        )
-    kind = data.get("kind")
-    if isinstance(kind, str) and kind and kind not in KNOWN_KINDS:
-        problems.append(
-            'kind "%s" is not allowed. One of: %s.' % (kind, ", ".join(KNOWN_KINDS))
-        )
-    sensitivity = data.get("sensitivity")
-    if isinstance(sensitivity, str) and sensitivity and sensitivity not in KNOWN_SENSITIVITY:
-        problems.append(
-            'sensitivity "%s" is not allowed. One of: %s.'
-            % (sensitivity, ", ".join(KNOWN_SENSITIVITY))
-        )
-    owner = data.get("owner")
-    if "owner" in data and not str(owner or "").strip():
-        problems.append('set.yaml key "owner" is blank. Name a person or role.')
-    consent = data.get("provider_consent")
-    if "provider_consent" in data and not str(consent or "").strip():
-        who = str(owner).strip() if owner else "the set owner"
-        problems.append(
-            "provider_consent is blank. %s has to give it (name and date) before this set can be ingested, because the corpus is sent to the model provider."
-            % who
-        )
-    node_sets = data.get("node_sets")
-    if "node_sets" in data and (not isinstance(node_sets, list) or not node_sets):
-        problems.append('set.yaml key "node_sets" must be a non-empty list.')
-    eval_path = data.get("eval")
-    if "eval" in data and not str(eval_path or "").strip():
-        problems.append('set.yaml key "eval" is blank. Point it at the eval questions file.')
-    pack = data.get("pack")
-    if "pack" in data and not str(pack or "").strip():
-        problems.append('set.yaml key "pack" is blank. Use "general" or a path relative to the set.')
-    llm = data.get("llm")
-    if llm is None:
-        pass
-    elif not isinstance(llm, dict):
-        problems.append('set.yaml key "llm" must be a mapping.')
-    else:
-        problems.extend(unknown_keys(llm, KNOWN_LLM_KEYS, "llm"))
-        provider = llm.get("provider")
-        if provider is not None and provider != "openai":
-            problems.append(
-                'llm.provider "%s" is not supported in v1. Use openai.' % provider
-            )
-    chunking = data.get("chunking")
-    if chunking is not None and chunking not in KNOWN_CHUNKING:
-        problems.append(
-            'chunking "%s" is not allowed. One of: %s.'
-            % (chunking, ", ".join(KNOWN_CHUNKING))
-        )
-    write_policy = data.get("write_policy")
-    if write_policy is None:
-        pass
-    elif not isinstance(write_policy, dict):
-        problems.append('set.yaml key "write_policy" must be a mapping.')
-    else:
-        problems.extend(unknown_keys(write_policy, KNOWN_WRITE_POLICY_KEYS, "write_policy"))
-    promotion = data.get("promotion_policy")
-    if promotion is None:
-        pass
-    elif not isinstance(promotion, dict):
-        problems.append('set.yaml key "promotion_policy" must be a mapping.')
-    else:
-        problems.extend(
-            unknown_keys(promotion, KNOWN_PROMOTION_POLICY_KEYS, "promotion_policy")
-        )
-    return problems
-
-
-def validate_recipe(data: Any) -> dict[str, Any]:
-    problems = recipe_problems(data)
-    if problems:
-        fail(problems[0])
-    assert isinstance(data, dict)
-    return data
-
-
-def recipe_provider(recipe: dict[str, Any]) -> str:
-    llm = recipe.get("llm") or {}
-    if isinstance(llm, dict):
-        provider = llm.get("provider") or "openai"
-    else:
-        provider = "openai"
-    if provider != "openai":
-        fail('llm.provider "%s" is not supported in v1. Use openai.' % provider)
-    return provider
-
-
-def load_yaml(path: Path, label: str) -> Any:
-    try:
-        import yaml  # noqa: WPS433 - imported only after the venv check
-    except Exception:
-        fail("PyYAML is missing from the package cache at %s after install." % CACHE_DIR)
-        raise
-    try:
-        with open(path, encoding="utf-8") as handle:
-            loaded = yaml.safe_load(handle)
-    except Exception as error:
-        fail("could not parse %s as YAML (%s)." % (label, type(error).__name__))
-        raise
-    return loaded
-
-
-def load_recipe(set_dir: Path) -> dict[str, Any]:
-    path = set_dir / "set.yaml"
-    loaded = load_yaml(path, "set.yaml")
-    if loaded is None:
-        fail("set.yaml at %s is empty." % path)
-    return validate_recipe(loaded)
-
-
-def require_set_yaml(set_dir: Path) -> Path:
-    path = set_dir / "set.yaml"
-    if not path.is_file():
-        fail(
-            "no set.yaml in %s. Pass the knowledge set directory that holds set.yaml."
-            % set_dir
-        )
-    if not os.access(path, os.R_OK):
-        fail("set.yaml at %s is not readable." % path)
-    return path
-
-
-def resolve_pack(set_dir: Path, pack: str) -> Path:
-    if pack == "general":
-        return GENERAL_PACK
-    return canonical("--pack", set_dir / pack)
-
-
-def load_pack(pack_dir: Path) -> tuple[Any, tuple[str, ...], Path, str]:
-    graph_path = pack_dir / "graph_model.py"
-    ontology_path = pack_dir / "ontology.ttl"
-    prompt_path = pack_dir / "extraction_prompt.md"
-    if not graph_path.is_file():
-        fail("the pack at %s has no graph_model.py." % pack_dir)
-    if not prompt_path.is_file():
-        fail("the pack at %s has no extraction_prompt.md." % pack_dir)
-    spec = importlib.util.spec_from_file_location(
-        "knowledge_memory_pack_graph_model", graph_path
-    )
-    if spec is None or spec.loader is None:
-        fail("could not load graph_model.py from %s." % pack_dir)
-        raise RuntimeError
-    module = importlib.util.module_from_spec(spec)
-    try:
-        spec.loader.exec_module(module)
-    except Exception as error:
-        fail("loading graph_model.py failed (%s)." % type(error).__name__)
-        raise
-    graph_model = getattr(module, "GRAPH_MODEL", None)
-    if graph_model is None:
-        fail("graph_model.py at %s does not export GRAPH_MODEL." % graph_path)
-    protected = getattr(module, "PROTECTED_TYPES", ())
-    if not isinstance(protected, (list, tuple)):
-        protected = ()
-    prompt = prompt_path.read_text(encoding="utf-8")
-    return graph_model, tuple(protected), ontology_path, prompt
-
-
-def canonical_names_from_canon(path: Path) -> list[str]:
-    if not path.is_file():
-        return []
-    names: list[str] = []
-    in_canonical = False
-    for line in path.read_text(encoding="utf-8").splitlines():
-        stripped = line.lstrip()
-        if stripped.startswith("#"):
-            in_canonical = "canonical" in stripped.lower()
-            continue
-        if in_canonical and stripped.startswith("- "):
-            names.append(stripped[2:].strip())
-    return names
-
-
-def build_custom_prompt(extraction_prompt: str, set_dir: Path, set_name: str) -> str:
-    names = canonical_names_from_canon(set_dir / "canon.md")
-    names_block = "<canonical_names>\n" + "\n".join(names) + "\n</canonical_names>"
-    source_block = "<source>\nset: %s\n</source>" % set_name
-    return extraction_prompt.rstrip() + "\n\n" + names_block + "\n\n" + source_block + "\n"
-
-
-def expand_sources(set_dir: Path, include: list[Any], exclude: list[Any] | None) -> list[Path]:
-    found: list[Path] = []
-    for pattern in include:
-        text = str(pattern)
-        for match in set_dir.glob(text):
-            if match.is_file():
-                found.append(canonical("sources.include", match))
-    excluded: set[tuple[int, int]] = set()
-    for pattern in exclude or []:
-        for match in set_dir.glob(str(pattern)):
-            if match.is_file():
-                resolved = canonical("sources.exclude", match)
-                try:
-                    stat = os.stat(resolved)
-                    excluded.add((stat.st_dev, stat.st_ino))
-                except OSError:
-                    continue
-    unique: list[Path] = []
-    seen: set[tuple[int, int]] = set()
-    for path in found:
-        try:
-            stat = os.stat(path)
-            identity = (stat.st_dev, stat.st_ino)
-        except OSError:
-            continue
-        if identity in seen or identity in excluded:
-            continue
-        seen.add(identity)
-        unique.append(path)
-    unique.sort(key=lambda item: str(item))
-    return unique
-
-
-def ledger_path(set_dir: Path) -> Path:
-    return set_dir / "reports" / "ledger.json"
-
-
-def load_ledger(set_dir: Path) -> dict[str, Any]:
-    path = ledger_path(set_dir)
-    if not path.is_file():
-        return {}
-    try:
-        loaded = json.loads(path.read_text(encoding="utf-8"))
-    except Exception as error:
-        fail("could not read the ledger at %s (%s)." % (path, type(error).__name__))
-        raise
-    if not isinstance(loaded, dict):
-        fail("the ledger at %s is not a JSON object." % path)
-    return loaded
-
-
-def save_ledger(set_dir: Path, ledger: dict[str, Any]) -> None:
-    path = ledger_path(set_dir)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(ledger, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-
-
-def normalize_name(name: str) -> str:
-    """Lowercase, strip punctuation and legal suffixes, collapse whitespace."""
-    text = name.lower()
-    text = re.sub(r"[^\w\s]", " ", text, flags=re.UNICODE)
-    tokens = [token for token in text.split() if token not in LEGAL_SUFFIXES]
-    return " ".join(tokens)
-
-
-def operation_failed(operation: str, error: BaseException) -> None:
-    fail(
-        "%s failed (%s). The provider message is omitted because it can carry a credential."
-        % (operation, type(error).__name__)
-    )
-
-
-async def maybe_await(value: Any) -> Any:
-    if inspect.isawaitable(value):
-        return await value
-    return value
-
-
-def drop_shell_api_key() -> None:
-    os.environ.pop("OPENAI_API_KEY", None)
-
-
-def scrub_key_from_environ(key: str) -> bool:
-    """Remove the key's value from os.environ if present. Never log the value.
-
-    Exact-value matches are always removed. Substring matches are removed only
-    on credential-shaped variable names, so a short test value cannot rewrite
-    PATH.
-    """
-    if not key:
-        return False
-    leaked = False
-    credential_name = re.compile(r"(API_KEY|SECRET|TOKEN|PASSWORD|PASSWD)", re.I)
-    to_delete: list[str] = []
-    for name, value in list(os.environ.items()):
-        if value is None:
-            continue
-        if value == key:
-            leaked = True
-            to_delete.append(name)
-            continue
-        if key in value and credential_name.search(name):
-            leaked = True
-            to_delete.append(name)
-    for name in to_delete:
-        os.environ.pop(name, None)
-    return leaked
-
-
-def key_in_environ(key: str) -> bool:
-    if not key:
-        return False
-    for value in os.environ.values():
-        if value == key:
-            return True
-    return False
-
-
-def apply_storage_env(store_dir: Path) -> None:
-    system_root = store_dir / "system"
-    data_root = store_dir / "data"
-    system_root.mkdir(parents=True, exist_ok=True)
-    data_root.mkdir(parents=True, exist_ok=True)
-    os.environ["SYSTEM_ROOT_DIRECTORY"] = str(system_root)
-    os.environ["DATA_ROOT_DIRECTORY"] = str(data_root)
-    os.environ["GRAPH_DATABASE_PROVIDER"] = GRAPH_PROVIDER
-    os.environ["VECTOR_DB_PROVIDER"] = VECTOR_PROVIDER
-    os.environ["DB_PROVIDER"] = DB_PROVIDER
-    os.environ["ENABLE_BACKEND_ACCESS_CONTROL"] = "true"
-
-
-def find_ontology_setter(config: Any) -> Any | None:
-    """Return a config setter whose name contains 'ontology', or None.
-
-    Do not guess a setter name and call it blind. Introspect dir(config).
-    """
-    # TODO(Solve): confirm which cognee.config attribute, if any, sets the
-    # ontology file path in 1.5.4, and whether it is a setter or a field.
-    for name in dir(config):
-        if "ontology" not in name.lower():
-            continue
-        attr = getattr(config, name, None)
-        if callable(attr):
-            return attr
-    return None
-
-
-def configure_llm_key(cognee_mod: Any, key: str) -> bool:
-    """Pass the key in-process. Never assign it to os.environ.
-
-    Returns True when cognee.config.set_llm_api_key existed and was called.
-    """
-    config = getattr(cognee_mod, "config", None)
-    if config is not None and hasattr(config, "set_llm_api_key"):
-        try:
-            config.set_llm_api_key(key)
-        except Exception as error:
-            operation_failed("cognee.config.set_llm_api_key", error)
-        return True
-    return False
-
-
-def remember_key_configs(used_setter: bool, key: str) -> tuple[dict[str, str], dict[str, str]]:
-    if used_setter:
-        return {}, {}
-    # TODO(Solve): confirm the llm_config / embedding_config dict shape that
-    # remember() actually forwards in cognee 1.5.4.
-    payload = {"api_key": key, "provider": "openai"}
-    return payload, dict(payload)
-
-
-def read_config_provider(config: Any, fragment: str, fallback: str) -> str:
-    if config is None:
-        return fallback
-    for name in dir(config):
-        lower = name.lower()
-        if fragment not in lower or "provider" not in lower:
-            continue
-        attr = getattr(config, name, None)
-        if callable(attr):
-            try:
-                value = attr()
-            except TypeError:
-                continue
-            except Exception:
-                continue
-            if value:
-                return str(value)
-        elif attr:
-            return str(attr)
-    return fallback
-
-
-def import_cognee(store_dir: Path, key: str, *, contradiction: bool) -> tuple[Any, bool, bool]:
-    refuse_store_env(store_dir)
-    apply_storage_env(store_dir)
-    if contradiction:
-        os.environ["CONTRADICTION_DETECTION"] = "true"
-    drop_shell_api_key()
-    try:
-        os.chdir(store_dir)
-    except OSError:
-        fail("could not change directory to the store at %s." % store_dir)
-    try:
-        import cognee  # noqa: WPS433 - imported only after chdir and storage env
-    except Exception as error:
-        fail(
-            "importing cognee failed (%s). Delete %s and re-run with --install."
-            % (type(error).__name__, CACHE_DIR)
-        )
-        raise
-    used_setter = configure_llm_key(cognee, key)
-    leaked = scrub_key_from_environ(key)
-    if not used_setter:
-        # recall, promote, and the rest have no remember() kwargs path. If the
-        # setter is absent they cannot supply the key in-process.
-        pass
-    return cognee, used_setter, leaked
-
-
-def require_in_process_key(used_setter: bool, command: str) -> None:
-    if used_setter:
-        return
-    if command == "ingest":
-        return
-    fail(
-        "the API key cannot be supplied in-process under this cognee version "
-        "(cognee.config.set_llm_api_key is absent and %s does not call remember())."
-        % command
-    )
-
-
-def cognee_version_string() -> str:
-    try:
-        return importlib.metadata.version("cognee")
-    except Exception:
-        return "unknown"
-
-
-def summarise_remember(result: Any) -> Any:
-    ready = json_ready(result)
-    if not isinstance(ready, dict):
-        return ready
-    keep = {}
-    for key, value in ready.items():
-        lower = key.lower()
-        if any(
-            token in lower
-            for token in ("count", "id", "added", "dataset", "status", "node", "edge", "data")
-        ):
-            keep[key] = value
-    return keep or ready
-
-
-def extract_data_ids(result: Any) -> list[str]:
-    """Best-effort data_id list from a RememberResult. Shape is unverified."""
-    # TODO(Solve): record how RememberResult exposes per-file data_id values
-    # in cognee 1.5.4 so the ledger can store them without guessing.
-    ready = json_ready(result)
-    found: list[str] = []
-
-    def walk(item: Any) -> None:
-        if isinstance(item, dict):
-            for key, value in item.items():
-                if key.lower() in ("data_id", "dataid", "id") and isinstance(value, str):
-                    found.append(value)
-                else:
-                    walk(value)
-        elif isinstance(item, list):
-            for child in item:
-                walk(child)
-
-    walk(ready)
-    return found
-
-
-async def remember_with_ontology(
-    cognee_mod: Any,
-    data: list[str],
-    *,
-    ontology: Path | None,
-    remember_kwargs: dict[str, Any],
-) -> tuple[Any, bool]:
-    """Call remember, trying ontology_file_path, then a config setter, then none.
-
-    Whether ontology_file_path reaches cognify through remember() is unverified.
-    """
-    # TODO(Solve): confirm whether remember() forwards ontology_file_path to
-    # cognify() in cognee 1.5.4. If it TypeErrors, confirm the config setter
-    # name that find_ontology_setter returns, if any.
-    if ontology is None or not ontology.is_file():
-        result = await cognee_mod.remember(data, **remember_kwargs)
-        return result, False
-    ontology_kw = dict(remember_kwargs)
-    ontology_kw["ontology_file_path"] = str(ontology)
-    try:
-        result = await cognee_mod.remember(data, **ontology_kw)
-        return result, True
-    except TypeError:
-        pass
-    setter = find_ontology_setter(getattr(cognee_mod, "config", None))
-    if setter is not None:
-        applied_setter = False
-        try:
-            setter(str(ontology))
-            applied_setter = True
-        except TypeError:
-            try:
-                setter(ontology_file_path=str(ontology))
-                applied_setter = True
-            except Exception:
-                applied_setter = False
-        except Exception:
-            applied_setter = False
-        if applied_setter:
-            result = await cognee_mod.remember(data, **remember_kwargs)
-            return result, True
-    note("the ontology was not applied this run")
-    result = await cognee_mod.remember(data, **remember_kwargs)
-    return result, False
-
-
-def reduce_context_item(item: Any) -> dict[str, Any]:
-    if isinstance(item, str):
-        return {"text": item}
-    ready = json_ready(item)
-    if not isinstance(ready, dict):
-        return {"text": str(item)}
-    out: dict[str, Any] = {}
-    for key in ("text", "content", "chunk", "answer", "name", "payload"):
-        if key in ready and ready[key] is not None:
-            out["text"] = ready[key]
-            break
-    for key in (
-        "source",
-        "sources",
-        "reference",
-        "references",
-        "path",
-        "file_path",
-        "document",
-        "metadata",
-    ):
-        if key in ready:
-            out[key] = ready[key]
-    if "text" not in out:
-        out["text"] = str(item)
-    return out
-
-
-def split_recall_result(result: Any) -> tuple[Any, list[Any], Any]:
-    """Return (answer, context_items, references). Shape is unverified."""
-    # TODO(Solve): record the actual cognee.recall return type in 1.5.4
-    # (string, SearchResult, tuple, dict) and which fields carry source paths.
-    if result is None:
-        return None, [], None
-    if isinstance(result, str):
-        text = result.strip()
-        if not text:
-            return None, [], None
-        return result, [{"text": result}], None
-    ready = json_ready(result)
-    if isinstance(ready, list):
-        items = [reduce_context_item(item) for item in ready]
-        return None, items, None
-    if isinstance(ready, dict):
-        answer = ready.get("answer", ready.get("result", ready.get("text")))
-        context = ready.get("context", ready.get("items", ready.get("chunks", [])))
-        if context is None:
-            context = []
-        if not isinstance(context, list):
-            context = [context]
-        references = ready.get("references", ready.get("sources", ready.get("source")))
-        items = [reduce_context_item(item) for item in context]
-        if answer and not items:
-            items = [reduce_context_item(answer)]
-        return answer, items, references
-    answer = getattr(result, "answer", None) or getattr(result, "result", None)
-    context = getattr(result, "context", None) or getattr(result, "chunks", None) or []
-    if not isinstance(context, list):
-        context = [context]
-    references = getattr(result, "references", None) or getattr(result, "sources", None)
-    return answer, [reduce_context_item(item) for item in context], references
-
-
-async def call_recall(
-    cognee_mod: Any,
-    *,
-    query: str,
-    dataset: str,
-    top_k: int,
-    only_context: bool,
-    include_references: bool,
-) -> Any:
-    kwargs = {
-        "datasets": [dataset],
-        "top_k": top_k,
-        "only_context": only_context,
-    }
-    if include_references:
-        kwargs["include_references"] = True
-    try:
-        return await cognee_mod.recall(query, **kwargs)
-    except Exception as error:
-        operation_failed("cognee.recall", error)
-        raise
-
-
-def coerce_node(raw: Any) -> dict[str, Any]:
-    # TODO(Solve): record the node object shape returned by get_graph_data()
-    # in cognee 1.5.4 (dict, DataPoint, (id, props), NetworkX node).
-    data: dict[str, Any] = {}
-    if isinstance(raw, dict):
-        data.update(raw)
-    elif isinstance(raw, (list, tuple)) and raw:
-        data["id"] = raw[0]
-        if len(raw) >= 2 and isinstance(raw[-1], dict):
-            data.update(raw[-1])
-        elif len(raw) >= 2:
-            data["name"] = raw[1]
-    else:
-        dump = getattr(raw, "model_dump", None) or getattr(raw, "dict", None)
-        if callable(dump):
-            try:
-                dumped = dump()
-                if isinstance(dumped, dict):
-                    data.update(dumped)
-            except Exception:
-                pass
-        for attr in (
-            "id",
-            "node_id",
-            "uuid",
-            "uid",
-            "element_id",
-            "name",
-            "status",
-            "quote",
-            "type",
-            "entity_type",
-            "valid_to",
-            "valid_from",
-            "confidence",
-            "source",
-            "source_path",
-            "file_path",
-            "data_id",
-            "created_at",
-            "ingested_on",
-        ):
-            if hasattr(raw, attr):
-                value = getattr(raw, attr)
-                if value is not None and attr not in data:
-                    data[attr] = value
-        if hasattr(raw, "__class__"):
-            data.setdefault("type", raw.__class__.__name__)
-    if "id" not in data:
-        for key in ("node_id", "uuid", "uid", "element_id"):
-            if data.get(key) is not None:
-                data["id"] = data[key]
-                break
-    return data
-
-
-def coerce_edge(raw: Any) -> dict[str, Any]:
-    # TODO(Solve): record the edge object shape returned by get_graph_data()
-    # in cognee 1.5.4.
-    data: dict[str, Any] = {}
-    if isinstance(raw, dict):
-        data.update(raw)
-        return data
-    if isinstance(raw, (list, tuple)):
-        if len(raw) == 3:
-            data["source"] = raw[0]
-            middle = raw[1]
-            last = raw[2]
-            if isinstance(middle, str) and not isinstance(last, str):
-                data["relation"] = middle
-                data["target"] = last
-            elif isinstance(last, str):
-                data["target"] = middle
-                data["relation"] = last
-            else:
-                data["target"] = last
-                data["relation"] = middle
-            if isinstance(data.get("target"), dict):
-                extra = data["target"]
-                data["target"] = extra.get("id", extra)
-                data.update({key: value for key, value in extra.items() if key != "id"})
-            return data
-        if len(raw) >= 2:
-            data["source"] = raw[0]
-            data["target"] = raw[1]
-            return data
-    for attr in ("source", "target", "relation", "relationship", "type", "label"):
-        if hasattr(raw, attr):
-            data[attr] = getattr(raw, attr)
-    return data
-
-
-def edge_relation(edge: dict[str, Any]) -> str:
-    for key in ("relation", "relationship", "type", "label", "rel", "edge_type"):
-        value = edge.get(key)
-        if value is not None:
-            return str(value)
-    return ""
-
-
-def split_graph_data(result: Any) -> tuple[list[Any], list[Any]]:
-    if result is None:
-        return [], []
-    if isinstance(result, tuple) and len(result) == 2:
-        return list(result[0] or []), list(result[1] or [])
-    if isinstance(result, dict):
-        nodes = result.get("nodes") or result.get("Nodes") or []
-        edges = (
-            result.get("edges")
-            or result.get("Edges")
-            or result.get("relationships")
-            or []
-        )
-        return list(nodes), list(edges)
-    if isinstance(result, list):
-        return list(result), []
-    return [], []
-
-
-async def enumerate_graph(cognee_mod: Any, dataset: str) -> tuple[Any, list[dict[str, Any]], list[dict[str, Any]], str]:
-    """Return (engine, nodes, edges, access_path). Fail by naming paths tried."""
-    tried: list[str] = []
-    datasets_mod = getattr(cognee_mod, "datasets", None)
-    if datasets_mod is not None:
-        for name in ("get_graph_data", "get_dataset_data", "get_data"):
-            fn = getattr(datasets_mod, name, None)
-            if not callable(fn):
-                continue
-            label = "cognee.datasets.%s" % name
-            tried.append(label)
-            try:
-                # TODO(Solve): confirm which cognee.datasets helper enumerates
-                # nodes for one dataset, and its signature.
-                try:
-                    result = fn(dataset)
-                except TypeError:
-                    result = fn()
-                result = await maybe_await(result)
-                nodes_raw, edges_raw = split_graph_data(result)
-                if nodes_raw or edges_raw:
-                    nodes = [coerce_node(item) for item in nodes_raw]
-                    edges = [coerce_edge(item) for item in edges_raw]
-                    return None, nodes, edges, label
-            except Exception:
-                continue
-    tried.append("cognee.infrastructure.databases.graph.get_graph_engine")
-    try:
-        from cognee.infrastructure.databases.graph import get_graph_engine
-
-        engine = await maybe_await(get_graph_engine())
-        if engine is None or not hasattr(engine, "get_graph_data"):
-            raise RuntimeError("engine missing get_graph_data")
-        result = await maybe_await(engine.get_graph_data())
-        nodes_raw, edges_raw = split_graph_data(result)
-        nodes = [coerce_node(item) for item in nodes_raw]
-        edges = [coerce_edge(item) for item in edges_raw]
-        return (
-            engine,
-            nodes,
-            edges,
-            "cognee.infrastructure.databases.graph.get_graph_engine().get_graph_data()",
-        )
-    except Exception:
-        fail(
-            "could not enumerate graph nodes. Tried: %s."
-            % "; ".join(tried)
-        )
-        raise
-
-
-def find_update_method(engine: Any) -> tuple[str, Any] | None:
-    """Introspect the graph engine for a node update method. Do not call blind."""
-    # TODO(Solve): confirm the graph engine method that updates node properties
-    # in cognee 1.5.4 (historical name update_node) and the working signature.
-    if engine is None:
-        return None
-    names = []
-    for name in dir(engine):
-        if name.startswith("_"):
-            continue
-        lower = name.lower()
-        if "update" in lower and "node" in lower:
-            names.append(name)
-        elif name in ("update_node", "upsert_node", "set_node"):
-            names.append(name)
-    seen: set[str] = set()
-    ordered: list[str] = []
-    for name in names:
-        if name in seen:
-            continue
-        seen.add(name)
-        ordered.append(name)
-    for name in ordered:
-        attr = getattr(engine, name, None)
-        if callable(attr):
-            return name, attr
-    return None
-
-
-async def update_node_fields(engine: Any, node_id: Any, fields: dict[str, Any]) -> bool:
-    found = find_update_method(engine)
-    if found is None:
-        return False
-    _name, method = found
-    attempts = (
-        lambda: method(node_id, fields),
-        lambda: method(node_id, **fields),
-        lambda: method({"id": node_id, **fields}),
-        lambda: method(node_id, properties=fields),
-        lambda: method(properties=fields, node_id=node_id),
-    )
-    for attempt in attempts:
-        try:
-            await maybe_await(attempt())
-            return True
-        except TypeError:
-            continue
-        except Exception as error:
-            operation_failed("graph node update", error)
-    return False
-
-
-def node_status(node: dict[str, Any]) -> str:
-    value = node.get("status")
-    if value is None:
-        return ""
-    return str(value)
-
-
-def node_type_label(node: dict[str, Any]) -> str:
-    for key in ("entity_type", "type", "label", "node_type"):
-        value = node.get(key)
-        if value:
-            return str(value)
-    return "unknown"
-
-
-def node_name(node: dict[str, Any]) -> str:
-    for key in ("name", "label", "text", "summary", "question"):
-        value = node.get(key)
-        if value:
-            return str(value)
-    return str(node.get("id") or "")
-
-
-def node_id_of(node: dict[str, Any]) -> str:
-    value = node.get("id")
-    if value is None:
-        return ""
-    return str(value)
-
-
-def is_protected(node: dict[str, Any], protected_types: tuple[str, ...]) -> bool:
-    labels = {
-        node_type_label(node).lower(),
-        str(node.get("type") or "").lower(),
-        str(node.get("entity_type") or "").lower(),
-    }
-    protected = {item.lower() for item in protected_types}
-    return bool(labels & protected)
-
-
-def collect_review_ids(review_root: Path) -> set[str]:
-    ids: set[str] = set()
-    if not review_root.is_dir():
-        return ids
-    for path in review_root.rglob("*"):
-        if not path.is_file():
-            continue
-        ids.add(path.stem)
-        try:
-            text = path.read_text(encoding="utf-8")
-        except OSError:
-            continue
-        match = re.search(r"(?m)^id:\s*(\S+)", text)
-        if match:
-            ids.add(match.group(1).strip())
-    return ids
-
-
-def review_covers_token(review_root: Path, token: str) -> bool:
-    if not token or not review_root.is_dir():
-        return False
-    for path in review_root.rglob("*"):
-        if not path.is_file():
-            continue
-        try:
-            text = path.read_text(encoding="utf-8")
-        except OSError:
-            continue
-        if token in text:
-            return True
-    return False
-
-
-def next_review_id(dataset: str, existing: set[str]) -> str:
-    stamp = datetime.now().strftime("%Y%m%d")
-    n = 1
-    while True:
-        candidate = "%s-%s-%d" % (dataset, stamp, n)
-        if candidate not in existing:
-            existing.add(candidate)
-            return candidate
-        n += 1
-
-
-def render_review_item(
-    *,
-    item_id: str,
-    item_type: str,
-    dataset: str,
-    title: str,
-    node_type: str,
-    action: str,
-    why: str,
-    quote: str,
-    source_path: str,
-    content_hash: str,
-    confidence: str,
-    extra: str = "",
-) -> str:
-    created = today_iso()
-    hash_short = content_hash[:12] if content_hash else ""
-    hash_field = ("sha256:" + hash_short) if hash_short else ""
-    body = extra + "\n" if extra else ""
-    return (
-        "---\n"
-        "id: %s\n"
-        "type: %s\n"
-        "dataset: %s\n"
-        "status: open\n"
-        "created: %s\n"
-        "---\n"
-        "\n"
-        "# %s\n"
-        "\n"
-        "## Surface forms\n"
-        "\n"
-        "- \"%s\"\n"
-        "\n"
-        "## Node type\n"
-        "\n"
-        "%s\n"
-        "\n"
-        "## Proposed action\n"
-        "\n"
-        "%s\n"
-        "\n"
-        "## Evidence\n"
-        "\n"
-        "| Quote (40 words at most) | Source path | Content hash | Extractor confidence |\n"
-        "|--------------------------|------------|--------------|----------------------|\n"
-        "| \"%s\" | %s | %s | %s |\n"
-        "\n"
-        "## Why this is not auto-decidable\n"
-        "\n"
-        "%s\n"
-        "\n"
-        "## Recommendation\n"
-        "\n"
-        "\n"
-        "## Decision\n"
-        "\n"
-        "reviewer:\n"
-        "decision:\n"
-        "date:\n"
-        "note:\n"
-        "%s"
-    ) % (
-        item_id,
-        item_type,
-        dataset,
-        created,
-        title,
-        title,
-        node_type,
-        action,
-        quote,
-        source_path,
-        hash_field,
-        confidence,
-        why,
-        body,
-    )
-
-
-def parse_frontmatter_and_body(text: str) -> tuple[dict[str, str], str]:
-    if not text.startswith("---"):
-        fail("the decided item has no YAML frontmatter.")
-    parts = text.split("---", 2)
-    if len(parts) < 3:
-        fail("the decided item frontmatter is not closed.")
-    fields: dict[str, str] = {}
-    for raw in parts[1].splitlines():
-        line = raw.strip()
-        if not line or ":" not in line:
-            continue
-        key, value = line.split(":", 1)
-        fields[key.strip().lower()] = value.strip()
-    return fields, parts[2]
-
-
-def parse_decision_block(body: str) -> dict[str, str]:
-    lines = body.splitlines()
-    index = 0
-    while index < len(lines):
-        if re.match(r"^##\s+Decision\s*$", lines[index]):
-            break
-        index += 1
-    else:
-        fail("the decided item has no ## Decision block.")
-    fields: dict[str, str] = {}
-    index += 1
-    while index < len(lines) and not lines[index].startswith("#"):
-        line = lines[index].strip()
-        if line and ":" in line:
-            key, value = line.split(":", 1)
-            fields[key.strip().lower()] = value.strip()
-        index += 1
-    return fields
-
-
-def append_changelog(path: Path, line: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "a", encoding="utf-8") as handle:
-        handle.write(line.rstrip() + "\n")
-
-
-def set_frontmatter_status(path: Path, status: str) -> None:
-    text = path.read_text(encoding="utf-8")
-    updated, count = re.subn(
-        r"(?m)^status:\s*\S+",
-        "status: %s" % status,
-        text,
-        count=1,
-    )
-    if count == 0:
-        updated = text.replace("---\n", "---\nstatus: %s\n" % status, 1)
-    path.write_text(updated, encoding="utf-8")
-
-
-def find_node(nodes: list[dict[str, Any]], node_id: str) -> dict[str, Any] | None:
-    for node in nodes:
-        if node_id_of(node) == node_id:
-            return node
-    return None
-
-
-def ledger_entry_for_node(node: dict[str, Any], ledger: dict[str, Any]) -> tuple[str | None, dict[str, Any] | None]:
-    for key in ("source", "source_path", "file_path", "path"):
-        value = node.get(key)
-        if isinstance(value, str) and value in ledger:
-            return value, ledger[value]
-    data_id = node.get("data_id")
-    if data_id is not None:
-        for path, entry in ledger.items():
-            if isinstance(entry, dict) and str(entry.get("data_id")) == str(data_id):
-                return path, entry
-    return None, None
-
-
-def parse_iso_date(value: Any) -> date | None:
-    if not value:
-        return None
-    text = str(value)[:10]
-    if not DATE_RE.match(text):
-        return None
-    try:
-        return datetime.strptime(text, "%Y-%m-%d").date()
-    except ValueError:
-        return None
-
-
-async def attempt_memify_detect(cognee_mod: Any, dataset: str) -> None:
-    # TODO(Solve): confirm whether detect_entity_duplicates is a registered
-    # memify task name in cognee 1.5.4. The name is unverified.
-    try:
-        await cognee_mod.memify(
-            extraction_tasks=["detect_entity_duplicates"],
-            dataset=dataset,
-        )
-    except Exception:
-        note("detect_entity_duplicates is not available in this cognee version")
-
-
-async def attempt_memify_merge(cognee_mod: Any, dataset: str) -> bool:
-    # TODO(Solve): confirm whether merge_entity_duplicates is a registered
-    # memify task name in cognee 1.5.4. Never call it without a decided item.
-    try:
-        await cognee_mod.memify(
-            enrichment_tasks=["merge_entity_duplicates"],
-            dataset=dataset,
-        )
-        return True
-    except Exception:
-        note("merge_entity_duplicates is not available in this cognee version")
-        return False
-
-
-def cmd_check(values: dict[str, str]) -> None:
-    store_writable: bool | None = None
-    store_arg = values.get("--store")
-    if store_arg:
-        store_dir = screen_path("--store", store_arg, destination=True)
-        store_writable = store_is_writable(store_dir)
-    emit(
-        {
-            "python": python_version_string(),
-            "python_ok": python_is_ok(),
-            "interpreters_found": interpreters_found(),
-            "venv": CACHE_DIR.is_dir(),
-            "cognee": cognee_marker_present(),
-            "store_writable": store_writable,
-        }
-    )
-
-
-def cmd_selftest() -> None:
-    """Hidden: unit-test stdlib validators without installing cognee."""
-    cases: list[dict[str, Any]] = []
-
-    def record(name: str, ok: bool, detail: Any = None) -> None:
-        cases.append({"name": name, "ok": ok, "detail": detail})
-
-    sample = {
-        "set": "example-set",
-        "dataset": "exampleroot_example_set",
-        "kind": "book",
-        "owner": "tester",
-        "sensitivity": "internal",
-        "provider_consent": "tester, 2026-09-05",
-        "canon_confirmed": "",
-        "sources": {"include": ["corpus/**/*.md"], "exclude": []},
-        "pack": "general",
-        "node_sets": ["kind:book"],
-        "chunking": "heading-aware",
-        "llm": {
-            "provider": "openai",
-            "model": "default",
-            "embedding_model": "default",
-        },
-        "review_cadence_days": 7,
-        "stale_after_days": 30,
-        "write_policy": {"agents_may_remember_episodes": False},
-        "promotion_policy": {
-            "auto_accept": ["exact_ontology_match", "normalized_name_match_same_type"]
-        },
-        "eval": "eval.questions.yaml",
-    }
-    record("valid recipe", recipe_problems(sample) == [], recipe_problems(sample))
-
-    unknown = dict(sample)
-    unknown["nope"] = 1
-    unknown_errors = recipe_problems(unknown)
-    record(
-        "unknown key",
-        any("nope" in item for item in unknown_errors),
-        unknown_errors,
-    )
-
-    nested = dict(sample)
-    nested["sources"] = {"include": ["corpus/**/*.md"], "weird": 1}
-    nested_errors = recipe_problems(nested)
-    record(
-        "unknown nested key",
-        any("weird" in item for item in nested_errors),
-        nested_errors,
-    )
-
-    missing = dict(sample)
-    del missing["dataset"]
-    missing_errors = recipe_problems(missing)
-    record(
-        "missing required key",
-        any("dataset" in item for item in missing_errors),
-        missing_errors,
-    )
-
-    blank = dict(sample)
-    blank["provider_consent"] = ""
-    blank_errors = recipe_problems(blank)
-    record(
-        "blank provider_consent",
-        any("provider_consent" in item for item in blank_errors),
-        blank_errors,
-    )
-
-    bad_dataset = dict(sample)
-    bad_dataset["dataset"] = "Not Valid"
-    dataset_errors = recipe_problems(bad_dataset)
-    record(
-        "bad dataset",
-        any("dataset" in item for item in dataset_errors),
-        dataset_errors,
-    )
-
-    other_provider = dict(sample)
-    other_provider["llm"] = {"provider": "anthropic"}
-    provider_errors = recipe_problems(other_provider)
-    record(
-        "refused provider",
-        any("anthropic" in item for item in provider_errors),
-        provider_errors,
-    )
-
-    record("normalize Acme Corp.", normalize_name("Acme Corp.") == "acme")
-    record("normalize Foo, Inc", normalize_name("Foo, Inc") == "foo")
-    record(
-        "normalize whitespace",
-        normalize_name("  Alpha   LLC  ") == "alpha",
-    )
-
-    env_parsed = parse_env_text('FOO=bar\n# comment\n\nBAZ="qux"\n')
-    record(
-        "parse env text",
-        env_parsed == {"FOO": "bar", "BAZ": "qux"},
-        {key: True for key in env_parsed},
-    )
-
-    failed = [case for case in cases if not case["ok"]]
-    emit({"ok": not failed, "tests": cases})
-    if failed:
-        sys.exit(1)
-
-
-def refuse_if_env_collision(option: str, resolved: Path, env_file: Path) -> None:
-    existing = deepest_existing(option, resolved)
-    try:
-        if same_file(existing, env_file) or inside_dir(existing, env_file.parent):
-            fail(
-                "%s resolves to the --env file or inside the directory that holds it. Pass a work path, not the credential file."
-                % option
-            )
-    except OSError:
-        pass
-
-
-def peek_dataset(set_dir: Path) -> str:
-    """Read dataset: from set.yaml with the stdlib so forget --confirm can speak before install."""
-    path = set_dir / "set.yaml"
-    try:
-        text = path.read_text(encoding="utf-8")
-    except OSError:
-        return "the dataset named in set.yaml"
-    for raw in text.splitlines():
-        line = raw.strip()
-        if line.startswith("dataset:"):
-            value = line.split(":", 1)[1].strip().strip('"').strip("'")
-            if value:
-                return value
-    return "the dataset named in set.yaml"
-
-
-def prepare_store_args(
-    values: dict[str, str],
-    *,
-    need_set: bool,
-    need_env: bool,
-) -> tuple[Path | None, Path, Path | None, dict[str, str]]:
-    store_arg = values.get("--store")
-    if not store_arg:
-        fail("--store is required. Pass the owning root's knowledge/.store/ directory. " + usage_hint())
-    if need_env and not values.get("--env"):
-        fail(env_missing_message(False, None))
-    # Screen --store before requiring the --env file to exist, so a store inside
-    # this tool is refused even when --env names a path that is not yet a file.
-    store_dir = screen_path("--store", store_arg, destination=True, env_file=None)
-    set_dir = None
-    if need_set:
-        set_arg = values.get("--set")
-        if not set_arg:
-            fail(
-                "--set is required. Pass the knowledge set directory that holds set.yaml. "
-                + usage_hint()
-            )
-        set_dir = screen_path(
-            "--set",
-            set_arg,
-            destination=False,
-            env_file=None,
-            must_exist=True,
-            as_dir=True,
-        )
-        if not set_dir.is_dir():
-            fail("--set is not a directory at %s." % set_dir)
-        require_set_yaml(set_dir)
-    env_path = None
-    env_values: dict[str, str] = {}
-    if need_env:
-        env_path = load_env_path(values.get("--env"))
-        env_values = parse_env_file(env_path)
-        refuse_if_env_collision("--store", store_dir, env_path)
-        if set_dir is not None:
-            refuse_if_env_collision("--set", set_dir, env_path)
-    if store_dir.exists():
-        refuse_store_env(store_dir)
-    return set_dir, store_dir, env_path, env_values
-
-
-def cmd_bootstrap(values: dict[str, str]) -> None:
-    if not values.get("--env"):
-        fail(env_missing_message(False, None))
-    _set_dir, store_dir, _env_path, env_values = prepare_store_args(
-        values, need_set=False, need_env=True
-    )
-    key = openai_key(env_values)
-    require_python()
-    ensure_packages()
-    store_dir.mkdir(parents=True, exist_ok=True)
-    refuse_store_env(store_dir)
-    cognee_mod, used_setter, leaked = import_cognee(
-        store_dir, key, contradiction=False
-    )
-    require_in_process_key(used_setter, "bootstrap")
-    leaked = scrub_key_from_environ(key) or leaked
-    config = getattr(cognee_mod, "config", None)
-    emit(
-        {
-            "ok": True,
-            "store": str(store_dir),
-            "python": python_version_string(),
-            "cognee_version": cognee_version_string(),
-            "graph_provider": read_config_provider(config, "graph", GRAPH_PROVIDER),
-            "vector_provider": read_config_provider(config, "vector", VECTOR_PROVIDER),
-            "key_in_environ": key_in_environ(key),
-            "key_leaked_to_environ": leaked,
-        }
-    )
-
-
-async def ingest_async(
-    values: dict[str, str],
-    flags: set[str],
-    set_dir: Path,
-    store_dir: Path,
-    key: str,
-) -> dict[str, Any]:
-    recipe = load_recipe(set_dir)
-    provider = recipe_provider(recipe)
-    if provider != "openai":
-        fail('llm.provider "%s" is not supported in v1. Use openai.' % provider)
-    pack_dir = resolve_pack(set_dir, str(recipe["pack"]))
-    if not pack_dir.is_dir():
-        fail("the pack directory %s does not exist." % pack_dir)
-    started = datetime.now()
-    cognee_mod, used_setter, leaked = import_cognee(
-        store_dir, key, contradiction=True
-    )
-    llm_config, embedding_config = remember_key_configs(used_setter, key)
-    if not used_setter and not llm_config:
-        fail(
-            "the API key cannot be supplied in-process under this cognee version "
-            "(no set_llm_api_key and remember() cannot take llm_config)."
-        )
-    graph_model, _protected, ontology, extraction_prompt = load_pack(pack_dir)
-    prompt = build_custom_prompt(extraction_prompt, set_dir, str(recipe["set"]))
-    include = recipe["sources"]["include"]
-    exclude = recipe["sources"].get("exclude") or []
-    files = expand_sources(set_dir, include, exclude)
-    ledger = load_ledger(set_dir)
-    new_files: list[Path] = []
-    skipped: list[str] = []
-    hashes: dict[str, str] = {}
-    mtimes: dict[str, float] = {}
-    for path in files:
-        digest = hash_file(path)
-        hashes[str(path)] = digest
-        try:
-            mtimes[str(path)] = path.stat().st_mtime
-        except OSError:
-            mtimes[str(path)] = 0.0
-        entry = ledger.get(str(path))
-        if isinstance(entry, dict) and entry.get("sha256") == digest:
-            skipped.append(str(path))
-        else:
-            new_files.append(path)
-
-    report_dir_arg = values.get("--report")
-    if report_dir_arg:
-        report_dir = screen_path(
-            "--report",
-            report_dir_arg,
-            destination=True,
-        )
-    else:
-        report_dir = set_dir / "reports"
-    report_dir.mkdir(parents=True, exist_ok=True)
-
-    if not new_files:
-        duration = (datetime.now() - started).total_seconds()
-        report = {
-            "ok": True,
-            "files_added": [],
-            "files_skipped_unchanged": skipped,
-            "files_failed": [],
-            "ontology_applied": False,
-            "key_in_environ": key_in_environ(key),
-            "key_leaked_to_environ": leaked,
-            "dataset": recipe["dataset"],
-            "pack": recipe["pack"],
-            "duration_seconds": round(duration, 3),
-            "review_due": False,
-            "message": "nothing is new; every source hash matches the ledger",
-        }
-        return report
-
-    data = [str(path) for path in new_files]
-    remember_kwargs: dict[str, Any] = {
-        "dataset_name": recipe["dataset"],
-        "custom_prompt": prompt,
-        "graph_model": graph_model,
-        "node_set": list(recipe["node_sets"]),
-        "incremental_loading": True,
-        "raise_on_error": True,
-    }
-    if llm_config:
-        remember_kwargs["llm_config"] = llm_config
-        remember_kwargs["embedding_config"] = embedding_config
-
-    proceed = "--proceed" in flags
-    if not proceed:
-        remember_kwargs["dry_run"] = True
-        try:
-            result, ontology_applied = await remember_with_ontology(
-                cognee_mod,
-                data,
-                ontology=ontology if ontology.is_file() else None,
-                remember_kwargs=remember_kwargs,
-            )
-        except Exception as error:
-            operation_failed("cognee.remember (dry_run)", error)
-            raise
-        estimate = json_ready(result)
-        note("re-run with --proceed to ingest")
-        emit(
-            {
-                "dry_run": True,
-                "estimate": estimate,
-                "files_new": data,
-                "files_skipped_unchanged": skipped,
-                "ontology_applied": ontology_applied,
-                "dataset": recipe["dataset"],
-            }
-        )
-        sys.exit(1)
-
-    remember_kwargs.pop("dry_run", None)
-    files_failed: list[dict[str, str]] = []
-    files_added: list[str] = []
-    remember_result = None
-    ontology_applied = False
-    try:
-        remember_result, ontology_applied = await remember_with_ontology(
-            cognee_mod,
-            data,
-            ontology=ontology if ontology.is_file() else None,
-            remember_kwargs=remember_kwargs,
-        )
-        files_added = list(data)
-    except SystemExit:
-        raise
-    except Exception as error:
-        class_name = type(error).__name__
-        files_failed = [{"path": path, "error": class_name} for path in data]
-
-    if files_added:
-        try:
-            await cognee_mod.improve(dataset=recipe["dataset"])
-        except Exception as error:
-            note("cognee.improve failed (%s)" % type(error).__name__)
-
-    data_ids = extract_data_ids(remember_result) if remember_result is not None else []
-    ingested_on = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-    for index, path in enumerate(files_added):
-        data_id = data_ids[index] if index < len(data_ids) else None
-        ledger[path] = {
-            "sha256": hashes.get(path, ""),
-            "mtime": mtimes.get(path, 0.0),
-            "ingested_on": ingested_on,
-            "data_id": data_id,
-        }
-    save_ledger(set_dir, ledger)
-
-    duration = (datetime.now() - started).total_seconds()
-    report = {
-        "ok": True,
-        "files_added": files_added,
-        "files_skipped_unchanged": skipped,
-        "files_failed": files_failed,
-        "ontology_applied": ontology_applied,
-        "key_in_environ": key_in_environ(key),
-        "key_leaked_to_environ": leaked,
-        "dataset": recipe["dataset"],
-        "pack": recipe["pack"],
-        "duration_seconds": round(duration, 3),
-        "review_due": True,
-    }
-    if remember_result is not None:
-        report["remember_result"] = summarise_remember(remember_result)
-    report_path = report_dir / ("ingest-%s.json" % now_stamp())
-    report_path.write_text(
-        json.dumps(json_ready(report), indent=2) + "\n", encoding="utf-8"
-    )
-    report["report"] = str(report_path)
-    return report
-
-
-def cmd_ingest(values: dict[str, str], flags: set[str]) -> None:
-    set_dir, store_dir, _env_path, env_values = prepare_store_args(
-        values, need_set=True, need_env=True
-    )
-    assert set_dir is not None
-    report_dir_arg = values.get("--report")
-    if report_dir_arg:
-        screen_path("--report", report_dir_arg, destination=True)
-    require_python()
-    ensure_packages()
-    key = openai_key(env_values)
-    if not store_dir.exists():
-        fail("the store at %s does not exist. Run bootstrap first." % store_dir)
-    report = asyncio.run(ingest_async(values, flags, set_dir, store_dir, key))
-    emit(report)
-
-
-async def recall_async(
-    set_dir: Path,
-    store_dir: Path,
-    key: str,
-    query: str,
-    as_of: str | None,
-    top_k: int,
-    mode: str,
-) -> dict[str, Any]:
-    recipe = load_recipe(set_dir)
-    recipe_provider(recipe)
-    cognee_mod, used_setter, leaked = import_cognee(
-        store_dir, key, contradiction=False
-    )
-    require_in_process_key(used_setter, "recall")
-    query_text = query
-    if as_of:
-        query_text = "%s (as of %s)" % (query, as_of)
-    only_context = mode == "context"
-    include_references = mode == "answer"
-    result = await call_recall(
-        cognee_mod,
-        query=query_text,
-        dataset=str(recipe["dataset"]),
-        top_k=top_k,
-        only_context=only_context,
-        include_references=include_references,
-    )
-    answer, context, references = split_recall_result(result)
-    if only_context:
-        answer = None
-    if not context and not answer:
-        answer = None
-        context = []
-    canon = recipe.get("canon_confirmed")
-    if not str(canon or "").strip():
-        canon = None
-    return {
-        "dataset": recipe["dataset"],
-        "query": query_text,
-        "as_of": as_of,
-        "answer": answer,
-        "context": context,
-        "references": references,
-        "canon_confirmed": canon,
-        "key_leaked_to_environ": leaked,
-    }
-
-
-def cmd_recall(values: dict[str, str]) -> None:
-    set_dir, store_dir, _env_path, env_values = prepare_store_args(
-        values, need_set=True, need_env=True
-    )
-    assert set_dir is not None
-    query = values.get("--query")
-    if not query:
-        fail("--query is required. " + usage_hint())
-    as_of = values.get("--as-of")
-    if as_of:
-        as_of = parse_date_flag("--as-of", as_of)
-    top_k_raw = values.get("--top-k") or "15"
-    try:
-        top_k = int(top_k_raw)
-    except ValueError:
-        fail('--top-k must be an integer; got "%s".' % top_k_raw)
-        raise
-    if top_k < 1:
-        fail("--top-k must be 1 or more.")
-    mode = values.get("--mode") or "answer"
-    if mode not in KNOWN_MODES:
-        fail('unknown --mode "%s". One of: %s.' % (mode, ", ".join(KNOWN_MODES)))
-    require_python()
-    ensure_packages()
-    key = openai_key(env_values)
-    if not store_dir.exists():
-        fail("the store at %s does not exist. Run bootstrap first." % store_dir)
-    emit(
-        asyncio.run(
-            recall_async(set_dir, store_dir, key, query, as_of, top_k, mode)
-        )
-    )
-
-
-def source_fields_for_node(
-    node: dict[str, Any], ledger: dict[str, Any]
-) -> tuple[str, str, str, str]:
-    quote = str(node.get("quote") or "")
-    confidence = str(node.get("confidence") or "")
-    path, entry = ledger_entry_for_node(node, ledger)
-    source_path = path or str(node.get("source") or node.get("source_path") or "")
-    content_hash = ""
-    if isinstance(entry, dict):
-        content_hash = str(entry.get("sha256") or "")
-    return quote, source_path, content_hash, confidence
-
-
-async def review_pass_async(set_dir: Path, store_dir: Path, key: str) -> dict[str, Any]:
-    recipe = load_recipe(set_dir)
-    recipe_provider(recipe)
-    pack_dir = resolve_pack(set_dir, str(recipe["pack"]))
-    cognee_mod, used_setter, leaked = import_cognee(
-        store_dir, key, contradiction=False
-    )
-    require_in_process_key(used_setter, "review-pass")
-    _graph_model, protected, _ontology, _prompt = load_pack(pack_dir)
-    await attempt_memify_detect(cognee_mod, str(recipe["dataset"]))
-    engine, nodes, edges, access_path = await enumerate_graph(
-        cognee_mod, str(recipe["dataset"])
-    )
-    del engine
-    ledger = load_ledger(set_dir)
-    review_root = set_dir / "review"
-    existing_ids = collect_review_ids(review_root)
-    written: dict[str, list[str]] = {
-        "new_finding": [],
-        "merge_proposal": [],
-        "stale": [],
-        "conflict": [],
-    }
-    stale_after = recipe.get("stale_after_days") or 30
-    try:
-        stale_after_days = int(stale_after)
-    except (TypeError, ValueError):
-        stale_after_days = 30
-    today = date.today()
-
-    def write_item(item_type: str, **kwargs: Any) -> None:
-        item_id = next_review_id(str(recipe["dataset"]), existing_ids)
-        directory = review_root / REVIEW_TYPE_DIRS[item_type]
-        directory.mkdir(parents=True, exist_ok=True)
-        path = directory / ("%s.md" % item_id)
-        path.write_text(
-            render_review_item(item_id=item_id, item_type=item_type, dataset=str(recipe["dataset"]), **kwargs),
-            encoding="utf-8",
-        )
-        written[item_type].append(str(path))
-
-    for node in nodes:
-        status = node_status(node) or "Candidate"
-        if status != "Candidate":
-            continue
-        nid = node_id_of(node)
-        if nid and review_covers_token(review_root, nid):
-            continue
-        quote, source_path, content_hash, confidence = source_fields_for_node(
-            node, ledger
-        )
-        write_item(
-            "new_finding",
-            title=node_name(node) or nid or "unnamed",
-            node_type=node_type_label(node),
-            action="promote",
-            why="no exact ontology match; no normalized-name match to a Canonical of the same type in this set",
-            quote=quote,
-            source_path=source_path,
-            content_hash=content_hash,
-            confidence=confidence,
-            extra="node_id: %s" % nid,
-        )
-
-    groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
-    for node in nodes:
-        label = node_type_label(node)
-        normalized = normalize_name(node_name(node))
-        if not normalized:
-            continue
-        groups.setdefault((label.lower(), normalized), []).append(node)
-    seen_pairs: set[tuple[str, str]] = set()
-    for (_label, _normalized), group in groups.items():
-        if len(group) < 2:
-            continue
-        for index, left in enumerate(group):
-            for right in group[index + 1 :]:
-                left_id = node_id_of(left)
-                right_id = node_id_of(right)
-                if not left_id or not right_id or left_id == right_id:
-                    continue
-                pair = tuple(sorted((left_id, right_id)))
-                if pair in seen_pairs:
-                    continue
-                statuses = {node_status(left), node_status(right)}
-                collide = True
-                candidate_canonical = statuses == {"Candidate", "Canonical"}
-                if not collide and not candidate_canonical:
-                    continue
-                seen_pairs.add(pair)
-                if review_covers_token(review_root, left_id) and review_covers_token(
-                    review_root, right_id
-                ):
-                    continue
-                protected_flag = is_protected(left, protected) or is_protected(
-                    right, protected
-                )
-                why = "normalized-name match of the same type"
-                if protected_flag:
-                    why = "a protected type"
-                write_item(
-                    "merge_proposal",
-                    title="%s / %s" % (node_name(left), node_name(right)),
-                    node_type=node_type_label(left),
-                    action="merge-into %s" % right_id,
-                    why=why,
-                    quote=str(left.get("quote") or right.get("quote") or ""),
-                    source_path="",
-                    content_hash="",
-                    confidence="",
-                    extra="left_id: %s\nright_id: %s\nprotected: %s\n"
-                    % (left_id, right_id, "true" if protected_flag else "false"),
-                )
-
-    for node in nodes:
-        reasons: list[str] = []
-        path, entry = ledger_entry_for_node(node, ledger)
-        if path and not Path(path).exists():
-            reasons.append("ledger source path no longer exists on disk")
-        valid_to = parse_iso_date(node.get("valid_to"))
-        if valid_to is not None and valid_to < today:
-            reasons.append("valid_to is in the past")
-        status = node_status(node) or "Candidate"
-        if status == "Candidate":
-            ingested = None
-            if isinstance(entry, dict):
-                ingested = parse_iso_date(entry.get("ingested_on"))
-            if ingested is None:
-                ingested = parse_iso_date(node.get("ingested_on") or node.get("created_at"))
-            sources = node.get("sources")
-            single_source = False
-            if sources is None:
-                single_source = bool(path) or bool(node.get("source"))
-            elif isinstance(sources, list) and len(sources) == 1:
-                single_source = True
-            elif isinstance(sources, str):
-                single_source = True
-            if (
-                ingested is not None
-                and single_source
-                and (today - ingested).days > stale_after_days
-            ):
-                reasons.append(
-                    "Candidate older than stale_after_days with a single source"
-                )
-        if not reasons:
-            continue
-        nid = node_id_of(node)
-        if nid and review_covers_token(review_root, nid):
-            continue
-        quote, source_path, content_hash, confidence = source_fields_for_node(
-            node, ledger
-        )
-        write_item(
-            "stale",
-            title=node_name(node) or nid or "unnamed",
-            node_type=node_type_label(node),
-            action="mark-stale",
-            why="; ".join(reasons),
-            quote=quote,
-            source_path=source_path,
-            content_hash=content_hash,
-            confidence=confidence,
-            extra="node_id: %s" % nid,
-        )
-
-    for edge in edges:
-        relation = edge_relation(edge)
-        if "contradicts" not in relation.lower():
-            continue
-        source = str(edge.get("source") or "")
-        target = str(edge.get("target") or "")
-        token = "%s:%s:%s" % (source, relation, target)
-        if review_covers_token(review_root, token):
-            continue
-        write_item(
-            "conflict",
-            title="contradicts: %s -> %s" % (source, target),
-            node_type="Fact",
-            action="edit-ontology",
-            why="a contradiction with a Canonical fact",
-            quote=str(edge.get("quote") or ""),
-            source_path="",
-            content_hash="",
-            confidence="",
-            extra="relation: %s\nsource: %s\ntarget: %s\n" % (relation, source, target),
-        )
-
-    counts = {key: len(paths) for key, paths in written.items()}
-    return {
-        "ok": True,
-        "dataset": recipe["dataset"],
-        "access_path": access_path,
-        "counts": counts,
-        "paths": written,
-        "key_leaked_to_environ": leaked,
-    }
-
-
-def cmd_review_pass(values: dict[str, str]) -> None:
-    set_dir, store_dir, _env_path, env_values = prepare_store_args(
-        values, need_set=True, need_env=True
-    )
-    assert set_dir is not None
-    require_python()
-    ensure_packages()
-    key = openai_key(env_values)
-    if not store_dir.exists():
-        fail("the store at %s does not exist. Run bootstrap first." % store_dir)
-    emit(asyncio.run(review_pass_async(set_dir, store_dir, key)))
-
-
-async def apply_status(
-    engine: Any,
-    node: dict[str, Any],
-    fields: dict[str, Any],
-    changelog: Path,
-    item_id: str,
-    decision: str,
-    reviewer: str,
-) -> bool:
-    nid = node_id_of(node)
-    applied = await update_node_fields(engine, nid, fields)
-    if not applied:
-        append_changelog(
-            changelog,
-            "%s\t%s\t%s\t%s\tapplied: false\tfields=%s"
-            % (today_iso(), item_id, decision, reviewer, json.dumps(json_ready(fields))),
-        )
-        fail(
-            "this cognee version exposes no node update method (tried names containing both update and node). "
-            "The intended change was appended to %s with applied: false."
-            % changelog
-        )
-    return True
-
-
-async def promote_async(
-    set_dir: Path, store_dir: Path, key: str, decided: Path
-) -> dict[str, Any]:
-    recipe = load_recipe(set_dir)
-    recipe_provider(recipe)
-    pack_dir = resolve_pack(set_dir, str(recipe["pack"]))
-    text = decided.read_text(encoding="utf-8")
-    front, body = parse_frontmatter_and_body(text)
-    decision_fields = parse_decision_block(body)
-    reviewer = decision_fields.get("reviewer", "").strip()
-    decision_raw = decision_fields.get("decision", "").strip()
-    decided_on = decision_fields.get("date", "").strip()
-    if not reviewer or not decision_raw or not decided_on:
-        fail(
-            "the decided item is missing reviewer, decision, or date. Fill the ## Decision block."
-        )
-    parts = decision_raw.split()
-    verb = parts[0]
-    target_id = parts[1] if len(parts) > 1 else ""
-    allowed = {
-        "promote",
-        "alias-of",
-        "mark-stale",
-        "reject",
-        "merge-into",
-        "edit-ontology",
-    }
-    if verb not in allowed:
-        fail(
-            'decision "%s" is not allowed. Use promote, alias-of <id>, mark-stale, reject, merge-into <id>, or edit-ontology.'
-            % decision_raw
-        )
-    if verb in ("alias-of", "merge-into") and not target_id:
-        fail("%s needs a target node id." % verb)
-    cognee_mod, used_setter, leaked = import_cognee(
-        store_dir, key, contradiction=False
-    )
-    require_in_process_key(used_setter, "promote")
-    _graph_model, _protected, ontology, _prompt = load_pack(pack_dir)
-    engine, nodes, _edges, access_path = await enumerate_graph(
-        cognee_mod, str(recipe["dataset"])
-    )
-    item_node_id = ""
-    extra_id = re.search(r"(?m)^node_id:\s*(\S+)", body)
-    if extra_id:
-        item_node_id = extra_id.group(1).strip()
-    if not item_node_id:
-        left = re.search(r"(?m)^left_id:\s*(\S+)", body)
-        if left:
-            item_node_id = left.group(1).strip()
-    node = find_node(nodes, item_node_id) if item_node_id else None
-    changelog = set_dir / "review" / "changelog.md"
-    dataset = str(recipe["dataset"])
-    item_id = front.get("id") or decided.stem
-
-    if verb == "edit-ontology":
-        ontology_path = str(ontology) if ontology.is_file() else str(pack_dir / "ontology.ttl")
-        note("edit the ontology at %s; this command makes no graph change" % ontology_path)
-        append_changelog(
-            changelog,
-            "%s\t%s\t%s\t%s" % (today_iso(), item_id, decision_raw, reviewer),
-        )
-        set_frontmatter_status(decided, "applied")
-        return {
-            "ok": True,
-            "decision": decision_raw,
-            "ontology": ontology_path,
-            "applied": True,
-            "graph_changed": False,
-            "key_leaked_to_environ": leaked,
-        }
-
-    if node is None:
-        fail(
-            "could not find node %s via %s. Confirm the review item names node_id."
-            % (item_node_id or "(missing)", access_path)
-        )
-        raise RuntimeError
-    if node_status(node) == "Canonical" and verb in ("reject",):
-        fail(
-            "refusing to reject a Canonical node. Canonical nodes are never deleted by this script."
-        )
-
-    fields: dict[str, Any]
-    graph_note = ""
-    if verb == "promote":
-        fields = {"status": "Canonical"}
-        await apply_status(engine, node, fields, changelog, item_id, decision_raw, reviewer)
-    elif verb == "alias-of":
-        fields = {"status": "Alias", "alias_of": target_id}
-        await apply_status(engine, node, fields, changelog, item_id, decision_raw, reviewer)
-    elif verb == "mark-stale":
-        fields = {"status": "Stale", "valid_to": today_iso()}
-        await apply_status(engine, node, fields, changelog, item_id, decision_raw, reviewer)
-    elif verb == "reject":
-        fields = {"status": "Rejected"}
-        await apply_status(engine, node, fields, changelog, item_id, decision_raw, reviewer)
-        data_id_match = re.search(r"data_id:\s*([0-9a-fA-F-]{36})", text)
-        if data_id_match:
-            try:
-                await cognee_mod.forget(
-                    data_id=UUID(data_id_match.group(1)), dataset=dataset
-                )
-            except Exception as error:
-                operation_failed("cognee.forget", error)
-    elif verb == "merge-into":
-        merged = await attempt_memify_merge(cognee_mod, dataset)
-        if not merged:
-            fields = {"status": "Alias", "alias_of": target_id}
-            await apply_status(
-                engine, node, fields, changelog, item_id, decision_raw, reviewer
-            )
-            graph_note = (
-                "the graph merge was not performed; the source node was marked Alias of the target"
-            )
-            note(graph_note)
-        else:
-            append_changelog(
-                changelog,
-                "%s\t%s\t%s\t%s" % (today_iso(), item_id, decision_raw, reviewer),
-            )
-    else:
-        fail('decision "%s" is not allowed.' % decision_raw)
-
-    if verb != "merge-into" or graph_note:
-        append_changelog(
-            changelog,
-            "%s\t%s\t%s\t%s" % (today_iso(), item_id, decision_raw, reviewer),
-        )
-    set_frontmatter_status(decided, "applied")
-    result = {
-        "ok": True,
-        "decision": decision_raw,
-        "node_id": node_id_of(node),
-        "applied": True,
-        "key_leaked_to_environ": leaked,
-    }
-    if graph_note:
-        result["note"] = graph_note
+        fail('%s must be a positive integer. Correct the value.' % name)
+    if result <= 0:
+        fail('%s must be a positive integer. Correct the value.' % name)
     return result
 
 
-def cmd_promote(values: dict[str, str]) -> None:
-    set_dir, store_dir, env_path, env_values = prepare_store_args(
-        values, need_set=True, need_env=True
-    )
-    assert set_dir is not None
-    decided_arg = values.get("--decided")
-    if not decided_arg:
-        fail("--decided is required. Pass a file under <set>/review/decided/. " + usage_hint())
-    decided = screen_path(
-        "--decided",
-        decided_arg,
-        destination=False,
-        env_file=env_path,
-        must_exist=True,
-        as_file=True,
-    )
-    decided_root = (set_dir / "review" / "decided").resolve()
+def unique_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            fail('duplicate JSON key "%s". Remove the duplicate before retrying.' % key)
+        result[key] = value
+    return result
+
+
+def read_json(path):
     try:
-        decided.relative_to(decided_root)
-    except ValueError:
-        fail(
-            "--decided must be a file under %s; got %s."
-            % (decided_root, decided)
-        )
-    require_python()
-    ensure_packages()
-    key = openai_key(env_values)
-    if not store_dir.exists():
-        fail("the store at %s does not exist. Run bootstrap first." % store_dir)
-    emit(asyncio.run(promote_async(set_dir, store_dir, key, decided)))
+        value = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique_object,
+                           parse_constant=lambda token: fail('invalid JSON number %s. Use a finite number.' % token))
+    except json.JSONDecodeError as error:
+        fail('invalid JSON in %s at line %d: %s. Correct the JSON.' % (path, error.lineno, error.msg))
+    if not isinstance(value, dict):
+        fail('%s must contain one JSON object. Correct the document shape.' % path)
+    return value
 
 
-async def mark_stale_async(
-    set_dir: Path, store_dir: Path, key: str, node_id: str, valid_to: str
-) -> dict[str, Any]:
-    recipe = load_recipe(set_dir)
-    recipe_provider(recipe)
-    cognee_mod, used_setter, leaked = import_cognee(
-        store_dir, key, contradiction=False
-    )
-    require_in_process_key(used_setter, "mark-stale")
-    engine, nodes, _edges, access_path = await enumerate_graph(
-        cognee_mod, str(recipe["dataset"])
-    )
-    node = find_node(nodes, node_id)
-    if node is None:
-        fail("could not find node %s via %s." % (node_id, access_path))
-        raise RuntimeError
-    if node_status(node) == "Canonical":
-        # Status flip to Stale is allowed; deletion is not. Canonical may be
-        # marked stale by a human. We still never delete.
-        pass
-    fields = {"status": "Stale", "valid_to": valid_to}
-    changelog = set_dir / "review" / "changelog.md"
-    applied = await update_node_fields(engine, node_id, fields)
-    if not applied:
-        append_changelog(
-            changelog,
-            "%s\t%s\tmark-stale\t(script)\tapplied: false\tfields=%s"
-            % (today_iso(), node_id, json.dumps(fields)),
-        )
-        fail(
-            "this cognee version exposes no node update method (tried names containing both update and node). "
-            "The intended change was appended to %s with applied: false."
-            % changelog
-        )
-    append_changelog(
-        changelog,
-        "%s\t%s\tmark-stale\t(script)" % (today_iso(), node_id),
-    )
-    return {
-        "ok": True,
-        "id": node_id,
-        "fields": fields,
-        "key_leaked_to_environ": leaked,
-    }
+def chunk(v):
+    source = screen_path('--source', v['source'], must_exist=True)
+    out = screen_path('--out', v['out'], destination=True, as_dir=True)
+    if source.suffix.lower() not in ('.md', '.txt'):
+        fail('--source refuses %s. Convert it to UTF-8 .md or .txt first.' % source.name)
+    cap = positive(v.get('max_chars', '6000'), '--max-chars')
+    dataset = v['dataset'].strip()
+    if not dataset:
+        fail('--dataset is empty. Pass a non-empty dataset name.')
+    manifest_path = screen_path('manifest', str(out / (source.stem + '.chunks.json')), destination=True)
+    if same_file(source, manifest_path):
+        fail('manifest aliases the source. Choose a different --out directory.')
+    raw = source.read_bytes()
+    text = raw.decode('utf-8')
+    if any(ord(c) < 32 and c not in '\t\n\r' for c in text):
+        fail('--source refuses binary content in ' + source.name)
+    start = 0
+    if source.suffix.lower() == '.md':
+        frontmatter = re.match(r'\A---\r?\n.*?\r?\n(?:---|\.\.\.)[^\S\r\n]*(?:\r?\n|\Z)', text, re.S)
+        if frontmatter:
+            start = frontmatter.end()
+            while start < len(text) and text[start] in '\r\n':
+                start += 1
+    boundaries = []
+    headings = []
+    section_start = start
+    if source.suffix.lower() == '.md':
+        for match in re.finditer(r'(?m)^ {0,3}(#{1,6})[ \t]+([^\r\n]*)(?:\r?\n|$)', text[start:]):
+            offset = start + match.start()
+            if offset > section_start:
+                boundaries.append((section_start, offset, [name for _, name in headings]))
+            level = len(match[1])
+            title = re.sub(r'[ \t]+#+[ \t]*$', '', match[2]).strip()
+            headings = [(depth, name) for depth, name in headings if depth < level]
+            headings.append((level, title))
+            section_start = offset
+    if section_start < len(text):
+        boundaries.append((section_start, len(text), [name for _, name in headings]))
+    chunks = []
+    for left, right, heading_path in boundaries:
+        while left < right:
+            end = min(left + cap, right)
+            if end < right:
+                window = text[left:end]
+                breaks = list(re.finditer(r'\r?\n[ \t]*\r?\n(?:[ \t]*\r?\n)*', window))
+                if not breaks:
+                    breaks = list(re.finditer(r'[.?!](?=\s)\s*', window))
+                if breaks:
+                    end = left + breaks[-1].end()
+            body = text[left:end]
+            chunks.append(dict(index=len(chunks), chunk_hash=digest(body.encode('utf-8')),
+                               heading_path=heading_path, char_start=left, char_end=end, text=body))
+            left = end
+    manifest = dict(schema='chunks/0.1.0', dataset=dataset, source_path=v.get('source_path', str(source)),
+                    source_hash=digest(raw), source_bytes=len(raw),
+                    chunker=dict(max_chars=cap, split='heading-then-paragraph'), chunks=chunks)
+    out.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    return dict(source_path=str(source), source_hash=manifest['source_hash'], chunks=len(chunks),
+                total_chars=sum(len(c['text']) for c in chunks), max_chars=cap, manifest=str(manifest_path))
 
 
-def cmd_mark_stale(values: dict[str, str]) -> None:
-    set_dir, store_dir, _env_path, env_values = prepare_store_args(
-        values, need_set=True, need_env=True
-    )
-    assert set_dir is not None
-    node_id = values.get("--id")
-    if not node_id:
-        fail("--id is required. " + usage_hint())
-    valid_to = values.get("--valid-to") or today_iso()
-    valid_to = parse_date_flag("--valid-to", valid_to)
-    require_python()
-    ensure_packages()
-    key = openai_key(env_values)
-    if not store_dir.exists():
-        fail("the store at %s does not exist. Run bootstrap first." % store_dir)
-    emit(asyncio.run(mark_stale_async(set_dir, store_dir, key, node_id, valid_to)))
+def pack_hash(pack):
+    data = []
+    for name in ('graph_model.py', 'ontology.ttl', 'extraction_prompt.md'):
+        path = screen_path('pack ' + name, str(pack / name), must_exist=True)
+        data.append(path.read_bytes())
+    return digest(b''.join(data))
 
 
-def newest_ingest_report(reports_dir: Path) -> str | None:
-    if not reports_dir.is_dir():
-        return None
-    reports = sorted(reports_dir.glob("ingest-*.json"))
-    if not reports:
-        return None
-    latest = reports[-1]
-    return latest.name
+def shape(condition, message):
+    if not condition:
+        fail(message + '. Correct the JSON to schemas.md version 0.1.0.')
 
 
-def open_review_counts(review_root: Path) -> dict[str, int]:
-    counts = {key: 0 for key in REVIEW_TYPE_DIRS}
-    if not review_root.is_dir():
-        return counts
-    inverse = {value: key for key, value in REVIEW_TYPE_DIRS.items()}
-    for path in review_root.rglob("*"):
-        if not path.is_file() or path.suffix.lower() not in (".md", ".markdown"):
+def check_keys(obj, allowed, label):
+    shape(isinstance(obj, dict), label + ' must be an object')
+    extra = set(obj) - set(allowed)
+    shape(not extra, label + ' has unknown key(s): ' + ', '.join(sorted(extra)))
+
+
+def normalized_name(name):
+    cleaned = ''.join(c for c in name.lower() if c.isalnum() or c == ' ')
+    words = cleaned.split()
+    if words and words[-1] in {'inc', 'corp', 'corporation', 'llc', 'ltd', 'gmbh', 'co', 'company'}:
+        words.pop()
+    return ' '.join(words)
+
+
+def node_problem(node, array, body):
+    if not isinstance(node, dict):
+        return 'bad_type', 'node must be an object'
+    quote = node.get('quote')
+    if not isinstance(quote, str) or not quote.strip():
+        return 'quote_not_located', 'quote must be a non-empty string'
+    if len(quote.split()) > 40:
+        return 'too_long', 'quote exceeds 40 words'
+    if ' '.join(quote.split()) not in ' '.join(body.split()):
+        return 'quote_not_located', 'quote not located in chunk'
+    missing = set(REQUIRED[array].split()) - set(node)
+    if missing:
+        return 'bad_type', 'missing field ' + sorted(missing)[0]
+    if array in ('entities', 'ideas') and node.get('status') != 'Candidate':
+        return 'bad_status', 'status must be Candidate'
+    if array == 'entities' and node.get('entity_type') not in tuple(ENTITY_TYPES):
+        return 'bad_type', 'entity_type is outside the pack'
+    if array == 'idea_links' and node.get('relation') not in tuple(RELATIONS):
+        return 'bad_relation', 'relation is outside the pack'
+    for key in ARRAYS[array][1].split():
+        if key not in node:
             continue
-        parent = path.parent.name
-        item_type = inverse.get(parent)
-        if not item_type:
-            continue
+        value = node[key]
+        if key in ('valid_from', 'valid_to', 'decided_on'):
+            if value is not None:
+                try:
+                    if not isinstance(value, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', value):
+                        raise ValueError
+                    datetime.date.fromisoformat(value)
+                except ValueError:
+                    return 'bad_type', key + ' must be YYYY-MM-DD or null'
+        elif key == 'confidence':
+            if type(value) not in (int, float) or not 0 <= value <= 1:
+                return 'bad_type', 'confidence must be a number from 0 to 1'
+        elif key == 'aliases':
+            if not isinstance(value, list) or any(not isinstance(s, str) for s in value):
+                return 'bad_type', 'aliases must be a flat list of strings'
+        elif not isinstance(value, str):
+            return 'bad_type', key + ' must be a string'
+        limit = 120 if key in ('name', 'subject', 'predicate', 'object', 'source_name', 'target_name') else 400 if key in ('definition', 'summary', 'question') else None
+        if limit and len(value) > limit:
+            return 'too_long', key + ' exceeds ' + str(limit) + ' characters'
+    for key in ('name', 'source_name', 'target_name'):
+        if key in node and not normalized_name(node[key]):
+            return 'bad_type', key + ' has no normalized name'
+    extra = set(node) - set(ARRAYS[array][1].split())
+    if extra:
+        return 'unknown_key', 'unknown key ' + sorted(extra)[0]
+    return None
+
+
+def validate_files(extraction_path, chunks_path, pack):
+    extraction, manifest = read_json(extraction_path), read_json(chunks_path)
+    shape(extraction.get('pack_version') == pack_hash(pack), 'pack_version mismatch; re-extract with the current pack')
+    check_keys(extraction, 'schema dataset source_path source_hash pack pack_version entries'.split(), 'extraction')
+    shape(extraction.get('schema') == 'extraction/0.1.0', 'unsupported extraction schema')
+    shape(manifest.get('schema') == 'chunks/0.1.0', 'unsupported chunk schema')
+    for key in ('dataset', 'source_path', 'source_hash'):
+        shape(isinstance(extraction.get(key), str) and bool(extraction[key]) and extraction[key] == manifest.get(key), key + ' mismatch between extraction and manifest')
+    shape(bool(HASH.fullmatch(extraction['source_hash'])), 'invalid source_hash')
+    shape(isinstance(extraction.get('pack'), str) and bool(extraction['pack']), 'pack must be a non-empty string')
+    shape(isinstance(manifest.get('chunks'), list), 'manifest chunks must be an array')
+    chunks = {}
+    last_end = None
+    for index, c in enumerate(manifest['chunks']):
+        check_keys(c, 'index chunk_hash heading_path char_start char_end text'.split(), 'chunk')
+        shape(type(c.get('index')) is int and c['index'] == index, 'chunk indices must be dense from zero')
+        shape(isinstance(c.get('text'), str), 'chunk text must be a string')
+        shape(c.get('chunk_hash') == digest(c['text'].encode('utf-8')), 'manifest chunk_hash mismatch at index ' + str(index))
+        shape(isinstance(c.get('heading_path'), list) and all(isinstance(h, str) for h in c['heading_path']), 'heading_path must be a list of strings')
+        shape(type(c.get('char_start')) is int and type(c.get('char_end')) is int and c['char_start'] >= 0
+              and c['char_end'] - c['char_start'] == len(c['text']), 'invalid chunk character offsets')
+        shape(last_end is None or c['char_start'] == last_end, 'chunk offsets must be contiguous')
+        last_end = c['char_end']
+        chunks[index] = c
+    shape(isinstance(extraction.get('entries'), list), 'entries must be an array')
+    report = dict(file=str(extraction_path), pack_version_ok=True, entries=len(extraction['entries']),
+                  nodes_returned=0, nodes_accepted=0, rejected={key: 0 for key in REASONS}, rejected_detail=[],
+                  accepted_by_kind={kind: 0 for kind, _ in ARRAYS.values()})
+    accepted = []
+    seen = set()
+    for entry in extraction['entries']:
+        check_keys(entry, ['chunk_index', 'chunk_hash', 'extracted_on', *ARRAYS], 'entry')
+        index = entry.get('chunk_index')
+        shape(type(index) is int and index >= 0, 'chunk_index must be a nonnegative integer')
+        shape(index not in seen, 'duplicate chunk_index ' + str(index))
+        seen.add(index)
         try:
-            text = path.read_text(encoding="utf-8")
-        except OSError:
-            continue
-        match = re.search(r"(?m)^status:\s*(\S+)", text)
-        status = match.group(1) if match else "open"
-        if status == "open":
-            counts[item_type] += 1
-    return counts
+            date = entry.get('extracted_on')
+            shape(isinstance(date, str) and bool(re.fullmatch(r'\d{4}-\d{2}-\d{2}', date)), 'invalid extracted_on')
+            datetime.date.fromisoformat(date)
+        except ValueError:
+            fail('invalid extracted_on. Use a real YYYY-MM-DD date.')
+        c = chunks.get(index)
+        hash_ok = c is not None and entry.get('chunk_hash') == c['chunk_hash']
+        for array, (kind, _) in ARRAYS.items():
+            shape(isinstance(entry.get(array), list), array + ' must be an array')
+            for position, node in enumerate(entry[array]):
+                report['nodes_returned'] += 1
+                problem = node_problem(node, array, c['text']) if hash_ok else ('hash_mismatch', 'chunk_hash does not match manifest')
+                if problem:
+                    reason, message = problem
+                    report['rejected'][reason] += 1
+                    detail = reason + ': ' + message if reason in ('unknown_key', 'too_long', 'bad_type') else reason
+                    report['rejected_detail'].append(dict(chunk_index=index, array=array, position=position, reason=detail))
+                else:
+                    report['nodes_accepted'] += 1
+                    report['accepted_by_kind'][kind] += 1
+                    accepted.append((kind, node, c))
+        if not hash_ok and all(not entry[array] for array in ARRAYS):
+            report['rejected']['hash_mismatch'] += 1
+            report['rejected_detail'].append(dict(chunk_index=index, array=None, position=None, reason='hash_mismatch'))
+    return extraction, manifest, accepted, report
 
 
-def eval_blob(answer: Any, context: list[Any], references: Any) -> str:
-    parts = [str(answer or "")]
-    for item in context:
-        parts.append(json.dumps(json_ready(item)))
-    if references is not None:
-        parts.append(json.dumps(json_ready(references)))
-    return "\n".join(parts)
+DDL = (
+    'CREATE TABLE IF NOT EXISTS datasets (dataset TEXT PRIMARY KEY)',
+    'CREATE TABLE IF NOT EXISTS sources (dataset TEXT, source_path TEXT, source_hash TEXT, source_bytes INTEGER, PRIMARY KEY(dataset, source_path, source_hash))',
+    'CREATE TABLE IF NOT EXISTS chunks (dataset TEXT, source_path TEXT, source_hash TEXT, chunk_index INTEGER, chunk_hash TEXT, heading_path TEXT, text TEXT, PRIMARY KEY(dataset, source_path, source_hash, chunk_index))',
+    '''CREATE TABLE IF NOT EXISTS nodes (dataset TEXT, kind TEXT, node_id TEXT, name TEXT, normalized_name TEXT, text TEXT, status TEXT, quote TEXT, source_path TEXT, heading_path TEXT, chunk_hash TEXT, valid_from TEXT, valid_to TEXT, confidence REAL, PRIMARY KEY(dataset, node_id), UNIQUE(dataset, kind, normalized_name))''',
+    'CREATE TABLE IF NOT EXISTS provenance (dataset TEXT, node_id TEXT, source_path TEXT, chunk_hash TEXT, quote TEXT, payload TEXT, UNIQUE(dataset, node_id, source_path, chunk_hash, quote, payload))',
+    'CREATE TABLE IF NOT EXISTS edges (dataset TEXT, from_node_id TEXT, relation TEXT, to_node_id TEXT, quote TEXT, chunk_hash TEXT, UNIQUE(dataset, from_node_id, relation, to_node_id, quote, chunk_hash))',
+    'CREATE TABLE IF NOT EXISTS unresolved_links (dataset TEXT, source_name TEXT, relation TEXT, target_name TEXT, quote TEXT, chunk_hash TEXT, UNIQUE(dataset, source_name, relation, target_name, quote, chunk_hash))',
+    'CREATE TABLE IF NOT EXISTS aliases (dataset TEXT, kind TEXT, normalized_name TEXT, target_name TEXT, PRIMARY KEY(dataset,kind,normalized_name))',
+    'CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(dataset UNINDEXED, name, text, quote)',
+)
 
 
-def question_passes(
-    question: dict[str, Any], answer: Any, context: list[Any], references: Any
-) -> tuple[bool, str]:
-    blob = eval_blob(answer, context, references)
-    blob_lower = blob.lower()
-    expected = str(question.get("expected") or "").strip()
-    must_not = str(question.get("must_not_match") or "").strip()
-    if must_not and must_not.lower() in blob_lower:
-        return False, "must_not_match found"
-    if expected.startswith("path:"):
-        needle = expected[5:].strip()
-        ref_text = json.dumps(json_ready(references)).lower() if references is not None else ""
-        if needle.lower() in ref_text:
-            return True, "path found in references"
-        return False, "path not found in references"
-    if expected:
-        if expected.lower() in blob_lower:
-            return True, "expected found"
-        return False, "expected not found"
-    if must_not:
-        return True, "must_not_match absent"
-    return False, "no expected or must_not_match"
+def node_record(kind, node):
+    if kind in ('entity', 'idea'):
+        name = node['name']
+        text = node.get('summary', '') if kind == 'entity' else node['definition']
+    elif kind == 'fact':
+        name = text = ' '.join(node[k] for k in ('subject', 'predicate', 'object'))
+    else:
+        name = text = node['summary' if kind == 'decision' else 'question']
+    norm = normalized_name(name)
+    shape(bool(norm), kind + ' has no normalized identity')
+    return name, text, norm, kind + ':' + norm.replace(' ', '-')
 
 
-async def healthcheck_async(
-    set_dir: Path, store_dir: Path, key: str, run_eval: bool
-) -> dict[str, Any]:
-    recipe = load_recipe(set_dir)
-    recipe_provider(recipe)
-    cognee_mod, used_setter, leaked = import_cognee(
-        store_dir, key, contradiction=False
-    )
-    require_in_process_key(used_setter, "healthcheck")
-    _engine, nodes, _edges, access_path = await enumerate_graph(
-        cognee_mod, str(recipe["dataset"])
-    )
-    ledger = load_ledger(set_dir)
-    by_type: dict[str, int] = {}
-    by_status: dict[str, int] = {}
-    facts_missing_quote = 0
-    stale_nodes = 0
-    candidate_dates: list[date] = []
-    for node in nodes:
-        ntype = node_type_label(node)
-        status = node_status(node) or "unset"
-        by_type[ntype] = by_type.get(ntype, 0) + 1
-        by_status[status] = by_status.get(status, 0) + 1
-        if status == "Stale":
-            stale_nodes += 1
-        is_fact = "fact" in ntype.lower() or (
-            "subject" in node and "predicate" in node and "object" in node
-        )
-        if is_fact and not str(node.get("quote") or "").strip():
-            facts_missing_quote += 1
-        if status == "Candidate":
-            _path, entry = ledger_entry_for_node(node, ledger)
-            ingested = None
-            if isinstance(entry, dict):
-                ingested = parse_iso_date(entry.get("ingested_on"))
-            if ingested is None:
-                ingested = parse_iso_date(node.get("ingested_on"))
-            if ingested is not None:
-                candidate_dates.append(ingested)
-    oldest_candidate = (
-        min(candidate_dates).isoformat() if candidate_dates else None
-    )
-    report = {
-        "ok": True,
-        "dataset": recipe["dataset"],
-        "access_path": access_path,
-        "counts_by_type": by_type,
-        "counts_by_status": by_status,
-        "facts_missing_quote": facts_missing_quote,
-        "candidate_backlog_oldest_ingest": oldest_candidate,
-        "stale_backlog_count": stale_nodes,
-        "last_ingest": newest_ingest_report(set_dir / "reports"),
-        "review_open": open_review_counts(set_dir / "review"),
-        "key_leaked_to_environ": leaked,
-        "eval": None,
-    }
-    if not run_eval:
-        return report
-    eval_rel = str(recipe.get("eval") or "").strip()
-    eval_path = set_dir / eval_rel
-    if not eval_path.is_file():
-        fail("the eval file %s is missing." % eval_path)
-    loaded = load_yaml(eval_path, "eval")
-    questions = loaded.get("questions") if isinstance(loaded, dict) else None
-    if not isinstance(questions, list):
-        fail("the eval file has no questions list.")
-        raise RuntimeError
-    results = []
-    passed = 0
-    failed = 0
-    skipped = 0
-    for question in questions:
-        if not isinstance(question, dict):
-            skipped += 1
-            continue
-        text = str(question.get("question") or "").strip()
-        qid = str(question.get("id") or "")
+def db_path(value, writing):
+    path = screen_path('--store', value, destination=True, must_exist=not writing)
+    # SQLite can create these automatically. Screen each before connecting.
+    for suffix in ('-journal', '-wal', '-shm'):
+        sidecar = screen_path('SQLite sidecar', str(path) + suffix, destination=True)
+        if sidecar.is_symlink() or Path(str(path) + suffix).is_symlink():
+            fail('SQLite sidecar is a symbolic link. Use a database without linked sidecars.')
+    return path
+
+
+def load_graph(path, extraction, manifest, accepted, report):
+    # Prepare identities before opening a writable database.
+    records = [(kind, n, c, node_record(kind, n)) for kind, n, c in accepted if kind != 'idea_link']
+    dataset = extraction['dataset']
+    path.parent.mkdir(parents=True, exist_ok=True)
+    con = sqlite3.connect(path)
+    inserted = merged = 0
+    try:
+        with con:
+            for sql in DDL:
+                con.execute(sql)
+            con.execute('INSERT OR IGNORE INTO datasets VALUES (?)', (dataset,))
+            con.execute('INSERT OR IGNORE INTO sources VALUES (?,?,?,?)', (dataset, extraction['source_path'], extraction['source_hash'], manifest.get('source_bytes')))
+            for c in manifest['chunks']:
+                con.execute('INSERT OR IGNORE INTO chunks VALUES (?,?,?,?,?,?,?)', (dataset, extraction['source_path'], extraction['source_hash'], c['index'], c['chunk_hash'], json.dumps(c['heading_path']), c['text']))
+            for kind, n, c, (name, text, norm, node_id) in records:
+                existing = con.execute('SELECT node_id FROM nodes WHERE dataset=? AND kind=? AND normalized_name=?', (dataset, kind, norm)).fetchone()
+                if existing:
+                    merged += 1
+                else:
+                    inserted += 1
+                    cursor = con.execute('INSERT INTO nodes VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                                         (dataset, kind, node_id, name, norm, text, n.get('status', 'Candidate'), n['quote'], extraction['source_path'], json.dumps(c['heading_path']), c['chunk_hash'], n.get('valid_from'), n.get('valid_to'), n.get('confidence')))
+                    con.execute('INSERT INTO nodes_fts(rowid,dataset,name,text,quote) VALUES (?,?,?,?,?)', (cursor.lastrowid, dataset, name, text, n['quote']))
+                con.execute('INSERT OR IGNORE INTO provenance VALUES (?,?,?,?,?,?)', (dataset, node_id, extraction['source_path'], c['chunk_hash'], n['quote'], json.dumps(dict(n, _extracted_on=next(e['extracted_on'] for e in extraction['entries'] if e['chunk_index'] == c['index'])), sort_keys=True, ensure_ascii=False)))
+            for kind, n, c in accepted:
+                if kind == 'idea_link':
+                    con.execute('INSERT OR IGNORE INTO unresolved_links VALUES (?,?,?,?,?,?)', (dataset, n['source_name'], n['relation'], n['target_name'], n['quote'], c['chunk_hash']))
+            pending = con.execute('SELECT source_name,relation,target_name,quote,chunk_hash FROM unresolved_links WHERE dataset=? ORDER BY rowid', (dataset,)).fetchall()
+            for source, relation, target, quote, chunk_hash in pending:
+                ends = []
+                for name, kinds in ((source, ('idea',)), (target, ('idea', 'entity'))):
+                    placeholders = ','.join('?' for _ in kinds)
+                    ends.append(con.execute('SELECT node_id FROM nodes WHERE dataset=? AND normalized_name=? AND kind IN (' + placeholders + ')', (dataset, normalized_name(name), *kinds)).fetchall())
+                # Ambiguous names stay unresolved, rather than choosing silently.
+                if len(ends[0]) == len(ends[1]) == 1:
+                    con.execute('INSERT OR IGNORE INTO edges VALUES (?,?,?,?,?,?)', (dataset, ends[0][0][0], relation, ends[1][0][0], quote, chunk_hash))
+                    con.execute('DELETE FROM unresolved_links WHERE dataset=? AND source_name=? AND relation=? AND target_name=? AND quote=? AND chunk_hash=?', (dataset, source, relation, target, quote, chunk_hash))
+            edges = con.execute('SELECT count(*) FROM edges WHERE dataset=?', (dataset,)).fetchone()[0]
+            unresolved = con.execute('SELECT count(*) FROM unresolved_links WHERE dataset=?', (dataset,)).fetchone()[0]
+    finally:
+        con.close()
+    return dict(store=str(path), dataset=dataset, nodes_inserted=inserted, nodes_merged_by_name=merged, edges=edges, unresolved_links=unresolved)
+
+
+def check_dataset(row, dataset, recovery='Stop using this database and rebuild it.'):
+    if row['dataset'] != dataset:
+        fail('dataset isolation self-check failed. ' + recovery)
+
+
+def query(v):
+    path = db_path(v['store'], False)
+    top_k = positive(v.get('top_k', '15'), '--top-k')
+    dataset = v['dataset']
+    con = sqlite3.connect(path.as_uri() + '?mode=ro', uri=True)
+    con.row_factory = sqlite3.Row
+    items, seen = [], set()
+
+    def item(row, score, hop, via):
+        check_dataset(row, dataset)
+        keys = 'kind node_id name text status quote source_path heading_path chunk_hash valid_from valid_to'.split()
+        result = {key: row[key] for key in keys}
+        result['heading_path'] = json.loads(result['heading_path'])
+        result.update(score=score, hop=hop, via=via)
+        seen.add(row['node_id'])
+        items.append(result)
+
+    try:
+        rows = con.execute('''SELECT n.*, bm25(nodes_fts) AS score FROM nodes_fts JOIN nodes n
+                              ON n.rowid=nodes_fts.rowid AND n.dataset=nodes_fts.dataset
+                              WHERE nodes_fts MATCH ? AND nodes_fts.dataset=? AND n.dataset=?
+                              ORDER BY score, n.rowid LIMIT ?''', (lexical_query(v['query']), dataset, dataset, top_k)).fetchall()
+        resolved_rows = []
+        for row in rows:
+            score = row['score']
+            aliases_seen = set()
+            while row['status'] == 'Alias':
+                if row['node_id'] in aliases_seen:
+                    fail('alias cycle in this dataset; review the human alias decisions.')
+                aliases_seen.add(row['node_id'])
+                target = con.execute('SELECT target_name FROM aliases WHERE dataset=? AND kind=? AND normalized_name=?', (dataset, row['kind'], row['normalized_name'])).fetchone()
+                if target is None:
+                    fail('Alias has no recorded target; replay its human decision.')
+                row = con.execute('SELECT * FROM nodes WHERE dataset=? AND kind=? AND normalized_name=?', (dataset, row['kind'], target['target_name'])).fetchone()
+                if row is None:
+                    fail('Alias target is absent; rebuild and replay the human decisions.')
+            if row['node_id'] not in seen:
+                item(row, score, 0, None)
+                resolved_rows.append(row)
+        for row in resolved_rows:
+            if row['kind'] != 'idea':
+                continue
+            linked = con.execute('''SELECT n.*, e.relation FROM edges e JOIN nodes n
+                                    ON n.node_id=e.to_node_id AND n.dataset=e.dataset
+                                    WHERE e.dataset=? AND n.dataset=? AND e.from_node_id=? ORDER BY e.rowid''', (dataset, dataset, row['node_id'])).fetchall()
+            for other in linked:
+                check_dataset(other, dataset, 'Rebuild the database.')
+                if other['node_id'] not in seen:
+                    item(other, None, 1, dict(relation=other['relation'], node_id=row['node_id']))
+    finally:
+        con.close()
+    return dict(schema='recall/0.1.0', dataset=dataset, query=v['query'], as_of=None, items=items, canon_confirmed=None)
+
+
+class Q6Reader:
+    """Small block-YAML recognizer; no YAML libraries, constructors or execution.
+
+    Root mappings may contain one flat mapping or a list of flat mappings.
+    A nested mapping may contain scalar lists, but no further mappings.
+    [] is the sole flow spelling, used for an empty scalar list.
+    """
+
+    def __init__(self, text):
+        self.lines = []
+        for number, raw in enumerate(text.splitlines(), 1):
+            if '\t' in raw:
+                self.error(number, 'tabs are not allowed')
+            content = self.uncomment(raw, number).rstrip()
+            if content.strip():
+                indent = len(content) - len(content.lstrip(' '))
+                self.lines.append((number, indent, content.strip()))
+        self.index = 0
+
+    @staticmethod
+    def error(line, message):
+        fail('YAML line %d: %s. Use Q6 block scalars, flat lists and flat mappings.' % (line, message))
+
+    def uncomment(self, raw, number):
+        quote = None
+        i = 0
+        while i < len(raw):
+            c = raw[i]
+            if quote:
+                if quote == '"' and c == '\\':
+                    i += 2
+                    continue
+                if c == quote:
+                    if quote == "'" and i + 1 < len(raw) and raw[i + 1] == "'":
+                        i += 2
+                        continue
+                    quote = None
+            elif c == '#' and (i == 0 or raw[i - 1].isspace()):
+                return raw[:i]
+            elif c in "\"'" and (i == 0 or raw[i - 1].isspace() or raw[i - 1] == ':'):
+                quote = c
+            i += 1
+        if quote:
+            self.error(number, 'unterminated quoted scalar')
+        return raw
+
+    def scalar(self, text, line):
         if not text:
-            skipped += 1
-            results.append({"id": qid, "pass": None, "skipped": True})
-            continue
-        as_of = question.get("as_of")
-        query_text = text
-        if as_of and str(as_of) != "YYYY-MM-DD":
-            query_text = "%s (as of %s)" % (text, as_of)
-        result = await call_recall(
-            cognee_mod,
-            query=query_text,
-            dataset=str(recipe["dataset"]),
-            top_k=15,
-            only_context=False,
-            include_references=True,
-        )
-        answer, context, references = split_recall_result(result)
-        ok, reason = question_passes(question, answer, context, references)
-        if ok:
-            passed += 1
+            return None
+        if text[0] in "\"'":
+            if text[0] == '"':
+                try:
+                    value = json.loads(text)
+                except json.JSONDecodeError:
+                    self.error(line, 'invalid double-quoted scalar')
+                if not isinstance(value, str):
+                    self.error(line, 'expected a string scalar')
+                return value
+            if not re.fullmatch(r"'(?:[^']|'')*'", text):
+                self.error(line, 'invalid single-quoted scalar')
+            return text[1:-1].replace("''", "'")
+        if text == '[]':
+            return []
+        if text[0] in '[{&*!|>@`' or text in ('---', '...') or re.search(r'(^|\s)[&*][^\s]+', text):
+            self.error(line, 'anchors, tags, multi-line scalars or flow collections are not allowed')
+        if re.search(r':(?:\s|$)', text) or text.startswith('- '):
+            self.error(line, 'collection where a scalar is required')
+        if text in ('null', '~'):
+            return None
+        if text in ('true', 'false'):
+            return text == 'true'
+        if re.fullmatch(r'-?\d+', text):
+            return int(text)
+        if re.fullmatch(r'-?\d+\.\d+', text):
+            return float(text)
+        return text
+
+    @staticmethod
+    def pair(text):
+        return re.fullmatch(r'([A-Za-z_][A-Za-z0-9_.-]*):(?:\s+(.*)|$)', text)
+
+    def put(self, result, match, line, indent, depth, flat):
+        key, raw = match[1], match[2] or ''
+        if key in result:
+            self.error(line, 'duplicate key ' + key)
+        child = self.index < len(self.lines) and self.lines[self.index][1] > indent
+        if raw:
+            result[key] = self.scalar(raw, line)
+            if flat and isinstance(result[key], list):
+                self.error(line, 'list mappings must contain only scalars')
+            if child:
+                self.error(self.lines[self.index][0], 'a scalar cannot have indented children')
+        elif child:
+            child_line, child_indent, body = self.lines[self.index]
+            if flat:
+                self.error(child_line, 'list mappings must be flat')
+            if body.startswith('- '):
+                result[key] = self.sequence(child_indent, allow_maps=depth == 0)
+            else:
+                if depth >= 1:
+                    self.error(child_line, 'nested mapping two deep')
+                result[key] = self.mapping(child_indent, depth + 1)
         else:
-            failed += 1
-        results.append(
-            {
-                "id": qid,
-                "type": question.get("type"),
-                "pass": ok,
-                "reason": reason,
-            }
-        )
-    report["eval"] = {
-        "ran": True,
-        "passed": passed,
-        "failed": failed,
-        "skipped": skipped,
-        "questions": results,
-    }
-    return report
+            result[key] = None
+
+    def mapping(self, indent, depth, flat=False):
+        result = {}
+        while self.index < len(self.lines):
+            line, level, body = self.lines[self.index]
+            if level < indent:
+                break
+            if level != indent:
+                self.error(line, 'inconsistent mapping indentation')
+            match = self.pair(body)
+            if not match:
+                self.error(line, 'expected a mapping key')
+            self.index += 1
+            self.put(result, match, line, indent, depth, flat)
+        return result
+
+    def sequence(self, indent, allow_maps):
+        result = []
+        mapping_items = None
+        while self.index < len(self.lines):
+            line, level, body = self.lines[self.index]
+            if level < indent:
+                break
+            if level != indent or not body.startswith('- '):
+                self.error(line, 'expected a list item at the same indentation')
+            body = body[2:].strip()
+            match = self.pair(body)
+            is_map = bool(match)
+            if mapping_items is not None and mapping_items != is_map:
+                self.error(line, 'mixed scalar and mapping list')
+            mapping_items = is_map
+            self.index += 1
+            if match:
+                if not allow_maps:
+                    self.error(line, 'nested list mappings are not allowed')
+                entry = {}
+                self.put(entry, match, line, indent + 2, 1, True)
+                if self.index < len(self.lines) and self.lines[self.index][1] > indent:
+                    if self.lines[self.index][1] != indent + 2:
+                        self.error(self.lines[self.index][0], 'inconsistent list mapping indentation')
+                    more = self.mapping(indent + 2, 1, flat=True)
+                    if set(entry) & set(more):
+                        self.error(line, 'duplicate key in list mapping')
+                    entry.update(more)
+                result.append(entry)
+            else:
+                value = self.scalar(body, line)
+                if isinstance(value, list):
+                    self.error(line, 'nested lists are not allowed')
+                result.append(value)
+                if self.index < len(self.lines) and self.lines[self.index][1] > indent:
+                    self.error(self.lines[self.index][0], 'list scalars cannot have children')
+        return result
+
+    def read(self):
+        if not self.lines:
+            return None
+        line, indent, body = self.lines[0]
+        if indent:
+            self.error(line, 'root must start in column one')
+        if body.startswith('- '):
+            value = self.sequence(0, True)
+        elif self.pair(body):
+            value = self.mapping(0, 0)
+        else:
+            value = self.scalar(body, line)
+            self.index = 1
+        if self.index != len(self.lines):
+            self.error(self.lines[self.index][0], 'unexpected additional content')
+        return value
 
 
-def cmd_healthcheck(values: dict[str, str], flags: set[str]) -> None:
-    set_dir, store_dir, _env_path, env_values = prepare_store_args(
-        values, need_set=True, need_env=True
-    )
-    assert set_dir is not None
-    require_python()
-    ensure_packages()
-    key = openai_key(env_values)
-    if not store_dir.exists():
-        fail("the store at %s does not exist. Run bootstrap first." % store_dir)
-    emit(
-        asyncio.run(
-            healthcheck_async(set_dir, store_dir, key, "--eval" in flags)
-        )
-    )
+RECIPE_KEYS = set('set dataset backend kind owner sensitivity session_permission canon_confirmed sources pack node_sets chunking close_intensity retrieval review_cadence_days stale_after_days write_policy link_policy eval'.split())
+REVIEW_DIRS = dict(new_finding='new_findings', stale='stale', merge_proposal='merge_proposals', conflict='conflicts')
 
 
-def forget_target_description(
-    flags: set[str], values: dict[str, str], dataset: str
-) -> str:
-    if "--memory-only" in flags:
-        return (
-            "derived memory for dataset %s (forget(dataset=%s, memory_only=True)); "
-            "ledger hashes would be kept and ingested_on and data_id cleared"
-            % (dataset, dataset)
-        )
-    if "--dataset" in flags:
-        return "the whole dataset %s (forget(dataset=%s)) and the ledger would be renamed" % (
-            dataset,
-            dataset,
-        )
-    data_id = values.get("--data-id")
-    return "data_id %s in dataset %s" % (data_id, dataset)
+def today():
+    return datetime.date.today().isoformat()
 
 
-async def forget_async(
-    set_dir: Path,
-    store_dir: Path,
-    key: str,
-    flags: set[str],
-    values: dict[str, str],
-) -> dict[str, Any]:
-    recipe = load_recipe(set_dir)
-    recipe_provider(recipe)
-    dataset = str(recipe["dataset"])
-    cognee_mod, used_setter, leaked = import_cognee(
-        store_dir, key, contradiction=False
-    )
-    require_in_process_key(used_setter, "forget")
-    ledger = load_ledger(set_dir)
-    if "--memory-only" in flags:
-        try:
-            await cognee_mod.forget(dataset=dataset, memory_only=True)
-        except Exception as error:
-            operation_failed("cognee.forget", error)
-        for path, entry in list(ledger.items()):
-            if isinstance(entry, dict):
-                entry["ingested_on"] = None
-                entry["data_id"] = None
-                ledger[path] = entry
-        save_ledger(set_dir, ledger)
-        return {
-            "ok": True,
-            "action": "memory-only",
-            "dataset": dataset,
-            "key_leaked_to_environ": leaked,
-        }
-    if "--dataset" in flags:
-        try:
-            await cognee_mod.forget(dataset=dataset)
-        except Exception as error:
-            operation_failed("cognee.forget", error)
-        path = ledger_path(set_dir)
-        renamed = None
-        if path.is_file():
-            renamed = path.with_name("ledger.forgotten-%s.json" % today_iso())
-            path.replace(renamed)
-        return {
-            "ok": True,
-            "action": "dataset",
-            "dataset": dataset,
-            "ledger": str(renamed) if renamed else None,
-            "key_leaked_to_environ": leaked,
-        }
-    data_id_raw = values.get("--data-id")
+def dated(value, label):
+    if not isinstance(value, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', value):
+        fail(label + ' must be YYYY-MM-DD.')
+    datetime.date.fromisoformat(value)
+    return value
+
+
+def child(root, relative, *, exists=False, directory=False):
+    if not isinstance(relative, str) or Path(relative).is_absolute():
+        fail('set-relative path required: ' + str(relative))
+    path = screen_path('set path', str(root / relative), destination=True, must_exist=exists, as_dir=directory)
+    if not path.is_relative_to(root):
+        fail('path escapes its set: ' + relative)
+    # Also refuse outside hardlinks: a mutation must affect only this set.
+    if path.exists() and path.is_file() and path.stat().st_nlink > 1:
+        fail('set file has multiple hard links: ' + relative)
+    return path
+
+
+def write_text(path, text, append=False):
+    path = screen_path('output', str(path), destination=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open('a' if append else 'w', encoding='utf-8') as handle:
+        handle.write(text)
+
+
+def write_json(path, value):
+    write_text(path, json.dumps(value, ensure_ascii=False, allow_nan=False, indent=2) + '\n')
+
+
+def set_recipe(value, backend=None):
+    root = screen_path('--set', value, destination=True, must_exist=True, as_dir=True)
+    data = Q6Reader(child(root, 'set.yaml', exists=True).read_text(encoding='utf-8')).read()
+    if not isinstance(data, dict):
+        fail('set.yaml must be a mapping.')
+    unknown = set(data) - RECIPE_KEYS
+    if unknown:
+        fail('unknown recipe key: ' + sorted(unknown)[0])
+    for key in ('set', 'dataset', 'backend', 'kind', 'owner', 'close_intensity', 'session_permission'):
+        if key not in data or not isinstance(data[key], str):
+            fail('missing or non-string recipe key: ' + key)
+    if not re.fullmatch('[a-z0-9-]+', data['set']) or data['set'] != root.name:
+        fail('recipe set must be a lowercase slug equal to its directory name.')
+    if not re.fullmatch('[a-z0-9_]+', data['dataset']):
+        fail('dataset must use lowercase letters, digits and underscores.')
+    for key, allowed in [('backend', ('wiki', 'databased', 'graph', 'hosted')), ('kind', ('book', 'blog', 'website', 'domain', 'mixed')), ('close_intensity', ('core', 'full')), ('retrieval', ('lexical',)), ('chunking', ('heading-aware',)), ('sensitivity', ('public', 'internal', 'confidential'))]:
+        if key in data and data[key] not in allowed:
+            fail('invalid recipe ' + key + ': ' + str(data[key]))
+    for key in ('review_cadence_days', 'stale_after_days'):
+        data.setdefault(key, 7 if key == 'review_cadence_days' else 30)
+        if type(data[key]) is not int or data[key] <= 0:
+            fail(key + ' must be a positive integer.')
+    for key, allowed in [('sources', {'include', 'exclude'}), ('write_policy', {'agents_may_remember_episodes'}), ('link_policy', {'auto_link'})]:
+        block = data.get(key, {})
+        if not isinstance(block, dict):
+            fail(key + ' must be a mapping.')
+        if set(block) - allowed:
+            fail('unknown recipe key: ' + key + '.' + sorted(set(block) - allowed)[0])
+    sources = data.setdefault('sources', {'include': ['corpus/**/*.md', 'corpus/**/*.txt'], 'exclude': ['corpus/originals/**']})
+    for key in ('include', 'exclude'):
+        if not isinstance(sources.get(key, []), list) or any(not isinstance(x, str) or Path(x).is_absolute() or '..' in Path(x).parts for x in sources.get(key, [])):
+            fail('sources.' + key + ' must be flat relative globs without parent traversal.')
+    if not isinstance(data.get('node_sets', []), list) or any(not isinstance(x, str) for x in data.get('node_sets', [])):
+        fail('node_sets must be a flat string list.')
+    if type(data.get('write_policy', {}).get('agents_may_remember_episodes', False)) is not bool:
+        fail('write_policy.agents_may_remember_episodes must be boolean.')
+    links = data.get('link_policy', {}).get('auto_link', [])
+    if not isinstance(links, list) or any(x not in ('exact_ontology_match', 'normalized_name_match_same_type') for x in links):
+        fail('link_policy.auto_link contains an unsupported rule.')
+    for key in ('pack', 'eval', 'canon_confirmed'):
+        if key in data and not isinstance(data[key], str):
+            fail(key + ' must be a string.')
+    if data['backend'] == 'hosted':
+        fail('hosted-unspecified: read experts/Memory Expert/hosted.md; stop before reading sources.')
+    if data['backend'] == 'graph':
+        fail('graph-unspecified: read experts/Memory Expert/graph.md; stop before reading sources.')
+    if backend and data['backend'] != backend:
+        fail('this command requires backend: ' + backend)
+    if not data['owner'].strip() or not data['session_permission'].strip():
+        fail('owner and session_permission must name who permitted this session to process the material and when.')
+    return root, data
+
+
+def corpus_sources(root, recipe):
+    corpus = child(root, 'corpus', exists=True, directory=True)
+    included, excluded = set(), set()
+    for pattern in recipe['sources'].get('exclude', []):
+        excluded.update(p.resolve() for p in root.glob(pattern) if p.is_file())
+    for pattern in recipe['sources'].get('include', []):
+        for candidate in root.glob(pattern):
+            if candidate.is_dir():
+                continue
+            source = child(root, str(candidate.relative_to(root)), exists=True)
+            if not source.is_relative_to(corpus) or source.is_relative_to(corpus / 'originals'):
+                continue
+            if source not in excluded:
+                if source.suffix.lower() not in ('.md', '.txt'):
+                    fail('source refuses ' + source.name + '; convert to UTF-8 .md or .txt first.')
+                included.add(source)
+    paths = sorted(included)
+    stems = [p.stem for p in paths]
+    if len(stems) != len(set(stems)):
+        fail('duplicate source stems would overwrite manifests; give corpus files distinct stems.')
+    return paths
+
+
+def chunk_set(v):
+    if 'set' not in v:
+        return chunk(v)
+    root, recipe = set_recipe(v['set'], 'databased')
+    paths = corpus_sources(root, recipe)
+    out = child(root, 'extraction', directory=True)
+    results = [chunk(dict(source=str(p), out=str(out), dataset=recipe['dataset'], source_path=p.relative_to(root).as_posix())) for p in paths]
+    return dict(dataset=recipe['dataset'], chunks=sum(r['chunks'] for r in results), sources=results)
+
+
+def lexical_query(text):
+    terms = re.findall(r'\w+', text, re.UNICODE)
+    if not terms:
+        fail('query needs at least one letter or numeral.')
+    return ' OR '.join('"' + term + '"' for term in terms)
+
+
+def check(v):
+    result = dict(interpreter=sys.executable, version='.'.join(map(str, sys.version_info[:3])), databased_python_ok=sys.version_info >= MIN_PYTHON, fts5=False, installed=False)
     try:
-        data_uuid = UUID(data_id_raw)
-    except (TypeError, ValueError):
-        fail('--data-id must be a UUID; got "%s".' % data_id_raw)
-        raise
-    try:
-        await cognee_mod.forget(data_id=data_uuid, dataset=dataset)
+        import sqlite3
+        with sqlite3.connect(':memory:') as con:
+            con.execute('CREATE VIRTUAL TABLE t USING fts5(x)')
+        result['fts5'] = True
     except Exception as error:
-        operation_failed("cognee.forget", error)
-    dropped = []
-    for path, entry in list(ledger.items()):
-        if isinstance(entry, dict) and str(entry.get("data_id")) == str(data_uuid):
-            dropped.append(path)
-            del ledger[path]
-    save_ledger(set_dir, ledger)
-    return {
-        "ok": True,
-        "action": "data-id",
-        "dataset": dataset,
-        "data_id": str(data_uuid),
-        "dropped": dropped,
-        "key_leaked_to_environ": leaked,
-    }
+        result['fts5_error'] = str(error)
+    return result
 
 
-def cmd_forget(values: dict[str, str], flags: set[str]) -> None:
-    modes = [name for name in ("--memory-only", "--dataset") if name in flags]
-    if values.get("--data-id"):
-        modes.append("--data-id")
-    if len(modes) != 1:
-        fail(
-            "forget needs exactly one of --memory-only, --data-id, or --dataset. "
-            + usage_hint()
-        )
-    set_dir, store_dir, _env_path, env_values = prepare_store_args(
-        values, need_set=True, need_env=True
-    )
-    assert set_dir is not None
-    require_python()
-    dataset = peek_dataset(set_dir)
-    if "--confirm" not in flags:
-        fail(
-            "this run would forget %s and --confirm was not given. Re-run with --confirm if that is what you meant."
-            % forget_target_description(flags, values, dataset)
-        )
-    ensure_packages()
-    key = openai_key(env_values)
-    if not store_dir.exists():
-        fail("the store at %s does not exist. Run bootstrap first." % store_dir)
-    emit(asyncio.run(forget_async(set_dir, store_dir, key, flags, values)))
+def graph_connection(path):
+    con = sqlite3.connect(path)
+    con.row_factory = sqlite3.Row
+    return con
 
 
-def main(argv: list[str] | None = None) -> None:
+def bootstrap(v):
+    path = db_path(v['store'], True)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with graph_connection(path) as con:
+        for sql in DDL:
+            con.execute(sql)
+    return dict(store=str(path), schema='databased/0.1.0', fts5=True)
+
+
+def ledger(root):
+    path = child(root, 'extraction/ledger.json')
+    return read_json(path) if path.exists() else dict(sources={})
+
+
+def report_path(root, command):
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H%M%S%fZ')
+    return child(root, 'reports/' + command + '-' + stamp + '.json')
+
+
+def review_due(root, recipe):
+    reports = child(root, 'reports', directory=True)
+    dates = sorted(reports.glob('review-pass-*.json')) if reports.exists() else []
+    if not dates:
+        return True
+    last = read_json(child(root, str(dates[-1].relative_to(root)), exists=True)).get('date')
+    return not last or (datetime.date.today() - datetime.date.fromisoformat(last)).days >= recipe['review_cadence_days']
+
+
+def ingest(v):
+    root, recipe = set_recipe(v['set'], 'databased')
+    path = db_path(v['store'], False)
+    extraction_path = screen_path('--extraction', v['extraction'], must_exist=True)
+    if not extraction_path.is_relative_to(child(root, 'extraction', exists=True, directory=True)):
+        fail('--extraction must sit under this set extraction directory.')
+    preliminary = read_json(extraction_path)
+    source = child(root, preliminary.get('source_path', ''), exists=True)
+    if source not in corpus_sources(root, recipe):
+        fail('extraction source is not included by the recipe: ' + str(source))
+    chunks_path = child(root, 'extraction/' + source.stem + '.chunks.json', exists=True)
+    pack_name = recipe.get('pack', 'general')
+    pack = GENERAL_PACK if pack_name == 'general' else child(root, pack_name, exists=True, directory=True)
+    extraction, manifest, accepted, validation = validate_files(extraction_path, chunks_path, pack)
+    shape(extraction['dataset'] == recipe['dataset'], 'dataset mismatch with recipe')
+    shape(extraction['pack'] == pack_name, 'pack mismatch with recipe')
+    raw = source.read_bytes()
+    shape(digest(raw) == manifest['source_hash'], 'source_hash mismatch with source on disk')
+    text = raw.decode('utf-8')
+    for c in manifest['chunks']:
+        shape(text[c['char_start']:c['char_end']] == c['text'], 'manifest text differs from source on disk')
+    state = ledger(root)
+    identity = dict(dataset=recipe['dataset'], source_hash=extraction['source_hash'], chunk_hashes=[c['chunk_hash'] for c in manifest['chunks']], pack_hash=extraction['pack_version'])
+    key = extraction['source_hash']
+    previous = state['sources'].get(key)
+    with graph_connection(path) as con:
+        in_store = con.execute('SELECT 1 FROM sources WHERE dataset=? AND source_hash=?', (recipe['dataset'], key)).fetchone()
+    skipped = bool(previous and previous.get('identity') == identity and previous.get('complete') and in_store)
+    result = dict(dataset=recipe['dataset'], date=today(), sources_added=0, skipped_by_hash=int(skipped), nodes_ingested=0, nodes_rejected=validation['rejected'], rejected_detail=validation['rejected_detail'], review_due=review_due(root, recipe))
+    if not skipped:
+        loaded = load_graph(path, extraction, manifest, accepted, validation)
+        result.update(loaded)
+        result.update(sources_added=int(not in_store), nodes_ingested=validation['nodes_accepted'])
+        complete = len(extraction['entries']) == len(manifest['chunks']) and not validation['rejected_detail']
+        state['sources'][key] = dict(identity=identity, source_path=extraction['source_path'], last_ingest=today(), complete=complete)
+        write_json(child(root, 'extraction/ledger.json'), state)
+    result['report'] = str(report_path(root, 'ingest'))
+    write_json(Path(result['report']), result)
+    return result
+
+
+def recall(v):
+    root, recipe = set_recipe(v['set'], 'databased')
+    if 'as_of' in v:
+        dated(v['as_of'], '--as-of')
+    result = query(dict(v, dataset=recipe['dataset']))
+    result.update(as_of=v.get('as_of'), canon_confirmed=recipe.get('canon_confirmed', ''))
+    return result
+
+LINK = re.compile(r'\[([^\]]+)\]\(([^)]+)\)')
+
+
+def collapse(value):
+    return ' '.join(value.split())
+
+
+def wiki_lint(v):
+    root = screen_path('--set', v['set'], destination=True, must_exist=True, as_dir=True)
+    if child(root, 'set.yaml').exists():
+        root, _ = set_recipe(v['set'], 'wiki')
+    wiki = child(root, 'wiki', exists=True, directory=True)
+    corpus = child(root, 'corpus', exists=True, directory=True)
+    index = child(root, 'wiki/index.md')
+    log = child(root, 'wiki/log.md')
+    issues, fixes = [], []
+    articles = []
+    for p in sorted(wiki.rglob('*.md')):
+        path = child(root, p.relative_to(root).as_posix(), exists=True)
+        if path in (index, log):
+            continue
+        relative = path.relative_to(wiki)
+        if len(relative.parts) != 2 or not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*\.md', path.name):
+            issues.append(dict(file=str(relative), reason='article must be wiki/<topic>/<concept-kebab-case>.md'))
+        articles.append(path)
+    corpus_files = [child(root, p.relative_to(root).as_posix(), exists=True) for p in sorted(corpus.rglob('*')) if p.is_file() and p.suffix.lower() in ('.md', '.txt') and not p.is_relative_to(corpus / 'originals')]
+
+    def inspect_links(path, text, allowed, label):
+        replacements = []
+        for match in LINK.finditer(text):
+            target_text = match[2].split('#', 1)[0]
+            if not target_text:
+                issues.append(dict(file=str(path.relative_to(root)), reason=label + ' empty link', link=match[2]))
+                continue
+            candidate = canonical('wiki link', path.parent / target_text)
+            if candidate not in allowed:
+                matches = [p for p in allowed if p.name == Path(target_text).name]
+                issues.append(dict(file=str(path.relative_to(root)), reason=label + ' broken or outside link', link=match[2]))
+                # An outside or absolute link is unsafe, even if its basename matches.
+                if len(matches) == 1 and not Path(target_text).is_absolute() and candidate.is_relative_to(root) and not re.match(r'[A-Za-z][A-Za-z0-9+.-]*:', target_text):
+                    replacement = os.path.relpath(matches[0], path.parent).replace(os.sep, '/')
+                    replacements.append((match.start(2), match.end(2), replacement))
+                    fixes.append(dict(file=str(path.relative_to(root)), before=match[2], after=replacement))
+        for start, end, replacement in reversed(replacements):
+            text = text[:start] + replacement + text[end:]
+        return text
+
+    index_text = index.read_text(encoding='utf-8') if index.exists() else '# Knowledge Base Index\n'
+    fixed_index = inspect_links(index, index_text, articles, 'index')
+    catalogued = [canonical('index link', index.parent / m[2].split('#', 1)[0]) for m in LINK.finditer(fixed_index)]
+    for path in set(catalogued):
+        if catalogued.count(path) > 1:
+            issues.append(dict(file='wiki/index.md', reason='duplicate index entry', article=str(path.relative_to(root)) if path.is_relative_to(root) else str(path)))
+    missing_rows = {}
+    for path in articles:
+        original = path.read_text(encoding='utf-8')
+        title_match = re.search(r'^# (.+)$', original, re.M)
+        updated = re.search(r'^- Updated: (\d{4}-\d{2}-\d{2})\s*$', original, re.M)
+        if not title_match or not updated or not re.search(r'^- Sources: .+', original, re.M):
+            issues.append(dict(file=str(path.relative_to(root)), reason='missing title, Updated or Sources metadata'))
+        elif path not in catalogued:
+            issues.append(dict(file='wiki/index.md', reason='missing index entry', article=str(path.relative_to(wiki))))
+            row = '- [%s](%s): %s. Updated: %s\n' % (title_match[1], path.relative_to(wiki).as_posix(), title_match[1].rstrip('.'), updated[1])
+            missing_rows.setdefault(path.parent.name, []).append(row)
+            fixes.append(dict(file='wiki/index.md', added=str(path.relative_to(wiki))))
+        raw_match = re.search(r'^- Raw: (.*)$', original, re.M)
+        if not raw_match:
+            # Archive pages cite wiki articles in Sources and have no Raw field.
+            sources = re.search(r'^- Sources: (.*)$', original, re.M)
+            links = list(LINK.finditer(sources[1])) if sources else []
+            if not links or any(canonical('archive source', path.parent / m[2].split('#', 1)[0]) not in articles for m in links):
+                issues.append(dict(file=str(path.relative_to(root)), reason='missing Raw; archive Sources must link wiki articles'))
+            continue
+        raw_line = inspect_links(path, raw_match[0], corpus_files, 'Raw')
+        revised = original[:raw_match.start()] + raw_line + original[raw_match.end():]
+        # See Also links share the same safe repair class.
+        see = re.search(r'^## See Also\s*\n', revised, re.M)
+        if see:
+            revised = revised[:see.end()] + inspect_links(path, revised[see.end():], articles, 'See Also')
+        else:
+            issues.append(dict(file=str(path.relative_to(root)), reason='missing See Also section'))
+        raw_links = list(LINK.finditer(raw_line))
+        if not raw_links:
+            issues.append(dict(file=str(path.relative_to(root)), reason='Raw has no corpus links'))
+        texts = []
+        for link in raw_links:
+            linked = canonical('Raw', path.parent / link[2].split('#', 1)[0])
+            if linked in corpus_files:
+                texts.append(collapse(linked.read_text(encoding='utf-8')))
+        body = revised.split(raw_line, 1)[1].split('## See Also', 1)[0]
+        literals = re.findall(r'"([^"]+)"|“([^”]+)”|‘([^’]+)’|(?<!\w)\'(?!\s)([^\']+)\'(?!\w)', body)
+        quoted = [next(part for part in match if part) for match in literals]
+        numerals = re.findall(r'(?<!\w)\d+(?:[.,:/-]\d+)*(?:[%½¼¾])?', body)
+        for literal in dict.fromkeys(quoted + numerals):
+            if not any(collapse(literal) in text for text in texts):
+                issues.append(dict(file=str(path.relative_to(root)), reason='literal not located in linked corpus', literal=literal))
+        if revised != original:
+            write_text(path, revised)
+    for topic, rows in missing_rows.items():
+        heading = re.search(r'^## ' + re.escape(topic) + r'\s*$', fixed_index, re.M)
+        if heading:
+            next_heading = re.search(r'^## ', fixed_index[heading.end():], re.M)
+            at = heading.end() + next_heading.start() if next_heading else len(fixed_index)
+            fixed_index = fixed_index[:at].rstrip() + '\n' + ''.join(rows) + '\n' + fixed_index[at:]
+        else:
+            fixed_index = fixed_index.rstrip() + '\n\n## ' + topic + '\n\n' + ''.join(rows)
+    if not index.exists() or fixed_index != index_text:
+        write_text(index, fixed_index)
+    if not log.exists():
+        write_text(log, '# Wiki Log\n')
+    write_text(log, '\n## [%s] lint | %d issues found, %d auto-fixed\n' % (today(), len(issues), len(fixes)), append=True)
+    return dict(backend='wiki', issues_found=len(issues), auto_fixed=len(fixes), issues=issues, fixes=fixes, log=str(log))
+
+
+def item_parts(path):
+    text = path.read_text(encoding='utf-8')
+    front = re.match(r'\A---\n(.*?)\n---\n', text, re.S)
+    if not front:
+        fail('review item needs closed YAML frontmatter: ' + path.name)
+    meta = Q6Reader(front[1]).read()
+    body = text[front.end():]
+    blocks = {}
+    for name in ('Subject', 'Decision'):
+        match = re.search(r'^## ' + name + r'\s*\n(.*?)(?=^## |\Z)', body, re.S | re.M)
+        if not match:
+            fail('review item missing ' + name + ': ' + path.name)
+        blocks[name] = Q6Reader(match[1]).read() or {}
+    return meta, blocks['Subject'], blocks['Decision'], text
+
+
+def review_files(root):
+    directory = child(root, 'review', directory=True)
+    return [child(root, p.relative_to(root).as_posix(), exists=True) for p in sorted(directory.rglob('*.md')) if p.name != 'changelog.md'] if directory.exists() else []
+
+
+def render_review_item(dataset, node, item_type, action, why, identity, target='', decision=None):
+    # Field ordering and lifecycle follow templates/review_item.md.
+    q = lambda value: json.dumps(str(value), ensure_ascii=False)
+    safe = lambda value: str(value or '').replace('|', '&#124;').replace('\n', ' ')
+    decision = decision or dict(reviewer='', decision='', date='', note='')
+    return ('---\nid: %s\ntype: %s\ndataset: %s\nstatus: %s\ncreated: %s\n---\n\n'
+            '# %s\n\n## Surface forms\n\n- %s (1 occurrences)\n\n## Subject\n\n'
+            'node_type: %s\nnormalized_name: %s\nnode_id: %s\ndata_id: %s\ntarget: %s\n\n'
+            '## Proposed action\n\n%s\n\n## Evidence\n\n'
+            '| Quote (40 words at most) | Source path | Content hash | Extractor confidence |\n'
+            '|--------------------------|------------|--------------|----------------------|\n'
+            '| "%s" | %s | %s | %s |\n\n## Why this is not auto-decidable\n\n%s\n\n'
+            '## Recommendation\n\n\n## Decision\n\nreviewer: %s\ndecision: %s\ndate: %s\nnote: %s\n') % (
+                identity, item_type, dataset, 'decided' if decision['reviewer'] else 'open', today(), safe(node['name']), q(node['name']),
+                node['kind'], q(node['normalized_name']), q(node['node_id']), q(node['source_path']), q(target), action,
+                safe(node['quote']), safe(node['source_path']), node['chunk_hash'], node['confidence'] if node['confidence'] is not None else '', why,
+                q(decision['reviewer']), q(decision['decision']), q(decision['date']), q(decision.get('note', '')))
+
+
+def review_pass(v):
+    import difflib
+    root, recipe = set_recipe(v['set'], 'databased')
+    path = db_path(v['store'], False)
+    dataset = recipe['dataset']
+    existing = {item_parts(p)[0]['id'] for p in review_files(root)}
+    results = []
+    with graph_connection(path) as con:
+        nodes = [dict(r) for r in con.execute('SELECT * FROM nodes WHERE dataset=? ORDER BY rowid', (dataset,))]
+        def add(node, kind, action, why, target=''):
+            token = digest(json.dumps([dataset, kind, node['kind'], node['normalized_name'], target, node['chunk_hash']], sort_keys=True).encode())[7:23]
+            identity = dataset + '-' + token
+            if identity in existing:
+                return
+            destination = child(root, 'review/' + REVIEW_DIRS[kind] + '/' + identity + '.md')
+            write_text(destination, render_review_item(dataset, node, kind, action, why, identity, target))
+            existing.add(identity)
+            results.append(dict(type=kind, file=str(destination)))
+        for node in nodes:
+            evidence = con.execute('SELECT DISTINCT source_path,payload FROM provenance WHERE dataset=? AND node_id=?', (dataset, node['node_id'])).fetchall()
+            if node['status'] == 'Candidate':
+                add(node, 'new_finding', 'promote', 'Candidate needs a human decision; %d provenance records.' % len(evidence))
+                days = []
+                for row in evidence:
+                    payload = json.loads(row['payload'])
+                    if payload.get('_extracted_on'):
+                        days.append((datetime.date.today() - datetime.date.fromisoformat(payload['_extracted_on'])).days)
+                missing = not child(root, node['source_path']).exists()
+                if missing or (len({r['source_path'] for r in evidence}) <= 1 and days and min(days) >= recipe['stale_after_days']):
+                    add(node, 'stale', 'mark-stale', 'Source missing or single-source Candidate beyond stale_after_days.')
+        for i, left in enumerate(nodes):
+            for right in nodes[i + 1:]:
+                if left['kind'] == right['kind'] and left['normalized_name'] != right['normalized_name'] and difflib.SequenceMatcher(None, left['normalized_name'], right['normalized_name']).ratio() >= 0.85:
+                    add(left, 'merge_proposal', 'merge-into ' + right['node_id'], 'Similar names are evidence for review only, including protected types.', right['normalized_name'])
+        facts = con.execute("SELECT n.*, p.payload FROM nodes n JOIN provenance p ON n.dataset=p.dataset AND n.node_id=p.node_id WHERE n.dataset=? AND n.kind='fact'", (dataset,)).fetchall()
+        for i, left in enumerate(facts):
+            a = json.loads(left['payload'])
+            for right in facts[i + 1:]:
+                b = json.loads(right['payload'])
+                if a.get('subject') == b.get('subject') and a.get('predicate') == b.get('predicate') and a.get('object') != b.get('object'):
+                    add(dict(left), 'conflict', 'review', 'Same subject and predicate have different objects; human checks dates and scope.', right['normalized_name'])
+        for edge in con.execute("SELECT * FROM edges WHERE dataset=? AND relation='CONTRADICTS'", (dataset,)):
+            left = next(n for n in nodes if n['node_id'] == edge['from_node_id'])
+            right = next(n for n in nodes if n['node_id'] == edge['to_node_id'])
+            add(left, 'conflict', 'review', 'An extracted typed link asserts a contradiction.', right['normalized_name'])
+    result = dict(dataset=dataset, date=today(), counts={k: sum(r['type'] == k for r in results) for k in REVIEW_DIRS}, items=results)
+    write_json(report_path(root, 'review-pass'), result)
+    return result
+
+
+def canon_items(root, recipe, con):
+    confirmation = re.fullmatch(r'(.+),\s*(\d{4}-\d{2}-\d{2})', recipe.get('canon_confirmed', ''))
+    if not confirmation:
+        fail('canon_confirmed must name a person and YYYY-MM-DD before --from-canon.')
+    reviewer, date = confirmation.groups()
+    dated(date, 'canon_confirmed date')
+    text = child(root, 'canon.md', exists=True).read_text(encoding='utf-8')
+    proposals, kind, headers = [], None, None
+    for line in text.splitlines():
+        if line.startswith('## '):
+            kind = {'## Canonical ideas': 'idea', '## Canonical entities': 'entity'}.get(line.strip())
+            headers = None
+        elif kind and line.startswith('|'):
+            cells = [c.strip() for c in re.split(r'(?<!\\)\|', line.strip().strip('|'))]
+            if headers is None:
+                headers = [c.lower() for c in cells]
+                continue
+            if all(re.fullmatch(r'[-: ]+', c) for c in cells):
+                continue
+            if len(cells) != len(headers):
+                fail('canon table row does not match its header.')
+            row = dict(zip(headers, cells))
+            name = row.get(kind, '')
+            quote = row.get('quote', '').strip('"')
+            source_text = row.get('source', '').strip('`')
+            link = LINK.fullmatch(source_text)
+            source_text = link[2] if link else source_text
+            source = child(root, source_text, exists=True)
+            if not source.is_relative_to(root / 'corpus') or source.is_relative_to(root / 'corpus/originals'):
+                fail('canon Source must name compiled-from corpus text.')
+            if not quote or len(quote.split()) > 40 or collapse(quote) not in collapse(source.read_text(encoding='utf-8')):
+                fail('canon quote not located or exceeds 40 words: ' + name)
+            node = con.execute('SELECT * FROM nodes WHERE dataset=? AND kind=? AND normalized_name=?', (recipe['dataset'], kind, normalized_name(name))).fetchone()
+            if node is None:
+                fail('canon entry has no ingested node: ' + name + '; extract and ingest it first.')
+            node = dict(node)
+            grounded = con.execute('SELECT c.chunk_hash,c.text FROM provenance p JOIN chunks c ON p.dataset=c.dataset AND p.source_path=c.source_path AND p.chunk_hash=c.chunk_hash WHERE p.dataset=? AND p.node_id=? AND p.source_path=?', (recipe['dataset'], node['node_id'], source_text)).fetchall()
+            grounded = next((r for r in grounded if collapse(quote) in collapse(r['text'])), None)
+            if not grounded:
+                fail('canon entry source differs from its ingested evidence: ' + name)
+            node.update(quote=quote, source_path=source_text, chunk_hash=grounded['chunk_hash'])
+            proposals.append((node, 'promote', ''))
+            for alias in re.split(r';', row.get('aliases', '')):
+                alias = alias.strip().strip('"')
+                if not alias or normalized_name(alias) == node['normalized_name']:
+                    continue
+                alias_node = con.execute('SELECT * FROM nodes WHERE dataset=? AND kind=? AND normalized_name=?', (recipe['dataset'], kind, normalized_name(alias))).fetchone()
+                if alias_node is None:
+                    alias_node = dict(node, name=alias, normalized_name=normalized_name(alias), node_id=kind + ':' + normalized_name(alias).replace(' ', '-'))
+                proposals.append((dict(alias_node), 'alias-of ' + node['node_id'], node['normalized_name']))
+    if not proposals:
+        fail('confirmed canon has no Canonical ideas or Canonical entities table rows.')
+    paths = []
+    for node, action, target in proposals:
+        identity = recipe['dataset'] + '-canon-' + digest(json.dumps([node['kind'], node['normalized_name'], action, reviewer, date]).encode())[7:23]
+        path = child(root, 'review/decided/' + identity + '.md')
+        if not path.exists():
+            decision = dict(reviewer=reviewer, decision=action, date=date, note='Confirmed canon.md')
+            write_text(path, render_review_item(recipe['dataset'], node, 'new_finding', action, 'Human confirmed canon with located quote.', identity, target, decision))
+        paths.append(path)
+    return paths
+
+
+def promote(v):
+    root, recipe = set_recipe(v['set'], 'databased')
+    path = db_path(v['store'], False)
+    dataset = recipe['dataset']
+    decided_root = child(root, 'review/decided', directory=True)
+    plans, deferred, results = [], [], []
+    with graph_connection(path) as con:
+        if 'from_canon' in v:
+            paths = canon_items(root, recipe, con)
+        elif 'decided' in v:
+            candidate = screen_path('--decided', v['decided'], destination=True, must_exist=True)
+            if not candidate.is_relative_to(decided_root):
+                fail('--decided must sit under review/decided/.')
+            paths = [child(root, candidate.relative_to(root).as_posix(), exists=True)]
+        else:
+            paths = [p for p in review_files(root) if p.is_relative_to(decided_root) and item_parts(p)[0].get('status') == 'applied']
+        if v.get('replay'):
+            log_path = child(root, 'review/changelog.md')
+            log_lines = log_path.read_text(encoding='utf-8').splitlines() if log_path.exists() else []
+            order = {}
+            for i, line in enumerate(log_lines):
+                parts = line.split(' | ')
+                if len(parts) >= 2:
+                    order[parts[1]] = i
+            parsed = {p: item_parts(p) for p in paths}
+            paths.sort(key=lambda p: (parsed[p][2].get('date', ''), order.get(parsed[p][0].get('id'), -1), p.name))
+            by_date = {}
+            for p in paths:
+                meta, subject, decision, _ = parsed[p]
+                key = (subject.get('node_type'), subject.get('normalized_name'), decision.get('date'))
+                if key in by_date and (meta.get('id') not in order or by_date[key] not in order):
+                    fail('same-date replay decisions need application order in review/changelog.md.')
+                by_date[key] = meta.get('id')
+        for item in paths:
+            meta, subject, decision, original = item_parts(item)
+            expected = 'applied' if v.get('replay') else 'decided'
+            if meta.get('status') != expected:
+                if v.get('from_canon') and meta.get('status') == 'applied':
+                    continue
+                fail('item must have status: ' + expected + ': ' + item.name)
+            if meta.get('dataset') != dataset:
+                fail('review item dataset mismatch: ' + item.name)
+            for key in ('reviewer', 'decision', 'date'):
+                if not isinstance(decision.get(key), str) or not decision[key].strip():
+                    fail('decision block incomplete: ' + key)
+            dated(decision['date'], 'decision date')
+            kind = str(subject.get('node_type', '')).lower().replace(' ', '_')
+            norm = subject.get('normalized_name', '')
+            if not isinstance(norm, str) or normalized_name(norm) != norm:
+                fail('Subject normalized_name is not normalized.')
+            node = con.execute('SELECT * FROM nodes WHERE dataset=? AND kind=? AND normalized_name=?', (dataset, kind, norm)).fetchone()
+            action, _, target_text = decision['decision'].partition(' ')
+            if node is None and action not in ('alias-of', 'merge-into'):
+                fail('Subject has no matching (dataset, kind, normalized_name): ' + norm)
+            if action == 'edit-ontology':
+                deferred.append(dict(file=str(item), action=action, reason='Human edit required in the set pack; no databased change applied.'))
+                continue
+            if action not in ('promote', 'mark-stale', 'reject', 'alias-of', 'merge-into'):
+                fail('unknown decision: ' + action)
+            target = None
+            if action in ('alias-of', 'merge-into'):
+                stable = subject.get('target')
+                if not stable:
+                    fail('alias and merge decisions need Subject target normalized_name for replay.')
+                # Subject target carries normalized identity; a legacy appended node id is accepted.
+                stable = stable.split(' (', 1)[0]
+                target = con.execute('SELECT * FROM nodes WHERE dataset=? AND kind=? AND normalized_name=?', (dataset, kind, normalized_name(stable))).fetchone()
+                if target is None or target['normalized_name'] == norm:
+                    fail('alias or merge target must be another node of the same kind in this dataset.')
+                if not v.get('replay') and target_text and target_text != target['node_id']:
+                    fail('decision target and Subject target disagree.')
+            if node is None:
+                node = dict(target, name=norm, normalized_name=norm, node_id=kind + ':' + norm.replace(' ', '-'), _new_alias=True)
+            plans.append((item, meta, decision, original, node, action, target))
+        for item, meta, decision, original, node, action, target in plans:
+            if isinstance(node, dict) and node.get('_new_alias'):
+                columns = 'dataset kind node_id name normalized_name text status quote source_path heading_path chunk_hash valid_from valid_to confidence'.split()
+                cursor = con.execute('INSERT OR IGNORE INTO nodes VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)', tuple(node[k] for k in columns))
+                if cursor.rowcount:
+                    con.execute('INSERT INTO nodes_fts(rowid,dataset,name,text,quote) VALUES (?,?,?,?,?)', (cursor.lastrowid, dataset, node['name'], node['text'], node['quote']))
+                    con.execute('INSERT OR IGNORE INTO provenance SELECT dataset,?,source_path,chunk_hash,quote,payload FROM provenance WHERE dataset=? AND node_id=?', (node['node_id'], dataset, target['node_id']))
+            status = {'promote': 'Canonical', 'mark-stale': 'Stale', 'reject': 'Rejected', 'alias-of': 'Alias', 'merge-into': 'Alias'}[action]
+            con.execute('UPDATE nodes SET status=?,valid_to=CASE WHEN ? THEN ? ELSE valid_to END WHERE dataset=? AND node_id=?', (status, action == 'mark-stale', decision['date'], dataset, node['node_id']))
+            if target:
+                con.execute('INSERT OR REPLACE INTO aliases VALUES (?,?,?,?)', (dataset, node['kind'], node['normalized_name'], target['normalized_name']))
+            else:
+                con.execute('DELETE FROM aliases WHERE dataset=? AND kind=? AND normalized_name=?', (dataset, node['kind'], node['normalized_name']))
+            results.append(dict(file=str(item), action=action, node_id=node['node_id'], status=status))
+    # Database commits first; replaying a decided item after an interrupted file write is idempotent.
+    for item, meta, decision, original, node, action, target in plans:
+        if not v.get('replay'):
+            write_text(item, re.sub(r'(?m)^status: decided$', 'status: applied', original, count=1))
+            changelog = child(root, 'review/changelog.md')
+            marker = '- %s | %s | %s | %s\n' % (decision['date'], meta['id'], decision['reviewer'], decision['decision'])
+            if not changelog.exists() or marker not in changelog.read_text(encoding='utf-8'):
+                write_text(changelog, marker, append=True)
+    return dict(dataset=dataset, applied=results, deferred=deferred, replay=bool(v.get('replay')))
+
+
+def mark_stale(v):
+    root, recipe = set_recipe(v['set'], 'databased')
+    path = db_path(v['store'], False)
+    date = dated(v.get('valid_to', today()), '--valid-to')
+    with graph_connection(path) as con:
+        cursor = con.execute("UPDATE nodes SET status='Stale',valid_to=? WHERE dataset=? AND node_id=?", (date, recipe['dataset'], v['id']))
+        if not cursor.rowcount:
+            fail('node not found in this dataset: ' + v['id'])
+    return dict(dataset=recipe['dataset'], node_id=v['id'], status='Stale', valid_to=date, deleted=0)
+
+
+def healthcheck(v):
+    root, recipe = set_recipe(v['set'], 'databased')
+    path = db_path(v['store'], False)
+    dataset = recipe['dataset']
+    with graph_connection(path) as con:
+        counts = [dict(row) for row in con.execute('SELECT kind,status,count(*) AS count FROM nodes WHERE dataset=? GROUP BY kind,status', (dataset,))]
+        missing = con.execute("SELECT count(*) FROM nodes n WHERE dataset=? AND kind='fact' AND (quote='' OR source_path='' OR NOT EXISTS (SELECT 1 FROM provenance p WHERE p.dataset=n.dataset AND p.node_id=n.node_id))", (dataset,)).fetchone()[0]
+    backlog = []
+    for item in review_files(root):
+        meta, _, _, _ = item_parts(item)
+        if meta.get('status') != 'applied':
+            created = dated(meta.get('created'), 'review created')
+            backlog.append(dict(file=str(item), type=meta.get('type'), status=meta.get('status'), age_days=(datetime.date.today() - datetime.date.fromisoformat(created)).days))
+    state = ledger(root)
+    dates = [r['last_ingest'] for r in state['sources'].values() if r.get('last_ingest')]
+    result = dict(dataset=dataset, date=today(), counts=counts, facts_missing_provenance=missing, backlog=backlog, last_ingest=max(dates) if dates else None)
+    if v.get('eval'):
+        evaluation = Q6Reader(child(root, recipe.get('eval', 'eval.questions.yaml'), exists=True).read_text(encoding='utf-8')).read()
+        questions = evaluation.get('questions') if isinstance(evaluation, dict) else evaluation
+        if isinstance(evaluation, dict) and set(evaluation) != {'questions'}:
+            fail('eval mapping accepts only questions.')
+        if not isinstance(questions, list):
+            fail('eval questions must be a list of flat mappings.')
+        checks = []
+        for q in questions:
+            if not isinstance(q, dict) or set(q) - set('id type question expected must_not_match as_of'.split()):
+                fail('eval question has unknown keys or is not a flat mapping.')
+            if any(k in q and not isinstance(q[k], str) for k in ('id', 'type', 'question', 'expected', 'must_not_match', 'as_of')):
+                fail('eval question fields must be strings.')
+            if not q.get('question') or not (q.get('expected') or q.get('must_not_match')):
+                checks.append(dict(id=q.get('id'), passed=False, reason='question and at least one of expected or must_not_match must be filled'))
+                continue
+            if q.get('type') == 'as-of':
+                checks.append(dict(id=q.get('id'), passed=False, reason='as-of filtering is a declared gap; human dated-item read required'))
+                continue
+            retrieved = query(dict(store=str(path), dataset=dataset, query=q['question']))['items']
+            blob = json.dumps(retrieved, ensure_ascii=False).casefold()
+            expected = q.get('expected', '')
+            matched = any(x['source_path'] == expected[5:] for x in retrieved) if expected.startswith('path:') else expected.casefold() in blob
+            forbidden = q.get('must_not_match', '')
+            checks.append(dict(id=q.get('id'), passed=matched and (not forbidden or forbidden.casefold() not in blob), items=len(retrieved)))
+        result['eval'] = dict(scope='databased retrieval only', passed=bool(checks) and all(r['passed'] for r in checks), questions=checks)
+    write_json(report_path(root, 'healthcheck'), result)
+    return result
+
+
+def drop_source(con, dataset, source):
+    affected = [r[0] for r in con.execute('SELECT DISTINCT node_id FROM provenance WHERE dataset=? AND source_path=?', (dataset, source))]
+    hashes = [r[0] for r in con.execute('SELECT chunk_hash FROM chunks WHERE dataset=? AND source_path=?', (dataset, source))]
+    con.execute('DELETE FROM provenance WHERE dataset=? AND source_path=?', (dataset, source))
+    for node_id in affected:
+        remaining = con.execute('SELECT * FROM provenance WHERE dataset=? AND node_id=? ORDER BY rowid LIMIT 1', (dataset, node_id)).fetchone()
+        if remaining:
+            chunk = con.execute('SELECT heading_path FROM chunks WHERE dataset=? AND source_path=? AND chunk_hash=?', (dataset, remaining['source_path'], remaining['chunk_hash'])).fetchone()
+            current = con.execute('SELECT kind,name,status FROM nodes WHERE dataset=? AND node_id=?', (dataset, node_id)).fetchone()
+            payload = json.loads(remaining['payload'])
+            name, text, _, _ = node_record(current['kind'], payload)
+            if current['status'] == 'Alias':
+                name = current['name']
+            con.execute('UPDATE nodes SET name=?,text=?,source_path=?,quote=?,chunk_hash=?,heading_path=?,confidence=?,valid_from=? WHERE dataset=? AND node_id=?', (name, text, remaining['source_path'], remaining['quote'], remaining['chunk_hash'], chunk['heading_path'], payload.get('confidence'), payload.get('valid_from'), dataset, node_id))
+        else:
+            row = con.execute('SELECT rowid,kind,normalized_name FROM nodes WHERE dataset=? AND node_id=?', (dataset, node_id)).fetchone()
+            if row:
+                con.execute('DELETE FROM nodes_fts WHERE rowid=? AND dataset=?', (row['rowid'], dataset))
+                con.execute('DELETE FROM aliases WHERE dataset=? AND kind=? AND (normalized_name=? OR target_name=?)', (dataset, row['kind'], row['normalized_name'], row['normalized_name']))
+            con.execute('DELETE FROM nodes WHERE dataset=? AND node_id=?', (dataset, node_id))
+            con.execute('DELETE FROM edges WHERE dataset=? AND (from_node_id=? OR to_node_id=?)', (dataset, node_id, node_id))
+    for h in hashes:
+        if con.execute('SELECT 1 FROM chunks WHERE dataset=? AND chunk_hash=? AND source_path<>?', (dataset, h, source)).fetchone():
+            continue
+        for table in ('edges', 'unresolved_links'):
+            con.execute('DELETE FROM ' + table + ' WHERE dataset=? AND chunk_hash=?', (dataset, h))
+    for table in ('chunks', 'sources'):
+        con.execute('DELETE FROM ' + table + ' WHERE dataset=? AND source_path=?', (dataset, source))
+    # Refresh indexed evidence when one of several supporting sources was removed.
+    for node_id in affected:
+        node = con.execute('SELECT rowid,* FROM nodes WHERE dataset=? AND node_id=?', (dataset, node_id)).fetchone()
+        if node:
+            con.execute('UPDATE nodes_fts SET name=?,text=?,quote=? WHERE rowid=? AND dataset=?', (node['name'], node['text'], node['quote'], node['rowid'], dataset))
+
+
+def forget(v):
+    root, recipe = set_recipe(v['set'], 'databased')
+    path = db_path(v['store'], False)
+    dataset = recipe['dataset']
+    mode = next(k for k in ('memory_only', 'dataset', 'data_id') if k in v)
+    result = dict(dataset=dataset, mode=mode, confirmed=bool(v.get('confirm')), keeps_corpus=True, action='drop one source and its databased evidence' if mode == 'data_id' else 'drop databased rows for this dataset')
+    if mode == 'data_id':
+        result['data_id'] = v['data_id']
+    if not v.get('confirm'):
+        return result
+    state = ledger(root)
+    with graph_connection(path) as con:
+        if mode == 'data_id':
+            sources = [r[0] for r in con.execute('SELECT DISTINCT source_path FROM sources WHERE dataset=? AND (source_path=? OR source_hash=?)', (dataset, v['data_id'], v['data_id']))]
+            if len(sources) != 1:
+                fail('--data-id must identify exactly one ingested source path or hash.')
+            drop_source(con, dataset, sources[0])
+            state['sources'] = {k: r for k, r in state['sources'].items() if r['source_path'] != sources[0]}
+        else:
+            for table in ('nodes_fts', 'nodes', 'provenance', 'edges', 'unresolved_links', 'chunks', 'sources', 'aliases'):
+                con.execute('DELETE FROM ' + table + ' WHERE dataset=?', (dataset,))
+            if mode == 'dataset':
+                con.execute('DELETE FROM datasets WHERE dataset=?', (dataset,))
+            state['sources'] = {}
+    write_json(child(root, 'extraction/ledger.json'), state)
+    return result
+
+
+def main(argv=None):
+    global sqlite3
     argv = list(sys.argv[1:] if argv is None else argv)
-    command = argv[0] if argv else "help"
-    if command in ("help", "--help", "-h") or "--help" in argv or "-h" in argv:
-        sys.stdout.write(USAGE + "\n")
-        sys.exit(0)
-    if command in ("selftest", "--selftest"):
-        _values, _flags = parse(argv[1:], ALLOWED_OPTIONS["selftest"])
-        cmd_selftest()
+    if not argv or argv[0] == 'help' or '--help' in argv or '-h' in argv:
+        print(USAGE)
         return
-    if command not in COMMANDS:
-        fail('unknown command "%s". %s' % (command, usage_hint()))
-    values, flags = parse(argv[1:], ALLOWED_OPTIONS[command])
-    if command == "check":
-        cmd_check(values)
-        return
-    if command == "bootstrap":
-        cmd_bootstrap(values)
-        return
-    if command == "ingest":
-        cmd_ingest(values, flags)
-        return
-    if command == "recall":
-        cmd_recall(values)
-        return
-    if command == "review-pass":
-        cmd_review_pass(values)
-        return
-    if command == "promote":
-        cmd_promote(values)
-        return
-    if command == "mark-stale":
-        cmd_mark_stale(values)
-        return
-    if command == "healthcheck":
-        cmd_healthcheck(values, flags)
-        return
-    if command == "forget":
-        cmd_forget(values, flags)
-        return
-    fail('unknown command "%s". %s' % (command, usage_hint()))
+    command, values = parse(argv)
+    # Route recipe stubs before checking the databased runtime or opening a store.
+    if 'set' in values and command != 'wiki-lint':
+        set_recipe(values['set'])
+    if command not in ('check', 'wiki-lint') and sys.version_info < MIN_PYTHON:
+        fail('this script needs Python 3.11 or newer; this interpreter is %s. Run with python3.11 or newer.' % '.'.join(map(str, sys.version_info[:3])))
+    if command not in ('check', 'wiki-lint', 'chunk'):
+        import sqlite3
+        if not check({})['fts5']:
+            fail('databased work needs SQLite FTS5. Check with knowledge_memory.py check using a Python build with FTS5.')
+    commands = {'check': check, 'bootstrap': bootstrap, 'chunk': chunk_set, 'ingest': ingest, 'recall': recall, 'wiki-lint': wiki_lint, 'review-pass': review_pass, 'promote': promote, 'mark-stale': mark_stale, 'healthcheck': healthcheck, 'forget': forget}
+    result = commands[command](values)
+    print(json.dumps(result, ensure_ascii=False, allow_nan=False))
 
 
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    try:
+        main()
+    except Exception as error:
+        print('%s: %s' % (type(error).__name__, error), file=sys.stderr)
+        sys.exit(1)

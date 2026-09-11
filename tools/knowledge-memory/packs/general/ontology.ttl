@@ -3,18 +3,9 @@
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
-# The general pack's ontology skeleton. Cognee matches extracted names against the
-# classes and individuals here AFTER extraction; it never writes back into this
-# file. A new canonical name is a human edit here or in a set's own pack, never an
-# agent's.
-#
-# Mode: annotate. Unmatched entities are kept and marked Candidate. The engine's
-# documentation describes a strict mode that drops unmatched entities; it is
-# unverified for the pinned version, no recipe key selects it, and it is
-# TODO(Solve) before any set relies on it.
-#
-# This skeleton carries classes and no individuals on purpose. Individuals are the
-# canon, and the canon belongs to the set that confirmed it.
+# Annotate only. The tool owns matching by name; unmatched nodes remain Candidate.
+# Vocabulary edits belong to a human. This skeleton holds classes, not the set's
+# confirmed individuals. Shapes: tools/knowledge-memory/references/schemas.md.
 
 <https://wisermethod.org/ontology/general> a owl:Ontology ;
     rdfs:label "Wiser general knowledge ontology" ;

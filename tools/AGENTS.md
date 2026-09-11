@@ -27,7 +27,7 @@ The one list; a tool's pages point here.
 | An image written back onto its input | the `--base` path, only with `--confirm` | `image compose` |
 | A dated copy of a deck before an in-place edit | `--archive-dir`, or `zArchive/` beside the deck | `keynote-render` |
 | A harvest bundle | the `output.directory` inside the request file, absent `--output` | `Content Harvester` |
-| A knowledge store: one SQLite file the caller names as `--store`, graph only | exactly the path the caller passes as `--store`, by convention `memory/knowledge/store/` in the owning root; wiki writes no store | `knowledge-memory` |
+| A knowledge store: one SQLite file the caller names as `--store`, databased only | exactly the path the caller passes as `--store`, by convention `memory/knowledge/store/` in the owning root; wiki writes no store | `knowledge-memory` |
 | A knowledge set's own records: corpus, wiki or extraction, review items, reports | inside the set directory the caller passes as `--set`, at `corpus/`, `wiki/`, `extraction/`, `review/`, and `reports/` as the backend uses them | `knowledge-memory` |
 
 The gateway's writes (connection store, audit log, empty project-key template) are listed in `gateway/AGENTS.md` and are not restated here.
@@ -57,7 +57,7 @@ The gateway's writes (connection store, audit log, empty project-key template) a
 
 | Tool | Description |
 |------|-------------|
-| `knowledge-memory/TOOL.md` | Builds, queries, reviews, and rebuilds one owning root's knowledge sets in an embedded Cognee store, ingesting a recipe's sources under an extraction pack, recalling from one dataset with provenance, and writing review items a human decides |
+| `knowledge-memory/TOOL.md` | Lints local knowledge wikis and builds, queries, reviews, and rebuilds a dataset-scoped databased store (SQLite FTS5) from session-extracted knowledge with located provenance |
 
 ### Marketing
 

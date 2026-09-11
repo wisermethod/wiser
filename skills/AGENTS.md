@@ -49,9 +49,9 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 
 | Skill | Description | Owner |
 |-------|-------------|-------|
-| `Knowledge Curation/SKILL.md` | Keep an existing knowledge set accurate by ingesting new and changed sources, running the review pass, recording and applying the decisions a human makes on its review items, and rebuilding it from its own sources when its pack or corpus changes | Memory Expert |
+| `Knowledge Curation/SKILL.md` | Keep an existing knowledge set accurate through source updates, wiki lint or databased review, human decisions, reproducible rebuilds, and supported backend upgrades | Memory Expert |
 | `Knowledge Recall/SKILL.md` | Answer a question from one named knowledge set, scoped to that set alone, with the quotes and sources the answer rests on and an evidence label on every claim, saying Not available when the set does not cover it | Memory Expert |
-| `Knowledge Set Onboarding/SKILL.md` | Create a named knowledge set in the owning root from books, blogs, websites, or a domain, establish its canon by ingest, research, and a sharpened interview with every canonical idea quoting its source, and close it with an eval that passes | Memory Expert |
+| `Knowledge Set Onboarding/SKILL.md` | Create a named knowledge set from permitted sources, compile its chosen backend, confirm kept knowledge with located provenance, and record the checks and close intensity that ran | Memory Expert |
 
 ### Marketing
 

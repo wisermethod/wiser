@@ -3,7 +3,7 @@ name: Deep Research
 type: skill
 category: research
 description: Run Deep Research on a question end to end, decomposing it into angles, directing each to the research skill that gathers it, and interpreting what comes back into a report where every finding carries its sources, a calibrated confidence level, and the contradictions it did not resolve
-version: 0.7.6
+version: 0.8.0
 memory:
   - about
 ---
@@ -132,7 +132,7 @@ Run the Success criteria below as a gate. Anything that fails is fixed where it 
 
 Deliver in the response. Nothing is written to disk unless the caller asks for the report as a file, which goes to the owning root's work directory per `standards/conventions.md`.
 
-Then the follow-ups, offered rather than performed: the angles the research opened and did not close, and `skills/Knowledge Map/` where the reader wants a map of the existing material. It maps files rather than a conversation, so it needs the report saved first, alongside the workspace material the research touched rather than by itself. Building or keeping a knowledge set with canon and review remains the gap already declared by `experts/Research Expert/`; a map does not fill it. Where the consumer is a primitive, the unclosed angles ride in the artifact's gaps instead, and the offer goes to whoever invoked the run.
+Then the follow-ups, offered rather than performed: the angles the research opened and did not close, and `skills/Knowledge Map/` where the reader wants a map of the existing material. It maps files rather than a conversation, so it needs the report saved first, alongside the workspace material the research touched rather than by itself. When the reader wants a durable set, offer `skills/Knowledge Curation/` for an existing set or `skills/Knowledge Set Onboarding/` for a new one. Where the consumer is a primitive, the unclosed angles ride in the artifact's gaps instead, and the offer goes to whoever invoked the run.
 
 ## Reference
 

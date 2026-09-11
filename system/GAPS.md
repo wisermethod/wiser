@@ -6,9 +6,14 @@ A gap is a capability this root does not provide that a primitive's own body nam
 
 **This file carries capability gaps only.** What the operator plans to build is a separate record and is not a user's business, so nothing about future work appears here. **A gap names the capability that is missing, never where that capability went.**
 
-Counted 2026-09-09: 27 gaps across 18 primitives. Counted 2026-09-09 after Webmaster kit ship: 33 gaps across 19 primitives. Counted 2026-09-09 after Webmaster host skills: 35 gaps across 21 primitives. Counted 2026-09-10 after knowledge-memory merge: 39 gaps across 24 primitives. Bullet count: `/usr/bin/grep -E '^- ' wiser/system/GAPS.md | wc -l` returns 39. Verify each bullet against its primitive's frontmatter in both directions.
+Counted 2026-09-11: 46 gaps across 26 primitives. Bullet count: `/usr/bin/grep -E '^- ' wiser/system/GAPS.md | wc -l` returns 46. Verify each bullet against its primitive's frontmatter in both directions.
 
 ## Experts
+
+### Memory Expert
+
+- graph-unspecified, so local graph query, embed and ingest stop before a source is read
+- hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
 
 ### Conversion Advisor
 
@@ -21,7 +26,6 @@ Counted 2026-09-09: 27 gaps across 18 primitives. Counted 2026-09-09 after Webma
 ### Research Expert
 
 - primary research, the interviews, surveys and experiments no primitive in this root performs
-- building or keeping a knowledge set with canon and review, which no primitive in this root carries
 
 ### Ghost Writer
 
@@ -41,6 +45,11 @@ Counted 2026-09-09: 27 gaps across 18 primitives. Counted 2026-09-09 after Webma
 - keyword and backlink data source
 
 ## Skills
+
+### Knowledge Curation
+
+- graph-unspecified, so local graph query, embed and ingest stop before a source is read
+- hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
 
 ### Cloudflare Pages
 
@@ -64,11 +73,16 @@ Counted 2026-09-09: 27 gaps across 18 primitives. Counted 2026-09-09 after Webma
 
 ### Knowledge Recall
 
+- graph-unspecified, so local graph query, embed and ingest stop before a source is read
+- hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
+
 - temporal filtering of recall by a date, so an as-of question is answered from the facts the set dates rather than filtered by the engine
 
 ### Knowledge Set Onboarding
 
-- fully local extraction with no hosted model, so a corpus that may not leave the machine cannot be onboarded
+- graph-unspecified, so local graph query, embed and ingest stop before a source is read
+- hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
+
 
 ### Marketing Page Design
 
@@ -118,7 +132,9 @@ Counted 2026-09-09: 27 gaps across 18 primitives. Counted 2026-09-09 after Webma
 
 ### knowledge-memory
 
-- fully local extraction and embedding with no hosted model, so a corpus that may not leave the machine cannot be built
+- graph-unspecified, so local graph query, embed and ingest stop before a source is read
+- hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
+
 - temporal filtering of recall by a date, so an as-of question is answered from the facts the set dates rather than filtered by the engine
 
 ### Transcribe Audio

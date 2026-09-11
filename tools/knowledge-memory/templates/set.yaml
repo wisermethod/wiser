@@ -1,38 +1,34 @@
-# Knowledge set recipe. One per set, at knowledge/<set>/set.yaml in the owning root.
+# Backend contract: tools/knowledge-memory/references/backends.md
+# Knowledge set recipe. One per set, at memory/knowledge/<set>/set.yaml in the owning root.
 # Every key below is read by tools/knowledge-memory/scripts/knowledge_memory.py.
 # A key the script does not know is refused by name; a required key that is
 # missing is refused by name. Comments are yours to keep or cut.
 
 set: example-set                    # slug: lowercase letters, digits, hyphens; equals this directory's name
-dataset: exampleroot_example_set    # Cognee dataset name, [a-z0-9_]+ : <root slug>_<set slug>
+dataset: exampleroot_example_set    # Dataset name, [a-z0-9_]+ : <root slug>_<set slug>
 kind: book                          # book | blog | website | domain | mixed
 owner: "[named person]"             # a person or role, never blank
 sensitivity: internal               # public | internal | confidential
 
-# Consent and confirmation are recorded here because the recipe is what the tool
-# reads. Both stay blank until a named person gives them on a date; an ingest
-# refuses a blank provider_consent, and recall labels answers from a set whose
-# canon is unconfirmed as Unverified.
-provider_consent: ""                # "[name], YYYY-MM-DD": agreed that the corpus may be sent to the model provider
-canon_confirmed: ""                 # "[name], YYYY-MM-DD": confirmed canon.md as the set's canonical ideas
+# Record permission before any source is read. Confirmation follows human review.
+backend: wiki
+close_intensity: core
+retrieval: lexical
+session_permission: ""             # "[name], YYYY-MM-DD": this session may process the material
+canon_confirmed: ""                # databased only: "[name], YYYY-MM-DD"
 
 sources:
   include:                          # globs relative to this file
     - "corpus/**/*.md"
     - "corpus/**/*.txt"
-    - "corpus/**/*.pdf"
-  exclude: []
+  exclude:
+    - "corpus/originals/**"
 
 pack: general                       # "general" ships with the tool; or a path relative to this file to a
                                     # directory holding graph_model.py, ontology.ttl, extraction_prompt.md
 node_sets:                          # topics inside this set, never a tenant boundary
   - "kind:book"
-chunking: heading-aware             # heading-aware | paragraph
-
-llm:
-  provider: openai                  # the provider whose key the --env file carries
-  model: default                    # "default" takes Cognee's configured default; else a provider model name
-  embedding_model: default
+chunking: heading-aware             # heading-aware; heading then paragraph and sentence splits
 
 review_cadence_days: 7              # review-pass is due when the last one is older than this
 stale_after_days: 30                # a Candidate with one weak source older than this is a stale candidate
@@ -46,4 +42,4 @@ link_policy:
     - exact_ontology_match
     - normalized_name_match_same_type
 
-eval: eval.questions.yaml           # relative to this file; a set is not built until this exists and passes
+eval: eval.questions.yaml           # relative to this file; databased retrieval checks; wiki evaluation is a human read
