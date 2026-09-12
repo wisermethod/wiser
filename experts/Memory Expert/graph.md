@@ -2,7 +2,7 @@
 
 Engine documentation and skill contract for ask-time Pro / `backend: graph`.
 
-**Version:** 0.3.0, 2026-09-11
+**Version:** 0.3.1, 2026-09-12
 **Status:** specified and executable for query, embed and ingest
 
 ## Scope and availability
@@ -56,9 +56,9 @@ Missing packages produce the Script Contract consent report unless installation 
 
 ## Upgrade seed
 
-Databased-to-graph reuses corpus paths without copying corpus. Corpus, confirmed databased canon, and decided items seed Candidate graph nodes with located quotes and their original source paths. The isolated seed proof produced two Candidate ideas from confirmed canon, zero auto-Canonical nodes, and unchanged source hashes. It did not execute a product upgrade.
+Databased-to-graph reuses corpus paths without copying corpus. Corpus, confirmed databased canon, and decided items seed Candidate graph nodes with located quotes and their original source paths. Graph ingest loads that seed from session extraction after chunking, always as Candidates. Isolated proof and a later product ingest both produced zero auto-Canonical nodes and left the source databased store and corpus hashes unchanged.
 
-No Canonical status is silently copied. A human confirms Pro canon. No replay rule is accepted; one would require explicit operator acceptance and isolation tests. Graph ingest executes the Candidate seed after chunking and session extraction, preserving the source databased store and corpus. Knowledge Curation records the prior backend and the new caller-named graph file; confirmation belongs to the named human, never to ingest.
+No Canonical status is silently copied. A human confirms Pro canon. No replay rule is accepted; one would require explicit operator acceptance and isolation tests. Knowledge Curation records the prior backend and the new caller-named graph file; confirmation belongs to the named human, never to ingest.
 
 ## Refusals
 

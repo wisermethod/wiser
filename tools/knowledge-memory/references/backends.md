@@ -2,7 +2,7 @@
 
 The one home of the four-option design. The expert, the three skills, and the tool templates cite this file. None restates the mapping. A change here is a change to all of them.
 
-**Version:** 0.2.0, 2026-09-11. Changelog: Pro executes local graph ingest and recall.
+**Version:** 0.2.1, 2026-09-12. Changelog: databased-to-graph Candidate seed is an executed ingest path; Pro canon still needs a named human.
 
 This is the shipped home.
 
@@ -97,7 +97,7 @@ Compiled knowledge is regenerable. Upgrade carries `corpus/` and human decisions
 
 **Wiki to databased.** Keep `corpus/`. Treat kept wiki pages as the first-pass Idea list for the canon interview, not as auto-Canonical. Then chunk, extract, ingest. A wiki sentence becomes Canonical only when a quote of at most 40 words is located in a corpus file and a human promotes it.
 
-**Databased to graph.** Follow the Candidate seed in `experts/Memory Expert/graph.md`: reuse corpus paths without copying corpus; confirmed canon and decided items seed Candidates, with no silent Canonical copy. Graph ingest now loads that Candidate seed from session extraction after chunking. Keep the original databased store intact, name a separate graph file, and record the backend change. A human confirms Pro canon; there is no replay rule. This contract does not claim an upgrade ran.
+**Databased to graph.** Follow the Candidate seed in `experts/Memory Expert/graph.md`: reuse corpus paths without copying corpus; confirmed canon and decided items seed Candidates, with no silent Canonical copy. Graph ingest loads that Candidate seed from session extraction after chunking. Keep the original databased store intact, name a separate graph file, and record the backend change. A human confirms Pro canon; there is no replay rule.
 
 **Graph to hosted.** Stop on `experts/Memory Expert/hosted.md` until the hosted connector is specified. No export runs.
 
