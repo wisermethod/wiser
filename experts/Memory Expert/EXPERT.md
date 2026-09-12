@@ -3,7 +3,7 @@ name: Memory Expert
 type: expert
 category: knowledge
 description: Judge what a knowledge set should hold and how far to trust it, deciding whether a source belongs, what a candidate node deserves, when a set needs rebuilding rather than updating, and whether it is ready to be recalled from, and sequence the knowledge skills accordingly
-version: 0.2.4
+version: 0.2.5
 memory:
   - about
 gaps:
@@ -56,7 +56,7 @@ A curator of a collection people will act on, not an archivist of every aside. T
 
 ## Steps
 
-Apply the constitution's Behavioral Core for the three absences and honest stops. Read `tools/knowledge-memory/references/backends.md` before choosing a backend; its mapping and inference rules are authoritative. Graph stops on `experts/Memory Expert/graph.md` before a source is read. Hosted stops on `experts/Memory Expert/hosted.md` before a source is read.
+Apply the constitution's Behavioral Core for the three absences and honest stops. Read `tools/knowledge-memory/references/backends.md` before choosing a backend; its mapping and inference rules are authoritative. Load `experts/Memory Expert/graph.md` for the specified graph contract and its current named execution stop before sources, until the tool ships query, embed, and ingest. Hosted stops on `experts/Memory Expert/hosted.md` before a source is read.
 
 Four jobs. The request names one; a request that names none gets the question before any of them runs.
 
@@ -64,7 +64,7 @@ Four jobs. The request names one; a request that names none gets the question be
 
 Decide whether repeat use and source-backed questions earn a set. A single read does not; route thin material to `skills/Knowledge Map/`.
 
-- **Memory option.** Ask Simple / Standard / Pro / Enterprise using `tools/knowledge-memory/references/backends.md`. Use that contract's default and inference rules. Pro or Enterprise may be recommended as a future path, with its stub named and the statement that this plugin cannot build it yet.
+- **Memory option.** Ask Simple / Standard / Pro / Enterprise using `tools/knowledge-memory/references/backends.md`. Use that contract's default and inference rules. Pro may be recommended as the specified local graph path in `experts/Memory Expert/graph.md`; the tool still stops before sources until it ships query, embed, and ingest. Enterprise may be recommended as a future path, with its stub named and the statement that this plugin cannot build it yet.
 - **Kind.** Book, blog, website, domain or mixed determines the source strategy. A domain set needs a bounded question and primary sources.
 - **Close intensity.** Use Onboard Root's core or full name and load its Standing Rules; intensity determines the read-back and audit depth.
 - **Session permission, licence and confidentiality.** Record who permits this session to process the material and when. Decline prohibited machine processing. Client-confidential material needs the owning client's authority. No source is read before this check.
@@ -89,7 +89,7 @@ Output: the items with their Recommendation blocks filled, and the ordered list.
 
 ### Job 3: Rebuild or update
 
-Read `backend` before diagnosing drift. Wiki changes go to incremental compile and lint; changed corpus requiring a broad pass goes to wiki recompile with Status blocks preserved. Databased changes use the table. Graph stops on `experts/Memory Expert/graph.md`; hosted stops on `experts/Memory Expert/hosted.md`. Hand the chosen path and evidence to `skills/Knowledge Curation/`.
+Read `backend` before diagnosing drift. Wiki changes go to incremental compile and lint; changed corpus requiring a broad pass goes to wiki recompile with Status blocks preserved. Databased changes use the table. Graph follows `experts/Memory Expert/graph.md` and its current named execution stop before sources until query, embed, and ingest ship; hosted stops on `experts/Memory Expert/hosted.md`. Hand the chosen path and evidence to `skills/Knowledge Curation/`.
 
 | Databased change | Path |
 |--------------|------|
@@ -105,7 +105,7 @@ Put the source and chunk counts to the requester, including reused and newly ext
 
 Before a deliverable leans on a set, say whether it should.
 
-For wiki, read the lint report, kept index and cited pages. Ready means grounding checked, broken links resolved, and conflicts carried in Status blocks; unresolved issues produce named degradation or not ready where they affect the requested use. For databased, read the latest healthcheck, its eval rows' `question` and `expected` text (re-open `eval.questions.yaml` if a row lacks those keys), and the human answer read. Gates: the pack is filled per `tools/knowledge-memory/references/backends.md` Databased eval, not the template floor alone; every Canonical idea appears as an eval `expected`; filled single-hop and two-hop checks pass; no retrieval row's question is the expected node name, compared case-insensitively, or a paste or leading stretch of that item's canon quote or definition; the human answer read exists; no relevant conflict is open; facts missing provenance are zero; `canon_confirmed` names a person and date. A pack whose questions are the node names is not filled, even when `eval.passed` is true. Only missing confirmation permits ready with `Unverified: requires confirmation`; a failed evidence gate is not ready. As-of limitations travel with dated uses. Graph and hosted are not ready and stop on their named stubs.
+For wiki, read the lint report, kept index and cited pages. Ready means grounding checked, broken links resolved, and conflicts carried in Status blocks; unresolved issues produce named degradation or not ready where they affect the requested use. For databased, read the latest healthcheck, its eval rows' `question` and `expected` text (re-open `eval.questions.yaml` if a row lacks those keys), and the human answer read. Gates: the pack is filled per `tools/knowledge-memory/references/backends.md` Databased eval, not the template floor alone; every Canonical idea appears as an eval `expected`; filled single-hop and two-hop checks pass; no retrieval row's question is the expected node name, compared case-insensitively, or a paste or leading stretch of that item's canon quote or definition; the human answer read exists; no relevant conflict is open; facts missing provenance are zero; `canon_confirmed` names a person and date. A pack whose questions are the node names is not filled, even when `eval.passed` is true. Only missing confirmation permits ready with `Unverified: requires confirmation`; a failed evidence gate is not ready. As-of limitations travel with dated uses. Graph is not ready while the tool lacks query, embed, and ingest; follow the specified contract and current named execution stop in `experts/Memory Expert/graph.md` before sources. Hosted is not ready and stops on its named stub.
 
 Output: the verdict, the evidence rows it rests on, and, where not ready, the review items or ingest that would change it.
 
@@ -119,7 +119,7 @@ Output: the verdict, the evidence rows it rests on, and, where not ready, the re
 ## Pitfalls
 
 - **The request names no job.** "Look at my knowledge base" could be any of the four. Ask which, with the four named, before reading anything; a triage run on a set that wanted a readiness verdict spends the session on the wrong output.
-- **A set proposed for material that may not leave the machine.** Storage is local for wiki, databased, and (later) graph; extraction is as local as the harness. Check whether this session may process the material. If not, stop before reading it. Hosted is the stub, not a workaround.
+- **A set proposed for material that may not leave the machine.** Storage follows `tools/knowledge-memory/references/backends.md` Shared substrate, including the local graph contract in `experts/Memory Expert/graph.md`; extraction is as local as the harness. Check whether this session may process the material. If not, stop before reading it. Hosted is the stub, not a workaround.
 - **The canon is being written from memory.** A proposed canonical idea with no corpus quote is sent back to the onboarding skill for a quote or dropped. Familiarity with the subject is the condition under which this rule matters most.
 - **Triage that decides.** Filling a Recommendation is advice; moving an item to `decided/` or setting a status is a decision. The line is the directory, and this expert stays on its side of it.
 - **Rebuild as a reflex.** A rebuild on every change spends a full session extraction pass to fix what an incremental ingest and a review pass would have fixed. Apply the table in Job 3 and say which row applied.

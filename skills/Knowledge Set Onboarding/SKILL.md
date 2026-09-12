@@ -3,7 +3,7 @@ name: Knowledge Set Onboarding
 type: skill
 category: knowledge
 description: Create a named knowledge set from permitted sources, compile its chosen backend, confirm kept knowledge with located provenance, and record the checks and close intensity that ran
-version: 0.2.4
+version: 0.2.5
 memory:
   - about
 gaps:
@@ -17,7 +17,7 @@ gaps:
 
 Use to create a body of knowledge the owner will return to across sessions. Load `tools/knowledge-memory/references/backends.md` for the backend contract. Not for a one-time map (`skills/Knowledge Map/`), a research answer (`skills/Deep Research/`), or an existing set (`skills/Knowledge Curation/`). Queries belong to `skills/Knowledge Recall/`.
 
-Record session permission before reading any source: who allows this session to process this material and when. Storage is local for wiki, databased, and (later) graph; extraction is as local as the harness. Declined permission stops the build. Graph and hosted stop on their named stubs before a source is read.
+Record session permission before reading any source: who allows this session to process this material and when. Storage follows `tools/knowledge-memory/references/backends.md` Shared substrate, including the local graph contract in `experts/Memory Expert/graph.md`; extraction is as local as the harness. Declined permission stops the build. Graph follows `experts/Memory Expert/graph.md` and its current execution stop before sources. Hosted stops on its named stub before a source is read.
 
 ## Objective
 
@@ -41,7 +41,7 @@ Load `skills/Onboard Root/SKILL.md` and the Standing Rules and close-intensity p
 
 ## Steps
 
-Apply the constitution's Behavioral Core for the three absences and honest stops. Read `tools/knowledge-memory/references/backends.md` before choosing a backend; its mapping and inference rules are authoritative. Graph stops on `experts/Memory Expert/graph.md` before a source is read. Hosted stops on `experts/Memory Expert/hosted.md` before a source is read.
+Apply the constitution's Behavioral Core for the three absences and honest stops. Read `tools/knowledge-memory/references/backends.md` before choosing a backend; its mapping and inference rules are authoritative. Load `experts/Memory Expert/graph.md` for the specified graph contract and its current named execution stop before sources, until the tool ships query, embed, and ingest. Hosted stops on `experts/Memory Expert/hosted.md` before a source is read.
 
 Eight phases. Each names its decisions and what it leaves on disk. All paths are relative to the set directory unless stated.
 
@@ -49,7 +49,7 @@ Eight phases. Each names its decisions and what it leaves on disk. All paths are
 
 Settle only what cannot be inferred from the request, and record the owning root and bounded scope.
 
-- **Memory option.** Ask Simple / Standard / Pro / Enterprise through `tools/knowledge-memory/references/backends.md`. Use that contract's default and inference rules. Record the selected option; for Pro or Enterprise, follow its named stub now, including the run record when a set was being discussed. Do not create a compiled layer or read sources.
+- **Memory option.** Ask Simple / Standard / Pro / Enterprise through `tools/knowledge-memory/references/backends.md`. Use that contract's default and inference rules. Record the selected option. For Pro, write `backend: graph` in the run record, load `experts/Memory Expert/graph.md`, name its current execution stop, and stop here: do not proceed to Phase 1 or Phase 2 while the tool lacks graph query, embed, and ingest. Create no compiled layer and read no sources. Do not invent CLI ids. For Enterprise, follow its named stub now, including the run record when a set was being discussed. Do not create a compiled layer or read sources.
 - **Kind.** Book, blog, website, domain or mixed. A domain with no bounded use gets a scope question before gathering.
 - **Close intensity.** Core or full, using `skills/Onboard Root/` Standing Rules, loaded before this phase. Keep its research-first and read-back decisions; do not create a second set of standing rules here.
 - **Session permission.** Settle licence, confidentiality and whether this session may process the material. Record the named person's permission and date in `session_permission`; a decline is a blocked run with the reason.
@@ -89,7 +89,7 @@ Read `backend` and run only its branch.
 
 **Databased.** Load `tools/knowledge-memory/references/schemas.md` and the chosen pack. Run `chunk --set <set>` and report source and chunk counts as the session-work estimate, not token cost. Use the session's model one chunk at a time. The skill appends canonical names and source context to the extraction prompt and rewrites the complete extraction JSON with one more entry after each chunk. Resume from the first missing entry. Reuse only when dataset, source hash, chunk hash and pack hash all match. The tool makes no model call. Extract a substantial treatment even when it appears in one stretch; do not skip it because it missed the theme list. Run `ingest --set <set> --store <file> --extraction <file>` for each source; fix rejected entries by their reported reasons, then `review-pass`. Sort its Candidates by recurrence and read their quotes in context before proposing a canon. The proposed canon includes the coverage-pass heads that locate; a thin canon that omits an argued idea is sent back through this phase, not offered as complete.
 
-**Graph.** Read `experts/Memory Expert/graph.md`, name graph-unspecified, and stop before reading sources or creating a compiled layer.
+**Graph.** Load and follow `experts/Memory Expert/graph.md`. Its ingest contract creates Candidates with located quotes and source paths; no auto-Canonical, and a human confirms Pro canon. While the tool still reports its graph stop, name it and stop before sources or a compiled-layer write. Query, embed, and ingest remain English verbs until the tool lists graph commands; do not invoke invented ids.
 
 **Hosted.** Read `experts/Memory Expert/hosted.md`, name hosted-unspecified and stop before reading sources or making a compiled layer.
 
@@ -163,6 +163,8 @@ The run record states the memory option, backend and close intensity that ran an
 
 ## Pitfalls
 
+- **Graph specification treated as a running tool.** Follow `experts/Memory Expert/graph.md`'s availability check before sources; a contract or an ingest plan is not a compiled layer.
+
 - **Ambiguous scope.** Ask what the set must answer before gathering an unbounded domain.
 - **Permission assumed.** Local storage does not establish session permission. Record the permission before reading sources; a declined session does not substitute a manual compile.
 - **Canon from familiarity.** A proposed canonical entry without a located quote stays Candidate or is dropped.
@@ -180,5 +182,5 @@ The run record states the memory option, backend and close intensity that ran an
 - The run record names memory option, backend, kind, close intensity, session permission, questions, answers, declined sources and gaps with owners.
 - Wiki leaves kept pages and index, located precise claims, Status blocks where needed, a lint report and a human cited-answer read.
 - Databased leaves source and chunk hashes, validated extraction, located canon quotes, human confirmation or a named provisional state, a retrieval pack filled per `tools/knowledge-memory/references/backends.md` Databased eval, and the separate answer read.
-- The set row and run record agree with disk. Graph and hosted leave their named stops and no compiled layer.
+- The set row and run record agree with disk. Graph leaves the named execution stop from `experts/Memory Expert/graph.md` and no compiled layer while tool support is absent. Hosted leaves its named stop and no compiled layer.
 - Three varied requests, book, blog or site, and domain, follow the appropriate backend branch without intervention.

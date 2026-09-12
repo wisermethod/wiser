@@ -13,6 +13,10 @@ sensitivity: internal               # public | internal | confidential
 # Record permission before any source is read. Confirmation follows human review.
 backend: wiki
 close_intensity: core
+# Contract values: lexical (Standard FTS5) or embedding (Pro nearest-neighbour).
+# Cypher is the graph query language, not a third retrieval value; see backends.md.
+# The current script accepts lexical only; embedding and other unsupported values
+# are refused as invalid recipe retrieval: <value> until graph tool support ships.
 retrieval: lexical
 session_permission: ""             # "[name], YYYY-MM-DD": this session may process the material
 canon_confirmed: ""                # databased only: "[name], YYYY-MM-DD"

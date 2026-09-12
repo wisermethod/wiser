@@ -3,7 +3,7 @@ name: Knowledge Curation
 type: skill
 category: knowledge
 description: Keep an existing knowledge set accurate through source updates, wiki lint or databased review, human decisions, reproducible rebuilds, and supported backend upgrades
-version: 0.2.4
+version: 0.2.5
 gaps:
   - graph-unspecified, so local graph query, embed and ingest stop before a source is read
   - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
@@ -33,9 +33,9 @@ A registrar. The set's owner decides what is true; the tool changes the database
 
 ## Steps
 
-Apply the constitution's Behavioral Core for the three absences and honest stops. Read `tools/knowledge-memory/references/backends.md` before choosing a backend; its mapping and inference rules are authoritative. For memory-option clarification, ask Simple / Standard / Pro / Enterprise through that contract. For an upgrade, resolve the requested destination in Step 5 before inspecting the current compiled layer: a graph destination stops on `experts/Memory Expert/graph.md`, and a hosted destination on `experts/Memory Expert/hosted.md`. Otherwise graph and hosted sets stop on their respective stubs before a source is read.
+Apply the constitution's Behavioral Core for the three absences and honest stops. Read `tools/knowledge-memory/references/backends.md` before choosing a backend; its mapping and inference rules are authoritative. For memory-option clarification, ask Simple / Standard / Pro / Enterprise through that contract. For an upgrade, resolve the requested destination in Step 5 before inspecting the current compiled layer: a graph destination follows the specified contract and current execution stop in `experts/Memory Expert/graph.md`, and a hosted destination stops on `experts/Memory Expert/hosted.md`. Otherwise graph sets load `experts/Memory Expert/graph.md` before sources and follow its availability check; hosted sets stop on their stub before a source is read.
 
-Commands use the absolute set path at `memory/knowledge/<set>/`. Databased commands also take the absolute SQLite file at `memory/knowledge/store/databased.sqlite`; wiki commands take no store. Reconfirm that `session_permission` covers this session and the new material before reading a source. Storage is local for wiki, databased, and (later) graph; extraction is as local as the harness.
+Commands use the absolute set path at `memory/knowledge/<set>/`. Databased commands also take the absolute SQLite file at `memory/knowledge/store/databased.sqlite`; wiki commands take no store. Reconfirm that `session_permission` covers this session and the new material before reading a source. Storage follows `tools/knowledge-memory/references/backends.md` Shared substrate, including the local graph contract in `experts/Memory Expert/graph.md`; extraction is as local as the harness.
 
 ### 1. Choose the path
 
@@ -58,7 +58,7 @@ Databased: chunk included new corpus material, report the chunk count, extract w
 
 After wiki compile or databased extract, check coverage against the corpus: an important located idea with no page or Candidate is a miss; add it. Missing that idea is worse than keeping a mildly interesting located one. Load `tools/knowledge-memory/references/backends.md` Organizing pass.
 
-**Graph.** Read `experts/Memory Expert/graph.md`, name graph-unspecified and stop before a source is read.
+**Graph.** Load and follow `experts/Memory Expert/graph.md` for incremental ingest as Candidates with located quotes and source paths, never auto-Canonical. While the tool still reports its graph stop, name it before a source is read and preserve the existing backend and compiled layer. Invoke only graph commands the tool actually lists; the contract's English verbs are not CLI ids.
 
 **Hosted.** Read `experts/Memory Expert/hosted.md`, name hosted-unspecified and stop before a source is read.
 
@@ -82,7 +82,7 @@ State the reason and source/chunk counts before rebuilding. Wiki recompiles from
 
 Databased: check extraction reuse before dropping memory. An entry is reusable only when dataset, source hash, chunk hash and pack hash match. Report reused and new extraction counts. With the rebuild authorized, run `forget --memory-only --confirm`, chunk, extract only entries needing it, ingest every extraction, `promote --replay`, `review-pass`, then `healthcheck --eval`. Compare with the last pack filled per `tools/knowledge-memory/references/backends.md` Databased eval; a template-floor self-hit is not that baseline. Have a human read the composed answers. Report a regression instead of weakening a correct eval.
 
-Upgrade uses `tools/knowledge-memory/references/backends.md`. Wiki to databased keeps corpus and human-kept pages as Candidate Idea inputs to the canon interview, then initializes the authorized upgrade: record the prior backend and kept pages in the run record, set `backend: databased` in the recipe, create `extraction/` and `review/`, copy the databased eval template, and run `bootstrap --store <file>`. Enter Knowledge Set Onboarding at Phase 3's databased branch and continue through confirmation and evaluation, without re-entering its new-set guard. No kept wiki page becomes Canonical automatically. Databased to graph stops on `experts/Memory Expert/graph.md` before any recipe change or source read. Graph to hosted stops on `experts/Memory Expert/hosted.md`; no export runs. A direct Pro request without a databased set follows the graph stub; it does not bootstrap SQLite. Down is not a defined path.
+Upgrade uses `tools/knowledge-memory/references/backends.md`. Wiki to databased keeps corpus and human-kept pages as Candidate Idea inputs to the canon interview, then initializes the authorized upgrade: record the prior backend and kept pages in the run record, set `backend: databased` in the recipe, create `extraction/` and `review/`, copy the databased eval template, and run `bootstrap --store <file>`. Enter Knowledge Set Onboarding at Phase 3's databased branch and continue through confirmation and evaluation, without re-entering its new-set guard. No kept wiki page becomes Canonical automatically. Databased to graph follows `experts/Memory Expert/graph.md` Upgrade seed: reuse corpus paths without a corpus copy; corpus, confirmed canon and decided items seed Candidates, never a silent copy of Canonical status. Human confirmation establishes Pro canon. No graph replay rule is accepted. Until the tool ships graph ingest, name its execution stop before any recipe change or source read and keep the existing backend and compiled layer intact. Graph to hosted stops on `experts/Memory Expert/hosted.md`; no export runs. A direct Pro request without a databased set follows `experts/Memory Expert/graph.md` and the current execution stop in the backends contract; it does not bootstrap SQLite. Down is not a defined path.
 
 ### 6. Check
 
@@ -94,6 +94,8 @@ Update the set's row in `memory/knowledge/AGENTS.md`: last ingest, canon confirm
 
 ## Pitfalls
 
+- **Databased replay applied to a graph upgrade.** Follow `experts/Memory Expert/graph.md` Upgrade seed instead; no accepted replay rule or Canonical status crosses into Pro automatically.
+
 - **The request names a set and no path.** Apply the table; if it still fits two rows, ask or hand to the expert. Do not run a rebuild because it covers every case.
 - **A decision inferred.** "Looks fine" is not a decision on an item. The Decision block carries the action, the reviewer, and the date, given in words, or the item stays open.
 - **Applying during the review sitting.** Recording and applying are two steps so a reviewer can change their mind before the databased does. Apply runs after the sitting or when the reviewer says apply.
@@ -103,6 +105,8 @@ Update the set's row in `memory/knowledge/AGENTS.md`: last ingest, canon confirm
 
 
 ## Success
+
+- A graph request follows `experts/Memory Expert/graph.md`; while tool support is absent, its named stop precedes sources and leaves the existing recipe and compiled layer intact.
 
 - Every new or changed source is accounted for in the wiki log or databased ingest report, and no failure was dropped.
 - Every item decided in the sitting sits under `review/decided/` with reviewer, decision, and date, and every applied one has a changelog line.
