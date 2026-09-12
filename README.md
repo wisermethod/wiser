@@ -16,7 +16,7 @@ It carries no dependency on any single agent host: everything in it is instructi
 
 **A local gateway** and the connectors under `connectors/`. A person attaches one process; account access is that process, not a file in a root. The gateway's provider holds vendor keys through hosted connect, including catalog-absent API-key services registered as custom toolkits. Local-file is last resort when that injection cannot match the vendor.
 
-Knowledge sets keep permitted sources and the knowledge drawn from them under `memory/knowledge/<set>/` in the owning root. Simple keeps a cited wiki. Standard keeps a local databased store (SQLite FTS5) with human-reviewed canon and retrieval checks. Pro names the local graph path, and Enterprise the hosted path; both currently stop on documented stubs. These are choices of memory option, separate from source kind and close intensity; the contract is `tools/knowledge-memory/references/backends.md`.
+Knowledge sets keep permitted sources and the knowledge drawn from them under `memory/knowledge/<set>/` in the owning root. Simple keeps a cited wiki. Standard keeps a local databased store (SQLite FTS5) with human-reviewed canon and retrieval checks. Pro is the local graph path (LadybugDB), with named stops for missing engine or embedding weights; Enterprise remains the hosted stub. These are choices of memory option, separate from source kind and close intensity; the contract is `tools/knowledge-memory/references/backends.md`.
 
 ## How it works
 

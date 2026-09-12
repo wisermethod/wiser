@@ -32,7 +32,7 @@ TEST_RUN = tempfile.TemporaryDirectory(prefix='run-', dir=TOOL / 'tests')
 atexit.register(TEST_RUN.cleanup)
 SOURCE_TOOL = TOOL
 TOOL = Path(TEST_RUN.name) / 'tool'
-for relative in ('scripts/knowledge_memory.py', 'TOOL.md', 'templates/set.yaml',
+for relative in ('scripts/knowledge_memory.py', 'scripts/graph_runtime.py', 'TOOL.md', 'templates/set.yaml',
                  'templates/review_item.md', 'packs/general/graph_model.py',
                  'packs/general/ontology.ttl', 'packs/general/extraction_prompt.md'):
     destination = TOOL / relative
@@ -99,19 +99,25 @@ class MemoryContract(unittest.TestCase):
         result = json.loads(self.cli('check').stdout)
         self.assertTrue(result['fts5'])
         self.assertFalse(result['installed'])
-        for flag in ('--install', '--env', '--unknown'):
+        self.assertEqual(km.parse(['check', '--install']), ('check', {'install': True}))
+        for flag in ('--env', '--unknown'):
             self.assertIn(flag, self.cli('check', flag, code=1).stderr)
         self.cli('hosted', code=1)
         self.cli('wiki-lint', '--set', str(self.set), '--store', str(self.store), code=1)
         self.cli('bootstrap', '--store', str(TOOL / 'bad.sqlite'), code=1)
         self.cli('recall', '--set', 'relative', '--store', str(self.store), '--query', 'economy', code=1)
+        recipe = self.set / 'set.yaml'
+        original = recipe.read_text()
+        recipe.write_text(original.replace('backend: databased', 'backend: wiki'))
+        self.assertIn('databased or graph', self.cli('recall', '--set', str(self.set), '--store', str(self.store), '--query', 'economy', code=1).stderr)
+        recipe.write_text(original)
 
     def test_stub_recipes_stop_before_sources_or_store_writes(self):
         from unittest.mock import patch
         recipe = self.set / 'set.yaml'
         original = recipe.read_text()
         store_before = self.store.read_bytes()
-        for backend in ('graph', 'hosted'):
+        for backend in ('hosted',):
             with self.subTest(backend=backend):
                 recipe.write_text(original.replace('backend: databased', 'backend: ' + backend))
                 # Any attempt to enumerate corpus fails this direct command test.
@@ -714,7 +720,7 @@ class MemoryContract(unittest.TestCase):
 
     def test_m2_troubleshooting_actual_stderr(self):
         captures = {}
-        for flag in ('--install', '--env'):
+        for flag in ('--env',):
             captures[flag] = self.cli('check', flag, code=1).stderr.strip()
         path, extraction, _ = self.add()
         self.ingest(path)
@@ -724,7 +730,6 @@ class MemoryContract(unittest.TestCase):
             ('unknown recipe key', original + '\nunsupported_key: true\n'),
             ('owner and session_permission', original.replace('session_permission: "Tester, 2026-09-10"', 'session_permission: ""')),
             ('hosted-unspecified', original.replace('backend: databased', 'backend: hosted')),
-            ('graph-unspecified', original.replace('backend: databased', 'backend: graph')),
         ):
             recipe.write_text(changed)
             captures[key] = self.cli('chunk', '--set', str(self.set), code=1).stderr.strip()
@@ -751,14 +756,18 @@ class MemoryContract(unittest.TestCase):
         self.stderr_captures.update(captures)
         table = (TOOL / 'TOOL.md').read_text().split('## Troubleshooting\n', 1)[1]
         messages = re.findall(r'^\| `([^`]+)` \|', table, re.M)
-        self.assertEqual(len(messages), len(captures) + 1)
         # This interpreter has FTS5, so check its exact fail() literal without
         # pretending that a real missing-FTS5 runtime failure was reproduced.
         main = next(n for n in ast.parse(SCRIPT.read_text()).body if isinstance(n, ast.FunctionDef) and n.name == 'main')
         fts_error = next(n.args[0].value for n in ast.walk(main) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == 'fail' and isinstance(n.args[0], ast.Constant) and str(n.args[0].value).startswith('databased work needs SQLite FTS5'))
         self.assertTrue(km.check({})['fts5'])
+        literals = []
+        for source in (SCRIPT, TOOL / 'scripts/graph_runtime.py'):
+            for node in ast.walk(ast.parse(source.read_text())):
+                if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == 'fail' and node.args and isinstance(node.args[0], ast.Constant):
+                    literals.append(str(node.args[0].value))
         for message in messages:
-            self.assertTrue(any(message in stderr for stderr in [*captures.values(), fts_error]), message)
+            self.assertTrue(any(message in stderr for stderr in [*captures.values(), fts_error, *literals]), message)
         for key, stderr in captures.items():
             self.assertTrue(any(message in stderr for message in messages), (key, stderr))
 

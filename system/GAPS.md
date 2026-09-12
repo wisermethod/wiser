@@ -6,13 +6,12 @@ A gap is a capability this root does not provide that a primitive's own body nam
 
 **This file carries capability gaps only.** What the operator plans to build is a separate record and is not a user's business, so nothing about future work appears here. **A gap names the capability that is missing, never where that capability went.**
 
-Counted 2026-09-11: 46 gaps across 26 primitives. Bullet count: `/usr/bin/grep -E '^- ' wiser/system/GAPS.md | wc -l` returns 46. Verify each bullet against its primitive's frontmatter in both directions.
+Counted 2026-09-11: 41 gaps across 26 primitives. Bullet count: `/usr/bin/grep -E '^- ' wiser/system/GAPS.md | wc -l` returns 41. Verify each bullet against its primitive's frontmatter in both directions.
 
 ## Experts
 
 ### Memory Expert
 
-- graph-unspecified, so local graph query, embed and ingest stop before a source is read
 - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
 
 ### Conversion Advisor
@@ -48,7 +47,6 @@ Counted 2026-09-11: 46 gaps across 26 primitives. Bullet count: `/usr/bin/grep -
 
 ### Knowledge Curation
 
-- graph-unspecified, so local graph query, embed and ingest stop before a source is read
 - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
 
 ### Cloudflare Pages
@@ -73,14 +71,12 @@ Counted 2026-09-11: 46 gaps across 26 primitives. Bullet count: `/usr/bin/grep -
 
 ### Knowledge Recall
 
-- graph-unspecified, so local graph query, embed and ingest stop before a source is read
 - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
 
 - temporal filtering of recall by a date, so an as-of question is answered from the facts the set dates rather than filtered by the engine
 
 ### Knowledge Set Onboarding
 
-- graph-unspecified, so local graph query, embed and ingest stop before a source is read
 - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
 
 
@@ -132,7 +128,6 @@ Counted 2026-09-11: 46 gaps across 26 primitives. Bullet count: `/usr/bin/grep -
 
 ### knowledge-memory
 
-- graph-unspecified, so local graph query, embed and ingest stop before a source is read
 - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
 
 - temporal filtering of recall by a date, so an as-of question is answered from the facts the set dates rather than filtered by the engine

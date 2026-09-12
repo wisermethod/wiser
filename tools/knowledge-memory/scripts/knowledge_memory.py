@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Local wiki lint and databased memory. Shapes: references/schemas.md and wiki-schemas.md.
+"""Local wiki lint, databased memory and graph ingest/recall. Shapes: references/schemas.md and wiki-schemas.md.
 
-Extraction belongs to the calling session; this script makes no model calls.
+Extraction belongs to the calling session; no script performs extraction or chat completions.
 """
 from __future__ import annotations
 
@@ -9,12 +9,12 @@ import sys
 
 MIN_PYTHON = (3, 11)
 USAGE = """Usage: knowledge_memory.py help | --help | -h
-  check
-  bootstrap --store FILE
+  check [--install]
+  bootstrap --store FILE [--set DIR]
   chunk --set DIR
   chunk --source FILE --out DIR --dataset NAME [--max-chars N]
-  ingest --set DIR --store FILE --extraction FILE
-  recall --set DIR --store FILE --query TEXT [--as-of YYYY-MM-DD] [--top-k N]
+  ingest --set DIR --store FILE --extraction FILE [--install]
+  recall --set DIR --store FILE --query TEXT [--as-of YYYY-MM-DD] [--top-k N] [--install]
   wiki-lint --set DIR
   review-pass --set DIR --store FILE
   promote --set DIR --store FILE (--decided FILE | --from-canon | --replay)
@@ -23,16 +23,21 @@ USAGE = """Usage: knowledge_memory.py help | --help | -h
   forget --set DIR --store FILE (--memory-only | --dataset | --data-id ID) [--confirm]
 
 Paths are absolute; set, store and outputs must be outside this tool.
-Store is a SQLite FILE, conventionally memory/knowledge/store/databased.sqlite.
+Store is a databased SQLite FILE or a graph graph.lbdb FILE, one per dataset.
 Python 3.11+ and FTS5 for databased work; wiki-lint needs neither and runs on 3.9+.
-check reports Python and FTS5 without installing anything. Standard library only.
+check reports Python, FTS5 and graph package presence; --install installs packages.
+Wiki, databased and chunk commands need only the standard library.
 chunk accepts UTF-8 .md/.txt, preserves text, splits at headings then paragraphs
 and sentences, at most 6000 characters by default. Convert binaries first.
-recall returns items only, using lexical terms and outgoing idea links (one hop).
+recall returns items only: databased lexical terms and outgoing links (one hop);
+graph MATCH-only Cypher, or local embeddings with retrieval: embedding.
 as-of is recorded, never filtered. Default top-k is 15.
 Unknown, repeated and command-inapplicable flags are refused by name.
 forget without confirm reports the planned store changes and writes nothing.
-No model calls, downloads, configuration discovery, or installs."""
+--install is a bare flag, accepted on every command; only graph work and check
+need packages. It authorises ladybug==0.20.4, onnxruntime==1.30.0 and
+tokenizers==0.23.2 in this tool .venv (or WISER_ALLOW_INSTALL=1).
+No chat model calls, weight downloads or configuration discovery. --env is refused."""
 
 
 class ProbeError(Exception):
@@ -50,6 +55,7 @@ if __name__ == "__main__" and (not sys.argv[1:] or sys.argv[1] == "help"
     sys.exit(0)
 
 import datetime
+import importlib.util
 import hashlib
 import json
 import os
@@ -60,7 +66,7 @@ TOOL_DIR = Path(__file__).resolve().parent.parent
 GENERAL_PACK = TOOL_DIR / "packs" / "general"
 OPTIONS = {
     "check": (set(), set()),
-    "bootstrap": ({"--store"}, set()),
+    "bootstrap": ({"--store"}, {"--set"}),
     "chunk": (set(), {"--set", "--source", "--out", "--dataset", "--max-chars"}),
     "ingest": ({"--set", "--store", "--extraction"}, set()),
     "recall": ({"--set", "--store", "--query"}, {"--as-of", "--top-k"}),
@@ -71,7 +77,7 @@ OPTIONS = {
     "healthcheck": ({"--set", "--store"}, {"--eval"}),
     "forget": ({"--set", "--store"}, {"--memory-only", "--dataset", "--data-id", "--confirm"}),
 }
-FLAGS = {"--from-canon", "--replay", "--eval", "--memory-only", "--confirm"}
+FLAGS = {"--install", "--from-canon", "--replay", "--eval", "--memory-only", "--confirm"}
 ARRAYS = {
     "entities": ("entity", "name entity_type aliases summary status quote"),
     "ideas": ("idea", "name definition domain status quote"),
@@ -100,8 +106,8 @@ def parse(argv):
     index = 1
     while index < len(argv):
         word = argv[index]
-        if word not in required | optional:
-            fail('unknown option "%s"; this tool installs nothing. Run knowledge_memory.py help.' % word)
+        if word not in required | optional | {"--install"}:
+            fail('unknown option "%s". Run knowledge_memory.py help.' % word)
         key = word[2:].replace('-', '_')
         if key in values:
             fail('%s was given more than once.' % word)
@@ -118,7 +124,7 @@ def parse(argv):
         fail('required option(s): ' + ', '.join(missing))
     if command == 'chunk':
         if 'set' in values:
-            if set(values) != {'set'}:
+            if set(values) - {'install'} != {'set'}:
                 fail('chunk --set cannot combine with source, out, dataset or max-chars.')
         elif not {'source', 'out', 'dataset'} <= set(values):
             fail('chunk requires --set or --source, --out and --dataset.')
@@ -365,7 +371,7 @@ def node_problem(node, array, body):
     return None
 
 
-def validate_files(extraction_path, chunks_path, pack):
+def validate_files(extraction_path, chunks_path, pack, force_candidate=False):
     extraction, manifest = read_json(extraction_path), read_json(chunks_path)
     shape(extraction.get('pack_version') == pack_hash(pack), 'pack_version mismatch; re-extract with the current pack')
     check_keys(extraction, 'schema dataset source_path source_hash pack pack_version entries'.split(), 'extraction')
@@ -413,6 +419,8 @@ def validate_files(extraction_path, chunks_path, pack):
             shape(isinstance(entry.get(array), list), array + ' must be an array')
             for position, node in enumerate(entry[array]):
                 report['nodes_returned'] += 1
+                if force_candidate and array in ('ideas', 'entities') and isinstance(node, dict):
+                    node = dict(node, status='Candidate')
                 problem = node_problem(node, array, c['text']) if hash_ok else ('hash_mismatch', 'chunk_hash does not match manifest')
                 if problem:
                     reason, message = problem
@@ -745,7 +753,7 @@ class Q6Reader:
         return value
 
 
-RECIPE_KEYS = set('set dataset backend kind owner sensitivity session_permission canon_confirmed sources pack node_sets chunking close_intensity retrieval review_cadence_days stale_after_days write_policy link_policy eval'.split())
+RECIPE_KEYS = set('set dataset backend kind owner sensitivity session_permission canon_confirmed sources pack node_sets chunking close_intensity retrieval embedding_file review_cadence_days stale_after_days write_policy link_policy eval'.split())
 REVIEW_DIRS = dict(new_finding='new_findings', stale='stale', merge_proposal='merge_proposals', conflict='conflicts')
 
 
@@ -798,7 +806,7 @@ def set_recipe(value, backend=None):
         fail('recipe set must be a lowercase slug equal to its directory name.')
     if not re.fullmatch('[a-z0-9_]+', data['dataset']):
         fail('dataset must use lowercase letters, digits and underscores.')
-    for key, allowed in [('backend', ('wiki', 'databased', 'graph', 'hosted')), ('kind', ('book', 'blog', 'website', 'domain', 'mixed')), ('close_intensity', ('core', 'full')), ('retrieval', ('lexical',)), ('chunking', ('heading-aware',)), ('sensitivity', ('public', 'internal', 'confidential'))]:
+    for key, allowed in [('backend', ('wiki', 'databased', 'graph', 'hosted')), ('kind', ('book', 'blog', 'website', 'domain', 'mixed')), ('close_intensity', ('core', 'full')), ('retrieval', ('lexical', 'embedding') if data['backend'] == 'graph' else ('lexical',)), ('chunking', ('heading-aware',)), ('sensitivity', ('public', 'internal', 'confidential'))]:
         if key in data and data[key] not in allowed:
             fail('invalid recipe ' + key + ': ' + str(data[key]))
     for key in ('review_cadence_days', 'stale_after_days'):
@@ -827,10 +835,17 @@ def set_recipe(value, backend=None):
             fail(key + ' must be a string.')
     if data['backend'] == 'hosted':
         fail('hosted-unspecified: read experts/Memory Expert/hosted.md; stop before reading sources.')
-    if data['backend'] == 'graph':
-        fail('graph-unspecified: read experts/Memory Expert/graph.md; stop before reading sources.')
-    if backend and data['backend'] != backend:
-        fail('this command requires backend: ' + backend)
+    data.setdefault('retrieval', 'lexical')
+    if 'embedding_file' in data:
+        name = data['embedding_file']
+        if not isinstance(name, str) or not name or any(x in name for x in ('/', '\\', '..', '\x00')) or ':' in name:
+            fail('embedding_file must be a string basename without path separators or ..')
+    if backend and data['backend'] not in ((backend,) if isinstance(backend, str) else backend):
+        if backend == 'databased' and data['backend'] == 'graph':
+            fail('this command is databased-only; backend: graph is not supported.')
+        if isinstance(backend, tuple):
+            fail('this command requires backend: ' + ' or '.join(backend) + '.')
+        fail('this command requires backend: ' + str(backend))
     if not data['owner'].strip() or not data['session_permission'].strip():
         fail('owner and session_permission must name who permitted this session to process the material and when.')
     return root, data
@@ -862,7 +877,7 @@ def corpus_sources(root, recipe):
 def chunk_set(v):
     if 'set' not in v:
         return chunk(v)
-    root, recipe = set_recipe(v['set'], 'databased')
+    root, recipe = set_recipe(v['set'], ('databased', 'graph'))
     paths = corpus_sources(root, recipe)
     out = child(root, 'extraction', directory=True)
     results = [chunk(dict(source=str(p), out=str(out), dataset=recipe['dataset'], source_path=p.relative_to(root).as_posix())) for p in paths]
@@ -885,6 +900,8 @@ def check(v):
         result['fts5'] = True
     except Exception as error:
         result['fts5_error'] = str(error)
+    result['graph_packages'] = runtime_module().package_presence()
+    result['installed'] = all(result['graph_packages'].values())
     return result
 
 
@@ -923,8 +940,10 @@ def review_due(root, recipe):
 
 
 def ingest(v):
-    root, recipe = set_recipe(v['set'], 'databased')
-    path = db_path(v['store'], False)
+    root, recipe = set_recipe(v['set'], ('databased', 'graph'))
+    graph = recipe['backend'] == 'graph'
+    runtime = graph_ready(v) if graph else None
+    path = runtime.store_path(v['store'], True, screen_path) if graph else db_path(v['store'], False)
     extraction_path = screen_path('--extraction', v['extraction'], must_exist=True)
     if not extraction_path.is_relative_to(child(root, 'extraction', exists=True, directory=True)):
         fail('--extraction must sit under this set extraction directory.')
@@ -935,7 +954,7 @@ def ingest(v):
     chunks_path = child(root, 'extraction/' + source.stem + '.chunks.json', exists=True)
     pack_name = recipe.get('pack', 'general')
     pack = GENERAL_PACK if pack_name == 'general' else child(root, pack_name, exists=True, directory=True)
-    extraction, manifest, accepted, validation = validate_files(extraction_path, chunks_path, pack)
+    extraction, manifest, accepted, validation = validate_files(extraction_path, chunks_path, pack, force_candidate=graph)
     shape(extraction['dataset'] == recipe['dataset'], 'dataset mismatch with recipe')
     shape(extraction['pack'] == pack_name, 'pack mismatch with recipe')
     raw = source.read_bytes()
@@ -943,6 +962,8 @@ def ingest(v):
     text = raw.decode('utf-8')
     for c in manifest['chunks']:
         shape(text[c['char_start']:c['char_end']] == c['text'], 'manifest text differs from source on disk')
+    if graph:
+        return runtime.ingest(path, recipe, extraction, accepted, validation, RELATIONS)
     state = ledger(root)
     identity = dict(dataset=recipe['dataset'], source_hash=extraction['source_hash'], chunk_hashes=[c['chunk_hash'] for c in manifest['chunks']], pack_hash=extraction['pack_version'])
     key = extraction['source_hash']
@@ -964,7 +985,12 @@ def ingest(v):
 
 
 def recall(v):
-    root, recipe = set_recipe(v['set'], 'databased')
+    root, recipe = set_recipe(v['set'], ('databased', 'graph'))
+    if recipe['backend'] == 'graph':
+        runtime = graph_ready(v)
+        if 'as_of' in v:
+            dated(v['as_of'], '--as-of')
+        return runtime.recall(v, recipe, screen_path, positive)
     if 'as_of' in v:
         dated(v['as_of'], '--as-of')
     result = query(dict(v, dataset=recipe['dataset']))
@@ -1061,9 +1087,9 @@ def wiki_lint(v):
             if linked in corpus_files:
                 texts.append(collapse(linked.read_text(encoding='utf-8')))
         body = revised.split(raw_line, 1)[1].split('## See Also', 1)[0]
-        literals = re.findall(r'"([^"]+)"|“([^”]+)”|‘([^’]+)’|(?<!\w)\'(?!\s)([^\']+)\'(?!\w)', body)
+        literals = re.findall(r'"([^"]+)"|\u201c([^\u201d]+)\u201d|\u2018([^\u2019]+)\u2019|(?<!\w)\'(?!\s)([^\']+)\'(?!\w)', body)
         quoted = [next(part for part in match if part) for match in literals]
-        numerals = re.findall(r'(?<!\w)\d+(?:[.,:/-]\d+)*(?:[%½¼¾])?', body)
+        numerals = re.findall(r'(?<!\w)\d+(?:[.,:/-]\d+)*(?:[%\u00bd\u00bc\u00be])?', body)
         for literal in dict.fromkeys(quoted + numerals):
             if not any(collapse(literal) in text for text in texts):
                 issues.append(dict(file=str(path.relative_to(root)), reason='literal not located in linked corpus', literal=literal))
@@ -1463,6 +1489,24 @@ def forget(v):
     return result
 
 
+def runtime_module():
+    # Only stdlib imports in this file; dependencies are delayed in the sibling.
+    name = '_knowledge_graph_runtime'
+    if name not in sys.modules:
+        sys.dont_write_bytecode = True
+        spec = importlib.util.spec_from_file_location(name, TOOL_DIR / 'scripts/graph_runtime.py')
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+    return sys.modules[name]
+
+
+def graph_ready(v):
+    runtime = runtime_module()
+    runtime.ensure_runtime(v.get('install', False))
+    return runtime
+
+
 def main(argv=None):
     global sqlite3
     argv = list(sys.argv[1:] if argv is None else argv)
@@ -1470,12 +1514,17 @@ def main(argv=None):
         print(USAGE)
         return
     command, values = parse(argv)
-    # Route recipe stubs before checking the databased runtime or opening a store.
+    runtime_module().install_import_guard()
+    recipe = None
     if 'set' in values and command != 'wiki-lint':
-        set_recipe(values['set'])
+        required = 'databased' if command in ('bootstrap', 'review-pass', 'promote', 'mark-stale', 'healthcheck', 'forget') else None
+        _, recipe = set_recipe(values['set'], required)
     if command not in ('check', 'wiki-lint') and sys.version_info < MIN_PYTHON:
         fail('this script needs Python 3.11 or newer; this interpreter is %s. Run with python3.11 or newer.' % '.'.join(map(str, sys.version_info[:3])))
-    if command not in ('check', 'wiki-lint', 'chunk'):
+    graph = recipe is not None and recipe['backend'] == 'graph' and command in ('ingest', 'recall')
+    if graph or (command == 'check' and values.get('install')):
+        graph_ready(values)
+    if not graph and command not in ('check', 'wiki-lint', 'chunk'):
         import sqlite3
         if not check({})['fts5']:
             fail('databased work needs SQLite FTS5. Check with knowledge_memory.py check using a Python build with FTS5.')

@@ -3,11 +3,10 @@ name: Knowledge Set Onboarding
 type: skill
 category: knowledge
 description: Create a named knowledge set from permitted sources, compile its chosen backend, confirm kept knowledge with located provenance, and record the checks and close intensity that ran
-version: 0.2.5
+version: 0.3.0
 memory:
   - about
 gaps:
-  - graph-unspecified, so local graph query, embed and ingest stop before a source is read
   - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
 ---
 
@@ -17,7 +16,7 @@ gaps:
 
 Use to create a body of knowledge the owner will return to across sessions. Load `tools/knowledge-memory/references/backends.md` for the backend contract. Not for a one-time map (`skills/Knowledge Map/`), a research answer (`skills/Deep Research/`), or an existing set (`skills/Knowledge Curation/`). Queries belong to `skills/Knowledge Recall/`.
 
-Record session permission before reading any source: who allows this session to process this material and when. Storage follows `tools/knowledge-memory/references/backends.md` Shared substrate, including the local graph contract in `experts/Memory Expert/graph.md`; extraction is as local as the harness. Declined permission stops the build. Graph follows `experts/Memory Expert/graph.md` and its current execution stop before sources. Hosted stops on its named stub before a source is read.
+Record session permission before reading any source: who allows this session to process this material and when. Storage follows `tools/knowledge-memory/references/backends.md` Shared substrate, including the local graph contract in `experts/Memory Expert/graph.md`; extraction is as local as the harness. Declined permission stops the build. Graph follows the executable commands and prerequisite stops in `experts/Memory Expert/graph.md`. Hosted stops on its named stub before a source is read.
 
 ## Objective
 
@@ -41,7 +40,7 @@ Load `skills/Onboard Root/SKILL.md` and the Standing Rules and close-intensity p
 
 ## Steps
 
-Apply the constitution's Behavioral Core for the three absences and honest stops. Read `tools/knowledge-memory/references/backends.md` before choosing a backend; its mapping and inference rules are authoritative. Load `experts/Memory Expert/graph.md` for the specified graph contract and its current named execution stop before sources, until the tool ships query, embed, and ingest. Hosted stops on `experts/Memory Expert/hosted.md` before a source is read.
+Apply the constitution's Behavioral Core for the three absences and honest stops. Read `tools/knowledge-memory/references/backends.md` before choosing a backend; its mapping and inference rules are authoritative. Load `experts/Memory Expert/graph.md` for executable graph ingest and recall, including its missing-engine, missing-weights and refused-import stops before sources. Hosted stops on `experts/Memory Expert/hosted.md` before a source is read.
 
 Eight phases. Each names its decisions and what it leaves on disk. All paths are relative to the set directory unless stated.
 
@@ -49,7 +48,7 @@ Eight phases. Each names its decisions and what it leaves on disk. All paths are
 
 Settle only what cannot be inferred from the request, and record the owning root and bounded scope.
 
-- **Memory option.** Ask Simple / Standard / Pro / Enterprise through `tools/knowledge-memory/references/backends.md`. Use that contract's default and inference rules. Record the selected option. For Pro, write `backend: graph` in the run record, load `experts/Memory Expert/graph.md`, name its current execution stop, and stop here: do not proceed to Phase 1 or Phase 2 while the tool lacks graph query, embed, and ingest. Create no compiled layer and read no sources. Do not invent CLI ids. For Enterprise, follow its named stub now, including the run record when a set was being discussed. Do not create a compiled layer or read sources.
+- **Memory option.** Ask Simple / Standard / Pro / Enterprise through `tools/knowledge-memory/references/backends.md`. Use that contract's default and inference rules. Record the selected option. For Pro, record `backend: graph`, load `experts/Memory Expert/graph.md`, and run the tool `check` for graph package presence. Resolve package consent through `--install` before source work, then proceed to Phase 1. Record `retrieval: embedding` so paraphrase neighbours are available; MATCH queries still take the Cypher path. Leave `retrieval: lexical` only when the requester wants Cypher and no embedding path; that is not a graph text-search fallback. Follow the named prerequisite stops; use only listed CLI commands. For Enterprise, follow its named stub now, including the run record when a set was being discussed. Do not create a compiled layer or read sources.
 - **Kind.** Book, blog, website, domain or mixed. A domain with no bounded use gets a scope question before gathering.
 - **Close intensity.** Core or full, using `skills/Onboard Root/` Standing Rules, loaded before this phase. Keep its research-first and read-back decisions; do not create a second set of standing rules here.
 - **Session permission.** Settle licence, confidentiality and whether this session may process the material. Record the named person's permission and date in `session_permission`; a decline is a blocked run with the reason.
@@ -58,9 +57,9 @@ For a domain set, agree primary-source rules, the qualified-reading disclaimer, 
 
 ### Phase 1: Create the recipe and set
 
-If the named set exists, report its state and route the change to Knowledge Curation. Otherwise create `memory/knowledge/<set>/` under the owning root, never the plugin. Use `tools/knowledge-memory/templates/set.yaml`, recording `backend`, `kind`, `close_intensity`, `session_permission`, owner, scope in `node_sets`, and source patterns. Name sets per Onboard Root's Standing Rules. Provides does not bind the set path.
+If the named set exists, report its state and route the change to Knowledge Curation. Otherwise create `memory/knowledge/<set>/` under the owning root, never the plugin. Use `tools/knowledge-memory/templates/set.yaml`, recording `backend`, `kind`, `close_intensity`, `session_permission`, owner, scope in `node_sets`, and source patterns. For graph, also record the Phase 0 `retrieval` value (`embedding` unless the requester chose Cypher only). Name sets per Onboard Root's Standing Rules. Provides does not bind the set path.
 
-Copy `templates/knowledge AGENTS.md` to `memory/knowledge/AGENTS.md` only if absent; otherwise add the set row. Create `corpus/` and `reports/`. Wiki uses the wiki templates; databased uses `extraction/`, `review/`, and `eval.questions.yaml`. Run `check`, then `bootstrap --store <owning-root>/memory/knowledge/store/databased.sqlite` only for databased. All command paths are absolute. Begin `reports/onboarding-run-record.md` with the choices and permission.
+Copy `templates/knowledge AGENTS.md` to `memory/knowledge/AGENTS.md` only if absent; otherwise add the set row. Create `corpus/` and `reports/`. Wiki uses the wiki templates; databased uses `extraction/`, `review/`, and `eval.questions.yaml`. Run `check`, then `bootstrap --store <owning-root>/memory/knowledge/store/databased.sqlite` only for databased. All command paths are absolute. For graph, create `extraction/`, name one dataset-owned `graph.lbdb` in the owning root, and leave schema creation to ingest. Keep `canon_confirmed` blank pending the human confirmation. Begin `reports/onboarding-run-record.md` with the choices and permission.
 
 ### Phase 2: Gather the corpus
 
@@ -89,11 +88,11 @@ Read `backend` and run only its branch.
 
 **Databased.** Load `tools/knowledge-memory/references/schemas.md` and the chosen pack. Run `chunk --set <set>` and report source and chunk counts as the session-work estimate, not token cost. Use the session's model one chunk at a time. The skill appends canonical names and source context to the extraction prompt and rewrites the complete extraction JSON with one more entry after each chunk. Resume from the first missing entry. Reuse only when dataset, source hash, chunk hash and pack hash all match. The tool makes no model call. Extract a substantial treatment even when it appears in one stretch; do not skip it because it missed the theme list. Run `ingest --set <set> --store <file> --extraction <file>` for each source; fix rejected entries by their reported reasons, then `review-pass`. Sort its Candidates by recurrence and read their quotes in context before proposing a canon. The proposed canon includes the coverage-pass heads that locate; a thin canon that omits an argued idea is sent back through this phase, not offered as complete.
 
-**Graph.** Load and follow `experts/Memory Expert/graph.md`. Its ingest contract creates Candidates with located quotes and source paths; no auto-Canonical, and a human confirms Pro canon. While the tool still reports its graph stop, name it and stop before sources or a compiled-layer write. Query, embed, and ingest remain English verbs until the tool lists graph commands; do not invoke invented ids.
+**Graph.** Load `experts/Memory Expert/graph.md`, the extraction schema and chosen pack. Run `chunk --set <absolute set>`, extract each chunk in the session, then `ingest --set <absolute set> --store <absolute graph.lbdb> --extraction <absolute file>`. Locate quotes and preserve source paths; ingest always seeds Candidates. Record name skips, unsupported types, unresolved links and rejected quotes from the report. Resolve or name each coverage gap. No graph `review-pass` or `promote` runs.
 
 **Hosted.** Read `experts/Memory Expert/hosted.md`, name hosted-unspecified and stop before reading sources or making a compiled layer.
 
-Exit: the wiki index or databased candidate list, with provenance, and the compile or ingest results in the run record.
+Exit: the wiki index or databased or graph candidate list, with provenance, and the compile or ingest results in the run record.
 
 ### Phase 4: Research pass, domain sets
 
@@ -115,17 +114,21 @@ Record every question, the default offered, and the answer in the run record.
 
 **Databased.** Write `canon.md` in the shape below. Each canonical entry needs a quote of at most 40 words in a corpus file. An interview acceptance without a quote stays Candidate. Re-open every cited source and locate the quote, correcting or dropping entries that fail. Apply the independent audit at the chosen close intensity under `skills/Onboard Root/full-path.md`, including core, then integrate findings before the owner sees it. Put the whole canon to the owner for confirmation. Record the name and date in `canon_confirmed` only when confirmed; a partial decline leaves a provisional canon. Only after confirmation, run `promote --from-canon`, which writes and applies the human's decisions, then `review-pass`. New corpus material returns through Phase 3.
 
+**Graph.** Put the proposed Pro canon and located quotes to the human, with the chosen close-intensity audit. Record `canon_confirmed` only from that named human's explicit confirmation and actual date. Candidate ingest does not apply Canonical status, and no graph promote command is available. Without confirmation, retain a provisional state.
+
 ### Phase 7: Evaluate
 
 **Wiki.** Have a human read representative answers with their cited pages and corpus, including an uncovered question and a conflict where one exists. Record the read and lint results. Wiki eval is not `healthcheck --eval`.
 
 **Databased.** Fill `eval.questions.yaml` per `tools/knowledge-memory/references/backends.md` Databased eval. Count retrieval `expected` values against Canonical ideas, and human questions against themes and coverage-pass heads, before calling the pack filled. Offer question-mining in a second context that has not seen the canon, in the same sitting as the fill. Do not hand External Research the eval file; if the owner wants field questions from public sources, run that skill for those questions as its request, then turn returned topics into candidates here. Locate each candidate in `corpus/` before it enters the retrieval file; an unlocated candidate becomes a human-half `Not available` row, not a retrieval `expected`. Run `healthcheck --eval` for the retrieval half, then have a human judge composed answers separately: practitioner questions from items only, one uncovered, a conflict where one is open, and the dated-item read. As-of filtering is absent; `eval.passed` is false while as-of rows exist; the dated-item read and its limitation are recorded separately, never called a filtered pass. Fix a retrieval regression in sources, extraction or links and retry; never change a correct question to make it pass.
 
+**Graph.** Run `recall --set <absolute set> --store <absolute graph.lbdb> --query "<MATCH query>"` for relation questions. With recipe `retrieval: embedding`, use the same command with a paraphrase in `--query`. If the recipe is still `lexical` and the question is not MATCH, paraphrase recall is unavailable; do not substitute FTS5, and do not invent Cypher. Have a human read answers composed from returned items only, including an uncovered question. Empty items are `Not available`; never expect an `answer` field. Record prerequisite failures and temporal limits without substituting lexical retrieval or calling databased `healthcheck`.
+
 ### Phase 8: Close, per set
 
 Close in one of three states, recorded in the run record and in the root's `memory/knowledge/AGENTS.md` row:
 
-- **complete**: wiki pages kept and lint checked, or databased canon confirmed and retrieval plus human answer checks passed within declared temporal limits; no failed files, every gap an item with an owner in the root's operating file.
+- **complete**: wiki pages kept and lint checked, or databased canon confirmed and retrieval plus human answer checks passed within declared temporal limits, or Pro canon explicitly confirmed by a named human with located graph retrieval and human answer checks recorded; no failed files, every gap an item with an owner in the root's operating file.
 - **provisional**: usable, with named gaps: an unconfirmed canon, an eval below minimum, or a topic the corpus does not cover; each gap an item with an owner and a status. `Knowledge Recall` labels answers from a provisional set accordingly.
 - **blocked**: not usable, with the blocker named as a person, session permission or a capability.
 
@@ -163,7 +166,8 @@ The run record states the memory option, backend and close intensity that ran an
 
 ## Pitfalls
 
-- **Graph specification treated as a running tool.** Follow `experts/Memory Expert/graph.md`'s availability check before sources; a contract or an ingest plan is not a compiled layer.
+- **Graph prerequisite stop ignored.** Follow `experts/Memory Expert/graph.md` before sources; a stopped command supplies no compiled layer or retrieval items.
+- **Pro recipe left at lexical.** Paraphrase neighbours need `retrieval: embedding`. MATCH still runs either way. Lexical is not a graph text search.
 
 - **Ambiguous scope.** Ask what the set must answer before gathering an unbounded domain.
 - **Permission assumed.** Local storage does not establish session permission. Record the permission before reading sources; a declined session does not substitute a manual compile.
@@ -182,5 +186,5 @@ The run record states the memory option, backend and close intensity that ran an
 - The run record names memory option, backend, kind, close intensity, session permission, questions, answers, declined sources and gaps with owners.
 - Wiki leaves kept pages and index, located precise claims, Status blocks where needed, a lint report and a human cited-answer read.
 - Databased leaves source and chunk hashes, validated extraction, located canon quotes, human confirmation or a named provisional state, a retrieval pack filled per `tools/knowledge-memory/references/backends.md` Databased eval, and the separate answer read.
-- The set row and run record agree with disk. Graph leaves the named execution stop from `experts/Memory Expert/graph.md` and no compiled layer while tool support is absent. Hosted leaves its named stop and no compiled layer.
+- The set row and run record agree with disk. Graph leaves Candidate ingest and located retrieval results, or the named prerequisite stop from `experts/Memory Expert/graph.md`; human confirmation is never invented. Hosted leaves its named stop and no compiled layer.
 - Three varied requests, book, blog or site, and domain, follow the appropriate backend branch without intervention.

@@ -6,7 +6,7 @@ Deterministic operations that skills and experts call; `standards/primitives.md`
 
 A tool ships its manifest and never its packages. The plugin asks once, on the first install in this copy; `--install` on that run is the answer, and later tools install without asking (`tools/RUNNING.md`). Packages land in the tool's own directory, per copy of the plugin, so the plugin directory has to be writable. Playwright for the three browser tools lands once in `tools/lib/browser-runtime/`. An install writes nothing this repository ships.
 
-**Hosts an install reaches.** `registry.npmjs.org` for a Node tool; `cdn.playwright.dev`, with `playwright.download.prss.microsoft.com` as fallback, for a Chromium build; `pypi.org`, `files.pythonhosted.org` and `openaipublic.azureedge.net` for `Transcribe Audio`. At run time a deck or a diagram may name `cdn.jsdelivr.net` or `cdnjs.cloudflare.com` for its own assets.
+**Hosts an install reaches.** `registry.npmjs.org` for a Node tool; `cdn.playwright.dev`, with `playwright.download.prss.microsoft.com` as fallback, for a Chromium build; `pypi.org`, `files.pythonhosted.org` and `openaipublic.azureedge.net` for `Transcribe Audio`; `pypi.org` and `files.pythonhosted.org` for `knowledge-memory` packages only. At run time a deck or a diagram may name `cdn.jsdelivr.net` or `cdnjs.cloudflare.com` for its own assets.
 
 ## Everything a tool writes, and where
 
@@ -17,17 +17,17 @@ The one list; a tool's pages point here.
 | Plugin consent marker | `.wiser-consent` at the plugin root | every tool that installs |
 | Node packages | `node_modules/` in the tool's directory | the 8 tools whose `package.json` declares a dependency |
 | npm's cache and logs | npm's configured cache, `~/.npm` by default, outside this plugin | the same 8, and the shared browser runtime |
-| Python packages | `.venv/` in the tool's directory; pip's cache is switched off | `Transcribe Audio` |
+| Python packages | `.venv/` in the tool's directory; pip's cache is switched off | `Transcribe Audio`, `knowledge-memory` graph commands |
 | Playwright and its Chromium build | once, into `tools/lib/browser-runtime/` and Playwright's cache (`PLAYWRIGHT_BROWSERS_PATH` if set to a path; inside `tools/lib/browser-runtime/node_modules/` if set to `0`; otherwise `~/Library/Caches/ms-playwright` on macOS, `~/.cache/ms-playwright` on Linux, `%LOCALAPPDATA%\ms-playwright` on Windows) | the three browser tools |
 | Compatibility shims, compiled on a Linux host missing an X library | `tools/lib/browser-runtime/node_modules/.wiser-lib`; Linux only, untested there | the three browser tools |
-| Person-scoped model weights (speech, and later a Local Graph embedder). Not work product. Not a secret. | `models/` under the platform user-config directory `gateway/SETUP.md` names (macOS `~/Library/Application Support/wiser/models/`). An explicit absolute `--model-cache` still wins. A destination that is the connector key file is refused. Missing weights stop until `--install` or `WISER_ALLOW_INSTALL=1`. A knowledge-set recipe names a file inside this folder, not the folder. | `Transcribe Audio` now; Local Graph at its own download consent |
+| Person-scoped model weights (speech and Local Graph embeddings). Not work product. Not a secret. | `models/` under the platform user-config directory `gateway/SETUP.md` names (macOS `~/Library/Application Support/wiser/models/`). Transcribe Audio accepts an explicit absolute `--model-cache` and refuses the connector key file; its `--install` consent permits speech-weight downloads. A knowledge-set recipe names a basename inside models/. knowledge-memory reads files already there and never downloads them; missing graph weights stop as `missing-weights`, including with `--install`. | `Transcribe Audio`, `knowledge-memory` graph embedding recall |
 | The deliverable | exactly the path the caller passes | every tool that writes one |
 | A browser profile with live sign-ins, and a trace archive with cookies in it | exactly the `--profile` and `trace stop --output` paths | `Browser Control` |
 | A session token | `~/.wiser/browser-control/<port>.token`, outside this plugin; left behind by a kill | `Browser Control` |
 | An image written back onto its input | the `--base` path, only with `--confirm` | `image compose` |
 | A dated copy of a deck before an in-place edit | `--archive-dir`, or `zArchive/` beside the deck | `keynote-render` |
 | A harvest bundle | the `output.directory` inside the request file, absent `--output` | `Content Harvester` |
-| A knowledge store: one SQLite file the caller names as `--store`, databased only | exactly the path the caller passes as `--store`, by convention `memory/knowledge/store/` in the owning root; wiki writes no store | `knowledge-memory` |
+| A knowledge store: databased SQLite or one native graph `graph.lbdb` file per dataset, at caller-named `--store` | exactly the path the caller passes as `--store`, by convention `memory/knowledge/store/` in the owning root; wiki writes no store | `knowledge-memory` |
 | A knowledge set's own records: corpus, wiki or extraction, review items, reports | inside the set directory the caller passes as `--set`, at `corpus/`, `wiki/`, `extraction/`, `review/`, and `reports/` as the backend uses them | `knowledge-memory` |
 
 The gateway's writes (connection store, audit log, empty project-key template) are listed in `gateway/AGENTS.md` and are not restated here.
@@ -57,7 +57,7 @@ The gateway's writes (connection store, audit log, empty project-key template) a
 
 | Tool | Description |
 |------|-------------|
-| `knowledge-memory/TOOL.md` | Lints local knowledge wikis and builds, queries, reviews, and rebuilds a dataset-scoped databased store (SQLite FTS5) from session-extracted knowledge with located provenance |
+| `knowledge-memory/TOOL.md` | Lints local knowledge wikis, builds and queries a dataset-scoped databased store (SQLite FTS5), and ingests and recalls a local LadybugDB graph, all from session-extracted knowledge with located provenance |
 
 ### Marketing
 

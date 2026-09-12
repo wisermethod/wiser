@@ -3,9 +3,8 @@ name: Knowledge Recall
 type: skill
 category: knowledge
 description: Answer a question from one named knowledge set, scoped to that set alone, with the quotes and sources the answer rests on and an evidence label on every claim, saying Not available when the set does not cover it
-version: 0.2.2
+version: 0.3.0
 gaps:
-  - graph-unspecified, so local graph query, embed and ingest stop before a source is read
   - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
   - temporal filtering of recall by a date, so an as-of question is answered from the facts the set dates rather than filtered by the engine
 ---
@@ -34,11 +33,11 @@ A reference librarian at a closed collection. The answer is what the shelves hol
 
 ## Steps
 
-Apply the constitution's Behavioral Core for the three absences and honest stops. Read `tools/knowledge-memory/references/backends.md` before choosing a backend; its mapping and inference rules are authoritative. For memory-option clarification, ask Simple / Standard / Pro / Enterprise through that contract. Load `experts/Memory Expert/graph.md` for the specified graph contract and its current named execution stop before sources, until the tool ships query, embed, and ingest. Hosted stops on `experts/Memory Expert/hosted.md` before a source is read.
+Apply the constitution's Behavioral Core for the three absences and honest stops. Read `tools/knowledge-memory/references/backends.md` before choosing a backend; its mapping and inference rules are authoritative. For memory-option clarification, ask Simple / Standard / Pro / Enterprise through that contract. Load `experts/Memory Expert/graph.md` for executable graph ingest and recall, including its missing-engine, missing-weights and refused-import stops before sources. Hosted stops on `experts/Memory Expert/hosted.md` before a source is read.
 
 ### 1. Resolve the set and its state
 
-Read the set's `set.yaml` for `backend`, `dataset`, `kind`, `session_permission`, `canon_confirmed`, and the domain node sets. For graph, load the Step 2 contract immediately and apply its current execution stop before any catalog or source read. For hosted, take its Step 2 stub stop immediately; read no catalog or source. Otherwise read the backend-specific catalog for a domain disclaimer (`wiki/index.md` or `canon.md`). Read the newest healthcheck in `reports/` if one exists, for open conflicts. These decide the labels in Step 3 before the answer exists, so they are read first.
+Read the set's `set.yaml` for `backend`, `dataset`, `kind`, `session_permission`, `canon_confirmed`, and the domain node sets. For graph, load the Step 2 contract and obtain the tool result before any catalog or source read; a named prerequisite stop ends that path. After successful retrieval, read `canon.md` if present for confirmation and domain context. For hosted, take its Step 2 stub stop immediately; read no catalog or source. Otherwise read the backend-specific catalog for a domain disclaimer (`wiki/index.md` or `canon.md`). Read the newest healthcheck in `reports/` if one exists, for open conflicts. These decide the labels in Step 3 before the answer exists, so they are read first.
 
 ### 2. Recall
 
@@ -48,7 +47,7 @@ Check session permission before opening source material. Storage follows `tools/
 
 **Databased.** Run `tools/knowledge-memory/` `recall --set <absolute set> --store <owning-root>/memory/knowledge/store/databased.sqlite --query "<question>"`, with `--as-of YYYY-MM-DD` when asked. Read the items object in `tools/knowledge-memory/references/schemas.md` section 3, including `canon_confirmed`. Compose from returned items alone. Empty items mean `Not available`; no `answer` field is expected.
 
-**Graph.** Load `experts/Memory Expert/graph.md`. While the tool still stops, produce only its named execution stop before sources, with no substitute from model memory and no invented CLI ids. Once its retrieval verbs ship, use Cypher MATCH for a relation question and embedding nearest-neighbours for semantic retrieval; a paraphrase FTS missed is in bounds for embeddings. Compose only from returned items: `name`, `quote`, `source_path`, and for embedding rows `score` and `rank`. Never consume an `answer` field. Locate supporting quotes and cite their paths with evidence labels per `standards/conventions.md`; an inference is labeled as such. Empty items mean `Not available: the set does not cover it`. The score ranks neighbours; it does not confirm canon.
+**Graph.** Load `experts/Memory Expert/graph.md`. Run `recall --set <absolute set> --store <absolute graph.lbdb> --query "<MATCH query>"` for a relation question. With recipe `retrieval: embedding`, use the same command with paraphrase text in `--query` for nearest neighbours. MATCH still takes the Cypher path in that recipe. If `retrieval` is `lexical` and the question is not MATCH, paraphrase recall is off; name that recipe limit, do not run FTS5, and do not invent Cypher. Report missing-engine, missing-weights or refused-import before opening source material; no substitute or invented CLI ids. Compose only from returned items: `name`, `quote`, `source_path`, and for embedding rows `score` and `rank`. Never consume an `answer` field. Locate supporting quotes and cite their paths with evidence labels per `standards/conventions.md`; an inference is labeled as such. Empty items mean `Not available: the set does not cover it`. The score ranks neighbours; it does not confirm canon. Seed items remain Candidates; label their claims `Unverified: requires confirmation` and do not infer node confirmation from the set-level marker. A blank `canon_confirmed` also makes the whole set unconfirmed; never fill it during recall. An as-of date is recorded, never filtered; graph items have no temporal fields to establish standing on that date.
 
 **Hosted.** Read `experts/Memory Expert/hosted.md`, name hosted-unspecified, and stop before reading a source.
 
@@ -67,11 +66,11 @@ The databased branch applies the following rules. Wiki retains page citations, S
 
 ### 4. Deliver
 
-The answer, then a sources block: wiki pages cited, or each databased quote with its corpus path, in the order the answer used them. Nothing is written to disk unless the requester asks for the answer as a file, which goes to the owning root's work directory per `standards/conventions.md`.
+The answer, then a sources block: wiki pages cited, or each databased or graph quote with its corpus path, in the order the answer used them. Nothing is written to disk unless the requester asks for the answer as a file, which goes to the owning root's work directory per `standards/conventions.md`.
 
 ## Pitfalls
 
-- **A graph result replaced by lexical hits or a precomposed answer.** Follow `experts/Memory Expert/graph.md`'s items contract. A lexical hit does not prove an edge, and a current execution stop yields no answer.
+- **A graph result replaced by lexical hits or a precomposed answer.** Follow `experts/Memory Expert/graph.md`'s items contract. A lexical hit does not prove an edge, and a prerequisite stop yields no answer. A graph recipe still on `retrieval: lexical` cannot answer a paraphrase; name that limit instead of inventing MATCH or calling FTS5.
 
 - **No set named and several exist.** Ask which. Never recall from each in turn and merge; the merge is exactly the cross-set leak the scoping prevents.
 - **Filling the hole.** The set returned nothing and the answer is known. It is still `Not available`; the set is the collection, and the requester is told where the answer could be researched.
@@ -86,5 +85,5 @@ The answer, then a sources block: wiki pages cited, or each databased quote with
 - A question the set does not cover returned `Not available` with the reason and a route, and nothing from outside the set.
 - An as-of answer states how the date was handled and reports dated facts by their own fields.
 - A domain set's answer opens with its disclaimer.
-- Wiki answers cite pages, and an empty index plus page search yields Not available. Graph produces only the named execution stop in `experts/Memory Expert/graph.md` while tool support is absent. Hosted produces only its named stop.
+- Wiki answers cite pages, and an empty index plus page search yields Not available. Graph composes from located items only or reports the named prerequisite stop in `experts/Memory Expert/graph.md`. Hosted produces only its named stop.
 - Three varied questions, one answered, one uncovered, one as-of, each produced the appropriate backend output without intervention.
