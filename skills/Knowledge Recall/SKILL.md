@@ -3,7 +3,7 @@ name: Knowledge Recall
 type: skill
 category: knowledge
 description: Answer a question from one named knowledge set, scoped to that set alone, with the quotes and sources the answer rests on and an evidence label on every claim, saying Not available when the set does not cover it
-version: 0.3.0
+version: 0.3.1
 gaps:
   - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
   - temporal filtering of recall by a date, so an as-of question is answered from the facts the set dates rather than filtered by the engine
@@ -45,7 +45,7 @@ Check session permission before opening source material. Storage follows `tools/
 
 **Wiki.** Read `wiki/index.md`, search it for the question's terms, then search `wiki/` and open matching pages. Cite pages with paths relative to the owning root. Respect their Status blocks and source hedges. If both index and page searches are empty, return `Not available: the set does not cover it`. If matches exist but do not support an answer, state that coverage limit. No outside knowledge fills the gap. A date question is answered only to the extent the cited pages establish it; no databased temporal labels are implied.
 
-**Databased.** Run `tools/knowledge-memory/` `recall --set <absolute set> --store <owning-root>/memory/knowledge/store/databased.sqlite --query "<question>"`, with `--as-of YYYY-MM-DD` when asked. Read the items object in `tools/knowledge-memory/references/schemas.md` section 3, including `canon_confirmed`. Compose from returned items alone. Empty items mean `Not available`; no `answer` field is expected.
+**Databased.** Run `tools/knowledge-memory/` `recall --set <absolute set> --store <owning-root>/memory/knowledge/store/databased.sqlite --query "<question>"`, with `--as-of YYYY-MM-DD` when asked. Read the items object in `tools/knowledge-memory/references/schemas.md` section 3, including `canon_confirmed`. Compose from returned items alone. Empty items mean `Not available`; no `answer` field is expected. Returned items that do not answer the question also mean `Not available`, and the answer says which items came back and why they do not answer.
 
 **Graph.** Load `experts/Memory Expert/graph.md`. Run `recall --set <absolute set> --store <absolute graph.lbdb> --query "<MATCH query>"` for a relation question. With recipe `retrieval: embedding`, use the same command with paraphrase text in `--query` for nearest neighbours. MATCH still takes the Cypher path in that recipe. If `retrieval` is `lexical` and the question is not MATCH, paraphrase recall is off; name that recipe limit, do not run FTS5, and do not invent Cypher. Report missing-engine, missing-weights or refused-import before opening source material; no substitute or invented CLI ids. Compose only from returned items: `name`, `quote`, `source_path`, and for embedding rows `score` and `rank`. Never consume an `answer` field. Locate supporting quotes and cite their paths with evidence labels per `standards/conventions.md`; an inference is labeled as such. Empty items mean `Not available: the set does not cover it`. The score ranks neighbours; it does not confirm canon. Seed items remain Candidates; label their claims `Unverified: requires confirmation` and do not infer node confirmation from the set-level marker. A blank `canon_confirmed` also makes the whole set unconfirmed; never fill it during recall. An as-of date is recorded, never filtered; graph items have no temporal fields to establish standing on that date.
 

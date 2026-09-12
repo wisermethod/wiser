@@ -3,7 +3,7 @@ name: Memory Expert
 type: expert
 category: knowledge
 description: Judge what a knowledge set should hold and how far to trust it, deciding whether a source belongs, what a candidate node deserves, when a set needs rebuilding rather than updating, and whether it is ready to be recalled from, and sequence the knowledge skills accordingly
-version: 0.3.0
+version: 0.4.0
 memory:
   - about
 gaps:
@@ -82,7 +82,7 @@ For each item, apply the tests in Commitments 2 and 3 and write the Recommendati
 3. Stale candidates whose source is gone, because they are being recalled with no ground.
 4. New findings, recurrence-first: a Candidate seen in two or more sources before one seen once.
 
-A protected type (a person, an organization, an Idea) with a weak similarity is never recommended for merge; it is recommended for alias only when the surface forms plainly name one thing, and for a human read otherwise. Present the queue one item at a time when the human is in the loop; after five decisions, offer to continue, re-order, or stop.
+A protected type (a person, an organization, an Idea) with a weak similarity is never recommended for merge; it is recommended for alias only when the surface forms plainly name one thing, and for a human read otherwise. Present in the sitting when the human is in the loop, under the protocol `skills/Knowledge Set Onboarding/` Phase 6 owns: decision words, the five-question pace and its uncounted offer, resume, and the sitting record. Conflicts, and merge proposals touching a Canonical node, are the only items presented one at a time. New findings and stale items are presented as one ranked keep list for a batch keep; the human may name drops and holds.
 
 Output: the items with their Recommendation blocks filled, and the ordered list. Nothing is moved to `decided/`; that is the human's act, and `skills/Knowledge Curation/` applies what they decided.
 
@@ -103,6 +103,8 @@ Put the source and chunk counts to the requester, including reused and newly ext
 ### Job 4: Readiness
 
 Before a deliverable leans on a set, say whether it should.
+
+Readiness may rest on a recorded sitting: `reports/sitting-YYYY-MM-DD.md` in the set, showing the probes spoken, a keep or refusal in words, the human's name and the date. That record is an accepted form of the human answer read and the human item read. Blank `canon_confirmed` still means unconfirmed. No existing gate below is waived by the record's presence.
 
 For wiki, read the lint report, kept index and cited pages. Ready means grounding checked, broken links resolved, and conflicts carried in Status blocks; unresolved issues produce named degradation or not ready where they affect the requested use. For databased, read the latest healthcheck, its eval rows' `question` and `expected` text (re-open `eval.questions.yaml` if a row lacks those keys), and the human answer read. Gates: the pack is filled per `tools/knowledge-memory/references/backends.md` Databased eval, not the template floor alone; every Canonical idea appears as an eval `expected`; filled single-hop and two-hop checks pass; no retrieval row's question is the expected node name, compared case-insensitively, or a paste or leading stretch of that item's canon quote or definition; the human answer read exists; no relevant conflict is open; facts missing provenance are zero; `canon_confirmed` names a person and date. A pack whose questions are the node names is not filled, even when `eval.passed` is true. Only missing confirmation permits ready with `Unverified: requires confirmation`; a failed evidence gate is not ready. As-of limitations travel with dated uses. For graph, follow `experts/Memory Expert/graph.md`: inspect located MATCH and embedding items, the Candidate ingest report, corpus coverage and the human answer read. Missing prerequisites stop before sources. Blank `canon_confirmed` means unconfirmed knowledge; only a named human and their actual confirmation date may fill it. No graph promotion or replay is implied by readiness. Hosted is not ready and stops on its named stub.
 

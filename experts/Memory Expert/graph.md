@@ -2,7 +2,7 @@
 
 Engine documentation and skill contract for ask-time Pro / `backend: graph`.
 
-**Version:** 0.3.1, 2026-09-12
+**Version:** 0.3.2, 2026-09-12
 **Status:** specified and executable for query, embed and ingest
 
 ## Scope and availability
@@ -28,7 +28,7 @@ The read-only query surface accepts Cypher `MATCH` only. Write clauses, DDL, `CA
 Two retrieval paths return located items:
 
 - Cypher relation traversal follows typed edges. Removing a required edge removes the match; lexical hits cannot stand in for that relation.
-- Local embedding nearest-neighbour retrieval searches stored names, definitions or summaries, aliases, and quotes. It covers paraphrases lexical FTS5 can miss. Entity aliases are included when present. Candidate seed items stay unconfirmed; ranking does not establish canon.
+- Local embedding nearest-neighbour retrieval searches stored names, definitions or summaries, aliases, and quotes. It covers paraphrases lexical FTS5 can miss. Entity aliases are included when present. Candidate seed items stay unconfirmed; ranking does not establish canon. A recorded embedding miss is preserved with its query and its expected items, and reruns unchanged when the embedder changes.
 
 An item has `name`, `quote`, and `source_path`. Embedding rows also have cosine `score` and `rank`. There is never an `answer` field. `skills/Knowledge Recall/` composes from items; empty items yield `Not available`.
 

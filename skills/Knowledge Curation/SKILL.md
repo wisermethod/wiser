@@ -3,7 +3,7 @@ name: Knowledge Curation
 type: skill
 category: knowledge
 description: Keep an existing knowledge set accurate through source updates, wiki lint or databased review, human decisions, reproducible rebuilds, and supported backend upgrades
-version: 0.3.0
+version: 0.4.0
 gaps:
   - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
 ---
@@ -63,11 +63,11 @@ After wiki compile or databased extract, check coverage against the corpus: an i
 
 ### 3. Review
 
-For graph, review Candidate quotes and the ingest report with the human and record their decisions in the sitting record. Graph review-pass and promotion are not implemented; do not enter the databased application flow. Fill `canon_confirmed` only when a named human explicitly confirms Pro canon and supplies the actual date.
+For graph, review Candidate quotes and the ingest report with the human and record their decisions in the sitting record. Graph review-pass and promotion are not implemented; do not enter the databased application flow. Fill `canon_confirmed` only on an explicit keep with the confirmed name and the actual date.
 
-For wiki, review lint findings and disputed or outdated pages with the owner; preserve Status blocks and record the disposition in the log. For databased, run `review-pass`, then read the items under `review/new_findings/`, `stale/`, `merge_proposals/`, and `conflicts/`. Where `experts/Memory Expert/` has triaged them, present them in its order with its Recommendation; where it has not, present conflicts first, then merge proposals touching a Canonical node, then stale, then new findings by recurrence, and say the queue is untriaged.
+For wiki, review lint findings and disputed or outdated pages with the owner; preserve Status blocks and record the disposition in the log. For databased, run `review-pass`, then read the items under `review/new_findings/`, `stale/`, `merge_proposals/`, and `conflicts/`. Where `experts/Memory Expert/` has triaged them, present in the sitting: the ranked keep list (new findings and stale) as a batch keep, and conflicts, and merge proposals touching a Canonical node, one at a time. Where it has not, say the queue is untriaged and present conflicts first, then merge proposals touching a Canonical node, then stale, then new findings by recurrence, one item at a time.
 
-One item at a time. Read the surface forms, the quotes, and the reason it was not auto-decidable; offer the Recommendation where there is one; wait for the decision. Record it in the item's Decision block exactly as given, with the reviewer's name and the date, set the item's `status: decided`, and move the file to `review/decided/`. After five decisions, offer to continue, stop, or hand the rest to a later sitting. An item the reviewer defers stays where it is.
+The sitting runs under the protocol `skills/Knowledge Set Onboarding/` Phase 6 owns: load it first for the decision words, the five-question pace and its uncounted offer, resume, and the sitting record; nothing here restates them. Read the surface forms, the quotes, and the reason it was not auto-decidable; offer the Recommendation where there is one; wait for the decision. Record it in the item's Decision block exactly as given, with the reviewer's name and the date, set the item's `status: decided`, and move the file to `review/decided/`. A batch keep applies each listed item's Recommendation as its decision: the Decision block carries that action (`promote`, `alias-of`, `merge-into`, `mark-stale`, or `reject`), the reviewer's name, the date, and the note "batch keep, sitting YYYY-MM-DD", and the item moves to `review/decided/`. An item whose Recommendation is empty or is `edit-ontology` is not covered by a batch keep and is asked one at a time. Named drops and holds are recorded in the sitting record and stay where they are. A conflict disposition is recorded in the item's Decision `note` and in `canon.md` Conflicts; the item moves to `review/decided/` only when the disposition names one of those actions, and a conflict kept both ways and open stays under `review/conflicts/` with the note. An item the reviewer defers stays where it is.
 
 A merge of two protected types, a deletion, or an edit to an ontology file is recorded as decided and applied only in Step 4, never during the sitting.
 
@@ -97,7 +97,7 @@ Wiki: run lint, then have a human read cited answers and the unresolved Status b
 
 ### 7. Close the sitting
 
-Update the set's row in `memory/knowledge/AGENTS.md`: last ingest, canon confirmation, open items. Record the sitting in `reports/curation-YYYY-MM-DD.md`: the path or paths run, source and chunk counts reviewed, the items decided with their reviewers, the items deferred, and anything the tool refused.
+Update the set's row in `memory/knowledge/AGENTS.md`: last ingest, canon confirmation, open items. A confirmation sitting writes `reports/sitting-YYYY-MM-DD.md` in the shape `skills/Knowledge Set Onboarding/` Phase 6 defines, and when it followed a curation path in the same run it also carries this step's operational fields: the path or paths run, source and chunk counts reviewed, and anything the tool refused. Other paths write `reports/curation-YYYY-MM-DD.md`: the path or paths run, source and chunk counts reviewed, the items decided with their reviewers, the items deferred, and anything the tool refused.
 
 ## Pitfalls
 
