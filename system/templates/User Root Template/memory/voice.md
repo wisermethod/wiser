@@ -1,6 +1,6 @@
 # Voice of [name]
 
-Whose voice this is follows the declared type and `skills/Build Voice/SKILL.md`, What Voice Means Here.
+Whose voice this is follows the declared type and `skills/Build Voice/SKILL.md`, What Voice Means Here. Prose written from this file is `skills/Content Author/`, then `experts/Ghost Writer/`.
 
 <!-- provenance-preamble -->
 Markers delimit this preamble for the gate harness; keep both.

@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types
-version: 0.38.0
+version: 0.38.1
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -84,7 +84,7 @@ Current Focus carries the date the person confirmed it. Design fills from a desi
 
 ### Step 3: Voice
 
-`memory/voice.md` is written by `skills/Build Voice/` and by nothing else. Run it when the person supplies any writing of their own, and record what it returned: with three pieces or more from different contexts it can close `voice` complete once the person confirms; with one or two, or three from one context, it writes the file and says which sections rest on thin evidence, and the key closes provisional naming how many more pieces are wanted. When they supply none, replace each prompt line in `voice.md` with `[Not available: no writing supplied; Build Voice runs when writing is]` and close the key provisional in Step 5. A provisional voice does not block a deliverable that loads only `about` or `design`.
+`memory/voice.md` is written by `skills/Build Voice/` and by nothing else. Build Voice's confirmation sample is Ghost-Writer-gated as prose before the authority sees it, per `skills/Build Voice/SKILL.md` step 10. Run it when the person supplies any writing of their own, and record what it returned: with three pieces or more from different contexts it can close `voice` complete once the person confirms; with one or two, or three from one context, it writes the file and says which sections rest on thin evidence, and the key closes provisional naming how many more pieces are wanted. When they supply none, replace each prompt line in `voice.md` with `[Not available: no writing supplied; Build Voice runs when writing is]` and close the key provisional in Step 5. A provisional voice does not block a deliverable that loads only `about` or `design`.
 
 ### Step 4: Read back
 
