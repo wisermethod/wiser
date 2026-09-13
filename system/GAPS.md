@@ -6,13 +6,14 @@ A gap is a capability this root does not provide that a primitive's own body nam
 
 **This file carries capability gaps only.** What the operator plans to build is a separate record and is not a user's business, so nothing about future work appears here. **A gap names the capability that is missing, never where that capability went.**
 
-Counted 2026-09-11: 41 gaps across 26 primitives. Bullet count: `/usr/bin/grep -E '^- ' wiser/system/GAPS.md | wc -l` returns 41. Verify each bullet against its primitive's frontmatter in both directions.
+Counted 2026-09-13: 42 gaps across 26 primitives. Bullet count: `/usr/bin/grep -E '^- ' wiser/system/GAPS.md | wc -l` returns 42. Verify each bullet against its primitive's frontmatter in both directions.
 
 ## Experts
 
 ### Memory Expert
 
 - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
+- a stated meaning for each typed relation, so a stored link cannot be checked against what its type claims
 
 ### Conversion Advisor
 

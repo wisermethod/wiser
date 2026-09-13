@@ -3,11 +3,12 @@ name: Memory Expert
 type: expert
 category: knowledge
 description: Judge what a knowledge set should hold and how far to trust it, deciding whether a source belongs, what a candidate node deserves, when a set needs rebuilding rather than updating, and whether it is ready to be recalled from, and sequence the knowledge skills accordingly
-version: 0.4.0
+version: 0.4.1
 memory:
   - about
 gaps:
   - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
+  - a stated meaning for each typed relation, so a stored link cannot be checked against what its type claims
 ---
 
 # Memory Expert
