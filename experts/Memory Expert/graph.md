@@ -25,6 +25,8 @@ A `Passage` carries `name`, `text`, `source_path`, `char_start`, `char_end`, `ch
 
 Passages are cut only where the recipe records `retrieval: embedding`. A Cypher-only graph recipe has no consumer for them, stores none, and needs no weights at ingest.
 
+**A store is either a passage store or it is not.** Adding passages to one that already holds knowledge ingested without them is refused, because retrieval searches passages the moment any exist, and the older knowledge would leave every answer without saying so. That is the Behavioral Core's rule against covering missing infrastructure by degrading a component, and the repair is to rebuild the set into a new store rather than half migrate this one. A store with no passages at all keeps the node retrieval it has always had.
+
 Ingest always creates Candidates regardless of extraction status. Existing node names and identical edges are skipped with counts; one extraction is transactional. No graph promote or replay command is provided. Every node and relation needs a located quote and source path. No quote, no node. Knowledge Set Onboarding confirms Pro canon with the human; ingest never sets Canonical automatically.
 
 ## Query and retrieval

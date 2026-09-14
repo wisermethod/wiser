@@ -350,6 +350,22 @@ def next_passage_index(conn):
     return highest + 1
 
 
+def node_count(conn):
+    """How many Idea and Entity nodes this store already holds."""
+    total = 0
+    for table in ('Idea', 'Entity'):
+        try:
+            rows = execute(conn, 'MATCH (n:%s) RETURN count(n)' % table)
+        except Exception as error:
+            text = str(error).lower()
+            if 'does not exist' in text or 'not found' in text or 'binder' in text:
+                continue
+            raise
+        if rows:
+            total += rows[0][0]
+    return total
+
+
 def has_passages(conn):
     """Whether this store holds passages to search.
 
@@ -391,8 +407,20 @@ def ingest(path, recipe, extraction, accepted, validation, relations, manifest):
     db = open_database(path, False)
     conn = ENGINE.Connection(db)
     inserted = merged = linked = unresolved = 0
-    passages_inserted = located_in_edges = unlocatable = 0
+    passages_inserted = located_in_edges = unlocatable = passages_skipped = 0
     try:
+        # Before the transaction, because probing for a table that does not exist raises,
+        # and a raise inside a transaction leaves nothing for the rollback to roll back.
+        #
+        # A store whose existing knowledge predates the passage layer cannot be half
+        # migrated. Recall searches passages the moment any exist, so an older source with
+        # none would silently drop out of every answer: the Behavioral Core's bridge,
+        # degrading a component to cover missing infrastructure. Refuse and name the repair.
+        if embed and not has_passages(conn) and node_count(conn):
+            fail('passage-layer-mismatch: this store holds knowledge ingested before the '
+                 'passage layer, and adding passages now would leave that knowledge '
+                 'unreachable by embedding recall. Rebuild the set by re-ingesting its '
+                 'sources into a new store, or keep this one on retrieval: lexical.')
         execute(conn, 'BEGIN TRANSACTION')
         try:
             for table, text_field in (('Idea', 'definition'), ('Entity', 'summary')):
@@ -441,7 +469,22 @@ def ingest(path, recipe, extraction, accepted, validation, relations, manifest):
                 corpus = ''.join(c['text'] for c in chunks)
                 passages = cut_passages(tok, corpus, chunks, extraction['source_path'],
                                         next_passage_index(conn))
+                # Re-ingest skips a passage this store already holds, the way it skips an
+                # existing node name and an identical edge. Without this a retried ingest
+                # writes the whole cut a second time under fresh names, so the same text
+                # competes with itself for top-k slots and moves the lexical statistics.
+                # A held passage keeps the name it was stored under, and the edging below
+                # uses that name, because a cut made now numbers from the end of the store
+                # and those numbers name nothing that exists.
+                held = {(r[0], r[1], r[2]): r[3] for r in execute(
+                    conn, 'MATCH (n:Passage) '
+                          'RETURN n.source_path, n.char_start, n.char_end, n.name')}
                 for p in passages:
+                    stored = held.get((p['source_path'], p['start'], p['end']))
+                    if stored is not None:
+                        p['passage_id'] = stored
+                        passages_skipped += 1
+                        continue
                     execute(conn,
                             'CREATE (n:Passage {name:$name, text:$text, source_path:$source_path, '
                             'char_start:$cs, char_end:$ce, chunk_first:$cf, chunk_last:$cl, '
@@ -451,6 +494,8 @@ def ingest(path, recipe, extraction, accepted, validation, relations, manifest):
                                  cf=int(p['chunk_first']), cl=int(p['chunk_last']),
                                  status='Candidate'))
                     passages_inserted += 1
+                # Against every passage of this source, not only the ones written now,
+                # so a retried ingest still edges a node to a passage it already holds.
                 ends = [p['end'] for p in passages]
                 for kind, node, chunk in accepted:
                     if kind not in ('idea', 'entity'):
@@ -478,14 +523,30 @@ def ingest(path, recipe, extraction, accepted, validation, relations, manifest):
                     if not exists:
                         continue
                     for p in hit:
-                        execute(conn,
-                                'MATCH (a:' + table + '), (b:Passage) '
-                                'WHERE a.name=$name AND b.name=$pid '
-                                'CREATE (a)-[:LOCATED_IN {char_start:$cs, char_end:$ce, '
-                                'status:$status}]->(b)',
-                                dict(name=node['name'], pid=p['passage_id'],
-                                     cs=char_start, ce=char_end,
-                                     status='Candidate'))
+                        # An identical edge is skipped, as an identical semantic edge is,
+                        # so a retried ingest neither duplicates the hop nor reports an
+                        # edge it did not write.
+                        already = execute(
+                            conn,
+                            'MATCH (a:' + table + ')-[r:LOCATED_IN]->(b:Passage) '
+                            'WHERE a.name=$name AND b.name=$pid AND r.char_start=$cs '
+                            'AND r.char_end=$ce RETURN r.char_start',
+                            dict(name=node['name'], pid=p['passage_id'],
+                                 cs=char_start, ce=char_end))
+                        if already:
+                            continue
+                        written = execute(
+                            conn,
+                            'MATCH (a:' + table + '), (b:Passage) '
+                            'WHERE a.name=$name AND b.name=$pid '
+                            'CREATE (a)-[:LOCATED_IN {char_start:$cs, char_end:$ce, '
+                            'status:$status}]->(b) RETURN b.name',
+                            dict(name=node['name'], pid=p['passage_id'],
+                                 cs=char_start, ce=char_end,
+                                 status='Candidate'))
+                        if not written:
+                            fail('located_in: no passage named %r to edge %r to; the cut and '
+                                 'the store disagree.' % (p['passage_id'], node['name']))
                         located_in_edges += 1
             execute(conn, 'COMMIT')
         except BaseException:
@@ -499,7 +560,8 @@ def ingest(path, recipe, extraction, accepted, validation, relations, manifest):
                 unresolved_links=unresolved, skipped=skipped,
                 nodes_rejected=validation['rejected'], rejected_detail=validation['rejected_detail'],
                 status='Candidate', canonical_created=0,
-                passages_inserted=passages_inserted, located_in_edges=located_in_edges,
+                passages_inserted=passages_inserted, passages_skipped=passages_skipped,
+                located_in_edges=located_in_edges,
                 passage_spans_unlocatable=unlocatable)
 
 
@@ -710,10 +772,14 @@ def recall(values, recipe, screen, positive):
     match = bool(re.match(r'^\s*MATCH\b', query, re.I))
     top_k = positive(values.get('top_k', '15'), '--top-k')
     mode = values.get('rank', 'cosine')
+    # Whether the flag was supplied, not what it was set to. A call that ranks nothing
+    # must refuse `--rank cosine` exactly as it refuses `--rank hybrid`: accepting a flag
+    # and printing success is how a mistyped option comes to look like it applied.
+    ranked = 'rank' in values
     select_value = values.get('select')
     if match or recipe['retrieval'] != 'embedding':
         validate_query(query)
-    if mode != 'cosine':
+    if ranked:
         if match:
             fail('rank: a ranking applies to the embedding path, not to MATCH.')
         if select_value is not None:
@@ -761,6 +827,10 @@ def recall(values, recipe, screen, positive):
             elif has_passages(conn):
                 items = three_part(conn, runtime, query, top_k, mode)
             else:
+                if ranked:
+                    fail('rank: this store holds no passages, so a passage ranking ranks '
+                         'nothing here. Re-ingest the set on retrieval: embedding, or drop '
+                         '--rank.')
                 nodes = []
                 for table in ('Idea', 'Entity'):
                     nodes.extend(row[0] for row in read_query(conn, 'MATCH (n:' + table + ') RETURN n ORDER BY n.name'))

@@ -321,10 +321,17 @@ class GraphContract(unittest.TestCase):
         default = json.loads(self.recall(query).stdout)
         again = json.loads(self.recall(query, extra=('--install',)).stdout)
         self.assertEqual(json.dumps(default['items']), json.dumps(again['items']))
-        self.assertNotIn('selected', default)
-        self.assertNotIn('ranking', default)
-        self.assertNotIn('selected', again)
-        self.assertNotIn('ranking', again)
+        for result in (default, again):
+            self.assertNotIn('selected', result)
+            self.assertNotIn('ranking', result)
+        # Two runs of one implementation show determinism and nothing more. What makes the
+        # default path unchanged is that it carries none of the keys the two flags add, so
+        # a caller that never passes them sees exactly the shape it saw before they existed.
+        for item in default['items']:
+            for added in ('cosine_rank', 'vector_rank', 'lexical_rank'):
+                self.assertNotIn(added, item)
+        # The whole-corpus comparison against the runtime this was ported from is a control
+        # in the gate that measured it; it needs that corpus and does not belong here.
 
     def test_rank_hybrid_and_cosine_byte_identity(self):
         self.seed(embedded=True, extras=True, long=True)
@@ -384,6 +391,96 @@ class GraphContract(unittest.TestCase):
         self.assertGreater(len(result['items']), 0)
         self.assertTrue(all(set(n) == {'name', 'quote', 'source_path', 'score', 'rank'} for n in result['items']))
         self.assertTrue(all(n['name'] in ('Rest', 'Recovery', 'Car') for n in result['items']))
+
+
+    def test_reingest_is_idempotent_for_passages_and_their_edges(self):
+        first = self.seed(embedded=True, extras=True, long=True)
+        self.assertGreater(first['passages_inserted'], 0)
+        self.assertEqual(first['passages_skipped'], 0)
+        self.assertGreater(first['located_in_edges'], 0)
+        before = (self.raw('MATCH (p:Passage) RETURN count(p)'),
+                  self.raw('MATCH ()-[r:LOCATED_IN]->() RETURN count(r)'))
+        again = json.loads(self.run_cli('ingest', '--set', str(self.set), '--store', str(self.store), '--extraction', str(self.extraction)).stdout)
+        # The whole cut is recognised and none of it is written a second time. Without
+        # this a retried ingest doubles the searchable corpus under fresh names.
+        self.assertEqual(again['passages_inserted'], 0)
+        self.assertEqual(again['passages_skipped'], first['passages_inserted'])
+        self.assertEqual(again['located_in_edges'], 0)
+        self.assertEqual((self.raw('MATCH (p:Passage) RETURN count(p)'),
+                          self.raw('MATCH ()-[r:LOCATED_IN]->() RETURN count(r)')), before)
+
+    def test_half_migrated_store_is_refused_not_degraded(self):
+        self.seed(extras=True)
+        before = self.raw('MATCH (n) RETURN count(n)')
+        self.recipe(retrieval='embedding')
+        run = self.run_cli('ingest', '--set', str(self.set), '--store', str(self.store), '--extraction', str(self.extraction), code=1)
+        self.assertIn('passage-layer-mismatch', run.stderr)
+        # Refused before any write: the node count is unmoved and no Passage table was
+        # created, so the store is not left half converted by the refusal itself.
+        self.assertEqual(self.raw('MATCH (n) RETURN count(n)'), before)
+        probe = subprocess.run([str(VENV), '-B', '-c',
+                                "import importlib,sys; e=importlib.import_module('ladybug'); "
+                                "d=e.Database(sys.argv[1],buffer_pool_size=64*1024*1024,max_num_threads=1); "
+                                "c=e.Connection(d); c.execute('MATCH (p:Passage) RETURN count(p)')",
+                                str(self.store)], env=self.env, capture_output=True, text=True)
+        self.assertNotEqual(probe.returncode, 0, 'a Passage table was created by a refused ingest')
+
+    def test_rank_refused_where_it_ranks_nothing_whatever_its_value(self):
+        self.seed(embedded=True, extras=True, long=True)
+        # Supplied and inapplicable is refused by name, `cosine` included: a flag accepted
+        # and ignored is indistinguishable from one that applied.
+        for value in ('cosine', 'hybrid'):
+            run = self.recall('  mAtCh (n:Idea) RETURN n', code=1, extra=('--rank', value))
+            self.assertIn('rank:', run.stderr)
+        chosen = self.root / 'chosen.json'
+        items = json.loads(self.recall('rest').stdout)['items']
+        names = [i['name'] for i in items if i.get('part') == 'passage'][:1]
+        chosen.write_text(json.dumps([dict(name=n, score=0.5, rank=1) for n in names]))
+        for value in ('cosine', 'hybrid'):
+            run = self.recall('rest', code=1, extra=('--select', str(chosen), '--rank', value))
+            self.assertIn('rank:', run.stderr)
+
+    def test_rank_refused_on_a_store_holding_no_passages(self):
+        self.seed(extras=True)
+        self.recipe(retrieval='embedding')
+        run = self.recall('How can I regain stamina by sleeping?', code=1, extra=('--rank', 'hybrid'))
+        self.assertIn('rank:', run.stderr)
+        self.assertIn('no passages', run.stderr)
+        # And the same call without the flag still answers from the nodes.
+        result = json.loads(self.recall('How can I regain stamina by sleeping?').stdout)
+        self.assertTrue(result['items'])
+        self.assertNotIn('ranking', result)
+
+    def test_embedding_ingest_stops_before_source_when_weights_absent(self):
+        self.seed(extras=True)
+        self.recipe(retrieval='embedding', embedding_file='not-present.onnx')
+        # The audit hook fails the run if the corpus or the store is opened at all, so this
+        # proves the stop precedes source access rather than merely preceding the write.
+        run = self.run_cli('ingest', '--set', str(self.set), '--store', str(self.root / 'fresh/graph.lbdb'), '--extraction', str(self.extraction), code=1, wrapper=self.audit_wrapper(), interpreter=VENV)
+        self.assertIn('missing-weights', run.stderr)
+        self.assertFalse((self.root / 'fresh/graph.lbdb').exists())
+
+    def test_hybrid_is_an_interleave_and_rrf_is_not(self):
+        # The CLI test above proves the wiring; this proves the merge is the one declared.
+        # A hybrid that simply decorated the cosine order with metadata would pass that
+        # test and fail this one.
+        spec = importlib.util.spec_from_file_location('rank_passages_under_test', TOOL / 'scripts/rank_passages.py')
+        rank_passages = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(rank_passages)
+        texts = ['alpha alpha alpha', 'beta beta', 'gamma', 'delta', 'epsilon']
+        lexical = rank_passages.Lexical(texts)
+        # Cosine and lexical disagree completely: cosine likes the last, lexical the first.
+        cosine_of = lambda _text: [0.1, 0.2, 0.3, 0.4, 0.5]
+        order, detail = rank_passages.rank('hybrid', 'alpha', cosine_of, lexical, 4)
+        vector = rank_passages.order_of(cosine_of('alpha'))
+        lex = rank_passages.order_of(lexical.scores('alpha'))
+        self.assertEqual(order, rank_passages.interleave([vector, lex], 4))
+        self.assertNotEqual(order, vector[:4], 'hybrid returned the cosine order unchanged')
+        self.assertEqual(order[0], vector[0], 'the interleave takes the vector ranking first')
+        self.assertEqual(order[1], lex[0], 'the interleave takes the lexical ranking second')
+        rrf_order, _ = rank_passages.rank('hybrid-rrf', 'alpha', cosine_of, lexical, 4)
+        self.assertNotEqual(rrf_order, order, 'the consensus merge is not the interleave')
+        self.assertTrue(all('vector_rank' in d for d in detail.values()))
 
 
 class ShippedRecallPolicy(unittest.TestCase):

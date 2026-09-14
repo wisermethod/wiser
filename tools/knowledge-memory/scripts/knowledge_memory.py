@@ -1529,6 +1529,12 @@ def main(argv=None):
                 fail('--%s is graph-only.' % flag)
     if graph or (command == 'check' and values.get('install')):
         graph_ready(values)
+        # Graph ingest on an embedding recipe cuts the corpus at the embedder's window, so
+        # it needs the tokenizer. The check runs here, before any source is read, because
+        # experts/Memory Expert/graph.md promises every graph prerequisite stops before
+        # source or store access, and a stop placed after the source read is not that stop.
+        if command == 'ingest' and recipe.get('retrieval') == 'embedding':
+            runtime_module().model_files(recipe)
     if not graph and command not in ('check', 'wiki-lint', 'chunk'):
         import sqlite3
         if not check({})['fts5']:
