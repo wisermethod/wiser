@@ -421,6 +421,15 @@ def ingest(path, recipe, extraction, accepted, validation, relations, manifest):
                  'passage layer, and adding passages now would leave that knowledge '
                  'unreachable by embedding recall. Rebuild the set by re-ingesting its '
                  'sources into a new store, or keep this one on retrieval: lexical.')
+        if not embed and has_passages(conn):
+            # The other direction of the same invariant. A lexical ingest into a passage
+            # store writes nodes with no passage and no LOCATED_IN edge, and embedding
+            # recall reaches an idea only through that edge, so the new source would be
+            # unreachable the moment the recipe went back to embedding. A store is either
+            # a passage store or it is not.
+            fail('passage-layer-mismatch: this store holds passages, and a retrieval: '
+                 'lexical ingest would add knowledge that embedding recall cannot reach. '
+                 'Ingest this source on retrieval: embedding, or give it its own store.')
         execute(conn, 'BEGIN TRANSACTION')
         try:
             for table, text_field in (('Idea', 'definition'), ('Entity', 'summary')):
@@ -476,13 +485,31 @@ def ingest(path, recipe, extraction, accepted, validation, relations, manifest):
                 # A held passage keeps the name it was stored under, and the edging below
                 # uses that name, because a cut made now numbers from the end of the store
                 # and those numbers name nothing that exists.
-                held = {(r[0], r[1], r[2]): r[3] for r in execute(
+                held = {(r[0], r[1], r[2]): (r[3], r[4]) for r in execute(
                     conn, 'MATCH (n:Passage) '
-                          'RETURN n.source_path, n.char_start, n.char_end, n.name')}
+                          'RETURN n.source_path, n.char_start, n.char_end, n.name, n.text')}
+                # A changed source is refused, not half replaced. Identity by span alone
+                # would skip the new text and attach this run's nodes to the old, and
+                # graph ships no removal command that could retire what it replaced, so
+                # the honest stop is here rather than a store mixing two versions of one
+                # source behind a successful report.
+                this_source = {k: v for k, v in held.items()
+                               if k[0] == extraction['source_path']}
+                if this_source:
+                    now = {(p['source_path'], p['start'], p['end']): p['text']
+                           for p in passages}
+                    stale = [name for k, (name, text) in this_source.items()
+                             if k not in now or now[k] != text]
+                    if stale:
+                        fail('passage-source-changed: this store holds %d passage(s) of %s '
+                             'that the source on disk no longer matches, starting at %s. '
+                             'Graph has no command to retire them, so re-ingest of a '
+                             'changed source is refused; rebuild the set into a new store.'
+                             % (len(stale), extraction['source_path'], sorted(stale)[0]))
                 for p in passages:
                     stored = held.get((p['source_path'], p['start'], p['end']))
                     if stored is not None:
-                        p['passage_id'] = stored
+                        p['passage_id'] = stored[0]
                         passages_skipped += 1
                         continue
                     execute(conn,

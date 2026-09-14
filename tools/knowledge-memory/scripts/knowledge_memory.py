@@ -1534,7 +1534,11 @@ def main(argv=None):
         # experts/Memory Expert/graph.md promises every graph prerequisite stops before
         # source or store access, and a stop placed after the source read is not that stop.
         if command == 'ingest' and recipe.get('retrieval') == 'embedding':
-            runtime_module().model_files(recipe)
+            # Loading it, not checking that its file exists. A tokenizer that is present
+            # and unreadable, or a `tokenizers` package that is absent, would otherwise
+            # fail after the source had been read, which is the stop this line exists to
+            # move.
+            runtime_module().cutting_tokenizer(recipe)
     if not graph and command not in ('check', 'wiki-lint', 'chunk'):
         import sqlite3
         if not check({})['fts5']:

@@ -409,6 +409,39 @@ class GraphContract(unittest.TestCase):
         self.assertEqual((self.raw('MATCH (p:Passage) RETURN count(p)'),
                           self.raw('MATCH ()-[r:LOCATED_IN]->() RETURN count(r)')), before)
 
+    def test_changed_source_is_refused_rather_than_half_replaced(self):
+        self.seed(embedded=True, extras=True, long=True)
+        before = self.raw('MATCH (p:Passage) RETURN count(p)')
+        held = self.raw('MATCH (p:Passage) RETURN p.text ORDER BY p.name LIMIT 1')
+        # The same source path with different text. Identity by span alone would skip the
+        # new passage and attach this run's nodes to the old one, behind a success.
+        (self.set / 'corpus/source.md').write_text(
+            ('Rest renews vigour. Sleep aids recuperation. Lorries travel on roads. ') * 60 + '\n')
+        self.run_cli('chunk', '--set', str(self.set))
+        manifest = json.loads((self.set / 'extraction/source.chunks.json').read_text())
+        extraction = json.loads(self.extraction.read_text())
+        extraction['source_hash'] = manifest['source_hash']
+        extraction['entries'][0]['chunk_hash'] = manifest['chunks'][0]['chunk_hash']
+        for idea in extraction['entries'][0]['ideas']:
+            idea['quote'] = 'Rest renews vigour.'
+        extraction['entries'][0]['idea_links'] = []
+        extraction['entries'][0]['entities'] = []
+        self.extraction.write_text(json.dumps(extraction))
+        run = self.run_cli('ingest', '--set', str(self.set), '--store', str(self.store), '--extraction', str(self.extraction), code=1)
+        self.assertIn('passage-source-changed', run.stderr)
+        self.assertEqual(self.raw('MATCH (p:Passage) RETURN count(p)'), before)
+        self.assertEqual(self.raw('MATCH (p:Passage) RETURN p.text ORDER BY p.name LIMIT 1'), held)
+
+    def test_lexical_ingest_into_a_passage_store_is_refused(self):
+        self.seed(embedded=True, extras=True, long=True)
+        before = self.raw('MATCH (n) RETURN count(n)')
+        # The other direction of the same invariant: a node with no passage is unreachable
+        # by embedding recall the moment the recipe goes back to embedding.
+        self.recipe(retrieval='lexical')
+        run = self.run_cli('ingest', '--set', str(self.set), '--store', str(self.store), '--extraction', str(self.extraction), code=1)
+        self.assertIn('passage-layer-mismatch', run.stderr)
+        self.assertEqual(self.raw('MATCH (n) RETURN count(n)'), before)
+
     def test_half_migrated_store_is_refused_not_degraded(self):
         self.seed(extras=True)
         before = self.raw('MATCH (n) RETURN count(n)')
@@ -453,12 +486,16 @@ class GraphContract(unittest.TestCase):
 
     def test_embedding_ingest_stops_before_source_when_weights_absent(self):
         self.seed(extras=True)
+        store_before = self.store.read_bytes()
         self.recipe(retrieval='embedding', embedding_file='not-present.onnx')
         # The audit hook fails the run if the corpus or the store is opened at all, so this
         # proves the stop precedes source access rather than merely preceding the write.
-        run = self.run_cli('ingest', '--set', str(self.set), '--store', str(self.root / 'fresh/graph.lbdb'), '--extraction', str(self.extraction), code=1, wrapper=self.audit_wrapper(), interpreter=VENV)
+        run = self.run_cli('ingest', '--set', str(self.set), '--store', str(self.store), '--extraction', str(self.extraction), code=1, wrapper=self.audit_wrapper(), interpreter=VENV)
         self.assertIn('missing-weights', run.stderr)
-        self.assertFalse((self.root / 'fresh/graph.lbdb').exists())
+        # The audit hook watches this store and this corpus, so the run is failed if either
+        # is opened at all. The store exists because the seed ingest created it, so what is
+        # asserted is that this refused run left it untouched.
+        self.assertEqual(self.store.read_bytes(), store_before)
 
     def test_hybrid_is_an_interleave_and_rrf_is_not(self):
         # The CLI test above proves the wiring; this proves the merge is the one declared.
