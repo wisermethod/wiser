@@ -3,7 +3,7 @@ name: Knowledge Set Onboarding
 type: skill
 category: knowledge
 description: Create a named knowledge set from permitted sources, compile its chosen backend, confirm kept knowledge with located provenance, and record the checks and close intensity that ran
-version: 0.4.0
+version: 0.5.0
 memory:
   - about
 gaps:
@@ -170,7 +170,7 @@ The machine half is unchanged. Retrieval `expected` still covers every Canonical
 
 **Databased.** Fill `eval.questions.yaml` per `tools/knowledge-memory/references/backends.md` Databased eval. Count retrieval `expected` values against Canonical ideas, and human questions against themes and coverage-pass heads, before calling the pack filled. Offer question-mining in a second context that has not seen the canon, in the same session as the fill. Do not hand External Research the eval file; if the owner wants field questions from public sources, run that skill for those questions as its request, then turn returned topics into candidates here. Locate each candidate in `corpus/` before it enters the retrieval file; an unlocated candidate becomes a human-half `Not available` row, not a retrieval `expected`. After confirmation, run `healthcheck --eval` for the retrieval half. The human judgment of composed answers is the sitting's Turn 3, labeled Unverified before the keep, not this command. As-of filtering is absent; `eval.passed` is false while as-of rows exist; the dated-item read and its limitation are recorded separately, never called a filtered pass. Fix a retrieval regression in sources, extraction or links and retry; never change a correct question to make it pass.
 
-**Graph.** MATCH relation probes and, with recipe `retrieval: embedding`, the paraphrase in `--query` were spoken in the sitting as Unverified. Run `recall --set <absolute set> --store <absolute graph.lbdb> --query "<MATCH query>"` for those relation questions, and the same command with a paraphrase in `--query` when embedding is on. If the recipe is still `lexical` and the question is not MATCH, paraphrase recall is unavailable; do not substitute FTS5, and do not invent Cypher. Empty items are `Not available`; never expect an `answer` field. Record prerequisite failures and temporal limits without substituting lexical retrieval or calling databased `healthcheck`. A recorded embedding miss stays a miss with its query and expected items.
+**Graph.** MATCH relation probes and, with recipe `retrieval: embedding`, the paraphrase in `--query` were spoken in the sitting as Unverified. Run `recall --set <absolute set> --store <absolute graph.lbdb> --query "<MATCH query>"` for those relation questions. **Run a paraphrase probe the way `skills/Knowledge Recall/` runs one**, ranked call, selection, `--select` call, and record what the last of those returned: a probe that issues a single plain `recall` measures a retrieval this set's owner will never get, and reports it to them as their set's behaviour. If the recipe is still `lexical` and the question is not MATCH, paraphrase recall is unavailable; do not substitute FTS5, and do not invent Cypher. Empty items are `Not available`; never expect an `answer` field. Record prerequisite failures and temporal limits without substituting lexical retrieval or calling databased `healthcheck`. A recorded embedding miss stays a miss with its query and expected items.
 
 ### Phase 8: Close, per set
 

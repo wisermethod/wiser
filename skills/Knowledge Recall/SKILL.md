@@ -3,7 +3,7 @@ name: Knowledge Recall
 type: skill
 category: knowledge
 description: Answer a question from one named knowledge set, scoped to that set alone, with the quotes and sources the answer rests on and an evidence label on every claim, saying Not available when the set does not cover it
-version: 0.3.1
+version: 0.4.0
 gaps:
   - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
   - temporal filtering of recall by a date, so an as-of question is answered from the facts the set dates rather than filtered by the engine
@@ -47,7 +47,15 @@ Check session permission before opening source material. Storage follows `tools/
 
 **Databased.** Run `tools/knowledge-memory/` `recall --set <absolute set> --store <owning-root>/memory/knowledge/store/databased.sqlite --query "<question>"`, with `--as-of YYYY-MM-DD` when asked. Read the items object in `tools/knowledge-memory/references/schemas.md` section 3, including `canon_confirmed`. Compose from returned items alone. Empty items mean `Not available`; no `answer` field is expected. Returned items that do not answer the question also mean `Not available`, and the answer says which items came back and why they do not answer.
 
-**Graph.** Load `experts/Memory Expert/graph.md`. Run `recall --set <absolute set> --store <absolute graph.lbdb> --query "<MATCH query>"` for a relation question. With recipe `retrieval: embedding`, use the same command with paraphrase text in `--query` for nearest neighbours. MATCH still takes the Cypher path in that recipe. If `retrieval` is `lexical` and the question is not MATCH, paraphrase recall is off; name that recipe limit, do not run FTS5, and do not invent Cypher. Report missing-engine, missing-weights or refused-import before opening source material; no substitute or invented CLI ids. Compose only from returned items: `name`, `quote`, `source_path`, and for embedding rows `score` and `rank`. Never consume an `answer` field. Locate supporting quotes and cite their paths with evidence labels per `standards/conventions.md`; an inference is labeled as such. Empty items mean `Not available: the set does not cover it`. The score ranks neighbours; it does not confirm canon. Seed items remain Candidates; label their claims `Unverified: requires confirmation` and do not infer node confirmation from the set-level marker. A blank `canon_confirmed` also makes the whole set unconfirmed; never fill it during recall. An as-of date is recorded, never filtered; graph items have no temporal fields to establish standing on that date.
+**Graph.** Load `experts/Memory Expert/graph.md`. A relation question is one call: `recall --set <absolute set> --store <absolute graph.lbdb> --query "<MATCH query>"`. MATCH takes the Cypher path in every recipe and takes neither flag below.
+
+With recipe `retrieval: embedding`, a paraphrase question is **two calls with your own judgment between them**, which is the same shape as the wiki branch above, where you read an index and choose pages.
+
+1. **Rank the candidates.** `recall --set <absolute set> --store <absolute graph.lbdb> --query "<question>" --rank hybrid`. Name `--rank hybrid` on this call every time. Omitting it runs cosine alone, which is a different retrieval policy and a measurably worse one.
+2. **Choose, as the chooser.** You see the question and the returned candidate passages, and nothing else: never an expected answer, the corpus, the set file, another question, or how this answer will be judged. Candidates come back in the order they sit in the source, which tells you nothing about which one answers the question. Pick at most three, best first, fewer if fewer are worth reading and none if none can carry the answer. Judge whether a passage carries the material asked for, not whether it repeats the question's words. Where a question asks for two things, prefer a set covering both parts over three covering one. **You are selecting, not answering. A selection that composes an answer is a defect**: it makes the result a measurement of the chooser rather than of the set, and the answer is void. Write the chosen names to a JSON list of `{"name", "score", "rank"}`, best first, in the owning root's work directory per `standards/conventions.md` Working Files.
+3. **Recall the selection.** `recall --set <absolute set> --store <absolute graph.lbdb> --query "<the same question>" --select <that file>`. Same set, same store, same question. Not `--rank`: a selection has already fixed the passages and the tool refuses a flag that would rank nothing.
+
+Compose the answer only from what step 3 returned. If `retrieval` is `lexical` and the question is not MATCH, paraphrase recall is off; name that recipe limit, do not run FTS5, and do not invent Cypher. Report missing-engine, missing-weights or refused-import before opening source material; no substitute or invented CLI ids. Compose only from returned items: `name`, `quote`, `source_path`, the `part` each came from, and for embedding rows `score` and `rank`. A `passage` item's `quote` is the passage text itself. Never consume an `answer` field. Locate supporting quotes and cite their paths with evidence labels per `standards/conventions.md`; an inference is labeled as such. Empty items mean `Not available: the set does not cover it`. The score ranks neighbours; it does not confirm canon. Seed items remain Candidates; label their claims `Unverified: requires confirmation` and do not infer node confirmation from the set-level marker. A blank `canon_confirmed` also makes the whole set unconfirmed; never fill it during recall. An as-of date is recorded, never filtered; graph items have no temporal fields to establish standing on that date.
 
 **Hosted.** Read `experts/Memory Expert/hosted.md`, name hosted-unspecified, and stop before reading a source.
 
@@ -72,6 +80,10 @@ The answer, then a sources block: wiki pages cited, or each databased or graph q
 
 - **A graph result replaced by lexical hits or a precomposed answer.** Follow `experts/Memory Expert/graph.md`'s items contract. A lexical hit does not prove an edge, and a prerequisite stop yields no answer. A graph recipe still on `retrieval: lexical` cannot answer a paraphrase; name that limit instead of inventing MATCH or calling FTS5.
 
+- **The chooser answering instead of choosing.** Step 2 of the graph branch is a selection, and a chooser that writes prose, reasons toward the answer, or picks by what it already believes has stopped measuring the set. Pick identifiers; the answer is composed in Step 4 from what the tool returned.
+
+- **The ranked call made without `--rank`.** The flag existing in the tool is not the policy running. A graph recall that omits it retrieves a different, worse candidate set, and nothing in the result says so.
+
 - **No set named and several exist.** Ask which. Never recall from each in turn and merge; the merge is exactly the cross-set leak the scoping prevents.
 - **Filling the hole.** The set returned nothing and the answer is known. It is still `Not available`; the set is the collection, and the requester is told where the answer could be researched.
 - **A quote not located.** The engine returned text and a path, and the text is not in the file. It is labeled, not trusted; the discrepancy goes to `skills/Knowledge Curation/` as a review note.
@@ -85,5 +97,5 @@ The answer, then a sources block: wiki pages cited, or each databased or graph q
 - A question the set does not cover returned `Not available` with the reason and a route, and nothing from outside the set.
 - An as-of answer states how the date was handled and reports dated facts by their own fields.
 - A domain set's answer opens with its disclaimer.
-- Wiki answers cite pages, and an empty index plus page search yields Not available. Graph composes from located items only or reports the named prerequisite stop in `experts/Memory Expert/graph.md`. Hosted produces only its named stop.
+- Wiki answers cite pages, and an empty index plus page search yields Not available. Graph composes from located items only or reports the named prerequisite stop in `experts/Memory Expert/graph.md`. A paraphrase question on a `retrieval: embedding` graph set issued a ranked call naming `--rank`, a selection of at most three passages that composed nothing, and a `--select` call, and the answer rests on the third call's items. Hosted produces only its named stop.
 - Three varied questions, one answered, one uncovered, one as-of, each produced the appropriate backend output without intervention.

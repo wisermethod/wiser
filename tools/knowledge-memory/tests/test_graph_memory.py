@@ -56,8 +56,13 @@ class GraphContract(unittest.TestCase):
                 text += '\n' + key + ': ' + value + '\n'
         p.write_text(text)
 
-    def seed(self, foreign=False, extras=False):
-        text = 'Rest restores energy. Sleep supports recovery. Vehicles travel on roads.\n'
+    def seed(self, foreign=False, extras=False, embedded=False, long=False):
+        if embedded:
+            self.recipe(retrieval='embedding')
+        if long:
+            text = ('Rest restores energy. Sleep supports recovery. Vehicles travel on roads. ') * 60 + '\n'
+        else:
+            text = 'Rest restores energy. Sleep supports recovery. Vehicles travel on roads.\n'
         source = self.set / 'corpus/source.md'
         source.write_text(text)
         self.run_cli('chunk', '--set', str(self.set))
@@ -85,8 +90,8 @@ class GraphContract(unittest.TestCase):
         self.extraction.write_text(json.dumps(extraction))
         return json.loads(self.run_cli('ingest', '--set', str(self.set), '--store', str(self.store), '--extraction', str(self.extraction)).stdout)
 
-    def recall(self, query, code=0, **kw):
-        return self.run_cli('recall', '--set', str(self.set), '--store', str(self.store), '--query', query, code=code, **kw)
+    def recall(self, query, code=0, extra=(), **kw):
+        return self.run_cli('recall', '--set', str(self.set), '--store', str(self.store), '--query', query, *extra, code=code, **kw)
 
     def raw(self, query):
         # Test-only mutation and scalar inspection; never imports native code in unittest.
@@ -100,7 +105,7 @@ class GraphContract(unittest.TestCase):
         self.assertEqual(result['nodes_inserted'], 2)
         self.assertTrue(self.store.is_file())
         query = 'MATCH (a:Idea)-[:DEPENDS_ON]->(b:Idea) RETURN b.name,b.quote,b.source_path'
-        self.assertEqual(json.loads(self.recall(query).stdout)['items'], [dict(name='Recovery', quote='Sleep supports recovery.', source_path='corpus/source.md')])
+        self.assertEqual(json.loads(self.recall(query).stdout)['items'], [dict(name='Recovery', quote='Sleep supports recovery.', source_path='corpus/source.md', part='match')])
         self.assertEqual(self.raw("MATCH (n) WHERE n.status='Canonical' RETURN count(n)"), [[0]])
         self.assertEqual(self.raw("MATCH (n) WHERE n.status='Candidate' RETURN count(n)"), [[2]])
         self.raw('MATCH (a)-[r:DEPENDS_ON]->(b) DELETE r')
@@ -252,6 +257,182 @@ class GraphContract(unittest.TestCase):
         self.run_cli('chunk','--set',str(self.set),wrapper=wrapper)
         self.recipe(backend='databased')
         self.run_cli('bootstrap','--store',str(self.root/'stdlib.sqlite'),wrapper=wrapper)
+
+    def test_passage_ingest_on_embedding_recipe(self):
+        report = self.seed(embedded=True, extras=True)
+        self.assertGreater(report['passages_inserted'], 0)
+        self.assertGreater(report['located_in_edges'], 0)
+        self.assertEqual(self.raw('MATCH (n:Passage) RETURN count(n)')[0][0], report['passages_inserted'])
+        self.assertEqual(self.raw('MATCH ()-[r:LOCATED_IN]->() RETURN count(r)')[0][0], report['located_in_edges'])
+        self.assertGreater(self.raw('MATCH (a:Idea)-[r:LOCATED_IN]->(p:Passage) RETURN count(r)')[0][0], 0)
+        self.assertGreater(self.raw('MATCH (a:Entity)-[r:LOCATED_IN]->(p:Passage) RETURN count(r)')[0][0], 0)
+        self.assertEqual(self.raw("MATCH (n:Passage) WHERE n.status='Candidate' RETURN count(n)")[0][0],
+                         report['passages_inserted'])
+
+    def test_cypher_only_recipe_stores_no_passages(self):
+        report = self.seed()
+        self.assertEqual(report['passages_inserted'], 0)
+        self.assertEqual(report['located_in_edges'], 0)
+        self.assertEqual(report.get('passage_spans_unlocatable', 0), 0)
+        code = "import importlib,json,sys; e=importlib.import_module('ladybug'); d=e.Database(sys.argv[1],buffer_pool_size=64*1024*1024,max_num_threads=1); c=e.Connection(d); r=c.execute(sys.argv[2]); print(json.dumps(r.get_all())); r.close(); c.close(); d.close()"
+        run = subprocess.run([str(VENV), '-B', '-c', code, str(self.store), 'MATCH (n:Passage) RETURN count(n)'],
+                             env=self.env, capture_output=True, text=True)
+        self.assertTrue(run.returncode != 0 or json.loads(run.stdout) == [[0]], run.stderr)
+
+    def test_three_labelled_parts(self):
+        self.seed(embedded=True, extras=True)
+        result = json.loads(self.recall('How can I regain stamina by sleeping?').stdout)
+        self.assertNotIn('answer', result)
+        self.assertIn('parts', result)
+        items = result['items']
+        self.assertTrue(items)
+        self.assertEqual(items[0]['part'], 'passage')
+        labels = {n['part'] for n in items}
+        self.assertTrue({'passage', 'idea', 'related'} <= labels)
+        related = [n for n in items if n['part'] == 'related']
+        self.assertTrue(related)
+        self.assertTrue(all('relation' in n and 'direction' in n and 'via' in n for n in related))
+        self.assertTrue(all('answer' not in n for n in items))
+
+    def test_select_named_passages_order_and_missing_name(self):
+        self.seed(embedded=True, extras=True, long=True)
+        ranked = json.loads(self.recall('Rest recovery sleep roads').stdout)
+        passages = [n for n in ranked['items'] if n['part'] == 'passage']
+        self.assertGreaterEqual(len(passages), 2)
+        chosen = [dict(name=passages[1]['name'], score=passages[1]['score'], rank=passages[1]['rank']),
+                  dict(name=passages[0]['name'], score=passages[0]['score'], rank=passages[0]['rank'])]
+        select = self.root / 'chosen.json'
+        select.write_text(json.dumps(chosen))
+        result = json.loads(self.recall('Rest recovery sleep roads', extra=('--select', str(select))).stdout)
+        selected_passages = [n for n in result['items'] if n['part'] == 'passage']
+        self.assertEqual([n['name'] for n in selected_passages], [chosen[0]['name'], chosen[1]['name']])
+        self.assertEqual(result['selected'], [chosen[0]['name'], chosen[1]['name']])
+        self.assertEqual(selected_passages[0]['rank'], 1)
+        self.assertEqual(selected_passages[0]['cosine_rank'], chosen[0]['rank'])
+        missing = self.root / 'missing.json'
+        missing.write_text(json.dumps([dict(name='passage-9999', score=0.1, rank=1)]))
+        run = self.recall('Rest recovery sleep roads', code=1, extra=('--select', str(missing)))
+        self.assertIn('select:', run.stderr)
+        self.assertEqual(run.stdout, '')
+
+    def test_select_absent_leaves_default_path_unchanged(self):
+        self.seed(embedded=True, extras=True)
+        query = 'How can I regain stamina by sleeping?'
+        default = json.loads(self.recall(query).stdout)
+        again = json.loads(self.recall(query, extra=('--install',)).stdout)
+        self.assertEqual(json.dumps(default['items']), json.dumps(again['items']))
+        self.assertNotIn('selected', default)
+        self.assertNotIn('ranking', default)
+        self.assertNotIn('selected', again)
+        self.assertNotIn('ranking', again)
+
+    def test_rank_hybrid_and_cosine_byte_identity(self):
+        self.seed(embedded=True, extras=True, long=True)
+        query = 'Rest recovery sleep roads'
+        omitted = json.loads(self.recall(query).stdout)
+        cosine = json.loads(self.recall(query, extra=('--rank', 'cosine')).stdout)
+        self.assertEqual(json.dumps(omitted['items']), json.dumps(cosine['items']))
+        self.assertNotIn('ranking', omitted)
+        self.assertNotIn('ranking', cosine)
+        hybrid = json.loads(self.recall(query, extra=('--rank', 'hybrid')).stdout)
+        self.assertEqual(hybrid['ranking'], 'hybrid')
+        self.assertTrue(any(n.get('part') == 'passage' for n in hybrid['items']))
+        self.assertTrue(any('vector_rank' in n or 'lexical_rank' in n for n in hybrid['items']))
+
+    def test_rank_refused_on_match_select_and_unknown_mode(self):
+        self.seed(embedded=True)
+        run = self.recall('MATCH (n:Idea) RETURN n', code=1, extra=('--rank', 'hybrid'))
+        self.assertIn('rank: a ranking applies to the embedding path, not to MATCH.', run.stderr)
+        self.assertEqual(run.stdout, '')
+        select = self.root / 'chosen.json'
+        select.write_text(json.dumps([dict(name='passage-0001', score=0.5, rank=1)]))
+        run = self.recall('rest', code=1, extra=('--rank', 'hybrid', '--select', str(select)))
+        self.assertIn('rank: a selection already fixes the passages; --rank ranks nothing.', run.stderr)
+        self.assertEqual(run.stdout, '')
+        run = self.recall('rest', code=1, extra=('--rank', 'no-such-mode'))
+        self.assertIn("rank: unknown mode 'no-such-mode'", run.stderr)
+        self.assertEqual(run.stdout, '')
+
+    def test_match_path_labelled_match(self):
+        self.seed()
+        result = json.loads(self.recall('MATCH (n:Idea) WHERE n.name=\'Rest\' RETURN n').stdout)
+        self.assertEqual(result['retrieval'], 'cypher')
+        self.assertTrue(result['items'])
+        self.assertTrue(all(n['part'] == 'match' for n in result['items']))
+        self.assertEqual(result['parts'].get('match'), len(result['items']))
+        self.assertNotIn('selected', result)
+        self.assertNotIn('ranking', result)
+
+    def test_select_and_rank_refused_on_databased_recipe(self):
+        self.recipe(backend='databased')
+        run = self.run_cli('recall', '--set', str(self.set), '--store', str(self.store),
+                           '--query', 'rest', '--select', str(self.root / 'absent.json'), code=1)
+        self.assertIn('--select', run.stderr)
+        self.assertIn('graph-only', run.stderr)
+        self.assertEqual(run.stdout, '')
+        run = self.run_cli('recall', '--set', str(self.set), '--store', str(self.store),
+                           '--query', 'rest', '--rank', 'hybrid', code=1)
+        self.assertIn('--rank', run.stderr)
+        self.assertIn('graph-only', run.stderr)
+        self.assertEqual(run.stdout, '')
+
+    def test_store_without_passage_nodes_still_recalls(self):
+        self.seed(extras=True)
+        self.recipe(retrieval='embedding')
+        result = json.loads(self.recall('How can I regain stamina by sleeping?').stdout)
+        self.assertEqual(result['retrieval'], 'embedding')
+        self.assertGreater(len(result['items']), 0)
+        self.assertTrue(all(set(n) == {'name', 'quote', 'source_path', 'score', 'rank'} for n in result['items']))
+        self.assertTrue(all(n['name'] in ('Rest', 'Recovery', 'Car') for n in result['items']))
+
+
+class ShippedRecallPolicy(unittest.TestCase):
+    """The callers invoke the shipped retrieval policy, not just the flags that exist.
+
+    A flag on the tool is not a policy running. Every other test here passes while an
+    ordinary Knowledge Recall issues one plain `recall` and retrieves a worse candidate
+    set, which is the whole failure this case exists to catch. So these assertions are
+    about the skills that call the tool, and each one is run against a doctored copy of
+    the same text and required to fail, because a check that cannot fail is not a check.
+    """
+
+    PLUGIN = TOOL.parents[1]
+
+    def branch(self, path, start, end=None):
+        text = (self.PLUGIN / path).read_text(encoding='utf-8')
+        self.assertIn(start, text, '%s no longer contains %r' % (path, start))
+        body = text.split(start, 1)[1]
+        return body.split(end, 1)[0] if end and end in body else body
+
+    def assert_policy(self, recall_branch, probe_branch):
+        # The ranked candidate call names the ranking on its own call.
+        self.assertIn('--rank hybrid', recall_branch)
+        # The selection is carried through to a second call on the same question.
+        self.assertIn('--select', recall_branch)
+        # The chooser's own rules ship with it, or the step is a second reader.
+        for rule in ('selecting, not answering', 'defect', 'at most three'):
+            self.assertIn(rule, recall_branch)
+        # The second caller runs the shipped policy rather than one plain recall.
+        self.assertIn('skills/Knowledge Recall/', probe_branch)
+
+    def test_callers_name_the_shipped_policy(self):
+        recall_branch = self.branch('skills/Knowledge Recall/SKILL.md',
+                                    '**Graph.** Load', '**Hosted.**')
+        probe_branch = self.branch('skills/Knowledge Set Onboarding/SKILL.md',
+                                   '**Graph.** MATCH relation probes', '### Phase 8')
+        self.assert_policy(recall_branch, probe_branch)
+
+        # Proved able to fail, on the exact edit that would ship the flag without the
+        # policy: the ranking dropped from the caller, and the probe returned to one
+        # plain call. Neither doctored copy touches disk.
+        for doctored_recall, doctored_probe in (
+            (recall_branch.replace('--rank hybrid', ''), probe_branch),
+            (recall_branch.replace('--select', ''), probe_branch),
+            (recall_branch.replace('selecting, not answering', ''), probe_branch),
+            (recall_branch, probe_branch.replace('skills/Knowledge Recall/', '')),
+        ):
+            with self.assertRaises(AssertionError):
+                self.assert_policy(doctored_recall, doctored_probe)
 
 
 if __name__ == '__main__':
