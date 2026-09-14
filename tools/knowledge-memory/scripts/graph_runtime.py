@@ -677,7 +677,15 @@ def attach(conn, ordered):
     the better-ranked one and on the selection path is the better-chosen one.
 
     Each entry is a dict with name, text, source_path, rank, and optionally score
-    and cosine_rank.
+    and candidate_rank.
+
+    **An attachment keeps the table it came from and is deduplicated by both.** An
+    Entity and an Idea may carry the same name, since the primary key is per table,
+    and matching a one-hop traversal on the name alone attributes one's relations to
+    the other. The traversal also has to follow the endpoint's real type: a relation
+    runs from an Idea to an Idea or an Entity, so an Entity is only ever a target, and
+    a pattern that requires the attached node to be an Idea in both directions finds
+    nothing at all for an attached Entity.
     """
     items = []
     seen_idea = set()
@@ -691,8 +699,17 @@ def attach(conn, ordered):
             item['score'] = entry['score']
         item['rank'] = entry['rank']
         item['part'] = 'passage'
-        if entry.get('cosine_rank') is not None:
-            item['cosine_rank'] = entry['cosine_rank']
+        if entry.get('candidate_rank') is not None:
+            # The position this passage held in the list the caller chose from,
+            # whatever ranking produced that list. Named for what it carries: under a
+            # non-default ranking it is not a cosine rank, and a field named for one
+            # would be false on every call the shipped skill makes.
+            item['candidate_rank'] = entry['candidate_rank']
+        for key in ('vector_rank', 'lexical_rank'):
+            # Carried through a selection when the caller kept them, so the component
+            # ranks that produced the order are not lost at the second call.
+            if entry.get(key) is not None:
+                item[key] = entry[key]
         # Present only when a non-default ranking produced this list, so a default-path
         # result is unchanged. They say which ranker found each passage, which is what
         # makes a non-default ranking auditable rather than asserted.
@@ -702,27 +719,35 @@ def attach(conn, ordered):
 
         attached = []
         for table in ('Idea', 'Entity'):
-            attached.extend(execute(
-                conn,
-                'MATCH (n:' + table + ')-[:LOCATED_IN]->(p:Passage) WHERE p.name=$pid '
-                'RETURN n.name, n.quote, n.source_path ORDER BY n.name',
-                {'pid': name}))
-        for iname, iquote, ipath in attached:
-            if iname in seen_idea:
+            for row in execute(
+                    conn,
+                    'MATCH (n:' + table + ')-[:LOCATED_IN]->(p:Passage) WHERE p.name=$pid '
+                    'RETURN n.name, n.quote, n.source_path ORDER BY n.name',
+                    {'pid': name}):
+                attached.append((table, *row))
+        for itable, iname, iquote, ipath in attached:
+            if (itable, iname) in seen_idea:
                 continue
-            seen_idea.add(iname)
+            seen_idea.add((itable, iname))
             items.append(dict(name=iname, quote=iquote, source_path=ipath,
                               part='idea', via=name))
 
             for rel in SEMANTIC:
-                for direction, pattern in (
-                    ('out', 'MATCH (a:Idea)-[r:%s]->(b) WHERE a.name=$name '
-                            'RETURN b.name, r.quote, r.source_path' % rel),
-                    ('in', 'MATCH (a)-[r:%s]->(b:Idea) WHERE b.name=$name '
-                           'RETURN a.name, r.quote, r.source_path' % rel),
-                ):
+                directions = [
+                    # Incoming, and the attached node's own table is what the pattern
+                    # binds. Requiring an Idea here loses every relation into an Entity.
+                    ('in', 'MATCH (a)-[r:%s]->(b:%s) WHERE b.name=$name '
+                           'RETURN a.name, r.quote, r.source_path' % (rel, itable)),
+                ]
+                if itable == 'Idea':
+                    # Outgoing exists only from an Idea: a relation runs from an Idea to
+                    # an Idea or an Entity, so an Entity is never a source.
+                    directions.insert(0, (
+                        'out', 'MATCH (a:Idea)-[r:%s]->(b) WHERE a.name=$name '
+                               'RETURN b.name, r.quote, r.source_path' % rel))
+                for direction, pattern in directions:
                     for bname, rquote, rpath in execute(conn, pattern, {'name': iname}):
-                        key = (iname, rel, direction, bname)
+                        key = (itable, iname, rel, direction, bname)
                         if key in seen_related:
                             continue
                         seen_related.add(key)
@@ -775,9 +800,11 @@ def select_path(conn, chosen, top_k):
     every passage to rediscover numbers it already holds would spend a step for
     nothing. Each entry
     carries forward the `score` and `rank` the ranked path gave it, so no number is
-    invented here; `rank` becomes the position in the chosen order and the cosine
-    rank is preserved as `cosine_rank`, because a reordering that hides what it
-    reordered is not auditable.
+    invented here; `rank` becomes the position in the chosen order and the position it
+    held in the list the caller chose from is preserved as `candidate_rank`, because a
+    reordering that hides what it reordered is not auditable. **It is not named for the
+    cosine ranking**: under any other ranking that position is not a cosine rank, and
+    the shipped caller uses one. Component ranks the caller kept are carried through.
 
     `chosen` is a list of {"name", "score", "rank"}, best first.
     """
@@ -790,7 +817,9 @@ def select_path(conn, chosen, top_k):
             fail('select: no passage named %r in this store.' % ch['name'])
         ordered.append(dict(name=ch['name'], text=found[0], source_path=found[1],
                             score=ch.get('score'), rank=rank,
-                            cosine_rank=ch.get('rank')))
+                            candidate_rank=ch.get('rank'),
+                            vector_rank=ch.get('vector_rank'),
+                            lexical_rank=ch.get('lexical_rank')))
     return attach(conn, ordered)
 
 

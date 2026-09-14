@@ -56,7 +56,7 @@ class GraphContract(unittest.TestCase):
                 text += '\n' + key + ': ' + value + '\n'
         p.write_text(text)
 
-    def seed(self, foreign=False, extras=False, embedded=False, long=False):
+    def seed(self, foreign=False, extras=False, embedded=False, long=False, collide=False):
         if embedded:
             self.recipe(retrieval='embedding')
         if long:
@@ -83,6 +83,12 @@ class GraphContract(unittest.TestCase):
             arrays['decisions'] = [dict(summary='Rest.', quote='Rest restores energy.')]
             arrays['open_questions'] = [dict(question='More rest?', quote='Rest restores energy.')]
             arrays['ideas'].append(dict(name='Ungrounded', definition='Absent.', status='Canonical', quote='This does not occur.'))
+            if collide:
+                # An Idea and an Entity may carry the same name: the primary key is per
+                # table. A traversal matching on name alone attributes one's relations
+                # to the other, which is what the test below proves it no longer does.
+                arrays['ideas'].append(dict(name='Car', definition='A shared name.', status='Canonical', quote='Vehicles travel on roads.'))
+                arrays['idea_links'].append(dict(source_name='Car', relation='SPECIALIZES', target_name='Recovery', quote='Sleep supports recovery.'))
             arrays['idea_links'] += [dict(source_name='Rest', relation=r, target_name='Car', quote='Vehicles travel on roads.') for r in sorted(km.RELATIONS)]
         chunk = manifest['chunks'][0]
         extraction = dict(schema='extraction/0.1.0', dataset=manifest['dataset'], source_path='corpus/source.md', source_hash=manifest['source_hash'], pack='general', pack_version=km.pack_hash(TOOL / 'packs/general'), entries=[dict(chunk_index=0, chunk_hash=chunk['chunk_hash'], extracted_on='2026-09-11', **arrays)])
@@ -308,7 +314,7 @@ class GraphContract(unittest.TestCase):
         self.assertEqual([n['name'] for n in selected_passages], [chosen[0]['name'], chosen[1]['name']])
         self.assertEqual(result['selected'], [chosen[0]['name'], chosen[1]['name']])
         self.assertEqual(selected_passages[0]['rank'], 1)
-        self.assertEqual(selected_passages[0]['cosine_rank'], chosen[0]['rank'])
+        self.assertEqual(selected_passages[0]['candidate_rank'], chosen[0]['rank'])
         missing = self.root / 'missing.json'
         missing.write_text(json.dumps([dict(name='passage-9999', score=0.1, rank=1)]))
         run = self.recall('Rest recovery sleep roads', code=1, extra=('--select', str(missing)))
@@ -328,7 +334,7 @@ class GraphContract(unittest.TestCase):
         # default path unchanged is that it carries none of the keys the two flags add, so
         # a caller that never passes them sees exactly the shape it saw before they existed.
         for item in default['items']:
-            for added in ('cosine_rank', 'vector_rank', 'lexical_rank'):
+            for added in ('candidate_rank', 'vector_rank', 'lexical_rank'):
                 self.assertNotIn(added, item)
         # The whole-corpus comparison against the runtime this was ported from is a control
         # in the gate that measured it; it needs that corpus and does not belong here.
@@ -518,6 +524,46 @@ class GraphContract(unittest.TestCase):
         rrf_order, _ = rank_passages.rank('hybrid-rrf', 'alpha', cosine_of, lexical, 4)
         self.assertNotEqual(rrf_order, order, 'the consensus merge is not the interleave')
         self.assertTrue(all('vector_rank' in d for d in detail.values()))
+
+
+    def related_of(self, items, name):
+        return [i for i in items if i.get('part') == 'related' and i.get('via') == name]
+
+    def test_an_attached_entity_keeps_its_incoming_relations(self):
+        self.seed(embedded=True, extras=True, long=True)
+        # `Car` is an Entity and the fixture points six typed relations at it from `Rest`.
+        # A relation runs from an Idea to an Idea or an Entity, so an Entity is only ever a
+        # target: a traversal that requires the attached node to be an Idea in both
+        # directions finds nothing at all for it.
+        found = None
+        for query in ('Vehicles travel on roads', 'roads transport vehicles', 'Car'):
+            items = json.loads(self.recall(query).stdout)['items']
+            if any(i.get('part') == 'idea' and i['name'] == 'Car' for i in items):
+                found = items
+                break
+        self.assertIsNotNone(found, 'no recall attached the Entity Car; fixture cannot test this')
+        incoming = self.related_of(found, 'Car')
+        self.assertTrue(incoming, 'an attached Entity returned no related items at all')
+        self.assertTrue(all(i['direction'] == 'in' for i in incoming),
+                        'an Entity is never a relation source')
+        self.assertEqual({i['name'] for i in incoming}, {'Rest'})
+        self.assertTrue({i['relation'] for i in incoming} <= set(
+            'EXEMPLIFIES DEPENDS_ON CONTRADICTS SPECIALIZES DECIDED_IN APPLIES_TO'.split()))
+
+    def test_an_ambiguous_endpoint_is_unresolved_rather_than_guessed(self):
+        # The one-hop traversal is keyed on (table, name), because an Idea and an Entity
+        # may carry the same name and matching on the name alone would give each the
+        # other's relations. **That collision cannot arise through ingest**, and this is
+        # why: an edge whose target name matches in both tables is counted unresolved and
+        # no edge is written. Asserted rather than assumed, because the traversal fix is
+        # only load-bearing for a store built some other way.
+        report = self.seed(embedded=True, extras=True, long=True, collide=True)
+        self.assertGreater(report['unresolved_links'], 0,
+                           'an ambiguous endpoint was resolved rather than counted')
+        rows = self.raw("MATCH (a)-[r]->(b) WHERE b.name='Car' RETURN label(a), label(b)")
+        for a_label, b_label in rows:
+            self.assertNotEqual(b_label, 'Idea',
+                                'an edge was written to the colliding Idea named Car')
 
 
 class ShippedRecallPolicy(unittest.TestCase):
