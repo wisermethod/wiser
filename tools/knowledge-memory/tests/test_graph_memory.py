@@ -56,8 +56,13 @@ class GraphContract(unittest.TestCase):
                 text += '\n' + key + ': ' + value + '\n'
         p.write_text(text)
 
-    def seed(self, foreign=False, extras=False):
-        text = 'Rest restores energy. Sleep supports recovery. Vehicles travel on roads.\n'
+    def seed(self, foreign=False, extras=False, embedded=False, long=False, collide=False):
+        if embedded:
+            self.recipe(retrieval='embedding')
+        if long:
+            text = ('Rest restores energy. Sleep supports recovery. Vehicles travel on roads. ') * 60 + '\n'
+        else:
+            text = 'Rest restores energy. Sleep supports recovery. Vehicles travel on roads.\n'
         source = self.set / 'corpus/source.md'
         source.write_text(text)
         self.run_cli('chunk', '--set', str(self.set))
@@ -78,6 +83,12 @@ class GraphContract(unittest.TestCase):
             arrays['decisions'] = [dict(summary='Rest.', quote='Rest restores energy.')]
             arrays['open_questions'] = [dict(question='More rest?', quote='Rest restores energy.')]
             arrays['ideas'].append(dict(name='Ungrounded', definition='Absent.', status='Canonical', quote='This does not occur.'))
+            if collide:
+                # An Idea and an Entity may carry the same name: the primary key is per
+                # table. A traversal matching on name alone attributes one's relations
+                # to the other, which is what the test below proves it no longer does.
+                arrays['ideas'].append(dict(name='Car', definition='A shared name.', status='Canonical', quote='Vehicles travel on roads.'))
+                arrays['idea_links'].append(dict(source_name='Car', relation='SPECIALIZES', target_name='Recovery', quote='Sleep supports recovery.'))
             arrays['idea_links'] += [dict(source_name='Rest', relation=r, target_name='Car', quote='Vehicles travel on roads.') for r in sorted(km.RELATIONS)]
         chunk = manifest['chunks'][0]
         extraction = dict(schema='extraction/0.1.0', dataset=manifest['dataset'], source_path='corpus/source.md', source_hash=manifest['source_hash'], pack='general', pack_version=km.pack_hash(TOOL / 'packs/general'), entries=[dict(chunk_index=0, chunk_hash=chunk['chunk_hash'], extracted_on='2026-09-11', **arrays)])
@@ -85,8 +96,8 @@ class GraphContract(unittest.TestCase):
         self.extraction.write_text(json.dumps(extraction))
         return json.loads(self.run_cli('ingest', '--set', str(self.set), '--store', str(self.store), '--extraction', str(self.extraction)).stdout)
 
-    def recall(self, query, code=0, **kw):
-        return self.run_cli('recall', '--set', str(self.set), '--store', str(self.store), '--query', query, code=code, **kw)
+    def recall(self, query, code=0, extra=(), **kw):
+        return self.run_cli('recall', '--set', str(self.set), '--store', str(self.store), '--query', query, *extra, code=code, **kw)
 
     def raw(self, query):
         # Test-only mutation and scalar inspection; never imports native code in unittest.
@@ -100,7 +111,7 @@ class GraphContract(unittest.TestCase):
         self.assertEqual(result['nodes_inserted'], 2)
         self.assertTrue(self.store.is_file())
         query = 'MATCH (a:Idea)-[:DEPENDS_ON]->(b:Idea) RETURN b.name,b.quote,b.source_path'
-        self.assertEqual(json.loads(self.recall(query).stdout)['items'], [dict(name='Recovery', quote='Sleep supports recovery.', source_path='corpus/source.md')])
+        self.assertEqual(json.loads(self.recall(query).stdout)['items'], [dict(name='Recovery', quote='Sleep supports recovery.', source_path='corpus/source.md', part='match')])
         self.assertEqual(self.raw("MATCH (n) WHERE n.status='Canonical' RETURN count(n)"), [[0]])
         self.assertEqual(self.raw("MATCH (n) WHERE n.status='Candidate' RETURN count(n)"), [[2]])
         self.raw('MATCH (a)-[r:DEPENDS_ON]->(b) DELETE r')
@@ -252,6 +263,356 @@ class GraphContract(unittest.TestCase):
         self.run_cli('chunk','--set',str(self.set),wrapper=wrapper)
         self.recipe(backend='databased')
         self.run_cli('bootstrap','--store',str(self.root/'stdlib.sqlite'),wrapper=wrapper)
+
+    def test_passage_ingest_on_embedding_recipe(self):
+        report = self.seed(embedded=True, extras=True)
+        self.assertGreater(report['passages_inserted'], 0)
+        self.assertGreater(report['located_in_edges'], 0)
+        self.assertEqual(self.raw('MATCH (n:Passage) RETURN count(n)')[0][0], report['passages_inserted'])
+        self.assertEqual(self.raw('MATCH ()-[r:LOCATED_IN]->() RETURN count(r)')[0][0], report['located_in_edges'])
+        self.assertGreater(self.raw('MATCH (a:Idea)-[r:LOCATED_IN]->(p:Passage) RETURN count(r)')[0][0], 0)
+        self.assertGreater(self.raw('MATCH (a:Entity)-[r:LOCATED_IN]->(p:Passage) RETURN count(r)')[0][0], 0)
+        self.assertEqual(self.raw("MATCH (n:Passage) WHERE n.status='Candidate' RETURN count(n)")[0][0],
+                         report['passages_inserted'])
+
+    def test_cypher_only_recipe_stores_no_passages(self):
+        report = self.seed()
+        self.assertEqual(report['passages_inserted'], 0)
+        self.assertEqual(report['located_in_edges'], 0)
+        self.assertEqual(report.get('passage_spans_unlocatable', 0), 0)
+        code = "import importlib,json,sys; e=importlib.import_module('ladybug'); d=e.Database(sys.argv[1],buffer_pool_size=64*1024*1024,max_num_threads=1); c=e.Connection(d); r=c.execute(sys.argv[2]); print(json.dumps(r.get_all())); r.close(); c.close(); d.close()"
+        run = subprocess.run([str(VENV), '-B', '-c', code, str(self.store), 'MATCH (n:Passage) RETURN count(n)'],
+                             env=self.env, capture_output=True, text=True)
+        self.assertTrue(run.returncode != 0 or json.loads(run.stdout) == [[0]], run.stderr)
+
+    def test_three_labelled_parts(self):
+        self.seed(embedded=True, extras=True)
+        result = json.loads(self.recall('How can I regain stamina by sleeping?').stdout)
+        self.assertNotIn('answer', result)
+        self.assertIn('parts', result)
+        items = result['items']
+        self.assertTrue(items)
+        self.assertEqual(items[0]['part'], 'passage')
+        labels = {n['part'] for n in items}
+        self.assertTrue({'passage', 'idea', 'related'} <= labels)
+        related = [n for n in items if n['part'] == 'related']
+        self.assertTrue(related)
+        self.assertTrue(all('relation' in n and 'direction' in n and 'via' in n for n in related))
+        self.assertTrue(all('answer' not in n for n in items))
+
+    def test_select_named_passages_order_and_missing_name(self):
+        self.seed(embedded=True, extras=True, long=True)
+        ranked = json.loads(self.recall('Rest recovery sleep roads').stdout)
+        passages = [n for n in ranked['items'] if n['part'] == 'passage']
+        self.assertGreaterEqual(len(passages), 2)
+        chosen = [dict(name=passages[1]['name'], score=passages[1]['score'], rank=passages[1]['rank']),
+                  dict(name=passages[0]['name'], score=passages[0]['score'], rank=passages[0]['rank'])]
+        select = self.root / 'chosen.json'
+        select.write_text(json.dumps(chosen))
+        result = json.loads(self.recall('Rest recovery sleep roads', extra=('--select', str(select))).stdout)
+        selected_passages = [n for n in result['items'] if n['part'] == 'passage']
+        self.assertEqual([n['name'] for n in selected_passages], [chosen[0]['name'], chosen[1]['name']])
+        self.assertEqual(result['selected'], [chosen[0]['name'], chosen[1]['name']])
+        self.assertEqual(selected_passages[0]['rank'], 1)
+        self.assertEqual(selected_passages[0]['candidate_rank'], chosen[0]['rank'])
+        missing = self.root / 'missing.json'
+        missing.write_text(json.dumps([dict(name='passage-9999', score=0.1, rank=1)]))
+        run = self.recall('Rest recovery sleep roads', code=1, extra=('--select', str(missing)))
+        self.assertIn('select:', run.stderr)
+        self.assertEqual(run.stdout, '')
+
+    def test_select_absent_leaves_default_path_unchanged(self):
+        self.seed(embedded=True, extras=True)
+        query = 'How can I regain stamina by sleeping?'
+        default = json.loads(self.recall(query).stdout)
+        again = json.loads(self.recall(query, extra=('--install',)).stdout)
+        self.assertEqual(json.dumps(default['items']), json.dumps(again['items']))
+        for result in (default, again):
+            self.assertNotIn('selected', result)
+            self.assertNotIn('ranking', result)
+        # Two runs of one implementation show determinism and nothing more. What makes the
+        # default path unchanged is that it carries none of the keys the two flags add, so
+        # a caller that never passes them sees exactly the shape it saw before they existed.
+        for item in default['items']:
+            for added in ('candidate_rank', 'vector_rank', 'lexical_rank'):
+                self.assertNotIn(added, item)
+        # The whole-corpus comparison against the runtime this was ported from is a control
+        # in the gate that measured it; it needs that corpus and does not belong here.
+
+    def test_rank_hybrid_and_cosine_byte_identity(self):
+        self.seed(embedded=True, extras=True, long=True)
+        query = 'Rest recovery sleep roads'
+        omitted = json.loads(self.recall(query).stdout)
+        cosine = json.loads(self.recall(query, extra=('--rank', 'cosine')).stdout)
+        self.assertEqual(json.dumps(omitted['items']), json.dumps(cosine['items']))
+        self.assertNotIn('ranking', omitted)
+        self.assertNotIn('ranking', cosine)
+        hybrid = json.loads(self.recall(query, extra=('--rank', 'hybrid')).stdout)
+        self.assertEqual(hybrid['ranking'], 'hybrid')
+        self.assertTrue(any(n.get('part') == 'passage' for n in hybrid['items']))
+        self.assertTrue(any('vector_rank' in n or 'lexical_rank' in n for n in hybrid['items']))
+
+    def test_rank_refused_on_match_select_and_unknown_mode(self):
+        self.seed(embedded=True)
+        run = self.recall('MATCH (n:Idea) RETURN n', code=1, extra=('--rank', 'hybrid'))
+        self.assertIn('rank: a ranking applies to the embedding path, not to MATCH.', run.stderr)
+        self.assertEqual(run.stdout, '')
+        select = self.root / 'chosen.json'
+        select.write_text(json.dumps([dict(name='passage-0001', score=0.5, rank=1)]))
+        run = self.recall('rest', code=1, extra=('--rank', 'hybrid', '--select', str(select)))
+        self.assertIn('rank: a selection already fixes the passages; --rank ranks nothing.', run.stderr)
+        self.assertEqual(run.stdout, '')
+        run = self.recall('rest', code=1, extra=('--rank', 'no-such-mode'))
+        self.assertIn("rank: unknown mode 'no-such-mode'", run.stderr)
+        self.assertEqual(run.stdout, '')
+
+    def test_match_path_labelled_match(self):
+        self.seed()
+        result = json.loads(self.recall('MATCH (n:Idea) WHERE n.name=\'Rest\' RETURN n').stdout)
+        self.assertEqual(result['retrieval'], 'cypher')
+        self.assertTrue(result['items'])
+        self.assertTrue(all(n['part'] == 'match' for n in result['items']))
+        self.assertEqual(result['parts'].get('match'), len(result['items']))
+        self.assertNotIn('selected', result)
+        self.assertNotIn('ranking', result)
+
+    def test_select_and_rank_refused_on_databased_recipe(self):
+        self.recipe(backend='databased')
+        run = self.run_cli('recall', '--set', str(self.set), '--store', str(self.store),
+                           '--query', 'rest', '--select', str(self.root / 'absent.json'), code=1)
+        self.assertIn('--select', run.stderr)
+        self.assertIn('graph-only', run.stderr)
+        self.assertEqual(run.stdout, '')
+        run = self.run_cli('recall', '--set', str(self.set), '--store', str(self.store),
+                           '--query', 'rest', '--rank', 'hybrid', code=1)
+        self.assertIn('--rank', run.stderr)
+        self.assertIn('graph-only', run.stderr)
+        self.assertEqual(run.stdout, '')
+
+    def test_store_without_passage_nodes_still_recalls(self):
+        self.seed(extras=True)
+        self.recipe(retrieval='embedding')
+        result = json.loads(self.recall('How can I regain stamina by sleeping?').stdout)
+        self.assertEqual(result['retrieval'], 'embedding')
+        self.assertGreater(len(result['items']), 0)
+        self.assertTrue(all(set(n) == {'name', 'quote', 'source_path', 'score', 'rank'} for n in result['items']))
+        self.assertTrue(all(n['name'] in ('Rest', 'Recovery', 'Car') for n in result['items']))
+
+
+    def test_reingest_is_idempotent_for_passages_and_their_edges(self):
+        first = self.seed(embedded=True, extras=True, long=True)
+        self.assertGreater(first['passages_inserted'], 0)
+        self.assertEqual(first['passages_skipped'], 0)
+        self.assertGreater(first['located_in_edges'], 0)
+        before = (self.raw('MATCH (p:Passage) RETURN count(p)'),
+                  self.raw('MATCH ()-[r:LOCATED_IN]->() RETURN count(r)'))
+        again = json.loads(self.run_cli('ingest', '--set', str(self.set), '--store', str(self.store), '--extraction', str(self.extraction)).stdout)
+        # The whole cut is recognised and none of it is written a second time. Without
+        # this a retried ingest doubles the searchable corpus under fresh names.
+        self.assertEqual(again['passages_inserted'], 0)
+        self.assertEqual(again['passages_skipped'], first['passages_inserted'])
+        self.assertEqual(again['located_in_edges'], 0)
+        self.assertEqual((self.raw('MATCH (p:Passage) RETURN count(p)'),
+                          self.raw('MATCH ()-[r:LOCATED_IN]->() RETURN count(r)')), before)
+
+    def test_changed_source_is_refused_rather_than_half_replaced(self):
+        self.seed(embedded=True, extras=True, long=True)
+        before = self.raw('MATCH (p:Passage) RETURN count(p)')
+        held = self.raw('MATCH (p:Passage) RETURN p.text ORDER BY p.name LIMIT 1')
+        # The same source path with different text. Identity by span alone would skip the
+        # new passage and attach this run's nodes to the old one, behind a success.
+        (self.set / 'corpus/source.md').write_text(
+            ('Rest renews vigour. Sleep aids recuperation. Lorries travel on roads. ') * 60 + '\n')
+        self.run_cli('chunk', '--set', str(self.set))
+        manifest = json.loads((self.set / 'extraction/source.chunks.json').read_text())
+        extraction = json.loads(self.extraction.read_text())
+        extraction['source_hash'] = manifest['source_hash']
+        extraction['entries'][0]['chunk_hash'] = manifest['chunks'][0]['chunk_hash']
+        for idea in extraction['entries'][0]['ideas']:
+            idea['quote'] = 'Rest renews vigour.'
+        extraction['entries'][0]['idea_links'] = []
+        extraction['entries'][0]['entities'] = []
+        self.extraction.write_text(json.dumps(extraction))
+        run = self.run_cli('ingest', '--set', str(self.set), '--store', str(self.store), '--extraction', str(self.extraction), code=1)
+        self.assertIn('passage-source-changed', run.stderr)
+        self.assertEqual(self.raw('MATCH (p:Passage) RETURN count(p)'), before)
+        self.assertEqual(self.raw('MATCH (p:Passage) RETURN p.text ORDER BY p.name LIMIT 1'), held)
+
+    def test_lexical_ingest_into_a_passage_store_is_refused(self):
+        self.seed(embedded=True, extras=True, long=True)
+        before = self.raw('MATCH (n) RETURN count(n)')
+        # The other direction of the same invariant: a node with no passage is unreachable
+        # by embedding recall the moment the recipe goes back to embedding.
+        self.recipe(retrieval='lexical')
+        run = self.run_cli('ingest', '--set', str(self.set), '--store', str(self.store), '--extraction', str(self.extraction), code=1)
+        self.assertIn('passage-layer-mismatch', run.stderr)
+        self.assertEqual(self.raw('MATCH (n) RETURN count(n)'), before)
+
+    def test_half_migrated_store_is_refused_not_degraded(self):
+        self.seed(extras=True)
+        before = self.raw('MATCH (n) RETURN count(n)')
+        self.recipe(retrieval='embedding')
+        run = self.run_cli('ingest', '--set', str(self.set), '--store', str(self.store), '--extraction', str(self.extraction), code=1)
+        self.assertIn('passage-layer-mismatch', run.stderr)
+        # Refused before any write: the node count is unmoved and no Passage table was
+        # created, so the store is not left half converted by the refusal itself.
+        self.assertEqual(self.raw('MATCH (n) RETURN count(n)'), before)
+        probe = subprocess.run([str(VENV), '-B', '-c',
+                                "import importlib,sys; e=importlib.import_module('ladybug'); "
+                                "d=e.Database(sys.argv[1],buffer_pool_size=64*1024*1024,max_num_threads=1); "
+                                "c=e.Connection(d); c.execute('MATCH (p:Passage) RETURN count(p)')",
+                                str(self.store)], env=self.env, capture_output=True, text=True)
+        self.assertNotEqual(probe.returncode, 0, 'a Passage table was created by a refused ingest')
+
+    def test_rank_refused_where_it_ranks_nothing_whatever_its_value(self):
+        self.seed(embedded=True, extras=True, long=True)
+        # Supplied and inapplicable is refused by name, `cosine` included: a flag accepted
+        # and ignored is indistinguishable from one that applied.
+        for value in ('cosine', 'hybrid'):
+            run = self.recall('  mAtCh (n:Idea) RETURN n', code=1, extra=('--rank', value))
+            self.assertIn('rank:', run.stderr)
+        chosen = self.root / 'chosen.json'
+        items = json.loads(self.recall('rest').stdout)['items']
+        names = [i['name'] for i in items if i.get('part') == 'passage'][:1]
+        chosen.write_text(json.dumps([dict(name=n, score=0.5, rank=1) for n in names]))
+        for value in ('cosine', 'hybrid'):
+            run = self.recall('rest', code=1, extra=('--select', str(chosen), '--rank', value))
+            self.assertIn('rank:', run.stderr)
+
+    def test_rank_refused_on_a_store_holding_no_passages(self):
+        self.seed(extras=True)
+        self.recipe(retrieval='embedding')
+        run = self.recall('How can I regain stamina by sleeping?', code=1, extra=('--rank', 'hybrid'))
+        self.assertIn('rank:', run.stderr)
+        self.assertIn('no passages', run.stderr)
+        # And the same call without the flag still answers from the nodes.
+        result = json.loads(self.recall('How can I regain stamina by sleeping?').stdout)
+        self.assertTrue(result['items'])
+        self.assertNotIn('ranking', result)
+
+    def test_embedding_ingest_stops_before_source_when_weights_absent(self):
+        self.seed(extras=True)
+        store_before = self.store.read_bytes()
+        self.recipe(retrieval='embedding', embedding_file='not-present.onnx')
+        # The audit hook fails the run if the corpus or the store is opened at all, so this
+        # proves the stop precedes source access rather than merely preceding the write.
+        run = self.run_cli('ingest', '--set', str(self.set), '--store', str(self.store), '--extraction', str(self.extraction), code=1, wrapper=self.audit_wrapper(), interpreter=VENV)
+        self.assertIn('missing-weights', run.stderr)
+        # The audit hook watches this store and this corpus, so the run is failed if either
+        # is opened at all. The store exists because the seed ingest created it, so what is
+        # asserted is that this refused run left it untouched.
+        self.assertEqual(self.store.read_bytes(), store_before)
+
+    def test_hybrid_is_an_interleave_and_rrf_is_not(self):
+        # The CLI test above proves the wiring; this proves the merge is the one declared.
+        # A hybrid that simply decorated the cosine order with metadata would pass that
+        # test and fail this one.
+        spec = importlib.util.spec_from_file_location('rank_passages_under_test', TOOL / 'scripts/rank_passages.py')
+        rank_passages = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(rank_passages)
+        texts = ['alpha alpha alpha', 'beta beta', 'gamma', 'delta', 'epsilon']
+        lexical = rank_passages.Lexical(texts)
+        # Cosine and lexical disagree completely: cosine likes the last, lexical the first.
+        cosine_of = lambda _text: [0.1, 0.2, 0.3, 0.4, 0.5]
+        order, detail = rank_passages.rank('hybrid', 'alpha', cosine_of, lexical, 4)
+        vector = rank_passages.order_of(cosine_of('alpha'))
+        lex = rank_passages.order_of(lexical.scores('alpha'))
+        self.assertEqual(order, rank_passages.interleave([vector, lex], 4))
+        self.assertNotEqual(order, vector[:4], 'hybrid returned the cosine order unchanged')
+        self.assertEqual(order[0], vector[0], 'the interleave takes the vector ranking first')
+        self.assertEqual(order[1], lex[0], 'the interleave takes the lexical ranking second')
+        rrf_order, _ = rank_passages.rank('hybrid-rrf', 'alpha', cosine_of, lexical, 4)
+        self.assertNotEqual(rrf_order, order, 'the consensus merge is not the interleave')
+        self.assertTrue(all('vector_rank' in d for d in detail.values()))
+
+
+    def related_of(self, items, name):
+        return [i for i in items if i.get('part') == 'related' and i.get('via') == name]
+
+    def test_an_attached_entity_keeps_its_incoming_relations(self):
+        self.seed(embedded=True, extras=True, long=True)
+        # `Car` is an Entity and the fixture points six typed relations at it from `Rest`.
+        # A relation runs from an Idea to an Idea or an Entity, so an Entity is only ever a
+        # target: a traversal that requires the attached node to be an Idea in both
+        # directions finds nothing at all for it.
+        found = None
+        for query in ('Vehicles travel on roads', 'roads transport vehicles', 'Car'):
+            items = json.loads(self.recall(query).stdout)['items']
+            if any(i.get('part') == 'idea' and i['name'] == 'Car' for i in items):
+                found = items
+                break
+        self.assertIsNotNone(found, 'no recall attached the Entity Car; fixture cannot test this')
+        incoming = self.related_of(found, 'Car')
+        self.assertTrue(incoming, 'an attached Entity returned no related items at all')
+        self.assertTrue(all(i['direction'] == 'in' for i in incoming),
+                        'an Entity is never a relation source')
+        self.assertEqual({i['name'] for i in incoming}, {'Rest'})
+        self.assertTrue({i['relation'] for i in incoming} <= set(
+            'EXEMPLIFIES DEPENDS_ON CONTRADICTS SPECIALIZES DECIDED_IN APPLIES_TO'.split()))
+
+    def test_an_ambiguous_endpoint_is_unresolved_rather_than_guessed(self):
+        # The one-hop traversal is keyed on (table, name), because an Idea and an Entity
+        # may carry the same name and matching on the name alone would give each the
+        # other's relations. **That collision cannot arise through ingest**, and this is
+        # why: an edge whose target name matches in both tables is counted unresolved and
+        # no edge is written. Asserted rather than assumed, because the traversal fix is
+        # only load-bearing for a store built some other way.
+        report = self.seed(embedded=True, extras=True, long=True, collide=True)
+        self.assertGreater(report['unresolved_links'], 0,
+                           'an ambiguous endpoint was resolved rather than counted')
+        rows = self.raw("MATCH (a)-[r]->(b) WHERE b.name='Car' RETURN label(a), label(b)")
+        for a_label, b_label in rows:
+            self.assertNotEqual(b_label, 'Idea',
+                                'an edge was written to the colliding Idea named Car')
+
+
+class ShippedRecallPolicy(unittest.TestCase):
+    """The callers invoke the shipped retrieval policy, not just the flags that exist.
+
+    A flag on the tool is not a policy running. Every other test here passes while an
+    ordinary Knowledge Recall issues one plain `recall` and retrieves a worse candidate
+    set, which is the whole failure this case exists to catch. So these assertions are
+    about the skills that call the tool, and each one is run against a doctored copy of
+    the same text and required to fail, because a check that cannot fail is not a check.
+    """
+
+    PLUGIN = TOOL.parents[1]
+
+    def branch(self, path, start, end=None):
+        text = (self.PLUGIN / path).read_text(encoding='utf-8')
+        self.assertIn(start, text, '%s no longer contains %r' % (path, start))
+        body = text.split(start, 1)[1]
+        return body.split(end, 1)[0] if end and end in body else body
+
+    def assert_policy(self, recall_branch, probe_branch):
+        # The ranked candidate call names the ranking on its own call.
+        self.assertIn('--rank hybrid', recall_branch)
+        # The selection is carried through to a second call on the same question.
+        self.assertIn('--select', recall_branch)
+        # The chooser's own rules ship with it, or the step is a second reader.
+        for rule in ('selecting, not answering', 'defect', 'at most three'):
+            self.assertIn(rule, recall_branch)
+        # The second caller runs the shipped policy rather than one plain recall.
+        self.assertIn('skills/Knowledge Recall/', probe_branch)
+
+    def test_callers_name_the_shipped_policy(self):
+        recall_branch = self.branch('skills/Knowledge Recall/SKILL.md',
+                                    '**Graph.** Load', '**Hosted.**')
+        probe_branch = self.branch('skills/Knowledge Set Onboarding/SKILL.md',
+                                   '**Graph.** MATCH relation probes', '### Phase 8')
+        self.assert_policy(recall_branch, probe_branch)
+
+        # Proved able to fail, on the exact edit that would ship the flag without the
+        # policy: the ranking dropped from the caller, and the probe returned to one
+        # plain call. Neither doctored copy touches disk.
+        for doctored_recall, doctored_probe in (
+            (recall_branch.replace('--rank hybrid', ''), probe_branch),
+            (recall_branch.replace('--select', ''), probe_branch),
+            (recall_branch.replace('selecting, not answering', ''), probe_branch),
+            (recall_branch, probe_branch.replace('skills/Knowledge Recall/', '')),
+        ):
+            with self.assertRaises(AssertionError):
+                self.assert_policy(doctored_recall, doctored_probe)
 
 
 if __name__ == '__main__':

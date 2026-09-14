@@ -14,7 +14,7 @@ USAGE = """Usage: knowledge_memory.py help | --help | -h
   chunk --set DIR
   chunk --source FILE --out DIR --dataset NAME [--max-chars N]
   ingest --set DIR --store FILE --extraction FILE [--install]
-  recall --set DIR --store FILE --query TEXT [--as-of YYYY-MM-DD] [--top-k N] [--install]
+  recall --set DIR --store FILE --query TEXT [--as-of YYYY-MM-DD] [--top-k N] [--select FILE] [--rank MODE] [--install]
   wiki-lint --set DIR
   review-pass --set DIR --store FILE
   promote --set DIR --store FILE (--decided FILE | --from-canon | --replay)
@@ -32,6 +32,7 @@ and sentences, at most 6000 characters by default. Convert binaries first.
 recall returns items only: databased lexical terms and outgoing links (one hop);
 graph MATCH-only Cypher, or local embeddings with retrieval: embedding.
 as-of is recorded, never filtered. Default top-k is 15.
+--select and --rank are graph-only; --rank defaults to cosine.
 Unknown, repeated and command-inapplicable flags are refused by name.
 forget without confirm reports the planned store changes and writes nothing.
 --install is a bare flag, accepted on every command; only graph work and check
@@ -69,7 +70,7 @@ OPTIONS = {
     "bootstrap": ({"--store"}, {"--set"}),
     "chunk": (set(), {"--set", "--source", "--out", "--dataset", "--max-chars"}),
     "ingest": ({"--set", "--store", "--extraction"}, set()),
-    "recall": ({"--set", "--store", "--query"}, {"--as-of", "--top-k"}),
+    "recall": ({"--set", "--store", "--query"}, {"--as-of", "--top-k", "--select", "--rank"}),
     "wiki-lint": ({"--set"}, set()),
     "review-pass": ({"--set", "--store"}, set()),
     "promote": ({"--set", "--store"}, {"--decided", "--from-canon", "--replay"}),
@@ -963,7 +964,7 @@ def ingest(v):
     for c in manifest['chunks']:
         shape(text[c['char_start']:c['char_end']] == c['text'], 'manifest text differs from source on disk')
     if graph:
-        return runtime.ingest(path, recipe, extraction, accepted, validation, RELATIONS)
+        return runtime.ingest(path, recipe, extraction, accepted, validation, RELATIONS, manifest)
     state = ledger(root)
     identity = dict(dataset=recipe['dataset'], source_hash=extraction['source_hash'], chunk_hashes=[c['chunk_hash'] for c in manifest['chunks']], pack_hash=extraction['pack_version'])
     key = extraction['source_hash']
@@ -1522,8 +1523,22 @@ def main(argv=None):
     if command not in ('check', 'wiki-lint') and sys.version_info < MIN_PYTHON:
         fail('this script needs Python 3.11 or newer; this interpreter is %s. Run with python3.11 or newer.' % '.'.join(map(str, sys.version_info[:3])))
     graph = recipe is not None and recipe['backend'] == 'graph' and command in ('ingest', 'recall')
+    if command == 'recall' and recipe is not None and recipe['backend'] != 'graph':
+        for flag in ('select', 'rank'):
+            if flag in values:
+                fail('--%s is graph-only.' % flag)
     if graph or (command == 'check' and values.get('install')):
         graph_ready(values)
+        # Graph ingest on an embedding recipe cuts the corpus at the embedder's window, so
+        # it needs the tokenizer. The check runs here, before any source is read, because
+        # experts/Memory Expert/graph.md promises every graph prerequisite stops before
+        # source or store access, and a stop placed after the source read is not that stop.
+        if command == 'ingest' and recipe.get('retrieval') == 'embedding':
+            # Loading it, not checking that its file exists. A tokenizer that is present
+            # and unreadable, or a `tokenizers` package that is absent, would otherwise
+            # fail after the source had been read, which is the stop this line exists to
+            # move.
+            runtime_module().cutting_tokenizer(recipe)
     if not graph and command not in ('check', 'wiki-lint', 'chunk'):
         import sqlite3
         if not check({})['fts5']:

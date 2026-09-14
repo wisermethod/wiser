@@ -87,7 +87,9 @@ An entry with zero nodes in every array is valid and means the chunk yielded not
 
 ## 3. Retrieval item
 
-Returned by the tool's `recall`, as the `items` array of its stdout object. The tool returns items and never an answer; the recall skill composes the answer from items alone.
+Returned by **databased** `recall`, as the `items` array of its stdout object. The tool returns items and never an answer; the recall skill composes the answer from items alone.
+
+**Graph's result object is a different shape and is not described here.** Its homes are `experts/Memory Expert/graph.md` Query and retrieval and `TOOL.md` Graph data and retrieval. A copy of it here would be the third home the item contract is not allowed to gain, which is why this paragraph is a pointer and carries no fields.
 
 ```json
 {
