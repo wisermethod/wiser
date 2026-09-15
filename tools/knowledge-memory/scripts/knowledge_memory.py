@@ -31,7 +31,8 @@ chunk accepts UTF-8 .md/.txt, preserves text, splits at headings then paragraphs
 and sentences, at most 6000 characters by default. Convert binaries first.
 recall returns items only: databased lexical terms and outgoing links (one hop);
 graph MATCH-only Cypher, or local embeddings with retrieval: embedding.
-as-of is recorded, never filtered. Default top-k is 15.
+as-of is recorded, never filtered. Default top-k is 15, and 25 for graph's
+passage candidate pool; an explicit --top-k governs every path.
 --select and --rank are graph-only; --rank defaults to cosine.
 Unknown, repeated and command-inapplicable flags are refused by name.
 forget without confirm reports the planned store changes and writes nothing.

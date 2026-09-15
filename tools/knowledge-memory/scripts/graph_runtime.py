@@ -826,7 +826,15 @@ def select_path(conn, chosen, top_k):
 def recall(values, recipe, screen, positive):
     query = values['query']
     match = bool(re.match(r'^\s*MATCH\b', query, re.I))
-    top_k = positive(values.get('top_k', '15'), '--top-k')
+    # The default splits, and only the default. A window sized for a 541-passage book hid
+    # bearing passages at ranks 16 to 39 of a 1,012-passage store, so the passage candidate
+    # pool defaults to 25. The MATCH path and legacy node retrieval were measured at no
+    # window and keep 15: a value chosen on passage-ranking evidence does not get to move
+    # two paths that evidence says nothing about. An explicit --top-k is the caller's own
+    # choice and still governs every path, so the two defaults never diverge under a flag.
+    supplied = values.get('top_k')
+    top_k = positive('15' if supplied is None else supplied, '--top-k')
+    pool_k = 25 if supplied is None else top_k
     mode = values.get('rank', 'cosine')
     # Whether the flag was supplied, not what it was set to. A call that ranks nothing
     # must refuse `--rank cosine` exactly as it refuses `--rank hybrid`: accepting a flag
@@ -881,7 +889,7 @@ def recall(values, recipe, screen, positive):
             if chosen is not None:
                 items = select_path(conn, chosen, top_k)
             elif has_passages(conn):
-                items = three_part(conn, runtime, query, top_k, mode)
+                items = three_part(conn, runtime, query, pool_k, mode)
             else:
                 if ranked:
                     fail('rank: this store holds no passages, so a passage ranking ranks '
