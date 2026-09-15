@@ -7,6 +7,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -56,13 +57,19 @@ class GraphContract(unittest.TestCase):
                 text += '\n' + key + ': ' + value + '\n'
         p.write_text(text)
 
-    def seed(self, foreign=False, extras=False, embedded=False, long=False, collide=False):
+    def seed(self, foreign=False, extras=False, embedded=False, long=False, collide=False, many=0):
         if embedded:
             self.recipe(retrieval='embedding')
         if long:
             text = ('Rest restores energy. Sleep supports recovery. Vehicles travel on roads. ') * 60 + '\n'
         else:
             text = 'Rest restores energy. Sleep supports recovery. Vehicles travel on roads.\n'
+        # `many` adds distinct grounded nodes so a path that slices to a default can be
+        # read off the returned count rather than argued about. Every added quote is a
+        # sentence of the corpus, because ingest refuses a node without a located one.
+        extra = ['Fact %02d is recorded here.' % n for n in range(1, many + 1)]
+        if extra:
+            text = text.rstrip('\n') + ' ' + ' '.join(extra) + '\n'
         source = self.set / 'corpus/source.md'
         source.write_text(text)
         self.run_cli('chunk', '--set', str(self.set))
@@ -74,6 +81,9 @@ class GraphContract(unittest.TestCase):
         arrays = {key: [] for key in km.ARRAYS}
         arrays['ideas'] = [dict(name='Rest', definition='A pause that replenishes stamina.', status='Canonical', quote='Rest restores energy.'),
                            dict(name='Recovery', definition='Regaining energy through sleeping.', status='Canonical', quote='Sleep supports recovery.')]
+        arrays['ideas'] += [dict(name='Topic %02d' % n, definition='A distinct seeded idea.',
+                                 status='Canonical', quote=quote)
+                            for n, quote in enumerate(extra, 1)]
         if foreign:
             arrays['ideas'][1]['name'] = 'Foreign'
         arrays['idea_links'] = [dict(source_name='Rest', relation='DEPENDS_ON', target_name=arrays['ideas'][1]['name'], quote='Sleep supports recovery.')]
@@ -200,6 +210,271 @@ class GraphContract(unittest.TestCase):
         self.assertEqual(len(limited['items']), 1)
         self.recipe(embedding_file='not-present.onnx')
         self.assertEqual(json.loads(self.recall('  mAtCh (n:Idea) RETURN n').stdout)['retrieval'], 'cypher')
+
+    def add_source(self, stem, text, ideas, code=0):
+        """Chunk and ingest one more source into the set, with the nodes it declares.
+
+        A second source is what makes a repeated node name possible at all, and every
+        provenance claim below is about what happens when one arrives.
+        """
+        (self.set / ('corpus/%s.md' % stem)).write_text(text)
+        self.run_cli('chunk', '--set', str(self.set))
+        manifest = json.loads((self.set / ('extraction/%s.chunks.json' % stem)).read_text())
+        spec = importlib.util.spec_from_file_location('graph_test_shapes', SCRIPT)
+        km = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(km)
+        arrays = {key: [] for key in km.ARRAYS}
+        arrays['ideas'] = ideas
+        chunk = manifest['chunks'][0]
+        path = self.set / ('extraction/%s.extraction.json' % stem)
+        path.write_text(json.dumps(dict(
+            schema='extraction/0.1.0', dataset=manifest['dataset'],
+            source_path='corpus/%s.md' % stem, source_hash=manifest['source_hash'],
+            pack='general', pack_version=km.pack_hash(TOOL / 'packs/general'),
+            entries=[dict(chunk_index=0, chunk_hash=chunk['chunk_hash'],
+                          extracted_on='2026-09-14', **arrays)])))
+        return self.run_cli('ingest', '--set', str(self.set), '--store', str(self.store),
+                            '--extraction', str(path), code=code)
+
+    def test_a_repeated_node_keeps_every_source_and_recall_names_the_reaching_one(self):
+        """A node whose name a later source repeats carries every source's located quote.
+
+        The complaint this repairs is an item reached through one source presenting
+        another source's quote as its own, so the claim under test is not that both are
+        stored. It is that **the pair shown belongs to the passage the item was reached
+        through**. Storing both and still showing the first satisfies a weaker test and
+        none of the reading that asked for this.
+        """
+        self.seed(embedded=True)
+        report = json.loads(self.add_source(
+            'second', 'Rest is also the absence of demand. Quiet supports focus.\n',
+            [dict(name='Rest', definition='A pause that replenishes stamina.',
+                  status='Canonical', quote='Rest is also the absence of demand.')]).stdout)
+        # The node is still not re-created, so the shipped counter keeps its meaning.
+        self.assertEqual(report['nodes_inserted'], 0)
+        self.assertEqual(report['nodes_skipped_by_name'], 1)
+
+        held = self.raw("MATCH (n:Idea) WHERE n.name='Rest' RETURN n.quotes, n.source_paths")
+        self.assertEqual(held, [[['Rest restores energy.', 'Rest is also the absence of demand.'],
+                                 ['corpus/source.md', 'corpus/second.md']]])
+        # The first source's pair is still on the scalar columns, so anything reading the
+        # old shape reads what it read before.
+        self.assertEqual(self.raw("MATCH (n:Idea) WHERE n.name='Rest' RETURN n.quote, n.source_path"),
+                         [['Rest restores energy.', 'corpus/source.md']])
+
+        def idea_item(query):
+            items = json.loads(self.recall(query).stdout)['items']
+            found = [i for i in items if i.get('part') == 'idea' and i['name'] == 'Rest']
+            self.assertTrue(found, 'Rest was not reached at all by %r' % query)
+            return found[0]
+
+        through_second = idea_item('the absence of demand and quiet focus')
+        through_first = idea_item('restoring energy and supporting recovery')
+        self.assertEqual((through_second['quote'], through_second['source_path']),
+                         ('Rest is also the absence of demand.', 'corpus/second.md'))
+        self.assertEqual((through_first['quote'], through_first['source_path']),
+                         ('Rest restores energy.', 'corpus/source.md'))
+        # The two readings must differ, or the assertions above would both hold on a tool
+        # that ignored the reaching passage entirely and always returned the first source.
+        self.assertNotEqual(through_second['source_path'], through_first['source_path'])
+
+    def old_shape(self, label, drops, empty=False):
+        """An independent copy of the store with exactly the named columns removed.
+
+        One copy per arm, so each arm removes one thing and the others stay intact. A
+        single store mutated in place can only ever test the columns in the order they
+        were dropped, which is how an Idea-only probe survives a suite that drops
+        `Idea.quotes` first.
+        """
+        source, target = self.store.parent, self.root / label
+        shutil.copytree(source, target)
+        store, keep = target / self.store.name, self.store
+        self.store = store
+        try:
+            for table, column in drops:
+                self.raw('ALTER TABLE %s DROP %s' % (table, column))
+            if empty:
+                for table in ('Idea', 'Entity'):
+                    self.raw('MATCH (n:%s) DETACH DELETE n' % table)
+                self.assertEqual(self.raw('MATCH (n:Idea) RETURN count(n)'), [[0]])
+        finally:
+            self.store = keep
+        return store
+
+    def test_a_store_without_the_provenance_lists_is_refused_on_every_path_that_reads_them(self):
+        """A store built before the change is refused wherever the new columns are read.
+
+        A refusal put on one path is not a refusal. `three_part` and `select_path` both
+        funnel through `attach`, whose query reads the two new columns, so guarding
+        ingest alone leaves an existing user's very next recall dying with an engine
+        error naming an internal column.
+
+        **And a refusal that fires on everything is a broken ingest, not a refusal**, so
+        the controls run first and the two paths that read neither column, MATCH and a
+        store with no passages, are asserted to keep working rather than assumed to.
+        """
+        self.seed(embedded=True)
+        extraction = None
+        later = ('second', 'Rest is also the absence of demand. Quiet supports focus.\n',
+                 [dict(name='Rest', definition='A pause that replenishes stamina.',
+                       status='Canonical', quote='Rest is also the absence of demand.')])
+
+        # CONTROL, first: the store as the shipped tool builds it is refused on neither
+        # path. Asserting only that the old shape is refused is satisfied by a tool that
+        # refuses every store.
+        self.add_source(*later)
+        extraction = self.set / 'extraction/second.extraction.json'
+        self.assertTrue(json.loads(self.recall('rest and recovery').stdout)['items'])
+        passage = self.raw("MATCH (p:Passage) RETURN p.name ORDER BY p.name LIMIT 1")[0][0]
+        selection = self.root / 'selection.json'
+        selection.write_text(json.dumps([dict(name=passage)]))
+
+        def ingest_into(store, code=0):
+            return self.run_cli('ingest', '--set', str(self.set), '--store', str(store),
+                                '--extraction', str(extraction), code=code)
+
+        def recall_on(store, extra=(), code=0):
+            return self.run_cli('recall', '--set', str(self.set), '--store', str(store),
+                                '--query', 'rest and recovery', *extra, code=code)
+
+        # **Each column, on each table, removed on its own.** Dropping `Idea.quotes` first
+        # and then everything is satisfied by a probe that only ever looks at `Idea`, which
+        # is the regression an earlier round already shipped once.
+        for table in ('Idea', 'Entity'):
+            for column in ('quotes', 'source_paths'):
+                label = 'missing-%s-%s' % (table.lower(), column)
+                store = self.old_shape(label, [(table, column)])
+                self.assertIn('provenance-shape-mismatch', ingest_into(store, code=1).stderr,
+                              'ingest accepted a store missing %s.%s' % (table, column))
+                self.assertIn('provenance-shape-mismatch', recall_on(store, code=1).stderr,
+                              'recall accepted a store missing %s.%s' % (table, column))
+
+        # The full old shape, and every door into it.
+        every = [(t, c) for t in ('Idea', 'Entity') for c in ('quotes', 'source_paths')]
+        old = self.old_shape('old-shape', every)
+        ingest = ingest_into(old, code=1)
+        ranked = recall_on(old, code=1)
+        selected = recall_on(old, extra=('--select', str(selection)), code=1)
+        for run in (ingest, ranked, selected):
+            self.assertIn('provenance-shape-mismatch', run.stderr)
+            self.assertIn('Rebuild the set by re-ingesting its sources into a new store',
+                          run.stderr)
+            # The failure the review reproduced: an engine error instead of the repair.
+            self.assertNotIn('Cannot find property', run.stderr)
+
+        # **Zero nodes is not an absent schema.** The guard used to read
+        # `node_count(conn) and not has_provenance_lists(conn)`, so an old-shape store
+        # someone had emptied passed it, `CREATE NODE TABLE IF NOT EXISTS` preserved the
+        # old tables, and ingest died inside the transaction on the missing column.
+        emptied = self.old_shape('old-shape-emptied', every, empty=True)
+        self.assertIn('provenance-shape-mismatch', ingest_into(emptied, code=1).stderr)
+
+        # CONTROL: the two paths that read neither new column are not refused and are not
+        # harmed. A guard that fired here would break stores this change never touched.
+        match = recall_on(old, extra=(), code=1)  # ranked path, refused above
+        self.assertEqual(json.loads(self.run_cli(
+            'recall', '--set', str(self.set), '--store', str(old),
+            '--query', "MATCH (n:Idea) WHERE n.name='Rest' RETURN n.name,n.quote,n.source_path"
+        ).stdout)['items'][0]['name'], 'Rest')
+
+        # CONTROL: a fresh store with no node tables at all is not an old store.
+        fresh = self.root / 'fresh/graph.lbdb'
+        ingest_into(fresh)
+        self.assertTrue(fresh.is_file())
+
+    def spy_top_k(self, *args):
+        """Run one recall and return the `top_k` each wrapped path was called with.
+
+        Two of the four call sites are function calls and two are an inline slice, so
+        the argument is recorded where there is a boundary and the count is read where
+        there is not. Recording is not a substitute for the counts below it: a spy says
+        what a path was handed, never what the path then did with it.
+        """
+        record = self.root / 'top-k-seen.json'
+        wrapper = (
+            "import runpy,sys,json\n"
+            "m=runpy.run_path(sys.argv[1]); r=m['runtime_module']()\n"
+            "seen={}\n"
+            "def spy(label, fn, index):\n"
+            " def wrapped(*a, **k):\n"
+            "  seen[label]=a[index]\n"
+            "  return fn(*a, **k)\n"
+            " return wrapped\n"
+            "r.three_part=spy('three_part', r.three_part, 3)\n"
+            "r.embed_items=spy('embed_items', r.embed_items, 3)\n"
+            "r.select_path=spy('select_path', r.select_path, 2)\n"
+            "try:\n"
+            " m['main'](sys.argv[2:])\n"
+            "finally:\n"
+            " open(" + repr(str(record)) + ",'w').write(json.dumps(seen))\n")
+        self.run_cli(*args, wrapper=wrapper, interpreter=VENV)
+        return json.loads(record.read_text())
+
+    def test_default_top_k_splits_and_a_flag_governs_every_path(self):
+        """The default splits between the passage pool and the other paths; a flag does not.
+
+        One `top_k` is derived in `recall` and spent on four call sites. The passage
+        candidate pool is the only one any figure was measured on, so it is the only
+        default that moves: a value chosen on passage-ranking evidence does not get to
+        move paths that evidence says nothing about. An explicit `--top-k` is the
+        caller's own choice and still governs every path, so the two defaults cannot
+        diverge under a flag.
+        """
+        self.seed(many=20)
+        self.assertEqual(self.raw("MATCH (n:Idea) RETURN count(n)"), [[22]])
+
+        # The MATCH path slices inline, so it is read off the count. 22 nodes match and
+        # an unflagged call returns 15 of them; the flag takes all 22.
+        match = "MATCH (n:Idea) RETURN n.name,n.quote,n.source_path"
+        self.assertEqual(len(json.loads(self.recall(match).stdout)['items']), 15)
+        self.assertEqual(len(json.loads(self.recall(match, extra=('--top-k', '22')).stdout)['items']), 22)
+
+        # Legacy node retrieval: a store ingested before passages, which is what every
+        # store built on `retrieval: lexical` is. Same reading, same two values.
+        self.recipe(retrieval='embedding')
+        legacy = self.spy_top_k('recall', '--set', str(self.set), '--store', str(self.store),
+                                '--query', 'Rest')
+        # There is no Passage table at all on such a store, not an empty one, which is
+        # why `has_passages` probes rather than counts. That the pool was never reached
+        # is asserted here and not inferred from the value beside it.
+        self.assertNotIn('three_part', legacy)
+        self.assertEqual(legacy['embed_items'], 15)
+        flagged = self.spy_top_k('recall', '--set', str(self.set), '--store', str(self.store),
+                                 '--query', 'Rest', '--top-k', '40')
+        self.assertEqual(flagged['embed_items'], 40)
+
+        # The passage candidate pool, on a store that actually holds passages. This is
+        # the one default that moves, and the only one any measurement reached.
+        self.store = self.root / 'passaged/graph.lbdb'
+        # The directory keeps the recipe's own `set` name: the shipped probe refuses a
+        # set directory not named for its recipe, so a second fixture is a second
+        # parent, never a second name.
+        self.set = self.root / 'second/fixture'
+        (self.set / 'corpus').mkdir(parents=True)
+        (self.set / 'set.yaml').write_text((self.root / 'fixture/set.yaml').read_text())
+        self.seed(embedded=True, long=True)
+        self.assertGreater(self.raw("MATCH (p:Passage) RETURN count(p)")[0][0], 0)
+        pooled = self.spy_top_k('recall', '--set', str(self.set), '--store', str(self.store),
+                                '--query', 'Rest')
+        self.assertNotIn('embed_items', pooled)
+        self.assertEqual(pooled['three_part'], 25)
+        pooled_flag = self.spy_top_k('recall', '--set', str(self.set), '--store', str(self.store),
+                                     '--query', 'Rest', '--top-k', '40')
+        self.assertEqual(pooled_flag['three_part'], 40)
+
+        # The selection path is unaffected, which is a claim and is therefore asserted
+        # rather than left in a note: it spends the unsplit default either way, so a
+        # caller that hand-wrote a longer selection gets exactly what it got before.
+        name = self.raw("MATCH (p:Passage) RETURN p.name ORDER BY p.name LIMIT 1")[0][0]
+        selection = self.root / 'selection.json'
+        selection.write_text(json.dumps([dict(name=name)]))
+        selected = self.spy_top_k('recall', '--set', str(self.set), '--store', str(self.store),
+                                  '--query', 'Rest', '--select', str(selection))
+        self.assertEqual(selected['select_path'], 15)
+        selected_flag = self.spy_top_k('recall', '--set', str(self.set), '--store', str(self.store),
+                                       '--query', 'Rest', '--select', str(selection),
+                                       '--top-k', '40')
+        self.assertEqual(selected_flag['select_path'], 40)
 
     def test_recipe_and_consent_without_packages(self):
         for value in ('../bad.onnx', 'a/b.onnx', 'a\\\\b.onnx', '""'):
@@ -594,6 +869,16 @@ class ShippedRecallPolicy(unittest.TestCase):
             self.assertIn(rule, recall_branch)
         # The second caller runs the shipped policy rather than one plain recall.
         self.assertIn('skills/Knowledge Recall/', probe_branch)
+        # Neither caller names `--top-k`, so both inherit whatever the tool defaults to
+        # and keep tracking it the next time it moves. A skill that hard-codes the value
+        # is a second home for it and stops tracking, which is what made the default the
+        # right route rather than the flag. This is the caller half of the acceptance;
+        # the tool half is test_default_top_k_splits_and_a_flag_governs_every_path, and
+        # neither is sufficient alone: a default nobody inherits ships nothing, and a
+        # caller that inherits the wrong default ships the wrong thing.
+        for branch in (recall_branch, probe_branch):
+            self.assertNotIn('--top-k', branch)
+            self.assertNotIn('top_k', branch)
 
     def test_callers_name_the_shipped_policy(self):
         recall_branch = self.branch('skills/Knowledge Recall/SKILL.md',
@@ -610,6 +895,11 @@ class ShippedRecallPolicy(unittest.TestCase):
             (recall_branch.replace('--select', ''), probe_branch),
             (recall_branch.replace('selecting, not answering', ''), probe_branch),
             (recall_branch, probe_branch.replace('skills/Knowledge Recall/', '')),
+            # A caller that pins the window: it would keep working and stop tracking the
+            # default, which is the failure the default route exists to avoid.
+            (recall_branch.replace('--rank hybrid', '--rank hybrid --top-k 25'), probe_branch),
+            (recall_branch, probe_branch.replace('--query "<MATCH query>"',
+                                                 '--query "<MATCH query>" --top-k 25')),
         ):
             with self.assertRaises(AssertionError):
                 self.assert_policy(doctored_recall, doctored_probe)

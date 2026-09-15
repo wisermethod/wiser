@@ -366,6 +366,50 @@ def node_count(conn):
     return total
 
 
+def has_provenance_lists(conn):
+    """Whether every node table this store actually has carries BOTH accumulated columns.
+
+    **Three answers, not two**, so callers test `is False` rather than truthiness:
+
+    - `None`  no node table exists yet, so there is nothing to be incompatible with
+    - `True`  every node table present carries both columns
+    - `False` a node table is present and lacks one of them
+
+    **Both columns, on every table that exists, and the answer is returned after the loop.** An
+    earlier cut returned inside the first iteration, so `Entity` was never probed, and it asked
+    only for `source_paths`, so a store carrying `source_paths` and no `quotes` reported itself
+    compatible and then failed where the column was actually used. Found by adversarial review on
+    2026-09-14.
+
+    **The third answer was the second finding of the same kind.** This returned one `False` for
+    both "no tables" and "old tables", so the guards had to say `node_count(conn) and not ...` to
+    tell them apart, and **a store whose tables are the old shape and whose node count is zero
+    then read as a fresh store**: `CREATE NODE TABLE IF NOT EXISTS` preserved the old tables and
+    the next statement died inside the transaction on the missing column. Zero nodes is not an
+    absent schema. Reproduced on 2026-09-14 before this was changed.
+    """
+    found_any = False
+    for table in ('Idea', 'Entity'):
+        try:
+            execute(conn, 'MATCH (n:%s) RETURN count(n)' % table)
+        except Exception as error:
+            text = str(error).lower()
+            if 'does not exist' in text or 'not found' in text or 'binder' in text:
+                continue
+            raise
+        found_any = True
+        for column in ('quotes', 'source_paths'):
+            try:
+                execute(conn, 'MATCH (n:%s) RETURN n.%s LIMIT 1' % (table, column))
+            except Exception as error:
+                text = str(error).lower()
+                if ('cannot find property' in text or 'does not exist' in text
+                        or 'not found' in text or 'binder' in text):
+                    return False
+                raise
+    return found_any or None
+
+
 def has_passages(conn):
     """Whether this store holds passages to search.
 
@@ -421,6 +465,22 @@ def ingest(path, recipe, extraction, accepted, validation, relations, manifest):
                  'passage layer, and adding passages now would leave that knowledge '
                  'unreachable by embedding recall. Rebuild the set by re-ingesting its '
                  'sources into a new store, or keep this one on retrieval: lexical.')
+        if has_provenance_lists(conn) is False:
+            # The other half of the same invariant the two `passage-layer-mismatch` refusals
+            # above hold, and it fires in the same place, before `BEGIN TRANSACTION`, because
+            # probing for a column that does not exist raises and a raise inside a transaction
+            # leaves nothing for the rollback to roll back.
+            #
+            # `CREATE NODE TABLE IF NOT EXISTS` silently does nothing on a store that already has
+            # the table, so an older store keeps the one-quote shape while ingest writes the two
+            # list columns. Every node already in it would keep claiming a single source for
+            # quotes taken from several, which is the mismatch this change exists to end. Refuse
+            # and name the repair, per the Behavioral Core's rule against covering missing
+            # infrastructure by degrading a component.
+            fail('provenance-shape-mismatch: this store holds nodes ingested before a node kept '
+                 'every source its located quotes came from, and adding a source now would leave '
+                 'those nodes presenting the first quote as the provenance of all of them. '
+                 'Rebuild the set by re-ingesting its sources into a new store.')
         if not embed and has_passages(conn):
             # The other direction of the same invariant. A lexical ingest into a passage
             # store writes nodes with no passage and no LOCATED_IN edge, and embedding
@@ -433,19 +493,32 @@ def ingest(path, recipe, extraction, accepted, validation, relations, manifest):
         execute(conn, 'BEGIN TRANSACTION')
         try:
             for table, text_field in (('Idea', 'definition'), ('Entity', 'summary')):
-                execute(conn, 'CREATE NODE TABLE IF NOT EXISTS ' + table + '(name STRING, ' + text_field + ' STRING, aliases STRING[], quote STRING, source_path STRING, status STRING, PRIMARY KEY(name))')
+                execute(conn, 'CREATE NODE TABLE IF NOT EXISTS ' + table + '(name STRING, ' + text_field + ' STRING, aliases STRING[], quote STRING, source_path STRING, quotes STRING[], source_paths STRING[], status STRING, PRIMARY KEY(name))')
             for relation in sorted(relations):
                 execute(conn, 'CREATE REL TABLE IF NOT EXISTS ' + relation + '(FROM Idea TO Idea, FROM Idea TO Entity, quote STRING, source_path STRING, status STRING)')
             for kind, node, chunk in accepted:
                 if kind not in ('idea', 'entity'):
                     continue
                 table, field = ('Idea', 'definition') if kind == 'idea' else ('Entity', 'summary')
-                exists = execute(conn, 'MATCH (n:' + table + ') WHERE n.name=$name RETURN n.name', {'name': node['name']})
+                exists = execute(conn, 'MATCH (n:' + table + ') WHERE n.name=$name RETURN n.name, n.quotes, n.source_paths', {'name': node['name']})
                 if exists:
+                    # The node is still not re-created, so `nodes_skipped_by_name` still counts
+                    # this. What changes is that the skip no longer loses the later source's
+                    # located quote and its path: both accumulate on the node, in ingest order.
+                    held_q = list(exists[0][1] or [])
+                    held_p = list(exists[0][2] or [])
+                    pair = (node['quote'], extraction['source_path'])
+                    if pair not in list(zip(held_q, held_p)):
+                        held_q.append(pair[0])
+                        held_p.append(pair[1])
+                        execute(conn,
+                                'MATCH (n:' + table + ') WHERE n.name=$name '
+                                'SET n.quotes=$quotes, n.source_paths=$paths',
+                                dict(name=node['name'], quotes=held_q, paths=held_p))
                     merged += 1
                     continue
-                params = dict(name=node['name'], text=node.get(field, ''), aliases=node.get('aliases', []), quote=node['quote'], source_path=extraction['source_path'], status='Candidate')
-                execute(conn, 'CREATE (n:' + table + ' {name:$name, ' + field + ':$text, aliases:$aliases, quote:$quote, source_path:$source_path, status:$status})', params)
+                params = dict(name=node['name'], text=node.get(field, ''), aliases=node.get('aliases', []), quote=node['quote'], source_path=extraction['source_path'], quotes=[node['quote']], source_paths=[extraction['source_path']], status='Candidate')
+                execute(conn, 'CREATE (n:' + table + ' {name:$name, ' + field + ':$text, aliases:$aliases, quote:$quote, source_path:$source_path, quotes:$quotes, source_paths:$source_paths, status:$status})', params)
                 inserted += 1
             for kind, node, chunk in accepted:
                 if kind != 'idea_link':
@@ -687,6 +760,21 @@ def attach(conn, ordered):
     a pattern that requires the attached node to be an Idea in both directions finds
     nothing at all for an attached Entity.
     """
+    # **The same refusal the ingest path carries, at the one function both recall paths funnel
+    # through.** `three_part` and `select_path` both end in `attach`, and the attachment query
+    # below reads `n.quotes` and `n.source_paths`, so on a store ingested before those columns
+    # existed a recall dies with a binder error naming an internal column instead of giving the
+    # named repair. Adversarial review reproduced exactly that on 2026-09-14:
+    # `Binder exception: Cannot find property quotes for n.`
+    #
+    # The condition is the ingest guard's, unchanged, so the two cannot drift: a store whose node
+    # tables lack the columns is refused, and a store that has no node tables at all is not an old
+    # store. The row count says nothing about either, which is why it is not consulted.
+    if has_provenance_lists(conn) is False:
+        fail('provenance-shape-mismatch: this store holds nodes ingested before a node kept '
+             'every source its located quotes came from, so recall cannot say which source each '
+             'item was reached through. Rebuild the set by re-ingesting its sources into a new '
+             'store.')
     items = []
     seen_idea = set()
     seen_related = set()
@@ -722,13 +810,32 @@ def attach(conn, ordered):
             for row in execute(
                     conn,
                     'MATCH (n:' + table + ')-[:LOCATED_IN]->(p:Passage) WHERE p.name=$pid '
-                    'RETURN n.name, n.quote, n.source_path ORDER BY n.name',
+                    'RETURN n.name, n.quote, n.source_path, n.quotes, n.source_paths '
+                    'ORDER BY n.name',
                     {'pid': name}):
                 attached.append((table, *row))
-        for itable, iname, iquote, ipath in attached:
+        for itable, iname, iquote, ipath, iquotes, ipaths in attached:
             if (itable, iname) in seen_idea:
                 continue
             seen_idea.add((itable, iname))
+            # **The provenance of the source this item was reached through.** A node whose name a
+            # later source repeats holds every source's located quote; the one to show is the one
+            # belonging to the passage that reached it, because an item reached through a podcast
+            # passage presenting the book's quote as its own is the mismatch this repairs. Falls
+            # back to the first source where the reaching source contributed no quote of its own,
+            # which is the behaviour every single-source node keeps.
+            # **Only a pair the node actually holds.** `zip` over two lists of different
+            # lengths silently pairs a quote with the wrong path, which would manufacture
+            # exactly the misattribution this change exists to end. Where the lists disagree
+            # in length, or either is empty, the scalar pair is used: it is always a true
+            # pair, being the first source's own, and a true pair from the wrong source is
+            # not the same defect as a pair that was never in the store at all.
+            held_q, held_p = list(iquotes or []), list(ipaths or [])
+            if held_q and len(held_q) == len(held_p):
+                for _q, _p in zip(held_q, held_p):
+                    if _p == source_path:
+                        iquote, ipath = _q, _p
+                        break
             items.append(dict(name=iname, quote=iquote, source_path=ipath,
                               part='idea', via=name))
 
@@ -826,7 +933,15 @@ def select_path(conn, chosen, top_k):
 def recall(values, recipe, screen, positive):
     query = values['query']
     match = bool(re.match(r'^\s*MATCH\b', query, re.I))
-    top_k = positive(values.get('top_k', '15'), '--top-k')
+    # The default splits, and only the default. A window sized for a 541-passage book hid
+    # bearing passages at ranks 16 to 39 of a 1,012-passage store, so the passage candidate
+    # pool defaults to 25. The MATCH path and legacy node retrieval were measured at no
+    # window and keep 15: a value chosen on passage-ranking evidence does not get to move
+    # two paths that evidence says nothing about. An explicit --top-k is the caller's own
+    # choice and still governs every path, so the two defaults never diverge under a flag.
+    supplied = values.get('top_k')
+    top_k = positive('15' if supplied is None else supplied, '--top-k')
+    pool_k = 25 if supplied is None else top_k
     mode = values.get('rank', 'cosine')
     # Whether the flag was supplied, not what it was set to. A call that ranks nothing
     # must refuse `--rank cosine` exactly as it refuses `--rank hybrid`: accepting a flag
@@ -881,7 +996,7 @@ def recall(values, recipe, screen, positive):
             if chosen is not None:
                 items = select_path(conn, chosen, top_k)
             elif has_passages(conn):
-                items = three_part(conn, runtime, query, top_k, mode)
+                items = three_part(conn, runtime, query, pool_k, mode)
             else:
                 if ranked:
                     fail('rank: this store holds no passages, so a passage ranking ranks '
