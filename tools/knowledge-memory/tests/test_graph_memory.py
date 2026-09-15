@@ -210,6 +210,127 @@ class GraphContract(unittest.TestCase):
         self.recipe(embedding_file='not-present.onnx')
         self.assertEqual(json.loads(self.recall('  mAtCh (n:Idea) RETURN n').stdout)['retrieval'], 'cypher')
 
+    def add_source(self, stem, text, ideas, code=0):
+        """Chunk and ingest one more source into the set, with the nodes it declares.
+
+        A second source is what makes a repeated node name possible at all, and every
+        provenance claim below is about what happens when one arrives.
+        """
+        (self.set / ('corpus/%s.md' % stem)).write_text(text)
+        self.run_cli('chunk', '--set', str(self.set))
+        manifest = json.loads((self.set / ('extraction/%s.chunks.json' % stem)).read_text())
+        spec = importlib.util.spec_from_file_location('graph_test_shapes', SCRIPT)
+        km = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(km)
+        arrays = {key: [] for key in km.ARRAYS}
+        arrays['ideas'] = ideas
+        chunk = manifest['chunks'][0]
+        path = self.set / ('extraction/%s.extraction.json' % stem)
+        path.write_text(json.dumps(dict(
+            schema='extraction/0.1.0', dataset=manifest['dataset'],
+            source_path='corpus/%s.md' % stem, source_hash=manifest['source_hash'],
+            pack='general', pack_version=km.pack_hash(TOOL / 'packs/general'),
+            entries=[dict(chunk_index=0, chunk_hash=chunk['chunk_hash'],
+                          extracted_on='2026-09-14', **arrays)])))
+        return self.run_cli('ingest', '--set', str(self.set), '--store', str(self.store),
+                            '--extraction', str(path), code=code)
+
+    def test_a_repeated_node_keeps_every_source_and_recall_names_the_reaching_one(self):
+        """A node whose name a later source repeats carries every source's located quote.
+
+        The complaint this repairs is an item reached through one source presenting
+        another source's quote as its own, so the claim under test is not that both are
+        stored. It is that **the pair shown belongs to the passage the item was reached
+        through**. Storing both and still showing the first satisfies a weaker test and
+        none of the reading that asked for this.
+        """
+        self.seed(embedded=True)
+        report = json.loads(self.add_source(
+            'second', 'Rest is also the absence of demand. Quiet supports focus.\n',
+            [dict(name='Rest', definition='A pause that replenishes stamina.',
+                  status='Canonical', quote='Rest is also the absence of demand.')]).stdout)
+        # The node is still not re-created, so the shipped counter keeps its meaning.
+        self.assertEqual(report['nodes_inserted'], 0)
+        self.assertEqual(report['nodes_skipped_by_name'], 1)
+
+        held = self.raw("MATCH (n:Idea) WHERE n.name='Rest' RETURN n.quotes, n.source_paths")
+        self.assertEqual(held, [[['Rest restores energy.', 'Rest is also the absence of demand.'],
+                                 ['corpus/source.md', 'corpus/second.md']]])
+        # The first source's pair is still on the scalar columns, so anything reading the
+        # old shape reads what it read before.
+        self.assertEqual(self.raw("MATCH (n:Idea) WHERE n.name='Rest' RETURN n.quote, n.source_path"),
+                         [['Rest restores energy.', 'corpus/source.md']])
+
+        def idea_item(query):
+            items = json.loads(self.recall(query).stdout)['items']
+            found = [i for i in items if i.get('part') == 'idea' and i['name'] == 'Rest']
+            self.assertTrue(found, 'Rest was not reached at all by %r' % query)
+            return found[0]
+
+        through_second = idea_item('the absence of demand and quiet focus')
+        through_first = idea_item('restoring energy and supporting recovery')
+        self.assertEqual((through_second['quote'], through_second['source_path']),
+                         ('Rest is also the absence of demand.', 'corpus/second.md'))
+        self.assertEqual((through_first['quote'], through_first['source_path']),
+                         ('Rest restores energy.', 'corpus/source.md'))
+        # The two readings must differ, or the assertions above would both hold on a tool
+        # that ignored the reaching passage entirely and always returned the first source.
+        self.assertNotEqual(through_second['source_path'], through_first['source_path'])
+
+    def test_a_store_without_the_provenance_lists_is_refused_on_both_paths(self):
+        """A store built before the change is refused, and it is refused on every path.
+
+        A refusal put on one path is not a refusal. `three_part` and `select_path` both
+        funnel through `attach`, whose query reads the two new columns, so guarding
+        ingest alone leaves an existing user's very next recall dying with an engine
+        error naming an internal column. The controls are here because a refusal that
+        fires on everything is a broken ingest, not a refusal.
+        """
+        self.seed(embedded=True)
+        later = ('second', 'Rest is also the absence of demand. Quiet supports focus.\n',
+                 [dict(name='Rest', definition='A pause that replenishes stamina.',
+                       status='Canonical', quote='Rest is also the absence of demand.')])
+
+        # CONTROL, first: the store as the shipped tool builds it is refused on neither
+        # path. Asserting only that the old shape is refused is satisfied by a tool that
+        # refuses every store.
+        self.add_source(*later)
+        self.assertTrue(json.loads(self.recall('rest and recovery').stdout)['items'])
+
+        # A store built before the change, made by removing exactly the two columns the
+        # change added. Everything else is the real thing: real passages, real edges,
+        # real nodes, and no second copy of the schema living in this file.
+        self.raw('ALTER TABLE Idea DROP quotes')
+        partial = self.run_cli('ingest', '--set', str(self.set), '--store', str(self.store),
+                               '--extraction', str(self.set / 'extraction/second.extraction.json'),
+                               code=1)
+        self.assertIn('provenance-shape-mismatch', partial.stderr)
+
+        # The rest of the old shape, dropped by name rather than in a loop that swallows
+        # its own failures: a loop whose every arm failed would leave the store in the
+        # partial shape above and the assertions below would still pass.
+        self.raw('ALTER TABLE Idea DROP source_paths')
+        self.raw('ALTER TABLE Entity DROP quotes')
+        self.raw('ALTER TABLE Entity DROP source_paths')
+
+        ingest = self.run_cli('ingest', '--set', str(self.set), '--store', str(self.store),
+                              '--extraction', str(self.set / 'extraction/second.extraction.json'),
+                              code=1)
+        recall = self.recall('rest and recovery', code=1)
+        for run in (ingest, recall):
+            self.assertIn('provenance-shape-mismatch', run.stderr)
+            self.assertIn('Rebuild the set by re-ingesting its sources into a new store',
+                          run.stderr)
+        # The failure the review reproduced: an engine error instead of the repair.
+        self.assertNotIn('Cannot find property', recall.stderr)
+
+        # CONTROL: an empty store is not an old store. `node_count` is what separates
+        # them, and this is the arm that proves it does.
+        self.store = self.root / 'fresh/graph.lbdb'
+        self.run_cli('ingest', '--set', str(self.set), '--store', str(self.store),
+                     '--extraction', str(self.set / 'extraction/second.extraction.json'))
+        self.assertTrue(self.store.is_file())
+
     def spy_top_k(self, *args):
         """Run one recall and return the `top_k` each wrapped path was called with.
 
