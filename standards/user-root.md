@@ -78,7 +78,7 @@ Create `work/zArchive/` at onboard for work deliverables. Memory replacement use
 
 Every knowledge set carries a row in the Sets table of `memory/knowledge/AGENTS.md`, whatever path created it. A set is a directory at `memory/knowledge/<set>/` holding `set.yaml`; `memory/knowledge/store/` is the shared store and is never a set. The row's Set cell is the directory name.
 
-Score absent when a set has no row, and misfiled when a row names no set directory; misfiled outranks absent. A root with neither a set nor a row scores present per Scoring's vacuous case; `memory/knowledge/` need not exist, and an empty one is not a finding.
+Score absent when a set has no row, and misfiled when a row names no set directory. A root with neither a set nor a row scores present per Scoring's vacuous case; `memory/knowledge/` need not exist, and an empty one is not a finding.
 
 The Sets table and the note beneath it are one record. Open items that `skills/Knowledge Curation/` is told to update live in that note, never in a table cell.
 
