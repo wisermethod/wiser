@@ -93,6 +93,6 @@ Success prints one JSON object and exits 0; help prints usage. Failures print on
 | `missing-weights` | Supply the local model and tokenizer files in the person-scoped models folder; the tool never fetches them |
 | `refused-import: cognee` | Remove the refused import; no engine retry |
 | `this command is databased-only; backend: graph is not supported.` | Use graph ingest or recall; no graph promotion or replay command exists |
-| `provenance-shape-mismatch` | Rebuild the set by re-ingesting its sources into a new store. Fires on ingest and on recall against a store built before a node kept every source its located quotes came from |
+| `provenance-shape-mismatch` | Rebuild the set by re-ingesting its sources into a new store. Fires against a store built before a node kept every source its located quotes came from, on ingest and on the passage retrieval paths; MATCH and a store with no passages read neither new column and keep working |
 | `hosted-unspecified: read experts/Memory Expert/hosted.md; stop before reading sources.` | Read the hosted stub; produce no substitute result |
 | `unknown option "--env".` | Remove `--env`; this tool takes no environment file |

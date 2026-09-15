@@ -369,14 +369,24 @@ def node_count(conn):
 def has_provenance_lists(conn):
     """Whether every node table this store actually has carries BOTH accumulated columns.
 
+    **Three answers, not two**, so callers test `is False` rather than truthiness:
+
+    - `None`  no node table exists yet, so there is nothing to be incompatible with
+    - `True`  every node table present carries both columns
+    - `False` a node table is present and lacks one of them
+
     **Both columns, on every table that exists, and the answer is returned after the loop.** An
     earlier cut returned inside the first iteration, so `Entity` was never probed, and it asked
     only for `source_paths`, so a store carrying `source_paths` and no `quotes` reported itself
     compatible and then failed where the column was actually used. Found by adversarial review on
     2026-09-14.
 
-    A table that is absent is not an old table; it is a store nothing has been ingested into yet,
-    and `node_count` is what separates those two at every call site.
+    **The third answer was the second finding of the same kind.** This returned one `False` for
+    both "no tables" and "old tables", so the guards had to say `node_count(conn) and not ...` to
+    tell them apart, and **a store whose tables are the old shape and whose node count is zero
+    then read as a fresh store**: `CREATE NODE TABLE IF NOT EXISTS` preserved the old tables and
+    the next statement died inside the transaction on the missing column. Zero nodes is not an
+    absent schema. Reproduced on 2026-09-14 before this was changed.
     """
     found_any = False
     for table in ('Idea', 'Entity'):
@@ -397,7 +407,7 @@ def has_provenance_lists(conn):
                         or 'not found' in text or 'binder' in text):
                     return False
                 raise
-    return found_any
+    return found_any or None
 
 
 def has_passages(conn):
@@ -455,7 +465,7 @@ def ingest(path, recipe, extraction, accepted, validation, relations, manifest):
                  'passage layer, and adding passages now would leave that knowledge '
                  'unreachable by embedding recall. Rebuild the set by re-ingesting its '
                  'sources into a new store, or keep this one on retrieval: lexical.')
-        if node_count(conn) and not has_provenance_lists(conn):
+        if has_provenance_lists(conn) is False:
             # The other half of the same invariant the two `passage-layer-mismatch` refusals
             # above hold, and it fires in the same place, before `BEGIN TRANSACTION`, because
             # probing for a column that does not exist raises and a raise inside a transaction
@@ -757,9 +767,10 @@ def attach(conn, ordered):
     # named repair. Adversarial review reproduced exactly that on 2026-09-14:
     # `Binder exception: Cannot find property quotes for n.`
     #
-    # The condition is the ingest guard's, unchanged, so the two cannot drift: a store with nodes
-    # and without the columns is refused, and a store with no nodes is not an old store.
-    if node_count(conn) and not has_provenance_lists(conn):
+    # The condition is the ingest guard's, unchanged, so the two cannot drift: a store whose node
+    # tables lack the columns is refused, and a store that has no node tables at all is not an old
+    # store. The row count says nothing about either, which is why it is not consulted.
+    if has_provenance_lists(conn) is False:
         fail('provenance-shape-mismatch: this store holds nodes ingested before a node kept '
              'every source its located quotes came from, so recall cannot say which source each '
              'item was reached through. Rebuild the set by re-ingesting its sources into a new '
@@ -813,10 +824,18 @@ def attach(conn, ordered):
             # passage presenting the book's quote as its own is the mismatch this repairs. Falls
             # back to the first source where the reaching source contributed no quote of its own,
             # which is the behaviour every single-source node keeps.
-            for _q, _p in zip(list(iquotes or []), list(ipaths or [])):
-                if _p == source_path:
-                    iquote, ipath = _q, _p
-                    break
+            # **Only a pair the node actually holds.** `zip` over two lists of different
+            # lengths silently pairs a quote with the wrong path, which would manufacture
+            # exactly the misattribution this change exists to end. Where the lists disagree
+            # in length, or either is empty, the scalar pair is used: it is always a true
+            # pair, being the first source's own, and a true pair from the wrong source is
+            # not the same defect as a pair that was never in the store at all.
+            held_q, held_p = list(iquotes or []), list(ipaths or [])
+            if held_q and len(held_q) == len(held_p):
+                for _q, _p in zip(held_q, held_p):
+                    if _p == source_path:
+                        iquote, ipath = _q, _p
+                        break
             items.append(dict(name=iname, quote=iquote, source_path=ipath,
                               part='idea', via=name))
 

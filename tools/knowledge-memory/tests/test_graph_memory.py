@@ -7,6 +7,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -277,16 +278,43 @@ class GraphContract(unittest.TestCase):
         # that ignored the reaching passage entirely and always returned the first source.
         self.assertNotEqual(through_second['source_path'], through_first['source_path'])
 
-    def test_a_store_without_the_provenance_lists_is_refused_on_both_paths(self):
-        """A store built before the change is refused, and it is refused on every path.
+    def old_shape(self, label, drops, empty=False):
+        """An independent copy of the store with exactly the named columns removed.
+
+        One copy per arm, so each arm removes one thing and the others stay intact. A
+        single store mutated in place can only ever test the columns in the order they
+        were dropped, which is how an Idea-only probe survives a suite that drops
+        `Idea.quotes` first.
+        """
+        source, target = self.store.parent, self.root / label
+        shutil.copytree(source, target)
+        store, keep = target / self.store.name, self.store
+        self.store = store
+        try:
+            for table, column in drops:
+                self.raw('ALTER TABLE %s DROP %s' % (table, column))
+            if empty:
+                for table in ('Idea', 'Entity'):
+                    self.raw('MATCH (n:%s) DETACH DELETE n' % table)
+                self.assertEqual(self.raw('MATCH (n:Idea) RETURN count(n)'), [[0]])
+        finally:
+            self.store = keep
+        return store
+
+    def test_a_store_without_the_provenance_lists_is_refused_on_every_path_that_reads_them(self):
+        """A store built before the change is refused wherever the new columns are read.
 
         A refusal put on one path is not a refusal. `three_part` and `select_path` both
         funnel through `attach`, whose query reads the two new columns, so guarding
         ingest alone leaves an existing user's very next recall dying with an engine
-        error naming an internal column. The controls are here because a refusal that
-        fires on everything is a broken ingest, not a refusal.
+        error naming an internal column.
+
+        **And a refusal that fires on everything is a broken ingest, not a refusal**, so
+        the controls run first and the two paths that read neither column, MATCH and a
+        store with no passages, are asserted to keep working rather than assumed to.
         """
         self.seed(embedded=True)
+        extraction = None
         later = ('second', 'Rest is also the absence of demand. Quiet supports focus.\n',
                  [dict(name='Rest', definition='A pause that replenishes stamina.',
                        status='Canonical', quote='Rest is also the absence of demand.')])
@@ -295,41 +323,64 @@ class GraphContract(unittest.TestCase):
         # path. Asserting only that the old shape is refused is satisfied by a tool that
         # refuses every store.
         self.add_source(*later)
+        extraction = self.set / 'extraction/second.extraction.json'
         self.assertTrue(json.loads(self.recall('rest and recovery').stdout)['items'])
+        passage = self.raw("MATCH (p:Passage) RETURN p.name ORDER BY p.name LIMIT 1")[0][0]
+        selection = self.root / 'selection.json'
+        selection.write_text(json.dumps([dict(name=passage)]))
 
-        # A store built before the change, made by removing exactly the two columns the
-        # change added. Everything else is the real thing: real passages, real edges,
-        # real nodes, and no second copy of the schema living in this file.
-        self.raw('ALTER TABLE Idea DROP quotes')
-        partial = self.run_cli('ingest', '--set', str(self.set), '--store', str(self.store),
-                               '--extraction', str(self.set / 'extraction/second.extraction.json'),
-                               code=1)
-        self.assertIn('provenance-shape-mismatch', partial.stderr)
+        def ingest_into(store, code=0):
+            return self.run_cli('ingest', '--set', str(self.set), '--store', str(store),
+                                '--extraction', str(extraction), code=code)
 
-        # The rest of the old shape, dropped by name rather than in a loop that swallows
-        # its own failures: a loop whose every arm failed would leave the store in the
-        # partial shape above and the assertions below would still pass.
-        self.raw('ALTER TABLE Idea DROP source_paths')
-        self.raw('ALTER TABLE Entity DROP quotes')
-        self.raw('ALTER TABLE Entity DROP source_paths')
+        def recall_on(store, extra=(), code=0):
+            return self.run_cli('recall', '--set', str(self.set), '--store', str(store),
+                                '--query', 'rest and recovery', *extra, code=code)
 
-        ingest = self.run_cli('ingest', '--set', str(self.set), '--store', str(self.store),
-                              '--extraction', str(self.set / 'extraction/second.extraction.json'),
-                              code=1)
-        recall = self.recall('rest and recovery', code=1)
-        for run in (ingest, recall):
+        # **Each column, on each table, removed on its own.** Dropping `Idea.quotes` first
+        # and then everything is satisfied by a probe that only ever looks at `Idea`, which
+        # is the regression an earlier round already shipped once.
+        for table in ('Idea', 'Entity'):
+            for column in ('quotes', 'source_paths'):
+                label = 'missing-%s-%s' % (table.lower(), column)
+                store = self.old_shape(label, [(table, column)])
+                self.assertIn('provenance-shape-mismatch', ingest_into(store, code=1).stderr,
+                              'ingest accepted a store missing %s.%s' % (table, column))
+                self.assertIn('provenance-shape-mismatch', recall_on(store, code=1).stderr,
+                              'recall accepted a store missing %s.%s' % (table, column))
+
+        # The full old shape, and every door into it.
+        every = [(t, c) for t in ('Idea', 'Entity') for c in ('quotes', 'source_paths')]
+        old = self.old_shape('old-shape', every)
+        ingest = ingest_into(old, code=1)
+        ranked = recall_on(old, code=1)
+        selected = recall_on(old, extra=('--select', str(selection)), code=1)
+        for run in (ingest, ranked, selected):
             self.assertIn('provenance-shape-mismatch', run.stderr)
             self.assertIn('Rebuild the set by re-ingesting its sources into a new store',
                           run.stderr)
-        # The failure the review reproduced: an engine error instead of the repair.
-        self.assertNotIn('Cannot find property', recall.stderr)
+            # The failure the review reproduced: an engine error instead of the repair.
+            self.assertNotIn('Cannot find property', run.stderr)
 
-        # CONTROL: an empty store is not an old store. `node_count` is what separates
-        # them, and this is the arm that proves it does.
-        self.store = self.root / 'fresh/graph.lbdb'
-        self.run_cli('ingest', '--set', str(self.set), '--store', str(self.store),
-                     '--extraction', str(self.set / 'extraction/second.extraction.json'))
-        self.assertTrue(self.store.is_file())
+        # **Zero nodes is not an absent schema.** The guard used to read
+        # `node_count(conn) and not has_provenance_lists(conn)`, so an old-shape store
+        # someone had emptied passed it, `CREATE NODE TABLE IF NOT EXISTS` preserved the
+        # old tables, and ingest died inside the transaction on the missing column.
+        emptied = self.old_shape('old-shape-emptied', every, empty=True)
+        self.assertIn('provenance-shape-mismatch', ingest_into(emptied, code=1).stderr)
+
+        # CONTROL: the two paths that read neither new column are not refused and are not
+        # harmed. A guard that fired here would break stores this change never touched.
+        match = recall_on(old, extra=(), code=1)  # ranked path, refused above
+        self.assertEqual(json.loads(self.run_cli(
+            'recall', '--set', str(self.set), '--store', str(old),
+            '--query', "MATCH (n:Idea) WHERE n.name='Rest' RETURN n.name,n.quote,n.source_path"
+        ).stdout)['items'][0]['name'], 'Rest')
+
+        # CONTROL: a fresh store with no node tables at all is not an old store.
+        fresh = self.root / 'fresh/graph.lbdb'
+        ingest_into(fresh)
+        self.assertTrue(fresh.is_file())
 
     def spy_top_k(self, *args):
         """Run one recall and return the `top_k` each wrapped path was called with.
