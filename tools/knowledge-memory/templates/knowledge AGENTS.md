@@ -11,6 +11,8 @@ Wiki compile and databased and graph extraction use the session's model after `s
 | Set | Dataset | Backend | Kind | Close intensity | Owner | Canon confirmed | Last ingest |
 |-----|---------|---------|------|-----------------|-------|----------------|-------------|
 
+One note per set may follow this table, headed **`<set>` open items**, and it is part of that set's record rather than a comment on it. It is where what the row is told to carry but the table has no column for goes: the close state and its named gaps from `skills/Knowledge Set Onboarding/` Phase 8, and the open items from `skills/Knowledge Curation/` Step 7. Write what a reader needs in order not to misread a `Not available`: what the corpus does and does not hold, with counts and paths.
+
 ## What a set holds
 
 Paths below are relative to `memory/knowledge/<set>/`. Shapes are in the tool's `references/schemas.md` and `references/wiki-schemas.md`.

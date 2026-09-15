@@ -30,7 +30,7 @@ The root's Work Directories table projects these rows. A first-use row is presen
 | `sources/` | Classified originals, as received. Do not edit in place. Router: `sources/AGENTS.md` | ships, with router |
 | `inbox/` | Unclassified captures | ships |
 | `memory/` | Bound files for about, voice, design, and competitors only when bound. Provides binds files, never this directory | ships bound stubs |
-| `memory/knowledge/<set>/` | Knowledge sets, never bound by Provides | first use; empty `memory/knowledge/` may ship |
+| `memory/knowledge/<set>/` | Knowledge sets, never bound by Provides. Router: `memory/knowledge/AGENTS.md` | first use; empty `memory/knowledge/` may ship |
 | `shared/` | This root's own skills, playbooks, experts, templates, tools, and connectors, each in its family directory. Never under memory | first use; declared row |
 | `zBuilds/` | Root-meta playbooks, `builds.md`, Housekeeping plans at `zBuilds/playbooks/housekeeping.plan.md` | first use; declared row |
 | `work/onboarding/` | Onboarding records for every type. Router: `work/onboarding/AGENTS.md` | ships |
@@ -73,6 +73,16 @@ Every type keeps run-record, verification, audit, close-report, operating-file, 
 ## C11 Archives
 
 Create `work/zArchive/` at onboard for work deliverables. Memory replacement uses beside-the-file `zArchive/` per `standards/conventions.md` Archives. A run snapshot is additional recovery, not a replacement for that rule.
+
+## C12 Set registration
+
+Every knowledge set carries a row in the Sets table of `memory/knowledge/AGENTS.md`, whatever path created it. A set is a directory at `memory/knowledge/<set>/` holding `set.yaml`; `memory/knowledge/store/` is the shared store and is never a set. The row's Set cell is the directory name.
+
+Score absent when a set has no row, and misfiled when a row names no set directory; misfiled outranks absent. A root with neither a set nor a row scores present per Scoring's vacuous case; `memory/knowledge/` need not exist, and an empty one is not a finding.
+
+The Sets table and the note beneath it are one record. Open items that `skills/Knowledge Curation/` is told to update live in that note, never in a table cell.
+
+This clause gives Housekeeping a finding to hand off, not a knowledge write. The row's content belongs to the two skills that own it, `skills/Knowledge Set Onboarding/` which writes the row and `skills/Knowledge Curation/` which updates it; Housekeeping names the set, names which of the two receives it, and writes nothing under `memory/knowledge/`.
 
 ## Scoring
 
