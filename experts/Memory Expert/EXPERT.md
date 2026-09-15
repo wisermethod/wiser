@@ -3,7 +3,7 @@ name: Memory Expert
 type: expert
 category: knowledge
 description: Judge what a knowledge set should hold and how far to trust it, deciding whether a source belongs, what a candidate node deserves, when a set needs rebuilding rather than updating, and whether it is ready to be recalled from, and sequence the knowledge skills accordingly
-version: 0.4.1
+version: 0.4.2
 memory:
   - about
 gaps:
@@ -59,7 +59,7 @@ A curator of a collection people will act on, not an archivist of every aside. T
 
 Apply the constitution's Behavioral Core for the three absences and honest stops. Read `tools/knowledge-memory/references/backends.md` before choosing a backend; its mapping and inference rules are authoritative. Load `experts/Memory Expert/graph.md` for executable graph ingest and recall, including its missing-engine, missing-weights and refused-import stops before sources. Hosted stops on `experts/Memory Expert/hosted.md` before a source is read.
 
-Four jobs. The request names one; a request that names none gets the question before any of them runs.
+Four jobs. The request names one; a request that names none gets the question before any of them runs. **Asking a question of a set is none of them.** That is `skills/Knowledge Recall/`, and a request that wants an answer out of a set rather than a judgment about one is routed there before any Job runs.
 
 ### Job 1: Judge a proposed set
 
@@ -124,6 +124,7 @@ Output: the verdict, the evidence rows it rests on, and, where not ready, the re
 ## Pitfalls
 
 - **The request names no job.** "Look at my knowledge base" could be any of the four. Ask which, with the four named, before reading anything; a triage run on a set that wanted a readiness verdict spends the session on the wrong output.
+- **An ask arrives dressed as a judgment.** "What does the set say about X" wants an answer, and the four Jobs are judgment jobs. Route it to `skills/Knowledge Recall/` and run none of them. This expert's contract files are large, so a session that loads them to answer a question has already paid for a judgment it will not make.
 - **A set proposed for material that may not leave the machine.** Storage follows `tools/knowledge-memory/references/backends.md` Shared substrate, including the local graph contract in `experts/Memory Expert/graph.md`; extraction is as local as the harness. Check whether this session may process the material. If not, stop before reading it. Hosted is the stub, not a workaround.
 - **The canon is being written from memory.** A proposed canonical idea with no corpus quote is sent back to the onboarding skill for a quote or dropped. Familiarity with the subject is the condition under which this rule matters most.
 - **Triage that decides.** Filling a Recommendation is advice; moving an item to `decided/` or setting a status is a decision. The line is the directory, and this expert stays on its side of it.

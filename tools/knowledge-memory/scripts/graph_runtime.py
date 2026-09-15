@@ -740,7 +740,7 @@ def embed_texts(runtime, texts):
     return np.array(vectors)
 
 
-def attach(conn, ordered):
+def attach(conn, ordered, candidates_only=False):
     """The three parts for an ordered list of passages, in the order given.
 
     Shared by the ranked path and the selection path so the two cannot drift, and
@@ -759,6 +759,9 @@ def attach(conn, ordered):
     runs from an Idea to an Idea or an Entity, so an Entity is only ever a target, and
     a pattern that requires the attached node to be an Idea in both directions finds
     nothing at all for an attached Entity.
+
+    `candidates_only` returns after the passage items. It is a parameter of this
+    function, not a separate builder, so the provenance check below cannot be skipped.
     """
     # **The same refusal the ingest path carries, at the one function both recall paths funnel
     # through.** `three_part` and `select_path` both end in `attach`, and the attachment query
@@ -804,6 +807,12 @@ def attach(conn, ordered):
         for key, value in (entry.get('rank_detail') or {}).items():
             item[key] = value
         items.append(item)
+        if candidates_only:
+            # The hop is what the flag exists to skip. The provenance check above is not:
+            # a path that built these dicts without coming through attach would accept a
+            # store the default path refuses, which is the defect a prototype of this
+            # flag produced.
+            continue
 
         attached = []
         for table in ('Idea', 'Entity'):
@@ -864,7 +873,7 @@ def attach(conn, ordered):
     return items
 
 
-def three_part(conn, runtime, query, top_k, mode='cosine'):
+def three_part(conn, runtime, query, top_k, mode='cosine', candidates_only=False):
     """Ranked passages, the ideas located in them, one typed hop out from those.
 
     `mode` is strictly additive: 'cosine' is the default and reproduces the ranking
@@ -872,6 +881,10 @@ def three_part(conn, runtime, query, top_k, mode='cosine'):
     `rank_passages.rank`, which changes which passages are offered to the caller and
     nothing else: same store, same `--top-k`, same evidence downstream, and a lexical
     index built in this process from the same `Passage.text` column the embedder reads.
+
+    `candidates_only` is the same kind of additive: False is the default and returns
+    the three parts as before. True still ranks the same passages, then attach
+    returns after writing them, so the hop is skipped and the provenance check is not.
     """
     passages = execute(conn, 'MATCH (p:Passage) RETURN p.name, p.text, p.source_path '
                              'ORDER BY p.name')
@@ -897,7 +910,7 @@ def three_part(conn, runtime, query, top_k, mode='cosine'):
     return attach(conn, [
         dict(name=passages[i][0], text=passages[i][1], source_path=passages[i][2],
              score=scores[i], rank=rank, rank_detail=detail.get(i))
-        for rank, i in enumerate(order, 1)])
+        for rank, i in enumerate(order, 1)], candidates_only=candidates_only)
 
 
 def select_path(conn, chosen, top_k):
@@ -948,6 +961,12 @@ def recall(values, recipe, screen, positive):
     # and printing success is how a mistyped option comes to look like it applied.
     ranked = 'rank' in values
     select_value = values.get('select')
+    # Whether the flag was supplied. On a 1,012-passage store one ranked call returned
+    # 125 items and 60,070 bytes, of which 100 items and 45% of the bytes were the idea
+    # and related parts the calling skill is told to ignore. The flag asks for the
+    # passages alone. A call that has no candidates must refuse it, because a flag
+    # accepted and ignored looks like a flag that applied.
+    candidates_only = 'candidates_only' in values
     if match or recipe['retrieval'] != 'embedding':
         validate_query(query)
     if ranked:
@@ -959,13 +978,27 @@ def recall(values, recipe, screen, positive):
         if mode not in rank_passages.MODES:
             fail('rank: unknown mode %r; one of %s' % (mode,
                                                        ', '.join(rank_passages.MODES)))
+    if candidates_only:
+        if match:
+            fail('candidates-only: MATCH returns match items and there are no candidates. '
+                 'Drop --candidates-only.')
+        if select_value is not None:
+            fail('candidates-only: a selection already fixes the passages; '
+                 '--candidates-only has no candidate pool to trim.')
     chosen = None
     if select_value is not None:
         if match:
             fail('select: a selection applies to the embedding path, not to MATCH.')
-        select_path_resolved = screen('--select', select_value, must_exist=True)
+        # A value whose first non-space character is `[` is the list itself. Otherwise
+        # it is a path and is screened as before. The file form writes an answer key
+        # into the set it is meant to test; the inline form exists so that does not
+        # have to happen.
+        if select_value.lstrip().startswith('['):
+            text = select_value
+        else:
+            text = screen('--select', select_value, must_exist=True).read_text(encoding='utf-8')
         try:
-            chosen = json.loads(select_path_resolved.read_text(encoding='utf-8'))
+            chosen = json.loads(text)
         except json.JSONDecodeError:
             fail('select: expected a JSON list of objects each carrying a name.')
         if not isinstance(chosen, list) or any(
@@ -996,12 +1029,17 @@ def recall(values, recipe, screen, positive):
             if chosen is not None:
                 items = select_path(conn, chosen, top_k)
             elif has_passages(conn):
-                items = three_part(conn, runtime, query, pool_k, mode)
+                items = three_part(conn, runtime, query, pool_k, mode,
+                                   candidates_only=candidates_only)
             else:
                 if ranked:
                     fail('rank: this store holds no passages, so a passage ranking ranks '
                          'nothing here. Re-ingest the set on retrieval: embedding, or drop '
                          '--rank.')
+                if candidates_only:
+                    fail('candidates-only: this store holds no passages, so there are no '
+                         'candidates to return alone. Re-ingest the set on retrieval: '
+                         'embedding, or drop --candidates-only.')
                 nodes = []
                 for table in ('Idea', 'Entity'):
                     nodes.extend(row[0] for row in read_query(conn, 'MATCH (n:' + table + ') RETURN n ORDER BY n.name'))
@@ -1022,4 +1060,6 @@ def recall(values, recipe, screen, positive):
         out['selected'] = [c['name'] for c in chosen[:top_k]]
     if mode != 'cosine':
         out['ranking'] = mode
+    if candidates_only:
+        out['candidates_only'] = True
     return out

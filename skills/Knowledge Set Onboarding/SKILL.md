@@ -3,7 +3,7 @@ name: Knowledge Set Onboarding
 type: skill
 category: knowledge
 description: Create a named knowledge set from permitted sources, compile its chosen backend, confirm kept knowledge with located provenance, and record the checks and close intensity that ran
-version: 0.5.0
+version: 0.5.1
 memory:
   - about
 gaps:
@@ -59,7 +59,7 @@ For a domain set, agree primary-source rules, the qualified-reading disclaimer, 
 
 If the named set exists, report its state and route the change to Knowledge Curation. Otherwise create `memory/knowledge/<set>/` under the owning root, never the plugin. Use `tools/knowledge-memory/templates/set.yaml`, recording `backend`, `kind`, `close_intensity`, `session_permission`, owner, scope in `node_sets`, and source patterns. For graph, also record the Phase 0 `retrieval` value (`embedding` unless the requester chose Cypher only). Name sets per Onboard Root's Standing Rules. Provides does not bind the set path.
 
-Copy `templates/knowledge AGENTS.md` to `memory/knowledge/AGENTS.md` only if absent; otherwise add the set row. Create `corpus/` and `reports/`. Wiki uses the wiki templates; databased uses `extraction/`, `review/`, and `eval.questions.yaml`. Run `check`, then `bootstrap --store <owning-root>/memory/knowledge/store/databased.sqlite` only for databased. All command paths are absolute. For graph, create `extraction/`, name one dataset-owned `graph.lbdb` in the owning root, and leave schema creation to ingest. Keep `canon_confirmed` blank pending the human confirmation. Begin `reports/onboarding-run-record.md` with the choices and permission.
+Copy `templates/knowledge AGENTS.md` to `memory/knowledge/AGENTS.md` only if absent; otherwise add the set row. Create `corpus/` and `reports/`. Wiki uses the wiki templates; databased uses `extraction/`, `review/`, and `eval.questions.yaml`. Run `check`, then `bootstrap --store <owning-root>/memory/knowledge/store/databased.sqlite` only for databased. All command paths are absolute. For graph, create `extraction/`, name one dataset-owned `graph.lbdb` in the owning root, **drop the template's commented `eval` line rather than filling it in**, since that key is databased only and a graph set holds no such file, and leave schema creation to ingest. Keep `canon_confirmed` blank pending the human confirmation. Begin `reports/onboarding-run-record.md` with the choices and permission.
 
 ### Phase 2: Gather the corpus
 

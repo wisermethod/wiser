@@ -596,6 +596,60 @@ class GraphContract(unittest.TestCase):
         self.assertIn('select:', run.stderr)
         self.assertEqual(run.stdout, '')
 
+    def test_inline_select_matches_file_and_creates_no_file(self):
+        self.seed(embedded=True, extras=True, long=True)
+        query = 'Rest recovery sleep roads'
+        ranked = json.loads(self.recall(query).stdout)
+        passages = [n for n in ranked['items'] if n['part'] == 'passage']
+        self.assertGreaterEqual(len(passages), 2)
+        payload = [dict(name=passages[1]['name'], score=passages[1]['score'], rank=passages[1]['rank']),
+                   dict(name=passages[0]['name'], score=passages[0]['score'], rank=passages[0]['rank'])]
+        select = self.root / 'chosen.json'
+        select.write_text(json.dumps(payload))
+        from_file = json.loads(self.recall(query, extra=('--select', str(select))).stdout)
+        before_json = sorted(p for p in self.root.rglob('*.json') if p.is_file())
+        from_inline = json.loads(self.recall(query, extra=('--select', json.dumps(payload))).stdout)
+        self.assertEqual(sorted(p for p in self.root.rglob('*.json') if p.is_file()), before_json)
+        self.assertEqual(len(from_inline['items']), len(from_file['items']))
+        for left, right in zip(from_file['items'], from_inline['items']):
+            self.assertEqual(left, right)
+        self.assertEqual(from_file.get('selected'), from_inline.get('selected'))
+        padded = '  ' + json.dumps(payload)
+        from_padded = json.loads(self.recall(query, extra=('--select', padded)).stdout)
+        for left, right in zip(from_file['items'], from_padded['items']):
+            self.assertEqual(left, right)
+
+    def test_inline_select_malformed_empty_and_path_fallback(self):
+        self.seed(embedded=True, extras=True, long=True)
+        query = 'Rest recovery sleep roads'
+        message = 'select: expected a JSON list of objects each carrying a name.'
+        # A JSON object does not begin with `[`, so the discrimination rule treats it
+        # as a path. The list-check that refuses an object is the file form's, and the
+        # inline cases that do begin with `[` share that same check after json.loads.
+        for payload in ('[not-json', '["passage-0001"]', '[{"score": 1}]'):
+            run = self.recall(query, code=1, extra=('--select', payload))
+            self.assertIn(message, run.stderr)
+            self.assertEqual(run.stdout, '')
+        # The object-not-list arm of the shared check: inline `{...}` never reaches it,
+        # because it does not begin with `[`. The file form is how that arm still fires.
+        obj = self.root / 'object.json'
+        obj.write_text('{"name": "x"}')
+        run = self.recall(query, code=1, extra=('--select', str(obj)))
+        self.assertIn(message, run.stderr)
+        self.assertEqual(run.stdout, '')
+        empty = json.loads(self.recall(query, extra=('--select', '[]')).stdout)
+        self.assertEqual(empty['items'], [])
+        self.assertEqual(empty['selected'], [])
+        missing = str(self.root / 'absent-select.json')
+        run = self.recall(query, code=1, extra=('--select', missing))
+        self.assertIn('--select', run.stderr)
+        self.assertIn('does not exist', run.stderr)
+        self.assertEqual(run.stdout, '')
+        run = self.recall(query, code=1, extra=('--select', '{"name": "x"}'))
+        self.assertIn('--select', run.stderr)
+        self.assertNotIn(message, run.stderr)
+        self.assertEqual(run.stdout, '')
+
     def test_select_absent_leaves_default_path_unchanged(self):
         self.seed(embedded=True, extras=True)
         query = 'How can I regain stamina by sleeping?'
@@ -764,6 +818,65 @@ class GraphContract(unittest.TestCase):
         result = json.loads(self.recall('How can I regain stamina by sleeping?').stdout)
         self.assertTrue(result['items'])
         self.assertNotIn('ranking', result)
+
+    def test_candidates_only_trims_parts_and_leaves_passages_identical(self):
+        self.seed(embedded=True, extras=True, long=True)
+        query = 'Rest recovery sleep roads'
+        default = json.loads(self.recall(query).stdout)
+        flagged = json.loads(self.recall(query, extra=('--candidates-only',)).stdout)
+        labels = {n['part'] for n in default['items']}
+        self.assertTrue({'passage', 'idea', 'related'} <= labels)
+        default_passages = [n for n in default['items'] if n['part'] == 'passage']
+        self.assertTrue(default_passages)
+        self.assertGreater(len(default['items']), len(default_passages))
+        self.assertNotIn('candidates_only', default)
+        self.assertEqual(flagged['candidates_only'], True)
+        self.assertEqual(set(flagged['parts']), {'passage'})
+        self.assertEqual(flagged['parts']['passage'], len(default_passages))
+        self.assertEqual(len(flagged['items']), len(default_passages))
+        self.assertTrue(all(n['part'] == 'passage' for n in flagged['items']))
+        for left, right in zip(default_passages, flagged['items']):
+            self.assertEqual(left, right)
+        self.assertEqual([n['rank'] for n in flagged['items']],
+                         list(range(1, len(flagged['items']) + 1)))
+        # The flag must not skip attach: a store the default path refuses is refused here too.
+        every = [(t, c) for t in ('Idea', 'Entity') for c in ('quotes', 'source_paths')]
+        old = self.old_shape('old-shape-candidates', every)
+        run = self.run_cli('recall', '--set', str(self.set), '--store', str(old),
+                           '--query', query, '--candidates-only', code=1)
+        self.assertIn('provenance-shape-mismatch', run.stderr)
+        self.assertEqual(run.stdout, '')
+
+    def test_candidates_only_refused_on_match_select_and_databased(self):
+        self.seed(embedded=True, extras=True, long=True)
+        run = self.recall('MATCH (n:Idea) RETURN n', code=1, extra=('--candidates-only',))
+        self.assertIn('candidates-only:', run.stderr)
+        self.assertIn('MATCH', run.stderr)
+        self.assertEqual(run.stdout, '')
+        select = self.root / 'chosen.json'
+        select.write_text(json.dumps([dict(name='passage-0001', score=0.5, rank=1)]))
+        run = self.recall('rest', code=1, extra=('--candidates-only', '--select', str(select)))
+        self.assertIn('candidates-only:', run.stderr)
+        self.assertIn('selection', run.stderr)
+        self.assertEqual(run.stdout, '')
+        self.recipe(backend='databased', retrieval='lexical')
+        run = self.run_cli('recall', '--set', str(self.set), '--store', str(self.store),
+                           '--query', 'rest', '--candidates-only', code=1)
+        self.assertIn('--candidates-only', run.stderr)
+        self.assertIn('graph-only', run.stderr)
+        self.assertEqual(run.stdout, '')
+
+    def test_candidates_only_refused_on_a_store_holding_no_passages(self):
+        self.seed(extras=True)
+        self.recipe(retrieval='embedding')
+        run = self.recall('How can I regain stamina by sleeping?', code=1,
+                          extra=('--candidates-only',))
+        self.assertIn('candidates-only:', run.stderr)
+        self.assertIn('no passages', run.stderr)
+        self.assertEqual(run.stdout, '')
+        result = json.loads(self.recall('How can I regain stamina by sleeping?').stdout)
+        self.assertTrue(result['items'])
+        self.assertNotIn('candidates_only', result)
 
     def test_embedding_ingest_stops_before_source_when_weights_absent(self):
         self.seed(extras=True)

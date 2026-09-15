@@ -14,7 +14,7 @@ USAGE = """Usage: knowledge_memory.py help | --help | -h
   chunk --set DIR
   chunk --source FILE --out DIR --dataset NAME [--max-chars N]
   ingest --set DIR --store FILE --extraction FILE [--install]
-  recall --set DIR --store FILE --query TEXT [--as-of YYYY-MM-DD] [--top-k N] [--select FILE] [--rank MODE] [--install]
+  recall --set DIR --store FILE --query TEXT [--as-of YYYY-MM-DD] [--top-k N] [--select FILE|JSON] [--rank MODE] [--candidates-only] [--install]
   wiki-lint --set DIR
   review-pass --set DIR --store FILE
   promote --set DIR --store FILE (--decided FILE | --from-canon | --replay)
@@ -33,7 +33,8 @@ recall returns items only: databased lexical terms and outgoing links (one hop);
 graph MATCH-only Cypher, or local embeddings with retrieval: embedding.
 as-of is recorded, never filtered. Default top-k is 15, and 25 for graph's
 passage candidate pool; an explicit --top-k governs every path.
---select and --rank are graph-only; --rank defaults to cosine.
+--select, --rank and --candidates-only are graph-only; --rank defaults to cosine.
+--select accepts a JSON list in place of a file. --candidates-only returns passages alone.
 Unknown, repeated and command-inapplicable flags are refused by name.
 forget without confirm reports the planned store changes and writes nothing.
 --install is a bare flag, accepted on every command; only graph work and check
@@ -71,7 +72,7 @@ OPTIONS = {
     "bootstrap": ({"--store"}, {"--set"}),
     "chunk": (set(), {"--set", "--source", "--out", "--dataset", "--max-chars"}),
     "ingest": ({"--set", "--store", "--extraction"}, set()),
-    "recall": ({"--set", "--store", "--query"}, {"--as-of", "--top-k", "--select", "--rank"}),
+    "recall": ({"--set", "--store", "--query"}, {"--as-of", "--top-k", "--select", "--rank", "--candidates-only"}),
     "wiki-lint": ({"--set"}, set()),
     "review-pass": ({"--set", "--store"}, set()),
     "promote": ({"--set", "--store"}, {"--decided", "--from-canon", "--replay"}),
@@ -79,7 +80,7 @@ OPTIONS = {
     "healthcheck": ({"--set", "--store"}, {"--eval"}),
     "forget": ({"--set", "--store"}, {"--memory-only", "--dataset", "--data-id", "--confirm"}),
 }
-FLAGS = {"--install", "--from-canon", "--replay", "--eval", "--memory-only", "--confirm"}
+FLAGS = {"--install", "--from-canon", "--replay", "--eval", "--memory-only", "--confirm", "--candidates-only"}
 ARRAYS = {
     "entities": ("entity", "name entity_type aliases summary status quote"),
     "ideas": ("idea", "name definition domain status quote"),
@@ -1525,9 +1526,9 @@ def main(argv=None):
         fail('this script needs Python 3.11 or newer; this interpreter is %s. Run with python3.11 or newer.' % '.'.join(map(str, sys.version_info[:3])))
     graph = recipe is not None and recipe['backend'] == 'graph' and command in ('ingest', 'recall')
     if command == 'recall' and recipe is not None and recipe['backend'] != 'graph':
-        for flag in ('select', 'rank'):
+        for flag in ('select', 'rank', 'candidates_only'):
             if flag in values:
-                fail('--%s is graph-only.' % flag)
+                fail('--%s is graph-only.' % flag.replace('_', '-'))
     if graph or (command == 'check' and values.get('install')):
         graph_ready(values)
         # Graph ingest on an embedding recipe cuts the corpus at the embedder's window, so
