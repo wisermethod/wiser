@@ -44,7 +44,9 @@ The attached working folder is the **owning root**: the personal, org, client, d
 
 **This plugin is read-only in use, apart from what a tool installs for itself.** Never write under this root during a session. Outputs land in the working folder, in the directories that folder's own `AGENTS.md` declares. What a tool installs for itself lands where `tools/AGENTS.md` lists, including person-scoped model weights outside every root. Nothing else writes here.
 
-**Determining the owning root.** The candidates are the composed roots whose own `AGENTS.md` declares a `type:`. Where exactly one root is a candidate it is the owning root and nothing is asked. Where several are, or none is, the rule above is in force: ask, never hunt, and ask **once, early, before the first read or write under any of them**, then state the answer for the session so it is not resolved again at the first write. A root declaring no `type:` is not a candidate; that absence does not make it a write destination either, and what it does mean is the next clause.
+**Determining the owning root.** The candidates are the composed roots whose own `AGENTS.md` declares a `type:`. Where exactly one root is a candidate it is the owning root and nothing is asked. Where several are, or none is, the rule above is in force: ask, never hunt, and ask **once, early, before the first read or write under any of them**, then state the answer for the session so it is not resolved again at the first write. A root declaring no `type:` is not a candidate; that absence does not make it a write destination either, and what it does mean is the write-mode clause below.
+
+**The owning root's contract version.** A session that has resolved the owning root reads that root's `layout:` against C1 of `standards/user-root.md`, and reports a mismatch at that point rather than at the first write. C1 owns what the comparison means, what a mismatch owes, and which primitive owes it; this clause is only the moment it happens. The session converges nothing on its own, and a standard that is absent or unreadable is reported as such, never as a pass.
 
 **Write mode.** A session either uses this root or authors it. The two differ in what may be written, never in where the session is standing.
 
@@ -54,7 +56,7 @@ The clause governs **work product only**. Three writes are therefore unaffected,
 
 Authoring this root is entered by **the operator's authorization for a named phase and a named target**. An Active Playbook is the *record* of that authorization and never the grant: a row a session set Active itself grants nothing, and a Playbook may be Active and forbid these writes in the same sentence.
 
-**Where this holds.** Both clauses bind a session that has loaded this chain. A host that never loads it never receives them, and nothing written in this file can change that. Where the chain did not load, the rules still hold; they are simply not delivered, and the session cannot be expected to have derived them.
+**Where this holds.** These clauses bind a session that has loaded this chain. A host that never loads it never receives them, and nothing written in this file can change that. Where the chain did not load, the rules still hold; they are simply not delivered, and the session cannot be expected to have derived them.
 
 ## Behavioral Core
 
@@ -110,6 +112,7 @@ This plugin is the base: a domain plugin loads beside it, may assume it is prese
 | `standards/play.md` | The Play format |
 | `standards/playbook.md` | The Playbook format |
 | `standards/script-contract.md` | What every script a tool ships must do, and the clauses that bind a connector module; a user reads `tools/RUNNING.md` |
+| `standards/user-root.md` | The declared user-root tree, the clauses that score it, and the root contract version C1 owns |
 
 Each family's `AGENTS.md` carries an index of that family, maintained by hand (`standards/primitives.md`).
 

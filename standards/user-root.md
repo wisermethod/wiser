@@ -1,6 +1,6 @@
 ---
 standard: user-root
-version: 0.4.0
+version: 0.5.0
 description: One declared user-root tree and the clauses used to score its layout
 ---
 
@@ -21,8 +21,8 @@ The table states, per integer, what a root must carry to reach it, which primiti
 | Contract | What a root must carry | Who brings it there | Required or advisory |
 |---|---|---|---|
 | 1 | No record. This standard declared 2 in its first commit and no commit in this repository introduces `layout: 1`. Nothing is reconstructed here | - | - |
-| 2 | The C3 declared directories, their routers, and the C2 to C11 clauses as this standard held them on 2026-09-10 | `skills/Onboard Root/` at instantiation, `skills/Housekeeping/` afterwards | required |
-| 3 | C12 Set registration and the C3 `memory/knowledge/` router cell, both of which entered this standard on 2026-09-15 without moving the integer and therefore bound no root by number; and the stamp read as this contract rather than as the tree alone | `skills/Housekeeping/` for the router cell, which is a tree change; the Sets row per C12, which Housekeeping names and hands off, is written by `skills/Knowledge Set Onboarding/` and updated by `skills/Knowledge Curation/` | required |
+| 2 | The C3 declared directories, their routers, and the C2 to C11 clauses as this standard now states them, less the `memory/knowledge/` router cell that row 3 owns. Those clauses are otherwise unchanged since 2026-09-10, so an installed copy carrying no git history scores this row from the text in front of it | `skills/Onboard Root/` at instantiation, `skills/Housekeeping/` afterwards | required |
+| 3 | C12 Set registration and the C3 `memory/knowledge/` router cell, both of which entered this standard on 2026-09-15 without moving the integer and therefore bound no root by number; and the stamp read as this contract rather than as the tree alone | `skills/Housekeeping/` for the router cell, which is a tree change; the Sets row per C12, which Housekeeping names and hands off, is written by `skills/Knowledge Set Onboarding/` and updated by `skills/Knowledge Curation/`, and is owed only where the root has a knowledge set. A root with neither a set nor a row scores present per C12's vacuous case, owes those two nothing, and is not held short of this contract by a certification for work that does not exist | required |
 
 ## C2 One tree
 
