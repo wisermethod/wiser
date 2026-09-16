@@ -1,0 +1,15 @@
+{
+  "name": "wiser-method",
+  "owner": {
+    "name": "EffectiveSC",
+    "url": "https://effectivesc.org"
+  },
+  "description": "Wiser, the general knowledge-work plugin.",
+  "plugins": [
+    {
+      "name": "wiser",
+      "source": "./",
+      "description": "The general knowledge-work plugin: skills, experts, tools, and the standards that bind them."
+    }
+  ]
+}
