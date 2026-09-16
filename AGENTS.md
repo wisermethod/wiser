@@ -44,6 +44,18 @@ The attached working folder is the **owning root**: the personal, org, client, d
 
 **This plugin is read-only in use, apart from what a tool installs for itself.** Never write under this root during a session. Outputs land in the working folder, in the directories that folder's own `AGENTS.md` declares. What a tool installs for itself lands where `tools/AGENTS.md` lists, including person-scoped model weights outside every root. Nothing else writes here.
 
+**Determining the owning root.** The candidates are the composed roots whose own `AGENTS.md` declares a `type:`. Where exactly one root is a candidate it is the owning root and nothing is asked. Where several are, or none is, the rule above is in force: ask, never hunt, and ask **once, early, before the first read or write under any of them**, then state the answer for the session so it is not resolved again at the first write. A root declaring no `type:` is not a candidate; that absence does not make it a write destination either, and what it does mean is the next clause.
+
+**Write mode.** A session either uses this root or authors it. The two differ in what may be written, never in where the session is standing.
+
+**The root a session loaded its governing constitution from is not a destination for that session's work product**, whatever that root's folder name or position in the workspace, and including when it is the working directory. This is `Irreversibles` read as the rule it already is: *during a session that uses it*. The root identifies itself, so no token is needed and none is added.
+
+The clause governs **work product only**. Three writes are therefore unaffected, named here so a reader need not infer them: what a tool installs for itself, which `Writes` states and `tools/AGENTS.md` inventories; `skills/Onboard Root/` writing into an `empty` or `populated-undeclared` destination, which is how an owning root comes to exist at all; and `skills/Housekeeping/` installing local filing routers in a foreign tree, which declares no identity there.
+
+Authoring this root is entered by **the operator's authorization for a named phase and a named target**. An Active Playbook is the *record* of that authorization and never the grant: a row a session set Active itself grants nothing, and a Playbook may be Active and forbid these writes in the same sentence.
+
+**Where this holds.** Both clauses bind a session that has loaded this chain. A host that never loads it never receives them, and nothing written in this file can change that. Where the chain did not load, the rules still hold; they are simply not delivered, and the session cannot be expected to have derived them.
+
 ## Behavioral Core
 
 Binding on any work done through this root.

@@ -1,6 +1,6 @@
 ---
 standard: user-root
-version: 0.3.0
+version: 0.4.0
 description: One declared user-root tree and the clauses used to score its layout
 ---
 
@@ -12,7 +12,17 @@ Applies to personal, org, client, department, and industry user roots. This is t
 
 ## C1 Identification
 
-The constitution's Workspace Model (`wiser/AGENTS.md`) owns root identification. Its declaration is in root `AGENTS.md`: `type:`, a Provides block, the Wiser constitution citation, Onboarding state lines, and the declared-directory table. A folder set never identifies a user root. The frontmatter also carries `root:` and `layout:`, the latter this standard's current tree version (2). Increment that integer when this standard changes the tree; a version difference is a converge input, never permission to re-onboard. `skills/Housekeeping/` owns layout migration on a declared Wiser user root and is callable any time to bring its shelves and filing declarations into conformance with this standard. A missing layout version on an already-declared Wiser root is drift, not foreign identity.
+The constitution's Workspace Model (`wiser/AGENTS.md`) owns root identification. Its declaration is in root `AGENTS.md`: `type:`, a Provides block, the Wiser constitution citation, Onboarding state lines, and the declared-directory table. A folder set never identifies a user root. The frontmatter also carries `root:` and `layout:`, the latter this standard's current tree version (3). Increment that integer when this standard changes the tree; a version difference is a converge input, never permission to re-onboard. `skills/Housekeeping/` owns layout migration on a declared Wiser user root and is callable any time to bring its shelves and filing declarations into conformance with this standard. A missing layout version on an already-declared Wiser root is drift, not foreign identity.
+
+That integer is the root **contract** version: the tree above, and whatever else this standard requires of a root before it counts as current. Increment it equally when a row of the table below requires something a tree change does not cover. One integer and no minor part; a row says whether it is required or advisory, so severity lives in the row and not in the number.
+
+The table states, per integer, what a root must carry to reach it, which primitive brings it there, and whether the row is required or advisory. A session compares the owning root's stamp with the integer above; on a mismatch it reads the rows between the two, reports what is owed, and names the primitive that owes it. It converges nothing on its own. Where every row between the two is advisory it says so, rather than calling the root behind. Where a row names more than one owner the integer advances only once every owner has certified its part, and a partial completion is reported as partial rather than as current.
+
+| Contract | What a root must carry | Who brings it there | Required or advisory |
+|---|---|---|---|
+| 1 | No record. This standard declared 2 in its first commit and no commit in this repository introduces `layout: 1`. Nothing is reconstructed here | - | - |
+| 2 | The C3 declared directories, their routers, and the C2 to C11 clauses as this standard held them on 2026-09-10 | `skills/Onboard Root/` at instantiation, `skills/Housekeeping/` afterwards | required |
+| 3 | C12 Set registration and the C3 `memory/knowledge/` router cell, both of which entered this standard on 2026-09-15 without moving the integer and therefore bound no root by number; and the stamp read as this contract rather than as the tree alone | `skills/Housekeeping/` for the router cell, which is a tree change; the Sets row per C12, which Housekeeping names and hands off, is written by `skills/Knowledge Set Onboarding/` and updated by `skills/Knowledge Curation/` | required |
 
 ## C2 One tree
 

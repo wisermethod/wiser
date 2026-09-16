@@ -1,7 +1,7 @@
 ---
 root: [name]
 type:
-layout: 2
+layout: 3
 ---
 
 # [name]
