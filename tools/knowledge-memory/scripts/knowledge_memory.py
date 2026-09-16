@@ -837,7 +837,7 @@ def set_recipe(value, backend=None):
         if key in data and not isinstance(data[key], str):
             fail(key + ' must be a string.')
     if data['backend'] == 'hosted':
-        fail('hosted-unspecified: read experts/Memory Expert/hosted.md; stop before reading sources.')
+        fail('hosted-unspecified: read experts/Knowledge Expert/hosted.md; stop before reading sources.')
     data.setdefault('retrieval', 'lexical')
     if 'embedding_file' in data:
         name = data['embedding_file']
@@ -1533,7 +1533,7 @@ def main(argv=None):
         graph_ready(values)
         # Graph ingest on an embedding recipe cuts the corpus at the embedder's window, so
         # it needs the tokenizer. The check runs here, before any source is read, because
-        # experts/Memory Expert/graph.md promises every graph prerequisite stops before
+        # experts/Knowledge Expert/graph.md promises every graph prerequisite stops before
         # source or store access, and a stop placed after the source read is not that stop.
         if command == 'ingest' and recipe.get('retrieval') == 'embedding':
             # Loading it, not checking that its file exists. A tokenizer that is present

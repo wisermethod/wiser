@@ -15,7 +15,7 @@ gaps:
 
 Use through `skills/Knowledge Set Onboarding/`, `skills/Knowledge Curation/`, and `skills/Knowledge Recall/` for deterministic wiki lint, databased operations, or graph ingest and recall. Read `tools/knowledge-memory/references/backends.md` for the backend contract. Storage is local for wiki, databased, and graph; extraction is as local as the harness. The session compiles or extracts; graph recall may run a local embedding model, never a chat completion.
 
-Graph follows `experts/Memory Expert/graph.md`, with prerequisite stops before source or store access. A map of existing files belongs to `skills/Knowledge Map/`. Hosted is a documented stop on `experts/Memory Expert/hosted.md`, never a command. Apply the constitution's Behavioral Core for the three absences and honest stops.
+Graph follows `experts/Knowledge Expert/graph.md`, with prerequisite stops before source or store access. A map of existing files belongs to `skills/Knowledge Map/`. Hosted is a documented stop on `experts/Knowledge Expert/hosted.md`, never a command. Apply the constitution's Behavioral Core for the three absences and honest stops.
 
 ## Dependencies
 
@@ -94,5 +94,5 @@ Success prints one JSON object and exits 0; help prints usage. Failures print on
 | `refused-import: cognee` | Remove the refused import; no engine retry |
 | `this command is databased-only; backend: graph is not supported.` | Use graph ingest or recall; no graph promotion or replay command exists |
 | `provenance-shape-mismatch` | Rebuild the set by re-ingesting its sources into a new store. Fires against a store built before a node kept every source its located quotes came from, on ingest and on the passage retrieval paths; MATCH and a store with no passages read neither new column and keep working |
-| `hosted-unspecified: read experts/Memory Expert/hosted.md; stop before reading sources.` | Read the hosted stub; produce no substitute result |
+| `hosted-unspecified: read experts/Knowledge Expert/hosted.md; stop before reading sources.` | Read the hosted stub; produce no substitute result |
 | `unknown option "--env".` | Remove `--env`; this tool takes no environment file |

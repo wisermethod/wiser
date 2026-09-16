@@ -22,7 +22,7 @@ The line starts at the left margin, carries nothing but the paths, backticked an
 
 | Expert | Description | Owns |
 |--------|-------------|------|
-| `Memory Expert/EXPERT.md` | Judge what a knowledge set should hold and how far to trust it, deciding whether a source belongs, what a candidate node deserves, when a set needs rebuilding rather than updating, and whether it is ready to be recalled from, and sequence the knowledge skills accordingly | `skills/Knowledge Set Onboarding/`, `skills/Knowledge Curation/`, `skills/Knowledge Recall/` |
+| `Knowledge Expert/EXPERT.md` | Judge what a knowledge set should hold and how far to trust it, deciding whether a source belongs, what a candidate node deserves, when a set needs rebuilding rather than updating, and whether it is ready to be recalled from, and sequence the knowledge skills accordingly | `skills/Knowledge Set Onboarding/`, `skills/Knowledge Curation/`, `skills/Knowledge Recall/` |
 
 ### Marketing
 

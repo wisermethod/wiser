@@ -129,7 +129,7 @@ class MemoryContract(unittest.TestCase):
                         with self.assertRaisesRegex(km.ProbeError, backend + '-unspecified'):
                             km.main(['recall', '--set', str(self.set), '--store', str(self.root / 'missing.sqlite'), '--query', 'anything'])
                 result = self.cli('chunk', '--set', str(self.set), code=1)
-                self.assertIn('experts/Memory Expert/' + backend + '.md', result.stderr)
+                self.assertIn('experts/Knowledge Expert/' + backend + '.md', result.stderr)
                 absent_store = self.root / (backend + '-absent.sqlite')
                 result = self.cli('recall', '--set', str(self.set), '--store', str(absent_store), '--query', 'anything', code=1)
                 self.assertIn(backend + '-unspecified', result.stderr)

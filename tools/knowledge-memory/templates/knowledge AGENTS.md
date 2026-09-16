@@ -1,8 +1,8 @@
 # Knowledge
 
-Knowledge sets live at `memory/knowledge/<set>/` in this owning root. Load the composed Wiser root's `tools/knowledge-memory/references/backends.md` for the backend contract. Provides does not bind sets. `experts/Memory Expert/` judges them; its three knowledge skills create, curate, and recall them.
+Knowledge sets live at `memory/knowledge/<set>/` in this owning root. Load the composed Wiser root's `tools/knowledge-memory/references/backends.md` for the backend contract. Provides does not bind sets. `experts/Knowledge Expert/` judges them; its three knowledge skills create, curate, and recall them.
 
-Wiki compile and databased and graph extraction use the session's model after `session_permission` records who allowed this session to process the material and when. Storage is local for wiki, databased and graph; extraction is as local as the harness. Graph ingest and recall execute under `experts/Memory Expert/graph.md`, which is the contract to load rather than a stop; its prerequisite failures are named there. Hosted stops on `experts/Memory Expert/hosted.md` before a source is read.
+Wiki compile and databased and graph extraction use the session's model after `session_permission` records who allowed this session to process the material and when. Storage is local for wiki, databased and graph; extraction is as local as the harness. Graph ingest and recall execute under `experts/Knowledge Expert/graph.md`, which is the contract to load rather than a stop; its prerequisite failures are named there. Hosted stops on `experts/Knowledge Expert/hosted.md` before a source is read.
 
 **Store:** `memory/knowledge/store/databased.sqlite`, databased only, one owning root and every table scoped by dataset. A graph set instead has one `graph.lbdb` file per dataset at the path its caller named in this root; on `retrieval: embedding` that file also holds the corpus cut into searchable passages and is roughly twice the size without them. Keep the corpus and human decisions as the recovery material; the compiled layer is rebuilt by Knowledge Curation.
 

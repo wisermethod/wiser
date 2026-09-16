@@ -10,7 +10,7 @@ Counted 2026-09-13: 42 gaps across 26 primitives. Bullet count: `/usr/bin/grep -
 
 ## Experts
 
-### Memory Expert
+### Knowledge Expert
 
 - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
 - a stated meaning for each typed relation, so a stored link cannot be checked against what its type claims

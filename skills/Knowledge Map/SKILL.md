@@ -12,7 +12,7 @@ version: 0.3.0
 
 Use to organize knowledge that already lives in a workspace: read the files, group their ideas by topic, and produce one knowledge-map document that summarizes what is there and cites where each idea sits. It works retroactively, on unorganized content, and needs no setup.
 
-Not for inventorying what files exist without summarizing them; that is Internal Research, which produces metadata rather than organized summaries. Not for research beyond the workspace's own files, for authoring or editing content, or for analyzing tabular data; those belong to the other research-family and authoring skills. Not for creating knowledge: this skill organizes and summarizes what the files already say and invents nothing. A durable knowledge set across sessions routes to `experts/Memory Expert/`.
+Not for inventorying what files exist without summarizing them; that is Internal Research, which produces metadata rather than organized summaries. Not for research beyond the workspace's own files, for authoring or editing content, or for analyzing tabular data; those belong to the other research-family and authoring skills. Not for creating knowledge: this skill organizes and summarizes what the files already say and invents nothing. A durable knowledge set across sessions routes to `experts/Knowledge Expert/`.
 
 ## Objective
 

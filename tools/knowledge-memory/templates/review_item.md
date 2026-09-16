@@ -46,7 +46,7 @@ target: <normalized_name and node_id of the alias or merge target; only for alia
 
 ## Recommendation
 
-<!-- Memory Expert fills this when it triages; it is advice to the reviewer, never a decision -->
+<!-- Knowledge Expert fills this when it triages; it is advice to the reviewer, never a decision -->
 
 ## Decision
 

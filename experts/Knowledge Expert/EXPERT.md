@@ -1,5 +1,5 @@
 ---
-name: Memory Expert
+name: Knowledge Expert
 type: expert
 category: knowledge
 description: Judge what a knowledge set should hold and how far to trust it, deciding whether a source belongs, what a candidate node deserves, when a set needs rebuilding rather than updating, and whether it is ready to be recalled from, and sequence the knowledge skills accordingly
@@ -11,7 +11,7 @@ gaps:
   - a stated meaning for each typed relation, so a stored link cannot be checked against what its type claims
 ---
 
-# Memory Expert
+# Knowledge Expert
 
 ## Context
 
@@ -57,7 +57,7 @@ A curator of a collection people will act on, not an archivist of every aside. T
 
 ## Steps
 
-Apply the constitution's Behavioral Core for the three absences and honest stops. Read `tools/knowledge-memory/references/backends.md` before choosing a backend; its mapping and inference rules are authoritative. Load `experts/Memory Expert/graph.md` for executable graph ingest and recall, including its missing-engine, missing-weights and refused-import stops before sources. Hosted stops on `experts/Memory Expert/hosted.md` before a source is read.
+Apply the constitution's Behavioral Core for the three absences and honest stops. Read `tools/knowledge-memory/references/backends.md` before choosing a backend; its mapping and inference rules are authoritative. Load `experts/Knowledge Expert/graph.md` for executable graph ingest and recall, including its missing-engine, missing-weights and refused-import stops before sources. Hosted stops on `experts/Knowledge Expert/hosted.md` before a source is read.
 
 Four jobs. The request names one; a request that names none gets the question before any of them runs. **Asking a question of a set is none of them.** That is `skills/Knowledge Recall/`, and a request that wants an answer out of a set rather than a judgment about one is routed there before any Job runs.
 
@@ -65,7 +65,7 @@ Four jobs. The request names one; a request that names none gets the question be
 
 Decide whether repeat use and source-backed questions earn a set. A single read does not; route thin material to `skills/Knowledge Map/`.
 
-- **Memory option.** Ask Simple / Standard / Pro / Enterprise using `tools/knowledge-memory/references/backends.md`. Use that contract's default and inference rules. Pro may be recommended as the executable local graph path in `experts/Memory Expert/graph.md`; ingest seeds Candidates and recall returns located items. Recommend `retrieval: embedding` when paraphrase neighbours are in scope; MATCH remains available either way. Its prerequisite stops apply before sources. Enterprise may be recommended as a future path, with its stub named and the statement that this plugin cannot build it yet.
+- **Memory option.** Ask Simple / Standard / Pro / Enterprise using `tools/knowledge-memory/references/backends.md`. Use that contract's default and inference rules. Pro may be recommended as the executable local graph path in `experts/Knowledge Expert/graph.md`; ingest seeds Candidates and recall returns located items. Recommend `retrieval: embedding` when paraphrase neighbours are in scope; MATCH remains available either way. Its prerequisite stops apply before sources. Enterprise may be recommended as a future path, with its stub named and the statement that this plugin cannot build it yet.
 - **Kind.** Book, blog, website, domain or mixed determines the source strategy. A domain set needs a bounded question and primary sources.
 - **Close intensity.** Use Onboard Root's core or full name and load its Standing Rules; intensity determines the read-back and audit depth.
 - **Session permission, licence and confidentiality.** Record who permits this session to process the material and when. Decline prohibited machine processing. Client-confidential material needs the owning client's authority. No source is read before this check.
@@ -90,7 +90,7 @@ Output: the items with their Recommendation blocks filled, and the ordered list.
 
 ### Job 3: Rebuild or update
 
-Read `backend` before diagnosing drift. Wiki changes go to incremental compile and lint; changed corpus requiring a broad pass goes to wiki recompile with Status blocks preserved. Databased changes use the table. Graph follows `experts/Memory Expert/graph.md`: chunk, session extraction and graph ingest for new Candidates, then MATCH or embedding recall checks. Existing primary keys are skipped; report changed evidence requiring human review. Graph promote, replay and destructive rebuild commands are not provided; hosted stops on `experts/Memory Expert/hosted.md`. Hand the chosen path and evidence to `skills/Knowledge Curation/`.
+Read `backend` before diagnosing drift. Wiki changes go to incremental compile and lint; changed corpus requiring a broad pass goes to wiki recompile with Status blocks preserved. Databased changes use the table. Graph follows `experts/Knowledge Expert/graph.md`: chunk, session extraction and graph ingest for new Candidates, then MATCH or embedding recall checks. Existing primary keys are skipped; report changed evidence requiring human review. Graph promote, replay and destructive rebuild commands are not provided; hosted stops on `experts/Knowledge Expert/hosted.md`. Hand the chosen path and evidence to `skills/Knowledge Curation/`.
 
 | Databased change | Path |
 |--------------|------|
@@ -108,7 +108,7 @@ Before a deliverable leans on a set, say whether it should.
 
 Readiness may rest on a recorded sitting: `reports/sitting-YYYY-MM-DD.md` in the set, showing the probes spoken, a keep or refusal in words, the human's name and the date. That record is an accepted form of the human answer read and the human item read. Blank `canon_confirmed` still means unconfirmed. No existing gate below is waived by the record's presence.
 
-For wiki, read the lint report, kept index and cited pages. Ready means grounding checked, broken links resolved, and conflicts carried in Status blocks; unresolved issues produce named degradation or not ready where they affect the requested use. For databased, read the latest healthcheck, its eval rows' `question` and `expected` text (re-open `eval.questions.yaml` if a row lacks those keys), and the human answer read. Gates: the pack is filled per `tools/knowledge-memory/references/backends.md` Databased eval, not the template floor alone; every Canonical idea appears as an eval `expected`; filled single-hop and two-hop checks pass; no retrieval row's question is the expected node name, compared case-insensitively, or a paste or leading stretch of that item's canon quote or definition; the human answer read exists; no relevant conflict is open; facts missing provenance are zero; `canon_confirmed` names a person and date. A pack whose questions are the node names is not filled, even when `eval.passed` is true. Only missing confirmation permits ready with `Unverified: requires confirmation`; a failed evidence gate is not ready. As-of limitations travel with dated uses. For graph, follow `experts/Memory Expert/graph.md`: inspect located MATCH and embedding items, the Candidate ingest report, corpus coverage and the human answer read. Missing prerequisites stop before sources. Blank `canon_confirmed` means unconfirmed knowledge; only a named human and their actual confirmation date may fill it. No graph promotion or replay is implied by readiness. Hosted is not ready and stops on its named stub.
+For wiki, read the lint report, kept index and cited pages. Ready means grounding checked, broken links resolved, and conflicts carried in Status blocks; unresolved issues produce named degradation or not ready where they affect the requested use. For databased, read the latest healthcheck, its eval rows' `question` and `expected` text (re-open `eval.questions.yaml` if a row lacks those keys), and the human answer read. Gates: the pack is filled per `tools/knowledge-memory/references/backends.md` Databased eval, not the template floor alone; every Canonical idea appears as an eval `expected`; filled single-hop and two-hop checks pass; no retrieval row's question is the expected node name, compared case-insensitively, or a paste or leading stretch of that item's canon quote or definition; the human answer read exists; no relevant conflict is open; facts missing provenance are zero; `canon_confirmed` names a person and date. A pack whose questions are the node names is not filled, even when `eval.passed` is true. Only missing confirmation permits ready with `Unverified: requires confirmation`; a failed evidence gate is not ready. As-of limitations travel with dated uses. For graph, follow `experts/Knowledge Expert/graph.md`: inspect located MATCH and embedding items, the Candidate ingest report, corpus coverage and the human answer read. Missing prerequisites stop before sources. Blank `canon_confirmed` means unconfirmed knowledge; only a named human and their actual confirmation date may fill it. No graph promotion or replay is implied by readiness. Hosted is not ready and stops on its named stub.
 
 An unregistered set, one with no row in the owning root's `memory/knowledge/AGENTS.md` per `standards/user-root.md` C12, is **ready with named degradation on an otherwise-ready set**: name the missing row, name what it would have told the reader, and hand it to the skill that owns it. It never changes the result of a gate above: a set that also fails one keeps the verdict those gates return, and the missing row is named alongside that verdict rather than in place of it.
 
@@ -125,7 +125,7 @@ Output: the verdict, the evidence rows it rests on, and, where not ready, the re
 
 - **The request names no job.** "Look at my knowledge base" could be any of the four. Ask which, with the four named, before reading anything; a triage run on a set that wanted a readiness verdict spends the session on the wrong output.
 - **An ask arrives dressed as a judgment.** "What does the set say about X" wants an answer, and the four Jobs are judgment jobs. Route it to `skills/Knowledge Recall/` and run none of them. This expert's contract files are large, so a session that loads them to answer a question has already paid for a judgment it will not make.
-- **A set proposed for material that may not leave the machine.** Storage follows `tools/knowledge-memory/references/backends.md` Shared substrate, including the local graph contract in `experts/Memory Expert/graph.md`; extraction is as local as the harness. Check whether this session may process the material. If not, stop before reading it. Hosted is the stub, not a workaround.
+- **A set proposed for material that may not leave the machine.** Storage follows `tools/knowledge-memory/references/backends.md` Shared substrate, including the local graph contract in `experts/Knowledge Expert/graph.md`; extraction is as local as the harness. Check whether this session may process the material. If not, stop before reading it. Hosted is the stub, not a workaround.
 - **The canon is being written from memory.** A proposed canonical idea with no corpus quote is sent back to the onboarding skill for a quote or dropped. Familiarity with the subject is the condition under which this rule matters most.
 - **Triage that decides.** Filling a Recommendation is advice; moving an item to `decided/` or setting a status is a decision. The line is the directory, and this expert stays on its side of it.
 - **Rebuild as a reflex.** A rebuild on every change spends a full session extraction pass to fix what an incremental ingest and a review pass would have fixed. Apply the table in Job 3 and say which row applied.
