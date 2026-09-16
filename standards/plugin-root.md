@@ -113,9 +113,11 @@ The scoreable obligation is that a plugin root's own `AGENTS.md` states its writ
 Two obligations, one unconditional and one conditional.
 
 1. Unconditional: the base plugin alone ships `gateway/`. A base root whose `gateway/` is missing scores absent. A domain plugin that ships its own gateway process scores misfiled, whether or not it ships connectors.
-2. Conditional, and the trigger is named so that two scorers reach the same result. The conditional applies when the root **ships at least one connector**, meaning a directory under `connectors/` that holds a `CONNECTOR.md`. An absent `connectors/`, an empty one, or one holding only its `AGENTS.md` index ships no connector and scores **N/A** on this conditional; C2's fourth obligation already makes its presence or absence no finding. Where the conditional applies, those connectors load through the base gateway's repeated `--connectors` flag, per `wiser/gateway/SETUP.md`, and that root's `AGENTS.md` states this loading path. Silence on it scores absent.
+2. Conditional, and **the trigger has two parts, both read off the tree**, so that two scorers reach the same result: the root **ships at least one connector**, meaning a directory under `connectors/` that holds a `CONNECTOR.md`, **and the root ships no `gateway/` of its own**. An absent `connectors/`, an empty one, or one holding only its `AGENTS.md` index ships no connector; C2's fourth obligation already makes its presence or absence no finding. Where both parts hold, those connectors load through the base gateway's repeated `--connectors` flag, per `wiser/gateway/SETUP.md`, and that root's `AGENTS.md` states this loading path. Silence on it scores absent. **Where either part fails, the conditional scores N/A.**
 
-These are opposite obligations, not an N/A for either plugin class. Reading the base's obligation against a domain plugin is the error, not the clause.
+The second part of the trigger is a fact about the tree, not an exemption by plugin class. `wiser/gateway/SETUP.md` gives `--connectors` the default "the plugin's own" and reserves it for a working folder that "carries connectors of its own", so a root shipping the gateway its connectors sit beside has no separate loading path to state, while a root shipping connectors without a gateway has one its reader needs.
+
+The two obligations are opposite in effect, and that follows from the trigger rather than standing beside it. Under obligation 1 only the base is entitled to `gateway/`, so a base **that ships its `gateway/`** takes N/A on the conditional and a domain plugin shipping connectors takes the obligation. A base whose `gateway/` is missing scores absent under obligation 1, and if it also ships a connector both parts of the trigger hold and it owes the loading path as well; the qualifier is there because the conditional turns on what the tree ships, not on what its class is entitled to ship. A domain plugin that wrongly ships a gateway scores misfiled under obligation 1 and N/A under the conditional; removing the gateway is the repair, and the conditional becomes live once it is gone. Reading the base's unconditional obligation against a domain plugin is still the error.
 
 ## C7 Host bridges
 
@@ -173,7 +175,7 @@ This standard adds a fourth word, **N/A**, for an obligation that does not apply
 
 N/A is not vacuous present:
 
-- **N/A** means the clause does not apply, by plugin class or by the root's own declaration. The base's composition sentence, connectors on a plugin that ships none, families on a placeholder that forbids them, bound memory looked for on any plugin root, the `version` key on a plugin root that is not git-sourced, catalog files on a placeholder.
+- **N/A** means the clause does not apply, by plugin class, by the root's own declaration, or by what the tree ships. The base's composition sentence, C6's conditional on a root that ships no connector or that ships its own `gateway/`, families on a placeholder that forbids them, bound memory looked for on any plugin root, the `version` key on a plugin root that is not git-sourced, catalog files on a placeholder.
 - **Vacuous present** means the clause applies and has nothing to check, with nothing contradicting it. C3 ownership on a tree whose families are declared but hold no primitives.
 
 Contradiction outranks both. Observed material that contradicts a clause is misfiled, whether or not the clause would otherwise have scored N/A or vacuous present.
@@ -200,7 +202,7 @@ A root whose stamp equals the authority returns zero version-migration rows and 
 | C3 Ownership | applies | applies | |
 | C4 Composition | partly | applies | The composition sentence citing the base is N/A for the base. "Never references a domain plugin" applies to the base and is N/A for a domain plugin. The no-duplication and no-build-workspace-path rules apply to both |
 | C5 Write mode and in-use writes | applies | applies | |
-| C6 Gateway | applies | applies | Opposite obligations, not N/A. The base ships `gateway/`; a domain plugin ships none |
+| C6 Gateway | applies | applies | Obligation 1 is opposite by class: the base ships `gateway/`, a domain plugin ships none. Obligation 2's conditional scores N/A where the root ships no connector, or ships its own `gateway/` |
 | C7 Host bridges | applies | applies | |
 | C8 License class | applies | applies | The declared plugin class differs |
 | C9 User-root exclusion | applies | applies | |
