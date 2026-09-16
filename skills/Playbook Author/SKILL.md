@@ -3,7 +3,11 @@ name: Playbook Author
 type: skill
 category: authoring
 description: Create, instantiate, resume, review, or close out a WISER Playbook for work that spans sessions
-version: 0.1.4
+version: 0.1.5
+gaps:
+  - an automatic session-end report of a Playbook's verified state, so what a session established is said only when someone asks for it
+  - a statement of why execution stopped and of the decision it stopped on, with a recommendation and the trade-offs
+  - a ready-to-use starting prompt for the next session, so a cold resume is assembled by hand from the document
 ---
 
 # Playbook Author
@@ -77,7 +81,7 @@ Follow the Review Process in `standards/instruction-quality.md`. The stress test
 - **The riskiest piece was picked for looking hard.** Re-derive it per Risk First in `standards/playbook.md`, then re-sequence Solve to build it first.
 - **A Template master is about to be executed, ticked, Completed, or archived.** Stop. Copy it to an instance and work the instance; the master changes only by deliberate learning promotion.
 - **The standards pointer is missing, or the standards are listed only under Key files.** Restore it to the Context line the Structure names, as a path that opens, then continue. Key files remain the Witness targets.
-- **A session is ending with the document behind the work.** Run the session-end protocol in `standards/playbook.md` now; write only what you can attest to, and mark the rest unverified.
+- **A session is ending with the document behind the work.** Run the session-end protocol in `standards/playbook.md` now; write only what you can attest to, and mark the rest unverified. **That protocol reconciles the document and nothing in this root reports it to the person**: there is no automatic report of verified state, no statement of why execution stopped and of the decision it stopped on with a recommendation and the trade-offs, and no ready-to-use prompt for a fresh session. The reconciliation and Resume requirements above still bind.
 
 ## Success
 

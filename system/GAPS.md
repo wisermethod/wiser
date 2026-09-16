@@ -6,7 +6,7 @@ A gap is a capability this root does not provide that a primitive's own body nam
 
 **This file carries capability gaps only.** What the operator plans to build is a separate record and is not a user's business, so nothing about future work appears here. **A gap names the capability that is missing, never where that capability went.**
 
-Counted 2026-09-13: 42 gaps across 26 primitives. Bullet count: `/usr/bin/grep -E '^- ' wiser/system/GAPS.md | wc -l` returns 42. Verify each bullet against its primitive's frontmatter in both directions.
+Counted 2026-09-16: 45 gaps across 27 primitives. Bullet count: `/usr/bin/grep -E '^- ' wiser/system/GAPS.md | wc -l` returns 45. Verify each bullet against its primitive's frontmatter in both directions.
 
 ## Experts
 
@@ -92,6 +92,12 @@ Counted 2026-09-13: 42 gaps across 26 primitives. Bullet count: `/usr/bin/grep -
 ### Onboard Root
 
 - judgment on whether a recorded competitor set names a competitor rather than describing one
+
+### Playbook Author
+
+- an automatic session-end report of a Playbook's verified state, so what a session established is said only when someone asks for it
+- a statement of why execution stopped and of the decision it stopped on, with a recommendation and the trade-offs
+- a ready-to-use starting prompt for the next session, so a cold resume is assembled by hand from the document
 
 ### Proposal Author
 
