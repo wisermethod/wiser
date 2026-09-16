@@ -46,7 +46,7 @@ The attached working folder is the **owning root**: the personal, org, client, d
 
 **Determining the owning root.** The candidates are the composed roots whose own `AGENTS.md` declares a `type:`. Where exactly one root is a candidate it is the owning root and nothing is asked. Where several are, or none is, the rule above is in force: ask, never hunt, and ask **once, early, before the first read or write under any of them**, then state the answer for the session so it is not resolved again at the first write. A root declaring no `type:` is not a candidate; that absence does not make it a write destination either, and what it does mean is the write-mode clause below.
 
-**The owning root's contract version.** A session that has resolved the owning root reads that root's `layout:` against C1 of `standards/user-root.md`, and reports a mismatch at that point rather than at the first write. C1 owns what the comparison means, what a mismatch owes, and which primitive owes it; this clause is only the moment it happens. The session converges nothing on its own, and a standard that is absent or unreadable is reported as such, never as a pass.
+**The owning root's contract version.** A session that has resolved the owning root reads that root's `layout:` against C1 of `standards/user-root.md`, and reports a mismatch at that point rather than at the first write. C1 owns what the comparison means, what a mismatch owes, and which primitive owes it; this clause is only the moment it happens, and C1 governs what the session may do about it. A standard that is absent or unreadable is reported as such, never as a pass.
 
 **Write mode.** A session either uses this root or authors it. The two differ in what may be written, never in where the session is standing.
 
