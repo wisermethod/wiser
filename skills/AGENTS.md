@@ -93,6 +93,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 | Skill | Description | Owner |
 |-------|-------------|-------|
 | `Housekeeping/SKILL.md` | Propose a clause-cited layout plan and apply its approved transaction with verified recovery, serving as the layout engine callable any time to bring a declared root up to current layout specs | System Expert |
+| `Onboard Plugin Root/SKILL.md` | Create a domain plugin beside wiser or adopt a placeholder repository into declared plugin layout, producing its constitution, families and catalog, scored clause by clause, with every authority boundary stopped at by name | System Expert |
 | `Set Up Connectors/SKILL.md` | Attach the gateway to this harness and confirm the project key on this machine, for a new CLI, machine, or OS user | Connector Advisor |
 | `Connect Account/SKILL.md` | Connect one service module in its own human turn through start_connect then connect_status, never taking a key in the conversation | Connector Advisor |
 | `Connection Troubleshooter/SKILL.md` | Name one next step for a gateway status object or audit line covering needs_provider, needs_connect, expired, denied, needs_connector, and vendor_error | Connector Advisor |
