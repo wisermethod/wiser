@@ -95,9 +95,8 @@ Counted 2026-09-16: 45 gaps across 27 primitives. Bullet count: `/usr/bin/grep -
 
 ### Playbook Author
 
-- an automatic session-end report of a Playbook's verified state, so what a session established is said only when someone asks for it
-- a statement of why execution stopped and of the decision it stopped on, with a recommendation and the trade-offs
-- a ready-to-use starting prompt for the next session, so a cold resume is assembled by hand from the document
+- the trade-offs beside a recommendation at a session stop, so an open decision is put with one course and its reason rather than with the alternatives weighed
+- a starting prompt delivered without being asked for, so a cold resume is assembled by hand wherever the wrap up is declined
 
 ### Proposal Author
 

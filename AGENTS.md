@@ -80,7 +80,7 @@ Guard rails, binding for any shared artifact:
 
 **A secret's contents never enter the conversation, a log, a commit, or another file.**
 
-**Nothing is ever written under this root during a session that uses it**, nor to the top level of any root. Authoring this root is separate work, planned as a Playbook. Output lands in the working folder, in the directories that folder's own `AGENTS.md` declares. The one exception is what a tool installs for itself, per that tool's own contract, and some of that lands outside this root. **The complete list for tools is in `tools/AGENTS.md`; the gateway's is in `gateway/AGENTS.md`.** Neither is restated here, because a write inventory kept in two places goes stale in one of them, as the summary that used to stand in this sentence did, naming the Linux compatibility shims as a write outside this root after they had been moved inside the tool that builds them.
+**Nothing is ever written under this root during a session that uses it**, nor to the top level of any root. Authoring this root is separate work, and Working under this root says how it is planned. Output lands in the working folder, in the directories that folder's own `AGENTS.md` declares. The one exception is what a tool installs for itself, per that tool's own contract, and some of that lands outside this root. **The complete list for tools is in `tools/AGENTS.md`; the gateway's is in `gateway/AGENTS.md`.** Neither is restated here, because a write inventory kept in two places goes stale in one of them, as the summary that used to stand in this sentence did, naming the Linux compatibility shims as a write outside this root after they had been moved inside the tool that builds them.
 
 **Nothing is deleted or overwritten without naming what is being lost first.** Where a root's own `AGENTS.md` declares an archive home, a file is archived there before it is replaced; where none is declared, including in this root, the Archives rule of `standards/conventions.md` says where it goes instead.
 
@@ -99,6 +99,8 @@ Routing has two doors. An ask that names its output, a deliverable some skill's 
 The named ask **update root** (also "update this root", "check root", and "is this root current") enters `skills/Housekeeping/` against the owning root, which compares that root's `layout:` with C1 of `standards/user-root.md` and proposes a clause-cited plan. C1 owns what that comparison means and what it reports. **The plan is applied only on a separate approval**, per that skill: the ask buys the comparison and the proposal, never the change.
 
 The named ask **set up connectors** (also "setup connectors" and "enable connectors") enters `skills/Set Up Connectors/`. It is the path for a new harness, a new machine, or a new OS user. It does not grant a vendor account; that remains Connect Account. The phrase "install connectors" routes here too and is not a tool `--install`; the gateway installs nothing.
+
+The named ask **wrap up** enters `skills/Playbook Author/` and runs its Hand Off, which readies this session's Playbooks for the next one and owns what it commits and hands over.
 
 This plugin is the base: a domain plugin loads beside it, may assume it is present, and references its primitives and standards rather than duplicating them, and nothing here references a domain plugin. What is general belongs here; what changes with a sector, in its steps and not merely its audience, belongs in the domain plugin.
 
