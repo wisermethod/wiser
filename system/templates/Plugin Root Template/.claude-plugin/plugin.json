@@ -1,0 +1,5 @@
+{
+  "name": "{{ROOT}}",
+  "displayName": "{{TITLE}}",
+  "description": "{{DESCRIPTION}}"
+}

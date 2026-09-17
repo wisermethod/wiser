@@ -1,0 +1,11 @@
+{
+  "name": "{{MARKETPLACE}}",
+  "description": "{{DESCRIPTION}}",
+  "plugins": [
+    {
+      "name": "{{ROOT}}",
+      "source": "./",
+      "description": "{{DESCRIPTION}}"
+    }
+  ]
+}
