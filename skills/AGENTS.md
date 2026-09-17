@@ -105,7 +105,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 |-------|-------------|-------|
 | `Site Author/SKILL.md` | Stand up, content-edit, check, wrap, and upgrade a kit site envelope at sites/<domain>/ or work/<slug>/sites/<domain>/ when the site dies with that work, with the kit in site/, in an owning root that declares sites/ | Webmaster |
 | `Cloudflare Pages/SKILL.md` | List and get a Cloudflare Pages project, list its deployments, and take a kit site live by Wrangler upload of the envelope's site/dist/ payload only | Webmaster |
-| `Vercel Deploy/SKILL.md` | List and get a Vercel project, list deployments, and create a deployment from the isolated site/ payload with confirmation always | Webmaster |
+| `Vercel Deploy/SKILL.md` | List and get a Vercel project, list deployments, and create a deployment from the isolated site/ payload, uploaded by reference, with confirmation always | Webmaster |
 
 ### Writing
 

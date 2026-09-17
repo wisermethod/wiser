@@ -2,8 +2,8 @@
 name: Vercel Deploy
 type: skill
 category: web
-description: List and get a Vercel project, list deployments, and create a deployment from the isolated site/ payload with confirmation always
-version: 0.2.0
+description: List and get a Vercel project, list deployments, and create a deployment from the isolated site/ payload, uploaded by reference, with confirmation always
+version: 0.2.1
 gaps:
   - read or modify environment variables
   - delete a Vercel project
@@ -53,13 +53,14 @@ Quote filesystem paths containing spaces, including this skill's directory.
 | List projects | `vercel.projects.list` | `{ team_id?, limit? }` | none |
 | Get project | `vercel.projects.get` | `{ id_or_name, team_id? }` | none |
 | List deployments | `vercel.deployments.list` | `{ project_id?, team_id?, limit? }` | none |
-| Create deployment | `vercel.deployments.create` | `{ name, project?, files?, git_source?, target?, team_id? }` | always |
+| Upload one file | `vercel.deployments.upload_file` | `{ path, name?, team_id? }` | always |
+| Create deployment | `vercel.deployments.create` | `{ name, dir? \| files? \| git_source?, project?, project_settings?, target?, skip_auto_detection?, team_id? }` | always |
 
 `vercel` / `projects` and `vercel` / `deployments` are separate grants. Under the constitution's Behavioral Core, `needs_connect` on the module in use stops with no yield; `skills/Connect Account/` is the next human turn, using `connectors/vercel/auth.md`. A connected projects grant cannot stand in for deployments. Other unavailable actions follow that heading; missing readings carry `standards/conventions.md` Evidence Labels.
 
 For a read, return the scope, requested data, and any pagination returned; do not call a partial page the complete inventory. List and get, including deployment-list, are not publish and take no Job 3 gate. For create, continue to Step 3 before calling the action.
 
-**3. Make the publish reviewable.** Resolve the site scope under the constitution's Workspace Model; its yield here is the owning root, the envelope, and its inner `site/` kit folder. Review explicit `files` as payload from `site/` or `site/dist/` only, excluding envelope memory, or `git_source` as an existing repository containing only that payload and its revision. Refuse a source that is the envelope or owning root. For a kit tree, only domain-folder `kit.json` is old shape: name Site Author Wrap before proceeding; current envelopes have `site/kit.json`. A parent repository with a site build-directory setting is refused. If relying on an existing project's configured source, get that project and establish the exact site-only source; if the response cannot establish it, ask for the missing source evidence and wait. Never infer a safe source from `name` alone or read an environment file to fill the payload.
+**3. Make the publish reviewable.** Resolve the site scope under the constitution's Workspace Model; its yield here is the owning root, the envelope, and its inner `site/` kit folder. Review the source as payload from `site/` or `site/dist/` only, excluding envelope memory: `dir` naming that folder, explicit `files` drawn from it, or `git_source` as an existing repository containing only that payload and its revision. `dir` uploads every file under the folder it names, so review the folder, not a file list; the connector returns the manifest of what it sent and the list of what its path screen refused, and both are part of Step 5's verification. Refuse a source that is the envelope or owning root. For a kit tree, only domain-folder `kit.json` is old shape: name Site Author Wrap before proceeding; current envelopes have `site/kit.json`. A parent repository with a site build-directory setting is refused. If relying on an existing project's configured source, get that project and establish the exact site-only source; if the response cannot establish it, ask for the missing source evidence and wait. Never infer a safe source from `name` alone or read an environment file to fill the payload.
 
 Present the exact creation input, including the resolved project/team, source, and target. Set `target` explicitly when the publish destination depends on it; do not silently treat a preview as production. For a kit site, sequence `skills/Site Author/` Check with the envelope folder if the contract evidence is missing or stale; a failing check returns for repair.
 
@@ -67,7 +68,7 @@ Hand `<site>` (payload plus enclosing envelope), `<goal>` (publish), `<change>` 
 
 **4. Confirm every creation call.** After the pass, require the requester's confirmation of that exact action and input. `vercel.deployments.create` is `confirmation: always`: `confirm: true` comes from the requester, never this skill's own initiative, and is sent as gateway confirmation, not an extra deployment input. No skip exists. A changed source, destination, target, or payload returns to Step 3 for a new Job 3 verdict before confirmation. Every call requires its own confirmation; `needs_confirmation` waits for that approval and never triggers a self-confirmed retry.
 
-**5. Create once, then verify what returned.** Execute only the confirmed call. Report its returned id, status, and URL where present. Use deployment-list scoped to the resolved project and team to inspect that id's status; a pending deployment stays pending, and missing verification is labeled. A failure or uncertain response stops creation rather than retrying a potentially accepted publish. Have the requester review the available deployment listing before deciding whether another confirmed call is needed. Custom-domain resolution follows Context's DNS hand-off.
+**5. Create once, then verify what returned.** Execute only the confirmed call. Report its returned id, status, and URL where present, and for an uploaded source the returned `uploaded` manifest and any `skipped` entries. Use deployment-list scoped to the resolved project and team to inspect that id's status; a pending deployment stays pending, and missing verification is labeled. A failure or uncertain response stops creation rather than retrying a potentially accepted publish. Have the requester review the available deployment listing before deciding whether another confirmed call is needed. Custom-domain resolution follows Context's DNS hand-off.
 
 ## Pitfalls
 

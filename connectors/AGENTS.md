@@ -30,7 +30,7 @@ A connection record is keyed by service and module. Two modules on one service a
 |-----------|-------------|
 | `cloudflare/CONNECTOR.md` | Reaches Cloudflare DNS, the account's zones, Pages, and rulesets, with every removal confirmed |
 | `github/CONNECTOR.md` | Reaches one GitHub account's repositories and issues to read them, list them, and open an issue, and reports the authenticated account |
-| `vercel/CONNECTOR.md` | Reads projects and deployments and creates a deployment only with confirmation on every call |
+| `vercel/CONNECTOR.md` | Reads projects and deployments and creates a deployment, uploading its files by reference, only with confirmation on every call |
 | `stripe/CONNECTOR.md` | Reads customers and charges through one billing grant |
 | `monday/CONNECTOR.md` | Lists boards and reads a page of board items |
 | `supabase/CONNECTOR.md` | Lists projects and reads one project |

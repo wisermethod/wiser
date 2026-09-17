@@ -97,11 +97,11 @@
           }
         },
         "create": {
-          "description": "Publish a deployment",
+          "description": "Publish a deployment, uploading its files by reference first",
           "risk": "high",
           "confirmation": "always",
           "execution": {
-            "prefer": "catalog"
+            "prefer": "proxy"
           },
           "input": {
             "type": "object",
@@ -109,7 +109,7 @@
               "name": {
                 "type": "string"
               },
-              "project": {
+              "dir": {
                 "type": "string"
               },
               "files": {
@@ -118,8 +118,17 @@
               "git_source": {
                 "type": "object"
               },
+              "project": {
+                "type": "string"
+              },
+              "project_settings": {
+                "type": "object"
+              },
               "target": {
                 "type": "string"
+              },
+              "skip_auto_detection": {
+                "type": "boolean"
               },
               "team_id": {
                 "type": "string"
@@ -130,6 +139,34 @@
             },
             "required": [
               "name"
+            ]
+          }
+        },
+        "upload_file": {
+          "description": "Upload one local file to the deployment file store, by reference",
+          "risk": "medium",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "team_id": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path"
             ]
           }
         }
