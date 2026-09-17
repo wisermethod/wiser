@@ -1,6 +1,6 @@
 ---
 standard: playbook
-version: 0.2.0
+version: 0.2.1
 description: The Playbook format; the WISER method for multi-session execution with decision tracking and learning capture
 ---
 
@@ -191,6 +191,7 @@ Dates, naming charset, and archiving follow `standards/conventions.md`.
 4. Check Progress for the current canon and next action
 5. Verify checkboxes against actual disk state; correct drift
 6. Continue from the documented next action
+7. End the session through `skills/Playbook Author/` Hand Off, which owns the steps; the ask "wrap up" enters it at step 4
 
 ## Progress
 **Last worked:** YYYY-MM-DD
