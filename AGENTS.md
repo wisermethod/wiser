@@ -117,6 +117,7 @@ This plugin is the base: a domain plugin loads beside it, may assume it is prese
 | `standards/playbook.md` | The Playbook format |
 | `standards/script-contract.md` | What every script a tool ships must do, and the clauses that bind a connector module; a user reads `tools/RUNNING.md` |
 | `standards/user-root.md` | The declared user-root tree, the clauses that score it, and the root contract version C1 owns |
+| `standards/plugin-root.md` | The declared plugin-root tree, base or domain, the clauses that score it, and the current tree version C1 owns |
 
 Each family's `AGENTS.md` carries an index of that family, maintained by hand (`standards/primitives.md`).
 
