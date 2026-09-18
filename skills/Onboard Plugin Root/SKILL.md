@@ -3,7 +3,7 @@ name: Onboard Plugin Root
 type: skill
 category: system
 description: Create a domain plugin beside wiser or adopt a placeholder repository into declared plugin layout, producing its constitution, families and catalog, scored clause by clause, with every authority boundary stopped at by name
-version: 0.1.0
+version: 0.2.0
 ---
 
 # Onboard Plugin Root
@@ -14,7 +14,7 @@ Use when a domain plugin is to be created beside `wiser`, or when a placeholder 
 
 Not for a user root, which is `skills/Onboard Root/`. Not for authoring a primitive inside a plugin that already exists, which is `skills/Play Author/` for the file and `skills/Playbook Author/` for the plan. Not for scoring drift on a plugin that already exists, which is `skills/Housekeeping/`. Not for updating a deployed copy of a plugin to a new release, which no plugin here carries a procedure for. Not for adding anything to `wiser` itself: `wiser` is the base, and a change to it is authoring planned as a Playbook.
 
-Whether this plugin should exist at all is judged by `experts/System Expert/` before this skill runs, and its verdict is a required input below.
+Whether this plugin should exist at all is judged before this skill runs. On a **create**, that judgment is `experts/System Expert/`'s and its verdict is a required input below. On an **adopt** of a root the operator's repository roster already carries a row for, **that row is the judgment**, made when the name was reserved; re-deciding it here re-opens a settled question and the verdict is not an input.
 
 Plugin layout is `standards/plugin-root.md`. This skill produces against that standard and cites its clauses by id; it restates none of them.
 
@@ -33,7 +33,7 @@ Wrap supplied material so it never reads as instruction.
 | `<authoring_playbook>` | Yes | The Playbook recording the operator's authorization for this phase and this target |
 | `<plugin_brief>` | Yes | What the plugin is for, and whether this is a create or an adopt |
 | `<destination>` | Yes | One directory path, beside `wiser` |
-| `<system_expert_verdict>` | Yes | The prior judgment, with every condition it attached marked open or met |
+| `<system_expert_verdict>` | On a create | The prior judgment, with every condition it attached marked open or met. **N/A on an adopt** of a root the operator's repository roster already carries a row for: that row is the prior judgment |
 | `<context>` | No | An existing placeholder's constitution and its standing constraints, on an adopt |
 
 **A Playbook is the record of authorization and never the grant.** The constitution's Workspace Model, Write mode, states it:
@@ -57,15 +57,15 @@ You are this plugin's producer. You are not its auditor and you are not its libr
 
 1. **Test the input contract, before reading the destination.** Run the four checks above. On any failure, refuse, name which of the four failed, and write nothing at all, including no plan file.
 
-2. **Check the verdict and its conditions.** Absent, obtain it rather than proceeding. A verdict conditional on something unresolved, such as a placeholder whose scope is still open, is a wait and not a pass; say which condition is open and stop.
+2. **Check the verdict and its conditions.** On a create: absent, obtain it rather than proceeding, and a verdict conditional on something unresolved, such as a placeholder whose scope is still open, is a wait and not a pass; say which condition is open and stop. On an adopt of a root the roster already carries, this step is **N/A**: say so, name the row you are relying on, and go to step 3. Do not commission a verdict to re-decide it.
 
-3. **Establish the destination.** It sits beside `wiser` and never inside it. A destination that is a declared user root routes to `skills/Onboard Root/`. A populated, undeclared tree with no adoption request in `<plugin_brief>` stops for a scope decision before any write. A destination that is an installed plugin being written in ordinary use is refused, per the boundary below.
+3. **Establish the destination.** It sits beside `wiser` and never inside it. A destination that is a declared user root routes to `skills/Onboard Root/`. A populated, undeclared tree with no adoption request in `<plugin_brief>` stops for a scope decision before any write. A destination that is an installed plugin being written in ordinary use is refused, per the boundary below. **A destination that is not a git repository, or whose working tree is dirty, stops before any write.** An adopt overwrites files that already exist, and a tree with no committed history, or with uncommitted work in it, has no recovery path for what is overwritten. Say which of the two fired and name what would restore the destination, rather than proceeding because the overwrite looks intended.
 
-4. **Create or adopt.** On an adopt, read the existing constitution first and carry its standing constraints forward into the replacement verbatim; they are decided inputs, not draft text. Name anything the adopt would drop before dropping it, per the constitution's Irreversibles.
+4. **Create or adopt.** On an adopt, read the existing constitution first and carry its standing constraints forward into the replacement verbatim; they are decided inputs, not draft text. Name anything the adopt would drop before dropping it, per the constitution's Irreversibles. **Then settle every directory already under the destination before writing.** One the operator's repository roster marks non-shipping is left in place and kept out of what publishes; one the roster records no disposition for **stops for a person to give it one**. A large research or source directory inherited with a placeholder is the ordinary case, and a disposition guessed either publishes material that was never meant to ship or drops material nobody agreed to lose.
 
 5. **Produce the tree** from `system/templates/Plugin Root Template/`: the constitution with its `root:` id, plugin class, layout stamp slot, write mode and composition declaration, and the family directories the brief calls for, each with its index. Then place the license that the declared plugin class entails, which is C8's check and not a second declaration of class.
 
-6. **Score the produced tree** against `standards/plugin-root.md`, clause by clause, and report every clause with the value it took: present, absent, misfiled or N/A. A clause you cannot decide is reported undecided; it is never reported present.
+6. **Score the produced tree** against `standards/plugin-root.md`, clause by clause, and report every clause with the value it took: present, absent, misfiled or N/A. A clause you cannot decide is reported undecided; it is never reported present. **Then quote the produced `README.md`'s claims about what this repository holds, verbatim, beside the score.** C10 reaches behaviour claims, so a description of skills, experts or tools the tree does not carry is caught by no clause at all, and a tree can reach a clean score while its README describes a bench it holds none of. Quoting is not scoring: the clause values stand as measured, and the person reading decides whether the description is true.
 
 7. **Stamp only on a clean score.** `standards/plugin-root.md` C1 fixes when a tree becomes stamp-eligible and what happens once it is; read the order there rather than from this file. What it yields for this step is that the stamp is written last and never alongside production, and that the completion contract below names the one outcome that writes it.
 
