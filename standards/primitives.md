@@ -1,6 +1,6 @@
 ---
 standard: primitives
-version: 0.6.0
+version: 0.6.1
 description: The four typed primitives, how they invoke and sequence one another, and the frontmatter every typed file carries
 ---
 
@@ -73,7 +73,7 @@ version: <semantic version, starting at 0.1.0>
 | `description` | One line stating what invoking it yields, plain prose with no vertical bar; indexes display it verbatim |
 | `version` | A digits-only triple, `MAJOR.MINOR.PATCH`, no suffix, starting at 0.1.0; raise it when behavior changes, and a behavior change requires re-verification |
 
-All five are required. Two keys are optional. `memory` is a non-empty dash-list of the abstract keys the primitive requests, bound per the constitution's Workspace Model; never a scalar. `gaps` is a non-empty dash-list of short one-line descriptions of capabilities this root does not yet provide that the primitive's body names as missing; `system/GAPS.md` collects every declared gap, by hand. A body that says no primitive in this root covers something carries a matching `gaps` entry; omit the key when there is nothing to declare. Nothing else belongs in the block; a fact that fits none of these keys belongs in the body. An optional key with nothing to declare is omitted, never written empty.
+All five are required. Two keys are optional. `memory` is a non-empty dash-list of the abstract keys the primitive requests, bound per the constitution's Workspace Model; never a scalar. `gaps` is a non-empty dash-list of short one-line descriptions of capabilities this root does not yet provide that the primitive's body names as missing; The **owning root's own** `system/GAPS.md` collects every declared gap, by hand: a primitive's gaps are collected in the root that ships that primitive, and a domain plugin's gaps never project into the base's, which `standards/plugin-root.md` C4 scores misfiled as a base file naming a domain plugin. A root whose primitives declare no gap needs no such file, and the first primitive that declares one creates it. A body that says no primitive in this root covers something carries a matching `gaps` entry; omit the key when there is nothing to declare. Nothing else belongs in the block; a fact that fits none of these keys belongs in the body. An optional key with nothing to declare is omitted, never written empty.
 
 The block is a flat map in exactly this grammar, deliberately small so that every host reads it identically:
 

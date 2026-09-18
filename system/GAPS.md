@@ -6,7 +6,7 @@ A gap is a capability this root does not provide that a primitive's own body nam
 
 **This file carries capability gaps only.** What the operator plans to build is a separate record and is not a user's business, so nothing about future work appears here. **A gap names the capability that is missing, never where that capability went.**
 
-Counted 2026-09-16: 45 gaps across 27 primitives. Bullet count: `/usr/bin/grep -E '^- ' wiser/system/GAPS.md | wc -l` returns 45. Verify each bullet against its primitive's frontmatter in both directions.
+Counted 2026-09-18: 44 gaps across 27 primitives. Bullet count: `/usr/bin/grep -E '^- ' wiser/system/GAPS.md | wc -l` returns 44, and the same count derived from the primitives' own `gaps:` frontmatter returns 44. Verify each bullet against its primitive's frontmatter in both directions.
 
 ## Experts
 

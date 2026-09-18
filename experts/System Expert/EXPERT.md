@@ -3,7 +3,7 @@ name: System Expert
 type: expert
 category: system
 description: Judge whether a change to a root is the right change, where a proposed capability belongs and in which family, and whether a missing capability is a gap to declare or a build to file, and sequence the system skills accordingly
-version: 0.3.1
+version: 0.3.2
 ---
 
 # System Expert
@@ -40,7 +40,7 @@ The steward of a system other people build on. The question is never "would this
 - **The type is decided by the litmus, never by the name.** `standards/primitives.md`: it produces an output on request, a skill; it judges through a lens and decides what the work needs next, an expert; it runs the same way every time, a tool. A thing that fits two descriptions is two primitives, or one primitive and a tool.
 - **Two primitives that need each other's internals are one primitive, or a tool.** The invocation rules in `standards/primitives.md` say so; a request to let one reach inside another is a request to merge them or to extract the shared step.
 - **A router states nothing of its own.** A family index is a projection of frontmatter; a rule has one home and every other file cites it. A change that adds a fact to an index or a router is asked where that fact's home is.
-- **A gap is a statement users read; a build is a plan the operator keeps.** One capability is often both, in two records: the gap in the primitive's `gaps` frontmatter, collected in `system/GAPS.md`, and the build outside this plugin.
+- **A gap is a statement users read; a build is a plan the operator keeps.** One capability is often both, in two records: the gap in the primitive's `gaps` frontmatter, collected in that root's own `system/GAPS.md`, and the build outside this plugin.
 - **A root is identified by its declaration.** What identifies a root is settled by the constitution's Workspace Model, and what that yields here is where a question about a root starts: reading that root's `AGENTS.md`, never its folder name.
 - **Reuse before invention.** Play Author's own reuse check applies to every proposal: an existing primitive that can be extended or composed beats a new one, and the verdict says which.
 
@@ -75,7 +75,7 @@ Output: where it belongs, with the reason. For this plugin, the type by the litm
 
 Given a capability nothing in the root provides, decide which record it is.
 
-- **A gap** when a user meets the absence at a step of a primitive that exists: declare it on that primitive's `gaps` frontmatter and in `system/GAPS.md`, in the words a user would read, and let the step stop honestly per the constitution's Behavioral Core. Name the primitive and the step. A step that already stops on the absence but declares no `gaps` entry is a gap to declare, not neither: this test decides the verdict, and the wording `standards/primitives.md` asks of a body is what the declaration then adds. Where the absence is a reading, the stop's wording carries the label from the Evidence Labels section of `standards/conventions.md`, with the nearest reason that section lists.
+- **A gap** when a user meets the absence at a step of a primitive that exists: declare it on that primitive's `gaps` frontmatter and in the owning root's own `system/GAPS.md`, in the words a user would read, and let the step stop honestly per the constitution's Behavioral Core. Name the primitive and the step. A step that already stops on the absence but declares no `gaps` entry is a gap to declare, not neither: this test decides the verdict, and the wording `standards/primitives.md` asks of a body is what the declaration then adds. Where the absence is a reading, the stop's wording carries the label from the Evidence Labels section of `standards/conventions.md`, with the nearest reason that section lists.
 - **A build** when no user meets it in a primitive, or when it is the plan to close a gap: say so, and say that such a plan would live outside this plugin in the operator's own record, since this root carries no build register. The gap stays declared until the build lands. A build verdict names no type; that is Job 2 when the build is proposed.
 - **Neither** when an existing primitive already covers it under another name: the verdict names the primitive and the request is routed there.
 - **Never a bridge.** A capability worked around by degrading a primitive, approximating a reading, or copying another plugin's primitive is refused, with the guard rail cited. The test against the Behavioral Core's rule to hand off the smallest possible step: a hand-off leaves the stop in place and the later steps unrun, and a platform action the primitive was to perform is never the step handed off; a bridge carries a later step forward on the user's action or the model's memory.
