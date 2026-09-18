@@ -10,7 +10,7 @@ A WISER domain plugin. This file is this root's constitution. The chain starts h
 
 ## Copy-time
 
-**Everything from this heading down to the next one is the template speaking to whoever copies it, and the copy keeps none of it.** Delete this heading, this paragraph, the table below and the heading above the table. What is said here is true of a template and false of a plugin, so a copy that keeps any of it tells its own reader that its root is still a template. Removal is not optional and is not a tidy-up: it is part of producing the tree.
+**Everything from this heading down to the next one is the template speaking to whoever copies it, and the copy keeps none of it.** Delete all of it, this heading included. What is said here is true of a template and false of a plugin, so a copy that keeps any of it tells its own reader that its root is still a template. Removal is not optional and is not a tidy-up: it is part of producing the tree.
 
 Every placeholder is a name in double braces. Every one that appears anywhere in this tree is in the table below. A copy is finished when a search of it for that marker returns zero.
 
@@ -26,6 +26,7 @@ Every placeholder is a name in double braces. Every one that appears anywhere in
 | `{{TITLE}}` | This plugin's name as written in prose, headings, and `displayName`. |
 | `{{DESCRIPTION}}` | One line on what this plugin is for, plain prose. Used here, in `README.md`, and in both catalog files. |
 | `{{MARKETPLACE}}` | This plugin's own marketplace id in `.claude-plugin/marketplace.json`. Not the base catalog's. |
+| `{{FAMILIES}}` | The rows of the family table, one per family directory this tree actually ships, in the order `skills/`, `experts/`, `tools/`, `connectors/`. **Each row is written exactly `\| `<family>/` \| This plugin's <family> \|`** and carries no characterization of what this particular plugin's primitives do; that is a claim about the plugin, and a constitution is not where one is invented. A family this tree does not ship takes no row: a table that lists one is a constitution describing a directory its own reader will not find. |
 | `{{STANDING_CONSTRAINT}}` | The constraint this plugin carries. On an adopt, the source's standing constraints verbatim. On a create, the sentence that none is declared at instantiation. |
 
 ## What this root is
@@ -40,7 +41,7 @@ This plugin loads alongside `wiser` and may assume it is present. It references 
 
 ## Write mode
 
-In use this root is read-only. Nothing is written under this root during a session that uses it, and output lands in the working folder the session attached, in the directories that folder's own `AGENTS.md` declares. Authoring this root is separate work, planned as a Playbook, and is entered by the operator's authorization for a named phase and a named target. An Active Playbook is the record of that authorization and never the grant.
+In use this root is read-only. Nothing is written under this root during a session that uses it, and output lands in the working folder the session attached, in the directories that folder's own `AGENTS.md` declares. Authoring this root is separate work, entered by the operator's authorization for a named phase and a named target, per `wiser/AGENTS.md` Workspace Model. A Playbook, a ledger row or the operator's own instruction may record that authorization; none of them is the grant.
 
 A session that has loaded this constitution and the base plugin's refuses ordinary writes to both.
 
@@ -50,12 +51,9 @@ What may be written here is governed by this heading and by `wiser/AGENTS.md` Wr
 
 | Directory | Holds |
 |-----------|-------|
-| `skills/` | This plugin's skills |
-| `experts/` | This plugin's experts |
-| `tools/` | This plugin's tools |
-| `connectors/` | This plugin's connectors |
+{{FAMILIES}}
 
-Family placement follows `wiser/standards/primitives.md`. This plugin ships no `gateway/`; the base plugin alone ships one, and a connector that lands in `connectors/` loads through that gateway's repeated `--connectors` flag, per `wiser/gateway/SETUP.md`.
+Family placement follows `wiser/standards/primitives.md`. This plugin ships no `gateway/`; the base plugin alone ships one. Where this plugin ships `connectors/`, those connectors load through that gateway's repeated `--connectors` flag, per `wiser/gateway/SETUP.md`.
 
 Each family directory carries its own `AGENTS.md` index. An empty index is still an index.
 

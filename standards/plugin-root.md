@@ -22,7 +22,7 @@ A plugin root carries no user-root `type:`, no Provides block, and no Onboarding
 
 **A complete user-root declaration is all three** of a recognized user-root `type:`, a Provides block, and a Wiser constitution citation. Any one of them alone proves nothing and does not send a tree to the other lane. A single stray one on a tree that is otherwise a plugin root is therefore not an admission question: the root is admitted and the stray declaration scores misfiled under C9, which is the only reading under which that C9 result is reachable at all.
 
-**A self-declared placeholder is admitted ahead of the ordinary test, and that order is part of the rule.** A root whose own `AGENTS.md` declares that it is a placeholder for a plugin, forbids authoring in it until a build Playbook exists, and states that it loads alongside `wiser`, is a plugin root and classifies `placeholder-plugin`, whether or not it holds a family or makes C4's full composition declaration. It is reserved rather than built, so requiring a built tree's declarations of it would exclude the exact population the `placeholder-plugin` token exists to name.
+**A self-declared placeholder is admitted ahead of the ordinary test, and that order is part of the rule.** A root whose own `AGENTS.md` declares that it is a placeholder for a plugin, forbids authoring in it until a build is authorized, and states that it loads alongside `wiser`, is a plugin root and classifies `placeholder-plugin`, whether or not it holds a family or makes C4's full composition declaration. It is reserved rather than built, so requiring a built tree's declarations of it would exclude the exact population the `placeholder-plugin` token exists to name. **What records that authorization is not this test's business**: a placeholder that names a Playbook and one that names a ledger row are the same shape to a scorer, and a limb keyed to one form expels every root that moved to the other.
 
 **The test is ordered, and a scorer applies the limbs in this order:**
 
@@ -65,7 +65,7 @@ A stamp that is not a bare nonnegative integer, or a `layout:` key declared twic
 
 **What that refusal stops, stated so two scorers stop in the same place.** It refuses the **comparison**, not the score. C2 to C10 are still scored and their findings are still actionable, because none of them depends on the stamp's value. What does not happen is any statement that the root is current, behind or ahead, and any repair that writes the stamp. Correcting a malformed or duplicated stamp is an authoring write on that root under Working under this root, the same exit the ahead freeze names, and never a converge repair.
 
-A root classified `placeholder-plugin` scores its stamp N/A, not absent. A placeholder declares a reserved name and a standing constraint and forbids authoring until a build Playbook exists. It has no families and no primitives, so there is no tree for a stamp to describe. It takes its first stamp when `skills/Onboard Plugin Root/` builds it.
+A root classified `placeholder-plugin` scores its stamp N/A, not absent. A placeholder declares a reserved name and a standing constraint and forbids authoring until a build is authorized. It has no families and no primitives, so there is no tree for a stamp to describe. It takes its first stamp when `skills/Onboard Plugin Root/` builds it.
 
 ## C2 Families
 
