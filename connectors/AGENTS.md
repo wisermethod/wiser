@@ -59,6 +59,7 @@ A connection record is keyed by service and module. Two modules on one service a
 |-----------|-------------|
 | `replicate/CONNECTOR.md` | Lists curated model collections, starts confirmed predictions, and returns prediction status and output URLs |
 | `google-vision/CONNECTOR.md` | Detects faces and returns eye coordinates for faces with both eyes available |
+| `google-ai/CONNECTOR.md` | Translate text into a target language through Google Cloud Translation |
 | `figma/CONNECTOR.md` | Reads file metadata and lists the files in a project |
 
 ### Research

@@ -21,6 +21,13 @@ export const CUSTOM_TOOLKITS = [
     app_url: 'https://pagespeedonline.googleapis.com',
     auth_schemes: [{ mode: 'API_KEY', headers: { 'X-Goog-Api-Key': '{{generic_api_key}}' } }],
   },
+  {
+    service: 'google-ai',
+    slug: 'GOOGLE_AI',
+    name: 'Google AI',
+    app_url: 'https://translation.googleapis.com',
+    auth_schemes: [{ mode: 'API_KEY', headers: { 'X-Goog-Api-Key': '{{generic_api_key}}' } }],
+  },
 ];
 
 export function registeredSlug(row = CUSTOM_TOOLKITS[0]) {

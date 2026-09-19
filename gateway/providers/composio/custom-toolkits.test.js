@@ -142,3 +142,31 @@ test('pagespeed upsert body uses the unprefixed slug and the X-Goog-Api-Key temp
     '{{generic_api_key}}',
   );
 });
+
+test('google-ai upsert body uses the unprefixed slug and the X-Goog-Api-Key template', () => {
+  const row = findCustomToolkit('google-ai');
+  assert.ok(row);
+  assert.equal(CUSTOM_TOOLKITS[3], row);
+  const body = createCustomToolkitBody(row);
+  assert.deepEqual(body, {
+    slug: 'GOOGLE_AI',
+    toolkit_config: {
+      name: 'Google AI',
+      app_url: 'https://translation.googleapis.com',
+      auth_schemes: [{ mode: 'API_KEY', headers: { 'X-Goog-Api-Key': '{{generic_api_key}}' } }],
+    },
+  });
+  // The API prefixes CUSTOM_. Sending the prefixed slug on upsert registers the wrong toolkit.
+  assert.notEqual(body.slug, 'CUSTOM_GOOGLE_AI');
+  assert.equal(registeredSlug(row), 'CUSTOM_GOOGLE_AI');
+  for (const name of ['google-ai', 'GOOGLE_AI', 'CUSTOM_GOOGLE_AI']) {
+    assert.equal(findCustomToolkit(name), row);
+  }
+  assert.equal(toolkitFor('google-ai', 'translate'), registeredSlug(row));
+  assert.equal(toSlug('google-ai.translate.text'), null);
+  body.toolkit_config.auth_schemes[0].headers['X-Goog-Api-Key'] = 'changed';
+  assert.equal(
+    createCustomToolkitBody(row).toolkit_config.auth_schemes[0].headers['X-Goog-Api-Key'],
+    '{{generic_api_key}}',
+  );
+});
