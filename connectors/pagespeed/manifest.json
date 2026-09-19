@@ -1,0 +1,65 @@
+{
+  "id": "pagespeed",
+  "service": "pagespeed",
+  "modules": {
+    "insights": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "CUSTOM_PAGESPEED",
+        "scheme": "API_KEY",
+        "privilege": "read"
+      },
+      "actions": {
+        "run": {
+          "description": "Run PageSpeed Insights on one public URL",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strategy": {
+                "type": "string",
+                "enum": [
+                  "mobile",
+                  "desktop"
+                ]
+              },
+              "category": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "performance",
+                    "accessibility",
+                    "best-practices",
+                    "seo",
+                    "pwa"
+                  ]
+                }
+              },
+              "locale": {
+                "type": "string"
+              },
+              "audits": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "url"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    }
+  }
+}

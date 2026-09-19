@@ -14,6 +14,13 @@ export const CUSTOM_TOOLKITS = [
     app_url: 'https://tinyfish.ai',
     auth_schemes: [{ mode: 'API_KEY', headers: { 'X-API-Key': '{{generic_api_key}}' } }],
   },
+  {
+    service: 'pagespeed',
+    slug: 'PAGESPEED',
+    name: 'PageSpeed Insights',
+    app_url: 'https://pagespeedonline.googleapis.com',
+    auth_schemes: [{ mode: 'API_KEY', headers: { 'X-Goog-Api-Key': '{{generic_api_key}}' } }],
+  },
 ];
 
 export function registeredSlug(row = CUSTOM_TOOLKITS[0]) {

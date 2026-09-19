@@ -115,3 +115,30 @@ test('Tiny Fish body uses an unprefixed slug and key-only X-API-Key header', () 
   body.toolkit_config.auth_schemes[0].headers['X-API-Key'] = 'changed';
   assert.equal(createCustomToolkitBody(row).toolkit_config.auth_schemes[0].headers['X-API-Key'], '{{generic_api_key}}');
 });
+
+test('pagespeed upsert body uses the unprefixed slug and the X-Goog-Api-Key template', () => {
+  const row = findCustomToolkit('pagespeed');
+  assert.ok(row);
+  const body = createCustomToolkitBody(row);
+  assert.deepEqual(body, {
+    slug: 'PAGESPEED',
+    toolkit_config: {
+      name: 'PageSpeed Insights',
+      app_url: 'https://pagespeedonline.googleapis.com',
+      auth_schemes: [{ mode: 'API_KEY', headers: { 'X-Goog-Api-Key': '{{generic_api_key}}' } }],
+    },
+  });
+  // The API prefixes CUSTOM_. Sending the prefixed slug on upsert registers the wrong toolkit.
+  assert.notEqual(body.slug, 'CUSTOM_PAGESPEED');
+  assert.equal(registeredSlug(row), 'CUSTOM_PAGESPEED');
+  for (const name of ['pagespeed', 'PAGESPEED', 'CUSTOM_PAGESPEED']) {
+    assert.equal(findCustomToolkit(name), row);
+  }
+  assert.equal(toolkitFor('pagespeed', 'insights'), registeredSlug(row));
+  assert.equal(toSlug('pagespeed.insights.run'), null);
+  body.toolkit_config.auth_schemes[0].headers['X-Goog-Api-Key'] = 'changed';
+  assert.equal(
+    createCustomToolkitBody(row).toolkit_config.auth_schemes[0].headers['X-Goog-Api-Key'],
+    '{{generic_api_key}}',
+  );
+});

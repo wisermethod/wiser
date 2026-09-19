@@ -42,6 +42,7 @@ A connection record is keyed by service and module. Two modules on one service a
 | `google/CONNECTOR.md` | Reads search performance, URL index state, sitemap details, analytics reports, Drive files, Calendar events, Gmail messages, spreadsheet values, documents, and presentations through eight separate grants |
 | `clarity/CONNECTOR.md` | Exports Clarity metrics for the last one, two, or three days |
 | `bing/CONNECTOR.md` | Reads Bing Webmaster Tools verified sites, search and page performance, crawl diagnostics, URL inspection, feeds, inbound links, and keyword research through one grant |
+| `pagespeed/CONNECTOR.md` | Read PageSpeed Insights scores and field data for one public URL |
 
 ### Communication
 
