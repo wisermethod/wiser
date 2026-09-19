@@ -3,7 +3,7 @@ name: Onboard Plugin Root
 type: skill
 category: system
 description: Create a domain plugin beside wiser or adopt a placeholder repository into declared plugin layout, producing its constitution, families and catalog, scored clause by clause, and closed by writing every boundary still owed to a person into the root itself
-version: 0.3.1
+version: 0.3.2
 ---
 
 # Onboard Plugin Root
@@ -12,7 +12,7 @@ version: 0.3.1
 
 Use when a domain plugin is to be created beside `wiser`, or when a placeholder repository whose name is already reserved is to be adopted into declared plugin layout.
 
-Not for a user root, which is `skills/Onboard Root/`. Not for authoring a primitive inside a plugin that already exists, which is `skills/Play Author/` for the file and `skills/Playbook Author/` for the plan. Not for scoring drift on a plugin that already exists, which is `skills/Housekeeping/`. Not for updating a deployed copy of a plugin to a new release, which no plugin here carries a procedure for. Not for adding anything to `wiser` itself: `wiser` is the base, and a change to it is authoring planned as a Playbook.
+Not for a user root, which is `skills/Onboard Root/`. Not for authoring a primitive inside a plugin that already exists, which is `skills/Play Author/` for the file and `skills/Playbook Author/` for the plan. Not for scoring drift on a plugin that already exists, which is `skills/Housekeeping/`. Not for updating a deployed copy of a plugin to a new release, which no plugin here carries a procedure for. Not for adding anything to `wiser` itself: `wiser` is the base, and a change to it is authoring planned as a Playbook. Not for deciding what primitives the tree should hold, which is `skills/Scope Plugin Bench/`: this skill produces the tree and its empty families, and empty families are correct rather than unfinished.
 
 Whether this plugin should exist at all is judged before this skill runs. On a **create**, that judgment is `experts/System Expert/`'s and its verdict is a required input below. On an **adopt** of a root the operator's repository roster already carries a row for, **that row is the judgment**, made when the name was reserved; re-deciding it here re-opens a settled question and the verdict is not an input.
 
