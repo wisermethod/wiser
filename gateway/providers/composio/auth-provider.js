@@ -199,6 +199,12 @@ export function createAuthProvider({ envPath } = {}) {
       if (!list.ok && list.status !== 404) return vendorError('/auth_configs', 'GET', list.status);
       const items = list.ok ? (list.data?.items || list.data?.auth_configs || list.data?.data || []) : [];
       let authConfigId = null;
+      if (Array.isArray(items) && items.length > 1) {
+        // Two configs for one toolkit is not a default. Refuse rather than bind the wrong grant.
+        // Status is null, not list.status: the read succeeded and the vendor did nothing wrong,
+        // so reporting its 200 here would say the vendor refused when the refusal is ours.
+        return { ...vendorError('/auth_configs', 'GET', null), toolkit, configs: items.length };
+      }
       if (Array.isArray(items) && items.length > 0) {
         authConfigId = items[0].id || items[0].auth_config_id || items[0].uuid || null;
       }

@@ -134,6 +134,35 @@ function isActive(record) {
   return Boolean(record && record.status === 'ACTIVE');
 }
 
+// Omit a toolkit when two ACTIVE accounts share its raw key or its CUSTOM_-stripped key.
+function activeAccountIdsByToolkit(accounts) {
+  const idsByKey = new Map();
+  const addId = (key, id) => {
+    if (!idsByKey.has(key)) idsByKey.set(key, new Set());
+    idsByKey.get(key).add(id);
+  };
+  for (const account of accounts) {
+    if (!account || account.status !== 'ACTIVE' || !account.id || !account.toolkit) continue;
+    const key = String(account.toolkit).toUpperCase();
+    addId(key, account.id);
+    addId(key.replace(/^CUSTOM_/, ''), account.id);
+  }
+  const ambiguousIds = new Set();
+  for (const ids of idsByKey.values()) {
+    if (ids.size > 1) {
+      for (const id of ids) ambiguousIds.add(id);
+    }
+  }
+  const byToolkit = new Map();
+  for (const [key, ids] of idsByKey) {
+    if (ids.size !== 1) continue;
+    const [id] = ids;
+    if (ambiguousIds.has(id)) continue;
+    byToolkit.set(key, id);
+  }
+  return byToolkit;
+}
+
 /**
  * Connection gateway: resolve, policy, execute, connect.
  */
@@ -288,7 +317,8 @@ export class ConnectionGateway {
   /**
    * Copy ACTIVE grants the provider already holds for this user id into the
    * local store as metadata. Never tokens. Do not overwrite an ACTIVE row.
-   * Local-file modules are not hydrated.
+   * Skip a toolkit that has more than one ACTIVE account. Local-file modules
+   * are not hydrated.
    */
   async hydrateFromProvider() {
     const list = this.authProvider?.listAccounts;
@@ -301,14 +331,7 @@ export class ConnectionGateway {
     }
     if (!Array.isArray(accounts) || accounts.length === 0) return;
 
-    const byToolkit = new Map();
-    for (const account of accounts) {
-      if (!account || account.status !== 'ACTIVE' || !account.id || !account.toolkit) continue;
-      const key = String(account.toolkit).toUpperCase();
-      if (!byToolkit.has(key)) byToolkit.set(key, account.id);
-      const stripped = key.replace(/^CUSTOM_/, '');
-      if (!byToolkit.has(stripped)) byToolkit.set(stripped, account.id);
-    }
+    const byToolkit = activeAccountIdsByToolkit(accounts);
 
     for (const connector of this.connectors) {
       const service = connector.id || connector.service;
@@ -652,7 +675,10 @@ export class ConnectionGateway {
       });
 
       if (initiated && initiated.error && initiated.error.code === 'vendor_error') {
-        return vendorErrorFrom(initiated);
+        const mapped = vendorErrorFrom(initiated);
+        if (typeof initiated.toolkit === 'string') mapped.toolkit = initiated.toolkit;
+        if (Number.isFinite(initiated.configs)) mapped.configs = initiated.configs;
+        return mapped;
       }
 
       if (initiated?.kind === 'file') {

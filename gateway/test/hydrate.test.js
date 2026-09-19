@@ -33,7 +33,20 @@ const localFile = {
   },
 };
 
-function gateway(t, { accounts = [], storeRecords = [] } = {}) {
+const customGithub = {
+  id: 'other',
+  service: 'other',
+  manifest: {
+    modules: {
+      repos: {
+        auth: { provider: 'catalog', toolkit: 'CUSTOM_GITHUB', privilege: 'write' },
+        actions: {},
+      },
+    },
+  },
+};
+
+function gateway(t, { accounts = [], storeRecords = [], connectors } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'wiser-hydrate-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const envPath = join(dir, 'auth-provider.env');
@@ -65,10 +78,10 @@ function gateway(t, { accounts = [], storeRecords = [] } = {}) {
     authProvider,
     catalogProvider,
     authConfigured: true,
-    connectors: [github, localFile],
+    connectors: connectors || [github, localFile],
     envPath,
   });
-  return { gw, stats };
+  return { gw, store, stats };
 }
 
 test('list_connections hydrates github modules from one ACTIVE toolkit account', async (t) => {
@@ -123,3 +136,59 @@ test('execute does not hydrate when the local row is already ACTIVE', async (t) 
   assert.equal(stats.listCalls, 0);
   assert.equal(stats.executes[0].providerAccountId, 'ca_existing');
 });
+
+test('hydrate skips a toolkit when two ACTIVE accounts share it and leaves an existing record untouched', async (t) => {
+  const existing = {
+    service: 'github', module: 'repos', privilege: 'write', provider: 'catalog',
+    provider_account_id: 'ca_existing', status: 'INITIATED',
+  };
+  const { gw, store } = gateway(t, {
+    accounts: [
+      { id: 'ca_one', toolkit: 'GITHUB', status: 'ACTIVE' },
+      { id: 'ca_two', toolkit: 'GITHUB', status: 'ACTIVE' },
+    ],
+    storeRecords: [existing],
+  });
+  const before = store.getConnection({ service: 'github', module: 'repos' });
+  const result = await gw.listConnections();
+  assert.equal(result.status, undefined);
+  const after = store.getConnection({ service: 'github', module: 'repos' });
+  assert.equal(after.provider_account_id, before.provider_account_id);
+  assert.equal(after.status, before.status);
+  assert.equal(after.id, before.id);
+  assert.deepEqual(
+    result.connections.map((r) => [r.service, r.module, r.status, r.provider_account_id]),
+    [['github', 'repos', 'INITIATED', 'ca_existing']],
+  );
+});
+
+test('hydrate treats CUSTOM_ and unprefixed toolkit keys as the same grant', async (t) => {
+  const { gw } = gateway(t, {
+    accounts: [
+      { id: 'ca_plain', toolkit: 'GITHUB', status: 'ACTIVE' },
+      { id: 'ca_custom', toolkit: 'CUSTOM_GITHUB', status: 'ACTIVE' },
+    ],
+    connectors: [github, customGithub, localFile],
+  });
+  const result = await gw.listConnections();
+  assert.equal(result.status, undefined);
+  assert.deepEqual(result.connections, []);
+});
+
+test('hydrate adopts the one ACTIVE account when the other is not ACTIVE', async (t) => {
+  const { gw } = gateway(t, {
+    accounts: [
+      { id: 'ca_active', toolkit: 'GITHUB', status: 'ACTIVE' },
+      { id: 'ca_idle', toolkit: 'GITHUB', status: 'INACTIVE' },
+    ],
+  });
+  const result = await gw.listConnections();
+  assert.equal(result.status, undefined);
+  const rows = result.connections.sort((a, b) => a.module.localeCompare(b.module));
+  assert.deepEqual(rows.map((r) => [r.service, r.module, r.status, r.provider_account_id]), [
+    ['github', 'issues', 'ACTIVE', 'ca_active'],
+    ['github', 'repos', 'ACTIVE', 'ca_active'],
+    ['github', 'users', 'ACTIVE', 'ca_active'],
+  ]);
+});
+
