@@ -115,7 +115,7 @@ Returned by **databased** `recall`, as the `items` array of its stdout object. T
       "via": null
     }
   ],
-  "canon_confirmed": "Anthony, 2026-09-05"
+  "canon_confirmed": "Tester, 2026-09-05"
 }
 ```
 
