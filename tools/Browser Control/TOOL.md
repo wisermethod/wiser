@@ -3,7 +3,7 @@ name: Browser Control
 type: tool
 category: automation
 description: Drives a persistent Chromium session to read, navigate, and act on pages that need a real browser, answering every command with the page state that followed
-version: 0.3.0
+version: 0.4.0
 ---
 
 # Browser Control
@@ -129,6 +129,15 @@ Per-command options. Each belongs to the one command named and is refused elsewh
 - `type --text --delay 0` also types at the caret, with no pause between keystrokes. Zero is a real delay, not an absent one.
 - To replace deliberately while still firing key handlers, pass `--clear` with `--delay`.
 - `--key` presses one key and applies no typing option. It refuses `--text`, `--selector`, `--index`, `--clear`, `--delay` and `--submit` by name rather than accepting and ignoring them. `--timeout` and the other cross-cutting options still apply.
+
+Numeric options are parsed whole. A value the parser cannot read completely is refused rather than truncated, so `--expires 7days` fails instead of quietly meaning 7, and a value outside a flag's range is refused by name.
+
+| Range | Flags |
+|-------|-------|
+| 1 to 65535 | `--port` |
+| 1 or greater | `--count`, `--max`, `--expires` (days) |
+| 0 or greater | `--delay`, `--timeout`, `--index`, `--time`, `--expect` on the `count` assertion |
+| Any whole number, negative included | `--by` and `--delta`, where a negative scrolls upward |
 
 Cross-cutting options, which apply to every command that takes one:
 

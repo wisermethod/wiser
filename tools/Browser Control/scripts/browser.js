@@ -120,6 +120,11 @@ Options:
           for an unattended run.
   --help, -h             Print this message
 
+A numeric option takes a whole number and the whole value: "7days" is
+refused rather than read as 7. Most are zero or greater, --count and --max
+at least 1, --expires at least 1 day, and --port 1 to 65535. Two take a
+negative, because they mean it: --by and --delta scroll upward.
+
 No cookie command prints a value, but "execute" returns whatever its code reads,
 document.cookie included. Three paths hold credential material: the --profile
 directory, which is the sign-in store and exists to persist a signed-in
@@ -308,11 +313,28 @@ function switchOn(name) {
   fail(`Error: ${name} is a switch and takes no value; got "${value}". Run "node scripts/browser.js help" for usage.`);
 }
 
-function integer(name, fallback) {
+// Parse the whole value or refuse it. Number.parseInt stops at the first
+// character it cannot read and returns what it had, so "7days" arrives as 7 and
+// a mistyped value applies at whatever prefix happened to parse. That is the
+// defect the Unknown flags clause forbids one level up: a mistyped option must
+// not look like it applied. min and max are per flag, because two flags here
+// take a negative legitimately: --by and --delta scroll upward.
+function integer(name, fallback, { min, max } = {}) {
   const value = flag(name);
   if (value === undefined) return fallback;
+  if (!/^-?\d+$/.test(value)) {
+    fail(`Error: ${name} must be a whole number; got "${value}".`);
+  }
   const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed)) fail(`Error: ${name} must be a whole number; got "${value}".`);
+  if (!Number.isSafeInteger(parsed)) {
+    fail(`Error: ${name} is too large to be exact; got "${value}".`);
+  }
+  if (min !== undefined && parsed < min) {
+    fail(`Error: ${name} must be ${min} or greater; got ${parsed}.`);
+  }
+  if (max !== undefined && parsed > max) {
+    fail(`Error: ${name} must be ${max} or less; got ${parsed}.`);
+  }
   return parsed;
 }
 
@@ -426,7 +448,7 @@ function callerPath(name, { directory = false } = {}) {
   return screenPath(name, value, { directory });
 }
 
-const port = integer('--port', DEFAULT_PORT);
+const port = integer('--port', DEFAULT_PORT, { min: 1, max: 65535 });
 
 /**
  * The session token the host wrote when it started. Read from the same path the
@@ -1127,7 +1149,7 @@ switch (command) {
       url,
       direction: sub,
       waitUntil: flag('--wait') ?? 'load',
-      timeout: integer('--timeout', 30000)
+      timeout: integer('--timeout', 30000, { min: 0 })
     });
     break;
   }
@@ -1144,7 +1166,7 @@ switch (command) {
 
   case 'click': {
     const target = {
-      index: flags.has('--index') ? integer('--index') : undefined,
+      index: flags.has('--index') ? integer('--index', undefined, { min: 0 }) : undefined,
       selector: flag('--selector'),
       text: flag('--text'),
       coords: flag('--coords')
@@ -1155,19 +1177,19 @@ switch (command) {
     await send('click', {
       ...target,
       button: flag('--button') ?? 'left',
-      clickCount: integer('--count', 1),
-      delay: flags.has('--delay') ? integer('--delay') : undefined,
+      clickCount: integer('--count', 1, { min: 1 }),
+      delay: flags.has('--delay') ? integer('--delay', undefined, { min: 0 }) : undefined,
       // Playwright's own click option: skip the actionability wait. It is not a
       // gate and skips no confirmation.
       force: switchOn('--force'),
-      timeout: integer('--timeout', 5000)
+      timeout: integer('--timeout', 5000, { min: 0 })
     });
     break;
   }
 
   case 'type': {
     const key = flag('--key');
-    const index = flags.has('--index') ? integer('--index') : undefined;
+    const index = flags.has('--index') ? integer('--index', undefined, { min: 0 }) : undefined;
     const selector = flag('--selector');
     const text = flag('--text');
     if (key === undefined && (text === undefined || (index === undefined && selector === undefined))) {
@@ -1190,9 +1212,9 @@ switch (command) {
       selector,
       text,
       clear: switchOn('--clear'),
-      delay: flags.has('--delay') ? integer('--delay') : undefined,
+      delay: flags.has('--delay') ? integer('--delay', undefined, { min: 0 }) : undefined,
       submit: switchOn('--submit'),
-      timeout: integer('--timeout', 5000)
+      timeout: integer('--timeout', 5000, { min: 0 })
     });
     break;
   }
@@ -1205,7 +1227,7 @@ switch (command) {
     if (chosen !== 1) {
       fail('Error: scroll needs exactly one of --to [top|bottom|selector], --by [pixels], or --infinite.');
     }
-    await send('scroll', { to, by, infinite, max: integer('--max', 10) });
+    await send('scroll', { to, by, infinite, max: integer('--max', 10, { min: 1 }) });
     break;
   }
 
@@ -1248,7 +1270,7 @@ switch (command) {
       action: 'option',
       selector,
       by,
-      option: by === 'index' ? integer('--index') : flag(`--${by}`)
+      option: by === 'index' ? integer('--index', undefined, { min: 0 }) : flag(`--${by}`)
     });
     break;
   }
@@ -1259,7 +1281,7 @@ switch (command) {
       const by = ['index', 'name', 'src'].find((name) => flags.has(`--${name}`));
       if (by === undefined) fail('Error: frame switch needs one of --index, --name, or --src.');
       params.by = by;
-      params.value = by === 'index' ? integer('--index') : flag(`--${by}`);
+      params.value = by === 'index' ? integer('--index', undefined, { min: 0 }) : flag(`--${by}`);
     }
     await send('frame', params);
     break;
@@ -1270,9 +1292,9 @@ switch (command) {
     if (sub === 'new') params.url = flag('--url');
     if (sub === 'switch') {
       if (!flags.has('--index')) fail('Error: tabs switch needs --index [n]. Run "tabs list" to see the indexes.');
-      params.index = integer('--index');
+      params.index = integer('--index', undefined, { min: 0 });
     }
-    if (sub === 'close' && flags.has('--index')) params.index = integer('--index');
+    if (sub === 'close' && flags.has('--index')) params.index = integer('--index', undefined, { min: 0 });
     await send('tabs', params);
     break;
   }
@@ -1305,13 +1327,13 @@ switch (command) {
   case 'wait': {
     const selector = flag('--selector');
     const text = flag('--text');
-    const time = flags.has('--time') ? integer('--time') : undefined;
+    const time = flags.has('--time') ? integer('--time', undefined, { min: 0 }) : undefined;
     const network = switchOn('--network');
     const chosen = [selector !== undefined, text !== undefined, time !== undefined, network].filter(Boolean).length;
     if (chosen !== 1) {
       fail('Error: wait needs exactly one of --selector, --text, --time [ms], or --network.');
     }
-    await send('wait', { selector, text, time, network, hidden: switchOn('--hidden'), timeout: integer('--timeout', 30000) });
+    await send('wait', { selector, text, time, network, hidden: switchOn('--hidden'), timeout: integer('--timeout', 30000, { min: 0 }) });
     break;
   }
 
@@ -1341,8 +1363,8 @@ switch (command) {
     await send('check', {
       assertion,
       selector,
-      expected: assertion === 'count' ? integer('--expect') : expected,
-      timeout: integer('--timeout', 5000)
+      expected: assertion === 'count' ? integer('--expect', undefined, { min: 0 }) : expected,
+      timeout: integer('--timeout', 5000, { min: 0 })
     });
     break;
   }
@@ -1374,14 +1396,14 @@ switch (command) {
     const outputDir = callerPath('--output-dir', { directory: true });
     if (url !== undefined) {
       if (output === undefined) fail('Error: download --url needs --output [absolute file path].');
-      await send('download', { url, output, timeout: integer('--timeout', 30000) });
+      await send('download', { url, output, timeout: integer('--timeout', 30000, { min: 0 }) });
       break;
     }
     const selector = flag('--selector');
     if (selector === undefined || outputDir === undefined) {
       fail('Error: download needs either --url with --output [absolute file], or --selector with --output-dir [absolute dir].');
     }
-    await send('download', { selector, outputDir, timeout: integer('--timeout', 30000) });
+    await send('download', { selector, outputDir, timeout: integer('--timeout', 30000, { min: 0 }) });
     break;
   }
 
@@ -1402,7 +1424,7 @@ switch (command) {
       if (!existsSync(target)) fail(`Error: no file at ${target}.`);
       return target;
     });
-    await send('upload', { selector, files: screened, timeout: integer('--timeout', 5000) });
+    await send('upload', { selector, files: screened, timeout: integer('--timeout', 5000, { min: 0 }) });
     break;
   }
 
@@ -1421,7 +1443,7 @@ switch (command) {
       }
       params.domain = flag('--domain');
       params.path = flag('--path');
-      if (flags.has('--expires')) params.expires = integer('--expires');
+      if (flags.has('--expires')) params.expires = integer('--expires', undefined, { min: 1 });
     }
     await send('cookies', params);
     break;
