@@ -3,7 +3,7 @@ name: Browser Control
 type: tool
 category: automation
 description: Drives a persistent Chromium session to read, navigate, and act on pages that need a real browser, answering every command with the page state that followed
-version: 0.4.0
+version: 0.4.1
 ---
 
 # Browser Control
@@ -129,6 +129,16 @@ Per-command options. Each belongs to the one command named and is refused elsewh
 - `type --text --delay 0` also types at the caret, with no pause between keystrokes. Zero is a real delay, not an absent one.
 - To replace deliberately while still firing key handlers, pass `--clear` with `--delay`.
 - `--key` presses one key and applies no typing option. It refuses `--text`, `--selector`, `--index`, `--clear`, `--delay` and `--submit` by name rather than accepting and ignoring them. `--timeout` and the other cross-cutting options still apply.
+
+Three commands name a thing and they do not agree. This is a known inconsistency, kept rather than repaired because renaming either spelling would break callers of a published tool for a gain that is only tidiness. It is written down here so a reader can predict it instead of discovering it:
+
+| Command | Flag | What it names |
+|---------|------|---------------|
+| `storage get\|set\|delete` | `--key` | The identifier of a stored item |
+| `cookies get\|set\|delete` | `--name` | The identifier of a cookie |
+| `type` | `--key` | A keyboard key to press, such as `Enter` or `Tab`. Not an identifier at all |
+
+Passing the wrong one is refused by name, so the cost is a retry rather than a wrong result.
 
 Numeric options are parsed whole. A value the parser cannot read completely is refused rather than truncated, so `--expires 7days` fails instead of quietly meaning 7, and a value outside a flag's range is refused by name.
 

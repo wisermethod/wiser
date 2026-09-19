@@ -95,6 +95,11 @@ Acting:
                          [--session] uses sessionStorage instead of
                          localStorage, on every subcommand. get, set and
                          delete take --key.
+
+Three commands name a thing and they do not agree, so check the line above
+before guessing: storage takes --key, cookies takes --name, and type's --key
+is a keyboard key to press rather than an identifier at all. The wrong one
+is refused by name.
   trace start|stop|status          stop takes --output [absolute file]
 
 Options:
