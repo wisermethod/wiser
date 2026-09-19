@@ -387,3 +387,34 @@ test('connector loads under loadConnectors with manifest/export parity and no pl
   };
   walk(DIR);
 });
+
+test('filter operands are checked per operator before transport', async () => {
+  const { gw, store, fake } = await createTestGateway();
+  await putActive(store, fake, { service: 'dataforseo', module: 'research', privilege: 'write' });
+  fake.auth.proxy = async () => assert.fail('an invalid operand reached the proxy');
+  const base = { keywords: ['example'], location_code: 2840, language_code: 'en' };
+  for (const filters of [
+    ['keyword_info.search_volume', 'in', 100],
+    ['keyword_info.search_volume', 'regex', 12],
+    ['keyword_info.search_volume', 'regex', 'x'.repeat(1001)],
+    ['keyword_info.search_volume', 'in', []],
+  ]) {
+    const result = await gw.execute({ action: 'dataforseo.research.keyword_ideas', input: { ...base, filters }, confirm: true });
+    assert.equal(result.status, 'invalid_arguments');
+    assert.equal(result.field, 'filters');
+  }
+});
+
+test('valid operands per operator still reach the confirmation gate', async () => {
+  const { gw: gw2, store: store2, fake } = await createTestGateway();
+  await putActive(store2, fake, { service: 'dataforseo', module: 'research', privilege: 'write' });
+  const base = { keywords: ['example'], location_code: 2840, language_code: 'en' };
+  for (const filters of [
+    ['keyword_info.search_volume', 'in', [100, 200]],
+    ['keyword_info.search_volume', 'regex', 'ex.*'],
+    ['keyword_info.search_volume', '>', 0],
+  ]) {
+    const result = await gw2.execute({ action: 'dataforseo.research.keyword_ideas', input: { ...base, filters } });
+    assert.equal(result.status, 'needs_confirmation');
+  }
+});

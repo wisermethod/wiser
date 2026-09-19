@@ -125,13 +125,27 @@ function keywordHasSerpOperator(keyword) {
   return texts.some((text) => SERP_OPERATOR_TOKENS.some((token) => text.includes(token)));
 }
 
+const ARRAY_OPERAND = new Set(['in', 'not_in']);
+const STRING_OPERAND = new Set(['regex', 'not_regex', 'match', 'not_match', 'ilike', 'not_ilike', 'like', 'not_like']);
+const FILTER_STRING_MAX = 1000;
+
+function isFilterOperand(operator, operand) {
+  if (ARRAY_OPERAND.has(operator)) {
+    return Array.isArray(operand) && operand.length >= 1 && operand.every((item) => typeof item === 'string' || typeof item === 'number');
+  }
+  if (STRING_OPERAND.has(operator)) return typeof operand === 'string' && operand.length >= 1 && operand.length <= FILTER_STRING_MAX;
+  if (operator === 'has' || operator === 'has_not') return typeof operand === 'string' || typeof operand === 'number';
+  return (typeof operand === 'string' && operand.length <= FILTER_STRING_MAX) || typeof operand === 'number' || typeof operand === 'boolean' || operand === null;
+}
+
 function isFilterCondition(value) {
   return (
     Array.isArray(value) &&
     value.length === 3 &&
     isNonEmptyString(value[0]) &&
     typeof value[1] === 'string' &&
-    FILTER_OPERATORS.has(value[1])
+    FILTER_OPERATORS.has(value[1]) &&
+    isFilterOperand(value[1], value[2])
   );
 }
 

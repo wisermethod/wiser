@@ -663,3 +663,10 @@ describe('same-host link screening', () => {
     assert.ok(lookedUp.length >= 3);
   });
 });
+
+it('robots matching decodes percent-encoded unreserved ASCII on both sides', () => {
+  const rules = 'User-agent: *\nDisallow: /private\n';
+  assert.equal(isDisallowed(rules, 'https://example.com/%70rivate', 'wiser-site-crawl/0.1.0'), true);
+  assert.equal(isDisallowed('User-agent: *\nDisallow: /%70rivate\n', 'https://example.com/private/x', 'wiser-site-crawl/0.1.0'), true);
+  assert.equal(isDisallowed(rules, 'https://example.com/public', 'wiser-site-crawl/0.1.0'), false);
+});

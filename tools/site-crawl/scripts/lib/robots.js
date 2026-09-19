@@ -69,8 +69,21 @@ function escapeRegex(character) {
  * RFC 9309: `*` is any sequence, `$` at the end of the pattern is end-anchor,
  * and a pattern without `$` is a prefix.
  */
+// RFC 9309 section 2.2.2: percent-encoded unreserved ASCII octets are decoded
+// on both sides before comparison, so /%70rivate and /private are one path,
+// while reserved characters and non-ASCII keep their encoded spelling.
+function decodeUnreserved(text) {
+  return String(text).replace(/%([0-9a-f]{2})/gi, (whole, hex) => {
+    const code = Number.parseInt(hex, 16);
+    const character = String.fromCharCode(code);
+    return /[A-Za-z0-9\-._~]/.test(character) ? character : whole.toUpperCase();
+  });
+}
+
 function patternMatch(rulePath, candidate) {
   if (rulePath === '') return false;
+  rulePath = decodeUnreserved(rulePath);
+  candidate = decodeUnreserved(candidate);
   let source = '';
   for (let index = 0; index < rulePath.length; index += 1) {
     const character = rulePath[index];

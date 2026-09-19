@@ -597,7 +597,17 @@ export async function runPageSpeed(argv, deps = {}) {
     }
     const serialized = `${JSON.stringify(result, null, 2)}\n`;
     assertKeyAbsent(apiKey, serialized, recorded);
-    io.writeFileSync(outputFile, serialized);
+    // 'wx' creates the file and refuses one that appeared between the check
+    // above and this write, so a symbolic link planted in that gap is never
+    // followed and an existing file is never truncated.
+    try {
+      io.writeFileSync(outputFile, serialized, { flag: 'wx' });
+    } catch (error) {
+      if (error && error.code === 'EEXIST') {
+        fail(`Error: --output file already exists at ${outputFile}. This tool never overwrites; pass a different directory or remove the file.`);
+      }
+      throw error;
+    }
     result.file = outputFile;
   }
 
