@@ -201,3 +201,75 @@ test('connector loads under loadConnectors with manifest/export parity and no pl
   };
   walk(DIR);
 });
+
+// Review finding P2, 2026-09-20: the first stripper matched only the envelope
+// observed live and returned every other shape unchanged, so an unrecognised
+// wrapper or a nested secret would fail open. These exercise the shapes the live
+// call did not show us.
+const stubCtx = (result) => ({
+  service: 'bing',
+  module: 'webmaster',
+  action: 'list_sites',
+  catalog: async () => result,
+});
+
+const leaks = (value) => {
+  const blob = JSON.stringify(value);
+  return blob.includes('AUTHLEAK') || blob.includes('DNSLEAK');
+};
+
+test('list_sites strips both spellings from the observed envelope', async () => {
+  const out = await modules.webmaster.list_sites({}, stubCtx({
+    sites: [
+      { url: 'https://a.example/', is_verified: true, authentication_code: 'AUTHLEAK', dns_verification_code: 'DNSLEAK.a' },
+      { url: 'https://b.example/', IsVerified: false, AuthenticationCode: 'AUTHLEAK', DnsVerificationCode: 'DNSLEAK.b' },
+    ],
+    skipped_site_count: 0,
+  }));
+  assert.equal(leaks(out), false);
+  assert.equal(out.sites.length, 2);
+  assert.equal(out.sites[0].url, 'https://a.example/');
+  assert.equal(out.sites[1].IsVerified, false);
+  assert.equal(out.skipped_site_count, 0);
+});
+
+test('list_sites strips from a bare array and from an unrecognised wrapper', async () => {
+  const bare = await modules.webmaster.list_sites({}, stubCtx(
+    [{ url: 'https://a.example/', authentication_code: 'AUTHLEAK' }],
+  ));
+  assert.equal(leaks(bare), false);
+  assert.equal(bare[0].url, 'https://a.example/');
+
+  const wrapped = await modules.webmaster.list_sites({}, stubCtx({
+    data: { sites: { items: [{ url: 'https://a.example/', authentication_code: 'AUTHLEAK' }] } },
+  }));
+  assert.equal(leaks(wrapped), false);
+  assert.equal(wrapped.data.sites.items[0].url, 'https://a.example/');
+});
+
+test('list_sites strips a secret nested inside a site object', async () => {
+  const out = await modules.webmaster.list_sites({}, stubCtx({
+    sites: [{ url: 'https://a.example/', verification: { dns_verification_code: 'DNSLEAK.a', method: 'dns' } }],
+  }));
+  assert.equal(leaks(out), false);
+  assert.equal(out.sites[0].verification.method, 'dns');
+});
+
+test('list_sites preserves unknown fields, null entries and status objects', async () => {
+  const out = await modules.webmaster.list_sites({}, stubCtx({
+    sites: [null, 'text', { url: 'https://a.example/', future_field: 'kept', nested: [{ deep: 1 }] }],
+  }));
+  assert.equal(out.sites[0], null);
+  assert.equal(out.sites[1], 'text');
+  assert.equal(out.sites[2].future_field, 'kept');
+  assert.equal(out.sites[2].nested[0].deep, 1);
+
+  const status = await modules.webmaster.list_sites({}, stubCtx({ status: 'needs_connect', service: 'bing' }));
+  assert.deepEqual(status, { status: 'needs_connect', service: 'bing' });
+});
+
+test('list_sites does not mutate the response it was given', async () => {
+  const original = { sites: [{ url: 'https://a.example/', authentication_code: 'AUTHLEAK' }] };
+  await modules.webmaster.list_sites({}, stubCtx(original));
+  assert.equal(original.sites[0].authentication_code, 'AUTHLEAK');
+});

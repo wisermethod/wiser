@@ -63,24 +63,44 @@ async function viaCatalog(input, ctx) {
  * verified; it never needs the proof of ownership. Unknown fields are kept, so a
  * vendor addition still reaches the caller, and only these two are dropped.
  */
-const SITE_SECRET_FIELDS = ['authentication_code', 'dns_verification_code'];
+const SITE_SECRET_FIELDS = [
+  'authentication_code',
+  'dns_verification_code',
+  'AuthenticationCode',
+  'DnsVerificationCode',
+];
 
-function stripSite(site) {
-  if (!site || typeof site !== 'object') return site;
-  const kept = { ...site };
-  for (const field of SITE_SECRET_FIELDS) {
-    delete kept[field];
-    // The vendor spells these PascalCase; the catalog layer lowercases them.
-    // Strip both spellings so the route taken cannot decide what leaks.
-    delete kept[field.split('_').map((w) => w[0].toUpperCase() + w.slice(1)).join('')];
+const MAX_STRIP_DEPTH = 12;
+
+/**
+ * Remove the secret keys wherever they appear in the response, at any depth and
+ * under any wrapper.
+ *
+ * The first version matched only the one envelope observed live, a `sites`
+ * array of flat objects, and returned anything else unchanged. Review found that
+ * fails open: a wrapper the catalog layer has not shown us yet, or a secret
+ * nested one level inside a site object, would silently restore the disclosure.
+ * Matching on key name rather than on position removes that dependence on shape.
+ * No consumer of either field exists in this repository, so removing them
+ * wherever they occur cannot break a reader.
+ *
+ * Depth is bounded so a pathological response cannot recurse without end. At the
+ * bound the branch is dropped rather than returned, because returning it would
+ * be returning exactly the unexamined content this function exists to examine.
+ */
+function stripSecrets(value, depth = 0) {
+  if (Array.isArray(value)) {
+    if (depth >= MAX_STRIP_DEPTH) return [];
+    return value.map((entry) => stripSecrets(entry, depth + 1));
+  }
+  if (!value || typeof value !== 'object') return value;
+  if (depth >= MAX_STRIP_DEPTH) return {};
+  const kept = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (SITE_SECRET_FIELDS.includes(key)) continue;
+    kept[key] = stripSecrets(entry, depth + 1);
   }
   return kept;
-}
-
-function stripSiteSecrets(result) {
-  if (Array.isArray(result)) return result.map(stripSite);
-  if (!result || typeof result !== 'object' || !Array.isArray(result.sites)) return result;
-  return { ...result, sites: result.sites.map(stripSite) };
 }
 
 function action(allowed, required, extras) {
@@ -101,7 +121,7 @@ function action(allowed, required, extras) {
 
 export const modules = {
   webmaster: {
-    list_sites: async (input, ctx) => stripSiteSecrets(await action([], [])(input, ctx)),
+    list_sites: async (input, ctx) => stripSecrets(await action([], [])(input, ctx)),
     search_performance: action(
       ['site_url', 'report'],
       ['site_url', 'report'],
