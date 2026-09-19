@@ -79,10 +79,10 @@ One entry script, one command per line, subcommands where a command has modes.
 | Command | Purpose |
 |---------|---------|
 | `session start\|stop\|status\|restart` | Manage the browser host; `start` and `restart` need `--profile` |
-| `navigate` | Go to `--url`, or `back`, `forward`, `reload` |
+| `navigate` | Go to `--url`, or `back`, `forward`, `reload`; `--wait` sets what counts as arrived |
 | `snapshot` | Read the page: `--format accessibility\|text\|html\|interactive` |
-| `click` | Click by `--index`, `--selector`, `--text`, or `--coords` |
-| `type` | Enter `--text` into a target, or press `--key` |
+| `click` | Click by `--index`, `--selector`, `--text`, or `--coords`; `--button`, `--count`, `--delay`, `--force` |
+| `type` | Enter `--text` into a target, or press `--key`. **Read the per-command options below before using it**: the default replaces the field |
 | `wait` | Block on `--selector`, `--text`, `--time`, or `--network` |
 | `scroll` | `--to top\|bottom\|[selector]`, `--by [px]`, or `--infinite` |
 | `mouse hover\|move\|drag\|wheel` | Pointer actions a click cannot express |
@@ -98,13 +98,41 @@ One entry script, one command per line, subcommands where a command has modes.
 | `screenshot` | Write a PNG to `--output` |
 | `download` | Save `--url` to `--output`, or click `--selector` into `--output-dir` |
 | `upload` | Attach `--file` to `--selector`; needs `--confirm` |
-| `cookies list\|get\|set\|delete\|clear` | Cookie metadata and page-state cookies |
-| `storage list\|get\|set\|delete\|clear` | Local or session storage |
+| `cookies list\|get\|set\|delete\|clear` | Cookie metadata and page-state cookies; `--domain`, `--path`, `--expires` |
+| `storage list\|get\|set\|delete\|clear` | Local or session storage; `--session` picks session |
 | `trace start\|stop\|status` | Record a replayable trace for debugging a failed run |
 
 A trace is a zip that Playwright's own trace viewer opens; it replays the run with a screenshot, the page state, and the network activity at every step, which is what makes a run that failed once diagnosable afterwards.
 
-Options:
+Per-command options. Each belongs to the one command named and is refused elsewhere:
+
+| Command | Option | Effect | Default |
+|---------|--------|--------|---------|
+| `navigate` | `--wait` | What counts as arrived: `load`, `domcontentloaded`, `networkidle`, `commit` | `load` |
+| `click` | `--button` | Which mouse button | `left` |
+| `click` | `--count` | How many clicks; 2 is a double click | 1 |
+| `click` | `--delay` | Milliseconds held between press and release | None |
+| `click` | `--force` | Skip the actionability wait and click anyway. Not reached by `--coords` | Off |
+| `type` | `--delay` | **Changes what the command does, not just its speed.** See the note below | None, which replaces |
+| `type` | `--clear` | Empty the field before writing | Off |
+| `type` | `--submit` | Press Enter after the text is written | Off |
+| `cookies set` | `--domain` | The cookie's domain | The current page's hostname |
+| `cookies set` | `--path` | The cookie's path | `/` |
+| `cookies set` | `--expires` | **A number of days from now.** Not seconds, not a Unix timestamp: `--expires 7` is one week | None, which makes a session cookie |
+| `cookies list` | `--domain` | Keep only cookies whose domain contains this string | None, which returns all |
+| `storage` | `--session` | Use `sessionStorage` instead of `localStorage`, on every subcommand | Off, which is `localStorage` |
+
+**`type` replaces by default, and this is the one thing to get right.**
+
+- `type --text` with no `--delay` calls `fill`, which **discards whatever the field already held** and writes the new text.
+- `type --text --delay [ms]` types at the **caret**, character by character, firing the key handlers a live typeahead or autocomplete listens for. On a field nothing has focused yet the caret sits at the start, so the text lands **in front of** the existing contents rather than after them.
+- `type --text --delay 0` also types at the caret, with no pause between keystrokes. Zero is a real delay, not an absent one.
+- To replace deliberately while still firing key handlers, pass `--clear` with `--delay`.
+- `--key` presses one key and applies no typing option. It **refuses** `--text`, `--selector`, `--index`, `--clear`, `--delay` and `--submit` by name rather than accepting and ignoring them. `--timeout` and the other cross-cutting options still apply.
+
+An identifier is spelled `--name` on `cookies` and `--key` on `storage`, and `--key` on `type` means a keyboard key instead. The tool refuses the wrong one by name.
+
+Cross-cutting options, which apply to every command that takes one:
 
 | Option | Effect | Default |
 |--------|--------|---------|
@@ -116,7 +144,7 @@ Options:
 | `--output [file]`, `--output-dir [dir]` | Where an artifact is written, absolute, outside this tool | None |
 | `--file [path]` | A file `upload` attaches to a form, absolute, outside this tool | None; required by `upload` |
 | `--timeout [ms]` | Per-action budget where the command takes one | 5000 to 30000 by command |
-| `--help` | Print usage and exit | Off |
+| `--help`, `-h` | Print usage and exit | Off |
 
 ## Destructive Actions
 

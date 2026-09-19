@@ -55,8 +55,22 @@ Reading:
 
 Acting:
   navigate               --url [u], or subcommand back|forward|reload
+                         [--wait load|domcontentloaded|networkidle|commit] Default load.
   click                  --index n | --selector s | --text t | --coords x,y
+                         [--button left|right|middle] [--count n] [--delay ms]
+                         [--force] skips the actionability wait; not on --coords.
   type                   (--index n | --selector s) --text t, or --key [Key]
+                         WITHOUT --delay the text REPLACES the field's contents.
+                         WITH --delay it types at the caret, which on a field
+                         nothing has focused yet is the START, not the end, so
+                         the text lands in front of what is already there.
+                         --delay 0 types at the caret with no pause; it does not
+                         replace. [--clear] empties the field first, so the
+                         caret form can be made to replace deliberately.
+                         [--submit] presses Enter afterwards.
+                         --key presses one key and applies no typing option; it
+                         refuses --text, --selector, --index, --clear, --delay
+                         and --submit by name rather than ignoring them.
   scroll                 --to top|bottom|[selector] | --by [px] | --infinite [--max n]
   mouse hover|move       --selector s | --coords x,y
   mouse drag             --from [selector] --to [selector]
@@ -72,7 +86,15 @@ Acting:
   download               --url u --output [absolute file], or --selector s --output-dir [absolute dir]
   upload                 --selector s --file [absolute path] (repeatable) --confirm
   cookies list|get|set|delete|clear
+                         list takes [--domain d] to filter by substring.
+                         set takes --name n --value v [--domain d] [--path p]
+                         [--expires DAYS]. --expires is a number of DAYS from
+                         now, not seconds and not a timestamp; --expires 7 is
+                         one week. get and delete take --name.
   storage list|get|set|delete|clear
+                         [--session] uses sessionStorage instead of
+                         localStorage, on every subcommand. get, set and delete
+                         take --key; note cookies spell the same idea --name.
   trace start|stop|status          stop takes --output [absolute file]
 
 Options:
@@ -96,7 +118,7 @@ Options:
           from where, and stops. That answer covers every later
           tool in this copy. WISER_ALLOW_INSTALL=1 does the same
           for an unattended run.
-  --help                 Print this message
+  --help, -h             Print this message
 
 No cookie command prints a value, but "execute" returns whatever its code reads,
 document.cookie included. Three paths hold credential material: the --profile
