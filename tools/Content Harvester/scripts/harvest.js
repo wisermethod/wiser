@@ -60,7 +60,7 @@ Options:
           from where, and stops. That answer covers every later
           tool in this copy. WISER_ALLOW_INSTALL=1 does the same
           for an unattended run.
-  --help           Print this message
+  --help, -h       Print this message
 
 Success prints one JSON object to stdout. Errors go to stderr with exit 1.`;
 

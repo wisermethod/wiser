@@ -69,7 +69,7 @@ Options:
   --text-position  top, center, or bottom. Default center.
   --remove-audio   Drop the audio track.
   --fps <n>        Sample rate for frames and gif. Default ${DEFAULT_FPS}.
-  --help           Print this message
+  --help, -h       Print this message
 
 Reads the local files the caller names and writes the file or directory the
 caller names. Needs no credentials and no configuration file, so no command

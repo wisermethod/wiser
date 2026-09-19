@@ -154,7 +154,7 @@ Options:
                         models/ folder named in tools/AGENTS.md. An explicit path
                         still wins. The connector key file is refused.
   --model [name]        Speech model: {models}. Default {default}
-  --help                Print this message
+  --help, -h            Print this message
 
 Success prints one JSON object to stdout. Errors go to stderr with exit 1.""".format(
     models=", ".join(MODELS), formats=", ".join(SUPPORTED_FORMATS), default=DEFAULT_MODEL

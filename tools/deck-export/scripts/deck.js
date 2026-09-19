@@ -81,7 +81,7 @@ Commands:
                    proves Chromium with a trial launch.
                    With --install it installs first and then reports on what
                    it installed
-  help             Print this message
+  help, --help, -h Print this message
 
 Global options:
   --install        Authorise the first install in this copy of the plugin.

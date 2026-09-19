@@ -117,7 +117,7 @@ Options:
           from where, and stops. That answer covers every later
           tool in this copy. WISER_ALLOW_INSTALL=1 does the same
           for an unattended run.
-  --help              Print this message
+  --help, -h          Print this message
 
 Archive safety (every mutator on an existing .key):
   Copy to zArchive/ beside the .key as "YY-MM-DD Vn - <original name>" per
