@@ -422,7 +422,10 @@ const actions = {
     const locator = frame.locator(targetFor({ selector, index }));
     await withRetry(async () => {
       if (clear) await locator.fill('', { timeout });
-      if (delay) await locator.pressSequentially(text, { delay, timeout });
+      // Test for the flag, not its truth: --delay 0 is a caller asking to type
+      // at the caret with no pause between keystrokes, and testing truthiness
+      // sent it to fill(), which replaces the field instead.
+      if (delay !== undefined) await locator.pressSequentially(text, { delay, timeout });
       else await locator.fill(text, { timeout });
       if (submit) await page.keyboard.press('Enter');
     });

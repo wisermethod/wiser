@@ -1151,6 +1151,17 @@ switch (command) {
     if (key === undefined && (text === undefined || (index === undefined && selector === undefined))) {
       fail('Error: type needs --key [Key], or a target (--index or --selector) together with --text.');
     }
+    // The key form presses a key and returns; every typing option is discarded.
+    // Refuse rather than return success on input that was never applied.
+    // --timeout is not listed: help declares it a global that applies where the
+    // command takes one, and the key form does not.
+    if (key !== undefined) {
+      const ignored = ['--text', '--selector', '--index', '--clear', '--delay', '--submit']
+        .filter((name) => flags.has(name));
+      if (ignored.length > 0) {
+        fail(`Error: type --key does not take ${ignored.join(', ')}. The key form presses a key and applies no typing option. Drop --key to write into a field, or drop ${ignored.join(', ')} to send the keypress.`);
+      }
+    }
     await send('type', {
       key,
       index,
