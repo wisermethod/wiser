@@ -1,8 +1,9 @@
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createTestGateway, putActive } from './fake-provider.js';
+import { createTestGateway, makeHome, putActive } from './fake-provider.js';
 
 test('execute with no record returns needs_connect and starts nothing', async () => {
   const { gw, fake } = await createTestGateway();
@@ -15,6 +16,55 @@ test('execute with no record returns needs_connect and starts nothing', async ()
   assert.equal(result.service, 'github');
   assert.equal(result.module, 'repos');
   assert.equal(fake.accounts.size, initiated);
+});
+
+test('needs_confirmation carries the manifest description, or null when none is declared', async () => {
+  const root = makeHome();
+  const dir = join(root, 'example');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
+  writeFileSync(join(dir, 'manifest.json'), JSON.stringify({
+    id: 'example',
+    service: 'example',
+    modules: {
+      items: {
+        auth: { provider: 'catalog', toolkit: 'FAKE_KIT', scheme: 'OAUTH2', privilege: 'write' },
+        unwrap_token: false,
+        fallback: 'none',
+        actions: {
+          priced: {
+            description: 'Example billed call at $0.01 per call',
+            risk: 'medium',
+            confirmation: 'always',
+            execution: { prefer: 'proxy' },
+            input: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+          },
+          silent: {
+            risk: 'medium',
+            confirmation: 'always',
+            execution: { prefer: 'proxy' },
+            input: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+          },
+        },
+      },
+    },
+  }));
+  writeFileSync(join(dir, 'index.js'), 'export const modules = { items: { priced: async () => ({ ok: true }), silent: async () => ({ ok: true }) } };\n');
+  const { gw, store, fake } = await createTestGateway({ connectorDirs: [root] });
+  await putActive(store, fake, { service: 'example', module: 'items', privilege: 'write' });
+
+  const priced = await gw.execute({ action: 'example.items.priced', input: { id: 'item-1' } });
+  assert.equal(priced.status, 'needs_confirmation');
+  assert.equal(priced.description, 'Example billed call at $0.01 per call');
+  assert.equal(
+    priced.summary,
+    'example.items.priced on example/items with id; risk medium; Example billed call at $0.01 per call',
+  );
+
+  const silent = await gw.execute({ action: 'example.items.silent', input: { id: 'item-1' } });
+  assert.equal(silent.status, 'needs_confirmation');
+  assert.equal(silent.description, null);
+  assert.equal(silent.summary, 'example.items.silent on example/items with id; risk medium');
 });
 
 test('execute with confirmation always without confirm returns needs_confirmation; with confirm runs', async () => {

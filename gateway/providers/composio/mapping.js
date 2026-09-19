@@ -29,6 +29,8 @@ const ROWS = [
   ['google.search-console.query', 'GOOGLE_SEARCH_CONSOLE_SEARCH_ANALYTICS_QUERY'], // confirmed catalog 2026-09-08; { responseAggregationType }, rows omitted when the window is empty
   ['google.search-console.sites', 'GOOGLE_SEARCH_CONSOLE_LIST_SITES'], // confirmed catalog 2026-09-08; { siteEntry }, items: siteUrl, permissionLevel
   ['google.search-console.sitemaps', 'GOOGLE_SEARCH_CONSOLE_LIST_SITEMAPS'], // confirmed catalog 2026-09-08; { sitemap } array
+  ['google.search-console.inspect', 'GOOGLE_SEARCH_CONSOLE_INSPECT_URL'], // catalog docs 2026-09-19; live envelope UNVERIFIED
+  ['google.search-console.get_sitemap', 'GOOGLE_SEARCH_CONSOLE_GET_SITEMAP'], // catalog docs 2026-09-19; live envelope UNVERIFIED
   ['google.analytics.run_report', 'GOOGLE_ANALYTICS_RUN_REPORT'], // confirmed catalog 2026-09-08; rows, rowCount, dimensionHeaders, metricHeaders, metadata, kind
   ['google.analytics.list_account_summaries', 'GOOGLE_ANALYTICS_LIST_ACCOUNT_SUMMARIES'], // confirmed catalog 2026-09-08; { accountSummaries }, nested propertySummaries
   ['google.analytics.get_property', 'GOOGLE_ANALYTICS_GET_PROPERTY'], // confirmed catalog 2026-09-08; name, displayName, propertyType, timeZone, currencyCode
@@ -100,6 +102,15 @@ const ROWS = [
   ['zoho.invoice.get', 'ZOHO_INVOICE_GET_INVOICE'], // catalog docs 2026-09-09; live envelope UNVERIFIED
   ['zoho.bigin.list', 'ZOHO_BIGIN_GET_RECORDS'], // catalog docs 2026-09-09; live envelope UNVERIFIED
   ['zoho.bigin.get', 'ZOHO_BIGIN_GET_RECORD'], // catalog docs 2026-09-09; live envelope UNVERIFIED
+  ['bing.webmaster.list_sites', 'BING_WEBMASTER_TOOLS_LIST_SITES'], // catalog docs 2026-09-19; live envelope UNVERIFIED
+  ['bing.webmaster.search_performance', 'BING_WEBMASTER_TOOLS_GET_SEARCH_PERFORMANCE'], // catalog docs 2026-09-19; live envelope UNVERIFIED
+  ['bing.webmaster.query_performance', 'BING_WEBMASTER_TOOLS_GET_QUERY_PERFORMANCE'], // catalog docs 2026-09-19; live envelope UNVERIFIED
+  ['bing.webmaster.page_performance', 'BING_WEBMASTER_TOOLS_GET_PAGE_PERFORMANCE'], // catalog docs 2026-09-19; live envelope UNVERIFIED
+  ['bing.webmaster.crawl_diagnostics', 'BING_WEBMASTER_TOOLS_GET_CRAWL_DIAGNOSTICS'], // catalog docs 2026-09-19; live envelope UNVERIFIED
+  ['bing.webmaster.inspect_url', 'BING_WEBMASTER_TOOLS_INSPECT_URL'], // catalog docs 2026-09-19; live envelope UNVERIFIED
+  ['bing.webmaster.feeds', 'BING_WEBMASTER_TOOLS_GET_FEEDS'], // catalog docs 2026-09-19; live envelope UNVERIFIED
+  ['bing.webmaster.inbound_links', 'BING_WEBMASTER_TOOLS_GET_INBOUND_LINKS'], // catalog docs 2026-09-19; live envelope UNVERIFIED
+  ['bing.webmaster.research_keywords', 'BING_WEBMASTER_TOOLS_RESEARCH_KEYWORDS'], // catalog docs 2026-09-19; live envelope UNVERIFIED
 ];
 
 const TO_SLUG = new Map(ROWS);
@@ -108,6 +119,8 @@ const FROM_SLUG = new Map(ROWS.map(([id, slug]) => [slug, id]));
 const TOOLKITS = {
   tinyfish: 'CUSTOM_TINYFISH',
   courtlistener: 'CUSTOM_COURTLISTENER',
+  dataforseo: 'DATAFORSEO',
+  bing: 'BING_WEBMASTER_TOOLS',
   github: 'GITHUB',
   cloudflare: 'CLOUDFLARE_API_KEY',
   google: {

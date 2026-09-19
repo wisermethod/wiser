@@ -6,6 +6,8 @@ const cases = [
   ['search-console', 'query', 'read', { site_url: 'https://example.com/', start_date: '2026-09-01', end_date: '2026-09-07' }, 'rows'],
   ['search-console', 'sites', 'read', {}, 'siteEntry'],
   ['search-console', 'sitemaps', 'read', { site_url: 'https://example.com/' }, 'sitemap'],
+  ['search-console', 'inspect', 'read', { site_url: 'https://example.com/', inspection_url: 'https://example.com/page' }, 'inspectionResult'],
+  ['search-console', 'get_sitemap', 'read', { site_url: 'https://example.com/', feedpath: 'https://example.com/sitemap.xml' }, 'path'],
   ['analytics', 'run_report', 'read', { property: 'properties/1', date_ranges: [], metrics: [] }, 'rows'],
   ['analytics', 'list_account_summaries', 'read', {}, 'accountSummaries'],
   ['analytics', 'get_property', 'read', { name: 'properties/1' }, 'name'],

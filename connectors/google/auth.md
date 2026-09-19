@@ -15,7 +15,7 @@ Use a Google account allowed to access the relevant sites, analytics properties,
 
 ## Per-module notes
 
-- `search-console`: separate connect, read privilege; Last connected: 2026-09-08.
+- `search-console`: separate connect, read privilege; Last connected: 2026-09-08. Inspection uses the same read grant. A refusal on `inspect` after an ACTIVE grant is a reconnect through Connect Account.
 - `analytics`: separate connect, read privilege; Last connected: 2026-09-08.
 - `drive`: separate connect, write privilege; Last connected: 2026-09-08.
 - `calendar`: separate connect, write privilege; Last connected: 2026-09-08.

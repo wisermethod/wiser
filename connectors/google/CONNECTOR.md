@@ -2,13 +2,13 @@
 name: google
 type: connector
 category: analytics
-description: Reads search performance, analytics reports, Drive files, Calendar events, Gmail messages, spreadsheet values, documents, and presentations through eight separate grants
-version: 0.4.0
+description: Reads search performance, URL index state, sitemap details, analytics reports, Drive files, Calendar events, Gmail messages, spreadsheet values, documents, and presentations through eight separate grants
+version: 0.5.0
 ---
 
 # Google
 
-Reads search performance, analytics reports, Drive files, Calendar events, Gmail messages, spreadsheet values, documents, and presentations through eight separate grants.
+Reads search performance, URL index state, sitemap details, analytics reports, Drive files, Calendar events, Gmail messages, spreadsheet values, documents, and presentations through eight separate grants.
 
 ## Status
 
@@ -19,9 +19,11 @@ Shipped 2026-09-08. Live connect 2026-09-08: `search-console`, `analytics`, `dri
 Through the gateway by action id. Input fields are declared in `manifest.json`.
 
 ```
-google.search-console.query  { site_url, start_date, end_date, dimensions?, row_limit? }
+google.search-console.query  { site_url, start_date, end_date, dimensions?, row_limit?, start_row?, dimension_filter_groups?, search_type?, aggregation_type?, data_state? }
 google.search-console.sites  {  }
 google.search-console.sitemaps  { site_url }
+google.search-console.inspect  { site_url, inspection_url, language_code? }
+google.search-console.get_sitemap  { site_url, feedpath }
 google.analytics.run_report  { property, date_ranges, dimensions?, metrics }
 google.analytics.list_account_summaries  { page_size?, page_token? }
 google.analytics.get_property  { name }
@@ -39,7 +41,7 @@ google.slides.get  { presentation_id?, presentation_name?, fields? }
 google.slides.get_page  { presentation_id, page_object_id }
 ```
 
-Search Console, Analytics, Gmail, Sheets, Docs, and Slides are read grants. Search Console does not add sites or submit sitemaps. Gmail does not send, draft, delete, or change labels. Sheets does not create, append, update, or delete. Docs does not create, insert, replace, or delete. Slides does not create, copy, or batch-update. Drive and Calendar hold write-capable grants but ship only reads, with no upload, create, or delete actions. A Search Console grant does not unlock any other module. A Gmail grant does not unlock Drive, Calendar, Analytics, Sheets, Docs, or Slides. Inputs use the field names in the manifest, remapped to catalog field casing where needed. Each `date_ranges` entry uses `{ startDate, endDate }`; metrics and dimensions use `{ name }`. Optional catalog fields pass through. Results are catalog objects, with no local file output.
+Search Console, Analytics, Gmail, Sheets, Docs, and Slides are read grants. Search Console does not add sites or submit sitemaps. `inspect` reads Google's stored index state for one URL, not a live fetch. `query` dates are `YYYY-MM-DD` with start not after end; `row_limit` is 1 to 25000; the catalog may cap lower and that is the vendor's answer, not the module's. The search-console module validates those bounds, the dimension and operator enums, and the two new actions' URLs before catalog execution. A `query` call carrying only `site_url`, `start_date`, `end_date`, `dimensions`, and `row_limit` still passes unchanged. Gmail does not send, draft, delete, or change labels. Sheets does not create, append, update, or delete. Docs does not create, insert, replace, or delete. Slides does not create, copy, or batch-update. Drive and Calendar hold write-capable grants but ship only reads, with no upload, create, or delete actions. A Search Console grant does not unlock any other module. A Gmail grant does not unlock Drive, Calendar, Analytics, Sheets, Docs, or Slides. Inputs use the field names in the manifest, remapped to catalog field casing where needed. Each `date_ranges` entry uses `{ startDate, endDate }`; metrics and dimensions use `{ name }`. Optional catalog fields pass through. Results are catalog objects, with no local file output.
 
 ## Credentials
 
@@ -49,7 +51,7 @@ This connector holds no credential. Each grant lives with the gateway's provider
 
 | Module | Privilege | Actions |
 |--------|-----------|---------|
-| `search-console` | read | `query`, `sites`, `sitemaps` |
+| `search-console` | read | `query`, `sites`, `sitemaps`, `inspect`, `get_sitemap` |
 | `analytics` | read | `run_report`, `list_account_summaries`, `get_property` |
 | `drive` | write | `find_file`, `get_file` |
 | `calendar` | write | `list_events`, `get_event` |

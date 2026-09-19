@@ -24,26 +24,122 @@
                 "type": "string"
               },
               "start_date": {
-                "type": "string"
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
               },
               "end_date": {
-                "type": "string"
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
               },
               "dimensions": {
                 "type": "array",
                 "items": {
-                  "type": "string"
+                  "type": "string",
+                  "enum": [
+                    "country",
+                    "device",
+                    "page",
+                    "query",
+                    "searchAppearance",
+                    "date"
+                  ]
                 }
               },
               "row_limit": {
-                "type": "integer"
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 25000
+              },
+              "start_row": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "dimension_filter_groups": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "filters": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "dimension": {
+                            "type": "string",
+                            "enum": [
+                              "country",
+                              "device",
+                              "page",
+                              "query",
+                              "searchAppearance",
+                              "date"
+                            ]
+                          },
+                          "operator": {
+                            "type": "string",
+                            "enum": [
+                              "equals",
+                              "notEquals",
+                              "contains",
+                              "notContains",
+                              "includingRegex",
+                              "excludingRegex"
+                            ]
+                          },
+                          "expression": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "dimension",
+                          "operator",
+                          "expression"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "filters"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "search_type": {
+                "type": "string",
+                "enum": [
+                  "web",
+                  "image",
+                  "video",
+                  "news",
+                  "discover",
+                  "googleNews"
+                ]
+              },
+              "aggregation_type": {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "byPage",
+                  "byProperty",
+                  "byNewsShowcasePanel"
+                ]
+              },
+              "data_state": {
+                "type": "string",
+                "enum": [
+                  "final",
+                  "all",
+                  "hourly_all"
+                ]
               }
             },
             "required": [
               "site_url",
               "start_date",
               "end_date"
-            ]
+            ],
+            "additionalProperties": false
           }
         },
         "sites": {
@@ -76,6 +172,57 @@
             "required": [
               "site_url"
             ]
+          }
+        },
+        "inspect": {
+          "description": "Read Google's stored index state for one URL under the property; not a live fetch",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "site_url": {
+                "type": "string"
+              },
+              "inspection_url": {
+                "type": "string"
+              },
+              "language_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "site_url",
+              "inspection_url"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "get_sitemap": {
+          "description": "Read one sitemap under the property",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "catalog"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "site_url": {
+                "type": "string"
+              },
+              "feedpath": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "site_url",
+              "feedpath"
+            ],
+            "additionalProperties": false
           }
         }
       },

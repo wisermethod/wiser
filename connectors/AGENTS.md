@@ -39,8 +39,9 @@ A connection record is keyed by service and module. Two modules on one service a
 
 | Connector | Description |
 |-----------|-------------|
-| `google/CONNECTOR.md` | Reads search performance, analytics reports, Drive files, Calendar events, Gmail messages, spreadsheet values, documents, and presentations through eight separate grants |
+| `google/CONNECTOR.md` | Reads search performance, URL index state, sitemap details, analytics reports, Drive files, Calendar events, Gmail messages, spreadsheet values, documents, and presentations through eight separate grants |
 | `clarity/CONNECTOR.md` | Exports Clarity metrics for the last one, two, or three days |
+| `bing/CONNECTOR.md` | Reads Bing Webmaster Tools verified sites, search and page performance, crawl diagnostics, URL inspection, feeds, inbound links, and keyword research through one grant |
 
 ### Communication
 
@@ -64,6 +65,7 @@ A connection record is keyed by service and module. Two modules on one service a
 | Connector | Description |
 |-----------|-------------|
 | `courtlistener/CONNECTOR.md` | Read CourtListener case law search, one docket, one opinion cluster, and the courts list |
+| `dataforseo/CONNECTOR.md` | Reaches DataForSEO SERP, keyword, and backlink research through two grants, each recorded write because it spends, with every billed call confirmed |
 | `tinyfish/CONNECTOR.md` | Search the web and fetch content from up to ten HTTPS URLs through Tiny Fish |
 | `notion/CONNECTOR.md` | Searches pages and databases and reads page properties |
 | `huggingface/CONNECTOR.md` | Reads model information and lists dataset metadata |

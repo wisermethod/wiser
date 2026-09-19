@@ -502,6 +502,7 @@ export class ConnectionGateway {
         const given = Object.keys(input ?? {});
         const fields = given.filter((k) => declared.includes(k));
         const undeclared = given.length - fields.length;
+        const summary = `${action} on ${parsed.service}/${parsed.module}${fields.length ? ` with ${fields.join(', ')}` : ''}${undeclared ? ` and ${undeclared} undeclared field${undeclared === 1 ? '' : 's'}` : ''}; risk ${risk ?? 'unknown'}${act?.description ? `; ${act.description}` : ''}`;
         return statusObject(STATUS.NEEDS_CONFIRMATION, {
           action,
           service: parsed.service,
@@ -510,7 +511,8 @@ export class ConnectionGateway {
           confirmation,
           input_fields: fields,
           undeclared_fields: undeclared,
-          summary: `${action} on ${parsed.service}/${parsed.module}${fields.length ? ` with ${fields.join(', ')}` : ''}${undeclared ? ` and ${undeclared} undeclared field${undeclared === 1 ? '' : 's'}` : ''}; risk ${risk ?? 'unknown'}`,
+          summary,
+          description: act?.description ?? null,
         });
       }
       if (confirm === true && confirmation === 'once') {
