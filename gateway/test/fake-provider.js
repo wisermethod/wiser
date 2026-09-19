@@ -254,7 +254,7 @@ export function createFakeProviders() {
       result: { status: 200, data: { count: 1, next: null, previous: null, results: [{ id: 1, cluster_id: 1, docket_id: 1 }] }, headers: {} },
     },
     {
-      match: (endpoint, method) => method === 'GET' && typeof endpoint === 'string' && endpoint.split('?')[0] === '/v3/dataforseo_labs/locations_and_languages',
+      match: (endpoint, method) => method === 'GET' && typeof endpoint === 'string' && endpoint.split('?')[0] === '/dataforseo_labs/locations_and_languages',
       result: {
         status: 200,
         data: {
@@ -282,7 +282,8 @@ export function createFakeProviders() {
       },
     },
     {
-      match: (endpoint, method) => method === 'POST' && typeof endpoint === 'string' && endpoint.startsWith('/v3/'),
+      match: (endpoint, method) => method === 'POST' && typeof endpoint === 'string'
+        && ['/serp/', '/dataforseo_labs/', '/keywords_data/', '/backlinks/'].some((p) => endpoint.startsWith(p)),
       result: {
         status: 200,
         data: {

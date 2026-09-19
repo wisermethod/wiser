@@ -23,14 +23,14 @@ const RESEARCH_BILLED = {
 };
 
 const RESEARCH_ENDPOINTS = {
-  serp: '/v3/serp/google/organic/live/advanced',
-  keyword_ideas: '/v3/dataforseo_labs/google/keyword_ideas/live',
-  related_keywords: '/v3/dataforseo_labs/google/related_keywords/live',
-  search_volume: '/v3/keywords_data/google_ads/search_volume/live',
-  keyword_difficulty: '/v3/dataforseo_labs/google/bulk_keyword_difficulty/live',
-  search_intent: '/v3/dataforseo_labs/google/search_intent/live',
-  ranked_keywords: '/v3/dataforseo_labs/google/ranked_keywords/live',
-  competitors: '/v3/dataforseo_labs/google/competitors_domain/live',
+  serp: '/serp/google/organic/live/advanced',
+  keyword_ideas: '/dataforseo_labs/google/keyword_ideas/live',
+  related_keywords: '/dataforseo_labs/google/related_keywords/live',
+  search_volume: '/keywords_data/google_ads/search_volume/live',
+  keyword_difficulty: '/dataforseo_labs/google/bulk_keyword_difficulty/live',
+  search_intent: '/dataforseo_labs/google/search_intent/live',
+  ranked_keywords: '/dataforseo_labs/google/ranked_keywords/live',
+  competitors: '/dataforseo_labs/google/competitors_domain/live',
 };
 
 const BACKLINKS = {
@@ -40,9 +40,9 @@ const BACKLINKS = {
 };
 
 const BACKLINKS_ENDPOINTS = {
-  summary: '/v3/backlinks/summary/live',
-  referring_domains: '/v3/backlinks/referring_domains/live',
-  anchors: '/v3/backlinks/anchors/live',
+  summary: '/backlinks/summary/live',
+  referring_domains: '/backlinks/referring_domains/live',
+  anchors: '/backlinks/anchors/live',
 };
 
 function wrapProxy(fake) {
@@ -149,7 +149,7 @@ test('locations calls GET with no body, no confirmation, and filters by country'
   assert.notEqual(all.status, 'needs_confirmation');
   assert.equal(calls.length, 1);
   assert.equal(calls[0].method, 'GET');
-  assert.equal(calls[0].endpoint, '/v3/dataforseo_labs/locations_and_languages');
+  assert.equal(calls[0].endpoint, '/dataforseo_labs/locations_and_languages');
   assert.equal(calls[0].body, undefined);
   assert.equal(all.tasks[0].result.length, 2);
 

@@ -1,3 +1,19 @@
+/**
+ * Endpoint paths below omit the vendor's `/v3` segment on purpose.
+ *
+ * The proxy resolves a relative endpoint against the toolkit's configured base
+ * URL, and this toolkit's base already ends in `/v3`. Proved live 2026-09-20
+ * against the vendor's own envelope: `/v3/appendix/user_data` returned the
+ * vendor's `40400 Not Found` (the doubled segment), while `/appendix/user_data`
+ * reached a real route and was answered by the vendor's auth layer. The same
+ * pair held for `dataforseo_labs/locations_and_languages`. `cloudflare` ships
+ * the identical shape, sending `/zones/...` against a base carrying
+ * `/client/v4`. Do not restore the prefix to match the vendor's docs URLs; the
+ * docs give the full URL, this field gives only the tail.
+ *
+ * An absolute URL is not the alternative: the proxy accepts one but does not
+ * inject the toolkit's credentials into it, so it returns the vendor's 401.
+ */
 async function proxyData(ctx, request) {
   const res = await ctx.proxy(request);
   return res && typeof res === 'object' && Object.hasOwn(res, 'data') ? res.data : res;
@@ -234,7 +250,7 @@ const PAGE = ['limit', 'offset', 'filters', 'order_by'];
 export const modules = {
   research: {
     serp: livePost(
-      '/v3/serp/google/organic/live/advanced',
+      '/serp/google/organic/live/advanced',
       ['keyword', ...LOCATION_LANGUAGE, 'device', 'depth'],
       (input) => firstInvalid([
         isNonEmptyString(input.keyword, 700) ? null : invalidArguments('keyword'),
@@ -255,7 +271,7 @@ export const modules = {
       ]),
     ),
     keyword_ideas: livePost(
-      '/v3/dataforseo_labs/google/keyword_ideas/live',
+      '/dataforseo_labs/google/keyword_ideas/live',
       ['keywords', ...LOCATION_LANGUAGE, 'limit', 'offset', 'include_serp_info', 'filters', 'order_by', 'closely_variants'],
       (input) => firstInvalid([
         requireKeywords(input, { max: 200 }),
@@ -270,7 +286,7 @@ export const modules = {
       ]),
     ),
     related_keywords: livePost(
-      '/v3/dataforseo_labs/google/related_keywords/live',
+      '/dataforseo_labs/google/related_keywords/live',
       ['keyword', ...LOCATION_LANGUAGE, 'depth', 'limit', 'offset', 'filters', 'order_by', 'include_serp_info'],
       (input) => firstInvalid([
         isNonEmptyString(input.keyword) ? null : invalidArguments('keyword'),
@@ -287,7 +303,7 @@ export const modules = {
       ]),
     ),
     search_volume: livePost(
-      '/v3/keywords_data/google_ads/search_volume/live',
+      '/keywords_data/google_ads/search_volume/live',
       ['keywords', ...LOCATION_LANGUAGE, 'date_from', 'date_to', 'search_partners'],
       (input) => firstInvalid([
         requireKeywords(input, { max: 1000, itemMax: 80 }),
@@ -299,7 +315,7 @@ export const modules = {
       ]),
     ),
     keyword_difficulty: livePost(
-      '/v3/dataforseo_labs/google/bulk_keyword_difficulty/live',
+      '/dataforseo_labs/google/bulk_keyword_difficulty/live',
       ['keywords', ...LOCATION_LANGUAGE],
       (input) => firstInvalid([
         requireKeywords(input, { max: 1000 }),
@@ -308,7 +324,7 @@ export const modules = {
       ]),
     ),
     search_intent: livePost(
-      '/v3/dataforseo_labs/google/search_intent/live',
+      '/dataforseo_labs/google/search_intent/live',
       ['keywords', 'language_code'],
       (input) => firstInvalid([
         requireKeywords(input, { max: 1000 }),
@@ -316,7 +332,7 @@ export const modules = {
       ]),
     ),
     ranked_keywords: livePost(
-      '/v3/dataforseo_labs/google/ranked_keywords/live',
+      '/dataforseo_labs/google/ranked_keywords/live',
       ['target', ...LOCATION_LANGUAGE, ...PAGE, 'item_types', 'load_rank_absolute'],
       (input) => firstInvalid([
         isBareDomain(input.target) ? null : invalidArguments('target'),
@@ -336,7 +352,7 @@ export const modules = {
       ]),
     ),
     competitors: livePost(
-      '/v3/dataforseo_labs/google/competitors_domain/live',
+      '/dataforseo_labs/google/competitors_domain/live',
       ['target', ...LOCATION_LANGUAGE, 'limit', 'offset', 'filters', 'exclude_top_domains', 'intersecting_domains'],
       (input) => firstInvalid([
         isBareDomain(input.target) ? null : invalidArguments('target'),
@@ -362,7 +378,7 @@ export const modules = {
         return invalidArguments('country');
       }
       const data = await proxyData(ctx, {
-        endpoint: '/v3/dataforseo_labs/locations_and_languages',
+        endpoint: '/dataforseo_labs/locations_and_languages',
         method: 'GET',
       });
       if (!Object.hasOwn(input, 'country')) return data;
@@ -382,7 +398,7 @@ export const modules = {
   },
   backlinks: {
     summary: livePost(
-      '/v3/backlinks/summary/live',
+      '/backlinks/summary/live',
       ['target', 'include_subdomains', 'backlinks_status_type'],
       (input) => firstInvalid([
         isBacklinksTarget(input.target) ? null : invalidArguments('target'),
@@ -393,7 +409,7 @@ export const modules = {
       ]),
     ),
     referring_domains: livePost(
-      '/v3/backlinks/referring_domains/live',
+      '/backlinks/referring_domains/live',
       ['target', ...PAGE, 'include_subdomains', 'backlinks_status_type'],
       (input) => firstInvalid([
         isBacklinksTarget(input.target) ? null : invalidArguments('target'),
@@ -408,7 +424,7 @@ export const modules = {
       ]),
     ),
     anchors: livePost(
-      '/v3/backlinks/anchors/live',
+      '/backlinks/anchors/live',
       ['target', ...PAGE, 'backlinks_status_type'],
       (input) => firstInvalid([
         isBacklinksTarget(input.target) ? null : invalidArguments('target'),
