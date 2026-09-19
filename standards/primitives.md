@@ -1,6 +1,6 @@
 ---
 standard: primitives
-version: 0.6.1
+version: 0.7.0
 description: The four typed primitives, how they invoke and sequence one another, and the frontmatter every typed file carries
 ---
 
@@ -95,4 +95,19 @@ A primitive is done when all of the following hold:
 
 - Its directory name, its typed file, and its `name` agree, and that name collides with no other primitive in its root.
 - Its frontmatter carries the five required keys in the flat shape above, and its `description` matches what invoking it actually yields.
-- Its body passes `standards/instruction-quality.md`, including the three-varied-inputs verification.
+- Its body passes `standards/instruction-quality.md`.
+
+**Done does not assert that a primitive has been run, and no root may claim that it has.**
+`instruction-quality.md` requires the three-varied-inputs verification of a change that authors or
+revises an instruction. That obligation sits on the change, and it is discharged by the change,
+rather than standing as a permanent property the file carries afterward.
+
+This clause used to make the verification a condition of Done, and the effect was that **no
+primitive in any root was ever Done.** Measured in `wiser` on 2026-09-19: zero of 89 typed files
+carried a record of such a run, while runs for 27 of them existed and were unreachable from the
+primitive. A condition that nothing satisfies and nothing checks is not a standard; it is a wish
+that makes every other clause here look optional by association.
+
+Where a change runs the verification, it states in that change what the run covered **and what it
+did not**. Where no change has run it, the primitive is Done on the clauses above and the
+verification is owed, not assumed.

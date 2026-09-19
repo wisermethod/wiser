@@ -3,7 +3,7 @@ name: Knowledge Map
 type: skill
 category: research
 description: Analyze a workspace's existing files and produce a Knowledge Map that groups their ideas by topic, each traced to its source file and section
-version: 0.3.0
+version: 0.3.1
 ---
 
 # Knowledge Map
@@ -16,7 +16,7 @@ Not for inventorying what files exist without summarizing them; that is Internal
 
 ## Objective
 
-One new knowledge-map document, placed in the owning root per `standards/conventions.md`, in which every idea traces to a specific source file and the section it came from, ideas are grouped by topic with the structure emerging from the content and every topic drawing on at least two files, and every analyzed file is accounted for as mapped or listed unmapped with the scope's gaps named. No existing file is modified. Verified against Success, below, and the three-varied-inputs rule in `standards/instruction-quality.md`.
+One new knowledge-map document, placed in the owning root per `standards/conventions.md`, in which every idea traces to a specific source file and the section it came from, ideas are grouped by topic with the structure emerging from the content and every topic drawing on at least two files, and every analyzed file is accounted for as mapped or listed unmapped with the scope's gaps named. No existing file is modified. Verified against Success, below.
 
 ## Inputs
 
