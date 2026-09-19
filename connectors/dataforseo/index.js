@@ -2,7 +2,7 @@
  * Endpoint paths below omit the vendor's `/v3` segment on purpose.
  *
  * The proxy resolves a relative endpoint against the toolkit's configured base
- * URL, and this toolkit's base already ends in `/v3`. Proved live 2026-09-20
+ * URL, and this toolkit's base already ends in `/v3`. Proved live 2026-09-19
  * against the vendor's own envelope: `/v3/appendix/user_data` returned the
  * vendor's `40400 Not Found` (the doubled segment), while `/appendix/user_data`
  * reached a real route and was answered by the vendor's auth layer. The same

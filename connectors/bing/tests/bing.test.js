@@ -202,7 +202,7 @@ test('connector loads under loadConnectors with manifest/export parity and no pl
   walk(DIR);
 });
 
-// Review finding P2, 2026-09-20: the first stripper matched only the envelope
+// Review finding P2, 2026-09-19: the first stripper matched only the envelope
 // observed live and returned every other shape unchanged, so an unrecognised
 // wrapper or a nested secret would fail open. These exercise the shapes the live
 // call did not show us.

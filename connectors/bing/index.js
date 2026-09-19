@@ -59,7 +59,7 @@ async function viaCatalog(input, ctx) {
  * and a per-site `dns_verification_code`. Either one is enough to assert
  * ownership of a property at the vendor, so neither belongs in a reading that
  * flows into a transcript, an audit ledger or a gate file. Observed live
- * 2026-09-20 on the first real call. An audit needs the site and whether it is
+ * 2026-09-19 on the first real call. An audit needs the site and whether it is
  * verified; it never needs the proof of ownership. Unknown fields are kept, so a
  * vendor addition still reaches the caller, and only these two are dropped.
  */

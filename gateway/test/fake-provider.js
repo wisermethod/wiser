@@ -125,7 +125,7 @@ const DEFAULT_RESULTS = {
   FAKE_GOOGLE_SEARCH_CONSOLE_SITEMAPS: {"sitemap": []},
   FAKE_GOOGLE_SEARCH_CONSOLE_INSPECT: {"inspectionResult": {"indexStatusResult": {"verdict": "PASS", "coverageState": "Submitted and indexed"}, "inspectionResultLink": "https://example.com/inspect"}},
   FAKE_GOOGLE_SEARCH_CONSOLE_GET_SITEMAP: {"path": "https://example.com/sitemap.xml", "lastSubmitted": "2026-09-01", "isPending": false, "type": "sitemap"},
-  // Shape observed live 2026-09-20: the catalog layer wraps the vendor's list
+  // Shape observed live 2026-09-19: the catalog layer wraps the vendor's list
   // and lowercases its fields, and the vendor ships ownership-verification
   // secrets beside each site. Both are present here so the connector's
   // stripping is proved against what the service actually returns.
