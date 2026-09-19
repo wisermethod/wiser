@@ -14,3 +14,22 @@ does not ship. It accepts the user-root homonym declared by
 The pattern-definition line in `pre-commit` is a narrow disposition for the
 expressions the check itself must contain. A planted operator citation on
 any other line of that same file still fails.
+
+## The typed-file check
+
+Added 2026-09-19. When the staged set touches `tools/`, the hook runs
+`system/gates/typed-file-flags.sh`, which asserts that every flag a tool's
+`help` declares is also named in that tool's `TOOL.md`, per
+`standards/script-contract.md`. A commit that touches nothing under `tools/`
+does not run it; a full run over every tool takes about a second.
+
+The gate distinguishes a breach from a failure to measure and never reports
+the second as a pass. If it cannot run at all, the hook refuses the commit
+rather than letting it through unchecked.
+
+Run it by hand at any time:
+
+    ./system/gates/typed-file-flags.sh
+
+`--self-test` proves the gate can fail as well as pass, by building a fixture
+whose typed file omits a flag and asserting the refusal.
