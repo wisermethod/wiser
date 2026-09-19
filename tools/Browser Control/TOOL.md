@@ -113,24 +113,22 @@ Per-command options. Each belongs to the one command named and is refused elsewh
 | `click` | `--count` | How many clicks; 2 is a double click | 1 |
 | `click` | `--delay` | Milliseconds held between press and release | None |
 | `click` | `--force` | Skip the actionability wait and click anyway. Not reached by `--coords` | Off |
-| `type` | `--delay` | **Changes what the command does, not just its speed.** See the note below | None, which replaces |
+| `type` | `--delay` | Changes what the command does, not just its speed. See the note below | None, which replaces |
 | `type` | `--clear` | Empty the field before writing | Off |
 | `type` | `--submit` | Press Enter after the text is written | Off |
 | `cookies set` | `--domain` | The cookie's domain | The current page's hostname |
 | `cookies set` | `--path` | The cookie's path | `/` |
-| `cookies set` | `--expires` | **A number of days from now.** Not seconds, not a Unix timestamp: `--expires 7` is one week | None, which makes a session cookie |
+| `cookies set` | `--expires` | A number of days from now. Not seconds, not a Unix timestamp: `--expires 7` is one week | None, which makes a session cookie |
 | `cookies list` | `--domain` | Keep only cookies whose domain contains this string | None, which returns all |
 | `storage` | `--session` | Use `sessionStorage` instead of `localStorage`, on every subcommand | Off, which is `localStorage` |
 
-**`type` replaces by default, and this is the one thing to get right.**
+`type` replaces by default, and this is the one thing to get right.
 
-- `type --text` with no `--delay` calls `fill`, which **discards whatever the field already held** and writes the new text.
+- `type --text` with no `--delay` calls `fill`, which discards whatever the field already held and writes the new text.
 - `type --text --delay [ms]` types at the **caret**, character by character, firing the key handlers a live typeahead or autocomplete listens for. On a field nothing has focused yet the caret sits at the start, so the text lands **in front of** the existing contents rather than after them.
 - `type --text --delay 0` also types at the caret, with no pause between keystrokes. Zero is a real delay, not an absent one.
 - To replace deliberately while still firing key handlers, pass `--clear` with `--delay`.
-- `--key` presses one key and applies no typing option. It **refuses** `--text`, `--selector`, `--index`, `--clear`, `--delay` and `--submit` by name rather than accepting and ignoring them. `--timeout` and the other cross-cutting options still apply.
-
-An identifier is spelled `--name` on `cookies` and `--key` on `storage`, and `--key` on `type` means a keyboard key instead. The tool refuses the wrong one by name.
+- `--key` presses one key and applies no typing option. It refuses `--text`, `--selector`, `--index`, `--clear`, `--delay` and `--submit` by name rather than accepting and ignoring them. `--timeout` and the other cross-cutting options still apply.
 
 Cross-cutting options, which apply to every command that takes one:
 

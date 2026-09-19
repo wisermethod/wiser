@@ -60,9 +60,9 @@ Acting:
                          [--button left|right|middle] [--count n] [--delay ms]
                          [--force] skips the actionability wait; not on --coords.
   type                   (--index n | --selector s) --text t, or --key [Key]
-                         WITHOUT --delay the text REPLACES the field's contents.
-                         WITH --delay it types at the caret, which on a field
-                         nothing has focused yet is the START, not the end, so
+                         Without --delay the text replaces the field's contents.
+                         With --delay it types at the caret, which on a field
+                         nothing has focused yet is the start, not the end, so
                          the text lands in front of what is already there.
                          --delay 0 types at the caret with no pause; it does not
                          replace. [--clear] empties the field first, so the
@@ -88,13 +88,13 @@ Acting:
   cookies list|get|set|delete|clear
                          list takes [--domain d] to filter by substring.
                          set takes --name n --value v [--domain d] [--path p]
-                         [--expires DAYS]. --expires is a number of DAYS from
+                         [--expires days]. --expires is a number of days from
                          now, not seconds and not a timestamp; --expires 7 is
                          one week. get and delete take --name.
   storage list|get|set|delete|clear
                          [--session] uses sessionStorage instead of
-                         localStorage, on every subcommand. get, set and delete
-                         take --key; note cookies spell the same idea --name.
+                         localStorage, on every subcommand. get, set and
+                         delete take --key.
   trace start|stop|status          stop takes --output [absolute file]
 
 Options:
