@@ -176,6 +176,7 @@ test('invalid input with confirm true produces zero proxy calls', async () => {
     ['dataforseo.research.serp', { keyword: 'example', location_code: 2840, language_code: 'en', extra: true }, 'extra'],
     ['dataforseo.research.serp', { keyword: 'example', location_code: 2840, language_code: 'en', device: 'tablet' }, 'device'],
     ['dataforseo.research.serp', { keyword: 'example', location_code: 2840, language_code: 'en', include_clickstream_data: true }, 'include_clickstream_data'],
+    ['dataforseo.research.serp', { keyword: 'example', location_code: 2840, language_code: 'en', depth: 700 }, 'depth'],
   ];
   for (const [action, input, field] of cases) {
     const result = await gw.execute({ action, input, confirm: true });
@@ -241,6 +242,127 @@ for (const httpStatus of [401, 403, 429, 500]) {
     assert.equal(Object.hasOwn(result, 'data'), false);
   });
 }
+
+test('serp refuses vendor operator tokens in keyword, including after one URL decode', async () => {
+  const { gw, store, fake } = await createTestGateway();
+  await putActive(store, fake, { service: 'dataforseo', module: 'research', privilege: 'write' });
+  const calls = wrapProxy(fake);
+  const cases = [
+    'site:example.com',
+    'SITE:example.com',
+    'intitle:example',
+    'site%3Aexample.com',
+    'cache:example.com',
+  ];
+  for (const keyword of cases) {
+    const result = await gw.execute({
+      action: 'dataforseo.research.serp',
+      input: { keyword, location_code: 2840, language_code: 'en' },
+      confirm: true,
+    });
+    assert.equal(result.status, 'invalid_arguments', keyword);
+    assert.equal(result.field, 'keyword', keyword);
+  }
+  assert.equal(calls.length, 0);
+});
+
+test('serp depth 200 is accepted and 210 is refused', async () => {
+  const { gw, store, fake } = await createTestGateway();
+  await putActive(store, fake, { service: 'dataforseo', module: 'research', privilege: 'write' });
+  const calls = wrapProxy(fake);
+  const ok = await gw.execute({
+    action: 'dataforseo.research.serp',
+    input: { keyword: 'example', location_code: 2840, language_code: 'en', depth: 200 },
+    confirm: true,
+  });
+  assert.equal(Object.hasOwn(ok, 'cost'), true);
+  assert.equal(calls.length, 1);
+  const refused = await gw.execute({
+    action: 'dataforseo.research.serp',
+    input: { keyword: 'example', location_code: 2840, language_code: 'en', depth: 210 },
+    confirm: true,
+  });
+  assert.equal(refused.status, 'invalid_arguments');
+  assert.equal(refused.field, 'depth');
+  assert.equal(calls.length, 1);
+});
+
+test('filters accept a flat triple and a nested group, and refuse the vendor grammar violations', async () => {
+  const { gw, store, fake } = await createTestGateway();
+  await putActive(store, fake, { service: 'dataforseo', module: 'research', privilege: 'write' });
+  const calls = wrapProxy(fake);
+  const base = { keywords: ['example'], location_code: 2840, language_code: 'en' };
+
+  const flat = await gw.execute({
+    action: 'dataforseo.research.keyword_ideas',
+    input: { ...base, filters: ['keyword_info.search_volume', '>', 0] },
+    confirm: true,
+  });
+  assert.equal(Object.hasOwn(flat, 'cost'), true);
+
+  const nested = await gw.execute({
+    action: 'dataforseo.research.keyword_ideas',
+    input: {
+      ...base,
+      filters: [
+        ['keyword_info.search_volume', '>', 100],
+        'and',
+        [
+          ['keyword_info.cpc', '<', 0.5],
+          'or',
+          ['keyword_info.high_top_of_page_bid', '<=', 0.5],
+        ],
+      ],
+    },
+    confirm: true,
+  });
+  assert.equal(Object.hasOwn(nested, 'cost'), true);
+
+  const five = await gw.execute({
+    action: 'dataforseo.research.keyword_ideas',
+    input: {
+      ...base,
+      filters: [
+        ['keyword_info.search_volume', '>', 0],
+        'and',
+        [
+          ['keyword_info.cpc', '<', 1],
+          'or',
+          ['keyword_info.competition', '>=', 0],
+          'or',
+          [
+            ['keyword_info.low_top_of_page_bid', '<=', 2],
+            'and',
+            ['keyword_info.high_top_of_page_bid', '>', 0],
+          ],
+        ],
+      ],
+    },
+    confirm: true,
+  });
+  assert.equal(Object.hasOwn(five, 'cost'), true);
+  assert.equal(calls.length, 3);
+
+  const refusals = [
+    ['and'],
+    [['keyword_info.search_volume', 'nonsense', 0]],
+    [
+      ['a', '>', 0], 'and', ['b', '>', 0], 'and', ['c', '>', 0], 'and',
+      ['d', '>', 0], 'and', ['e', '>', 0], 'and', ['f', '>', 0], 'and',
+      ['g', '>', 0], 'and', ['h', '>', 0], 'and', ['i', '>', 0],
+    ],
+  ];
+  for (const filters of refusals) {
+    const result = await gw.execute({
+      action: 'dataforseo.research.keyword_ideas',
+      input: { ...base, filters },
+      confirm: true,
+    });
+    assert.equal(result.status, 'invalid_arguments', JSON.stringify(filters));
+    assert.equal(result.field, 'filters', JSON.stringify(filters));
+  }
+  assert.equal(calls.length, 3);
+});
 
 test('connector loads under loadConnectors with manifest/export parity and no placeholders', async () => {
   const loaded = await loadConnectors([CONNECTORS]);

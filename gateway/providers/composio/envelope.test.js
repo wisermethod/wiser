@@ -45,6 +45,30 @@ test('top-level Cloudflare success:false stays a failure', () => {
   assert.equal(r.failed, true);
 });
 
+test('proxy malformed 200 is vendor_error with no data field', async (t) => {
+  const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { createAuthProvider } = await import('./auth-provider.js');
+  const dir = mkdtempSync(join(tmpdir(), 'wiser-proxy-malformed-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const envPath = join(dir, 'project-key.txt');
+  writeFileSync(envPath, 'WISER_AUTH_PROVIDER_KEY=synthetic-test-key\n');
+  t.mock.method(globalThis, 'fetch', async () => ({
+    status: 200,
+    text: async () => 'not-json{',
+  }));
+  const provider = createAuthProvider({ envPath });
+  const result = await provider.proxy({
+    providerAccountId: 'example',
+    endpoint: '/v3/example',
+    method: 'POST',
+  });
+  assert.equal(result.error.code, 'vendor_error');
+  assert.equal(result.status, 502);
+  assert.equal(Object.hasOwn(result, 'data'), false);
+});
+
 test('proxy binary_data URL is fetched as text', async () => {
   const { resolveProxyPayload } = await import('./auth-provider.js');
   const r = await resolveProxyPayload(

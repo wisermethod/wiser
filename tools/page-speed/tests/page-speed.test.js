@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -265,6 +265,111 @@ describe('--env', () => {
         && /does not search for a configuration file/.test(error.message)
       )
     );
+  });
+});
+
+describe('output file', () => {
+  it('refuses a symlink at the generated filename before any request', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'page-speed-symlink-'));
+    const real = join(dir, 'real.json');
+    const target = join(dir, 'page-speed-example.com-root-mobile-2026-09-19.json');
+    writeFileSync(real, 'keep\n');
+    symlinkSync(real, target);
+    let called = false;
+    await assert.rejects(
+      () => runPageSpeed(
+        ['run', '--url', 'https://example.com/', '--strategy', 'mobile', '--output', dir],
+        {
+          fetch: async () => {
+            called = true;
+            throw new Error('network opened');
+          },
+          lookup: PUBLIC_LOOKUP,
+          now: () => new Date('2026-09-19T12:00:00.000Z')
+        }
+      ),
+      (error) => error instanceof UsageError && /already exists/.test(error.message)
+    );
+    assert.equal(called, false);
+    assert.equal(readFileSync(real, 'utf8'), 'keep\n');
+  });
+
+  it('refuses an existing file and leaves it unchanged', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'page-speed-exists-'));
+    const target = join(dir, 'page-speed-example.com-root-mobile-2026-09-19.json');
+    writeFileSync(target, 'original\n');
+    let called = false;
+    await assert.rejects(
+      () => runPageSpeed(
+        ['run', '--url', 'https://example.com/', '--strategy', 'mobile', '--output', dir],
+        {
+          fetch: async () => {
+            called = true;
+            throw new Error('network opened');
+          },
+          lookup: PUBLIC_LOOKUP,
+          now: () => new Date('2026-09-19T12:00:00.000Z')
+        }
+      ),
+      (error) => error instanceof UsageError && /already exists/.test(error.message)
+    );
+    assert.equal(called, false);
+    assert.equal(readFileSync(target, 'utf8'), 'original\n');
+  });
+
+  it('refuses when the generated filename is the --env file, before any request', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'page-speed-env-target-'));
+    const envFile = join(dir, 'page-speed-example.com-root-mobile-2026-09-19.json');
+    writeFileSync(envFile, 'PAGESPEED_API_KEY=secret-pagespeed-key-value-9f3a\n');
+    let called = false;
+    await assert.rejects(
+      () => runPageSpeed(
+        [
+          'run',
+          '--url', 'https://example.com/',
+          '--strategy', 'mobile',
+          '--env', envFile,
+          '--output', dir
+        ],
+        {
+          fetch: async () => {
+            called = true;
+            throw new Error('network opened');
+          },
+          lookup: PUBLIC_LOOKUP,
+          now: () => new Date('2026-09-19T12:00:00.000Z')
+        }
+      ),
+      (error) => (
+        error instanceof UsageError
+        && (/--env file/.test(error.message) || /already exists/.test(error.message))
+      )
+    );
+    assert.equal(called, false);
+    assert.match(readFileSync(envFile, 'utf8'), /PAGESPEED_API_KEY=/);
+  });
+
+  it('gives two URLs on one host two filenames', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'page-speed-names-'));
+    const first = await runPageSpeed(
+      ['run', '--url', 'https://example.com/pricing', '--strategy', 'mobile', '--output', dir],
+      {
+        fetch: stubFetch(lighthousePayload()),
+        lookup: PUBLIC_LOOKUP,
+        now: () => new Date('2026-09-19T12:00:00.000Z')
+      }
+    );
+    const second = await runPageSpeed(
+      ['run', '--url', 'https://example.com/about', '--strategy', 'mobile', '--output', dir],
+      {
+        fetch: stubFetch(lighthousePayload()),
+        lookup: PUBLIC_LOOKUP,
+        now: () => new Date('2026-09-19T12:00:00.000Z')
+      }
+    );
+    assert.notEqual(first.file, second.file);
+    assert.match(first.file, /page-speed-example.com-pricing-mobile-2026-09-19\.json$/);
+    assert.match(second.file, /page-speed-example.com-about-mobile-2026-09-19\.json$/);
   });
 });
 

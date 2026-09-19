@@ -102,20 +102,72 @@ function optionalOffset(input) {
   return Number.isInteger(input.offset) && input.offset >= 0 ? null : invalidArguments('offset');
 }
 
+const FILTER_OPERATORS = new Set([
+  'regex', 'not_regex', '<', '<=', '>', '>=', '=', '<>',
+  'in', 'not_in', 'match', 'not_match', 'ilike', 'not_ilike',
+  'like', 'not_like', 'has', 'has_not',
+]);
+
+const SERP_OPERATOR_TOKENS = [
+  'allinanchor:', 'allintext:', 'allintitle:', 'allinurl:',
+  'cache:', 'define:', 'definition:', 'filetype:', 'id:',
+  'inanchor:', 'info:', 'intext:', 'intitle:', 'inurl:',
+  'link:', 'site:',
+];
+
+function keywordHasSerpOperator(keyword) {
+  const texts = [String(keyword).toLowerCase()];
+  try {
+    texts.push(decodeURIComponent(keyword).toLowerCase());
+  } catch {
+    // One round of URL decoding; a malformed escape is checked as given.
+  }
+  return texts.some((text) => SERP_OPERATOR_TOKENS.some((token) => text.includes(token)));
+}
+
+function isFilterCondition(value) {
+  return (
+    Array.isArray(value) &&
+    value.length === 3 &&
+    isNonEmptyString(value[0]) &&
+    typeof value[1] === 'string' &&
+    FILTER_OPERATORS.has(value[1])
+  );
+}
+
+function isFilterLogical(value) {
+  return value === 'and' || value === 'or';
+}
+
+function countFilterConditions(value) {
+  if (isFilterCondition(value)) return 1;
+  if (!Array.isArray(value)) return 0;
+  let count = 0;
+  for (let index = 0; index < value.length; index += 2) {
+    count += countFilterConditions(value[index]);
+  }
+  return count;
+}
+
+function isFilterExpression(value) {
+  if (isFilterCondition(value)) return true;
+  if (!Array.isArray(value) || value.length === 0 || value.length % 2 === 0) return false;
+  if (typeof value[0] === 'string') return false;
+  for (let index = 0; index < value.length; index += 1) {
+    if (index % 2 === 1) {
+      if (!isFilterLogical(value[index])) return false;
+    } else if (!isFilterExpression(value[index])) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function optionalFilters(input) {
   if (!Object.hasOwn(input, 'filters')) return null;
   const value = input.filters;
-  if (!Array.isArray(value) || value.length > 8) return invalidArguments('filters');
-  for (const item of value) {
-    if (item === 'and' || item === 'or') continue;
-    if (
-      Array.isArray(item) &&
-      item.length === 3 &&
-      isNonEmptyString(item[0]) &&
-      isNonEmptyString(item[1])
-    ) continue;
-    return invalidArguments('filters');
-  }
+  if (!isFilterExpression(value)) return invalidArguments('filters');
+  if (countFilterConditions(value) > 8) return invalidArguments('filters');
   return null;
 }
 
@@ -172,6 +224,7 @@ export const modules = {
       ['keyword', ...LOCATION_LANGUAGE, 'device', 'depth'],
       (input) => firstInvalid([
         isNonEmptyString(input.keyword, 700) ? null : invalidArguments('keyword'),
+        keywordHasSerpOperator(input.keyword) ? invalidArguments('keyword') : null,
         requireLocation(input),
         requireLanguage(input),
         Object.hasOwn(input, 'device') && !['desktop', 'mobile'].includes(input.device)
@@ -180,7 +233,7 @@ export const modules = {
         Object.hasOwn(input, 'depth') && !(
           Number.isInteger(input.depth) &&
           input.depth >= 10 &&
-          input.depth <= 700 &&
+          input.depth <= 200 &&
           input.depth % 10 === 0
         )
           ? invalidArguments('depth')

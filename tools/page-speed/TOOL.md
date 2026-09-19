@@ -16,7 +16,7 @@ Use it when a caller needs the same PageSpeed Insights reading every time: befor
 
 Do not use it to decide what to change. It reports readings; it does not rank findings or recommend fixes. Do not treat absent field data as a zero or a pass: when the Chrome UX Report has no data for the page or origin, that block is marked unavailable with a reason. Do not derive Interaction to Next Paint from Total Blocking Time or any other lab number; if INP is missing from field data it is missing.
 
-The vendor permits keyless use for infrequent calls and recommends a key for automation. Pass `--env` with a PageSpeed API key when calling this tool as part of a run of many URLs, or when a 429 or 403 is returned. Without `--env`, the request is sent with no key.
+On 2026-09-19 two keyless calls from this machine returned 429 on the first attempt, so a PageSpeed API key in the `--env` file is a practical prerequisite. The key is free from a Google Cloud project and is never printed. Without `--env`, the request is still sent with no key.
 
 It holds no other credential, reaches no other primitive, and requests only the PageSpeed Insights v5 endpoint. A file is written only when `--output` names a directory outside this tool directory.
 
@@ -82,7 +82,7 @@ One JSON object on stdout, exit 0.
 
 A field-data block that is available carries `overallCategory` and the metric pairs the Chrome UX Report supplied, each `{ percentile, category }`: `lcpMs`, `inpMs`, `cls`, `fcpMs`, `ttfbMs`. A metric the vendor did not supply is omitted, never invented. When the vendor returns no `loadingExperience`, or its `metrics` object is empty, `page` is `{ available: false, reason: "no field data for this page in the Chrome UX Report" }`. The origin block uses `originLoadingExperience` and the reason `no field data for this origin in the Chrome UX Report`.
 
-The file, when `--output` is given, is named `page-speed-<host>-<strategy>-<YYYY-MM-DD>.json`.
+The file, when `--output` is given, is named `page-speed-<host>-<path slug>-<strategy>-<YYYY-MM-DD>.json`. The path slug is the URL path with non-alphanumerics collapsed to hyphens, `root` for `/`, truncated to 60 characters, so two URLs on one host do not collide. The full filename is screened before any request and is refused if it already exists, including as a symbolic link.
 
 ## Troubleshooting
 
@@ -100,6 +100,8 @@ The stops every tool shares, an unknown flag and a path that is relative or insi
 | `Error: --env must be an absolute path` | A relative path was passed | Pass the absolute path the Provides binding resolves to |
 | `Error: --env names a file that does not exist` | The path does not name a file | Resolve the Provides binding and pass that absolute path; this tool does not search for a configuration file |
 | `Error: --env file does not set PAGESPEED_API_KEY` | The file was read and the key was not in it | Add `PAGESPEED_API_KEY=<value>` to the bound file |
+| `Error: --output file already exists` | A file or symbolic link is already at the generated filename | Pass a different directory, or remove the file; this tool never overwrites |
+| `Error: --output resolves to the --env file or a file in the directory that holds it` | The generated filename sits in the credential directory | Pass a work directory in the owning root |
 | `Error: PageSpeed Insights returned HTTP 429 from <endpoint>` | The vendor rate-limited a keyless or heavy run | Pass `--env` with a PageSpeed API key |
 | `Error: PageSpeed Insights returned HTTP 403 from <endpoint>` | The vendor refused the request | Pass `--env` with a PageSpeed API key |
 | `Error: PageSpeed Insights returned HTTP <status> from <endpoint>` | The vendor did not return a reading | Confirm the URL is publicly reachable, then re-run |

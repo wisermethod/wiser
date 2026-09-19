@@ -41,7 +41,8 @@
                     "page",
                     "query",
                     "searchAppearance",
-                    "date"
+                    "date",
+                    "hour"
                   ]
                 }
               },
@@ -71,8 +72,7 @@
                               "device",
                               "page",
                               "query",
-                              "searchAppearance",
-                              "date"
+                              "searchAppearance"
                             ]
                           },
                           "operator": {

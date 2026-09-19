@@ -18,7 +18,7 @@ Do not use it to decide whether a page should exist, whether it ranks, or whethe
 
 `sitemap.unreached` lists addresses the sitemap named that this crawl never reached. They are orphan candidates only. A bounded crawl proves nothing beyond its bound: a URL past `--max-pages` or `--max-depth` can sit in `unreached` without being an orphan, and a JavaScript-only link will not be followed even when the bound still had room.
 
-It is polite by default: 250 ms between requests, one host, a named user agent, and `robots.txt` `Disallow` honored for that agent and for `*`. URLs discovered but not fetched because of a `Disallow` are listed under `robotsBlocked`.
+It is polite by default: 250 ms between requests, one host, a named user agent, and `robots.txt` `Disallow` honored for that agent and for `*`, per origin, on every request including redirect destinations. URLs discovered but not fetched because of a `Disallow` are listed under `robotsBlocked`. The screen resolves the hostname before the request and the request resolves it again, so a name that changes its answer between the two is not caught; the tool refuses what it can see and does not claim more.
 
 It authenticates to nothing, holds no credential, and reaches no other primitive. A file is written only to the directory `--output` names, and never overwritten.
 
@@ -52,14 +52,14 @@ Options:
 | `--max-pages <n>` | Stop after this many fetched pages. Whole number, 1 to 2000 | 200 |
 | `--max-depth <n>` | Do not fetch pages deeper than this. Start is depth 0. Whole number, 0 to 20 | 5 |
 | `--delay-ms <n>` | Sleep this many milliseconds between requests. Whole number, 0 or more | 250 |
-| `--include-subdomains` | Also follow hosts that share the start URL's registrable host | Off; one host |
+| `--include-subdomains` | Also follow hostnames that end in `.` plus the start host, and nothing else | Off; one host |
 | `--sitemap <path>` | Absolute path to a sitemap `fetch` snapshot JSON. Compared by `loc` against the pages this crawl fetched | None; `sitemap` is null |
 | `--user-agent <string>` | `User-Agent` header, also the token `robots.txt` is matched against | `wiser-site-crawl/0.1.0 (+https://github.com/wisermethod/wiser)` |
 | `--help`, `-h` | Print usage and exit | Off |
 
-One start URL per run. Breadth-first, one request in flight at a time, 15 seconds per request. Redirects are followed by hand, up to 5 hops, and every hop is screened with the same address screen as `--start`. A hop that leaves the allowed host is recorded as `redirectOffHost` and is not followed. Fragments are stripped; query strings are kept. `mailto:`, `tel:`, `javascript:`, and any non-http scheme are not followed.
+One start URL per run. Breadth-first, one request in flight at a time, 15 seconds per request. Redirects are followed by hand, up to 5 hops, and every URL is screened before it is fetched, including same-host links and every redirect hop. A hop that leaves the allowed host is recorded as `redirectOffHost` and is not followed. Fragments are stripped; query strings are kept. `mailto:`, `tel:`, `javascript:`, and any non-http scheme are not followed.
 
-`robots.txt` is fetched once at the start origin. `Disallow` for this tool's user-agent token and for `*` is obeyed. Bodies are read up to 2 MiB; a non-HTML content type is recorded and not parsed.
+`robots.txt` is fetched once per origin met, following a redirected robots file up to 5 screened hops. `Disallow` for this tool's user-agent token and for `*` is obeyed, including `*` as any-sequence and `$` as end-anchor. A 404 or 410 is allow-all. A 5xx, a timeout, or a connection failure on the start origin's `robots.txt` stops the run: exit 1, stdout empty, naming the file as unreachable and RFC 9309 section 2.3.1.4 (an unreachable robots file means complete disallow). The same on another origin marks that origin's URLs `robotsBlocked` with reason `robots unreachable` rather than fetching them. Bodies are read up to 2 MiB; a non-HTML content type is recorded and not parsed. `X-Robots-Tag` `noindex` applies to every resource, HTML or not.
 
 No command takes `--env`.
 
@@ -110,6 +110,7 @@ The stops every tool shares, an unknown flag and a path that is relative or insi
 | `Error: --max-depth must be a whole number` | A non-numeric or out-of-range depth | Pass a whole number from 0 to 20 |
 | `Error: --delay-ms must be a whole number` | A non-numeric delay | Pass a whole number of 0 or more |
 | `Error: --output file already exists` | The dated inventory file is already in that directory | Pass a different directory, or remove the file; this tool never overwrites |
+| `Error: robots.txt at <url> is unreachable` | The start origin's robots file returned 5xx, timed out, or would not connect | RFC 9309 section 2.3.1.4 treats that as complete disallow; fix the file or the host, then re-run |
 | `Error: the sitemap snapshot <path> is not valid JSON` | `--sitemap` did not point at a sitemap fetch snapshot | Pass a snapshot written by `sitemap` `fetch` |
 | `Error: unknown command` | A command word other than `crawl` | Run `help` |
 | `renderingSuspected` lists the home page | The served HTML has no `a href`; the site likely builds itself in the browser | This crawler cannot see those links; use a browser-driving tool for that site |

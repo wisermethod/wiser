@@ -245,7 +245,10 @@ export function createAuthProvider({ envPath } = {}) {
       const proxyBody = proxyRequestBody({ providerAccountId, endpoint, method, body, parameters, binary_body });
       const res = await request(apiKey, 'POST', '/tools/execute/proxy', proxyBody);
       if (!res.ok) return vendorError(endpoint || '/tools/execute/proxy', method || 'POST', res.status);
-      const data = res.data || {};
+      if (res.malformed || res.data == null || typeof res.data !== 'object') {
+        return vendorError(endpoint || '/tools/execute/proxy', method || 'POST', 502);
+      }
+      const data = res.data;
       const inner = Number(data.status);
       const payload = data.data && typeof data.data === 'object' ? data.data : null;
       if (data.error || data.successful === false || data.success === false

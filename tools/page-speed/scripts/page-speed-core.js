@@ -8,7 +8,9 @@
 
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   statSync,
@@ -151,6 +153,77 @@ function screenPath(name, value, { mustExist = false, asFile = false } = {}) {
     if (asFile && !info.isFile()) {
       fail(`Error: ${name} names a file that does not exist at ${resolved}. Resolve the Provides binding and pass that absolute path; this tool does not search for a configuration file.`);
     }
+  }
+
+  return resolved;
+}
+
+function fileIdentity(path, io) {
+  try {
+    const info = io.statSync(path);
+    return { dev: info.dev, ino: info.ino };
+  } catch {
+    return null;
+  }
+}
+
+function sameIdentity(left, right) {
+  return Boolean(left && right && left.dev === right.dev && left.ino === right.ino);
+}
+
+function pathSlug(pathname) {
+  const raw = pathname === '' || pathname === '/'
+    ? 'root'
+    : pathname.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const slug = raw === '' ? 'root' : raw;
+  return slug.slice(0, 60);
+}
+
+function outputFileName(target, strategy, day) {
+  const host = target.hostname.replace(/[^A-Za-z0-9.-]/g, '-');
+  return `page-speed-${host}-${pathSlug(target.pathname)}-${strategy}-${day}.json`;
+}
+
+function screenOutputFile(name, destPath, envPath, io) {
+  const resolved = canonical(name, destPath);
+  const toolReal = canonical('this tool directory', TOOL_DIR);
+
+  if (resolved === toolReal || resolved.startsWith(`${toolReal}${sep}`) || descendsFrom(resolved, toolReal)) {
+    fail(`Error: ${name} resolves inside this tool directory (${toolReal}). Pass a path in a work directory in the owning root.`);
+  }
+
+  const destId = fileIdentity(resolved, io);
+  const refused = [];
+
+  if (envPath) {
+    const envResolved = canonical('--env', envPath);
+    const envDir = dirname(envResolved);
+    refused.push(fileIdentity(envResolved, io));
+    const parentId = fileIdentity(dirname(resolved), io);
+    const envDirId = fileIdentity(envDir, io);
+    if (resolved === envResolved || sameIdentity(parentId, envDirId)) {
+      fail(`Error: ${name} resolves to the --env file or a file in the directory that holds it. Pass a work directory in the owning root.`);
+    }
+    let names = [];
+    try {
+      names = io.readdirSync(envDir);
+    } catch {
+      names = [];
+    }
+    for (const entry of names) {
+      refused.push(fileIdentity(join(envDir, entry), io));
+    }
+  }
+
+  if (destId && refused.some((id) => sameIdentity(destId, id))) {
+    fail(`Error: ${name} resolves to the --env file or a file in the directory that holds it. Pass a work directory in the owning root.`);
+  }
+
+  try {
+    io.lstatSync(resolved);
+    fail(`Error: --output file already exists at ${resolved}. This tool never overwrites; pass a different directory or remove the file.`);
+  } catch (error) {
+    if (error instanceof UsageError) throw error;
   }
 
   return resolved;
@@ -450,7 +523,9 @@ export async function runPageSpeed(argv, deps = {}) {
     writeFileSync: deps.writeFileSync ?? writeFileSync,
     mkdirSync: deps.mkdirSync ?? mkdirSync,
     existsSync: deps.existsSync ?? existsSync,
-    statSync: deps.statSync ?? statSync
+    statSync: deps.statSync ?? statSync,
+    lstatSync: deps.lstatSync ?? lstatSync,
+    readdirSync: deps.readdirSync ?? readdirSync
   };
 
   const args = parseArgs(argv);
@@ -460,10 +535,18 @@ export async function runPageSpeed(argv, deps = {}) {
   const apiKey = args.envPath ? readApiKey(args.envPath, io) : null;
   const request = buildRequestUrl(target.href, args.strategy, args.categories, apiKey);
   const recorded = redactedRequestUrl(request, apiKey);
+  const fetchedAt = io.now().toISOString();
 
-  let outputDir = null;
+  let outputFile = null;
   if (args.outputDir) {
-    outputDir = screenPath('--output', args.outputDir);
+    const outputDir = screenPath('--output', args.outputDir);
+    const day = fetchedAt.slice(0, 10);
+    outputFile = screenOutputFile(
+      '--output',
+      join(outputDir, outputFileName(target, args.strategy, day)),
+      args.envPath,
+      io
+    );
   }
 
   let response;
@@ -495,7 +578,6 @@ export async function runPageSpeed(argv, deps = {}) {
     fail(`Error: PageSpeed Insights returned HTTP ${response.status} from ${ENDPOINT} with a body that was not JSON. Confirm the URL is publicly reachable, then re-run.`);
   }
 
-  const fetchedAt = io.now().toISOString();
   const result = interpretResponse(payload, {
     url: target.href,
     strategy: args.strategy,
@@ -505,15 +587,18 @@ export async function runPageSpeed(argv, deps = {}) {
     fetchedAt
   });
 
-  if (outputDir) {
-    io.mkdirSync(outputDir, { recursive: true });
-    const stem = target.hostname.replace(/[^A-Za-z0-9.-]/g, '-');
-    const day = fetchedAt.slice(0, 10);
-    const file = join(outputDir, `page-speed-${stem}-${args.strategy}-${day}.json`);
+  if (outputFile) {
+    io.mkdirSync(dirname(outputFile), { recursive: true });
+    try {
+      io.lstatSync(outputFile);
+      fail(`Error: --output file already exists at ${outputFile}. This tool never overwrites; pass a different directory or remove the file.`);
+    } catch (error) {
+      if (error instanceof UsageError) throw error;
+    }
     const serialized = `${JSON.stringify(result, null, 2)}\n`;
     assertKeyAbsent(apiKey, serialized, recorded);
-    io.writeFileSync(file, serialized);
-    result.file = file;
+    io.writeFileSync(outputFile, serialized);
+    result.file = outputFile;
   }
 
   const stdout = JSON.stringify(result);

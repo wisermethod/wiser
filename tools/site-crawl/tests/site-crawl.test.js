@@ -7,6 +7,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { classifyLiteral, destinationReason } from '../scripts/lib/destination.js';
+import { isDisallowed } from '../scripts/lib/robots.js';
 import { runSiteCrawl, UsageError } from '../scripts/site-crawl-core.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -340,5 +341,325 @@ describe('numeric bounds', () => {
       ),
       (error) => error instanceof UsageError && /--max-pages must be 1 or greater/.test(error.message)
     );
+  });
+});
+
+function serve(site) {
+  return async (url) => {
+    const href = typeof url === 'string' ? url : url.href;
+    const page = site[href] ?? site[href.replace(/\/$/, '')] ?? site[`${href}/`];
+    if (!page) {
+      return new Response('', { status: 404, headers: { 'content-type': 'text/plain' } });
+    }
+    return new Response(page.body ?? '', { status: page.status, headers: page.headers });
+  };
+}
+
+describe('robots pattern matching', () => {
+  it('treats * as any-sequence and $ as end-anchor, and lets equal-length Allow win', () => {
+    assert.equal(
+      isDisallowed('User-agent: *\nDisallow: /*?\n', 'https://example.com/page?x=1', 'wiser-site-crawl'),
+      true
+    );
+    assert.equal(
+      isDisallowed('User-agent: *\nDisallow: /private$\n', 'https://example.com/private', 'wiser-site-crawl'),
+      true
+    );
+    assert.equal(
+      isDisallowed('User-agent: *\nDisallow: /private$\n', 'https://example.com/private/x', 'wiser-site-crawl'),
+      false
+    );
+    assert.equal(
+      isDisallowed(
+        'User-agent: *\nDisallow: /public\nAllow: /public\n',
+        'https://example.com/public',
+        'wiser-site-crawl'
+      ),
+      false
+    );
+  });
+});
+
+describe('robots per origin and redirects', () => {
+  it('does not fetch a redirect destination that robots.txt Disallow covers', async () => {
+    const dir = workDir();
+    const site = {
+      'https://example.com/robots.txt': {
+        status: 200,
+        headers: { 'content-type': 'text/plain' },
+        body: 'User-agent: *\nDisallow: /private\n'
+      },
+      'https://example.com/': {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+        body: '<html><title>Home</title><a href="/go">go</a></html>'
+      },
+      'https://example.com/go': {
+        status: 302,
+        headers: { location: 'https://example.com/private' },
+        body: ''
+      },
+      'https://example.com/private': {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+        body: '<html><title>Secret</title></html>'
+      }
+    };
+    const fetched = [];
+    const fetch = async (url) => {
+      const href = typeof url === 'string' ? url : url.href;
+      fetched.push(href);
+      return serve(site)(url);
+    };
+    const summary = await runSiteCrawl(
+      ['crawl', '--start', 'https://example.com/', '--output', dir, '--delay-ms', '0'],
+      { fetch, lookup: PUBLIC_LOOKUP, sleep: async () => {}, now: NOW }
+    );
+    const full = JSON.parse(readFileSync(summary.file, 'utf8'));
+    assert.equal(fetched.includes('https://example.com/private'), false);
+    assert.ok(full.robotsBlocked.includes('https://example.com/private'));
+  });
+
+  it('stops the run when the start origin robots.txt is unreachable', async () => {
+    const dir = workDir();
+    const site = {
+      'https://example.com/robots.txt': { status: 503, headers: { 'content-type': 'text/plain' }, body: '' },
+      'https://example.com/': {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+        body: '<html><title>Home</title></html>'
+      }
+    };
+    await assert.rejects(
+      () => runSiteCrawl(
+        ['crawl', '--start', 'https://example.com/', '--output', dir, '--delay-ms', '0'],
+        { fetch: serve(site), lookup: PUBLIC_LOOKUP, sleep: async () => {}, now: NOW }
+      ),
+      (error) => (
+        error instanceof UsageError
+        && /robots\.txt at https:\/\/example.com\/robots\.txt is unreachable/.test(error.message)
+        && /RFC 9309 section 2.3.1.4/.test(error.message)
+      )
+    );
+    assert.equal(existsSync(join(dir, 'site-crawl-2026-09-19-example.com.json')), false);
+  });
+
+  it('treats a 404 robots.txt as allow-all', async () => {
+    const dir = workDir();
+    const site = {
+      'https://example.com/robots.txt': { status: 404, headers: { 'content-type': 'text/plain' }, body: '' },
+      'https://example.com/': {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+        body: '<html><title>Home</title><a href="/secret">s</a></html>'
+      },
+      'https://example.com/secret': {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+        body: '<html><title>Secret</title></html>'
+      }
+    };
+    const summary = await runSiteCrawl(
+      ['crawl', '--start', 'https://example.com/', '--output', dir, '--delay-ms', '0'],
+      { fetch: serve(site), lookup: PUBLIC_LOOKUP, sleep: async () => {}, now: NOW }
+    );
+    const full = JSON.parse(readFileSync(summary.file, 'utf8'));
+    assert.equal(full.robotsBlocked.length, 0);
+    assert.ok(full.pages.some((page) => page.url === 'https://example.com/secret'));
+  });
+
+  it('marks another origin robotsBlocked with reason robots unreachable rather than fetching it', async () => {
+    const dir = workDir();
+    const site = {
+      'https://example.com/robots.txt': {
+        status: 200,
+        headers: { 'content-type': 'text/plain' },
+        body: 'User-agent: *\nDisallow:\n'
+      },
+      'https://example.com/': {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+        body: '<html><title>Home</title><a href="https://www.example.com/page">sub</a></html>'
+      },
+      'https://www.example.com/robots.txt': { status: 503, headers: { 'content-type': 'text/plain' }, body: '' },
+      'https://www.example.com/page': {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+        body: '<html><title>Sub</title></html>'
+      }
+    };
+    const fetched = [];
+    const fetch = async (url) => {
+      const href = typeof url === 'string' ? url : url.href;
+      fetched.push(href);
+      return serve(site)(url);
+    };
+    const summary = await runSiteCrawl(
+      [
+        'crawl',
+        '--start', 'https://example.com/',
+        '--output', dir,
+        '--delay-ms', '0',
+        '--include-subdomains'
+      ],
+      { fetch, lookup: PUBLIC_LOOKUP, sleep: async () => {}, now: NOW }
+    );
+    const full = JSON.parse(readFileSync(summary.file, 'utf8'));
+    assert.equal(fetched.includes('https://www.example.com/page'), false);
+    assert.ok(full.robotsBlocked.includes('https://www.example.com/page'));
+    assert.ok(full.errors.some((entry) => entry.url === 'https://www.example.com/page' && entry.reason === 'robots unreachable'));
+  });
+});
+
+describe('--include-subdomains', () => {
+  it('follows hostnames that end in . plus the start host, and not sibling tenants', async () => {
+    const dir = workDir();
+    const site = {
+      'https://example.com/robots.txt': {
+        status: 200,
+        headers: { 'content-type': 'text/plain' },
+        body: 'User-agent: *\nDisallow:\n'
+      },
+      'https://example.com/': {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+        body: '<html><title>Home</title><a href="https://www.example.com/">www</a><a href="https://other.example.net/">other</a></html>'
+      },
+      'https://www.example.com/robots.txt': {
+        status: 200,
+        headers: { 'content-type': 'text/plain' },
+        body: 'User-agent: *\nDisallow:\n'
+      },
+      'https://www.example.com/': {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+        body: '<html><title>WWW</title></html>'
+      },
+      'https://other.example.net/robots.txt': {
+        status: 200,
+        headers: { 'content-type': 'text/plain' },
+        body: 'User-agent: *\nDisallow:\n'
+      },
+      'https://other.example.net/': {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+        body: '<html><title>Other</title></html>'
+      }
+    };
+    const fetched = [];
+    const fetch = async (url) => {
+      const href = typeof url === 'string' ? url : url.href;
+      fetched.push(href);
+      return serve(site)(url);
+    };
+    const summary = await runSiteCrawl(
+      [
+        'crawl',
+        '--start', 'https://example.com/',
+        '--output', dir,
+        '--delay-ms', '0',
+        '--include-subdomains'
+      ],
+      { fetch, lookup: PUBLIC_LOOKUP, sleep: async () => {}, now: NOW }
+    );
+    const full = JSON.parse(readFileSync(summary.file, 'utf8'));
+    assert.ok(full.pages.some((page) => page.url === 'https://www.example.com/'));
+    assert.equal(full.pages.some((page) => page.url === 'https://other.example.net/'), false);
+    assert.equal(fetched.includes('https://other.example.net/'), false);
+  });
+});
+
+describe('HTML extraction failures and X-Robots-Tag', () => {
+  it('writes the inventory when a title contains an out-of-range entity', async () => {
+    const dir = workDir();
+    const site = {
+      'https://example.com/robots.txt': {
+        status: 200,
+        headers: { 'content-type': 'text/plain' },
+        body: 'User-agent: *\nDisallow:\n'
+      },
+      'https://example.com/': {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+        body: '<html><title>Bad &#x110000; title</title><a href="/next">n</a></html>'
+      },
+      'https://example.com/next': {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+        body: '<html><title>Next</title></html>'
+      }
+    };
+    const summary = await runSiteCrawl(
+      ['crawl', '--start', 'https://example.com/', '--output', dir, '--delay-ms', '0'],
+      { fetch: serve(site), lookup: PUBLIC_LOOKUP, sleep: async () => {}, now: NOW }
+    );
+    const full = JSON.parse(readFileSync(summary.file, 'utf8'));
+    assert.ok(existsSync(summary.file));
+    assert.ok(full.pages.some((page) => page.url === 'https://example.com/'));
+    assert.ok(full.pages.some((page) => page.url === 'https://example.com/next'));
+  });
+
+  it('lists a PDF with X-Robots-Tag noindex in noindexPages', async () => {
+    const dir = workDir();
+    const site = {
+      'https://example.com/robots.txt': {
+        status: 200,
+        headers: { 'content-type': 'text/plain' },
+        body: 'User-agent: *\nDisallow:\n'
+      },
+      'https://example.com/': {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+        body: '<html><title>Home</title><a href="/file.pdf">pdf</a></html>'
+      },
+      'https://example.com/file.pdf': {
+        status: 200,
+        headers: { 'content-type': 'application/pdf', 'x-robots-tag': 'noindex' },
+        body: '%PDF-1.4 fake\n'
+      }
+    };
+    const summary = await runSiteCrawl(
+      ['crawl', '--start', 'https://example.com/', '--output', dir, '--delay-ms', '0'],
+      { fetch: serve(site), lookup: PUBLIC_LOOKUP, sleep: async () => {}, now: NOW }
+    );
+    const full = JSON.parse(readFileSync(summary.file, 'utf8'));
+    const pdf = full.pages.find((page) => page.url === 'https://example.com/file.pdf');
+    assert.ok(pdf);
+    assert.equal(pdf.pdf, true);
+    assert.equal(pdf.noindex, true);
+    assert.ok(full.noindexPages.includes('https://example.com/file.pdf'));
+  });
+});
+
+describe('same-host link screening', () => {
+  it('screens same-host discovered links before fetching them', async () => {
+    const dir = workDir();
+    const site = {
+      'https://example.com/robots.txt': {
+        status: 200,
+        headers: { 'content-type': 'text/plain' },
+        body: 'User-agent: *\nDisallow:\n'
+      },
+      'https://example.com/': {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+        body: '<html><title>Home</title><a href="/next">n</a></html>'
+      },
+      'https://example.com/next': {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+        body: '<html><title>Next</title></html>'
+      }
+    };
+    const lookedUp = [];
+    const lookup = async (hostname) => {
+      lookedUp.push(hostname);
+      return [{ address: '93.184.216.34', family: 4 }];
+    };
+    await runSiteCrawl(
+      ['crawl', '--start', 'https://example.com/', '--output', dir, '--delay-ms', '0'],
+      { fetch: serve(site), lookup, sleep: async () => {}, now: NOW }
+    );
+    assert.ok(lookedUp.length >= 3);
   });
 });

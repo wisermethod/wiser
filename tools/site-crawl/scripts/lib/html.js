@@ -10,17 +10,23 @@ const NAMED_ENTITIES = new Map([
   ['nbsp', ' ']
 ]);
 
+function fromCodePointSafe(code, whole) {
+  if (!Number.isInteger(code) || code < 0 || code > 0x10FFFF) return whole;
+  if (code >= 0xD800 && code <= 0xDFFF) return whole;
+  return String.fromCodePoint(code);
+}
+
 function decodeEntities(text) {
   return String(text).replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (whole, body) => {
     const lower = body.toLowerCase();
     if (NAMED_ENTITIES.has(lower)) return NAMED_ENTITIES.get(lower);
     if (lower.startsWith('#x')) {
       const code = Number.parseInt(lower.slice(2), 16);
-      return Number.isFinite(code) ? String.fromCodePoint(code) : whole;
+      return Number.isFinite(code) ? fromCodePointSafe(code, whole) : whole;
     }
     if (lower.startsWith('#')) {
       const code = Number.parseInt(lower.slice(1), 10);
-      return Number.isFinite(code) ? String.fromCodePoint(code) : whole;
+      return Number.isFinite(code) ? fromCodePointSafe(code, whole) : whole;
     }
     return whole;
   });

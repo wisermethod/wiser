@@ -7,7 +7,8 @@ function invalidArguments(field) {
 }
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
-const QUERY_DIMENSIONS = new Set(['country', 'device', 'page', 'query', 'searchAppearance', 'date']);
+const QUERY_DIMENSIONS = new Set(['country', 'device', 'page', 'query', 'searchAppearance', 'date', 'hour']);
+const FILTER_DIMENSIONS = new Set(['country', 'device', 'page', 'query', 'searchAppearance']);
 const FILTER_OPERATORS = new Set(['equals', 'notEquals', 'contains', 'notContains', 'includingRegex', 'excludingRegex']);
 const SEARCH_TYPES = new Set(['web', 'image', 'video', 'news', 'discover', 'googleNews']);
 const AGGREGATION_TYPES = new Set(['auto', 'byPage', 'byProperty', 'byNewsShowcasePanel']);
@@ -42,6 +43,19 @@ function isAbsHttpUrl(value) {
   }
 }
 
+function isDomainProperty(value) {
+  if (typeof value !== 'string' || !value.trim()) return false;
+  const match = /^sc-domain:([A-Za-z0-9.-]+)$/i.exec(value.trim());
+  if (!match) return false;
+  const host = match[1];
+  if (host.includes('..') || host.startsWith('.') || host.endsWith('.') || !host.includes('.')) return false;
+  return true;
+}
+
+function isSiteUrl(value) {
+  return isAbsHttpUrl(value) || isDomainProperty(value);
+}
+
 function extraKey(input, allowed) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return invalidArguments('input');
   const extra = Object.keys(input).find((key) => !allowed.includes(key));
@@ -56,7 +70,7 @@ function validateDimensionFilterGroups(value) {
     }
     for (const filter of group.filters) {
       if (!filter || typeof filter !== 'object' || Array.isArray(filter)) return invalidArguments('dimension_filter_groups');
-      if (typeof filter.dimension !== 'string' || !QUERY_DIMENSIONS.has(filter.dimension)) {
+      if (typeof filter.dimension !== 'string' || !FILTER_DIMENSIONS.has(filter.dimension)) {
         return invalidArguments('dimension_filter_groups');
       }
       if (typeof filter.operator !== 'string' || !FILTER_OPERATORS.has(filter.operator)) {
@@ -96,10 +110,10 @@ function validateSearchConsole(input, ctx) {
     return null;
   }
   if (ctx.action === 'sitemaps') {
-    return typeof input.site_url === 'string' && input.site_url.trim() ? null : invalidArguments('site_url');
+    return isSiteUrl(input.site_url) ? null : invalidArguments('site_url');
   }
   if (ctx.action === 'inspect') {
-    if (!isAbsHttpUrl(input.site_url)) return invalidArguments('site_url');
+    if (!isSiteUrl(input.site_url)) return invalidArguments('site_url');
     if (!isAbsHttpUrl(input.inspection_url)) return invalidArguments('inspection_url');
     if (Object.hasOwn(input, 'language_code') && (typeof input.language_code !== 'string' || !input.language_code.trim())) {
       return invalidArguments('language_code');
@@ -107,7 +121,7 @@ function validateSearchConsole(input, ctx) {
     return null;
   }
   if (ctx.action === 'get_sitemap') {
-    if (!isAbsHttpUrl(input.site_url)) return invalidArguments('site_url');
+    if (!isSiteUrl(input.site_url)) return invalidArguments('site_url');
     if (!isAbsHttpUrl(input.feedpath)) return invalidArguments('feedpath');
     return null;
   }

@@ -61,17 +61,36 @@ function pathOf(url) {
   }
 }
 
-function prefixMatch(rulePath, candidate) {
+function escapeRegex(character) {
+  return /[.*+?^${}()|[\]\\]/.test(character) ? `\\${character}` : character;
+}
+
+/**
+ * RFC 9309: `*` is any sequence, `$` at the end of the pattern is end-anchor,
+ * and a pattern without `$` is a prefix.
+ */
+function patternMatch(rulePath, candidate) {
   if (rulePath === '') return false;
-  if (rulePath === '/') return true;
-  return candidate.startsWith(rulePath);
+  let source = '';
+  for (let index = 0; index < rulePath.length; index += 1) {
+    const character = rulePath[index];
+    if (character === '*') {
+      source += '.*';
+      continue;
+    }
+    if (character === '$' && index === rulePath.length - 1) {
+      source += '$';
+      continue;
+    }
+    source += escapeRegex(character);
+  }
+  return new RegExp(`^${source}`).test(candidate);
 }
 
 /**
  * True when robots.txt Disallow for this user agent (or *) covers `url`.
- * An empty Disallow is an allow-all. Allow rules that are a longer prefix
- * than a matching Disallow lift the block, which is how a Disallow: / with
- * an Allow: /public/ is written.
+ * An empty Disallow is an allow-all. The most specific match is the longest
+ * pattern; when an Allow and a Disallow match at equal length, Allow wins.
  */
 export function isDisallowed(robotsText, url, userAgent) {
   const token = firstToken(userAgent);
@@ -84,8 +103,9 @@ export function isDisallowed(robotsText, url, userAgent) {
 
   for (const group of groups) {
     for (const rule of group.rules) {
-      if (!prefixMatch(rule.path, candidate) && rule.path !== '') continue;
       if (rule.path === '' && rule.type === 'disallow') continue;
+      if (rule.path === '' && rule.type === 'allow') continue;
+      if (!patternMatch(rule.path, candidate)) continue;
       const length = rule.path.length;
       if (rule.type === 'disallow' && length > disallowLength) disallowLength = length;
       if (rule.type === 'allow' && length > allowLength) allowLength = length;
@@ -93,7 +113,7 @@ export function isDisallowed(robotsText, url, userAgent) {
   }
 
   if (disallowLength < 0) return false;
-  return disallowLength >= allowLength;
+  return disallowLength > allowLength;
 }
 
 export { firstToken };

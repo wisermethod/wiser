@@ -90,6 +90,89 @@ test('search-console validation refuses enums, bounds, shapes, and URLs before t
   }
 });
 
+test('inspect, get_sitemap, and sitemaps accept a Domain property and refuse a bare hostname', async () => {
+  const { gw, fake } = await granted();
+  fake.catalog.setResult(fake.catalog.toSlug('google.search-console.inspect'), (args) => {
+    assert.equal(args.site_url, 'sc-domain:example.com');
+    return { inspectionResult: { indexStatusResult: { verdict: 'PASS' } } };
+  });
+  const inspected = await gw.execute({
+    action: 'google.search-console.inspect',
+    input: { site_url: 'sc-domain:example.com', inspection_url: 'https://example.com/page' },
+  });
+  assert.equal(inspected.inspectionResult.indexStatusResult.verdict, 'PASS');
+
+  fake.catalog.setResult(fake.catalog.toSlug('google.search-console.get_sitemap'), (args) => {
+    assert.equal(args.site_url, 'sc-domain:example.com');
+    return { path: args.feedpath };
+  });
+  const sitemap = await gw.execute({
+    action: 'google.search-console.get_sitemap',
+    input: { site_url: 'sc-domain:example.com', feedpath: 'https://example.com/sitemap.xml' },
+  });
+  assert.equal(sitemap.path, 'https://example.com/sitemap.xml');
+
+  fake.catalog.setResult(fake.catalog.toSlug('google.search-console.sitemaps'), (args) => {
+    assert.equal(args.site_url, 'sc-domain:example.com');
+    return { sitemap: [{ path: 'https://example.com/sitemap.xml' }] };
+  });
+  const listed = await gw.execute({
+    action: 'google.search-console.sitemaps',
+    input: { site_url: 'sc-domain:example.com' },
+  });
+  assert.ok(Array.isArray(listed.sitemap));
+
+  fake.catalog.execute = async () => assert.fail('bare hostname reached the catalog');
+  for (const [action, input] of [
+    ['inspect', { site_url: 'example.com', inspection_url: 'https://example.com/page' }],
+    ['get_sitemap', { site_url: 'example.com', feedpath: 'https://example.com/sitemap.xml' }],
+    ['sitemaps', { site_url: 'example.com' }],
+  ]) {
+    const result = await gw.execute({ action: `google.search-console.${action}`, input });
+    assert.equal(result.status, 'invalid_arguments', action);
+    assert.equal(result.field, 'site_url', action);
+  }
+});
+
+test('query grouping accepts hour; a filter on date is refused and a filter on page passes', async () => {
+  const { gw, fake } = await granted();
+  fake.catalog.setResult(fake.catalog.toSlug('google.search-console.query'), (args) => {
+    assert.deepEqual(args.dimensions, ['hour']);
+    return { rows: [] };
+  });
+  const hourly = await gw.execute({
+    action: 'google.search-console.query',
+    input: { ...OLD_QUERY, dimensions: ['hour'] },
+  });
+  assert.ok(Object.hasOwn(hourly, 'rows'));
+
+  const pageFilter = {
+    ...OLD_QUERY,
+    dimension_filter_groups: [{
+      filters: [{ dimension: 'page', operator: 'contains', expression: '/pricing' }],
+    }],
+  };
+  fake.catalog.setResult(fake.catalog.toSlug('google.search-console.query'), (args) => {
+    assert.equal(args.dimension_filter_groups[0].filters[0].dimension, 'page');
+    return { rows: [] };
+  });
+  const filtered = await gw.execute({ action: 'google.search-console.query', input: pageFilter });
+  assert.ok(Object.hasOwn(filtered, 'rows'));
+
+  fake.catalog.execute = async () => assert.fail('date filter reached the catalog');
+  const refused = await gw.execute({
+    action: 'google.search-console.query',
+    input: {
+      ...OLD_QUERY,
+      dimension_filter_groups: [{
+        filters: [{ dimension: 'date', operator: 'equals', expression: '2026-09-01' }],
+      }],
+    },
+  });
+  assert.equal(refused.status, 'invalid_arguments');
+  assert.equal(refused.field, 'dimension_filter_groups');
+});
+
 test('query accepts documented enums and a well-formed dimension_filter_groups', async () => {
   const { gw, fake } = await granted();
   const input = {

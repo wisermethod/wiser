@@ -35,18 +35,6 @@ const MAX_REDIRECTS = 5;
 const DEFAULT_USER_AGENT = 'wiser-site-crawl/0.1.0 (+https://github.com/wisermethod/wiser)';
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 const HTML_TYPES = /html|xhtml/i;
-const MULTI_PART_SUFFIXES = new Set([
-  'co.uk', 'org.uk', 'ac.uk', 'gov.uk', 'net.uk', 'me.uk',
-  'com.au', 'net.au', 'org.au', 'edu.au', 'gov.au',
-  'co.nz', 'net.nz', 'org.nz',
-  'co.jp', 'or.jp', 'ne.jp',
-  'co.in', 'net.in', 'org.in',
-  'com.br', 'net.br', 'org.br',
-  'com.mx', 'org.mx',
-  'co.za', 'org.za',
-  'com.sg', 'com.hk', 'com.tw',
-  'co.kr', 'com.tr', 'com.ar', 'com.pl'
-]);
 
 export const USAGE = `site-crawl - a bounded, polite crawl of one site
 
@@ -70,7 +58,7 @@ Options:
   --max-pages N            Stop after this many fetched pages. Whole number, 1 to 2000. Default 200.
   --max-depth N            Do not fetch pages deeper than this. Whole number, 0 to 20. Default 5.
   --delay-ms N             Sleep this many milliseconds between requests. Whole number, 0 or more. Default 250.
-  --include-subdomains     Also follow hosts that share the start URL's registrable host.
+  --include-subdomains     Also follow hostnames that end in "." plus the start host.
   --sitemap <path>         Absolute path to a sitemap fetch snapshot JSON. Unreached
                            URLs are orphan candidates only.
   --user-agent <string>    User-Agent header. Default: ${DEFAULT_USER_AGENT}
@@ -308,21 +296,12 @@ function normalizeUrl(href) {
   return parsed.href;
 }
 
-function registrableHost(hostname) {
-  const host = String(hostname || '').toLowerCase().replace(/\.$/, '');
-  const labels = host.split('.').filter(Boolean);
-  if (labels.length <= 2) return host;
-  const lastTwo = labels.slice(-2).join('.');
-  if (MULTI_PART_SUFFIXES.has(lastTwo) && labels.length >= 3) return labels.slice(-3).join('.');
-  return lastTwo;
-}
-
 function hostAllowed(hostname, startHost, includeSubdomains) {
   const host = String(hostname || '').toLowerCase();
   const origin = String(startHost || '').toLowerCase();
   if (host === origin) return true;
   if (!includeSubdomains) return false;
-  return registrableHost(host) === registrableHost(origin);
+  return host.endsWith(`.${origin}`);
 }
 
 function headerValue(headers, name) {
@@ -495,7 +474,7 @@ export async function runSiteCrawl(argv, deps = {}) {
   const pages = [];
   const seen = new Set();
   const renderingSuspected = [];
-  let robotsText = '';
+  const robotsByOrigin = new Map();
   let hitMaxPages = false;
   let hitMaxDepth = false;
   let requestCount = 0;
@@ -511,15 +490,76 @@ export async function runSiteCrawl(argv, deps = {}) {
     });
   }
 
-  const robotsUrl = new URL('/robots.txt', screenedStart.url.origin).href;
-  try {
-    const robotsResponse = await request(robotsUrl);
-    if (robotsResponse.status >= 200 && robotsResponse.status < 300) {
-      const body = await readCapped(robotsResponse, MAX_BODY_BYTES);
-      robotsText = body.toString('utf8');
+  function originOf(href) {
+    return new URL(href).origin;
+  }
+
+  async function loadRobots(originHref) {
+    const origin = originOf(originHref);
+    if (robotsByOrigin.has(origin)) return robotsByOrigin.get(origin);
+
+    const robotsUrl = new URL('/robots.txt', origin).href;
+    const screened = await screenHref(robotsUrl, null, io.lookup);
+    if (screened.reason) {
+      const record = { unreachable: true, text: '', url: robotsUrl };
+      robotsByOrigin.set(origin, record);
+      return record;
     }
-  } catch {
-    errors.push({ url: robotsUrl, reason: `no response within ${TIMEOUT_MS / 1000} seconds, or the connection failed` });
+
+    let current = screened.url.href;
+    let hops = 0;
+    let record;
+    try {
+      while (hops <= MAX_REDIRECTS) {
+        const response = await request(current);
+        if (REDIRECT_STATUSES.has(response.status)) {
+          hops += 1;
+          const location = headerValue(response.headers, 'location');
+          if (!location || hops > MAX_REDIRECTS) {
+            record = { unreachable: true, text: '', url: robotsUrl };
+            break;
+          }
+          const hop = await screenHref(location, current, io.lookup);
+          if (hop.reason) {
+            record = { unreachable: true, text: '', url: robotsUrl };
+            break;
+          }
+          current = hop.url.href;
+          continue;
+        }
+        if (response.status === 404 || response.status === 410) {
+          record = { unreachable: false, text: '', url: robotsUrl };
+          break;
+        }
+        if (response.status >= 200 && response.status < 300) {
+          const body = await readCapped(response, MAX_BODY_BYTES);
+          record = { unreachable: false, text: body.toString('utf8'), url: robotsUrl };
+          break;
+        }
+        record = { unreachable: true, text: '', url: robotsUrl };
+        break;
+      }
+    } catch {
+      record = { unreachable: true, text: '', url: robotsUrl };
+    }
+
+    if (!record) record = { unreachable: true, text: '', url: robotsUrl };
+    robotsByOrigin.set(origin, record);
+    return record;
+  }
+
+  async function robotsDecision(href) {
+    const robots = await loadRobots(href);
+    if (robots.unreachable) return { blocked: true, unreachable: true, url: robots.url };
+    if (robots.text && isDisallowed(robots.text, href, args.userAgent)) {
+      return { blocked: true, unreachable: false, url: robots.url };
+    }
+    return { blocked: false, unreachable: false, url: robots.url };
+  }
+
+  const startRobots = await loadRobots(startUrl);
+  if (startRobots.unreachable) {
+    fail(`Error: robots.txt at ${startRobots.url} is unreachable. RFC 9309 section 2.3.1.4: an unreachable robots file means complete disallow. This tool stops rather than crawling a site that has disallowed everything.`);
   }
 
   const queue = [{ url: startUrl, depth: 0, discoveredFrom: null }];
@@ -532,6 +572,23 @@ export async function runSiteCrawl(argv, deps = {}) {
     let lastResponse = null;
 
     while (hops <= MAX_REDIRECTS) {
+      const screenedCurrent = await screenHref(current, null, io.lookup);
+      if (screenedCurrent.reason) {
+        return { error: screenedCurrent.reason, chain, finalUrl: current, response: lastResponse };
+      }
+
+      const decision = await robotsDecision(current);
+      if (decision.blocked) {
+        return {
+          robotsBlocked: true,
+          robotsUnreachable: decision.unreachable,
+          blockedUrl: current,
+          chain,
+          finalUrl: current,
+          response: lastResponse
+        };
+      }
+
       let response;
       try {
         response = await request(current);
@@ -566,6 +623,19 @@ export async function runSiteCrawl(argv, deps = {}) {
       }
 
       const next = normalizeUrl(hop.url.href);
+      const destDecision = await robotsDecision(next);
+      if (destDecision.blocked) {
+        chain.push({ from: current, to: next, status: response.status });
+        seen.add(next);
+        return {
+          robotsBlocked: true,
+          robotsUnreachable: destDecision.unreachable,
+          blockedUrl: next,
+          chain,
+          finalUrl: current,
+          response
+        };
+      }
       chain.push({ from: current, to: next, status: response.status });
       seen.add(next);
       current = next;
@@ -582,8 +652,12 @@ export async function runSiteCrawl(argv, deps = {}) {
       continue;
     }
 
-    if (robotsText && isDisallowed(robotsText, item.url, args.userAgent)) {
+    const queuedDecision = await robotsDecision(item.url);
+    if (queuedDecision.blocked) {
       robotsBlocked.push(item.url);
+      if (queuedDecision.unreachable) {
+        errors.push({ url: item.url, reason: 'robots unreachable' });
+      }
       continue;
     }
 
@@ -593,6 +667,14 @@ export async function runSiteCrawl(argv, deps = {}) {
     }
 
     const fetched = await fetchChain(item.url);
+    if (fetched.robotsBlocked) {
+      const blockedUrl = fetched.blockedUrl || fetched.finalUrl || item.url;
+      robotsBlocked.push(blockedUrl);
+      if (fetched.robotsUnreachable) {
+        errors.push({ url: blockedUrl, reason: 'robots unreachable' });
+      }
+      if (!fetched.response) continue;
+    }
     if (fetched.error && !fetched.response) {
       errors.push({ url: item.url, reason: fetched.error });
       continue;
@@ -626,6 +708,7 @@ export async function runSiteCrawl(argv, deps = {}) {
       depth: item.depth,
       discoveredFrom: item.discoveredFrom
     };
+    page.noindex = hasNoindex(null, null, xRobotsTag);
 
     if (html) {
       let body;
@@ -636,7 +719,14 @@ export async function runSiteCrawl(argv, deps = {}) {
         pages.push(page);
         continue;
       }
-      const extracted = extractPage(body);
+      let extracted;
+      try {
+        extracted = extractPage(body);
+      } catch {
+        errors.push({ url: item.url, reason: 'the page could not be parsed' });
+        pages.push(page);
+        continue;
+      }
       page.title = extracted.title;
       page.h1Count = extracted.h1Count;
       page.hasMetaDescription = extracted.hasMetaDescription;
@@ -659,15 +749,17 @@ export async function runSiteCrawl(argv, deps = {}) {
         const normalized = normalizeUrl(resolvedHref.href);
         if (seen.has(normalized)) continue;
         seen.add(normalized);
-        if (resolvedHref.hostname.toLowerCase() !== startHost) {
-          const screened = await screenHref(resolvedHref.href, null, io.lookup);
-          if (screened.reason) {
-            errors.push({ url: normalized, reason: screened.reason });
-            continue;
-          }
+        const screened = await screenHref(resolvedHref.href, null, io.lookup);
+        if (screened.reason) {
+          errors.push({ url: normalized, reason: screened.reason });
+          continue;
         }
-        if (robotsText && isDisallowed(robotsText, normalized, args.userAgent)) {
+        const linkDecision = await robotsDecision(normalized);
+        if (linkDecision.blocked) {
           robotsBlocked.push(normalized);
+          if (linkDecision.unreachable) {
+            errors.push({ url: normalized, reason: 'robots unreachable' });
+          }
           continue;
         }
         const nextDepth = item.depth + 1;

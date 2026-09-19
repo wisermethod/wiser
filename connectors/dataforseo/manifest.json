@@ -24,7 +24,7 @@
               "language_code": { "type": "string" },
               "language_name": { "type": "string" },
               "device": { "type": "string", "enum": ["desktop", "mobile"] },
-              "depth": { "type": "integer", "minimum": 10, "maximum": 700, "multipleOf": 10 }
+              "depth": { "type": "integer", "minimum": 10, "maximum": 200, "multipleOf": 10 }
             },
             "required": ["keyword"],
             "additionalProperties": false
@@ -51,7 +51,7 @@
               "limit": { "type": "integer", "minimum": 1, "maximum": 1000 },
               "offset": { "type": "integer", "minimum": 0 },
               "include_serp_info": { "type": "boolean" },
-              "filters": { "type": "array", "maxItems": 8 },
+              "filters": { "type": "array" },
               "order_by": {
                 "type": "array",
                 "maxItems": 3,
@@ -79,7 +79,7 @@
               "depth": { "type": "integer", "minimum": 0, "maximum": 4 },
               "limit": { "type": "integer", "minimum": 1, "maximum": 1000 },
               "offset": { "type": "integer", "minimum": 0 },
-              "filters": { "type": "array", "maxItems": 8 },
+              "filters": { "type": "array" },
               "order_by": {
                 "type": "array",
                 "maxItems": 3,
@@ -175,7 +175,7 @@
               "language_name": { "type": "string" },
               "limit": { "type": "integer", "minimum": 1, "maximum": 1000 },
               "offset": { "type": "integer", "minimum": 0 },
-              "filters": { "type": "array", "maxItems": 8 },
+              "filters": { "type": "array" },
               "order_by": {
                 "type": "array",
                 "maxItems": 3,
@@ -209,7 +209,7 @@
               "language_name": { "type": "string" },
               "limit": { "type": "integer", "minimum": 1, "maximum": 1000 },
               "offset": { "type": "integer", "minimum": 0 },
-              "filters": { "type": "array", "maxItems": 8 },
+              "filters": { "type": "array" },
               "exclude_top_domains": { "type": "boolean" },
               "intersecting_domains": {
                 "type": "array",
@@ -274,7 +274,7 @@
               "target": { "type": "string", "minLength": 1 },
               "limit": { "type": "integer", "minimum": 1, "maximum": 1000 },
               "offset": { "type": "integer", "minimum": 0 },
-              "filters": { "type": "array", "maxItems": 8 },
+              "filters": { "type": "array" },
               "order_by": {
                 "type": "array",
                 "maxItems": 3,
@@ -298,7 +298,7 @@
               "target": { "type": "string", "minLength": 1 },
               "limit": { "type": "integer", "minimum": 1, "maximum": 1000 },
               "offset": { "type": "integer", "minimum": 0 },
-              "filters": { "type": "array", "maxItems": 8 },
+              "filters": { "type": "array" },
               "order_by": {
                 "type": "array",
                 "maxItems": 3,
