@@ -1,6 +1,6 @@
 ---
 standard: script-contract
-version: 0.7.1
+version: 0.7.2
 description: The rules every script a tool ships follows, and the clauses that bind a connector module; users read tools/RUNNING.md
 ---
 
@@ -25,6 +25,8 @@ Fixed rules for every script a tool ships, in every runtime. Tools cite this fil
 **Unknown flags.** An option a script does not name is refused by that name, before any work, any dependency install, and any network request. The refusal points at the script's own help. Silently accepting a flag and printing success is a defect: a mistyped option must not look like it applied.
 
 A tool's option set is closed, and the command's own help declares it. Every flag the command accepts is listed, and anything else is refused.
+
+The typed file lists them too. Help is where this clause binds, because it ships beside the code and cannot drift from it unseen; the typed file is what a person opens first, and a partial list there tells a reader the tool is smaller than it is. Where the typed file groups or summarises, it still names every flag.
 
 **Configuration.** Every command needing configuration or credentials takes `--env [path]`, passed as an absolute path. The agent resolves it from the workspace's Provides binding (the constitution's Workspace Model, which also owns the unbound default). Scripts never search for a configuration file and never fall back to a default location. Parse the bound file directly: its values never enter the process environment, a log, or the output (the constitution's Irreversibles). When `--env` is absent or names a file that does not exist, the script says which and tells the agent to resolve the binding instead of guessing a path.
 
