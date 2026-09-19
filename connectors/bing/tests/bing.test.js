@@ -13,8 +13,14 @@ const MANIFEST = JSON.parse(readFileSync(join(DIR, 'manifest.json'), 'utf8'));
 
 const CASES = [
   ['list_sites', {}, (result) => {
-    assert.equal(result[0].Url, 'https://example.com/');
-    assert.equal(result[0].IsVerified, true);
+    assert.equal(result.sites[0].url, 'https://example.com/');
+    assert.equal(result.sites[0].is_verified, true);
+    assert.equal(result.skipped_site_count, 0);
+    // Ownership-verification secrets never leave the connector.
+    assert.equal(Object.hasOwn(result.sites[0], 'authentication_code'), false);
+    assert.equal(Object.hasOwn(result.sites[0], 'dns_verification_code'), false);
+    assert.equal(JSON.stringify(result).includes('FAKE0000AUTHCODE0000'), false);
+    assert.equal(JSON.stringify(result).includes('fake0000dnscode0000'), false);
   }],
   ['search_performance', { site_url: 'https://example.com/', report: 'daily_totals' }, (result) => {
     assert.equal(result[0].Date, '2026-09-01');

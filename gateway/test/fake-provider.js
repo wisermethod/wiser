@@ -125,7 +125,19 @@ const DEFAULT_RESULTS = {
   FAKE_GOOGLE_SEARCH_CONSOLE_SITEMAPS: {"sitemap": []},
   FAKE_GOOGLE_SEARCH_CONSOLE_INSPECT: {"inspectionResult": {"indexStatusResult": {"verdict": "PASS", "coverageState": "Submitted and indexed"}, "inspectionResultLink": "https://example.com/inspect"}},
   FAKE_GOOGLE_SEARCH_CONSOLE_GET_SITEMAP: {"path": "https://example.com/sitemap.xml", "lastSubmitted": "2026-09-01", "isPending": false, "type": "sitemap"},
-  FAKE_BING_WEBMASTER_LIST_SITES: [{ Url: 'https://example.com/', IsVerified: true }],
+  // Shape observed live 2026-09-20: the catalog layer wraps the vendor's list
+  // and lowercases its fields, and the vendor ships ownership-verification
+  // secrets beside each site. Both are present here so the connector's
+  // stripping is proved against what the service actually returns.
+  FAKE_BING_WEBMASTER_LIST_SITES: {
+    sites: [{
+      authentication_code: 'FAKE0000AUTHCODE0000',
+      dns_verification_code: 'fake0000dnscode0000.example.com',
+      is_verified: true,
+      url: 'https://example.com/',
+    }],
+    skipped_site_count: 0,
+  },
   FAKE_BING_WEBMASTER_SEARCH_PERFORMANCE: [{ Date: '2026-09-01', Impressions: 10, Clicks: 2 }],
   FAKE_BING_WEBMASTER_QUERY_PERFORMANCE: [{ Date: '2026-09-01', Impressions: 5, Clicks: 1, Query: 'example' }],
   FAKE_BING_WEBMASTER_PAGE_PERFORMANCE: { PageUrl: 'https://example.com/page', Clicks: 3, Impressions: 12 },

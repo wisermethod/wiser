@@ -53,6 +53,36 @@ async function viaCatalog(input, ctx) {
   return ctx.catalog(`${ctx.service}.${ctx.module}.${ctx.action}`, input);
 }
 
+/**
+ * The vendor's site list carries ownership-verification secrets beside each
+ * site: an account-level `authentication_code`, identical across every site,
+ * and a per-site `dns_verification_code`. Either one is enough to assert
+ * ownership of a property at the vendor, so neither belongs in a reading that
+ * flows into a transcript, an audit ledger or a gate file. Observed live
+ * 2026-09-20 on the first real call. An audit needs the site and whether it is
+ * verified; it never needs the proof of ownership. Unknown fields are kept, so a
+ * vendor addition still reaches the caller, and only these two are dropped.
+ */
+const SITE_SECRET_FIELDS = ['authentication_code', 'dns_verification_code'];
+
+function stripSite(site) {
+  if (!site || typeof site !== 'object') return site;
+  const kept = { ...site };
+  for (const field of SITE_SECRET_FIELDS) {
+    delete kept[field];
+    // The vendor spells these PascalCase; the catalog layer lowercases them.
+    // Strip both spellings so the route taken cannot decide what leaks.
+    delete kept[field.split('_').map((w) => w[0].toUpperCase() + w.slice(1)).join('')];
+  }
+  return kept;
+}
+
+function stripSiteSecrets(result) {
+  if (Array.isArray(result)) return result.map(stripSite);
+  if (!result || typeof result !== 'object' || !Array.isArray(result.sites)) return result;
+  return { ...result, sites: result.sites.map(stripSite) };
+}
+
 function action(allowed, required, extras) {
   return async (input, ctx) => {
     const extra = extraKey(input, allowed);
@@ -71,7 +101,7 @@ function action(allowed, required, extras) {
 
 export const modules = {
   webmaster: {
-    list_sites: action([], []),
+    list_sites: async (input, ctx) => stripSiteSecrets(await action([], [])(input, ctx)),
     search_performance: action(
       ['site_url', 'report'],
       ['site_url', 'report'],
