@@ -3,7 +3,7 @@ name: Connection Troubleshooter
 type: skill
 category: system
 description: Name one next step for a gateway status object or audit line covering needs_provider, needs_connect, expired, denied, needs_connector, vendor_error, and a teardown that did not finish
-version: 0.2.1
+version: 0.2.2
 ---
 
 # Connection Troubleshooter
@@ -61,7 +61,7 @@ A reader of gateway stops who returns the smallest supported next step and never
 - **A `needs_connect` carrying `reason: nothing_to_disconnect` came from `disconnect`, not from work that needs a grant.** It means this machine holds **no recorded provider account that this call could disconnect**: either no row at all, or a row carrying no account id, which a `local-file` connection checked by `connect_status` without a prior `start_connect` can be. Do not report it as nothing being recorded, because an ACTIVE row may well exist. **Do not route it to Connect Account**, which would reverse what the person asked for and could hand them a fresh grant. Say there is nothing recorded here to disconnect, and say that this is a statement about the local record and not about whether a credential still exists at the provider; checking that is a vendor visit.
 - A `disconnect` `teardown_incomplete` with `reason: binding_denied_after_revoke` means the credential **was** revoked and the local rows were kept, because a module bound to it became denied while the provider call was in flight. **Those rows are now stale and may still read ACTIVE**: they are kept for recovery, not because they are true, and the teardown's answer is what to believe. Name the module the answer carries and stop; the policy has to change before a second `disconnect` can clear them.
 - A `disconnect` `denied` with `reason: bound_module_denied` is not about the module the caller named. One credential backs several modules, and the policy denies tearing down one of the others. Name that module, which the answer carries, and stop.
-- `invalid_arguments`: a bad tool call; nothing ran. Name the call correction as the next step.
+- `invalid_arguments`: nothing ran, and **there are two causes with different corrections**. A `tool` field means the tool itself was called with something that is not an identifier. No `tool` field and a `field` means the action was called with an input its published schema refuses, and `field` names the first one at fault, which for an undeclared key is a name the caller supplied. The next step for the second is `describe_action`, which returns that action's `input`: the schema is the contract, and since 2026-09-20 the gateway applies it before the module runs. Neither case reaches a vendor and neither puts the field or its value in the audit line. Do not route either to Connect Account; a grant is not what was missing.
 - `INITIATED`: wait for the person, then `connect_status`; do not poll.
 - `connected`: already done; no further step.
 - An execute `vendor_error` while `list_connections` still shows `ACTIVE` is a transport failure or a grant that is still ACTIVE: report the vendor_error. An auth-class catalog or proxy refusal (`http_status` 401 or 403) refreshes provider status during execute; if the grant is no longer ACTIVE the result is `needs_connect` with `provider_status` and the record is updated. A status-transport failure leaves the row ACTIVE and stays `vendor_error`. Do not invent `expired` from a transport `vendor_error`.
