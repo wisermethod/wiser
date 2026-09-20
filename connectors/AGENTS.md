@@ -16,7 +16,7 @@ Nothing. A module may not write a file, install a package, or read a credential;
 
 ## What a grant is made of
 
-Five layers stand between a module and a vendor call. Which layer holds what answers most questions about connecting. This is the hosted route; a local-file module reads a bound credential file in place of the first three, per `standards/script-contract.md` Connector modules.
+Five layers stand between a module and a vendor call. Which layer holds what answers most questions about connecting. This is the hosted route; on the local-file route the **provider** reads a bound credential file in place of the first three, the module still has a connection record, and the module still never receives the credential. `standards/script-contract.md` Connector modules governs that route.
 
 | Layer | Where it lives | What it holds |
 |-------|----------------|---------------|
@@ -28,10 +28,10 @@ Five layers stand between a module and a vendor call. Which layer holds what ans
 
 Four consequences follow, each a fact about the code rather than a rule:
 
-- **Execute uses the record as it stands.** An ACTIVE record's account is used without re-reading the provider. A module with no ACTIVE record may adopt the toolkit's account instead, and adoption is skipped where that toolkit carries more than one ACTIVE account. A module already bound is unaffected by a second account.
-- **`start_connect` rebinds.** It writes a new account id over that service and module's row, so connecting again replaces which credential the module uses. The account it replaces is not revoked and remains at the provider. `skills/Connect Account/` stops rather than doing this to an ACTIVE grant; that is the skill's judgment, not the gateway's.
-- **A credential can also be changed where it lives**, on the connected account at the provider, which leaves the record untouched.
-- **Nothing removes a record.** No shipped path calls the adapter's `revoke` or the store's `deleteConnection`. A status does update: `connect_status` writes what the provider reports, and an execute meeting 401 or 403 refreshes and stops a grant that is no longer live. So a record outlives the account it names, and its status is corrected the next time one of those paths runs.
+- **Execute uses the record as it stands.** On a hosted grant an ACTIVE record's account is used with no status check first; a local-file grant's file is read on every call instead, and an unreadable one stops the grant. A module with no ACTIVE record may adopt the toolkit's account, and adoption is skipped where that toolkit carries more than one ACTIVE account, judged over the accounts the provider returns in one page. A module already bound is unaffected by a second account.
+- **`start_connect` rebinds.** It writes a new account id over that service and module's row, so connecting again replaces which credential the module uses. Nothing revokes the account it replaced. `skills/Connect Account/` stops rather than doing this to an ACTIVE grant unless the person asks to rotate; that is the skill's judgment, not the gateway's.
+- **Nothing removes a record.** No shipped path calls the adapter's `revoke` or the store's `deleteConnection`. A status does update, when a check returns a recognised inactive status: `connect_status` writes what the provider reports, and an execute meeting 401 or 403 refreshes. A provider outage leaves the row as it was, deliberately, so an outage does not read as a lost grant. So a record outlives the account it names.
+- **Replacing a credential without reconnecting is not a path this root has.** The adapter implements no update operation, and whether the provider offers one has not been verified here. Reconnecting is the shipped route; check before assuming an in-place edit exists.
 
 ## Grants are per module
 
