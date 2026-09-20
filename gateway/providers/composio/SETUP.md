@@ -60,6 +60,34 @@ There are two Cloudflare toolkits. Use **Cloudflare Api Key**, not **Cloudflare*
 3. Do not click Connect Account here. That authenticates the dashboard Playground user, not this gateway.
 4. Leave any existing **Cloudflare** (no "Api Key") config alone. The gateway looks up by toolkit slug and will not use it once this config exists.
 
+### A vendor whose API needs OAuth and has no toolkit of its own
+
+Some APIs, Google Cloud's control plane among them, require a short-lived OAuth token on every call and have no Composio toolkit covering them. A custom toolkit cannot carry them: custom toolkits accept only `NO_AUTH`, `API_KEY` and `DCR_OAUTH`, and most vendors do not support dynamic client registration.
+
+**This recipe needs a toolkit Composio ships for that vendor, even though it ships none for the API you want.** Google Cloud has none; `GOOGLEBIGQUERY` is a Google toolkit carrying OAuth2, and the config hangs off that. Where Composio ships no toolkit for the vendor **at all**, this route is unavailable and there is no local-file fallback either, because a file cannot hold a token that expires. Stop and report it.
+
+1. Register an OAuth client with the vendor yourself. For Google that is Cloud Console, APIs and Services, Credentials, Create Credentials, OAuth client ID, Web application. Add the redirect URI the auth config shows you; Composio's is `https://backend.composio.dev/api/v1/auth-apps/add`, and it is worth confirming against the config after you create it rather than assuming.
+2. Create the auth config on that shipped toolkit, choosing **your own OAuth app** rather than Composio-managed auth, and enter the client id and secret on that page. Set the scopes to exactly what the connector needs, not the vendor's broadest scope.
+3. Connect through the gateway as usual, by the Connect Account skill. You approve at the vendor in your own browser.
+4. Composio is expected to retain the refresh token and mint access tokens, and the gateway calls the vendor's API by proxy with a full URL and never sees a token. **Whether a call still succeeds after the first access token expires is not established here**, so treat unattended long-running use as untested until you have watched one call succeed an hour after consent.
+
+Do not paste the client secret into a conversation, into `auth-provider.env`, or into any file in a root. It goes on the auth config page and nowhere else.
+
+**Read the vendor's generated schema for which scopes each operation accepts, not its documentation pages.** Google publishes a discovery document per API at `https://<host>/$discovery/rest?version=<v>`, generated from the running service, while its HTML reference pages are maintained by hand and go stale. A build here took `cloud-platform`, the broadest Cloud scope, on an HTML claim that both API Keys v2 methods accepted nothing narrower; the generated schema gives both `apikeys` as well, which is API Keys data rather than all Cloud data. The scope you ask for is the blast radius of the grant, and narrowing it afterwards costs a re-consent.
+
+**One auth config per toolkit, and the gateway refuses rather than guessing.** `auth-provider.js` reads the configs for a toolkit when a connection is started and **refuses** if it finds more than one, returning a `vendor_error` naming the toolkit and the count; it binds a config only when exactly one exists. Account discovery is the same shape: `gateway/src/gateway.js` drops any toolkit whose distinct account ids number more than one rather than picking among them. So nothing silently binds the wrong grant.
+
+**Read the limit of that precisely.** The count is checked when a connection is **started**, and when an account must be discovered. An already-active stored connection executes without either check, so adding a second config or account does not stop a connector that is already working; it stops the next `start_connect` and it prevents unambiguous discovery for a module not yet bound. Do not read the refusal as a guarantee that a duplicate will announce itself.
+
+Two consequences for this recipe:
+
+- **Hang the config off a toolkit that carries no other config, and check before creating.** Not because the wrong one would be chosen, but because a second one blocks the next connection on that toolkit.
+- **If your custom config is ever deleted, the next `start_connect` attempts to create a Composio-managed one in its place**, requesting managed auth without specifying scopes. For a bring-your-own route that is the wrong blueprint and it appears without being asked for. Whether that creation succeeds, and what scopes result, is the provider's to decide. Check Auth Configs before assuming a failing connector is a code problem.
+
+The connection is listed under that toolkit's name in `list_connections` and in any audit, so pick a name a reader will not find surprising for the work the connector does, or say in the connector's `auth.md` why the surprising one was chosen.
+
+**A user OAuth grant carries what that user can reach, not one resource.** A `cloud-platform` grant on a Google account that can see eight projects reaches all eight. Where the connector mutates anything, its confirmation names the resource and not only the operation.
+
 OAuth toolkits: the gateway creates a managed-auth blueprint on first `start_connect` if none exists. API-key toolkits (Replicate, Clarity, Google Vision, Vercel, Cloudflare Api Key): it creates a custom API_KEY blueprint with empty credentials, and the hosted connect page collects the token. Do not paste a vendor token into an auth config. Making Cloudflare here remains the reliable way to pick **Cloudflare Api Key** over **Cloudflare**.
 
 ## 3. Connect an account
