@@ -588,3 +588,72 @@ test('a provider that answers ACTIVE is still reported as still there, so the tw
   assert.equal(r.reason, 'not_absent_after_revoke');
   assert.equal(r.provider_status, 'ACTIVE');
 });
+
+test('a finished teardown says what it established, not only that it finished', async (t) => {
+  // Found by Refine's cold discoverability test: `disconnected` alone reads as "the
+  // credential is dead", and for the measured API_KEY case it means only that the
+  // provider has forgotten it. The revoke POST is refused there and the DELETE, which
+  // is the step the gate requires, does the work.
+  const { gw, store, fake } = await shared();
+  fake.auth.setRevokeOutcome({
+    supported: true,
+    steps: [{ step: 'revoke', status: 400, ok: false }, { step: 'delete', status: 200, ok: true }],
+  });
+  t.mock.method(fake.auth, 'status', async () => 'ABSENT');
+  const r = await gw.callTool('disconnect', {
+    service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
+  });
+  assert.equal(r.status, 'disconnected');
+  assert.equal(r.credential_revoked, 'unknown', 'a refused revoke read as a completed cutoff');
+  // The rows still go: nothing here points at the credential any more, which is right.
+  assert.deepEqual(rows(store), []);
+});
+
+test('a teardown whose every step succeeded says so, so the two are distinguishable', async (t) => {
+  const { gw, store, fake } = await shared();
+  fake.auth.setRevokeOutcome({
+    supported: true,
+    steps: [{ step: 'revoke', status: 200, ok: true }, { step: 'delete', status: 200, ok: true }],
+  });
+  t.mock.method(fake.auth, 'status', async () => 'ABSENT');
+  const r = await gw.callTool('disconnect', {
+    service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
+  });
+  assert.equal(r.credential_revoked, 'yes');
+  assert.deepEqual(rows(store), []);
+});
+
+test("the teardown's own error survives a later check that also fails", async (t) => {
+  // Found by exercising a teardown that fails at the provider, in Refine. The adapter
+  // reports a failed final call as an error alongside `supported: true`; absence is
+  // still worth checking, but when that check also failed its error was the only one
+  // reported and the teardown's own was dropped.
+  const { gw, store, fake } = await shared();
+  fake.auth.setRevokeOutcome({
+    supported: true,
+    status: 500,
+    error: { code: 'vendor_error', endpoint: '/connected_accounts/x', method: 'DELETE' },
+    steps: [{ step: 'revoke', status: 200, ok: true }, { step: 'delete', status: 500, ok: false }],
+  });
+  t.mock.method(fake.auth, 'status', async () => 'ACTIVE');
+  const r = await gw.callTool('disconnect', {
+    service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
+  });
+  assert.equal(r.status, 'teardown_incomplete');
+  assert.deepEqual(r.teardown_error, { http_status: 500, endpoint: '/connected_accounts/x', method: 'DELETE' });
+  assert.equal(r.provider_status, 'ACTIVE', 'the later reading is reported too, not instead');
+  assert.equal(rows(store).length, 2);
+});
+
+test('a teardown with no error of its own carries none, so the field means something', async (t) => {
+  const { gw, fake } = await shared();
+  fake.auth.setRevokeOutcome({
+    supported: true,
+    steps: [{ step: 'revoke', status: 200, ok: true }, { step: 'delete', status: 200, ok: true }],
+  });
+  t.mock.method(fake.auth, 'status', async () => 'ACTIVE');
+  const r = await gw.callTool('disconnect', {
+    service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
+  });
+  assert.equal(r.teardown_error, null);
+});

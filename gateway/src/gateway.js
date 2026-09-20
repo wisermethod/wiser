@@ -1075,6 +1075,16 @@ export class ConnectionGateway {
         });
       }
       const steps = Array.isArray(outcome?.steps) ? outcome.steps : [];
+      // The adapter reports a failed final call as an error alongside `supported: true`.
+      // Absence is still worth checking — the account may be gone regardless — but that
+      // check can fail too, and its error was then the only one reported while the
+      // teardown's own was dropped. Carried so it survives whatever follows. Found by
+      // exercising a teardown that fails at the provider, in Refine.
+      const teardownError = outcome && outcome.error ? {
+        http_status: outcome.status ?? null,
+        endpoint: outcome.error.endpoint ?? null,
+        method: outcome.error.method ?? null,
+      } : null;
       if (outcome?.supported !== true) {
         return statusObject(STATUS.NEEDS_PROVIDER_CAPABILITY, {
           op: 'disconnect',
@@ -1095,7 +1105,7 @@ export class ConnectionGateway {
         after = null;
       }
       if (after && typeof after === 'object' && after.error) {
-        return { ...vendorErrorFrom(after), op: 'disconnect', steps, removed: [] };
+        return { ...vendorErrorFrom(after), op: 'disconnect', steps, teardown_error: teardownError, removed: [] };
       }
       const observed = typeof after === 'string' ? after : after?.status ?? null;
       if (observed === null) {
@@ -1108,6 +1118,7 @@ export class ConnectionGateway {
           reason: 'absence_unverified',
           provider_status: null,
           steps,
+          teardown_error: teardownError,
           removed: [],
         });
       }
@@ -1118,6 +1129,7 @@ export class ConnectionGateway {
           reason: 'not_absent_after_revoke',
           provider_status: observed,
           steps,
+          teardown_error: teardownError,
           removed: [],
         });
       }
@@ -1140,6 +1152,7 @@ export class ConnectionGateway {
           reason: 'no_teardown_evidence',
           provider_status: observed,
           steps,
+          teardown_error: teardownError,
           removed: [],
         });
       }
@@ -1150,6 +1163,7 @@ export class ConnectionGateway {
           reason: 'absent_but_teardown_failed',
           provider_status: observed,
           steps,
+          teardown_error: teardownError,
           removed: [],
         });
       }
@@ -1178,12 +1192,22 @@ export class ConnectionGateway {
       // exists to remove. In-process only; the cross-process race is recorded in store.js.
       this.revokedAccounts.add(accountId);
       const removed = this.store.deleteConnection({ providerAccountId: accountId });
+      // **What succeeded is not always what a reader assumes.** The teardown is the
+      // adapter's sequence, and its last call is the one this gate requires: for the
+      // composio adapter that is the DELETE, which removes the provider's record of the
+      // credential. An earlier step failing means the credential may still be live at
+      // the vendor while the provider has forgotten it — the measured `API_KEY` case
+      // exactly, where the revoke POST is refused and the DELETE does the work. Saying
+      // only `disconnected` let that read as "the credential is dead". Found by the
+      // cold discoverability test in Refine, not by a review of this function.
+      const everyStepOk = steps.every((step) => step.ok === true);
       return {
         status: 'disconnected',
         service,
         module,
         provider_account_id: accountId,
         steps,
+        credential_revoked: everyStepOk ? 'yes' : 'unknown',
         removed: removed.map((row) => ({ service: row.service, module: row.module })),
       };
     });
