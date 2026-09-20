@@ -319,6 +319,102 @@
       },
       "unwrap_token": false,
       "fallback": "none"
+    },
+    "language": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "CUSTOM_GOOGLE_APIS",
+        "scheme": "API_KEY",
+        "privilege": "read"
+      },
+      "actions": {
+        "analyze": {
+          "description": "Annotate text for sentiment, syntax, entities, classification, and moderation",
+          "risk": "medium",
+          "confirmation": "once",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "content": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "PLAIN_TEXT",
+                  "HTML"
+                ]
+              },
+              "language_code": {
+                "type": "string",
+                "pattern": "^[A-Za-z]{2,8}(-[A-Za-z]{4})?(-([A-Za-z]{2}|[0-9]{3}))?(-([A-Za-z0-9]{5,8}|[0-9][A-Za-z0-9]{3}))*$"
+              },
+              "encoding_type": {
+                "type": "string",
+                "enum": [
+                  "NONE",
+                  "UTF8",
+                  "UTF16",
+                  "UTF32"
+                ]
+              },
+              "extract_document_sentiment": {
+                "type": "boolean"
+              },
+              "extract_syntax": {
+                "type": "boolean"
+              },
+              "extract_entities": {
+                "type": "boolean"
+              },
+              "extract_entity_sentiment": {
+                "type": "boolean"
+              },
+              "classify_text": {
+                "type": "boolean"
+              },
+              "moderate_text": {
+                "type": "boolean"
+              },
+              "classification_model_options": {
+                "type": "object",
+                "properties": {
+                  "v1Model": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": false
+                  },
+                  "v2Model": {
+                    "type": "object",
+                    "properties": {
+                      "contentCategoriesVersion": {
+                        "type": "string",
+                        "enum": [
+                          "CONTENT_CATEGORIES_VERSION_UNSPECIFIED",
+                          "V1",
+                          "V2"
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "content",
+              "type"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
     }
   }
 }

@@ -278,6 +278,132 @@ function readTranscription(payload) {
   return body;
 }
 
+const ANNOTATE_ENDPOINT = 'https://language.googleapis.com/v1/documents:annotateText';
+
+// Taken from Google's live Natural Language v1 discovery document, revision
+// 20260913, which is generated from the running service. `TYPE_UNSPECIFIED` is
+// in the enum and is documented as returning an INVALID_ARGUMENT error ("If the
+// type is not set or is `TYPE_UNSPECIFIED`, returns an `INVALID_ARGUMENT`
+// error."), so it stays refused locally. That is the `voice` case, where
+// `AUDIO_ENCODING_UNSPECIFIED` is refused for the same reason, and not the
+// `speech` case, where `ENCODING_UNSPECIFIED` is accepted because Speech-to-Text
+// documents it only as "Not specified." Two sibling modules treat a same-shaped
+// member differently; this one follows the vendor's error, not the sibling.
+const DOCUMENT_TYPES = new Set(['PLAIN_TEXT', 'HTML']);
+
+// `NONE` is a documented member with real meaning: "encoding-dependent
+// information (such as `begin_offset`) will be set at `-1`". It is not an
+// error member. Refusing it would be understating the vendor.
+const ENCODING_TYPES = new Set(['NONE', 'UTF8', 'UTF16', 'UTF32']);
+
+const CONTENT_CATEGORIES_VERSIONS = new Set([
+  'CONTENT_CATEGORIES_VERSION_UNSPECIFIED',
+  'V1',
+  'V2',
+]);
+
+const ANNOTATE_KEYS = [
+  'content',
+  'type',
+  'language_code',
+  'encoding_type',
+  'extract_document_sentiment',
+  'extract_syntax',
+  'extract_entities',
+  'extract_entity_sentiment',
+  'classify_text',
+  'moderate_text',
+  'classification_model_options',
+];
+
+const ANNOTATE_RESPONSE_KEYS = new Set([
+  'documentSentiment',
+  'categories',
+  'moderationCategories',
+  'entities',
+  'language',
+  'sentences',
+  'tokens',
+]);
+
+const ANNOTATE_ARRAY_KEYS = [
+  'categories',
+  'moderationCategories',
+  'entities',
+  'sentences',
+  'tokens',
+];
+
+// Validated structurally against ClassificationModelOptions and forwarded
+// nested, not flattened. The schema states no mutual exclusion with
+// `classify_text`, only that the field is "Only used if `classify_text` is
+// set to true", which is the vendor describing what it ignores rather than
+// what it refuses.
+function isClassificationModelOptions(value) {
+  if (!isPlainObject(value)) return false;
+  for (const key of Object.keys(value)) {
+    if (key !== 'v1Model' && key !== 'v2Model') return false;
+  }
+  if (Object.hasOwn(value, 'v1Model')) {
+    if (!isPlainObject(value.v1Model) || Object.keys(value.v1Model).length !== 0) return false;
+  }
+  if (Object.hasOwn(value, 'v2Model')) {
+    if (!isPlainObject(value.v2Model)) return false;
+    for (const key of Object.keys(value.v2Model)) {
+      if (key !== 'contentCategoriesVersion') return false;
+    }
+    if (Object.hasOwn(value.v2Model, 'contentCategoriesVersion')
+      && !CONTENT_CATEGORIES_VERSIONS.has(value.v2Model.contentCategoriesVersion)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// AnnotateTextResponse has no required field: every member is conditional on
+// a feature flag. A caller who enables nothing gets a response carrying
+// almost nothing, including `{}`. Siblings recognise success by one required
+// key (`lighthouseResult`, `translations`, `audioContent`, `voices`); here
+// the test is the key set, because requiring any one key would turn that
+// legitimate billed success into a vendor_error. That is `readAudio`'s
+// original defect. This is still not a passthrough: it recognises one success
+// shape and refuses everything else.
+function readAnnotation(payload) {
+  const body = isPlainObject(payload) && Object.hasOwn(payload, 'data') ? payload.data : payload;
+  if (!isPlainObject(body) || Object.hasOwn(body, 'error')) {
+    return { status: 'vendor_error', endpoint: ANNOTATE_ENDPOINT, method: 'POST' };
+  }
+  for (const key of Object.keys(body)) {
+    if (!ANNOTATE_RESPONSE_KEYS.has(key)) {
+      return { status: 'vendor_error', endpoint: ANNOTATE_ENDPOINT, method: 'POST' };
+    }
+  }
+  for (const key of ANNOTATE_ARRAY_KEYS) {
+    if (Object.hasOwn(body, key) && !Array.isArray(body[key])) {
+      return { status: 'vendor_error', endpoint: ANNOTATE_ENDPOINT, method: 'POST' };
+    }
+  }
+  // The two members that are not arrays are typed here for the same reason the
+  // arrays are. This reader validates a field the **vendor** returns, so it may
+  // hold Google to the one spelling Google emits, and too loose is the defect in
+  // this direction rather than too strict. An earlier version checked the five
+  // arrays and neither of these, so `{ language: 42 }` was returned to the caller
+  // as a successful annotation. Presence is still not required of either: every
+  // member of AnnotateTextResponse is conditional on a feature flag.
+  //
+  // The check is the container's type and stops there. Whether a recognised
+  // success array or message should have its documented fields projected is a
+  // question for this connector's family as a whole, open on all four modules,
+  // and not one this module settles alone.
+  if (Object.hasOwn(body, 'language') && typeof body.language !== 'string') {
+    return { status: 'vendor_error', endpoint: ANNOTATE_ENDPOINT, method: 'POST' };
+  }
+  if (Object.hasOwn(body, 'documentSentiment') && !isPlainObject(body.documentSentiment)) {
+    return { status: 'vendor_error', endpoint: ANNOTATE_ENDPOINT, method: 'POST' };
+  }
+  return body;
+}
+
 export const modules = {
   insights: {
     // Contract from the approved plan dated 2026-09-19; live behavior unverified.
@@ -468,6 +594,87 @@ export const modules = {
       const body = { config, audio: { content: input.audio_content } };
       const result = await ctx.proxy({ endpoint: RECOGNIZE_ENDPOINT, method: 'POST', body });
       return isStatusObject(result) ? result : readTranscription(result);
+    },
+  },
+  language: {
+    // Contract from the approved plan dated 2026-09-19; live behavior unverified.
+    async analyze(input, ctx) {
+      const invalid = extraKey(input, ANNOTATE_KEYS);
+      if (invalid) return invalid;
+      // `content` is required here because this module removed `gcsContentUri`,
+      // the other way a Document carries text. Document accepts either
+      // `content` or `gcsContentUri`; `gcsContentUri` is excluded for the same
+      // Cloud Storage reason `speech` excludes `audio.uri`. So `content` is the
+      // only content field this module offers, and an omitted one leaves nothing
+      // to annotate. The vendor's schema does not mark `content` Required: this
+      // requirement is the module's, and it follows from the module's own
+      // exclusion rather than from anything measured at the vendor.
+      //
+      // No emptiness check and no byte cap. The schema states no minLength and
+      // no maxLength. Google's content-size limits live only on an HTML page,
+      // which is the source class this connector does not trust for bounds.
+      // Oversized or empty content is the vendor's refusal to make. `translate`
+      // and `voice` check nonemptiness because a vendor rule required it; there
+      // is no such rule here, so copying theirs would be a bound this module
+      // invented.
+      if (typeof input.content !== 'string') return invalidArguments('content');
+      if (!DOCUMENT_TYPES.has(input.type)) return invalidArguments('type');
+      if (input.language_code !== undefined && !isBcp47(input.language_code)) {
+        return invalidArguments('language_code');
+      }
+      if (input.encoding_type !== undefined && !ENCODING_TYPES.has(input.encoding_type)) {
+        return invalidArguments('encoding_type');
+      }
+      if (input.extract_document_sentiment !== undefined
+        && typeof input.extract_document_sentiment !== 'boolean') {
+        return invalidArguments('extract_document_sentiment');
+      }
+      if (input.extract_syntax !== undefined && typeof input.extract_syntax !== 'boolean') {
+        return invalidArguments('extract_syntax');
+      }
+      if (input.extract_entities !== undefined && typeof input.extract_entities !== 'boolean') {
+        return invalidArguments('extract_entities');
+      }
+      if (input.extract_entity_sentiment !== undefined
+        && typeof input.extract_entity_sentiment !== 'boolean') {
+        return invalidArguments('extract_entity_sentiment');
+      }
+      if (input.classify_text !== undefined && typeof input.classify_text !== 'boolean') {
+        return invalidArguments('classify_text');
+      }
+      if (input.moderate_text !== undefined && typeof input.moderate_text !== 'boolean') {
+        return invalidArguments('moderate_text');
+      }
+      if (input.classification_model_options !== undefined
+        && !isClassificationModelOptions(input.classification_model_options)) {
+        return invalidArguments('classification_model_options');
+      }
+      const document = { type: input.type, content: input.content };
+      if (input.language_code !== undefined) document.language = input.language_code;
+      // The vendor marks the `features` object Required and every member inside
+      // it optional, so `features: {}` satisfies the schema. The module always
+      // sends a `features` object and puts into it only the flags the caller
+      // supplied. No check that at least one feature is true: that would be an
+      // invented bound, the same class adversarial review upheld three times
+      // on `speech`.
+      const features = {};
+      if (input.extract_document_sentiment !== undefined) {
+        features.extractDocumentSentiment = input.extract_document_sentiment;
+      }
+      if (input.extract_syntax !== undefined) features.extractSyntax = input.extract_syntax;
+      if (input.extract_entities !== undefined) features.extractEntities = input.extract_entities;
+      if (input.extract_entity_sentiment !== undefined) {
+        features.extractEntitySentiment = input.extract_entity_sentiment;
+      }
+      if (input.classify_text !== undefined) features.classifyText = input.classify_text;
+      if (input.moderate_text !== undefined) features.moderateText = input.moderate_text;
+      if (input.classification_model_options !== undefined) {
+        features.classificationModelOptions = input.classification_model_options;
+      }
+      const body = { document, features };
+      if (input.encoding_type !== undefined) body.encodingType = input.encoding_type;
+      const result = await ctx.proxy({ endpoint: ANNOTATE_ENDPOINT, method: 'POST', body });
+      return isStatusObject(result) ? result : readAnnotation(result);
     },
   },
 };
