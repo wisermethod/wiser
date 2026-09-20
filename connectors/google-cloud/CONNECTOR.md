@@ -2,7 +2,7 @@
 name: google-cloud
 type: connector
 category: development
-description: Reads Google Cloud projects and IAM policy, lists and enables services, and creates restricted API keys, with every mutation confirmed on the named project
+description: Reads Google Cloud projects and IAM policy, lists and enables services, and creates restricted API keys, with every mutation stopping for confirmation
 version: 0.1.0
 ---
 
