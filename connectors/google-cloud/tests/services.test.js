@@ -183,7 +183,9 @@ test('service accepts a nonempty path segment and refuses whitespace or a slash,
 });
 
 test('operation_name is the generated pattern, one segment, encoded into the path', async () => {
-  // Both generated documents declare ^operations/[^/]+$ on this parameter.
+  // Both generated documents declare ^operations/[^/]+$ on this parameter. What this
+  // manifest publishes is that, narrowed to exclude "." and ".." so it says exactly
+  // what the module applies; the two admit a path the built URL does not promise.
   // An earlier version enforced only that the string contained "operations/",
   // which let a value carrying a URL fragment re-route the authenticated proxy
   // at another method entirely.
@@ -305,7 +307,7 @@ test('the published input schema accepts exactly what the module accepts', async
   assert.equal(enable.additionalProperties, false);
   assert.deepEqual(enable.required, ['project', 'service']);
   assert.equal(enable.properties.service.pattern, '^[^\\s/]+$');
-  assert.equal(op.properties.operation_name.pattern, '^operations/[^/]+$');
+  assert.equal(op.properties.operation_name.pattern, '^operations/(?!\\.{1,2}$)[^/]+$');
   assert.match(manifest.modules.services.actions.enable.description, /project/);
   assert.match(manifest.modules.services.actions.enable.description, /service/);
 
@@ -315,6 +317,8 @@ test('the published input schema accepts exactly what the module accepts', async
     [list, { project: PROJECT, filter: 'anything' }],
     [list, { project: PROJECT, filter: '' }],
     [op, { operation_name: 'operations/abc' }],
+    [op, { operation_name: 'operations/...' }],
+    [op, { operation_name: 'operations/.x' }],
   ];
   for (const [schema, input] of accepted) {
     assert.equal(matchesSchema(schema, input), true, JSON.stringify(input));
@@ -326,6 +330,12 @@ test('the published input schema accepts exactly what the module accepts', async
     [enable, { ...VALID, extra: true }],
     [op, { operation_name: 'ops/abc' }],
     [op, { operation_name: '' }],
+    // Witness item 4 of the 2026-09-20 connector audit, found by hand in this build and
+    // then by machine. The published pattern admitted both and the module refused them,
+    // so the schema said one thing and the code did another. It now excludes exactly the
+    // two relative segments, and `operations/...` is still accepted.
+    [op, { operation_name: 'operations/.' }],
+    [op, { operation_name: 'operations/..' }],
   ];
   for (const [schema, input] of refused) {
     assert.equal(matchesSchema(schema, input), false, JSON.stringify(input));

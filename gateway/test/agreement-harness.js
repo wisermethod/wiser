@@ -24,6 +24,20 @@
  * Required-field deletion, nested and array-item mutation, fractional values for integer
  * fields, anything a module enforces after its first transport call, and pattern space beyond
  * the exemplars below. Stated so a pass is not mistaken for a proof.
+ *
+ * Three more, each named rather than left to be discovered:
+ *
+ * - **A `oneOf` or `anyOf` whose branches narrow a field the top level requires.**
+ *   `bing research_keywords` is the one shipped instance. Its conditional requirement is
+ *   published and the sampler reads it, so direction A covers it; the composition
+ *   mutation skips it, because deleting the branch fields would delete a required field
+ *   and measure something else.
+ * - **The URL patterns are wider than their modules by design.** `^[Hh][Tt][Tt][Pp][Ss]?://`
+ *   publishes the scheme, which is the part a schema can carry; the module parses the
+ *   value with `new URL()`. A value the pattern admits and the parser rejects is a
+ *   residual no schema change can close, so no adversarial exemplar probes for it.
+ * - **`vercel deployments.upload_file` requires `path` to name a readable file.** That is
+ *   filesystem state. Its baseline row and its fixture are permanent.
  */
 import { readFileSync, readdirSync, existsSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -51,14 +65,27 @@ const PATTERN_OK = {
   '^[^\\s/]+$': 'translate.googleapis.com',
   '^[A-Za-z]{2,8}(-[A-Za-z]{4})?(-([A-Za-z]{2}|[0-9]{3}))?(-([A-Za-z0-9]{5,8}|[0-9][A-Za-z0-9]{3}))*$': 'en-US',
   '^[0-9]+$': '12345',
-  '^operations/[^/]+$': 'operations/abc123',
+  '^operations/(?!\\.{1,2}$)[^/]+$': 'operations/abc123',
   '^[^/]+$': 'abc123',
   '^[A-Za-z0-9+/_-]+={0,2}$': 'abcd',
   '^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$': 'audit-key',
   '^[Hh][Tt][Tt][Pp][Ss]://': 'https://example.com/x',
+  // `bing`, `google` and `google-apis` parse a URL with `new URL()` and check the
+  // protocol, which no regular expression expresses. What they publish is the scheme,
+  // which is the part a schema can carry, and each module goes on enforcing
+  // parseability itself. **So these two patterns are wider than their modules by
+  // design**, and a value like `https://` satisfies the pattern and is still refused.
+  // That residual is named here rather than probed: an adversarial exemplar for it
+  // would report a divergence that no schema change can close.
+  '^[Hh][Tt][Tt][Pp][Ss]?://': 'https://example.com/x',
+  '^([Hh][Tt][Tt][Pp][Ss]?://|[Ss][Cc]-[Dd][Oo][Mm][Aa][Ii][Nn]:)': 'https://example.com/x',
 };
 const PATTERN_ADVERSARIAL = {
-  '^operations/[^/]+$': ['operations/.', 'operations/..'],
+  // The tightened pattern excludes exactly the two relative segments
+  // `google-cloud/index.js` refuses, so these two probe the boundary from the other
+  // side: both satisfy the pattern, both are accepted, and a tightening that overshot
+  // would show up here as a divergence rather than as a pass.
+  '^operations/(?!\\.{1,2}$)[^/]+$': ['operations/...', 'operations/.x'],
   '^[^/]+$': ['.', '..', ' '],
   '^[^\\s/]+$': ['.', '..', '\u001b'],
   '\\S': ['  x  ', '\u0000x'],
@@ -88,28 +115,6 @@ let FIXTURE_FILE = '';
  */
 const URL_OK = 'https://example.com/';
 const FIXTURES = {
-  'bing:webmaster.search_performance': { site_url: URL_OK },
-  'bing:webmaster.query_performance': { site_url: URL_OK },
-  'bing:webmaster.page_performance': { site_url: URL_OK, page_url: URL_OK },
-  'bing:webmaster.crawl_diagnostics': { site_url: URL_OK },
-  'bing:webmaster.inspect_url': { site_url: URL_OK, url: URL_OK },
-  'bing:webmaster.feeds': { site_url: URL_OK },
-  'bing:webmaster.inbound_links': { site_url: URL_OK },
-  'bing:webmaster.research_keywords': { start_date: '2026-09-01', end_date: '2026-09-20' },
-  'google:search-console.sitemaps': { site_url: URL_OK },
-  'google:search-console.inspect': { site_url: URL_OK, inspection_url: URL_OK + 'a' },
-  'google:search-console.get_sitemap': { site_url: URL_OK, feedpath: URL_OK + 's.xml' },
-  'google-apis:insights.run': { url: URL_OK },
-  'google-apis:translate.text': { target: 'en' },
-  'google-apis:voice.synthesize': { language_code: 'en-US' },
-  'dataforseo:research.serp': { location_code: 2840, language_code: 'en' },
-  'dataforseo:research.keyword_ideas': { location_code: 2840, language_code: 'en' },
-  'dataforseo:research.related_keywords': { location_code: 2840, language_code: 'en' },
-  'dataforseo:research.keyword_difficulty': { location_code: 2840, language_code: 'en' },
-  'dataforseo:research.ranked_keywords': { location_code: 2840, language_code: 'en' },
-  'dataforseo:research.competitors': { location_code: 2840, language_code: 'en' },
-  'google-vision:images.detect_faces': { image_uri: URL_OK + 'a.jpg' },
-  'vercel:deployments.create': { git_source: { type: 'github', repoId: 1, ref: 'main' } },
   // Resolved at call time, because FIXTURE_FILE is created per run rather than at import.
   'vercel:deployments.upload_file': () => ({ path: FIXTURE_FILE }),
 };
@@ -173,7 +178,7 @@ function requiredFromComposition(schema) {
     const branches = schema[key];
     if (!Array.isArray(branches) || !branches.length) continue;
     const take = key === 'allOf' ? branches : [branches[0]];
-    for (const b of take) for (const r of b?.required ?? []) extra.push(r);
+    for (const b of take) for (const r of b?.required ?? []) extra.push([r, b?.properties?.[r]]);
   }
   return extra;
 }
@@ -181,8 +186,14 @@ function requiredFromComposition(schema) {
 function validInstance(schema) {
   const out = {};
   const props = schema.properties ?? {};
-  for (const r of [...(schema.required ?? []), ...requiredFromComposition(schema)]) {
-    out[r] = sample(props[r] ?? { type: 'string' });
+  for (const r of schema.required ?? []) out[r] = sample(props[r] ?? { type: 'string' });
+  // A branch may narrow a field the top level also declares, and the branch's own
+  // declaration is the one to sample from. `bing research_keywords` requires its two
+  // dates only when `report` is `impressions` or `history`; sampling `report` from the
+  // top-level enum can produce `related`, which is the value that forbids them.
+  for (const [r, branchSchema] of requiredFromComposition(schema)) {
+    const declared = props[r] ?? { type: 'string' };
+    out[r] = sample(branchSchema ? { ...declared, ...branchSchema } : declared);
   }
   return out;
 }
@@ -210,6 +221,25 @@ function unmodelledKeyword(schema) {
   return null;
 }
 
+/**
+ * Whether one branch of a `oneOf` or `anyOf` accepts this instance.
+ *
+ * **It reads the branch's declared properties, not only its `required`.** A branch may
+ * narrow a field the top level also declares: `bing research_keywords` requires the two
+ * dates only when `report` is `impressions` or `history`, and names those values in the
+ * branch. Counting `required` alone made both branches of that schema look satisfied and
+ * reported the action as failing its own schema.
+ */
+function branchSatisfied(branch, instance) {
+  if (!branch || typeof branch !== 'object') return false;
+  for (const r of branch.required ?? []) if (!Object.hasOwn(instance, r)) return false;
+  for (const [name, d] of Object.entries(branch.properties ?? {})) {
+    if (!Object.hasOwn(instance, name)) continue;
+    if (propertyViolation(name, d, instance[name])) return false;
+  }
+  return true;
+}
+
 function schemaViolation(schema, instance) {
   const unmodelled = unmodelledKeyword(schema);
   if (unmodelled) return `unmodelled:${unmodelled}`;
@@ -219,7 +249,7 @@ function schemaViolation(schema, instance) {
   for (const key of ['oneOf', 'anyOf']) {
     const branches = schema[key];
     if (!Array.isArray(branches) || !branches.length) continue;
-    const satisfied = branches.filter((b) => (b?.required ?? []).every((r) => Object.hasOwn(instance, r)));
+    const satisfied = branches.filter((b) => branchSatisfied(b, instance));
     if (key === 'oneOf' && satisfied.length !== 1) return `oneOf:${satisfied.length}`;
     if (key === 'anyOf' && satisfied.length === 0) return 'anyOf:0';
   }
@@ -230,6 +260,19 @@ function schemaViolation(schema, instance) {
   for (const [name, value] of Object.entries(instance)) {
     const d = schema.properties?.[name];
     if (!d) continue;
+    const bad = propertyViolation(name, d, value);
+    if (bad) return bad;
+  }
+  return null;
+}
+
+/**
+ * One declared property checked against its own declaration. Split out of
+ * `schemaViolation` so a `oneOf` branch is judged by the same rules as the top level.
+ */
+function propertyViolation(name, d, value) {
+  {
+    if (!d || typeof d !== 'object') return null;
     if (d.type === 'string' && typeof value !== 'string') return `type:${name}`;
     if (d.type === 'integer' && !Number.isInteger(value)) return `type:${name}`;
     if (d.type === 'array' && !Array.isArray(value)) return `type:${name}`;
@@ -383,6 +426,39 @@ async function collect() {
         if (closed && rx.kind === 'reached') found.add(`C ${where} undeclared-key-accepted`);
         if (!closed && rx.kind === 'refused') found.add(`D ${where} ${rx.field}`);
         if (rx.kind === 'threw') found.add(`G ${where} threw-on-undeclared-key`);
+
+        // B, composition. `oneOf` and `anyOf` are how this family publishes a
+        // conditional requirement, and until 2026-09-20 nothing measured whether the
+        // module applied one. `src/input-schema.js` deliberately does not read
+        // composition, so the module is the enforcer and this is what proves it: supply
+        // none of the fields the branches choose between, and for `oneOf` supply all of
+        // them, and the module must refuse both.
+        //
+        // **Only the shape where the branches choose between fields the top level does
+        // not require.** `bing research_keywords` narrows `report`, which the top level
+        // requires, so "none of them" would delete a required field and measure the
+        // wrong thing. It is skipped rather than measured wrongly, and is named in the
+        // coverage list at the head of this file.
+        for (const key of ['oneOf', 'anyOf']) {
+          const branches = schema[key];
+          if (!Array.isArray(branches) || branches.length < 2) continue;
+          const named = [...new Set(branches.flatMap((b) => b?.required ?? []))];
+          const topLevel = new Set(schema.required ?? []);
+          if (!named.length || named.some((f) => topLevel.has(f))) continue;
+
+          const without = { ...base };
+          for (const f of named) delete without[f];
+          const rn = await call(fn, without, manifest.service, mod, act);
+          if (rn.kind === 'reached') found.add(`B ${where} ${key} none-of-the-branch-fields`);
+          else if (rn.kind === 'threw') found.add(`G ${where} ${key} none-of-the-branch-fields threw`);
+
+          if (key !== 'oneOf') continue;
+          const withAll = { ...base };
+          for (const f of named) withAll[f] = sample(schema.properties?.[f] ?? { type: 'string' });
+          const ra = await call(fn, withAll, manifest.service, mod, act);
+          if (ra.kind === 'reached') found.add(`B ${where} oneOf every-branch-field`);
+          else if (ra.kind === 'threw') found.add(`G ${where} oneOf every-branch-field threw`);
+        }
 
         for (const [pn, ps] of Object.entries(schema.properties ?? {})) {
           if (!ps || typeof ps !== 'object') continue;

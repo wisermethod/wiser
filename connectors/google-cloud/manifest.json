@@ -201,7 +201,7 @@
               "operation_name": {
                 "type": "string",
                 "minLength": 1,
-                "pattern": "^operations/[^/]+$"
+                "pattern": "^operations/(?!\\.{1,2}$)[^/]+$"
               }
             },
             "required": [
@@ -423,7 +423,7 @@
               "operation_name": {
                 "type": "string",
                 "minLength": 1,
-                "pattern": "^operations/[^/]+$"
+                "pattern": "^operations/(?!\\.{1,2}$)[^/]+$"
               }
             },
             "required": [

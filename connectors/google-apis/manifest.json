@@ -22,7 +22,8 @@
             "properties": {
               "url": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://"
               },
               "strategy": {
                 "type": "string",
@@ -88,7 +89,8 @@
                 "maxItems": 128
               },
               "target": {
-                "type": "string"
+                "type": "string",
+                "pattern": "^[A-Za-z]{2,8}(-[A-Za-z]{4})?(-([A-Za-z]{2}|[0-9]{3}))?(-([A-Za-z0-9]{5,8}|[0-9][A-Za-z0-9]{3}))*$"
               },
               "source": {
                 "type": "string"
@@ -139,7 +141,8 @@
                 "minLength": 1
               },
               "language_code": {
-                "type": "string"
+                "type": "string",
+                "pattern": "^[A-Za-z]{2,8}(-[A-Za-z]{4})?(-([A-Za-z]{2}|[0-9]{3}))?(-([A-Za-z0-9]{5,8}|[0-9][A-Za-z0-9]{3}))*$"
               },
               "voice_name": {
                 "type": "string",

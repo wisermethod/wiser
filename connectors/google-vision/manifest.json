@@ -28,7 +28,19 @@
               }
             },
             "required": [],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "required": [
+                  "image_base64"
+                ]
+              },
+              {
+                "required": [
+                  "image_uri"
+                ]
+              }
+            ]
           }
         }
       },

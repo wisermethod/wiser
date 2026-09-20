@@ -31,7 +31,11 @@ function extraKey(input, allowed) {
 
 function isNonEmptyString(value, max) {
   if (typeof value !== 'string' || !value.trim()) return false;
-  if (max !== undefined && value.length > max) return false;
+  // Code points, not UTF-16 code units, because that is what the published maxLength
+  // means. `standards/script-contract.md` Published input schema states the rule; this
+  // counted `value.length` until 2026-09-20 and refused a 351-emoji keyword the
+  // manifest's maxLength of 700 admits.
+  if (max !== undefined && [...value].length > max) return false;
   return true;
 }
 

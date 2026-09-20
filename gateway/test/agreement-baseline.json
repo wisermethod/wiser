@@ -1,34 +1,8 @@
 {
   "note": "Known manifest-to-module divergences. This file may only shrink. See test/agreement.test.js.",
   "measured": "2026-09-20",
-  "count": 27,
+  "count": 1,
   "divergences": [
-    "A bing webmaster.crawl_diagnostics site_url",
-    "A bing webmaster.feeds site_url",
-    "A bing webmaster.inbound_links site_url",
-    "A bing webmaster.inspect_url site_url",
-    "A bing webmaster.page_performance site_url",
-    "A bing webmaster.query_performance site_url",
-    "A bing webmaster.research_keywords start_date",
-    "A bing webmaster.search_performance site_url",
-    "A dataforseo research.competitors location_code",
-    "A dataforseo research.keyword_difficulty location_code",
-    "A dataforseo research.keyword_ideas location_code",
-    "A dataforseo research.ranked_keywords location_code",
-    "A dataforseo research.related_keywords location_code",
-    "A dataforseo research.serp location_code",
-    "A google search-console.get_sitemap site_url",
-    "A google search-console.inspect site_url",
-    "A google search-console.sitemaps site_url",
-    "A google-apis insights.run url",
-    "A google-apis translate.text target",
-    "A google-apis voice.synthesize language_code",
-    "A google-vision images.detect_faces image_base64 or image_uri",
-    "A vercel deployments.create files",
-    "A vercel deployments.upload_file path",
-    "E google-cloud keys.get_operation operation_name \"operations/.\"",
-    "E google-cloud keys.get_operation operation_name \"operations/..\"",
-    "E google-cloud services.get_operation operation_name \"operations/.\"",
-    "E google-cloud services.get_operation operation_name \"operations/..\""
+    "A vercel deployments.upload_file path"
   ]
 }
