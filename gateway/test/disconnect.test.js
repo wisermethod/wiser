@@ -850,3 +850,201 @@ test('a declared sibling is covered by its manifest, not by the stored provider 
   assert.equal(r.status, 'disconnected');
   assert.deepEqual(rows(store), []);
 });
+
+// -------------------- connect_status on a record that outlived its connector
+
+test('an orphaned catalog row reading ACTIVE is refreshed to ABSENT and is not connected', async () => {
+  // The measured pagespeed/insights case, 2026-09-20: teardown returned
+  // teardown_incomplete / absent_but_teardown_failed, the row survived, and
+  // connect_status refused on undeclared so the row kept reading ACTIVE.
+  const { gw, store, fake, home } = await createTestGateway();
+  fake.auth.setStatus('ca_orphan_fixture', 'ABSENT');
+  orphanedRow(store);
+  assert.equal(gw.lookupModule('pagespeed', 'insights'), null, 'the fixture must be undeclared');
+  assert.equal(store.getConnection({ service: 'pagespeed', module: 'insights' }).status, 'ACTIVE');
+
+  const r = await gw.connectStatus({ service: 'pagespeed', module: 'insights' });
+  assert.equal(r.status, 'needs_connector');
+  assert.equal(r.reason, 'orphaned_record');
+  assert.equal(r.provider_status, 'ABSENT');
+  assert.equal(r.service, 'pagespeed');
+  assert.equal(r.module, 'insights');
+  const row = store.getConnection({ service: 'pagespeed', module: 'insights' });
+  assert.equal(row.status, 'ABSENT');
+  assert.equal(row.id, '0db63f37-1cf8-4ec4-b858-aca64eb51bc4');
+  assert.equal(row.privilege, 'read');
+  assert.equal(row.provider, 'catalog');
+  assert.equal(row.provider_account_id, 'ca_orphan_fixture');
+  assert.equal(row.created, '2026-09-19T23:41:08.492Z');
+
+  const audit = readFileSync(`${home}/audit.jsonl`, 'utf8').trim().split('\n').map(JSON.parse);
+  const last = audit.at(-1);
+  assert.equal(last.op, 'connectStatus');
+  assert.equal(last.status, 'needs_connector');
+  assert.equal(last.privilege, 'read');
+});
+
+test('an orphaned catalog row whose provider still says ACTIVE is still not connected', async () => {
+  const { gw, store, fake } = await createTestGateway();
+  fake.auth.setStatus('ca_orphan_fixture', 'ACTIVE');
+  orphanedRow(store, { privilege: 'write' });
+  const r = await gw.connectStatus({ service: 'pagespeed', module: 'insights' });
+  assert.notEqual(r.status, 'connected');
+  assert.equal(r.status, 'needs_connector');
+  assert.equal(r.reason, 'orphaned_record');
+  assert.equal(r.provider_status, 'ACTIVE');
+  const row = store.getConnection({ service: 'pagespeed', module: 'insights' });
+  assert.equal(row.status, 'ACTIVE');
+  assert.equal(row.privilege, 'write');
+});
+
+test('an orphan whose provider answers nothing readable is not reported as refreshed', async (t) => {
+  // Adversarial review round two: `orphaned_record` promises in three documents that
+  // the row now matches the provider, and this is the one orphan path that cannot
+  // deliver that. Returning `orphaned_record` here told a reader the row had been
+  // checked when nobody had successfully asked. It gets its own reason instead.
+  const { gw, store, fake } = await createTestGateway();
+  orphanedRow(store);
+  // Not an error object, which would be vendor_error: an answer with no status in it.
+  t.mock.method(fake.auth, 'status', async () => ({}));
+  // Captured rather than compared against the fixture literal, because putConnection
+  // stamps `updated` with the time it ran, so the fixture never holds the value it
+  // was given. The first version of this test asserted that literal and failed, which
+  // is the test working: an assertion about a fixture has to be true of the fixture.
+  const before = store.getConnection({ service: 'pagespeed', module: 'insights' });
+  assert.equal(before.status, 'ACTIVE', 'the row starts stale and ACTIVE');
+
+  const r = await gw.connectStatus({ service: 'pagespeed', module: 'insights' });
+  assert.equal(r.status, 'needs_connector');
+  assert.equal(r.reason, 'orphaned_status_unreadable');
+  assert.equal(r.provider_status, undefined, 'there is no provider status to carry');
+
+  // The row is untouched, which is the whole point: it is as stale as it was.
+  const after = store.getConnection({ service: 'pagespeed', module: 'insights' });
+  assert.deepEqual(after, before, 'nothing was written, not even a new updated stamp');
+});
+
+test('an orphaned record carrying no usable privilege is refused by connect_status, and the vendor is never called', async () => {
+  for (const privilege of ['ADMIN', '', null, undefined]) {
+    const { gw, store, fake } = await createTestGateway();
+    fake.auth.setStatus('ca_orphan_fixture', 'ABSENT');
+    let statuses = 0;
+    const original = fake.auth.status.bind(fake.auth);
+    fake.auth.status = async (a) => { statuses += 1; return original(a); };
+    orphanedRow(store, { privilege });
+    const r = await gw.connectStatus({ service: 'pagespeed', module: 'insights' });
+    assert.equal(r.status, 'denied', `privilege ${JSON.stringify(privilege)} was accepted`);
+    assert.equal(r.reason, 'orphaned_record_without_privilege');
+    assert.equal(statuses, 0, 'the vendor was called for an unauthorizable row');
+    assert.equal(store.getConnection({ service: 'pagespeed', module: 'insights' }).status, 'ACTIVE',
+      'a denied status check rewrote the row');
+  }
+});
+
+test('an orphaned record naming an unknown provider is refused by connect_status rather than sent to the catalog', async () => {
+  for (const provider of ['catalogue', '', null, undefined]) {
+    const { gw, store, fake } = await createTestGateway();
+    fake.auth.setStatus('ca_orphan_fixture', 'ABSENT');
+    let statuses = 0;
+    const original = fake.auth.status.bind(fake.auth);
+    fake.auth.status = async (a) => { statuses += 1; return original(a); };
+    orphanedRow(store, { provider });
+    const r = await gw.connectStatus({ service: 'pagespeed', module: 'insights' });
+    assert.equal(r.status, 'denied', `provider ${JSON.stringify(provider)} was accepted`);
+    assert.equal(r.reason, 'orphaned_record_without_provider');
+    assert.equal(statuses, 0, 'the vendor was called for a row naming an unknown provider');
+    assert.equal(store.getConnection({ service: 'pagespeed', module: 'insights' }).status, 'ACTIVE');
+  }
+});
+
+test('a local-file orphan is refused with its own reason, and no status call is made', async () => {
+  let statuses = 0;
+  const localFileProvider = {
+    name: 'local-file',
+    isConfigured: () => true,
+    setupText: () => 'fixture',
+    async status() { statuses += 1; return 'INACTIVE'; },
+    async unwrap() { return { supported: false }; },
+    async revoke() { return { supported: false, how: 'delete the file', steps: [] }; },
+  };
+  const { gw, store } = await createTestGateway({ localFileProvider });
+  orphanedRow(store, { provider: 'local-file' });
+  const r = await gw.connectStatus({ service: 'pagespeed', module: 'insights' });
+  assert.equal(r.status, 'needs_connector');
+  assert.equal(r.reason, 'orphaned_local_file_record');
+  assert.equal(statuses, 0, 'local-file status was called without file and variables');
+  assert.equal(store.getConnection({ service: 'pagespeed', module: 'insights' }).status, 'ACTIVE',
+    'a refused local-file guess rewrote the row');
+});
+
+test('undeclared with no row at all is still needs_connector with reason undeclared', async () => {
+  const { gw, fake } = await createTestGateway();
+  let statuses = 0;
+  const original = fake.auth.status.bind(fake.auth);
+  fake.auth.status = async (a) => { statuses += 1; return original(a); };
+  const r = await gw.connectStatus({ service: 'pagespeed', module: 'insights' });
+  assert.equal(r.status, 'needs_connector');
+  assert.equal(r.reason, 'undeclared');
+  assert.equal(statuses, 0);
+});
+
+test('undeclared with a row carrying no provider_account_id is not an orphan', async () => {
+  const { gw, store, fake } = await createTestGateway();
+  let statuses = 0;
+  const original = fake.auth.status.bind(fake.auth);
+  fake.auth.status = async (a) => { statuses += 1; return original(a); };
+  orphanedRow(store, { provider_account_id: null });
+  const r = await gw.connectStatus({ service: 'pagespeed', module: 'insights' });
+  assert.equal(r.status, 'needs_connector');
+  assert.equal(r.reason, 'undeclared');
+  assert.equal(statuses, 0);
+  assert.equal(store.getConnection({ service: 'pagespeed', module: 'insights' }).status, 'ACTIVE');
+});
+
+test('an orphan status answer that overtakes a teardown does not resurrect the row', async (t) => {
+  const { gw, store, fake } = await createTestGateway();
+  fake.auth.setStatus('ca_orphan_fixture', 'ABSENT');
+  orphanedRow(store);
+  let removeDuringCheck = null;
+  t.mock.method(fake.auth, 'status', async () => {
+    if (removeDuringCheck) { removeDuringCheck(); removeDuringCheck = null; }
+    return 'ABSENT';
+  });
+  removeDuringCheck = () => { store.deleteConnection({ service: 'pagespeed', module: 'insights' }); };
+  const r = await gw.connectStatus({ service: 'pagespeed', module: 'insights' });
+  assert.equal(r.status, 'needs_connector');
+  assert.equal(r.reason, 'removed_while_checking');
+  assert.equal(store.getConnection({ service: 'pagespeed', module: 'insights' }), null,
+    'a removed orphan was written back');
+});
+
+test('an orphan status answer that overtakes a rebound does not overwrite the new binding', async (t) => {
+  const { gw, store, fake } = await createTestGateway();
+  fake.auth.setStatus('ca_orphan_fixture', 'ABSENT');
+  orphanedRow(store);
+  let rebindDuringCheck = null;
+  t.mock.method(fake.auth, 'status', async () => {
+    if (rebindDuringCheck) { rebindDuringCheck(); rebindDuringCheck = null; }
+    return 'ABSENT';
+  });
+  rebindDuringCheck = () => {
+    const row = store.getConnection({ service: 'pagespeed', module: 'insights' });
+    store.putConnection({ ...row, provider_account_id: 'ca_someone_else' });
+  };
+  const r = await gw.connectStatus({ service: 'pagespeed', module: 'insights' });
+  assert.equal(r.status, 'needs_connector');
+  assert.equal(r.reason, 'rebound_while_checking');
+  const row = store.getConnection({ service: 'pagespeed', module: 'insights' });
+  assert.equal(row.provider_account_id, 'ca_someone_else');
+  assert.equal(row.status, 'ACTIVE', 'the rebound row was overwritten with the old reading');
+});
+
+test('a provider error on an orphan is not a grant status and leaves the row alone', async () => {
+  const { gw, store, fake } = await createTestGateway();
+  fake.auth.setStatus('ca_orphan_fixture', 'ACTIVE');
+  orphanedRow(store);
+  fake.auth.status = async () => ({ status: 503, error: { code: 'vendor_error', endpoint: '/x', method: 'GET' } });
+  const r = await gw.connectStatus({ service: 'pagespeed', module: 'insights' });
+  assert.equal(r.status, 'vendor_error');
+  assert.equal(store.getConnection({ service: 'pagespeed', module: 'insights' }).status, 'ACTIVE');
+});

@@ -53,7 +53,7 @@ const TOOLS = [
   },
   {
     name: 'connect_status',
-    description: 'Ask the provider whether a grant is active and, if it is, write the connection record (metadata only).',
+    description: 'Ask the provider what a grant\'s status is and write it to the connection record (metadata only). Answers connected only when the provider says active and a connector still declares the module; a row whose connector was retired is answered needs_connector, refreshed when the provider gave a status to refresh it with.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -818,11 +818,58 @@ export class ConnectionGateway {
         return statusObject(STATUS.NEEDS_CONNECTOR, { service: service ?? null, module: module ?? null });
       }
       const found = this.lookupModule(service, module);
-      if (!found) {
-        line.path = 'none';
-        return statusObject(STATUS.NEEDS_CONNECTOR, { service, module });
+      const stored = this.store.getConnection({ service, module });
+
+      // **A record can outlive whatever made it, and that is when its status most
+      // needs refreshing.** Retiring a connector leaves its row here reading ACTIVE
+      // against nothing that declares it. Refusing on `undeclared` meant the row
+      // could never be written, so it kept lying. Found 2026-09-20 by running a real
+      // teardown against the real row `pagespeed/insights`: the teardown returned
+      // `absent_but_teardown_failed`, the row survived, and `connect_status` could
+      // not correct it. `disconnect` was taught this at e84467a; this is the same
+      // shape on the status path.
+      //
+      // Any row carrying an account qualifies, not only an ACTIVE one: a stale row
+      // is exactly what needs refreshing. **A store row is not a manifest.** The
+      // vocabularies come from `manifest.js`, not restated: a second copy is how a
+      // list drifts. Policy matching is strict equality, so `"ADMIN"` or `""`
+      // matches no privilege rule; `connectStatus` evaluates with `privilege: 'read'`
+      // regardless, so an unvalidated stored privilege would not even be the value
+      // policy saw. An unrecognised provider is worse: `providerFor` sends
+      // everything that is not exactly `local-file` to the catalog adapter, so a row
+      // naming nothing would query the wrong vendor about an account that is not
+      // theirs.
+      const orphaned = !found && stored?.provider_account_id ? {
+        auth: { privilege: stored.privilege ?? null, provider: stored.provider ?? null },
+      } : null;
+      if (orphaned && !PRIVILEGES.has(orphaned.auth.privilege)) {
+        return statusObject(STATUS.DENIED, {
+          rule: { effect: 'deny', reason: 'unknown_privilege' },
+          service,
+          module,
+          reason: 'orphaned_record_without_privilege',
+          privilege: typeof orphaned.auth.privilege === 'string' ? orphaned.auth.privilege : null,
+        });
       }
-      line.privilege = found.auth.privilege;
+      if (orphaned && !AUTH_PROVIDERS.has(orphaned.auth.provider)) {
+        return statusObject(STATUS.DENIED, {
+          rule: { effect: 'deny', reason: 'unknown_provider' },
+          service,
+          module,
+          reason: 'orphaned_record_without_provider',
+          provider: typeof orphaned.auth.provider === 'string' ? orphaned.auth.provider : null,
+        });
+      }
+      if (!found && !orphaned) {
+        line.path = 'none';
+        return statusObject(STATUS.NEEDS_CONNECTOR, { service, module, reason: 'undeclared' });
+      }
+      const target = found || orphaned;
+
+      // Policy still runs, and still with `privilege: 'read'` / `op: 'connectStatus'`
+      // regardless of the module's own privilege. The audit line takes privilege from
+      // the validated stored value when there is no manifest to read it from.
+      line.privilege = target.auth.privilege;
       const decision = evaluate(this.policy, {
         harness: this.harness,
         role: this.role,
@@ -835,20 +882,35 @@ export class ConnectionGateway {
         return statusObject(STATUS.DENIED, { rule: decision.rule });
       }
 
-      if (this.needsProviderCredential(found.auth)) {
+      // `local-file` status({ service, file, variables }) needs `file` and
+      // `variables`, which live in the manifest the orphan no longer has. With them
+      // undefined it returns INACTIVE because no path resolved, which is a guess
+      // about a file we never located, dressed as an answer. `needs_connector` is
+      // the refusal: `denied` is for authorization, and this is inability to
+      // interpret a credential whose path is gone. Do not guess.
+      if (orphaned && orphaned.auth.provider === 'local-file') {
+        line.path = 'none';
+        return statusObject(STATUS.NEEDS_CONNECTOR, {
+          service,
+          module,
+          reason: 'orphaned_local_file_record',
+        });
+      }
+
+      if (this.needsProviderCredential(target.auth)) {
         return this.needsProviderResult();
       }
 
-      const provider = this.providerFor(found.auth);
-      const record = this.store.getConnection({ service, module });
+      const provider = this.providerFor(target.auth);
+      const record = stored;
       line.provider_account_id = record?.provider_account_id ?? null;
       line.path = 'connector';
 
       const statusArgs = {
         providerAccountId: record?.provider_account_id ?? null,
         service,
-        file: found.auth.file,
-        variables: found.auth.variables,
+        file: found?.auth?.file,
+        variables: found?.auth?.variables,
       };
       if (!provider || typeof provider.status !== 'function') {
         return this.needsProviderResult();
@@ -861,8 +923,65 @@ export class ConnectionGateway {
       }
       const mapped = typeof raw === 'string' ? raw : raw?.status;
       if (!mapped) {
+        if (orphaned) {
+          // **A distinct reason, because `orphaned_record` promises a refresh and this
+          // is the one orphan path that cannot deliver one.** The provider answered
+          // nothing a status can be read from, so there is no word to write and the row
+          // keeps whatever it held. Returning `orphaned_record` here would have told
+          // three documents' worth of readers that the row now matches the provider
+          // when nobody had asked the provider successfully. Found by adversarial
+          // review round two, which is where the first fix's own description broke.
+          return statusObject(STATUS.NEEDS_CONNECTOR, {
+            service, module, reason: 'orphaned_status_unreadable',
+          });
+        }
         return statusObject(STATUS.NEEDS_CONNECT, { service, module, privilege: found.auth.privilege });
       }
+
+      if (orphaned) {
+        // Re-read before writing, exactly as both declared branches do.
+        // `disconnect` can remove this row while the provider call is in flight,
+        // which is how an orphan gets taken down at all, and a status answer that
+        // overtakes a teardown must not recreate it.
+        //
+        // Rebound: `startConnect` refuses `!found` at the lookup and hydration
+        // writes only declared modules, so no current gateway path rebinds an
+        // undeclared service. The store is still shared, and this is the check
+        // the declared path already paid for, not a new claim that rebound cannot
+        // happen.
+        const current = this.store.getConnection({ service, module });
+        const accountNow = current?.provider_account_id ?? null;
+        const accountThen = record.provider_account_id ?? null;
+        if (!current) {
+          return statusObject(STATUS.NEEDS_CONNECTOR, { service, module, reason: 'removed_while_checking' });
+        }
+        if (accountNow !== accountThen) {
+          return statusObject(STATUS.NEEDS_CONNECTOR, { service, module, reason: 'rebound_while_checking' });
+        }
+        this.store.putConnection({
+          id: record.id,
+          service,
+          module,
+          privilege: record.privilege,
+          provider: record.provider,
+          provider_account_id: record.provider_account_id,
+          scopes: record.scopes || [],
+          status: mapped,
+          created: record.created,
+          updated: nowIso(),
+        });
+        // Never answer `connected` for an orphan. `execute` still refuses with
+        // `needs_connector`; telling a person "connected" sends them to use a
+        // thing that cannot be used. `needs_connector` is already truthful;
+        // a new STATUS value is not added.
+        return statusObject(STATUS.NEEDS_CONNECTOR, {
+          service,
+          module,
+          reason: 'orphaned_record',
+          provider_status: mapped,
+        });
+      }
+
       if (mapped === 'ACTIVE') {
         // Re-read before writing back. The row was captured before the provider round
         // trip, and since 2026-09-20 something can remove it while that call is in
