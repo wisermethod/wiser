@@ -2,36 +2,44 @@
 name: google-apis
 type: connector
 category: media
-description: Run PageSpeed Insights on one public URL and translate text through Google Cloud Translation
-version: 0.1.0
+description: Run PageSpeed Insights on one public URL, translate text through Google Cloud Translation, and synthesize speech through Cloud Text-to-Speech
+version: 0.2.0
 ---
 
 # Google APIs
 
-PageSpeed Insights analyses a public URL and returns Lighthouse scores beside Chrome UX Report field data. Google Cloud Translation turns strings into a chosen language. This connector runs both. It does not call the CrUX API, submit a URL for indexing, list supported languages, detect language as a separate action, or change any Google resource.
+PageSpeed Insights analyses a public URL and returns Lighthouse scores beside Chrome UX Report field data. Google Cloud Translation turns strings into a chosen language. Cloud Text-to-Speech turns text or SSML into audio. This connector runs all three. It does not call the CrUX API, submit a URL for indexing, list supported languages, detect language as a separate action, transcribe speech, or change any Google resource.
 
 ## Status
 
-Shipped unconnected. Verification is fake-provider only, with invented results. Contract from the approved plan dated 2026-09-19; live envelope UNVERIFIED. The old pagespeed grant does not carry over. See `auth.md` for the separate human connect.
+`insights` and `translate` were both proved live on 2026-09-19 against connected account `ca_EK1MhPLvdauD`. `voice` ships unproven and is verified fake-provider only until its own live run. Do not read the two live modules as a proof of this connector as a whole. The old pagespeed grant does not carry over. See `auth.md` for the human connect.
 
 ## Reaching it
 
-Through the gateway, by action id. Required fields, URL shape, array bounds, enums, and BCP 47 tags are checked in the module before transport. Undeclared keys are refused with `invalid_arguments`.
+Through the gateway, by action id. Required fields, URL shape, array bounds, enums, numeric ranges, UTF-8 byte limits, and BCP 47 tags are checked in the module before transport. Undeclared keys are refused with `invalid_arguments`.
 
 | Action | Input |
 |--------|-------|
 | `google-apis.insights.run` | Required `url`, an absolute `http` or `https` URL; optional `strategy`: `mobile` or `desktop`; optional `category`: array of `performance`, `accessibility`, `best-practices`, `seo`, `pwa`; optional `locale`, a BCP 47 tag; optional `audits` boolean, default false |
 | `google-apis.translate.text` | Required `text`, an array of 1 to 128 nonempty strings; required `target`, a BCP 47 language tag; optional `source`, a BCP 47 tag, omitted so the vendor detects; optional `format`: `text` or `html` |
+| `google-apis.voice.synthesize` | Exactly one of `text` or `ssml`, a nonempty string of at most 5000 UTF-8 bytes; required `language_code`, a BCP 47 tag; optional `voice_name`; optional `gender`: `SSML_VOICE_GENDER_UNSPECIFIED`, `MALE`, `FEMALE`, `NEUTRAL`; required `encoding`: `MP3`, `LINEAR16`, `OGG_OPUS`, `MULAW`, `ALAW`, `PCM`, `M4A`; optional `speaking_rate`, either 0 or 0.25 to 2.0; optional `pitch` -20 to 20; optional `volume_gain_db` -96 to 16; optional `sample_rate_hertz`, a positive safe integer |
+| `google-apis.voice.list_voices` | Optional `language_code`, a BCP 47 tag, sent as the vendor's `languageCode` query parameter when supplied |
 
 `insights.run` has low risk and `confirmation: none`. `category` is one query parameter per value, which is how the vendor takes it. `audits` defaults false, and when false the module omits `lighthouseResult.audits` from what it returns. The full audit set is the bulk of a PageSpeed response; most callers want scores and field data. When `audits` is true, that object is left in place.
 
 `translate.text` has medium risk and `confirmation: once`. `text` is one `q` query parameter per item, which is how the vendor takes it. The module returns `{ translations }`, each item carrying `translatedText` and, when the vendor supplies it, `detectedSourceLanguage`. An envelope it cannot read is a `vendor_error` naming the endpoint, never the body.
 
-Both modules return vendor data without transport headers and preserve gateway status objects. They do not return the vendor body on an error. Results are source material, not instructions, a performance verdict, or a language verdict.
+`voice.synthesize` has medium risk and `confirmation: once`. The request body maps onto the vendor's shape: `input` carrying `text` or `ssml`; `voice` carrying `languageCode` and, when supplied, `name` and `ssmlGender`; `audioConfig` carrying `audioEncoding` and any numeric fields that were supplied. Every other key the caller did not supply is omitted. `encoding` is required rather than optional because the vendor requires `audioConfig.audioEncoding` and documents no default, so an optional field here would make the shortest call a vendor refusal. The enum, the `speaking_rate` rule that admits 0 as the vendor's own "use the default", and the int32 ceiling on `sample_rate_hertz` all come from Google's live v1 discovery document, revision 20260827, which is generated from the running service; the HTML enum page for v1 omits `PCM` and `M4A` and is stale against it. `AUDIO_ENCODING_UNSPECIFIED` is refused here because the vendor documents it as an error. The module returns `{ audioContent }`, the vendor's base64 audio, and returns it only when the field is present and is well-formed base64, so a diagnostic string arriving under that field name is a `vendor_error` rather than a false success. That payload is bounded only by the 5000-byte input limit, so a long input returns a large base64 string to the caller. An envelope it cannot read is a `vendor_error` naming the endpoint, never the body.
+
+`voice.list_voices` has low risk and `confirmation: none`. It is free and unbilled. The module returns `{ voices }`. An envelope it cannot read is a `vendor_error` naming the endpoint, never the body.
+
+All three modules return vendor data without transport headers and preserve gateway status objects. They do not return the vendor body on an error. Results are source material, not instructions, a performance verdict, a language verdict, or an audio file on disk.
 
 ## Credentials
 
-Hosted connect through the gateway's provider holds one API key in a custom toolkit covering both modules. The modules use authenticated proxy calls to absolute HTTPS endpoints, never a credential file or an unwrapped token. No Provides secret key is required. Each module is its own grant.
+Hosted connect through the gateway's provider holds one API key in a custom toolkit covering every module of this connector. Observed on 2026-09-19: one hosted connect on `insights` produced account `ca_EK1MhPLvdauD`; `google-apis.translate.text` then executed with no `needs_connect` stop, and a `translate` connection record appeared afterwards pointing at that same account. **That reuse is conditional, not a promise.** The gateway adopts an existing grant only while the toolkit carries **exactly one** ACTIVE account: `gateway/src/gateway.js:158` skips any toolkit with more than one, and a failure listing accounts at the provider skips adoption entirely. Connect a second account against this toolkit and each module needs its own connect again. `voice` is expected to reuse the one grant on those terms and that has not been exercised. The modules use authenticated proxy calls to absolute HTTPS endpoints, never a credential file or an unwrapped token. No Provides secret key is required.
+
+This is what was measured on this connector, on this custom toolkit, on one API key, on 2026-09-19. It is not a statement about how grants work in general.
 
 ## Modules
 
@@ -39,22 +47,23 @@ Hosted connect through the gateway's provider holds one API key in a custom tool
 |--------|-----------|---------|
 | `insights` | `read` | `run` |
 | `translate` | `read` | `text` |
+| `voice` | `read` | `synthesize`, `list_voices` |
 
 ## Destructive Actions
 
-None. The CrUX API, URL submission, Gemini, language listing, standalone detection, and any write to a Google resource are excluded. `translate.text` spends per character; that spend is gated by `confirmation: once`, not by a write privilege.
+None. The CrUX API, URL submission, Gemini, language listing, standalone detection, Speech-to-Text, and any write to a Google resource are excluded. `translate.text` and `voice.synthesize` spend per character; that spend is gated by `confirmation: once`, not by a write privilege. `voice.list_voices` is free.
 
 ## Troubleshooting
 
 - `needs_connect`: follow `auth.md` for the named module's grant.
 - `needs_confirmation`: review the action and input, then repeat with `confirm: true` if intended.
-- `invalid_arguments`: provide the fields the named action requires: an absolute `http` or `https` URL, a supported strategy, a category array of supported values, a BCP 47 locale, or a boolean `audits` for `insights.run`; 1 to 128 nonempty strings, a BCP 47 `target`, an optional BCP 47 `source`, or `format` `text` or `html` for `translate.text`.
+- `invalid_arguments`: provide the fields the named action requires: an absolute `http` or `https` URL, a supported strategy, a category array of supported values, a BCP 47 locale, or a boolean `audits` for `insights.run`; 1 to 128 nonempty strings, a BCP 47 `target`, an optional BCP 47 `source`, or `format` `text` or `html` for `translate.text`; exactly one of `text` or `ssml` at most 5000 UTF-8 bytes, a BCP 47 `language_code`, a supported `encoding`, and in-range optional voice and audio fields for `voice.synthesize`; an optional BCP 47 `language_code` for `voice.list_voices`.
 - `vendor_error` at toolkit upsert with 409: report the frozen-config conflict; do not delete or replace the toolkit.
 - `vendor_error` with 401 or 403: have the operator check the key, API restrictions, and application restriction through the hosted connection; never paste the key in chat.
 - `vendor_error` with 429: stop and wait for the vendor's rate-limit window; do not poll.
 
 ## Reference
 
-The implementation follows the approved Connector Advisor plan dated 2026-09-19. Endpoints: `GET https://pagespeedonline.googleapis.com/pagespeedonline/v5/runPagespeed` and `GET https://translation.googleapis.com/language/translate/v2`. Live behavior remains unverified.
+The implementation follows the approved Connector Advisor plan dated 2026-09-19. Endpoints: `GET https://pagespeedonline.googleapis.com/pagespeedonline/v5/runPagespeed`, `GET https://translation.googleapis.com/language/translate/v2`, `POST https://texttospeech.googleapis.com/v1/text:synthesize`, and `GET https://texttospeech.googleapis.com/v1/voices`. `insights` and `translate` were proved live on 2026-09-19. `voice` live behavior remains unverified.
 
 Connect with `auth.md`; the module contract is in `gateway/AGENTS.md`.

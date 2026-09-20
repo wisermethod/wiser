@@ -80,12 +80,12 @@ function isTextList(value) {
   return true;
 }
 
-// Both readers below follow one rule: each recognises exactly one success shape and
+// Each reader below follows one rule: it recognises exactly one success shape and
 // refuses everything else rather than forwarding it. An unreadable envelope may be a
 // vendor error body, and `standards/script-contract.md` Output forbids returning one;
 // a vendor_error names the endpoint and the method and carries no body. Passing the
 // value through instead would both leak that body and report a malformed payload as a
-// success. The two modules answer this the same way on purpose: one hardened reader
+// success. Every module answers this the same way on purpose: one hardened reader
 // beside a passthrough one is the inconsistency a later reader trusts by mistake.
 function readTranslations(payload) {
   const outer = isPlainObject(payload) && Object.hasOwn(payload, 'data') ? payload.data : payload;
@@ -94,6 +94,68 @@ function readTranslations(payload) {
     return { translations: body.translations };
   }
   return { status: 'vendor_error', endpoint: TRANSLATE_ENDPOINT, method: 'GET' };
+}
+
+const SYNTHESIZE_ENDPOINT = 'https://texttospeech.googleapis.com/v1/text:synthesize';
+const VOICES_ENDPOINT = 'https://texttospeech.googleapis.com/v1/voices';
+const INPUT_BYTES = 5000;
+// `SSML_VOICE_GENDER_UNSPECIFIED` means no preference and is a real member, so it is
+// accepted rather than refused; it is equivalent to omitting the field. `NEUTRAL` is
+// a member Google documents as not yet supported, which is the vendor's refusal to
+// make and not this module's.
+const GENDERS = new Set(['SSML_VOICE_GENDER_UNSPECIFIED', 'MALE', 'FEMALE', 'NEUTRAL']);
+
+// Taken from Google's live v1 discovery document, revision 20260827, which is
+// generated from the running service and is why it is the authority here: the HTML
+// enum page for v1 omits `PCM` and `M4A` and is stale against it. An earlier version
+// of this module refused those two on the strength of that page, which would have
+// failed a caller asking for headerless PCM without ever reaching Google.
+// `AUDIO_ENCODING_UNSPECIFIED` is in the enum and is documented as returning an
+// invalid-argument error, so it stays refused locally rather than spent on a round
+// trip that cannot succeed.
+const ENCODINGS = new Set(['MP3', 'LINEAR16', 'OGG_OPUS', 'MULAW', 'ALAW', 'PCM', 'M4A']);
+
+// int32 on the wire. A larger safe integer passes a plain integer check and is then
+// refused by the vendor, which spends a call to learn what this bound already knows.
+const MAX_INT32 = 2147483647;
+
+// Base64 as the vendor emits it for `audioContent`. Standard alphabet, correct
+// padding, and a length that is a multiple of four. This does not establish that the
+// decoded bytes are audio; it establishes that the field is not prose, which is what
+// separates a real payload from a diagnostic string arriving in the right container.
+const BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+const SYNTHESIZE_KEYS = [
+  'text',
+  'ssml',
+  'language_code',
+  'voice_name',
+  'gender',
+  'encoding',
+  'speaking_rate',
+  'pitch',
+  'volume_gain_db',
+  'sample_rate_hertz',
+];
+
+function inRange(value, min, max) {
+  return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max;
+}
+
+function readAudio(payload) {
+  const body = isPlainObject(payload) && Object.hasOwn(payload, 'data') ? payload.data : payload;
+  const audio = isPlainObject(body) ? body.audioContent : undefined;
+  if (typeof audio === 'string' && audio.length > 0 && BASE64.test(audio)) {
+    return { audioContent: audio };
+  }
+  return { status: 'vendor_error', endpoint: SYNTHESIZE_ENDPOINT, method: 'POST' };
+}
+
+function readVoices(payload) {
+  const body = isPlainObject(payload) && Object.hasOwn(payload, 'data') ? payload.data : payload;
+  if (isPlainObject(body) && Array.isArray(body.voices)) {
+    return { voices: body.voices };
+  }
+  return { status: 'vendor_error', endpoint: VOICES_ENDPOINT, method: 'GET' };
 }
 
 export const modules = {
@@ -138,6 +200,73 @@ export const modules = {
       if (input.format !== undefined) query.set('format', input.format);
       const result = await ctx.proxy({ endpoint: `${TRANSLATE_ENDPOINT}?${query}`, method: 'GET' });
       return isStatusObject(result) ? result : readTranslations(result);
+    },
+  },
+  voice: {
+    // Contract from the approved plan dated 2026-09-19; live behavior unverified.
+    async synthesize(input, ctx) {
+      const invalid = extraKey(input, SYNTHESIZE_KEYS);
+      if (invalid) return invalid;
+      const hasText = Object.hasOwn(input, 'text');
+      const hasSsml = Object.hasOwn(input, 'ssml');
+      if (hasText === hasSsml) return invalidArguments(hasText ? 'ssml' : 'text');
+      const sourceField = hasText ? 'text' : 'ssml';
+      const sourceValue = input[sourceField];
+      if (typeof sourceValue !== 'string' || !sourceValue.trim()) return invalidArguments(sourceField);
+      if (Buffer.byteLength(sourceValue, 'utf8') > INPUT_BYTES) return invalidArguments(sourceField);
+      if (!isBcp47(input.language_code)) return invalidArguments('language_code');
+      if (input.voice_name !== undefined && (typeof input.voice_name !== 'string' || !input.voice_name.trim())) {
+        return invalidArguments('voice_name');
+      }
+      if (input.gender !== undefined && !GENDERS.has(input.gender)) return invalidArguments('gender');
+      // Required, because the vendor requires it. `audioConfig` is a required request
+      // field and `audioEncoding` is required inside it, with no documented default:
+      // AUDIO_ENCODING_UNSPECIFIED is itself an INVALID_ARGUMENT. An optional field
+      // here would make the shortest call, text plus language_code, a vendor refusal.
+      if (!ENCODINGS.has(input.encoding)) return invalidArguments('encoding');
+      // Zero is not out of range, it is the vendor's own "use the default": the v1
+      // discovery document reads "If unset(0.0), defaults to the native 1.0 speed."
+      // Treating it as below the minimum would refuse a documented request.
+      if (input.speaking_rate !== undefined
+        && input.speaking_rate !== 0
+        && !inRange(input.speaking_rate, 0.25, 2.0)) {
+        return invalidArguments('speaking_rate');
+      }
+      if (input.pitch !== undefined && !inRange(input.pitch, -20, 20)) return invalidArguments('pitch');
+      if (input.volume_gain_db !== undefined && !inRange(input.volume_gain_db, -96, 16)) {
+        return invalidArguments('volume_gain_db');
+      }
+      if (input.sample_rate_hertz !== undefined
+        && !(Number.isSafeInteger(input.sample_rate_hertz)
+          && input.sample_rate_hertz > 0
+          && input.sample_rate_hertz <= MAX_INT32)) {
+        return invalidArguments('sample_rate_hertz');
+      }
+      const body = {
+        input: hasText ? { text: input.text } : { ssml: input.ssml },
+        voice: { languageCode: input.language_code },
+      };
+      if (input.voice_name !== undefined) body.voice.name = input.voice_name;
+      if (input.gender !== undefined) body.voice.ssmlGender = input.gender;
+      const audioConfig = { audioEncoding: input.encoding };
+      if (input.speaking_rate !== undefined) audioConfig.speakingRate = input.speaking_rate;
+      if (input.pitch !== undefined) audioConfig.pitch = input.pitch;
+      if (input.volume_gain_db !== undefined) audioConfig.volumeGainDb = input.volume_gain_db;
+      if (input.sample_rate_hertz !== undefined) audioConfig.sampleRateHertz = input.sample_rate_hertz;
+      body.audioConfig = audioConfig;
+      const result = await ctx.proxy({ endpoint: SYNTHESIZE_ENDPOINT, method: 'POST', body });
+      return isStatusObject(result) ? result : readAudio(result);
+    },
+    async list_voices(input, ctx) {
+      const invalid = extraKey(input, ['language_code']);
+      if (invalid) return invalid;
+      if (input.language_code !== undefined && !isBcp47(input.language_code)) return invalidArguments('language_code');
+      let endpoint = VOICES_ENDPOINT;
+      if (input.language_code !== undefined) {
+        endpoint = `${VOICES_ENDPOINT}?${new URLSearchParams({ languageCode: input.language_code })}`;
+      }
+      const result = await ctx.proxy({ endpoint, method: 'GET' });
+      return isStatusObject(result) ? result : readVoices(result);
     },
   },
 };

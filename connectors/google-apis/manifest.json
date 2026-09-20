@@ -111,6 +111,116 @@
       },
       "unwrap_token": false,
       "fallback": "none"
+    },
+    "voice": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "CUSTOM_GOOGLE_APIS",
+        "scheme": "API_KEY",
+        "privilege": "read"
+      },
+      "actions": {
+        "synthesize": {
+          "description": "Synthesize speech from plain text or SSML",
+          "risk": "medium",
+          "confirmation": "once",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1
+              },
+              "ssml": {
+                "type": "string",
+                "minLength": 1
+              },
+              "language_code": {
+                "type": "string"
+              },
+              "voice_name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "gender": {
+                "type": "string",
+                "enum": [
+                  "SSML_VOICE_GENDER_UNSPECIFIED",
+                  "MALE",
+                  "FEMALE",
+                  "NEUTRAL"
+                ]
+              },
+              "encoding": {
+                "type": "string",
+                "enum": [
+                  "MP3",
+                  "LINEAR16",
+                  "OGG_OPUS",
+                  "MULAW",
+                  "ALAW",
+                  "PCM",
+                  "M4A"
+                ]
+              },
+              "speaking_rate": {
+                "type": "number",
+                "anyOf": [
+                  {
+                    "const": 0
+                  },
+                  {
+                    "minimum": 0.25,
+                    "maximum": 2.0
+                  }
+                ]
+              },
+              "pitch": {
+                "type": "number",
+                "minimum": -20,
+                "maximum": 20
+              },
+              "volume_gain_db": {
+                "type": "number",
+                "minimum": -96,
+                "maximum": 16
+              },
+              "sample_rate_hertz": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 2147483647
+              }
+            },
+            "required": [
+              "language_code",
+              "encoding"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "list_voices": {
+          "description": "List voices available for synthesis",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "language_code": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
     }
   }
 }
