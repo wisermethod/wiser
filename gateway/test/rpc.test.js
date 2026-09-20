@@ -73,14 +73,19 @@ test('rpc round trip initialize -> tools/list -> tools/call execute', async () =
     method: 'tools/list',
   }));
   const names = listed.result.tools.map((t) => t.name);
+  // Seven since 2026-09-20; `disconnect` is the first tool that removes anything.
   assert.deepEqual(names, [
     'execute',
     'start_connect',
     'connect_status',
+    'disconnect',
     'list_connections',
     'search_actions',
     'describe_action',
   ]);
+  const disconnectTool = listed.result.tools.find((t) => t.name === 'disconnect');
+  assert.equal(disconnectTool.annotations.destructiveHint, true);
+  assert.equal(disconnectTool.annotations.readOnlyHint, false);
   const execTool = listed.result.tools.find((t) => t.name === 'execute');
   assert.equal(execTool.annotations.destructiveHint, true);
   const listTool = listed.result.tools.find((t) => t.name === 'list_connections');

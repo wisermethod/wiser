@@ -188,12 +188,41 @@ export class JsonFileStore {
   }
 
   /**
-   * @param {{ service: string, module: string }} key
+   * Remove connection rows, by service and module or by provider account.
+   *
+   * One removal with two selectors rather than two removals. **The account selector is
+   * what the teardown uses**, because one provider account backs every module of its
+   * toolkit that has no grant of its own, so removing by service and module would leave
+   * the siblings holding rows against a credential that is gone. It is also what makes
+   * a reconnect during a teardown harmless **within one process**: a reconnect installs
+   * a *different* account id, so this filter cannot match the new row.
+   *
+   * **That is a claim about which rows the filter selects, not about concurrency.** This
+   * is an unlocked read-modify-write, so two gateway processes can still lose an update:
+   * one reads, the other writes a reconnect, the first writes its stale filtered
+   * document. That race predates the teardown and applies to `putConnection` equally;
+   * closing it needs cross-process serialization, which this build does not add.
+   * Adversarial review found the original wording claiming more than it could.
+   *
+   * Returns the rows it removed, so a caller can report what went rather than assert it.
+   *
+   * @param {{ service?: string, module?: string, providerAccountId?: string }} key
+   * @returns {object[]} the removed rows
    */
-  deleteConnection({ service, module }) {
+  deleteConnection({ service, module, providerAccountId }) {
+    const byAccount = providerAccountId !== undefined && providerAccountId !== null;
+    if (!byAccount && (service === undefined || module === undefined)) {
+      throw new Error('deleteConnection needs service and module, or providerAccountId');
+    }
+    const matches = (row) => (byAccount
+      ? row.provider_account_id === providerAccountId
+      : row.service === service && row.module === module);
     const doc = this.read();
-    doc.connections = doc.connections.filter((row) => !(row.service === service && row.module === module));
+    const removed = doc.connections.filter(matches);
+    if (removed.length === 0) return [];
+    doc.connections = doc.connections.filter((row) => !matches(row));
     this.write(doc);
+    return removed;
   }
 
   /**

@@ -13,6 +13,11 @@ export const STATUS = {
   VENDOR_ERROR: 'vendor_error',
   NEEDS_PROVIDER_CAPABILITY: 'needs_provider_capability',
   INVALID_ARGUMENTS: 'invalid_arguments',
+  // Added 2026-09-20 with the teardown. A revoke that ran and did not end in the
+  // credential being gone is not a missing capability and not a vendor refusal; it is
+  // a destructive operation that stopped partway, and a caller needs to act on it
+  // differently from either. Added, never renamed: nothing above changes meaning.
+  TEARDOWN_INCOMPLETE: 'teardown_incomplete',
 };
 
 /**

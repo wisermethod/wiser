@@ -44,10 +44,12 @@ test('missing adapter returns needs_provider with fallback instructions', async 
   assert.equal(reads(), 0);
 });
 
-test('unconfigured gateway still exposes all six tools for setup', () => {
+test('unconfigured gateway still exposes every tool for setup', () => {
+  // Seven since 2026-09-20. The count is deliberately not asserted separately: a list
+  // that must be written out cannot drift from a number written beside it.
   const { gateway } = fixture({ configured: false });
   assert.deepEqual(gateway.listTools().map(({ name }) => name).sort(), [
-    'connect_status', 'describe_action', 'execute', 'list_connections',
+    'connect_status', 'describe_action', 'disconnect', 'execute', 'list_connections',
     'search_actions', 'start_connect',
   ]);
 });

@@ -63,6 +63,22 @@ const TOOLS = [
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
   },
   {
+    name: 'disconnect',
+    description: 'Revoke a connected credential at the provider and remove every local record of it. DESTRUCTIVE: one credential backs every module of its toolkit that has no grant of its own, so this ends all of them, not only the module named. Stops for confirmation first and names what it will end.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        service: { type: 'string' },
+        module: { type: 'string' },
+        provider_account_id: { type: 'string', description: 'The account the confirmation named. Required with confirm, and refused if the binding has changed since' },
+        confirm: { type: 'boolean', description: 'True only after a person approved a needs_confirmation stop' },
+      },
+      required: ['service', 'module'],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+  },
+  {
     name: 'list_connections',
     description: 'Check project-key configuration, then list connection records. Returns needs_provider when unconfigured. Metadata only; never tokens.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
@@ -128,6 +144,16 @@ export function validateArgs(name, args) {
     case 'connect_status':
       if (typeof a.service !== 'string' || !NAME_RE.test(a.service)) return bad('service');
       if (typeof a.module !== 'string' || !NAME_RE.test(a.module)) return bad('module');
+      return null;
+    case 'disconnect':
+      if (typeof a.service !== 'string' || !NAME_RE.test(a.service)) return bad('service');
+      if (typeof a.module !== 'string' || !NAME_RE.test(a.module)) return bad('module');
+      // The account id comes from the provider and is not ours to shape, so it is
+      // checked for being a non-empty string and nothing more. It is never used to
+      // build a path here; the adapter encodes it.
+      if (a.provider_account_id !== undefined
+        && (typeof a.provider_account_id !== 'string' || a.provider_account_id.length === 0)) return bad('provider_account_id');
+      if (a.confirm !== undefined && typeof a.confirm !== 'boolean') return bad('confirm');
       return null;
     case 'search_actions':
       if (!optString('query')) return bad('query');
@@ -208,6 +234,17 @@ export class ConnectionGateway {
    * a key or a user id that is already set.
    * @returns {string}
    */
+  /**
+   * Provider accounts this process has revoked. Hydration and any other writer that
+   * works from a provider listing must not reinstate one. Not persisted: it guards an
+   * in-flight response within one process, and the cross-process case is the unlocked
+   * store race recorded in `src/store.js`.
+   */
+  get revokedAccounts() {
+    if (!this._revokedAccounts) this._revokedAccounts = new Set();
+    return this._revokedAccounts;
+  }
+
   resolveUserId() {
     const fromEnv = readProviderUserId(this.envPath);
     if (fromEnv) {
@@ -241,6 +278,8 @@ export class ConnectionGateway {
         return this.startConnect(args);
       case 'connect_status':
         return this.connectStatus(args);
+      case 'disconnect':
+        return this.disconnect(args);
       case 'list_connections':
         return this.listConnections();
       case 'search_actions':
@@ -317,6 +356,7 @@ export class ConnectionGateway {
       if (result && isStatusObject(result)) line.status = result.status;
       else if (result && result.status === 'connected') line.status = 'connected';
       else if (result && (result.status === 'link' || result.status === 'file')) line.status = result.status;
+      else if (result && result.status === 'disconnected') line.status = 'disconnected';
       else if (result && !line.status) line.status = 'ok';
       this.audit.write(line);
     }
@@ -356,6 +396,11 @@ export class ConnectionGateway {
         if (!toolkit) continue;
         const accountId = byToolkit.get(toolkit) || byToolkit.get(toolkit.replace(/^CUSTOM_/, ''));
         if (!accountId) continue;
+        // A listing captured before a teardown still carries the revoked account. Writing
+        // it back recreates the stale ACTIVE rows this build exists to remove, and
+        // checking whether a row exists cannot catch it, because writing missing rows is
+        // what hydration is for.
+        if (this.revokedAccounts.has(accountId)) continue;
         const existing = this.store.getConnection({ service, module });
         if (isActive(existing) && existing.provider_account_id) continue;
         this.store.putConnection({
@@ -816,6 +861,21 @@ export class ConnectionGateway {
         return statusObject(STATUS.NEEDS_CONNECT, { service, module, privilege: found.auth.privilege });
       }
       if (mapped === 'ACTIVE') {
+        // Re-read before writing back. The row was captured before the provider round
+        // trip, and since 2026-09-20 something can remove it while that call is in
+        // flight: `disconnect` deletes rows, which nothing did before. Without this, a
+        // status answer that overtakes a teardown recreates an ACTIVE row for a
+        // credential that has just been revoked. Found by adversarial review; it is a
+        // defect the new tool created in an old function rather than one it inherited.
+        const current = this.store.getConnection({ service, module });
+        const accountNow = current?.provider_account_id ?? null;
+        const accountThen = record?.provider_account_id ?? null;
+        if (!current && record) {
+          return statusObject(STATUS.NEEDS_CONNECT, { service, module, privilege: found.auth.privilege, reason: 'removed_while_checking' });
+        }
+        if (record && accountNow !== accountThen) {
+          return statusObject(STATUS.NEEDS_CONNECT, { service, module, privilege: found.auth.privilege, reason: 'rebound_while_checking' });
+        }
         const saved = this.store.putConnection({
           id: record?.id || randomUUID(),
           service,
@@ -831,7 +891,15 @@ export class ConnectionGateway {
         return { status: 'connected', connection: saved };
       }
       if (record) {
-        this.store.putConnection({ ...record, status: mapped });
+        // The same guard as the ACTIVE branch above. A non-ACTIVE answer that overtakes
+        // a teardown put the deleted row back, and where a reconnect had landed it
+        // overwrote the new binding with the old one. Found by adversarial review after
+        // the first fix covered only the ACTIVE path.
+        const current = this.store.getConnection({ service, module });
+        const accountNow = current?.provider_account_id ?? null;
+        if (current && accountNow === (record.provider_account_id ?? null)) {
+          this.store.putConnection({ ...record, status: mapped });
+        }
       }
       if (mapped === 'INITIATED') {
         return { status: 'INITIATED', service, module };
@@ -842,6 +910,269 @@ export class ConnectionGateway {
         privilege: found.auth.privilege,
         provider_status: mapped,
       });
+    });
+  }
+
+  /**
+   * Take a grant down: revoke the credential at the provider, and remove every local
+   * record of it once the provider confirms it is gone.
+   *
+   * **The unit is the credential and not the module**, decided by the operator on
+   * 2026-09-20 and independently by the audit: `hydrateFromProvider` writes one
+   * provider account into every module of its toolkit that has no grant of its own,
+   * measured at five modules on one account. A teardown scoped to the named module
+   * would revoke a credential four other modules were executing on and leave their rows
+   * ACTIVE against an account that no longer exists, which is the stale-row defect this
+   * build removes, recreated by the tool built to remove it.
+   *
+   * Confirmation is implemented here rather than inherited. A `confirmation` field is
+   * manifest metadata read inside `execute`, and a top-level tool is not on that path.
+   */
+  async disconnect({ service, module, provider_account_id: approvedAccount, confirm } = {}) {
+    return this.withAudit('disconnect', { service, module }, async (line) => {
+      const found = this.lookupModule(service, module);
+      if (!found) return statusObject(STATUS.NEEDS_CONNECTOR, { service, module, reason: 'undeclared' });
+
+      const authorize = (svc, mod, privilege) => evaluate(this.policy, {
+        harness: this.harness,
+        role: this.role,
+        service: svc,
+        module: mod,
+        privilege,
+        risk: 'destructive',
+        op: 'disconnect',
+      });
+
+      const decision = authorize(service, module, found.auth?.privilege);
+      if (decision.effect === 'deny') return statusObject(STATUS.DENIED, { rule: decision.rule });
+      line.privilege = found.auth?.privilege ?? null;
+
+      const record = this.store.getConnection({ service, module });
+      const accountId = record?.provider_account_id ?? null;
+      if (!record || !accountId) {
+        // Nothing here to take down. Said plainly rather than reported as a success
+        // that removed nothing, and rather than as an error the caller must interpret.
+        return statusObject(STATUS.NEEDS_CONNECT, {
+          service,
+          module,
+          privilege: found.auth?.privilege ?? null,
+          reason: 'nothing_to_disconnect',
+        });
+      }
+      line.provider_account_id = accountId;
+
+      // Every row on this credential, because every one of them ends.
+      const boundRows = this.store.listConnections()
+        .filter((row) => row.provider_account_id === accountId);
+      const bound = boundRows.map((row) => ({ service: row.service, module: row.module }));
+
+      // **Every one of them is authorized, not only the one named.** The policy is
+      // written per service and module, so an override may deny disconnecting one
+      // module and permit another; because this acts on the credential, calling
+      // through the permitted module would otherwise end the denied one. Found by
+      // adversarial review, and it is this build's own lesson committed again: a
+      // decision scoped to the unit the caller named, applied to the unit the system
+      // shares.
+      const authorizeBound = (rows) => {
+        for (const row of rows) {
+          const sibling = this.lookupModule(row.service, row.module);
+          // Fail closed on missing metadata. A row whose module no longer resolves has
+          // no manifest privilege, and passing `undefined` made every privilege rule
+          // skip — so an `admin` binding left behind by a retired module authorized as
+          // though it had no privilege at all. The stored privilege is used instead,
+          // and a row carrying neither is denied rather than waved through.
+          const privilege = sibling?.auth?.privilege ?? row.privilege ?? null;
+          if (privilege === null) {
+            return statusObject(STATUS.DENIED, {
+              rule: { effect: 'deny', reason: 'unknown_privilege' },
+              service: row.service,
+              module: row.module,
+              reason: 'bound_module_denied',
+            });
+          }
+          const verdict = authorize(row.service, row.module, privilege);
+          if (verdict.effect === 'deny') {
+            return statusObject(STATUS.DENIED, {
+              rule: verdict.rule,
+              service: row.service,
+              module: row.module,
+              reason: 'bound_module_denied',
+            });
+          }
+        }
+        return null;
+      };
+      const denied = authorizeBound(boundRows);
+      if (denied) return denied;
+
+      if (confirm !== true) {
+        // The first consumer of the confirmation summary Session 1 wrote. The account
+        // id is rendered through the same escaper and cap as any other displayed value;
+        // the module list rides the description, which that function also escapes.
+        const disclosure = discloseInput(
+          { input: { properties: { provider_account_id: { type: 'string' } } } },
+          { provider_account_id: accountId },
+        );
+        const names = bound.map((row) => `${row.service}/${row.module}`).join(', ');
+        const summary = composeSummary({
+          action: 'disconnect',
+          service,
+          module,
+          risk: 'destructive',
+          description: `revokes this credential at the provider and removes ${bound.length} local record${bound.length === 1 ? '' : 's'}, ending ${names}. You are approving the credential, so anything else bound to it before you answer ends too`,
+          disclosure,
+        });
+        return statusObject(STATUS.NEEDS_CONFIRMATION, {
+          op: 'disconnect',
+          service,
+          module,
+          risk: 'destructive',
+          confirmation: 'always',
+          provider_account_id: accountId,
+          modules_ending: bound,
+          input_fields: disclosure.fields,
+          undeclared_fields: disclosure.undeclared,
+          input_values: disclosure.shown.map((f) => ({ name: f.name, value: f.text, truncated: f.truncated })),
+          withheld_fields: [
+            ...disclosure.nested.map((name) => ({ name, reason: 'nested' })),
+            ...disclosure.withheld,
+          ],
+          summary,
+          description: null,
+        });
+      }
+
+      // The approval named an account. If the binding moved between the stop and here,
+      // the approval is for something else. `startConnect` is the mechanism that moves
+      // it, and it installs a DIFFERENT id, so the delete below would skip the new row
+      // in any case; this refuses audibly instead of removing nothing in silence.
+      if (approvedAccount === undefined) {
+        return statusObject(STATUS.INVALID_ARGUMENTS, { tool: 'disconnect', field: 'provider_account_id' });
+      }
+      if (approvedAccount !== accountId) {
+        return statusObject(STATUS.DENIED, {
+          rule: { effect: 'deny', reason: 'account_changed' },
+          service,
+          module,
+        });
+      }
+
+      const provider = this.providerFor(found.auth);
+      if (!provider || typeof provider.revoke !== 'function') {
+        return statusObject(STATUS.NEEDS_PROVIDER_CAPABILITY, { op: 'disconnect', capability: 'revoke' });
+      }
+
+      let outcome;
+      try {
+        outcome = await provider.revoke({ providerAccountId: accountId, service, file: found.auth?.file });
+      } catch {
+        // An adapter that throws is a transport or adapter failure, not a capability it
+        // lacks. Reporting it as a missing capability told a caller to report a broken
+        // connector when the right move is to retry. Adversarial review found four
+        // situations wearing one status word; they are four now.
+        return statusObject(STATUS.VENDOR_ERROR, {
+          op: 'disconnect', http_status: null, endpoint: null, method: 'revoke',
+        });
+      }
+      const steps = Array.isArray(outcome?.steps) ? outcome.steps : [];
+      if (outcome?.supported !== true) {
+        return statusObject(STATUS.NEEDS_PROVIDER_CAPABILITY, {
+          op: 'disconnect',
+          capability: 'revoke',
+          how: typeof outcome?.how === 'string' ? outcome.how : null,
+          steps,
+        });
+      }
+
+      // **Absence is verified, never inferred from the revoke returning.** The adapter
+      // reports what each step did and a step can fail while the call succeeds; only
+      // the provider saying the account is not there justifies removing a local row.
+      // Removing on anything-not-ACTIVE would also remove rows for a suspended grant.
+      let after;
+      try {
+        after = await provider.status({ providerAccountId: accountId, service, file: found.auth?.file });
+      } catch {
+        after = null;
+      }
+      if (after && typeof after === 'object' && after.error) {
+        return { ...vendorErrorFrom(after), op: 'disconnect', steps, removed: [] };
+      }
+      const observed = typeof after === 'string' ? after : after?.status ?? null;
+      if (observed !== 'ABSENT') {
+        // The credential may still exist. Report what happened and change nothing.
+        return statusObject(STATUS.TEARDOWN_INCOMPLETE, {
+          op: 'disconnect',
+          reason: 'not_absent_after_revoke',
+          provider_status: observed,
+          steps,
+          removed: [],
+        });
+      }
+
+      // **Absence alone is not deletion evidence when the teardown itself failed.**
+      // `providers/AGENTS.md` records that ABSENT means absent within the scope this
+      // credential can see, which is narrower than deleted: a project change or a
+      // visibility restriction also reads as 404. If the adapter's final step failed
+      // and the account then reads absent, the two readings are indistinguishable, so
+      // this fails closed rather than deleting every local row on an ambiguity. The
+      // final step is the one the contract says a top-level error reports, and it is
+      // the DELETE for the composio adapter — which is why the measured case where the
+      // revoke POST is refused and the DELETE succeeds still passes here.
+      // An adapter that reports nothing has established nothing. `{ supported: true,
+      // steps: [] }` plus an ABSENT reading was accepted until adversarial review found
+      // it, which is the original ambiguity returning through the gate built to close it.
+      if (steps.length === 0) {
+        return statusObject(STATUS.TEARDOWN_INCOMPLETE, {
+          op: 'disconnect',
+          reason: 'no_teardown_evidence',
+          provider_status: observed,
+          steps,
+          removed: [],
+        });
+      }
+      const last = steps[steps.length - 1];
+      if (last.ok !== true) {
+        return statusObject(STATUS.TEARDOWN_INCOMPLETE, {
+          op: 'disconnect',
+          reason: 'absent_but_teardown_failed',
+          provider_status: observed,
+          steps,
+          removed: [],
+        });
+      }
+
+      // Bindings were authorized before the provider round trip; a module attached to
+      // this credential during it was never checked. Re-collect and re-authorize now.
+      // The credential is already revoked at this point, so a denial here is reported
+      // as an incomplete teardown rather than pretended away.
+      const boundNow = this.store.listConnections().filter((row) => row.provider_account_id === accountId);
+      const deniedNow = authorizeBound(boundNow);
+      if (deniedNow) {
+        return statusObject(STATUS.TEARDOWN_INCOMPLETE, {
+          op: 'disconnect',
+          reason: 'binding_denied_after_revoke',
+          service: deniedNow.service,
+          module: deniedNow.module,
+          provider_status: observed,
+          steps,
+          removed: [],
+        });
+      }
+
+      // Hydration writes an ACTIVE row for any module of a toolkit with no grant of its
+      // own, from a listing it may have captured before this revoke. Remembering the
+      // account stops a delayed listing recreating exactly the stale rows this tool
+      // exists to remove. In-process only; the cross-process race is recorded in store.js.
+      this.revokedAccounts.add(accountId);
+      const removed = this.store.deleteConnection({ providerAccountId: accountId });
+      return {
+        status: 'disconnected',
+        service,
+        module,
+        provider_account_id: accountId,
+        steps,
+        removed: removed.map((row) => ({ service: row.service, module: row.module })),
+      };
     });
   }
 }

@@ -20,7 +20,7 @@ Holds the grant, or knows where the person's own credential file is. One adapter
 
 ### `ABSENT`, and why a sixth word rather than reusing `INACTIVE`
 
-**Added 2026-09-20.** Until then a deleted account and a switched-off one both answered `INACTIVE`, in the composio adapter and in the test fake alike, so no caller could tell them apart. That matters because the gateway is gaining a teardown: a tool that removes the local row whenever the provider does not say `ACTIVE` would also remove the row for a grant that is merely suspended and is coming back. **Removal is gated on `ABSENT` and on nothing else.**
+**Added 2026-09-20.** Until then a deleted account and a switched-off one both answered `INACTIVE`, in the composio adapter and in the test fake alike, so no caller could tell them apart. That matters because the gateway is gaining a teardown: a tool that removes the local row whenever the provider does not say `ACTIVE` would also remove the row for a grant that is merely suspended and is coming back. **Removal is gated on `ABSENT`, and on `ABSENT` being corroborated by the teardown's own final step succeeding.** The word alone is not enough: it is scoped to what this credential can see, so a project change or a visibility restriction reads the same way. An adapter that reports no steps at all has established nothing and the removal is refused.
 
 An adapter reports `ABSENT` when the provider says this account is not there — for composio, an HTTP 404 on the account read. It does **not** report `ABSENT` for a transport failure, an outage, or a status word the provider never documented; those are the error object, which leaves the record alone.
 

@@ -68,7 +68,7 @@ Write this block into `~/.cursor/mcp.json` (the user file, not a project file in
 }
 ```
 
-Then start a new Agent chat. The current chat does not pick up a newly added server. If the six tools are still missing, restart Cursor.
+Then start a new Agent chat. The current chat does not pick up a newly added server. If the tools are still missing, restart Cursor.
 
 Any other harness that reads an `mcpServers` JSON block uses the same shape, with that host's label in `--harness`.
 
@@ -84,7 +84,7 @@ Any other harness that reads an `mcpServers` JSON block uses the same shape, wit
 
 `--home` is screened before anything opens it: refused inside this plugin, beside a credential file, or on a symbolic link.
 
-Restart the harness. Its tool list now carries `execute`, `start_connect`, `connect_status`, `list_connections`, `search_actions` and `describe_action`. Actions that need the provider answer `needs_provider` until step 3. `list_connections` fills local metadata from ACTIVE grants this user id already has at the provider; it does not reconnect.
+Restart the harness. Its tool list now carries `execute`, `start_connect`, `connect_status`, `disconnect`, `list_connections`, `search_actions` and `describe_action`. Actions that need the provider answer `needs_provider` until step 3. `list_connections` fills local metadata from ACTIVE grants this user id already has at the provider; it does not reconnect.
 
 ## 3. Give it a provider credential
 
@@ -121,6 +121,16 @@ Which provider, how to get an account, how to make that project key, and how to 
 
 ## 4. Connect an account
 
+### Disconnecting
+
+**`disconnect` is the only tool that removes anything, and it removes more than the module you name.** One credential backs every module of its toolkit that has no grant of its own, so disconnecting `google-apis/translate` may end `speech`, `voice` and `language` with it. The tool stops first and names every module bound to that credential **at the moment it asks**, along with the account it will revoke. Nothing happens until you say yes. **What you approve is the credential**, so if something attaches a further module to it between the stop and your yes, that module ends too; the answer lists what was actually removed.
+
+It revokes at the provider, then asks the provider whether the credential is still there, and removes local records **only** when the provider says it is gone. A grant that is merely suspended keeps its records, because it is coming back. If the provider refuses the revoke, or cannot be reached, nothing local is removed and the answer says what each step did.
+
+Your approval is bound to the account it named. If something reconnects that service between the stop and your yes, the call is refused rather than acting on a credential you did not approve.
+
+A `readonly` entry cannot call it at all.
+
 Connecting is its own turn, never a side effect of work. Ask for it by name: "Connect Cloudflare DNS." The `Connect Account` skill runs `start_connect`, hands you a link or a file path, waits while you approve at the vendor in your own browser or write the file yourself, and then runs `connect_status` to record the grant. No key is ever typed into the conversation; if a skill asks you for one, that skill is wrong and you should stop.
 
 What each vendor asks of you on its side is in that connector's `auth.md`.
@@ -136,7 +146,8 @@ Every answer is one JSON object. A `status` field on it means the work did not r
 | `needs_confirmation` | The action is destructive or writes for the first time | Read the summary and say yes or no. **It names the project, the record or whatever else the call will act on, as values**, for each declared field the call supplied that is a simple value and passes its own declaration. A field the call omitted is absent; one whose value fails its own declaration is named as withheld; one that is a nested object, such as `restrictions` on a Google Cloud key, is named with a sentence saying its content is not shown, so approval covers the target and not the change |
 | `denied` | The policy for this role forbids it | Use a different role, or leave it denied |
 | `needs_connector` | Nothing in this plugin serves that action, or no connector declares it | It is a gap; the primitive names it |
-| `needs_provider_capability` | The connector asked the provider for something it cannot do here | The connector or the provider is wrong, not you; report it |
+| `needs_provider_capability` | The connector asked the provider for something it cannot do here, such as revoking a credential the provider will not revoke | The connector or the provider is wrong, not you; report it |
+| `teardown_incomplete` | A `disconnect` ran and did not end with the credential gone | **Nothing local was removed.** Read `steps` for what each call did and `provider_status` for what the provider says now, then retry or revoke at the vendor yourself |
 | `invalid_arguments` | A tool was called with something that is not an identifier | The agent mis-called the tool; nothing was logged or run |
 | `vendor_error` | The vendor refused | The status code and endpoint are in the answer; the body never is |
 

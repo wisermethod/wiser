@@ -6,6 +6,8 @@
     { "role": "runtime",  "privilege": "admin",            "effect": "deny" },
     { "role": "runtime",  "risk": "destructive",           "effect": "confirm" },
     { "role": "runtime",  "op": "startConnect",            "effect": "allow" },
+    { "role": "readonly", "op": "disconnect",              "effect": "deny" },
+    { "role": "runtime",  "op": "disconnect",              "effect": "confirm" },
     { "role": "*",        "effect": "allow" }
   ]
 }
