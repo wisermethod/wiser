@@ -30,7 +30,7 @@ Local-file is not this connector's route. It does not read a local vendor-key fi
 
 ## Revoking
 
-Revoke each module through the gateway, then revoke or rotate the API key in the Google Cloud project's Credentials page. If the project does not expose that control, restrict or delete the key there. Rotating the key invalidates every module's hosted grant.
+**The gateway does not revoke**; no shipped path calls it. Revoking is done at the vendor, and where the gateway's provider holds the grant, by deleting the connected account there. Revoke or rotate the API key in the Google Cloud project's Credentials page. If the project does not expose that control, restrict or delete the key there. Rotating the key invalidates every module's hosted grant. Afterwards run `connect_status` for each module you revoked: that is what updates the local record, and without it the row keeps reading ACTIVE.
 
 ## Last connected
 

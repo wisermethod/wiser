@@ -23,7 +23,7 @@ A local credential file or a key pasted into chat is not a route. Use the hosted
 
 ## Revoking
 
-Revoke each module through the gateway, then revoke the API key or token at the platform. For a local file, remove its binding and rotate the key at the platform.
+**The gateway does not revoke**; no shipped path calls it. Revoking is done at the vendor, and where the gateway's provider holds the grant, by deleting the connected account there. Revoke or rotate the API key or token at the platform. For a local file, remove its binding and rotate the key at the platform. Afterwards run `connect_status` for each module you revoked: that is what updates the local record, and without it the row keeps reading ACTIVE.
 
 ## Last connected
 

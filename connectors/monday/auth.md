@@ -21,7 +21,7 @@ This connector uses hosted connect only. No key belongs in this file or the conv
 
 ## Revoking
 
-Revoke the module through the gateway, then remove the application's access at monday.com administration installed apps.
+**The gateway does not revoke**; no shipped path calls it. Revoking is done at the vendor, and where the gateway's provider holds the grant, by deleting the connected account there. Remove the application's access at monday.com administration installed apps. Afterwards run `connect_status` for each module you revoked: that is what updates the local record, and without it the row keeps reading ACTIVE.
 
 ## Rate limits
 

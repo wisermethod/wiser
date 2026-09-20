@@ -41,7 +41,7 @@ A credential file or token in chat is not a route. Use the API-token-only hosted
 
 ## Revoking
 
-Revoke the module through the gateway, then at Cloudflare roll or delete the token.
+**The gateway does not revoke**; no shipped path calls it. Revoking is done at the vendor, and where the gateway's provider holds the grant, by deleting the connected account there. At Cloudflare, roll or delete the token. Afterwards run `connect_status` for each module you revoked: that is what updates the local record, and without it the row keeps reading ACTIVE.
 
 ## Last connected
 

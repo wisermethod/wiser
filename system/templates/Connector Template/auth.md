@@ -19,7 +19,7 @@ This template covers both: a hosted link (`catalog`) and a bound file (`local-fi
 
 ## Revoking
 
-Always two places: through the gateway, then at the platform. Name where at the platform.
+**The gateway does not revoke**; no shipped path calls it. Revoking is done at the vendor, and where the gateway's provider holds the grant, by deleting the connected account there. Revoke at the platform. Name where at the platform. Afterwards run `connect_status` for each module you revoked: that is what updates the local record, and without it the row keeps reading ACTIVE.
 
 ## Last connected
 

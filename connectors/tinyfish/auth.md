@@ -18,7 +18,7 @@ Local-file is not this connector's route. It does not read a vendor-key file, us
 
 ## Revoking
 
-Revoke the connection through the gateway, then revoke or rotate the API key at `https://agent.tinyfish.ai/api-keys`. If that page offers no revocation control, contact Tiny Fish support.
+**The gateway does not revoke**; no shipped path calls it. Revoking is done at the vendor, and where the gateway's provider holds the grant, by deleting the connected account there. Revoke or rotate the API key at `https://agent.tinyfish.ai/api-keys`. If that page offers no revocation control, contact Tiny Fish support. Afterwards run `connect_status` for each module you revoked: that is what updates the local record, and without it the row keeps reading ACTIVE.
 
 ## Last connected
 

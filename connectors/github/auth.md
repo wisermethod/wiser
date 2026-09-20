@@ -25,7 +25,7 @@ Nothing to prepare. GitHub's authorisation page is the whole of it. If your acco
 
 ## Revoking
 
-Two places. Revoke the connection through the gateway, which asks the provider to drop it; then, at GitHub, Settings, Applications, Authorized OAuth Apps, revoke the provider's application. The gateway's `list_connections` shows every module you connected so nothing is missed.
+**The gateway does not revoke**; no shipped path calls it. Revoking is done at the vendor, and where the gateway's provider holds the grant, by deleting the connected account there. At GitHub, Settings, Applications, Authorized OAuth Apps, revoke the provider's application. `list_connections` shows every module you connected so nothing is missed. Afterwards run `connect_status` for each module you revoked: that is what updates the local record, and without it the row keeps reading ACTIVE.
 
 ## Last connected
 

@@ -30,7 +30,7 @@ A Google service-account JSON in a file or in chat is not a route. Each of the e
 
 ## Revoking
 
-Revoke each module through the gateway, then revoke the OAuth application in the Google account. For a local file, remove its binding and rotate the key at the platform.
+**The gateway does not revoke**; no shipped path calls it. Revoking is done at the vendor, and where the gateway's provider holds the grant, by deleting the connected account there. Revoke the OAuth application in the Google account. For a local file, remove its binding and rotate the key at the platform. Afterwards run `connect_status` for each module you revoked: that is what updates the local record, and without it the row keeps reading ACTIVE.
 
 ## Last connected
 

@@ -41,7 +41,7 @@ Local-file is not this connector's route. It does not read a local vendor-key fi
 
 ## Revoking
 
-Revoke each module through the gateway, then revoke the OAuth grant in the Google account under the client's authorized access, and remove or replace the auth config if you are done with this connector. Deleting the auth config without replacing it is the case above: the next connect tries to create a managed one with the wrong scopes.
+**The gateway does not revoke**; no shipped path calls it. Revoking is done at the vendor, and where the gateway's provider holds the grant, by deleting the connected account there. Revoke the OAuth grant in the Google account under the client's authorized access, and remove or replace the auth config if you are done with this connector. Deleting the auth config without replacing it is the case above: the next connect tries to create a managed one with the wrong scopes. Afterwards run `connect_status` for each module you revoked: that is what updates the local record, and without it the row keeps reading ACTIVE.
 
 ## Last connected
 

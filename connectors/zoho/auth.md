@@ -31,7 +31,7 @@ Books and Invoice read invoices, Desk reads tickets, and Inventory reads contact
 
 ## Revoking
 
-Revoke each module through the gateway, then remove the application's access at Zoho Accounts connected applications.
+**The gateway does not revoke**; no shipped path calls it. Revoking is done at the vendor, and where the gateway's provider holds the grant, by deleting the connected account there. Remove the application's access at Zoho Accounts connected applications. Afterwards run `connect_status` for each module you revoked: that is what updates the local record, and without it the row keeps reading ACTIVE.
 
 ## Rate limits
 
