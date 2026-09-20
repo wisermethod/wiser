@@ -137,17 +137,17 @@ What each vendor asks of you on its side is in that connector's `auth.md`.
 
 ## 5. What the gateway says, and what it means
 
-Every answer is one JSON object. A `status` field on it means the work did not run, and each status names its own next step.
+Every answer is one JSON object. A `status` field on it usually means the work did not run, and each status names its own next step. **`disconnect` is the exception**: it answers `disconnected` when the teardown succeeded, and `teardown_incomplete` when it ran and did not finish, so for that tool a status is the outcome rather than a refusal.
 
 | Status | Meaning | Next step |
 |--------|---------|-----------|
 | `needs_provider` | No credential file was given, or it is empty | Set Up Connectors; step 3 supplies the file recipe |
-| `needs_connect` | This service and module is not connected, or its grant expired | Step 4 |
+| `needs_connect` | This service and module is not connected, or its grant expired | Step 4. **Unless it carries `reason: nothing_to_disconnect`**, which comes from `disconnect` and means there is no recorded account to take down: stop there and do not connect anything |
 | `needs_confirmation` | The action is destructive or writes for the first time | Read the summary and say yes or no. **It names the project, the record or whatever else the call will act on, as values**, for each declared field the call supplied that is a simple value and passes its own declaration. A field the call omitted is absent; one whose value fails its own declaration is named as withheld; one that is a nested object, such as `restrictions` on a Google Cloud key, is named with a sentence saying its content is not shown, so approval covers the target and not the change |
 | `denied` | The policy for this role forbids it | Use a different role, or leave it denied |
 | `needs_connector` | Nothing in this plugin serves that action, or no connector declares it | It is a gap; the primitive names it |
-| `needs_provider_capability` | The connector asked the provider for something it cannot do here, such as revoking a credential the provider will not revoke | The connector or the provider is wrong, not you; report it |
-| `teardown_incomplete` | A `disconnect` ran and did not end with the credential gone | **Nothing local was removed.** Read `steps` for what each call did and `provider_status` for what the provider says now, then retry or revoke at the vendor yourself |
+| `needs_provider_capability` | The connector asked the provider for something it cannot do here | From `execute`, the connector or the provider is wrong, not you; report it. **From `disconnect` it usually means only that this provider will not revoke this credential for you**, which is not a defect: revoke at the vendor by the route that connector's `auth.md` names under Revoking |
+| `teardown_incomplete` | A `disconnect` ran and did not end with the credential gone | **Nothing local was removed.** The records that survive are recovery metadata and may be stale: neither their survival nor this status proves the credential is still there. The answer is what to believe, not the rows. `reason` says which case it is and each has one next step; Connection Troubleshooter names them. Do not simply retry: one of the cases means the state is unknown and retrying acts on it blind |
 | `invalid_arguments` | A tool was called with something that is not an identifier | The agent mis-called the tool; nothing was logged or run |
 | `vendor_error` | The vendor refused | The status code and endpoint are in the answer; the body never is |
 

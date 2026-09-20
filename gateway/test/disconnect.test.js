@@ -555,3 +555,36 @@ test('a non-ACTIVE status still updates an ordinary row, so that guard is narrow
   await gw.connectStatus({ service: 'github', module: 'repos' });
   assert.equal(store.getConnection({ service: 'github', module: 'repos' }).status, 'EXPIRED');
 });
+
+test('a status check that cannot be made is unknown state, not a credential that is still there', async (t) => {
+  // Found by the cold verification of the instructions, not by a review of the code:
+  // a reader told "the credential is still there" retries, and retrying against a state
+  // nobody could read is the one thing the same instruction says not to do.
+  const { gw, store, fake } = await shared();
+  fake.auth.setRevokeOutcome({
+    supported: true,
+    steps: [{ step: 'revoke', status: 200, ok: true }, { step: 'delete', status: 200, ok: true }],
+  });
+  t.mock.method(fake.auth, 'status', async () => { throw new Error('socket hang up'); });
+  const r = await gw.callTool('disconnect', {
+    service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
+  });
+  assert.equal(r.status, 'teardown_incomplete');
+  assert.equal(r.reason, 'absence_unverified');
+  assert.equal(r.provider_status, null);
+  assert.equal(rows(store).length, 2);
+});
+
+test('a provider that answers ACTIVE is still reported as still there, so the two stay distinct', async (t) => {
+  const { gw, fake } = await shared();
+  fake.auth.setRevokeOutcome({
+    supported: true,
+    steps: [{ step: 'revoke', status: 200, ok: true }, { step: 'delete', status: 200, ok: true }],
+  });
+  t.mock.method(fake.auth, 'status', async () => 'ACTIVE');
+  const r = await gw.callTool('disconnect', {
+    service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
+  });
+  assert.equal(r.reason, 'not_absent_after_revoke');
+  assert.equal(r.provider_status, 'ACTIVE');
+});

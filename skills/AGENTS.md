@@ -97,7 +97,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 | `Scope Plugin Bench/SKILL.md` | Decide what experts, skills, tools and connectors a named domain plugin should hold in its first slice, and hand Playbook Author the source material to plan it | System Expert |
 | `Set Up Connectors/SKILL.md` | Attach the gateway to this harness and confirm the project key on this machine, for a new CLI, machine, or OS user | Connector Advisor |
 | `Connect Account/SKILL.md` | Connect one service module in its own human turn through start_connect then connect_status, never taking a key in the conversation | Connector Advisor |
-| `Connection Troubleshooter/SKILL.md` | Name one next step for a gateway status object or audit line covering needs_provider, needs_connect, expired, denied, needs_connector, and vendor_error | Connector Advisor |
+| `Connection Troubleshooter/SKILL.md` | Name one next step for a gateway status object or audit line covering needs_provider, needs_connect, expired, denied, needs_connector, vendor_error, and a teardown that did not finish | Connector Advisor |
 | `Connector Author/SKILL.md` | Build a connector from an approved Connector Advisor plan, with its manifest, module, auth guide, tests, and gateway loading instructions | Connector Advisor |
 
 ### Web

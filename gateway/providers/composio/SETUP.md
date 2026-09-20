@@ -104,7 +104,7 @@ Composio can expose a session as a hosted MCP endpoint that a hosted chat client
 
 ## Checking your account
 
-Composio also ships a command-line tool that installs into your home directory and edits your shell startup file. Nothing in this plugin uses it. If you want to see what Composio thinks is connected, the dashboard shows it, and `list_connections` through the gateway shows what this plugin thinks is connected; the two should agree.
+Composio also ships a command-line tool that installs into your home directory and edits your shell startup file. Nothing in this plugin uses it. If you want to see what Composio thinks is connected, the dashboard shows it, and `list_connections` through the gateway shows what this plugin thinks is connected; the two should agree, with one documented limit: the gateway's own discovery lists only ACTIVE accounts, skips a toolkit holding more than one, and fetches a single page, so an empty or shorter local listing does not establish that the dashboard is empty.
 
 After step 2, Auth Configs should list GitHub and Cloudflare. Connected accounts stay empty until you connect through the gateway.
 

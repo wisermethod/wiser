@@ -1098,6 +1098,19 @@ export class ConnectionGateway {
         return { ...vendorErrorFrom(after), op: 'disconnect', steps, removed: [] };
       }
       const observed = typeof after === 'string' ? after : after?.status ?? null;
+      if (observed === null) {
+        // Not the same as the provider saying the credential is still there. The check
+        // threw or answered nothing, so the state is unknown, and a caller told "still
+        // there" would retry against something it cannot see. Separated on the cold
+        // verification of the instructions that read this.
+        return statusObject(STATUS.TEARDOWN_INCOMPLETE, {
+          op: 'disconnect',
+          reason: 'absence_unverified',
+          provider_status: null,
+          steps,
+          removed: [],
+        });
+      }
       if (observed !== 'ABSENT') {
         // The credential may still exist. Report what happened and change nothing.
         return statusObject(STATUS.TEARDOWN_INCOMPLETE, {

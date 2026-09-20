@@ -2,15 +2,15 @@
 name: Connection Troubleshooter
 type: skill
 category: system
-description: Name one next step for a gateway status object or audit line covering needs_provider, needs_connect, expired, denied, needs_connector, and vendor_error
-version: 0.1.3
+description: Name one next step for a gateway status object or audit line covering needs_provider, needs_connect, expired, denied, needs_connector, vendor_error, and a teardown that did not finish
+version: 0.2.0
 ---
 
 # Connection Troubleshooter
 
 ## Context
 
-Use when `execute`, `start_connect`, `connect_status`, `list_connections`, or an audit line returned a status and the person needs the next step. Connecting belongs to Connect Account; planning or building a connector belongs to Connector Advisor or Connector Author. This skill does not work around policy.
+Use when `execute`, `start_connect`, `connect_status`, `disconnect`, `list_connections`, or an audit line returned a status and the person needs the next step. Connecting belongs to Connect Account; planning or building a connector belongs to Connector Advisor or Connector Author. This skill does not work around policy.
 
 Connector Advisor owns this skill with no expert gate after it. Its yield is one next step, not a deliverable that ships.
 
@@ -28,9 +28,10 @@ A reader of gateway stops who returns the smallest supported next step and never
 
 ## Steps
 
-1. Read the object or line. Take `status`, `provider_status` when present, and `service` and `module`. Use only the fields needed for the diagnosis.
-2. Map to the table. The expired case is `needs_connect` with `provider_status: EXPIRED`, or a `list_connections` row whose `status` is `EXPIRED`. Do not invent a top-level gateway status. An audit line never carries `EXPIRED`; it records `needs_connect` and cannot tell expired from any other missing grant.
-3. Return the one next step and stop. Do not call `start_connect` or execute an action.
+1. Read the object or line. Take `status`, `provider_status` when present, `op` and `reason` when present, and `service` and `module`. Use only the fields needed for the diagnosis.
+2. **Check `op` and `reason` first, before the table.** A teardown answer is diagnosed by its reason and not by its status word, and the table below would route two of them into starting a grant the person asked to end. If `op` is `disconnect`, or `status` is `teardown_incomplete`, or `reason` is present, take the answer from Pitfalls and stop. **An audit line carries `op` but not `reason`**, so an audit-only `disconnect` is a missing-diagnostics case: ask for the answer's `reason`, and do not fall through to the table.
+3. Map to the table. The expired case is `needs_connect` with `provider_status: EXPIRED`, or a `list_connections` row whose `status` is `EXPIRED`. Do not invent a top-level gateway status. An audit line never carries `EXPIRED`; it records `needs_connect` and cannot tell expired from any other missing grant.
+4. Return the one next step and stop. Do not call `start_connect` or execute an action.
 
 ### The six named statuses
 
@@ -45,9 +46,13 @@ A reader of gateway stops who returns the smallest supported next step and never
 
 ## Pitfalls
 
-- Ambiguous or missing status, required service/module, or diagnostic fields: ask only for the missing non-secret fields from the sanitized status response and stop. An audit-only `denied` needs the rule; an audit-only `vendor_error` needs `http_status` and `endpoint`. Do not infer these from audit `path`, widen the audit schema, or request a body, header, or token. For `needs_provider` without setup text, point to Set Up Connectors. An unknown status is not one of the six; report it without inventing a route.
-- `needs_confirmation` is outside the declared six-status yield: name the caller's next step, show the summary and re-call `execute` with `confirm: true` after the person says yes. This diagnostic turn does not execute it.
-- `needs_provider_capability`: the connector or provider is wrong; report it.
+- Ambiguous or missing status, required service/module, or diagnostic fields: ask only for the missing non-secret fields from the sanitized status response and stop. An audit-only `denied` needs the rule; an audit-only `vendor_error` needs `http_status` and `endpoint`; a teardown answer needs `op` and `reason`, which are what separate its cases. Do not infer these from audit `path`, widen the audit schema, or request a body, header, or token. For `needs_provider` without setup text, point to Set Up Connectors. An unknown status is not one of the named ones; report it without inventing a route.
+- `needs_confirmation` is outside the declared six-status yield: name the caller's next step, show the summary and re-call with `confirm: true` after the person says yes. This diagnostic turn does not execute it. **From `disconnect` the re-call is `disconnect`, not `execute`, and it must also carry the `provider_account_id` the stop named**: the approval is bound to that account and a call without it is refused. Show the `modules_ending` list, not only the summary, and stop if the person wants any of those modules kept.
+- `needs_provider_capability`: the connector or provider asked for something the provider cannot do. From `execute` that is a defect to report. **From `disconnect` it is usually not**: it means this provider will not revoke this credential programmatically, or holds no credential to revoke, and the next step is to revoke at the vendor by the route that connector's `auth.md` names under Revoking. The answer's `how` says which case it is when the adapter knows.
+- `teardown_incomplete`: a `disconnect` ran and did not end with the credential gone. **Nothing local was removed.** Retained rows are unchanged recovery metadata and **may be stale**: neither their survival nor a `teardown_incomplete` proves the credential is still present or still usable. `binding_denied_after_revoke` is the clearest case, where the credential is definitely gone and the rows are kept anyway, but a row can also outlive a revoke whose confirming check never landed. Read `steps` for what each call did and `provider_status` for what the provider says now. `not_absent_after_revoke` means the credential is still there; `absent_but_teardown_failed` means the provider reports it absent but the teardown's own last step failed, which is deliberately treated as ambiguous rather than as success; `no_teardown_evidence` means the adapter reported no steps at all. **Each reason has one next step, not a choice**: `not_absent_after_revoke` means the provider says the credential is still there, so the step is to retry `disconnect` once; `absence_unverified` means the check could not be made at all, so the state is unknown and the step is to check at the vendor rather than retry; `no_teardown_evidence` means the adapter reported nothing, so the step is to revoke at the vendor by the route that connector's `auth.md` names; `absent_but_teardown_failed` is the ambiguous one, where the provider says gone and the teardown's own last call failed, and the step is to check at the vendor whether the credential is really gone before doing anything else, because retrying acts on an unknown state. **Do not tell a person to remove records by hand**; nothing outside `disconnect` removes one.
+- **A `needs_connect` carrying `reason: nothing_to_disconnect` came from `disconnect`, not from work that needs a grant.** It means this machine holds **no recorded provider account that this call could disconnect**: either no row at all, or a row carrying no account id, which a `local-file` connection checked by `connect_status` without a prior `start_connect` can be. Do not report it as nothing being recorded, because an ACTIVE row may well exist. **Do not route it to Connect Account**, which would reverse what the person asked for and could hand them a fresh grant. Say there is nothing recorded here to disconnect, and say that this is a statement about the local record and not about whether a credential still exists at the provider; checking that is a vendor visit.
+- A `disconnect` `teardown_incomplete` with `reason: binding_denied_after_revoke` means the credential **was** revoked and the local rows were kept, because a module bound to it became denied while the provider call was in flight. **Those rows are now stale and may still read ACTIVE**: they are kept for recovery, not because they are true, and the teardown's answer is what to believe. Name the module the answer carries and stop; the policy has to change before a second `disconnect` can clear them.
+- A `disconnect` `denied` with `reason: bound_module_denied` is not about the module the caller named. One credential backs several modules, and the policy denies tearing down one of the others. Name that module, which the answer carries, and stop.
 - `invalid_arguments`: a bad tool call; nothing ran. Name the call correction as the next step.
 - `INITIATED`: wait for the person, then `connect_status`; do not poll.
 - `connected`: already done; no further step.
@@ -55,4 +60,4 @@ A reader of gateway stops who returns the smallest supported next step and never
 
 ## Success
 
-One next step matches the status table, no secret was echoed, and no grant was started.
+One next step matches the status table, or the teardown rule that step 2 dispatches to, and no secret was echoed and no grant was started. **A `disconnect` answer never yields a step that starts a grant.**

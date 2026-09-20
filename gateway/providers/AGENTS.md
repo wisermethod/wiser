@@ -30,6 +30,8 @@ An adapter reports `ABSENT` when the provider says this account is not there —
 
 *An earlier draft justified this by saying the adapter cannot revoke, so `ABSENT` could never gate a removal there. Adversarial review found that a non-sequitur: being unable to revoke does not imply being unable to observe absence. The reasoning above is the one that holds.*
 
+**A `local-file` connection's `provider_account_id` is the credential's filename**, written by `startConnect`, not an account at any provider. Two consequences worth knowing before a second local-file connector ships. It is why `disconnect` can never remove such a row: the teardown is gated on `ABSENT`, which this adapter never returns. And **the filename is the namespace**, so two local-file modules declaring the same `auth.file` would be treated as one credential by anything that groups on that field, `disconnect` included. One local-file module ships today, `usebouncer/verify` on `usebouncer.env`, so nothing collides; **a second one must not reuse a filename.** Observed 2026-09-20 while checking an impossibility claim, not by a defect.
+
 **`nango` is an interface stub and every method throws `not_implemented`.** It is uniform and therefore cannot diverge; whoever implements it builds to the table above, which is why the table changed rather than only the adapter that needed it.
 
 ### Why `revoke` reports each step
