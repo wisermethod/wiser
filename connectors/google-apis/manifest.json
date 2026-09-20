@@ -233,6 +233,92 @@
       },
       "unwrap_token": false,
       "fallback": "none"
+    },
+    "speech": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "CUSTOM_GOOGLE_APIS",
+        "scheme": "API_KEY",
+        "privilege": "read"
+      },
+      "actions": {
+        "recognize": {
+          "description": "Recognize speech in audio and return a transcription",
+          "risk": "medium",
+          "confirmation": "once",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "audio_content": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9+/_-]+={0,2}$"
+              },
+              "language_code": {
+                "type": "string",
+                "pattern": "^[A-Za-z]{2,8}(-[A-Za-z]{4})?(-([A-Za-z]{2}|[0-9]{3}))?(-([A-Za-z0-9]{5,8}|[0-9][A-Za-z0-9]{3}))*$",
+                "minLength": 1
+              },
+              "encoding": {
+                "type": "string",
+                "enum": [
+                  "ENCODING_UNSPECIFIED",
+                  "LINEAR16",
+                  "FLAC",
+                  "MULAW",
+                  "AMR",
+                  "AMR_WB",
+                  "OGG_OPUS",
+                  "SPEEX_WITH_HEADER_BYTE",
+                  "MP3",
+                  "WEBM_OPUS",
+                  "ALAW"
+                ]
+              },
+              "sample_rate_hertz": {
+                "type": "integer",
+                "minimum": 8000,
+                "maximum": 48000
+              },
+              "model": {
+                "type": "string"
+              },
+              "max_alternatives": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 30
+              },
+              "alternative_language_codes": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z]{2,8}(-[A-Za-z]{4})?(-([A-Za-z]{2}|[0-9]{3}))?(-([A-Za-z0-9]{5,8}|[0-9][A-Za-z0-9]{3}))*$"
+                },
+                "maxItems": 3
+              },
+              "enable_automatic_punctuation": {
+                "type": "boolean"
+              },
+              "enable_word_time_offsets": {
+                "type": "boolean"
+              },
+              "profanity_filter": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "audio_content",
+              "language_code"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
     }
   }
 }

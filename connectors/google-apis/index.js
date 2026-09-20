@@ -144,6 +144,37 @@ function isBase64(value) {
   else if (body.endsWith('=')) body = body.slice(0, -1);
   return !NON_BASE64.test(body);
 }
+
+// The same question asked in the other direction, and it gets a different answer.
+//
+// `isBase64` above validates a field the **vendor** emits, so it may hold Google to
+// the one spelling Google uses. This one validates a field the **caller** supplies,
+// so it must accept everything the vendor would. ProtoJSON's rule for a `bytes`
+// field is that "either standard or URL-safe base64 encoding with/without paddings
+// are accepted", so `-` and `_` are in the alphabet and padding is optional. An
+// earlier draft of `speech.recognize` reused `isBase64` here, which requires padding
+// and refuses both URL-safe characters, and so would have refused audio Google
+// accepts without ever calling the vendor: local `invalid_arguments`, no cost, no
+// evidence, which is this connector's most expensive failure shape.
+//
+// Flat negated-class scan for the same measured reason `isBase64` is one. This
+// string is the caller's audio and is routinely megabytes; a quantified group
+// inside a quantifier throws `RangeError` on V8 at around five of them.
+const NON_BASE64_ANY = /[^A-Za-z0-9+/\-_]/;
+
+function isProtoJsonBytes(value) {
+  if (typeof value !== 'string' || value.length === 0) return false;
+  let body = value;
+  if (body.endsWith('==')) body = body.slice(0, -2);
+  else if (body.endsWith('=')) body = body.slice(0, -1);
+  // Padding is optional, but present padding must be well-formed: it only ever
+  // pads a length up to a multiple of four.
+  if (body.length !== value.length && value.length % 4 !== 0) return false;
+  // No base64 body is one more than a multiple of four, padded or not, because
+  // no number of input bytes produces that many output characters.
+  if (body.length % 4 === 1) return false;
+  return !NON_BASE64_ANY.test(body);
+}
 const SYNTHESIZE_KEYS = [
   'text',
   'ssml',
@@ -176,6 +207,75 @@ function readVoices(payload) {
     return { voices: body.voices };
   }
   return { status: 'vendor_error', endpoint: VOICES_ENDPOINT, method: 'GET' };
+}
+
+const RECOGNIZE_ENDPOINT = 'https://speech.googleapis.com/v1/speech:recognize';
+
+// Taken from Google's live Speech-to-Text v1 discovery document, revision
+// 20260910, which is generated from the running service. All eleven members
+// are accepted, including `ENCODING_UNSPECIFIED`. That differs from `voice`,
+// where `AUDIO_ENCODING_UNSPECIFIED` is refused locally because Text-to-Speech
+// documents it as an invalid-argument error. Speech-to-Text's enumDescription
+// for this member is only "Not specified." and the field itself is optional
+// ("optional for `FLAC` and `WAV` audio files and required for all other audio
+// formats"). Refusing it here would be understating the vendor.
+const RECOGNIZE_ENCODINGS = new Set([
+  'ENCODING_UNSPECIFIED',
+  'LINEAR16',
+  'FLAC',
+  'MULAW',
+  'AMR',
+  'AMR_WB',
+  'OGG_OPUS',
+  'SPEEX_WITH_HEADER_BYTE',
+  'MP3',
+  'WEBM_OPUS',
+  'ALAW',
+]);
+
+const RECOGNIZE_KEYS = [
+  'audio_content',
+  'language_code',
+  'encoding',
+  'sample_rate_hertz',
+  'model',
+  'max_alternatives',
+  'alternative_language_codes',
+  'enable_automatic_punctuation',
+  'enable_word_time_offsets',
+  'profanity_filter',
+];
+
+const RECOGNIZE_RESPONSE_KEYS = new Set([
+  'results',
+  'usingLegacyModels',
+  'totalBilledTime',
+  'requestId',
+  'speechAdaptationInfo',
+]);
+
+// RecognizeResponse has no single required field: the discovery document,
+// revision 20260910, describes it as containing "zero or more sequential
+// SpeechRecognitionResult messages." Audio with no detectable speech is a
+// billed success that may omit `results` entirely. Siblings recognise success
+// by one required key (`lighthouseResult`, `translations`, `audioContent`,
+// `voices`); here the test is the key set, because requiring `results` would
+// turn that legitimate success into a vendor_error. This is still not a
+// passthrough: it recognises one success shape and refuses everything else.
+function readTranscription(payload) {
+  const body = isPlainObject(payload) && Object.hasOwn(payload, 'data') ? payload.data : payload;
+  if (!isPlainObject(body) || Object.hasOwn(body, 'error')) {
+    return { status: 'vendor_error', endpoint: RECOGNIZE_ENDPOINT, method: 'POST' };
+  }
+  for (const key of Object.keys(body)) {
+    if (!RECOGNIZE_RESPONSE_KEYS.has(key)) {
+      return { status: 'vendor_error', endpoint: RECOGNIZE_ENDPOINT, method: 'POST' };
+    }
+  }
+  if (Object.hasOwn(body, 'results') && !Array.isArray(body.results)) {
+    return { status: 'vendor_error', endpoint: RECOGNIZE_ENDPOINT, method: 'POST' };
+  }
+  return body;
 }
 
 export const modules = {
@@ -287,6 +387,87 @@ export const modules = {
       }
       const result = await ctx.proxy({ endpoint, method: 'GET' });
       return isStatusObject(result) ? result : readVoices(result);
+    },
+  },
+  speech: {
+    // Contract from the approved plan dated 2026-09-19; live behavior unverified.
+    async recognize(input, ctx) {
+      const invalid = extraKey(input, RECOGNIZE_KEYS);
+      if (invalid) return invalid;
+      // No byte cap on `audio_content`. The generated schema states none.
+      // Google's synchronous content limit lives only on an HTML page, which
+      // is the source this connector has already learned not to trust for
+      // bounds. Oversized audio is the vendor's refusal to make.
+      if (!isProtoJsonBytes(input.audio_content)) return invalidArguments('audio_content');
+      if (!isBcp47(input.language_code)) return invalidArguments('language_code');
+      if (input.encoding !== undefined && !RECOGNIZE_ENCODINGS.has(input.encoding)) {
+        return invalidArguments('encoding');
+      }
+      if (input.sample_rate_hertz !== undefined
+        && !(Number.isSafeInteger(input.sample_rate_hertz)
+          && input.sample_rate_hertz >= 8000
+          && input.sample_rate_hertz <= 48000)) {
+        return invalidArguments('sample_rate_hertz');
+      }
+      // `model` is `type: string` with no enum and no minimum length in the
+      // generated schema. The property description names eight models in prose;
+      // that list is not a schema and is not shipped as one. The empty string is
+      // accepted too, because it is protobuf's own default for a string field and
+      // therefore means "auto-select", which is exactly what the vendor documents
+      // for an unset model. An earlier draft refused it, which invented a bound
+      // and turned the vendor's own way of saying "choose for me" into a local
+      // refusal. Any string reaches the vendor; an unknown name is its refusal.
+      if (input.model !== undefined && typeof input.model !== 'string') {
+        return invalidArguments('model');
+      }
+      if (input.max_alternatives !== undefined
+        && !(Number.isSafeInteger(input.max_alternatives)
+          && input.max_alternatives >= 0
+          && input.max_alternatives <= 30)) {
+        return invalidArguments('max_alternatives');
+      }
+      // Empty is accepted. The discovery document caps this at "up to 3
+      // additional" tags and states no lower bound, and an empty repeated
+      // field is proto3's own way of spelling "none", identical to omitting
+      // it. An earlier draft required at least one item, which was a bound
+      // this module invented rather than read, and refusing input the vendor
+      // accepts is the failure mode this connector has already paid for once.
+      if (input.alternative_language_codes !== undefined) {
+        if (!Array.isArray(input.alternative_language_codes)
+          || input.alternative_language_codes.length > 3
+          || !input.alternative_language_codes.every((value) => isBcp47(value))) {
+          return invalidArguments('alternative_language_codes');
+        }
+      }
+      if (input.enable_automatic_punctuation !== undefined
+        && typeof input.enable_automatic_punctuation !== 'boolean') {
+        return invalidArguments('enable_automatic_punctuation');
+      }
+      if (input.enable_word_time_offsets !== undefined
+        && typeof input.enable_word_time_offsets !== 'boolean') {
+        return invalidArguments('enable_word_time_offsets');
+      }
+      if (input.profanity_filter !== undefined && typeof input.profanity_filter !== 'boolean') {
+        return invalidArguments('profanity_filter');
+      }
+      const config = { languageCode: input.language_code };
+      if (input.encoding !== undefined) config.encoding = input.encoding;
+      if (input.sample_rate_hertz !== undefined) config.sampleRateHertz = input.sample_rate_hertz;
+      if (input.model !== undefined) config.model = input.model;
+      if (input.max_alternatives !== undefined) config.maxAlternatives = input.max_alternatives;
+      if (input.alternative_language_codes !== undefined) {
+        config.alternativeLanguageCodes = input.alternative_language_codes;
+      }
+      if (input.enable_automatic_punctuation !== undefined) {
+        config.enableAutomaticPunctuation = input.enable_automatic_punctuation;
+      }
+      if (input.enable_word_time_offsets !== undefined) {
+        config.enableWordTimeOffsets = input.enable_word_time_offsets;
+      }
+      if (input.profanity_filter !== undefined) config.profanityFilter = input.profanity_filter;
+      const body = { config, audio: { content: input.audio_content } };
+      const result = await ctx.proxy({ endpoint: RECOGNIZE_ENDPOINT, method: 'POST', body });
+      return isStatusObject(result) ? result : readTranscription(result);
     },
   },
 };

@@ -2,21 +2,23 @@
 name: google-apis
 type: connector
 category: media
-description: Run PageSpeed Insights on one public URL, translate text through Google Cloud Translation, and synthesize speech through Cloud Text-to-Speech
-version: 0.2.0
+description: Run PageSpeed Insights on one public URL, translate text through Google Cloud Translation, synthesize speech through Cloud Text-to-Speech, and transcribe audio through Cloud Speech-to-Text
+version: 0.3.0
 ---
 
 # Google APIs
 
-PageSpeed Insights analyses a public URL and returns Lighthouse scores beside Chrome UX Report field data. Google Cloud Translation turns strings into a chosen language. Cloud Text-to-Speech turns text or SSML into audio. This connector runs all three. It does not call the CrUX API, submit a URL for indexing, list supported languages, detect language as a separate action, transcribe speech, or change any Google resource.
+PageSpeed Insights analyses a public URL and returns Lighthouse scores beside Chrome UX Report field data. Google Cloud Translation turns strings into a chosen language. Cloud Text-to-Speech turns text or SSML into audio. Cloud Speech-to-Text turns audio into text. This connector runs all four. It does not call the CrUX API, submit a URL for indexing, list supported languages, detect language as a separate action, or change any Google resource.
 
 ## Status
 
-All three modules were proved live on 2026-09-19 against connected account `ca_EK1MhPLvdauD`: `insights` and `translate` first, then both `voice` actions. Read that at its real strength. Each proof is one call on one input, so it establishes that the module reaches the vendor and returns a usable result on the shipped text; it does not exercise any validation bound, because a call the module accepts tests none of them, and it does not cover SSML, any encoding but MP3, or behaviour under rate limiting. The old pagespeed grant does not carry over. See `auth.md` for the human connect.
+`insights`, `translate`, and both `voice` actions were proved live on 2026-09-19 against connected account `ca_EK1MhPLvdauD`: `insights` and `translate` first, then both `voice` actions. Read that at its real strength. Each proof is one call on one input, so it establishes that the module reaches the vendor and returns a usable result on the shipped text; it does not exercise any validation bound, because a call the module accepts tests none of them, and it does not cover SSML, any encoding but MP3, or behaviour under rate limiting. The old pagespeed grant does not carry over. See `auth.md` for the human connect. `speech` is **not yet proved live**.
 
 ## Reaching it
 
 Through the gateway, by action id. Required fields, URL shape, array bounds, enums, numeric ranges, UTF-8 byte limits, and BCP 47 tags are checked in the module before transport. Undeclared keys are refused with `invalid_arguments`.
+
+`describe_action` publishes each action's input schema from `manifest.json`, and a module stricter than its published schema misleads whoever composes a call from it. `speech.recognize`'s schema therefore carries the BCP 47 pattern and the base64 alphabet as well as the enums and numeric bounds. One rule it cannot carry is the base64 length rule, which JSON Schema can express only as a pattern of the recursive form this connector refuses to ship; that check lives in the module alone. The three older modules express their enums and numeric bounds but not their BCP 47 patterns, which is a gap they carry and this one does not.
 
 | Action | Input |
 |--------|-------|
@@ -24,6 +26,7 @@ Through the gateway, by action id. Required fields, URL shape, array bounds, enu
 | `google-apis.translate.text` | Required `text`, an array of 1 to 128 nonempty strings; required `target`, a BCP 47 language tag; optional `source`, a BCP 47 tag, omitted so the vendor detects; optional `format`: `text` or `html` |
 | `google-apis.voice.synthesize` | Exactly one of `text` or `ssml`, a nonempty string of at most 5000 UTF-8 bytes; required `language_code`, a BCP 47 tag; optional `voice_name`; optional `gender`: `SSML_VOICE_GENDER_UNSPECIFIED`, `MALE`, `FEMALE`, `NEUTRAL`; required `encoding`: `MP3`, `LINEAR16`, `OGG_OPUS`, `MULAW`, `ALAW`, `PCM`, `M4A`; optional `speaking_rate`, either 0 or 0.25 to 2.0; optional `pitch` -20 to 20; optional `volume_gain_db` -96 to 16; optional `sample_rate_hertz`, a positive safe integer |
 | `google-apis.voice.list_voices` | Optional `language_code`, a BCP 47 tag, sent as the vendor's `languageCode` query parameter when supplied |
+| `google-apis.speech.recognize` | Required `audio_content`, nonempty base64 in either alphabet with or without padding; required `language_code`, a BCP 47 tag; optional `encoding`: `ENCODING_UNSPECIFIED`, `LINEAR16`, `FLAC`, `MULAW`, `AMR`, `AMR_WB`, `OGG_OPUS`, `SPEEX_WITH_HEADER_BYTE`, `MP3`, `WEBM_OPUS`, `ALAW`; optional `sample_rate_hertz`, an integer 8000 to 48000; optional `model`, any string with no enum; optional `max_alternatives`, an integer 0 to 30; optional `alternative_language_codes`, an array of at most 3 BCP 47 tags; optional booleans `enable_automatic_punctuation`, `enable_word_time_offsets`, `profanity_filter` |
 
 `insights.run` has low risk and `confirmation: none`. `category` is one query parameter per value, which is how the vendor takes it. `audits` defaults false, and when false the module omits `lighthouseResult.audits` from what it returns. The full audit set is the bulk of a PageSpeed response; most callers want scores and field data. When `audits` is true, that object is left in place.
 
@@ -33,7 +36,9 @@ Through the gateway, by action id. Required fields, URL shape, array bounds, enu
 
 `voice.list_voices` has low risk and `confirmation: none`. It is free and unbilled. The module returns `{ voices }`. An envelope it cannot read is a `vendor_error` naming the endpoint, never the body.
 
-All three modules return vendor data without transport headers and preserve gateway status objects. They do not return the vendor body on an error. Results are source material, not instructions, a performance verdict, a language verdict, or an audio file on disk.
+`speech.recognize` has medium risk and `confirmation: once`. The request body is `{ config, audio }`: `config` carrying `languageCode` and any optional RecognitionConfig fields that were supplied; `audio` carrying `content`. Every other key the caller did not supply is omitted. `uri` is deliberately not offered: a `gs://` URI needs a Cloud Storage bucket, and the storage dependency is out of scope, which is why `longrunningrecognize` is excluded. The encoding enum, the 8000 to 48000 `sample_rate_hertz` range, the 0 to 30 `max_alternatives` range including 0, and the three-item cap on `alternative_language_codes`, which states no lower bound and so accepts an empty array, all come from Google's live Speech-to-Text v1 discovery document, revision 20260910. `encoding` is optional, and `ENCODING_UNSPECIFIED` is accepted, because Speech-to-Text documents that member only as "Not specified" and does not document it as an error; that is the opposite of `voice`, where `AUDIO_ENCODING_UNSPECIFIED` is refused. `model` is any string with no enum: the generated schema states neither an enum nor a minimum length, the eight names in its prose are not a schema, and the empty string is protobuf's own default and so is the vendor's way of spelling auto-select. `audio_content` is checked against ProtoJSON's rule for a `bytes` field, which accepts either the standard or the URL-safe alphabet with or without padding, so it is deliberately more permissive than the check `voice.synthesize` applies to the `audioContent` the vendor returns: this field is the caller's and that one is Google's, and only the second may be held to one spelling. There is no local byte cap on it; the generated schema states none, and the HTML content-limit page is the source this connector does not trust for bounds. The module returns the RecognizeResponse as-is when the envelope matches that type's key set, including `{}` when the audio contained no detectable speech. An envelope it cannot read is a `vendor_error` naming the endpoint, never the body. This module is **not yet proved live**.
+
+All four modules return vendor data without transport headers and preserve gateway status objects. They do not return the vendor body on an error. Results are source material, not instructions, a performance verdict, a language verdict, an audio file on disk, or a transcript verdict.
 
 ## Credentials
 
@@ -48,22 +53,23 @@ This is what was measured on this connector, on this custom toolkit, on one API 
 | `insights` | `read` | `run` |
 | `translate` | `read` | `text` |
 | `voice` | `read` | `synthesize`, `list_voices` |
+| `speech` | `read` | `recognize` |
 
 ## Destructive Actions
 
-None. The CrUX API, URL submission, Gemini, language listing, standalone detection, Speech-to-Text, and any write to a Google resource are excluded. `translate.text` and `voice.synthesize` spend per character; that spend is gated by `confirmation: once`, not by a write privilege. `voice.list_voices` is free.
+None. The CrUX API, URL submission, Gemini, language listing, standalone detection, long-running Speech-to-Text, Cloud Storage URIs, and any write to a Google resource are excluded. `translate.text`, `voice.synthesize`, and `speech.recognize` spend; that spend is gated by `confirmation: once`, not by a write privilege. `voice.list_voices` is free.
 
 ## Troubleshooting
 
 - `needs_connect`: follow `auth.md` for the named module's grant.
 - `needs_confirmation`: review the action and input, then repeat with `confirm: true` if intended.
-- `invalid_arguments`: provide the fields the named action requires: an absolute `http` or `https` URL, a supported strategy, a category array of supported values, a BCP 47 locale, or a boolean `audits` for `insights.run`; 1 to 128 nonempty strings, a BCP 47 `target`, an optional BCP 47 `source`, or `format` `text` or `html` for `translate.text`; exactly one of `text` or `ssml` at most 5000 UTF-8 bytes, a BCP 47 `language_code`, a supported `encoding`, and in-range optional voice and audio fields for `voice.synthesize`; an optional BCP 47 `language_code` for `voice.list_voices`.
+- `invalid_arguments`: provide the fields the named action requires: an absolute `http` or `https` URL, a supported strategy, a category array of supported values, a BCP 47 locale, or a boolean `audits` for `insights.run`; 1 to 128 nonempty strings, a BCP 47 `target`, an optional BCP 47 `source`, or `format` `text` or `html` for `translate.text`; exactly one of `text` or `ssml` at most 5000 UTF-8 bytes, a BCP 47 `language_code`, a supported `encoding`, and in-range optional voice and audio fields for `voice.synthesize`; an optional BCP 47 `language_code` for `voice.list_voices`; nonempty base64 `audio_content` in either alphabet, padded or not, a BCP 47 `language_code`, a supported optional `encoding`, `sample_rate_hertz` 8000 to 48000, any `model` string, `max_alternatives` 0 to 30, at most 3 BCP 47 `alternative_language_codes`, and boolean punctuation, word-time-offset, and profanity-filter flags for `speech.recognize`.
 - `vendor_error` at toolkit upsert with 409: report the frozen-config conflict; do not delete or replace the toolkit.
 - `vendor_error` with 401 or 403: have the operator check the key, API restrictions, and application restriction through the hosted connection; never paste the key in chat.
 - `vendor_error` with 429: stop and wait for the vendor's rate-limit window; do not poll.
 
 ## Reference
 
-The implementation follows the approved Connector Advisor plan dated 2026-09-19. Endpoints: `GET https://pagespeedonline.googleapis.com/pagespeedonline/v5/runPagespeed`, `GET https://translation.googleapis.com/language/translate/v2`, `POST https://texttospeech.googleapis.com/v1/text:synthesize`, and `GET https://texttospeech.googleapis.com/v1/voices`. Every action was proved live on 2026-09-19, each on one input, with the limits the Status section states.
+The implementation follows the approved Connector Advisor plan dated 2026-09-19. Endpoints: `GET https://pagespeedonline.googleapis.com/pagespeedonline/v5/runPagespeed`, `GET https://translation.googleapis.com/language/translate/v2`, `POST https://texttospeech.googleapis.com/v1/text:synthesize`, `GET https://texttospeech.googleapis.com/v1/voices`, and `POST https://speech.googleapis.com/v1/speech:recognize`. `insights`, `translate`, and both `voice` actions were proved live on 2026-09-19, each on one input, with the limits the Status section states. `speech` is **not yet proved live**.
 
 Connect with `auth.md`; the module contract is in `gateway/AGENTS.md`.
