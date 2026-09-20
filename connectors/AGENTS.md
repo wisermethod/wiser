@@ -14,9 +14,11 @@ A connector directory holds four things: `CONNECTOR.md`, the typed file; `manife
 
 Nothing. A module may not write a file, install a package, or read a credential; the gateway's inventory in `gateway/AGENTS.md` is the whole of what this family writes, and it is written by the gateway.
 
-## Grants are per module
+## Grants are per module, and a grant is bound once
 
-A connection record is keyed by service and module. Two modules on one service are two grants and two `needs_connect` stops, even where the vendor would have accepted one broader grant, because the provider holds one grant per toolkit and a record that pretends otherwise cannot be honoured. The facade is naming and shared scope, never a shared token.
+A connection record is keyed by service and module and names the provider account the vendor's credential sits on. Two modules on one service are two grants and two `needs_connect` stops, even where the vendor would have accepted one broader grant, because the provider holds one grant per toolkit and a record that pretends otherwise cannot be honoured. The facade is naming and shared scope, never a shared token.
+
+**An ACTIVE record is used as it stands and nothing re-reads it.** Connecting again does not rebind a module; it adds a second account, and two ACTIVE accounts on one toolkit take that toolkit out of service rather than offering a choice. A credential is changed on the account the record already names, at the provider. No shipped path removes a record, so a grant deleted at the vendor still reads ACTIVE here.
 
 ## Adding one
 
