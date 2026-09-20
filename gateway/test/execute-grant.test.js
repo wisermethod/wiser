@@ -68,7 +68,9 @@ for (const path of ['ctx.catalog', 'catalog', 'ctx.proxy']) {
   });
 }
 
-for (const word of ['EXPIRED', 'FAILED', 'INACTIVE', 'INITIATED']) {
+// ABSENT joined this list on 2026-09-20. It is a fourth place the same list lived;
+// the gateway's two copies became one constant in the same change.
+for (const word of ['EXPIRED', 'FAILED', 'INACTIVE', 'INITIATED', 'ABSENT']) {
   test(`403 plus object status ${word} updates the existing grant`, async (t) => {
     const { gw, store, fake } = await hosted(t, 'ctx.proxy');
     fake.auth.proxy = async () => refusal(403);

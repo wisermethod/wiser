@@ -6,6 +6,18 @@ import { evaluate } from './policy.js';
 import { readProviderUserId, writeProviderUserIdIfEmpty } from './paths.js';
 import { parseActionId, resolveAction } from './resolve.js';
 
+/**
+ * Grant states a provider may report that are not ACTIVE, and that the gateway
+ * records on the connection row as the reason it stopped.
+ *
+ * One definition because this list lived in two places, and Session 2 of the
+ * grant-lifecycle build added `ABSENT` to it: a provider answering 404 means the
+ * account no longer exists there, where `INACTIVE` means it exists and is switched
+ * off. Two copies would have taken the new word in one place and silently downgraded
+ * it in the other, which is this family's named defect shape.
+ */
+const STOPPED_GRANT_STATES = ['EXPIRED', 'FAILED', 'INACTIVE', 'INITIATED', 'ABSENT'];
+
 const TOOLS = [
   {
     name: 'execute',
@@ -509,7 +521,7 @@ export class ConnectionGateway {
         if (raw && typeof raw === 'object' && raw.error) return vendorErrorFrom(raw);
         const mapped = typeof raw === 'string' ? raw : raw?.status;
         if (mapped !== 'ACTIVE') {
-          return stopGrant(['EXPIRED', 'FAILED', 'INACTIVE', 'INITIATED'].includes(mapped) ? mapped : 'INACTIVE');
+          return stopGrant(STOPPED_GRANT_STATES.includes(mapped) ? mapped : 'INACTIVE');
         }
       }
 
@@ -581,7 +593,7 @@ export class ConnectionGateway {
         }
         if (raw && typeof raw === 'object' && raw.error) return result;
         const mapped = typeof raw === 'string' ? raw : raw?.status;
-        if (['EXPIRED', 'FAILED', 'INACTIVE', 'INITIATED'].includes(mapped)) return stopGrant(mapped);
+        if (STOPPED_GRANT_STATES.includes(mapped)) return stopGrant(mapped);
         return result;
       };
 

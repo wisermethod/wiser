@@ -250,6 +250,8 @@ const DEFAULT_RESULTS = {
 export function createFakeProviders() {
   /** @type {Map<string, string>} */
   const accounts = new Map();
+  /** @type {object|null|((args: object) => object)} */
+  let revokeOutcome = null;
   const slugs = { ...DEFAULT_SLUGS };
   const executeResults = { ...DEFAULT_RESULTS };
   const proxyRules = [
@@ -385,7 +387,12 @@ export function createFakeProviders() {
       return { kind: 'link', url: 'https://example.com/connect', providerAccountId: id };
     },
     async status({ providerAccountId }) {
-      return accounts.get(providerAccountId) || 'INACTIVE';
+      // Present-but-not-ACTIVE and not-present are different answers. This returned
+      // `... || 'INACTIVE'` until 2026-09-20, conflating them exactly as the composio
+      // adapter did, so a fake-only proof of the teardown would have concealed the
+      // defect it was proving. Witness 12.
+      if (!accounts.has(providerAccountId)) return 'ABSENT';
+      return accounts.get(providerAccountId);
     },
     async proxy({ endpoint, method }) {
       for (const rule of proxyRules) {
@@ -399,11 +406,43 @@ export function createFakeProviders() {
       return { supported: false };
     },
     async revoke({ providerAccountId }) {
-      accounts.delete(providerAccountId);
-      return { supported: true };
+      const existed = accounts.has(providerAccountId);
+      const outcome = revokeOutcome
+        ? (typeof revokeOutcome === 'function' ? revokeOutcome({ providerAccountId, existed }) : revokeOutcome)
+        : {
+          supported: true,
+          steps: [
+            { step: 'revoke', status: existed ? 200 : 404, ok: existed },
+            { step: 'delete', status: existed ? 200 : 404, ok: existed },
+          ],
+          // The same envelope the composio adapter returns when the final step fails,
+          // per providers/AGENTS.md. Without it a caller could handle the fake's
+          // refusal and still not handle the real adapter's.
+          ...(existed ? {} : {
+            status: 404,
+            error: { code: 'vendor_error', endpoint: `/connected_accounts/${providerAccountId}`, method: 'DELETE' },
+          }),
+        };
+      // The account goes only when a delete step says it went. This deleted it first
+      // and applied the outcome afterwards until 2026-09-20, so a configured refusal
+      // still left the account absent and a teardown test could have approved a local
+      // removal after a revoke the provider rejected. That is the precise failure this
+      // contract exists to expose, concealed by the fake that proves it.
+      const deleted = Array.isArray(outcome.steps)
+        && outcome.steps.some((step) => step.step === 'delete' && step.ok);
+      if (deleted) accounts.delete(providerAccountId);
+      return outcome;
     },
     setStatus(providerAccountId, status) {
       accounts.set(providerAccountId, status);
+    },
+    /** Drive a partial or refused teardown, so a caller's handling of one is testable. */
+    setRevokeOutcome(outcome) {
+      revokeOutcome = outcome;
+    },
+    /** Remove an account at the provider without a revoke, as an out-of-band deletion. */
+    removeAccount(providerAccountId) {
+      accounts.delete(providerAccountId);
     },
   };
 

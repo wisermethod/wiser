@@ -52,6 +52,18 @@ export function createAuthProvider({ secretsDir, secretFiles } = {}) {
         variables: vars,
       };
     },
+    /**
+     * A missing or incomplete credential file is INACTIVE and deliberately not ABSENT,
+     * decided 2026-09-20. `ABSENT` is a claim about a credential at a provider we asked,
+     * and a file that is not on this disk says nothing about whether anything upstream
+     * was revoked: it may never have been written, or it may be on another machine. A
+     * missing file is also recoverable by writing it, which is what INACTIVE means.
+     *
+     * An earlier version of this comment argued instead that this adapter cannot revoke,
+     * so ABSENT could never gate a removal here. That is a non-sequitur and was withdrawn
+     * in providers/AGENTS.md; it survived here for one review round, which is this
+     * family's signature defect committed against its own correction.
+     */
     async status({ service, file, variables }) {
       const vars = Array.isArray(variables) && variables.length ? variables : ['API_KEY'];
       const path = resolvePath(dir, file, bound[service]);
@@ -91,7 +103,8 @@ export function createAuthProvider({ secretsDir, secretFiles } = {}) {
       return { supported: true, header: h, value: `${pre}${raw}` };
     },
     async revoke() {
-      return { supported: false, how: 'delete the file' };
+      // `steps` is empty rather than absent, so every adapter answers one shape.
+      return { supported: false, how: 'delete the file', steps: [] };
     },
   };
 }

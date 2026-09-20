@@ -65,7 +65,16 @@ async function request(apiKey, method, path, body) {
   const ok = res.status >= 200 && res.status < 300;
   let data = null;
   let malformed = false;
-  const text = await res.text();
+  let text = '';
+  try {
+    text = await res.text();
+  } catch {
+    // The connection broke while reading the body. The status line is known and is
+    // truthful, so it is kept; the body is not, so this is malformed. It must not
+    // throw: `revoke` reports what each of its steps did, and a throw here discarded
+    // a completed first step along with the second.
+    return { ok, status: res.status, data: null, malformed: true, endpoint: path, method };
+  }
   if (text) {
     try { data = JSON.parse(text); } catch { data = null; malformed = true; }
   }
@@ -197,6 +206,13 @@ export function createAuthProvider({ envPath } = {}) {
       const list = await request(apiKey, 'GET', `/auth_configs?toolkit_slug=${encodeURIComponent(toolkit || '')}`);
       // 404 means no blueprint for this toolkit yet, not a dead grant.
       if (!list.ok && list.status !== 404) return vendorError('/auth_configs', 'GET', list.status);
+      // A body this adapter could not read is not an empty list. Treating it as one
+      // would skip the two-config refusal below and create a third config. `status` and
+      // `proxy` already refuse a malformed body and `listAccounts` returns empty by its
+      // own contract; `initiate` is the consumer that needs the DATA rather than the
+      // status line, and it was left behind when `request` stopped throwing on an
+      // unreadable body. Found by adversarial review 2026-09-20.
+      if (list.ok && list.malformed) return vendorError('/auth_configs', 'GET', list.status);
       const items = list.ok ? (list.data?.items || list.data?.auth_configs || list.data?.data || []) : [];
       let authConfigId = null;
       if (Array.isArray(items) && items.length > 1) {
@@ -210,13 +226,15 @@ export function createAuthProvider({ envPath } = {}) {
       }
       if (!authConfigId) {
         const created = await request(apiKey, 'POST', '/auth_configs', createAuthConfigBody(toolkit, scheme));
-        if (!created.ok) return vendorError('/auth_configs', 'POST', created.status);
+        if (!created.ok || created.malformed) return vendorError('/auth_configs', 'POST', created.status);
         authConfigId = created.data?.auth_config?.id
           || created.data?.id
           || created.data?.auth_config_id
           || created.data?.data?.id
           || null;
       }
+      // A config was asked for and none came back. Continuing would link against null.
+      if (!authConfigId) return vendorError('/auth_configs', 'POST', null);
       // UNVERIFIED against live API on 2026-09-05; Solve confirms
       const linkBody = {
         auth_config_id: authConfigId,
@@ -224,17 +242,25 @@ export function createAuthProvider({ envPath } = {}) {
       };
       if (callbackUrl) linkBody.callback_url = callbackUrl;
       const linked = await request(apiKey, 'POST', '/connected_accounts/link', linkBody);
-      if (!linked.ok) return vendorError('/connected_accounts/link', 'POST', linked.status);
+      if (!linked.ok || linked.malformed) return vendorError('/connected_accounts/link', 'POST', linked.status);
       const data = linked.data || {};
       const url = data.redirect_url || data.url || data.link?.redirect_url || data.redirectUrl || null;
       const providerAccountId = data.connected_account_id || data.id || data.connectedAccountId || data.data?.id || null;
+      // A link with no url is not a link. Returning one made startConnect write an
+      // INITIATED row against a null account that no later call could ever resolve.
+      if (!url) return vendorError('/connected_accounts/link', 'POST', linked.status);
       return { kind: 'link', url, providerAccountId };
     },
     async status({ providerAccountId }) {
       if (!apiKey) return 'INACTIVE';
       const path = `/connected_accounts/${encodeURIComponent(providerAccountId || '')}`;
       const res = await request(apiKey, 'GET', path);
-      if (res.status === 404) return 'INACTIVE';
+      // ABSENT, not INACTIVE. A 404 means this account does not exist at the provider;
+      // INACTIVE means it exists and is switched off. Both returned the same word until
+      // 2026-09-20, so no caller could tell a deleted grant from a suspended one, and a
+      // teardown that removed the local row on "not ACTIVE" would also have removed the
+      // row for a grant that was coming back.
+      if (res.status === 404) return 'ABSENT';
       // Any other failure, a malformed body, an error field, or a status word the
       // provider never documented is the transport or the provider, not the grant.
       // Return an error object so the gateway leaves the record alone.
@@ -275,12 +301,25 @@ export function createAuthProvider({ envPath } = {}) {
       return { supported: false };
     },
     async revoke({ providerAccountId }) {
-      if (!apiKey) return { supported: false, how: 'not configured' };
+      if (!apiKey) return { supported: false, how: 'not configured', steps: [] };
       const id = encodeURIComponent(providerAccountId || '');
-      await request(apiKey, 'POST', `/connected_accounts/${id}/revoke`);
+      // Both steps are reported, because both can fail independently and the first one
+      // failing is not the same as the operation failing. Measured at the vendor on
+      // 2026-09-19: a custom API_KEY toolkit answers the POST with 400 and "does not
+      // support programmatic credential revocation", and the DELETE then does the work.
+      // Until 2026-09-20 this function awaited that POST and discarded it, so the fact
+      // was invisible to every caller.
+      const steps = [];
+      const revoked = await request(apiKey, 'POST', `/connected_accounts/${id}/revoke`);
+      steps.push({ step: 'revoke', status: revoked.status ?? null, ok: Boolean(revoked.ok) });
       const del = await request(apiKey, 'DELETE', `/connected_accounts/${id}`);
-      if (!del.ok) return vendorError(`/connected_accounts/${providerAccountId}`, 'DELETE', del.status);
-      return { supported: true };
+      steps.push({ step: 'delete', status: del.status ?? null, ok: Boolean(del.ok) });
+      // The step list carries a status code and a step name and never a vendor body,
+      // per standards/script-contract.md.
+      if (!del.ok) {
+        return { ...vendorError(`/connected_accounts/${id}`, 'DELETE', del.status), supported: true, steps };
+      }
+      return { supported: true, steps };
     },
   };
 }
