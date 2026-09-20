@@ -198,7 +198,19 @@
               "language_code",
               "encoding"
             ],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "required": [
+                  "text"
+                ]
+              },
+              {
+                "required": [
+                  "ssml"
+                ]
+              }
+            ]
           }
         },
         "list_voices": {

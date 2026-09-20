@@ -434,6 +434,47 @@ test('an envelope synthesize cannot read is a vendor_error, never the body', asy
   }
 });
 
+// Regression test for a defect that shipped and was caught in review: validating
+// audioContent with a repeated four-character regex group throws
+// `RangeError: Maximum call stack size exceeded` on V8 at a few megabytes. Five
+// megabytes is roughly 109 seconds of LINEAR16 at 24 kHz, well inside what 5000
+// bytes of input text produces, so the validator destroyed the result of a
+// synthesis the caller had already paid for. The fixtures here are deliberately
+// larger than the threshold that used to throw.
+test('a multi-megabyte audioContent is returned rather than thrown on', async () => {
+  for (const megabytes of [1, 5, 8]) {
+    const audioContent = Buffer.alloc(megabytes * 1024 * 1024, 0xab).toString('base64');
+    assert.ok(audioContent.length > megabytes * 1_000_000, 'fixture is large enough to matter');
+    const result = await modules.voice.synthesize(VALID, {
+      proxy: async () => ({ status: 200, data: { audioContent }, headers: {} }),
+    });
+    assert.equal(result.status, undefined, `${megabytes} MB should have been returned`);
+    assert.equal(result.audioContent, audioContent);
+  }
+});
+
+test('both padding forms are accepted and a mispadded payload is not', async () => {
+  const call = (audioContent) => modules.voice.synthesize(VALID, {
+    proxy: async () => ({ status: 200, data: { audioContent }, headers: {} }),
+  });
+  // One, two and three trailing bytes give no padding, one '=' and two '=' in turn.
+  for (const bytes of [3, 6, 9]) {
+    const padded = Buffer.alloc(bytes, 0xab).toString('base64');
+    assert.equal((await call(padded)).audioContent, padded, padded);
+  }
+  for (const bytes of [1, 2, 4, 5]) {
+    const padded = Buffer.alloc(bytes, 0xab).toString('base64');
+    assert.equal((await call(padded)).audioContent, padded, padded);
+  }
+  // Unpadded and URL-safe are not what ProtoJSON emits for a `format: "byte"` field,
+  // and admitting them would let a hyphenated diagnostic string through on a length
+  // that happens to be a multiple of four.
+  for (const wrong of ['YQ', 'YWI', 'c3ludGhldGljLWF1ZGlv=', 'ab-_', '====']) {
+    const result = await call(wrong);
+    assert.equal(result.status, 'vendor_error', wrong);
+  }
+});
+
 test('a readable synthesize envelope yields audioContent and nothing else', async () => {
   const result = await modules.voice.synthesize(VALID, {
     proxy: async () => ({

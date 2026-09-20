@@ -119,11 +119,31 @@ const ENCODINGS = new Set(['MP3', 'LINEAR16', 'OGG_OPUS', 'MULAW', 'ALAW', 'PCM'
 // refused by the vendor, which spends a call to learn what this bound already knows.
 const MAX_INT32 = 2147483647;
 
-// Base64 as the vendor emits it for `audioContent`. Standard alphabet, correct
-// padding, and a length that is a multiple of four. This does not establish that the
-// decoded bytes are audio; it establishes that the field is not prose, which is what
-// separates a real payload from a diagnostic string arriving in the right container.
-const BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+// Base64 as the vendor emits it for `audioContent`: `format: "byte"` in the v1
+// discovery document, which is ProtoJSON's standard alphabet with padding.
+//
+// **Deliberately not a regular expression**, and the reason is measured rather than
+// stylistic. The obvious form, `(?:[A-Za-z0-9+/]{4})*` followed by an optional
+// padding group, backtracks per four-character group and throws `RangeError:
+// Maximum call stack size exceeded` on V8 at around five megabytes of base64. Five
+// megabytes is roughly 109 seconds of LINEAR16 at 24 kHz, which 5000 bytes of input
+// text reaches easily, so that form destroys the result of a synthesis the caller
+// has already paid for. Measured here at 2 MB passing in 6 ms and 5 MB throwing.
+// The length check plus one flat negated-class scan is linear and cannot recurse.
+//
+// What this establishes is narrow: the field is well-formed base64. It does not
+// establish that the decoded bytes are audio, and short words in the alphabet such
+// as "test" are well-formed base64. It is enough to separate a real payload from an
+// ordinary diagnostic sentence, which is the case it exists for.
+const NON_BASE64 = /[^A-Za-z0-9+/]/;
+
+function isBase64(value) {
+  if (typeof value !== 'string' || value.length === 0 || value.length % 4 !== 0) return false;
+  let body = value;
+  if (body.endsWith('==')) body = body.slice(0, -2);
+  else if (body.endsWith('=')) body = body.slice(0, -1);
+  return !NON_BASE64.test(body);
+}
 const SYNTHESIZE_KEYS = [
   'text',
   'ssml',
@@ -144,7 +164,7 @@ function inRange(value, min, max) {
 function readAudio(payload) {
   const body = isPlainObject(payload) && Object.hasOwn(payload, 'data') ? payload.data : payload;
   const audio = isPlainObject(body) ? body.audioContent : undefined;
-  if (typeof audio === 'string' && audio.length > 0 && BASE64.test(audio)) {
+  if (isBase64(audio)) {
     return { audioContent: audio };
   }
   return { status: 'vendor_error', endpoint: SYNTHESIZE_ENDPOINT, method: 'POST' };
