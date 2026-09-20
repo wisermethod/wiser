@@ -12,7 +12,7 @@ The **application restriction** must be **None**, not HTTP referrers. A server-s
 
 ## Hosted connect
 
-One hosted connect usually covers every module of this connector, because they share one custom toolkit and one key. Observed on 2026-09-19: one hosted connect on `insights` produced account `ca_EK1MhPLvdauD`; `google-apis.translate.text` then executed with no `needs_connect` stop, and a `translate` connection record appeared afterwards pointing at that same account. Both `voice` actions did the same later that day, on the same one account and with no connect turn. This is what was measured on this connector, on this custom toolkit, on one API key, on that day. It is not a statement about how grants work in general.
+One hosted connect usually covers every module of this connector, because they share one custom toolkit and one key. Observed on 2026-09-19: one hosted connect on `insights` produced a single account; `google-apis.translate.text` then executed with no `needs_connect` stop, and a `translate` connection record appeared afterwards pointing at that same account. Both `voice` actions did the same later that day, on the same one account and with no connect turn. This is what was measured on this connector, on this custom toolkit, on one API key, on that day. It is not a statement about how grants work in general.
 
 **The word "usually" is carrying a real condition.** The gateway adopts an existing account for a module that has no grant of its own, and only while this toolkit carries **exactly one** ACTIVE account; it skips adoption altogether if it cannot list accounts at the provider.
 
@@ -34,4 +34,4 @@ Revoke each module through the gateway, then revoke or rotate the API key in the
 
 ## Last connected
 
-2026-09-19, account `ca_EK1MhPLvdauD`. The old pagespeed grant is on the retired toolkit and does not carry over.
+2026-09-19, on this workspace's own grant. The old pagespeed grant is on the retired toolkit and does not carry over.
