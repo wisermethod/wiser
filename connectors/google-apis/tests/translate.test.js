@@ -7,7 +7,7 @@ import { createTestGateway, putActive } from '../../../gateway/test/fake-provide
 import { modules } from '../index.js';
 
 const DIR = fileURLToPath(new URL('..', import.meta.url));
-const ACTION = 'google-ai.translate.text';
+const ACTION = 'google-apis.translate.text';
 const VALID = { text: ['Hello world'], target: 'de' };
 const ENDPOINT = 'https://translation.googleapis.com/language/translate/v2';
 
@@ -21,7 +21,7 @@ const VENDOR = {
 
 async function activeGateway() {
   const fixture = await createTestGateway();
-  await putActive(fixture.store, fixture.fake, { service: 'google-ai', module: 'translate', privilege: 'read' });
+  await putActive(fixture.store, fixture.fake, { service: 'google-apis', module: 'translate', privilege: 'read' });
   fixture.fake.catalog.execute = async () => assert.fail('proxy action used catalog execute');
   const calls = [];
   fixture.fake.auth.proxy = async (request) => {

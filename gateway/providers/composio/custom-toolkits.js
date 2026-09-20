@@ -15,17 +15,11 @@ export const CUSTOM_TOOLKITS = [
     auth_schemes: [{ mode: 'API_KEY', headers: { 'X-API-Key': '{{generic_api_key}}' } }],
   },
   {
-    service: 'pagespeed',
-    slug: 'PAGESPEED',
-    name: 'PageSpeed Insights',
+    service: 'google-apis',
+    slug: 'GOOGLE_APIS',
+    name: 'Google APIs',
+    // app_url is cosmetic: every module uses an absolute URL, so this host is unused on the wire.
     app_url: 'https://pagespeedonline.googleapis.com',
-    auth_schemes: [{ mode: 'API_KEY', headers: { 'X-Goog-Api-Key': '{{generic_api_key}}' } }],
-  },
-  {
-    service: 'google-ai',
-    slug: 'GOOGLE_AI',
-    name: 'Google AI',
-    app_url: 'https://translation.googleapis.com',
     auth_schemes: [{ mode: 'API_KEY', headers: { 'X-Goog-Api-Key': '{{generic_api_key}}' } }],
   },
 ];

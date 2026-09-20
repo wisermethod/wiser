@@ -42,7 +42,6 @@ A connection record is keyed by service and module. Two modules on one service a
 | `google/CONNECTOR.md` | Reads search performance, URL index state, sitemap details, analytics reports, Drive files, Calendar events, Gmail messages, spreadsheet values, documents, and presentations through eight separate grants |
 | `clarity/CONNECTOR.md` | Exports Clarity metrics for the last one, two, or three days |
 | `bing/CONNECTOR.md` | Reads Bing Webmaster Tools verified sites, search and page performance, crawl diagnostics, URL inspection, feeds, inbound links, and keyword research through one grant |
-| `pagespeed/CONNECTOR.md` | Read PageSpeed Insights scores and field data for one public URL |
 
 ### Communication
 
@@ -58,8 +57,8 @@ A connection record is keyed by service and module. Two modules on one service a
 | Connector | Description |
 |-----------|-------------|
 | `replicate/CONNECTOR.md` | Lists curated model collections, starts confirmed predictions, and returns prediction status and output URLs |
+| `google-apis/CONNECTOR.md` | Run PageSpeed Insights on one public URL and translate text through Google Cloud Translation |
 | `google-vision/CONNECTOR.md` | Detects faces and returns eye coordinates for faces with both eyes available |
-| `google-ai/CONNECTOR.md` | Translate text into a target language through Google Cloud Translation |
 | `figma/CONNECTOR.md` | Reads file metadata and lists the files in a project |
 
 ### Research

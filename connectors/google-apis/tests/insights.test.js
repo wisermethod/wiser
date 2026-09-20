@@ -7,8 +7,9 @@ import { createTestGateway, putActive } from '../../../gateway/test/fake-provide
 import { modules } from '../index.js';
 
 const DIR = fileURLToPath(new URL('..', import.meta.url));
-const ACTION = 'pagespeed.insights.run';
+const ACTION = 'google-apis.insights.run';
 const VALID = { url: 'https://example.com/' };
+const ENDPOINT = 'https://pagespeedonline.googleapis.com/pagespeedonline/v5/runPagespeed';
 
 const VENDOR = {
   id: 'https://example.com/',
@@ -24,7 +25,7 @@ const VENDOR = {
 
 async function activeGateway() {
   const fixture = await createTestGateway();
-  await putActive(fixture.store, fixture.fake, { service: 'pagespeed', module: 'insights', privilege: 'read' });
+  await putActive(fixture.store, fixture.fake, { service: 'google-apis', module: 'insights', privilege: 'read' });
   fixture.fake.catalog.execute = async () => assert.fail('proxy action used catalog execute');
   const calls = [];
   fixture.fake.auth.proxy = async (request) => {
@@ -35,7 +36,7 @@ async function activeGateway() {
 }
 
 function parsed(endpoint) {
-  return new URL(endpoint, 'https://pagespeedonline.googleapis.com');
+  return new URL(endpoint);
 }
 
 test('run needs_connect until the insights read grant is active', async () => {
@@ -48,7 +49,7 @@ test('run needs_connect until the insights read grant is active', async () => {
   assert.equal(fake.accounts.size, 0);
 });
 
-test('run uses a relative GET proxy and exposes invented vendor data only', async () => {
+test('run uses an absolute GET proxy and exposes invented vendor data only', async () => {
   const { gw, calls } = await activeGateway();
   const result = await gw.execute({ action: ACTION, input: VALID });
   assert.equal(result.id, VENDOR.id);
@@ -57,7 +58,9 @@ test('run uses a relative GET proxy and exposes invented vendor data only', asyn
   assert.equal(Object.hasOwn(result, 'headers'), false);
   assert.equal(calls.length, 1);
   assert.equal(calls[0].method, 'GET');
+  assert.equal(calls[0].endpoint.startsWith(ENDPOINT), true);
   const url = parsed(calls[0].endpoint);
+  assert.equal(url.origin, 'https://pagespeedonline.googleapis.com');
   assert.equal(url.pathname, '/pagespeedonline/v5/runPagespeed');
   assert.equal(url.searchParams.get('url'), VALID.url);
   assert.equal(url.searchParams.get('strategy'), null);
@@ -130,6 +133,7 @@ test('repeated category is one query parameter per value', async () => {
   assert.equal(result.lighthouseResult.categories.performance.score, 0.9);
   assert.equal(calls.length, 1);
   const url = parsed(calls[0].endpoint);
+  assert.equal(url.origin, 'https://pagespeedonline.googleapis.com');
   assert.equal(url.pathname, '/pagespeedonline/v5/runPagespeed');
   assert.equal(url.searchParams.get('url'), VALID.url);
   assert.equal(url.searchParams.get('strategy'), 'mobile');
@@ -168,14 +172,53 @@ test('module never reads, receives, logs, or returns a credential', async () => 
   assert.equal(Object.hasOwn(result, 'headers'), false);
 });
 
-test('module preserves gateway status objects and unwraps falsy vendor data', async () => {
-  for (const status of ['needs_connect', 'needs_provider_capability', 'vendor_error']) {
+test('module preserves gateway status objects untouched', async () => {
+  for (const status of ['needs_connect', 'needs_provider_capability', 'vendor_error', 'denied']) {
     const result = { status };
     assert.equal(await modules.insights.run(VALID, { proxy: async () => result }), result);
   }
-  for (const data of [null, false, 0, '']) {
-    assert.equal(await modules.insights.run(VALID, { proxy: async () => ({ status: 200, data, headers: {} }) }), data);
+});
+
+test('an envelope this module cannot read is a vendor_error, never the body', async () => {
+  // This test replaced one that asserted the opposite. The inherited pagespeed module
+  // forwarded whatever it received, which adversarial review found on the translate
+  // module on 2026-09-19; the same defect was here and is fixed the same way. A
+  // runPagespeed success always carries lighthouseResult, so anything without one is
+  // an envelope this module cannot read and may be a vendor error body.
+  const unreadable = [
+    { error: { code: 403, message: 'synthetic-private-response', key: 'AIza-example' } },
+    { kind: 'pagespeedonline#result' },
+    { lighthouseResult: null },
+    { lighthouseResult: 'ok' },
+    { lighthouseResult: [] },
+    null,
+    false,
+    0,
+    '',
+    'synthetic-private-response',
+    [{ lighthouseResult: {} }],
+  ];
+  for (const data of unreadable) {
+    const result = await modules.insights.run(VALID, {
+      proxy: async () => ({ status: 200, data, headers: { 'x-example': 'secret' } }),
+    });
+    assert.equal(result.status, 'vendor_error', JSON.stringify(data));
+    assert.equal(result.endpoint, ENDPOINT);
+    assert.equal(result.method, 'GET');
+    assert.equal(Object.hasOwn(result, 'headers'), false);
+    const dumped = JSON.stringify(result);
+    assert.equal(dumped.includes('synthetic-private-response'), false, JSON.stringify(data));
+    assert.equal(dumped.includes('AIza-example'), false);
   }
+});
+
+test('a result with no field data is still readable, because lighthouseResult is the test', async () => {
+  // loadingExperience is absent for a URL with no CrUX history. That is a normal
+  // success and must not be refused as an unreadable envelope.
+  const result = await modules.insights.run(VALID, {
+    proxy: async () => ({ status: 200, data: { lighthouseResult: { categories: {} } }, headers: {} }),
+  });
+  assert.deepEqual(result, { lighthouseResult: { categories: {} } });
 });
 
 test('gateway preserves proxy capability and vendor failure stops without the vendor body', async () => {

@@ -116,54 +116,29 @@ test('Tiny Fish body uses an unprefixed slug and key-only X-API-Key header', () 
   assert.equal(createCustomToolkitBody(row).toolkit_config.auth_schemes[0].headers['X-API-Key'], '{{generic_api_key}}');
 });
 
-test('pagespeed upsert body uses the unprefixed slug and the X-Goog-Api-Key template', () => {
-  const row = findCustomToolkit('pagespeed');
+test('google-apis upsert body uses the unprefixed slug and the X-Goog-Api-Key template', () => {
+  const row = findCustomToolkit('google-apis');
   assert.ok(row);
+  assert.equal(CUSTOM_TOOLKITS[2], row);
   const body = createCustomToolkitBody(row);
   assert.deepEqual(body, {
-    slug: 'PAGESPEED',
+    slug: 'GOOGLE_APIS',
     toolkit_config: {
-      name: 'PageSpeed Insights',
+      name: 'Google APIs',
       app_url: 'https://pagespeedonline.googleapis.com',
       auth_schemes: [{ mode: 'API_KEY', headers: { 'X-Goog-Api-Key': '{{generic_api_key}}' } }],
     },
   });
   // The API prefixes CUSTOM_. Sending the prefixed slug on upsert registers the wrong toolkit.
-  assert.notEqual(body.slug, 'CUSTOM_PAGESPEED');
-  assert.equal(registeredSlug(row), 'CUSTOM_PAGESPEED');
-  for (const name of ['pagespeed', 'PAGESPEED', 'CUSTOM_PAGESPEED']) {
+  assert.notEqual(body.slug, 'CUSTOM_GOOGLE_APIS');
+  assert.equal(registeredSlug(row), 'CUSTOM_GOOGLE_APIS');
+  for (const name of ['google-apis', 'GOOGLE_APIS', 'CUSTOM_GOOGLE_APIS']) {
     assert.equal(findCustomToolkit(name), row);
   }
-  assert.equal(toolkitFor('pagespeed', 'insights'), registeredSlug(row));
-  assert.equal(toSlug('pagespeed.insights.run'), null);
-  body.toolkit_config.auth_schemes[0].headers['X-Goog-Api-Key'] = 'changed';
-  assert.equal(
-    createCustomToolkitBody(row).toolkit_config.auth_schemes[0].headers['X-Goog-Api-Key'],
-    '{{generic_api_key}}',
-  );
-});
-
-test('google-ai upsert body uses the unprefixed slug and the X-Goog-Api-Key template', () => {
-  const row = findCustomToolkit('google-ai');
-  assert.ok(row);
-  assert.equal(CUSTOM_TOOLKITS[3], row);
-  const body = createCustomToolkitBody(row);
-  assert.deepEqual(body, {
-    slug: 'GOOGLE_AI',
-    toolkit_config: {
-      name: 'Google AI',
-      app_url: 'https://translation.googleapis.com',
-      auth_schemes: [{ mode: 'API_KEY', headers: { 'X-Goog-Api-Key': '{{generic_api_key}}' } }],
-    },
-  });
-  // The API prefixes CUSTOM_. Sending the prefixed slug on upsert registers the wrong toolkit.
-  assert.notEqual(body.slug, 'CUSTOM_GOOGLE_AI');
-  assert.equal(registeredSlug(row), 'CUSTOM_GOOGLE_AI');
-  for (const name of ['google-ai', 'GOOGLE_AI', 'CUSTOM_GOOGLE_AI']) {
-    assert.equal(findCustomToolkit(name), row);
-  }
-  assert.equal(toolkitFor('google-ai', 'translate'), registeredSlug(row));
-  assert.equal(toSlug('google-ai.translate.text'), null);
+  assert.equal(toolkitFor('google-apis', 'insights'), registeredSlug(row));
+  assert.equal(toolkitFor('google-apis', 'translate'), registeredSlug(row));
+  assert.equal(toSlug('google-apis.insights.run'), null);
+  assert.equal(toSlug('google-apis.translate.text'), null);
   body.toolkit_config.auth_schemes[0].headers['X-Goog-Api-Key'] = 'changed';
   assert.equal(
     createCustomToolkitBody(row).toolkit_config.auth_schemes[0].headers['X-Goog-Api-Key'],
