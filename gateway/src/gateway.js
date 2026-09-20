@@ -5,6 +5,9 @@ import { composeSummary, discloseInput } from './disclosure.js';
 import { evaluate } from './policy.js';
 import { readProviderUserId, writeProviderUserIdIfEmpty } from './paths.js';
 import { parseActionId, resolveAction } from './resolve.js';
+// The vocabularies a store row's own `privilege` and `provider` are checked against,
+// taken from where the manifest validator already defines them rather than restated.
+import { AUTH_PROVIDERS, PRIVILEGES } from './manifest.js';
 
 /**
  * Grant states a provider may report that are not ACTIVE, and that the gateway
@@ -931,7 +934,57 @@ export class ConnectionGateway {
   async disconnect({ service, module, provider_account_id: approvedAccount, confirm } = {}) {
     return this.withAudit('disconnect', { service, module }, async (line) => {
       const found = this.lookupModule(service, module);
-      if (!found) return statusObject(STATUS.NEEDS_CONNECTOR, { service, module, reason: 'undeclared' });
+      const stored = this.store.getConnection({ service, module });
+
+      // **A record can outlive whatever made it, and that is when it most
+      // needs taking down.** Retiring a connector leaves its grant live at the provider
+      // and its row here pointing at nothing, which is how a row is orphaned in the
+      // first place. Refusing on `undeclared` meant the tool built to clear stale rows
+      // could not clear the one kind the tree actually produces. Found in Refine by
+      // trying it on a real one.
+      //
+      // Any row carrying an account qualifies, not only an ACTIVE one: a stale or
+      // inactive row is exactly what a teardown is for. Nothing else is relaxed. The
+      // row carries its own `privilege` and `provider`, validated above, and every gate
+      // below still runs: the policy is
+      // evaluated on that stored privilege, the stop names the account and every module
+      // on it, the approval binds to the account id, and removal still needs ABSENT
+      // corroborated by the teardown's final step. **A row with no stored privilege is
+      // refused**, because authorizing on nothing is what the sibling check already
+      // taught this function not to do.
+      // **A store row is not a manifest.** `manifest.js` validates `privilege` against
+      // read|write|admin and `providers/` decides what a provider name may be; a row
+      // has been through neither, and policy matching is strict equality, so `"ADMIN"`
+      // or `""` matches no privilege rule and slips past a privilege-specific denial.
+      // An unrecognised provider is worse: `providerFor` sends everything that is not
+      // exactly `local-file` to the catalog adapter, so a row naming nothing would have
+      // revoked against the catalog on no evidence it belonged there. Both found by
+      // adversarial review before this path saw a real account.
+      const orphaned = !found && stored?.provider_account_id ? {
+        auth: { privilege: stored.privilege ?? null, provider: stored.provider ?? null },
+      } : null;
+      if (orphaned && !PRIVILEGES.has(orphaned.auth.privilege)) {
+        return statusObject(STATUS.DENIED, {
+          rule: { effect: 'deny', reason: 'unknown_privilege' },
+          service,
+          module,
+          reason: 'orphaned_record_without_privilege',
+          privilege: typeof orphaned.auth.privilege === 'string' ? orphaned.auth.privilege : null,
+        });
+      }
+      if (orphaned && !AUTH_PROVIDERS.has(orphaned.auth.provider)) {
+        return statusObject(STATUS.DENIED, {
+          rule: { effect: 'deny', reason: 'unknown_provider' },
+          service,
+          module,
+          reason: 'orphaned_record_without_provider',
+          provider: typeof orphaned.auth.provider === 'string' ? orphaned.auth.provider : null,
+        });
+      }
+      if (!found && !orphaned) {
+        return statusObject(STATUS.NEEDS_CONNECTOR, { service, module, reason: 'undeclared' });
+      }
+      const target = found || orphaned;
 
       const authorize = (svc, mod, privilege) => evaluate(this.policy, {
         harness: this.harness,
@@ -943,11 +996,11 @@ export class ConnectionGateway {
         op: 'disconnect',
       });
 
-      const decision = authorize(service, module, found.auth?.privilege);
+      const decision = authorize(service, module, target.auth?.privilege);
       if (decision.effect === 'deny') return statusObject(STATUS.DENIED, { rule: decision.rule });
-      line.privilege = found.auth?.privilege ?? null;
+      line.privilege = target.auth?.privilege ?? null;
 
-      const record = this.store.getConnection({ service, module });
+      const record = stored;
       const accountId = record?.provider_account_id ?? null;
       if (!record || !accountId) {
         // Nothing here to take down. Said plainly rather than reported as a success
@@ -955,7 +1008,7 @@ export class ConnectionGateway {
         return statusObject(STATUS.NEEDS_CONNECT, {
           service,
           module,
-          privilege: found.auth?.privilege ?? null,
+          privilege: target.auth?.privilege ?? null,
           reason: 'nothing_to_disconnect',
         });
       }
@@ -982,9 +1035,23 @@ export class ConnectionGateway {
           // though it had no privilege at all. The stored privilege is used instead,
           // and a row carrying neither is denied rather than waved through.
           const privilege = sibling?.auth?.privilege ?? row.privilege ?? null;
-          if (privilege === null) {
+          if (!PRIVILEGES.has(privilege)) {
             return statusObject(STATUS.DENIED, {
               rule: { effect: 'deny', reason: 'unknown_privilege' },
+              service: row.service,
+              module: row.module,
+              reason: 'bound_module_denied',
+            });
+          }
+          // **A sibling's provider is checked too, and only checking the caller's was a
+          // hole.** Bindings are collected by account id alone, so two orphaned rows can
+          // share an account while naming different providers; validating the requested
+          // row and then deleting account-wide removed a row whose provider the gateway
+          // had explicitly refused to establish. A declared sibling is covered by its
+          // manifest, which `manifest.js` already validated. Adversarial review, round two.
+          if (!sibling && !AUTH_PROVIDERS.has(row.provider)) {
+            return statusObject(STATUS.DENIED, {
+              rule: { effect: 'deny', reason: 'unknown_provider' },
               service: row.service,
               module: row.module,
               reason: 'bound_module_denied',
@@ -1019,7 +1086,7 @@ export class ConnectionGateway {
           service,
           module,
           risk: 'destructive',
-          description: `revokes this credential at the provider and removes ${bound.length} local record${bound.length === 1 ? '' : 's'}, ending ${names}. You are approving the credential, so anything else bound to it before you answer ends too`,
+          description: `revokes this credential at the provider and removes ${bound.length} local record${bound.length === 1 ? '' : 's'}, ending ${names}. You are approving the credential, so anything else bound to it before you answer ends too${orphaned ? `. NOTE: nothing declares ${service}/${module} any more, so this record has outlived what made it; other bindings listed above may still be declared and still able to use this credential` : ''}`,
           disclosure,
         });
         return statusObject(STATUS.NEEDS_CONFIRMATION, {
@@ -1057,14 +1124,14 @@ export class ConnectionGateway {
         });
       }
 
-      const provider = this.providerFor(found.auth);
+      const provider = this.providerFor(target.auth);
       if (!provider || typeof provider.revoke !== 'function') {
         return statusObject(STATUS.NEEDS_PROVIDER_CAPABILITY, { op: 'disconnect', capability: 'revoke' });
       }
 
       let outcome;
       try {
-        outcome = await provider.revoke({ providerAccountId: accountId, service, file: found.auth?.file });
+        outcome = await provider.revoke({ providerAccountId: accountId, service, file: target.auth?.file });
       } catch {
         // An adapter that throws is a transport or adapter failure, not a capability it
         // lacks. Reporting it as a missing capability told a caller to report a broken
@@ -1100,7 +1167,7 @@ export class ConnectionGateway {
       // Removing on anything-not-ACTIVE would also remove rows for a suspended grant.
       let after;
       try {
-        after = await provider.status({ providerAccountId: accountId, service, file: found.auth?.file });
+        after = await provider.status({ providerAccountId: accountId, service, file: target.auth?.file });
       } catch {
         after = null;
       }

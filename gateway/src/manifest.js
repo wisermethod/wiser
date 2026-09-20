@@ -2,9 +2,15 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const AUTH_PROVIDERS = new Set(['catalog', 'local-file']);
+/**
+ * The two vocabularies `gateway.js` also needs, for the one path that reads a store
+ * row's own `privilege` and `provider` instead of a manifest. Exported rather than
+ * restated: a second copy is how a list drifts, and this build has already paid for
+ * that once with the non-ACTIVE grant states.
+ */
+export const AUTH_PROVIDERS = new Set(['catalog', 'local-file']);
 const SCHEMES = new Set(['OAUTH2', 'API_KEY', 'BEARER', 'BASIC']);
-const PRIVILEGES = new Set(['read', 'write', 'admin']);
+export const PRIVILEGES = new Set(['read', 'write', 'admin']);
 const RISKS = new Set(['low', 'medium', 'high', 'destructive']);
 const CONFIRMATIONS = new Set(['none', 'once', 'always']);
 const PREFERS = new Set(['proxy', 'catalog', 'local_http', 'first_party_mcp']);

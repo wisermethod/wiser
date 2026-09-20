@@ -657,3 +657,196 @@ test('a teardown with no error of its own carries none, so the field means somet
   });
   assert.equal(r.teardown_error, null);
 });
+
+// ------------------------------- a record that outlived the connector that made it
+
+/** The real orphaned row, copied field for field from the live store on 2026-09-20. */
+function orphanedRow(store, overrides = {}) {
+  store.putConnection({
+    id: '0db63f37-1cf8-4ec4-b858-aca64eb51bc4',
+    service: 'pagespeed',
+    module: 'insights',
+    privilege: 'read',
+    provider: 'catalog',
+    provider_account_id: 'ca_orphan_fixture',
+    scopes: [],
+    status: 'ACTIVE',
+    created: '2026-09-19T23:41:08.492Z',
+    updated: '2026-09-19T23:44:11.882Z',
+    ...overrides,
+  });
+}
+
+test('a record whose connector was retired can still be taken down, and the stop says so', async () => {
+  // Found in Refine by trying the tool on a real orphan. Retiring a connector leaves
+  // its grant live at the provider and its row here pointing at nothing, which is how
+  // a row is orphaned; refusing on `undeclared` meant the tool built to clear stale
+  // rows could not clear the one kind the tree actually produces.
+  const { gw, store, fake } = await createTestGateway();
+  fake.auth.setStatus('ca_orphan_fixture', 'ACTIVE');
+  orphanedRow(store);
+  assert.equal(gw.lookupModule('pagespeed', 'insights'), null, 'the fixture must be undeclared');
+
+  const stop = await gw.callTool('disconnect', { service: 'pagespeed', module: 'insights' });
+  assert.equal(stop.status, 'needs_confirmation');
+  assert.equal(stop.provider_account_id, 'ca_orphan_fixture');
+  assert.match(stop.summary, /nothing declares pagespeed\/insights any more/);
+  assert.deepEqual(stop.modules_ending.map((m) => `${m.service}/${m.module}`), ['pagespeed/insights']);
+
+  const done = await gw.callTool('disconnect', {
+    service: 'pagespeed', module: 'insights',
+    provider_account_id: 'ca_orphan_fixture', confirm: true,
+  });
+  assert.equal(done.status, 'disconnected');
+  assert.equal(done.credential_revoked, 'yes');
+  assert.deepEqual(rows(store), []);
+});
+
+test('an orphaned record carrying no usable privilege is refused, and the vendor is never called', async () => {
+  // A store row is not a manifest: manifest.js validates privilege against
+  // read|write|admin and a row has been through nothing. Policy matching is strict
+  // equality, so "ADMIN" or "" matches no privilege rule and would slip past a
+  // privilege-specific denial. Found by adversarial review before this saw a real
+  // account.
+  for (const privilege of [null, undefined, '', 'ADMIN', 'Read', 'superuser', 7, ['write']]) {
+    const { gw, store, fake } = await createTestGateway();
+    fake.auth.setStatus('ca_orphan_fixture', 'ACTIVE');
+    let revokes = 0;
+    const original = fake.auth.revoke.bind(fake.auth);
+    fake.auth.revoke = async (a) => { revokes += 1; return original(a); };
+    orphanedRow(store, { privilege });
+    const r = await gw.callTool('disconnect', {
+      service: 'pagespeed', module: 'insights',
+      provider_account_id: 'ca_orphan_fixture', confirm: true,
+    });
+    assert.equal(r.status, 'denied', `privilege ${JSON.stringify(privilege)} was accepted`);
+    assert.equal(r.reason, 'orphaned_record_without_privilege');
+    assert.equal(revokes, 0, 'the vendor was called for an unauthorizable row');
+    assert.equal(rows(store).length, 1);
+  }
+  // The control: a valid stored privilege is accepted, so the loop is not refusing all.
+  const ok = await createTestGateway();
+  ok.fake.auth.setStatus('ca_orphan_fixture', 'ACTIVE');
+  orphanedRow(ok.store, { privilege: 'read' });
+  const stop = await ok.gw.callTool('disconnect', { service: 'pagespeed', module: 'insights' });
+  assert.equal(stop.status, 'needs_confirmation');
+});
+
+test('an orphaned record naming an unknown provider is refused rather than sent to the catalog', async () => {
+  // providerFor sends everything that is not exactly `local-file` to the catalog
+  // adapter, so a row naming nothing would have revoked against the catalog on no
+  // evidence it belonged there. Adversarial review, P1.
+  for (const provider of [null, undefined, '', 'nango', 'Catalog', 'made-up', 42]) {
+    const { gw, store, fake } = await createTestGateway();
+    fake.auth.setStatus('ca_orphan_fixture', 'ACTIVE');
+    let revokes = 0;
+    const original = fake.auth.revoke.bind(fake.auth);
+    fake.auth.revoke = async (a) => { revokes += 1; return original(a); };
+    orphanedRow(store, { provider });
+    const r = await gw.callTool('disconnect', {
+      service: 'pagespeed', module: 'insights',
+      provider_account_id: 'ca_orphan_fixture', confirm: true,
+    });
+    assert.equal(r.status, 'denied', `provider ${JSON.stringify(provider)} was accepted`);
+    assert.equal(r.reason, 'orphaned_record_without_provider');
+    assert.equal(revokes, 0, 'the vendor was called for a row naming an unknown provider');
+    assert.equal(rows(store).length, 1);
+  }
+  // The control: both supported providers are accepted as far as the stop.
+  for (const provider of ['catalog', 'local-file']) {
+    const { gw, store, fake } = await createTestGateway();
+    fake.auth.setStatus('ca_orphan_fixture', 'ACTIVE');
+    orphanedRow(store, { provider });
+    const stop = await gw.callTool('disconnect', { service: 'pagespeed', module: 'insights' });
+    assert.equal(stop.status, 'needs_confirmation', `provider ${provider} was refused`);
+  }
+});
+
+test('an orphaned record is still held to every gate: readonly, the binding, and absence', async (t) => {
+  const readonly = await createTestGateway({ role: 'readonly' });
+  readonly.fake.auth.setStatus('ca_orphan_fixture', 'ACTIVE');
+  orphanedRow(readonly.store);
+  const denied = await readonly.gw.callTool('disconnect', { service: 'pagespeed', module: 'insights' });
+  assert.equal(denied.status, 'denied', 'an orphan let a readonly caller through');
+
+  const bound = await createTestGateway();
+  bound.fake.auth.setStatus('ca_orphan_fixture', 'ACTIVE');
+  orphanedRow(bound.store);
+  const wrong = await bound.gw.callTool('disconnect', {
+    service: 'pagespeed', module: 'insights', provider_account_id: 'ca_something_else', confirm: true,
+  });
+  assert.equal(wrong.status, 'denied');
+  assert.equal(wrong.rule.reason, 'account_changed');
+
+  const absent = await createTestGateway();
+  absent.fake.auth.setStatus('ca_orphan_fixture', 'ACTIVE');
+  orphanedRow(absent.store);
+  t.mock.method(absent.fake.auth, 'status', async () => 'ACTIVE');
+  const notGone = await absent.gw.callTool('disconnect', {
+    service: 'pagespeed', module: 'insights', provider_account_id: 'ca_orphan_fixture', confirm: true,
+  });
+  assert.equal(notGone.status, 'teardown_incomplete');
+  assert.equal(rows(absent.store).length, 1, 'an orphan skipped the absence gate');
+});
+
+test('a service that is undeclared AND has no record is still needs_connector', async () => {
+  // The guard that was there before is not relaxed; it now fires on the case it was for.
+  const { gw } = await createTestGateway();
+  const r = await gw.callTool('disconnect', { service: 'pagespeed', module: 'insights' });
+  assert.equal(r.status, 'needs_connector');
+  assert.equal(r.reason, 'undeclared');
+});
+
+test('a sibling orphan naming an unknown provider blocks the teardown from either direction', async () => {
+  // Adversarial review, round two. Bindings are collected by account id alone, so two
+  // orphaned rows can share an account while naming different providers. Validating
+  // only the requested row and then deleting account-wide removed a row whose provider
+  // the gateway had explicitly refused to establish.
+  for (const entry of [['pagespeed', 'insights'], ['retired', 'thing']]) {
+    const { gw, store, fake } = await createTestGateway();
+    fake.auth.setStatus('ca_orphan_fixture', 'ACTIVE');
+    let revokes = 0;
+    const original = fake.auth.revoke.bind(fake.auth);
+    fake.auth.revoke = async (a) => { revokes += 1; return original(a); };
+    orphanedRow(store);                                             // provider: catalog
+    orphanedRow(store, { id: 'other', service: 'retired', module: 'thing', provider: 'made-up' });
+    const r = await gw.callTool('disconnect', {
+      service: entry[0], module: entry[1],
+      provider_account_id: 'ca_orphan_fixture', confirm: true,
+    });
+    assert.equal(r.status, 'denied', `entering through ${entry.join('/')} was permitted`);
+    assert.equal(revokes, 0, 'the vendor was called despite a sibling of unknown provider');
+    assert.equal(rows(store).length, 2, 'a row of unknown provider was removed');
+  }
+  // The control: two orphans both naming a supported provider do tear down together.
+  const { gw, store, fake } = await createTestGateway();
+  fake.auth.setStatus('ca_orphan_fixture', 'ACTIVE');
+  orphanedRow(store);
+  orphanedRow(store, { id: 'other', service: 'retired', module: 'thing' });
+  const ok = await gw.callTool('disconnect', {
+    service: 'pagespeed', module: 'insights',
+    provider_account_id: 'ca_orphan_fixture', confirm: true,
+  });
+  assert.equal(ok.status, 'disconnected');
+  assert.deepEqual(rows(store), []);
+});
+
+test('a declared sibling is covered by its manifest, not by the stored provider check', async () => {
+  // A declared module has been through manifest.js; its row's provider field is not
+  // what authorizes it, and requiring one there would refuse ordinary teardowns.
+  const { gw, store, fake } = await createTestGateway();
+  fake.auth.setStatus('ca_orphan_fixture', 'ACTIVE');
+  orphanedRow(store);
+  store.putConnection({
+    id: 'declared', service: 'github', module: 'repos', privilege: 'write',
+    provider: 'nonsense-but-declared', provider_account_id: 'ca_orphan_fixture',
+    scopes: [], status: 'ACTIVE',
+    created: new Date().toISOString(), updated: new Date().toISOString(),
+  });
+  const r = await gw.callTool('disconnect', {
+    service: 'pagespeed', module: 'insights',
+    provider_account_id: 'ca_orphan_fixture', confirm: true,
+  });
+  assert.equal(r.status, 'disconnected');
+  assert.deepEqual(rows(store), []);
+});
