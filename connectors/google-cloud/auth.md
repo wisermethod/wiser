@@ -8,6 +8,8 @@ Register an OAuth client in Google Cloud Console: APIs and Services, Credentials
 
 Enable the APIs this connector calls on the project that owns the client: Cloud Resource Manager, Service Usage, and API Keys.
 
+**If you cannot create a project**, an administrator has removed the organisation's default Project Creator grant, or you have reached the project quota. This connector does not create projects and never will, so there is no automated path around it. Ask whoever administers the domain for `roles/resourcemanager.projectCreator` at the organisation, or for a project created for you with `roles/owner` on it; either unblocks everything below. A personal Google account outside the managed domain is the fallback and carries its own quota. Which route you take changes nothing downstream: the key authorises the API, not the person.
+
 **Then create the auth config, before any connect.** This connector does not run on provider-managed auth, and nothing creates the right blueprint for you. Follow the bring-your-own-OAuth recipe in the `SETUP.md` of the adapter directory `gateway/providers/default.json` names, under "Add toolkits (auth configs)": create the auth config on toolkit `GOOGLEBIGQUERY`, choose your own OAuth app rather than managed auth, enter the client id and secret from the step above on that page, and set the scopes. **If you skip this, the first `start_connect` creates a managed blueprint instead**, which carries that toolkit's own scopes rather than yours, and the connector will fail against Cloud in a way that looks like a code problem. That failure is the case named at the foot of this file.
 
 The grant as it stands asks for `https://www.googleapis.com/auth/cloud-platform`. That is the broad Cloud scope. The three shipping modules do not need it. Against the generated schemas of 2026-09-19 the narrowest workable set is `cloud-platform.read-only` for project and service reads, `service.management` for `services.enable`, and `apikeys` for every keys action. Secret Manager is the single operation that declares `cloud-platform` and nothing else, and Secret Manager is not in this connector. Narrowing the config later costs one re-consent. Until that happens, treat the grant as able to edit arbitrary Cloud data on every project the signed-in user can reach.
@@ -41,4 +43,4 @@ Revoke each module through the gateway, then revoke the OAuth grant in the Googl
 
 ## Last connected
 
-Not yet
+2026-09-19
