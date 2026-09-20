@@ -5,14 +5,19 @@
  * generator that imported the test file would run the test as a side effect of generating,
  * which it did once and was confusing enough to be worth this file.
  *
- * A connector publishes an input schema in `manifest.json` and enforces rules in `index.js`,
- * and **nothing in the gateway compares them**: `src/manifest.js` type-checks that `input` is
- * an object and never validates a call against it, so the module is the only enforcer and the
- * schema is documentation. That is how 189 divergences accumulated under a suite of 485
- * passing connector tests.
+ * A connector publishes an input schema in `manifest.json` and enforces rules in `index.js`.
+ * Until 2026-09-20 nothing compared them: `src/manifest.js` type-checks that `input` is an
+ * object and never validated a call against it, so the module was the only enforcer and the
+ * schema was documentation. That is how 189 divergences accumulated under a suite of 485
+ * passing connector tests. `src/input-schema.js` now applies the published schema before
+ * any module runs, and **this harness applies that same function**, so what it measures is
+ * what a caller gets.
  *
- * This compares them, in both directions, by calling each real module with a context whose
- * transport throws a sentinel. Nothing leaves the machine and no grant is touched.
+ * It compares the two sides in both directions, by calling each real module behind that
+ * validator with a context whose transport throws a sentinel. Nothing leaves the machine and
+ * no grant is touched. A valid instance that is refused is a rule the module enforces and
+ * does not publish; a violation that reaches the vendor is a rule the manifest publishes and
+ * nothing applies.
  *
  * ## What it does not cover
  *
@@ -26,6 +31,8 @@ import { chdir, cwd } from 'node:process';
 import { tmpdir } from 'node:os';
 import assert from 'node:assert/strict';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+
+import { validateInput } from '../src/input-schema.js';
 
 const CONNECTORS = fileURLToPath(new URL('../../connectors', import.meta.url));
 
@@ -266,55 +273,22 @@ function schemaViolation(schema, instance) {
 }
 
 /**
- * The eleven connectors that agree with their own manifests do it with this helper, copied
- * byte for byte into each. Reproduced here so the sweep can answer the question the audit
- * cannot answer by reading: what would adopting it in the other fourteen actually do.
+ * The gateway's own validator, applied by the harness before the module runs.
  *
- * `WISER_SIMULATE_ADOPTION=1` wraps every hand-rolled action with it and re-runs every
- * direction, so before and after are measured in the same units by the same script. It
- * edits no source and is a measurement, not a migration.
+ * **This is the entry point, and it is not optional.** `gateway.js` validates a call
+ * against `act.input` before it calls `resolved.fn`, so a harness that called
+ * `impl.modules[mod][act]` raw would bypass the thing being measured and every closed
+ * divergence would appear to return. It imports the shipped function rather than copying
+ * it, because a second implementation of the validator is a second thing to keep true.
  *
- * One deviation from the shipped copies, and it is the finding that makes adoption
- * possible: `schema.items ?? {}`. The shipped `matches()` recurses into `schema.items`
- * unguarded, so **a declared array with no `items` crashes it**. Thirteen such arrays ship,
- * in `cloudflare`, `dataforseo`, `google` and `vercel`. None of the eleven declares one,
- * which is why the crash has never fired.
+ * Until 2026-09-20 eleven connectors carried a byte-identical copy of this code and
+ * fourteen carried nothing, and the fourteen held all 189 divergences. The copies are
+ * deleted; `gateway/src/input-schema.js` says why the gateway owns it and what it reads.
  */
-const USES_SHARED_VALIDATOR = new Set([
-  'figma', 'hubspot', 'huggingface', 'linkedin', 'microsoft', 'monday',
-  'notion', 'stripe', 'supabase', 'zoho', 'zoom',
-]);
-const SIMULATE_ADOPTION = process.env.WISER_SIMULATE_ADOPTION === '1';
-/**
- * `WISER_SIMULATE_CLOSED=1` reads the 58 actions that omit `additionalProperties` as though
- * they declared it false. It exists because adoption alone moves 56 divergences from B and C
- * into D rather than closing them: the helper refuses any key `properties` does not declare,
- * whatever the schema says about additional properties. Closing those schemas is therefore
- * not an optional tidy but the other half of adopting the helper, and the two flags together
- * measure the end state rather than an intermediate one.
- */
-const SIMULATE_CLOSED = process.env.WISER_SIMULATE_CLOSED === '1';
-
-function sharedMatches(value, schema) {
-  if (schema.type === 'array') return Array.isArray(value) && Array.from(value).every((item) => sharedMatches(item, schema.items ?? {}));
-  if (schema.type === 'object') return value !== null && typeof value === 'object' && !Array.isArray(value);
-  if (schema.type === 'integer') return Number.isInteger(value);
-  if (schema.type !== undefined && typeof value !== schema.type) return false;
-  if (schema.minLength && value.length < schema.minLength) return false;
-  if (schema.pattern && !new RegExp(schema.pattern).test(value)) return false;
-  return !schema.enum || schema.enum.includes(value);
-}
-
-function withSharedValidator(manifest, run) {
+function withGatewayValidation(schema, run) {
   return async (input, ctx) => {
-    if (!input || typeof input !== 'object' || Array.isArray(input)) return { status: 'invalid_arguments', field: 'input' };
-    const schema = manifest.modules[ctx.module].actions[ctx.action].input;
-    for (const field of schema.required ?? []) {
-      if (!Object.hasOwn(input, field) || !sharedMatches(input[field], schema.properties[field])) return { status: 'invalid_arguments', field };
-    }
-    for (const [field, value] of Object.entries(input)) {
-      if (!Object.hasOwn(schema.properties, field) || !sharedMatches(value, schema.properties[field])) return { status: 'invalid_arguments', field };
-    }
+    const field = validateInput(schema, input);
+    if (field) return { status: 'invalid_arguments', field };
     return run(input, ctx);
   };
 }
@@ -374,11 +348,12 @@ async function collect() {
 
     for (const [mod, md] of Object.entries(manifest.modules)) {
       for (const [act, ad] of Object.entries(md.actions)) {
-        const fn = impl.modules?.[mod]?.[act];
+        const raw = impl.modules?.[mod]?.[act];
         const where = `${name} ${mod}.${act}`;
-        if (typeof fn !== 'function') { errors.push(`${where}: not a function`); continue; }
+        if (typeof raw !== 'function') { errors.push(`${where}: not a function`); continue; }
         const schema = ad.input;
         if (!schema) continue;
+        const fn = withGatewayValidation(schema, raw);
 
         let base;
         try { base = validInstance(schema); }

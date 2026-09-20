@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -91,14 +91,35 @@ test('--home inside the plugin or beside a credential file is refused', () => {
   assert.match(beside.stderr, /credential file/);
 });
 
+test('an undeclared key is refused before the confirmation stop, and never reaches the audit line', async () => {
+  // Until 2026-09-20 this call reached the stop, which counted the undeclared key and
+  // showed neither its name nor its value. The gateway now validates against the
+  // published schema first, so the call is refused and the stop never happens. The
+  // hardening property is unchanged and is what is asserted: a caller-chosen key name
+  // and its value do not land in a log. `AUDIT_FIELDS` is a closed set of thirteen
+  // names and `field` is not one of them.
+  const { gw, store, fake, audit } = await createTestGateway();
+  await putActive(store, fake, { service: 'cloudflare', module: 'dns', privilege: 'write' });
+  // Every declared field supplied, so the refusal is about the undeclared one and not
+  // about a missing required field the validator would have reached first.
+  const r = await gw.execute({ action: 'cloudflare.dns.delete_record', input: { zone_id: 'z', record_id: 'r', 'leaked-secret-name': 'x' } });
+  assert.deepEqual(r, { status: 'invalid_arguments', field: 'leaked-secret-name' });
+
+  const raw = readFileSync(audit.file, 'utf8').trim();
+  assert.ok(raw.length > 0, 'the refusal must have been audited at all');
+  assert.equal(raw.includes('leaked-secret-name'), false, 'the undeclared key name reached audit.jsonl');
+});
+
 test('confirmation echoes only declared field names and counts the rest', async () => {
+  // The stop itself, reached with a call the schema accepts. `undeclared_fields` is
+  // structurally 0 now; it is still asserted, because the field still ships and a
+  // reader of the status object still has to know what it means.
   const { gw, store, fake } = await createTestGateway();
   await putActive(store, fake, { service: 'cloudflare', module: 'dns', privilege: 'write' });
-  const r = await gw.execute({ action: 'cloudflare.dns.delete_record', input: { zone_id: 'z', 'leaked-secret-name': 'x' } });
+  const r = await gw.execute({ action: 'cloudflare.dns.delete_record', input: { zone_id: 'z', record_id: 'r' } });
   assert.equal(r.status, 'needs_confirmation');
-  assert.deepEqual(r.input_fields, ['zone_id']);
-  assert.equal(r.undeclared_fields, 1);
-  assert.equal(JSON.stringify(r).includes('leaked-secret-name'), false);
+  assert.deepEqual(r.input_fields, ['zone_id', 'record_id']);
+  assert.equal(r.undeclared_fields, 0);
 });
 
 test('a symlinked --home is refused before it is resolved', async () => {

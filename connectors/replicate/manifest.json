@@ -20,7 +20,8 @@
           "input": {
             "type": "object",
             "properties": {},
-            "required": []
+            "required": [],
+            "additionalProperties": false
           }
         },
         "create_prediction": {
@@ -43,7 +44,8 @@
             "required": [
               "version",
               "input"
-            ]
+            ],
+            "additionalProperties": false
           }
         },
         "get_prediction": {
@@ -62,7 +64,8 @@
             },
             "required": [
               "prediction_id"
-            ]
+            ],
+            "additionalProperties": false
           }
         }
       },

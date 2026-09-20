@@ -177,23 +177,46 @@ test('an action on both paths at once renders the same way', async () => {
 
 // ------------------------------- the guarantee, over the COMPLETE status object
 
-test('an undeclared key carries neither name nor value into the complete status object', async () => {
-  // The renderer's own canary covers `discloseInput`'s return. This covers what a
-  // caller actually receives, which carries fields the renderer never sees.
+test('an undeclared key is refused before the stop, and its value reaches neither the caller nor the audit file', async () => {
+  // **This test changed shape on 2026-09-20 and the reason is the point.** An undeclared
+  // key used to reach the confirmation stop, be counted, and then run. The gateway now
+  // validates a call against its published schema before the grant, the provider and the
+  // stop, so the key is refused and no person is asked to approve a call that cannot run.
+  //
+  // What survives, and is what the guarantee was always for: the VALUE never reaches the
+  // caller. The key's NAME does, as `field`, which is the refusal shape every connector
+  // suite has asserted since the eleven copies of the validator shipped; a name a caller
+  // chose is a name a caller already has. Neither reaches `audit.jsonl`, whose field set
+  // is closed and carries no `field`, and that is asserted here rather than assumed.
   const CANARY = 'zzq-canary-4f1c9e2b-complete-status';
   const KEY = 'x_undeclared_probe_key';
-  const { gw, store, fake } = await createTestGateway();
+  const { gw, store, fake, audit } = await createTestGateway();
   await putActive(store, fake, { service: 'google-cloud', module: 'services', privilege: 'write' });
   const r = await gw.execute({
     action: 'google-cloud.services.enable',
     input: { project: 'wiser-method-prod', service: 'translate.googleapis.com', [KEY]: CANARY },
   });
-  assert.equal(r.status, 'needs_confirmation');
-  assert.equal(r.undeclared_fields, 1);
-  const complete = JSON.stringify(r);
-  assert.equal(complete.includes(CANARY), false, 'the canary value reached the caller');
-  assert.equal(complete.includes(KEY), false, 'the undeclared key name reached the caller');
-  assert.match(r.summary, /1 undeclared field not shown/);
+  assert.deepEqual(r, { status: 'invalid_arguments', field: KEY });
+  assert.equal(JSON.stringify(r).includes(CANARY), false, 'the canary value reached the caller');
+
+  const raw = readFileSync(audit.file, 'utf8').trim();
+  assert.ok(raw.length > 0, 'the refusal must have been audited at all');
+  assert.equal(raw.includes(CANARY), false, 'the canary value reached audit.jsonl');
+  assert.equal(raw.includes(KEY), false, 'the undeclared key name reached audit.jsonl');
+});
+
+test('the renderer still withholds an undeclared key, which the refusal makes unreachable through execute', async () => {
+  // Defence in depth, asserted so it is not mistaken for dead code and deleted. Nothing
+  // undeclared can now reach `discloseInput` through `execute`, but `discloseInput` is
+  // what decides what a person is told and it must stay safe on its own terms.
+  const { discloseInput } = await import('../src/disclosure.js');
+  const act = {
+    input: { type: 'object', properties: { project: { type: 'string' } }, additionalProperties: false },
+  };
+  const d = discloseInput(act, { project: 'wiser-method-prod', x_undeclared: 'zzq-renderer-canary' });
+  assert.equal(d.undeclared, 1);
+  assert.equal(JSON.stringify(d).includes('zzq-renderer-canary'), false);
+  assert.equal(JSON.stringify(d).includes('x_undeclared'), false);
 });
 
 test('a nested field is named and its content never appears, through the whole stack', async () => {
@@ -232,15 +255,19 @@ test('a control character in a pattern-valid value is escaped before it reaches 
   assert.match(rendered, /\\u2060/);
 });
 
-test('a declared field failing its own pattern is withheld and named, through the whole stack', async () => {
+test('a declared field failing its own pattern is refused before the stop, and its value never reaches the caller', async () => {
+  // The renderer withheld such a value and named it, on the stated ground that showing a
+  // person a value the call will then reject wastes their approval. The gateway now
+  // carries that reasoning one step further and rejects it before the stop happens, so
+  // the approval is never asked for. `withheld_fields` keeps `nested`, which no schema
+  // check can decide; `pattern` can no longer arise through execute.
   const { gw, store, fake } = await createTestGateway();
   await putActive(store, fake, { service: 'google-cloud', module: 'services', privilege: 'write' });
   const r = await gw.execute({
     action: 'google-cloud.services.enable',
     input: { project: 'Not A Valid Project', service: 'translate.googleapis.com' },
   });
-  assert.equal(r.status, 'needs_confirmation');
-  assert.deepEqual(r.withheld_fields, [{ name: 'project', reason: 'pattern' }]);
+  assert.deepEqual(r, { status: 'invalid_arguments', field: 'project' });
   assert.equal(JSON.stringify(r).includes('Not A Valid Project'), false);
 });
 
@@ -277,11 +304,13 @@ test('input_fields and undeclared_fields keep their meaning, and values arrive b
   await putActive(store, fake, { service: 'google-cloud', module: 'keys', privilege: 'write' });
   const r = await gw.execute({
     action: 'google-cloud.keys.patch',
-    input: { project: 'p-abcdef', key_id: 'k1', restrictions: {}, spare: 1 },
+    input: { project: 'p-abcdef', key_id: 'k1', restrictions: {} },
   });
   // Unchanged: every declared key supplied, nested included, and a count of the rest.
+  // The count is now structurally 0 at any stop, because an undeclared key is refused
+  // before the stop is reached. The field keeps its meaning and keeps being asserted.
   assert.deepEqual(r.input_fields, ['project', 'key_id', 'restrictions']);
-  assert.equal(r.undeclared_fields, 1);
+  assert.equal(r.undeclared_fields, 0);
   // Added: only what the policy renders, and why the rest was not.
   assert.deepEqual(r.input_values.map((f) => f.name), ['project', 'key_id']);
   assert.deepEqual(r.withheld_fields, [{ name: 'restrictions', reason: 'nested' }]);

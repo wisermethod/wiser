@@ -24,7 +24,8 @@
               "page": { "type": "integer" },
               "per_page": { "type": "integer" }
             },
-            "required": ["zone_id"]
+            "required": ["zone_id"],
+            "additionalProperties": false
           }
         },
         "get_record": {
@@ -38,7 +39,8 @@
               "zone_id": { "type": "string" },
               "record_id": { "type": "string" }
             },
-            "required": ["zone_id", "record_id"]
+            "required": ["zone_id", "record_id"],
+            "additionalProperties": false
           }
         },
         "create_record": {
@@ -57,7 +59,8 @@
               "proxied": { "type": "boolean" },
               "priority": { "type": "integer" }
             },
-            "required": ["zone_id", "type", "name", "content"]
+            "required": ["zone_id", "type", "name", "content"],
+            "additionalProperties": false
           }
         },
         "update_record": {
@@ -76,7 +79,8 @@
               "ttl": { "type": "integer" },
               "proxied": { "type": "boolean" }
             },
-            "required": ["zone_id", "record_id"]
+            "required": ["zone_id", "record_id"],
+            "additionalProperties": false
           }
         },
         "delete_record": {
@@ -90,7 +94,8 @@
               "zone_id": { "type": "string" },
               "record_id": { "type": "string" }
             },
-            "required": ["zone_id", "record_id"]
+            "required": ["zone_id", "record_id"],
+            "additionalProperties": false
           }
         },
         "export_zone": {
@@ -103,7 +108,8 @@
             "properties": {
               "zone_id": { "type": "string" }
             },
-            "required": ["zone_id"]
+            "required": ["zone_id"],
+            "additionalProperties": false
           }
         },
         "import_zone": {
@@ -118,7 +124,8 @@
               "zone_file": { "type": "string" },
               "proxied": { "type": "boolean" }
             },
-            "required": ["zone_id", "zone_file"]
+            "required": ["zone_id", "zone_file"],
+            "additionalProperties": false
           }
         },
         "batch": {
@@ -135,7 +142,8 @@
               "puts": { "type": "array" },
               "posts": { "type": "array" }
             },
-            "required": ["zone_id"]
+            "required": ["zone_id"],
+            "additionalProperties": false
           }
         }
       },
@@ -163,7 +171,8 @@
               "account_id": { "type": "string" },
               "page": { "type": "integer" },
               "per_page": { "type": "integer" }
-            }
+            },
+            "additionalProperties": false
           }
         },
         "get": {
@@ -176,7 +185,8 @@
             "properties": {
               "zone_id": { "type": "string" }
             },
-            "required": ["zone_id"]
+            "required": ["zone_id"],
+            "additionalProperties": false
           }
         },
         "list_accounts": {
@@ -190,7 +200,8 @@
               "name": { "type": "string" },
               "page": { "type": "integer" },
               "per_page": { "type": "integer" }
-            }
+            },
+            "additionalProperties": false
           }
         },
         "create": {
@@ -205,7 +216,8 @@
               "account_id": { "type": "string" },
               "type": { "type": "string" }
             },
-            "required": ["name"]
+            "required": ["name"],
+            "additionalProperties": false
           }
         },
         "delete": {
@@ -218,7 +230,8 @@
             "properties": {
               "zone_id": { "type": "string" }
             },
-            "required": ["zone_id"]
+            "required": ["zone_id"],
+            "additionalProperties": false
           }
         }
       },
@@ -243,7 +256,8 @@
             "properties": {
               "account_id": { "type": "string" }
             },
-            "required": ["account_id"]
+            "required": ["account_id"],
+            "additionalProperties": false
           }
         },
         "get_project": {
@@ -257,7 +271,8 @@
               "account_id": { "type": "string" },
               "project_name": { "type": "string" }
             },
-            "required": ["account_id", "project_name"]
+            "required": ["account_id", "project_name"],
+            "additionalProperties": false
           }
         },
         "list_deployments": {
@@ -271,7 +286,8 @@
               "account_id": { "type": "string" },
               "project_name": { "type": "string" }
             },
-            "required": ["account_id", "project_name"]
+            "required": ["account_id", "project_name"],
+            "additionalProperties": false
           }
         }
       },
@@ -301,7 +317,8 @@
               "phase": { "type": "string" },
               "description": { "type": "string" }
             },
-            "required": ["accounts_or_zones", "account_or_zone_id", "kind", "name", "phase"]
+            "required": ["accounts_or_zones", "account_or_zone_id", "kind", "name", "phase"],
+            "additionalProperties": false
           }
         },
         "get": {
@@ -317,7 +334,8 @@
               "account_id": { "type": "string" },
               "zone_id": { "type": "string" }
             },
-            "required": ["accounts_or_zones", "ruleset_id"]
+            "required": ["accounts_or_zones", "ruleset_id"],
+            "additionalProperties": false
           }
         },
         "delete": {
@@ -332,7 +350,8 @@
               "account_or_zone_id": { "type": "string" },
               "ruleset_id": { "type": "string" }
             },
-            "required": ["accounts_or_zones", "account_or_zone_id", "ruleset_id"]
+            "required": ["accounts_or_zones", "account_or_zone_id", "ruleset_id"],
+            "additionalProperties": false
           }
         },
         "add_rule": {
@@ -349,7 +368,8 @@
               "account_id": { "type": "string" },
               "zone_id": { "type": "string" }
             },
-            "required": ["accounts_or_zones", "ruleset_id", "rule"]
+            "required": ["accounts_or_zones", "ruleset_id", "rule"],
+            "additionalProperties": false
           }
         },
         "remove_rule": {
@@ -365,7 +385,8 @@
               "ruleset_id": { "type": "string" },
               "rule_id": { "type": "string" }
             },
-            "required": ["accounts_or_zones", "account_or_zone_id", "ruleset_id", "rule_id"]
+            "required": ["accounts_or_zones", "account_or_zone_id", "ruleset_id", "rule_id"],
+            "additionalProperties": false
           }
         }
       },

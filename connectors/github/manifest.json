@@ -21,7 +21,8 @@
               "owner": { "type": "string" },
               "repo": { "type": "string" }
             },
-            "required": ["owner", "repo"]
+            "required": ["owner", "repo"],
+            "additionalProperties": false
           }
         },
         "list_for_user": {
@@ -34,7 +35,8 @@
             "properties": {
               "per_page": { "type": "integer" },
               "page": { "type": "integer" }
-            }
+            },
+            "additionalProperties": false
           }
         }
       },
@@ -61,7 +63,8 @@
               "repo": { "type": "string" },
               "state": { "type": "string" }
             },
-            "required": ["owner", "repo"]
+            "required": ["owner", "repo"],
+            "additionalProperties": false
           }
         },
         "create": {
@@ -77,7 +80,8 @@
               "title": { "type": "string" },
               "body": { "type": "string" }
             },
-            "required": ["owner", "repo", "title"]
+            "required": ["owner", "repo", "title"],
+            "additionalProperties": false
           }
         }
       },
@@ -99,7 +103,8 @@
           "execution": { "prefer": "catalog" },
           "input": {
             "type": "object",
-            "properties": {}
+            "properties": {},
+            "additionalProperties": false
           }
         }
       },

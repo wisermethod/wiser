@@ -152,7 +152,8 @@
           "input": {
             "type": "object",
             "properties": {},
-            "required": []
+            "required": [],
+            "additionalProperties": false
           }
         },
         "sitemaps": {
@@ -171,7 +172,8 @@
             },
             "required": [
               "site_url"
-            ]
+            ],
+            "additionalProperties": false
           }
         },
         "inspect": {
@@ -279,7 +281,8 @@
               "property",
               "date_ranges",
               "metrics"
-            ]
+            ],
+            "additionalProperties": false
           }
         },
         "list_account_summaries": {
@@ -299,7 +302,8 @@
                 "type": "string"
               }
             },
-            "required": []
+            "required": [],
+            "additionalProperties": false
           }
         },
         "get_property": {
@@ -318,7 +322,8 @@
             },
             "required": [
               "name"
-            ]
+            ],
+            "additionalProperties": false
           }
         }
       },
@@ -353,7 +358,8 @@
                 "type": "string"
               }
             },
-            "required": []
+            "required": [],
+            "additionalProperties": false
           }
         },
         "get_file": {
@@ -375,7 +381,8 @@
             },
             "required": [
               "file_id"
-            ]
+            ],
+            "additionalProperties": false
           }
         }
       },
@@ -418,7 +425,8 @@
             },
             "required": [
               "calendar_id"
-            ]
+            ],
+            "additionalProperties": false
           }
         },
         "get_event": {
@@ -441,7 +449,8 @@
             "required": [
               "calendar_id",
               "event_id"
-            ]
+            ],
+            "additionalProperties": false
           }
         }
       },
@@ -494,7 +503,8 @@
                 "type": "boolean"
               }
             },
-            "required": []
+            "required": [],
+            "additionalProperties": false
           }
         },
         "get_message": {
@@ -522,7 +532,8 @@
             },
             "required": [
               "message_id"
-            ]
+            ],
+            "additionalProperties": false
           }
         }
       },
@@ -568,7 +579,8 @@
                 ]
               }
             },
-            "required": []
+            "required": [],
+            "additionalProperties": false
           }
         },
         "get_values": {
@@ -616,7 +628,8 @@
             },
             "required": [
               "spreadsheet_id"
-            ]
+            ],
+            "additionalProperties": false
           }
         }
       },
@@ -654,7 +667,8 @@
                 "type": "string"
               }
             },
-            "required": []
+            "required": [],
+            "additionalProperties": false
           }
         },
         "get": {
@@ -676,7 +690,8 @@
             },
             "required": [
               "document_id"
-            ]
+            ],
+            "additionalProperties": false
           }
         }
       },
@@ -711,7 +726,8 @@
                 "type": "string"
               }
             },
-            "required": []
+            "required": [],
+            "additionalProperties": false
           }
         },
         "get_page": {
@@ -734,7 +750,8 @@
             "required": [
               "presentation_id",
               "page_object_id"
-            ]
+            ],
+            "additionalProperties": false
           }
         }
       },

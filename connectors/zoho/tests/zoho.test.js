@@ -68,9 +68,12 @@ for (const [action, fixture] of Object.entries(cases)) {
     for (const { input, field } of invalid) {
       assert.deepEqual(await gw.execute({ action: `${service}.${module}.${action}`, input, confirm: true }), { status: 'invalid_arguments', field });
     }
-    const ctx = { service, module, action, catalog: async () => assert.fail('malformed input reached catalog') };
+    // Asserted at the gateway boundary. This connector carried a copy of the schema
+    // validator until 2026-09-20, so a malformed input was refused by the module itself;
+    // the gateway now validates against the published schema before any module runs, and
+    // the refusal is the same object from the only place that still makes it.
     for (const input of [null, [], 'example', 1]) {
-      assert.deepEqual(await modules[module][action](input, ctx), { status: 'invalid_arguments', field: 'input' });
+      assert.deepEqual(await gw.execute({ action: `${service}.${module}.${action}`, input, confirm: true }), { status: 'invalid_arguments', field: 'input' });
     }
   });
 }
@@ -97,8 +100,16 @@ test('create requires confirmation once and readonly cannot use the write grant'
 });
 
 test('get refuses a caller-selected CRM module', async () => {
-  const ctx = { service, module, action: 'get', catalog: async () => assert.fail('module override reached catalog') };
-  assert.deepEqual(await modules.crm.get({ id: 'lead-example', module_api_name: 'Contacts' }, ctx), { status: 'invalid_arguments', field: 'module_api_name' });
+  // `crm.get` pins `module_api_name` to Leads itself and the manifest does not declare
+  // the field, so a caller may not choose it. Asserted at the gateway boundary since
+  // 2026-09-20: the module carried a copy of the schema validator and now does not, and
+  // the refusal comes from the only place that still makes it.
+  const { gw, store, fake } = await createTestGateway();
+  await putActive(store, fake, { service, module, privilege });
+  fake.catalog.execute = async () => assert.fail('module override reached catalog');
+  assert.deepEqual(
+    await gw.execute({ action: 'zoho.crm.get', input: { id: 'lead-example', module_api_name: 'Contacts' }, confirm: true }),
+    { status: 'invalid_arguments', field: 'module_api_name' });
 });
 
 // M1 continued: invented fixtures for the separate family grants.
@@ -183,9 +194,17 @@ for (const [id, fixture] of Object.entries(familyCases)) {
     for (const { input, field } of invalid) {
       assert.deepEqual(await gw.execute({ action: id, input }), { status: 'invalid_arguments', field });
     }
-    const ctx = { service, module, action, catalog: async () => assert.fail('malformed input reached catalog') };
-    for (const input of [null, [], 'example', 1, undefined]) {
-      assert.deepEqual(await modules[module][action](input, ctx), { status: 'invalid_arguments', field: 'input' });
+    // Asserted at the gateway boundary. This connector carried a copy of the schema
+    // validator until 2026-09-20, so a malformed input was refused by the module itself;
+    // the gateway now validates against the published schema before any module runs.
+    //
+    // `undefined` left this list with the move, and the difference is real rather than a
+    // convenience. To a module it was a malformed argument. To the gateway it is no input
+    // at all, indistinguishable from a call that omits the field, and `execute` validates
+    // it as `{}`: an action with a required field refuses it by that field's name, and an
+    // action with none accepts it. The missing-required case is covered above.
+    for (const input of [null, [], 'example', 1]) {
+      assert.deepEqual(await gw.execute({ action: id, input }), { status: 'invalid_arguments', field: 'input' });
     }
   });
 

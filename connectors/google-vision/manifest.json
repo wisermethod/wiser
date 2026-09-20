@@ -27,7 +27,8 @@
                 "type": "string"
               }
             },
-            "required": []
+            "required": [],
+            "additionalProperties": false
           }
         }
       },

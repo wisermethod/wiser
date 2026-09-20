@@ -67,9 +67,12 @@ for (const [action, fixture] of Object.entries(cases)) {
     for (const { input, field } of invalid) {
       assert.deepEqual(await gw.execute({ action: `${service}.${module}.${action}`, input, confirm: true }), { status: 'invalid_arguments', field });
     }
-    const ctx = { service, module, action, catalog: async () => assert.fail('malformed input reached catalog') };
+    // Asserted at the gateway boundary. This connector carried a copy of the schema
+    // validator until 2026-09-20, so a malformed input was refused by the module itself;
+    // the gateway now validates against the published schema before any module runs, and
+    // the refusal is the same object from the only place that still makes it.
     for (const input of [null, [], 'example', 1]) {
-      assert.deepEqual(await modules[module][action](input, ctx), { status: 'invalid_arguments', field: 'input' });
+      assert.deepEqual(await gw.execute({ action: `${service}.${module}.${action}`, input, confirm: true }), { status: 'invalid_arguments', field: 'input' });
     }
   });
 }

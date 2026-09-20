@@ -14,7 +14,18 @@ const github = {
       repos: {
         auth: { provider: 'catalog', toolkit: 'GITHUB', privilege: 'write' },
         actions: {
-          get: { risk: 'low', confirmation: 'none', execution: { prefer: 'catalog' }, input: { type: 'object', properties: {} } },
+          // The two fields these tests supply are declared here because the gateway
+          // validates a call against its published schema before running it. A fixture
+          // that sends what its own manifest does not declare is the divergence class
+          // gateway/test/agreement.test.js exists to catch, in a test fixture.
+          get: {
+            risk: 'low', confirmation: 'none', execution: { prefer: 'catalog' },
+            input: {
+              type: 'object',
+              properties: { owner: { type: 'string' }, repo: { type: 'string' } },
+              additionalProperties: false,
+            },
+          },
         },
       },
       issues: { auth: { provider: 'catalog', toolkit: 'GITHUB', privilege: 'write' } },

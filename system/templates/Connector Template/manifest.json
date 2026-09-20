@@ -20,7 +20,8 @@
             "properties": {
               "id": { "type": "string" }
             },
-            "required": ["id"]
+            "required": ["id"],
+            "additionalProperties": false
           }
         },
         "update": {
@@ -34,7 +35,8 @@
               "id": { "type": "string" },
               "name": { "type": "string" }
             },
-            "required": ["id"]
+            "required": ["id"],
+            "additionalProperties": false
           }
         }
       },

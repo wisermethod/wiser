@@ -30,7 +30,8 @@
                 "type": "string"
               }
             },
-            "required": []
+            "required": [],
+            "additionalProperties": false
           }
         },
         "get": {
@@ -55,7 +56,8 @@
             },
             "required": [
               "id_or_name"
-            ]
+            ],
+            "additionalProperties": false
           }
         }
       },
@@ -93,7 +95,8 @@
                 "type": "string"
               }
             },
-            "required": []
+            "required": [],
+            "additionalProperties": false
           }
         },
         "create": {
@@ -139,7 +142,8 @@
             },
             "required": [
               "name"
-            ]
+            ],
+            "additionalProperties": false
           }
         },
         "upload_file": {
@@ -167,7 +171,8 @@
             },
             "required": [
               "path"
-            ]
+            ],
+            "additionalProperties": false
           }
         }
       },

@@ -43,13 +43,23 @@ A module imports Node built-ins and files inside its own directory, and nothing 
 
 Code, in `src/resolve.js`: a connector module that declares the action; else a registered first-party MCP, which v1 stubs; else the catalog through the mapping; else `needs_connector`. The order is not configurable, because a person reading a status needs to know which step answered.
 
+## The published input schema, and who applies it
+
+**The gateway applies it, once, for every connector, and no connector carries a validator of its own.** `execute` reads the action's `input` from the manifest and refuses a call that does not satisfy it with `invalid_arguments` and the name of the first field at fault. The code is `src/input-schema.js`, which states what it reads, `type`, `enum`, `pattern`, `minLength`, `items` and `required`, and what it leaves to the module, `maxLength`, `minimum`, `maximum`, `oneOf`, `anyOf` and anything nested. **A key `properties` does not declare is refused**, which is why every shipped action declares `additionalProperties: false`: the published schema and the applied rule say the same thing.
+
+**Until 2026-09-20 nothing applied it.** `src/manifest.js` type-checks that `input` is an object and validated no call against it, so the module was the only enforcer and the schema was documentation. Eleven connectors carried a byte-identical copy of this code; the other fourteen hand-rolled their checks and held all 189 divergences `test/agreement.test.js` measured. A connector cannot import the gateway, because `--connectors <abs dir>` lets a connector directory sit anywhere on disk, so the choice was twenty-five copies or none.
+
+**Where it sits in `execute` is a decision, and each side of it was measured.** After the policy, so a denied action's input is never inspected. After the grant checks, so a caller with no connection is told that rather than told about its arguments, which is the common case and the one the whole connect flow serves. Before the confirmation stop, so nobody is asked to approve a call that cannot run.
+
+**`test/agreement.test.js` holds the two sides together.** It calls every shipped action behind this validator with a schema-valid instance and with one violation per declared constraint, and fails on a divergence in either direction. Its baseline may only shrink, so the file going empty is the class closing.
+
 ## What the confirmation stop shows, and what it does not
 
 A `needs_confirmation` answer is the one place a person decides. **It carries the values of the declared fields the call was given**, so an approval names the thing being acted on rather than only the shape of the call. Before 2026-09-20 it carried field names and no values, and an approval of `services.enable` was an approval of enabling something somewhere.
 
 The rule has three parts and they are separate on purpose.
 
-**Eligibility** decides which values may appear: the key is declared in the action's `input.properties`, its declared type is scalar, and the supplied value matches that type. A field whose declaration permits `object` or `array` is ineligible even if it also permits a scalar. An **undeclared key is counted and nothing more** — neither its name nor its value appears anywhere in the answer, which is the guarantee this stop has always made and the one thing the change did not touch.
+**Eligibility** decides which values may appear: the key is declared in the action's `input.properties`, its declared type is scalar, and the supplied value matches that type. A field whose declaration permits `object` or `array` is ineligible even if it also permits a scalar. An **undeclared key is counted and nothing more**: neither its name nor its value appears anywhere in the answer, which is the guarantee this stop has always made.
 
 **Validation** checks an eligible value against its own declaration before rendering it. A value that fails is withheld and named, because showing a person a value the call will then reject wastes their approval. Validation is **not** what makes the summary safe.
 
@@ -61,9 +71,13 @@ The rule has three parts and they are separate on purpose.
 - **A value that fails its own declaration.** Named as withheld, with the keyword it failed.
 - **Anything from an undeclared key.**
 
+**Two of those three can no longer arise here, and the handling stays.** Since 2026-09-20 the published input schema is applied before this stop, so a value failing its own `pattern`, `enum`, `type` or `minLength` and an undeclared key are both refused with `invalid_arguments` and never reach a person. `withheld_fields` keeps `nested`, which no schema check decides, and `undeclared_fields` is structurally 0. The renderer goes on handling both, asserted in `test/confirmation-disclosure.test.js`, because `discloseInput` decides what a person is told and has to be safe on its own terms rather than on the strength of a caller having passed an earlier gate.
+
+**What the refusal itself carries.** `invalid_arguments` names the field at fault, and for an undeclared key that field name is one the caller chose. That is the refusal shape every connector suite has asserted since the first validator shipped, and `AUDIT_FIELDS` has no `field`, so neither the name nor the value reaches `audit.jsonl`. Asserted, in `test/hardening.test.js`.
+
 **Three residuals, stated so they are not mistaken for oversights.** A caller may put a secret into a declared free-form string and no rule here can tell; provider credentials cannot arrive that way, because they are attached in `src/context.js` and a module never receives one, but caller-supplied text is caller-supplied text. A homoglyph defeats every escape. And a truncated value's fingerprint is collision resistance, not uniqueness, and never confidentiality.
 
-**It lives in `src/disclosure.js`**, not in `execute`. `execute` decides that a stop happens and on which of the three entry paths — `confirmation: always`, `confirmation: once` on its first call, or a policy rule whose effect is `confirm`. It does not decide what a person is told. **The policy is reached identically on all three**, which `test/confirmation-disclosure.test.js` proves; the third has no shipped example on its own, because every destructive action also declares `always`.
+**It lives in `src/disclosure.js`**, not in `execute`. `execute` decides that a stop happens and on which of the three entry paths: `confirmation: always`, `confirmation: once` on its first call, or a policy rule whose effect is `confirm`. It does not decide what a person is told. **The policy is reached identically on all three**, which `test/confirmation-disclosure.test.js` proves; the third has no shipped example on its own, because every destructive action also declares `always`.
 
 **None of it reaches the audit line.** `AUDIT_FIELDS` in `src/audit.js` is a closed set of thirteen names with no input field, and a test asserts a rendered value does not appear in `audit.jsonl`.
 

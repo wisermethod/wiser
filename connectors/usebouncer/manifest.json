@@ -30,7 +30,8 @@
           "input": {
             "type": "object",
             "properties": {},
-            "required": []
+            "required": [],
+            "additionalProperties": false
           }
         },
         "single": {
@@ -49,7 +50,8 @@
             },
             "required": [
               "email"
-            ]
+            ],
+            "additionalProperties": false
           }
         },
         "bulk": {
@@ -79,7 +81,8 @@
             },
             "required": [
               "emails"
-            ]
+            ],
+            "additionalProperties": false
           }
         },
         "status": {
@@ -98,7 +101,8 @@
             },
             "required": [
               "id"
-            ]
+            ],
+            "additionalProperties": false
           }
         },
         "download": {
@@ -117,7 +121,8 @@
             },
             "required": [
               "id"
-            ]
+            ],
+            "additionalProperties": false
           }
         }
       }

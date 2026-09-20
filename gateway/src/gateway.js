@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { buildContext } from './context.js';
 import { STATUS, StatusSignal, isStatusObject, sanitizeError, statusObject, vendorErrorFrom } from './errors.js';
 import { composeSummary, discloseInput } from './disclosure.js';
+import { validateInput } from './input-schema.js';
 import { evaluate } from './policy.js';
 import { readProviderUserId, writeProviderUserIdIfEmpty } from './paths.js';
 import { parseActionId, resolveAction } from './resolve.js';
@@ -539,6 +540,26 @@ export class ConnectionGateway {
           privilege: privilege ?? null,
         });
       }
+
+      // The published input schema is applied here, once, for every connector, and no
+      // connector carries a validator of its own. Why it lives in the gateway rather than
+      // in twenty-five copies is in src/input-schema.js; what it reads and what it leaves
+      // to the module is there too.
+      //
+      // **Where it sits is a decision and each side of it was measured.** It is after the
+      // policy, so a denied action's input is never inspected or echoed; after the grant
+      // checks, so a caller with no connection is told that rather than told about its
+      // arguments, which is the common case and the one the whole connect flow serves; and
+      // before the confirmation stop, so a person is never asked to approve a call that
+      // cannot run. src/disclosure.js already withheld a value failing its own declaration
+      // on the ground that showing it wastes an approval; this carries that one step
+      // further and does not ask for the approval at all.
+      //
+      // `undefined` means no input was supplied and is validated as `{}`, which is what
+      // every path below already coerces it to. `null`, an array and a scalar were
+      // supplied and are malformed, and are reported as `input`.
+      const invalidField = validateInput(act.input, input === undefined ? {} : input);
+      if (invalidField) return statusObject(STATUS.INVALID_ARGUMENTS, { field: invalidField });
 
       const provider = this.providerFor(authForRun);
       const statusArgs = {
