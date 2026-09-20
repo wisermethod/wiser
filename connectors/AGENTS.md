@@ -14,11 +14,23 @@ A connector directory holds four things: `CONNECTOR.md`, the typed file; `manife
 
 Nothing. A module may not write a file, install a package, or read a credential; the gateway's inventory in `gateway/AGENTS.md` is the whole of what this family writes, and it is written by the gateway.
 
-## Grants are per module, and a grant is bound once
+## What a grant is made of
 
-A connection record is keyed by service and module and names the provider account the vendor's credential sits on. Two modules on one service are two grants and two `needs_connect` stops, even where the vendor would have accepted one broader grant, because the provider holds one grant per toolkit and a record that pretends otherwise cannot be honoured. The facade is naming and shared scope, never a shared token.
+Five layers stand between a module and a vendor call. Which layer holds what answers most questions about connecting.
 
-**An ACTIVE record is used as it stands and nothing re-reads it.** Connecting again does not rebind a module; it adds a second account, and two ACTIVE accounts on one toolkit take that toolkit out of service rather than offering a choice. A credential is changed on the account the record already names, at the provider. No shipped path removes a record, so a grant deleted at the vendor still reads ACTIVE here.
+| Layer | Where it lives | What it holds |
+|-------|----------------|---------------|
+| Toolkit | Provider | The vendor surface: its base URL and the auth schemes it may carry. Shipped by the provider, or upserted by the gateway for a vendor the provider does not ship |
+| Auth config | Provider | How to authenticate that toolkit: the scheme, and for OAuth the app and the scopes |
+| Connected account | Provider | **The credential**, created when a person consents or pastes a key. The only place a secret exists |
+| Connection record | `connections.json` | A pointer: this service and module use that connected account. Written once, when the grant goes ACTIVE |
+| Module | Here | Nothing. It asks for a call by action id and sees none of the above |
+
+A credential is therefore changed where it lives, on the connected account, and never by connecting again: `start_connect` creates a new account rather than replacing the one a record points at. Two ACTIVE accounts on one toolkit leave the pointer ambiguous, and the gateway takes that toolkit out of service rather than choosing. A record is written once and no shipped path removes one, so an account deleted at the provider still reads ACTIVE here.
+
+## Grants are per module
+
+A connection record is keyed by service and module. Two modules on one service are two grants and two `needs_connect` stops, even where the vendor would have accepted one broader grant, because the provider holds one grant per toolkit and a record that pretends otherwise cannot be honoured. The facade is naming and shared scope, never a shared token.
 
 ## Adding one
 
