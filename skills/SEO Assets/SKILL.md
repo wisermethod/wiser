@@ -3,13 +3,10 @@ name: SEO Assets
 type: skill
 category: seo
 description: Produce the ready-to-use artifacts a site's decided search changes need, each built from evidence pulled for it, held to its own standards, and written into an envelope's site/ kit tree or handed over for someone else to deploy
-version: 0.12.0
+version: 0.12.1
 memory:
   - voice
   - about
-gaps:
-  - keyword research
-  - automated site crawling
 ---
 
 # SEO Assets
@@ -83,7 +80,7 @@ The constraints under each, where losing one costs something on a live site:
 | What a site publishes, and what changed since last time | `tools/sitemap/` `fetch`, then `tools/sitemap/` `diff` |
 | A page that builds itself in the browser, or sits behind a sign-in | `tools/Browser Control/` |
 
-All six account reads use the gateway's `execute` tool and are `confirmation: none`. They return catalog objects, not files; this skill saves them for the tools below. Analytics `date_ranges` entries use `{ startDate, endDate }`; metrics and dimensions use `{ name }`. Keyword research and automated site crawling remain absent and labeled; these account reads do not supply either.
+All six account reads use the gateway's `execute` tool and are `confirmation: none`. They return catalog objects, not files; this skill saves them for the tools below. Analytics `date_ranges` entries use `{ startDate, endDate }`; metrics and dimensions use `{ name }`. Keyword research comes from `connectors/dataforseo/` and site crawling from `tools/site-crawl/`; these account reads supply neither and are not the route to them.
 
 What each hand-off needs to be right:
 

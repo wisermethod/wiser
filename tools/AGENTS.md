@@ -84,7 +84,6 @@ The gateway's writes (connection store, audit log, empty project-key template) a
 
 | Tool | Description |
 |------|-------------|
-| `page-speed/TOOL.md` | One JSON object of PageSpeed Insights v5 lab and field readings for one URL and one strategy |
 | `seo-data/TOOL.md` | Consolidates Search Console and Analytics results for one site and date range into one audit dataset, and turns Search Console query rows into a keyword report of top performers, opportunities, trends, cannibalization, and target-keyword standings |
 | `seo-page-analyzer/TOOL.md` | Reports one page's on-page SEO elements from caller-supplied HTML, each element with its measurements and the checks it failed |
 | `site-crawl/TOOL.md` | One JSON inventory of the URLs a bounded polite crawl can reach from one start URL |

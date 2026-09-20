@@ -6,7 +6,9 @@ A gap is a capability this root does not provide that a primitive's own body nam
 
 **This file carries capability gaps only.** What the operator plans to build is a separate record and is not a user's business, so nothing about future work appears here. **A gap names the capability that is missing, never where that capability went.**
 
-Counted 2026-09-18: 44 gaps across 27 primitives. Bullet count: `/usr/bin/grep -E '^- ' wiser/system/GAPS.md | wc -l` returns 44, and the same count derived from the primitives' own `gaps:` frontmatter returns 44. Verify each bullet against its primitive's frontmatter in both directions.
+Counted 2026-09-20: 37 gaps across 24 primitives. Bullet count: `/usr/bin/grep -E '^- ' wiser/system/GAPS.md | wc -l` returns 37, and the same count derived from the primitives' own `gaps:` frontmatter returns 37. Verify each bullet against its primitive's frontmatter in both directions.
+
+Seven were removed on 2026-09-20 because the capability had shipped and the declaration outlived it: `page-speed readings` on Conversion Advisor and Webmaster, now `google-apis.insights.run`; `keyword research` and `keyword and backlink data source` on Webmaster and `keyword research` on SEO Assets, now `connectors/dataforseo/`; and `automated site crawling` on Webmaster and SEO Assets, now `tools/site-crawl/`. Each primitive's body said the same thing and was corrected with it, which is the half that changes behaviour: an expert that declares a reading absent declines to fetch one it can get.
 
 ## Experts
 
@@ -14,10 +16,6 @@ Counted 2026-09-18: 44 gaps across 27 primitives. Bullet count: `/usr/bin/grep -
 
 - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
 - a stated meaning for each typed relation, so a stored link cannot be checked against what its type claims
-
-### Conversion Advisor
-
-- page-speed readings
 
 ### IT Expert
 
@@ -36,13 +34,6 @@ Counted 2026-09-18: 44 gaps across 27 primitives. Bullet count: `/usr/bin/grep -
 
 - earned media strategy, reporter targeting, and whether something is a story
 - crisis communications judgment
-
-### Webmaster
-
-- keyword research
-- automated site crawling
-- page-speed readings
-- keyword and backlink data source
 
 ## Skills
 
@@ -101,11 +92,6 @@ Counted 2026-09-18: 44 gaps across 27 primitives. Bullet count: `/usr/bin/grep -
 ### Proposal Author
 
 - news-desk and targeting judgment on a pitch written for a journalist
-
-### SEO Assets
-
-- keyword research
-- automated site crawling
 
 ### Site Author
 
