@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { buildContext } from './context.js';
 import { STATUS, StatusSignal, isStatusObject, sanitizeError, statusObject, vendorErrorFrom } from './errors.js';
+import { composeSummary, discloseInput } from './disclosure.js';
 import { evaluate } from './policy.js';
 import { readProviderUserId, writeProviderUserIdIfEmpty } from './paths.js';
 import { parseActionId, resolveAction } from './resolve.js';
@@ -519,21 +520,43 @@ export class ConnectionGateway {
         confirmation === 'always' ||
         (confirmation === 'once' && !this.confirmedOnce.has(onceKey));
       if (needsConfirm && confirm !== true) {
-        // Only field names the manifest declares are echoed; anything else is counted,
-        // so an undeclared key cannot carry a value back through its own name.
-        const declared = Object.keys(act?.input?.properties ?? {});
-        const given = Object.keys(input ?? {});
-        const fields = given.filter((k) => declared.includes(k));
-        const undeclared = given.length - fields.length;
-        const summary = `${action} on ${parsed.service}/${parsed.module}${fields.length ? ` with ${fields.join(', ')}` : ''}${undeclared ? ` and ${undeclared} undeclared field${undeclared === 1 ? '' : 's'}` : ''}; risk ${risk ?? 'unknown'}${act?.description ? `; ${act.description}` : ''}`;
+        // What may be shown, how it is rendered, and what the summary must say it is
+        // NOT showing all live in src/disclosure.js; the contract is stated in
+        // gateway/AGENTS.md under "What the confirmation stop shows, and what it
+        // does not". This block decides only that a stop happens and on which of
+        // the three entry paths; it does not decide what a person is told.
+        const disclosure = discloseInput(act, input);
+        const summary = composeSummary({
+          action,
+          service: parsed.service,
+          module: parsed.module,
+          risk,
+          description: act?.description,
+          disclosure,
+        });
         return statusObject(STATUS.NEEDS_CONFIRMATION, {
           action,
           service: parsed.service,
           module: parsed.module,
           risk: risk ?? null,
           confirmation,
-          input_fields: fields,
-          undeclared_fields: undeclared,
+          // Unchanged in meaning since before the disclosure policy. Values arrived
+          // as new fields beside them; nothing here was renamed or given a new sense.
+          input_fields: disclosure.fields,
+          undeclared_fields: disclosure.undeclared,
+          // Added. `value` is already escaped and capped; it is display text, not the
+          // input. A consumer wanting the input has the input.
+          input_values: disclosure.shown.map((f) => ({
+            name: f.name,
+            value: f.text,
+            truncated: f.truncated,
+          })),
+          // Added. Declared fields the policy would not render, and why, so a person
+          // knows something was supplied that they are not being shown.
+          withheld_fields: [
+            ...disclosure.nested.map((name) => ({ name, reason: 'nested' })),
+            ...disclosure.withheld,
+          ],
           summary,
           description: act?.description ?? null,
         });

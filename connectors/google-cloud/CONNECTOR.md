@@ -2,13 +2,13 @@
 name: google-cloud
 type: connector
 category: development
-description: Reads Google Cloud projects and IAM policy, lists and enables services, and creates restricted API keys, with every mutation stopping for confirmation
-version: 0.1.0
+description: Reads Google Cloud projects and IAM policy, lists and enables services, and creates restricted API keys, with every mutation stopping for a confirmation that names the project and the resource
+version: 0.2.0
 ---
 
 # Google Cloud
 
-Reads project metadata and IAM policy through Cloud Resource Manager, lists and enables services through Service Usage, and lists, reads, creates, and patches restricted API keys through API Keys v2. Every mutating action is `confirmation: always` and names the project and the resource in its **description**, which is fixed text. The stop does not carry the values sent; see the next section, which is the first thing to read on this connector. It does not mint key material, access Secret Manager, disable a service, delete a key, set IAM policy, or create a project.
+Reads project metadata and IAM policy through Cloud Resource Manager, lists and enables services through Service Usage, and lists, reads, creates, and patches restricted API keys through API Keys v2. Every mutating action is `confirmation: always`, and **the stop carries the project and the resource it will act on**, rendered from the values the caller sent. **An omitted optional field is simply absent from the stop; a supplied value that fails its own declaration is named as withheld.** The two are different and the stop distinguishes them. What it does not carry is `restrictions`; see the next section, which is the first thing to read before approving a key change. It does not mint key material, access Secret Manager, disable a service, delete a key, set IAM policy, or create a project.
 
 ## Status
 
@@ -20,13 +20,36 @@ Two limits on the eight. `services.enable` ran against a service already enabled
 
 `keys.create`, `keys.patch` and `keys.get_operation` have never called the vendor. The `@type` branch of the key reader is therefore **not live-tested**; it is covered against the fake provider in `tests/keys.test.js`, on both `create` and `get_operation`. See `auth.md` for the grant.
 
-## What the confirmation does not tell you, and it matters most on this connector
+## What the confirmation shows and what it does not, which matters most on this connector
 
-`services.enable`, `keys.create` and `keys.patch` are `confirmation: always`. **The stop a person sees names the action, the risk, the description, and the field names supplied. It does not carry the field values, so it does not say which project.** That is deliberate in the gateway, at `gateway/src/gateway.js`: it returns the names of declared fields and counts the rest, so an undeclared key cannot carry a value back through its own name. **Filtering names is not the same as being unable to show validated values**, and the gateway does not distinguish the two today: it shows no values at all. Showing an allowlisted, validated value for a declared field is a change nobody has made.
+`services.enable`, `keys.create` and `keys.patch` are `confirmation: always`. **The stop names the project and the resource, as values and not as field names.** Enabling a service reads:
 
-It matters here more than anywhere else in this plugin, because the grant is **user-scoped**. A `cloud-platform` grant carries every project the signed-in user can reach, so an approval that cannot name the project is an approval of "enable this service somewhere". Each mutating action names the project and the resource in its own `description`, which the stop does carry, but a description is fixed text and not the value sent.
+```
+google-cloud.services.enable on google-cloud/services with project="wiser-method-prod",
+service="translate.googleapis.com"; risk high; Enable the named service on the named
+Google Cloud project
+```
 
-**Until the gateway can show an allowlisted, validated value for a declared field, treat the confirmation as necessary and not sufficient**, and read the intended project from the call you are approving rather than from the stop. This is a known gap recorded against this build, not an oversight.
+**It names what was supplied, and the two ways a field can be missing are not the same.** A field the caller omitted is **absent**: nothing in the stop mentions it. A field the caller supplied whose value fails its own declaration is **named as withheld**, with the keyword it failed, so `project="Not A Project"` produces `project was supplied and is not shown, because it fails its own pattern` rather than a rendered value.
+
+The practical case is `keys.create`, where `key_id` and `display_name` are both optional. Omit `key_id` and the stop names no key identifier at all, because Google will choose one; supply `display_name` and it appears. **So what a `keys.create` approval identifies depends on what the call carried**, and it is always at least the project.
+
+This matters here more than anywhere else in this plugin, because the grant is **user-scoped**. A `cloud-platform` grant carries every project the signed-in user can reach, so an approval that could not name the project was an approval of "enable this service somewhere". **It can now name it.**
+
+**What the stop still does not show is `restrictions`, and on two actions that is the change itself.** `keys.create` and `keys.patch` both take `restrictions` as a nested object, and the gateway's disclosure policy renders no nested input. So a `keys.patch` stop reads:
+
+```
+google-cloud.keys.patch on google-cloud/keys with project="wiser-method-prod",
+key_id="a1b2c3d4-key"; the content of restrictions is not shown, so this approves the
+target and not the change; risk high; Patch restrictions on the named API key in the
+named Google Cloud project
+```
+
+**So approving `keys.patch` approves which key on which project, and not what the restriction becomes.** Read the intended restriction from the call you are approving rather than from the stop. `services.enable` has no such gap, because there the target *is* the change.
+
+**This is a decided limit and not an oversight.** The operator chose the target alone on 2026-09-20, against a rendered comparison of both stops, and nothing is scheduled to render a nested input; the gateway's own `AGENTS.md` carries the rule and the reasoning. A later reader should not read the absence as a gap waiting to be closed here.
+
+**The section this replaces described the opposite**, and was accurate when written: until 2026-09-20 the stop carried field names and no values at all. That gap held a public release. It is closed, and the paragraph naming it has gone with it rather than being left to mislead.
 
 ## Reaching it
 
@@ -43,12 +66,12 @@ JSON Schema cannot carry three rules the module still enforces, and they are nam
 | `google-cloud.projects.get_iam_policy` | Required `project`; optional `requested_policy_version`, an int32 whose valid values are 0, 1 and 3. 2 is not a member. When supplied, the body is `{ "options": { "requestedPolicyVersion": n } }`; when not, `{}` |
 | `google-cloud.services.list` | Required `project`; optional `filter`, any string, with the documented `state:ENABLED` form named here and not enforced; optional `page_size`; optional `page_token` |
 | `google-cloud.services.get` | Required `project` and `service` |
-| `google-cloud.services.enable` | Required `project` and `service`. The request body is `{}`. Confirmation always. The description names the project and the service as words; the stop does not carry their values |
+| `google-cloud.services.enable` | Required `project` and `service`. The request body is `{}`. Confirmation always, and the stop carries both values, so the target and the change are the same thing here |
 | `google-cloud.services.get_operation` | Required `operation_name`, matching `^operations/[^/]+$`, the pattern both generated documents declare. `.` and `..` are refused and the id is encoded as one path segment |
 | `google-cloud.keys.list` | Required `project`; optional `page_size`, `page_token`, `show_deleted` |
 | `google-cloud.keys.get` | Required `project` and `key_id` |
-| `google-cloud.keys.create` | Required `project` and `restrictions`; optional `key_id` as a query parameter matching `[a-z]([a-z0-9-]{0,61}[a-z0-9])?`, which the generated parameter states in its description as a hard rule and which also excludes UUID-like ids; optional `display_name` of at most 63 characters. Confirmation always. The description names the project and the key as words; the stop does not carry their values |
-| `google-cloud.keys.patch` | Required `project`, `key_id`, `restrictions`. `updateMask=restrictions` is fixed. Confirmation always. The description names the project and the key as words; the stop does not carry their values |
+| `google-cloud.keys.create` | Required `project` and `restrictions`; optional `key_id` as a query parameter matching `[a-z]([a-z0-9-]{0,61}[a-z0-9])?`, which the generated parameter states in its description as a hard rule and which also excludes UUID-like ids; optional `display_name` of at most 63 characters. Confirmation always; the stop carries whichever of `project`, `key_id` and `display_name` the caller supplied and that passes its own declaration, and says in words that `restrictions` is not shown. **Both `key_id` and `display_name` are optional**, so a create that supplies neither is approved by project alone, and one that supplies `display_name` names that too |
+| `google-cloud.keys.patch` | Required `project`, `key_id`, `restrictions`. `updateMask=restrictions` is fixed. Confirmation always; the stop carries `project` and `key_id` and says in words that `restrictions` is not shown, so it approves the target and not the change |
 | `google-cloud.keys.get_operation` | Required `operation_name`, matching `^operations/[^/]+$`, the pattern both generated documents declare. `.` and `..` are refused and the id is encoded as one path segment |
 
 `project` is either a project id, being 6 to 30 lowercase ASCII letters, digits or hyphens, starting with a letter and not ending in a hyphen, which is Google's `Project.projectId` rule and nothing more; or a project number of up to 19 digits, which Resource Manager's own parameter description gives as its example and which `tests/keys.test.js` asserts is accepted. This sentence said a project number was refused until 2026-09-20, contradicting the action table above it and the manifest pattern both. The `projects` module carries no test of its own for the number form; the coverage is on `keys`, and the validator is shared.

@@ -133,7 +133,7 @@ Every answer is one JSON object. A `status` field on it means the work did not r
 |--------|---------|-----------|
 | `needs_provider` | No credential file was given, or it is empty | Set Up Connectors; step 3 supplies the file recipe |
 | `needs_connect` | This service and module is not connected, or its grant expired | Step 4 |
-| `needs_confirmation` | The action is destructive or writes for the first time | Read the summary; say yes or no |
+| `needs_confirmation` | The action is destructive or writes for the first time | Read the summary and say yes or no. **It names the project, the record or whatever else the call will act on, as values**, for each declared field the call supplied that is a simple value and passes its own declaration. A field the call omitted is absent; one whose value fails its own declaration is named as withheld; one that is a nested object, such as `restrictions` on a Google Cloud key, is named with a sentence saying its content is not shown, so approval covers the target and not the change |
 | `denied` | The policy for this role forbids it | Use a different role, or leave it denied |
 | `needs_connector` | Nothing in this plugin serves that action, or no connector declares it | It is a gap; the primitive names it |
 | `needs_provider_capability` | The connector asked the provider for something it cannot do here | The connector or the provider is wrong, not you; report it |

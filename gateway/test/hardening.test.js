@@ -28,13 +28,21 @@ test('tool arguments that are not identifiers are refused before audit', async (
   assert.equal(validateArgs('describe_action', { action: 'a.b.c' }), null);
 });
 
-test('needs_confirmation carries field names and a summary, never the input values', async () => {
+test('needs_confirmation carries the values of DECLARED fields, which is the 2026-09-20 change', async () => {
+  // This test asserted the opposite until 2026-09-20: that no input value ever
+  // appeared. That was the defect holding a public release, not a guarantee. A
+  // person approving a deletion was told a record_id had been supplied and not
+  // which record. The guarantee that survives is about UNDECLARED keys, below.
   const { gw, store, fake } = await createTestGateway();
   await putActive(store, fake, { service: 'cloudflare', module: 'dns', privilege: 'write' });
-  const r = await gw.execute({ action: 'cloudflare.dns.delete_record', input: { zone_id: 'z', record_id: 'secret-value-123' } });
+  const r = await gw.execute({ action: 'cloudflare.dns.delete_record', input: { zone_id: 'z', record_id: 'rec-abc-123' } });
   assert.equal(r.status, 'needs_confirmation');
   assert.deepEqual(r.input_fields, ['zone_id', 'record_id']);
-  assert.equal(JSON.stringify(r).includes('secret-value-123'), false);
+  assert.match(r.summary, /zone_id="z", record_id="rec-abc-123"/);
+  assert.deepEqual(r.input_values, [
+    { name: 'zone_id', value: '"z"', truncated: false },
+    { name: 'record_id', value: '"rec-abc-123"', truncated: false },
+  ]);
 });
 
 test('ctx.http refuses plain http and hosts outside the manifest allowlist', async () => {

@@ -56,15 +56,20 @@ test('needs_confirmation carries the manifest description, or null when none is 
   const priced = await gw.execute({ action: 'example.items.priced', input: { id: 'item-1' } });
   assert.equal(priced.status, 'needs_confirmation');
   assert.equal(priced.description, 'Example billed call at $0.01 per call');
+  // The summary names the value and not only the field. Before the disclosure policy
+  // of 2026-09-20 this read `with id`, which told a person a field was supplied and
+  // not which resource it pointed at.
   assert.equal(
     priced.summary,
-    'example.items.priced on example/items with id; risk medium; Example billed call at $0.01 per call',
+    'example.items.priced on example/items with id="item-1"; risk medium; Example billed call at $0.01 per call',
   );
+  assert.deepEqual(priced.input_values, [{ name: 'id', value: '"item-1"', truncated: false }]);
+  assert.deepEqual(priced.withheld_fields, []);
 
   const silent = await gw.execute({ action: 'example.items.silent', input: { id: 'item-1' } });
   assert.equal(silent.status, 'needs_confirmation');
   assert.equal(silent.description, null);
-  assert.equal(silent.summary, 'example.items.silent on example/items with id; risk medium');
+  assert.equal(silent.summary, 'example.items.silent on example/items with id="item-1"; risk medium');
 });
 
 test('execute with confirmation always without confirm returns needs_confirmation; with confirm runs', async () => {

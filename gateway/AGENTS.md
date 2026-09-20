@@ -43,6 +43,30 @@ A module imports Node built-ins and files inside its own directory, and nothing 
 
 Code, in `src/resolve.js`: a connector module that declares the action; else a registered first-party MCP, which v1 stubs; else the catalog through the mapping; else `needs_connector`. The order is not configurable, because a person reading a status needs to know which step answered.
 
+## What the confirmation stop shows, and what it does not
+
+A `needs_confirmation` answer is the one place a person decides. **It carries the values of the declared fields the call was given**, so an approval names the thing being acted on rather than only the shape of the call. Before 2026-09-20 it carried field names and no values, and an approval of `services.enable` was an approval of enabling something somewhere.
+
+The rule has three parts and they are separate on purpose.
+
+**Eligibility** decides which values may appear: the key is declared in the action's `input.properties`, its declared type is scalar, and the supplied value matches that type. A field whose declaration permits `object` or `array` is ineligible even if it also permits a scalar. An **undeclared key is counted and nothing more** — neither its name nor its value appears anywhere in the answer, which is the guarantee this stop has always made and the one thing the change did not touch.
+
+**Validation** checks an eligible value against its own declaration before rendering it. A value that fails is withheld and named, because showing a person a value the call will then reject wastes their approval. Validation is **not** what makes the summary safe.
+
+**Rendering** is what makes it safe, and it applies to every value whatever its schema says. A schema cannot be trusted for this: of the 122 declared fields across the shipped `confirmation: always` actions, 6 are bounded by their own declaration against control characters, and two connectors declare no pattern at all. So every value is escaped against the Unicode classes `Cc`, `Cf`, `Cs`, `Zl`, `Zp` and `Default_Ignorable_Code_Point`, plus the backslash and the double quote; capped, with a cut marked by the true length and a fingerprint; and fitted into a summary whose every component is budgeted so the 2000-character limit holds unconditionally.
+
+**Three things it does not show, each a decision rather than a gap:**
+
+- **The content of a nested input.** `keys.create` and `keys.patch` take `restrictions` as an object, so on those two actions the summary names the target and says in words that the change itself is not shown. A person approving reads the change from the call, not from the stop.
+- **A value that fails its own declaration.** Named as withheld, with the keyword it failed.
+- **Anything from an undeclared key.**
+
+**Three residuals, stated so they are not mistaken for oversights.** A caller may put a secret into a declared free-form string and no rule here can tell; provider credentials cannot arrive that way, because they are attached in `src/context.js` and a module never receives one, but caller-supplied text is caller-supplied text. A homoglyph defeats every escape. And a truncated value's fingerprint is collision resistance, not uniqueness, and never confidentiality.
+
+**It lives in `src/disclosure.js`**, not in `execute`. `execute` decides that a stop happens and on which of the three entry paths — `confirmation: always`, `confirmation: once` on its first call, or a policy rule whose effect is `confirm`. It does not decide what a person is told. **The policy is reached identically on all three**, which `test/confirmation-disclosure.test.js` proves; the third has no shipped example on its own, because every destructive action also declares `always`.
+
+**None of it reaches the audit line.** `AUDIT_FIELDS` in `src/audit.js` is a closed set of thirteen names with no input field, and a test asserts a rendered value does not appear in `audit.jsonl`.
+
 ## Roles and policy
 
 `--role` selects `runtime` or `readonly`; `policy.default.json` decides what each may do, and `~/.wiser/gateway/policy.json` replaces those rules if present. Any other value, including `setup`, is refused. The one row a multi-user deployment flips is `startConnect` for `runtime`: on a laptop the person talking is the person connecting, and the shipped default allows it.
