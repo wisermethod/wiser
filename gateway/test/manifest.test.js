@@ -90,7 +90,7 @@ test('--check validates all shipped connectors and prints one JSON object', asyn
   const obj = JSON.parse(r.stdout);
   assert.equal(obj.ok, true);
   const ids = obj.connectors.map((c) => c.id).sort();
-  assert.deepEqual(ids, ['bing', 'clarity', 'cloudflare', 'courtlistener', 'dataforseo', 'figma', 'github', 'google', 'google-apis', 'google-vision', 'hubspot', 'huggingface', 'linkedin', 'microsoft', 'monday', 'notion', 'replicate', 'stripe', 'supabase', 'tinyfish', 'usebouncer', 'vercel', 'zoho', 'zoom']);
+  assert.deepEqual(ids, ['bing', 'clarity', 'cloudflare', 'courtlistener', 'dataforseo', 'figma', 'github', 'google', 'google-apis', 'google-cloud', 'google-vision', 'hubspot', 'huggingface', 'linkedin', 'microsoft', 'monday', 'notion', 'replicate', 'stripe', 'supabase', 'tinyfish', 'usebouncer', 'vercel', 'zoho', 'zoom']);
   assert.ok(obj.actions.includes('tinyfish.web.search'));
   assert.ok(obj.actions.includes('tinyfish.web.fetch'));
   assert.ok(obj.actions.includes('github.repos.get'));
@@ -101,6 +101,9 @@ test('--check validates all shipped connectors and prints one JSON object', asyn
   assert.ok(obj.actions.includes('cloudflare.dns.export_zone'));
   assert.ok(obj.actions.includes('google-apis.insights.run'));
   assert.ok(obj.actions.includes('google-apis.translate.text'));
+  assert.ok(obj.actions.includes('google-cloud.projects.get'));
+  assert.ok(obj.actions.includes('google-cloud.services.enable'));
+  assert.ok(obj.actions.includes('google-cloud.keys.create'));
 });
 
 

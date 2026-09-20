@@ -34,6 +34,7 @@ A connection record is keyed by service and module. Two modules on one service a
 | `stripe/CONNECTOR.md` | Reads customers and charges through one billing grant |
 | `monday/CONNECTOR.md` | Lists boards and reads a page of board items |
 | `supabase/CONNECTOR.md` | Lists projects and reads one project |
+| `google-cloud/CONNECTOR.md` | Reads Google Cloud projects and IAM policy, lists and enables services, and creates restricted API keys, with every mutation confirmed on the named project |
 
 ### Analytics
 

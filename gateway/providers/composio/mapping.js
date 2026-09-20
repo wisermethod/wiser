@@ -120,6 +120,7 @@ const TOOLKITS = {
   tinyfish: 'CUSTOM_TINYFISH',
   courtlistener: 'CUSTOM_COURTLISTENER',
   'google-apis': 'CUSTOM_GOOGLE_APIS',
+  'google-cloud': 'GOOGLEBIGQUERY',
   dataforseo: 'DATAFORSEO',
   bing: 'BING_WEBMASTER_TOOLS',
   github: 'GITHUB',
