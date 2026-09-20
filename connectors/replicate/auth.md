@@ -15,7 +15,7 @@ Create a Replicate API token for the account that will pay for predictions. The 
 
 ## Per-module notes
 
-- `models`: separate connect, write privilege; Last connected: 2026-09-08.
+- `models`: separate connect, write privilege.
 
 ## The route this connector does not use
 
@@ -37,4 +37,4 @@ A local credential file or a key pasted into chat is not a route. Use the hosted
 
 ## Last connected
 
-2026-09-08, `models`, Grok session via the current gateway tree. Catalog `list_collections` returned `{ results, next, previous }`; items have `name`, `slug`, `description`. `create_prediction` not run (billed). No collection names recorded here.
+Yes.

@@ -38,6 +38,8 @@ Through the gateway, by action id. List every action with its input and, where i
 {{SERVICE}}.{{MODULE}}.update   { id, ...fields }     confirmation: once
 ```
 
+**What this section says and what the manifest says are the same rule twice, and they are kept the same by a gate.** `standards/script-contract.md` Published input schema binds the manifest: every action declares `additionalProperties: false`, a conditional requirement is published with `oneOf` or `anyOf`, and a length bound counts code points. The gateway applies it before the module runs, and `gateway/test/agreement.test.js` fails when a module enforces a rule its schema does not publish or a schema publishes a rule nothing applies. A rule no schema can carry, such as a path that must exist on this machine, goes in the action's `description` and in this document, and it is the only kind that belongs in prose alone.
+
 ## Credentials
 
 This connector holds none. Say where the grant lives (the gateway's provider, or a bound file through the local-file provider), and say there is no credential file here and no `secrets:{{SERVICE}}` key unless the manifest's provider is `local-file`, in which case declare that key in the frontmatter above and name the file in the manifest.
@@ -62,4 +64,5 @@ One entry per status a person will actually meet, each ending in the one next st
 
 - How to connect: `auth.md`
 - The gateway and what a module may do: `gateway/AGENTS.md`
+- What the published input schema must say, and who applies it: `standards/script-contract.md` Published input schema
 - The platform's API reference, by URL

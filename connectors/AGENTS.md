@@ -10,6 +10,8 @@ Not by running anything in its directory. The gateway, `gateway/server.js`, load
 
 A connector directory holds four things: `CONNECTOR.md`, the typed file; `manifest.json`, every module and action with its privilege, risk, confirmation and execution preference; `index.js`, the actions; and `auth.md`, what a person does on the vendor's side to connect. A `tests/` directory runs the module against the gateway's fake provider and touches no account.
 
+**A manifest's `input` is applied, not described.** The gateway validates a call against the published schema before the module runs and **no connector carries a validator of its own**; `gateway/src/input-schema.js` says what it reads and what it leaves to the module, and `standards/script-contract.md` Published input schema is what binds a connector author. Until 2026-09-20 nothing compared the two sides: eleven connectors had copied a validator and agreed with their own manifests, the other fourteen hand-rolled their checks and held 189 divergences, and a suite of 485 connector tests was green throughout. `gateway/test/agreement.test.js` is what would catch it now, and its baseline may only shrink.
+
 ## What a connector writes
 
 Nothing. A module may not write a file, install a package, or read a credential; the gateway's inventory in `gateway/AGENTS.md` is the whole of what this family writes, and it is written by the gateway.
@@ -53,7 +55,7 @@ A connection record is keyed by service and module. Two modules on one service a
 | `stripe/CONNECTOR.md` | Reads customers and charges through one billing grant |
 | `monday/CONNECTOR.md` | Lists boards and reads a page of board items |
 | `supabase/CONNECTOR.md` | Lists projects and reads one project |
-| `google-cloud/CONNECTOR.md` | Reads Google Cloud projects and IAM policy, lists and enables services, and creates restricted API keys, with every mutation stopping for confirmation |
+| `google-cloud/CONNECTOR.md` | Reads Google Cloud projects and IAM policy, lists and enables services, and creates restricted API keys, with every mutation stopping for a confirmation that names the project and the resource |
 
 ### Analytics
 

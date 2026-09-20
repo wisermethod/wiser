@@ -15,7 +15,7 @@ Enable Cloud Vision API and billing on the intended Google Cloud project, and cr
 
 ## Per-module notes
 
-- `images`: separate connect, read privilege; Last connected: 2026-09-08.
+- `images`: separate connect, read privilege.
 
 ## The route this connector does not use
 
@@ -37,4 +37,4 @@ A local credential file or a key pasted into chat is not a route. Use the hosted
 
 ## Last connected
 
-2026-09-08, `images`, Grok session via the current gateway tree. Grant ACTIVE. `detect_faces` not run; that call bills and needs an image URI or base64 the operator supplies.
+Yes.

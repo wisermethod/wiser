@@ -37,4 +37,4 @@ Local-file is not this connector's route. It does not read a local vendor-key fi
 
 ## Last connected
 
-Not yet
+Not yet.

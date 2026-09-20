@@ -15,7 +15,7 @@ Create a Clarity API token for the intended project in Clarity settings. Prepare
 
 ## Per-module notes
 
-- `analytics`: separate connect, read privilege; Last connected: Not yet.
+- `analytics`: separate connect, read privilege.
 
 ## The route this connector does not use
 
@@ -37,4 +37,4 @@ A local credential file or a key pasted into chat is not a route. Use the hosted
 
 ## Last connected
 
-Not yet. Record the date here after the operator completes each module's connect.
+Not yet.

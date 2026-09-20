@@ -92,6 +92,26 @@ test('template loads through the gateway after substituting placeholders in memo
     confirm: true,
   });
   assert.equal(ran.status, 200);
+
+  // **Keep this block when you copy the template.** The 2026-09-20 connector audit found
+  // that the eleven connectors agreeing with their own manifests were the eleven that had
+  // copied a validator and its tests together, and that twelve of the fourteen without it
+  // asserted nothing of the kind and held every divergence. The validator now lives in the
+  // gateway and no connector carries one, so what a connector still has to carry is this:
+  // proof that its published schema is the one being applied to its own actions.
+  for (const input of [
+    { id: 'item-1', undeclared: 'example' },
+    { id: 12345 },
+    {},
+  ]) {
+    const refused = await gw.execute({ action: `${service}.${module}.get`, input });
+    assert.equal(refused.status, 'invalid_arguments', JSON.stringify(input));
+  }
+  for (const input of [null, [], 'example', 1]) {
+    assert.deepEqual(
+      await gw.execute({ action: `${service}.${module}.get`, input }),
+      { status: 'invalid_arguments', field: 'input' });
+  }
 });
 
 test('every placeholder in the template is named', () => {

@@ -41,4 +41,4 @@ The vendor's sandbox host is a different domain from the live API. The gateway's
 
 ## Last connected
 
-Not yet
+Not yet.

@@ -24,6 +24,8 @@ Adding a second account does **not** break the modules you have already connecte
 
 The gateway's provider holds the key. Do not put a Google APIs key into an auth config or `auth-provider.env`.
 
+**A grant on the retired pagespeed toolkit does not carry over.** If you connected this capability before it became `google-apis`, that grant is on a toolkit this connector no longer uses, and you connect again here rather than expecting the old one to serve.
+
 ## The route this connector does not use
 
 Local-file is not this connector's route. It does not read a local vendor-key file, use Provides secrets, or unwrap a token.
@@ -44,4 +46,4 @@ Local-file is not this connector's route. It does not read a local vendor-key fi
 
 ## Last connected
 
-2026-09-19, on this workspace's own grant. The old pagespeed grant is on the retired toolkit and does not carry over.
+Yes.

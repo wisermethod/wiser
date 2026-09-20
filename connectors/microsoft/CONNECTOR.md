@@ -37,14 +37,14 @@ No action accepts caller-supplied `user_id`. Teams list injects `user_id: 'me'`.
 
 ## Modules
 
-| Module | Privilege | Actions | Last connected |
-|--------|-----------|---------|----------------|
-| `outlook` | read | `list_messages`, `get_message` | Not yet |
-| `calendar` | read | `list_events`, `get_event` | Not yet |
-| `onedrive` | read | `find`, `get` | Not yet |
-| `sharepoint` | read | `list`, `get` | Not yet |
-| `excel` | read | `search`, `get_values` | Not yet |
-| `teams` | read | `list`, `get` | Not yet |
+| Module | Privilege | Actions |
+|--------|-----------|---------|
+| `outlook` | read | `list_messages`, `get_message` |
+| `calendar` | read | `list_events`, `get_event` |
+| `onedrive` | read | `find`, `get` |
+| `sharepoint` | read | `list`, `get` |
+| `excel` | read | `search`, `get_values` |
+| `teams` | read | `list`, `get` |
 
 Each module has its own hosted OAuth grant. A grant unlocks only its module.
 

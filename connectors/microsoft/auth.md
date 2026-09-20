@@ -17,12 +17,12 @@ This connector uses hosted connect only. No key belongs in this file or the conv
 
 ## Per-module notes
 
-- `outlook`: separate connect, read privilege; Last connected: Not yet.
-- `calendar`: separate connect, read privilege; Last connected: Not yet.
-- `onedrive`: separate connect, read privilege; Last connected: Not yet.
-- `sharepoint`: separate connect, read privilege; Last connected: Not yet.
-- `excel`: separate connect, read privilege; Last connected: Not yet.
-- `teams`: separate connect, read privilege; Last connected: Not yet.
+- `outlook`: separate connect, read privilege.
+- `calendar`: separate connect, read privilege.
+- `onedrive`: separate connect, read privilege.
+- `sharepoint`: separate connect, read privilege.
+- `excel`: separate connect, read privilege.
+- `teams`: separate connect, read privilege.
 
 Outlook mail and Calendar require separate connects even though they share a catalog toolkit. Use the connected Microsoft account for every module; no action accepts another user's mailbox identifier.
 

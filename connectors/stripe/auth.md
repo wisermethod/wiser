@@ -39,4 +39,4 @@ Live limits are UNVERIFIED. If a gateway status reports a rate limit, stop and f
 
 ## Last connected
 
-Not yet. Operator 2026-09-09: skipped. No Stripe key entered.
+Not yet.

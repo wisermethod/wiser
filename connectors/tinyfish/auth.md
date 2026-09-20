@@ -32,4 +32,4 @@ Local-file is not this connector's route. It does not read a vendor-key file, us
 
 ## Last connected
 
-2026-09-09, `web` ACTIVE. Hosted connect; the gateway's provider holds the key. Rotated the same day after a key in chat; replacement entered on the hosted page only. Live Search executed 2026-09-09: envelope `{ query, results, total_results, page }`, 8 results, each with `position`, `site_name`, `title`, `snippet`, `url`. No titles or URLs recorded here. Fetch not yet executed.
+Yes.

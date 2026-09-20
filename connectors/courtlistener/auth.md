@@ -32,4 +32,4 @@ Local-file is not this connector's route. It does not read a local vendor-key fi
 
 ## Last connected
 
-2026-09-08, `caselaw` ACTIVE. Hosted connect; the gateway's provider holds the key. Custom toolkit Token header injection confirmed: live proxy search and list_courts returned `{ count, next, previous, results }`. `get_cluster` and `get_docket` returned objects with `id`. No case names, docket numbers, or opinion text recorded here.
+Yes.

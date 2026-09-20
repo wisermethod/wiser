@@ -39,6 +39,4 @@ Nothing to prepare. GitHub's authorisation page is the whole of it. If your acco
 
 ## Last connected
 
-2026-09-08, `repos` and `issues`, Grok harness with `wiser-gateway`. Catalog execute `github.repos.get` on `wisermethod/wiser` returned the repository. `github.repos.list_for_user` confirmed: `{ repositories }`. `github.issues.list` confirmed catalog execute 2026-09-08: `{ issues }`, empty on `wisermethod/wiser` open. `users` not connected.
-
-2026-09-09, `github.issues.create` confirmed catalog execute on `wisermethod/wiser` via current-tree stdio (`--harness m3-connect`). Without `confirm`: `needs_confirmation`. With `confirm: true`: vendor issue object with `id`, `number`, `title`, `html_url`, `state`. Fake fixture already matches that object shape. `users` not connected.
+Yes.

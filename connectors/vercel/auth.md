@@ -15,8 +15,8 @@ Create a Vercel API token limited to the intended account or team. Prepare an AP
 
 ## Per-module notes
 
-- `projects`: separate connect, write privilege; Last connected: 2026-09-08. Last verified ACTIVE: 2026-09-17.
-- `deployments`: separate connect, write privilege; Last connected: 2026-09-08. Last verified ACTIVE: 2026-09-17.
+- `projects`: separate connect, write privilege.
+- `deployments`: separate connect, write privilege.
 
 ## The route this connector does not use
 
@@ -38,8 +38,4 @@ A local credential file or a key pasted into chat is not a route. Use the hosted
 
 ## Last connected
 
-Connected 2026-09-08, `projects` and `deployments` ACTIVE. Catalog projects.list `{ projects, pagination }`. Catalog deployments.list `{ deployments, pagination }`.
-
-`create` **has run**: a deployment succeeded live on 2026-09-14, `dpl_AonCe3igyVt1sV2ut38p8vJbe4vA`, READY and PROMOTED.
-
-Last verified ACTIVE 2026-09-17, by a status check rather than a new connect; the connection date above is unchanged. Upload by reference was verified the same day against a real 38-file, 962,496-byte site: 38 of 38 files accepted, largest single body 233,984 base64 characters, resulting create body 3,824 bytes. A **by-reference deployment** was then created end to end and polled to READY, `dpl_D9mP4EPiCFZCF5cpansAudj4Z3hs`, against a throwaway project that was deleted afterwards and confirmed gone by a 404 re-read.
+Yes.

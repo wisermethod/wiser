@@ -39,4 +39,4 @@ Live limits are UNVERIFIED. If a gateway status reports a rate limit, stop and f
 
 ## Last connected
 
-2026-09-09, `profile` ACTIVE. Hosted OAuth; live envelope UNVERIFIED.
+Yes.

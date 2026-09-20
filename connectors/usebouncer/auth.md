@@ -14,7 +14,7 @@ Obtain an API key from Bouncer. In a file outside this plugin, set the variable 
 
 ## Per-module notes
 
-- `verify`: separate connect, write privilege; Last connected: Not yet.
+- `verify`: separate connect, write privilege.
 
 ## The route this connector does not use
 
@@ -34,4 +34,4 @@ A hosted catalog grant is not a route for this service; it has no catalog toolki
 
 ## Last connected
 
-Not yet. Record the date here after the operator completes each module's connect.
+Not yet.

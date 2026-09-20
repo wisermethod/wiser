@@ -42,15 +42,15 @@ Bigin list and get are fixed to Contacts; caller-supplied `module` and `module_a
 
 ## Modules
 
-| Module | Privilege | Actions | Last connected |
-|--------|-----------|---------|----------------|
-| `crm` | write | `get`, `search`, `create` | Not yet |
-| `mail` | read | `list`, `get` | Not yet |
-| `books` | read | `list`, `get` | Not yet |
-| `desk` | read | `list`, `get` | Not yet |
-| `inventory` | read | `list`, `get` | Not yet |
-| `invoice` | read | `list`, `get` | Not yet |
-| `bigin` | read | `list`, `get` | Not yet |
+| Module | Privilege | Actions |
+|--------|-----------|---------|
+| `crm` | write | `get`, `search`, `create` |
+| `mail` | read | `list`, `get` |
+| `books` | read | `list`, `get` |
+| `desk` | read | `list`, `get` |
+| `inventory` | read | `list`, `get` |
+| `invoice` | read | `list`, `get` |
+| `bigin` | read | `list`, `get` |
 
 Each module has its own hosted OAuth grant. A grant unlocks only its module.
 

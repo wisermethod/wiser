@@ -35,4 +35,11 @@ This template covers both: a hosted link (`catalog`) and a bound file (`local-fi
 
 ## Last connected
 
-Not yet. The first successful connect is recorded here with its date.
+Not yet.
+
+This section records only whether a connect has ever succeeded, as `Yes.` or `Not yet.`
+**Do not record a date, an account, a machine, a harness, a decision, or a vendor response
+here.** That is build evidence and it belongs in this repo's build workspace, not in a
+guide a stranger installs from. A decision not to connect is not a connect either, so the
+answer stays `Not yet.` Decided 2026-09-20 after twenty of twenty-six shipped guides were
+found carrying one operator's state.
