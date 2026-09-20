@@ -14,7 +14,11 @@ Reads project metadata and IAM policy through Cloud Resource Manager, lists and 
 
 Shipped 2026-09-19 from the approved Connector Advisor plan of that date. Fake-provider tests cover input validation, absolute endpoints, restriction rules, keyString projection, and schema agreement.
 
-**Nine of the twelve actions were proved live on 2026-09-20**: all three `projects` actions, all four `services` actions, and `keys.list` and `keys.get`. `services.enable` ran against a service that was already enabled and returned Google's own `operations/noop.DONE_OPERATION`, which proves the confirmation stop, the request shape and that the grant holds `serviceusage.services.enable`; it does not prove a disabled-to-enabled transition. `keys.create`, `keys.patch` and `keys.get_operation` have never called the vendor, so the `@type` branch of the key reader is unexercised. See `auth.md` for the grant.
+**Nine of the twelve actions called the vendor on 2026-09-20. Eight returned a successful result; one exercised the error path.** The eight are all three `projects` actions, `services.list`, `services.get`, `services.enable`, `keys.list` and `keys.get`. The ninth is `services.get_operation`, which built its endpoint from a vendor-supplied operation name carrying a dot and received a 400; that exercises the validator and the `vendor_error` path and **does not demonstrate that an operation can be read successfully**. The cause of the 400 is inferred, because the gateway withholds the vendor body.
+
+Two limits on the eight. `services.enable` ran against a service already enabled on that project and returned Google's own `operations/noop.DONE_OPERATION`, which proves the confirmation stop, the request shape and that the grant holds `serviceusage.services.enable` **on that project**; it does not prove a disabled-to-enabled transition. And no call that a module accepts exercises any validation bound.
+
+`keys.create`, `keys.patch` and `keys.get_operation` have never called the vendor. The `@type` branch of the key reader is therefore **not live-tested**; it is covered against the fake provider in `tests/keys.test.js`, on both `create` and `get_operation`. See `auth.md` for the grant.
 
 ## What the confirmation does not tell you, and it matters most on this connector
 
@@ -47,7 +51,7 @@ JSON Schema cannot carry three rules the module still enforces, and they are nam
 | `google-cloud.keys.patch` | Required `project`, `key_id`, `restrictions`. `updateMask=restrictions` is fixed. Confirmation always. The description names the project and the key as words; the stop does not carry their values |
 | `google-cloud.keys.get_operation` | Required `operation_name`, matching `^operations/[^/]+$`, the pattern both generated documents declare. `.` and `..` are refused and the id is encoded as one path segment |
 
-`project` is 6 to 30 lowercase ASCII letters, digits, or hyphens, starting with a letter and not ending in a hyphen. That is Google's `Project.projectId` rule and nothing more; a project number is refused because it does not start with a letter.
+`project` is either a project id, being 6 to 30 lowercase ASCII letters, digits or hyphens, starting with a letter and not ending in a hyphen, which is Google's `Project.projectId` rule and nothing more; or a project number of up to 19 digits, which Resource Manager's own parameter description gives as its example and which `tests/projects.test.js` asserts is accepted. This sentence said a project number was refused until 2026-09-20, contradicting the action table above it and the manifest pattern both.
 
 `service` is a nonempty string with no whitespace and no `/`. The schema states no pattern; emptiness and slash are the module's own checks, needed to build a well-formed path.
 

@@ -12,7 +12,7 @@ Not a primitive. Skills and experts invoke connectors by action id, `service.mod
 
 | What | Where | When |
 |------|-------|------|
-| The connection store: our id, service, module, privilege, provider, provider account id, scopes, status, dates. Never a token | `~/.wiser/gateway/connections.json`, mode 0600 in a 0700 directory, outside this plugin, or the directory `--home` names | On `connect_status` when a grant is active. Nothing removes a row: no shipped path calls revoke |
+| The connection store: our id, service, module, privilege, provider, provider account id, scopes, status, dates. Never a token | `~/.wiser/gateway/connections.json`, mode 0600 in a 0700 directory, outside this plugin, or the directory `--home` names | On `start_connect`, which writes the row at INITIATED over whatever that service and module held; on `connect_status`, which writes the status the provider reports; on an execute meeting 401 or 403, which refreshes that status; and on hydration, for a module with no ACTIVE record. Nothing removes a row: no shipped path calls `revoke` or `deleteConnection` |
 | The audit log, one JSON line per `execute`, `start_connect` and `connect_status`, including the ones that stopped: time, harness, role, op, action, service, module, privilege, resolution path, provider account id, status, duration, correlation id. No input, no output, no header | `~/.wiser/gateway/audit.jsonl`, same modes | Every call |
 | A local user id, `wiser-<uuid>`, which is what the provider sees as the user. Not a name, not an address | Inside `connections.json` | First run |
 | A policy override, if the person writes one | `~/.wiser/gateway/policy.json` | Only by the person; the gateway reads it and never writes it |
