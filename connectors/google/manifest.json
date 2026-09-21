@@ -168,7 +168,7 @@
             "properties": {
               "site_url": {
                 "type": "string",
-                "pattern": "^\\s*([Hh][Tt][Tt][Pp][Ss]?://|[Ss][Cc]-[Dd][Oo][Mm][Aa][Ii][Nn]:)"
+                "pattern": "^([\\u0000-\\u0020]*[Hh][Tt][Tt][Pp][Ss]?://|\\s*[Ss][Cc]-[Dd][Oo][Mm][Aa][Ii][Nn]:)"
               }
             },
             "required": [
@@ -189,11 +189,11 @@
             "properties": {
               "site_url": {
                 "type": "string",
-                "pattern": "^\\s*([Hh][Tt][Tt][Pp][Ss]?://|[Ss][Cc]-[Dd][Oo][Mm][Aa][Ii][Nn]:)"
+                "pattern": "^([\\u0000-\\u0020]*[Hh][Tt][Tt][Pp][Ss]?://|\\s*[Ss][Cc]-[Dd][Oo][Mm][Aa][Ii][Nn]:)"
               },
               "inspection_url": {
                 "type": "string",
-                "pattern": "^\\s*[Hh][Tt][Tt][Pp][Ss]?://"
+                "pattern": "^[\\u0000-\\u0020]*[Hh][Tt][Tt][Pp][Ss]?://"
               },
               "language_code": {
                 "type": "string"
@@ -218,11 +218,11 @@
             "properties": {
               "site_url": {
                 "type": "string",
-                "pattern": "^\\s*([Hh][Tt][Tt][Pp][Ss]?://|[Ss][Cc]-[Dd][Oo][Mm][Aa][Ii][Nn]:)"
+                "pattern": "^([\\u0000-\\u0020]*[Hh][Tt][Tt][Pp][Ss]?://|\\s*[Ss][Cc]-[Dd][Oo][Mm][Aa][Ii][Nn]:)"
               },
               "feedpath": {
                 "type": "string",
-                "pattern": "^\\s*[Hh][Tt][Tt][Pp][Ss]?://"
+                "pattern": "^[\\u0000-\\u0020]*[Hh][Tt][Tt][Pp][Ss]?://"
               }
             },
             "required": [

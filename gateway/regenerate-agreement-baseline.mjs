@@ -34,16 +34,21 @@ export async function main() {
   // unreadable. The same is true of a legitimately empty baseline, which is the class
   // closed and the strongest state the file can be in. Found by adversarial review
   // 2026-09-20, after the file reached one row and the next stop was zero.
+  // `?? []` was not enough: `{}`, `{"divergences": null}` and a JSON primitive all read as
+  // an empty baseline, which is the bootstrap permission this guard exists to withhold. The
+  // shape is checked rather than defaulted. Round two of adversarial review, 2026-09-20.
   let previous;
-  try { previous = JSON.parse(readFileSync(OUT, 'utf8')).divergences ?? []; }
+  try { previous = JSON.parse(readFileSync(OUT, 'utf8'))?.divergences; }
   catch (err) {
     console.error(`cannot read ${OUT}: ${err.message}`);
     console.error('This file is the ratchet. Restore it from git rather than regenerating over it;');
     console.error('a first baseline is created by writing {"divergences": []} and running this.');
     return 3;
   }
-  if (!Array.isArray(previous)) {
-    console.error(`${OUT} has no divergences array. Restore it from git.`);
+  if (!Array.isArray(previous) || previous.some((d) => typeof d !== 'string')) {
+    console.error(`${OUT} has no divergences array of strings. Restore it from git.`);
+    console.error('An empty baseline is written as {"divergences": []}, which is a different');
+    console.error('thing from a file that does not say.');
     return 3;
   }
 

@@ -118,7 +118,7 @@ test('an input whose first bad key is the empty string is refused, not waved thr
   // Found by adversarial review 2026-09-20 in this validator's own first two callers.
   const { gw, store, fake } = await createTestGateway();
   await putActive(store, fake, { service: 'cloudflare', module: 'zones', privilege: 'read' });
-  fake.proxy = async () => assert.fail('an unvalidated input reached transport');
+  fake.auth.proxy = async () => assert.fail('an unvalidated input reached transport');
   // `zones.list` requires nothing, so the empty key is the first and only fault and the
   // required loop cannot mask it. That is the shape of the bypass.
   assert.deepEqual(

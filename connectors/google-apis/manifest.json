@@ -23,7 +23,7 @@
               "url": {
                 "type": "string",
                 "minLength": 1,
-                "pattern": "^\\s*[Hh][Tt][Tt][Pp][Ss]?://"
+                "pattern": "^[\\u0000-\\u0020]*[Hh][Tt][Tt][Pp][Ss]?://"
               },
               "strategy": {
                 "type": "string",

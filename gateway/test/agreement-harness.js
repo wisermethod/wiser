@@ -91,14 +91,18 @@ const PATTERN_OK = {
   // That residual is named here rather than probed: an adversarial exemplar for it
   // would report a divergence that no schema change can close.
   //
-  // **The leading `\s*` is not decoration and the first version of these patterns was
-  // wrong without it.** `new URL()` strips leading whitespace and `google`'s
-  // `isDomainProperty` trims before matching, so ` https://example.com ` is a value every
-  // one of these modules accepts. An anchored scheme pattern refused it, which made the
-  // published rule *narrower* than its module while the comment above claimed only the
-  // opposite. Found by adversarial review 2026-09-20.
-  '^\\s*[Hh][Tt][Tt][Pp][Ss]?://': 'https://example.com/x',
-  '^\\s*([Hh][Tt][Tt][Pp][Ss]?://|[Ss][Cc]-[Dd][Oo][Mm][Aa][Ii][Nn]:)': 'https://example.com/x',
+  // **The two leading classes are different on purpose and neither is `\s`.** An anchored
+  // scheme pattern refused ` https://example.com `, which every one of these modules
+  // accepts, so the published rule was *narrower* than its module while the comment above
+  // claimed only the opposite. The first correction used `\s*` and was still wrong in both
+  // directions, which is why the classes are now exact and were measured rather than
+  // reasoned. `new URL()` strips exactly U+0000 to U+0020, all 33 of them, so a leading NUL
+  // is accepted and a leading NBSP is not. `String.prototype.trim`, which `google`'s
+  // `isDomainProperty` calls, strips exactly the 25 code points `\s` matches, NBSP among
+  // them. So the `sc-domain` branch takes `\s*` and the scheme branch takes the C0 range.
+  // Both rounds found by adversarial review 2026-09-20.
+  '^[\\u0000-\\u0020]*[Hh][Tt][Tt][Pp][Ss]?://': 'https://example.com/x',
+  '^([\\u0000-\\u0020]*[Hh][Tt][Tt][Pp][Ss]?://|\\s*[Ss][Cc]-[Dd][Oo][Mm][Aa][Ii][Nn]:)': 'https://example.com/x',
 };
 const PATTERN_ADVERSARIAL = {
   // The tightened pattern excludes exactly the two relative segments
