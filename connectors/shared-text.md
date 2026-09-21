@@ -34,7 +34,7 @@ style matter. `microsoft` has six modules on five toolkits, `outlook` and `calen
 A guide that said to prepare a blueprint per module sent a reader to make two on that toolkit,
 and the provider then refuses to start a connection on a toolkit carrying more than one auth
 config, with a `vendor_error` naming the toolkit and a count rather than the instruction that
-caused it. Both modules become unconnectable, permanently, and the answer does not say why. The
+caused it. Both modules become unconnectable until the second blueprint is removed, and the answer does not say why. The
 step was also unnecessary: the gateway creates the auth config when a toolkit has none.
 
 In `google` and `zoho` the wrong wording was harmless, because every module there has its own

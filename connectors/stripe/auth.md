@@ -4,7 +4,7 @@ See [gateway/SETUP.md](../../gateway/SETUP.md) for attachment and the gateway's 
 
 ## On the platform's side, first
 
-Prepare a Stripe secret or restricted API key for the intended account with customer and charge read access. **One blueprint per toolkit, not per module**, and for a toolkit the provider already ships there is nothing to prepare: the gateway creates the blueprint on the first connect that finds none. A second blueprint on one toolkit makes every module on that toolkit unconnectable until it is removed, with a `vendor_error` naming the toolkit and the count. The hosted page collects the API key, never chat. This connector selects API_KEY.
+Prepare a Stripe secret or restricted API key for the intended account with customer and charge read access. **One blueprint per toolkit, not per module**, and for a toolkit the provider already ships there is nothing to prepare: the gateway creates the blueprint on the first connect that finds none. A second blueprint on one toolkit makes every module on that toolkit unconnectable until it is removed, with a `vendor_error` naming the toolkit and the count. `gateway/SETUP.md` section 3 routes to the provider's own setup if you do need the dashboard. The hosted page collects the API key, never chat. This connector selects API_KEY.
 
 ## Through the gateway
 

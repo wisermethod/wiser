@@ -4,7 +4,7 @@ See [gateway/SETUP.md](../../gateway/SETUP.md) for attachment and the gateway's 
 
 ## On the platform's side, first
 
-Create a Replicate API token for the account that will pay for predictions. **One blueprint per toolkit, not per module**, and for a toolkit the provider already ships there is nothing to prepare: the gateway creates the blueprint on the first connect that finds none. A second blueprint on one toolkit makes every module on that toolkit unconnectable until it is removed, with a `vendor_error` naming the toolkit and the count. Paste the token only on the hosted connect page, never into the blueprint and never into chat.
+Create a Replicate API token for the account that will pay for predictions. **One blueprint per toolkit, not per module**, and for a toolkit the provider already ships there is nothing to prepare: the gateway creates the blueprint on the first connect that finds none. A second blueprint on one toolkit makes every module on that toolkit unconnectable until it is removed, with a `vendor_error` naming the toolkit and the count. `gateway/SETUP.md` section 3 routes to the provider's own setup if you do need the dashboard. Paste the token only on the hosted connect page, never into the blueprint and never into chat.
 
 ## Through the gateway
 
