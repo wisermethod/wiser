@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { parseActionId, resolveAction, resolveFirstPartyMcp } from '../src/resolve.js';
+import { firstPartyDef, parseActionId, resolveAction, resolveFirstPartyMcp } from '../src/resolve.js';
 import { createTestGateway, putActive } from './fake-provider.js';
 
 test('parseActionId splits service.module.action', () => {
@@ -9,8 +9,37 @@ test('parseActionId splits service.module.action', () => {
   assert.equal(parseActionId('nope'), null);
 });
 
-test('resolveFirstPartyMcp is a stub that always returns null', () => {
+test('resolveFirstPartyMcp misses without a classifier and on a non-wiser id', () => {
   assert.equal(resolveFirstPartyMcp('github.repos.get'), null);
+  assert.equal(resolveFirstPartyMcp('wiser.route.ask'), null);
+  assert.equal(resolveFirstPartyMcp('wiser.route.ask', { actions: () => ['wiser.gate.check'] }), null);
+  // Positive control: a stub that always returns null fails here.
+  const hit = resolveFirstPartyMcp('wiser.route.ask', { actions: () => ['wiser.route.ask'] });
+  assert.equal(hit.parsed.service, 'wiser');
+  assert.equal(typeof hit.fn, 'function');
+});
+
+test('firstPartyDef returns a declaration only for a named first-party id', () => {
+  assert.equal(firstPartyDef('wiser.route.ask').privilege, 'read');
+  assert.equal(firstPartyDef('wiser.secret.write'), null);
+  assert.equal(firstPartyDef('github.repos.get'), null);
+});
+
+test('resolveFirstPartyMcp resolves a wiser id against a loaded classifier', () => {
+  const classifier = {
+    name: 'direct',
+    actions: () => ['wiser.route.ask'],
+    describe: () => ({ request: { ask: 'string' }, answer: {} }),
+    execute: async () => ({ ok: true }),
+  };
+  const hit = resolveFirstPartyMcp('wiser.route.ask', classifier);
+  assert.equal(typeof hit.fn, 'function');
+  assert.equal(hit.def.privilege, 'read');
+  assert.equal(hit.def.risk, 'low');
+  assert.equal(hit.parsed.service, 'wiser');
+  const resolved = resolveAction('wiser.route.ask', { connectors: [], classifier });
+  assert.equal(resolved.path, 'first_party_mcp');
+  assert.equal(typeof resolved.fn, 'function');
 });
 
 test('resolution falls from connector to catalog to needs_connector', async () => {

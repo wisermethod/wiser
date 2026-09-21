@@ -510,6 +510,8 @@ export async function createTestGateway(options = {}) {
     localFileProvider: options.localFileProvider || null,
     authConfigured: options.authConfigured !== false,
     connectors,
+    envPath: options.envPath || null,
+    classifier: options.classifier || null,
   });
   return { gw, home, store, fake, audit, connectors, policy };
 }

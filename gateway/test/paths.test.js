@@ -10,6 +10,7 @@ import {
   defaultGatewayHome,
   ensureProviderEnvFile,
   readProviderUserId,
+  readClassifierKey,
   writeProviderUserIdIfEmpty,
 } from '../src/paths.js';
 
@@ -61,14 +62,30 @@ test('default env directory is not inside default --home, and --home is not insi
   assert.equal(config.startsWith(`${state}/`) || config === state, false);
 });
 
-test('ensureProviderEnvFile creates an empty KEY= and USER_ID= template and does not overwrite the key', () => {
+test('ensureProviderEnvFile creates an empty KEY= USER_ID= and CLASSIFIER_KEY= template and does not overwrite the key', () => {
   const home = mkdtempSync(join(tmpdir(), 'wiser-cfg-'));
   const file = ensureProviderEnvFile('darwin', {}, home);
   assert.equal(file, defaultProviderEnvPath('darwin', {}, home));
-  assert.equal(readFileSync(file, 'utf8'), 'WISER_AUTH_PROVIDER_KEY=\nWISER_USER_ID=\n');
+  assert.equal(
+    readFileSync(file, 'utf8'),
+    'WISER_AUTH_PROVIDER_KEY=\nWISER_USER_ID=\nWISER_CLASSIFIER_KEY=\n',
+  );
   writeFileSync(file, 'WISER_AUTH_PROVIDER_KEY=already\n');
   ensureProviderEnvFile('darwin', {}, home);
-  assert.equal(readFileSync(file, 'utf8'), 'WISER_AUTH_PROVIDER_KEY=already\nWISER_USER_ID=\n');
+  assert.equal(
+    readFileSync(file, 'utf8'),
+    'WISER_AUTH_PROVIDER_KEY=already\nWISER_USER_ID=\nWISER_CLASSIFIER_KEY=\n',
+  );
+  assert.equal(readClassifierKey(file), null);
+});
+
+test('readClassifierKey returns a trimmed value and treats an empty line as no key', () => {
+  const home = mkdtempSync(join(tmpdir(), 'wiser-cfg-'));
+  const file = join(home, 'auth-provider.env');
+  writeFileSync(file, 'WISER_AUTH_PROVIDER_KEY=x\nWISER_USER_ID=\nWISER_CLASSIFIER_KEY=\n');
+  assert.equal(readClassifierKey(file), null);
+  writeFileSync(file, 'WISER_AUTH_PROVIDER_KEY=x\nWISER_CLASSIFIER_KEY=  secret-value  \n');
+  assert.equal(readClassifierKey(file), 'secret-value');
 });
 
 test('writeProviderUserIdIfEmpty fills an empty USER_ID line and never changes the key', () => {

@@ -8,6 +8,7 @@
     { "role": "runtime",  "op": "startConnect",            "effect": "allow" },
     { "role": "readonly", "op": "disconnect",              "effect": "deny" },
     { "role": "runtime",  "op": "disconnect",              "effect": "confirm" },
+    { "role": "*", "service": "wiser", "privilege": "read", "op": "execute", "effect": "allow" },
     { "role": "*",        "effect": "allow" }
   ]
 }

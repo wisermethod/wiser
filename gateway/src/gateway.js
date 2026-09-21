@@ -1,14 +1,18 @@
 import { randomUUID } from 'node:crypto';
 import { buildContext } from './context.js';
-import { STATUS, StatusSignal, isStatusObject, sanitizeError, statusObject, vendorErrorFrom } from './errors.js';
+import { STATUS, StatusSignal, classifierAuditStatus, isStatusObject, sanitizeError, statusObject, vendorErrorFrom } from './errors.js';
 import { composeSummary, discloseInput } from './disclosure.js';
 import { validateInput } from './input-schema.js';
 import { evaluate } from './policy.js';
 import { readProviderUserId, writeProviderUserIdIfEmpty } from './paths.js';
-import { parseActionId, resolveAction } from './resolve.js';
+import { readClassifierKey } from './paths.js';
+import { FIRST_PARTY_ACTIONS, firstPartyDef, parseActionId, resolveAction } from './resolve.js';
 // The vocabularies a store row's own `privilege` and `provider` are checked against,
 // taken from where the manifest validator already defines them rather than restated.
 import { AUTH_PROVIDERS, PRIVILEGES } from './manifest.js';
+
+const CLASSIFIER_SETUP = 'Open the credential file the gateway created, paste the classifier key after WISER_CLASSIFIER_KEY=, save, and restart. Do not paste the key into chat.';
+const CLASSIFIER_SETUP_MISSING = 'Pass --classifier with an absolute path to a classifier directory, set WISER_CLASSIFIER_KEY in the credential file, and restart. Do not paste the key into chat.';
 
 /**
  * Grant states a provider may report that are not ACTIVE, and that the gateway
@@ -228,8 +232,20 @@ export class ConnectionGateway {
       : (typeof this.authProvider?.isConfigured === 'function' ? this.authProvider.isConfigured() : Boolean(this.authProvider));
     this.connectors = Array.isArray(opts.connectors) ? opts.connectors : [];
     this.envPath = opts.envPath || null;
+    this.classifier = opts.classifier || null;
     /** @type {Set<string>} */
     this.confirmedOnce = new Set();
+  }
+
+  classifiers() {
+    if (!this.classifier) return [];
+    return Array.isArray(this.classifier) ? this.classifier : [this.classifier];
+  }
+
+  needsSubscriptionResult(kind) {
+    return statusObject(STATUS.NEEDS_SUBSCRIPTION, {
+      setup: kind === 'missing' ? CLASSIFIER_SETUP_MISSING : CLASSIFIER_SETUP,
+    });
   }
 
   /**
@@ -361,7 +377,9 @@ export class ConnectionGateway {
       else if (result && result.status === 'connected') line.status = 'connected';
       else if (result && (result.status === 'link' || result.status === 'file')) line.status = result.status;
       else if (result && result.status === 'disconnected') line.status = 'disconnected';
-      else if (result && !line.status) line.status = 'ok';
+      else if (line.path === 'first_party_mcp' && result && typeof result.status === 'string' && result.status) {
+        line.status = classifierAuditStatus(result.status);
+      } else if (result && !line.status) line.status = 'ok';
       this.audit.write(line);
     }
   }
@@ -440,6 +458,31 @@ export class ConnectionGateway {
         }
       }
     }
+    const seen = new Set(actions.map((a) => a.action));
+    for (const c of this.classifiers()) {
+      if (typeof c.actions !== 'function') continue;
+      let ids;
+      try { ids = c.actions(); } catch { continue; }
+      if (!Array.isArray(ids)) continue;
+      for (const id of ids) {
+        if (seen.has(id)) continue;
+        const parsed = parseActionId(id);
+        if (!parsed) continue;
+        if (service && parsed.service !== service) continue;
+        const def = firstPartyDef(id);
+        if (!def) continue;
+        const description = def.description || '';
+        if (q && !id.toLowerCase().includes(q) && !description.toLowerCase().includes(q)) continue;
+        seen.add(id);
+        actions.push({
+          action: id,
+          privilege: def.privilege ?? null,
+          risk: def.risk ?? null,
+          confirmation: def.confirmation ?? null,
+          description: description || null,
+        });
+      }
+    }
     return { actions };
   }
 
@@ -461,8 +504,15 @@ export class ConnectionGateway {
         description: act.description ?? null,
       };
     }
-    const catalog = resolveAction(id, { connectors: this.connectors, catalogProvider: this.catalogProvider });
-    if (catalog.path === 'catalog') {
+    const resolved = resolveAction(id, {
+      connectors: this.connectors,
+      catalogProvider: this.catalogProvider,
+      classifier: this.classifier,
+    });
+    // Widened by name: the fallback is an equality test against a path word, not
+    // a general "resolution succeeded" test. Filling resolveFirstPartyMcp alone
+    // does not change this surface; `first_party_mcp` has to be named here.
+    if (resolved.path === 'catalog') {
       return {
         action: id,
         service: parsed.service,
@@ -470,6 +520,28 @@ export class ConnectionGateway {
         source: 'catalog',
         input: null,
       };
+    }
+    if (resolved.path === 'first_party_mcp') {
+      const def = FIRST_PARTY_ACTIONS[id];
+      if (!def) {
+        return statusObject(STATUS.NEEDS_CONNECTOR, { action: id, reason: 'undeclared' });
+      }
+      const described = resolved.describe && typeof resolved.describe === 'object' ? resolved.describe : {};
+      return {
+        action: id,
+        service: parsed.service,
+        module: parsed.module,
+        privilege: def.privilege ?? null,
+        risk: def.risk ?? null,
+        confirmation: def.confirmation ?? null,
+        source: 'first_party_mcp',
+        input: def.input ?? described.request ?? null,
+        description: def.description ?? null,
+        answer: described.answer ?? null,
+      };
+    }
+    if (parsed.service === 'wiser') {
+      return this.needsSubscriptionResult('missing');
     }
     return statusObject(STATUS.NEEDS_CONNECTOR, { action: id });
   }
@@ -487,8 +559,9 @@ export class ConnectionGateway {
       const found = this.lookupModule(parsed.service, parsed.module);
       const act = found?.mod?.actions?.[parsed.action];
       const auth = found?.auth;
-      const privilege = auth?.privilege;
-      const risk = act?.risk;
+      const firstParty = !act ? firstPartyDef(action) : null;
+      const privilege = auth?.privilege ?? firstParty?.privilege;
+      const risk = act?.risk ?? firstParty?.risk;
       line.privilege = privilege ?? null;
 
       const decision = evaluate(this.policy, {
@@ -508,10 +581,31 @@ export class ConnectionGateway {
       const resolved = resolveAction(action, {
         connectors: this.connectors,
         catalogProvider: this.catalogProvider,
+        classifier: this.classifier,
       });
       line.path = resolved.path;
 
-      if (resolved.path === 'none' || resolved.path === 'first_party_mcp') {
+      // First-party branch. Clears connector guards 1–4 and 6 (needs_connector on
+      // this path, undeclared act, provider credential, active connection, local-file
+      // status) and the two unwrap exits below the confirmation stop, all of which
+      // ask after connector machinery a wiser.* id does not have. Lands before
+      // `act.input` so that expression is never evaluated. Preserves the confirmation
+      // stop (guard 7) and hands validateInput the first-party action's own schema.
+      if (resolved.path === 'first_party_mcp') {
+        // An advertised wiser.* id the gateway does not declare is
+        // needs_connector / undeclared. The gateway cannot tell a new write
+        // from a read because it would have to invent privilege, risk and
+        // confirmation; that is the same refusal an undeclared catalog action
+        // already receives. unavailable is an adapter outcome after a declared
+        // action ran. needs_subscription would tell the caller to paste a key,
+        // which is the wrong next step when a classifier is already loaded.
+        if (!FIRST_PARTY_ACTIONS[action]) {
+          return statusObject(STATUS.NEEDS_CONNECTOR, { action, reason: 'undeclared' });
+        }
+        return this.executeFirstParty({ action, input, confirm, parsed, decision, resolved, line });
+      }
+      if (resolved.path === 'none') {
+        if (parsed.service === 'wiser') return this.needsSubscriptionResult('missing');
         return statusObject(STATUS.NEEDS_CONNECTOR, { action });
       }
       // An action no manifest declares has no privilege, risk or confirmation, so a
@@ -737,6 +831,76 @@ export class ConnectionGateway {
         throw err;
       }
     });
+  }
+
+  /**
+   * First-party dispatch. Never reads `act` (undefined for a wiser.* id).
+   * @param {object} args
+   */
+  async executeFirstParty({ action, input, confirm, parsed, decision, resolved, line }) {
+    const def = resolved.def || firstPartyDef(action) || {};
+    line.privilege = def.privilege ?? line.privilege ?? null;
+
+    const invalidField = validateInput(def.input, input === undefined ? {} : input);
+    if (invalidField !== null) return statusObject(STATUS.INVALID_ARGUMENTS, { field: invalidField });
+
+    const confirmation = def.confirmation || 'none';
+    const onceKey = action;
+    const needsConfirm =
+      decision.effect === 'confirm' ||
+      confirmation === 'always' ||
+      (confirmation === 'once' && !this.confirmedOnce.has(onceKey));
+    if (needsConfirm && confirm !== true) {
+      const disclosure = discloseInput(def, input);
+      const summary = composeSummary({
+        action,
+        service: parsed.service,
+        module: parsed.module,
+        risk: def.risk,
+        description: def.description,
+        disclosure,
+      });
+      return statusObject(STATUS.NEEDS_CONFIRMATION, {
+        action,
+        service: parsed.service,
+        module: parsed.module,
+        risk: def.risk ?? null,
+        confirmation,
+        input_fields: disclosure.fields,
+        undeclared_fields: disclosure.undeclared,
+        input_values: disclosure.shown.map((f) => ({
+          name: f.name,
+          value: f.text,
+          truncated: f.truncated,
+        })),
+        withheld_fields: [
+          ...disclosure.nested.map((name) => ({ name, reason: 'nested' })),
+          ...disclosure.withheld,
+        ],
+        summary,
+        description: def.description ?? null,
+      });
+    }
+    if (confirm === true && confirmation === 'once') {
+      this.confirmedOnce.add(onceKey);
+    }
+
+    try {
+      if (typeof resolved.fn !== 'function') {
+        return { status: 'unavailable', reason: 'unknown action id' };
+      }
+      const key = readClassifierKey(this.envPath);
+      const result = await resolved.fn(input ?? {}, key);
+      if (result == null || typeof result !== 'object' || Array.isArray(result)) {
+        return { status: 'unavailable', reason: 'malformed answer' };
+      }
+      if (isStatusObject(result)) return result;
+      if (result.error && result.error.code === 'vendor_error') return vendorErrorFrom(result);
+      return result;
+    } catch (err) {
+      if (err instanceof StatusSignal) return err.object;
+      return { status: 'unavailable', reason: 'adapter_error' };
+    }
   }
 
   async startConnect({ service, module } = {}) {

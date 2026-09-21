@@ -6,13 +6,14 @@
  *   node server.js help
  *   node server.js [--env <abs file>] [--home <abs dir>] [--role runtime|readonly]
  *                  [--harness <name>] [--provider <name>] [--connectors <abs dir>]
- *                  [--secrets <abs dir>] [--check]
+ *                  [--classifier <abs dir>] [--secrets <abs dir>] [--check]
  */
 
 import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { defaultGatewayHome, defaultProviderEnvPath, ensureProviderEnvFile } from './src/paths.js';
+import { FIRST_PARTY_ACTIONS } from './src/resolve.js';
 
 const GATEWAY_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_POLICY_PATH = join(GATEWAY_DIR, 'policy.default.json');
@@ -29,7 +30,7 @@ Usage:
   node server.js --help
   node server.js [--env <abs file>] [--home <abs dir>] [--role runtime|readonly]
                  [--harness <name>] [--provider <name>] [--connectors <abs dir>]
-                 [--secrets <abs dir>] [--check]
+                 [--classifier <abs dir>] [--secrets <abs dir>] [--check]
 
 Options:
   help, --help             Print this message and exit. Reads no files.
@@ -44,6 +45,8 @@ Options:
                            providers/default.json).
   --connectors <abs dir>   Extra connectors directory. Repeatable. ../connectors
                            relative to this file is also loaded when it exists.
+  --classifier <abs dir>   Classifier directory outside this plugin. Repeatable.
+                           Optional. Loads createClassifier from that directory.
   --secrets <abs dir>      Directory the local-file provider reads named files from.
   --secret <svc>=<abs file>  Bind one service's credential file directly. Repeatable.
                            Overrides --secrets for that service.
@@ -71,9 +74,9 @@ if (argv.includes('help') || argv.includes('--help')) {
   process.exit(0);
 }
 
-const VALUE_FLAGS = new Set(['--env', '--home', '--role', '--harness', '--provider', '--connectors', '--secrets', '--secret']);
+const VALUE_FLAGS = new Set(['--env', '--home', '--role', '--harness', '--provider', '--connectors', '--classifier', '--secrets', '--secret']);
 const BARE_FLAGS = new Set(['--check']);
-const ABS_FLAGS = new Set(['--env', '--home', '--connectors', '--secrets']);
+const ABS_FLAGS = new Set(['--env', '--home', '--connectors', '--classifier', '--secrets']);
 
 const flags = {
   env: null,
@@ -82,6 +85,7 @@ const flags = {
   harness: 'unknown',
   provider: null,
   connectors: [],
+  classifier: [],
   secrets: null,
   secretFiles: {},
   check: false,
@@ -108,6 +112,7 @@ for (let i = 0; i < argv.length; i += 1) {
     else if (a === '--harness') flags.harness = value;
     else if (a === '--provider') flags.provider = value;
     else if (a === '--connectors') flags.connectors.push(value);
+    else if (a === '--classifier') flags.classifier.push(value);
     else if (a === '--secrets') flags.secrets = value;
     else if (a === '--secret') {
       const eq = value.indexOf('=');
@@ -236,6 +241,36 @@ async function loadAdapter(name, file, factory, args) {
   return mod[factory](args);
 }
 
+/**
+ * Load a classifier directory the way `--connectors` loads a directory: an
+ * absolute path from outside the plugin, already screened as absolute. The
+ * factory is `createClassifier({ envPath, packsDir, thresholdsPath })`.
+ * @param {string} dir
+ * @param {string | null} envPath
+ */
+async function loadClassifier(dir, envPath) {
+  const abs = resolve(dir);
+  for (const file of ['index.mjs', 'index.js']) {
+    const path = join(abs, file);
+    if (!existsSync(path)) continue;
+    let mod;
+    try {
+      mod = await import(pathToFileURL(path).href);
+    } catch {
+      fail(`Error: --classifier ${abs} could not be loaded.`);
+    }
+    if (typeof mod.createClassifier !== 'function') {
+      fail(`Error: --classifier ${abs} does not export createClassifier.`);
+    }
+    try {
+      return mod.createClassifier({ envPath });
+    } catch {
+      fail(`Error: --classifier ${abs} could not be loaded.`);
+    }
+  }
+  fail(`Error: --classifier ${abs} has no index.mjs or index.js.`);
+}
+
 async function main() {
   const [
     { createAudit },
@@ -276,6 +311,13 @@ async function main() {
     fail(`Error: ${err instanceof Error ? err.message : 'manifest validation failed'}`);
   }
 
+  const classifiers = [];
+  for (const extra of flags.classifier) {
+    if (!extra || !existsSync(extra)) continue;
+    classifiers.push(await loadClassifier(extra, flags.env));
+  }
+  const classifier = classifiers.length === 0 ? null : (classifiers.length === 1 ? classifiers[0] : classifiers);
+
   if (flags.check) {
     const actions = [];
     const list = connectors.map((c) => {
@@ -288,10 +330,19 @@ async function main() {
       }
       return { id: c.id, service: c.service, modules };
     });
+    const classifierActions = [];
+    for (const c of classifiers) {
+      if (c && typeof c.actions === 'function') {
+        for (const id of c.actions()) {
+          if (FIRST_PARTY_ACTIONS[id]) classifierActions.push(id);
+        }
+      }
+    }
     process.stdout.write(`${JSON.stringify({
       ok: true,
       connectors: list,
       actions,
+      classifier: classifierActions,
       policy: { default_role: policy.default_role, rules: (policy.rules || []).length },
     })}\n`);
     process.exit(0);
@@ -328,6 +379,7 @@ async function main() {
     authConfigured,
     connectors,
     envPath: flags.env,
+    classifier,
   });
 
   runStdio({ gateway, version: VERSION });

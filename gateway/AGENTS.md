@@ -16,7 +16,7 @@ Not a primitive. Skills and experts invoke connectors by action id, `service.mod
 | The audit log, one JSON line per `execute`, `start_connect`, `connect_status` and `disconnect`, including the ones that stopped: time, harness, role, op, action, service, module, privilege, resolution path, provider account id, status, duration, correlation id. No input, no output, no header | `~/.wiser/gateway/audit.jsonl`, same modes | Every call |
 | A local user id, `wiser-<uuid>`, which is what the provider sees as the user. Not a name, not an address | Inside `connections.json` | First run, and again whenever the id in the environment differs from the stored one |
 | A policy override, if the person writes one | `~/.wiser/gateway/policy.json` | Only by the person; the gateway reads it and never writes it |
-| The auth provider project key and user id | The platform user-config path `SETUP.md` names (`auth-provider.env`) | On first serve with no `--env`, the gateway creates the directory (0700) and an empty `WISER_AUTH_PROVIDER_KEY=` plus `WISER_USER_ID=` template (0600) if missing. It never overwrites an existing file and never writes a key value. An existing file missing `WISER_USER_ID=` gets that empty line appended. A generated user id is written only into an empty `WISER_USER_ID=` line. After that it only reads |
+| The auth provider project key, user id, and classifier key | The platform user-config path `SETUP.md` names (`auth-provider.env`) | On first serve with no `--env`, the gateway creates the directory (0700) and an empty `WISER_AUTH_PROVIDER_KEY=` plus `WISER_USER_ID=` plus `WISER_CLASSIFIER_KEY=` template (0600) if missing. It never overwrites an existing file and never writes a key value. An existing file missing `WISER_USER_ID=` or `WISER_CLASSIFIER_KEY=` gets that empty line appended. A generated user id is written only into an empty `WISER_USER_ID=` line. After that it only reads |
 
 `--home` is canonicalised before any of that is written, and refused inside this plugin, inside the directory that holds `--env` or a `--secret` file, under `--secrets`, or on a symbolic link; the store and audit files refuse to write through a symbolic link as well.
 
@@ -41,7 +41,21 @@ A module imports Node built-ins and files inside its own directory, and nothing 
 
 ## The resolution order
 
-Code, in `src/resolve.js`: a connector module that declares the action; else a registered first-party MCP, which v1 stubs; else the catalog through the mapping; else `needs_connector`. The order is not configurable, because a person reading a status needs to know which step answered.
+Code, in `src/resolve.js`: a connector module that declares the action; else a registered first-party classifier loaded by `--classifier`; else the catalog through the mapping; else `needs_connector`. A `wiser.*` id with no classifier loaded answers `needs_subscription` rather than `needs_connector`. The order is not configurable, because a person reading a status needs to know which step answered.
+
+## First-party classifier
+
+Optional. Loaded by `--classifier <abs dir>`, the same shape as `--connectors`: an absolute path to a directory outside this plugin, repeatable, screened as absolute. The directory is not a connector and carries no `manifest.json`. It exports `createClassifier({ envPath, packsDir, thresholdsPath })`, which returns `{ name, actions(), describe(id), roster(rows), execute({ actionId, arguments, key }) }`. `name` is the directory's name. `key` is the classifier credential from the platform key file, handed at call time; the first-party path does not write it to `process.env`.
+
+**What it serves.** The six action ids `wiser.route.roster`, `wiser.route.ask`, `wiser.gate.check`, `wiser.decide.choice`, `wiser.recall.rank`, `wiser.browser.pick`. `search_actions` and `describe_action` list them when a classifier is loaded, and do not mention them when none is. A host that reads tools meets them there; a host that reads instructions meets `wiser.route.ask` in the constitution.
+
+**Roster handshake.** The client sends primitive rows once to `wiser.route.roster` and receives a digest; it sends the digest with `wiser.route.ask`. On `roster_unknown` it re-sends the rows once and retries once. A row is `{ family, name, description, body }`; `body` is the primitive's full text.
+
+**Privilege, risk, confirmation.** Every first-party action is `read` / `low` / `none`: they read nothing durable and change nothing. An executable first-party action requires an explicit gateway declaration in `FIRST_PARTY_ACTIONS`; an id the adapter advertises that the gateway does not declare is `needs_connector` with `reason: undeclared`, not invented as `read`. `policy.default.json` names a rule `{ role: "*", service: "wiser", privilege: "read", op: "execute", effect: "allow" }` above the trailing wildcard. That rule is how a first-party call is classified (service `wiser`, privilege `read`); the trailing wildcard is still what admits it. A person's `policy.json` can still deny or confirm a classifier call; the confirmation stop is preserved and composes its summary from this metadata, not from a manifest row.
+
+**Statuses it can answer.** Gateway statuses: `needs_subscription` (no classifier loaded, or the `WISER_CLASSIFIER_KEY` line of the platform key file is empty), `needs_confirmation` (a policy rule demanded it), `denied`, `invalid_arguments`, `needs_connector` (an advertised `wiser.*` id the gateway does not declare). Adapter-level answers that are not gateway statuses and live inside the result: `unavailable`, `below_threshold`, `roster_unknown`. An adapter that throws is converted to `unavailable` with a fixed reason, never the exception message, and is not propagated. `needs_subscription` is a gateway status; the others in that adapter-level list are not. An unrecognised adapter status is audited as `classifier_other` rather than copied into the log.
+
+**The key.** `WISER_CLASSIFIER_KEY` on the platform key file `SETUP.md` names. The gateway reads it from that file and nowhere else, and hands the value to the adapter at call time as `key` on the execute request. An empty line is no key. The first-party path does not mutate `process.env`.
 
 ## The published input schema, and who applies it
 

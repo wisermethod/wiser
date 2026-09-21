@@ -51,7 +51,7 @@ export function defaultGatewayHome(home = homedir()) {
   return join(home, '.wiser', 'gateway');
 }
 
-const EMPTY_ENV = 'WISER_AUTH_PROVIDER_KEY=\nWISER_USER_ID=\n';
+const EMPTY_ENV = 'WISER_AUTH_PROVIDER_KEY=\nWISER_USER_ID=\nWISER_CLASSIFIER_KEY=\n';
 const USER_ID_RE = /^wiser-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
@@ -94,6 +94,26 @@ export function readProviderUserId(envPath) {
   return isProviderUserId(value) ? value : null;
 }
 
+/**
+ * Classifier key from the platform key file. Empty, missing, or unreadable is
+ * no key. Never a vendor token.
+ *
+ * @param {string | null | undefined} envPath
+ * @returns {string | null}
+ */
+export function readClassifierKey(envPath) {
+  if (!envPath || !existsSync(envPath)) return null;
+  let text;
+  try {
+    text = readFileSync(envPath, 'utf8');
+  } catch {
+    return null;
+  }
+  const value = parseEnvText(text).WISER_CLASSIFIER_KEY;
+  if (typeof value === 'string' && value.trim()) return value.trim();
+  return null;
+}
+
 function writeEnvFile(file, text) {
   writeFileSync(file, text, { encoding: 'utf8', mode: 0o600 });
   try { chmodSync(file, 0o600); } catch { /* created with mode */ }
@@ -102,8 +122,9 @@ function writeEnvFile(file, text) {
 /**
  * Create the platform config directory and an empty project-key file if they
  * are missing. Never overwrites a file that already exists. Never writes a
- * key value. An existing file missing `WISER_USER_ID=` gets that empty line
- * appended; the key line is left alone. Returns the file path.
+ * key value. An existing file missing `WISER_USER_ID=` or `WISER_CLASSIFIER_KEY=`
+ * gets that empty line appended; lines that are already present are left alone.
+ * Returns the file path.
  *
  * @param {string} [platform]
  * @param {NodeJS.ProcessEnv} [env]
@@ -125,16 +146,20 @@ export function ensureProviderEnvFile(platform = process.platform, env = process
     return file;
   }
   const map = parseEnvText(text);
-  if (!Object.prototype.hasOwnProperty.call(map, 'WISER_USER_ID')) {
-    const next = text.endsWith('\n') || text.length === 0 ? `${text}WISER_USER_ID=\n` : `${text}\nWISER_USER_ID=\n`;
-    writeEnvFile(file, next);
+  const missing = [];
+  if (!Object.prototype.hasOwnProperty.call(map, 'WISER_USER_ID')) missing.push('WISER_USER_ID=');
+  if (!Object.prototype.hasOwnProperty.call(map, 'WISER_CLASSIFIER_KEY')) missing.push('WISER_CLASSIFIER_KEY=');
+  if (missing.length) {
+    const body = text.endsWith('\n') || text.length === 0 ? text : `${text}\n`;
+    writeEnvFile(file, `${body}${missing.join('\n')}\n`);
   }
   return file;
 }
 
 /**
  * Write `userId` into an empty `WISER_USER_ID=` line. Never changes
- * `WISER_AUTH_PROVIDER_KEY`. Never overwrites a user id that is already set.
+ * `WISER_AUTH_PROVIDER_KEY` or `WISER_CLASSIFIER_KEY`. Never overwrites a user
+ * id that is already set.
  * Returns true when the file was written.
  *
  * @param {string | null | undefined} envPath

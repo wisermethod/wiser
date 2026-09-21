@@ -79,6 +79,7 @@ Any other harness that reads an `mcpServers` JSON block uses the same shape, wit
 | `--home <abs dir>` | `~/.wiser/gateway` | You want the connection store and audit log somewhere else |
 | `--role runtime\|readonly` | `runtime` | You want a second entry, `wiser-gateway-readonly`, for an agent that may read and never write |
 | `--connectors <abs dir>` | the plugin's own | Your working folder carries connectors of its own; repeat the flag per directory |
+| `--classifier <abs dir>` | none | You have a classifier directory to load from outside this plugin; repeat the flag per directory |
 | `--secrets <abs dir>` | none | A connector uses the local-file provider and its credential file sits under one directory by the name its manifest gives |
 | `--secret <service>=<abs file>` | none | The working folder's `AGENTS.md` binds `secrets:<service>` to a file of its own; repeat per service, and it wins over `--secrets` |
 
@@ -108,14 +109,15 @@ Those paths come from the current user profile. They are never a name baked into
 
 The directory that holds this file is the **platform user-config directory**. Person-scoped model weights land in `models/` under it, listed in `tools/AGENTS.md`. Do not write weights into the key file. `--home` is not that `models/` folder.
 
-The file holds two lines:
+The file holds three lines:
 
 ```
 WISER_AUTH_PROVIDER_KEY=
 WISER_USER_ID=
+WISER_CLASSIFIER_KEY=
 ```
 
-Paste the project key after the first equals. `WISER_USER_ID` is this person's id at the provider, the same on every machine. If that line is empty, the gateway writes a generated id into it on first use and never changes a key or an id that is already set. Copy this file to a new machine; do not copy `~/.wiser/gateway/`.
+Paste the project key after the first equals. `WISER_USER_ID` is this person's id at the provider, the same on every machine. If that line is empty, the gateway writes a generated id into it on first use and never changes a key or an id that is already set. `WISER_CLASSIFIER_KEY` is the classifier key, optional; an empty line means the classifier is not subscribed. Copy this file to a new machine; do not copy `~/.wiser/gateway/`.
 
 Which provider, how to get an account, how to make that project key, and how to add a toolkit blueprint (an auth config) in the provider's dashboard are the provider's own business: read `gateway/providers/<provider>/SETUP.md` for the one `gateway/providers/default.json` names. An auth config is a blueprint, not a grant. Connecting the account is still step 4. A gateway started with an empty file still starts, and every action that needs the provider answers `needs_provider` with that same walkthrough, so a harness that shows you the gateway's answer shows you the next step.
 
@@ -152,6 +154,7 @@ Every answer is one JSON object. A `status` field on it usually means the work d
 | `teardown_incomplete` | A `disconnect` ran and did not end with the credential gone | **Nothing local was removed.** The records that survive are recovery metadata and may be stale: neither their survival nor this status proves the credential is still there. The answer is what to believe, not the rows. `reason` says which case it is and each has one next step; Connection Troubleshooter names them. Do not simply retry: one of the cases means the state is unknown and retrying acts on it blind |
 | `invalid_arguments` | A tool was called with something that is not an identifier, or an action was called with an input its published schema refuses. The answer names the field at fault | The agent mis-called the tool or the action, and nothing ran. A mis-called tool is refused before the audit line; a refused action's stop is audited by status, and neither the field name nor any value is. What an action accepts is its `input` in the connector's manifest, and `describe_action` returns it |
 | `vendor_error` | The vendor refused | The status code and endpoint are in the answer; the body never is |
+| `needs_subscription` | No classifier is loaded, or the `WISER_CLASSIFIER_KEY` line of the credential file is empty | Pass `--classifier` with an absolute directory if you have one, paste the classifier key after `WISER_CLASSIFIER_KEY=` in the file step 3 names, save, and restart. The first-party actions then appear in `search_actions`. An empty key line is the else path: primitives keep their own step |
 
 ## 6. What the gateway writes, and where
 
@@ -159,7 +162,7 @@ Every answer is one JSON object. A `status` field on it usually means the work d
 
 ## 7. Hosted clients
 
-A client that cannot start a local process, such as a hosted chat product, cannot attach this gateway. It can attach the provider's own hosted MCP endpoint instead, which the provider's `SETUP.md` describes. What it gets there is the provider's stock catalog: no connectors from this plugin, no policy, no audit, no `needs_connect` discipline. That is a different, smaller thing, and it is documented here so nobody mistakes it for this one.
+A client that cannot start a local process, such as a hosted chat product, cannot attach this gateway. It can attach the provider's own hosted MCP endpoint instead, which the provider's `SETUP.md` describes. What it gets there is the provider's stock catalog: no connectors from this plugin, no policy, no audit, no `needs_connect` discipline. That is a different, smaller thing, and it is documented here so nobody mistakes it for this one. A hosted client gets the classifier only through a hosted endpoint, not by pointing this local process at a classifier directory.
 
 ## 8. Policy
 

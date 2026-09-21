@@ -71,6 +71,30 @@ test('shipped default has no setup role', () => {
   assert.equal(decision({ role: 'runtime', privilege: 'admin', op: 'execute' }).effect, 'deny');
 });
 
+test('the named wiser rule classifies a first-party execute; the trailing wildcard still admits it', () => {
+  const policy = loadPolicy({ home: null, defaultPath: DEFAULT_PATH });
+  const ctx = {
+    role: 'runtime',
+    service: 'wiser',
+    module: 'route',
+    privilege: 'read',
+    risk: 'low',
+    op: 'execute',
+  };
+  const hit = evaluate(policy, ctx);
+  assert.equal(hit.effect, 'allow');
+  assert.equal(hit.rule.service, 'wiser');
+  assert.equal(hit.rule.privilege, 'read');
+
+  const withoutNamed = {
+    ...policy,
+    rules: policy.rules.filter((r) => r.service !== 'wiser'),
+  };
+  const wildcard = evaluate(withoutNamed, ctx);
+  assert.equal(wildcard.effect, 'allow');
+  assert.equal(wildcard.rule.service, undefined);
+});
+
 test('overlay replaces rules wholesale', () => {
   const home = makeHome();
   mkdirSync(home, { recursive: true });

@@ -18,6 +18,10 @@ export const STATUS = {
   // a destructive operation that stopped partway, and a caller needs to act on it
   // differently from either. Added, never renamed: nothing above changes meaning.
   TEARDOWN_INCOMPLETE: 'teardown_incomplete',
+  // Added 2026-09-21 with the first-party classifier path. An adapter failure has no
+  // status of its own among the nine above; nothing said "you have no subscription".
+  // Added, never renamed: nothing above changes meaning.
+  NEEDS_SUBSCRIPTION: 'needs_subscription',
 };
 
 /**
@@ -99,4 +103,26 @@ export function isStatusObject(value) {
       typeof value.status === 'string' &&
       Object.values(STATUS).includes(value.status)
   );
+}
+
+/**
+ * Adapter-level answers that are not gateway STATUS values, by design.
+ * withAudit recognises this allowlist; any other adapter status string is
+ * recorded as `classifier_other` rather than copied into the log.
+ */
+export const CLASSIFIER_RESULT_STATUSES = Object.freeze([
+  'unavailable',
+  'below_threshold',
+  'roster_unknown',
+]);
+
+/**
+ * @param {unknown} status
+ * @returns {'unavailable' | 'below_threshold' | 'roster_unknown' | 'classifier_other'}
+ */
+export function classifierAuditStatus(status) {
+  if (typeof status === 'string' && CLASSIFIER_RESULT_STATUSES.includes(status)) {
+    return status;
+  }
+  return 'classifier_other';
 }
