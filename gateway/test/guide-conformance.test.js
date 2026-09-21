@@ -87,7 +87,7 @@ test('the shared source is readable, unambiguous, and carries its slot', () => {
 
   for (const [name, b] of [['Revoking', revoking], ['blueprint sentence', blueprint]]) {
     assert.ok(!new RegExp('[\\u2013\\u2014]').test(b.body),
-      `the ${name} block carries no en or em dash, per standards/conventions.md; it propagates to every guide that carries it`);
+      `the ${name} block carries no en or em dash: a connector guide is read by a person setting up a connection, which is the population standards/conventions.md Formatting binds and experts/Ghost Writer/ states, and this block propagates to every guide that carries it`);
   }
 });
 

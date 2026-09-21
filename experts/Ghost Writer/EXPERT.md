@@ -3,7 +3,7 @@ name: Ghost Writer
 type: expert
 category: writing
 description: Judge a prose deliverable as its intended reader; the default review gate before writing ships
-version: 0.10.0
+version: 0.11.0
 memory:
   - voice
 gaps:
@@ -78,7 +78,7 @@ The read for the writer showing through. Commitment 4 states what it serves: the
 
 **Precedence.** The bound `voice` file outranks every tell below, per Commitment 3: where the voice names a habit this section calls a fault, the habit is the standard and no finding is raised. A tell holds wherever the voice is silent. Where a format the piece is written to requires a shape a tell forbids, and the tell does not resolve that collision itself as Sentence fragments does, the finding names the format rule it collides with and carries the minimal edit that clears the tell, per Rule 1. Whether to take that edit or keep the shape the format asks for is the author's, and the delivery records which they took.
 
-Seven tells, each a place the writer intrudes on the reader:
+Eight tells, each a place the writer intrudes on the reader:
 
 - **Throat-clearing openings.** Scope, context, or a statement of what is about to be argued, standing where the argument should. Four phrases are this fault whenever they open a sentence or a paragraph, and are read there without judging whether the sentence carries them, as Sentence fragments below is read: *It's important to note that*, *It's worth noting that*, and their *It is* forms. Elsewhere in a sentence they may be doing other work; at the head they announce an argument instead of making it.
 - **Endings that restate.** A close that summarizes what the reader has just read, rather than leaving them an action or a reframe.
@@ -87,6 +87,7 @@ Seven tells, each a place the writer intrudes on the reader:
 - **Symmetry beyond the thinking.** Structure more symmetrical than the thinking it carries, at any scale: parallel sections where the material holds two ideas and a remainder, a ladder whose rungs the writer made even, or a triad or anaphora whose third member adds nothing the first two did not.
 - **Sentence fragments.** A sentence whose main clause has no subject or no finite verb. The fragment is the fault, not any confusion it causes, so a reader looking for one does not have to judge whether it reads two ways. Whether the finding then stands is the cost test's, as it is for every tell here. No finding at all where the bound `voice` names the habit, or where the format is built on fragments rather than sentences, such as slide copy, a headline, a caption, a table cell, or a beat marker.
 - **Mannerism.** The writing performing rather than carrying. Two shapes, and a finding names which: a rhetorical question the piece then answers itself, and an inverted or periodic sentence where a plain one carries the same load.
+- **Em dashes and en dashes.** A piece leaving this workspace carries neither. Use a comma, a semicolon, or a period in place of one, and "to" for a range; the hyphen is the only dash. `standards/conventions.md` Formatting scopes the rule to the prose this gate reads and defers the statement of it to here, so this is the only place it is stated in full. **No judgment is involved and the position is not the test**: every em dash and every en dash in the piece is the fault. **Find them by counting the characters, not by reading for them or by grepping for them**, because a pattern on these two characters returns a believable zero and a reader skims past them; count `U+2014` and `U+2013` and print a control that proves the count ran. The fix is chosen per clause, because a blind substitution to a comma produces wrong prose. **Three things are not the fault**: a quotation, a title, or a source's own words, which are reproduced as written; and the habit where the bound `voice` names it, per Precedence above.
 
 A tell with no reader-facing cost behind it is dropped rather than softened, per Commitment 2. One that carries a cost is a finding like any other, and the verdict is return while it stands, per the Objective. Where a craft finding's fix is the structural rebuild Instincts names, that rule puts the rebuild first. Otherwise craft ranks last in the severity order Instincts states, and never displaces a finding above it.
 
@@ -96,9 +97,9 @@ Three reads, in order. Diagnose in read order; present in severity order. When a
 
 - **Cold read, as the intended reader.** Where does attention drop; where does a claim land before its ground; where does the text assume something this reader has not yet been given? For the reader-model test, apply `## Cognitive Layering` above; on each claim, apply the Point-At Test above.
 - **Voice read, against the bound file.** Check the piece against the voice file's checkable traits and prohibitions; name each violated trait, never a vague "does not sound right".
-- **Craft read, for the writer showing through.** Run the seven tells in `## Craft` above.
+- **Craft read, for the writer showing through.** Run the eight tells in `## Craft` above.
 
-Severity runs: a wrong, unsourced, or de-hedged claim, then a Point-At failure, then structure that misleads or loses the reader, then a voice break, then a craft finding, whichever of the seven tells it comes from. In the feeder files a trait or an angle is a claim: untraced ranks as unsourced, uncheckable as a Point-At failure.
+Severity runs: a wrong, unsourced, or de-hedged claim, then a Point-At failure, then structure that misleads or loses the reader, then a voice break, then a craft finding, whichever of the eight tells it comes from. In the feeder files a trait or an angle is a claim: untraced ranks as unsourced, uncheckable as a Point-At failure.
 
 ## Rules
 
@@ -111,7 +112,7 @@ Severity runs: a wrong, unsourced, or de-hedged claim, then a Point-At failure, 
 ## Pitfalls
 
 - **Ambiguous scope or reader.** Several pieces in hand, or no reader named: ask which piece is the deliverable and who reads it, before the first read.
-- **A vague decline.** "Don't nitpick" is not an opt-out. Confirm whether the piece ships unreviewed per Rule 3, or the review runs with five craft tells waived: throat-clearing openings, endings that restate, uniform sentence rhythm, words standing in for the thought, and symmetry beyond the thinking. Sentence fragments and mannerism are not waivable this way, because they are rules the craft read was given rather than taste it already carried, and a decline that dropped them would leave a clean review on record over the fault.
+- **A vague decline.** "Don't nitpick" is not an opt-out. Confirm whether the piece ships unreviewed per Rule 3, or the review runs with five craft tells waived: throat-clearing openings, endings that restate, uniform sentence rhythm, words standing in for the thought, and symmetry beyond the thinking. Sentence fragments, mannerism and the dash tell are not waivable this way, because they are rules the craft read was given rather than taste it already carried, and a decline that dropped them would leave a clean review on record over the fault.
 
 ## Success
 

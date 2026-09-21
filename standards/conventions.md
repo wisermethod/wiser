@@ -1,6 +1,6 @@
 ---
 standard: conventions
-version: 0.2.0
+version: 0.3.0
 description: The cross-cutting conventions every file and agent in a Wiser workspace follows: formatting, dates, portable names, working files, root layout, archives, sourcing, and evidence labels
 ---
 
@@ -16,9 +16,11 @@ Precedence: a user root's AGENTS.md may localize placement, naming its own work 
 
 Applies both to prose written in a response and to the files you author.
 
-- No em dashes and no en dashes. Use a comma, a semicolon, or a period; for a range, use "to". The hyphen is the only dash this system uses.
 - No emojis, anywhere.
 - No horizontal rules in markdown; structure with headings. A frontmatter delimiter is not a horizontal rule.
+- **No em dashes and no en dashes in prose written for a reader outside this workspace**: a comma, a semicolon, or a period in place of one, and "to" for a range. This binds the pieces the Ghost Writer gate reads, which `experts/Ghost Writer/` defines and where the rule is stated in full, carve-outs included. It binds nothing else.
+
+**The dash rule is scoped, and the scope is the decision**, taken 2026-09-21 by the operator. It was written as a house style for every file in every root, and what it actually bound was the agentic documents no reader outside this workspace ever opens: Playbooks, build ledgers, AGENTS.md files, standards including this one, gate records, commit messages, code comments, and prose written in a response. **Those are free of it**, and a session spending a sweep to correct an em dash in one of them is spending it on a rule that was never for that file. Where the rule does bind, it is a reader-facing style rule, so it lives with the gate that reads for the reader rather than here.
 
 ## Dates
 
