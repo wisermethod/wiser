@@ -110,6 +110,54 @@ test('an undeclared key is refused before the confirmation stop, and never reach
   assert.equal(raw.includes('leaked-secret-name'), false, 'the undeclared key name reached audit.jsonl');
 });
 
+test('an input whose first bad key is the empty string is refused, not waved through', async () => {
+  // **`validateInput` returns a field name, and `""` is falsy.** A caller writing
+  // `if (field)` accepts this input and never reaches `record_id`. With
+  // `additionalProperties: false` on every action an empty key is always the offending
+  // one, so the bypass was one key away from any caller that got the comparison wrong.
+  // Found by adversarial review 2026-09-20 in this validator's own first two callers.
+  const { gw, store, fake } = await createTestGateway();
+  await putActive(store, fake, { service: 'cloudflare', module: 'zones', privilege: 'read' });
+  fake.proxy = async () => assert.fail('an unvalidated input reached transport');
+  // `zones.list` requires nothing, so the empty key is the first and only fault and the
+  // required loop cannot mask it. That is the shape of the bypass.
+  assert.deepEqual(
+    await gw.execute({ action: 'cloudflare.zones.list', input: { '': 0 } }),
+    { status: 'invalid_arguments', field: '' });
+  // And it must not stop the rest of the input being read: the mistyped `page` behind it
+  // is what a truthiness test would have let through to transport.
+  assert.equal(
+    (await gw.execute({ action: 'cloudflare.zones.list', input: { '': 0, page: 'not-an-integer' } })).status,
+    'invalid_arguments');
+});
+
+test('an integer enum is applied by the gateway, not only by the module', async () => {
+  // `matches` returned early for `integer` and never reached the `enum` check, so two
+  // shipped integer enums were published here and applied only in their modules. The
+  // family agreed, because the modules do enforce them; what did not hold was the
+  // agreement gate's enum probe, which mutated with a string and was answered by the
+  // type check. Found by adversarial review 2026-09-20.
+  // **Asserted on `matches` and not only through `execute`.** Both shipped integer enums
+  // are also enforced by their own modules, so an end-to-end refusal is the same object
+  // either way and proves nothing about which layer made it. The unit assertion is the
+  // control: it fails on the early return and passes without it.
+  const { matches } = await import('../src/input-schema.js');
+  assert.equal(matches(2, { type: 'integer', enum: [0, 1, 3] }), false, 'an out-of-enum integer');
+  assert.equal(matches(3, { type: 'integer', enum: [0, 1, 3] }), true, 'an in-enum integer');
+  assert.equal(matches(1.5, { type: 'integer', enum: [0, 1, 3] }), false, 'a non-integer');
+  assert.equal(matches('x', { type: 'array', enum: ['x'] }), false, 'an array type still wins');
+
+  const { gw, store, fake } = await createTestGateway();
+  await putActive(store, fake, { service: 'google-cloud', module: 'projects', privilege: 'read' });
+  assert.deepEqual(
+    await gw.execute({ action: 'google-cloud.projects.get_iam_policy', input: { project: 'wiser-method-prod', requested_policy_version: 2 } }),
+    { status: 'invalid_arguments', field: 'requested_policy_version' });
+  for (const requested_policy_version of [0, 1, 3]) {
+    const ok = await gw.execute({ action: 'google-cloud.projects.get_iam_policy', input: { project: 'wiser-method-prod', requested_policy_version } });
+    assert.notEqual(ok.status, 'invalid_arguments', String(requested_policy_version));
+  }
+});
+
 test('confirmation echoes only declared field names and counts the rest', async () => {
   // The stop itself, reached with a call the schema accepts. `undeclared_fields` is
   // structurally 0 now; it is still asserted, because the field still ships and a

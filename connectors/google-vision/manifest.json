@@ -21,10 +21,12 @@
             "type": "object",
             "properties": {
               "image_base64": {
-                "type": "string"
+                "type": "string",
+                "minLength": 1
               },
               "image_uri": {
-                "type": "string"
+                "type": "string",
+                "minLength": 1
               }
             },
             "required": [],

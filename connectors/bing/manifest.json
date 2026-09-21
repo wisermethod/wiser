@@ -30,7 +30,7 @@
           "input": {
             "type": "object",
             "properties": {
-              "site_url": { "type": "string", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://" },
+              "site_url": { "type": "string", "pattern": "^\\s*[Hh][Tt][Tt][Pp][Ss]?://" },
               "report": { "type": "string", "enum": ["daily_totals", "top_queries", "top_pages"] }
             },
             "required": ["site_url", "report"],
@@ -45,10 +45,10 @@
           "input": {
             "type": "object",
             "properties": {
-              "site_url": { "type": "string", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://" },
+              "site_url": { "type": "string", "pattern": "^\\s*[Hh][Tt][Tt][Pp][Ss]?://" },
               "query": { "type": "string" },
               "report": { "type": "string", "enum": ["daily", "pages", "page_daily"] },
-              "page_url": { "type": "string", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://" },
+              "page_url": { "type": "string", "pattern": "^\\s*[Hh][Tt][Tt][Pp][Ss]?://" },
               "start_date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
               "end_date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
             },
@@ -64,8 +64,8 @@
           "input": {
             "type": "object",
             "properties": {
-              "site_url": { "type": "string", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://" },
-              "page_url": { "type": "string", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://" },
+              "site_url": { "type": "string", "pattern": "^\\s*[Hh][Tt][Tt][Pp][Ss]?://" },
+              "page_url": { "type": "string", "pattern": "^\\s*[Hh][Tt][Tt][Pp][Ss]?://" },
               "report": { "type": "string", "enum": ["summary", "queries", "children"] },
               "page_number": { "type": "integer", "minimum": 1 }
             },
@@ -81,7 +81,7 @@
           "input": {
             "type": "object",
             "properties": {
-              "site_url": { "type": "string", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://" },
+              "site_url": { "type": "string", "pattern": "^\\s*[Hh][Tt][Tt][Pp][Ss]?://" },
               "report": { "type": "string", "enum": ["issues", "stats"] }
             },
             "required": ["site_url", "report"],
@@ -96,8 +96,8 @@
           "input": {
             "type": "object",
             "properties": {
-              "site_url": { "type": "string", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://" },
-              "url": { "type": "string", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://" }
+              "site_url": { "type": "string", "pattern": "^\\s*[Hh][Tt][Tt][Pp][Ss]?://" },
+              "url": { "type": "string", "pattern": "^\\s*[Hh][Tt][Tt][Pp][Ss]?://" }
             },
             "required": ["site_url", "url"],
             "additionalProperties": false
@@ -111,8 +111,8 @@
           "input": {
             "type": "object",
             "properties": {
-              "site_url": { "type": "string", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://" },
-              "feed_url": { "type": "string", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://" }
+              "site_url": { "type": "string", "pattern": "^\\s*[Hh][Tt][Tt][Pp][Ss]?://" },
+              "feed_url": { "type": "string", "pattern": "^\\s*[Hh][Tt][Tt][Pp][Ss]?://" }
             },
             "required": ["site_url"],
             "additionalProperties": false
@@ -126,8 +126,8 @@
           "input": {
             "type": "object",
             "properties": {
-              "site_url": { "type": "string", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://" },
-              "target_url": { "type": "string", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://" },
+              "site_url": { "type": "string", "pattern": "^\\s*[Hh][Tt][Tt][Pp][Ss]?://" },
+              "target_url": { "type": "string", "pattern": "^\\s*[Hh][Tt][Tt][Pp][Ss]?://" },
               "page_number": { "type": "integer", "minimum": 1 }
             },
             "required": ["site_url"],
@@ -135,7 +135,7 @@
           }
         },
         "research_keywords": {
-          "description": "Research keyword impressions, history, or related queries",
+          "description": "Research keyword impressions, history, or related queries. The oneOf publishes that impressions and history require both dates; it cannot publish that related refuses them, and the module does",
           "risk": "low",
           "confirmation": "none",
           "execution": { "prefer": "catalog" },

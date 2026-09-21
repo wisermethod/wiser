@@ -47,13 +47,20 @@
  * @param {Record<string, any>} schema
  */
 export function matches(value, schema) {
+  // `enum` is checked for every type, before the type branches return. The copied text
+  // returned early for `array`, `object` and `integer`, so an integer `enum` was published
+  // and never applied here: `clarity analytics.export numOfDays` and `google-cloud
+  // projects.get_iam_policy requested_policy_version` both declare one. Their modules
+  // enforce it, so the family agreed; what did not hold was the gate's own enum probe,
+  // which mutated an integer enum with a string and was answered by the type check.
+  if (schema.enum && !schema.enum.includes(value)) return false;
   if (schema.type === 'array') return Array.isArray(value) && Array.from(value).every((item) => matches(item, schema.items ?? {}));
   if (schema.type === 'object') return value !== null && typeof value === 'object' && !Array.isArray(value);
   if (schema.type === 'integer') return Number.isInteger(value);
   if (schema.type !== undefined && typeof value !== schema.type) return false;
   if (schema.minLength && value.length < schema.minLength) return false;
   if (schema.pattern && !new RegExp(schema.pattern).test(value)) return false;
-  return !schema.enum || schema.enum.includes(value);
+  return true;
 }
 
 /**
@@ -64,6 +71,12 @@ export function matches(value, schema) {
  * An action that publishes no `input` is not validated. That is a manifest to fix, not a
  * call to refuse: `manifest.js` already decides what a well-formed manifest is.
  *
+ * **Compare the result with `null`, never for truthiness.** A field name is a string and
+ * `""` is falsy, so a caller writing `if (field)` accepts an input whose first offending key
+ * is the empty string and never looks at the rest of it. `additionalProperties: false` means
+ * such a key is always the offending one, so the bypass is one key away from any caller that
+ * gets this wrong. Found by adversarial review 2026-09-20, in this function's first callers.
+ *
  * @param {Record<string, any>|undefined} schema
  * @param {unknown} input
  * @returns {string|null}
@@ -72,8 +85,14 @@ export function validateInput(schema, input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return 'input';
   if (!schema || typeof schema !== 'object') return null;
   const properties = schema.properties ?? {};
+  // `Object.hasOwn` rather than `properties[field] ?? {}`, because a manifest requiring a
+  // field named `toString` or `constructor` would otherwise read `Object.prototype`'s member
+  // as that field's schema. The loop below refuses such a key anyway, since `properties` does
+  // not own it, so this changes no shipped answer; it removes the one way a schema could come
+  // from somewhere other than the manifest.
+  const declared = (field) => (Object.hasOwn(properties, field) ? properties[field] : {});
   for (const field of schema.required ?? []) {
-    if (!Object.hasOwn(input, field) || !matches(input[field], properties[field] ?? {})) return field;
+    if (!Object.hasOwn(input, field) || !matches(input[field], declared(field))) return field;
   }
   for (const [field, value] of Object.entries(input)) {
     if (!Object.hasOwn(properties, field) || !matches(value, properties[field])) return field;

@@ -558,8 +558,11 @@ export class ConnectionGateway {
       // `undefined` means no input was supplied and is validated as `{}`, which is what
       // every path below already coerces it to. `null`, an array and a scalar were
       // supplied and are malformed, and are reported as `input`.
+      // `!== null` and not truthiness: a field name is a string and `""` is falsy, so a
+      // truthiness test accepts any input whose first offending key is the empty string
+      // and stops checking the rest. src/input-schema.js says so at the function.
       const invalidField = validateInput(act.input, input === undefined ? {} : input);
-      if (invalidField) return statusObject(STATUS.INVALID_ARGUMENTS, { field: invalidField });
+      if (invalidField !== null) return statusObject(STATUS.INVALID_ARGUMENTS, { field: invalidField });
 
       const provider = this.providerFor(authForRun);
       const statusArgs = {

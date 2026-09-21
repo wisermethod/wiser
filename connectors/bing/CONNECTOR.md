@@ -30,7 +30,7 @@ Through the gateway, by action id. Enums, required fields, URL shape, and per-re
 | `bing.webmaster.inbound_links` | `site_url`; `target_url?`; `page_number?` | none |
 | `bing.webmaster.research_keywords` | `query`; `country`; `language`; `report` in impressions, history, related; `start_date?`; `end_date?` | none |
 
-`query_performance` with `report` `page_daily` or `pages` requires `page_url`. `page_performance` accepts `page_number` only when `report` is `children`. `research_keywords` with `report` `impressions` or `history` requires both dates; `related` refuses them. Dates are `YYYY-MM-DD` and start is not after end. `site_url`, `page_url`, `url`, `target_url`, and `feed_url` are absolute http or https URLs.
+`query_performance` with `report` `page_daily` or `pages` requires `page_url`. `page_performance` accepts `page_number` only when `report` is `children`. `research_keywords` with `report` `impressions` or `history` requires both dates; `related` refuses them. **The manifest publishes the first half and not the second**: a `oneOf` can say which fields a branch requires and there is no term in the vocabulary the gateway and its agreement gate read that says a branch forbids one, so the prohibition lives here and in the action's own description, per `standards/script-contract.md` Published input schema. Sending a date with `related` is refused by the module and the schema does not predict it. Dates are `YYYY-MM-DD` and start is not after end. `site_url`, `page_url`, `url`, `target_url`, and `feed_url` are absolute http or https URLs.
 
 A site absent from `list_sites` is a verification task at the vendor, not a connection fault.
 

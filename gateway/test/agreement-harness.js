@@ -31,13 +31,26 @@
  *   `bing research_keywords` is the one shipped instance. Its conditional requirement is
  *   published and the sampler reads it, so direction A covers it; the composition
  *   mutation skips it, because deleting the branch fields would delete a required field
- *   and measure something else.
+ *   and measure something else. **Half of that action's rule is unpublishable in this
+ *   vocabulary**: `report: related` refuses both dates, and nothing the gateway or this
+ *   harness reads says a branch forbids a field. It is in the action's `description` and
+ *   in `bing/CONNECTOR.md`, and publishing it as a `not` that neither side models would be
+ *   a rule with no enforcer, which is the class this gate exists for.
  * - **The URL patterns are wider than their modules by design.** `^[Hh][Tt][Tt][Pp][Ss]?://`
  *   publishes the scheme, which is the part a schema can carry; the module parses the
  *   value with `new URL()`. A value the pattern admits and the parser rejects is a
  *   residual no schema change can close, so no adversarial exemplar probes for it.
  * - **`vercel deployments.upload_file` requires `path` to name a readable file.** That is
  *   filesystem state. Its baseline row and its fixture are permanent.
+ *
+ * And one that changed shape when the validator moved into the gateway, stated because a
+ * reader could otherwise take direction B for more than it is. **For a constraint the gateway
+ * itself reads, `type`, `enum`, `pattern`, `minLength` and `items`, the enforcement this proves
+ * is the system's rather than the module's**: the wrapper refuses the mutation before the
+ * module runs, so a module that quietly stopped applying one of those would not be reported.
+ * That is the right property to hold, since the gateway is now the enforcer and no connector
+ * carries a validator. What direction B still measures against the module alone is the
+ * constraints the gateway leaves to it: `maxLength`, `minimum`, `maximum` and `maxItems`.
  */
 import { readFileSync, readdirSync, existsSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -77,8 +90,15 @@ const PATTERN_OK = {
   // design**, and a value like `https://` satisfies the pattern and is still refused.
   // That residual is named here rather than probed: an adversarial exemplar for it
   // would report a divergence that no schema change can close.
-  '^[Hh][Tt][Tt][Pp][Ss]?://': 'https://example.com/x',
-  '^([Hh][Tt][Tt][Pp][Ss]?://|[Ss][Cc]-[Dd][Oo][Mm][Aa][Ii][Nn]:)': 'https://example.com/x',
+  //
+  // **The leading `\s*` is not decoration and the first version of these patterns was
+  // wrong without it.** `new URL()` strips leading whitespace and `google`'s
+  // `isDomainProperty` trims before matching, so ` https://example.com ` is a value every
+  // one of these modules accepts. An anchored scheme pattern refused it, which made the
+  // published rule *narrower* than its module while the comment above claimed only the
+  // opposite. Found by adversarial review 2026-09-20.
+  '^\\s*[Hh][Tt][Tt][Pp][Ss]?://': 'https://example.com/x',
+  '^\\s*([Hh][Tt][Tt][Pp][Ss]?://|[Ss][Cc]-[Dd][Oo][Mm][Aa][Ii][Nn]:)': 'https://example.com/x',
 };
 const PATTERN_ADVERSARIAL = {
   // The tightened pattern excludes exactly the two relative segments
@@ -331,7 +351,7 @@ function propertyViolation(name, d, value) {
 function withGatewayValidation(schema, run) {
   return async (input, ctx) => {
     const field = validateInput(schema, input);
-    if (field) return { status: 'invalid_arguments', field };
+    if (field !== null) return { status: 'invalid_arguments', field };
     return run(input, ctx);
   };
 }
@@ -474,7 +494,23 @@ async function collect() {
 
           // B. a declared constraint the module does not apply.
           const muts = [];
-          if (Array.isArray(ps.enum)) muts.push(['enum', '__not_in_enum__']);
+          // An out-of-enum value **of the declared type**. A string against an integer
+          // enum is answered by the type check, so the probe proved type enforcement and
+          // said nothing about the enum; `clarity numOfDays` and `google-cloud
+          // requested_policy_version` are the two shipped integer enums it was silent on.
+          // Found by adversarial review 2026-09-20.
+          if (Array.isArray(ps.enum) && ps.enum.length) {
+            const kind = ps.type ?? typeof ps.enum[0];
+            if (kind === 'integer' || kind === 'number') {
+              const numeric = ps.enum.filter((v) => typeof v === 'number');
+              muts.push(['enum', (numeric.length ? Math.max(...numeric) : 0) + 1]);
+            } else if (kind === 'boolean') {
+              const missing = [true, false].find((v) => !ps.enum.includes(v));
+              if (missing !== undefined) muts.push(['enum', missing]);
+            } else {
+              muts.push(['enum', '__not_in_enum__']);
+            }
+          }
           if (ps.pattern) {
             const re = new RegExp(ps.pattern);
             const badValue = VIOLATION_CANDIDATES.find((c) => !re.test(c));

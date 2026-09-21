@@ -28,13 +28,28 @@ export async function main() {
     return 2;
   }
 
-  let previous = [];
+  // **A missing or malformed baseline is a refusal, not a bootstrap.** Reading one as an
+  // empty list makes every divergence new and every new divergence permitted, which is the
+  // ratchet inverted: it would bless a regression at exactly the moment the file is
+  // unreadable. The same is true of a legitimately empty baseline, which is the class
+  // closed and the strongest state the file can be in. Found by adversarial review
+  // 2026-09-20, after the file reached one row and the next stop was zero.
+  let previous;
   try { previous = JSON.parse(readFileSync(OUT, 'utf8')).divergences ?? []; }
-  catch { previous = []; }
+  catch (err) {
+    console.error(`cannot read ${OUT}: ${err.message}`);
+    console.error('This file is the ratchet. Restore it from git rather than regenerating over it;');
+    console.error('a first baseline is created by writing {"divergences": []} and running this.');
+    return 3;
+  }
+  if (!Array.isArray(previous)) {
+    console.error(`${OUT} has no divergences array. Restore it from git.`);
+    return 3;
+  }
 
   const divergences = [...found].sort();
   const added = divergences.filter((d) => !previous.includes(d));
-  if (added.length && previous.length) {
+  if (added.length) {
     console.error(`refusing to write: ${added.length} divergence(s) are not in the current baseline.`);
     console.error('The baseline may only shrink. Publish what the module enforces, or enforce what');
     console.error('the manifest publishes, then regenerate.');
