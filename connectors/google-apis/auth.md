@@ -8,7 +8,9 @@ What you do, on which side, to make `google-apis.*` actions run. Connect Account
 
 Have a Google Cloud project, the APIs you will actually call enabled on it, and one API key for that project available in your own browser.
 
-**If you do not have a project**, create one in Google Cloud Console: open the project picker at the top of the page and create a project. Name it and confirm.
+Google Cloud Console is at `https://console.cloud.google.com`. Sign in there with the Google account you want to own this project; it does not have to be the account you use with this plugin.
+
+**If you do not have a project**, create one: open the project picker at the top of the page and create a project. Name it and confirm. If the picker offers you no way to create one, your account is not permitted to, and `connectors/google-cloud/auth.md` has the two usual causes and what to ask for.
 
 This connector's five modules, named as a person would name the Google service:
 
@@ -28,11 +30,23 @@ Create the key under APIs and Services, Credentials, Create Credentials, API key
 
 One key covers every module. Two restrictions on that key, and both live on the key's own page: open the key by name from Credentials. The second restriction is the one that catches people.
 
-The **API restriction** is under **API restrictions**; **Restrict key** is the control that reveals the picker. Restrict the key to the services you will actually call. A PageSpeed-only key names `pagespeedonline.googleapis.com` and that is enough. The full set this connector can call is all five: `pagespeedonline.googleapis.com`, `translate.googleapis.com`, `texttospeech.googleapis.com`, `speech.googleapis.com` and `language.googleapis.com`. Check your key against the modules you will use and add any it is missing, rather than assuming a key made for an earlier version of this connector already covers them: each module was added in its own release, so a key restricted before one shipped will not name it. A key restricted to fewer services than you then call returns `API_KEY_SERVICE_BLOCKED` at the first call to an unnamed one, which is a late and opaque way to learn this.
+The **API restriction** is under **API restrictions**; **Restrict key** is the control that reveals the picker. Restrict the key to the services you will actually call. **The picker lists APIs by their display name, not by the identifier**, so each service is given here both ways and you select the label:
+
+| Module | Select this in the picker | Which is this service |
+|---|---|---|
+| `insights` | PageSpeed Insights API | `pagespeedonline.googleapis.com` |
+| `translate` | Cloud Translation API | `translate.googleapis.com` |
+| `voice` | Cloud Text-to-Speech API | `texttospeech.googleapis.com` |
+| `speech` | Cloud Speech-to-Text API | `speech.googleapis.com` |
+| `language` | Cloud Natural Language API | `language.googleapis.com` |
+
+**A PageSpeed-only key selects the first row and nothing else**, and that is enough. If a label here does not match what you see, the identifier column is the thing that must match; the picker shows it under the name. Check your key against the modules you will use and add any it is missing, rather than assuming a key made for an earlier version of this connector already covers them: each module was added in its own release, so a key restricted before one shipped will not name it. A key restricted to fewer services than you then call returns `API_KEY_SERVICE_BLOCKED` at the first call to an unnamed one, which is a late and opaque way to learn this.
 
 The **application restriction** is on the same page, under **Application restrictions**, and must be **None**, not HTTP referrers. A server-side call sends no HTTP referrer, so a referrer-restricted key fails with 403 `API_KEY_HTTP_REFERRER_BLOCKED` even though the key is valid and the API is enabled. An IP allowlist is not the alternative: the provider's egress addresses are not published and not stable. This is measured rather than cautionary: it is exactly how the first live run failed on 2026-09-19.
 
 **Save the key after setting both, and then reopen it and check.** Neither restriction takes effect until it is saved, and a key that looks restricted on a page you navigated away from is a key that is not restricted. This is the step most easily missed, and missing it leaves a new key open to every API and leaves an existing referrer-restricted key still returning 403.
+
+**Then copy the key value, from the key's own page.** Console shows it when the key is created, and the key's page shows it again afterwards, so having navigated away costs nothing. Keep it in your browser or your password manager for the next step. **Do not put it in a file in any root and do not paste it into this conversation**; the only place it goes is the hosted page below.
 
 ## Through the gateway
 
