@@ -3,7 +3,7 @@ name: google
 type: connector
 category: analytics
 description: Reads search performance, URL index state, sitemap details, analytics reports, Drive files, Calendar events, Gmail messages, spreadsheet values, documents, and presentations through eight separate grants
-version: 0.5.0
+version: 0.6.0
 ---
 
 # Google

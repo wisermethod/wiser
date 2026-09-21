@@ -3,7 +3,7 @@ name: notion
 type: connector
 category: research
 description: Searches pages and databases and reads page properties
-version: 0.1.0
+version: 0.2.0
 ---
 
 # Notion

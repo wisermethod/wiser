@@ -3,7 +3,7 @@ name: figma
 type: connector
 category: media
 description: Reads file metadata and lists the files in a project
-version: 0.1.0
+version: 0.2.0
 ---
 
 # Figma

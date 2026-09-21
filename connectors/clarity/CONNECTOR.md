@@ -3,7 +3,7 @@ name: clarity
 type: connector
 category: analytics
 description: Exports Clarity metrics for the last one, two, or three days
-version: 0.1.0
+version: 0.2.0
 ---
 
 # Microsoft Clarity

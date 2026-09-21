@@ -3,7 +3,7 @@ name: hubspot
 type: connector
 category: crm
 description: Reads and searches contacts
-version: 0.1.0
+version: 0.2.0
 ---
 
 # HubSpot

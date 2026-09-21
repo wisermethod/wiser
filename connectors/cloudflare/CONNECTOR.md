@@ -3,7 +3,7 @@ name: cloudflare
 type: connector
 category: development
 description: Reaches Cloudflare DNS, the account's zones, Pages, and rulesets, with every removal confirmed
-version: 0.2.1
+version: 0.3.0
 ---
 
 # Cloudflare

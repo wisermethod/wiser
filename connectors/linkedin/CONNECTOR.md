@@ -3,7 +3,7 @@ name: linkedin
 type: connector
 category: communication
 description: Reads the connected profile and one post
-version: 0.1.0
+version: 0.2.0
 ---
 
 # LinkedIn

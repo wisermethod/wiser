@@ -3,7 +3,7 @@ name: zoho
 type: connector
 category: crm
 description: Reads mail, Books and Invoice invoices, Desk tickets, Inventory and Bigin contacts through six read grants, and reads, searches, and creates CRM leads with confirmation
-version: 0.2.0
+version: 0.3.0
 ---
 
 # Zoho

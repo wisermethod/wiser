@@ -3,7 +3,7 @@ name: supabase
 type: connector
 category: development
 description: Lists projects and reads one project
-version: 0.1.0
+version: 0.2.0
 ---
 
 # Supabase

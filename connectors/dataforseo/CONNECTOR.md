@@ -3,7 +3,7 @@ name: dataforseo
 type: connector
 category: research
 description: Reaches DataForSEO SERP, keyword, and backlink research through two grants, each recorded write because it spends, with every billed call confirmed
-version: 0.1.0
+version: 0.2.0
 ---
 
 # DataForSEO
@@ -79,7 +79,7 @@ None that mutate a property. Every billed action spends and cannot be undone; th
 - `needs_connect`: follow `auth.md` for the named module. A `research` grant does not unlock `backlinks`.
 - `needs_confirmation`: every billed call. Review the action, the price in the summary, and the input, then repeat with `confirm: true` if intended.
 - `invalid_arguments`: correct the named field; undeclared keys and clickstream flags are refused before transport.
-- `vendor_error` 401: credentials rejected at the vendor; reconnect through Connect Account.
+- `vendor_error` 401: the vendor rejected the credential. **Do not reconnect to make the call pass.** An auth-class refusal refreshes provider status during execute, so a grant that had actually lapsed would have come back `needs_connect` rather than this; a `vendor_error` that survives means the grant is still ACTIVE and something else is wrong. `skills/Connection Troubleshooter/` owns the reading. The one case where connecting again is right is a rotation somebody asked for, because regenerating the API password at the vendor invalidates both modules' hosted grants, and that is a rotation rather than a retry.
 - `vendor_error` 402, or a task status in the 40201 class: insufficient balance; top up at the vendor.
 - `vendor_error` 404 on a task: the endpoint or its parameters.
 - A task `status_code` in the 40501 class is invalid field data returned in the envelope, not a gateway error. Read `cost` and the task status from the object.

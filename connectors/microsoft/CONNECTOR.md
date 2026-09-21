@@ -3,7 +3,7 @@ name: microsoft
 type: connector
 category: communication
 description: Reads Outlook messages, Calendar events, OneDrive files, SharePoint lists, Excel values, and joined teams through six separate grants
-version: 0.2.0
+version: 0.3.0
 ---
 
 # Microsoft

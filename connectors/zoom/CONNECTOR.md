@@ -3,7 +3,7 @@ name: zoom
 type: connector
 category: communication
 description: Lists meetings for a user and reads one meeting
-version: 0.1.0
+version: 0.2.0
 ---
 
 # Zoom

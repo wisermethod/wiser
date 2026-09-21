@@ -3,7 +3,7 @@ name: github
 type: connector
 category: development
 description: Reaches one GitHub account's repositories and issues to read them, list them, and open an issue, and reports the authenticated account
-version: 0.2.0
+version: 0.3.0
 ---
 
 # GitHub

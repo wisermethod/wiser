@@ -15,7 +15,7 @@ Use a Google account allowed to access the relevant sites, analytics properties,
 
 ## Per-module notes
 
-- `search-console`: separate connect, read privilege. Inspection uses the same read grant. A refusal on `inspect` after an ACTIVE grant is a reconnect through Connect Account.
+- `search-console`: separate connect, read privilege. **Inspection uses the same grant as everything else on this module**, so a refusal on `inspect` after a grant that is still ACTIVE is not a grant problem and reconnecting cannot fix it. `skills/Connect Account/` refuses to reconnect an ACTIVE grant for exactly this reason. Take it to `skills/Connection Troubleshooter/`, which owns the reading: the usual cause is that URL inspection needs the property's own verified access at Google, which `query` does not.
 - `analytics`: separate connect, read privilege.
 - `drive`: separate connect, write privilege.
 - `calendar`: separate connect, write privilege.

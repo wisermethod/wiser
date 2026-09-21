@@ -3,7 +3,7 @@ name: vercel
 type: connector
 category: development
 description: Reads projects and deployments and creates a deployment, uploading its files by reference, only with confirmation on every call
-version: 0.2.0
+version: 0.3.0
 ---
 
 # Vercel

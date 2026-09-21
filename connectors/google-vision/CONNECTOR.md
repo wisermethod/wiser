@@ -3,7 +3,7 @@ name: google-vision
 type: connector
 category: media
 description: Detects faces and returns eye coordinates for faces with both eyes available
-version: 0.1.0
+version: 0.2.0
 ---
 
 # Google Vision

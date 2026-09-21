@@ -3,7 +3,7 @@ name: replicate
 type: connector
 category: media
 description: Lists curated model collections, starts confirmed predictions, and returns prediction status and output URLs
-version: 0.1.0
+version: 0.2.0
 ---
 
 # Replicate

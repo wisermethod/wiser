@@ -3,7 +3,7 @@ name: monday
 type: connector
 category: development
 description: Lists boards and reads a page of board items
-version: 0.1.0
+version: 0.2.0
 ---
 
 # monday.com

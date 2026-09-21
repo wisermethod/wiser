@@ -3,7 +3,7 @@ name: stripe
 type: connector
 category: development
 description: Reads customers and charges through one billing grant
-version: 0.1.0
+version: 0.2.0
 ---
 
 # Stripe

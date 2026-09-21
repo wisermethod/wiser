@@ -11,7 +11,7 @@ Holds the grant, or knows where the person's own credential file is. One adapter
 | Method | Returns | Contract |
 |--------|---------|----------|
 | `name` | the adapter's directory name | |
-| `setupText()` | plain text a person follows to make this adapter work | The only place a provider explains itself; the gateway repeats it verbatim in `needs_provider` |
+| `setupText()` | plain text a person follows to make this adapter work | **The short form**, and the only provider words that reach an answer: the gateway puts it on `needs_provider` as `setup` and repeats it verbatim. It says what to do next in a few sentences, without a dashboard walkthrough. **An adapter owes this and a `SETUP.md`, and they are two jobs**; see `Adding one` |
 | `initiate({ userId, service, module, toolkit, scheme, file, variables })` | `{ kind: "link", url, providerAccountId }` or `{ kind: "file", path, variables }` | Never completes a grant; never accepts a key |
 | `status({ providerAccountId })` | `ACTIVE`, `INITIATED`, `EXPIRED`, `FAILED`, `INACTIVE` or `ABSENT`, or `{ status, error: { code, endpoint, method } }` | The gateway writes an ACTIVE record only on `ACTIVE`, and records any other word on the row as the reason it stopped. **`ABSENT` means the provider says this account is not there. `INACTIVE` means the grant is not usable and is not known to be gone** — which covers a switched-off hosted account and equally a `local-file` credential whose file is missing, since neither establishes that anything was revoked. An error object is a transport or provider failure and not a grant state, and the gateway leaves the record untouched on one |
 | `proxy({ providerAccountId, toolkit, endpoint, method, body, parameters, binary_body })` | `{ status, data }` or `{ status, error: { code, endpoint, method } }` | Response headers are dropped. Never the vendor's body on failure; the same-domain rule is enforced here if the provider has one |
@@ -53,10 +53,24 @@ The mapping between our ids and the provider's slugs is a table inside the adapt
 
 | Directory | State on 2026-09-05 |
 |-----------|---------------------|
-| The one `default.json` names | The first adapter, both interfaces, against the provider's HTTP API with the built-in `fetch`. Its own `SETUP.md` is the whole of what a person needs. Request bodies marked `UNVERIFIED` in code were read from documentation and not yet run |
+| The one `default.json` names | The first adapter, both interfaces, against the provider's HTTP API with the built-in `fetch`. Its `SETUP.md` is the long form, and its `setupText()` is the short one the gateway quotes. Request bodies marked `UNVERIFIED` in code were read from documentation and not yet run |
 | `local-file/` | AuthProvider only. A credential file bound by `secrets:<platform>` and named by the manifest, in the directory `--secrets` names. `status` is whether the file has its variables; `unwrap` reads it. For services no catalog carries |
 | `nango/` | Interface stub. Every method throws `not_implemented`. Exists so a second adapter is a directory and not a rewrite |
 
 ## Adding one
 
-Copy the interface, not an adapter. Name the directory for the provider, keep every mention of the provider inside it, write its `SETUP.md` as the whole of what a person needs, and point `default.json` at it only by a recorded decision.
+Copy the interface, not an adapter. Name the directory for the provider, keep every mention of the provider inside it, and point `default.json` at it only by a recorded decision.
+
+**An adapter owes two pieces of prose and they are not the same piece.** This was one sentence
+saying each was the only place a provider explains itself, which cannot both be true, and an
+author following either half alone shipped a broken path.
+
+| | `setupText()` | `<adapter>/SETUP.md` |
+|---|---|---|
+| What it is | The short form, a few sentences | The long form, a walkthrough |
+| Who reads it | Whoever gets the `needs_provider` answer, which carries it verbatim as `setup` | A person following a dashboard, sent there by the short form or by a skill |
+| Where it is quoted | In every `needs_provider` answer the gateway returns | Cited by path from `gateway/SETUP.md` section 3 and by `skills/Set Up Connectors/` |
+| What breaks without it | Every `needs_provider` answer in the system describes a provider that is not the one installed, because `gateway.js` falls back to a generic string | `skills/Set Up Connectors/` sends a person to a file that does not exist, and the turn ends at a dead path |
+
+Write both. The short form names the next step and points at the long one; the long one is where
+the clicks live.

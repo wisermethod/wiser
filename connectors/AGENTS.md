@@ -37,7 +37,29 @@ Four consequences follow, each a fact about the code rather than a rule:
 
 ## Grants are per module
 
-A connection record is keyed by service and module. Two modules on one service are two grants and two `needs_connect` stops, even where the vendor would have accepted one broader grant, because the provider holds one grant per toolkit and a record that pretends otherwise cannot be honoured. The facade is naming and shared scope, never a shared token.
+**One binding per module, and several bindings may share one credential.** Both halves are the
+model and they are stated together here on purpose. Taught as the first half alone, a reader
+builds a mental model in which a module owns its access, and then meets revoking, which ends
+every module bound to the same credential, and reads that as a surprise or a defect. It is
+neither. The order was the defect.
+
+**Connecting is the first half.** A connection record is keyed by service and module. Two modules
+on one service are two bindings and two `needs_connect` stops, even where the vendor would have
+accepted one broader grant, because the provider holds one grant per toolkit and a record that
+pretends otherwise cannot be honoured. The facade is naming and shared scope, never a shared
+token.
+
+**Revoking is the second half, and it follows from it.** `disconnect` acts on the credential, so
+it ends every binding pointing at that credential and not only the module you named; it says
+which in `modules_ending` before it does anything. Nothing about that is an exception to the rule
+above. A binding is a pointer, the credential is the thing, and removing the thing removes every
+pointer to it.
+
+**What each half lets you predict.** From the first: connecting a second module is its own turn,
+and connecting one module does not connect its sibling. From the second: to keep one module while
+ending another, give the one you are keeping a credential of its own first, then revoke; and
+`list_connections` showing one module is not evidence that one credential is all there is. Every
+guide's `## Revoking` section carries the same working through, from `connectors/shared-text.md`.
 
 ## Adding one
 
