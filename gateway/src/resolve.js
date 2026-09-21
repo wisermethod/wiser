@@ -8,9 +8,16 @@
  */
 
 /**
- * Privilege, risk, confirmation and input schema a first-party action carries.
- * The gateway decides these; a classifier directory has no manifest. All six
- * read nothing durable and change nothing, so they are `read` / `low` / `none`.
+ * Privilege, risk, confirmation, input schema and answer shape a first-party
+ * action carries. The gateway decides these; a classifier directory has no
+ * manifest. All six read nothing durable and change nothing, so they are
+ * `read` / `low` / `none`.
+ *
+ * `answer` is the success object `executeFirstParty` checks the adapter's
+ * result against. It is not the object `describe` serves, and `meta` is not a
+ * member of it. A host may ignore `meta`. The checker allows it, and allows
+ * any other extra key, because the reserved channel has to survive and a
+ * status object is refused by a different branch before this shape is read.
  *
  * Shared shape only. An executable first-party action requires an explicit
  * entry in `FIRST_PARTY_ACTIONS`; this object is not a fallback for an id
@@ -35,6 +42,11 @@ export const FIRST_PARTY_ACTIONS = {
       properties: { rows: { type: 'array' } },
       required: ['rows'],
     },
+    answer: {
+      roster_sha256: { type: 'string' },
+      accepted: { type: 'number' },
+      rejected: { type: 'number' },
+    },
   },
   'wiser.route.ask': {
     privilege: 'read',
@@ -48,6 +60,14 @@ export const FIRST_PARTY_ACTIONS = {
         roster_sha256: { type: 'string' },
       },
       required: ['ask', 'roster_sha256'],
+    },
+    // `confidence` is null on the pass-2 abstention, where no shortlist question
+    // was sent. Absent is a missing probability; null is that abstention.
+    answer: {
+      family: { type: 'string' },
+      target: { type: 'string', nullable: true },
+      confidence: { type: 'unit', nullable: true },
+      pass: { type: 'boolean' },
     },
   },
   'wiser.gate.check': {
@@ -66,6 +86,16 @@ export const FIRST_PARTY_ACTIONS = {
       },
       required: ['kind', 'criteria', 'deliverable'],
     },
+    answer: {
+      judgments: {
+        type: 'array',
+        items: {
+          index: { type: 'number', roster: 'criteria' },
+          verdict: { enum: ['fail', 'below_threshold'] },
+          p: { type: 'unit' },
+        },
+      },
+    },
   },
   'wiser.decide.choice': {
     privilege: 'read',
@@ -82,6 +112,11 @@ export const FIRST_PARTY_ACTIONS = {
       },
       required: ['decision', 'options'],
     },
+    answer: {
+      choice: { type: 'string', roster: 'options' },
+      confidence: { type: 'unit' },
+      calibrated: { const: false },
+    },
   },
   'wiser.recall.rank': {
     privilege: 'read',
@@ -96,6 +131,17 @@ export const FIRST_PARTY_ACTIONS = {
         allow_uncalibrated: { type: 'boolean' },
       },
       required: ['question', 'candidates'],
+    },
+    answer: {
+      ranked: {
+        type: 'array',
+        items: {
+          id: { type: 'string', roster: 'candidates' },
+          p: { type: 'unit' },
+          calibrated: { const: false },
+        },
+      },
+      calibrated: { const: false },
     },
   },
   'wiser.browser.pick': {
@@ -112,8 +158,119 @@ export const FIRST_PARTY_ACTIONS = {
       },
       required: ['goal', 'elements'],
     },
+    // `verb` is present and untyped. The adapter's own expression can return a
+    // non-string, and rejecting that here would coerce the contract's open gap
+    // into a refusal. `index` null is the `none` choice.
+    answer: {
+      index: { type: 'integer', nullable: true, roster: 'elements' },
+      verb: { type: 'present' },
+      confidence: { type: 'unit' },
+      calibrated: { const: false },
+    },
   },
 };
+
+function isPlain(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * The set of choices the call itself sent. `none` is always a decide.choice
+ * option. Candidate ids and criteria indexes follow the adapter's own reading
+ * of those arrays, so a well-formed answer is not refused for a numbering the
+ * adapter is specified to use.
+ * @param {string} kind
+ * @param {unknown} input
+ */
+function rosterValues(kind, input) {
+  const args = isPlain(input) ? input : {};
+  if (kind === 'options') {
+    const keys = new Set(['none']);
+    for (const opt of Array.isArray(args.options) ? args.options : []) {
+      if (typeof opt === 'string') keys.add(opt);
+      else if (isPlain(opt) && typeof opt.id === 'string') keys.add(opt.id);
+    }
+    return keys;
+  }
+  if (kind === 'candidates') {
+    const keys = new Set();
+    const list = Array.isArray(args.candidates) ? args.candidates : [];
+    for (let i = 0; i < list.length; i += 1) {
+      const c = list[i];
+      keys.add(isPlain(c) && c.id != null ? String(c.id) : String(i));
+    }
+    return keys;
+  }
+  if (kind === 'elements') {
+    const list = Array.isArray(args.elements) ? args.elements : [];
+    const keys = new Set();
+    for (let i = 0; i < list.length; i += 1) keys.add(i);
+    return keys;
+  }
+  if (kind === 'criteria') {
+    const keys = new Set();
+    const list = Array.isArray(args.criteria) ? args.criteria : [];
+    for (let i = 0; i < list.length; i += 1) {
+      const item = list[i];
+      const index = isPlain(item) && typeof item.index === 'number' && Number.isFinite(item.index)
+        ? item.index
+        : i;
+      keys.add(index);
+    }
+    return keys;
+  }
+  return new Set();
+}
+
+function valueMatches(value, spec, input) {
+  if (spec.nullable && value === null) return true;
+  if (Object.hasOwn(spec, 'const')) return value === spec.const;
+  if (spec.enum) return spec.enum.includes(value);
+  if (spec.type === 'present') return value !== undefined;
+  if (spec.type === 'string') {
+    if (typeof value !== 'string') return false;
+  } else if (spec.type === 'boolean') {
+    if (typeof value !== 'boolean') return false;
+  } else if (spec.type === 'number' || spec.type === 'integer' || spec.type === 'unit') {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return false;
+    if (spec.type === 'integer' && !Number.isInteger(value)) return false;
+    if (spec.type === 'unit' && (value < 0 || value > 1)) return false;
+  } else if (spec.type === 'array') {
+    if (!Array.isArray(value)) return false;
+    if (spec.items) {
+      for (const item of value) {
+        if (!isPlain(item) || !fieldsMatch(item, spec.items, input)) return false;
+      }
+    }
+    return true;
+  } else {
+    return false;
+  }
+  if (spec.roster && !rosterValues(spec.roster, input).has(value)) return false;
+  return true;
+}
+
+function fieldsMatch(value, fields, input) {
+  if (!isPlain(value)) return false;
+  for (const [name, spec] of Object.entries(fields)) {
+    if (!Object.hasOwn(value, name) || !valueMatches(value[name], spec, input)) return false;
+  }
+  return true;
+}
+
+/**
+ * True when a success result matches the action's declared answer.
+ * Does not coerce. `meta` is not part of the declaration and is ignored.
+ * Status objects are not this function's job; the caller lets them through.
+ * @param {string} actionId
+ * @param {unknown} input
+ * @param {unknown} result
+ */
+export function validateFirstPartyAnswer(actionId, input, result) {
+  const def = FIRST_PARTY_ACTIONS[actionId];
+  if (!def || !def.answer) return false;
+  return fieldsMatch(result, def.answer, input);
+}
 
 /**
  * @param {string} actionId

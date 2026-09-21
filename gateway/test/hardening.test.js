@@ -96,8 +96,8 @@ test('an undeclared key is refused before the confirmation stop, and never reach
   // showed neither its name nor its value. The gateway now validates against the
   // published schema first, so the call is refused and the stop never happens. The
   // hardening property is unchanged and is what is asserted: a caller-chosen key name
-  // and its value do not land in a log. `AUDIT_FIELDS` is a closed set of thirteen
-  // names and `field` is not one of them.
+  // and its value do not land in a log. `AUDIT_FIELDS` is a closed set and `field`
+  // is not one of them. The two version facts are members; a caller-chosen name is not.
   const { gw, store, fake, audit } = await createTestGateway();
   await putActive(store, fake, { service: 'cloudflare', module: 'dns', privilege: 'write' });
   // Every declared field supplied, so the refusal is about the undeclared one and not

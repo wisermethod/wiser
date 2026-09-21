@@ -274,8 +274,9 @@ test('a declared field failing its own pattern is refused before the stop, and i
 // --------------------------------------------------- the audit line stays closed
 
 test('a value rendered into a summary does not reach the audit file', async () => {
-  // audit.js declares AUDIT_FIELDS as a closed set of thirteen names. Values now
-  // reach a summary, so the closure is asserted rather than assumed.
+  // audit.js declares AUDIT_FIELDS as a closed set. Values now reach a summary,
+  // so the closure is asserted rather than assumed. The two version facts are
+  // members of that set; a rendered input value is not.
   const MARKER = 'audit-marker-9c3f1e';
   const { gw, store, fake, audit } = await createTestGateway();
   await putActive(store, fake, { service: 'google-cloud', module: 'services', privilege: 'write' });

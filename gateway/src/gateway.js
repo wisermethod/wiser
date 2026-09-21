@@ -6,10 +6,54 @@ import { validateInput } from './input-schema.js';
 import { evaluate } from './policy.js';
 import { readProviderUserId, writeProviderUserIdIfEmpty } from './paths.js';
 import { readClassifierKey } from './paths.js';
-import { FIRST_PARTY_ACTIONS, firstPartyDef, parseActionId, resolveAction } from './resolve.js';
+import { FIRST_PARTY_ACTIONS, firstPartyDef, parseActionId, resolveAction, validateFirstPartyAnswer } from './resolve.js';
 // The vocabularies a store row's own `privilege` and `provider` are checked against,
 // taken from where the manifest validator already defines them rather than restated.
 import { AUTH_PROVIDERS, PRIVILEGES } from './manifest.js';
+
+/**
+ * The two version facts the audit line copies off `result.meta`. Absent meta,
+ * and a meta that is not a plain object, are null on both keys. A present key
+ * whose value is null stays null: omitting the key and writing null are
+ * different, and this function never omits.
+ * @param {unknown} result
+ */
+function firstPartyVersionFacts(result) {
+  const meta = result && typeof result === 'object' && !Array.isArray(result) ? result.meta : null;
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) {
+    return { model: null, calibrated_model_version: null };
+  }
+  return {
+    model: Object.hasOwn(meta, 'model') ? meta.model ?? null : null,
+    calibrated_model_version: Object.hasOwn(meta, 'calibrated_model_version')
+      ? meta.calibrated_model_version ?? null
+      : null,
+  };
+}
+
+/**
+ * A success object that failed its declared answer. The reason is fixed so the
+ * adapter's own message, which can carry a credential or a vendor name, is
+ * not the call's answer. `meta` is copied as the three version members only,
+ * so the audit line can still name what the call read.
+ * @param {unknown} result
+ */
+function malformedAnswer(result) {
+  const out = { status: 'unavailable', reason: 'malformed answer' };
+  const meta = result && typeof result === 'object' && !Array.isArray(result) ? result.meta : null;
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return out;
+  const facts = firstPartyVersionFacts(result);
+  out.meta = {
+    model: facts.model,
+    bar: Object.hasOwn(meta, 'bar') ? meta.bar ?? null : null,
+    calibrated_model_version: facts.calibrated_model_version,
+  };
+  return out;
+}
+
+function isUnitProbability(value) {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
+}
 
 const CLASSIFIER_SETUP = 'Open the credential file the gateway created, paste the classifier key after WISER_CLASSIFIER_KEY=, save, and restart. Do not paste the key into chat.';
 const CLASSIFIER_SETUP_MISSING = 'Pass --classifier with an absolute path to a classifier directory, set WISER_CLASSIFIER_KEY in the credential file, and restart. Do not paste the key into chat.';
@@ -380,6 +424,11 @@ export class ConnectionGateway {
       else if (line.path === 'first_party_mcp' && result && typeof result.status === 'string' && result.status) {
         line.status = classifierAuditStatus(result.status);
       } else if (result && !line.status) line.status = 'ok';
+      if (line.firstParty) {
+        const facts = firstPartyVersionFacts(result);
+        line.model = facts.model;
+        line.calibrated_model_version = facts.calibrated_model_version;
+      }
       this.audit.write(line);
     }
   }
@@ -563,6 +612,11 @@ export class ConnectionGateway {
       const privilege = auth?.privilege ?? firstParty?.privilege;
       const risk = act?.risk ?? firstParty?.risk;
       line.privilege = privilege ?? null;
+      // Set before the deny return. A wiser.* id with no connector action is a
+      // first-party call on every exit, including the ones that never reach
+      // the adapter: denied, needs_subscription, invalid_arguments,
+      // needs_confirmation, and undeclared.
+      if (parsed.service === 'wiser' && !act) line.firstParty = true;
 
       const decision = evaluate(this.policy, {
         harness: this.harness,
@@ -896,6 +950,17 @@ export class ConnectionGateway {
       }
       if (isStatusObject(result)) return result;
       if (result.error && result.error.code === 'vendor_error') return vendorErrorFrom(result);
+      // An adapter status is not re-parsed as a success answer. A
+      // below_threshold that names `p` still has to name a probability: a
+      // string there is not left for a caller to coerce, and a missing `p`
+      // stays the object the adapter returned.
+      if (typeof result.status === 'string' && result.status) {
+        if (result.status === 'below_threshold' && Object.hasOwn(result, 'p') && !isUnitProbability(result.p)) {
+          return malformedAnswer(result);
+        }
+        return result;
+      }
+      if (!validateFirstPartyAnswer(action, input ?? {}, result)) return malformedAnswer(result);
       return result;
     } catch (err) {
       if (err instanceof StatusSignal) return err.object;

@@ -15,12 +15,17 @@ const AUDIT_FIELDS = [
   'path',
   'provider_account_id',
   'status',
+  'model',
+  'calibrated_model_version',
   'ms',
   'cid',
 ];
 
 /**
  * Append-only JSONL audit. The field set is closed: no input, output, header, or token.
+ * `model` and `calibrated_model_version` are the two version facts. A first-party
+ * line carries both, and a line that cannot name one carries null rather than
+ * omitting the key. Neither fact is the call's input or output.
  *
  * @param {string} home
  */
@@ -54,6 +59,8 @@ export function createAudit(home) {
         path: fields.path ?? null,
         provider_account_id: fields.provider_account_id ?? null,
         status: fields.status ?? null,
+        model: fields.model ?? null,
+        calibrated_model_version: fields.calibrated_model_version ?? null,
         ms: Number.isFinite(fields.ms) ? fields.ms : 0,
         cid: fields.cid || randomUUID(),
       };

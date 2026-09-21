@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { STATUS, isStatusObject } from '../src/errors.js';
 import { loadPolicy } from '../src/policy.js';
@@ -13,6 +13,16 @@ import { createTestGateway, DEFAULT_POLICY, makeHome } from './fake-provider.js'
 const SERVER = fileURLToPath(new URL('../server.js', import.meta.url));
 const SIX = Object.keys(FIRST_PARTY_ACTIONS);
 const ASK = { ask: 'what should I load', roster_sha256: 'abc' };
+const ASK_OK = { family: 'skill', target: 'example', confidence: 1, pass: true };
+
+function conformingAnswer(actionId) {
+  if (actionId === 'wiser.route.roster') return { roster_sha256: 'abc', accepted: 1, rejected: 0 };
+  if (actionId === 'wiser.gate.check') return { judgments: [] };
+  if (actionId === 'wiser.decide.choice') return { choice: 'none', confidence: 1, calibrated: false };
+  if (actionId === 'wiser.recall.rank') return { ranked: [], calibrated: false };
+  if (actionId === 'wiser.browser.pick') return { index: null, verb: 'none', confidence: 1, calibrated: false };
+  return { ...ASK_OK };
+}
 const OPERATOR_DIR = ['z', 'Builds', 'playbooks', 'gates', 'classifier'].join('/');
 
 function createFakeClassifier(overrides = {}) {
@@ -36,7 +46,7 @@ function createFakeClassifier(overrides = {}) {
       if (overrides.result !== undefined) {
         return typeof overrides.result === 'function' ? overrides.result(req) : overrides.result;
       }
-      return { ok: true, actionId: req && req.actionId };
+      return { ok: true, actionId: req && req.actionId, ...conformingAnswer(req && req.actionId) };
     },
   };
 }
@@ -96,7 +106,7 @@ async function overlappingKeys(order) {
         started += 1;
         await holdA.gate;
         envReads.push(process.env['WISER_CLASSIFIER_KEY']);
-        return { ok: true, who: 'A', key: req.key };
+        return { ok: true, who: 'A', key: req.key, ...conformingAnswer(req && req.actionId) };
       },
     });
     const classifierB = createFakeClassifier({
@@ -106,7 +116,7 @@ async function overlappingKeys(order) {
         started += 1;
         await holdB.gate;
         envReads.push(process.env['WISER_CLASSIFIER_KEY']);
-        return { ok: true, who: 'B', key: req.key };
+        return { ok: true, who: 'B', key: req.key, ...conformingAnswer(req && req.actionId) };
       },
     });
 
@@ -288,7 +298,7 @@ test('empty classifier key line answers needs_subscription', async () => {
         if (typeof v !== 'string' || !v.trim()) {
           return { status: 'needs_subscription', setup: 'set the key' };
         }
-        return { ok: true };
+        return { ok: true, ...conformingAnswer(req && req.actionId) };
       },
     });
     const { gw } = await createTestGateway({ classifier, envPath, connectors: [], home });
@@ -308,7 +318,7 @@ test('a populated classifier key line is handed to the adapter at call time, not
     const classifier = createFakeClassifier({
       execute: async (req) => {
         seen = req.key;
-        return { ok: true, key_present: true };
+        return { ok: true, key_present: true, ...conformingAnswer(req && req.actionId) };
       },
     });
     const { gw } = await createTestGateway({ classifier, envPath, connectors: [], home });
@@ -531,4 +541,467 @@ test('a classifier import error does not include the exception message', () => {
   assert.equal(r.stderr.includes(secret), false);
   assert.equal(r.stderr.includes(vendor), false);
   assert.equal(r.stderr.includes(OPERATOR_DIR), false);
+});
+
+function assertVersionsNull(line) {
+  assert.equal('model' in line, true);
+  assert.equal(line.model, null);
+  assert.equal('calibrated_model_version' in line, true);
+  assert.equal(line.calibrated_model_version, null);
+}
+
+function directIndexPath() {
+  const root = fileURLToPath(new URL('../../../', import.meta.url));
+  return join(root, 'z' + 'Builds', 'playbooks', 'gates', 'classifier', 'direct', 'index.mjs');
+}
+
+async function directGateway() {
+  const home = makeHome();
+  const envPath = join(home, 'auth-provider.env');
+  writeFileSync(envPath, 'WISER_AUTH_PROVIDER_KEY=\nWISER_CLASSIFIER_KEY=test-key\n');
+  const { createClassifier } = await import(pathToFileURL(directIndexPath()).href);
+  return createTestGateway({
+    classifier: createClassifier(),
+    envPath,
+    connectors: [],
+    home,
+    authConfigured: false,
+  });
+}
+
+function okJson(body) {
+  return { ok: true, status: 200, json: async () => body };
+}
+
+async function withFetch(impl, fn) {
+  const prev = globalThis.fetch;
+  globalThis.fetch = impl;
+  try {
+    return await fn();
+  } finally {
+    globalThis.fetch = prev;
+  }
+}
+
+const GATE = {
+  kind: 'expert',
+  criteria: [{ index: 0, text: 'a line' }],
+  deliverable: 'the deliverable',
+};
+
+function gateBody(model) {
+  const body = { answers: { L0: { noul: 0.1 } } };
+  if (model !== undefined) body.model = model;
+  return body;
+}
+
+test('a first-party call that never reaches the adapter writes both version keys as null', async () => {
+  const { gw, audit } = await createTestGateway({ connectors: [] });
+  const missing = await gw.execute({ action: 'wiser.route.ask', input: ASK });
+  assert.equal(missing.status, 'needs_subscription');
+  assertVersionsNull(lastAuditLine(audit).line);
+
+  const classifier = createFakeClassifier();
+  const { gw: gwInput, audit: auditInput } = await createTestGateway({ classifier, connectors: [] });
+  const invalid = await gwInput.execute({ action: 'wiser.route.ask', input: { ask: 'only' } });
+  assert.equal(invalid.status, 'invalid_arguments');
+  assert.equal(classifier.calls.length, 0);
+  assertVersionsNull(lastAuditLine(auditInput).line);
+
+  const confirming = createFakeClassifier();
+  const { gw: gwStop, audit: auditStop } = await createTestGateway({
+    classifier: confirming,
+    connectors: [],
+    policy: {
+      roles: ['runtime', 'readonly'],
+      default_role: 'runtime',
+      rules: [
+        { role: '*', service: 'wiser', effect: 'confirm' },
+        { role: '*', effect: 'allow' },
+      ],
+    },
+  });
+  const stopped = await gwStop.execute({ action: 'wiser.route.ask', input: ASK });
+  assert.equal(stopped.status, 'needs_confirmation');
+  assert.equal(confirming.calls.length, 0);
+  assertVersionsNull(lastAuditLine(auditStop).line);
+
+  const { gw: gwDeny, audit: auditDeny } = await createTestGateway({
+    classifier: createFakeClassifier(),
+    connectors: [],
+    policy: {
+      roles: ['runtime', 'readonly'],
+      default_role: 'runtime',
+      rules: [{ role: '*', service: 'wiser', effect: 'deny' }],
+    },
+  });
+  const denied = await gwDeny.execute({ action: 'wiser.route.ask', input: ASK });
+  assert.equal(denied.status, 'denied');
+  assertVersionsNull(lastAuditLine(auditDeny).line);
+
+  const extra = 'wiser.secret.write';
+  const undeclared = createFakeClassifier({ ids: [...SIX, extra] });
+  const { gw: gwExtra, audit: auditExtra } = await createTestGateway({
+    classifier: undeclared,
+    connectors: [],
+  });
+  const refused = await gwExtra.execute({ action: extra, input: {} });
+  assert.equal(refused.status, 'needs_connector');
+  assert.equal(refused.reason, 'undeclared');
+  assert.equal(undeclared.calls.length, 0);
+  assertVersionsNull(lastAuditLine(auditExtra).line);
+});
+
+test('a missing confidence is unavailable and is not filled in', async () => {
+  const secret = 'sk-live-credential-9f3a';
+  const { gw, audit } = await createTestGateway({
+    classifier: createFakeClassifier({
+      result: {
+        family: 'skill',
+        target: 'example',
+        pass: true,
+        note: secret,
+        meta: { model: 'jev-1.13.0', bar: null, calibrated_model_version: null, leak: secret },
+      },
+    }),
+    connectors: [],
+  });
+  const result = await gw.execute({ action: 'wiser.route.ask', input: ASK });
+  assert.equal(result.status, 'unavailable');
+  assert.equal(result.reason, 'malformed answer');
+  assert.equal('confidence' in result, false);
+  assert.equal(result.pass, undefined);
+  assert.equal(result.family, undefined);
+  assert.equal(JSON.stringify(result).includes(secret), false);
+  const { raw, line } = lastAuditLine(audit);
+  assert.equal(raw.includes(secret), false);
+  assert.equal(line.model, 'jev-1.13.0');
+  assert.equal(line.calibrated_model_version, null);
+  assert.equal('calibrated_model_version' in line, true);
+
+  const { gw: gwNull } = await createTestGateway({
+    classifier: createFakeClassifier({
+      result: { family: 'none', target: null, confidence: null, pass: false },
+    }),
+    connectors: [],
+  });
+  const abstained = await gwNull.execute({ action: 'wiser.route.ask', input: ASK });
+  assert.equal(abstained.confidence, null);
+  assert.equal(abstained.pass, false);
+  assert.equal(abstained.status, undefined);
+
+  const { gw: gwKept } = await createTestGateway({
+    classifier: createFakeClassifier({
+      result: { ...ASK_OK, confidence: 0.42 },
+    }),
+    connectors: [],
+  });
+  const kept = await gwKept.execute({ action: 'wiser.route.ask', input: ASK });
+  assert.equal(kept.confidence, 0.42);
+  assert.equal(kept.status, undefined);
+});
+
+test('a choice outside the roster sent with the call is unavailable and is not replaced', async () => {
+  const input = { decision: 'ship it', options: ['keep', 'drop'], allow_uncalibrated: true };
+  const { gw } = await createTestGateway({
+    classifier: createFakeClassifier({
+      result: { choice: 'destroy', confidence: 0.8, calibrated: false },
+    }),
+    connectors: [],
+  });
+  const result = await gw.execute({ action: 'wiser.decide.choice', input });
+  assert.equal(result.status, 'unavailable');
+  assert.equal(result.reason, 'malformed answer');
+  assert.equal(result.choice, undefined);
+  assert.equal(JSON.stringify(result).includes('destroy'), false);
+  assert.equal(JSON.stringify(result).includes('keep'), false);
+
+  const { gw: gwOk } = await createTestGateway({
+    classifier: createFakeClassifier({
+      result: { choice: 'keep', confidence: 0.8, calibrated: false },
+    }),
+    connectors: [],
+  });
+  const kept = await gwOk.execute({ action: 'wiser.decide.choice', input });
+  assert.equal(kept.choice, 'keep');
+  assert.equal(kept.confidence, 0.8);
+  assert.equal(kept.status, undefined);
+
+  const rankInput = { question: 'which', candidates: [{ id: 'a', text: 'alpha' }], allow_uncalibrated: true };
+  const { gw: gwRank } = await createTestGateway({
+    classifier: createFakeClassifier({
+      result: { ranked: [{ id: 'nope', p: 0.4, calibrated: false }], calibrated: false },
+    }),
+    connectors: [],
+  });
+  const ranked = await gwRank.execute({ action: 'wiser.recall.rank', input: rankInput });
+  assert.equal(ranked.status, 'unavailable');
+  assert.equal(ranked.reason, 'malformed answer');
+  assert.equal(ranked.ranked, undefined);
+
+  const gateInput = { kind: 'expert', criteria: [{ index: 0, text: 'a line' }], deliverable: 'd' };
+  const { gw: gwGate } = await createTestGateway({
+    classifier: createFakeClassifier({
+      result: { judgments: [{ index: 99, verdict: 'fail', p: 0.1 }] },
+    }),
+    connectors: [],
+  });
+  const judged = await gwGate.execute({ action: 'wiser.gate.check', input: gateInput });
+  assert.equal(judged.status, 'unavailable');
+  assert.equal(judged.reason, 'malformed answer');
+  assert.equal(judged.judgments, undefined);
+});
+
+test('a non-numeric probability is unavailable and is not coerced', async () => {
+  const input = { decision: 'ship it', options: ['keep'], allow_uncalibrated: true };
+  const { gw } = await createTestGateway({
+    classifier: createFakeClassifier({
+      result: { choice: 'keep', confidence: '0.8', calibrated: false },
+    }),
+    connectors: [],
+  });
+  const result = await gw.execute({ action: 'wiser.decide.choice', input });
+  assert.equal(result.status, 'unavailable');
+  assert.equal(result.reason, 'malformed answer');
+  assert.equal(result.confidence, undefined);
+  assert.equal(JSON.stringify(result).includes('0.8'), false);
+
+  const { gw: gwWide } = await createTestGateway({
+    classifier: createFakeClassifier({
+      result: { choice: 'keep', confidence: 1.5, calibrated: false },
+    }),
+    connectors: [],
+  });
+  const wide = await gwWide.execute({ action: 'wiser.decide.choice', input });
+  assert.equal(wide.status, 'unavailable');
+  assert.equal(wide.reason, 'malformed answer');
+  assert.notEqual(wide.confidence, 1);
+
+  const { gw: gwBelow } = await createTestGateway({
+    classifier: createFakeClassifier({
+      result: { status: 'below_threshold', p: '0.4' },
+    }),
+    connectors: [],
+  });
+  const below = await gwBelow.execute({ action: 'wiser.route.ask', input: ASK });
+  assert.equal(below.status, 'unavailable');
+  assert.equal(below.reason, 'malformed answer');
+  assert.notEqual(below.p, 0.4);
+
+  const { gw: gwUnit } = await createTestGateway({
+    classifier: createFakeClassifier({
+      result: { status: 'below_threshold', p: 0.4 },
+    }),
+    connectors: [],
+  });
+  const unit = await gwUnit.execute({ action: 'wiser.route.ask', input: ASK });
+  assert.equal(unit.status, 'below_threshold');
+  assert.equal(unit.p, 0.4);
+
+  const { gw: gwGate } = await createTestGateway({
+    classifier: createFakeClassifier({
+      result: { judgments: [{ index: 0, verdict: 'fail', p: '0.1' }] },
+    }),
+    connectors: [],
+  });
+  const judged = await gwGate.execute({
+    action: 'wiser.gate.check',
+    input: { kind: 'expert', criteria: ['a line'], deliverable: 'd' },
+  });
+  assert.equal(judged.status, 'unavailable');
+  assert.equal(judged.reason, 'malformed answer');
+  assert.equal(judged.judgments, undefined);
+});
+
+test('browser pick keeps a non-string verb', async () => {
+  const { gw } = await createTestGateway({
+    classifier: createFakeClassifier({
+      result: { index: 0, verb: 7, confidence: 0.5, calibrated: false },
+    }),
+    connectors: [],
+  });
+  const result = await gw.execute({
+    action: 'wiser.browser.pick',
+    input: { goal: 'go', elements: [{ verb: 7 }], allow_uncalibrated: true },
+  });
+  assert.equal(result.verb, 7);
+  assert.equal(result.index, 0);
+  assert.equal(result.confidence, 0.5);
+  assert.equal(result.status, undefined);
+});
+
+test('an unexpected model version is a mismatch and not a scored judgment', async () => {
+  const { gw, audit } = await directGateway();
+  const result = await withFetch(
+    async () => okJson(gateBody('jev-9.99.9')),
+    () => gw.execute({ action: 'wiser.gate.check', input: GATE }),
+  );
+  assert.equal(result.status, 'unavailable');
+  assert.equal(result.reason, 'model_version_mismatch');
+  assert.equal(result.calibrated_on, 'jev-1.13.0');
+  assert.equal(result.answered_by, 'jev-9.99.9');
+  assert.equal(result.judgments, undefined);
+  assert.equal(result.meta.model, 'jev-9.99.9');
+  assert.equal(result.meta.bar, 'gate.T_fail');
+  assert.equal(result.meta.calibrated_model_version, 'jev-1.13.0');
+  const { raw, line } = lastAuditLine(audit);
+  assert.equal(line.status, 'unavailable');
+  assert.equal(line.model, 'jev-9.99.9');
+  assert.equal(line.calibrated_model_version, 'jev-1.13.0');
+  assert.equal('reason' in line, false);
+  assert.equal('calibrated_on' in line, false);
+  assert.equal('answered_by' in line, false);
+  assert.equal(raw.includes('model_version_mismatch'), false);
+  assert.equal(raw.includes('answered_by'), false);
+  assert.equal(raw.includes('calibrated_on'), false);
+});
+
+test('the expected model version passes and is scored against the bar', async () => {
+  const { gw, audit } = await directGateway();
+  const result = await withFetch(
+    async () => okJson(gateBody('jev-1.13.0')),
+    () => gw.execute({ action: 'wiser.gate.check', input: GATE }),
+  );
+  assert.equal(result.status, undefined);
+  assert.equal(result.reason, undefined);
+  assert.equal(result.judgments.length, 1);
+  assert.equal(result.judgments[0].verdict, 'fail');
+  assert.equal(result.judgments[0].p, 0.1);
+  assert.equal(result.meta.model, 'jev-1.13.0');
+  assert.equal(result.meta.bar, 'gate.T_fail');
+  assert.equal(result.meta.calibrated_model_version, 'jev-1.13.0');
+  const { line } = lastAuditLine(audit);
+  assert.equal(line.status, 'ok');
+  assert.equal(line.model, 'jev-1.13.0');
+  assert.equal(line.calibrated_model_version, 'jev-1.13.0');
+});
+
+test('an envelope with no model version is a mismatch and not a pass', async () => {
+  const { gw, audit } = await directGateway();
+  const absent = await withFetch(
+    async () => okJson(gateBody()),
+    () => gw.execute({ action: 'wiser.gate.check', input: GATE }),
+  );
+  assert.equal(absent.status, 'unavailable');
+  assert.equal(absent.reason, 'model_version_mismatch');
+  assert.equal(absent.answered_by, 'unknown');
+  assert.equal(absent.judgments, undefined);
+  assert.equal(absent.meta.model, 'unknown');
+  assert.equal(absent.meta.bar, 'gate.T_fail');
+  assert.equal(absent.meta.calibrated_model_version, 'jev-1.13.0');
+  const absentLine = lastAuditLine(audit).line;
+  assert.equal(absentLine.status, 'unavailable');
+  assert.equal(absentLine.model, 'unknown');
+  assert.equal(absentLine.calibrated_model_version, 'jev-1.13.0');
+
+  const { gw: gwEmpty, audit: auditEmpty } = await directGateway();
+  const empty = await withFetch(
+    async () => okJson(gateBody('')),
+    () => gwEmpty.execute({ action: 'wiser.gate.check', input: GATE }),
+  );
+  assert.equal(empty.status, 'unavailable');
+  assert.equal(empty.reason, 'model_version_mismatch');
+  assert.equal(empty.answered_by, 'unknown');
+  assert.equal(empty.judgments, undefined);
+  assert.equal(empty.meta.model, 'unknown');
+  assert.equal(lastAuditLine(auditEmpty).line.model, 'unknown');
+  assert.notEqual(lastAuditLine(auditEmpty).line.status, 'ok');
+});
+
+test('an alias compares a bar without posting, and a bad envelope is read without a bar', async () => {
+  const { gw, audit } = await directGateway();
+  const held = await gw.execute({
+    action: 'wiser.route.roster',
+    input: {
+      rows: [{
+        family: 'skill',
+        name: 'Housekeeping',
+        description: 'root hygiene',
+        body: 'Housekeeping keeps a root current.\n',
+      }],
+    },
+  });
+  assert.equal(typeof held.roster_sha256, 'string');
+  assert.deepEqual(Object.keys(held.meta).sort(), ['bar', 'calibrated_model_version', 'model']);
+  assert.equal(held.meta.model, null);
+  assert.equal(held.meta.bar, null);
+  assert.equal(held.meta.calibrated_model_version, null);
+  assertVersionsNull(lastAuditLine(audit).line);
+
+  let fetched = 0;
+  const aliased = await withFetch(async () => {
+    fetched += 1;
+    return { ok: false, status: 400, json: async () => ({}) };
+  }, () => gw.execute({
+    action: 'wiser.route.ask',
+    input: { ask: 'update root', roster_sha256: held.roster_sha256 },
+  }));
+  assert.equal(fetched, 0);
+  assert.equal(aliased.family, 'skill');
+  assert.equal(aliased.target, 'Housekeeping');
+  assert.equal(aliased.confidence, 1);
+  assert.equal(aliased.pass, true);
+  assert.equal(aliased.meta.model, null);
+  assert.equal(aliased.meta.bar, 'routing.target_r2');
+  assert.equal(aliased.meta.calibrated_model_version, null);
+
+  const malformed = await withFetch(
+    async () => okJson({ model: 'jev-1.13.0', answers: null }),
+    () => gw.execute({
+      action: 'wiser.route.ask',
+      input: { ask: 'not an alias phrase', roster_sha256: held.roster_sha256 },
+    }),
+  );
+  assert.equal(malformed.status, 'unavailable');
+  assert.equal(malformed.reason, 'malformed answer');
+  assert.equal(malformed.family, undefined);
+  assert.equal(malformed.meta.model, 'jev-1.13.0');
+  assert.equal(malformed.meta.bar, null);
+  assert.equal(malformed.meta.calibrated_model_version, null);
+});
+
+test('routing names the later envelope it read', async () => {
+  const { gw } = await directGateway();
+  const held = await gw.execute({
+    action: 'wiser.route.roster',
+    input: {
+      rows: [{
+        family: 'skill',
+        name: 'Housekeeping',
+        description: 'root hygiene',
+        body: 'Housekeeping keeps a root current.\n',
+      }],
+    },
+  });
+  const choice = { choice: 'none', confidence: 0.9 };
+  const bodies = [
+    {
+      model: 'jev-pass-1',
+      answers: {
+        skill: choice,
+        expert: choice,
+        tool: choice,
+        named_output: { noul: 0.1 },
+        prose_suffices: { noul: 0.1 },
+        host_native: { noul: 0.1 },
+      },
+    },
+    {
+      model: 'jev-pass-2',
+      answers: { names_set: { noul: 0.2 } },
+    },
+  ];
+  let n = 0;
+  const result = await withFetch(async () => okJson(bodies[n++]), () => gw.execute({
+    action: 'wiser.route.ask',
+    input: { ask: 'not an alias phrase', roster_sha256: held.roster_sha256 },
+  }));
+  assert.equal(n, 2);
+  assert.equal(result.family, 'none');
+  assert.equal(result.target, null);
+  assert.equal(result.confidence, null);
+  assert.equal(result.pass, false);
+  assert.equal(result.meta.model, 'jev-pass-2');
+  assert.equal(result.meta.bar, null);
+  assert.equal(result.meta.calibrated_model_version, null);
 });
