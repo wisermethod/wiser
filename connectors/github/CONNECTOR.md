@@ -12,7 +12,7 @@ The reference connector: the smallest complete example of a module the gateway s
 
 ## Status
 
-Live connect 2026-09-08, operator, Grok with `wiser-gateway`: `repos` and `issues` are ACTIVE. Catalog execute of `github.repos.get` on `wisermethod/wiser` returned the repository. `github.repos.list_for_user` confirmed: `{ repositories }`. `github.issues.list` confirmed: `{ issues }`, empty on `wisermethod/wiser` open. `issues.create` confirmed 2026-09-09: `needs_confirmation` without `confirm`; with `confirm: true`, a vendor issue object with `id`, `number`, `title`, `html_url`, `state`. `users` is a separate grant and is not connected. Tests still run against the fake provider.
+Live-verified 2026-09-08. Catalog execute of `github.repos.get` on `wisermethod/wiser` returned the repository. `github.repos.list_for_user` confirmed: `{ repositories }`. `github.issues.list` confirmed: `{ issues }`, empty on `wisermethod/wiser` open. `issues.create` confirmed 2026-09-09: `needs_confirmation` without `confirm`; with `confirm: true`, a vendor issue object with `id`, `number`, `title`, `html_url`, `state`. `users` is a separate grant. Tests run against the fake provider.
 
 ## Reaching it
 
