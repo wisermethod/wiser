@@ -3,9 +3,9 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 
-import { STATUS, isStatusObject } from '../src/errors.js';
+import { STATUS, StatusSignal, isStatusObject } from '../src/errors.js';
 import { loadPolicy } from '../src/policy.js';
 import { FIRST_PARTY_ACTIONS } from '../src/resolve.js';
 import { createTestGateway, DEFAULT_POLICY, makeHome } from './fake-provider.js';
@@ -23,7 +23,12 @@ function conformingAnswer(actionId) {
   if (actionId === 'wiser.browser.pick') return { index: null, verb: 'none', confidence: 1, calibrated: false };
   return { ...ASK_OK };
 }
-const OPERATOR_DIR = ['z', 'Builds', 'playbooks', 'gates', 'classifier'].join('/');
+// A marker standing for whatever operator tree an adapter was loaded from. It is
+// deliberately NOT the real build workspace's name: a shipped file may not spell a
+// path under it, and spelling one in pieces to slip past that check is the defect
+// this constant was written as. A unique marker asserts the same property and is a
+// stricter needle, because nothing else in the tree can produce it by accident.
+const OPERATOR_DIR = 'operator-tree-7f3a9c/private-adapter';
 
 function createFakeClassifier(overrides = {}) {
   const ids = overrides.ids || SIX;
@@ -263,6 +268,26 @@ test('removing the named wiser rule still allows a first-party call via the trai
   assert.equal(without.ok, true);
   assert.notEqual(withNamed.status, 'denied');
   assert.notEqual(without.status, 'denied');
+});
+
+test('keeping the named wiser rule allows a first-party execute when the trailing wildcard denies', async () => {
+  const base = loadPolicy({ home: null, defaultPath: DEFAULT_POLICY });
+  const wildcardDenied = {
+    ...base,
+    rules: base.rules.map((rule) => (
+      rule.role === '*' && rule.effect === 'allow' && rule.service === undefined
+        ? { ...rule, effect: 'deny' }
+        : rule
+    )),
+  };
+  const { gw } = await createTestGateway({
+    classifier: createFakeClassifier(),
+    policy: wildcardDenied,
+    connectors: [],
+  });
+  const result = await gw.execute({ action: 'wiser.route.ask', input: ASK });
+  assert.equal(result.ok, true);
+  assert.notEqual(result.status, 'denied');
 });
 
 test('a policy rule demanding confirmation for a classifier call produces needs_confirmation and calls no adapter', async () => {
@@ -543,6 +568,22 @@ test('a classifier import error does not include the exception message', () => {
   assert.equal(r.stderr.includes(OPERATOR_DIR), false);
 });
 
+test('an async classifier factory that rejects is the fixed loader error', () => {
+  const root = makeHome();
+  const dir = join(root, 'direct');
+  mkdirSync(dir, { recursive: true });
+  const marker = 'async-factory-reject-marker-9f3a';
+  writeFileSync(join(dir, 'index.mjs'), `export async function createClassifier() {
+  throw new Error(${JSON.stringify(marker)});
+}
+`);
+  const r = spawnSync(process.execPath, [SERVER, '--check', '--classifier', dir], { encoding: 'utf8' });
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /could not be loaded/);
+  assert.equal(r.stdout, '');
+  assert.equal(r.stderr.includes(marker), false);
+});
+
 function assertVersionsNull(line) {
   assert.equal('model' in line, true);
   assert.equal(line.model, null);
@@ -550,18 +591,153 @@ function assertVersionsNull(line) {
   assert.equal(line.calibrated_model_version, null);
 }
 
-function directIndexPath() {
-  const root = fileURLToPath(new URL('../../../', import.meta.url));
-  return join(root, 'z' + 'Builds', 'playbooks', 'gates', 'classifier', 'direct', 'index.mjs');
+const GATE_BAR = Object.freeze({
+  path: 'gate.T_fail',
+  value: 0.49,
+  calibrated_model_version: 'jev-1.13.0',
+  strict_version_matching: true,
+});
+
+const ROUTING_TARGET_BAR = Object.freeze({
+  path: 'routing.target_r2',
+  calibrated_model_version: null,
+  strict_version_matching: false,
+});
+
+function modelOf(envelope) {
+  const model = envelope && typeof envelope === 'object' ? envelope.model : undefined;
+  return typeof model === 'string' && model ? model : 'unknown';
 }
 
-async function directGateway() {
+function versionRefusal(bar, data) {
+  if (!bar || bar.strict_version_matching !== true) return null;
+  const want = bar.calibrated_model_version;
+  if (typeof want !== 'string' || !want) return null;
+  const got = data && typeof data.model === 'string' && data.model ? data.model : null;
+  if (got === want) return null;
+  return {
+    status: 'unavailable',
+    reason: 'model_version_mismatch',
+    calibrated_on: want,
+    answered_by: got || 'unknown',
+  };
+}
+
+function withTrace(result, trace) {
+  const bar = trace.bar || null;
+  let calibrated = null;
+  if (bar === GATE_BAR.path) calibrated = GATE_BAR.calibrated_model_version;
+  else if (bar === ROUTING_TARGET_BAR.path) calibrated = ROUTING_TARGET_BAR.calibrated_model_version;
+  return {
+    ...result,
+    meta: {
+      model: trace.read ? modelOf(trace.envelope) : null,
+      bar,
+      calibrated_model_version: calibrated,
+    },
+  };
+}
+
+async function pullEnvelope() {
+  const res = await fetch('https://classifier.invalid/v1');
+  if (!res || res.ok !== true) return { ok: false, data: null };
+  return { ok: true, data: await res.json() };
+}
+
+/**
+ * Self-contained stand-in for the version-matching behaviour the first-party
+ * suite has to observe: `wiser.gate.check` compares an envelope against
+ * `gate.T_fail`, and a roster alias can name `routing.target_r2` without a post.
+ */
+function createContractClassifier() {
+  const stored = new Map();
+  let rosterSeq = 0;
+  return {
+    name: 'contract',
+    actions: () => SIX.slice(),
+    describe(id) {
+      if (!SIX.includes(id)) return null;
+      return { request: FIRST_PARTY_ACTIONS[id]?.input?.properties || {}, answer: { ok: true } };
+    },
+    async execute(req) {
+      const actionId = req && req.actionId;
+      const args = (req && req.arguments) || {};
+      const trace = { read: false, envelope: null, bar: null };
+      if (actionId === 'wiser.route.roster') {
+        rosterSeq += 1;
+        const rows = Array.isArray(args.rows) ? args.rows : [];
+        const digest = `roster-${rosterSeq}`;
+        stored.set(digest, rows);
+        return withTrace(
+          { roster_sha256: digest, accepted: rows.length, rejected: 0 },
+          trace,
+        );
+      }
+      if (actionId === 'wiser.route.ask') {
+        const held = stored.get(args.roster_sha256);
+        if (!held) return withTrace({ status: 'roster_unknown' }, trace);
+        const alias = args.ask === 'update root'
+          && held.some((row) => row && row.family === 'skill' && row.name === 'Housekeeping');
+        if (alias) {
+          trace.bar = ROUTING_TARGET_BAR.path;
+          return withTrace(
+            { family: 'skill', target: 'Housekeeping', confidence: 1, pass: true },
+            trace,
+          );
+        }
+        const first = await pullEnvelope();
+        if (!first.ok) return withTrace({ status: 'unavailable', reason: 'malformed answer' }, trace);
+        trace.read = true;
+        trace.envelope = first.data;
+        const answers = first.data && first.data.answers;
+        if (!answers || typeof answers !== 'object' || Array.isArray(answers)) {
+          return withTrace({ status: 'unavailable', reason: 'malformed answer' }, trace);
+        }
+        const second = await pullEnvelope();
+        if (!second.ok) return withTrace({ status: 'unavailable', reason: 'malformed answer' }, trace);
+        trace.envelope = second.data;
+        return withTrace({ family: 'none', target: null, confidence: null, pass: false }, trace);
+      }
+      if (actionId === 'wiser.gate.check') {
+        const pulled = await pullEnvelope();
+        if (!pulled.ok) return withTrace({ status: 'unavailable', reason: 'malformed answer' }, trace);
+        trace.read = true;
+        trace.envelope = pulled.data;
+        const refusal = versionRefusal(GATE_BAR, pulled.data);
+        if (refusal) {
+          trace.bar = GATE_BAR.path;
+          return withTrace(refusal, trace);
+        }
+        const answers = pulled.data && pulled.data.answers;
+        if (!answers || typeof answers !== 'object' || Array.isArray(answers)) {
+          return withTrace({ status: 'unavailable', reason: 'malformed answer' }, trace);
+        }
+        const judgments = [];
+        for (const [key, row] of Object.entries(answers)) {
+          const p = row && row.noul;
+          if (typeof p !== 'number') {
+            return withTrace({ status: 'unavailable', reason: 'malformed answer' }, trace);
+          }
+          trace.bar = GATE_BAR.path;
+          judgments.push({
+            index: key.startsWith('L') ? Number(key.slice(1)) : judgments.length,
+            verdict: p < GATE_BAR.value ? 'fail' : 'below_threshold',
+            p,
+          });
+        }
+        return withTrace({ judgments }, trace);
+      }
+      return { status: 'unavailable', reason: 'unknown action id' };
+    },
+  };
+}
+
+async function contractGateway() {
   const home = makeHome();
   const envPath = join(home, 'auth-provider.env');
   writeFileSync(envPath, 'WISER_AUTH_PROVIDER_KEY=\nWISER_CLASSIFIER_KEY=test-key\n');
-  const { createClassifier } = await import(pathToFileURL(directIndexPath()).href);
   return createTestGateway({
-    classifier: createClassifier(),
+    classifier: createContractClassifier(),
     envPath,
     connectors: [],
     home,
@@ -831,7 +1007,7 @@ test('browser pick keeps a non-string verb', async () => {
 });
 
 test('an unexpected model version is a mismatch and not a scored judgment', async () => {
-  const { gw, audit } = await directGateway();
+  const { gw, audit } = await contractGateway();
   const result = await withFetch(
     async () => okJson(gateBody('jev-9.99.9')),
     () => gw.execute({ action: 'wiser.gate.check', input: GATE }),
@@ -857,7 +1033,7 @@ test('an unexpected model version is a mismatch and not a scored judgment', asyn
 });
 
 test('the expected model version passes and is scored against the bar', async () => {
-  const { gw, audit } = await directGateway();
+  const { gw, audit } = await contractGateway();
   const result = await withFetch(
     async () => okJson(gateBody('jev-1.13.0')),
     () => gw.execute({ action: 'wiser.gate.check', input: GATE }),
@@ -877,7 +1053,7 @@ test('the expected model version passes and is scored against the bar', async ()
 });
 
 test('an envelope with no model version is a mismatch and not a pass', async () => {
-  const { gw, audit } = await directGateway();
+  const { gw, audit } = await contractGateway();
   const absent = await withFetch(
     async () => okJson(gateBody()),
     () => gw.execute({ action: 'wiser.gate.check', input: GATE }),
@@ -894,7 +1070,7 @@ test('an envelope with no model version is a mismatch and not a pass', async () 
   assert.equal(absentLine.model, 'unknown');
   assert.equal(absentLine.calibrated_model_version, 'jev-1.13.0');
 
-  const { gw: gwEmpty, audit: auditEmpty } = await directGateway();
+  const { gw: gwEmpty, audit: auditEmpty } = await contractGateway();
   const empty = await withFetch(
     async () => okJson(gateBody('')),
     () => gwEmpty.execute({ action: 'wiser.gate.check', input: GATE }),
@@ -909,7 +1085,7 @@ test('an envelope with no model version is a mismatch and not a pass', async () 
 });
 
 test('an alias compares a bar without posting, and a bad envelope is read without a bar', async () => {
-  const { gw, audit } = await directGateway();
+  const { gw, audit } = await contractGateway();
   const held = await gw.execute({
     action: 'wiser.route.roster',
     input: {
@@ -961,7 +1137,7 @@ test('an alias compares a bar without posting, and a bad envelope is read withou
 });
 
 test('routing names the later envelope it read', async () => {
-  const { gw } = await directGateway();
+  const { gw } = await contractGateway();
   const held = await gw.execute({
     action: 'wiser.route.roster',
     input: {
@@ -1004,4 +1180,109 @@ test('routing names the later envelope it read', async () => {
   assert.equal(result.meta.model, 'jev-pass-2');
   assert.equal(result.meta.bar, null);
   assert.equal(result.meta.calibrated_model_version, null);
+});
+
+test('a nested or overlong meta member reaches neither the caller nor the audit line', async () => {
+  const marker = 'meta-marker-9f3a';
+  const nested = { key: marker };
+  const long = marker + 'x'.repeat(400);
+  const plants = [
+    { model: nested, bar: long, calibrated_model_version: nested },
+    { model: long, bar: nested, calibrated_model_version: long },
+  ];
+  for (const meta of plants) {
+    const { gw, audit } = await createTestGateway({
+      classifier: createFakeClassifier({
+        result: { family: 'skill', target: 'example', pass: true, meta },
+      }),
+      connectors: [],
+    });
+    const malformed = await gw.execute({ action: 'wiser.route.ask', input: ASK });
+    assert.equal(malformed.status, 'unavailable');
+    assert.equal(malformed.reason, 'malformed answer');
+    assert.equal(malformed.meta.model, null);
+    assert.equal(malformed.meta.bar, null);
+    assert.equal(malformed.meta.calibrated_model_version, null);
+    assert.equal(JSON.stringify(malformed).includes(marker), false);
+    const malformedAudit = lastAuditLine(audit);
+    assert.equal(malformedAudit.raw.includes(marker), false);
+    assert.equal(malformedAudit.line.model, null);
+    assert.equal(malformedAudit.line.calibrated_model_version, null);
+
+    const { gw: gwOk, audit: auditOk } = await createTestGateway({
+      classifier: createFakeClassifier({
+        result: { ...ASK_OK, meta },
+      }),
+      connectors: [],
+    });
+    const ok = await gwOk.execute({ action: 'wiser.route.ask', input: ASK });
+    assert.equal(ok.status, undefined);
+    assert.equal(ok.family, 'skill');
+    assert.equal(ok.meta.model, null);
+    assert.equal(ok.meta.bar, null);
+    assert.equal(ok.meta.calibrated_model_version, null);
+    assert.equal(JSON.stringify(ok).includes(marker), false);
+    assert.equal(lastAuditLine(auditOk).raw.includes(marker), false);
+
+    const { gw: gwStatus, audit: auditStatus } = await createTestGateway({
+      classifier: createFakeClassifier({
+        result: { status: 'unavailable', reason: 'model_version_mismatch', meta },
+      }),
+      connectors: [],
+    });
+    const status = await gwStatus.execute({ action: 'wiser.route.ask', input: ASK });
+    assert.equal(status.status, 'unavailable');
+    assert.equal(status.meta.model, null);
+    assert.equal(status.meta.bar, null);
+    assert.equal(status.meta.calibrated_model_version, null);
+    assert.equal(JSON.stringify(status).includes(marker), false);
+    assert.equal(lastAuditLine(auditStatus).raw.includes(marker), false);
+  }
+});
+
+test('a thrown StatusSignal is adapter_error and its marker reaches neither the answer nor the audit line', async () => {
+  const marker = 'status-signal-marker-9f3a';
+  const { gw, audit } = await createTestGateway({
+    classifier: createFakeClassifier({
+      throw: new StatusSignal({ status: 'unavailable', reason: marker, note: marker }),
+    }),
+    connectors: [],
+  });
+  let threw = null;
+  let result;
+  try {
+    result = await gw.execute({ action: 'wiser.route.ask', input: ASK });
+  } catch (err) {
+    threw = err;
+  }
+  assert.equal(threw, null);
+  assert.equal(result.status, 'unavailable');
+  assert.equal(result.reason, 'adapter_error');
+  assert.equal(JSON.stringify(result).includes(marker), false);
+  const { raw, line } = lastAuditLine(audit);
+  assert.equal(raw.includes(marker), false);
+  assert.equal(line.status, 'unavailable');
+  assert.equal('reason' in line, false);
+});
+
+test('a vendor_error conversion keeps the model the adapter supplied on the audit line', async () => {
+  const { gw, audit } = await createTestGateway({
+    classifier: createFakeClassifier({
+      result: {
+        status: 502,
+        error: { code: 'vendor_error', endpoint: '/classify', method: 'POST' },
+        meta: { model: 'jev-1.13.0', bar: 'gate.T_fail', calibrated_model_version: 'jev-1.13.0' },
+      },
+    }),
+    connectors: [],
+  });
+  const result = await gw.execute({ action: 'wiser.route.ask', input: ASK });
+  assert.equal(result.status, 'vendor_error');
+  assert.equal(result.http_status, 502);
+  assert.equal(result.endpoint, '/classify');
+  assert.equal(result.method, 'POST');
+  const line = lastAuditLine(audit).line;
+  assert.equal(line.model, 'jev-1.13.0');
+  assert.equal(line.calibrated_model_version, 'jev-1.13.0');
+  assert.equal(line.status, 'vendor_error');
 });

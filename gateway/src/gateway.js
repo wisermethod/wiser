@@ -11,43 +11,107 @@ import { FIRST_PARTY_ACTIONS, firstPartyDef, parseActionId, resolveAction, valid
 // taken from where the manifest validator already defines them rather than restated.
 import { AUTH_PROVIDERS, PRIVILEGES } from './manifest.js';
 
+/** A version fact is a non-empty string. Longer than this is a payload, not a version. */
+const VERSION_FACT_MAX = 128;
+
+const BAR_PATHS = new Set(['routing.door_r2', 'routing.target_r2', 'gate.T_fail']);
+
 /**
- * The two version facts the audit line copies off `result.meta`. Absent meta,
- * and a meta that is not a plain object, are null on both keys. A present key
- * whose value is null stays null: omitting the key and writing null are
- * different, and this function never omits.
+ * @param {unknown} result
+ * @returns {Record<string, unknown> | null}
+ */
+function plainMeta(result) {
+  const meta = result && typeof result === 'object' && !Array.isArray(result) ? result.meta : null;
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return null;
+  return meta;
+}
+
+/**
+ * A non-empty version string, or null. The string `unknown` is kept: the
+ * adapter writes it when an envelope was read and its model was not one.
+ * @param {unknown} value
+ * @returns {string | null}
+ */
+function usableVersionString(value) {
+  if (typeof value !== 'string' || value.length === 0 || value.length > VERSION_FACT_MAX) return null;
+  return value;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string | null}
+ */
+function usableBar(value) {
+  return typeof value === 'string' && BAR_PATHS.has(value) ? value : null;
+}
+
+/**
+ * The two version facts the audit line copies off `result.meta`. A fact is a
+ * non-empty string of at most VERSION_FACT_MAX characters, or null. A
+ * non-string, an empty string, and a longer string are null, so a nested
+ * value cannot reach the audit file. Null and a missing key are both null:
+ * this function never omits a key.
  * @param {unknown} result
  */
 function firstPartyVersionFacts(result) {
-  const meta = result && typeof result === 'object' && !Array.isArray(result) ? result.meta : null;
-  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) {
-    return { model: null, calibrated_model_version: null };
+  const meta = plainMeta(result);
+  if (!meta) return { model: null, calibrated_model_version: null };
+  return {
+    model: usableVersionString(meta.model),
+    calibrated_model_version: usableVersionString(meta.calibrated_model_version),
+  };
+}
+
+/**
+ * Replace `meta` with the three contract members, each forced to its type.
+ * A `meta` that is not a plain object is dropped. Other result keys stay.
+ * @param {unknown} result
+ */
+function projectFirstPartyResult(result) {
+  if (!result || typeof result !== 'object' || Array.isArray(result) || !Object.hasOwn(result, 'meta')) {
+    return result;
+  }
+  const meta = plainMeta(result);
+  if (!meta) {
+    const rest = { ...result };
+    delete rest.meta;
+    return rest;
   }
   return {
-    model: Object.hasOwn(meta, 'model') ? meta.model ?? null : null,
-    calibrated_model_version: Object.hasOwn(meta, 'calibrated_model_version')
-      ? meta.calibrated_model_version ?? null
-      : null,
+    ...result,
+    meta: {
+      model: usableVersionString(meta.model),
+      bar: usableBar(meta.bar),
+      calibrated_model_version: usableVersionString(meta.calibrated_model_version),
+    },
   };
+}
+
+/**
+ * Read the version facts onto the audit line before a conversion can drop
+ * `meta`. `vendorErrorFrom` builds a fresh object; the stamp is what the
+ * line keeps.
+ * @param {Record<string, unknown>} line
+ * @param {unknown} result
+ */
+function stampVersionFacts(line, result) {
+  const facts = firstPartyVersionFacts(result);
+  line.model = facts.model;
+  line.calibrated_model_version = facts.calibrated_model_version;
 }
 
 /**
  * A success object that failed its declared answer. The reason is fixed so the
  * adapter's own message, which can carry a credential or a vendor name, is
- * not the call's answer. `meta` is copied as the three version members only,
- * so the audit line can still name what the call read.
+ * not the call's answer. `meta` is the three members only, each forced to its
+ * contract type.
  * @param {unknown} result
  */
 function malformedAnswer(result) {
   const out = { status: 'unavailable', reason: 'malformed answer' };
-  const meta = result && typeof result === 'object' && !Array.isArray(result) ? result.meta : null;
-  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return out;
-  const facts = firstPartyVersionFacts(result);
-  out.meta = {
-    model: facts.model,
-    bar: Object.hasOwn(meta, 'bar') ? meta.bar ?? null : null,
-    calibrated_model_version: facts.calibrated_model_version,
-  };
+  if (!plainMeta(result)) return out;
+  const projected = projectFirstPartyResult(result);
+  if (projected && projected.meta) out.meta = projected.meta;
   return out;
 }
 
@@ -424,7 +488,10 @@ export class ConnectionGateway {
       else if (line.path === 'first_party_mcp' && result && typeof result.status === 'string' && result.status) {
         line.status = classifierAuditStatus(result.status);
       } else if (result && !line.status) line.status = 'ok';
-      if (line.firstParty) {
+      // executeFirstParty stamps these from the adapter result before a
+      // conversion can drop meta. A call that never reached the adapter has
+      // not stamped them, and both keys are null.
+      if (line.firstParty && !Object.hasOwn(line, 'model')) {
         const facts = firstPartyVersionFacts(result);
         line.model = facts.model;
         line.calibrated_model_version = facts.calibrated_model_version;
@@ -944,10 +1011,12 @@ export class ConnectionGateway {
         return { status: 'unavailable', reason: 'unknown action id' };
       }
       const key = readClassifierKey(this.envPath);
-      const result = await resolved.fn(input ?? {}, key);
-      if (result == null || typeof result !== 'object' || Array.isArray(result)) {
+      const raw = await resolved.fn(input ?? {}, key);
+      if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) {
         return { status: 'unavailable', reason: 'malformed answer' };
       }
+      stampVersionFacts(line, raw);
+      const result = projectFirstPartyResult(raw);
       if (isStatusObject(result)) return result;
       if (result.error && result.error.code === 'vendor_error') return vendorErrorFrom(result);
       // An adapter status is not re-parsed as a success answer. A
@@ -962,8 +1031,9 @@ export class ConnectionGateway {
       }
       if (!validateFirstPartyAnswer(action, input ?? {}, result)) return malformedAnswer(result);
       return result;
-    } catch (err) {
-      if (err instanceof StatusSignal) return err.object;
+    } catch {
+      // The adapter is not trusted, including with this process's own
+      // StatusSignal. Every throw is the fixed adapter error.
       return { status: 'unavailable', reason: 'adapter_error' };
     }
   }

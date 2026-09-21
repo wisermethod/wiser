@@ -263,7 +263,8 @@ async function loadClassifier(dir, envPath) {
       fail(`Error: --classifier ${abs} does not export createClassifier.`);
     }
     try {
-      return mod.createClassifier({ envPath });
+      // Await so a rejected async factory is this catch, not main().catch.
+      return await mod.createClassifier({ envPath });
     } catch {
       fail(`Error: --classifier ${abs} could not be loaded.`);
     }

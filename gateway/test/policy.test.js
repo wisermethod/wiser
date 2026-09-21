@@ -71,17 +71,22 @@ test('shipped default has no setup role', () => {
   assert.equal(decision({ role: 'runtime', privilege: 'admin', op: 'execute' }).effect, 'deny');
 });
 
-test('the named wiser rule classifies a first-party execute; the trailing wildcard still admits it', () => {
+const FIRST_PARTY_CTX = {
+  role: 'runtime',
+  service: 'wiser',
+  module: 'route',
+  privilege: 'read',
+  risk: 'low',
+  op: 'execute',
+};
+
+function isTrailingAllow(rule) {
+  return rule.role === '*' && rule.effect === 'allow' && rule.service === undefined;
+}
+
+test('the named wiser rule matches a first-party execute, and the trailing wildcard admits it when that rule is removed', () => {
   const policy = loadPolicy({ home: null, defaultPath: DEFAULT_PATH });
-  const ctx = {
-    role: 'runtime',
-    service: 'wiser',
-    module: 'route',
-    privilege: 'read',
-    risk: 'low',
-    op: 'execute',
-  };
-  const hit = evaluate(policy, ctx);
+  const hit = evaluate(policy, FIRST_PARTY_CTX);
   assert.equal(hit.effect, 'allow');
   assert.equal(hit.rule.service, 'wiser');
   assert.equal(hit.rule.privilege, 'read');
@@ -90,9 +95,31 @@ test('the named wiser rule classifies a first-party execute; the trailing wildca
     ...policy,
     rules: policy.rules.filter((r) => r.service !== 'wiser'),
   };
-  const wildcard = evaluate(withoutNamed, ctx);
+  const wildcard = evaluate(withoutNamed, FIRST_PARTY_CTX);
   assert.equal(wildcard.effect, 'allow');
   assert.equal(wildcard.rule.service, undefined);
+});
+
+test('the named wiser rule still allows a first-party execute when the trailing wildcard denies', () => {
+  const policy = loadPolicy({ home: null, defaultPath: DEFAULT_PATH });
+  const wildcardDenied = {
+    ...policy,
+    rules: policy.rules.map((rule) => (isTrailingAllow(rule) ? { ...rule, effect: 'deny' } : rule)),
+  };
+  const hit = evaluate(wildcardDenied, FIRST_PARTY_CTX);
+  assert.equal(hit.effect, 'allow');
+  assert.equal(hit.rule.service, 'wiser');
+  assert.equal(hit.rule.privilege, 'read');
+  assert.equal(hit.rule.op, 'execute');
+  assert.notEqual(hit.rule.effect, 'deny');
+
+  const removed = {
+    ...policy,
+    rules: policy.rules.filter((rule) => !isTrailingAllow(rule)),
+  };
+  const kept = evaluate(removed, FIRST_PARTY_CTX);
+  assert.equal(kept.effect, 'allow');
+  assert.equal(kept.rule.service, 'wiser');
 });
 
 test('overlay replaces rules wholesale', () => {
