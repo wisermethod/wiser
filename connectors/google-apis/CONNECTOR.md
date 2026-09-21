@@ -8,7 +8,7 @@ version: 0.6.0
 
 # Google APIs
 
-PageSpeed Insights analyses a public URL and returns Lighthouse scores beside Chrome UX Report field data. Google Cloud Translation turns strings into a chosen language. Cloud Text-to-Speech turns text or SSML into audio. Cloud Speech-to-Text turns audio into text. Cloud Natural Language annotates text for sentiment, syntax, entities, classification, and moderation. This connector runs all five. It does not call the CrUX API, submit a URL for indexing, list supported languages, detect language as a separate action, or change any Google resource.
+PageSpeed Insights analyses a public URL and returns Lighthouse scores, and Chrome UX Report field data where Google holds enough real-user history for that URL. **A URL with no CrUX history returns the Lighthouse half alone, and that is a normal result rather than a failure**, which is why the Lighthouse result and not the field data is what the module tests for. Google Cloud Translation turns strings into a chosen language. Cloud Text-to-Speech turns text or SSML into audio. Cloud Speech-to-Text turns audio into text. Cloud Natural Language annotates text for sentiment, syntax, entities, classification, and moderation. This connector runs all five. It does not call the CrUX API, submit a URL for indexing, list supported languages, detect language as a separate action, or change any Google resource.
 
 ## Status
 
