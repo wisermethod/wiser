@@ -4,7 +4,7 @@ See [gateway/SETUP.md](../../gateway/SETUP.md) for attachment and the gateway's 
 
 ## On the platform's side, first
 
-Use a Zoho account that can access the requested resources. If the organization restricts third-party apps, obtain its approval for the gateway's provider application. Prepare an OAuth blueprint for each module through the gateway's provider as described by [gateway/SETUP.md](../../gateway/SETUP.md).
+Use a Zoho account that can access the requested resources. If the organization restricts third-party apps, obtain its approval for the gateway's provider application. **One OAuth blueprint per toolkit**, and for a toolkit the provider already ships there is nothing to prepare: the gateway creates the blueprint on the first connect that finds none. Every module here happens to have its own toolkit, so per module and per toolkit coincide; the rule is still per toolkit, because a second blueprint on one toolkit makes every module on it unconnectable. `gateway/SETUP.md` section 3 routes to the provider's own setup if you do need the dashboard.
 
 ## Through the gateway
 
