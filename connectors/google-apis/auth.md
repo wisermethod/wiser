@@ -10,7 +10,7 @@ Have a Google Cloud project, the APIs you will actually call enabled on it, and 
 
 Google Cloud Console is at `https://console.cloud.google.com`. Sign in there with the Google account you want to own this project; it does not have to be the account you use with this plugin.
 
-**If you do not have a project**, create one: open the project picker at the top of the page and create a project. Name it and confirm. If the picker offers you no way to create one, your account is not permitted to, and `connectors/google-cloud/auth.md` has the two usual causes and what to ask for.
+**If you do not have a project**, create one: open the project picker at the top of the page and create a project. Name it and confirm. If the picker offers you no way to create one, **the cause is either a permission you do not have or a project quota you have reached, and the missing control does not tell you which**. They need different remedies and more permission does not raise a quota. `connectors/google-cloud/auth.md` has both and what to ask for in each case.
 
 This connector's five modules, named as a person would name the Google service:
 
