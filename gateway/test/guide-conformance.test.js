@@ -87,7 +87,7 @@ test('the shared source is readable, unambiguous, and carries its slot', () => {
 
   for (const [name, b] of [['Revoking', revoking], ['blueprint sentence', blueprint]]) {
     assert.ok(!new RegExp('[\\u2013\\u2014]').test(b.body),
-      `the ${name} block carries no en or em dash: a connector guide is read by a person setting up a connection, which is the population standards/conventions.md Formatting binds and experts/Ghost Writer/ states, and this block propagates to every guide that carries it`);
+      `the ${name} block carries no en or em dash. This is the house style holding itself rather than standards/conventions.md compelling it: that clause binds what the Ghost Writer gate reads and a connector guide sits on the edge of its instruction-file exclusion, so the assertion rests on its own ground, which is that this block propagates verbatim into every guide that carries it and a character nobody meant is cheapest to refuse at the source`);
   }
 });
 
