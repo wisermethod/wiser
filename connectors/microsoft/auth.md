@@ -4,7 +4,7 @@ See [gateway/SETUP.md](../../gateway/SETUP.md) for attachment and the gateway's 
 
 ## On the platform's side, first
 
-Use a Microsoft account that can access the requested resources. If the organization restricts third-party apps, obtain its approval for the gateway's provider application. **One OAuth blueprint per toolkit, not per module**, and for a toolkit the provider already ships there is nothing to prepare: the gateway creates the blueprint on the first connect that finds none. `outlook` and `calendar` share one toolkit, so a second blueprint made for the second module makes **both** unconnectable until it is removed, with a `vendor_error` naming the toolkit and the count. `gateway/SETUP.md` section 3 routes to the provider's own setup if you do need the dashboard.
+Use a Microsoft account that can access the requested resources. If the organization restricts third-party apps, obtain its approval for the gateway's provider application. **One blueprint per toolkit, not per module**, and for a toolkit the provider already ships there is nothing to prepare: the gateway creates the blueprint on the first connect that finds none. A second blueprint on one toolkit makes every module on that toolkit unconnectable until it is removed, with a `vendor_error` naming the toolkit and the count. **`outlook` and `calendar` share one toolkit**, so this is the connector where the rule bites: a blueprint made for the second of them makes both unconnectable. `gateway/SETUP.md` section 3 routes to the provider's own setup if you do need the dashboard.
 
 ## Through the gateway
 

@@ -13,12 +13,10 @@ Reads project metadata and IAM policy through Cloud Resource Manager, lists and 
 ## Status
 
 Shipped 2026-09-19 from the approved Connector Advisor plan of that date. Fake-provider tests cover input validation, absolute endpoints, restriction rules, keyString projection, and schema agreement.
-
 **Nine of the twelve actions called the vendor on 2026-09-20. Eight returned a successful result; one exercised the error path.** The eight are all three `projects` actions, `services.list`, `services.get`, `services.enable`, `keys.list` and `keys.get`. The ninth is `services.get_operation`, which built its endpoint from a vendor-supplied operation name carrying a dot and received a 400; that exercises the validator and the `vendor_error` path and **does not demonstrate that an operation can be read successfully**. The cause of the 400 is inferred, because the gateway withholds the vendor body.
-
-Two limits on the eight. `services.enable` ran against a service already enabled on that project and returned Google's own `operations/noop.DONE_OPERATION`, which proves the confirmation stop, the request shape and that the grant holds `serviceusage.services.enable` **on that project**; it does not prove a disabled-to-enabled transition. And no call that a module accepts exercises any validation bound.
-
+Two limits on the eight. `services.enable` ran against a service already enabled on the project it was given and returned Google's own `operations/noop.DONE_OPERATION`, which proves the confirmation stop, the request shape and that `serviceusage.services.enable` was permitted there; it does not prove a disabled-to-enabled transition. And no call that a module accepts exercises any validation bound.
 `keys.create`, `keys.patch` and `keys.get_operation` have never called the vendor. The `@type` branch of the key reader is therefore **not live-tested**; it is covered against the fake provider in `tests/keys.test.js`, on both `create` and `get_operation`. See `auth.md` for the grant.
+
 
 ## What the confirmation shows and what it does not, which matters most on this connector
 
@@ -47,7 +45,7 @@ named Google Cloud project
 
 **So approving `keys.patch` approves which key on which project, and not what the restriction becomes.** Read the intended restriction from the call you are approving rather than from the stop. `services.enable` has no such gap, because there the target *is* the change.
 
-**This is a decided limit and not an oversight.** The operator chose the target alone on 2026-09-20, against a rendered comparison of both stops, and nothing is scheduled to render a nested input; the gateway's own `AGENTS.md` carries the rule and the reasoning. A later reader should not read the absence as a gap waiting to be closed here.
+**This is a decided limit and not an oversight.** Showing the target alone was decided on 2026-09-20, against a rendered comparison of both stops, and nothing is scheduled to render a nested input; the gateway's own `AGENTS.md` carries the rule and the reasoning. A later reader should not read the absence as a gap waiting to be closed here.
 
 **The section this replaces described the opposite**, and was accurate when written: until 2026-09-20 the stop carried field names and no values at all. That gap held a public release. It is closed, and the paragraph naming it has gone with it rather than being left to mislead.
 

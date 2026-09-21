@@ -12,7 +12,8 @@ CourtListener provides case law research through REST v4. This connector reads s
 
 ## Status
 
-Shipped 2026-09-08. Live connect 2026-09-08: `caselaw` ACTIVE. Custom toolkit Token header injection confirmed. `search` and `list_courts` `{ count, next, previous, results }`. `get_cluster` and `get_docket` object with `id`. No case names recorded. Fake-provider tests still run. See `auth.md` and [gateway setup](../../gateway/SETUP.md).
+Shipped 2026-09-08, and `caselaw` was proved live the same day. Custom toolkit Token header injection confirmed. `search` and `list_courts` return `{ count, next, previous, results }`; `get_cluster` and `get_docket` return an object with `id`. No case names recorded. Fake-provider tests still run. See `auth.md` and [gateway setup](../../gateway/SETUP.md).
+
 
 ## Reaching it
 
@@ -52,4 +53,4 @@ None. PACER fetch, alerts, and RECAP upload are excluded.
 
 ## Reference
 
-The implementation follows the operator's REST v4 brief dated 2026-09-08; live behavior remains unverified. Connect with `auth.md`; the module contract is in `gateway/AGENTS.md`.
+The implementation follows a supplied REST v4 brief dated 2026-09-08; live behavior remains unverified. Connect with `auth.md`; the module contract is in `gateway/AGENTS.md`.

@@ -65,7 +65,10 @@ export async function main() {
   const removed = previous.filter((d) => !divergences.includes(d));
   writeFileSync(OUT, JSON.stringify({
     note: 'Known manifest-to-module divergences. This file may only shrink. See test/agreement.test.js.',
-    measured: new Date().toISOString().slice(0, 10),
+    // Local date, not UTC. `toISOString()` stamps tomorrow for anyone west of Greenwich
+    // running in the evening, and every other date in this workspace is the operator's local
+    // one. Caught when a 2026-09-20 run stamped 2026-09-21.
+    measured: new Date().toLocaleDateString('en-CA'),
     count: divergences.length,
     divergences,
   }, null, 2) + '\n');

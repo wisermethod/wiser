@@ -4,7 +4,7 @@ See [gateway/SETUP.md](../../gateway/SETUP.md) for attachment and the gateway's 
 
 ## On the platform's side, first
 
-Create a Vercel API token limited to the intended account or team. Prepare an API Key blueprint through the gateway's provider. Paste the token only on its hosted page. This connector selects API_KEY even where other authentication options are listed.
+Create a Vercel API token limited to the intended account or team. **One blueprint per toolkit, not per module**, and for a toolkit the provider already ships there is nothing to prepare: the gateway creates the blueprint on the first connect that finds none. A second blueprint on one toolkit makes every module on that toolkit unconnectable until it is removed, with a `vendor_error` naming the toolkit and the count. Paste the token only on its hosted page. This connector selects API_KEY even where other authentication options are listed.
 
 ## Through the gateway
 

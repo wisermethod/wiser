@@ -1,6 +1,6 @@
 # Connecting Cloudflare
 
-Each module is its own grant. The provider blueprint is **Cloudflare Api Key** (one API token field). A hosted page that asks for an email is the other blueprint, **Cloudflare**, and will fail 9106.
+Each module is its own grant. **One blueprint per toolkit, not per module**, and for a toolkit the provider already ships there is nothing to prepare: the gateway creates the blueprint on the first connect that finds none. A second blueprint on one toolkit makes every module on that toolkit unconnectable until it is removed, with a `vendor_error` naming the toolkit and the count. The one this connector uses is **Cloudflare Api Key**, with a single API token field; the other, **Cloudflare**, asks for an email plus a Global API Key and will fail 9106.
 
 Do not paste a token into the conversation.
 
@@ -21,7 +21,7 @@ Keep the create-token page open; the value is shown once.
 
 ## On the provider's side
 
-One blueprint, **Cloudflare Api Key**, already created. Do not make **Cloudflare** (email plus Global API Key). Do not click dashboard Connect Account.
+Use the **Cloudflare Api Key** blueprint. Do not make **Cloudflare** (email plus Global API Key), and do not click dashboard Connect Account.
 
 ## Through the gateway
 

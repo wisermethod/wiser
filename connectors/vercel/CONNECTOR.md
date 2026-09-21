@@ -12,13 +12,11 @@ Reads projects and deployments and creates a deployment, uploading its files by 
 
 ## Status
 
-Shipped 2026-09-08. Live connect 2026-09-08: `projects` and `deployments` ACTIVE, re-verified 2026-09-17. Catalog lists `{ projects, pagination }` and `{ deployments, pagination }`.
-
-`create` **has run**: a deployment succeeded live on 2026-09-14, `dpl_AonCe3igyVt1sV2ut38p8vJbe4vA`, READY and PROMOTED.
-
-Upload by reference added 2026-09-17, and it closes a blocking gap rather than a convenience. Until it existed there was no compliant way to deploy an ordinary site through this plugin at all: `skills/Vercel Deploy/` routes every deployment through the gateway, the only payload form was an inline `files` array, and a 962,496-byte site is 1,283,376 base64 characters in a single call. The platform CLI is not a fallback — `skills/Vercel Deploy/SETUP.md` forbids connecting an envelope or owning root to the platform, which `vercel deploy` does by writing a project link into the tree. The inline-only limit closed the only door rather than narrowing it.
-
+Shipped 2026-09-08, and both modules were proved live the same day. Catalog lists `{ projects, pagination }` and `{ deployments, pagination }`.
+`create` **has run**: a deployment succeeded live on 2026-09-14, READY and PROMOTED.
+Upload by reference added 2026-09-17, and it closes a blocking gap rather than a convenience. Until it existed there was no compliant way to deploy an ordinary site through this plugin at all: `skills/Vercel Deploy/` routes every deployment through the gateway, the only payload form was an inline `files` array, and a 962,496-byte site is 1,283,376 base64 characters in a single call. The platform CLI is not a fallback, because `skills/Vercel Deploy/SETUP.md` forbids connecting an envelope or owning root to the platform, which `vercel deploy` does by writing a project link into the tree. The inline-only limit closed the only door rather than narrowing it.
 Verified 2026-09-17 against a real 38-file, 962,496-byte site: all 38 files uploaded by reference, and the resulting create body was 3,824 bytes against roughly 1,283,328 inline. See `auth.md`.
+
 
 ## Reaching it
 

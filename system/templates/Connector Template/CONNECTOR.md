@@ -27,7 +27,16 @@ Every one is substituted before the directory lands, and a search of the finishe
 
 ## Status
 
-Scaffold, until the first connect is recorded in `auth.md`.
+Scaffold, until the connector ships.
+
+This section records **when the connector shipped and how it was verified**, and nothing else.
+**Do not record a grant state, an account, a person, a machine or a harness here**, and in
+particular do not write that a module is ACTIVE or that a live connect happened on a date. That
+is one person's store; it is wrong the moment anybody else reads it, and this repository is
+public. Which actions were executed live and what each returned is worth keeping and belongs in
+this repo's build workspace. `connectors/clarity/CONNECTOR.md` is the model form.
+`gateway/test/guide-conformance.test.js` fails on a shipped guide that breaks this. Decided
+2026-09-20, after sixteen of twenty-five shipped guides were found stating a grant.
 
 ## Reaching it
 

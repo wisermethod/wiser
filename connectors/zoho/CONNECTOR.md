@@ -12,7 +12,8 @@ Reads mail, Books and Invoice invoices, Desk tickets, Inventory and Bigin contac
 
 ## Status
 
-Shipped 2026-09-09. Live connect 2026-09-09: `crm`, `mail`, `books`, `inventory`, and `invoice` ACTIVE, envelopes UNVERIFIED. `desk` skipped (no access). `bigin` skipped (no access). Verification otherwise fake-provider only. Catalog contract from the approved plan dated 2026-09-09. See `auth.md` for the separate human connect.
+Shipped 2026-09-09. Five of the eight modules were proved live the same day, `crm`, `mail`, `books`, `inventory` and `invoice`, with envelopes UNVERIFIED; `desk` and `bigin` were not reached. Verification otherwise fake-provider only. Catalog contract from the approved plan dated 2026-09-09. See `auth.md` for the separate human connect.
+
 
 ## Reaching it
 

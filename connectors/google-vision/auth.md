@@ -4,7 +4,7 @@ See [gateway/SETUP.md](../../gateway/SETUP.md) for attachment and the gateway's 
 
 ## On the platform's side, first
 
-Enable Cloud Vision API and billing on the intended Google Cloud project, and create an API key restricted to that API. Prepare an API Key blueprint through the gateway's provider. Authentication is API_KEY, confirmed from its toolkit page 2026-09-08. Paste the key only on the hosted page.
+Enable Cloud Vision API and billing on the intended Google Cloud project, and create an API key restricted to that API. **One blueprint per toolkit, not per module**, and for a toolkit the provider already ships there is nothing to prepare: the gateway creates the blueprint on the first connect that finds none. A second blueprint on one toolkit makes every module on that toolkit unconnectable until it is removed, with a `vendor_error` naming the toolkit and the count. Authentication is API_KEY, confirmed from its toolkit page 2026-09-08. Paste the key only on the hosted page.
 
 ## Through the gateway
 

@@ -23,6 +23,39 @@ A connector that genuinely must not carry a block says so here, by name and with
 gate reads that exemption from this file, so an exemption is a decision recorded in one place
 rather than a row in a baseline.
 
+## The blueprint sentence
+
+**One sentence, carried verbatim by every `auth.md` that mentions a blueprint at all.** Not a
+block: it sits inside that guide's own opening paragraph, wherever the guide explains what to do
+on the vendor's side, so a guide keeps its own account and organisation advice around it.
+
+This is the sentence the cold connect of 2026-09-20 established, and getting it wrong is not a
+style matter. `microsoft` has six modules on five toolkits, `outlook` and `calendar` sharing one.
+A guide that said to prepare a blueprint per module sent a reader to make two on that toolkit,
+and the provider then refuses to start a connection on a toolkit carrying more than one auth
+config, with a `vendor_error` naming the toolkit and a count rather than the instruction that
+caused it. Both modules become unconnectable, permanently, and the answer does not say why. The
+step was also unnecessary: the gateway creates the auth config when a toolkit has none.
+
+In `google` and `zoho` the wrong wording was harmless, because every module there has its own
+toolkit, so per module and per toolkit coincide. That is why it survived. A guide whose modules
+happen not to collide still carries the sentence, so it does not read as a template for the next
+connector whose modules do.
+
+```
+**One blueprint per toolkit, not per module**, and for a toolkit the provider already ships there is nothing to prepare: the gateway creates the blueprint on the first connect that finds none. A second blueprint on one toolkit makes every module on that toolkit unconnectable until it is removed, with a `vendor_error` naming the toolkit and the count.
+```
+
+**It names no authentication scheme, deliberately.** Six of the nineteen guides that carry it are
+API-key connectors and the rest are OAuth, and the rule is about toolkits either way. Written as
+"One OAuth blueprint per toolkit" first, which would have forced six guides to carry a word that
+is false of them or to be exempted from a rule that binds them.
+
+**A guide may say more after it, and two do.** `google-cloud` runs on bring-your-own-OAuth, so
+it adds that the blueprint the gateway creates for you carries that toolkit's scopes rather than
+yours and is the wrong one here. `microsoft` adds which two of its modules share a toolkit. What
+no guide may do is state the rule differently.
+
 ## Revoking
 
 Carried by every connector on the **`catalog`** provider, under the `## Revoking` heading in its

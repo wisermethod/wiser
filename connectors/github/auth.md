@@ -4,7 +4,7 @@ What you do, on which side, to make `github.*` actions run. The Connect Account 
 
 ## On the provider's side, first
 
-The provider needs a blueprint for GitHub (OAuth, managed by the provider) before a connect link can work. Make that in the provider dashboard. The clicks are in the provider's own SETUP.md, the file `gateway/SETUP.md` points at. Do not connect a test account from that dashboard; that authenticates a playground user, not this gateway. Connecting is the next section.
+**One blueprint per toolkit, not per module**, and for a toolkit the provider already ships there is nothing to prepare: the gateway creates the blueprint on the first connect that finds none. A second blueprint on one toolkit makes every module on that toolkit unconnectable until it is removed, with a `vendor_error` naming the toolkit and the count. `gateway/SETUP.md` section 3 routes to the provider's own setup if you do need the dashboard. Do not connect a test account from that dashboard; that authenticates a playground user, not this gateway. Do not connect a test account from that dashboard; that authenticates a playground user, not this gateway. Connecting is the next section.
 
 ## Through the gateway
 

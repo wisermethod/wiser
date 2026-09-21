@@ -12,7 +12,8 @@ Lists curated model collections, starts confirmed predictions, and returns predi
 
 ## Status
 
-Shipped 2026-09-08. Live connect 2026-09-08: `models` ACTIVE. Catalog `list_collections` `{ results, next, previous }`. `create_prediction` not run. Fake-provider tests still run. See `auth.md` and [gateway setup](../../gateway/SETUP.md).
+Shipped 2026-09-08, and `models` was proved live the same day. Catalog `list_collections` returns `{ results, next, previous }`. `create_prediction` has not been run; it bills. Fake-provider tests still run. See `auth.md` and [gateway setup](../../gateway/SETUP.md).
+
 
 ## Reaching it
 

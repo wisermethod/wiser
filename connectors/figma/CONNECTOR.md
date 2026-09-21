@@ -12,7 +12,8 @@ Reads file metadata and lists the files in a project.
 
 ## Status
 
-Shipped 2026-09-09. Live connect 2026-09-09: `files` ACTIVE, envelope UNVERIFIED. Verification otherwise fake-provider only. Catalog contract from the approved plan dated 2026-09-09. See `auth.md` for the separate human connect.
+Shipped 2026-09-09, and `files` was proved live the same day; its envelope is UNVERIFIED. Verification otherwise fake-provider only. Catalog contract from the approved plan dated 2026-09-09. See `auth.md` for the separate human connect.
+
 
 ## Reaching it
 

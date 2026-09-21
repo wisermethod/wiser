@@ -12,7 +12,8 @@ Detects faces and returns eye coordinates for faces with both eyes available.
 
 ## Status
 
-Shipped 2026-09-08. Live connect 2026-09-08: `images` ACTIVE. `detect_faces` not run (billed; needs an image). Fake-provider tests still run. See `auth.md` and [gateway setup](../../gateway/SETUP.md).
+Shipped 2026-09-08, and `images` was proved live the same day. `detect_faces` has not been run: it bills and needs an image. Fake-provider tests still run. See `auth.md` and [gateway setup](../../gateway/SETUP.md).
+
 
 ## Reaching it
 
