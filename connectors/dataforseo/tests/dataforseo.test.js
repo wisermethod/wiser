@@ -88,22 +88,46 @@ test('a research grant does not unlock backlinks, and the reverse', async () => 
   }
 });
 
-test('every billed research action needs_confirmation after the grant without confirm', async () => {
+test('every billed research action except search_volume proceeds without confirmation after the grant', async () => {
   const { gw, store, fake } = await createTestGateway();
   await putActive(store, fake, { service: 'dataforseo', module: 'research', privilege: 'write' });
   for (const [action, input] of Object.entries(RESEARCH_BILLED)) {
+    if (action === 'search_volume') continue;
     const result = await gw.execute({ action: `dataforseo.research.${action}`, input });
-    assert.equal(result.status, 'needs_confirmation', action);
+    assert.notEqual(result.status, 'needs_confirmation', action);
+    assert.equal(Object.hasOwn(result, 'cost'), true, action);
+    assert.equal(Object.hasOwn(result, 'tasks'), true, action);
   }
 });
 
-test('every billed backlinks action needs_confirmation after the grant without confirm', async () => {
+test('search_volume requires confirmation on every call', async () => {
+  const { gw, store, fake } = await createTestGateway();
+  await putActive(store, fake, { service: 'dataforseo', module: 'research', privilege: 'write' });
+  const call = { action: 'dataforseo.research.search_volume', input: RESEARCH_BILLED.search_volume };
+  assert.equal((await gw.execute(call)).status, 'needs_confirmation');
+  assert.equal(Object.hasOwn(await gw.execute({ ...call, confirm: true }), 'cost'), true);
+  assert.equal((await gw.execute(call)).status, 'needs_confirmation');
+});
+
+test('every billed backlinks action except summary proceeds without confirmation after the grant', async () => {
   const { gw, store, fake } = await createTestGateway();
   await putActive(store, fake, { service: 'dataforseo', module: 'backlinks', privilege: 'write' });
   for (const [action, input] of Object.entries(BACKLINKS)) {
+    if (action === 'summary') continue;
     const result = await gw.execute({ action: `dataforseo.backlinks.${action}`, input });
-    assert.equal(result.status, 'needs_confirmation', action);
+    assert.notEqual(result.status, 'needs_confirmation', action);
+    assert.equal(Object.hasOwn(result, 'cost'), true, action);
+    assert.equal(Object.hasOwn(result, 'tasks'), true, action);
   }
+});
+
+test('backlinks.summary requires confirmation on every call', async () => {
+  const { gw, store, fake } = await createTestGateway();
+  await putActive(store, fake, { service: 'dataforseo', module: 'backlinks', privilege: 'write' });
+  const call = { action: 'dataforseo.backlinks.summary', input: BACKLINKS.summary };
+  assert.equal((await gw.execute(call)).status, 'needs_confirmation');
+  assert.equal(Object.hasOwn(await gw.execute({ ...call, confirm: true }), 'cost'), true);
+  assert.equal((await gw.execute(call)).status, 'needs_confirmation');
 });
 
 for (const [action, input] of Object.entries(RESEARCH_BILLED)) {
@@ -405,7 +429,7 @@ test('filter operands are checked per operator before transport', async () => {
   }
 });
 
-test('valid operands per operator still reach the confirmation gate', async () => {
+test('valid operands per operator proceed without confirmation', async () => {
   const { gw: gw2, store: store2, fake } = await createTestGateway();
   await putActive(store2, fake, { service: 'dataforseo', module: 'research', privilege: 'write' });
   const base = { keywords: ['example'], location_code: 2840, language_code: 'en' };
@@ -415,6 +439,8 @@ test('valid operands per operator still reach the confirmation gate', async () =
     ['keyword_info.search_volume', '>', 0],
   ]) {
     const result = await gw2.execute({ action: 'dataforseo.research.keyword_ideas', input: { ...base, filters } });
-    assert.equal(result.status, 'needs_confirmation');
+    assert.notEqual(result.status, 'needs_confirmation');
+    assert.equal(Object.hasOwn(result, 'cost'), true);
+    assert.equal(Object.hasOwn(result, 'tasks'), true);
   }
 });

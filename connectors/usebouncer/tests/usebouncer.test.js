@@ -8,7 +8,7 @@ const localFileProvider = {
   unwrap: async () => ({ supported: true, header: 'x-api-key', value: 'test-key' }),
 };
 
-test('no local grant stops and billed verification needs confirmation before HTTP', async () => {
+test('no local grant stops and bulk verification needs confirmation before HTTP', async () => {
   const previous = globalThis.fetch;
   let calls = 0;
   globalThis.fetch = async () => { calls += 1; throw new Error('Unexpected HTTP'); };
@@ -17,7 +17,6 @@ test('no local grant stops and billed verification needs confirmation before HTT
     const call = { action: 'usebouncer.verify.single', input: { email: 'example@example.com' } };
     assert.equal((await gw.execute(call)).status, 'needs_connect');
     await putActive(store, fake, { service: 'usebouncer', module: 'verify', provider: 'local-file' });
-    assert.equal((await gw.execute(call)).status, 'needs_confirmation');
     assert.equal((await gw.execute({ action: 'usebouncer.verify.bulk', input: { emails: [{ email: 'example@example.com' }] } })).status, 'needs_confirmation');
     assert.equal(calls, 0);
   } finally { globalThis.fetch = previous; }
@@ -47,7 +46,9 @@ test('credits, single, bulk, status and download use safe HTTP and preserve vend
     const { gw, store, fake } = await createTestGateway({ localFileProvider });
     await putActive(store, fake, { service: 'usebouncer', module: 'verify', provider: 'local-file' });
     assert.equal((await gw.execute({ action: 'usebouncer.verify.credits', input: {} })).credits, 10);
-    assert.deepEqual(await gw.execute({ action: 'usebouncer.verify.single', input: { email: 'example+tag@example.com' }, confirm: true }), vendor);
+    const single = await gw.execute({ action: 'usebouncer.verify.single', input: { email: 'example+tag@example.com' } });
+    assert.notEqual(single.status, 'needs_confirmation');
+    assert.deepEqual(single, vendor);
     assert.equal(seen[1].parsed.searchParams.get('email'), 'example+tag@example.com');
     const bulk = await gw.execute({ action: 'usebouncer.verify.bulk', input: { emails: [{ email: 'example@example.com' }] }, confirm: true });
     assert.equal(bulk.batchId, 'batch-example');

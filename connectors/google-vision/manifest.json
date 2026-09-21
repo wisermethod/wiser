@@ -13,7 +13,7 @@
         "detect_faces": {
           "description": "Run billed face detection",
           "risk": "medium",
-          "confirmation": "once",
+          "confirmation": "none",
           "execution": {
             "prefer": "catalog"
           },

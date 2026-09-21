@@ -2,15 +2,15 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
 
-test('billed face detection needs confirmation and maps both eyes', async () => {
+test('billed face detection proceeds without confirmation and maps both eyes', async () => {
   const { gw, store, fake } = await createTestGateway();
   await putActive(store, fake, { service: 'google-vision', module: 'images', privilege: 'read' });
   const call = { action: 'google-vision.images.detect_faces', input: { image_uri: 'https://example.com/face.png' } };
-  assert.equal((await gw.execute(call)).status, 'needs_confirmation');
   const original = fake.catalog.execute;
   let request;
   fake.catalog.execute = async (args) => { request = args.arguments; return original(args); };
-  const result = await gw.execute({ ...call, confirm: true });
+  const result = await gw.execute(call);
+  assert.notEqual(result.status, 'needs_confirmation');
   assert.deepEqual(result, { count: 1, faces: [{ confidence: 0.98, left_eye: { x: 10, y: 20 }, right_eye: { x: 30, y: 20 } }] });
   assert.deepEqual(request.requests[0].features, [{ type: 'FACE_DETECTION', maxResults: 10 }]);
   assert.equal(request.requests[0].image.source.imageUri, call.input.image_uri);

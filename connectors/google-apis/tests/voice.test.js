@@ -62,13 +62,13 @@ test('list_voices needs_connect until the voice read grant is active', async () 
   assert.equal(result.privilege, 'read');
 });
 
-test('synthesize needs_confirmation after the grant without confirm', async () => {
-  const { gw, fake } = await activeGateway();
-  fake.auth.proxy = async () => assert.fail('unconfirmed action reached transport');
-  const result = await gw.execute({ action: SYNTHESIZE, input: VALID });
-  assert.equal(result.status, 'needs_confirmation');
-  assert.equal(result.confirmation, 'once');
-  assert.equal(result.risk, 'medium');
+test('synthesize requires confirmation on every call and returns audioContent', async () => {
+  const { gw, calls } = await activeGateway();
+  const call = { action: SYNTHESIZE, input: VALID };
+  assert.equal((await gw.execute(call)).status, 'needs_confirmation');
+  assert.equal((await gw.execute({ ...call, confirm: true })).audioContent, AUDIO.audioContent);
+  assert.equal((await gw.execute(call)).status, 'needs_confirmation');
+  assert.equal(calls.length, 1);
 });
 
 test('list_voices does not ask for confirmation', async () => {
@@ -100,16 +100,15 @@ test('synthesize with confirm uses an absolute POST proxy and exposes audioConte
   assert.deepEqual(Object.keys(calls[0].body.voice), ['languageCode']);
 });
 
-test('confirmation once lets a later synthesize through without confirm', async () => {
+test('a later synthesize also stops without confirm', async () => {
   const { gw, calls } = await activeGateway();
-  assert.equal((await gw.execute({ action: SYNTHESIZE, input: VALID })).status, 'needs_confirmation');
-  assert.equal(calls.length, 0);
-  const first = await run(gw, VALID);
+  const call = { action: SYNTHESIZE, input: VALID };
+  const first = await gw.execute({ ...call, confirm: true });
+  assert.equal(first.status, undefined);
   assert.equal(first.audioContent, AUDIO.audioContent);
-  const second = await gw.execute({ action: SYNTHESIZE, input: VALID });
-  assert.equal(second.status, undefined);
-  assert.equal(second.audioContent, AUDIO.audioContent);
-  assert.equal(calls.length, 2);
+  const second = await gw.execute(call);
+  assert.equal(second.status, 'needs_confirmation');
+  assert.equal(calls.length, 1);
 });
 
 test('ssml is sent in place of text and the two never travel together', async () => {

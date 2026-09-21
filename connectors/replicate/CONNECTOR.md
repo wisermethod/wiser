@@ -3,7 +3,7 @@ name: replicate
 type: connector
 category: media
 description: Lists curated model collections, starts confirmed predictions, and returns prediction status and output URLs
-version: 0.2.0
+version: 0.3.0
 ---
 
 # Replicate
@@ -21,11 +21,11 @@ Through the gateway by action id. Input fields are declared in `manifest.json`.
 
 ```
 replicate.models.list_collections  {  }
-replicate.models.create_prediction  { version, input }  confirmation: once
+replicate.models.create_prediction  { version, input }  confirmation: always
 replicate.models.get_prediction  { prediction_id }
 ```
 
-The module writes no files. `create_prediction` returns the catalog prediction object with an id; `get_prediction` returns status and output URLs when ready. The caller retrieves and files outputs. A prediction is billed and uses confirmation once; this connector does not infer a model or a version.
+The module writes no files. `create_prediction` returns the catalog prediction object with an id; `get_prediction` returns status and output URLs when ready. The caller retrieves and files outputs. A prediction is billed and uses confirmation always; a caller picks the model and the run length, so the cost of a single call is set by its input. This connector does not infer a model or a version.
 
 ## Credentials
 
@@ -43,7 +43,7 @@ Each module has its own grant. Privilege describes the grant, not just these act
 
 | Action | Effect | Confirmation |
 |--------|--------|--------------|
-| `models.create_prediction` | Start a billed prediction | once |
+| `models.create_prediction` | Start a billed prediction | always |
 
 Spent credits cannot be recovered by this connector.
 

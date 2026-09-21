@@ -98,13 +98,13 @@ test('analyze needs_connect until the language read grant is active', async () =
   assert.equal(fake.accounts.size, 0);
 });
 
-test('analyze needs_confirmation after the grant without confirm', async () => {
-  const { gw, fake } = await activeGateway();
-  fake.auth.proxy = async () => assert.fail('unconfirmed action reached transport');
-  const result = await gw.execute({ action: ACTION, input: VALID });
-  assert.equal(result.status, 'needs_confirmation');
-  assert.equal(result.confirmation, 'once');
-  assert.equal(result.risk, 'medium');
+test('analyze requires confirmation on every call and returns annotations', async () => {
+  const { gw, calls } = await activeGateway();
+  const call = { action: ACTION, input: VALID };
+  assert.equal((await gw.execute(call)).status, 'needs_confirmation');
+  assert.equal((await gw.execute({ ...call, confirm: true })).language, ANNOTATION.language);
+  assert.equal((await gw.execute(call)).status, 'needs_confirmation');
+  assert.equal(calls.length, 1);
 });
 
 test('analyze with confirm uses an absolute POST proxy and sends only supplied keys', async () => {
@@ -128,16 +128,15 @@ test('analyze with confirm uses an absolute POST proxy and sends only supplied k
   assert.equal(Object.hasOwn(calls[0].body, 'encodingType'), false);
 });
 
-test('confirmation once lets a later analyze through without confirm', async () => {
+test('a later analyze also stops without confirm', async () => {
   const { gw, calls } = await activeGateway();
-  assert.equal((await gw.execute({ action: ACTION, input: VALID })).status, 'needs_confirmation');
-  assert.equal(calls.length, 0);
-  const first = await run(gw, VALID);
+  const call = { action: ACTION, input: VALID };
+  const first = await gw.execute({ ...call, confirm: true });
+  assert.equal(first.status, undefined);
   assert.equal(first.language, ANNOTATION.language);
-  const second = await gw.execute({ action: ACTION, input: VALID });
-  assert.equal(second.status, undefined);
-  assert.equal(second.language, ANNOTATION.language);
-  assert.equal(calls.length, 2);
+  const second = await gw.execute(call);
+  assert.equal(second.status, 'needs_confirmation');
+  assert.equal(calls.length, 1);
 });
 
 test('supplied optional fields map onto the vendor body and unsupplied keys are omitted', async () => {

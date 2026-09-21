@@ -73,7 +73,7 @@
         "text": {
           "description": "Translate one to 128 strings into a target language",
           "risk": "medium",
-          "confirmation": "once",
+          "confirmation": "always",
           "execution": {
             "prefer": "proxy"
           },
@@ -125,7 +125,7 @@
         "synthesize": {
           "description": "Synthesize speech from plain text or SSML",
           "risk": "medium",
-          "confirmation": "once",
+          "confirmation": "always",
           "execution": {
             "prefer": "proxy"
           },
@@ -248,7 +248,7 @@
         "recognize": {
           "description": "Recognize speech in audio and return a transcription",
           "risk": "medium",
-          "confirmation": "once",
+          "confirmation": "always",
           "execution": {
             "prefer": "proxy"
           },
@@ -334,7 +334,7 @@
         "analyze": {
           "description": "Annotate text for sentiment, syntax, entities, classification, and moderation",
           "risk": "medium",
-          "confirmation": "once",
+          "confirmation": "always",
           "execution": {
             "prefer": "proxy"
           },

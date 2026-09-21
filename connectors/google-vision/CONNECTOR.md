@@ -3,7 +3,7 @@ name: google-vision
 type: connector
 category: media
 description: Detects faces and returns eye coordinates for faces with both eyes available
-version: 0.2.0
+version: 0.3.0
 ---
 
 # Google Vision
@@ -20,7 +20,7 @@ Shipped 2026-09-08, and `images` was proved live the same day. `detect_faces` ha
 Through the gateway by action id. Input fields are declared in `manifest.json`.
 
 ```
-google-vision.images.detect_faces  { image_base64?, image_uri? }  confirmation: once
+google-vision.images.detect_faces  { image_base64?, image_uri? }  confirmation: none
 ```
 
 Supply exactly one of `image_base64` or `image_uri`. **An empty string is not an omitted field**: both declare `minLength: 1`, so `image_base64: ""` is refused whether or not `image_uri` is also supplied. The module reads an empty value as absent and would have accepted that pair; the schema is deliberately the stricter of the two, because a call that supplies a field and leaves it empty has not said which source it means. Decided 2026-09-20 when the manifest first published this choice as a `oneOf`, which is presence-based and could not express the module's reading. The module requests FACE_DETECTION with at most 10 faces and returns `{ count, faces: [{ confidence, left_eye: { x, y }, right_eye: { x, y } }] }`. Coordinates are pixels in the submitted image. A face lacking either eye is omitted and not counted. The caller downscales before the call. Google documents 1600x1200 pixels as a face-detection recommendation, not a ceiling; its 75,000,000-pixel limit is for OCR. Images must stay within the documented 20 MB file and 10 MB JSON limits. See [supported files](https://docs.cloud.google.com/vision/docs/supported-files), checked 2026-09-08.
@@ -41,15 +41,15 @@ Each module has its own grant. Privilege describes the grant, not just these act
 
 | Action | Effect | Confirmation |
 |--------|--------|--------------|
-| `images.detect_faces` | Run billed face detection | once |
+| `images.detect_faces` | Run billed face detection. The per-image rate is not recorded in this repository. The billed unit is one image and one feature per call, so the billed unit count is exactly 1. | none |
 
-Spent credits cannot be recovered by this connector.
+Spent credits cannot be recovered by this connector. The per-image rate is an open item: no rate for `detect_faces` is recorded anywhere in this repository, and none is invented here.
 
 ## Troubleshooting
 
 `needs_connect`: connect the named module in its own human turn using `auth.md`.
 
-`needs_confirmation`: review the action and input, then repeat with `confirm: true` if intended.
+`needs_confirmation`: not an expected status here. `detect_faces` takes `confirmation: none`.
 
 `vendor_error`: inspect the safe status and endpoint, then check access, input, and quota at the platform. Do not paste a raw vendor error body into chat.
 

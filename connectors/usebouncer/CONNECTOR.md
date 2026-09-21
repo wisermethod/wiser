@@ -3,7 +3,7 @@ name: usebouncer
 type: connector
 category: communication
 description: Reads verification credits, verifies single addresses and batches, and resumes batch results by identifier
-version: 0.2.0
+version: 0.3.0
 ---
 
 # Bouncer
@@ -20,7 +20,7 @@ Through the gateway by action id. Input fields are declared in `manifest.json`.
 
 ```
 usebouncer.verify.credits  {  }
-usebouncer.verify.single  { email }  confirmation: always
+usebouncer.verify.single  { email }  confirmation: none
 usebouncer.verify.bulk  { emails }  confirmation: always
 usebouncer.verify.status  { id }
 usebouncer.verify.download  { id }
@@ -44,18 +44,19 @@ Each module has its own grant. Privilege describes the grant, not just these act
 
 | Action | Effect | Confirmation |
 |--------|--------|--------------|
-| `verify.single` | Verify one address using credits | always |
+| `verify.single` | Verify one address using credits | none |
 | `verify.bulk` | Submit addresses for billed batch verification | always |
 
 Spent credits cannot be recovered by this connector.
 
-**Both billed actions confirm on every call, not once per session.** `standards/script-contract.md`
-and `skills/Connector Author/` both put an action that spends under `always`, and these two were
-`once` until 2026-09-20. `once` is remembered per action, so the second batch of a session ran
-with no stop at all, and the approval a person gave was for a different batch and a different
-cost. `skills/List Hygiene/` had always put the balance, the address count and the estimate in
-front of the user before calling, but that is a courtesy in one skill and a caller that is not
-that skill got neither.
+`verify.single` takes one address at a fixed credit, so it is `confirmation: none`.
+`verify.bulk` takes a list, so the cost of a single call is set by the caller's input, and it
+is `confirmation: always`: every submission stops, not only the first of a session. `once` is
+remembered per action, so a second batch under `once` would run with no stop at all, and the
+approval a person gave would have been for a different batch and a different cost.
+`skills/List Hygiene/` puts the balance, the address count and the estimate in front of the
+user before calling; that is a courtesy in one skill and a caller that is not that skill gets
+neither.
 
 ## Troubleshooting
 

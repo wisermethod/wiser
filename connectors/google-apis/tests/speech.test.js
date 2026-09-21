@@ -75,13 +75,13 @@ test('recognize needs_connect until the speech read grant is active', async () =
   assert.equal(fake.accounts.size, 0);
 });
 
-test('recognize needs_confirmation after the grant without confirm', async () => {
-  const { gw, fake } = await activeGateway();
-  fake.auth.proxy = async () => assert.fail('unconfirmed action reached transport');
-  const result = await gw.execute({ action: ACTION, input: VALID });
-  assert.equal(result.status, 'needs_confirmation');
-  assert.equal(result.confirmation, 'once');
-  assert.equal(result.risk, 'medium');
+test('recognize requires confirmation on every call and returns a transcription', async () => {
+  const { gw, calls } = await activeGateway();
+  const call = { action: ACTION, input: VALID };
+  assert.equal((await gw.execute(call)).status, 'needs_confirmation');
+  assert.deepEqual((await gw.execute({ ...call, confirm: true })).results, TRANSCRIPTION.results);
+  assert.equal((await gw.execute(call)).status, 'needs_confirmation');
+  assert.equal(calls.length, 1);
 });
 
 test('recognize with confirm uses an absolute POST proxy and sends only supplied keys', async () => {
@@ -103,16 +103,15 @@ test('recognize with confirm uses an absolute POST proxy and sends only supplied
   assert.equal(Object.hasOwn(calls[0].body.audio, 'uri'), false);
 });
 
-test('confirmation once lets a later recognize through without confirm', async () => {
+test('a later recognize also stops without confirm', async () => {
   const { gw, calls } = await activeGateway();
-  assert.equal((await gw.execute({ action: ACTION, input: VALID })).status, 'needs_confirmation');
-  assert.equal(calls.length, 0);
-  const first = await run(gw, VALID);
+  const call = { action: ACTION, input: VALID };
+  const first = await gw.execute({ ...call, confirm: true });
+  assert.equal(first.status, undefined);
   assert.deepEqual(first.results, TRANSCRIPTION.results);
-  const second = await gw.execute({ action: ACTION, input: VALID });
-  assert.equal(second.status, undefined);
-  assert.deepEqual(second.results, TRANSCRIPTION.results);
-  assert.equal(calls.length, 2);
+  const second = await gw.execute(call);
+  assert.equal(second.status, 'needs_confirmation');
+  assert.equal(calls.length, 1);
 });
 
 test('supplied optional fields map onto the vendor body and unsupplied keys are omitted', async () => {

@@ -3,7 +3,7 @@ name: Media Generator
 type: skill
 category: media
 description: Produce an image or a video that does not exist yet, or a photograph with its background removed, by finishing the prompt, choosing the model, and running the billed generation through a generation connector to a file the user named.
-version: 0.10.0
+version: 0.11.0
 gaps:
   - judgment of a generated clip's motion, which no expert in this root carries; the clip is judged by its still frame
 ---
@@ -88,7 +88,7 @@ Platform calls use the gateway's `execute` tool with `replicate.models.*`. Under
 
    Frame last, where a frame is being composed: models take named ratios and users state pixels, so pick the closest ratio the schema lists, tell the user the pixel size that ratio actually delivers, and send exact dimensions to `tools/image/` `edit` afterward rather than hunting for a model that outputs them natively.
 
-4. **Run the generation.** Say what the run will cost, in shape if not to the cent, before the first call, and say when a request means several calls. Call `replicate.models.create_prediction` with `{ version, input }`. Its gateway confirmation is `once`: on `needs_confirmation`, wait for the person to say yes, then repeat the action with `confirm: true`. Spend disclosure accompanies that gateway confirmation.
+4. **Run the generation.** Say what the run will cost, in shape if not to the cent, before the first call, and say when a request means several calls. Call `replicate.models.create_prediction` with `{ version, input }`. Its gateway confirmation is `always`: on `needs_confirmation`, wait for the person to say yes, then repeat the action with `confirm: true`. Every run stops, not only the first of a session. Spend disclosure accompanies that gateway confirmation.
 
    `create_prediction` returns the catalog prediction object with an id. Keep it in the work record, then call `replicate.models.get_prediction` with `{ prediction_id }` (`confirmation: none`) for status and output URLs. A slow prediction is resumed later on that same id, never submitted again to collect its result. Retrieve a finished prediction's outputs promptly; never leave one unretrieved.
 

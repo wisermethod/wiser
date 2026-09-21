@@ -3,7 +3,7 @@ name: {{SERVICE}}
 type: connector
 category: {{CATEGORY}}
 description: The directory a new connector is copied from, with one read action and one confirmed write action wired through the gateway and every placeholder named
-version: 0.1.0
+version: 0.3.0
 ---
 
 # {{SERVICE_TITLE}}
@@ -63,7 +63,7 @@ A grant is per module. A second module is a second row here, a second block in t
 
 ## Destructive Actions
 
-A table of every action that deletes, overwrites, sends, spends or publishes, with its effect on the platform and whether the platform can undo it. Each is `confirmation: always` in the manifest. "None" is a legitimate entry, and a connector with none says so and says what on the platform it excluded to keep it that way.
+A table of every action that deletes, overwrites, sends, spends or publishes, with its effect on the platform and whether the platform can undo it, and its manifest `confirmation`. **Deleting, overwriting, sending and publishing are `always`. Spend is judged by whether the action's own published `input` schema bounds the worst case of one call**: `none` when every cost-driving input carries a declared upper bound (`maximum`, `maxItems`, `maxLength`, or an `enum`), so one call's worst case is a small stated amount, and this table states that worst case, not only the base rate; `always` when any cost-driving input is unbounded by its own declaration, or when the price is not published at all. **Where both limbs apply, `always` wins**: a bounded worst case does not buy an exemption for an action that also deletes, overwrites, sends or publishes. Use `once` only for other writes whose effect warrants one approval. `skills/Connector Author/` step 4 and `experts/Connector Advisor/` step 3 carry the same rule and this table must agree with them. "None" is a legitimate entry, and a connector with none says so and says what on the platform it excluded to keep it that way.
 
 ## Troubleshooting
 

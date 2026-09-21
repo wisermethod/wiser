@@ -37,7 +37,7 @@
         "single": {
           "description": "Verify one address using credits",
           "risk": "medium",
-          "confirmation": "always",
+          "confirmation": "none",
           "execution": {
             "prefer": "local_http"
           },

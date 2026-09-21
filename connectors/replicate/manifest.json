@@ -27,7 +27,7 @@
         "create_prediction": {
           "description": "Start a billed prediction",
           "risk": "medium",
-          "confirmation": "once",
+          "confirmation": "always",
           "execution": {
             "prefer": "catalog"
           },

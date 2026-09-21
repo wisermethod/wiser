@@ -9,11 +9,17 @@ import { Buffer } from 'node:buffer';
  * had when a person is asked to approve it. What that summary may show, how it
  * renders it, and what it must say it is not showing are decided here.
  *
- * Safety is the renderer's job and not the schema's. Across the 22 shipped
- * `confirmation: always` actions, 6 of 122 declared fields are bounded by their
- * own declaration against control characters, and two connectors declare no
- * pattern at all. A schema-gated rule would print nothing where it matters, so
- * every eligible value passes through the escaper whatever its schema says.
+ * Safety is the renderer's job and not the schema's. Across the 19 shipped
+ * `confirmation: always` actions, 40 of 90 declared fields are bounded by their
+ * own declaration against control characters, and four of the seven connectors
+ * carrying one declare no pattern at all. A schema-gated rule would print
+ * nothing where it matters, so every eligible value passes through the escaper
+ * whatever its schema says. Re-measured twice on 2026-09-20: the confirmation
+ * policy moved 12 actions off `always`, then adversarial review moved 7 on, so
+ * the count went 24, then 13, then 19. Counting a field as bounded when an
+ * `enum`, a non-string scalar type, or a `pattern` declares it so. The bounded
+ * share rose from 18 to 44 percent and the conclusion did not move: most fields
+ * are still unbounded and four of seven connectors declare no pattern at all.
  *
  * What this does NOT guarantee, because an earlier draft claimed it did: that a
  * displayed value holds no secret. The gateway keeps provider-managed credentials

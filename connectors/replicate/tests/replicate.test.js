@@ -2,12 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
 
-test('prediction creation requires confirmation and returns a canned id', async () => {
+test('prediction creation requires confirmation on every call and returns a canned id', async () => {
   const { gw, store, fake } = await createTestGateway();
   await putActive(store, fake, { service: 'replicate', module: 'models', privilege: 'write' });
   const call = { action: 'replicate.models.create_prediction', input: { version: 'version-example', input: { prompt: 'Example' } } };
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
   assert.equal((await gw.execute({ ...call, confirm: true })).id, 'prediction-example');
+  assert.equal((await gw.execute(call)).status, 'needs_confirmation');
 });
 
 test('collections and completed predictions return catalog objects and output URLs', async () => {

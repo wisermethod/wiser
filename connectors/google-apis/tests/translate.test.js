@@ -45,13 +45,13 @@ test('text needs_connect until the translate read grant is active', async () => 
   assert.equal(fake.accounts.size, 0);
 });
 
-test('text needs_confirmation after the grant without confirm', async () => {
-  const { gw, fake } = await activeGateway();
-  fake.auth.proxy = async () => assert.fail('unconfirmed action reached transport');
-  const result = await gw.execute({ action: ACTION, input: VALID });
-  assert.equal(result.status, 'needs_confirmation');
-  assert.equal(result.confirmation, 'once');
-  assert.equal(result.risk, 'medium');
+test('text requires confirmation on every call and returns translations', async () => {
+  const { gw, calls } = await activeGateway();
+  const call = { action: ACTION, input: VALID };
+  assert.equal((await gw.execute(call)).status, 'needs_confirmation');
+  assert.deepEqual((await gw.execute({ ...call, confirm: true })).translations, VENDOR.data.translations);
+  assert.equal((await gw.execute(call)).status, 'needs_confirmation');
+  assert.equal(calls.length, 1);
 });
 
 test('text with confirm uses an absolute GET proxy and exposes translations only', async () => {
@@ -73,16 +73,15 @@ test('text with confirm uses an absolute GET proxy and exposes translations only
   assert.equal(url.searchParams.get('format'), null);
 });
 
-test('confirmation once lets a later call through without confirm', async () => {
+test('a later text call also stops without confirm', async () => {
   const { gw, calls } = await activeGateway();
-  assert.equal((await gw.execute({ action: ACTION, input: VALID })).status, 'needs_confirmation');
-  assert.equal(calls.length, 0);
-  const first = await run(gw, VALID);
+  const call = { action: ACTION, input: VALID };
+  const first = await gw.execute({ ...call, confirm: true });
+  assert.equal(first.status, undefined);
   assert.equal(first.translations[0].translatedText, 'Hallo Welt');
-  const second = await gw.execute({ action: ACTION, input: VALID });
-  assert.equal(second.status, undefined);
-  assert.equal(second.translations[0].translatedText, 'Hallo Welt');
-  assert.equal(calls.length, 2);
+  const second = await gw.execute(call);
+  assert.equal(second.status, 'needs_confirmation');
+  assert.equal(calls.length, 1);
 });
 
 test('repeated text is one q query parameter per item', async () => {

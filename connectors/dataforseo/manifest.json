@@ -13,7 +13,7 @@
         "serp": {
           "description": "Live Google organic SERP; $0.002 per 10 results requested; depth multiplies it",
           "risk": "medium",
-          "confirmation": "always",
+          "confirmation": "none",
           "execution": { "prefer": "proxy" },
           "input": {
             "type": "object",
@@ -84,7 +84,7 @@
         "keyword_ideas": {
           "description": "Google keyword ideas; $0.012 per call plus $0.00012 per returned item",
           "risk": "medium",
-          "confirmation": "always",
+          "confirmation": "none",
           "execution": { "prefer": "proxy" },
           "input": {
             "type": "object",
@@ -172,7 +172,7 @@
         "related_keywords": {
           "description": "Google related keywords; $0.012 per call plus $0.00012 per returned item",
           "risk": "medium",
-          "confirmation": "always",
+          "confirmation": "none",
           "execution": { "prefer": "proxy" },
           "input": {
             "type": "object",
@@ -283,7 +283,7 @@
         "keyword_difficulty": {
           "description": "Google bulk keyword difficulty; $0.012 per call plus $0.00012 per returned item",
           "risk": "medium",
-          "confirmation": "always",
+          "confirmation": "none",
           "execution": { "prefer": "proxy" },
           "input": {
             "type": "object",
@@ -345,7 +345,7 @@
         "search_intent": {
           "description": "Google search intent; $0.012 per call plus $0.00012 per returned item",
           "risk": "medium",
-          "confirmation": "always",
+          "confirmation": "none",
           "execution": { "prefer": "proxy" },
           "input": {
             "type": "object",
@@ -365,7 +365,7 @@
         "ranked_keywords": {
           "description": "Keywords a domain ranks for; $0.012 per call plus $0.00012 per returned item",
           "risk": "medium",
-          "confirmation": "always",
+          "confirmation": "none",
           "execution": { "prefer": "proxy" },
           "input": {
             "type": "object",
@@ -456,7 +456,7 @@
         "competitors": {
           "description": "Competing domains; $0.012 per call plus $0.00012 per returned item",
           "risk": "medium",
-          "confirmation": "always",
+          "confirmation": "none",
           "execution": { "prefer": "proxy" },
           "input": {
             "type": "object",
@@ -576,7 +576,7 @@
         "referring_domains": {
           "description": "Referring domains for a target; $0.024 per call plus $0.000036 per row",
           "risk": "medium",
-          "confirmation": "always",
+          "confirmation": "none",
           "execution": { "prefer": "proxy" },
           "input": {
             "type": "object",
@@ -600,7 +600,7 @@
         "anchors": {
           "description": "Backlink anchors for a target; $0.024 per call plus $0.000036 per row",
           "risk": "medium",
-          "confirmation": "always",
+          "confirmation": "none",
           "execution": { "prefer": "proxy" },
           "input": {
             "type": "object",
