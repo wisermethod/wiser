@@ -3,7 +3,7 @@ name: Set Up Connectors
 type: skill
 category: system
 description: Attach the gateway to this harness and confirm the project key on this machine, for a new CLI, machine, or OS user
-version: 0.3.0
+version: 0.3.1
 ---
 
 # Set Up Connectors
@@ -47,7 +47,7 @@ A steward of this machine's gateway attachment who prefers one attach command an
 - Ambiguous host or plugin path: ask before attaching.
 - "Install connectors" routes here, not to `npm` or a tool `--install`; the gateway installs nothing.
 - A key in chat: use the compromised-key stop in Inputs, never a storage or test path. Vendor keys never go in `auth-provider.env`.
-- Requiring `WISER_CLASSIFIER_KEY=`, or asking for its value in chat. The line is optional; an empty one leaves this turn finished. An empty line means the classifier is not subscribed, and a filled line is what subscribes one. What that service does is the constitution's `## Classifier`.
+- Requiring `WISER_CLASSIFIER_KEY=`, or asking for its value in chat. The line is optional; an empty one leaves this turn finished. An empty line means no classifier. **A filled line is one of two things and not the whole of it**: the gateway must also be started with `--classifier <abs dir>`, which `gateway/SETUP.md` gives. Until both are true a call answers `needs_subscription`, so do not tell someone a filled key has subscribed them. What that service does is the constitution's `## Classifier`.
 - Reconnecting an `ACTIVE` grant: stop at the existing row.
 - Naming the provider product: say "the gateway's provider", "hosted connect", or "the adapter directory `default.json` names".
 - Treating SETUP.md as the user-facing door: the named ask is the door; SETUP.md supplies its recipe.

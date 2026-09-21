@@ -1,6 +1,6 @@
 ---
 standard: instruction-quality
-version: 0.2.0
+version: 0.2.1
 description: How instructions are written in and around Wiser; the sole home of the Elegance definition
 ---
 
@@ -58,7 +58,7 @@ Every effective instruction file follows this structure. Not every file needs ev
 
 **Identity:** a lens, not decoration. "Reviewer focused on maintainability" judges differently than "reviewer focused on performance."
 
-**Steps:** every step requiring judgment carries the decision, the criteria, and what to do for each outcome. **Write the decision as the question and its outcomes**, so the question is answerable on the material in front of the reader and every outcome it admits has a step: "Does the source name its own date? Yes: use it. No: use the file's. Neither: ask." not "Handle dates appropriately." A decision whose outcomes are not enumerated is not a decision a reader can execute, and one whose question cannot be answered from the material is a judgment the step has not made.
+**Steps:** every step requiring judgment carries the decision, the criteria, and what to do for each outcome. **Write the decision as the question and its outcomes**, so the question is answerable on the material in front of the reader and every outcome it admits has a step: "Which date does this source carry? Its own, stated in the text: use it. None stated, but the file it came in has one: use the file's. Neither: ask." The question enumerates the states the reader can actually observe, so every branch is reachable and none of them needs evidence the reader was not given. not "Handle dates appropriately." A decision whose outcomes are not enumerated is not a decision a reader can execute, and one whose question cannot be answered from the material is a judgment the step has not made.
 
 **Pitfalls:** each with a specific response, not a warning. Always include the clarification pitfall: if the request is ambiguous, ask before proceeding.
 
