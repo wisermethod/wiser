@@ -2,13 +2,15 @@
 
 Authenticated access to outside platforms; `standards/primitives.md` owns the type's definition, invocation rules, and frontmatter. The directory is flat, and the index below is grouped by category.
 
-The index is **hand-maintained**. `standards/primitives.md` says a family index is generated from primitive frontmatter at release. This root carries no generator, so nothing generates this file: it is written by hand from the frontmatter of what actually shipped, and it is corrected by hand when a connector is added, removed, renamed, or recategorized.
+The index is **hand-maintained and checked**. `standards/primitives.md` says a family index is generated from primitive frontmatter at release. This root carries no generator, so nothing generates this file: it is written by hand from the frontmatter of what actually shipped, and it is corrected by hand when a connector is added, removed, renamed, or recategorized. **Since 2026-09-20 a gate derives it and fails on a mismatch**, in both directions and on every description, so a row that drifts from its own typed file is caught rather than read. Before that nothing checked it, and one row had already drifted: `google-cloud` had truncated its description and it was undetectable by reading either file alone.
 
 ## How a connector is reached
 
 Not by running anything in its directory. The gateway, `gateway/server.js`, loads every directory here at start, and a skill or expert asks for an action by id, `service.module.action`, through the gateway's `execute` tool. `gateway/AGENTS.md` says what a connector module receives and may do, and `gateway/SETUP.md` says how a person attaches the gateway and connects an account.
 
 A connector directory holds four things: `CONNECTOR.md`, the typed file; `manifest.json`, every module and action with its privilege, risk, confirmation and execution preference; `index.js`, the actions; and `auth.md`, what a person does on the vendor's side to connect. A `tests/` directory runs the module against the gateway's fake provider and touches no account.
+
+**The part of `auth.md` that is the same in every guide has one source, and it is not any guide.** `shared-text.md` in this directory holds it: one fenced block per shared section, with a slot where a connector's own answer goes. A guide carries a projection of a block, which is the block verbatim with its slot filled. **Fix the source, then propagate**; a fix made in a guide's copy is lost at the next reconciliation and the gate names it as a divergence rather than adopting it. `gateway/test/guide-conformance.test.js` holds every guide to it and to the rule that no shipped guide carries operator state, as a ratchet whose baseline may only shrink. Until 2026-09-20 there was no source: twenty-four guides carried the same revoke section in twenty-four hand-maintained copies, which is what `validated()` had been one layer down.
 
 **A manifest's `input` is applied, not described.** The gateway validates a call against the published schema before the module runs and **no connector carries a validator of its own**; `gateway/src/input-schema.js` says what it reads and what it leaves to the module, and `standards/script-contract.md` Published input schema is what binds a connector author. Until 2026-09-20 nothing compared the two sides: eleven connectors had copied a validator and agreed with their own manifests, the other fourteen hand-rolled their checks and held 189 divergences, and a suite of 485 connector tests was green throughout. `gateway/test/agreement.test.js` is what would catch it now, and its baseline may only shrink.
 
@@ -62,6 +64,8 @@ ending another, give the one you are keeping a credential of its own first, then
 guide's `## Revoking` section carries the same working through, from `connectors/shared-text.md`.
 
 ## Adding one
+
+**A shipped `CONNECTOR.md` `## Status` says when the connector shipped and how it was verified, and nothing about a grant, a person, a machine or a harness**, and `auth.md`'s `## Last connected` says only `Yes.` or `Not yet.` Live-proof detail is build evidence and belongs in this repo's build workspace: it is one person's store, it is wrong the moment anybody else reads it, and this repository is public. Decided 2026-09-20, after sixteen of twenty-five were found stating a grant and one had named a person and a harness. The conformance gate fails on a breach and the connector template carries the rule.
 
 `skills/Connector Author/` does this from an approved plan; `experts/Connector Advisor/` produces the plan. After Connector Author writes the module, Connect Account is the human grant in its own turn. In use, the copy lands in the owning root's own `connectors/` and the gateway loads it with `--connectors`; this plugin is read-only in use, so a connector meant to ship here arrives by an authoring Playbook, never by a session. Copy `system/templates/Connector Template/`, never a connector from this directory. Every action id a primitive cites must resolve, and every action a manifest declares must exist in `index.js`; the gateway's `--check` refuses to start otherwise.
 

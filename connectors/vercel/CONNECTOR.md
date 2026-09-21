@@ -105,7 +105,7 @@ Spent credits cannot be recovered by this connector. This connector does not rea
 
 `invalid_arguments`: correct the named field. A `reason` of `credential` means the path resolved onto the provider's key directory or a `.env` file; `outside the named directory` means a link pointed out of the tree.
 
-`vendor_error` while **uploading**: the run stopped at that file. No later file was uploaded and no deployment request was sent. `vendor_error` on the **deployment request itself** carries no such guarantee — the platform may have accepted it and the response been lost. Do not repeat the call. Reconcile against a deployment list scoped to the project and team first, as `skills/Vercel Deploy/` step 5 requires.
+`vendor_error` while **uploading**: the run stopped at that file. No later file was uploaded and no deployment request was sent. `vendor_error` on the **deployment request itself** carries no such guarantee; the platform may have accepted it and the response been lost. Do not repeat the call. Reconcile against a deployment list scoped to the project and team first, as `skills/Vercel Deploy/` step 5 requires.
 
 `vendor_error`: inspect the safe status and endpoint, then check access, input, and quota at the platform. Do not paste a raw vendor error body into chat.
 

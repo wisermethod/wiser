@@ -86,7 +86,7 @@ test('the shared source is readable, unambiguous, and carries its slot', () => {
   assert.ok(blueprint, 'connectors/shared-text.md carries a fenced blueprint sentence');
 
   for (const [name, b] of [['Revoking', revoking], ['blueprint sentence', blueprint]]) {
-    assert.ok(!/[–—]/.test(b.body),
+    assert.ok(!new RegExp('[\\u2013\\u2014]').test(b.body),
       `the ${name} block carries no en or em dash, per standards/conventions.md; it propagates to every guide that carries it`);
   }
 });

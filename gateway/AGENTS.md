@@ -51,6 +51,13 @@ Code, in `src/resolve.js`: a connector module that declares the action; else a r
 
 **Where it sits in `execute` is a decision, and each side of it was measured.** After the policy, so a denied action's input is never inspected. After the grant checks, so a caller with no connection is told that rather than told about its arguments, which is the common case and the one the whole connect flow serves. Before the confirmation stop, so nobody is asked to approve a call that cannot run.
 
+**Two gates in `test/` measure connectors rather than the gateway, and both belong here.** They
+read every shipped connector, so they live where the loader does rather than in a family that
+ships no test runner: `agreement.test.js` holds a manifest against its module, and
+`guide-conformance.test.js` holds every connector guide against `connectors/shared-text.md` and
+against the rule that no shipped guide carries operator state. Neither touches an account; both
+are ratchets whose baselines may only shrink.
+
 **`test/agreement.test.js` holds the two sides together.** It calls every shipped action behind this validator with a schema-valid instance and with one violation per declared constraint, and fails on a divergence in either direction. Its baseline may only shrink, so the file going empty is the class closing.
 
 ## What the confirmation stop shows, and what it does not
