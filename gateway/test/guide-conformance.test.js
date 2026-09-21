@@ -314,10 +314,16 @@ test('control: an ambiguous shared source is refused rather than resolved by pos
  * It sits outside `connectors/` and so outside `collectDivergences`, and it carried its own
  * twenty-sixth hand-maintained copy of the Revoking text until 2026-09-20. A template that
  * drifts is worse than a guide that drifts, because it reintroduces the class on every new
- * connector and nobody looks at it until then. It keeps the slot unfilled, which is the one
- * difference from a shipped guide.
+ * connector and nobody looks at it until then.
+ *
+ * **What this proves is that the template embeds the canonical text, and no more than that.**
+ * It does not prove that filling the slot yields a conforming guide, and adversarial review was
+ * right to say an earlier version of this test claimed it did: the template also carries
+ * authoring instructions around the block and under Last connected, which an author deletes, and
+ * the deletion is a human step this cannot perform. Those instructions necessarily quote the
+ * words the gate rejects, because they are telling an author not to write them.
  */
-test('the connector template carries the shared text, with its slot still unfilled', () => {
+test('the connector template embeds the shared text, with its slot still unfilled', () => {
   const template = fileURLToPath(new URL('../../system/templates/Connector Template', import.meta.url));
   const auth = readFileSync(join(template, 'auth.md'), 'utf8').replace(/\r\n/g, '\n');
   const connector = readFileSync(join(template, 'CONNECTOR.md'), 'utf8').replace(/\r\n/g, '\n');
@@ -330,12 +336,136 @@ test('the connector template carries the shared text, with its slot still unfill
   assert.ok(auth.includes(blocks.get('## The blueprint sentence').body.trim()),
     'the template auth.md carries the canonical blueprint sentence');
 
-  const { body: lastConnected } = section(auth, '## Last connected');
-  assert.match(lastConnected, /^Not yet\./, 'the template ships Last connected unanswered');
+  const { body: lastConnected, count: lastCount } = section(auth, '## Last connected');
+  assert.equal(lastCount, 1, 'exactly one Last connected section');
+  assert.equal(lastConnected.split('\n')[0].trim(), 'Not yet.',
+    'the template ships Last connected unanswered, and the first line is exactly the answer; a prefix match accepted "Not yet. Connected yesterday."');
   assert.match(lastConnected, /Do not record a date, an account, a machine, a harness/,
     'and carries the rule that keeps it that way');
 
   const { body: status } = section(connector, '## Status');
   assert.match(status, /Do not record a grant state/,
     'the template CONNECTOR.md carries the Status rule, so connector twenty-six cannot reintroduce the class');
+});
+
+// -------------------------------------------------------------------------------------------
+// Round two of adversarial review, 2026-09-20. Each of these defeated round one's fix.
+// -------------------------------------------------------------------------------------------
+
+/**
+ * Round 2, finding 1. Round one taught the tokenizer about fences, and a fence opened inside a
+ * list item was still missed, so its closing fence read as an opener and inverted the state for
+ * the rest of the file. Every heading after it was tagged as fenced, which hid a whole second
+ * Status section carrying a grant.
+ */
+test('control: a fence inside a list item does not hide a later section or its grant state', () => {
+  withTree((dir, run) => {
+    edit(join(dir, 'clarity', 'CONNECTOR.md'), (t) => t.replace(/## Status\n[\s\S]*?(?=\n## |\Z)/,
+      '## Status\n\nShipped.\n\n## Notes\n\n- ```\n  example\n  ```\n\n## Status\n\nanalytics ACTIVE.\n'));
+    const { found, errors } = run();
+    assert.deepEqual(errors, []);
+    assert.ok([...found].some((f) => f.includes('clarity') && f.includes('ACTIVE')),
+      'the grant in the second Status section is read, not only counted');
+  });
+});
+
+/**
+ * Round 2, finding 2. Round one cut the role phrases out of a line before testing it, and the
+ * cut consumed to the next punctuation, so putting the role clause first swallowed the defect
+ * after it. The subtraction is gone: the decision verb is what separates the senses, and this
+ * asserts both directions on both clause orders.
+ */
+test('control: provenance is reported whichever clause comes first, and a role noun is not', () => {
+  for (const line of [
+    'The operator decided this; have the operator check the key.',
+    'Have the operator check the key, because the operator decided to use it.',
+  ]) {
+    withTree((dir, run) => {
+      edit(join(dir, 'bing', 'CONNECTOR.md'), (t) => `${t}\n${line}\n`);
+      assert.ok([...run().found].some((f) => f.includes('bing: CONNECTOR.md') && f.includes('records who decided')),
+        `reported: ${line}`);
+    });
+  }
+  withTree((dir, run) => {
+    edit(join(dir, 'bing', 'CONNECTOR.md'), (t) => `${t}\n- have the operator check the key and API access.\n`);
+    assert.ok(![...run().found].some((f) => f.includes('bing: CONNECTOR.md:')),
+      'a line carrying only the role sense is not reported');
+  });
+});
+
+/** Round 2, finding 3. Markup in the slot can hide the block's own closing instructions. */
+test('control: markup in the vendor slot is reported', () => {
+  const vendor = 'Delete the API key at Bing Webmaster Tools under Settings, API Access.';
+  for (const [label, replacement] of [
+    ['an unclosed HTML comment', 'Delete the API key at Bing Webmaster Tools. <!--'],
+    ['a code fence', 'Delete the key.\n```\nx\n```'],
+    ['a heading', 'Delete the key.\n## Sneaky'],
+  ]) {
+    withTree((dir, run) => {
+      edit(join(dir, 'bing', 'auth.md'), (t) => t.replace(vendor, replacement));
+      const hits = [...run().found].filter((f) => f.includes('bing'));
+      // A fence or a heading breaks the section framing before the slot check runs, so it
+      // surfaces as a shared-block divergence instead. Either finding is the defect caught.
+      assert.ok(hits.length > 0, `${label} is reported, got ${JSON.stringify(hits)}`);
+    });
+  }
+});
+
+/**
+ * Round 2, findings 4 and 5. Carrying the canonical sentence does not stop a guide contradicting
+ * it two lines later, and the sentence hidden inside a comment is not present to a reader. An
+ * empty canonical block satisfied the missing-block guard and made every comparison vacuous.
+ */
+test('control: the blueprint check survives a contradiction, a comment, and an empty source', () => {
+  withTree((dir, run) => {
+    edit(join(dir, 'microsoft', 'auth.md'), (t) =>
+      `${t}\n\nPrepare a separate blueprint for each module, including outlook and calendar.\n`);
+    assert.ok([...run().found].some((f) => f.startsWith('blueprint microsoft') && f.includes('per module')),
+      'the wording that made two modules unconnectable is rejected even beside the canonical sentence');
+  });
+  withTree((dir, run) => {
+    edit(join(dir, 'clarity', 'auth.md'), (t) => t.replace('**One blueprint per toolkit', '<!-- **One blueprint per toolkit'));
+    assert.ok([...run().found].some((f) => f.startsWith('blueprint clarity')),
+      'the sentence commented out is the sentence absent; stripping the comment must not also strip the mention');
+  });
+  withTree((dir, run) => {
+    edit(join(dir, 'shared-text.md'), (t) =>
+      t.replace(/(## The blueprint sentence[\s\S]*?```\n)[\s\S]*?(```)/, '$1$2'));
+    assert.ok(run().errors.some((e) => e.includes('is empty')),
+      'an empty canonical sentence is an error, not a check silently switched off');
+  });
+});
+
+/** Round 2, finding 6. The same displayed sentence in two source spellings. */
+test('control: a local-file route is reported across a line break and through inline emphasis', () => {
+  const vendor = 'Delete the API key at Bing Webmaster Tools under Settings, API Access.';
+  for (const replacement of ['Delete the credential\nfile on disk.', 'Delete the credential **file** on disk.']) {
+    withTree((dir, run) => {
+      edit(join(dir, 'bing', 'auth.md'), (t) => t.replace(vendor, replacement));
+      assert.ok([...run().found].some((f) => f.startsWith('shared-slot bing') && f.includes('local credential file')),
+        `reported: ${JSON.stringify(replacement)}`);
+    });
+  }
+});
+
+/**
+ * Round 2, closing note: four checks had no positive control, so deleting any one of them would
+ * have left every control passing against the empty baseline.
+ */
+test('control: the four checks that had no positive control have one', () => {
+  for (const sentence of ['`analytics` is not connected.', 'Skipped, no access.']) {
+    withTree((dir, run) => {
+      edit(join(dir, 'clarity', 'CONNECTOR.md'), (t) => t.replace('## Status\n', `## Status\n\n${sentence}\n`));
+      assert.ok(has(run().found, 'operator-state clarity'), `reported: ${sentence}`);
+    });
+  }
+  withTree((dir, run) => {
+    edit(join(dir, 'clarity', 'auth.md'), (t) =>
+      t.replace(/## Last connected\n\nNot yet\./, '## Last connected\n\nNot yet. Connected 2026-09-08.'));
+    assert.ok(hasText(run().found, 'Last connected'), 'a Last connected saying more than the answer is reported');
+  });
+  withTree((dir, run) => {
+    edit(join(dir, 'bing', 'manifest.json'), (t) => t.replace('"modules"', '"note": "connected via Codex", "modules"'));
+    assert.ok(hasText(run().found, 'bing: manifest.json'), 'identity is read from manifest.json too');
+  });
 });

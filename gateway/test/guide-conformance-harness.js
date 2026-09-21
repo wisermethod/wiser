@@ -104,12 +104,16 @@ const GRANT_STATE = [
  * search-operator token and a comparison operator in a filter grammar are the query sense.
  * Recording who decided, "the operator chose the target alone", is the defect.
  *
- * **The role senses are cut out of the line before the line is tested, rather than excusing it.**
- * Suppressing any line that matched either was the first shape and adversarial review broke it
- * in one sentence: "The operator decided this; have the operator check the key" was silently
- * clean, because the excuse and the defect fit in one line.
+ * **No subtraction separates them, because the decision verb already does.** Two rounds of
+ * adversarial review broke two versions of a mechanism that cut the role phrases out of a line
+ * before testing it: the first excused any line containing one, so "The operator decided this;
+ * have the operator check the key" was clean, and the second consumed to the next punctuation,
+ * so reversing the clause order was clean again. Measured against the six legitimate `operator`
+ * lines in this tree and four defect lines including both bypasses, this pattern alone is quiet
+ * on all six and fires on all four. The role and query senses carry no verb of deciding, and
+ * requiring one is what distinguishes them. A mechanism that fails twice is deleted, not
+ * patched again.
  */
-const ROLE_SENSE = /have the operator\b[^.;]*|operator tokens?|an operator from the[^.;]*|operator enums?/gi;
 const PROVENANCE = /the operator'?s?\b[^.]{0,40}?(chose|decided|asked|approved|brief|instruction|direction|own call)/i;
 
 /** Harness names, matched case-sensitively: `cursor` is a pagination parameter in two manifests. */
@@ -140,8 +144,32 @@ const SHIPPED_FILES = ['auth.md', 'CONNECTOR.md', 'index.js', 'manifest.json'];
 /** `## Last connected` says one of exactly these. Anything else is a date or a grant. */
 const LAST_CONNECTED_ALLOWED = new Set(['Yes.', 'Not yet.']);
 
-/** A local credential route, in the wordings a vendor slot might reach for. */
+/**
+ * A local credential route, in the wordings a vendor slot might reach for.
+ *
+ * Matched against the slot with its whitespace collapsed and its inline emphasis stripped, so a
+ * line break or a `**file**` between the words does not defeat it. Round two broke the literal
+ * form with "Delete the credential\nfile on disk.", which renders as one sentence.
+ */
 const LOCAL_FILE_ROUTE = /\blocal file\b|\blocal credential file\b|\bcredential file\b|\bkey file\b/i;
+
+/**
+ * Markup a vendor slot may not contain, because the slot is one to three plain sentences.
+ *
+ * An unclosed HTML comment is the reason this exists: it keeps the byte framing intact and hides
+ * everything after it, including the block's own closing instructions, from anybody reading the
+ * rendered guide. A fence or a heading in the slot does the same to the document's structure.
+ */
+const SLOT_MARKUP = [
+  [/<!--|-->/, 'an HTML comment'],
+  [/^\s{0,3}(?:`{3,}|~{3,})/m, 'a code fence'],
+  [/^\s{0,3}#{1,6} /m, 'a heading'],
+];
+
+/** Collapse whitespace and strip inline emphasis, so a rendered sentence matches as one. */
+function flatten(s) {
+  return s.replace(/[*_`]/g, '').replace(/\s+/g, ' ').trim();
+}
 
 /** Read with line endings normalised, so a CRLF checkout is not 24 spurious divergences. */
 function read(path) {
@@ -159,7 +187,11 @@ function taggedLines(text) {
   const out = [];
   let fence = null;
   for (const line of text.split('\n')) {
-    const open = /^\s{0,3}(`{3,}|~{3,})/.exec(line);
+    // A list marker may precede a fence. Without this the opener inside a list item is missed
+    // and its closing fence is read as an opener, which inverts the fence state for the rest of
+    // the file and tags real headings as fenced. Round two of adversarial review hid a whole
+    // duplicate Status section behind exactly that.
+    const open = /^\s{0,3}(?:[-*+][ \t]+|\d{1,9}[.)][ \t]+)?(`{3,}|~{3,})/.exec(line);
     if (fence === null) {
       if (open) {
         fence = open[1];
@@ -169,7 +201,7 @@ function taggedLines(text) {
       }
       continue;
     }
-    const close = /^\s{0,3}(`{3,}|~{3,})\s*$/.exec(line);
+    const close = /^\s{0,9}(`{3,}|~{3,})\s*$/.exec(line);
     const closes = Boolean(close) && close[1][0] === fence[0] && close[1].length >= fence.length;
     if (closes) fence = null;
     out.push({ line, inFence: true, fenceEdge: closes });
@@ -180,22 +212,27 @@ function taggedLines(text) {
 /**
  * Read one `## Heading` section's body, ignoring headings inside code fences.
  *
- * Returns `{ body, count }`: the first matching section, and how many sections carry that
- * heading. A second one is reported by the caller rather than silently ignored, because a
- * duplicated heading is a way to put the real content somewhere this never looks.
+ * Returns `{ body, all, count }`. `body` is the first matching section, which is what a
+ * conformance comparison is made against. `all` is every matching section's body, which is what
+ * a content check reads: reporting that a heading appears twice and then examining only the
+ * first leaves whatever is in the second unexamined, and putting the real content in a second
+ * section is exactly how somebody would hide it. `count` is how many there are.
  */
 export function section(text, heading) {
   const tagged = taggedLines(text);
   const starts = tagged
     .map((t, i) => (!t.inFence && t.line.trim() === heading ? i : -1))
     .filter((i) => i !== -1);
-  if (starts.length === 0) return { body: null, count: 0 };
-  const out = [];
-  for (let i = starts[0] + 1; i < tagged.length; i += 1) {
-    if (!tagged[i].inFence && /^##? /.test(tagged[i].line)) break;
-    out.push(tagged[i].line);
-  }
-  return { body: out.join('\n').replace(/^\n+|\n+$/g, ''), count: starts.length };
+  if (starts.length === 0) return { body: null, all: [], count: 0 };
+  const bodies = starts.map((s) => {
+    const out = [];
+    for (let i = s + 1; i < tagged.length; i += 1) {
+      if (!tagged[i].inFence && /^##? /.test(tagged[i].line)) break;
+      out.push(tagged[i].line);
+    }
+    return out.join('\n').replace(/^\n+|\n+$/g, '');
+  });
+  return { body: bodies[0], all: bodies, count: starts.length };
 }
 
 /**
@@ -310,6 +347,11 @@ export function collectDivergences({ dir = CONNECTORS, sharedFile = SHARED } = {
     }
   }
   const blueprintSentence = blueprint ? blueprint.body.trim() : null;
+  if (blueprint && !blueprintSentence) {
+    // An empty fenced block satisfies the missing-block guard and then makes every comparison
+    // against it vacuous, which switches the check off without anything reporting it.
+    errors.push(`the '${BLUEPRINT_HEADING}' block in ${sharedFile} is empty`);
+  }
 
   const { connectors, problems: population } = readConnectors(dir);
   errors.push(...population);
@@ -346,8 +388,14 @@ export function collectDivergences({ dir = CONNECTORS, sharedFile = SHARED } = {
           found.add(`shared-slot ${c.name}: the vendor route is empty`);
         } else if (slot.includes(SLOT)) {
           found.add(`shared-slot ${c.name}: the vendor route still carries the unreplaced slot token`);
-        } else if (LOCAL_FILE_ROUTE.test(slot)) {
+        } else if (LOCAL_FILE_ROUTE.test(flatten(slot))) {
           found.add(`shared-slot ${c.name}: the vendor route names a local credential file, on a hosted connector`);
+        } else {
+          for (const [re, what] of SLOT_MARKUP) {
+            if (re.test(slot)) {
+              found.add(`shared-slot ${c.name}: the vendor route carries ${what}, and the slot is plain sentences`);
+            }
+          }
         }
       }
     } else if (framePre && revoke.startsWith(framePre)) {
@@ -355,20 +403,20 @@ export function collectDivergences({ dir = CONNECTORS, sharedFile = SHARED } = {
     }
 
     // ---- 3: operator state ----------------------------------------------------------
-    const { body: status, count: statusCount } = section(conn, '## Status');
+    const { all: statuses, count: statusCount } = section(conn, '## Status');
     if (statusCount > 1) found.add(`operator-state ${c.name}: CONNECTOR.md has ${statusCount} '## Status' sections`);
-    if (status === null) {
+    if (statusCount === 0) {
       found.add(`operator-state ${c.name}: CONNECTOR.md has no '## Status' section`);
     } else {
       for (const [re, why] of GRANT_STATE) {
-        if (re.test(status)) found.add(`operator-state ${c.name}: CONNECTOR.md '## Status' ${why}`);
+        if (statuses.some((s) => re.test(s))) found.add(`operator-state ${c.name}: CONNECTOR.md '## Status' ${why}`);
       }
     }
-    const { body: lastConnected, count: lastCount } = section(auth, '## Last connected');
+    const { all: lasts, count: lastCount } = section(auth, '## Last connected');
     if (lastCount > 1) found.add(`operator-state ${c.name}: auth.md has ${lastCount} '## Last connected' sections`);
-    if (lastConnected === null) {
+    if (lastCount === 0) {
       found.add(`operator-state ${c.name}: auth.md has no '## Last connected' section`);
-    } else if (!LAST_CONNECTED_ALLOWED.has(lastConnected.trim())) {
+    } else if (!lasts.every((l) => LAST_CONNECTED_ALLOWED.has(l.trim()))) {
       found.add(`operator-state ${c.name}: auth.md '## Last connected' says more than Yes. or Not yet.`);
     }
 
@@ -378,9 +426,7 @@ export function collectDivergences({ dir = CONNECTORS, sharedFile = SHARED } = {
     for (const name of SHIPPED_FILES) {
       if (!existsSync(paths[name])) continue;
       read(paths[name]).split('\n').forEach((ln, i) => {
-        // The role senses are cut out, not used to excuse the line: one line can carry the
-        // legitimate sense and the defect at once, and excusing it lost the defect.
-        if (PROVENANCE.test(ln.replace(ROLE_SENSE, ''))) {
+        if (PROVENANCE.test(ln)) {
           found.add(`operator-state ${c.name}: ${name}:${i + 1} records who decided something`);
         }
         for (const re of IDENTITY) {
@@ -394,8 +440,17 @@ export function collectDivergences({ dir = CONNECTORS, sharedFile = SHARED } = {
     // ---- 4: one statement of the blueprint rule -------------------------------------
     // Against the sentence in the source, not a pattern here, so the gate cannot disagree with
     // the document it enforces and a reword is one edit where a connector author will see it.
-    if (/blueprint/i.test(auth) && blueprintSentence && !auth.includes(blueprintSentence)) {
+    // Comments are stripped first: the sentence present only inside `<!-- -->` is not present to
+    // a reader, and the check would otherwise pass on a guide that shows none of it.
+    const authVisible = auth.replace(/<!--[\s\S]*?(?:-->|$)/g, '');
+    if (/blueprint/i.test(auth) && blueprintSentence && !authVisible.includes(blueprintSentence)) {
       found.add(`blueprint ${c.name}: mentions a blueprint without the sentence in connectors/shared-text.md`);
+    }
+    // Carrying the sentence does not stop a guide contradicting it two lines later. This rejects
+    // the one wording that broke a connector rather than claiming to judge meaning; the harness
+    // header says plainly that other contradictions are review's job.
+    if (/blueprint/i.test(auth) && /blueprints? (?:for|per) each module|separate blueprints? for each|blueprint per module/i.test(flatten(authVisible).replace(/one blueprint per toolkit, not per module/i, ''))) {
+      found.add(`blueprint ${c.name}: instructs a blueprint per module, which is the wording that made two modules unconnectable`);
     }
   }
 
