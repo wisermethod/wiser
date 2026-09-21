@@ -63,28 +63,41 @@ function firstPartyVersionFacts(result) {
 }
 
 /**
- * Replace `meta` with the three contract members, each forced to its type.
- * A `meta` that is not a plain object is dropped. Other result keys stay.
+ * Rebuild the adapter's result as inert data the gateway owns.
+ *
+ * **Round 2 of adversarial review found two ways round the first version of
+ * this function and both are why it now copies rather than spreads.** It
+ * spread the adapter's object, which carries an enumerable `toJSON` across
+ * unchanged: the in-memory projection nulled the member and `JSON.stringify`
+ * at the RPC layer then called the adapter's own serialiser and returned
+ * whatever it liked. And it keyed on `Object.hasOwn(result, 'meta')` while
+ * `plainMeta` reads `result.meta`, which walks the prototype, so a `meta`
+ * inherited from a prototype was read for the audit line and returned to the
+ * caller unprojected.
+ *
+ * So: own enumerable string keys only, no function values, no `__proto__`,
+ * and `meta` is always the three contract members forced to their types or
+ * absent. An adapter chooses the data and never the serialisation.
  * @param {unknown} result
  */
 function projectFirstPartyResult(result) {
-  if (!result || typeof result !== 'object' || Array.isArray(result) || !Object.hasOwn(result, 'meta')) {
-    return result;
-  }
+  if (!result || typeof result !== 'object' || Array.isArray(result)) return result;
   const meta = plainMeta(result);
-  if (!meta) {
-    const rest = { ...result };
-    delete rest.meta;
-    return rest;
+  const out = {};
+  for (const key of Object.keys(result)) {
+    if (key === 'meta' || key === '__proto__') continue;
+    const value = result[key];
+    if (typeof value === 'function') continue;
+    out[key] = value;
   }
-  return {
-    ...result,
-    meta: {
+  if (meta) {
+    out.meta = {
       model: usableVersionString(meta.model),
       bar: usableBar(meta.bar),
       calibrated_model_version: usableVersionString(meta.calibrated_model_version),
-    },
-  };
+    };
+  }
+  return out;
 }
 
 /**
@@ -94,10 +107,16 @@ function projectFirstPartyResult(result) {
  * @param {Record<string, unknown>} line
  * @param {unknown} result
  */
-function stampVersionFacts(line, result) {
+function stampVersionFacts(line, result, key) {
   const facts = firstPartyVersionFacts(result);
-  line.model = facts.model;
-  line.calibrated_model_version = facts.calibrated_model_version;
+  // A version fact is a short string and so is a credential. Length cannot
+  // tell them apart, so the one credential this process holds is compared
+  // directly and never logged, whatever the adapter called it. Round 2 of
+  // adversarial review is why: the projection had stopped a nested payload
+  // and a long one, and a key is neither.
+  const notTheKey = (value) => (key && value === key ? null : value);
+  line.model = notTheKey(facts.model);
+  line.calibrated_model_version = notTheKey(facts.calibrated_model_version);
 }
 
 /**
@@ -1015,7 +1034,7 @@ export class ConnectionGateway {
       if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) {
         return { status: 'unavailable', reason: 'malformed answer' };
       }
-      stampVersionFacts(line, raw);
+      stampVersionFacts(line, raw, key);
       const result = projectFirstPartyResult(raw);
       if (isStatusObject(result)) return result;
       if (result.error && result.error.code === 'vendor_error') return vendorErrorFrom(result);

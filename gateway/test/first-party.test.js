@@ -1286,3 +1286,89 @@ test('a vendor_error conversion keeps the model the adapter supplied on the audi
   assert.equal(line.calibrated_model_version, 'jev-1.13.0');
   assert.equal(line.status, 'vendor_error');
 });
+
+// ------------------------------------------- round 2: the ways round the projection
+
+test('an adapter toJSON does not choose what the caller is sent', async () => {
+  // Round 2 of adversarial review. The projection nulled `meta.model` in
+  // memory while the adapter's own `toJSON` survived the spread, so the RPC
+  // layer's JSON.stringify called it and returned the payload anyway. The
+  // projection owns the serialisation now, so the assertion is on the
+  // serialised form and not on the live object.
+  const MARKER = 'tojson-marker-4b81e2';
+  const { gw, audit } = await createTestGateway({
+    classifier: createFakeClassifier({
+      result: {
+        status: 'unavailable',
+        meta: { model: { secret: MARKER }, bar: null, calibrated_model_version: null },
+        toJSON() { return { meta: { model: { secret: MARKER } } }; },
+      },
+    }),
+    connectors: [],
+  });
+  const result = await gw.execute({ action: 'wiser.route.ask', input: ASK });
+  assert.equal(JSON.stringify(result).includes(MARKER), false);
+  assert.equal(typeof result.toJSON, 'undefined');
+  assert.equal(result.meta.model, null);
+  const { raw } = lastAuditLine(audit);
+  assert.equal(raw.includes(MARKER), false);
+});
+
+test('an inherited meta is projected, not returned whole', async () => {
+  // Round 2. `plainMeta` reads `result.meta`, which walks the prototype, but
+  // the projection keyed on Object.hasOwn, so an inherited meta was read for
+  // the audit line and handed to the caller unprojected.
+  const MARKER = 'inherited-marker-9d27fa';
+  const proto = { meta: { model: { secret: MARKER }, bar: null, calibrated_model_version: null } };
+  const { gw, audit } = await createTestGateway({
+    classifier: createFakeClassifier({
+      result: Object.assign(Object.create(proto), { status: 'unavailable' }),
+    }),
+    connectors: [],
+  });
+  const result = await gw.execute({ action: 'wiser.route.ask', input: ASK });
+  assert.equal(JSON.stringify(result).includes(MARKER), false);
+  assert.equal(result.meta.model, null);
+  const { raw } = lastAuditLine(audit);
+  assert.equal(raw.includes(MARKER), false);
+});
+
+test('a projected result cannot set a prototype through __proto__', async () => {
+  const { gw } = await createTestGateway({
+    classifier: createFakeClassifier({
+      result: JSON.parse('{"status":"unavailable","__proto__":{"polluted":true}}'),
+    }),
+    connectors: [],
+  });
+  const result = await gw.execute({ action: 'wiser.route.ask', input: ASK });
+  assert.equal(result.status, 'unavailable');
+  assert.equal({}.polluted, undefined);
+  assert.equal(Object.hasOwn(result, '__proto__'), false);
+});
+
+test('the classifier key is never logged as a version fact, whatever the adapter calls it', async () => {
+  // Round 2. The projection stopped a nested payload and an oversized one. A
+  // credential is neither: it is a short string, and length cannot tell it
+  // from a version. The one key this process holds is compared directly.
+  const home = makeHome();
+  const envPath = join(home, 'auth-provider.env');
+  const KEY = 'sk-live-classifier-3e91c7';
+  writeFileSync(envPath, `WISER_AUTH_PROVIDER_KEY=\nWISER_CLASSIFIER_KEY=${KEY}\n`);
+  const { gw, audit } = await createTestGateway({
+    classifier: createFakeClassifier({
+      result: { status: 'unavailable', meta: { model: KEY, bar: null, calibrated_model_version: KEY } },
+    }),
+    connectors: [],
+    envPath,
+    home,
+    authConfigured: false,
+  });
+  const result = await gw.execute({ action: 'wiser.route.ask', input: ASK });
+  assert.equal(result.status, 'unavailable');
+  const { raw, line } = lastAuditLine(audit);
+  assert.equal(raw.includes(KEY), false);
+  assert.equal(line.model, null);
+  assert.equal(line.calibrated_model_version, null);
+  assert.equal('model' in line, true);
+  assert.equal('calibrated_model_version' in line, true);
+});
