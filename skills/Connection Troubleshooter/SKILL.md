@@ -3,7 +3,7 @@ name: Connection Troubleshooter
 type: skill
 category: system
 description: Name one next step for a gateway status object or audit line covering needs_provider, needs_connect, expired, denied, needs_connector, vendor_error, and a teardown that did not finish
-version: 0.2.2
+version: 0.3.0
 ---
 
 # Connection Troubleshooter
@@ -34,6 +34,22 @@ A reader of gateway stops who returns the smallest supported next step and never
 4. Return the one next step and stop. Do not call `start_connect` or execute an action.
 
 ### The six named statuses
+
+**This table is not the list of everything the gateway can answer, and it is not meant to be.**
+`gateway/SETUP.md` section 5 is that list, for a person reading it without running a skill; it
+enumerates every status and what each means. This table is the diagnostic half: the six that
+arrive here as a problem to route, with the one next step for each. The two files have different
+readers and neither restates the other, which is why both exist.
+
+**Four statuses `gateway/SETUP.md` lists are answered below in Pitfalls rather than here**, each
+because its answer is a judgment rather than a route: `invalid_arguments`, `needs_confirmation`,
+`needs_provider_capability` and `teardown_incomplete`. A reader who came for one of those has
+not reached the wrong file.
+
+**One status is here and not there, and that is correct.** `expired` is not a gateway answer at
+all; it is what a `list_connections` row reads and what a person calls the case, so the file that
+enumerates gateway answers does not list it and the file that diagnoses what people bring does.
+
 
 | Arrives as | Means | One next step |
 |---|---|---|

@@ -139,6 +139,8 @@ What each vendor asks of you on its side is in that connector's `auth.md`.
 
 Every answer is one JSON object. A `status` field on it usually means the work did not run, and each status names its own next step. **`disconnect` is the exception**: it answers `disconnected` when the teardown succeeded, and `teardown_incomplete` when it ran and did not finish, so for that tool a status is the outcome rather than a refusal.
 
+**This table is the complete list of what the gateway can answer, for a person reading it.** When you are working through a status with an agent, `skills/Connection Troubleshooter/` is the diagnostic home: it takes the answer in hand, reads `op` and `reason` before the status word, and returns one next step. It covers these statuses and one more, `expired`, which is not a gateway answer but is what a `list_connections` row reads. The two are not copies of each other; this one enumerates, that one diagnoses.
+
 | Status | Meaning | Next step |
 |--------|---------|-----------|
 | `needs_provider` | No credential file was given, or it is empty | Set Up Connectors; step 3 supplies the file recipe |
