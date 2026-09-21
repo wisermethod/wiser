@@ -1,6 +1,6 @@
 ---
 standard: user-root
-version: 0.5.0
+version: 0.6.0
 description: One declared user-root tree and the clauses used to score its layout
 ---
 
@@ -12,7 +12,7 @@ Applies to personal, org, client, department, and industry user roots. This is t
 
 ## C1 Identification
 
-The constitution's Workspace Model (`wiser/AGENTS.md`) owns root identification. Its declaration is in root `AGENTS.md`: `type:`, a Provides block, the Wiser constitution citation, Onboarding state lines, and the declared-directory table. A folder set never identifies a user root. The frontmatter also carries `root:` and `layout:`, the latter this standard's current tree version (3). Increment that integer when this standard changes the tree; a version difference is a converge input, never permission to re-onboard. `skills/Housekeeping/` owns layout migration on a declared Wiser user root and is callable any time to bring its shelves and filing declarations into conformance with this standard. A missing layout version on an already-declared Wiser root is drift, not foreign identity.
+The constitution's Workspace Model (`wiser/AGENTS.md`) owns root identification. Its declaration is in root `AGENTS.md`: `type:`, a Provides block, the Wiser constitution citation, Onboarding state lines, and the declared-directory table. A folder set never identifies a user root. The frontmatter also carries `root:` and `layout:`, the latter this standard's current tree version (4). Increment that integer when this standard changes the tree; a version difference is a converge input, never permission to re-onboard. `skills/Housekeeping/` owns layout migration on a declared Wiser user root and is callable any time to bring its shelves and filing declarations into conformance with this standard. A missing layout version on an already-declared Wiser root is drift, not foreign identity.
 
 That integer is the root **contract** version: the tree above, and whatever else this standard requires of a root before it counts as current. Increment it equally when a row of the table below requires something a tree change does not cover. One integer and no minor part; a row says whether it is required or advisory, so severity lives in the row and not in the number.
 
@@ -23,6 +23,7 @@ The table states, per integer, what a root must carry to reach it, which primiti
 | 1 | No record. This standard declared 2 in its first commit and no commit in this repository introduces `layout: 1`. Nothing is reconstructed here | - | - |
 | 2 | The C3 declared directories, their routers, and the C2 to C11 clauses as this standard now states them, less the `memory/knowledge/` router cell that row 3 owns. Those clauses are otherwise unchanged since 2026-09-10, so an installed copy carrying no git history scores this row from the text in front of it | `skills/Onboard Root/` at instantiation, `skills/Housekeeping/` afterwards | required |
 | 3 | C12 Set registration and the C3 `memory/knowledge/` router cell, both of which entered this standard on 2026-09-15 without moving the integer and therefore bound no root by number; and the stamp read as this contract rather than as the tree alone | `skills/Housekeeping/` for the router cell, which is a tree change; the Sets row per C12, which Housekeeping names and hands off, is written by `skills/Knowledge Set Onboarding/` and updated by `skills/Knowledge Curation/`, and is owed only where C12 scores the root anything: a root with **neither a set nor a row** takes C12's vacuous case, owes those two nothing, and is not held short of this contract by a certification for work that does not exist. A set without a row, or a row naming no set directory, is C12's absent or misfiled and is still owed | required |
+| 4 | The classifier refusal declaration of C13, which is **optional and off unless the root writes it**. A root that wants no primitive in a session it owns to send anything to a classifier writes the line; a root that does not want it writes nothing and is unchanged. **This row is ADVISORY**: a root at 3 is current for every purpose except this one, and is not put behind contract on the day this ships for a feature it does not use | `skills/Housekeeping/`, which proposes the line where the root asks for it and never writes it unasked | **Advisory** |
 
 ## C2 One tree
 
@@ -93,6 +94,10 @@ Score absent when a set has no row, and misfiled when a row names no set directo
 The Sets table and the note beneath it are one record. Open items that `skills/Knowledge Curation/` is told to update live in that note, never in a table cell.
 
 This clause gives Housekeeping a finding to hand off, not a knowledge write. The row's content belongs to the two skills that own it, `skills/Knowledge Set Onboarding/` which writes the row and `skills/Knowledge Curation/` which updates it; Housekeeping names the set, names which of the two receives it, and writes nothing under `memory/knowledge/`.
+
+## C13 Classifier refusal
+
+Optional, and absent by default. A root may declare that no session which has resolved it as owning sends anything to a classifier, the routing ask included. The declaration is one line in the root's `AGENTS.md` frontmatter and its absence is not drift: a root that has not written it has made no statement, and the classifier behaves as `wiser/AGENTS.md` `## Classifier` describes. **A root that writes it is refusing sending, not configuring the gateway.** The gateway may have a classifier attached for other roots in the same workspace; what this clause governs is what a session owned by this root sends, which is nothing. `skills/Housekeeping/` proposes the line where the root asks for it and never writes it unasked.
 
 ## Scoring
 

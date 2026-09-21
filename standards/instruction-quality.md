@@ -1,6 +1,6 @@
 ---
 standard: instruction-quality
-version: 0.1.2
+version: 0.2.0
 description: How instructions are written in and around Wiser; the sole home of the Elegance definition
 ---
 
@@ -58,7 +58,7 @@ Every effective instruction file follows this structure. Not every file needs ev
 
 **Identity:** a lens, not decoration. "Reviewer focused on maintainability" judges differently than "reviewer focused on performance."
 
-**Steps:** every step requiring judgment carries the decision, the criteria, and what to do for each outcome.
+**Steps:** every step requiring judgment carries the decision, the criteria, and what to do for each outcome. **Write the decision as the question and its outcomes**, so the question is answerable on the material in front of the reader and every outcome it admits has a step: "Does the source name its own date? Yes: use it. No: use the file's. Neither: ask." not "Handle dates appropriately." A decision whose outcomes are not enumerated is not a decision a reader can execute, and one whose question cannot be answered from the material is a judgment the step has not made.
 
 **Pitfalls:** each with a specific response, not a warning. Always include the clarification pitfall: if the request is ambiguous, ask before proceeding.
 
@@ -82,6 +82,6 @@ Triage first: a file with an identifiable objective and localized issues is salv
 
 Reviews begin with a stress test: run one realistic request through the instruction end to end, and when instruction files reference each other, through the whole chain, checking that terms, handoffs, and boundaries stay consistent across the files with no gap and no overlap. Describe at least one scenario where the instruction produces wrong or inconsistent output. Finding none means the file is excellent or the scenario was too easy; try a harder one before concluding. A finding without a failure scenario is cosmetic; deprioritize or drop it.
 
-Each finding names where it lives, what is wrong, the failure scenario, and the minimal fix. Audit in the Rank order Elegance defines; Boundaries live in Context's negative and Inputs, failure modes in Pitfalls. With the requester in the loop, present observations one at a time with options (accept, alternate fix, drop) and a recommendation, and after five accepted changes offer: continue, re-assess, or stop. Without one, deliver the findings ranked; the gate and the integration belong to whoever owns the file. Verify each accepted fix by re-running the stress test.
+**Audit every Steps decision for the closed form**: the question stated, its outcomes enumerated, and a step for each. A decision written as an instruction to use judgment, with no question and no outcomes, is a finding. Each finding names where it lives, what is wrong, the failure scenario, and the minimal fix. Audit in the Rank order Elegance defines; Boundaries live in Context's negative and Inputs, failure modes in Pitfalls. With the requester in the loop, present observations one at a time with options (accept, alternate fix, drop) and a recommendation, and after five accepted changes offer: continue, re-assess, or stop. Without one, deliver the findings ranked; the gate and the integration belong to whoever owns the file. Verify each accepted fix by re-running the stress test.
 
 Review fixes add text; they never remove it. A review that integrated fixes is not done until the threshold test re-runs on the whole file: keep each added rule, cut its justification unless the rule is opaque without it, and give anything now said twice one home. A findings-only review ends with the ranked findings.

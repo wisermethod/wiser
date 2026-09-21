@@ -1,6 +1,6 @@
 ---
 standard: primitives
-version: 0.7.0
+version: 0.8.0
 description: The four typed primitives, how they invoke and sequence one another, and the frontmatter every typed file carries
 ---
 
@@ -25,7 +25,7 @@ Litmus: it produces an output on request (Skill), it judges work through a lens 
 
 ## Invocation
 
-Skills and experts invoke tools, and they alone do. Skills never invoke each other's internals, and neither do experts; behavior two of them share moves down into a tool, or the two are one primitive. Tools invoke no primitive. Skills and experts invoke connectors by action id through the gateway; they never import a connector module, never read a credential, and never present a vendor body as their own judgment.
+Skills and experts invoke tools, and they alone do. Skills never invoke each other's internals, and neither do experts; behavior two of them share moves down into a tool, or the two are one primitive. Tools invoke no primitive. Skills and experts invoke connectors by action id through the gateway; they never import a connector module, never read a credential, and never present a vendor body as their own judgment. Skills and experts may also put a closed decision to the classifier through the gateway, and the answer is data, never the primitive's judgment; **tools do not**.
 
 An expert may select and sequence skills. It names the skill it picked before running it, and it may tell that skill which files to read. It never reaches inside a skill's steps, overrides its internals, or presents a skill's output as its own. Anything an expert does that runs the same way every time is a tool, not expert behavior.
 
