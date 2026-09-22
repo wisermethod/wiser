@@ -54,13 +54,13 @@ The empty state belongs to a container that can hold nothing rather than to an i
 - Keep the container's own frame legible so the shape of what will arrive is visible before anything does: a table keeps its header row, a list keeps its bounds, a card grid keeps its column widths.
 - Fill the space with a short heading, one line of guidance, and one primary action, set in the container's own type scale and spacing rather than as a centered island with rules of its own.
 - The three causes take different treatment. Nothing created yet takes the heading, guidance, and action above. A filter or search matching nothing keeps the controls in place and offers to clear them, because the data exists and the query is what is wrong. A load that failed is the error state, not this one.
-- An illustration or icon is optional; it earns its place or it is dropped. The heading and the action carry the state.
+- An illustration or icon is optional. Did the user ask for one, and are the heading and the primary action already there? Yes: include it. They did not ask, or the heading or the action is missing: drop the illustration. Write the heading and the action first. They carry the state.
 
 `ux-writing.md` carries the copy.
 
 ## Modal Alternatives
 
-The modal as default overlay is a prohibited default: the Interaction entries of the Prohibited Defaults Taxonomy in `experts/Creative Director/EXPERT.md`, the list's single home, name it. Reach for an alternative first:
+The modal as default overlay is a prohibited default: the Interaction entries of the Prohibited Defaults Taxonomy in `experts/Creative Director/EXPERT.md`, the list's single home, name it. Which surface fits? Read the alternative rows first; a modal is not reached before them.
 
 | Alternative | When |
 |------------|------|
@@ -69,9 +69,7 @@ The modal as default overlay is a prohibited default: the Interaction entries of
 | Inline expansion | Details, accordions, progressive disclosure |
 | Toast plus undo | Confirmation of actions (undo is better than confirmation dialogs) |
 
-Reserve modals for: complex multi-step flows, truly irreversible destructive actions, content that requires full attention.
-
-Use native `<dialog>` with `showModal()` for proper focus trapping and Escape-to-close.
+One alternative row matches: use that row. Do not use a modal. Two alternative rows match: ask. Do not default to a modal. No alternative row matches, and the case is a complex multi-step flow, a truly irreversible destructive action, or content that requires full attention: use a modal. Use native `<dialog>` with `showModal()` for proper focus trapping and Escape-to-close. No alternative row matches, and it is none of those three: ask. Do not default to a modal.
 
 ## Destructive Actions
 

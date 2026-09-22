@@ -45,7 +45,7 @@ Use CSS custom properties for cleaner stagger:
 animation-delay: calc(var(--i, 0) * 50ms);
 ```
 
-Set `style="--i: 0"`, `style="--i: 1"`, and so on, on each item. Cap total stagger time: 10 items at 50ms is 500ms maximum. For many items, reduce the per-item delay or limit the staggered count.
+Set `style="--i: 0"`, `style="--i: 1"`, and so on, on each item. Will 50ms times the item count exceed 500ms? No: delay each item by `calc(var(--i, 0) * 50ms)`. Yes, and the caller named a per-item delay or a staggered count that keeps the total at or under 500ms: use what they named. Yes, and they named neither: stagger the first 10 at 50ms and give the rest no extra delay. Say which. Do not exceed 500ms.
 
 ## Reduced Motion
 

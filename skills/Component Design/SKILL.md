@@ -3,7 +3,7 @@ name: Component Design
 type: skill
 category: design
 description: Design a single UI component as self-contained, renderable HTML and CSS with every applicable state, semantic markup, and design tokens
-version: 0.2.2
+version: 0.2.3
 memory:
   - design
 ---
@@ -53,19 +53,19 @@ Eight steps, in order.
 
 1. **Purpose.** Before any markup, state what the component does, what it displays or the action it enables, where it sits, and how it relates to what surrounds it.
 
-2. **States.** Decide which of criterion 1's states apply to this component, then design each explicitly. `interaction-design.md` carries the visual treatment for each: the eight states of an interactive element in one table, and the container's empty state in its own section. `motion-design.md` carries the timing of the transitions between them. Scope hover to `@media (hover: hover)` so a touch device does not hold a hover state after a tap. Designing every applicable state here, before styling, is the discipline this skill exists to enforce.
+2. **States.** Which of criterion 1's states does this component have a moment for? It can be interacted with: design default, hover, focus, active, disabled, loading, and error, each explicitly. Hover is scoped to `@media (hover: hover)` so a touch device does not hold a hover state after a tap. It is a container that can hold nothing: also design empty. It completes an action: also design success. A listed state has no moment on this component: do not design that state, and name it as not applicable. You cannot tell whether empty or success applies: ask. Do not omit hover, focus, active, disabled, loading, or error from an element the user can operate. `interaction-design.md` carries the visual treatment for each: the eight states of an interactive element in one table, and the container's empty state in its own section. `motion-design.md` carries the timing of the transitions between them. Designing every applicable state here, before styling, is the discipline this skill exists to enforce.
 
 3. **Structure.** Write the semantic markup criterion 2 calls for, and manage focus for composite components (modals, dropdowns). Content is realistic from the first draft, never filled in later.
 
 4. **Tokens.** Style with the tokens Inputs resolved, in this order: component-level tokens, then semantic tokens (`--color-primary`, `--text-body`), then primitive tokens (`--space-4`, `--radius-md`).
 
-5. **Visual design.** Where quality is won. Set hierarchy so the primary element carries the most weight, across two or three dimensions at once (size, weight, color); spacing that groups the related and separates the distinct; typography mapped to the type scale, weight carrying emphasis; and color used semantically, primary sparingly for calls to action and active states.
+5. **Visual design.** Where quality is won. Is this a dense data application or an unusual shell? Yes: consult `experts/Creative Director/` for spatial, density, and type-scale judgment before the hierarchy below. No: do not. You cannot tell: ask, and do not invent a shell. Which of size, weight, and color carry the primary element? The user or the tokens name two or three: use those. They name one: keep it, and add size if they did not name size, otherwise add weight, so two are in use. They name none: use size and weight, and add color when the component has a call to action or an active state. One dimension is not hierarchy. Color, when it is one of them, is semantic: primary for calls to action and active states, used sparingly. Spacing groups the related and separates the distinct. Typography maps to the type scale, and weight carries emphasis.
 
 6. **Variants.** Design the base plus the variants the user named. None named: ask which, rather than generating every combination of size, emphasis, color, and layout.
 
-7. **Responsive behavior.** Define how the component adapts: reflow, resize, hide, or change of interaction. Write the rules mobile-first with `min-width` queries. `responsive-design.md` carries breakpoints, input-method detection, and per-element adaptation.
+7. **Responsive behavior.** How does this component adapt? The user named reflow, resize, hide, or a change of interaction: use what they named. That hide removes the only path to a critical action: do not hide it. Reflow it, or change the interaction, and say so. You cannot tell whether a hide is critical: do not hide. Ask. The user named none, and the Adaptation Patterns table in `responsive-design.md` has a row for this element: use that row's mobile, tablet, and desktop treatments, including a hide that row names. Check that table before inventing a treatment. The user named none, and there is no row: reflow. Write the rules mobile-first with `min-width` queries. `responsive-design.md` carries breakpoints, input-method detection, and per-element adaptation.
 
-8. **Output.** Emit one self-contained unit: a `<style>` block carrying the tokens, the component styles for every state designed in step 2, and the responsive rules. For a Tailwind target, put utility classes on the elements instead of a `<style>` block. Where the caller asked for a verdict, hand this unit as `<design_artifact>`, the resolved tokens as `<design_system>`, and step 1's purpose with the audience and what matters most as `<brief>`, to `experts/Creative Director/` in a second context, and work the findings before delivering; otherwise the component ships on the checks in Success.
+8. **Output.** Did the caller ask for Tailwind? Yes: put utility classes on the elements, and do not emit a `<style>` block. No, or they did not say: emit one self-contained unit, a `<style>` block carrying the tokens, the component styles for every state designed in step 2, and the responsive rules. The `<style>` block is the default. Do not emit both. Where the caller asked for a verdict, hand this unit as `<design_artifact>`, the resolved tokens as `<design_system>`, and step 1's purpose with the audience and what matters most as `<brief>`, to `experts/Creative Director/` in a second context, and work the findings before delivering; otherwise the component ships on the checks in Success.
 
 ## Component Patterns
 
@@ -74,7 +74,7 @@ Per-type essentials, loaded when the component is one of these; the interaction 
 - **Buttons.** Label wording and the primary-secondary-ghost hierarchy are the taxonomy's Interaction entries; `ux-writing.md` carries the label patterns that replace them. An icon-only button needs an `aria-label` (`ux-writing.md` carries what it says), a visible tooltip, and padding reaching criterion 5's target even when the glyph is smaller.
 - **Cards.** Optional image, required heading, optional body and actions; nesting one card in another is a taxonomy Layout entry. If the card links somewhere, the whole card is the target. The loading state is a skeleton in the card's shape.
 - **Forms.** Labels above inputs, related fields in a `<fieldset>` with a `<legend>`, error text in the error color. `interaction-design.md` carries the label, validation-timing, and error-placement patterns; `ux-writing.md` carries the error copy.
-- **Navigation.** A current-page indicator that is more than text color, a background or a rule. A mobile collapse strategy, a drawer or a bottom tab bar. Keyboard-navigable, with no hover-only dropdowns; roving-tabindex detail is in `interaction-design.md`.
+- **Navigation.** A current-page indicator that is more than text color, a background or a rule. A mobile collapse follows Step 7. Did the user name a drawer, a bottom tab bar, or both? A drawer: use it. A bottom tab bar: use it. Neither: hamburger plus drawer, the Adaptation Patterns row. Both: ask which. Do not build both. Keyboard-navigable, with no hover-only dropdowns; roving-tabindex detail is in `interaction-design.md`.
 - **Modals.** Title, body, actions, and close on backdrop click. Reaching for a modal at all is a taxonomy Interaction entry: `interaction-design.md` carries the alternatives to try first and the native-element pattern for when a modal is genuinely right.
 - **Tables.** Sortable-column indicators, a row-hover highlight, numbers right-aligned with `font-variant-numeric: tabular-nums`, text left-aligned. A mobile strategy per `responsive-design.md`, and an empty state per `interaction-design.md`.
 
@@ -82,7 +82,7 @@ Per-type essentials, loaded when the component is one of these; the interaction 
 
 - **Ambiguous component.** A request like "design a card" leaves the content and the action undefined, and a product card, a profile card, and a metric card are different components. Ask what it displays and what it enables before designing.
 - **Conflicting states.** When two states collide, disabled and loading at once, state the precedence in the output rather than guessing: loading takes precedence, showing the spinner and blocking the click.
-- **Variant explosion.** A request for every size by emphasis by color is a dozen thin components. Offer to design the three or four actually needed, fully, instead of all of them thinly.
+- **Variant explosion.** Did the request ask for every combination of size, emphasis, color, and layout? No: Step 6. Yes: do not design all of them thinly. Ask which three or four are needed. They name three or four: design those fully. They name fewer: design the ones they named, fully. They name more than four: do not design more than four in this pass. Ask which four. They do not answer: do not design the matrix. The base still follows Step 6.
 - **Raw values over tokens.** A hardcoded `16px` or hex breaks theming silently, and nothing at render time reveals it. A bound design system missing the token a component needs gets a new one defined alongside the rest, never a literal left in place.
 - **Placeholder content.** Reserved placeholder text and names read as unfinished and hide real layout problems, a name that runs too long, a number that does not fit. Write realistic content from the first pass; `ux-writing.md` carries the label and message patterns.
 
