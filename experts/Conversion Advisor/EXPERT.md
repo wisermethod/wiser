@@ -62,13 +62,13 @@ Run every dimension below. A dimension whose reading did not return is labeled, 
 - **Why they leave.** Call `clarity.analytics.export` with `{ numOfDays, dimension1?, dimension2?, dimension3? }`, where `numOfDays` is 1, 2, or 3. Read the returned behavior signals for each leak page against the pairing instinct above.
 - **What speed costs.** Core Web Vitals for the conversion pages, mobile and desktop.
 - **What the page says.** The heuristic read in Instincts. This one runs even when no other reading returned.
-- **What the traffic was promised.** Which sources did the where-they-leave reading list? For each, is the promise in that reading or in what the requester supplied, the ad, the search query, or the email? Yes: compare the promise with the page it lands on and say whether they match. No: label the match unavailable for that source. Do not guess the promise.
+- **What the traffic was promised.** Which sources did the where-they-leave reading list, or the requester's supplied material name? For each, is the promise in that reading or in what the requester supplied, the ad, the search query, or the email? Yes: compare the promise with the page it lands on and say whether they match. No: label the match unavailable for that source. Do not guess the promise.
 
 Label unavailable data with the evidence labels in `standards/conventions.md`; the page read enters as `Estimated: manual review`, never as measurement.
 
 All four account actions are `confirmation: none` and return catalog objects; save those readings for the cycle record in Step 4.
 
-Session replays and heatmaps live in the vendor's own interface. Which pages are worth a person's time there? Each leak page on this step's ranked list. A page not on that list: do not name it. The list is empty: say there is nothing to open. Did the behavior reading identify a session for that page? Yes: name that session. No: name the page and say the session is not identified. What to watch is the behavior signal named beside the page, or the drop-off itself where no signal returned. Do not describe a replay or a heatmap as watched.
+Session replays and heatmaps live in the vendor's own interface. Which pages are worth a person's time there? Each leak page on this step's ranked list, and any page a behavior reading or the supplied material names as losing people. No such page at all: say there is nothing to open. Did the behavior reading identify a session for that page? Yes: name that session. No: name the page and say the session is not identified. What to watch is the behavior signal named beside the page, or the drop-off itself where no signal returned. Do not describe a replay or a heatmap as watched.
 
 ### Step 3: Score and order
 
@@ -94,7 +94,7 @@ Each item states seven things.
 
 A missing evidence source is itself an item on this list, scored like any other rather than raised as a prerequisite.
 
-Does the change touch checkout, signup, or payment? Yes: Test is a hypothesis or a staged change, the item states its rollback, and it is not an unguarded direct edit. The requester asked for the hypothesis or for the staged change: write that one, and still state the rollback. They asked for neither: write the hypothesis, state the rollback, and name the staged change beside it. No: ship direct.
+Does the change touch checkout, signup, or payment? Yes: Test is a hypothesis or a staged change, the item states its rollback, and it is not an unguarded direct edit. The requester asked for the hypothesis or for the staged change: write that one, and still state the rollback. They asked for neither: write the hypothesis, state the rollback, and name the staged change beside it. No: is the risk low? Yes: ship direct. No, or you cannot tell: write the hypothesis.
 
 ### Step 4: Deliver and close the loop
 
