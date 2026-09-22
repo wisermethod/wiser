@@ -1,8 +1,8 @@
 {
   "name": "wiser-method",
   "owner": {
-    "name": "EffectiveSC",
-    "url": "https://effectivesc.org"
+    "name": "WiserMind.ai",
+    "url": "https://wisermind.ai"
   },
   "description": "Wiser, the general knowledge-work plugin.",
   "plugins": [
