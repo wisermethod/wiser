@@ -4,7 +4,7 @@ Reusable reveal.js HTML patterns. Each pattern shows the exact HTML to place ins
 
 When a brand template is loaded, use its CSS classes (`.brand-primary`, `.brand-accent`) instead of inline color values. When no brand template exists, use the CSS custom properties (`var(--brand-primary)`) defined in the document's `<style>` block, or the reveal.js theme variable `var(--r-link-color)`.
 
-Pattern selection principle: which row of the Layout Selection Guide in `slide-design.md` matches this slide's content? One row: use that pattern. Two rows match: use the simpler of the two. The previous slide already used that pattern, and another row also matches: use the other, so the deck does not repeat one mold. No row matches: use Standard Content. A standard content slide with a strong headline beats a fancy card layout with a weak one. Never use a complex pattern where a simple one communicates the same idea.
+Pattern selection principle: which row of the Layout Selection Guide in `slide-design.md` matches this slide's content? One row: use that pattern. Two rows match: use the simpler of the two. The previous slide already used that pattern, and another row also matches and is no more complex: use the other, so the deck does not repeat one mold. No row matches: use Standard Content. A standard content slide with a strong headline beats a fancy card layout with a weak one. Never use a complex pattern where a simple one communicates the same idea.
 
 ## Cover or Title Slide
 
