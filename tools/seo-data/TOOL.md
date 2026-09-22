@@ -3,7 +3,7 @@ name: seo-data
 type: tool
 category: seo
 description: Consolidates Search Console and Analytics results for one site and date range into one audit dataset, and turns Search Console query rows into a keyword report of top performers, opportunities, trends, cannibalization, and target-keyword standings
-version: 0.2.0
+version: 0.2.1
 ---
 
 # seo-data
@@ -131,13 +131,13 @@ One JSON object on stdout, exit 0.
 | `targetKeywords` | One entry per keyword supplied, or `null` when the bundle named none |
 | `duplicatesDropped` | How many later rows first-wins left unused: `searchQueries` (case-insensitive query string, for target-keyword status) and `analyticsPagePaths` (analytics `pagePath`, for the page join). Each is 0 when that report listed no repeats |
 
-`searchPerformance` describes the query rows in the bundle, not the site. A report fetched with a row limit gives totals over that slice, and `queries` is the count those totals were taken across; `averagePosition` weights each row's position by its impressions, so the figure reflects where the site is seen rather than where it is listed. Totals and `topQueries` still walk every supplied query row, including later duplicates; first-wins applies to which row describes a key for target-keyword status, and those unused later query rows are counted in `duplicatesDropped.searchQueries`.
+`searchPerformance` describes the query rows in the bundle, not the site. A report fetched with a row limit gives totals over that slice, and `queries` is the count those totals were taken across; `averagePosition` weights each row's position by its impressions, so the figure reflects where the site is seen rather than where it is listed. Did the fetch that produced the query rows use a row limit? Yes: say that these totals cover that slice, and that `queries` counts the slice. No: the totals cover the supplied rows. You cannot tell: say the totals cover the supplied rows, and do not call them the whole site. Totals and `topQueries` still walk every supplied query row, including later duplicates; first-wins applies to which row describes a key for target-keyword status, and those unused later query rows are counted in `duplicatesDropped.searchQueries`.
 
-Pages join on path: the path of each search result address is matched against the analytics page path, which drops any query string. A page address that matches no analytics row, or that does not parse as an address, keeps its search metrics and simply carries no analytics fields, so the two absences look the same in the output.
+Pages join on path: the path of each search result address is matched against the analytics page path, which drops any query string. A page address that matches no analytics row, or that does not parse as an address, keeps its search metrics and simply carries no analytics fields, so the two absences look the same in the output. Did you confirm both reports cover the same property and host? Not yet: confirm that before you explain the blank. They do, and the fields are still absent: deliver the row that way. Do not invent analytics numbers.
 
 Where a report lists the same key twice, whether a repeated query or a repeated analytics page path, the first row wins for description: both sources return their rows strongest first, so the first row for a key is the one used for the analytics path join and for target-keyword status. Later rows are not applied to those lookups, and `duplicatesDropped` names how many were dropped on each axis rather than leaving the drop silent.
 
-`targetKeywords` reports `not_ranking` for a keyword absent from the supplied queries, `low_impressions` when it appears with fewer than ten, and `ranking` otherwise. Absent from the supplied rows is not absent from search: a keyword below the row limit of the fetch reads as `not_ranking` here.
+`targetKeywords` reports `not_ranking` for a keyword absent from the supplied queries, `low_impressions` when it appears with fewer than ten, and `ranking` otherwise. Did the query fetch hit a row limit, which you know because you fetched the rows? Yes: a `not_ranking` keyword may sit below that limit. Do not treat the status as absent from search. Re-fetch with a higher row limit, then re-run. No, the fetch returned every row it had: `not_ranking` means the keyword was not in those rows. You cannot tell: say both, and do not claim the site does not rank for it.
 
 Indexing coverage is not in this dataset. How many pages are indexed and how many have errors cannot be derived from the sitemap list; that answer needs per-URL inspection results, which this tool is not given.
 
@@ -147,7 +147,7 @@ One JSON object reading a site's search queries five ways: which ones earn the c
 
 Use it when a caller already holds Search Console query rows and needs them ranked, compared, and grouped before anyone interprets them: after a data pull, to find the queries stuck in positions 5 to 20; to see which queries grew or fell against the previous window; to find one query drawing two of the site's own pages into the same result set; or to check a list of target keywords against what the site actually ranks for.
 
-Its findings are only ever as good as the rows handed in. It cannot tell a full data pull from a truncated one, cannot verify that the earlier rows cover the window it names, and cannot detect that a site has too little traffic to draw conclusions from. A caller reporting these findings owes the reader that context.
+Its findings are only ever as good as the rows handed in. It cannot tell a full data pull from a truncated one, cannot verify that the earlier rows cover the window it names, and cannot detect that a site has too little traffic to draw conclusions from. Are you handing the report to a reader? Yes: state those three limits. No earlier rows were supplied: do not state the earlier-window limit; `growing` and `declining` are null. No: the JSON is the result. Do not add a finding the JSON does not carry.
 
 Every failure here is a usage mistake or an unreadable input: it names the cause on stderr, leaves stdout empty, and exits 1. Malformed rows are not reported inside the JSON, because a report built from rows of an unknown shape would be wrong in ways a reader could not see. Row errors name the file and the row index, never the row's content, which is a customer's own search data.
 
@@ -168,7 +168,7 @@ A section whose input was not supplied comes back `null`. An empty list means th
 
 ### Thresholds
 
-Every cut this command makes, in one place. The impression floor comes first: a query holding fewer than `--min-impressions` impressions, 10 by default, is dropped before anything is ranked, which shapes the query count, the top performers, the opportunities, and the trends.
+Every cut this command makes, in one place. The impression floor comes first: a query holding fewer than `--min-impressions` impressions, 10 by default, is dropped before anything is ranked, which shapes the query count, the top performers, the opportunities, and the trends. Did the request name a floor? Yes: pass that `--min-impressions`. No: leave 10. Do not choose a different floor because the site looks quiet or busy.
 
 | Section | Kept when | Ordered by | Capped at |
 |---------|-----------|------------|-----------|
@@ -230,7 +230,7 @@ A file is written only when `--output <dir>` is given, named `seo-keywords-YYYY-
 
 One JSON object naming the reporting window and the earlier window of the same length that ends the day before it.
 
-Use it so a caller fetches exactly the rows the `keywords` trend comparison expects. For a reporting window of 2026-06-01 to 2026-06-28, the earlier window is 2026-05-04 to 2026-05-31. `keywords` reports that window back as `previousDateRange`. Whether the rows handed in actually cover it is the caller's to guarantee.
+Use it so a caller fetches exactly the rows the `keywords` trend comparison expects. For a reporting window of 2026-06-01 to 2026-06-28, the earlier window is 2026-05-04 to 2026-05-31. `keywords` reports that window back as `previousDateRange`. Do the earlier rows you hold come from a fetch of this printed window? Yes: pass that file to `keywords` as `--previous-queries`. No: do not pass them. `growing` and `declining` stay null. You did not fetch them and cannot show the window: do not pass a file. The rows carry no dates, so the file's contents cannot answer this.
 
 ### Usage
 
@@ -284,9 +284,9 @@ The stops every tool shares, an unknown flag and a path that is relative or insi
 | `Error: <path> row N does not carry 2 keys` | Query rows were passed to `--query-pages` | Re-fetch with dimensions `["query","page"]` |
 | `Error: <path> row N is missing a numeric "clicks"` | Rows were reshaped between the fetch and this call | Pass rows as the API returned them |
 | `Error: <path> holds no keywords` | The target file is empty, or holds only headings and blank lines | List one keyword per line |
-| `topPages` entries carry no analytics fields | The page paths in the two reports do not match, or the search address does not parse | Confirm both reports cover the same property and host: the join is on path alone, so a differing host or a path prefix one report carries and the other does not matches nothing |
+| `topPages` entries carry no analytics fields | The page paths in the two reports do not match, or the search address does not parse | Apply the join question in `audit` Output. Not yet confirmed they cover the same property and host: confirm that before you explain the blank. They do, and the fields are still absent: deliver the row that way. Do not invent analytics numbers |
 | `organicSearchShare` is 0 with organic traffic in the trend | No acquisition row is labeled `Organic Search` | Confirm the channel dimension is `sessionDefaultChannelGroup`; a custom channel grouping uses different labels |
-| A target keyword reads `not_ranking` on a page known to rank | The query fell below the row limit of the query fetch | Re-fetch the queries with a higher row limit, then re-run |
+| A target keyword reads `not_ranking` on a page known to rank | The query fell below the row limit of the query fetch | Apply the `not_ranking` question in `audit` Output. A fetch you know was row-limited: re-fetch with a higher row limit, then re-run. A complete fetch: the status stands. You cannot tell: say both, and do not claim the site does not rank |
 | `cannibalization` is `null` when pages plainly compete | `--query-pages` was not supplied | Fetch the `["query","page"]` rows and pass them |
 | `growing` and `declining` are both empty | No query cleared both the 3-click baseline and the 20 percent move | Expected on a low-traffic site or a short window; widen the window |
 | `opportunities` is empty on a site with traffic | Nothing sat in positions 5 to 20 with 50 or more impressions | Read `topPerformers` instead; a site ranking well or ranking nowhere has no middle band |
