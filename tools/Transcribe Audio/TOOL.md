@@ -18,7 +18,7 @@ Use it when a recording has to become text: a call, an interview, a meeting, a v
 
 Do not use it to interpret what was said. It produces words and timings and nothing else: no summary, no analysis, no decisions, no fact checking. Reading meaning out of a transcript is separate work, done after this tool finishes and equally possible on a transcript this tool never produced.
 
-Does the request say the audio is in a language other than English? Yes: do not run. Say that transcription is pinned to English. No, or the language is not stated: run. Transcription is pinned to English, so a recording in another language transcribes as though it were English and produces nonsense that the run reports as a success. Do not try to detect the language by listening.
+Does the request say the audio is in a language other than English? Yes: do not run. Say that transcription is pinned to English. It says English: run. The language is not stated: ask, and do not run until it is said to be English. Transcription is pinned to English, so a recording in another language transcribes as though it were English and produces nonsense that the run reports as a success. Do not try to detect the language by listening.
 
 It authenticates to nothing and holds no credential of its own.
 
