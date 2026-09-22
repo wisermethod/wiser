@@ -3,7 +3,7 @@ name: seo-page-analyzer
 type: tool
 category: seo
 description: Reports one page's on-page SEO elements from caller-supplied HTML, each element with its measurements and the checks it failed
-version: 0.1.1
+version: 0.1.2
 ---
 
 # seo-page-analyzer
@@ -41,7 +41,7 @@ How the measurements are taken, where a caller could reasonably read them anothe
 
 - Lengths count decoded characters, so `&amp;` is one character in a title, not five.
 - Keyword matching is a case-insensitive substring, and density is occurrences of the whole phrase divided by the word count, so a two-word keyword and a one-word keyword do not produce comparable densities.
-- An image with `alt=""` counts as an image without alt text, though an empty `alt` is the correct markup for a decorative image.
+- An image with `alt=""` counts as an image without alt text, though an empty `alt` is the correct markup for a decorative image. An image counted without alt: does its markup carry `alt=""`? Yes: that is the decorative mark. Leave the count as the report has it, and do not add alt text to clear it. No, the attribute is absent: the check stands. Do not invent alt text. The request names that image as decorative: say so to the requester, not by changing the JSON. Still do not invent alt text. A mix: apply this per image. Do not clear the group's issue while any image lacks the attribute.
 - Word count is the visible body text: the head, script and style elements, HTML comments, and the tags themselves are removed first, so the title is measured once as a title and a heading a script writes at runtime is not on the page.
 - A link counts once, toward internal or external by comparing its resolved host to the host in `--page-url`. Fragment, `mailto:`, `tel:`, and script links count toward neither.
 
@@ -81,7 +81,7 @@ Options:
 | `--keyword "<text>"` | Target keyword to check the page against | None; every keyword field reports null |
 | `--help`, `-h` | Print usage and exit | Off |
 
-One page per run. `--page-url` is required because internal and external links cannot be told apart without a host to compare against; a caller analyzing a build artifact or a staging copy passes the address the page will be served at.
+One page per run. `--page-url` is required because internal and external links cannot be told apart without a host to compare against. Is this HTML the page at a live http or https address? Yes: pass that address. Is it a build artifact or a staging copy? Pass the http or https address the page will be served at, not a file path. You do not know that address: ask. Do not pass `file://`, and do not omit the flag.
 
 No command takes `--env`.
 
@@ -118,9 +118,9 @@ The stops every tool shares, an unknown flag and a path that is relative or insi
 | `Error: --page-url is not a URL` | A bare host, a path, or a typo was passed | Pass an absolute address including its scheme |
 | `Error: --page-url must be http or https` | A `file://` or other scheme was passed | Pass the address the page is served at, even when the HTML came off disk |
 | `Error: could not read <path>` | The path is a directory or is not readable | Point `--html` at a readable file |
-| Every group reports absences on a page that plainly has content | The HTML holds a shell that a browser fills in, or the file is not HTML | Hand in the HTML as a browser renders it, not the served source, when the page builds itself client-side |
+| Every group reports absences on a page that plainly has content | The HTML holds a shell that a browser fills in, or the file is not HTML | Does the file hold the title, headings, and body text the page shows? Yes: deliver the report. Do not fetch another copy. No, it is a shell a browser fills in: hand in the HTML as a browser renders it, not the served source, and run again. You cannot tell: ask. Do not treat the absences as a rewrite list |
 | A heading or title the page shows is missing from the report | It is written by script, or it sits inside an HTML comment | Neither is on the page as delivered; both are reported as absent by design |
-| `imagesWithoutAlt` counts images that are decorative | Empty `alt` counts as missing, per What It Checks | Read `imageCount` against `imagesWithAlt` and judge which are decorative |
+| `imagesWithoutAlt` counts images that are decorative | Empty `alt` counts as missing, per What It Checks | Apply the `alt=""` question in What It Checks. Empty `alt`: report the count and do not add alt text. The attribute is absent: the check stands. Do not invent alt text |
 | The recorded `url` is shorter than the address passed | A fragment or an authorization-bearing parameter was dropped, per Output | Expected; the page's identity is what remains |
 
 ## Success
