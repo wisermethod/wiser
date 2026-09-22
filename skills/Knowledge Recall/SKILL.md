@@ -3,7 +3,7 @@ name: Knowledge Recall
 type: skill
 category: knowledge
 description: Answer a question from one named knowledge set, scoped to that set alone, with the quotes and sources the answer rests on and an evidence label on every claim, saying Not available when the set does not cover it
-version: 0.6.0
+version: 0.6.1
 gaps:
   - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
   - temporal filtering of recall by a date, so an as-of question is answered from the facts the set dates rather than filtered by the engine
@@ -59,7 +59,7 @@ With recipe `retrieval: embedding`, a paraphrase question is **two recall calls 
 
    Does the owning root refuse, per `standards/user-root.md` C13? Yes: do not call, and choose as the chooser below. No: ask the next.
 
-   Does `session_permission` name who permitted this session and the date? The check is the one at the top of this step, and it is already done before these questions. No: do not call, and choose as the chooser below. Yes: ask the next.
+   Does `session_permission` name who permitted this session and the date? **This is the same check as the one at the top of this step, restated here only as the gate on the call.** **No: stop. Do not call, and do not fall through to the chooser either**, because the chooser reads passage quotes and that is opening source material, which is exactly what the check at the top of this step forbids without permission. Say which step cannot run and get permission. **Corrected 2026-09-21 by adversarial review**, which found this branch sending a missing permission to a chooser that then reads the material the permission was for. Yes: ask the next.
 
    Is a classifier attached, per `wiser/AGENTS.md` `## Classifier`? No: choose as the chooser below. Yes: call `wiser.recall.rank` once, then read the answer as follows.
 
