@@ -60,7 +60,7 @@ A missing description in frontmatter fails `check` rather than shipping an empty
 |---|---|
 | `src/content/**` | `src/components/**`, `src/layouts/**`, `src/pages/**` (routes) |
 | `public/images/**` | `astro.config.mjs`, `package.json`, `package-lock.json` |
-| `public/llms.txt` when SEO Assets writes it | `src/styles/**` except through a Designer-gated token update |
+| `public/llms.txt` when SEO Assets writes it | `src/styles/**`, except `src/styles/tokens.css` when `skills/Designer/` has already gated that token update. Any other write under `src/styles/**` is refused |
 | | `.github/**`, `KIT.md` copies, `kit.json` (Upgrade's) |
 
 A request to add a component or edit `astro.config.mjs` is refused. A request to add `src/content/articles/hello.md` with required frontmatter succeeds.
@@ -87,7 +87,7 @@ Content is file-backed, not CMS-backed. Git is optional plumbing, not the conten
 
 No `git init` by default. The kit writes a site `.gitignore` (`node_modules/`, `dist/`, `.astro/`). A site with no git is not a failed stand-up.
 
-Live host is not this contract. Load `skills/Cloudflare Pages/` or `skills/Vercel Deploy/` for upload of the kit folder only.
+Live host is not this contract. Which host is named? Cloudflare Pages, or the requester called the site simple and did not call it managed: load `skills/Cloudflare Pages/`. Vercel, or the requester called the site managed and did not call it simple: load `skills/Vercel Deploy/`. Both hosts, or the requester called it both simple and managed, or the named host disagrees with the word: ask, and do not pick. Neither a host nor simple or managed is stated: ask which it is, and do not pick one. No answer: do not load either. The upload is the kit folder only.
 
 ## Optional kit furniture, not jobs
 
@@ -101,7 +101,7 @@ Node 22.12 or newer (Astro 7's floor). The 2026-09-08 Playbook said 18; current 
 
 - Owning root `AGENTS.md` must declare `sites/`. Otherwise stop and name the missing declaration.
 - Domain folder is an envelope at `sites/<domain>/`, or `work/<slug>/sites/<domain>/` when it dies with existing work. The root and that work subject must declare `sites/`. The host is lowercase, no scheme, no `www` unless `www` is a distinct property. The kit lives in `site/`.
-- A current envelope has `site/kit.json`. A domain-folder `kit.json` without it is the Milestone 1 to 3 shape: wrap to envelope, or declare foreign. Neither file means foreign. Stand-up refuses all existing folders and leaves them untouched.
+- A current envelope has `site/kit.json`. A domain-folder `kit.json` without it is the Milestone 1 to 3 shape. Did the requester declare it foreign? Yes: leave it untouched. No, or they do not say: wrap to the envelope. Do not write the current kit until that wrap runs. Neither file means foreign. Stand-up refuses all existing folders and leaves them untouched.
 - Do not `git init`.
 - First-party kit only. No vendored theme (not AstroWind, not AstroPaper, not a named magazine starter).
 

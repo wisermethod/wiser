@@ -11,9 +11,9 @@ node "<this-skill-dir>/scripts/wrap.mjs" --root "<owning-root>" --site "<domain-
 node "<this-skill-dir>/scripts/upgrade.mjs" --site "<envelope-folder>" --kit "<this-skill-dir>/kit"
 ```
 
-`--magazine` on stand-up enables `sections` and `issues`. Default is brochure: those collections stay in the schema and stay disabled.
+Did the requester ask for a magazine? Yes: pass `--magazine`, which enables `sections` and `issues`. No, or they do not say: do not pass it. Default is brochure: those collections stay in the schema and stay disabled.
 
-The envelope is `sites/<domain>/`, or `work/<slug>/sites/<domain>/` with `--work <slug>` only when it dies with that work. The owning root and the existing work subject must declare `sites/`; Site Author does not create the subject. Check and Upgrade take the envelope; Wrap takes the old domain folder with root `kit.json`. Stand-up and Wrap read `site-AGENTS.md` beside this file, not the obsolete copy inside the kit.
+Does the site die with an existing work subject the request names? Yes: the envelope is `work/<slug>/sites/<domain>/` and stand-up passes `--work <slug>`. No, or the request does not say: the envelope is owning-root `sites/<domain>/`. The owning root and, on the work parent, the existing work subject must declare `sites/`. Site Author does not create the subject. Check and Upgrade take the envelope; Wrap takes the old domain folder with root `kit.json`. Stand-up and Wrap read `site-AGENTS.md` beside this file, not the obsolete copy inside the kit.
 
 In the kit folder (`<envelope>/site/`):
 
@@ -30,4 +30,4 @@ Never `git init`. A site with no git is complete. A host skill may use an existi
 
 Upgrade archives each replaced kit-owned file into a `zArchive/` sibling before it copies kit code, per `standards/conventions.md`. It does not merge `site/src/content/` or `site/public/images/`. Distinct stand-up palettes in `tokens.css` are kit-owned and Upgrade replaces them.
 
-Live publish is not this skill. Load `skills/Cloudflare Pages/SKILL.md` for a simple site or `skills/Vercel Deploy/SKILL.md` for a managed site, then the selected skill's `SETUP.md` before the live-host hand-off. Webmaster Job 3 gates publish. Never connect the envelope or owning root to a host.
+Live publish is not this skill. Which host is named? Cloudflare Pages, or the requester called the site simple and did not call it managed: load `skills/Cloudflare Pages/SKILL.md`, then that skill's `SETUP.md`, before the live-host hand-off. Vercel, or the requester called the site managed and did not call it simple: load `skills/Vercel Deploy/SKILL.md`, then that skill's `SETUP.md`, before the hand-off. Both hosts, or the requester called it both simple and managed, or the named host disagrees with the word: ask, and do not pick. Neither a host nor simple or managed is stated: ask which it is, and do not pick one. No answer: do not load either. Webmaster Job 3 gates publish. Never connect the envelope or owning root to a host.
