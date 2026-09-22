@@ -3,7 +3,7 @@ name: Play Author
 type: skill
 category: authoring
 description: Write or review Plays, primitive instruction bodies, and library components
-version: 0.3.0
+version: 0.3.1
 ---
 
 # Play Author
@@ -26,9 +26,9 @@ The requesting owner rides with the request: Before Writing's reuse check search
 
 ## Before Writing
 
-If the request is unclear, ask: What type of file? What does success look like? What content will it process? What scope? Do not guess; wrong assumptions waste time.
+Is the output type, the success test, the content it will process, and the scope each named by the request? Yes: do not ask them again. Any one is not named: ask that one. What type of file? What does success look like? What content will it process? What scope? Do not guess the missing one.
 
-Reuse check: search this root's skills, the requesting owner's existing Plays (the home its AGENTS.md names, the default in `standards/play.md` if it is silent), and existing primitives before writing new. Extend or compose rather than duplicate.
+Is the requesting owner named? No: ask who the owner is. Do not run the reuse check and do not place a file. Yes: search this root's skills, that owner's existing Plays (the home its `AGENTS.md` names, the default in `standards/play.md` if it is silent), and existing primitives before writing new. Did that search find a file that already does what the request asks? No: write new. Yes, and the request changes how that file works: extend it. Do not copy it into a new file. Yes, and the request is a use of that file: compose it. Do not copy it. Several files could be the one: ask which. No answer: do not write a new file beside them. You cannot tell whether a found file does what was asked: ask. No answer: do not write a second file.
 
 ## Output Types
 
@@ -40,7 +40,7 @@ Reuse check: search this root's skills, the requesting owner's existing Plays (t
 
 Litmus: a file containing verbs that direct agent action is a Play or a primitive body, never a library component.
 
-Play instances belong in the requesting owner's root, never in this plugin root. Default home follows `standards/play.md`, projecting `standards/user-root.md` C3. If that root's AGENTS.md names a different home, use it: a client root files the Play in the `work/<subject>/` folder of the work it produces, as `<does-this-thing>.play.md`.
+Play instances belong in the requesting owner's root, never in this plugin root. The owner is the one Before Writing named. No owner yet: that step already stopped. Do not place the file. Does that root's `AGENTS.md` name a home? Yes: use it. No: the default home in `standards/play.md`, projecting `standards/user-root.md` C3. A client root places the Play in the `work/<subject>/` folder of the work it produces, as `<does-this-thing>.play.md`, per that standard.
 
 ## Writing Process
 
@@ -48,10 +48,10 @@ Play instances belong in the requesting owner's root, never in this plugin root.
 2. Define context, negative boundary first
 3. Define verifiable success
 4. Write minimal; cut until quality would degrade
-5. Add decision points wherever judgment is needed
+5. Add a decision point in the closed form `standards/instruction-quality.md` states wherever the file asks the agent to choose
 6. Add pitfall responses
 7. Verify with three varied inputs
-8. On failure, diagnose which section broke: wrong scope is Context, wrong goal is Objective, missing information is Inputs, wrong judgment is Steps, unhandled edge case is Pitfalls. Fix that section; retest
+8. On failure, which section broke? Wrong scope: Context. Wrong goal: Objective. Missing information: Inputs. Wrong judgment: Steps. Unhandled edge case: Pitfalls. One of them: fix that section and retest. More than one: fix each, in that order, and retest. None of them: ask what failed. Do not rewrite a section you cannot name
 
 ## Composition
 
