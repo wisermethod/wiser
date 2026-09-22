@@ -43,7 +43,7 @@ Decide the job before running any section.
 ## Create
 
 1. Fix ownership and placement. Name the root that owns the work per the constitution's Workspace Model, asking when no root fits or more than one does; then place and name the file per `standards/playbook.md`, stating the path and asking only for a correction.
-2. Choose Type. Will this same process run again with different inputs? The requester has said it will: Template. The requester has said it will not, or the work is one engagement: One-time. You cannot tell from the request: ask, and do not guess Type.
+2. Choose Type. Will this same process run again with different inputs? The requester has said it will: Template. Otherwise: One-time, which is the default.
 3. Do the Witness audit for real before drafting anything downstream. Write the Standards pointer in Context per `standards/playbook.md`, as a path that opens, distinct from Key files. Read the Key files and record what you found. If a file cannot be read, say which and stop.
 4. Interrogate before designing the plan. Fill the risk table, then derive the riskiest piece from it, then let that choice set Solve. Drafting Expand first produces a plausible sequence built on nothing.
 5. Confirm the execution mode once risks are on the table, not before; choose by the Execution Mode section of `standards/playbook.md`.
@@ -58,7 +58,7 @@ Copy the master to a dated instance per the Type section of `standards/playbook.
 ## Resume
 
 1. Reconcile before doing any work, in the order the Resume discipline in `standards/playbook.md` fixes. Later items get corrected to match earlier ones, never the reverse. If the standards pointer is missing, write it before any other edit.
-2. Is Status Paused? No: go to the next step. Yes: read the recorded blocker. Can you remove it by an action the Playbook already names, and does the disk agree that action is done? Yes: record what you did, and continue. No: escalate it, leave Status Paused, and do not resume past it.
+2. Is Status Paused? No: go to the next step. Yes: read the recorded blocker. Does the disk show it already resolved? Yes: record what shows it, and continue. No: does the Playbook name an action that removes it, one this session is authorised to take? Yes: take it, confirm on disk that the blocker is gone, record what you did, and continue. No, or the action ran and the disk still shows the blocker: escalate it, leave Status Paused, and do not resume past it.
 3. Judge staleness before executing anything: re-read the Key files and compare disk against the Witness findings. On divergence, re-run Witness on the affected part and record a learning. If the divergence changes which assumption would invalidate the plan, re-enter Interrogate and re-pick the riskiest piece before touching Expand: set Status to the re-entered canon, mark invalidated checkpoints and dependent task evidence with the date and a learning, and point Progress at the first action of that canon. Otherwise continue from the next action in Progress.
 4. If the document contradicts disk in a way you cannot adjudicate, stop and ask; do not pick a winner and proceed.
 
@@ -83,7 +83,7 @@ The named ask **wrap up** runs all four steps with step 4's answer already given
 2. Run Final Check and record its evidence, then set Status to Complete.
 3. Name the artifacts this work's completion affects. Do you own the artifact, and can this session write it? Yes: update it. No: hand the list to whoever owns it. You cannot name the owner: ask who owns it, and do not update it.
 4. Archive per `standards/conventions.md`.
-5. Decide promotion. Will this process run again? The requester has said it will: promote by the reset in `standards/playbook.md`, so the undated master is a new file beside the archived run, its header declaring Template. The requester has said it will not: do not promote. You cannot tell: ask, and do not promote while the answer is open. Was this a Template instance? No: write nothing back to a master. Yes: would the next instance run this learning unchanged, whoever the inputs are? Yes: write it back to the master. It names this run's dates, inputs, or results: it stays behind. You cannot tell: leave it behind, and do not write it to the master.
+5. Decide promotion. Was this a Template instance? Yes: the master already exists; do not promote. For each learning, would the next instance run this learning unchanged, whoever the inputs are? Yes: write it back to the master. It names this run's dates, inputs, or results: it stays behind. You cannot tell: leave it behind, and do not write it to the master. No, it was One-time: will this process run again? The requester has said it will: promote by the reset in `standards/playbook.md`, so the undated master is a new file beside the archived run, its header declaring Template. The requester has said it will not: do not promote. You cannot tell: ask, and do not promote while the answer is open.
 
 ## Pitfalls
 
