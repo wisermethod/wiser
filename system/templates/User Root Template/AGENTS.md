@@ -1,7 +1,7 @@
 ---
 root: [name]
 type:
-layout: 4
+layout: 3
 classifier_refusal: no
 ---
 
