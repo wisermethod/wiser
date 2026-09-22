@@ -57,7 +57,7 @@ Five phases in order.
 
 Decompose the question into angles: sub-questions needing different evidence or different sources. A single-angle session run on a multi-angle question is the most common way this work fails.
 
-Is a workspace available to search? No: the workspace contributes nothing, and the delivery says so. Yes: plan a topic inventory through `skills/Internal Research/`, using the question's keywords and workspace scope. Did any returned card match an angle's topic? Yes: name that card when you direct the external angle, so the gather can deduplicate against it. No cards, or none match: the workspace contributes nothing, and the delivery says so. Do not skip the inventory because the question looks new, and do not invent workspace holdings the inventory did not return.
+Is a workspace available to search? No: the workspace contributes nothing, and the delivery says so. Yes: could it hold a file, a prior decision, or a source on this question's topic? No, the question lies wholly outside anything the workspace is for: skip the inventory, and the delivery says the workspace contributes nothing. Yes, or you cannot tell: plan a topic inventory through `skills/Internal Research/`, using the question's keywords and workspace scope. Did any returned card match an angle's topic? Yes: name that card when you direct the external angle, so the gather can deduplicate against it. No cards, or none match: the workspace contributes nothing, and the delivery says so. Do not skip the inventory only because the question looks new, and do not invent workspace holdings the inventory did not return.
 
 Then write the plan: the angles, the skill each angle is directed to, the gathering depth, the consumer, and the constraints.
 
@@ -65,7 +65,7 @@ Then write the plan: the angles, the skill each angle is directed to, the gather
 |-----------------|--------------|
 | Evidence from the open web, or from sources supplied in its place | `skills/External Research/`, at least once per session |
 | A repeatable sweep of named feeds and pages over a window, before anything in it is read | `tools/Content Harvester/`, whose candidates then enter External Research as supplied sources |
-| What the workspace already holds on the topic | `skills/Internal Research/`, when a workspace is available to search |
+| What the workspace already holds on the topic | `skills/Internal Research/`, when a workspace is available and could hold material on the topic |
 | A figure out of a CSV, JSON, or TSV file | `skills/Data Analysis/` |
 
 `skills/Knowledge Map/` is never directed to from here. It organizes findings that already exist, so it belongs to Phase 5 as a follow-up.
