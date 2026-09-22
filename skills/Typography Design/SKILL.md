@@ -3,7 +3,7 @@ name: Typography Design
 type: skill
 category: design
 description: Design a modular type system delivered as CSS custom properties with a type specimen, chosen from brand personality and usage context
-version: 0.2.1
+version: 0.2.2
 gaps:
   - right-to-left and CJK typography, which need script-specific knowledge this skill does not carry
 memory:
@@ -51,15 +51,21 @@ Seven steps, in order.
 
 ### 1. Scale ratio
 
-Select a ratio from the domain context using the Scale Ratios table: tight for data-dense interfaces, moderate for general web and mobile, large for marketing and editorial. A responsive pair is valid when the project spans both, for example 1.2 on mobile and 1.333 on desktop. State the ratio and its reasoning, and tie the reasoning to context rather than taste.
+Which domain did the brief name? Read it against the Scale Ratios table. Data-heavy dashboard or compact UI: 1.125. Web app or mobile interface: 1.200. Marketing page or editorial content: 1.333. Hero-driven landing page or brand site: 1.500. The project spans two of these, one on mobile and one on desktop: a responsive pair, the smaller ratio on mobile and the larger on desktop. State both. Two domains named, and they are not a mobile surface and a desktop surface: ask which domain governs. Do not average the ratios. None of these named: 1.250, the table's recommended default, and say so. That default is the same one the ambiguous-direction pitfall states. State the ratio and its reasoning, and tie the reasoning to context rather than taste.
 
 ### 2. Scale generation
 
-Apply the ratio to a 16px (1rem) base as a five-level scale: caption (minus 1), body (0), subheading (plus 1), heading (plus 2), display (plus 3). A marketing context may add a plus-4 hero step. Generate the scale as a config, a base size, a ratio, and a viewport range, so every size derives from it rather than being set individually.
+Apply the ratio to a 16px (1rem) base as a five-level scale: caption (minus 1), body (0), subheading (plus 1), heading (plus 2), display (plus 3). Did the brief ask for a hero step larger than display, and is the domain marketing, editorial, or a landing page? Yes: add a plus-4 hero step. The domain is one of those and the brief does not ask: five levels, and say a plus-4 step can be added if they want a hero larger than display. Any other case: five levels, and do not offer the extra step. Generate the scale as a config, a base size, a ratio, and a viewport range, so every size derives from it rather than being set individually.
 
 ### 3. Font selection
 
-Map the brand personality to font characteristics using the Font Archetypes table, then verify availability against Google Fonts, system fonts, or a user-provided family. Never start from the catalog. Never take a primary family from the prohibited defaults. System fonts are a valid primary where performance outweighs personality. Keep to a maximum of two families; one family across several weights often reads cleaner than two competing typefaces, so add a second only for genuine contrast (for example a display serif with a body sans), and state the pairing rationale.
+Which Font Archetypes row matches the brand personality the brief names? Two rows: ask which personality governs. Do not blend the rows. None, and they cannot name a personality: Plus Jakarta Sans or DM Sans, the pitfall's default, and say so. They named a personality the table does not contain: ask, and show the six rows. Do not start from the catalog. One row: which of its recommended families did they name? That one: use it if the availability question below passes. They named none: take the families in the order the row lists them, and use the first that passes the availability question. Tell them the other families in the row.
+
+Is the chosen family on Google Fonts, a system font list, or supplied by them? Yes: it is available. No: which other family in the same row is available? Compare each to the missing family on x-height, weight range, and width. One shares more of those three than the others: suggest that one and use it, and name the three. Two share the same count: ask which. They do not pick: do not ship a family. None in the row: ask before leaving the archetype. Never take a primary family from the prohibited defaults.
+
+Did they ask for system fonts, or did they say performance outweighs personality? Yes: system fonts are a valid primary. No: do not switch to system fonts on your own.
+
+How many families? They supplied a mandated family and it covers both display and body: that one family. They also asked for a partner: add one, and state which characteristics make it compatible. It covers only display or only body: add one partner from the archetype row that contrasts with it, and state the pairing rationale. They asked for a second family for contrast, such as a display serif with a body sans: add that one family and state the pairing rationale. Otherwise: one family across several weights. A third family: follow the more-than-two pitfall. Stop at two unless that pitfall's insist outcome applies.
 
 ### 4. Weight hierarchy
 
@@ -67,17 +73,17 @@ Map weights to information levels per the Weight Hierarchy table. Do not use 300
 
 ### 5. Line heights and vertical rhythm
 
-Set a line height for each scale level per the Line Heights table, opening the value for light text on dark backgrounds. Take the vertical rhythm base from the body line-height (16px at 1.5 is a 24px base) and space sections in multiples of it (24, 48, 72, 96). Set letter spacing to 0 for body, tighten headings (-0.02em to -0.01em), and open captions and all-caps labels (+0.05em to +0.08em).
+Set a line height for each scale level per the Line Heights table. Is the text light on a dark background? No: use the table's value unchanged. You cannot tell the background: use the table's value unchanged, and say the light-on-dark adjustment was not applied. Yes, and they asked for more room: add 0.1, the top of the table's range. Yes, and they did not: add 0.05. Take the vertical rhythm base from the body line-height (16px at 1.5 is a 24px base) and space sections in multiples of it (24, 48, 72, 96). Set letter spacing to 0 for body. They named a heading value from -0.02em to -0.01em, or a caption or all-caps value from +0.05em to +0.08em: use it. They named none: use -0.01em on headings and +0.05em on captions and all-caps labels, the end of each range closer to zero, and say the rest of the range is open. They named a value outside the range: ask before using it.
 
 ### 6. Fluid sizing
 
-Use clamp() for every size above body, derived from the scale config in the Utopia-style approach: a mobile base, a desktop base, a mobile ratio, a desktop ratio, and a viewport range (320 to 1280px), from which each step's single clamp() value follows. Include the rem offset so text never collapses on small screens. Do not fluid-size button text, labels, or UI elements, which need viewport consistency, nor caption size, where fluid scaling at small sizes hurts readability.
+Use clamp() for every size above body, derived from the scale config in the Utopia-style approach: a mobile base of 16px, a desktop base, a mobile ratio, a desktop ratio, and a viewport range of 320 to 1280px, from which each step's single clamp() value follows. The mobile ratio and the desktop ratio are the ratio, or the responsive pair, that step 1 already chose. Which desktop base, inside the reference range of 18 to 20px? They named one inside that range: use it. They named one outside it: ask before using it. They named none: 18px, the bottom of that range, and say a base up to 20px is open if they want a larger desktop body. Include the rem offset so text never collapses on small screens. Do not fluid-size button text, labels, or UI elements, which need viewport consistency, nor caption size, where fluid scaling at small sizes hurts readability.
 
 ### 7. Output
 
 Deliver CSS custom properties organized by category: scale sizes, font families, weights, line heights, letter spacing, and the vertical rhythm base. Include a type specimen, a short HTML block with embedded styles that demonstrates each scale level, weight, and line height in the selected fonts. The output is immediately usable as tokens.
 
-Then the gate: hand the tokens and the specimen as `<design_artifact>`, the tokens it used as `<design_system>`, and a `<brief>` carrying the purpose, the audience and what matters most, to `experts/Creative Director/` for a verdict in a second context that did not produce it. It ships on that verdict with the findings worked, or on the requester's explicit decline; a declined review is named in the delivery. The rationales the Objective requires travel with the tokens as part of the artifact; the specimen's colors are a stated neutral pair, or the bound tokens where they exist, and are not the deliverable.
+Then the gate. Did the brief name the audience and what matters most to them? Yes: carry both. No: ask before the handoff. Do not invent either. Hand the tokens and the specimen as `<design_artifact>`, the tokens it used as `<design_system>`, and a `<brief>` carrying the purpose, the audience and what matters most, to `experts/Creative Director/` for a verdict in a second context that did not produce it. It ships on that verdict with the findings worked, or on the requester's explicit decline; a declined review is named in the delivery. The rationales the Objective requires travel with the tokens as part of the artifact; the specimen's colors are a stated neutral pair, or the bound tokens where they exist, and are not the deliverable.
 
 ## Type Foundations
 
@@ -162,8 +168,8 @@ The preferred value is `base-rem + vw-component`; a higher vw component scales f
 
 - **The request is ambiguous, or no direction is given.** Ask before designing: is this an application (functional, dense) or a marketing site (expressive, spacious), and what personality should the type convey (professional, friendly, bold, refined)? If the user genuinely cannot answer, default to a 1.250 ratio with a humanist sans (Plus Jakarta Sans or DM Sans) and say so.
 - **Starting from the catalog.** Choosing a family because it is on Google Fonts inverts the method. Select for personality first, then check availability.
-- **A brand-mandated font.** Accept it and build the system around it; if it needs a partner, add a compatible pairing and state which characteristics make it compatible.
-- **The chosen font is unavailable.** Suggest the closest alternative from the archetype table, naming the characteristics (x-height, weight range, width) that make it a fair substitute.
+- **A brand-mandated font.** Accept it and build the system around it. Whether it gets a partner is the family question in step 3.
+- **The chosen font is unavailable.** The availability question in step 3 is the response: suggest the substitute it names, with the x-height, weight range, and width.
 - **Existing tokens conflict with the request.** Trust the user's current direction, name the conflict, and offer to update the design memory rather than silently overriding it.
 - **The user wants more than two families.** Explain the cost, visual noise and load time, and ask whether weights and sizes within one or two families reach the same hierarchy. If the user insists, accommodate and note the trade-off.
 
