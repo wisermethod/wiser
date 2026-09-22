@@ -3,7 +3,7 @@ name: Knowledge Map
 type: skill
 category: research
 description: Analyze a workspace's existing files and produce a Knowledge Map that groups their ideas by topic, each traced to its source file and section
-version: 0.3.1
+version: 0.3.2
 ---
 
 # Knowledge Map
@@ -32,14 +32,14 @@ A librarian of a collection that already exists, not an author adding to it. The
 
 ### 1. Determine scope and owning root
 
-- The request names a topic, a directory, or a set of files handed in by path: constrain the analysis to it. It names the whole workspace: read across the composed roots. It is vague: ask what topic or area the map should cover before reading anything.
+- What does the request name as the scope? A topic, a directory, or a set of files handed in by path, and not also the whole workspace: constrain the analysis to it. The whole workspace, and nothing narrower: read across the composed roots. Both a narrower scope and the whole workspace, or nothing you can constrain: ask what topic or area the map should cover before reading anything.
 - The map is an output, so it has an owning root: the root whose scope the map's subject names. No root fits, or more than one does: ask, and never default to this plugin root (the constitution's Workspace Model).
 
 ### 2. Discover and read
 
-Map the directory structure of the scope, then read the files that match it. Read each matching file far enough to extract its structure and ideas, its title, headings, frontmatter, and the opening of each section, without reading every file whole. Skip binary and non-text files, which cannot be summarized. When the scope is too large to read closely in full, analyze the most relevant files and let Step 5 name what was left unread.
+Map the directory structure of the scope, then read the files that match it. Can you read each matching text file far enough to extract its title, headings, frontmatter, and the opening of each section? Yes: do that for each. Do not read every file whole. No: the request named a topic: read, in that same way, the matching files whose path, title, or a heading contains that topic's words, as many as this run can, and Step 5 names the files left unread. The request named no topic words: ask which files to include. They name the files: read those, and Step 5 names any matching file they left out. They do not answer: do not write the map. Do not choose a subset by an unnamed standard. Skip binary and non-text files in every case. They cannot be summarized.
 
-When the scope yields too little to organize, only a file or two with extractable ideas, report what was found and that it is too thin for a map rather than writing a near-empty document; a map needs ideas from several files to be worth more than the files themselves.
+How many files yielded an extractable idea? None, one, or two: report what was found and that it is too thin for a map. Do not write the document. Three or more: continue. A map needs ideas from several files to be worth more than the files themselves.
 
 ### 3. Extract ideas
 
@@ -47,11 +47,11 @@ For each file read, state what it is about and its main points, each in one or t
 
 ### 4. Organize by topic
 
-Group ideas from across files by theme. Start from the natural groupings, a shared directory, overlapping headings, common keywords, and build a shallow hierarchy, broad topics over specific sub-topics, no more than two or three levels deep. A topic must draw on at least two files: a grouping that would hold ideas from a single file is that file, not a topic, so leave it ungrouped. When the whole scope clusters into one topic, report a flat list under it rather than manufacturing sub-groupings.
+Group ideas from across files by theme. Start from the natural groupings, a shared directory, overlapping headings, common keywords. How many topics would draw on at least two files? Two or more: build a shallow hierarchy, broad topics over specific sub-topics, and stop at three levels. A fourth level would be needed: place those ideas in the third level. Do not add a fourth. One: report a flat list under it. Do not manufacture sub-groupings. None: leave every grouping ungrouped. A grouping that would hold ideas from a single file is that file, not a topic.
 
 ### 5. Assemble and place
 
-Assemble the map in the shape below. List files that were analyzed but fit no topic under the unmapped heading rather than dropping them, and name what the scope did not contain, including files left unread when the scope was too large. Then place the map as one new document in the owning root's work directory per `standards/conventions.md`, never at a root's top level and never in this plugin root; confirm the location with the requester when conventions leave more than one home open. No existing file is touched.
+Assemble the map in the shape below. List files that were analyzed but fit no topic under the unmapped heading rather than dropping them, and name what the scope did not contain, including files left unread when the scope was too large. Does `standards/conventions.md` name one home for this document? Yes: place it there, in the owning root's work directory, never at a root's top level and never in this plugin root. More than one home is open: confirm the location with the requester before placing it. They name one: place it there. They do not answer: do not place the file. No existing file is touched.
 
 Then the gate: hand the knowledge map, with the question it answers and where it is going, to `experts/Research Expert/` in a second context that did not produce it. It returns rely, rely with the weak points named and labeled, or return, each weak point naming its claim, what it lacks and the step that would close it. On rely the map enters the named consumer. On rely with weak points a deliverable or a decision may carry it if the labels travel with it, and a memory file does not. On return it does not ship unless the requester declines the review, and a declined review is named in the delivery. The expert reads the map for whether every idea traces to a file and a section and every summary keeps the files' hedges; a map that concludes is returned.
 
@@ -84,7 +84,7 @@ Source: <file path> > <heading or section>
 
 ## Pitfalls
 
-- **Ambiguous scope.** The request names nothing to constrain the analysis to: ask before reading, not after producing a map of the wrong thing.
+- **Ambiguous scope.** The request names nothing you can constrain, or names both a narrower scope and the whole workspace: ask before reading, the same question as Step 1, not after producing a map of the wrong thing.
 - **Inventing knowledge.** The map states an idea that is in no file: it is not grounded, so remove it. Every idea carries its source line or it does not ship.
 - **Writing to the wrong home.** Saving at the workspace root, the source habit, would write to a top level or into this plugin root, both forbidden: place the map in the owning root's work directory per `standards/conventions.md`, and ask when the owning root is unclear.
 - **Silent drops.** A file analyzed but mapped nowhere, or a region of the scope with no content: list it, unmapped or as a coverage gap. The completeness claim fails the moment something is dropped without a note.
