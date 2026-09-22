@@ -3,7 +3,7 @@ name: External Research
 type: skill
 category: research
 description: Gather and credibility-tag sources on a question, surfacing contradictions, returning an evidence package to a calling expert or skill or a verified, confidence-rated brief to a user asking directly
-version: 0.2.5
+version: 0.2.6
 ---
 
 # External Research
@@ -48,8 +48,8 @@ Use TinyFish first. When an action is unavailable, record the returned stop and 
 
 For each query:
 
-1. **Search or fetch** through `tinyfish.web.search` and `tinyfish.web.fetch` via the gateway; read `connectors/tinyfish/CONNECTOR.md` and its `manifest.json` for the declared request shapes. Use Search to discover sources and Fetch for known URLs. Set `domain_type` from the angle: `web` for general sources, `news` for reporting, `research_paper` for academic evidence. Mixed questions use parallel typed queries where independent. Paper queries carry no recency filter or publication-year bounds. Search returns no date field; date screening waits until Tag. When the request named a domain, pass `include_domains` (declared). Pass only fields the manifest declares.
-2. **Select** up to five sources, fewer at Quick depth. Favor diversity of domain and source type over volume from one domain, and prefer a primary source to a higher-ranked aggregator of it rather than taking the top results by rank. Honor any domain preferences the request carried. If a Search hit's `url` is only an origin, no path or path `/`, and the title names a specific page, do not Fetch that origin as the titled page; prefer hits whose `url` path is specific. Never invent a path Search did not return. Sources from `<source_material>` enter the pool here rather than through Search, and are read and tagged in the steps below like any other; the cap bounds what search adds, not what the caller supplied.
+1. **Search or fetch** through `tinyfish.web.search` and `tinyfish.web.fetch` via the gateway; read `connectors/tinyfish/CONNECTOR.md` and its `manifest.json` for the declared request shapes. Use Search to discover sources and Fetch for known URLs. What is the angle? General sources: set `domain_type` to `web`. Reporting: `news`. Academic evidence: `research_paper`. The request names one: use that angle. The request names none: `web`. The request names two of these. Can each be run as its own query? Yes: run parallel typed queries, one per angle. No: ask which angle, and do not guess. Paper queries carry no recency filter or publication-year bounds. Search returns no date field; date screening waits until Tag. When the request named a domain, pass `include_domains` (declared). Pass only fields the manifest declares.
+2. **Select.** How many sources does this depth keep? Quick: fewer than five. Standard or Deep: up to five. The cap is applied after the tests below, not before them. Which sources fill that count? Apply these tests in order, and do not replace them with rank. A hit whose `url` is only an origin, no path or path `/`, and whose title names a specific page: do not Fetch that origin as the titled page, and do not invent a path. Prefer a hit whose `url` path is specific. A primary source and a higher-ranked aggregator of that same primary: keep the primary ahead of the aggregator. The set would take another page from a domain already kept while a qualifying page from a new domain is left out: keep the new domain. Domain preferences the request carried: prefer domains it names as authoritative, and do not keep domains it names to skip. After those tests, does the set still exceed this depth's cap? Quick's cap is fewer than five, as this step already stated. Standard and Deep cap at five. Yes: keep the ones Search ranked higher until the cap is met, and name what was dropped. No: keep the set the tests produced. Two sources tie on every test above and the cap has room for only one: keep the one Search ranked higher, and name the one left out. Sources from `<source_material>` enter the pool here rather than through Search, and are read and tagged in the steps below like any other; the cap bounds what search adds, not what the caller supplied.
 3. **Read and extract** through Fetch the content in each selected source that bears on the query; inspect successes and failures separately so a partial fetch never makes an unread source appear read. Each extracted claim carries the supporting excerpt, the passage on the fetched page the claim rests on, copied not paraphrased. Orchestrated mode returns that excerpt with the claim so the caller can verify; omitting it is a bug.
 4. **Tag** each source with the eight metadata fields below. A source behind a paywall or that will not resolve is recorded with its liveness and left unread; its content is never fabricated, per the evidence labels in `standards/conventions.md`.
 
@@ -70,7 +70,7 @@ For a paper, retain the same eight fields: its URL and title in `url` and `title
 
 When the request named a date window, screen each source's `date` here, after it is tagged. A source whose date falls outside that window stays in the index as out-of-scope and is not used as support for a claim inside the window. If that drops the usable set below the Select cap, take replacements from unused hits of the same Search, Fetch and Tag them the same way, and stop when the cap is met or those hits are exhausted. Do not run a new Search. If none remain, name the shortage as a gap.
 
-Source type, by the strongest observable signal:
+Source type. Which row's signal is observable on this source? Test the table from the top downward. The higher row is the stronger signal. The first row whose signal is observable is the type. Two rows match: take the higher row. None of the named signals is observable: `unknown`. Do not pick the type whose conclusion sounds right.
 
 | Signal | `source_type` |
 |--------|---------------|
@@ -79,15 +79,15 @@ Source type, by the strongest observable signal:
 | a named author with verifiable credentials on a non-promotional site | `expert_author` |
 | content built from others' work: "according to" framing, roundups, listicles | `aggregator` |
 | no author, no citations, promotional or affiliate patterns, thin content | `anonymous_promotional` |
-| the signals do not settle it | `unknown` |
+| none of the signals above is observable | `unknown` |
 
-**Provenance and duplication.** When a source is an aggregator, trace the original it cites and record it in `provenance`. After a query's sources are gathered, flag any that trace to the same original: several copies of one wire report are one data point, not several, and must not read later as independent corroboration.
+**Provenance and duplication.** Is this source an aggregator? No: `provenance` is null. Yes: how many originals does it cite? One: record that URL in `provenance`. None: `provenance` is null, stated as "not identified". More than one, and the page presents one of them as the original: record that URL, and name the others in the duplication note. More than one, and it presents none as the original: `provenance` is null, stated as "not identified", and name every cited URL in the duplication note. Do not collapse several originals into one data point. After a query's sources are gathered, flag any that trace to the same original: several copies of one wire report are one data point, not several, and must not read later as independent corroboration.
 
 Null values are stated explicitly, never omitted; a field that could not be determined reads as "not identified", so an absent field is always a bug and never a shrug.
 
 ### Counter-Evidence (both modes, required wherever search runs)
 
-Runs after the initial Gather. For each core finding, formulate a query aimed at sources that would disagree, the negation or an alternative of the finding, and run it through the same Gather. By depth:
+Runs after the initial Gather. Which findings are core? A finding the scoped question cannot be answered without: core. A finding that only illustrates a core one: not core. You cannot tell: treat it as core. For each finding this depth includes, formulate a query aimed at sources that would disagree, the negation or an alternative of the finding, and run it through the same Gather. By depth:
 
 - **Quick:** skipped; the output records that it was skipped.
 - **Standard:** one counter-query per core finding.
@@ -122,10 +122,10 @@ The input carries explicit queries and a depth.
 
 The input is a natural-language question.
 
-1. **Scope.** Apply the Context routing boundary first. If the lookup is specific and answerable as stated, proceed. If it is vague, ask for the outcome wanted, what is in and out of scope, and the depth (default Standard) before searching.
-2. **Formulate** one to five queries from the scoped question, the count by depth, each specific and factual, none leading or opinion-seeking.
+1. **Scope.** Apply the Context routing boundary first. Can you name, from the request, the outcome wanted, what is in, what is out, and the depth? All four named: proceed. The depth is unstated and the other three are named: depth is Standard, and proceed. Any of the other three is unstated: ask for those before searching, and ask the depth only when it was also unstated, naming Standard as the default. No answer: do not search.
+2. **Formulate** queries from the scoped question, each specific and factual, none leading or opinion-seeking. How many? The depth table's Searches cell, not a count chosen for taste. Quick: 1 or 2. Standard: 3 to 5. Deep: 5 to 10. Where in that cell? Count the independent factual parts of the scoped question. Fewer parts than the top of the cell: use the number of parts, and not below the bottom of the cell. At least as many parts as the top: use the top. Do not add a query that restates another.
 3. **Gather**, then **seek counter-evidence** at the depth.
-4. **State the answer** as source-backed claims tagged direct, paraphrase, or inference, keeping disagreeing claims paired. Do not interpret patterns across angles or rank competing positions.
+4. **State the answer** as source-backed claims, keeping disagreeing claims paired. What does the cited passage do? It states the claim in the words used: tag `direct`. It states the same claim in other words and adds nothing: tag `paraphrase`. The claim adds a conclusion the passage does not state: tag `inference`. You cannot find a passage: do not tag it `direct` or `paraphrase`. The not-supported question in Verification decides whether it is dropped or re-tagged `inference` at Low. Do not interpret patterns across angles or rank competing positions.
 5. **Verify** at the depth (below).
 6. **Assign confidence** to each finding (below).
 7. **Assemble** the brief (Output, below), then the gate, then deliver.
@@ -134,13 +134,13 @@ Then the gate: hand the evidence package or the brief, with the question it answ
 
 ### Verification (standalone only)
 
-Mechanical claim-to-source matching: does the cited source actually support the claim as stated. It does not judge whether the claim is true in the world; that judgment is an expert's or the caller's. Tag each claim `direct`, `paraphrase`, or `inference`. Inference claims are the targets at Standard; at Deep, all claims are targets, with a second pass over any claim where counter-evidence appeared or whose source is `aggregator` or `unknown`. For each target: relocate the passage the claim rests on, then judge it
+Mechanical claim-to-source matching: does the cited source actually support the claim as stated. It does not judge whether the claim is true in the world; that judgment is an expert's or the caller's. The tag on each claim is the question in standalone step 4. Inference claims are the targets at Standard; at Deep, all claims are targets, with a second pass over any claim where counter-evidence appeared or whose source is `aggregator` or `unknown`. For each target: relocate the passage the claim rests on, then judge it
 
-- **supported** if the source states or clearly implies the claim: no change;
-- **partially supported** if the source is related but the claim overstates or extrapolates: downgrade confidence and add the qualifier naming what the source does and does not say;
-- **not supported** if the source does not carry the claim: drop it, or re-tag it inference at Low confidence.
+- **supported** if the source states the claim, or states facts from which the claim follows with nothing added: no change. "Clearly implies" means that, and not a further conclusion.
+- **partially supported** if the source is related but the claim overstates or extrapolates: set confidence to Low, and add the qualifier naming what the source does and does not say;
+- **not supported** if the source does not carry the claim. Is the claim a quote or a person-fact? Yes: drop it. No, and the scoped question can be answered without it: drop it. No, and the question cannot: re-tag it `inference` at Low confidence and name what the source does not say. Do not leave it tagged `direct` or `paraphrase`.
 
-A source that no longer resolves is tagged `dead` and downgrades any claim resting on it. A claim confirmed across independent sources, aggregator duplicates excluded, is upgraded.
+A source that no longer resolves is tagged `dead`. A claim resting only on it moves to Low, on that criterion. A claim that still has another independent live source keeps the level that live source supports, and the output names the dead one. Was the claim confirmed across independent sources, aggregator duplicates excluded? Yes, and no Low criterion below holds: raise its confidence one level toward High, and not past High. A Low criterion holds: it stays Low. It is already High: it stays High. Name the confirming sources. No: leave the level the table below gives.
 
 ### Confidence (standalone only)
 
@@ -150,7 +150,7 @@ A source that no longer resolves is tagged `dead` and downgrades any claim resti
 | Moderate | a single credible source with no contradiction, or several agreeing sources not yet verified (Quick depth) |
 | Low | the source is `aggregator`, `anonymous_promotional`, or `unknown`; or the claim is inference; or counter-evidence exists; or verification found it partially supported or unsupported |
 
-Every finding states its level and the specific criterion met, not the label alone.
+Which level's criteria does this finding meet? A Low criterion overrides the others: the source is `aggregator`, `anonymous_promotional`, or `unknown`; or the claim is inference; or counter-evidence exists; or verification found it partially supported or unsupported. Any one of those holds: Low, and name every criterion that held, including a Moderate one that also held. None of them holds, and every High criterion holds: High. None of them holds, and a Moderate criterion holds: Moderate. High's "no counter-evidence" criterion fails whenever counter-evidence exists, so that finding is Low, not High. Every finding states its level and the specific criterion met, not the label alone.
 
 ### Output
 
