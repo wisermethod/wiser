@@ -3,7 +3,7 @@ name: Marketing Page Design
 type: skill
 category: design
 description: Design a complete marketing page as responsive HTML with a narrative scroll arc, clear visual hierarchy, and one primary action
-version: 0.3.2
+version: 0.3.3
 memory:
   - design
 gaps:
@@ -55,21 +55,21 @@ A designer who treats the page as an argument made in a single scroll. Every sec
 
 Staged composition. Design the page in order and never in one shot; each stage sets the constraints the next works inside.
 
-1. **Define the page's job.** Every page has one primary job; state it before designing. Name the single most important action a visitor should take, the information hierarchy that serves it, and the entry context (ad click, search, referral, direct). A vague brief such as "design a landing page", with no product, audience, or action, is answered by asking three targeted questions with recommended defaults, not by guessing.
+1. **Define the page's job.** Every page has one primary job; state it before designing. Name the single most important action a visitor should take, the information hierarchy that serves it, and the entry context. Which entry did the brief name? One of ad click, search, referral, or direct: record it. More than one: ask which is the primary entry. None: ask. Do not pick an entry. A vague brief such as "design a landing page", with no product, audience, or action, is answered by asking three questions: what the product is, who the audience is, and what the primary action is. A recommended default is a single candidate already in the brief's material: offer that candidate. Several candidates: offer them and ask which. No candidate: ask that question with no default. Do not guess a product, an audience, or an action.
 
-2. **Set the visual direction.** Design from references, never from adjectives. Ask for or propose two or three real products or brands that fix the aesthetic; a direction like "Swiss editorial meets warm minimalism" is usable, "clean and modern" is not. When the user cannot name references, offer three from different aesthetic families and ask which resonates. When `design` is bound, its brand rules and personality are the direction, and references only sharpen it.
+2. **Set the visual direction.** Design from references, never from adjectives. Ask for or propose two or three real products or brands that fix the aesthetic; a direction like "Swiss editorial meets warm minimalism" is usable, "clean and modern" is not. When the user cannot name references, offer three from different aesthetic families and ask which resonates. They pick one: that is the direction. They pick more than one: ask which one leads, and let the others only sharpen it. None of the three: ask them to name a reference. Do not pick one of the three yourself. When `design` is bound, its brand rules and personality are the direction, and references only sharpen it.
 
 3. **Establish the grid.** A twelve-column grid across four breakpoints (Reference: Breakpoints). Fix how columns behave at each breakpoint before placing any content.
 
-4. **Plan the section rhythm.** Choose the narrative beats the page needs and their order (Reference: Narrative arc). Not every page runs every beat; a waitlist page may be hero plus action. State which beats apply and why. Alternate section backgrounds so no two adjacent share one, and vary section height and padding; uniform sections read as monotonous.
+4. **Plan the section rhythm.** Choose the narrative beats the page needs and their order (Reference: Narrative arc). Is the page a waitlist? Yes: Hero and Call to action. Add another beat only when the brief asks for that beat. No: include every beat the table does not mark optional, which are Hero, Solution, Features, Social proof, Call to action, and Footer. Include Problem when the brief names a pain or a gap. Include Pricing when the brief names a price or asks for a pricing section. Leave a beat out when the requester says to leave it out. Did they say trust is the primary barrier? Yes: Social proof may sit before Features. They named a different order: use their order. No reorder named, and trust is not the barrier they named: keep the table's order. State which beats apply and why. Alternate section backgrounds so no two adjacent share one, and vary section height and padding; uniform sections read as monotonous.
 
-5. **Design each section, top to bottom.** For each section: place content on the grid, apply the type hierarchy, apply color, set spacing, and check its relationship to the sections above and below. Run the Squint Test before moving to the next: blur the section in your mind's eye; if the intended focal point is not the first thing that resolves, the hierarchy needs work. Content here is realistic placeholder, not Lorem ipsum: specific product detail, named example testimonials, concrete metrics, so the design can be judged at fidelity. Mark it as placeholder; before the page is published it is replaced with real copy, and any testimonial or fact about a real person then carries its source and register (`standards/conventions.md`).
+5. **Design each section, top to bottom.** For each section: place content on the grid, apply the type hierarchy, apply color, set spacing, and check its relationship to the sections above and below. Run the Squint Test before moving to the next: blur the section in your mind's eye. Does the section's focal point resolve first? The focal point is the element the beat exists to show: the headline and the primary action in the hero, the pain in Problem, the product's answer in Solution, the lead feature in Features, the proof in Social proof, the price in Pricing, the action in Call to action, the links in Footer. Yes: move to the next section. No: change size, weight, or placement and run the test again. Still no: ask which element should resolve first, and do not move on with a failed test. Content here is realistic placeholder, not Lorem ipsum: specific product detail, named example testimonials, concrete metrics, so the design can be judged at fidelity. Mark it as placeholder; before the page is published it is replaced with real copy, and any testimonial or fact about a real person then carries its source and register (`standards/conventions.md`).
 
-6. **Verify the hero.** The hero is the page's first impression and sets the tone for everything below. It carries a headline (the core value in six to ten words), one or two supporting sentences, one primary action, and a visual anchor. Choose the hero pattern that fits the product (Reference: Hero patterns), then run the Squint Test on the above-the-fold area: the headline, the action, and the general purpose must all read at a blur.
+6. **Verify the hero.** The hero is the page's first impression and sets the tone for everything below. It carries a headline (the core value in six to ten words), one or two supporting sentences, one primary action, and a visual anchor. Which hero pattern's When line does the product meet (Reference: Hero patterns)? The product has a visual interface to show, and it is not only a physical good or a place: Split. It is a physical good or a place: Full-bleed. It is a developer tool or B2B, with no visual interface to show: Minimal. It is brand-forward or abstract, with no interface to show: Centered. Two of these are true: ask, name each pattern, and build the one they pick. Do not pick silently. None is true: ask. Do not pick silently. Then run the Squint Test on the above-the-fold area: the headline, the action, and the general purpose must all read at a blur. Does that blur read all three? Yes: the hero stands. No: change size, weight, or placement and run it again. Still no: ask which of the headline, the action, and the purpose is not reading. Fix that one and run the test again. It still fails: stop on the hero and ask. Do not continue on a failed Squint Test.
 
 7. **Design the navigation.** Navigation is part of the page, not a fixture bolted on. Marketing navigation is minimal: logo left, primary action right, transparent over the hero, resolving to a solid background with a subtle bottom border and reduced height once scrolled. On mobile it collapses to a menu.
 
-8. **Define responsive adaptation.** Per section, decide what reflows, resizes, hides, or changes interaction at each breakpoint; this is design, not a shrunk desktop. A hero image may drop on mobile, a feature row may stack, the primary action may become full width.
+8. **Define responsive adaptation.** Per section, apply the breakpoint table. This is design, not a shrunk desktop. A hero image may drop on mobile, a feature row may stack, the primary action may become full width. Does that change keep the primary action visible, and does it leave a statement of what the product is? Yes: make the change. No: keep the element. You cannot tell: keep the element.
 
 **Before delivery, review.** Never accept the first output as final. Route the page to `experts/Creative Director/` for a verdict, the pre-ship gate for UI and page deliverables (see ship-gate routing in `skills/Designer/`), with the brief and direction as its `<brief>`, for an adversarial pass against generic defaults, weak hierarchy, and flat rhythm, and work its findings before the page ships, or the requester declines the review and the delivery says so.
 
@@ -90,7 +90,7 @@ This table is the home for marketing page grids (persuasion pages with a twelve-
 | Breakpoint | Width | Columns | Behavior |
 |-----------|-------|---------|----------|
 | Mobile | below 640px | 4 | Single column, stacked |
-| Tablet | 640 to 1024px | 8 | Two column where it helps |
+| Tablet | 640 to 1024px | 8 | Two columns when the section has two peers that share a row on desktop; one column otherwise |
 | Desktop | 1024 to 1280px | 12 | Full grid |
 | Wide | above 1280px | 12, max-width contained | Content does not stretch without bound |
 
@@ -120,7 +120,7 @@ Beats can be reordered when it serves the argument; social proof before features
 
 ### Feature sections
 
-The identical card grid is a prohibited default (Prohibited defaults, above). Use instead:
+The identical card grid is a prohibited default (Prohibited defaults, above). Which of the four below? The requester or the bound `design` names one: use it. The brief marks one feature as primary and the others as secondary: Asymmetric grid. The brief supplies mixed media at different sizes: Bento grid. The brief asks for a few features to stay visible and the rest to sit behind an expandable region: Progressive disclosure. Two of those are true and nobody named one: ask which, name what each would make visible, and build the one they pick. None of those: Alternating layout. Do not build the identical card grid. The four:
 
 - **Alternating layout:** text then image, then image then text, for rhythm.
 - **Asymmetric grid:** the primary feature gets large treatment, secondary features stay compact.
