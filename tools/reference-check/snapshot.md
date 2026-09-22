@@ -6,7 +6,7 @@ Supporting commands of `reference-check`, used by Housekeeping apply and Onboard
 
 ## Inputs and commands
 
-Run `node snapshot.cjs help` before work. Every path is caller-named and canonicalized. Root and snapshot must be disjoint and outside this tool, and the snapshot parent must already exist in an authorized working or evidence directory. The tool never chooses a sibling root or credentials home. `take` requires a new snapshot directory; an existing snapshot is never overwritten.
+Run `node snapshot.cjs help` before work. Every path is caller-named and canonicalized. Root and snapshot must be disjoint and outside this tool. Does the snapshot parent already exist, and did the caller name it as a working or evidence directory? Yes: use that path. No, or you cannot tell which directory is the authorized one: ask. Do not create the parent, do not choose a sibling root, and do not choose a credentials home. `take` requires a new snapshot directory; an existing snapshot is never overwritten.
 
 ```text
 node snapshot.cjs take --root <dir> --snapshot <new-dir> --changes <json-file>
