@@ -3,7 +3,7 @@ name: Knowledge Curation
 type: skill
 category: knowledge
 description: Keep an existing knowledge set accurate through source updates, wiki lint or databased review, human decisions, reproducible rebuilds, and supported backend upgrades
-version: 0.4.0
+version: 0.4.1
 gaps:
   - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
 ---
@@ -18,7 +18,7 @@ Not for creating a set, which is `skills/Knowledge Set Onboarding/`. Not for ans
 
 ## Objective
 
-The set left in a state its records describe: every new or changed source compiled or ingested, or named as failed, the review queue current, every human decision recorded in its item and applied with a changelog line, the compiled layer rebuilt where required, backend checks run at the end, and the root's `memory/knowledge/AGENTS.md` row updated. Verified against Success, below.
+The set left in a state its records describe: every new or changed source compiled or ingested, or named as failed, the review queue current, every human decision recorded in its item and applied with a changelog line, the compiled layer rebuilt when Step 1 selects Rebuild, backend checks run at the end, and the root's `memory/knowledge/AGENTS.md` row updated. Verified against Success, below.
 
 ## Inputs
 
@@ -47,15 +47,17 @@ Commands use the absolute set path at `memory/knowledge/<set>/`. Databased comma
 | A deliverable is about to lean on the set | Check |
 | The owner requests a supported backend change | Upgrade |
 
-An ambiguous case, an eval that fails with no source change, or a change that fits two rows: name the ambiguity and hand the judgment to `experts/Knowledge Expert/` rather than picking a row. Several paths may run in one sitting, in the order incremental, review, apply, check.
+Are there two or more separate changes, each matching a different row? No: one change is in hand; use the next paragraph. Yes, and those rows are among incremental, review, apply, and check, with rebuild and upgrade not among them: run each, in that order. Yes, and rebuild or upgrade is among them: ask once which path. They name one: run it. They do not, or no answer: hand it to `experts/Knowledge Expert/`. Do not run them together, and do not pick a rebuild because it covers every case.
+
+When that answer was no, one change is in hand. Does the request name one of incremental, review, apply, rebuild, upgrade, or check, and do the facts fit that row and no other? Yes: run it. The request names no path: apply the table. Exactly one row matches, and it is not an eval that fails with no source change: run it. One change fits two rows, no row matches, or an eval fails and no source changed: name the rows and ask once which path. They name one row: run it. They do not, or the answer is not a row: hand the judgment to `experts/Knowledge Expert/`. Do not pick a row. No answer: do not run a path.
 
 ### 2. Incremental
 
 Read the recipe's backend. Wiki: gather one immutable source with its provenance header, compile or update the relevant pages per `tools/knowledge-memory/references/wiki-schemas.md`, preserve Status blocks, update affected dependent pages except archive answers, then lint. No material means an append-only log entry and no index row.
 
-Databased: chunk included new corpus material, report the chunk count, extract with the session model using the pack and `tools/knowledge-memory/references/schemas.md`, then `ingest --extraction <file>`. The skill appends source context and canonical names to the prompt and rewrites the extraction object after each chunk. The four-part extraction identity controls reuse. Extract a substantial treatment even when it appears in one stretch. Read the ingest report, resolve or record rejections, then run `review-pass`. No script estimates or spends model cost.
+Databased: chunk included new corpus material, report the chunk count, extract with the session model using the pack and `tools/knowledge-memory/references/schemas.md`, then `ingest --extraction <file>`. The skill appends source context and canonical names to the prompt and rewrites the extraction object after each chunk. The four-part extraction identity controls reuse. Does this stretch argue, define, or spend a paragraph on the idea? Yes, in one stretch or in several: extract it. It only mentions the idea: do not extract an Idea from the mention. You cannot tell: extract it. Do not skip an argued idea because the theme list missed it. Read the ingest report, resolve or record rejections, then run `review-pass`. No script estimates or spends model cost.
 
-After wiki compile or databased extract, check coverage against the corpus: an important located idea with no page or Candidate is a miss; add it. Missing that idea is worse than keeping a mildly interesting located one. Load `tools/knowledge-memory/references/backends.md` Organizing pass.
+After wiki compile or databased extract, check coverage against the corpus, per `tools/knowledge-memory/references/backends.md` Organizing pass. Does the idea locate, and does it have a page or a Candidate? It locates and has neither, including when you cannot tell whether it is important or only mildly interesting: add it. It does not locate: do not add it. Missing a located idea is worse than keeping a mildly interesting located one.
 
 **Graph.** Follow `experts/Knowledge Expert/graph.md`: `chunk --set <absolute set>`, session extraction using the pack and located quotes, then `ingest --set <absolute set> --store <absolute graph.lbdb> --extraction <absolute file>`. Read the Candidate ingest report, including name skips, unsupported types, unresolved links and rejections. Existing primary keys are skipped; changed evidence requiring replacement goes to the human rather than being claimed applied. No graph promote or replay runs.
 
@@ -75,15 +77,15 @@ A merge of two protected types, a deletion, or an edit to an ontology file is re
 
 This step is databased-only. Graph decisions remain recorded for the human; never invoke graph `promote`, `mark-stale` or `forget`.
 
-For each item under `review/decided/` with `status: decided`, run `promote --decided <file>`; the tool sets it `applied`. The tool applies the one action the decision names and appends a changelog line; an item whose Decision block is incomplete is refused, and this skill fills nothing in on the reviewer's behalf. An `edit-ontology` decision produces no databased change: the tool returns a deferred human-edit finding, and the edit is the human's, made in the set's pack or, for the general pack, proposed to whoever owns this plugin.
+For each item under `review/decided/` with `status: decided`, run `promote --decided <file>`; the tool sets it `applied`. The tool applies the one action the decision names and appends a changelog line; an item whose Decision block is incomplete is refused, and this skill fills nothing in on the reviewer's behalf. An `edit-ontology` decision produces no databased change: the tool returns a deferred human-edit finding, and the edit is the human's, made in the set's pack or, for the general pack, proposed to the person who owns this plugin. Is that owner named? Yes: the proposal goes to that person. No: leave the deferred finding. Do not edit the pack.
 
 A decided node rejection uses `promote --decided` and sets Rejected. A human decision to remove a source instead uses `forget --data-id <source path or hash> --confirm`; removing the dataset uses `forget --dataset --confirm`. Confirm the named store removal in the sitting. Both keep corpus files.
 
 ### 5. Rebuild or upgrade
 
-State the reason and source/chunk counts before rebuilding. Wiki recompiles from immutable `corpus/`, keeping Status blocks and archive pages, then runs the coverage pass in `tools/knowledge-memory/references/backends.md` Organizing pass so a load-bearing located idea cannot disappear because the old theme list was short, then checks the index and runs lint. A recompile is not permission to erase disputes.
+State the reason and source/chunk counts before rebuilding. Wiki recompiles from immutable `corpus/`, keeping Status blocks and archive pages, then runs the coverage question in `tools/knowledge-memory/references/backends.md` Organizing pass. A located idea with no home is added, including when the old theme list was short. An idea that does not locate is not added. Then check the index and run lint. A recompile is not permission to erase disputes.
 
-Databased: check extraction reuse before dropping memory. An entry is reusable only when dataset, source hash, chunk hash and pack hash match. Report reused and new extraction counts. With the rebuild authorized, run `forget --memory-only --confirm`, chunk, extract only entries needing it, ingest every extraction, `promote --replay`, `review-pass`, then `healthcheck --eval`. Compare with the last pack filled per `tools/knowledge-memory/references/backends.md` Databased eval; a template-floor self-hit is not that baseline. Have a human read the composed answers. Report a regression instead of weakening a correct eval.
+Databased: check extraction reuse before dropping memory. An entry is reusable only when dataset, source hash, chunk hash and pack hash match. Report reused and new extraction counts. With the rebuild authorized, run `forget --memory-only --confirm`, chunk, extract only entries needing it, ingest every extraction, `promote --replay`, `review-pass`, then `healthcheck --eval`. Have a human read the composed answers. Did that read happen? No: do not report the eval as accepted. Say the read has not happened. Yes: compare with the last pack filled per `tools/knowledge-memory/references/backends.md` Databased eval. A template-floor self-hit is not that baseline. Does the new run fail a row the last passing run passed, or does the human read name a wrong answer the last run had right? Yes: report a regression. Do not weaken a correct eval and do not drop a row to make it pass. There is no last passing run, or the new run does not fail such a row: report the comparison that could be made. Do not call a missing baseline a regression.
 
 Upgrade uses `tools/knowledge-memory/references/backends.md`. Wiki to databased keeps corpus and human-kept pages as Candidate Idea inputs to the canon interview, then initializes the authorized upgrade: record the prior backend and kept pages in the run record, set `backend: databased` in the recipe, create `extraction/` and `review/`, copy the databased eval template, and run `bootstrap --store <file>`. Enter Knowledge Set Onboarding at Phase 3's databased branch and continue through confirmation and evaluation, without re-entering its new-set guard. No kept wiki page becomes Canonical automatically. Databased to graph follows `experts/Knowledge Expert/graph.md` Upgrade seed: reuse corpus paths without a corpus copy; corpus, confirmed canon and decided items seed Candidates, never a silent copy of Canonical status. Human confirmation establishes Pro canon. No graph replay rule is accepted. After prerequisite checks and authorisation of the backend change, record the prior backend, select a separate caller-named `graph.lbdb`, set `backend: graph` with `retrieval: embedding` unless the requester wants Cypher only, and clear any prior databased `canon_confirmed`. Run Step 2's graph chunk, session extraction and ingest; keep the original databased store and corpus intact. Confirm Pro canon separately with the named human. Graph to hosted stops on `experts/Knowledge Expert/hosted.md`; no export runs. A direct Pro request without a databased set follows `experts/Knowledge Expert/graph.md` and its executable Candidate ingest path, including the same retrieval recording; it does not bootstrap SQLite. Down is not a defined path.
 
@@ -103,12 +105,12 @@ Update the set's row in `memory/knowledge/AGENTS.md`: last ingest, canon confirm
 
 - **Databased replay applied to a graph upgrade.** Follow `experts/Knowledge Expert/graph.md` Upgrade seed instead; no accepted replay rule or Canonical status crosses into Pro automatically.
 
-- **The request names a set and no path.** Apply the table; if it still fits two rows, ask or hand to the expert. Do not run a rebuild because it covers every case.
+- **The request names a set and no path.** Apply the question in Step 1. Two rows, or an eval that fails with no source change: ask once, then hand it to `experts/Knowledge Expert/` if they do not name one row. Do not run a rebuild because it covers every case.
 - **A decision inferred.** "Looks fine" is not a decision on an item. The Decision block carries the action, the reviewer, and the date, given in words, or the item stays open.
 - **Applying during the review sitting.** Recording and applying are two steps so a reviewer can change their mind before the databased does. Apply runs after the sitting or when the reviewer says apply.
 - **Episodes written into a set.** The recipe's `write_policy` governs whether session learnings may be remembered into a set at all, and in v1 nothing here writes one; a set with the policy true still receives episodes only as Candidates through the review pass, never as Canonical.
 - **A silent drop.** A failed file, a refused item, a deferred question: each is in the sitting record. The completeness claim fails the moment one is not.
-- **Incremental compile that only updates the old theme list.** New material can carry a load-bearing idea the first catalog missed. Coverage-check the corpus, not only the pages that already exist.
+- **Incremental compile that only updates the old theme list.** New material can carry a located idea the first catalog missed. Run the coverage question in Step 2. Do not check only the pages that already exist.
 
 
 ## Success
