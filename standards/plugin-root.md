@@ -1,6 +1,6 @@
 ---
 standard: plugin-root
-version: 0.1.0
+version: 0.2.0
 description: One declared plugin-root tree, base or domain, and the clauses used to score its layout
 ---
 
@@ -96,7 +96,7 @@ The arrow is stated in `wiser/AGENTS.md` Precedence and routing, in a file a dom
 
 A cross-plugin reference is never a finding. Duplicating a base primitive into a domain plugin scores misfiled. A base file that names a domain plugin scores misfiled.
 
-**The composition declaration has two parts, both in the domain plugin's own `AGENTS.md`**, so that a scorer and a reader reach the same answer: it cites `wiser/AGENTS.md`, and it states that this plugin **loads alongside `wiser`**, writing the base's name as inline code. **The form is part of the obligation**, because this declaration is read by a person and also located by a classifier, and one that carries the meaning without the form cannot be found by the second. A declaration missing either part scores absent, and where only the form is wrong the repair is one sentence. Stating the two parts is what keeps this testable by reading the file rather than by searching it for a word: a tree that says it makes **no** composition claim contains the word and satisfies neither part. That declaration is also what C1's admission test reads. The composition declaration is N/A for the base, which composes with nothing, and the no-domain-reference rule is N/A for a domain plugin.
+**The composition declaration has two parts, both in the domain plugin's own `AGENTS.md`**, so that a scorer and a reader reach the same answer: it cites `wiser/AGENTS.md`, and it states that this plugin **loads alongside `wiser`**, writing the base's name as inline code. **The form is part of the obligation**, because this declaration is read by a person and also located by a matcher, and one that carries the meaning without the form cannot be found by the second. A declaration missing either part scores absent, and where only the form is wrong the repair is one sentence. Stating the two parts is what keeps this testable by reading the file rather than by searching it for a word: a tree that says it makes **no** composition claim contains the word and satisfies neither part. That declaration is also what C1's admission test reads. The composition declaration is N/A for the base, which composes with nothing, and the no-domain-reference rule is N/A for a domain plugin.
 
 No shipped file in any plugin root names a path under the build workspace. A shipped file that does scores misfiled. This obligation applies to both plugin classes.
 
