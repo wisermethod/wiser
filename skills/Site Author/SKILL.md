@@ -121,7 +121,7 @@ node "<this-skill-dir>/scripts/check.mjs" "<envelope-folder>"
 
 Step 6 in `KIT.md` is a fetch after preview: `/`, one article route without a trailing slash, sitemap, RSS when articles are enabled, `/llms.txt`, `/robots.txt`. Canonical and `og:url` use that site's `site/kit.json` `siteUrl`.
 
-Did Check print FAIL? No: continue. Yes: do not stand up over the folder and do not replace the tree. Which shape is it? Current envelope: ask whether to repair the named failure or to Upgrade. Repair: fix only that failure. Upgrade: run Upgrade. No answer: stop. Do not write. Old shape: the Shape rule above. Wrap unless they declared it foreign. Foreign: leave it untouched.
+Did Check print `check PASS` and exit 0? Yes: continue. It printed FAIL, threw, exited nonzero, or printed nothing: stop with its diagnostic. On a FAIL: do not stand up over the folder and do not replace the tree. Which shape is it? Current envelope: ask whether to repair the named failure or to Upgrade. Repair: fix only that failure. Upgrade: run Upgrade. No answer: stop. Do not write. Old shape: the Shape rule above. Wrap unless they declared it foreign. Foreign: leave it untouched.
 
 ### 4. Wrap
 
