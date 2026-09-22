@@ -106,7 +106,7 @@ Direct `skills/Internal Research/` by name. Hand it `<scan_request>` whose topic
 
 Does the card's path name a build-workspace directory, which the negative boundary forbids this package to carry? Yes: say that hits were found and omitted because they cannot be named, and carry the finding without the path. No: carry the card as the inventory returned it. You cannot tell: omit the path, say a hit was found and omitted, and carry the finding without the path. Do not copy the path, and do not silently drop the card as though the inventory found nothing there.
 
-This skill does not scan. An empty result is a finding, not a reason to skip the step: state (b) is proved here, not assumed. Does the inventory name a failure this domain's work meets, and a lens that would catch it, with the skills, tools, and connectors that lens needs? Yes: coverage is enough for a first slice. No matches at all: state (b), and coverage is not enough. Matches that do not name that failure and that set: coverage is not enough. You cannot tell: coverage is not enough. Do not call it enough.
+This skill does not scan. An empty result is a finding, not a reason to skip the step: state (b) is proved here, not assumed. Does the material the inventory found, read where it sits, support a failure this domain's work meets and a lens that would catch it? The inventory reports what is there; reading it for that is this skill's job. Yes: coverage is enough for a first slice. No matches at all: state (b), and coverage is not enough. Matches, and the material read does not support such a failure: coverage is not enough. You cannot tell after reading it: coverage is not enough. Do not call it enough.
 
 Handed `<source_material>` is read as material and does not replace this step.
 
