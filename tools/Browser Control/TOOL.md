@@ -3,7 +3,9 @@ name: Browser Control
 type: tool
 category: automation
 description: Drives a persistent Chromium session to read, navigate, and act on pages that need a real browser, answering every command with the page state that followed
-version: 0.4.2
+version: 0.5.0
+gaps:
+  - an element index and verb picked from an interactive snapshot, which the caller's own pick approximates
 ---
 
 # Browser Control
@@ -51,6 +53,22 @@ A page is not a function call. It redraws, it redirects, it shows a consent bann
 - **Never repeat an action that just failed.** Snapshot, work out what the page actually shows, and try a different route. Two or three failed routes is the point to stop and report the blocker rather than a fourth.
 - **Hand a human what only a human can do.** A sign-in, a CAPTCHA, a second factor, or an operating-system dialog cannot be driven from here. Say what is blocking and let the person act in the window; a signed-in session stays in the profile directory afterwards.
 - **Report what the page did.** Close with what was found, where, and what was changed on the site. An automation whose effects nobody can name is not finished.
+
+**Who picks the element.** Deciding what to do with a page belongs to the skill or expert that called this tool, as Context says. This tool does not put that decision. The caller does. `standards/primitives.md` Invocation is why the call below is a branch for that caller, and why nothing under `scripts/` makes it. After `snapshot --format interactive`, the caller asks these questions in order. Each one states what a yes does and what a no does. A yes that stops does not ask the later questions.
+
+Is this page a sign-in, a CAPTCHA, a second factor, or an operating-system dialog, the case the bullet above already hands to a person? Yes: do not call. The window goes to the person. That handoff is unchanged. No answer stands in for it. No: ask the next.
+
+Does the owning root refuse, per `standards/user-root.md` C13? Yes: do not call. The caller picks the index from the snapshot. No: ask the next.
+
+Is a classifier attached, per `wiser/AGENTS.md` `## Classifier`? No: the caller picks the index from the snapshot. The caller's own pick approximates the choice below and is what runs when the call is not made. Yes: ask the next.
+
+Is `elementCount` over 255? Yes: do not send the list on one call. The snapshot's `content` is numbered lines and does not carry box positions, so a viewport filter cannot be run from it. Split the lines in order into batches of 255. Call once per batch, each batch its own `elements` array of at most 255, in the shape below. Do not ask for a choice across batches. Read each answer the same way as a single call. Map a returned index back onto the snapshot by adding that batch's offset, in code. Act on the lowest snapshot index among the batches that named one. None named one: the caller picks from the snapshot. No: one call, as follows.
+
+Each call, the one call and any batch call, puts the pick to `wiser.browser.pick`. `goal` is the outcome this step is after. `elements` follows the order of the list being sent. Each object has a string `verb` and a `name`. `verb` is `type` when the line is a field a person types into, and `click` otherwise, a dropdown included. `name` is that line's description. Pass `allow_uncalibrated: true`. At most 255 elements go on one call. `select option` is not this pick: it needs a selector, and the snapshot lines do not carry one.
+
+A confident answer here is an `index` that is a whole number inside the list that was sent, and a `verb` that is the string `click` or `type`. The answer carries `calibrated: false`. Apply no bar to `confidence`. This answer does not carry one. Act once. `click` uses that snapshot index. `type` uses that snapshot index and the text the goal already names. The answer does not carry the text, and a goal with no text to type is not acted: the caller picks. Then snapshot again, as the one-action bullet requires. `index` null, `verb` `none`, a `verb` that is not `click` or `type`, or an answer that is a status rather than that pair: the caller picks, and nothing is acted on from it.
+
+An answer never supplies `--confirm`. Destructive Actions still requires a person to opt in. A confident index does not.
 
 The pattern that reads a site-specific playbook before improvising travels with the root that owns the site, not with this tool; a shared root ships no account's navigation notes.
 
