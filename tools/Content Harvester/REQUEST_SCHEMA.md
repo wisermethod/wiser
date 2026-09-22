@@ -92,7 +92,7 @@ A role is a claim about what kind of source this is, and it is the largest singl
 | `social_signal` | Posts on social platforms | 10 |
 | `discovery` | Exploratory or unvetted source lists | 6 |
 
-A role outside this table is accepted and scores 5. A source with no role at all is treated as `discovery`.
+A role outside this table is accepted and scores 5. A source with no role at all is treated as `discovery`. Which row's Use for column matches this source? One row: set that role. Two rows match: ask which claim the caller is making. Do not pick the higher weight. No answer: omit `role`, and the tool treats the source as `discovery`. No row matches: omit `role` for `discovery`, or set a role outside the table when the caller named one, which scores 5. You cannot tell: omit `role`.
 
 ## Filters
 
