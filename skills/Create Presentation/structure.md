@@ -131,7 +131,7 @@ The same content needs different structural emphasis for different audiences.
 
 ## Slide Count Guidelines
 
-Starting points, not rigid rules. Adjust for density and delivery context.
+Starting points, not rigid rules. A count inside the row for the stated duration: build to it. A count outside that row: only as the Calibrate step in `SKILL.md` already allows, stated with its reason, or because the user named the count. Do not leave the row on a feel for density.
 
 | Duration | Approximate slides | Notes |
 |----------|--------------------|-------|

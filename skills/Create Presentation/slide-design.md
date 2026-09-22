@@ -19,7 +19,7 @@ Hierarchy tools, in order of strength:
 3. Position. Top-left reads first in Western audiences, top-right in right-to-left ones.
 4. Whitespace. Isolated elements draw attention.
 
-The squint test: blur the slide with your eyes. Can you still identify the hierarchy? If everything blurs into equal weight, the hierarchy is broken. Apply it to every slide before moving to the next.
+The squint test: blur the slide with your eyes. Can you still identify the hierarchy, one element dominant and the reading order intact? Yes: move to the next slide. No: make one element dominant, using size, contrast, or space, before the next slide. Apply it to every slide.
 
 ## Whitespace and Spacing
 
@@ -28,7 +28,7 @@ Whitespace is not empty space. It is the structure that makes content readable.
 - **Margin from slide edges.** Content should never touch the edges. The `margin: 0.04` setting in reveal.js gives 4% padding, but dense slides may need more internal margin on content blocks.
 - **Grouping through proximity.** Elements that belong together sit close; elements that are separate have visible gaps. If a heading sits equidistant between two content blocks, the reader cannot tell which it belongs to. Move it closer to its content.
 - **Breathing room between sections.** Within a slide, use `margin-top` or `gap` to separate logical groups. Five bullet points with no spacing read as a wall of text; the same five grouped into two clusters with a gap read as two ideas.
-- **Vertical centering.** reveal.js centers content vertically by default (`center: true`), which works for sparse slides. A dense slide with a long list may read better top-aligned, and reveal.js has no per-slide attribute for that: it positions each section with an inline offset, so only a CSS rule that outranks that offset changes the alignment. In a deck built from the starter, whose style block is locked, split the slide instead; with a brand template, use the template's own alignment class when it has one.
+- **Vertical centering.** reveal.js centers content vertically by default (`center: true`), which works for sparse slides. A dense slide with a long list may read better top-aligned, and reveal.js has no per-slide attribute for that: it positions each section with an inline offset, so only a CSS rule that outranks that offset changes the alignment. In a deck built from the starter, whose style block is locked, split the slide instead. With a brand template, does it have its own alignment class? Yes: use that class. No: split the slide. Do not add a CSS rule that fights the inline offset.
 
 ## Text Density
 
