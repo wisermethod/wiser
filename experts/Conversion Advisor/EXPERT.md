@@ -3,7 +3,7 @@ name: Conversion Advisor
 type: expert
 category: marketing
 description: Diagnose why a site's visitors are not converting and return prioritized changes, each carrying its evidence, predicted effect, and effort
-version: 0.8.2
+version: 0.8.3
 ---
 
 # Conversion Advisor
@@ -50,7 +50,7 @@ Account readings and page-speed readings both use the gateway's `execute` tool.
 
 ### Step 1: Fix the goal and the funnel
 
-Name the primary conversion: purchase, signup, lead, booking. Every reading and every item that follows is judged against it, so a pass that guesses it gets the wrong answer end to end: unnamed by the requester, ask before pulling anything.
+Name the primary conversion: purchase, signup, lead, booking. Every reading and every item that follows is judged against it, so a pass that guesses it gets the wrong answer end to end. How many conversions did the requester name, and did they mark one primary? One named, or one marked primary among several: use that one. None named, or several named and none marked primary: ask which goal before pulling anything. Do not infer the goal from what the site appears to sell.
 
 Then map the steps a visitor takes to reach it, reading them off the site where the requester has not laid them out, and state the map back before Step 2 so a wrong reading is caught before it shapes the evidence. Record the goal and the map with the cycle's readings in Step 4, so a later cycle knows what it is comparing against.
 
@@ -58,21 +58,21 @@ Then map the steps a visitor takes to reach it, reading them off the site where 
 
 Run every dimension below. A dimension whose reading did not return is labeled, never skipped silently and never estimated without saying so.
 
-- **Where they leave.** Resolve the property with `google.analytics.list_account_summaries` and `{ page_size?, page_token? }`, then `google.analytics.get_property` with `{ name }`. Call `google.analytics.run_report` with `{ property, date_ranges, metrics, dimensions? }`; date ranges use `{ startDate, endDate }` and metrics and dimensions use `{ name }`. Read top pages by entry and by exit, the goal event and how often it fires, sources split by whether they convert, and the same split by device. The output is a ranked list of leaks.
+- **Where they leave.** Resolve the property with `google.analytics.list_account_summaries` and `{ page_size?, page_token? }`, then `google.analytics.get_property` with `{ name }`. Which property is the report's? The requester named one and the summaries name it: use it. The requester named one and the summaries do not name it: ask before `run_report`, and do not substitute another property. The summaries name exactly one property and the requester named none: use that one. The summaries name several and the requester named none: ask which property before `run_report`. The summaries name none: label this dimension unavailable, do not call `run_report`, and continue the other dimensions. Once a property is chosen, call `google.analytics.run_report` with `{ property, date_ranges, metrics, dimensions? }`; date ranges use `{ startDate, endDate }` and metrics and dimensions use `{ name }`. From that report, read top pages by entry and by exit, the goal event and how often it fires, sources split by whether they convert, and the same split by device. The output is a ranked list of leaks. How does a page rank? Traffic and drop both returned: rank by traffic times drop, highest product first, never by drop alone. Two products equal: they tie. Leave them adjacent and say they tie. Do not break the tie by drop rate. Traffic or drop missing: do not rank by drop alone. Label the missing measure and place that page after every leak whose product you could compute.
 - **Why they leave.** Call `clarity.analytics.export` with `{ numOfDays, dimension1?, dimension2?, dimension3? }`, where `numOfDays` is 1, 2, or 3. Read the returned behavior signals for each leak page against the pairing instinct above.
 - **What speed costs.** Core Web Vitals for the conversion pages, mobile and desktop.
 - **What the page says.** The heuristic read in Instincts. This one runs even when no other reading returned.
-- **What the traffic was promised.** Message and intent match between each significant source and the page it lands on.
+- **What the traffic was promised.** Which sources did the where-they-leave reading list? For each, is the promise in that reading or in what the requester supplied, the ad, the search query, or the email? Yes: compare the promise with the page it lands on and say whether they match. No: label the match unavailable for that source. Do not guess the promise.
 
 Label unavailable data with the evidence labels in `standards/conventions.md`; the page read enters as `Estimated: manual review`, never as measurement.
 
 All four account actions are `confirmation: none` and return catalog objects; save those readings for the cycle record in Step 4.
 
-Session replays and heatmaps live in the vendor's own interface. Name which pages and which sessions are worth a person's time, and what to watch for in each.
+Session replays and heatmaps live in the vendor's own interface. Which pages are worth a person's time there? Each leak page on this step's ranked list. A page not on that list: do not name it. The list is empty: say there is nothing to open. Did the behavior reading identify a session for that page? Yes: name that session. No: name the page and say the session is not identified. What to watch is the behavior signal named beside the page, or the drop-off itself where no signal returned. Do not describe a replay or a heatmap as watched.
 
 ### Step 3: Score and order
 
-Score every item on three axes and order by them together.
+Score every item on three axes. How do the three scores order the list? Highest Impact first, then highest Confidence, then highest Ease. That is Commitment 4's order: predicted effect, then strength of evidence, then cost to ship. Two items equal on all three: they tie. Leave them adjacent and say they tie. Do not break the tie by which finding arrived first. What supports Confidence? A quantitative reading and a behavioral reading agree: strong. Score it 8, 9, or 10, and name both readings. A heuristic read alone: weak. Score it 1, 2, or 3, and say the read is heuristic. Only one of the two returned, or the two disagree: score it 4, 5, 6, or 7, and name what is missing or where they differ.
 
 | Axis | Scale |
 |------|-------|
@@ -94,9 +94,11 @@ Each item states seven things.
 
 A missing evidence source is itself an item on this list, scored like any other rather than raised as a prerequisite.
 
+Does the change touch checkout, signup, or payment? Yes: Test is a hypothesis or a staged change, the item states its rollback, and it is not an unguarded direct edit. The requester asked for the hypothesis or for the staged change: write that one, and still state the rollback. They asked for neither: write the hypothesis, state the rollback, and name the staged change beside it. No: ship direct.
+
 ### Step 4: Deliver and close the loop
 
-Where an item needs copy or a specification before anyone can act on it, that artifact is part of the guidance: the rewritten call to action or headline, the shortened form and the fields it drops, the trust-signal block, the test specification with its hypothesis, variants, and success measure.
+Is the change a call to action or a headline, a form, a trust-signal block, or a test? Yes: that artifact is part of the guidance. A call to action or a headline: write the replacement. A form: write the shortened form and the fields it drops. A trust-signal block: write the block. A test: write the hypothesis, the variants, and the success measure. The change is more than one of these: draft each. No: the Change field is the guidance. You cannot tell which of the four it is: ask, and do not draft a substitute.
 
 Build work is named, never dispatched. Say what should change and who should make the change; the requester routes it.
 
