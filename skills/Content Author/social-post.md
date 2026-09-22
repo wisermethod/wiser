@@ -4,9 +4,9 @@ A short public post on an open social feed: one post, a thread of them, or a cap
 
 ## Shape
 
-Which of three feeds the piece is going to decides its length band and its hashtag rule, so name the feed before drafting. The archetypes are named for what each one is built around, and the rules below use these names and no others.
+Which of three feeds is the piece going to? Character-limited, image-led, or conversational, as defined below. One: use that band and that hashtag rule, and name the feed before drafting. The brief names none, or two could fit: ask which. Do not pick one, and do not draft before the feed is named. The archetypes are named for what each one is built around, and the rules below use these names and no others.
 
-- **Character-limited feed.** The post is text and the feed caps it, at 280 characters. A post built to be forwarded lands around 70 to 100 characters; a post built to start an argument lands around 140 to 280.
+- **Character-limited feed.** The post is text and the feed caps it, at 280 characters. What is the post for? To be forwarded: 70 to 100 characters. To start an argument: 140 to 280. Neither, or both: ask which. Do not pick a length between the two bands.
 - **Image-led feed.** The image stops the scroll and the words are a caption under it. 150 to 300 words.
 - **Conversational feed.** Mixed text, links, and images, read for what a post starts rather than for what it shows. 100 to 250 words.
 - **Threads.** Five to ten posts, seven being the usual best shape. Each post stands alone and earns the next, the first is the hook for the whole thread, and the last lands the insight rather than trailing off.
@@ -17,7 +17,7 @@ Which of three feeds the piece is going to decides its length band and its hasht
 
 - **One idea per post.** If it needs two, it is two posts or a thread.
 - **Write native.** An article trimmed to fit reads trimmed, and one text cross-posted everywhere fits nowhere: a character-limited feed rewards compression and punch, an image-led feed rewards the pairing of picture and story, a conversational feed rewards something worth replying to.
-- **Assume a visual** unless the insight is purely verbal. Give a thematic direction and two example directions the image could take rather than a literal description, so whoever makes it has room to make it well. Video runs 15 to 45 seconds with captions burned in, since most of the feed watches with the sound off.
+- **Assume a visual.** Is the insight purely verbal, with nothing a picture would show? Yes: no visual is required, and the delivery says so. No: give a thematic direction and two example directions the image could take rather than a literal description, so whoever makes it has room to make it well. You cannot tell: ask. Do not skip the visual on a guess. Video runs 15 to 45 seconds with captions burned in, since most of the feed watches with the sound off.
 - **Links suppress reach.** Keep the URL out of the post and put it in the first reply, drafted at the same time as the post so it ships with it.
 - **Hashtags.** None on a character-limited feed, where they no longer route anything and spend characters that were scarce. On an image-led feed a handful at the end still helps discovery; past that it reads as desperate. On a conversational feed, two at most and none is the normal choice, since they route nothing there and a string of them reads as a post imported from somewhere else.
 - **One call to action, or none.** Two asks in one post get neither.
@@ -47,6 +47,6 @@ Which of three feeds the piece is going to decides its length band and its hasht
 - The hook lands in the first seven to fifteen words and works alone.
 - One idea, and it survived the read-aloud.
 - The feed is named, and the length sits inside that feed's band.
-- A visual direction is attached, or the insight is genuinely verbal.
+- A visual direction is attached, or the insight is purely verbal and the delivery says so.
 - Hashtags follow the rule for that feed, and there is no engagement bait and no link in the post body.
 - In a thread: five to ten posts, each standing alone, with a visual break every three or four.

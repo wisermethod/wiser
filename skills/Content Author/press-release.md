@@ -6,7 +6,7 @@ Review expert: `experts/Ghost Writer/`. This root carries no news-desk reviewer,
 
 ## Shape
 
-- **Length.** 400 to 500 words. Under 300 the news was thin or this is a statement. Over 600 is a feature, not a release.
+- **Length.** 400 to 500 words. Is the draft under 300 words? The brief asked for a statement: it is `statement.md`. The brief asked for a release: the news is thin. Say so, and do not pad. Is it over 600 words? It is a feature, not a release. Say so, and do not ship it as a release. Ask whether the brief wants a feature. Do not switch files in silence.
 - **Structure.** Headline, dateline, lede, nut graf, one or two quotes, supporting facts, boilerplate.
 - **Paragraphs.** Two to three short sentences. The journalist is skimming, not settling in.
 - **Stance.** Third person. The issuer is named, never "we", unless a quote.
@@ -16,9 +16,9 @@ Review expert: `experts/Ghost Writer/`. This root carries no news-desk reviewer,
 - **Headline.** What happened, in about ten words, with a verb. Not a slogan and not a topic label.
 - **Lede.** The news in the first sentence: who did what, when, where it matters. A reader who stops after that sentence still has the story.
 - **Nut graf.** Why it matters, in the second paragraph, before color or background.
-- **Quotes.** One from a named, titled speaker, in that person's voice, saying something a reporter cannot paraphrase from the lede. A second quote only when it adds a distinct fact or reaction. No adjective stacks ("delighted", "thrilled", "excited to announce").
+- **Quotes.** One from a named, titled speaker, in that person's voice, saying something a reporter cannot paraphrase from the lede. Does a second quote add a fact or a reaction the first does not? Yes: keep it. No: cut it. No adjective stacks ("delighted", "thrilled", "excited to announce").
 - **Boilerplate.** Last, one short paragraph of who the issuer is. Not the news.
-- **Dateline.** City and date on the first body line, in the form the issuer's house style already uses.
+- **Dateline.** City and date on the first body line. Does the issuer's house style, already in the source, state a form? Yes: use that form. No: use city and date, absolute, per `standards/conventions.md`. Do not invent a house style.
 
 ## Failure modes
 

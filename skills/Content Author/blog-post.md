@@ -1,10 +1,10 @@
 # Blog Post
 
-A web-published article, roughly 800 to 2,000 words, read by someone who clicked through from a search result, a feed, or an email and has not yet committed to finishing. The reader scans before reading, so the structure is doing work before the prose is. Read this file at Frame and hold it through Draft. Past roughly 2,000 words the piece stops being a web article and becomes an extended argument: `long-form.md`.
+A web-published article, 800 to 2,000 words, read by someone who clicked through from a search result, a feed, or an email and has not yet committed to finishing. The reader scans before reading, so the structure is doing work before the prose is. Read this file at Frame and hold it through Draft. Past 2,000 words the piece stops being a web article and becomes an extended argument, `long-form.md`, unless the brief asked for a web article and names why it runs long.
 
 ## Shape
 
-- **Length.** 800 to 2,000 words, and 1,200 to 1,500 is where most subjects land. Under 800 the subject was thin or the piece is really a post. Over 2,000 needs a reason the reader can feel. Draft to about 1.3 times the target and cut back to it; the specificity survives a cut and the padding does not, which is not true of a draft written to the number the first time.
+- **Length.** 800 to 2,000 words, and 1,200 to 1,500 is where most subjects land. Is the draft under 800 words? The brief asked for a short public post: this file does not govern. Load the post row `SKILL.md` names. The brief asked for a web article: the subject is thin. Say so, and do not pad to 800. Is it over 2,000 words? The brief asked for a web article and names why it runs long: keep this file, and state that reason in the delivery. The brief does not: it is `long-form.md`. Load that file. Draft to about 1.3 times the target and cut back to it; the specificity survives a cut and the padding does not, which is not true of a draft written to the number the first time.
 - **Sections.** An opening claim, then three to five body sections behind descriptive headers.
 - **Paragraphs.** Two to three sentences. Screen reading breaks down around the fourth, and a wall of text is skipped rather than read slowly.
 - **Stance.** First person where the claim comes from experience, plain third person elsewhere. The reader is a practitioner who holds the basics, so explaining a foundational concept reads as padding unless the piece is explicitly introductory.

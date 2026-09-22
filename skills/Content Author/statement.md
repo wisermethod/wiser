@@ -2,7 +2,7 @@
 
 A short public text in a named person's or organization's voice, issued to set a record: a holding line, a response, a confirmation, or a close. Read this file at Frame and hold it through Draft. A full news announcement is `press-release.md`. Spoken crisis remarks are `skills/Speech Writing/` with `occasions/crisis-remarks.md`.
 
-Review expert: `experts/Ghost Writer/`. This root carries no news-desk reviewer, so whether a desk would read the statement as the record is not judged here; name that gap. Where the occasion is a crisis or an unfolding incident there is a second judgment this root does not carry, whether to speak at all and what would make it worse, and that gap is named before the statement is issued. On an ordinary statement that second judgment is not missing and is not named.
+Review expert: `experts/Ghost Writer/`. This root carries no news-desk reviewer, so whether a desk would read the statement as the record is not judged here; name that gap. Is the occasion a crisis or an unfolding incident? Yes: there is a second judgment this root does not carry, whether to speak at all and what would make it worse, and that gap is named before the statement is issued. Do not decide it. No: that second judgment is not missing and is not named. You cannot tell: ask before the statement is issued. Do not decide the crisis question either way.
 
 ## Shape
 
@@ -15,9 +15,9 @@ Review expert: `experts/Ghost Writer/`. This root carries no news-desk reviewer,
 
 - **Named speaker.** A person with a title, or the organization in its public voice. A statement with no speaker is a leak, not a statement.
 - **Facts only.** What is known, what is being done, what comes next that can actually be promised. Speculation, motive, and blame stay out.
-- **Holding vs full.** A holding statement buys time and names the next update. A full statement closes the question it was issued to close. Do not mix them.
+- **Holding vs full.** What was the statement issued to do? Buy time until a named next update: holding, 80 to 200 words, and it names the next update. Close the question it was issued to close: full, up to 350 words. The brief asks for both, or you cannot tell which: ask. Do not mix them. Over 400 words: it is a release. Say so, and do not ship it as a statement.
 - **No leftover marketing.** Superlatives, taglines, and "we remain committed to excellence" are not facts. Cut them.
-- **Legal language.** If counsel supplied a constraint, it is a constraint, not a sentence to polish into something warmer. Flag a collision with voice rather than rewriting the constraint away.
+- **Legal language.** Did counsel supply a constraint? No: this rule does not fire. Yes: keep the constraint as supplied. It is a constraint, not a sentence to polish into something warmer. Does the bound voice collide with it? Yes: flag the collision for the voice's owner. Do not rewrite the constraint away. No: keep both.
 
 ## Failure modes
 

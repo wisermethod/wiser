@@ -4,7 +4,7 @@ The first line earns the second. This file carries the craft of that line: a hea
 
 ## What an opening has to do
 
-Three forces at once. An opening carrying two of them is a sentence, not a hook.
+Three forces at once. Does the opening carry specificity, recognition, and incompleteness? All three: it is a hook. Two or fewer: it is a sentence, not a hook. Rewrite it until all three are present, unless the section on not opening on a hook says not to.
 
 **Specificity.** A concrete detail, number, or image the reader can hold. An abstract opening lets someone skim past without absorbing anything, so leaving costs them nothing.
 
@@ -14,7 +14,7 @@ Three forces at once. An opening carrying two of them is a sentence, not a hook.
 
 ## The opening moves
 
-Five ways in. Pick one and commit; they work by different mechanisms and stacking them produces noise rather than force.
+Five ways in. Which one move does this opening use? Specific, provocative, action, revealing, or kinetic, as defined below. One: commit to it. Two would both serve: use the one the loaded type file's opening rule already names. That rule names none: ask which one. Do not stack them. None serves, and the section below says not to hook: follow that section. None serves, and that section does not apply: ask. They work by different mechanisms and stacking them produces noise rather than force.
 
 **Specific.** Swap the vague claim for the concrete one: the figure, the date, the thing that can be pointed at. Specificity reads as credibility before the reader has decided whether to trust you.
 
@@ -28,7 +28,7 @@ Five ways in. Pick one and commit; they work by different mechanisms and stackin
 
 ## Emotional drivers
 
-The move decides the shape of the opening. The driver decides what it pulls on. Choose one from the reader's relationship to the topic, and do not layer a second emotional framework over it.
+The move decides the shape of the opening. The driver decides what it pulls on. Which one driver fits the reader's relationship to the topic? Frustration, ambition, curiosity, vindication, or disgust, as defined below. One: use it. Two fit: use the one the brief's account of what the reader already believes names. The brief names neither: ask. Do not layer a second emotional framework over it.
 
 - **Frustration.** Something is broken and costing them, and they have not been able to name it.
 - **Ambition.** There is an edge they are missing: what the people ahead of them know, and what not knowing it has been costing.
