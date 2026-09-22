@@ -88,7 +88,7 @@ Given a figure already produced, an analysis, or a claim that rests on a number,
 - **The honest stop.** Data Analysis stops on an operation its tool does not perform and says what it could not compute. That stop was the right result when the operation is one the tool lacks; it was the wrong result when the figure was a `compute` over two returned fields the run did not ask for, in which case the verdict names the fields.
 - **The claim on the figure.** Does the claim stay inside what the figure states? Yes: there is no finding on the claim. A trend stated from two points, a cause stated from a correlation, or any other reach past what the figure states: the finding is on the claim, not the figure. You cannot tell: the finding is on the claim, and name the sentence that reaches.
 
-Output: measured, read, or stopped, with the field or source for a measured figure, the tool and the label for a read one, and for a stop whether it was right, each citing the rule it rests on. Measured, and a right stop: rely. Read: return. A wrong stop, the figure was a compute over two returned fields the run did not ask for: return, and name those fields.
+Output: measured, read, or stopped, with the field or source for a measured figure, the tool and the label for a read one, and for a stop whether it was right, each citing the rule it rests on. Measured, and a right stop: rely on the figure. Read: return. A finding on the claim, whatever the figure's verdict: return the claim for correction. A wrong stop, the figure was a compute over two returned fields the run did not ask for: return, and name those fields.
 
 ## Rules
 
