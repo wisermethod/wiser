@@ -82,22 +82,22 @@ The sitting is the confirmation interface; files are evidence, never reading ass
 
 `close_intensity` sizes the human half. Core: themes as a list; every open conflict; the pass-and-miss probes (one located hit labeled Unverified, one uncovered question answered Not available, the dated-item limit once, and for graph each recorded embedding probe as it ran, hit or miss, where the recipe has one); a load-bearing sample of three cited reads (wiki) or five ideas (databased, graph). Full: everything in core, then every coverage head one at a time, still under the five-question pace. The machine half does not shrink: retrieval `expected` still covers every Canonical idea per Databased eval above, and that check runs after confirmation, not in the sitting.
 
-Unverified Candidate recall spoken before confirmation is not `healthcheck --eval`. Databased `recall` returns items for an uncovered question too, so Not available is the skill's judgment and the returned items are disclosed when it is said. A recorded miss is preserved with its query and expected items; the query is never rewritten to a node name.
+Unverified Candidate recall spoken before confirmation is not `healthcheck --eval`. Databased `recall` returns items for an uncovered question too. Do the returned items state an answer to the question? Yes: they are the items the skill composes from. No, or the item list is empty: the answer is `Not available`, and any items that came back are disclosed with why they do not answer. You cannot tell: `Not available`, and disclose the items. The model's own memory does not fill the hole. A recorded miss is preserved with its query and expected items; the query is never rewritten to a node name.
 
 The sitting adds no vector index to wiki, no promote command to graph, and no shared extraction step across backends. Wiki still has no vector index. Databased is still not a graph database.
 
 ## Organizing pass
 
-`skills/Categorize Content/` is the first compile over a body of material, not another backend and not owned by Knowledge Expert (Ghost Writer owns it). Knowledge Set Onboarding offers it after the corpus exists and before wiki compile or databased extract, for a book, a domain, or a mixed set large enough for themes.
+`skills/Categorize Content/` is the first compile over a body of material, not another backend and not owned by Knowledge Expert (Ghost Writer owns it). Knowledge Set Onboarding offers it after the corpus exists and before wiki compile or databased extract. Is this corpus a book, a domain, or mixed? No: do not offer `skills/Categorize Content/`. Yes, and you can point to separable subjects, each with a passage: the corpus is substantial enough for themes. Offer it. Did the requester accept? Yes: the organizing pass ran. No, or no answer: it did not run. Do not invent themes. Yes, and its passages cannot be separated into subjects, however many files it spans: it is too thin. Skip with that reason and name `skills/Knowledge Map/`. Yes, and there is no compilable source, or the requester has said the set is not worth keeping: stop without a compiled layer. You cannot tell which of these the corpus is: ask. Do not offer, skip, or stop on a guess.
 
 - Wiki: the shipped themes become topic directories and the first article names
 - Databased: the shipped themes become Candidate Ideas for the canon interview
 - Graph: the shipped themes may seed Candidate Ideas with located quotes; follow `experts/Knowledge Expert/graph.md`, including its prerequisite stops before sources
 - Hosted: the shipped themes would be the collection schema; then stop
 
-Themes structure topics and order. They are not a maximum count of wiki articles or canon rows. After the theme list, a coverage pass walks the corpus for important ideas that locate and have no theme home, and adds them as articles or Candidate Ideas. Missing an important located idea is worse than keeping a mildly interesting located one. Compression that drops a load-bearing head is a compile miss, not elegance. Ungrounded claims still stay out: no quote, no page, no node.
+Themes structure topics and order. They are not a maximum count of wiki articles or canon rows. After the theme list, a coverage pass walks the corpus. Does the idea locate, and does it have a home? It locates and has no home, including when you cannot tell whether it is important or only mildly interesting: add it as an article or a Candidate Idea. Missing an important located idea is worse than keeping a mildly interesting located one. It does not locate: do not add it. No quote, no page, no node. Compression that drops a located head this question would have added is a compile miss, not elegance.
 
-Skip when the corpus is too thin for themes; that follow-up is `skills/Knowledge Map/` (Research Expert owns it; this build does not). A map invents nothing and stores nothing.
+Too thin is the corpus question at the start of this section: passages that cannot be separated into subjects name `skills/Knowledge Map/` (Research Expert owns it; this build does not). A map invents nothing and stores nothing.
 
 `skills/Build Concepts/` stays one insight for one piece. It is not a knowledge-set step.
 
@@ -120,6 +120,6 @@ Wiki and databased ship in Memory v1. Graph ingest and recall execute under `exp
 - `graph`: follow `experts/Knowledge Expert/graph.md`; report `missing-engine: ladybug`, `missing-weights`, or `refused-import: cognee` before source or store access. Package installation follows Script Contract consent; weights are never downloaded
 - `hosted` and no specified connector: stop, name the gap
 - Material this session may not process: stop, record the decline
-- A set too small to be worth any backend: route to Knowledge Map, do not create `memory/knowledge/<set>/`
+- Is there no compilable source, or has the requester said the set is not worth keeping? Yes: do not create `memory/knowledge/<set>/`. Route to `skills/Knowledge Map/`. No: a set can be created. You cannot tell: ask. Do not create the set on a guess
 - A question the set does not cover: `Not available`. The model's own memory does not fill the hole
 - A loadable hosted connector with a half-manifest: never. Gateway `--check` would refuse to start
