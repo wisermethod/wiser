@@ -2,7 +2,7 @@
 
 A written question-and-answer document: briefing answers, a posted FAQ, or the Q&A half of an announcement package. Read this file at Frame and hold it through Draft. Spoken answers in an interview are `skills/Speech Writing/` with `occasions/media-interview.md`. A statement with no questions is `statement.md`.
 
-Review expert: `experts/Ghost Writer/`. This root carries no news-desk reviewer, so whether a desk would find the answers coverable, and what it would still need from them, is not judged here; name that gap. Is this Q&A for a crisis or an unfolding incident? Yes: there is a second judgment this root does not carry, whether to answer at all and what would make it worse, and that gap is named before the pack is used. Do not decide it. No: that second judgment is not missing and is not named. You cannot tell: ask before the pack is used. Do not decide the crisis question either way.
+Review expert: `experts/Ghost Writer/`. This root carries no news-desk reviewer, so whether a desk would find the answers coverable, and what it would still need from them, is not judged here; name that gap. Is this Q&A for a crisis or an incident? Yes: there is a second judgment this root does not carry, whether to answer at all and what would make it worse, and that gap is named before the pack is used. Do not decide it. No: that second judgment is not missing and is not named. You cannot tell: ask before the pack is used. Do not decide the crisis question either way.
 
 ## Shape
 

@@ -6,7 +6,7 @@ Review expert: `experts/Ghost Writer/`. This root carries no news-desk reviewer,
 
 ## Shape
 
-- **Length.** 600 to 800 words, the band most opinion pages still assign. What is the length? Under 500: it is a letter, not an op-ed. Say so, and do not pad. 500 to 599: this file gives no band. Ask whether it is a letter or an op-ed before stretching it. 600 to 800: the band. 801 to 899: this file gives no band. Ask whether to cut to 800 or to confirm a longer slot. Do not choose, and do not pad. Over 900: did the page confirm a longer slot? Yes: it may run to that slot. No, or not stated: cut to 800. Do not assume the longer slot.
+- **Length.** 600 to 800 words, the band most opinion pages still assign. What is the length? Under 500: it is a letter, not an op-ed. Say so, and do not pad. 500 to 599: this file gives no band. Ask whether it is a letter or an op-ed before stretching it. 600 to 800: the band. 801 to 900: this file gives no band. Ask whether to cut to 800 or to confirm a longer slot. Do not choose, and do not pad. Over 900: did the page confirm a longer slot? Yes: it may run to that slot. No, or not stated: cut to 800. Do not assume the longer slot.
 - **Structure.** A timely hook, the claim, the argument in two or three turns, the concession that makes the claim honest, the close that asks the reader to see or do one thing.
 - **Paragraphs.** Two to four sentences. Print and web opinion both punish walls.
 - **Stance.** First person. The byline is the point. "One might argue" is someone else's piece.
