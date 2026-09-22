@@ -381,7 +381,7 @@ test('an adapter that throws answers unavailable with a fixed reason and does no
 test('an adapter throw never discloses a credential, a vendor name, or an operator-tree path', async () => {
   const cases = [
     'sk-live-credential-9f3a',
-    'TypeSafeAI',
+    'ExampleVendorAI',
     `failed at /private/${OPERATOR_DIR}/direct/index.mjs`,
   ];
   for (const message of cases) {
@@ -555,7 +555,7 @@ test('a classifier import error does not include the exception message', () => {
   const dir = join(root, 'direct');
   mkdirSync(dir, { recursive: true });
   const secret = 'sk-live-credential-9f3a';
-  const vendor = 'TypeSafeAI';
+  const vendor = 'ExampleVendorAI';
   writeFileSync(
     join(dir, 'index.mjs'),
     `throw new Error(${JSON.stringify(`${secret} ${vendor} ${OPERATOR_DIR}`)});\n`,
