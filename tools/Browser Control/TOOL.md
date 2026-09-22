@@ -3,7 +3,7 @@ name: Browser Control
 type: tool
 category: automation
 description: Drives a persistent Chromium session to read, navigate, and act on pages that need a real browser, answering every command with the page state that followed
-version: 0.5.1
+version: 0.5.2
 gaps:
   - an element index and verb picked from an interactive snapshot, which the caller's own pick approximates
 ---
@@ -16,7 +16,7 @@ A run of one command acts on a browser that is already open and returns what the
 
 Use when the work needs a real browser: a form to fill, a workflow behind a sign-in, content a page builds in JavaScript, a layout to look at, or any sequence of act-then-check steps against a live site.
 
-Do not use when a plain fetch of a static page would answer, when the question is answerable without a page at all, or when a connector already covers the platform; a connector is faster, survives redesigns, and does not need a window. Reaching a platform through its own site instead of its connector is a last resort, not a shortcut.
+Would a plain fetch of a static page answer, or can the question be answered with no page at all? Yes: do not use this tool. No: the work needs a real browser, a form, a sign-in workflow, content the page builds in JavaScript, a layout to look at, or act-then-check. You cannot tell: do not start a session. Ask. Does a connector in this root already cover this platform? Yes, and it declares the action this job needs: do not use this tool. A connector is faster, survives redesigns, and does not need a window. Yes, and it declares no such action: this is the last resort. Say that, then this tool may be used. No connector covers the platform: this tool may be used. You cannot tell: do not open the site. Ask.
 
 This tool holds a session and drives it. Deciding what to do with a page belongs to the skill or expert that called it.
 
@@ -47,10 +47,10 @@ Anything else, see Troubleshooting.
 
 A page is not a function call. It redraws, it redirects, it shows a consent banner over the thing you meant to click, and it answers a click with a different page than the one you predicted. Every command here therefore returns the page state after the action, so that checking costs one read instead of one round trip.
 
-- **Snapshot before acting.** Read the page before the first action and after anything that could change it. `--format interactive` numbers what can be clicked or typed into; act by index rather than by a selector guessed from a screenshot.
+- **Snapshot before acting.** Is the snapshot you would act from newer than the last command that can change the page? A change is navigate, click, type, select, scroll, mouse, dialog, upload, download, execute, cookies set or delete or clear, or storage set or delete or clear. Yes, the latest snapshot is from after that command, or no such command has run since it: act from it. No, or you cannot tell: read the page again before the next action. `--format interactive` numbers what can be clicked or typed into; act by index rather than by a selector guessed from a screenshot.
 - **One action, then one check.** Never chain actions on the strength of what the page looked like two steps ago. A stale index is the single most common failure, and a fresh snapshot costs less than an action aimed at the wrong element.
 - **Verify against the page, not the exit code.** `check` exits 0 whenever the assertion ran; whether it held is the `passed` field. A caller that reads only the exit code will report a failed assertion as a pass.
-- **Never repeat an action that just failed.** Snapshot, work out what the page actually shows, and try a different route. Two or three failed routes is the point to stop and report the blocker rather than a fourth.
+- **Never repeat an action that just failed.** How many routes have failed for this blocker? One: snapshot, read what the page shows, and try one different route. Do not repeat the route that failed. Two, and the fresh snapshot shows a route you have not tried: try that one route. It is the last. Two, and the snapshot shows no untried route: stop and report the blocker. Three or more: stop and report the blocker. Do not try a fourth.
 - **Hand a human what only a human can do.** A sign-in, a CAPTCHA, a second factor, or an operating-system dialog cannot be driven from here. Say what is blocking and let the person act in the window; a signed-in session stays in the profile directory afterwards.
 - **Report what the page did.** Close with what was found, where, and what was changed on the site. An automation whose effects nobody can name is not finished.
 
@@ -205,7 +205,7 @@ Each of these requires `--confirm`. The gate is checked before anything is read,
 - **Nothing is overwritten.** A screenshot, download, or trace whose target path already exists is refused, not replaced.
 - **Locale, timezone, and touch emulation are not offered.** They are fixed when the context is created and cannot be changed on a live session; a command that appeared to set them would be reporting a change that never happened.
 
-`execute` runs whatever code it is handed, in a page carrying the profile's sign-ins. It is the widest surface here and it is not gated, because its effect is entirely the caller's own code and a gate that fires on every call teaches the caller to ignore it. Blast radius is the caller's to name before running it. That includes credential material: `--code "document.cookie"` returns what any script on that page could read, which is every non-HttpOnly cookie. It cannot reach an HttpOnly cookie, and most session cookies are HttpOnly.
+`execute` runs whatever code it is handed, in a page carrying the profile's sign-ins. It is the widest surface here and it is not gated, because its effect is entirely the caller's own code and a gate that fires on every call teaches the caller to ignore it. Blast radius is the caller's to name before running it, and credential material is part of that radius: `--code "document.cookie"` returns what any script on that page could read, which is every non-HttpOnly cookie. It cannot reach an HttpOnly cookie, and most session cookies are HttpOnly. Has the caller named that blast radius, including whether the code reads credential material? Yes: the call is the caller's, and this tool does not gate it. No: do not run `execute`.
 
 ## Script Contract
 
