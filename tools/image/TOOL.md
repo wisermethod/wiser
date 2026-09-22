@@ -3,7 +3,7 @@ name: image
 type: tool
 category: media
 description: Applies local edits to an existing image or composites an overlay over a base image, and writes the result as a PNG, JPEG, or WEBP
-version: 0.3.1
+version: 0.3.2
 ---
 
 # image
@@ -14,9 +14,9 @@ One tool for raster files that already exist: local pixel edits on one image, or
 
 Use it whenever a raster image that already exists has to arrive somewhere in a different shape, or when two existing images have to become one file. A photograph cropped to a fixed frame, a screenshot resized to the dimensions a template expects, a PNG converted to WEBP or JPEG to cut its weight, a background dimmed or desaturated so text can sit on it, a scan turned upright, a cutout set at a measured place in a fixed frame, a prepared watermark, frame, border, badge, or texture stamped over a photograph. It costs nothing per run, needs no account, and answers in the time a file takes to read and write.
 
-Do not use it to change what the picture shows. Removing an object or a background, restyling, extending a scene, and anything else that has to understand the content are generative work, and they belong to `skills/Media Generator/` and the generation connector behind it, which this release does not ship. Do not use it for a different kind of input either: vector artwork is rendered by `render` `svg`, an HTML page by `render` `html`, a Mermaid diagram by `render` `mermaid`, and a live page by `render` `url`, each of which sizes its input properly; an SVG handed to `edit` is refused rather than quietly flattened at whatever size it declares. A video is `video-edit`.
+Do not use it to change what the picture shows. What is the request asking the pixels to do? Take the first match. A rectangle kept from the existing pixels, a resize, a rotate, a reformat, a recolor, a blur, a sharpen, placement of the existing image on a canvas, or one existing image stamped over another: this tool. Removing an object or a background, restyling, extending the scene, or changing what the picture depicts: that is generative work, and it belongs to `skills/Media Generator/` and the generation connector behind it, which this release does not ship. Do not run `edit` or `compose` in its place. Neither match: ask, and do not run either subcommand. Do not use it for a different kind of input either: vector artwork is rendered by `render` `svg`, an HTML page by `render` `html`, a Mermaid diagram by `render` `mermaid`, and a live page by `render` `url`, each of which sizes its input properly; an SVG handed to `edit` is refused rather than quietly flattened at whatever size it declares. A video is `video-edit`.
 
-`edit` is one image on its own, including placement on an empty canvas at a position the caller computes. `compose` is two images, the overlay stretched over the base edge to edge. Reach for the matching subcommand instead of wrapping one job as the other.
+`edit` is one image on its own, including placement on an empty canvas at a position the caller computes. `compose` is two images, the overlay stretched over the base edge to edge. How many existing images does the job use? One: `edit`. Two, an overlay over a base: `compose`. The same overlay across a set of bases: one `compose` per base. More than two overlays on one base: one `compose` per layer, each result fed in as the next base. Do not wrap one job as the other.
 
 It authenticates to nothing, holds no credential, reaches no other primitive, and after the packages described in `tools/AGENTS.md` are installed it makes no network request.
 
@@ -60,7 +60,7 @@ Every operation is optional. They apply in this order whatever order the flags a
 |-------|-----------|--------------|
 | 1 | `--rotate N` | Turns the image clockwise by 90, 180, or 270 degrees. A quarter turn swaps width and height, and everything below measures the turned image |
 | 2 | `--crop WxH` | Takes a W by H region from the center. A crop larger than the image clamps to the image, because a crop cannot invent pixels |
-| 3 | `--resize WxH` | Scales to exactly W by H. The aspect ratio is not preserved, so crop first when the shape has to change |
+| 3 | `--resize WxH` | Scales to exactly W by H. The aspect ratio is not preserved. Does the request require the original proportions? Yes: `--crop` to the target ratio first, then `--resize`. No, or it only names the pixel size: `--resize` alone. It does not say: `--resize` alone |
 | 4 | `--grayscale` | Converts to a true single-channel gray, not a desaturated color image |
 | 5 | `--blur N` | Gaussian blur of radius N, from 0.3 to 1000 |
 | 6 | `--brightness N` | Multiplies brightness; 1 leaves it alone, below 1 darkens, above 1 lightens |
@@ -135,7 +135,7 @@ Do not use it to make the overlay. It draws no text, no shape, and no gradient o
 | Encoding | The destination extension picks the format: `.png` writes PNG at maximum compression, `.jpg` and `.jpeg` write JPEG at quality 90. No other extension is accepted |
 | Destination | `--output` when the caller names one; the base image itself when nobody does |
 
-PNG output carries an alpha channel whenever either image did, and a pixel comes out transparent only where the base and the overlay both were. JPEG carries no transparency at all: any pixel still transparent after the composite encodes as opaque black, so a base with transparent regions belongs in a PNG unless that black is wanted.
+PNG output carries an alpha channel whenever either image did, and a pixel comes out transparent only where the base and the overlay both were. JPEG carries no transparency at all: any pixel still transparent after the composite encodes as opaque black. Does the base have transparent regions? No: PNG or JPEG, whichever extension the request names. It names none: PNG. Yes. Does the request want those regions to become black? Yes: a JPEG destination. No, or it does not say: PNG. Do not pick JPEG to force the black.
 
 Nothing on disk changes until the new image is fully encoded: an in-place run replaces the base only then, so a failure at any earlier point leaves the original as it was, and the destination's missing parent directories are made in that same last step, so a run that fails earlier leaves none of them behind.
 
@@ -220,7 +220,7 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 | `Error: --output names a file, and <path> is a directory` | A folder was passed to `compose` where the file to write belongs | Add the filename; this command derives no name from the base |
 | `Error: unexpected argument` | A path passed to `compose` with no flag in front of it | Check `help`; every value is passed by name |
 | `the destination resolves inside this tool directory` | The `compose` result was aimed at the shared root | Pass a work directory in the owning root |
-| `Note: the placement clipped the image` | Expected: part of the image fell outside the canvas, and the canvas is never grown to fit | Nothing to fix if the frame is what was wanted. Otherwise enlarge `--canvas`, move `--at`, or `--resize` the image smaller first |
+| `Note: the placement clipped the image` | Expected: part of the image fell outside the canvas, and the canvas is never grown to fit | Did the request ask for this frame, clip included? Yes: leave the file. No: enlarge `--canvas`, move `--at`, or `--resize` the image smaller first, and run again. The request does not say: ask. Do not grow the canvas on a guess |
 | The overlay looks squashed | It was stretched to the base's shape; `overlayResized` is true and stderr said so | Prepare the overlay at the base's dimensions, or at least at its aspect ratio |
 | Transparent areas came out black | The destination was a `.jpg`, which cannot carry transparency | Write to `.png` instead |
 | The image looks stretched after `--resize` | Expected: resize sets exact dimensions and does not preserve the aspect ratio | Crop to the target ratio first, then resize |
