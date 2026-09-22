@@ -57,7 +57,7 @@ The scope holds zero text files: report "No text files found in [scope]." and st
 Narrow the candidate set with the pattern and the topic.
 
 - Did the caller supply a file_pattern? Yes: keep only files matching it. No: do not filter by name or extension.
-- Path relevance is a routing signal, not a filter. Does the directory name, file name, or extension contain a topic term, compared case-insensitively? Yes: mark the file to read even without a keyword hit. No: it stays a candidate for the content search, and it is not marked path-relevant. A name that merely seems related, and contains none of the topic terms, is this No branch. Do not mark it path-relevant on a synonym.
+- Path relevance is a routing signal, not a filter. Does the directory name, file name, or extension suggest the topic, by a topic term or a plain synonym of one, such as a donor-development folder for fundraising? Yes: mark the file to read even without a keyword hit, and note the match as a path signal. No: it stays a candidate for the content search. You cannot tell: it stays a candidate for the content search, and is not marked.
 
 ### Step 3: Search
 
