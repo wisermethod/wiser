@@ -70,7 +70,7 @@ Which of the four is the business: high-ticket services, low-ticket products, ma
 
 ### Step 2: Prioritize channels
 
-Rank each candidate channel against the audience's attention on it, saturation, content fit, and the budget tier from Step 1, and state the reasoning. Is there no evidence the audience pays attention on a channel? Name that as its weakest factor; do not rank it first on the other three alone. Two channels tie on all four: rank first the one the Step 1 budget tier reaches at lower cost, say the margin is narrow, and let the requester override. Do not present them as equals. One channel ranks above the rest: name it as where to start.
+Rank each candidate channel against the audience's attention on it, saturation, content fit, and the budget tier from Step 1, and state the reasoning. Is there no evidence the audience pays attention on a channel? Name that as its weakest factor; do not rank it first on the other three alone. Two channels tie on all four: rank first the one the Step 1 budget tier reaches at lower cost, say the margin is narrow, and let the requester override. Their cost is equal, or you cannot compare it: ask the requester which to start with, and rank their choice first. Do not present them as equals. One channel ranks above the rest: name it as where to start.
 
 ### Step 3: Architect the funnel
 
