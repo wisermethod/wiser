@@ -3,7 +3,7 @@ name: tag-audit
 type: tool
 category: marketing
 description: One JSON report of which analytics and behavior tags a live page serves, with each tag's id where the served HTML exposes it
-version: 0.1.2
+version: 0.1.3
 ---
 
 # tag-audit
@@ -14,7 +14,7 @@ One JSON object naming which analytics and behavior tags a page serves, and the 
 
 Use when what a site is instrumented with is itself the question: before an engagement that will depend on the site's own analytics, when a report's numbers look wrong and nobody has confirmed the tag is installed, when a client says a tag was added and that claim needs checking, or when comparing instrumentation across a set of pages.
 
-Do not use when the question is what the analytics say rather than whether they exist; that is the platform's own connector. Do not use it to prove a tag is absent: it reads the served HTML, so a loader injected only after hydration will not appear, and a negative result is a prompt to check further rather than a finding.
+Do not use when the question is what the analytics say rather than whether they exist; that is the platform's own connector. Do not use it to prove a tag is absent: it reads the served HTML, so a loader injected only after hydration will not appear. Did a covered tag report `present: false`? That is not a finding that the tag is absent. The next step is a tool that drives a real browser. Do not report the tag missing from this result. Did it report `present: true`? Report it present, and report its id when the markup exposes one. The id is null: report null. The tag is not in the Detected Tags table: it is not covered. Do not report it missing.
 
 ## Quick Start
 
@@ -100,7 +100,7 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 | `Error: --url must be http or https` | A scheme this tool does not fetch | Pass an http or https address; this tool reads web pages, never a path on this machine |
 | `Error: could not fetch <url>: no response within 20 seconds` | The host did not answer inside the fixed timeout | Confirm the host is reachable from this machine, then re-run |
 | `Error: could not fetch <url>: the request did not complete` | DNS, TLS, or connection failure | Check the address and the machine's network path to it |
-| `Error: <url> returned HTTP <status>` | The page did not serve | Fix the URL or the access path. A 403 or 429 usually means the host refuses non-browser clients, which this read cannot pass; audit it with a browser-driving tool instead |
+| `Error: <url> returned HTTP <status>` | The page did not serve | Is the status 403 or 429? Yes: this read cannot pass a host that refuses non-browser clients. Audit with a browser-driving tool. You also have a different access path that is not this read: fix that path and re-run. No other path: do not re-run this tool on the same URL. Any other non-2xx: fix the URL or the access path and re-run |
 | `Error: unknown command` | A command word other than `audit` | Run `help` |
 | Every tag reports `present: false` on a site known to be instrumented | The loaders are injected client-side, after the HTML this tool reads | Confirm with a tool that drives a real browser before reporting anything as missing |
 | A tag reports `present: true` with `id: null` | The markup carries the loader but not the id, which is normal for several of these tags | Read the id from the platform's own console if it is needed |
