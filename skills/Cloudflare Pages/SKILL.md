@@ -3,7 +3,7 @@ name: Cloudflare Pages
 type: skill
 category: web
 description: List and get a Cloudflare Pages project, list its deployments, and take a kit site live by Wrangler upload of the envelope's site/dist/ payload only
-version: 0.2.0
+version: 0.2.1
 gaps:
   - create a Pages deployment through the gateway
 ---
@@ -43,7 +43,7 @@ Quote filesystem paths containing spaces, including this skill's directory.
 
 ## Steps
 
-**1. Settle the job and scope.** Choose project-list, project-get, deployment-list, or live upload from `<request>`. Missing or ambiguous account, project, or site: ask before proceeding. Apply Context's hand-offs and refusal before selecting an action.
+**1. Settle the job and scope.** Apply Context's hand-offs and refusal before selecting an action. Which job does `<request>` name? A create, a Pages write, Workers, R2, rulesets, or hostname DNS: apply that hand-off or refusal, and do not select a read in its place. A list of the account's projects, with no one project named: project-list. One named project's record: project-get. The deployments of a named project, and not a publish: deployment-list. Taking a kit site live, a publish, or an upload: live upload. Two of those four jobs, or none of them: ask before proceeding. Missing or ambiguous account, project, or site: ask before proceeding. Never select the first project. Get and deployment-list need `project_name`; without it, ask, and do not get or list.
 
 **2. Read through the declared grant.** Use the gateway's `execute` tool with only the following actions, as declared in `connectors/cloudflare/CONNECTOR.md`:
 
@@ -55,13 +55,13 @@ Quote filesystem paths containing spaces, including this skill's directory.
 
 The grant is `cloudflare` / `pages`. Under the constitution's Behavioral Core, `needs_connect` stops this skill with no yield; `skills/Connect Account/` is the next human turn, using `connectors/cloudflare/auth.md`. Do not continue toward upload on a missing grant or invent a reading. Other unavailable actions follow that same heading, with the missing reading labeled per `standards/conventions.md` Evidence Labels.
 
-Return only what the selected read supplies, scoped to the account and project. An empty `result` is an empty listing. A failed get is not a project, and a project listing is not proof of a deployment. List and get, including deployment-list, are not a publish and take no Job 3 gate. For live upload, get the named project first; if absent or unreadable, stop the upload hand-off and report it. This skill does not create a Pages project.
+Return only what the selected read supplies, scoped to the account and project. An empty `result` is an empty listing. A failed get is not a project, and a project listing is not proof of a deployment. List and get, including deployment-list, are not a publish and take no Job 3 gate. For live upload, get the named project first. Did that get return the named project? Yes: the hand-off may continue to Step 3. Absent, failed, or unreadable: stop the upload hand-off and report it. Do not create a project.
 
-**3. Prepare the live step.** Resolve `<site>` to the inner `site/` kit folder beneath the named envelope and owning root. The envelope has `site/kit.json`; only domain-folder `kit.json` is old shape and needs Site Author Wrap before this hand-off. Load the owning chain per the constitution's Workspace Model; its yield here is the declared site path. An envelope, owning root, foreign tree, or unverified upload scope stops the hand-off. Payload is `site/` or `site/dist/` only; envelope memory is excluded. Sequence `skills/Site Author/` Check with the envelope folder when its contract evidence is missing or stale; a failing check returns to the requester for repair.
+**3. Prepare the live step.** Where did `<site>` resolve? The inner `site/` kit folder beneath the named envelope and owning root, and that folder has `site/kit.json`: that folder is in scope. Only a domain-folder `kit.json`, the old shape: `skills/Site Author/` Wrap before this hand-off. Do not upload. The envelope, the owning root, a foreign tree, or a path you cannot verify as that inner `site/` folder: stop the hand-off. Do not upload. Load the owning chain per the constitution's Workspace Model; its yield here is the declared site path. Which payload is uploaded? The human build in `SETUP.md` produced `site/dist/`: that `dist/` is the payload. No build, and the requester named the inner `site/` folder itself as the payload: that folder is the payload. Anything outside that `site/` folder and outside `site/dist/`: stop. Envelope memory is in neither, and it is never the payload. Is contract evidence for this envelope in `<evidence>`, and does it still match this envelope and this payload? Present, and it matches: do not re-run Check. Missing, or you cannot show that it still matches: sequence `skills/Site Author/` Check with the envelope folder. The check fails: return to the requester for repair. Do not continue the hand-off. The check passes: continue.
 
 Hand `<site>` (payload plus enclosing envelope), `<goal>` (publish), `<change>` (the exact site change, folder, and project), and `<evidence>` to `experts/Webmaster/` Job 3 in a second context before the requester publishes. A return waits for the named fix and another verdict. The requester's intent to publish cannot replace this gate.
 
-**4. Hand off Wrangler, then report evidence.** After a pass, give the human the site-folder-only sequence from `SETUP.md`. Wrangler is human-run, never a Wiser tool or a gateway action. Wait for their upload result; do not run it. If the result has not arrived, report ready for human upload, not live. After a reported upload, use deployment-list for the same account and project; report the matching deployment's returned status and URL if supplied. A missing match or unreadable result remains unverified, and even an accepted upload is not proof that the custom domain resolves. DNS follows Context's hand-off.
+**4. Hand off Wrangler, then report evidence.** After a pass, give the human the site-folder-only sequence from `SETUP.md`. Wrangler is human-run, never a Wiser tool or a gateway action. Do not run it. Has the human reported an upload result? No: report ready for human upload, not live. Yes: use deployment-list for the same account and project. A returned deployment matches that reported upload: report its returned status, and report its URL only when the result supplies one. No matching deployment, or the list is unreadable: the upload stays unverified. Do not infer that the custom domain resolves. DNS follows Context's hand-off.
 
 ## Pitfalls
 
