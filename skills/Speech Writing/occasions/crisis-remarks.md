@@ -17,7 +17,7 @@ Quiet, specific, on the record. No performance. Empathy is a sentence about the 
 ## Ritual beats
 
 - **The fact.** What is known, in one sentence.
-- **The people affected.** Named as a group or, where it is right and sourced, as individuals. Not a pivot away from the fact.
+- **The people affected.** Does `<source_material>` name them as individuals, each with a source and a register? Yes: name those individuals. No, or you cannot tell: name the group. Do not name an individual the source material does not. Not a pivot away from the fact.
 - **The action underway.** What is being done now, not what is hoped.
 - **What is not yet known.** Said as unknown, with when the next update comes.
 - **Stop.** No vision close.

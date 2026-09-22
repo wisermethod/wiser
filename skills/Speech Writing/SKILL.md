@@ -3,7 +3,7 @@ name: Speech Writing
 type: skill
 category: writing
 description: Write a speech for a given occasion, audience, length, and venue, gated on an approved outline and delivered read-aloud ready in the owning root's bound voice
-version: 0.3.2
+version: 0.3.3
 memory:
   - voice
   - about
@@ -54,7 +54,7 @@ A speechwriter who writes for the ear and for one room. Each line is heard once,
 
 On the first turn, if any required input is missing, ask for all of them in one batched turn, not as a rigid form. On a subject-centered occasion the batched ask includes the subject material and says what counts: two or three moments the speaker was there for, in enough detail to write a scene from, rather than a list of the subject's qualities. Where the request does not yet say which occasion this is, settle that first (Step 2) and put the subject-material ask in the same turn as that clarification; both close before the gate.
 
-Speaker context is the most-skipped and the most load-bearing: if the speaker cannot say what the audience should feel or do, name the gap, offer a best-fit outcome from the occasion and audience as a starting point, and do not guess silently. Load the bound `voice` here; if it is unbound, or the constitution's Workspace Model counts it as unavailable, stop and route to `skills/Build Voice/` before any outlining.
+Speaker context is the most-skipped and the most load-bearing. Can the speaker say what the audience should feel or do? Yes: use that. No: name the gap. The offer, made only in that case, waits until Step 2 has loaded the guide. Does that guide state what the occasion is for? Yes: offer that, in the guide's own words, as the starting point, and flag it in the delivered draft. No guide is loaded, or the guide states no such function: ask, and do not invent one. Do not guess silently. Load the bound `voice` here; if it is unbound, or the constitution's Workspace Model counts it as unavailable, stop and route to `skills/Build Voice/` before any outlining.
 
 ### 2. Match the occasion
 
@@ -73,7 +73,7 @@ This gate runs at every length; a two-minute toast and a forty-minute keynote ru
    - **Gift.** A short, repeatable close the audience carries out the door. No summary, no thank-you filler.
    Under each stage, write two to four one-line beats. On a subject-centered occasion each scene beat names which moment from `<source_material>` it will use; a scene beat naming no moment is a placeholder, and the gate does not open on placeholders.
 3. Present the throughline above the outline as one artifact, fifteen to twenty-five lines, no prose paragraphs. Request explicit approval, a revision direction, or a cut decision.
-4. If the user asks for changes, revise the outline only, never draft prose mid-gate, and re-present. On approval, lock the throughline and the stage order; neither moves during drafting.
+4. What did the user return? Explicit approval: lock the throughline and the stage order; neither moves during drafting. A revision direction, or a cut naming a beat or a stage to remove: revise the outline only, never draft prose mid-gate, and re-present. Anything else, or no answer: ask which of the three they mean, and do not draft.
 
 ### 4. Draft against the locked outline
 
@@ -84,7 +84,7 @@ Draft stage by stage, applying four techniques throughout:
 - **Concrete-abstract-concrete.** Every paragraph opens on something specific, earns one abstract move, and closes concrete. Grounding nouns over naming nouns: "the team channel goes quiet," not "stakeholder disengagement." A paragraph abstract for three sentences has lost the room; one concrete for three is description, not argument.
 - **Sonic structure.** Antithesis lives in the turn; a tricolon or a cascade closes the gift; a cascade can open the build. Prefer Germanic words to Latinate where meaning ties, spending a Latinate word only in the turn where it can land heavy on purpose.
 
-If the user asks for a structural change mid-draft, return to Step 3 and re-present the outline; do not patch prose around a broken outline.
+Does a requested change move the locked throughline, move the locked stage order, or add or remove a stage? Yes: return to Step 3 and re-present the outline; do not patch prose around a broken outline. No, it changes wording inside a locked stage: revise that prose and stay in the draft. You cannot tell: return to Step 3, and do not patch.
 
 ### 5. Speech-specific pass
 
@@ -97,7 +97,7 @@ Before handing off, run the pass this skill owns, the checks a prose reviewer do
 
 ### 6. Expert review
 
-Hand the draft to any further expert the loaded occasion guide names beyond the default, in the order that guide states, then to `experts/Ghost Writer/`, the default review gate for writing and the last gate before the speech ships; it owns prose quality and the voice check against the bound voice, and this skill does not restate its checks. On crisis remarks there is a judgment this root cannot supply: whether to speak at all in an unfolding incident, in whose name, and what would make it worse. No primitive here covers it, so name that gap to the requester rather than letting the voice verdict stand in for it. Work returned findings, and if a finding forces a structural change, re-run Step 5 before handing back. The speech ships only on Ghost Writer's ship verdict or the requester's explicit decline, per that expert's own file.
+Hand the draft to any further expert the loaded occasion guide names beyond the default, in the order that guide states, then to `experts/Ghost Writer/`, the default review gate for writing and the last gate before the speech ships; it owns prose quality and the voice check against the bound voice, and this skill does not restate its checks. On crisis remarks there is a judgment this root cannot supply: whether to speak at all in an unfolding incident, in whose name, and what would make it worse. No primitive here covers it, so name that gap to the requester rather than letting the voice verdict stand in for it. What did the review return? A ship verdict, or the requester's explicit decline: deliver. Findings, and one of them moves the locked throughline, the locked stage order, or adds or removes a stage: work the findings, re-run Step 5, and hand the draft back. Findings, and none of them does that: work the findings and hand the draft back. Do not deliver on findings. The speech ships only on Ghost Writer's ship verdict or the requester's explicit decline, per that expert's own file.
 
 ### 7. Deliver
 
@@ -107,9 +107,9 @@ Place the finished speech where `standards/conventions.md` puts the owning root'
 
 - **Ambiguous request.** Whatever Inputs requires and the request does not supply is asked before proceeding, batched into one turn rather than drip-fed across several. Never infer a missing input from the topic and never draft to find out what was meant; the same wrong assumption costs one question at the gate and the whole speech after it.
 - **Ambiguous occasion.** Two guides could fit. Ask which is closer before loading one; the wrong guide bends the whole arc. If none fits, say so, apply the methodology without a guide, and offer the list of occasions the skill does cover.
-- **Speaker cannot name the outcome.** Do not guess what the audience should feel or do. Name the gap, offer a best-fit outcome from the occasion and audience, and flag the working assumption in the delivered draft.
+- **Speaker cannot name the outcome.** Can the speaker say what the audience should feel or do? Yes: use that. No: name the gap, offer the loaded guide's stated function in the guide's own words, and flag that working assumption in the delivered draft. No guide is loaded, or the guide states no function: ask, and do not invent one.
 - **Skipping the gate to save time.** The gate runs at every length. The overhead is under a minute of reading for a short speech, and the throughline lock is the memorability the skill exists to buy.
-- **Patching prose around a broken outline.** A structural change mid-draft returns to Step 3; prose written to bridge a broken outline hides the break rather than fixing it.
+- **Patching prose around a broken outline.** Does the change move the locked throughline, the locked stage order, or add or remove a stage? Yes, or you cannot tell: return to Step 3. Prose written to bridge a broken outline hides the break rather than fixing it. No: revise the wording and stay in the draft.
 - **Voice absent.** An unbound `voice`, or one the constitution's Workspace Model counts as unavailable, is `skills/Build Voice/`'s work, not a voice to improvise; a speech drafted against no voice cannot meet its own voice check. Stop and route.
 
 ## Success
