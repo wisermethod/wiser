@@ -1,6 +1,5 @@
 {
   "name": "{{ROOT}}",
-  "version": "0.1.0",
   "displayName": "{{TITLE}}",
   "description": "{{DESCRIPTION}}"
 }
