@@ -25,7 +25,7 @@ Plain, rhythmic, repeatable. Oratorical where the occasion calls for it, convers
 
 - **Repetition is the feature.** A stump speech that varies too much loses the movement's voice. A stump speech that varies too little goes stale for the speaker. The balance is: signature phrase and ask identical across venues; local hook and example beats variable.
 - **Written for the ear of an unknown room.** Short sentences. Grounded nouns. Rhythms the speaker can hit at 9 p.m. after four other events.
-- **Road-tested lines.** Has the line been spoken in three rooms? Landed in three or more: keep it. Failed in three: cut it, regardless of how good it reads on paper. Fewer than three rooms either way: keep it out of the stump. Do not promote it on one room.
+- **Road-tested lines.** Has the line been spoken in three rooms? Failed in three or more: cut it, whatever else it did, regardless of how good it reads on paper. Landed in three or more and failed in fewer than three: keep it. Fewer than three rooms either way: keep it out of the stump. Do not promote it on one room.
 - **The close is the ask, every time.** Ambiguity at the close bleeds action. If the room cannot state what was asked after leaving, the close has failed.
 - **Cross-venue consistency.** The signature phrase and the ask are word-for-word identical across rooms. The opening hook, the example beats, and some proof points rotate.
 - **Applause architecture.** Deliberate. Two or three engineered moments across the speech. Tricolon cascades and antithesis lines are built in and protected through every revision.
