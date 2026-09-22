@@ -49,7 +49,7 @@ Commands use the absolute set path at `memory/knowledge/<set>/`. Databased comma
 
 Are there two or more separate changes, each matching a different row? No: one change is in hand; use the next paragraph. Yes, and those rows are among incremental, review, apply, and check, with rebuild and upgrade not among them: run each, in that order. Yes, and rebuild or upgrade is among them: hand it to `experts/Knowledge Expert/`. Do not run them together, and do not pick a rebuild because it covers every case.
 
-When that answer was no, one change is in hand. Does the request name one of incremental, review, apply, rebuild, upgrade, or check, and do the facts fit that row and no other? Yes: run it. The request names no path: apply the table. Exactly one row matches, and it is not an eval that fails with no source change: run it. One change fits two rows, no row matches, or an eval fails and no source changed: hand the judgment to `experts/Knowledge Expert/`, with whatever the requester has said as evidence. Do not pick a row, and do not let a requester's choice of row stand in for that diagnosis.
+When that answer was no, one change is in hand. Does an eval fail with no source change? Yes: hand it to `experts/Knowledge Expert/`, whatever row the request names. No: does the request name one of incremental, review, apply, rebuild, upgrade, or check, and do the facts fit that row and no other? Yes: run it. The request names no path: apply the table. Exactly one row matches, and it is not an eval that fails with no source change: run it. One change fits two rows, no row matches, or an eval fails and no source changed: hand the judgment to `experts/Knowledge Expert/`, with whatever the requester has said as evidence. Do not pick a row, and do not let a requester's choice of row stand in for that diagnosis.
 
 ### 2. Incremental
 
@@ -105,7 +105,7 @@ Update the set's row in `memory/knowledge/AGENTS.md`: last ingest, canon confirm
 
 - **Databased replay applied to a graph upgrade.** Follow `experts/Knowledge Expert/graph.md` Upgrade seed instead; no accepted replay rule or Canonical status crosses into Pro automatically.
 
-- **The request names a set and no path.** Apply the question in Step 1. Two rows, or an eval that fails with no source change: ask once, then hand it to `experts/Knowledge Expert/` if they do not name one row. Do not run a rebuild because it covers every case.
+- **The request names a set and no path.** Apply the question in Step 1. Two rows, or an eval that fails with no source change: hand it to `experts/Knowledge Expert/`, whatever row the requester names. Do not run a rebuild because it covers every case.
 - **A decision inferred.** "Looks fine" is not a decision on an item. The Decision block carries the action, the reviewer, and the date, given in words, or the item stays open.
 - **Applying during the review sitting.** Recording and applying are two steps so a reviewer can change their mind before the databased does. Apply runs after the sitting or when the reviewer says apply.
 - **Episodes written into a set.** The recipe's `write_policy` governs whether session learnings may be remembered into a set at all, and in v1 nothing here writes one; a set with the policy true still receives episodes only as Candidates through the review pass, never as Canonical.
