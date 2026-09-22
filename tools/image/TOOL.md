@@ -60,7 +60,7 @@ Every operation is optional. They apply in this order whatever order the flags a
 |-------|-----------|--------------|
 | 1 | `--rotate N` | Turns the image clockwise by 90, 180, or 270 degrees. A quarter turn swaps width and height, and everything below measures the turned image |
 | 2 | `--crop WxH` | Takes a W by H region from the center. A crop larger than the image clamps to the image, because a crop cannot invent pixels |
-| 3 | `--resize WxH` | Scales to exactly W by H. The aspect ratio is not preserved. Does the request require the original proportions? Yes: `--crop` to the target ratio first, then `--resize`. No, or it only names the pixel size: `--resize` alone. It does not say: `--resize` alone |
+| 3 | `--resize WxH` | Scales to exactly W by H. The aspect ratio is not preserved. Does the target size keep the source's aspect ratio? Yes: `--resize` alone. No: `--crop` to the target ratio first, then `--resize`, unless the request asks for the picture stretched |
 | 4 | `--grayscale` | Converts to a true single-channel gray, not a desaturated color image |
 | 5 | `--blur N` | Gaussian blur of radius N, from 0.3 to 1000 |
 | 6 | `--brightness N` | Multiplies brightness; 1 leaves it alone, below 1 darkens, above 1 lightens |
