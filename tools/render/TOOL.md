@@ -3,7 +3,7 @@ name: render
 type: tool
 category: media
 description: Renders a local HTML file to a PNG or JPEG, an SVG or a Mermaid diagram to a PNG, and captures a PNG of a live web page
-version: 0.2.1
+version: 0.2.2
 ---
 
 # render
@@ -12,7 +12,7 @@ One tool for turning markup, a diagram, or a live page into an image file: a loc
 
 ## Context
 
-Use it whenever the answer has to be pixels rather than the source that produced them: a social card or certificate laid out in HTML, a logo or diagram that exists as SVG, a flowchart written as Mermaid, a live page a reviewer cannot open themselves. Reach for the matching subcommand instead of wrapping one input as another, which is where sizing and what the file can reach go wrong.
+Use it whenever the answer has to be pixels rather than the source that produced them: a social card or certificate laid out in HTML, a logo or diagram that exists as SVG, a flowchart written as Mermaid, a live page a reviewer cannot open themselves. What is in hand? A local HTML file: run `html`. An SVG file: run `svg`. A Mermaid diagram already in its own file: run `mermaid`. Mermaid inside a markdown fence: extract the diagram to its own file, then run `mermaid`. A live http or https page: run `url`. A survey of whether the Chromium build is present, with no image to write: run `check`. Two of these at once: run one subcommand per input. Do not wrap one input as another. None of these: do not use this tool.
 
 Do not use it to change an image that already exists, which is `image` `edit` and `image` `compose`, and do not reach for it to produce imagery from a description, which is generation, not rendering. A spreadsheet, a PDF, and a raster that is already an image are not among the inputs it reads.
 
@@ -136,7 +136,7 @@ One PNG of the diagram a Mermaid file describes, written where the caller says.
 
 Use it whenever a Mermaid diagram has to become an image. Mermaid inside a fenced block in a markdown file is not an input: extract the diagram to its own file first. An SVG goes to `svg`, HTML to `html`, a live page to `url`.
 
-A diagram is drawn at the size the renderer computes, then capped. Natural width above `--width` scales the whole drawing down; natural width below it leaves the drawing alone. `--scale` multiplies device pixels last and does not reflow text. The renderer loads from this tool's own `node_modules`, so a render of a diagram fetches nothing; an HTML page or an SVG may still load what it references. The diagram reaches the page as text through the DOM, so a diagram file cannot close an element or open a script of its own.
+A diagram is drawn at the size the renderer computes, then capped. Is the natural width above `--width`? Yes: scale the whole drawing down. Below `--width`, or equal to it: leave the drawing alone. `--scale` multiplies device pixels last and does not reflow text. The renderer loads from this tool's own `node_modules`, so a render of a diagram fetches nothing; an HTML page or an SVG may still load what it references. The diagram reaches the page as text through the DOM, so a diagram file cannot close an element or open a script of its own.
 
 ### Usage
 
@@ -259,7 +259,7 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 | `Error: --width must be a whole number` / `--scale must be a positive number` / `--timeout` unit mistakes | A non-numeric, zero, negative, or unit-carrying value | Pass a bare positive number in the unit that subcommand documents |
 | `Error: --timeout is in milliseconds and must be at least 1000` | `url` was given a seconds-shaped value | Multiply by a thousand; thirty seconds is `30000` |
 | `the diagram did not parse; the renderer stopped at line N` | Mermaid syntax the renderer rejected | Fix that line. Only the line number is reported, by design |
-| `the page did not finish loading within <N> ms` | A reference hangs, or the page never goes network-quiet | Inline or keep assets beside the file for `html` and `svg`; raise `--timeout` if the page is slow rather than never quiet |
+| `the page did not finish loading within <N> ms` | A reference hangs, or the page never goes network-quiet | For `html` and `svg`, are the referenced assets inline or beside the file? No: inline them or keep them beside the file, and run again. Yes, they already are, or this is `url`: raise `--timeout` and run once more. That run finishes: the page was slow. It still does not finish: report the failure. Do not keep raising `--timeout` |
 | The image is a cookie banner or a login page | Expected for `url`: a fresh browser with no stored consent | The page a stranger sees is what `url` captures |
 
 ## Success
