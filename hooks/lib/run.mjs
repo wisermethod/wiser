@@ -1,16 +1,3 @@
-import { appendFileSync } from 'node:fs';
-
-/**
- * Optional trace for a prototype run: set WISER_HOOK_TRACE to an absolute file
- * path and each hook appends its event name, tool, and whether it spoke. Off by
- * default, and a trace write that fails is ignored.
- */
-function trace(line) {
-  const file = process.env.WISER_HOOK_TRACE;
-  if (!file) return;
-  try { appendFileSync(file, `${new Date().toISOString()} ${line}\n`); } catch { /* ignored */ }
-}
-
 /**
  * Read one hook event from stdin. Unexpected input throws or returns null;
  * the runner turns both into exit 0 with no output.
@@ -58,7 +45,6 @@ export function runHook(hookEventName, fn) {
       if (!event) return;
       if (Date.now() - started >= budgetMs) return;
       const text = await fn(event, { started, budgetMs });
-      trace(`${hookEventName} tool=${event.tool_name || '-'} spoke=${typeof text === 'string' && text.length > 0}`);
       if (finished) return;
       if (Date.now() - started >= budgetMs) return;
       if (typeof text !== 'string' || text.length === 0) return;

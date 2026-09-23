@@ -7,6 +7,22 @@ import { buildRoster } from './lib/roster.mjs';
 import { runHook } from './lib/run.mjs';
 
 /**
+ * The named asks `wiser/AGENTS.md` lists, each handled before any call is
+ * made; compared after trimming, dropping a closing mark, and lowering case.
+ */
+export const NAMED_ASKS = new Set([
+  'update root', 'update this root', 'check root', 'is this root current',
+  'set up connectors', 'setup connectors', 'enable connectors', 'install connectors',
+  'wrap up',
+]);
+
+/** @param {string} ask */
+export function isNamedAsk(ask) {
+  const key = String(ask).trim().replace(/^["'`]+|["'`]+$/g, '').replace(/[.!?,;:\s]+$/, '').trim().toLowerCase();
+  return NAMED_ASKS.has(key);
+}
+
+/**
  * @param {Record<string, unknown>} event
  * @returns {string | null}
  */
@@ -30,11 +46,13 @@ export function formatRoute(answer, rows) {
   if (/[\r\n]/.test(answer.target)) return null;
   if (typeof answer.confidence !== 'number' || !Number.isFinite(answer.confidence) || answer.confidence <= 0 || answer.confidence > 1) return null;
   if (Array.isArray(rows) && !rows.some((row) => row.family === answer.family && row.name === answer.target)) return null;
-  const where = { skill: 'skills', expert: 'experts', tool: 'tools' }[answer.family];
+  // A request enters at a skill or an expert; a tool is what they call, so a
+  // tool answer is not a route and the routing table is read as today.
+  const where = { skill: 'skills', expert: 'experts' }[answer.family];
   if (!where) return null;
-  const typed = { skill: 'SKILL.md', expert: 'EXPERT.md', tool: 'TOOL.md' }[answer.family];
+  const typed = { skill: 'SKILL.md', expert: 'EXPERT.md' }[answer.family];
   const file = where ? `${where}/${answer.target}/${typed}` : answer.target;
-  return `WISER routing (classifier): ${file}, p=${answer.confidence}. Load that file unless the request names another.`;
+  return `WISER routing (classifier): ${file}, p=${answer.confidence}. Load that file unless the request names another, or names an output that file does not yield.`;
 }
 
 /**
@@ -48,7 +66,7 @@ export async function routePrompt(event, clock) {
   const raw = promptText(event);
   if (typeof raw !== 'string') return null;
   const ask = raw.trim();
-  if (!ask || ask.startsWith('/')) return null;
+  if (!ask || ask.startsWith('/') || isNamedAsk(ask)) return null;
   if (Date.now() - clock.started >= clock.budgetMs) return null;
 
   const rows = buildRoster(pluginRoot);

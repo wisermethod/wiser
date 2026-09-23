@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 import { buildRoster } from '../lib/roster.mjs';
 import { classifierRefusalValue, isAttached, isRefused, pidAlive } from '../lib/presence.mjs';
-import { formatRoute } from '../route.mjs';
+import { formatRoute, isNamedAsk } from '../route.mjs';
 import { owningRoot } from '../lib/presence.mjs';
 
 const pluginRoot = fileURLToPath(new URL('../..', import.meta.url));
@@ -197,7 +197,7 @@ test('route prints one line for a confident answer and nothing otherwise', () =>
   assert.equal(doc.hookSpecificOutput.hookEventName, 'UserPromptSubmit');
   assert.equal(
     doc.hookSpecificOutput.additionalContext,
-    'WISER routing (classifier): skills/Deep Research/SKILL.md, p=0.91. Load that file unless the request names another.',
+    'WISER routing (classifier): skills/Deep Research/SKILL.md, p=0.91. Load that file unless the request names another, or names an output that file does not yield.',
   );
   const calls = readFileSync(log, 'utf8').trim().split('\n');
   assert.match(calls[0], /^wiser\.route\.roster \d+$/);
@@ -324,7 +324,7 @@ export function createClassifier() {
   const doc = JSON.parse(r.stdout);
   assert.equal(
     doc.hookSpecificOutput.additionalContext,
-    'WISER routing (classifier): skills/Deep Research/SKILL.md, p=1. Load that file unless the request names another.',
+    'WISER routing (classifier): skills/Deep Research/SKILL.md, p=1. Load that file unless the request names another, or names an output that file does not yield.',
   );
   const audit = readFileSync(join(gatewayDir(home), 'audit.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
   assert.deepEqual(audit.map((line) => line.action), ['wiser.route.roster', 'wiser.route.ask']);
@@ -336,7 +336,7 @@ export function createClassifier() {
 test('formatRoute keeps a target without a status and drops a refusal', () => {
   assert.equal(
     formatRoute({ family: 'skill', target: 'Deep Research', confidence: 0.91, pass: true }),
-    'WISER routing (classifier): skills/Deep Research/SKILL.md, p=0.91. Load that file unless the request names another.',
+    'WISER routing (classifier): skills/Deep Research/SKILL.md, p=0.91. Load that file unless the request names another, or names an output that file does not yield.',
   );
   assert.equal(formatRoute({ status: 'below_threshold', target: 'Deep Research', confidence: 0.1 }), null);
   assert.equal(formatRoute({ target: null, confidence: null, pass: false }), null);
@@ -411,4 +411,27 @@ test('round 2: a container declaring root:, a symlink to a refusing root, a blan
   writeFileSync(join(blank, 'AGENTS.md'), '---\nroot: blank\ntype: "   "\n---\n');
   assert.equal(owningRoot(blank), null);
   assert.equal(owningRoot(pluginRoot), null);
+});
+
+test('named asks are not sent, and a tool answer is not a route', () => {
+  for (const ask of ['update root', 'Update this root.', 'wrap up', 'set up connectors', 'install connectors', '"check root"']) {
+    assert.equal(isNamedAsk(ask), true, ask);
+  }
+  assert.equal(isNamedAsk('update the root page copy for the launch'), false);
+  const home = tempHome();
+  const cwd = join(home, 'work');
+  mkdirSync(cwd);
+  declareRoot(cwd);
+  const stub = join(home, 'stub.json');
+  const log = join(home, 'calls.log');
+  writeFileSync(stub, `${JSON.stringify({
+    'wiser.route.roster': { roster_sha256: 'd', accepted: 1, rejected: 0 },
+    'wiser.route.ask': { family: 'skill', target: 'Housekeeping', confidence: 1, pass: true },
+  })}\n`);
+  writeStatus(home, attachedDoc(home));
+  const r = runHook(SCRIPTS.UserPromptSubmit, { cwd, prompt: 'update root' }, { home, cwd, stub, log });
+  assert.equal(r.stdout, '');
+  assert.equal(existsSync(log), false);
+  const rows = [{ family: 'tool', name: 'data' }];
+  assert.equal(formatRoute({ family: 'tool', target: 'data', confidence: 0.95, pass: true }, rows), null);
 });
