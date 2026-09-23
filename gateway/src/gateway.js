@@ -142,6 +142,24 @@ const CLASSIFIER_SETUP = 'Open the credential file the gateway created, paste th
 const CLASSIFIER_SETUP_MISSING = 'Pass --classifier with an absolute path to a classifier directory, set WISER_CLASSIFIER_KEY in the credential file, and restart. Do not paste the key into chat.';
 
 /**
+ * True when a first-party call would answer needs_subscription.
+ *
+ * No classifier loaded is the `resolved.path === 'none'` branch in `execute`.
+ * An empty key line is `readClassifierKey` returning null, the same read
+ * `executeFirstParty` passes as `key`. That null is what the contract answers
+ * as needs_subscription. This does not call the adapter.
+ *
+ * @param {object | object[] | null | undefined} classifier
+ * @param {string | null | undefined} envPath
+ * @returns {boolean}
+ */
+export function classifierNeedsSubscription(classifier, envPath) {
+  const list = Array.isArray(classifier) ? classifier : (classifier ? [classifier] : []);
+  if (list.length === 0) return true;
+  return readClassifierKey(envPath) == null;
+}
+
+/**
  * Grant states a provider may report that are not ACTIVE, and that the gateway
  * records on the connection row as the reason it stopped.
  *

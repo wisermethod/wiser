@@ -72,7 +72,7 @@ Then start a new Agent chat. The current chat does not pick up a newly added ser
 
 Any other harness that reads an `mcpServers` JSON block uses the same shape, with that host's label in `--harness`.
 
-`--harness` is a label for the audit log and nothing else. Two other flags matter:
+`--harness` is the label on each audit line. A normal start also writes `<home>/classifier-status/<harness>.json` after classifiers load. These flags matter:
 
 | Flag | Default | Use it when |
 |------|---------|-------------|
@@ -82,6 +82,9 @@ Any other harness that reads an `mcpServers` JSON block uses the same shape, wit
 | `--classifier <abs dir>` | none | You have a classifier directory to load from outside this plugin; repeat the flag per directory |
 | `--secrets <abs dir>` | none | A connector uses the local-file provider and its credential file sits under one directory by the name its manifest gives |
 | `--secret <service>=<abs file>` | none | The working folder's `AGENTS.md` binds `secrets:<service>` to a file of its own; repeat per service, and it wins over `--secrets` |
+| `--call <action id>` | none | You want one first-party `wiser.*` action run through the same path as `execute`, printed as one JSON line, then exit. Any other id is refused and is not called. Does not write the presence file |
+| `--route` | none | You want `wiser.route.roster` and then `wiser.route.ask` run in this one process, through the same path as `execute`. `--input` is an object with `rows` and `ask`. The ask result is printed as one JSON line, then exit. Both calls write an audit line. A roster result with no `roster_sha256` is printed and the ask is not run. Does not write the presence file |
+| `--input <json>` | none | You are using `--call` or `--route`. Pass one JSON object, or `-` to read that object from stdin |
 
 `--home` is screened before anything opens it: refused inside this plugin, beside a credential file, or on a symbolic link.
 

@@ -108,9 +108,9 @@ This plugin is the base: a domain plugin loads beside it, may assume it is prese
 
 A classifier is an optional first-party service the gateway serves when one is attached. Nothing here changes when none is: every step below has the primitive's own path as its else, and that path is what runs today.
 
-**Named asks are not routed.** They stay the closed set this root already names, each handled before any call is made, and an ask that names its output is confirmed against the skill that yields it and never diverted to another.
+**Named asks are not routed.** They stay the closed set this root already names, each handled before any call is made.
 
-**An ask that names no output is put to `wiser.route.ask` before the routing table is read**, and a confident answer is the file to load. An answer that is not confident, or no answer at all, leaves the table to be read as it is read today.
+**Every other ask is put to `wiser.route.ask` before the routing table is read**, and a confident answer is the file to load. Where the ask names its output, the routed file is confirmed to yield that output before it is loaded, and an ask is never diverted to a file that does not. An answer that is not confident, or no answer at all, leaves the table to be read as it is read today. Where the harness runs plugin hooks, the app puts the ask before the model starts, through `hooks/`.
 
 **A closed decision a primitive states, and a Success line that reads the deliverable, may be put to the classifier.** A confident answer is taken for that decision and is data rather than the primitive's judgment. `needs_subscription`, `unavailable`, and an answer below the threshold are each the primitive's own step, as that primitive writes it.
 

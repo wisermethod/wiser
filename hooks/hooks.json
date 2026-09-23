@@ -1,0 +1,16 @@
+{
+  "description": "When a classifier is attached, route each request before the model starts. When none is attached, when no owning root is known, or when that root refuses, this hook prints nothing and sends nothing.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/route.mjs\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
