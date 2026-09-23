@@ -58,12 +58,49 @@ async function gateway(result, connectors = [CONNECTOR], options = {}) {
   return { ...created, classifier };
 }
 
-function liveChild() {
-  const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
-  return new Promise((resolve, reject) => {
-    child.once('spawn', () => resolve(child));
-    child.once('error', reject);
+function startCaller() {
+  const src = [
+    "import { spawn } from 'node:child_process';",
+    "import { createInterface } from 'node:readline';",
+    "process.stdout.write(JSON.stringify({ ready: true, pid: process.pid }) + '\\n');",
+    'const rl = createInterface({ input: process.stdin });',
+    "rl.on('line', (line) => {",
+    '  if (!line.trim()) return;',
+    '  const job = JSON.parse(line);',
+    '  const child = spawn(process.execPath, job.args, {',
+    '    env: { ...process.env, ...(job.env || {}), CLAUDE_PID: String(process.pid) },',
+    '  });',
+    "  let out = '';",
+    "  let err = '';",
+    "  child.stdout.on('data', (d) => { out += d; });",
+    "  child.stderr.on('data', (d) => { err += d; });",
+    "  child.on('close', (code) => {",
+    "    process.stdout.write(JSON.stringify({ code, out, err }) + '\\n');",
+    '  });',
+    '});',
+    '',
+  ].join('\n');
+  const child = spawn(process.execPath, ['--input-type=module', '-e', src], { stdio: ['pipe', 'pipe', 'pipe'] });
+  const lines = [];
+  const waiters = [];
+  let buf = '';
+  child.stdout.setEncoding('utf8');
+  child.stdout.on('data', (chunk) => {
+    buf += chunk;
+    let nl = buf.indexOf('\n');
+    while (nl >= 0) {
+      const line = buf.slice(0, nl);
+      buf = buf.slice(nl + 1);
+      if (waiters.length > 0) waiters.shift()(line);
+      else lines.push(line);
+      nl = buf.indexOf('\n');
+    }
   });
+  const nextLine = () => {
+    if (lines.length > 0) return Promise.resolve(lines.shift());
+    return new Promise((resolve) => waiters.push(resolve));
+  };
+  return { child, nextLine };
 }
 
 test('wiser.decide.batch is declared, and a malformed answer is refused', async () => {
@@ -244,18 +281,22 @@ test('search_actions publishes today\'s description and no owning_root', async (
 });
 
 test('two concurrent sessions send only for the root that does not refuse', async () => {
-  const childA = await liveChild();
-  const childB = await liveChild();
+  const callerA = startCaller();
+  const callerB = startCaller();
   const homeA = makeHome();
   const homeB = makeHome();
   try {
+    const readyA = JSON.parse(await callerA.nextLine());
+    const readyB = JSON.parse(await callerB.nextLine());
     const rootA = writeAgents(join(homeA, 'open'));
     const rootB = writeAgents(join(homeB, 'shut'), '---\ntype: personal\nclassifier_refusal: yes\n---\n\n# Root\n');
+    const noteA = join(rootA, 'note.txt');
+    writeFileSync(noteA, 'n');
     const boundA = writeSession({
-      home: homeA, sessionId: 'session-s1-live', harnessPid: childA.pid, cwd: rootA, homeDir: homeA,
+      home: homeA, sessionId: 'session-s1-live', harnessPid: readyA.pid, cwd: rootA, homeDir: homeA,
     });
     const boundB = writeSession({
-      home: homeB, sessionId: 'session-s2-live', harnessPid: childB.pid, cwd: rootB, homeDir: homeB,
+      home: homeB, sessionId: 'session-s2-live', harnessPid: readyB.pid, cwd: rootB, homeDir: homeB,
     });
     assert.equal(boundA.ok, true, JSON.stringify(boundA));
     assert.equal(boundB.binding.refused, true);
@@ -275,23 +316,35 @@ test('two concurrent sessions send only for the root that does not refuse', asyn
     const answer = { choice: 'acme.items.get', confidence: 0.5, calibrated: false };
     const identity = (pid) => () => ({ harnessPid: pid, sessionId: null });
     const { gw: gwA, classifier: classA } = await gateway(answer, [CONNECTOR], {
-      home: homeA, session: false, classifierIdentity: identity(childA.pid),
+      home: homeA, session: false, classifierIdentity: identity(readyA.pid),
     });
     const { gw: gwB, classifier: classB } = await gateway(answer, [CONNECTOR], {
-      home: homeB, session: false, classifierIdentity: identity(childB.pid),
+      home: homeB, session: false, classifierIdentity: identity(readyB.pid),
     });
     const choice = { decision: 'item', options: ['acme.items.get'], allow_uncalibrated: true };
-    const ask = (home, pid, sessionId) => new Promise((resolve, reject) => {
-      const env = {
-        ...process.env,
-        CLAUDE_PID: String(pid),
-        CLAUDE_CODE_SESSION_ID: sessionId,
-        WISER_HOOK_STUB_FILE: join(home, 'stub.json'),
-        WISER_HOOK_STUB_LOG: join(home, 'calls.log'),
-      };
+    const askFrom = (caller, home, sessionId, logName) => {
+      caller.child.stdin.write(`${JSON.stringify({
+        args: [ASK, '--action', 'wiser.recall.rank', '--gateway-home', home, '--material', noteA, '--input', '{}'],
+        env: {
+          CLAUDE_CODE_SESSION_ID: sessionId,
+          WISER_HOOK_STUB_FILE: join(home, 'stub.json'),
+          WISER_HOOK_STUB_LOG: join(home, logName),
+        },
+      })}\n`);
+      return caller.nextLine().then((line) => JSON.parse(line));
+    };
+    const spoof = () => new Promise((resolve, reject) => {
       const child = spawn(process.execPath, [
-        ASK, '--action', 'wiser.recall.rank', '--gateway-home', home, '--input', '{}',
-      ], { env });
+        ASK, '--action', 'wiser.recall.rank', '--gateway-home', homeA, '--material', noteA, '--input', '{}',
+      ], {
+        env: {
+          ...process.env,
+          CLAUDE_PID: String(readyA.pid),
+          CLAUDE_CODE_SESSION_ID: 'session-s1-live',
+          WISER_HOOK_STUB_FILE: join(homeA, 'stub.json'),
+          WISER_HOOK_STUB_LOG: join(homeA, 'spoof.log'),
+        },
+      });
       let out = '';
       let err = '';
       child.stdout.on('data', (chunk) => { out += chunk; });
@@ -299,20 +352,24 @@ test('two concurrent sessions send only for the root that does not refuse', asyn
       child.on('error', reject);
       child.on('close', (code) => resolve({ code, out, err }));
     });
-    const [askA, askB, searchA, searchB, execA, execB] = await Promise.all([
-      ask(homeA, childA.pid, 'session-s1-live'),
-      ask(homeB, childB.pid, 'session-s2-live'),
+    const [askA, askB, spoofed, searchA, searchB, execA, execB] = await Promise.all([
+      askFrom(callerA, homeA, 'session-s1-live', 'calls.log'),
+      askFrom(callerB, homeB, 'session-s2-live', 'calls.log'),
+      spoof(),
       gwA.searchActions({ query: 'item' }),
       gwB.searchActions({ query: 'item' }),
       gwA.execute({ action: 'wiser.decide.choice', input: choice }),
       gwB.execute({ action: 'wiser.decide.choice', input: choice }),
     ]);
-    assert.equal(askA.code, 0, askA.err);
+    assert.equal(askA.code, 0, askA.err || askA.out);
     assert.equal(JSON.parse(askA.out).path, 'classifier');
     assert.equal(readFileSync(join(homeA, 'calls.log'), 'utf8').trim(), 'wiser.recall.rank');
-    assert.equal(askB.code, 0, askB.err);
+    assert.equal(askB.code, 0, askB.err || askB.out);
     assert.equal(JSON.parse(askB.out).reason, 'refused');
     assert.equal(existsSync(join(homeB, 'calls.log')), false);
+    assert.equal(spoofed.code, 0, spoofed.err);
+    assert.equal(JSON.parse(spoofed.out).reason, 'not-ancestor');
+    assert.equal(existsSync(join(homeA, 'spoof.log')), false);
     assert.equal(searchA.classifier.path, 'classifier');
     assert.equal(searchB.classifier.reason, 'refused');
     assert.equal(execA.choice, 'acme.items.get');
@@ -321,8 +378,33 @@ test('two concurrent sessions send only for the root that does not refuse', asyn
     assert.equal(classA.calls.length, 2);
     assert.equal(classB.calls.length, 0);
   } finally {
-    childA.kill('SIGKILL');
-    childB.kill('SIGKILL');
+    callerA.child.kill('SIGKILL');
+    callerB.child.kill('SIGKILL');
   }
+});
+
+test('a refusal added at the owning root after a clean binding stops the gateway at once', async () => {
+  const home = makeHome();
+  const root = writeAgents(join(home, 'open'));
+  bindTestSession(home, { root, cwd: root });
+  const { gw, classifier } = await gateway(
+    { choice: 'acme.items.list', confidence: 1, calibrated: false },
+    [CONNECTOR],
+    {
+      home,
+      session: false,
+      classifierIdentity: () => ({ harnessPid: process.pid, sessionId: null }),
+    },
+  );
+  writeFileSync(join(root, 'AGENTS.md'), '---\ntype: personal\nclassifier_refusal: yes\n---\n\n# Root\n');
+  const searched = await gw.searchActions({ query: 'item' });
+  assert.deepEqual(searched.classifier, { path: 'builtin', reason: 'refused' });
+  const executed = await gw.execute({
+    action: 'wiser.decide.choice',
+    input: { decision: 'item', options: ['keep'], allow_uncalibrated: true },
+  });
+  assert.equal(executed.status, 'classifier_unbound');
+  assert.equal(executed.reason, 'refused');
+  assert.equal(classifier.calls.length, 0);
 });
 

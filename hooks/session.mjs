@@ -13,10 +13,11 @@ import { runHook } from './lib/run.mjs';
  * @returns {null}
  */
 export function startSession(event) {
+  const hookStartedMs = Date.now();
   const home = gatewayHome();
   if (!presenceFileExists(home)) return null;
   try {
-    recordHookSession({ home, event });
+    recordHookSession({ home, event, hookStartedMs });
   } catch {
     // a failed write still prunes; the runner would otherwise hide both
   }

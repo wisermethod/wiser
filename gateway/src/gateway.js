@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { verify } from '../../hooks/lib/binding.mjs';
+import { isAncestorPid, verify } from '../../hooks/lib/binding.mjs';
+import { isRefused } from '../../hooks/lib/presence.mjs';
 import { buildContext } from './context.js';
 import { STATUS, StatusSignal, classifierAuditStatus, isStatusObject, sanitizeError, statusObject, vendorErrorFrom } from './errors.js';
 import { composeSummary, discloseInput } from './disclosure.js';
@@ -188,15 +189,20 @@ export function mcpClassifierIdentity() {
 
 /**
  * One-shot `--call` / `--route`. Both values are required; neither is optional.
+ * `CLAUDE_PID` is accepted only when it is an ancestor of this process.
  * @param {NodeJS.ProcessEnv} [env]
+ * @param {{ ancestorReader?: (pid: number) => number | null, ancestorStart?: number }} [opts]
  * @returns {{ harnessPid: number, sessionId: string } | { ok: false, reason: string }}
  */
-export function oneShotClassifierIdentity(env = process.env) {
+export function oneShotClassifierIdentity(env = process.env, opts = {}) {
   const raw = env.CLAUDE_PID;
   const sessionId = env.CLAUDE_CODE_SESSION_ID;
   const harnessPid = typeof raw === 'string' && /^[0-9]+$/.test(raw) ? Number(raw) : Number.NaN;
   if (!Number.isInteger(harnessPid) || harnessPid <= 0) return { ok: false, reason: 'no-harness' };
   if (typeof sessionId !== 'string' || sessionId.length === 0) return { ok: false, reason: 'no-session' };
+  if (!isAncestorPid(harnessPid, { reader: opts.ancestorReader, start: opts.ancestorStart })) {
+    return { ok: false, reason: 'not-ancestor' };
+  }
   return { harnessPid, sessionId };
 }
 
@@ -415,7 +421,8 @@ export class ConnectionGateway {
   }
 
   /**
-   * Verified, unrefused, with at least one root. Otherwise a reason and no send.
+   * Verified, unrefused, with exactly one owning root, still unrefused at
+   * send time. Otherwise a reason and no send.
    * @returns {{ ok: true, binding: Record<string, unknown> } | { ok: false, reason: string }}
    */
   classifierSession() {
@@ -430,9 +437,11 @@ export class ConnectionGateway {
     });
     if (!verified.ok) return verified;
     if (verified.binding.refused === true) return { ok: false, reason: 'refused' };
-    if (!Array.isArray(verified.binding.roots) || verified.binding.roots.length === 0) {
+    const owning = verified.binding.owning_root;
+    if (typeof owning !== 'string' || owning.length === 0) {
       return { ok: false, reason: 'no-owning-root' };
     }
+    if (isRefused(owning)) return { ok: false, reason: 'refused' };
     return verified;
   }
 

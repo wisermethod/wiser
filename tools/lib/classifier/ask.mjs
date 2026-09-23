@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, realpathSync } from 'node:fs';
 import { isAbsolute, join, relative, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { verify } from '../../../hooks/lib/binding.mjs';
+import { isAncestorPid, verify } from '../../../hooks/lib/binding.mjs';
 import { callOnce } from '../../../hooks/lib/call.mjs';
 import {
   classifierDirs,
@@ -20,12 +20,12 @@ Put one closed judgment to the classifier and print one JSON object.
 --input - reads one JSON value from stdin. Any other --input value is that
 JSON value. --replay is a record file from an earlier call; a record that
 does not match this judgment is refused. The owning root comes from the
-session binding the hooks wrote (hooks/AGENTS.md). --owning-root, when
-given, has to be one of that binding's roots. --material is an absolute
-path the judgment is about, a file or a directory, and may be repeated;
-each has to sit inside one of those roots and not be refused.
---gateway-home is the gateway home when the gateway was started with
---home. --timeout-ms defaults to 20000.
+session binding the hooks wrote (hooks/AGENTS.md), and it has to be the
+one root that binding names. --owning-root, when given, has to be that
+root. --material is required: at least one absolute path the judgment is
+about, a file or a directory, and may be repeated; each has to sit inside
+that root and not be refused. --gateway-home is the gateway home when the
+gateway was started with --home. --timeout-ms defaults to 20000.
 
 help and --help print this usage and exit 0. An unknown flag, a missing
 --action or --input, unparseable input, and a replay that does not match
@@ -154,14 +154,16 @@ export async function ask(opts = {}) {
     ? opts.gatewayHome
     : defaultGatewayHome();
   const harnessPid = /^[0-9]+$/.test(envPid) ? Number(envPid) : Number.NaN;
+  if (!Number.isInteger(harnessPid) || harnessPid <= 0) return builtin('no-harness');
+  if (!isAncestorPid(harnessPid)) return builtin('not-ancestor');
   const verified = verify({ home, harnessPid, sessionId: envSession });
   if (!verified.ok) return builtin(verified.reason);
   const binding = verified.binding;
   if (binding.refused === true) return builtin('refused');
-  const roots = Array.isArray(binding.roots) ? binding.roots.filter((root) => typeof root === 'string') : [];
-  if (roots.length === 0) return builtin('no-owning-root');
-
-  let root;
+  if (typeof binding.owning_root !== 'string' || binding.owning_root.length === 0) {
+    return builtin('no-owning-root');
+  }
+  const root = binding.owning_root;
   if (opts.owningRoot != null && opts.owningRoot !== '') {
     if (typeof opts.owningRoot !== 'string') return builtin('root-mismatch');
     let resolved;
@@ -170,12 +172,7 @@ export async function ask(opts = {}) {
     } catch {
       return builtin('root-mismatch');
     }
-    if (!roots.includes(resolved)) return builtin('root-mismatch');
-    root = resolved;
-  } else if (typeof binding.owning_root === 'string' && roots.includes(binding.owning_root)) {
-    root = binding.owning_root;
-  } else {
-    return builtin('no-owning-root');
+    if (resolved !== root) return builtin('root-mismatch');
   }
   try {
     readFileSync(join(root, 'AGENTS.md'), 'utf8');
@@ -185,6 +182,7 @@ export async function ask(opts = {}) {
   if (isRefused(root)) return builtin('refused');
 
   const material = Array.isArray(opts.material) ? opts.material : [];
+  if (material.length === 0) return builtin('no-material');
   for (const item of material) {
     if (typeof item !== 'string' || !isAbsolute(item)) return builtin('material-outside-root');
     let real;
@@ -193,7 +191,7 @@ export async function ask(opts = {}) {
     } catch {
       return builtin('material-outside-root');
     }
-    if (!roots.some((candidate) => insideRoot(real, candidate))) return builtin('material-outside-root');
+    if (!insideRoot(real, root)) return builtin('material-outside-root');
     if (isRefused(real)) return builtin('refused');
   }
 

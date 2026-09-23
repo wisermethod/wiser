@@ -137,12 +137,61 @@ export function harnessArgs(pid, reader = readHarnessArgsFromOs) {
   }
 }
 
+const MAX_ANCESTOR_STEPS = 32;
+
+/**
+ * Parent pid as `ps` reports it. Unreadable is null, which fails the walk closed.
+ * @param {number} pid
+ * @returns {number | null}
+ */
+function readParentPidFromOs(pid) {
+  try {
+    const out = execFileSync('ps', ['-o', 'ppid=', '-p', String(pid)], {
+      encoding: 'utf8',
+      timeout: 2000,
+    });
+    const text = String(out).trim();
+    if (!/^[0-9]+$/.test(text)) return null;
+    const parent = Number(text);
+    return parent > 0 ? parent : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * True when `pid` is `start` or an ancestor of it. The walk begins at `start`
+ * (default `process.ppid`), reads each parent, takes at most 32 steps, and
+ * stops at pid 1. `reader` is the parent lookup, injected by tests.
+ * @param {number} pid
+ * @param {{ start?: number, reader?: (pid: number) => number | null }} [opts]
+ * @returns {boolean}
+ */
+export function isAncestorPid(pid, opts = {}) {
+  if (!validPid(pid)) return false;
+  const reader = typeof opts.reader === 'function' ? opts.reader : readParentPidFromOs;
+  let current = validPid(opts.start) ? opts.start : process.ppid;
+  for (let step = 0; step < MAX_ANCESTOR_STEPS; step += 1) {
+    if (!validPid(current)) return false;
+    if (current === pid) return true;
+    if (current === 1) return false;
+    let parent;
+    try {
+      parent = reader(current);
+    } catch {
+      return false;
+    }
+    if (typeof parent === 'string' && /^[0-9]+$/.test(parent)) parent = Number(parent);
+    current = parent;
+  }
+  return false;
+}
+
 /**
  * @param {string} path
  * @returns {boolean}
  */
-function isExistingAbsDir(path) {
-  if (!isAbsolute(path)) return false;
+function directoryExists(path) {
   try {
     return statSync(path).isDirectory();
   } catch {
@@ -151,29 +200,52 @@ function isExistingAbsDir(path) {
 }
 
 /**
- * Longest space-joined run of `tokens` that is an existing absolute directory.
+ * An absolute value must already be a directory. A relative value is resolved
+ * against the event cwd. Anything else is unresolved.
+ * @param {string} joined
+ * @param {string} cwd
+ * @returns {string | null}
+ */
+function resolveAddDirValue(joined, cwd) {
+  if (!joined) return null;
+  if (isAbsolute(joined)) return directoryExists(joined) ? joined : null;
+  if (!cwd || !cwd.trim()) return null;
+  const resolved = resolve(cwd, joined);
+  return directoryExists(resolved) ? resolved : null;
+}
+
+/**
+ * Longest space-joined run that resolves to an existing directory.
  * `ps` prints an unquoted path with spaces as several tokens.
  * @param {string[]} tokens
+ * @param {string} cwd
  * @returns {{ path: string, consumed: number } | null}
  */
-function longestAbsDir(tokens) {
+function longestDir(tokens, cwd) {
   const limit = Math.min(tokens.length, 64);
   for (let n = limit; n >= 1; n -= 1) {
     const joined = tokens.slice(0, n).join(' ');
-    if (isExistingAbsDir(joined)) return { path: joined, consumed: n };
+    const path = resolveAddDirValue(joined, cwd);
+    if (path) return { path, consumed: n };
   }
   return null;
 }
 
 /**
  * `--add-dir <dir>` and `--add-dir=<dir>` from a harness argument string.
+ * A relative value resolves against `cwd`. `unresolved` is true when any
+ * value cannot be resolved to an existing directory.
  * @param {string} argsText
- * @returns {string[]}
+ * @param {string} [cwd]
+ * @returns {{ dirs: string[], unresolved: boolean }}
  */
-export function addDirsFromArgs(argsText) {
-  if (typeof argsText !== 'string' || argsText.trim().length === 0) return [];
+export function addDirsFromArgs(argsText, cwd = '') {
+  if (typeof argsText !== 'string' || argsText.trim().length === 0) {
+    return { dirs: [], unresolved: false };
+  }
   const tokens = argsText.trim().split(/\s+/);
-  const found = [];
+  const dirs = [];
+  let unresolved = false;
   for (let i = 0; i < tokens.length; i += 1) {
     const token = tokens[i];
     let rest = null;
@@ -182,17 +254,23 @@ export function addDirsFromArgs(argsText) {
       rest = tokens.slice(i + 1);
     } else if (token.startsWith('--add-dir=')) {
       const first = token.slice('--add-dir='.length);
-      if (!first) continue;
+      if (!first) {
+        unresolved = true;
+        continue;
+      }
       rest = [first, ...tokens.slice(i + 1)];
       embedded = true;
     }
     if (!rest) continue;
-    const match = longestAbsDir(rest);
-    if (!match) continue;
-    found.push(match.path);
+    const match = longestDir(rest, cwd);
+    if (!match) {
+      unresolved = true;
+      continue;
+    }
+    dirs.push(match.path);
     i += embedded ? match.consumed - 1 : match.consumed;
   }
-  return found;
+  return { dirs, unresolved };
 }
 
 /**
@@ -240,29 +318,57 @@ function additionalDirectories(file, cwd, homeDir) {
 }
 
 /**
- * Composed directories: cwd, every `--add-dir` on the harness, and every
- * `permissions.additionalDirectories` entry from the three settings files.
- * @param {{ cwd?: string, harnessPid: number, argsReader?: (pid: number) => string, homeDir?: string }} opts
+ * @param {string} base
  * @returns {string[]}
+ */
+function projectSettings(base) {
+  return [
+    join(base, '.claude', 'settings.json'),
+    join(base, '.claude', 'settings.local.json'),
+  ];
+}
+
+/**
+ * @param {string} left
+ * @param {string} right
+ * @returns {boolean}
+ */
+function sameDirectory(left, right) {
+  if (!left || !right || !left.trim() || !right.trim()) return false;
+  try {
+    return realpathSync(left) === realpathSync(right);
+  } catch {
+    return resolve(left) === resolve(right);
+  }
+}
+
+/**
+ * Composed directories: cwd, every `--add-dir` on the harness, user settings,
+ * project settings under `CLAUDE_PROJECT_DIR` when set, and the event cwd's
+ * project settings when that directory differs. `unresolved` means an
+ * `--add-dir` value could not be resolved to an existing directory.
+ * @param {{ cwd?: string, harnessPid: number, argsReader?: (pid: number) => string, homeDir?: string, projectDir?: string }} opts
+ * @returns {{ dirs: string[], unresolved: boolean }}
  */
 export function composedDirectories(opts) {
   const cwd = typeof opts.cwd === 'string' ? opts.cwd : '';
   const homeDir = opts.homeDir || homedir();
+  const projectDir = typeof opts.projectDir === 'string' ? opts.projectDir : '';
   const dirs = [];
   if (cwd.trim().length > 0) dirs.push(cwd);
   const args = harnessArgs(opts.harnessPid, opts.argsReader);
-  for (const dir of addDirsFromArgs(args)) dirs.push(dir);
-  const settings = [
-    join(homeDir, '.claude', 'settings.json'),
-    ...(cwd.trim().length > 0 ? [
-      join(cwd, '.claude', 'settings.json'),
-      join(cwd, '.claude', 'settings.local.json'),
-    ] : []),
-  ];
-  for (const file of settings) {
-    for (const dir of additionalDirectories(file, cwd, homeDir)) dirs.push(dir);
+  const added = addDirsFromArgs(args, cwd);
+  for (const dir of added.dirs) dirs.push(dir);
+  const settings = [join(homeDir, '.claude', 'settings.json')];
+  if (projectDir.trim().length > 0) settings.push(...projectSettings(projectDir));
+  if (cwd.trim().length > 0 && !sameDirectory(cwd, projectDir)) {
+    settings.push(...projectSettings(cwd));
   }
-  return dirs;
+  const base = cwd.trim().length > 0 ? cwd : (projectDir.trim().length > 0 ? projectDir : homeDir);
+  for (const file of settings) {
+    for (const dir of additionalDirectories(file, base, homeDir)) dirs.push(dir);
+  }
+  return { dirs, unresolved: added.unresolved };
 }
 
 /**
@@ -392,6 +498,44 @@ function writeJsonAtomic(file, value) {
 }
 
 /**
+ * Write `value` unless the record already there has a newer `hook_started_ms`.
+ * After the rename, a different `hook_started_ms` means this writer lost.
+ * Nothing is restored.
+ * @param {string} file
+ * @param {Record<string, unknown>} value
+ * @param {() => Record<string, unknown> | null} readBack
+ * @returns {{ lost: boolean }}
+ */
+function commitHookRecord(file, value, readBack) {
+  const before = readBack();
+  if (before && typeof before.hook_started_ms === 'number' && before.hook_started_ms > value.hook_started_ms) {
+    return { lost: true };
+  }
+  writeJsonAtomic(file, value);
+  const after = readBack();
+  if (!after || after.hook_started_ms !== value.hook_started_ms || after.session_id !== value.session_id) {
+    return { lost: true };
+  }
+  return { lost: false };
+}
+
+/**
+ * @param {string} home
+ * @param {number} harnessPid
+ * @param {string} sessionId
+ * @param {number} hookStartedMs
+ * @returns {boolean}
+ */
+function pointerNames(home, harnessPid, sessionId, hookStartedMs) {
+  const pointer = readPointer(home, harnessPid);
+  return Boolean(
+    pointer
+    && pointer.session_id === sessionId
+    && pointer.hook_started_ms === hookStartedMs,
+  );
+}
+
+/**
  * @param {string} cwd
  * @returns {string}
  */
@@ -406,27 +550,105 @@ function storedCwd(cwd) {
 }
 
 /**
- * Write the binding, then the pointer. Returns verify's result, or null when
- * the session id or the pid cannot be a file name.
+ * The pending binding and the pointer, before any argument, settings, or
+ * descendant read. A newer pointer or binding is left in place.
  * @param {{
  *   home: string,
  *   sessionId: unknown,
  *   harnessPid: number,
  *   cwd?: string,
  *   now?: number,
+ *   hookStartedMs?: number,
+ *   harnessStartedReader?: (pid: number) => string,
+ * }} opts
+ * @returns {{ ok: true, lost: false, hookStartedMs: number, previous: Record<string, unknown> | null } | { ok: false, reason: 'lost', lost: true, hookStartedMs?: number, previous?: Record<string, unknown> | null } | null}
+ */
+export function writePendingSession(opts) {
+  const sessionId = opts.sessionId;
+  if (!validSessionId(sessionId)) return null;
+  const harnessPid = opts.harnessPid;
+  if (!validPid(harnessPid)) return null;
+  const hookStartedMs = typeof opts.hookStartedMs === 'number' ? opts.hookStartedMs : Date.now();
+  const now = typeof opts.now === 'number' ? opts.now : Date.now();
+  const previous = readBinding(opts.home, sessionId);
+  const current = readPointer(opts.home, harnessPid);
+  if (current && typeof current.hook_started_ms === 'number' && current.hook_started_ms > hookStartedMs) {
+    return { ok: false, reason: 'lost', lost: true, hookStartedMs, previous };
+  }
+  if (previous && typeof previous.hook_started_ms === 'number' && previous.hook_started_ms > hookStartedMs) {
+    return { ok: false, reason: 'lost', lost: true, hookStartedMs, previous };
+  }
+  const started = harnessStarted(harnessPid, opts.harnessStartedReader);
+  const cwd = typeof opts.cwd === 'string' ? opts.cwd : '';
+  const writtenAt = new Date(now).toISOString();
+  const binding = {
+    v: 1,
+    session_id: sessionId,
+    harness_pid: harnessPid,
+    harness_started: started,
+    hook_started_ms: hookStartedMs,
+    cwd: storedCwd(cwd),
+    roots: [],
+    owning_root: null,
+    refused: true,
+    refused_by: 'pending',
+    pending: true,
+    written_at: writtenAt,
+    descendant_scan_at: null,
+    descendant_reason: null,
+  };
+  const wroteBinding = commitHookRecord(
+    join(sessionsDir(opts.home), `${sessionId}.json`),
+    binding,
+    () => readBinding(opts.home, sessionId),
+  );
+  if (wroteBinding.lost) return { ok: false, reason: 'lost', lost: true, hookStartedMs, previous };
+  const wrotePointer = commitHookRecord(
+    join(sessionsDir(opts.home), `current-${harnessPid}.json`),
+    {
+      v: 1,
+      session_id: sessionId,
+      harness_pid: harnessPid,
+      harness_started: started,
+      hook_started_ms: hookStartedMs,
+      written_at: writtenAt,
+    },
+    () => readPointer(opts.home, harnessPid),
+  );
+  if (wrotePointer.lost) return { ok: false, reason: 'lost', lost: true, hookStartedMs, previous };
+  return { ok: true, lost: false, hookStartedMs, previous };
+}
+
+/**
+ * The final binding. Written only when the pointer still names this session
+ * at this `hook_started_ms`. The pointer is not rewritten.
+ * @param {{
+ *   home: string,
+ *   sessionId: unknown,
+ *   harnessPid: number,
+ *   hookStartedMs: number,
+ *   cwd?: string,
+ *   now?: number,
  *   homeDir?: string,
+ *   projectDir?: string,
+ *   previous?: Record<string, unknown> | null,
  *   harnessStartedReader?: (pid: number) => string,
  *   argsReader?: (pid: number) => string,
  *   scanDepth?: number,
  *   scanLimit?: number,
  * }} opts
- * @returns {{ ok: true, binding: Record<string, unknown> } | { ok: false, reason: string } | null}
+ * @returns {{ ok: true, binding: Record<string, unknown> } | { ok: false, reason: string, lost?: boolean } | null}
  */
-export function writeSession(opts) {
+export function finishSession(opts) {
   const sessionId = opts.sessionId;
   if (!validSessionId(sessionId)) return null;
   const harnessPid = opts.harnessPid;
   if (!validPid(harnessPid)) return null;
+  const hookStartedMs = opts.hookStartedMs;
+  if (typeof hookStartedMs !== 'number') return { ok: false, reason: 'lost', lost: true };
+  if (!pointerNames(opts.home, harnessPid, sessionId, hookStartedMs)) {
+    return { ok: false, reason: 'lost', lost: true };
+  }
   const now = typeof opts.now === 'number' ? opts.now : Date.now();
   const cwd = typeof opts.cwd === 'string' ? opts.cwd : '';
   const started = harnessStarted(harnessPid, opts.harnessStartedReader);
@@ -435,15 +657,22 @@ export function writeSession(opts) {
     harnessPid,
     argsReader: opts.argsReader,
     homeDir: opts.homeDir,
+    projectDir: opts.projectDir,
   });
-  const roots = rootsOf(composed);
+  const roots = rootsOf(composed.dirs);
   let refused = false;
   let refusedBy = null;
-  for (const dir of composed) {
-    if (isRefused(dir)) {
-      refused = true;
-      refusedBy = 'at-or-above';
-      break;
+  if (composed.unresolved) {
+    refused = true;
+    refusedBy = 'unresolved-add-dir';
+  }
+  if (!refused) {
+    for (const dir of composed.dirs) {
+      if (isRefused(dir)) {
+        refused = true;
+        refusedBy = 'at-or-above';
+        break;
+      }
     }
   }
   if (!refused) {
@@ -456,7 +685,7 @@ export function writeSession(opts) {
     }
   }
 
-  const existing = readBinding(opts.home, sessionId);
+  const existing = opts.previous && opts.previous.pending !== true ? opts.previous : null;
   const scanFresh = Boolean(
     existing
     && sameRoots(existing.roots, roots)
@@ -487,29 +716,32 @@ export function writeSession(opts) {
     descendantScanAt = now;
   }
 
+  if (!pointerNames(opts.home, harnessPid, sessionId, hookStartedMs)) {
+    return { ok: false, reason: 'lost', lost: true };
+  }
   const writtenAt = new Date(now).toISOString();
   const binding = {
     v: 1,
     session_id: sessionId,
     harness_pid: harnessPid,
     harness_started: started,
+    hook_started_ms: hookStartedMs,
     cwd: storedCwd(cwd),
     roots,
     owning_root: roots.length === 1 ? roots[0] : null,
     refused,
     refused_by: refusedBy,
+    pending: false,
     written_at: writtenAt,
     descendant_scan_at: descendantScanAt,
     descendant_reason: descendantReason,
   };
-  writeJsonAtomic(join(sessionsDir(opts.home), `${sessionId}.json`), binding);
-  writeJsonAtomic(join(sessionsDir(opts.home), `current-${harnessPid}.json`), {
-    v: 1,
-    session_id: sessionId,
-    harness_pid: harnessPid,
-    harness_started: started,
-    written_at: writtenAt,
-  });
+  const wrote = commitHookRecord(
+    join(sessionsDir(opts.home), `${sessionId}.json`),
+    binding,
+    () => readBinding(opts.home, sessionId),
+  );
+  if (wrote.lost) return { ok: false, reason: 'lost', lost: true };
   return verify({
     home: opts.home,
     harnessPid,
@@ -519,11 +751,42 @@ export function writeSession(opts) {
 }
 
 /**
+ * Pending binding and pointer first, then the final binding. Returns verify's
+ * result, `{ ok: false, reason: 'lost' }` when a newer hook owns the pointer,
+ * or null when the session id or the pid cannot be a file name.
+ * @param {{
+ *   home: string,
+ *   sessionId: unknown,
+ *   harnessPid: number,
+ *   cwd?: string,
+ *   now?: number,
+ *   hookStartedMs?: number,
+ *   homeDir?: string,
+ *   projectDir?: string,
+ *   harnessStartedReader?: (pid: number) => string,
+ *   argsReader?: (pid: number) => string,
+ *   scanDepth?: number,
+ *   scanLimit?: number,
+ * }} opts
+ * @returns {{ ok: true, binding: Record<string, unknown> } | { ok: false, reason: string, lost?: boolean } | null}
+ */
+export function writeSession(opts) {
+  const pending = writePendingSession(opts);
+  if (!pending || pending.ok !== true) return pending;
+  return finishSession({
+    ...opts,
+    hookStartedMs: pending.hookStartedMs,
+    previous: pending.previous,
+  });
+}
+
+/**
  * Identity only. The caller still applies `refused`, `roots` and `owning_root`.
- * `sessionId` null means the caller has no per-call session (the long-running
- * gateway) and the pointer's session is the current one.
+ * `pending: true` is not sendable. `sessionId` null means the caller has no
+ * per-call session (the long-running gateway) and the pointer's session is
+ * the current one.
  * @param {{ home: string, harnessPid: unknown, sessionId?: string | null, harnessStartedReader?: (pid: number) => string }} opts
- * @returns {{ ok: true, binding: Record<string, unknown> } | { ok: false, reason: 'no-harness' | 'no-pointer' | 'stale-session' | 'no-binding' | 'unverifiable' }}
+ * @returns {{ ok: true, binding: Record<string, unknown> } | { ok: false, reason: 'no-harness' | 'no-pointer' | 'stale-session' | 'no-binding' | 'unverifiable' | 'pending' }}
  */
 export function verify(opts) {
   const harnessPid = opts.harnessPid;
@@ -544,16 +807,20 @@ export function verify(opts) {
   if (binding.harness_pid !== harnessPid || binding.harness_started !== started) {
     return { ok: false, reason: 'stale-session' };
   }
+  if (binding.pending === true) return { ok: false, reason: 'pending' };
   return { ok: true, binding };
 }
 
 /**
  * What both hooks write, once the presence file exists. `CLAUDE_PID`, when
  * set, has to be this process's parent; a difference writes nothing.
- * @param {{ home: string, event: unknown, homeDir?: string, harnessStartedReader?: (pid: number) => string, argsReader?: (pid: number) => string, now?: number, scanDepth?: number, scanLimit?: number }} opts
+ * `hookStartedMs` is the hook's own start, defaulting to now before any
+ * argument, settings, or scan read.
+ * @param {{ home: string, event: unknown, homeDir?: string, projectDir?: string, hookStartedMs?: number, harnessStartedReader?: (pid: number) => string, argsReader?: (pid: number) => string, now?: number, scanDepth?: number, scanLimit?: number }} opts
  * @returns {ReturnType<typeof writeSession> | null}
  */
 export function recordHookSession(opts) {
+  const hookStartedMs = typeof opts.hookStartedMs === 'number' ? opts.hookStartedMs : Date.now();
   if (!presenceFileExists(opts.home)) return null;
   const claimed = process.env.CLAUDE_PID;
   if (typeof claimed === 'string' && claimed.length > 0 && claimed !== String(process.ppid)) return null;
@@ -561,13 +828,19 @@ export function recordHookSession(opts) {
   const sessionId = event && typeof event === 'object' ? event.session_id : undefined;
   const cwd = event && typeof event === 'object' && typeof event.cwd === 'string' ? event.cwd : '';
   if (!validSessionId(sessionId)) return null;
+  const fromEnv = process.env.CLAUDE_PROJECT_DIR;
+  const projectDir = typeof opts.projectDir === 'string'
+    ? opts.projectDir
+    : (typeof fromEnv === 'string' ? fromEnv : '');
   return writeSession({
     home: opts.home,
     sessionId,
     harnessPid: process.ppid,
     cwd,
     now: opts.now,
+    hookStartedMs,
     homeDir: opts.homeDir,
+    projectDir,
     harnessStartedReader: opts.harnessStartedReader,
     argsReader: opts.argsReader,
     scanDepth: opts.scanDepth,

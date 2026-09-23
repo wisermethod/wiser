@@ -66,12 +66,13 @@ export function formatRoute(answer, rows) {
  * @returns {Promise<string | null>}
  */
 export async function routePrompt(event, clock) {
+  const hookStartedMs = Date.now();
   // The binding is written before any routing decision, including a refusal,
   // so a /clear into a refusing root moves the pointer.
   let recorded = null;
   try {
     const home = gatewayHome();
-    if (presenceFileExists(home)) recorded = recordHookSession({ home, event });
+    if (presenceFileExists(home)) recorded = recordHookSession({ home, event, hookStartedMs });
   } catch {
     recorded = null;
   }
@@ -79,7 +80,7 @@ export async function routePrompt(event, clock) {
   if (!opened || opened.dirs.length === 0) return null;
   if (!recorded || recorded.ok !== true) return null;
   if (recorded.binding.refused === true) return null;
-  if (!Array.isArray(recorded.binding.roots) || recorded.binding.roots.length === 0) return null;
+  if (typeof recorded.binding.owning_root !== 'string' || recorded.binding.owning_root.length === 0) return null;
   const raw = promptText(event);
   if (typeof raw !== 'string') return null;
   const ask = raw.trim();

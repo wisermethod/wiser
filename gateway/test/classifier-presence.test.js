@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 import { classifierNeedsSubscription } from '../src/gateway.js';
 import { FIRST_PARTY_ACTIONS } from '../src/resolve.js';
-import { writeSession } from '../../hooks/lib/binding.mjs';
+import { writePendingSession, writeSession } from '../../hooks/lib/binding.mjs';
 import { buildRoster } from '../../hooks/lib/roster.mjs';
 import { makeHome } from './fake-provider.js';
 
@@ -528,4 +528,126 @@ export function createClassifier() {
   assert.equal(audit.length, 1);
   assert.equal(audit[0].status, 'classifier_unbound');
   assert.equal(audit[0].action, 'wiser.route.roster');
+});
+
+function directClassifier(home) {
+  const dir = join(home, 'direct');
+  mkdirSync(dir, { recursive: true });
+  const marker = join(home, 'adapter-called');
+  writeFileSync(join(dir, 'index.mjs'), `
+import { writeFileSync } from 'node:fs';
+export function createClassifier() {
+  return {
+    name: 'direct',
+    actions: () => ${JSON.stringify(SIX)},
+    describe: () => ({ request: {}, answer: {} }),
+    async execute() {
+      writeFileSync(${JSON.stringify(marker)}, 'called\\n');
+      return { roster_sha256: 'abc', accepted: 1, rejected: 0 };
+    },
+  };
+}
+`);
+  return { dir, marker };
+}
+
+function boundRoot(home) {
+  const root = join(home, 'bound-root');
+  mkdirSync(root, { recursive: true });
+  writeFileSync(join(root, 'AGENTS.md'), '---\ntype: personal\n---\n\n# Root\n');
+  return root;
+}
+
+test('a pending binding leaves one-shot --call silent', () => {
+  const home = makeHome();
+  const env = envFile(makeHome(), KEY);
+  const root = boundRoot(home);
+  const pending = writePendingSession({
+    home,
+    sessionId: 'presence-pending-session',
+    harnessPid: process.pid,
+    cwd: root,
+    homeDir: home,
+  });
+  assert.equal(pending && pending.ok, true, JSON.stringify(pending));
+  const { dir, marker } = directClassifier(makeHome());
+  const r = spawnSync(process.execPath, [
+    SERVER, '--home', home, '--env', env, '--harness', 'claude-code',
+    '--classifier', dir, '--call', 'wiser.route.roster', '--input', JSON.stringify({ rows: ROWS }),
+  ], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      CLAUDE_PID: String(process.pid),
+      CLAUDE_CODE_SESSION_ID: 'presence-pending-session',
+    },
+  });
+  assert.equal(r.status, 0, r.stderr);
+  const result = JSON.parse(r.stdout);
+  assert.equal(result.status, 'classifier_unbound');
+  assert.equal(result.reason, 'pending');
+  assert.equal(existsSync(marker), false);
+});
+
+test('one-shot --call for a live session that is not an ancestor sends nothing, and the parent still does', async () => {
+  const sleeper = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
+  await new Promise((resolve, reject) => {
+    sleeper.once('spawn', resolve);
+    sleeper.once('error', reject);
+  });
+  try {
+    const home = makeHome();
+    const env = envFile(makeHome(), KEY);
+    const root = boundRoot(home);
+    const foreign = writeSession({
+      home,
+      sessionId: 'presence-foreign-session',
+      harnessPid: sleeper.pid,
+      cwd: root,
+      homeDir: home,
+    });
+    assert.equal(foreign.ok, true, JSON.stringify(foreign));
+    const { dir, marker } = directClassifier(makeHome());
+    const args = [
+      SERVER, '--home', home, '--env', env, '--harness', 'claude-code',
+      '--classifier', dir, '--call', 'wiser.route.roster', '--input', JSON.stringify({ rows: ROWS }),
+    ];
+    const spoof = spawnSync(process.execPath, args, {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CLAUDE_PID: String(sleeper.pid),
+        CLAUDE_CODE_SESSION_ID: 'presence-foreign-session',
+      },
+    });
+    assert.equal(spoof.status, 0, spoof.stderr);
+    const spoofed = JSON.parse(spoof.stdout);
+    assert.equal(spoofed.status, 'classifier_unbound');
+    assert.equal(spoofed.reason, 'not-ancestor');
+    assert.equal(existsSync(marker), false);
+
+    const own = writeSession({
+      home,
+      sessionId: 'presence-own-session',
+      harnessPid: process.pid,
+      cwd: root,
+      homeDir: home,
+    });
+    assert.equal(own.ok, true, JSON.stringify(own));
+    const sent = spawnSync(process.execPath, args, {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CLAUDE_PID: String(process.pid),
+        CLAUDE_CODE_SESSION_ID: 'presence-own-session',
+      },
+    });
+    assert.equal(sent.status, 0, sent.stderr);
+    const body = JSON.parse(sent.stdout);
+    assert.equal(body.status, undefined);
+    assert.match(body.roster_sha256, /^[a-f0-9]+$/);
+    assert.equal(existsSync(marker), true);
+  } finally {
+    sleeper.kill('SIGKILL');
+  }
 });

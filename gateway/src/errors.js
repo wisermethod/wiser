@@ -23,7 +23,7 @@ export const STATUS = {
   // Added, never renamed: nothing above changes meaning.
   NEEDS_SUBSCRIPTION: 'needs_subscription',
   // Added with the session binding. A first-party call was not sent because
-  // the binding did not verify, was refused, or named no root. Added, never
+  // the binding did not verify, was refused, or named no single owning root. Added, never
   // renamed: nothing above changes meaning.
   CLASSIFIER_UNBOUND: 'classifier_unbound',
 };
