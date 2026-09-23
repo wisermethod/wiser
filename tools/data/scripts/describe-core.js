@@ -118,7 +118,16 @@ export function executeDescribe(input) {
   const skippedColumns = [];
   const targetColumns = [];
 
-  if (requestedColumns && requestedColumns.length > 0) {
+  // An empty list describes nothing. An omitted list describes every numeric column.
+  if (Array.isArray(requestedColumns)) {
+    if (requestedColumns.length === 0) {
+      return {
+        columns: [],
+        skippedColumns,
+        totalRows: table.rows.length,
+        errors: [...errors, 'No numeric columns to analyze'],
+      };
+    }
     const available = table.columns.map((c) => c.name).join(', ');
     for (const name of requestedColumns) {
       const col = table.columns.find((c) => c.name === name);

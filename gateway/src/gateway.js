@@ -1,4 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { isAbsolute, join } from 'node:path';
+import { isRefused } from '../../hooks/lib/presence.mjs';
 import { buildContext } from './context.js';
 import { STATUS, StatusSignal, classifierAuditStatus, isStatusObject, sanitizeError, statusObject, vendorErrorFrom } from './errors.js';
 import { composeSummary, discloseInput } from './disclosure.js';
@@ -239,12 +242,13 @@ const TOOLS = [
   },
   {
     name: 'search_actions',
-    description: 'Search action ids this gateway serves, with privilege, risk, and confirmation.',
+    description: 'Search action ids this gateway serves, with privilege, risk, and confirmation, and when an absolute owning_root, a query, and a loaded classifier are all present, put one closed pick through the first-party path and list an accepted action first.',
     inputSchema: {
       type: 'object',
       properties: {
         query: { type: 'string' },
         service: { type: 'string' },
+        owning_root: { type: 'string' },
       },
       additionalProperties: false,
     },
@@ -311,6 +315,7 @@ export function validateArgs(name, args) {
     case 'search_actions':
       if (!optString('query')) return bad('query');
       if (!optString('service', NAME_RE)) return bad('service');
+      if (!optString('owning_root')) return bad('owning_root');
       return null;
     case 'describe_action':
       if (typeof a.action !== 'string' || !ACTION_RE.test(a.action)) return bad('action');
@@ -591,7 +596,7 @@ export class ConnectionGateway {
     }
   }
 
-  searchActions({ query, service } = {}) {
+  listActions({ query, service } = {}) {
     const q = typeof query === 'string' ? query.toLowerCase() : '';
     const actions = [];
     for (const c of this.connectors) {
@@ -636,7 +641,72 @@ export class ConnectionGateway {
         });
       }
     }
-    return { actions };
+    return actions;
+  }
+
+  /**
+   * Null when this search is today's substring list and nothing is sent.
+   * A refused or unreadable owning root is reported and still sends nothing.
+   * @param {{ query?: unknown, owning_root?: unknown }} args
+   * @returns {{ call: boolean, reason: string | null } | null}
+   */
+  classifierSearchAttempt(args) {
+    const query = args.query;
+    const owningRoot = args.owning_root;
+    if (typeof query !== 'string' || query.length === 0) return null;
+    if (this.classifiers().length === 0) return null;
+    if (typeof owningRoot !== 'string' || !isAbsolute(owningRoot)) return null;
+    try {
+      readFileSync(join(owningRoot, 'AGENTS.md'), 'utf8');
+    } catch {
+      return { call: false, reason: 'unreadable-root' };
+    }
+    // The shared caller's refusal rule, before execute, so nothing is sent.
+    if (isRefused(owningRoot)) return { call: false, reason: 'refused' };
+    return { call: true, reason: null };
+  }
+
+  searchActions(args = {}) {
+    const actions = this.listActions({ query: args.query, service: args.service });
+    const attempt = this.classifierSearchAttempt(args);
+    if (!attempt) return { actions };
+    if (!attempt.call) {
+      return {
+        actions,
+        classifier: { path: 'builtin', reason: attempt.reason, choice: null, confidence: null },
+      };
+    }
+    return this.rankSearch(actions, args);
+  }
+
+  async rankSearch(actions, args) {
+    const universe = this.listActions({ service: args.service })
+      .filter((row) => !String(row.action).startsWith('wiser.'));
+    const options = universe.map((row) => ({ id: row.action, label: row.description || '' }));
+    const answer = await this.execute({
+      action: 'wiser.decide.choice',
+      input: { decision: args.query, options, allow_uncalibrated: true },
+    });
+    const choice = answer && typeof answer.choice === 'string' ? answer.choice : null;
+    const confidence = answer && Object.hasOwn(answer, 'confidence') ? answer.confidence : null;
+    const accepted = choice !== null
+      && !(typeof answer.status === 'string' && answer.status.length > 0)
+      && options.some((opt) => opt.id === choice);
+    if (!accepted) {
+      const reason = answer && typeof answer.status === 'string' && answer.status
+        ? answer.status
+        : 'not-accepted';
+      return {
+        actions,
+        classifier: { path: 'builtin', reason, choice, confidence },
+      };
+    }
+    const chosen = universe.find((row) => row.action === choice);
+    const rest = actions.filter((row) => row.action !== choice);
+    return {
+      actions: [{ ...chosen, classifier: true }, ...rest],
+      classifier: { path: 'classifier', reason: null, choice, confidence },
+    };
   }
 
   describeAction(id) {

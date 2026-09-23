@@ -3,7 +3,7 @@ name: data
 type: tool
 category: data
 description: Parses, describes, aggregates, joins, and charts a CSV, JSON, or TSV file, and computes a percentage, difference, or rate from two numeric fields of a JSON object
-version: 0.2.2
+version: 0.3.0
 ---
 
 # data
@@ -16,7 +16,7 @@ Use it whenever an answer has to come from a CSV, JSON, or TSV file rather than 
 
 Do not use it to transform, clean, or deduplicate data. It reads the files the caller names and, for `chart`, writes one HTML file; it changes nothing about the source. Do not use it for conceptual diagrams, process maps, or geometry that is not a quantitative encoding; those are `skills/Visualizer/`. A spreadsheet workbook, a PDF table, and an image of a table are not among the formats it reads.
 
-It authenticates to nothing, holds no credential, reaches no other primitive, and after the packages described in `tools/AGENTS.md` are installed it makes no network request.
+It authenticates to nothing and holds no credential. `roles` and `describe --quantities` put one closed judgment to the classifier through the gateway and reach it for that call and nothing else. Every other command, and those two when no classifier answers, make no network request once the packages in `tools/AGENTS.md` are installed.
 
 ## Quick Start
 
@@ -24,7 +24,7 @@ It authenticates to nothing, holds no credential, reaches no other primitive, an
 node scripts/data.js help
 ```
 
-Usage text listing the six subcommands, with nothing installed. `node scripts/data.js parse help` (or `--help`) prints that subcommand's usage; the same form works for `describe`, `aggregate`, `join`, `chart`, and `compute`.
+Usage text listing the seven subcommands, with nothing installed. `node scripts/data.js parse help` (or `--help`) prints that subcommand's usage; the same form works for `roles`, `describe`, `aggregate`, `join`, `chart`, and `compute`.
 
 ```bash
 node scripts/data.js parse --file /path/to/a/work/directory/regions.csv
@@ -40,7 +40,7 @@ Anything else, see Troubleshooting.
 
 ## Script Contract
 
-Every script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. `parse`, `describe`, `aggregate`, `join`, and `compute` read caller-named files and write nothing of their own; `chart` writes one caller-named HTML file outside this tool directory. Every other write a run makes is a package install, and `tools/AGENTS.md` is the only place this repository lists those. The contract's `--env` clause has nothing to bind here, and the tool carries no Dependencies section because `csv-parse` installs by the consent-gated check and Node covers the rest. The sections below state what each command does; the contract states how the script behaves getting there.
+Every script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. `parse`, `roles`, `describe`, `aggregate`, `join`, and `compute` read caller-named files and write nothing of their own; `chart` writes one caller-named HTML file outside this tool directory. Every other write a run makes is a package install, and `tools/AGENTS.md` is the only place this repository lists those. The contract's `--env` clause has nothing to bind here, and the tool carries no Dependencies section because `csv-parse` installs by the consent-gated check and Node covers the rest. The sections below state what each command does; the contract states how the script behaves getting there.
 
 No command takes `--env`.
 
@@ -96,6 +96,43 @@ One JSON object on stdout, exit 0, whenever a profile was produced, including on
 
 An empty file, a header with no data rows, and a file whose content does not parse each come back with `rowCount` 0, `raggedRowCount` 0, no columns, and the reason in `parseErrors`. Sample values are the raw values as read: from a CSV every value is text, so a numeric column's samples are the digit strings that were in the file. The file is never refused for uneven rows: every data row still contributes, short rows fill missing columns as null, long rows drop extra values, and the count of those rows is what `raggedRowCount` and the matching `parseErrors` entry report.
 
+## roles
+
+`parse`'s own object, plus one `roles` judgment: which numeric columns are quantities, as opposed to an identifier, a year, a code, or a flag.
+
+Use it when a later `describe` should skip numbers that are not quantities. It parses exactly as `parse` does and changes none of that object's fields. Every column `parse` types `number` is one decision in a single `wiser.decide.batch` call. The question names the column, its sample values as `parse` reports them, and the file's other column names. The path that settles the judgment without a classifier is every role null, and the caller judges those columns as today.
+
+An accepted answer for a column is an entry for that column's id whose `choice` is `quantity`, `identifier`, `year`, `code`, or `flag`. `none`, a missing entry, an entry status, and any other choice leave that column's role null. No owning root, a refusal, no classifier, or a judgment that accepts nothing: `path` is `builtin` and every role is null. Nothing is sent without an owning root that does not refuse. The rule is `standards/primitives.md` Invocation.
+
+### Usage
+
+| Command | Purpose | Reads a file |
+|---------|---------|--------------|
+| `node scripts/data.js roles help` | Print usage and exit | No |
+| `node scripts/data.js roles --file <path>` | Judge the file's numeric columns | Yes |
+
+| Option | Effect | Default |
+|--------|--------|---------|
+| `--file <path>` | The data file to read, an absolute path. Required by `roles` | None; required |
+| `--owning-root <dir>` | Absolute path of the owning root. Absent, unreadable, or refusing, `roles` makes no call | None |
+| `--gateway-home <dir>` | Gateway home when the gateway was started with `--home` | The gateway's own home |
+| `--classifier-record <file>` | Replay a judgment record. A record whose question or candidates differ is refused, and no call is made | None |
+| `--format <fmt>` | Force `csv`, `json`, or `tsv` instead of auto-detecting | Auto-detect from the content |
+| `--delimiter <char>` | Field delimiter for delimited text | Auto-detect (`,`, `;`, `\t`, or `\|`) |
+| `--no-header` | Treat the first row as data, the same way `parse` does | Header row assumed |
+| `--help`, `-h` | Print usage and exit | Off |
+
+### Output
+
+`parse`'s object, unchanged, plus `roles`.
+
+| Field | Carries |
+|-------|---------|
+| `roles.path` | `classifier`, `replay`, or `builtin` |
+| `roles.reason` | Why a builtin path was taken, or null |
+| `roles.columns` | One entry per numeric column: the accepted role, or null when the caller judges it |
+| `roles.record` | The answer as received, with the question, the candidates, and every confidence unchanged, or null when the path is builtin and nothing was answered |
+
 ## describe
 
 One JSON object holding a row of descriptive statistics for each numeric column of a data file, the present columns it skipped with a reason for each, and anything that went wrong reading the file.
@@ -134,11 +171,16 @@ Every figure is rounded to four decimal places. A column that reaches the numeri
 |---------|---------|--------------|
 | `node scripts/data.js describe help` | Print usage and exit | No |
 | `node scripts/data.js describe --file <path>` | Compute the statistics for the file's numeric columns | Yes |
+| `node scripts/data.js describe --file <path> --quantities --owning-root <dir>` | Describe the columns `roles` calls `quantity`, and any column whose role is null | Yes |
 
 | Option | Effect | Default |
 |--------|--------|---------|
 | `--file <path>` | The data file to read, an absolute path. Required by `describe` | None; required |
-| `--columns <list>` | Comma-separated column names to describe | Every numeric column |
+| `--columns <list>` | Comma-separated column names to describe. Not valid with `--quantities` | Every numeric column |
+| `--quantities` | Run `roles` first and describe the columns it calls `quantity`, plus any column whose role is null. Requires `--owning-root`. Every figure is computed as `describe` computes it today; the classifier only chooses which columns are described | Off |
+| `--owning-root <dir>` | Absolute path of the owning root. Valid only with `--quantities` | None |
+| `--gateway-home <dir>` | Gateway home when the gateway was started with `--home`. Valid only with `--quantities` | The gateway's own home |
+| `--classifier-record <file>` | Replay the `roles` judgment. Valid only with `--quantities` | None |
 | `--format <fmt>` | Force `csv`, `json`, or `tsv` instead of auto-detecting | Auto-detect from the content |
 | `--delimiter <char>` | Field delimiter for delimited text | Auto-detect (`,`, `;`, `\t`, or `\|`) |
 | `--help`, `-h` | Print usage and exit | Off |
@@ -155,6 +197,7 @@ One JSON object on stdout, exit 0, whenever the file was read, including a read 
 | `skippedColumns` | Present columns no statistic ran on, each `{ name, reason }`. Auto-skipped non-numeric columns and named-but-not-numeric columns both appear here; a name that is not in the file does not |
 | `totalRows` | How many data rows were read, which is the denominator behind `count` plus `nullCount` |
 | `errors` | Everything that went wrong: rows dropped while reading, columns named but absent, columns named but not numeric, a file with nothing to compute on |
+| `quantities` | Present only with `--quantities`. `path` and `reason` are the `roles` settlement. `columns` names each described column and the path that put it there: `classifier` or `replay` when the judgment called it `quantity`, and `builtin` when its role is null. `record` is the judgment as received, or null. A column the judgment called `identifier`, `year`, `code`, or `flag` is not described and is not listed |
 
 `errors` and results travel together: a run can name a column it could not use and still return statistics for the columns it could, so a caller reads both. An empty file, a header with no data rows, and content that does not parse each come back with `totalRows` 0, no columns, and the reason in `errors`.
 
@@ -407,13 +450,14 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 
 ## Success
 
-- `help` prints usage listing the six subcommands to stdout and exits 0 on a copy with no `node_modules/`. `parse help` and `parse --help` print that subcommand's usage; the same form works for every subcommand.
+- `help` prints usage listing the seven subcommands to stdout and exits 0 on a copy with no `node_modules/`. `parse help` and `parse --help` print that subcommand's usage; the same form works for every subcommand.
 - `parse` against a file that reads cleanly exits 0 with one parseable JSON object on stdout carrying `columns`, `rowCount`, `raggedRowCount` 0, and an empty `parseErrors`.
-- `describe` against a file with a numeric column exits 0 with one parseable JSON object on stdout carrying `columns`, `skippedColumns` as `{ name, reason }` entries, `totalRows`, and `errors`.
+- `describe` against a file with a numeric column exits 0 with one parseable JSON object on stdout carrying `columns`, `skippedColumns` as `{ name, reason }` entries, `totalRows`, and `errors`. `describe --quantities` adds `quantities` and describes only the columns the judgment calls `quantity`, plus any column whose role is null. Each described column's figures match `describe --columns` for that column.
+- `roles` against a file exits 0 with `parse`'s object plus `roles`. A column the judgment does not accept has role null.
 - `aggregate` over a file whose columns all check out exits 0 with one parseable JSON object on stdout carrying `groups`, `groupCount`, `totalRows`, and an empty `errors`.
 - `join` over two files whose key is present on both sides exits 0 with one parseable JSON object on stdout carrying `columns`, `rows`, `leftRows`, `rightRows`, `matchedRows`, `how`, `on`, and an empty `errors`.
 - `chart` over a file whose x and y columns check out exits 0, writes one HTML file at `--output`, and prints one parseable JSON object on stdout carrying `output`, `type`, `points`, `width`, `height`, `skipped`, and `notes`. The written HTML contains an inline SVG and loads no external script or stylesheet.
 - `compute` over two numeric fields exits 0 with `op`, `a`, `b`, and `value`. A zero `b` for `percentage` or `rate` exits 0 with `error` `b is zero` and no `value`. A missing or non-numeric field exits 1 with the cause on stderr and stdout empty.
 - A required flag omitted, a path that does not exist or is a directory, a bad `--format`, `--how`, `--type`, or `--op`, or an unknown option exits 1 with the cause on stderr and stdout empty, and triggers no dependency install when the mistake is a usage one.
 - An unknown option is refused by name before any install, read, or write.
-- No run reads a credential, and after packages are installed no run opens a network connection. The install itself reaches `registry.npmjs.org`. The writes are what `tools/AGENTS.md` lists an install writing, and for `chart` the HTML at the caller-named `--output`.
+- No run reads a credential. After packages are installed, the only network connection a run opens is the classifier judgment `roles` and `describe --quantities` put through the gateway. The install itself reaches `registry.npmjs.org`. The writes are what `tools/AGENTS.md` lists an install writing, and for `chart` the HTML at the caller-named `--output`.

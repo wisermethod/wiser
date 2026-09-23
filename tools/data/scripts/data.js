@@ -5,6 +5,7 @@
  * Usage:
  *   node scripts/data.js help
  *   node scripts/data.js parse --file <path>
+ *   node scripts/data.js roles --file <path> [--owning-root <abs dir>]
  *   node scripts/data.js describe --file <path>
  *   node scripts/data.js aggregate --file <path> --group-by <column> --metric <column>:<function>
  *   node scripts/data.js join --left <path> --right <path> --on <column>
@@ -40,7 +41,7 @@ const TOOL_DIR = resolve(SCRIPT_DIR, '..');
 const DEP_MARKER = join(TOOL_DIR, 'node_modules', 'csv-parse', 'package.json');
 
 const FORMATS = new Set(['csv', 'json', 'tsv']);
-const SUBCOMMANDS = new Set(['parse', 'describe', 'aggregate', 'join', 'chart', 'compute']);
+const SUBCOMMANDS = new Set(['parse', 'roles', 'describe', 'aggregate', 'join', 'chart', 'compute']);
 const FUNCTIONS = new Set(['sum', 'mean', 'median', 'min', 'max', 'count']);
 const HOW = new Set(['inner', 'left']);
 const TYPES = new Set(['bar', 'line']);
@@ -51,7 +52,11 @@ const USAGE = `data - parse, describe, aggregate, join, chart, and compute over 
 Usage:
   node scripts/data.js help
   node scripts/data.js parse --file <path> [--format csv|json|tsv] [--delimiter <char>] [--no-header]
+  node scripts/data.js roles --file <path> [--owning-root <abs dir>] [--gateway-home <abs dir>]
+                             [--classifier-record <file>] [--format csv|json|tsv]
+                             [--delimiter <char>] [--no-header]
   node scripts/data.js describe --file <path> [--format csv|json|tsv] [--delimiter <char>] [--columns a,b]
+                                [--quantities --owning-root <abs dir>]
   node scripts/data.js aggregate --file <path> --group-by <column> --metric <column>:<function>
                                  [--group-by <column> ...] [--metric <column>:<function> ...]
                                  [--format csv|json|tsv] [--delimiter <char>]
@@ -65,6 +70,7 @@ Usage:
 
 Commands:
   parse            Read a file and report its columns, types, and row count
+  roles            Judge which numeric columns are quantities
   describe         Compute count, mean, median, min, max, standard deviation,
                    p25, p75, and null count for each numeric column
   aggregate        Group a file's rows and compute each metric over each group
@@ -117,11 +123,51 @@ configuration file, so no command takes --env. Success prints one JSON object to
 stdout; a file it cannot read or a bad option go to stderr with exit 1. Malformed
 data is not a failure: it comes back inside the JSON as parseErrors with exit 0.`;
 
+const ROLES_USAGE = `data roles - judge which numeric columns of a file are quantities
+
+Usage:
+  node scripts/data.js roles help
+  node scripts/data.js roles --file <path> [--owning-root <abs dir>] [--gateway-home <abs dir>]
+                             [--classifier-record <file>] [--format csv|json|tsv]
+                             [--delimiter <char>] [--no-header]
+
+Commands:
+  roles            Judge each numeric column as a quantity, identifier, year, code, or flag
+  help             Print this message
+
+Options:
+  --file <path>    Data file to read (absolute path), outside this tool
+                   directory. Required.
+  --owning-root <dir>
+                   Absolute path of the owning root. Absent, unreadable, or
+                   refusing, roles makes no call and every role is null.
+  --gateway-home <dir>
+                   Gateway home when the gateway was started with --home.
+  --classifier-record <file>
+                   Replay a judgment record. A record whose question or
+                   candidates differ is refused, and no call is made.
+  --format <fmt>   Force csv, json, or tsv. Omit to auto-detect from the content.
+  --delimiter <c>  Field delimiter for delimited text. Omit to auto-detect.
+  --no-header      Treat the first row as data; columns are named column_1, column_2, ...
+  --install   Authorise the first install in this copy of the plugin.
+              Without it, the first command that needs a package this
+              copy has not installed reports what it would fetch, and
+              from where, and stops. That answer covers every later
+              tool in this copy. WISER_ALLOW_INSTALL=1 does the same
+              for an unattended run.
+  --help, -h       Print this message
+
+Reads one file the caller names and writes nothing. Parses exactly as parse does.
+Puts one closed judgment to the classifier through the gateway and reaches it for
+that call and nothing else. Success prints parse's object plus roles. A usage
+mistake or an unreadable file goes to stderr with exit 1.`;
+
 const DESCRIBE_USAGE = `data describe - descriptive statistics for the numeric columns of a data file
 
 Usage:
   node scripts/data.js describe help
   node scripts/data.js describe --file <path> [--format csv|json|tsv] [--delimiter <char>] [--columns a,b]
+                                [--quantities --owning-root <abs dir> [--gateway-home <abs dir>] [--classifier-record <file>]]
 
 Commands:
   describe         Compute count, mean, median, min, max, standard deviation,
@@ -134,7 +180,17 @@ Options:
   --format <fmt>   Force csv, json, or tsv. Omit to auto-detect from the content.
   --delimiter <c>  Field delimiter for delimited text. Omit to auto-detect.
   --columns <list> Comma-separated column names to describe. Omit for every
-                   numeric column.
+                   numeric column. Not valid with --quantities.
+  --quantities     Describe the columns roles calls quantity, and any column
+                   whose role is null. Requires --owning-root. The figures are
+                   the same ones describe computes today.
+  --owning-root <dir>
+                   Absolute path of the owning root. Valid only with --quantities.
+  --gateway-home <dir>
+                   Gateway home when the gateway was started with --home.
+                   Valid only with --quantities.
+  --classifier-record <file>
+                   Replay the roles judgment. Valid only with --quantities.
   --install   Authorise the first install in this copy of the plugin.
               Without it, the first command that needs a package this
               copy has not installed reports what it would fetch, and
@@ -293,6 +349,7 @@ failure: it comes back on stdout as error "b is zero" with exit 0.`;
 
 const SUB_USAGE = {
   parse: PARSE_USAGE,
+  roles: ROLES_USAGE,
   describe: DESCRIBE_USAGE,
   aggregate: AGGREGATE_USAGE,
   join: JOIN_USAGE,
@@ -532,10 +589,81 @@ async function runParse(argv) {
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 
+async function runRoles(argv) {
+  const usageCmd = helpRef('roles');
+  const VALUE_FLAGS = new Set([
+    '--file', '--format', '--delimiter', '--owning-root', '--gateway-home', '--classifier-record',
+  ]);
+  const BARE_FLAGS = new Set(['--install', '--no-header', '--help', '-h']);
+  refuseUnknown(argv, VALUE_FLAGS, BARE_FLAGS, usageCmd);
+
+  function flag(name) {
+    const index = argv.indexOf(name);
+    if (index === -1) return undefined;
+    const value = argv[index + 1];
+    if (argv.indexOf(name, index + 1) !== -1) {
+      fail(`Error: ${name} was given more than once and takes one value. Run "${usageCmd}" for usage.`);
+    }
+    if (value === undefined || value.startsWith('--')) {
+      fail(`Error: ${name} needs a value. Run "${usageCmd}" for usage.`);
+    }
+    return value;
+  }
+
+  const fileArgument = flag('--file');
+  if (!fileArgument) {
+    fail(`Error: --file is required. Pass the absolute path to a CSV, JSON, or TSV file. Run "${usageCmd}" for usage.`);
+  }
+  const filePath = screenedInputPath('--file', fileArgument);
+  let fileStat;
+  try {
+    fileStat = statSync(filePath);
+  } catch {
+    fail(`Error: no file at ${filePath}. Pass the absolute path to the data file.`);
+  }
+  if (!fileStat.isFile()) {
+    fail(`Error: could not read ${filePath}. Confirm it is a readable file, not a directory.`);
+  }
+
+  const format = flag('--format');
+  if (format !== undefined && !FORMATS.has(format)) {
+    fail(`Error: --format must be one of csv, json, tsv; got "${format}". Omit it to auto-detect from the content.`);
+  }
+  const delimiter = flag('--delimiter');
+  const hasHeader = !argv.includes('--no-header');
+  const owningRoot = flag('--owning-root');
+  const gatewayHome = flag('--gateway-home');
+  const classifierRecord = flag('--classifier-record');
+  const owningPath = owningRoot === undefined ? undefined : screenedInputPath('--owning-root', owningRoot);
+  const gatewayPath = gatewayHome === undefined ? undefined : screenedInputPath('--gateway-home', gatewayHome);
+  const recordPath = classifierRecord === undefined ? undefined : screenedInputPath('--classifier-record', classifierRecord);
+
+  ensureDependencies();
+  const { executeParse } = await import('./parse-core.js');
+  const { judgeRoles } = await import('./roles-core.js');
+
+  let content;
+  try {
+    content = readFileSync(filePath, 'utf8');
+  } catch {
+    fail(`Error: could not read ${filePath}. Confirm it is a readable file, not a directory.`);
+  }
+  const profile = executeParse({ content, format, delimiter, hasHeader });
+  let roles;
+  try {
+    roles = await judgeRoles(profile, { owningRoot: owningPath, gatewayHome: gatewayPath, replay: recordPath });
+  } catch (error) {
+    fail(`Error: ${error && error.message ? error.message : error}`);
+  }
+  process.stdout.write(`${JSON.stringify({ ...profile, roles })}\n`);
+}
+
 async function runDescribe(argv) {
   const usageCmd = helpRef('describe');
-  const VALUE_FLAGS = new Set(['--file', '--format', '--delimiter', '--columns']);
-  const BARE_FLAGS = new Set(['--install', '--help', '-h']);
+  const VALUE_FLAGS = new Set([
+    '--file', '--format', '--delimiter', '--columns', '--owning-root', '--gateway-home', '--classifier-record',
+  ]);
+  const BARE_FLAGS = new Set(['--install', '--quantities', '--help', '-h']);
   refuseUnknown(argv, VALUE_FLAGS, BARE_FLAGS, usageCmd);
 
   function flag(name) {
@@ -580,7 +708,23 @@ async function runDescribe(argv) {
 
   const delimiter = flag('--delimiter');
 
+  const quantities = argv.includes('--quantities');
+  const owningRoot = flag('--owning-root');
+  const gatewayHome = flag('--gateway-home');
+  const classifierRecord = flag('--classifier-record');
+  if (quantities && owningRoot === undefined) {
+    fail(`Error: --quantities requires --owning-root. Run "${usageCmd}" for usage.`);
+  }
+  for (const name of ['--owning-root', '--gateway-home', '--classifier-record']) {
+    if (!quantities && argv.includes(name)) {
+      fail(`Error: ${name} is valid only with --quantities. Run "${usageCmd}" for usage.`);
+    }
+  }
+
   const columnsArg = flag('--columns');
+  if (quantities && columnsArg !== undefined) {
+    fail(`Error: --columns is not valid with --quantities. Run "${usageCmd}" for usage.`);
+  }
   let columns;
   if (columnsArg !== undefined) {
     columns = columnsArg.split(',').map((name) => name.trim()).filter((name) => name !== '');
@@ -588,6 +732,9 @@ async function runDescribe(argv) {
       fail('Error: --columns needs at least one column name. Omit it to describe every numeric column.');
     }
   }
+  const owningPath = owningRoot === undefined ? undefined : screenedInputPath('--owning-root', owningRoot);
+  const gatewayPath = gatewayHome === undefined ? undefined : screenedInputPath('--gateway-home', gatewayHome);
+  const recordPath = classifierRecord === undefined ? undefined : screenedInputPath('--classifier-record', classifierRecord);
 
   ensureDependencies();
   const { executeDescribe } = await import('./describe-core.js');
@@ -599,7 +746,28 @@ async function runDescribe(argv) {
     failUnreadable();
   }
 
-  const result = executeDescribe({ content, format, delimiter, columns });
+  let result;
+  if (quantities) {
+    const { executeParse } = await import('./parse-core.js');
+    const { judgeRoles, columnsForDescribe } = await import('./roles-core.js');
+    const profile = executeParse({ content, format, delimiter, hasHeader: true });
+    let roles;
+    try {
+      roles = await judgeRoles(profile, { owningRoot: owningPath, gatewayHome: gatewayPath, replay: recordPath });
+    } catch (error) {
+      fail(`Error: ${error && error.message ? error.message : error}`);
+    }
+    const selected = columnsForDescribe(roles);
+    result = executeDescribe({ content, format, delimiter, columns: selected.names });
+    result.quantities = {
+      path: roles.path,
+      reason: roles.reason,
+      columns: selected.paths,
+      record: roles.record,
+    };
+  } else {
+    result = executeDescribe({ content, format, delimiter, columns });
+  }
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 
@@ -1011,6 +1179,7 @@ if (argv[1] === 'help' || argv.includes('--help') || argv.includes('-h')) {
 
 
 if (command === 'parse') await runParse(argv);
+else if (command === 'roles') await runRoles(argv);
 else if (command === 'describe') await runDescribe(argv);
 else if (command === 'aggregate') await runAggregate(argv);
 else if (command === 'join') await runJoin(argv);
