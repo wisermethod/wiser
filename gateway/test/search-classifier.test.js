@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 import { writeSession } from '../../hooks/lib/binding.mjs';
 import { FIRST_PARTY_ACTIONS, validateFirstPartyAnswer } from '../src/resolve.js';
+import { SEARCH_PICK_BAND } from '../src/gateway.js';
 import { bindTestSession, createTestGateway, makeHome } from './fake-provider.js';
 
 const ASK = fileURLToPath(new URL('../../tools/lib/classifier/ask.mjs', import.meta.url));
@@ -159,7 +160,7 @@ test('wiser.decide.batch is declared, and a malformed answer is refused', async 
 test('an accepted search choice is listed first and marked, through the first-party execute path', async () => {
   const { gw, classifier, audit } = await gateway({
     choice: 'acme.items.get',
-    confidence: 0.42,
+    confidence: 0.93,
     calibrated: false,
   });
   const noQuery = await gw.searchActions({});
@@ -172,7 +173,7 @@ test('an accepted search choice is listed first and marked, through the first-pa
   assert.deepEqual(picked.actions.slice(1).map((row) => row.action), ['acme.items.list', 'acme.items.delete']);
   assert.equal(picked.actions.slice(1).some((row) => row.classifier), false);
   assert.deepEqual(picked.classifier, {
-    path: 'classifier', reason: null, choice: 'acme.items.get', confidence: 0.42,
+    path: 'classifier', reason: null, choice: 'acme.items.get', confidence: 0.93,
   });
   assert.equal(classifier.calls.length, 1);
   assert.equal(classifier.calls[0].actionId, 'wiser.decide.choice');
@@ -189,6 +190,22 @@ test('an accepted search choice is listed first and marked, through the first-pa
   assert.equal(outside.actions[0].action, 'acme.items.get');
   assert.equal(outside.actions[0].classifier, true);
   assert.deepEqual(outside.actions.slice(1).map((row) => row.action), ['acme.items.delete']);
+});
+
+test('a pick below the confidence band is not acted on, and today\'s results stand', async () => {
+  assert.equal(SEARCH_PICK_BAND, 0.51);
+  for (const [confidence, reason] of [[0.5, 'below-band'], [0.42, 'below-band'], [0, 'below-band']]) {
+    const { gw, classifier } = await gateway({ choice: 'acme.items.get', confidence, calibrated: false });
+    const after = await gw.searchActions({ query: 'item' });
+    assert.equal(classifier.calls.length, 1);
+    assert.deepEqual(after.actions.map((row) => row.action), ['acme.items.list', 'acme.items.get', 'acme.items.delete']);
+    assert.equal(after.actions.some((row) => row.classifier), false);
+    assert.deepEqual(after.classifier, { path: 'builtin', reason, choice: 'acme.items.get', confidence });
+  }
+  const { gw } = await gateway({ choice: 'acme.items.get', confidence: 0.51, calibrated: false });
+  const at = await gw.searchActions({ query: 'item' });
+  assert.equal(at.actions[0].action, 'acme.items.get');
+  assert.equal(at.classifier.path, 'classifier');
 });
 
 test('an unaccepted choice leaves today\'s results byte-identical', async () => {
@@ -313,7 +330,7 @@ test('two concurrent sessions send only for the root that does not refuse', asyn
         'wiser.recall.rank': { ranked: [{ id: 'p', p: 0.5, calibrated: false }], calibrated: false },
       }));
     }
-    const answer = { choice: 'acme.items.get', confidence: 0.5, calibrated: false };
+    const answer = { choice: 'acme.items.get', confidence: 0.9, calibrated: false };
     const identity = (pid) => () => ({ harnessPid: pid, sessionId: null });
     const { gw: gwA, classifier: classA } = await gateway(answer, [CONNECTOR], {
       home: homeA, session: false, classifierIdentity: identity(readyA.pid),

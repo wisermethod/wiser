@@ -177,6 +177,8 @@ const STOPPED_GRANT_STATES = ['EXPIRED', 'FAILED', 'INACTIVE', 'INITIATED', 'ABS
 const SEARCH_ACTIONS_DESCRIPTION = 'Search action ids this gateway serves, with privilege, risk, and confirmation.';
 /** One sentence, at most 120 characters, added only when a classifier is loaded. */
 const SEARCH_ACTIONS_PICK = 'An accepted pick is listed first and marked.';
+/** The lowest classifier confidence at which a search pick is accepted. */
+export const SEARCH_PICK_BAND = 0.51;
 
 /**
  * Long-running MCP server. The env session id is the one from startup and is
@@ -751,10 +753,15 @@ export class ConnectionGateway {
     const accepted = choice !== null
       && !(typeof answer.status === 'string' && answer.status.length > 0)
       && options.some((opt) => opt.id === choice);
-    if (!accepted) {
+    // The confidence band: a pick below it is not acted on, and today's results stand. Set by rule on a
+    // calibration set of its own, the lowest confidence at which the pick was at least as precise as a
+    // host choosing, then tested on a second set.
+    const inBand = typeof confidence === 'number' && Number.isFinite(confidence)
+      && confidence >= 0 && confidence <= 1 && confidence >= SEARCH_PICK_BAND;
+    if (!accepted || !inBand) {
       const reason = answer && typeof answer.status === 'string' && answer.status
         ? answer.status
-        : 'not-accepted';
+        : (accepted ? 'below-band' : 'not-accepted');
       return {
         actions,
         classifier: { path: 'builtin', reason, choice, confidence },
