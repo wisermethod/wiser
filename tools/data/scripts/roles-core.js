@@ -38,7 +38,7 @@ export function numericDecisions(profile) {
  * @param {Array<{ id: string }>} decisions
  */
 export function settleRoles(result, decisions) {
-  const columns = {};
+  const columns = Object.create(null);
   for (const decision of decisions) columns[decision.id] = null;
   if (!result || (result.path !== 'classifier' && result.path !== 'replay')) {
     return {
@@ -80,8 +80,8 @@ export function settleRoles(result, decisions) {
 export function columnsForDescribe(roles) {
   const settled = roles && (roles.path === 'classifier' || roles.path === 'replay') ? roles.path : 'builtin';
   const names = [];
-  const paths = {};
-  const columns = roles && roles.columns && typeof roles.columns === 'object' ? roles.columns : {};
+  const paths = Object.create(null);
+  const columns = roles && roles.columns && typeof roles.columns === 'object' ? roles.columns : Object.create(null);
   for (const [name, role] of Object.entries(columns)) {
     if (role === 'quantity') {
       names.push(name);
@@ -100,14 +100,15 @@ export function columnsForDescribe(roles) {
  */
 export async function judgeRoles(profile, opts = {}) {
   const decisions = numericDecisions(profile);
-  if (decisions.length === 0) {
-    return { path: 'builtin', reason: 'no-candidates', columns: {}, record: null };
-  }
   const input = {
     state: { request: JSON.stringify(profile) },
     decisions,
     allow_uncalibrated: true,
   };
+  const replay = opts.replay != null && opts.replay !== '';
+  if (!replay && decisions.length === 0) {
+    return { path: 'builtin', reason: 'no-candidates', columns: {}, record: null };
+  }
   const result = await ask({
     action: ACTION,
     input,

@@ -944,18 +944,26 @@ def select_path(conn, chosen, top_k):
     return attach(conn, ordered)
 
 
+ABSTAIN_ID = 'none'
+ABSTAIN_TEXT = 'None of these passages answers the question.'
+
+
 def accept_rank(result, names):
     """Knowledge Recall's acceptance test for one wiser.recall.rank answer.
 
-    Keep the first three id values, in the answer's order, that equal a passage
-    name sent on this call. No bar is applied to p. Anything else is the caller's
-    own chooser: builtin, not-accepted, nothing kept, no record.
+    The candidate `none` is the abstention. If the answer ranks it first, nothing
+    is kept and the settlement says abstained. Otherwise keep the first three id
+    values, in the answer's order, that equal a passage name sent on this call,
+    skipping `none` wherever it falls. No bar is applied to p. Anything else is
+    the caller's own chooser: builtin, not-accepted, nothing kept, no record.
     """
     path = result.get('path')
     reason = result.get('reason')
     if path in ('classifier', 'replay'):
         answer = result.get('answer')
         ranked = answer.get('ranked') if isinstance(answer, dict) else None
+        if isinstance(ranked, list) and ranked and isinstance(ranked[0], dict) and ranked[0].get('id') == ABSTAIN_ID:
+            return dict(path=path, reason=reason, kept=[], record=result.get('record'), abstained=True)
         kept = []
         allowed = set(names)
         if isinstance(ranked, list):
@@ -963,6 +971,8 @@ def accept_rank(result, names):
                 if not isinstance(entry, dict):
                     continue
                 ident = entry.get('id')
+                if ident == ABSTAIN_ID:
+                    continue
                 if isinstance(ident, str) and ident in allowed:
                     kept.append(ident)
                     if len(kept) == 3:
@@ -977,13 +987,16 @@ def accept_rank(result, names):
 def classify_passages(query, items, paths):
     """Ask which of the pool's passages to read in full. Items are not rewritten.
 
-    No passage with a string name: do not call. The caller is a subprocess of
+    No passage with a string name, and no replay record: do not call. A replay
+    is checked first, including against that empty judgment. The caller is a subprocess of
     tools/lib/classifier/ask.mjs, found from this script's own location. A
     replay that does not match this judgment fails the command.
     """
     passages = [it for it in items
                 if it.get('part') == 'passage' and isinstance(it.get('name'), str)]
-    if not passages:
+    # A supplied replay is checked against this judgment before the empty return,
+    # so a record from a populated pool is refused rather than ignored.
+    if not passages and not paths.get('classifier_record'):
         return dict(path='builtin', reason='no-candidates', kept=[], record=None)
     root = plugin_root()
     if root is None:
@@ -998,9 +1011,11 @@ def classify_passages(query, items, paths):
         cmd.extend(('--replay', paths['classifier_record']))
     for material in paths.get('material') or ():
         cmd.extend(('--material', material))
+    candidates = [{'id': it['name'], 'text': it.get('quote')} for it in passages]
+    candidates.append({'id': ABSTAIN_ID, 'text': ABSTAIN_TEXT})
     payload = dict(
         question=query,
-        candidates=[{'id': it['name'], 'text': it.get('quote')} for it in passages],
+        candidates=candidates,
         allow_uncalibrated=True,
     )
     started = time.monotonic()

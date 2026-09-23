@@ -639,3 +639,77 @@ test('a refusal added two levels below a clean scan is honoured when the materia
   assert.equal(after.ok, true);
   assert.equal(after.binding.refused, false);
 });
+
+test('a replay whose stored input does not hash to its input_sha256 is refused', () => {
+  const dir = tempDir();
+  const env = stubEnv(dir, { ranked: [] });
+  const record = {
+    action: ACTION,
+    input_sha256: HASH,
+    input: { z: 9, ok: true, a: [{ b: 2, a: 1 }] },
+    answer: { ranked: [] },
+    path: 'classifier',
+  };
+  const tampered = askInChild({ action: ACTION, input: INPUT, replay: record }, env);
+  assert.equal(tampered.status, 0, tampered.stderr);
+  assert.equal(tampered.body.ok, false);
+  assert.match(tampered.body.message, /does not match this judgment/);
+  assert.equal(existsSync(env.log), false);
+});
+
+test('an unreadable ancestor AGENTS.md refuses and sends nothing', () => {
+  const dir = tempDir();
+  const agents = join(dir, 'AGENTS.md');
+  writeFileSync(agents, '---\nroot: container\n---\n');
+  const root = writeAgents(join(dir, 'child'));
+  const home = tempDir();
+  attached(home);
+  const sessionId = bind(home, root, { sessionId: 'ask-session-ancestor' });
+  const before = verify({ home, harnessPid: process.pid, sessionId });
+  assert.equal(before.ok, true, JSON.stringify(before));
+  assert.equal(before.binding.refused, false);
+  const env = stubEnv(dir, { ranked: [{ id: 'x', p: 0.25, calibrated: false }] });
+  chmodSync(agents, 0o000);
+  try {
+    const result = answered({
+      action: ACTION, input: INPUT, owningRoot: root, material: [materialFile(root)], gatewayHome: home,
+    }, sessionEnv(sessionId, env));
+    assert.equal(result.path, 'builtin');
+    assert.equal(result.reason, 'refused');
+    assert.equal(result.answer, null);
+    assert.equal(result.record, null);
+    assert.equal(existsSync(env.log), false);
+  } finally {
+    chmodSync(agents, 0o644);
+  }
+});
+
+test('an unreadable AGENTS.md at the material location refuses and sends nothing', () => {
+  const dir = tempDir();
+  const root = writeAgents(join(dir, 'root'));
+  const nest = join(root, 'nested');
+  mkdirSync(nest);
+  const agents = join(nest, 'AGENTS.md');
+  writeFileSync(agents, '---\ntype: personal\n---\n');
+  const file = join(nest, 'rows.txt');
+  writeFileSync(file, 'rows');
+  const home = tempDir();
+  attached(home);
+  const sessionId = bind(home, root, { sessionId: 'ask-session-material' });
+  const before = verify({ home, harnessPid: process.pid, sessionId });
+  assert.equal(before.ok, true, JSON.stringify(before));
+  assert.equal(before.binding.refused, false);
+  chmodSync(agents, 0o000);
+  try {
+    const env = stubEnv(dir, { ranked: [{ id: 'x', p: 0.25, calibrated: false }] });
+    const result = answered({
+      action: ACTION, input: INPUT, owningRoot: root, material: [file], gatewayHome: home,
+    }, sessionEnv(sessionId, env));
+    assert.equal(result.path, 'builtin');
+    assert.equal(result.reason, 'refused');
+    assert.equal(result.answer, null);
+    assert.equal(existsSync(env.log), false);
+  } finally {
+    chmodSync(agents, 0o644);
+  }
+});

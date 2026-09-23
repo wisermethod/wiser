@@ -10,7 +10,7 @@
 
 The order, and the reason each failure carries. What the binding records is `hooks/AGENTS.md`.
 
-1. A replay is decided first, before any session or presence read. A record whose `action` or `input_sha256` differs from this judgment throws; it is never ignored, and a matching replay makes no call.
+1. A replay is decided first, before any session or presence read. A record whose `action` or `input_sha256` differs from this judgment throws, and so does a record whose stored `input` does not hash to its `input_sha256`. It is never ignored, and a matching replay makes no call.
 2. `CLAUDE_PID` or `CLAUDE_CODE_SESSION_ID` missing: `no-session`. Nothing is sent.
 3. `CLAUDE_PID` is not an ancestor of this process: `not-ancestor`. Nothing is sent.
 4. The binding for that session does not verify: the verifier's reason (`no-harness`, `no-pointer`, `stale-session`, `no-binding`, `unverifiable`, `pending`).

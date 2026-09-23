@@ -145,7 +145,7 @@ A mistake that could be known before the file was opened, a missing `--file`, a 
 
 A column is numeric, and gets statistics, when at least 80 percent of its non-empty values parse as finite numbers once `$`, commas, and spaces are stripped, the same threshold `parse` reports a column's type by. Every other column that is present in the file is listed in `skippedColumns` as `{ name, reason }` and nothing is computed for it. The reason names the detected type and that it is not numeric.
 
-Name columns with `--columns` to describe only those. A named column that exists but is not numeric is listed in `skippedColumns` with its reason and also named in `errors`. A named column that does not exist is reported only in `errors` (it is not a present column that was skipped); the not-found message lists what the file does hold, so a misspelling is one run to fix. The rest of the named columns are still computed either way.
+Name columns with `--columns` to describe only those. `--columns` cannot name a header that contains a comma, because it splits on commas, and a list that would have to is refused. `--column` names exactly one header, may be repeated, and may contain commas. Giving `--column` and `--columns` together is refused. A named column that exists but is not numeric is listed in `skippedColumns` with its reason and also named in `errors`. A named column that does not exist is reported only in `errors` (it is not a present column that was skipped); the not-found message lists what the file does hold, so a misspelling is one run to fix. The rest of the named columns are still computed either way.
 
 The first row of a delimited file is its header. Is that first row a header? Yes: those names are the columns. No, the first row is already data: the command still reports that row as the column names. Do not pass those values to `--columns`. Run `parse --no-header` when the shape of a headerless file is what you need. You cannot tell: run `parse` and read `sampleValues` before you name a column.
 
@@ -176,7 +176,8 @@ Every figure is rounded to four decimal places. A column that reaches the numeri
 | Option | Effect | Default |
 |--------|--------|---------|
 | `--file <path>` | The data file to read, an absolute path. Required by `describe` | None; required |
-| `--columns <list>` | Comma-separated column names to describe. Not valid with `--quantities` | Every numeric column |
+| `--columns <list>` | Comma-separated column names to describe. Cannot name a header that contains a comma. Not valid with `--quantities` or `--column` | Every numeric column |
+| `--column <name>` | One header, repeated to name more. The name may contain commas. Not valid with `--columns` or `--quantities` | Every numeric column |
 | `--quantities` | Run `roles` first and describe the columns it calls `quantity`, plus any column whose role is null. The data file is the material. Every figure is computed as `describe` computes it today; the classifier only chooses which columns are described | Off |
 | `--owning-root <dir>` | Optional absolute path. It has to equal the session's owning root. Valid only with `--quantities` | None |
 | `--gateway-home <dir>` | Gateway home when the gateway was started with `--home`. Valid only with `--quantities` | The gateway's own home |
@@ -185,7 +186,7 @@ Every figure is rounded to four decimal places. A column that reaches the numeri
 | `--delimiter <char>` | Field delimiter for delimited text | Auto-detect (`,`, `;`, `\t`, or `\|`) |
 | `--help`, `-h` | Print usage and exit | Off |
 
-One file per run. Format and delimiter are auto-detected from the content when not given. JSON input must be an array of objects. A column whose name contains a comma cannot be selected through `--columns`, which splits on commas; omit the option to describe every numeric column instead.
+One file per run. Format and delimiter are auto-detected from the content when not given. JSON input must be an array of objects. A column whose name contains a comma cannot be selected through `--columns`, which splits on commas and is refused when the list contains such a header. Name that header with `--column`, once per header.
 
 ### Output
 

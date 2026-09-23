@@ -102,7 +102,8 @@ export function classifierRefusalValue(text) {
 /**
  * Walk from `cwd` up to the filesystem root. The first AGENTS.md whose
  * frontmatter says `classifier_refusal: yes` refuses. A nearer file that says
- * `no`, or that has no such key, does not stop the walk.
+ * `no`, or that has no such key, does not stop the walk. A file that exists
+ * and cannot be read refuses: the check fails closed.
  * @param {string} cwd
  * @returns {boolean}
  */
@@ -121,7 +122,13 @@ export function isRefused(cwd) {
     seen.add(dir);
     const file = join(dir, 'AGENTS.md');
     if (existsSync(file)) {
-      const text = readFileSync(file, 'utf8');
+      let text;
+      try {
+        text = readFileSync(file, 'utf8');
+      } catch {
+        // An existing file that cannot be read is a refusal. A missing file is not.
+        return true;
+      }
       const value = classifierRefusalValue(text);
       if (typeof value === 'string' && value.toLowerCase() === 'yes') return true;
     }

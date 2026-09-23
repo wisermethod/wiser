@@ -7,6 +7,7 @@ import {
   readFileSync,
   realpathSync,
   renameSync,
+  rmSync,
   statSync,
   unlinkSync,
   writeFileSync,
@@ -28,6 +29,9 @@ const SESSIONS = 'classifier-sessions';
 const PRESENCE = join('classifier-status', 'claude-code.json');
 const TEN_MIN_MS = 10 * 60 * 1000;
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+const LOCK_WAIT_MS = 1000;
+const LOCK_STALE_MS = 10 * 1000;
+const LOCK_SLEEP_MS = 5;
 const DEFAULT_SCAN_DEPTH = 6;
 const DEFAULT_SCAN_CAP = 5000;
 const SKIP_NAMES = new Set(['node_modules', '__pycache__']);
@@ -466,6 +470,8 @@ export function readBinding(home, sessionId) {
   const doc = readJson(join(sessionsDir(home), `${sessionId}.json`));
   if (!doc || doc.session_id !== sessionId) return null;
   if (!validPid(doc.harness_pid)) return null;
+  // A pending binding is written before `ps`, so it has no harness_started yet.
+  if (doc.pending === true) return doc;
   if (typeof doc.harness_started !== 'string') return null;
   return doc;
 }
@@ -498,41 +504,138 @@ function writeJsonAtomic(file, value) {
 }
 
 /**
- * Write `value` unless the record already there has a newer `hook_started_ms`.
- * After the rename, a different `hook_started_ms` means this writer lost.
- * Nothing is restored.
- * @param {string} file
- * @param {Record<string, unknown>} value
- * @param {() => Record<string, unknown> | null} readBack
- * @returns {{ lost: boolean }}
+ * @param {number} ms
  */
-function commitHookRecord(file, value, readBack) {
-  const before = readBack();
-  if (before && typeof before.hook_started_ms === 'number' && before.hook_started_ms > value.hook_started_ms) {
-    return { lost: true };
-  }
-  writeJsonAtomic(file, value);
-  const after = readBack();
-  if (!after || after.hook_started_ms !== value.hook_started_ms || after.session_id !== value.session_id) {
-    return { lost: true };
-  }
-  return { lost: false };
+function sleepMs(ms) {
+  if (ms <= 0) return;
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
 /**
  * @param {string} home
  * @param {number} harnessPid
- * @param {string} sessionId
- * @param {number} hookStartedMs
+ * @returns {string}
+ */
+function harnessLockPath(home, harnessPid) {
+  return join(sessionsDir(home), `lock-${harnessPid}`);
+}
+
+/**
+ * Exclusive directory per harness. A directory older than 10s is stale: it is
+ * removed and the removal is reported. The wait is at most one second.
+ * @param {string} home
+ * @param {number} harnessPid
+ * @returns {{ ok: true, staleLockRemoved: boolean, release: () => void } | { ok: false, reason: 'lock', staleLockRemoved: boolean }}
+ */
+function acquireHarnessLock(home, harnessPid) {
+  const dir = harnessLockPath(home, harnessPid);
+  mkdirSync(sessionsDir(home), { recursive: true, mode: 0o700 });
+  try { chmodSync(sessionsDir(home), 0o700); } catch { /* umask already applied */ }
+  const deadline = Date.now() + LOCK_WAIT_MS;
+  let staleLockRemoved = false;
+  let notedWait = false;
+  for (;;) {
+    try {
+      mkdirSync(dir);
+      return {
+        ok: true,
+        staleLockRemoved,
+        release() {
+          try { rmSync(dir, { recursive: true, force: true }); } catch { /* already released */ }
+        },
+      };
+    } catch (err) {
+      if (!err || err.code !== 'EEXIST') throw err;
+      let stale = false;
+      try {
+        stale = Date.now() - statSync(dir).mtimeMs > LOCK_STALE_MS;
+      } catch {
+        stale = false;
+      }
+      if (stale) {
+        try {
+          rmSync(dir, { recursive: true, force: true });
+          staleLockRemoved = true;
+          continue;
+        } catch {
+          /* the holder may have released between the stat and the removal */
+        }
+      }
+      if (Date.now() >= deadline) return { ok: false, reason: 'lock', staleLockRemoved };
+      const waitFile = process.env.WISER_BINDING_LOCK_WAIT_FILE;
+      if (typeof waitFile === 'string' && waitFile.length > 0 && !notedWait) {
+        notedWait = true;
+        try { writeFileSync(waitFile, 'waiting\n'); } catch { /* the test reads only that the file exists */ }
+      }
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) return { ok: false, reason: 'lock', staleLockRemoved };
+      sleepMs(Math.min(LOCK_SLEEP_MS, remaining));
+    }
+  }
+}
+
+/**
+ * @param {Record<string, unknown> | null} result
+ * @param {{ staleLockRemoved?: boolean }} lock
+ * @returns {Record<string, unknown> | null}
+ */
+function stampLock(result, lock) {
+  if (result && lock.staleLockRemoved) result.staleLockRemoved = true;
+  return result;
+}
+
+/**
+ * @param {string} home
+ * @param {number} harnessPid
+ * @param {() => Record<string, unknown> | null} fn
+ * @returns {Record<string, unknown> | null}
+ */
+function withHarnessLock(home, harnessPid, fn) {
+  const lock = acquireHarnessLock(home, harnessPid);
+  if (!lock.ok) {
+    const failed = { ok: false, reason: 'lock', lost: true };
+    if (lock.staleLockRemoved) failed.staleLockRemoved = true;
+    return failed;
+  }
+  try {
+    return stampLock(fn(), lock);
+  } finally {
+    lock.release();
+  }
+}
+
+/**
+ * @param {Record<string, unknown> | null} pointer
+ * @returns {number}
+ */
+function nextGeneration(pointer) {
+  const current = pointer && Number.isInteger(pointer.generation) ? pointer.generation : 0;
+  return current + 1;
+}
+
+/**
+ * @param {Record<string, unknown> | null} pointer
+ * @returns {{ session_id: unknown, generation: unknown, hook_started_ms: unknown } | null}
+ */
+function pointerView(pointer) {
+  if (!pointer) return null;
+  return {
+    session_id: pointer.session_id,
+    generation: pointer.generation,
+    hook_started_ms: pointer.hook_started_ms,
+  };
+}
+
+/**
+ * @param {{ session_id: unknown, generation: unknown, hook_started_ms: unknown } | null} left
+ * @param {{ session_id: unknown, generation: unknown, hook_started_ms: unknown } | null} right
  * @returns {boolean}
  */
-function pointerNames(home, harnessPid, sessionId, hookStartedMs) {
-  const pointer = readPointer(home, harnessPid);
-  return Boolean(
-    pointer
-    && pointer.session_id === sessionId
-    && pointer.hook_started_ms === hookStartedMs,
-  );
+function samePointerView(left, right) {
+  if (left === null || right === null) return left === right;
+  return left.session_id === right.session_id
+    && left.generation === right.generation
+    && left.hook_started_ms === right.hook_started_ms;
 }
 
 /**
@@ -550,8 +653,13 @@ function storedCwd(cwd) {
 }
 
 /**
- * The pending binding and the pointer, before any argument, settings, or
- * descendant read. A newer pointer or binding is left in place.
+ * The pending pointer, then the pending binding, before any argument, settings,
+ * `ps`, realpath, or descendant read. Both are written under the harness lock.
+ * A newer pointer or binding is left in place. An equal `hook_started_ms` with
+ * a different session id writes the pointer pending and does not choose.
+ * `beforeWrite` runs inside the lock before that write. `whileLocked` runs
+ * inside the lock after it. A thrown callback releases the lock and leaves
+ * whatever was already written.
  * @param {{
  *   home: string,
  *   sessionId: unknown,
@@ -559,9 +667,10 @@ function storedCwd(cwd) {
  *   cwd?: string,
  *   now?: number,
  *   hookStartedMs?: number,
- *   harnessStartedReader?: (pid: number) => string,
+ *   beforeWrite?: () => void,
+ *   whileLocked?: (held: { generation: number, sessionId: string, hookStartedMs: number }) => void,
  * }} opts
- * @returns {{ ok: true, lost: false, hookStartedMs: number, previous: Record<string, unknown> | null } | { ok: false, reason: 'lost', lost: true, hookStartedMs?: number, previous?: Record<string, unknown> | null } | null}
+ * @returns {{ ok: true, lost: false, hookStartedMs: number, generation: number, previous: Record<string, unknown> | null } | { ok: false, reason: string, lost: boolean, hookStartedMs?: number, generation?: number, previous?: Record<string, unknown> | null, pending?: boolean } | null}
  */
 export function writePendingSession(opts) {
   const sessionId = opts.sessionId;
@@ -570,63 +679,75 @@ export function writePendingSession(opts) {
   if (!validPid(harnessPid)) return null;
   const hookStartedMs = typeof opts.hookStartedMs === 'number' ? opts.hookStartedMs : Date.now();
   const now = typeof opts.now === 'number' ? opts.now : Date.now();
-  const previous = readBinding(opts.home, sessionId);
-  const current = readPointer(opts.home, harnessPid);
-  if (current && typeof current.hook_started_ms === 'number' && current.hook_started_ms > hookStartedMs) {
-    return { ok: false, reason: 'lost', lost: true, hookStartedMs, previous };
-  }
-  if (previous && typeof previous.hook_started_ms === 'number' && previous.hook_started_ms > hookStartedMs) {
-    return { ok: false, reason: 'lost', lost: true, hookStartedMs, previous };
-  }
-  const started = harnessStarted(harnessPid, opts.harnessStartedReader);
-  const cwd = typeof opts.cwd === 'string' ? opts.cwd : '';
-  const writtenAt = new Date(now).toISOString();
-  const binding = {
-    v: 1,
-    session_id: sessionId,
-    harness_pid: harnessPid,
-    harness_started: started,
-    hook_started_ms: hookStartedMs,
-    cwd: storedCwd(cwd),
-    roots: [],
-    owning_root: null,
-    refused: true,
-    refused_by: 'pending',
-    pending: true,
-    written_at: writtenAt,
-    descendant_scan_at: null,
-    descendant_reason: null,
-  };
-  const wroteBinding = commitHookRecord(
-    join(sessionsDir(opts.home), `${sessionId}.json`),
-    binding,
-    () => readBinding(opts.home, sessionId),
-  );
-  if (wroteBinding.lost) return { ok: false, reason: 'lost', lost: true, hookStartedMs, previous };
-  const wrotePointer = commitHookRecord(
-    join(sessionsDir(opts.home), `current-${harnessPid}.json`),
-    {
+  return withHarnessLock(opts.home, harnessPid, () => {
+    const previous = readBinding(opts.home, sessionId);
+    const current = readPointer(opts.home, harnessPid);
+    if (current && typeof current.hook_started_ms === 'number' && current.hook_started_ms > hookStartedMs) {
+      return { ok: false, reason: 'lost', lost: true, hookStartedMs, previous };
+    }
+    if (previous && typeof previous.hook_started_ms === 'number' && previous.hook_started_ms > hookStartedMs) {
+      return { ok: false, reason: 'lost', lost: true, hookStartedMs, previous };
+    }
+    if (typeof opts.beforeWrite === 'function') opts.beforeWrite();
+    const tie = Boolean(
+      current
+      && current.hook_started_ms === hookStartedMs
+      && current.session_id !== sessionId,
+    );
+    const generation = nextGeneration(current);
+    const writtenAt = new Date(now).toISOString();
+    const cwd = typeof opts.cwd === 'string' ? opts.cwd : '';
+    const sessions = sessionsDir(opts.home);
+    // The pointer is the first transition write. Pending carries no harness_started.
+    writeJsonAtomic(join(sessions, `current-${harnessPid}.json`), {
       v: 1,
       session_id: sessionId,
       harness_pid: harnessPid,
-      harness_started: started,
       hook_started_ms: hookStartedMs,
+      generation,
+      pending: true,
       written_at: writtenAt,
-    },
-    () => readPointer(opts.home, harnessPid),
-  );
-  if (wrotePointer.lost) return { ok: false, reason: 'lost', lost: true, hookStartedMs, previous };
-  return { ok: true, lost: false, hookStartedMs, previous };
+    });
+    writeJsonAtomic(join(sessions, `${sessionId}.json`), {
+      v: 1,
+      session_id: sessionId,
+      harness_pid: harnessPid,
+      hook_started_ms: hookStartedMs,
+      generation,
+      cwd,
+      roots: [],
+      owning_root: null,
+      refused: true,
+      refused_by: 'pending',
+      pending: true,
+      written_at: writtenAt,
+      descendant_scan_at: null,
+      descendant_reason: null,
+    });
+    if (typeof opts.whileLocked === 'function') {
+      opts.whileLocked({ generation, sessionId, hookStartedMs });
+    }
+    if (tie) {
+      return {
+        ok: false, reason: 'tie', lost: false, pending: true, hookStartedMs, generation, previous,
+      };
+    }
+    return { ok: true, lost: false, hookStartedMs, generation, previous };
+  });
 }
 
 /**
- * The final binding. Written only when the pointer still names this session
- * at this `hook_started_ms`. The pointer is not rewritten.
+ * The final binding and the final pointer. Slow reads happen first. Under the
+ * lock again, both are written only when the pointer still names this session
+ * at `generation` (the generation the pending write stored). The final pointer
+ * takes the next generation, and the binding carries that same generation and
+ * `hook_started_ms`.
  * @param {{
  *   home: string,
  *   sessionId: unknown,
  *   harnessPid: number,
  *   hookStartedMs: number,
+ *   generation?: number,
  *   cwd?: string,
  *   now?: number,
  *   homeDir?: string,
@@ -646,9 +767,6 @@ export function finishSession(opts) {
   if (!validPid(harnessPid)) return null;
   const hookStartedMs = opts.hookStartedMs;
   if (typeof hookStartedMs !== 'number') return { ok: false, reason: 'lost', lost: true };
-  if (!pointerNames(opts.home, harnessPid, sessionId, hookStartedMs)) {
-    return { ok: false, reason: 'lost', lost: true };
-  }
   const now = typeof opts.now === 'number' ? opts.now : Date.now();
   const cwd = typeof opts.cwd === 'string' ? opts.cwd : '';
   const started = harnessStarted(harnessPid, opts.harnessStartedReader);
@@ -716,37 +834,54 @@ export function finishSession(opts) {
     descendantScanAt = now;
   }
 
-  if (!pointerNames(opts.home, harnessPid, sessionId, hookStartedMs)) {
-    return { ok: false, reason: 'lost', lost: true };
-  }
   const writtenAt = new Date(now).toISOString();
-  const binding = {
-    v: 1,
-    session_id: sessionId,
-    harness_pid: harnessPid,
-    harness_started: started,
-    hook_started_ms: hookStartedMs,
-    cwd: storedCwd(cwd),
-    roots,
-    owning_root: roots.length === 1 ? roots[0] : null,
-    refused,
-    refused_by: refusedBy,
-    pending: false,
-    written_at: writtenAt,
-    descendant_scan_at: descendantScanAt,
-    descendant_reason: descendantReason,
-  };
-  const wrote = commitHookRecord(
-    join(sessionsDir(opts.home), `${sessionId}.json`),
-    binding,
-    () => readBinding(opts.home, sessionId),
-  );
-  if (wrote.lost) return { ok: false, reason: 'lost', lost: true };
-  return verify({
-    home: opts.home,
-    harnessPid,
-    sessionId,
-    harnessStartedReader: opts.harnessStartedReader,
+  const stored = storedCwd(cwd);
+  return withHarnessLock(opts.home, harnessPid, () => {
+    const pointer = readPointer(opts.home, harnessPid);
+    const namesUs = Boolean(
+      pointer
+      && pointer.session_id === sessionId
+      && pointer.hook_started_ms === hookStartedMs,
+    );
+    const generationMatches = !Number.isInteger(opts.generation)
+      || Boolean(pointer && pointer.generation === opts.generation);
+    if (!namesUs || !generationMatches) return { ok: false, reason: 'lost', lost: true };
+    const generation = nextGeneration(pointer);
+    const sessions = sessionsDir(opts.home);
+    const binding = {
+      v: 1,
+      session_id: sessionId,
+      harness_pid: harnessPid,
+      harness_started: started,
+      hook_started_ms: hookStartedMs,
+      generation,
+      cwd: stored,
+      roots,
+      owning_root: roots.length === 1 ? roots[0] : null,
+      refused,
+      refused_by: refusedBy,
+      pending: false,
+      written_at: writtenAt,
+      descendant_scan_at: descendantScanAt,
+      descendant_reason: descendantReason,
+    };
+    writeJsonAtomic(join(sessions, `${sessionId}.json`), binding);
+    writeJsonAtomic(join(sessions, `current-${harnessPid}.json`), {
+      v: 1,
+      session_id: sessionId,
+      harness_pid: harnessPid,
+      harness_started: started,
+      hook_started_ms: hookStartedMs,
+      generation,
+      pending: false,
+      written_at: writtenAt,
+    });
+    return verify({
+      home: opts.home,
+      harnessPid,
+      sessionId,
+      harnessStartedReader: opts.harnessStartedReader,
+    });
   });
 }
 
@@ -773,11 +908,16 @@ export function finishSession(opts) {
 export function writeSession(opts) {
   const pending = writePendingSession(opts);
   if (!pending || pending.ok !== true) return pending;
-  return finishSession({
+  const finished = finishSession({
     ...opts,
     hookStartedMs: pending.hookStartedMs,
+    generation: pending.generation,
     previous: pending.previous,
   });
+  if (finished && pending.staleLockRemoved && !finished.staleLockRemoved) {
+    finished.staleLockRemoved = true;
+  }
+  return finished;
 }
 
 /**
@@ -785,7 +925,9 @@ export function writeSession(opts) {
  * `pending: true` is not sendable. `sessionId` null means the caller has no
  * per-call session (the long-running gateway) and the pointer's session is
  * the current one.
- * @param {{ home: string, harnessPid: unknown, sessionId?: string | null, harnessStartedReader?: (pid: number) => string }} opts
+ * `betweenReads` runs after the binding is read and before the pointer is
+ * read again, so a test can move the pointer between the two reads.
+ * @param {{ home: string, harnessPid: unknown, sessionId?: string | null, harnessStartedReader?: (pid: number) => string, betweenReads?: () => void }} opts
  * @returns {{ ok: true, binding: Record<string, unknown> } | { ok: false, reason: 'no-harness' | 'no-pointer' | 'stale-session' | 'no-binding' | 'unverifiable' | 'pending' }}
  */
 export function verify(opts) {
@@ -793,29 +935,41 @@ export function verify(opts) {
   if (!validPid(harnessPid)) return { ok: false, reason: 'no-harness' };
   const started = harnessStarted(harnessPid, opts.harnessStartedReader);
   if (started === 'unknown') return { ok: false, reason: 'unverifiable' };
-  const pointer = readPointer(opts.home, harnessPid);
-  if (!pointer) return { ok: false, reason: 'no-pointer' };
-  if (pointer.harness_pid !== harnessPid) return { ok: false, reason: 'stale-session' };
-  if (pointer.harness_started === 'unknown') return { ok: false, reason: 'unverifiable' };
-  if (pointer.harness_started !== started) return { ok: false, reason: 'stale-session' };
-  if (opts.sessionId != null && opts.sessionId !== pointer.session_id) {
+  const first = readPointer(opts.home, harnessPid);
+  const binding = first && typeof first.session_id === 'string'
+    ? readBinding(opts.home, first.session_id)
+    : null;
+  if (typeof opts.betweenReads === 'function') opts.betweenReads();
+  const second = readPointer(opts.home, harnessPid);
+  if (!samePointerView(pointerView(first), pointerView(second))) {
     return { ok: false, reason: 'stale-session' };
   }
-  const binding = readBinding(opts.home, pointer.session_id);
+  if (!first) return { ok: false, reason: 'no-pointer' };
+  if (first.harness_pid !== harnessPid) return { ok: false, reason: 'stale-session' };
+  if (opts.sessionId != null && opts.sessionId !== first.session_id) {
+    return { ok: false, reason: 'stale-session' };
+  }
+  if (first.pending === true) return { ok: false, reason: 'pending' };
   if (!binding) return { ok: false, reason: 'no-binding' };
-  if (binding.harness_started === 'unknown') return { ok: false, reason: 'unverifiable' };
-  if (binding.harness_pid !== harnessPid || binding.harness_started !== started) {
+  if (binding.pending === true) return { ok: false, reason: 'pending' };
+  if (binding.generation !== first.generation || binding.hook_started_ms !== first.hook_started_ms) {
     return { ok: false, reason: 'stale-session' };
   }
-  if (binding.pending === true) return { ok: false, reason: 'pending' };
+  if (first.harness_started === 'unknown' || binding.harness_started === 'unknown') {
+    return { ok: false, reason: 'unverifiable' };
+  }
+  if (first.harness_started !== started || binding.harness_pid !== harnessPid || binding.harness_started !== started) {
+    return { ok: false, reason: 'stale-session' };
+  }
   return { ok: true, binding };
 }
 
 /**
  * What both hooks write, once the presence file exists. `CLAUDE_PID`, when
  * set, has to be this process's parent; a difference writes nothing.
- * `hookStartedMs` is the hook's own start, defaulting to now before any
- * argument, settings, or scan read.
+ * After the presence check and the session-id check, the pending pointer is
+ * written before `ps`, realpath, settings, or a scan. `hookStartedMs` is the
+ * hook's own start, defaulting to now before any of those reads.
  * @param {{ home: string, event: unknown, homeDir?: string, projectDir?: string, hookStartedMs?: number, harnessStartedReader?: (pid: number) => string, argsReader?: (pid: number) => string, now?: number, scanDepth?: number, scanLimit?: number }} opts
  * @returns {ReturnType<typeof writeSession> | null}
  */

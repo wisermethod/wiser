@@ -134,7 +134,18 @@ export async function ask(opts = {}) {
   const hash = inputSha256(input);
   if (opts.replay != null && opts.replay !== '') {
     const record = loadReplay(opts.replay);
-    if (record.action !== action || record.input_sha256 !== hash) {
+    let storedHash = null;
+    try {
+      storedHash = inputSha256(record.input);
+    } catch {
+      storedHash = null;
+    }
+    if (
+      record.action !== action
+      || storedHash === null
+      || storedHash !== record.input_sha256
+      || record.input_sha256 !== hash
+    ) {
       throw new Error('classifier record does not match this judgment');
     }
     return {

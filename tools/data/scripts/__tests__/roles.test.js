@@ -218,6 +218,31 @@ describe('roles', () => {
     assert.equal(mismatched.stdout, '');
     assert.match(mismatched.stderr, /does not match this judgment/);
     assert.equal(existsSync(replayEnv.log), false);
+
+    const empty = join(dir, 'empty.csv');
+    writeFileSync(empty, '');
+    const emptyReplay = run([
+      'roles', '--file', empty, '--owning-root', owning, '--gateway-home', home,
+      '--classifier-record', record,
+    ], replayEnv);
+    assert.equal(emptyReplay.status, 1);
+    assert.equal(emptyReplay.stdout, '');
+    assert.match(emptyReplay.stderr, /does not match this judgment/);
+    assert.equal(existsSync(replayEnv.log), false);
+  });
+
+  it('keeps a numeric JSON column named __proto__, constructor, or toString', () => {
+    const dir = tempDir();
+    const file = join(dir, 'reserved.json');
+    writeFileSync(file, '[{"__proto__":1,"constructor":2,"toString":3},{"__proto__":4,"constructor":5,"toString":6}]\n');
+    const result = ok(['roles', '--file', file]);
+    assert.equal(result.roles.columns['__proto__'], null);
+    assert.equal(result.roles.columns.constructor, null);
+    assert.equal(result.roles.columns.toString, null);
+    assert.deepEqual(
+      Object.keys(result.roles.columns).sort(),
+      ['__proto__', 'constructor', 'toString'].sort(),
+    );
   });
 });
 
@@ -259,7 +284,9 @@ describe('describe --quantities', () => {
     const plain = ok(['describe', '--file', file]);
     assert.equal(judged.quantities.path, 'builtin');
     assert.equal(judged.quantities.reason, 'no-classifier');
-    assert.equal(JSON.stringify(judged.columns), JSON.stringify(plain.columns));
+    const { quantities, ...rest } = judged;
+    assert.deepEqual(rest, plain);
+    assert.deepEqual(rest.skippedColumns, plain.skippedColumns);
     for (const name of Object.keys(judged.quantities.columns)) {
       assert.equal(judged.quantities.columns[name], 'builtin');
     }
@@ -280,5 +307,23 @@ describe('describe --quantities', () => {
     const stray = run(['describe', '--file', file, '--owning-root', dir]);
     assert.equal(stray.status, 1);
     assert.match(stray.stderr, /--owning-root is valid only with --quantities/);
+  });
+
+  it('names a header that contains a comma with --column and refuses --columns', () => {
+    const dir = tempDir();
+    const file = join(dir, 'money.csv');
+    writeFileSync(file, '"cost, usd",note\n1.5,a\n2.5,b\n');
+    const described = ok(['describe', '--file', file, '--column', 'cost, usd']);
+    assert.equal(described.columns.length, 1);
+    assert.equal(described.columns[0].name, 'cost, usd');
+    assert.equal(described.columns[0].count, 2);
+    const refused = run(['describe', '--file', file, '--columns', 'cost, usd']);
+    assert.equal(refused.status, 1);
+    assert.equal(refused.stdout, '');
+    assert.match(refused.stderr, /--columns/);
+    const both = run(['describe', '--file', file, '--column', 'cost, usd', '--columns', 'note']);
+    assert.equal(both.status, 1);
+    assert.match(both.stderr, /--column/);
+    assert.match(both.stderr, /--columns/);
   });
 });

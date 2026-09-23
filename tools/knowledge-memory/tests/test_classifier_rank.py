@@ -199,6 +199,80 @@ class ClassifierRank(unittest.TestCase):
         self.assertIn('does not match', other.stderr)
         self.assertEqual(log.read_text(), '')
 
+    def test_none_first_abstains_and_keeps_nothing(self):
+        self.seed(embedded=True, extras=True, long=True, many=80)
+        query = 'Rest recovery sleep roads'
+        hybrid = json.loads(self.recall(query, extra=('--rank', 'hybrid')).stdout)
+        names = [item['name'] for item in hybrid['items']
+                 if item.get('part') == 'passage' and isinstance(item.get('name'), str)]
+        self.assertGreaterEqual(len(names), 1)
+        log = self.stub({
+            'ranked': [
+                {'id': 'none', 'p': 0.99, 'calibrated': False},
+                {'id': names[0], 'p': 0.5, 'calibrated': False},
+            ],
+            'calibrated': False,
+        })
+        result = json.loads(self.recall_classifier(
+            query, self.gateway_home(attached=True), self.owning_root()).stdout)
+        self.assertEqual(result['classifier']['path'], 'classifier')
+        self.assertTrue(result['classifier']['abstained'])
+        self.assertEqual(result['classifier']['kept'], [])
+        candidates = result['classifier']['record']['input']['candidates']
+        self.assertEqual(candidates[-1]['id'], 'none')
+        self.assertEqual(candidates[-1]['text'], 'None of these passages answers the question.')
+        self.assertNotIn('none', result['classifier']['kept'])
+        self.assertIn('wiser.recall.rank', log.read_text())
+
+    def test_none_second_keeps_the_passages_around_it(self):
+        self.seed(embedded=True, extras=True, long=True, many=80)
+        query = 'Rest recovery sleep roads'
+        hybrid = json.loads(self.recall(query, extra=('--rank', 'hybrid')).stdout)
+        names = [item['name'] for item in hybrid['items']
+                 if item.get('part') == 'passage' and isinstance(item.get('name'), str)]
+        self.assertGreaterEqual(len(names), 4, names)
+        self.stub({
+            'ranked': [
+                {'id': names[0], 'p': 0.9, 'calibrated': False},
+                {'id': 'none', 'p': 0.8, 'calibrated': False},
+                {'id': names[1], 'p': 0.7, 'calibrated': False},
+                {'id': names[2], 'p': 0.6, 'calibrated': False},
+                {'id': names[3], 'p': 0.5, 'calibrated': False},
+            ],
+            'calibrated': False,
+        })
+        result = json.loads(self.recall_classifier(
+            query, self.gateway_home(attached=True), self.owning_root()).stdout)
+        self.assertEqual(result['classifier']['path'], 'classifier')
+        self.assertNotIn('abstained', result['classifier'])
+        self.assertEqual(result['classifier']['kept'], [names[0], names[1], names[2]])
+
+    def test_replay_of_an_abstention_abstains_without_a_call(self):
+        self.seed(embedded=True, extras=True, long=True, many=80)
+        query = 'Rest recovery sleep roads'
+        hybrid = json.loads(self.recall(query, extra=('--rank', 'hybrid')).stdout)
+        names = [item['name'] for item in hybrid['items']
+                 if item.get('part') == 'passage' and isinstance(item.get('name'), str)]
+        self.assertGreaterEqual(len(names), 1)
+        log = self.stub({
+            'ranked': [{'id': 'none', 'p': 0.99, 'calibrated': False}],
+            'calibrated': False,
+        })
+        owning = self.owning_root()
+        home = self.gateway_home(attached=True)
+        first = json.loads(self.recall_classifier(query, home, owning).stdout)
+        self.assertTrue(first['classifier']['abstained'])
+        self.assertEqual(first['classifier']['kept'], [])
+        record = self.root / 'abstain-record.json'
+        record.write_text(json.dumps(first['classifier']['record']))
+        log.write_text('')
+        replayed = json.loads(self.recall_classifier(
+            query, home, owning, extra=('--classifier-record', str(record))).stdout)
+        self.assertEqual(log.read_text(), '')
+        self.assertEqual(replayed['classifier']['path'], 'replay')
+        self.assertTrue(replayed['classifier']['abstained'])
+        self.assertEqual(replayed['classifier']['kept'], [])
+
     def test_owning_root_without_classifier_rank_is_refused_by_name(self):
         for flag in ('--owning-root', '--gateway-home', '--classifier-record'):
             run = self.recall('rest', code=1, extra=(flag, str(self.root / 'unused')))

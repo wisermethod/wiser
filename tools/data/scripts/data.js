@@ -56,6 +56,7 @@ Usage:
                              [--classifier-record <file>] [--format csv|json|tsv]
                              [--delimiter <char>] [--no-header]
   node scripts/data.js describe --file <path> [--format csv|json|tsv] [--delimiter <char>] [--columns a,b]
+                                [--column <name> ...]
                                 [--quantities --owning-root <abs dir>]
   node scripts/data.js aggregate --file <path> --group-by <column> --metric <column>:<function>
                                  [--group-by <column> ...] [--metric <column>:<function> ...]
@@ -168,6 +169,7 @@ const DESCRIBE_USAGE = `data describe - descriptive statistics for the numeric c
 Usage:
   node scripts/data.js describe help
   node scripts/data.js describe --file <path> [--format csv|json|tsv] [--delimiter <char>] [--columns a,b]
+                                [--column <name> ...]
                                 [--quantities --owning-root <abs dir> [--gateway-home <abs dir>] [--classifier-record <file>]]
 
 Commands:
@@ -180,8 +182,11 @@ Options:
                    directory. Required.
   --format <fmt>   Force csv, json, or tsv. Omit to auto-detect from the content.
   --delimiter <c>  Field delimiter for delimited text. Omit to auto-detect.
-  --columns <list> Comma-separated column names to describe. Omit for every
-                   numeric column. Not valid with --quantities.
+  --columns <list> Comma-separated column names to describe. A header that
+                   contains a comma cannot be named here. Omit for every
+                   numeric column. Not valid with --quantities or --column.
+  --column <name>  One header, repeated to name more. The name may contain
+                   commas. Not valid with --columns or --quantities.
   --quantities     Describe the columns roles calls quantity, and any column
                    whose role is null. The figures are the same ones describe
                    computes today. The data file is the material the judgment
@@ -669,7 +674,7 @@ async function runRoles(argv) {
 async function runDescribe(argv) {
   const usageCmd = helpRef('describe');
   const VALUE_FLAGS = new Set([
-    '--file', '--format', '--delimiter', '--columns', '--owning-root', '--gateway-home', '--classifier-record',
+    '--file', '--format', '--delimiter', '--columns', '--column', '--owning-root', '--gateway-home', '--classifier-record',
   ]);
   const BARE_FLAGS = new Set(['--install', '--quantities', '--help', '-h']);
   refuseUnknown(argv, VALUE_FLAGS, BARE_FLAGS, usageCmd);
@@ -726,12 +731,35 @@ async function runDescribe(argv) {
     }
   }
 
+  function repeat(name) {
+    const found = [];
+    for (let i = 0; i < argv.length; i += 1) {
+      if (argv[i] !== name) continue;
+      const value = argv[i + 1];
+      if (value === undefined || value.startsWith('--')) {
+        fail(`Error: ${name} needs a value. Run "${usageCmd}" for usage.`);
+      }
+      found.push(value);
+      i += 1;
+    }
+    return found;
+  }
+
   const columnsArg = flag('--columns');
+  const columnNames = repeat('--column');
   if (quantities && columnsArg !== undefined) {
     fail(`Error: --columns is not valid with --quantities. Run "${usageCmd}" for usage.`);
   }
+  if (quantities && columnNames.length > 0) {
+    fail(`Error: --column is not valid with --quantities. Run "${usageCmd}" for usage.`);
+  }
+  if (columnsArg !== undefined && columnNames.length > 0) {
+    fail('Error: --column and --columns were both given. Use --column for one header, including a header that contains a comma; --columns cannot name such a header.');
+  }
   let columns;
-  if (columnsArg !== undefined) {
+  if (columnNames.length > 0) {
+    columns = columnNames;
+  } else if (columnsArg !== undefined) {
     columns = columnsArg.split(',').map((name) => name.trim()).filter((name) => name !== '');
     if (columns.length === 0) {
       fail('Error: --columns needs at least one column name. Omit it to describe every numeric column.');
@@ -751,6 +779,16 @@ async function runDescribe(argv) {
     failUnreadable();
   }
 
+  if (columnsArg !== undefined) {
+    const { readTable } = await import('./read-core.js');
+    const table = readTable({ content, format, delimiter });
+    for (const column of table.columns) {
+      if (typeof column.name === 'string' && column.name.includes(',') && columnsArg.includes(column.name)) {
+        fail(`Error: --columns cannot name a header that contains a comma ("${column.name}"). Use --column for that header.`);
+      }
+    }
+  }
+
   let result;
   if (quantities) {
     const { executeParse } = await import('./parse-core.js');
@@ -768,7 +806,11 @@ async function runDescribe(argv) {
       fail(`Error: ${error && error.message ? error.message : error}`);
     }
     const selected = columnsForDescribe(roles);
-    result = executeDescribe({ content, format, delimiter, columns: selected.names });
+    // A builtin settlement describes the file as plain describe does, including
+    // its skip report. A classifier or replay settlement passes the names it kept.
+    result = roles.path === 'builtin'
+      ? executeDescribe({ content, format, delimiter })
+      : executeDescribe({ content, format, delimiter, columns: selected.names });
     result.quantities = {
       path: roles.path,
       reason: roles.reason,

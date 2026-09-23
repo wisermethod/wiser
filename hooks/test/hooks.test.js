@@ -1,10 +1,11 @@
-import { existsSync, mkdtempSync, mkdirSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, mkdirSync, readdirSync, readFileSync, realpathSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
+import { Worker } from 'node:worker_threads';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
   finishSession,
@@ -995,4 +996,302 @@ test('a relative add-dir is composed, a missing one refuses, and project setting
   assert.ok(binding, 'project-dir hook wrote no binding');
   assert.ok(binding.roots.includes(realpathSync(project)), binding.roots.join(','));
   assert.ok(binding.roots.includes(realpathSync(other)), binding.roots.join(','));
+});
+
+test('a stale harness lock is removed and the removal is reported', () => {
+  const home = tempHome();
+  const root = typedRoot(join(home, 'root'));
+  const gw = gatewayDir(home);
+  const lock = join(sessionsDir(gw), `lock-${process.pid}`);
+  mkdirSync(lock, { recursive: true });
+  const past = new Date(Date.now() - 11_000);
+  utimesSync(lock, past, past);
+  const recorded = writeSession({
+    home: gw,
+    sessionId: 'session-stalelock',
+    harnessPid: process.pid,
+    cwd: root,
+    homeDir: home,
+    argsReader: () => '',
+  });
+  assert.equal(recorded.ok, true, JSON.stringify(recorded));
+  assert.equal(recorded.staleLockRemoved, true);
+  assert.equal(existsSync(lock), false);
+});
+
+test('the pending pointer is written before ps, and a stop on either side of that write fails closed', () => {
+  const home = tempHome();
+  const root = typedRoot(join(home, 'root'));
+  const gw = gatewayDir(home);
+  const kept = writeSession({
+    home: gw,
+    sessionId: 'session-kept0001',
+    harnessPid: process.pid,
+    cwd: root,
+    homeDir: home,
+    hookStartedMs: 1000,
+    argsReader: () => '',
+  });
+  assert.equal(kept.ok, true, JSON.stringify(kept));
+  assert.throws(() => writePendingSession({
+    home: gw,
+    sessionId: 'session-stopbef',
+    harnessPid: process.pid,
+    cwd: root,
+    hookStartedMs: 2000,
+    beforeWrite() { throw new Error('stop before the pointer'); },
+  }), /stop before/);
+  const untouched = JSON.parse(readFileSync(join(sessionsDir(gw), `current-${process.pid}.json`), 'utf8'));
+  assert.equal(untouched.session_id, 'session-kept0001');
+  assert.equal(untouched.pending, false);
+  assert.equal(verify({ home: gw, harnessPid: process.pid, sessionId: 'session-kept0001' }).ok, true);
+
+  assert.throws(() => writePendingSession({
+    home: gw,
+    sessionId: 'session-stopaft',
+    harnessPid: process.pid,
+    cwd: root,
+    hookStartedMs: 3000,
+    whileLocked() { throw new Error('stop after the pointer'); },
+  }), /stop after/);
+  const parked = JSON.parse(readFileSync(join(sessionsDir(gw), `current-${process.pid}.json`), 'utf8'));
+  assert.equal(parked.session_id, 'session-stopaft');
+  assert.equal(parked.pending, true);
+  assert.equal(parked.harness_started, undefined);
+  assert.equal(verify({ home: gw, harnessPid: process.pid, sessionId: 'session-stopaft' }).reason, 'pending');
+  assert.equal(verify({ home: gw, harnessPid: process.pid, sessionId: 'session-kept0001' }).reason, 'stale-session');
+
+  let sawPending = false;
+  let startedReads = 0;
+  const finished = writeSession({
+    home: gw,
+    sessionId: 'session-pslater1',
+    harnessPid: process.pid,
+    cwd: root,
+    homeDir: home,
+    hookStartedMs: 4000,
+    argsReader: () => '',
+    harnessStartedReader() {
+      startedReads += 1;
+      if (startedReads === 1) {
+        const pointer = JSON.parse(readFileSync(join(sessionsDir(gw), `current-${process.pid}.json`), 'utf8'));
+        assert.equal(pointer.pending, true);
+        assert.equal(pointer.session_id, 'session-pslater1');
+        assert.equal(pointer.harness_started, undefined);
+        sawPending = true;
+      }
+      return 'ps-after-pending';
+    },
+  });
+  assert.equal(sawPending, true);
+  assert.equal(finished.ok, true, JSON.stringify(finished));
+  assert.equal(finished.binding.pending, false);
+  assert.equal(finished.binding.harness_started, 'ps-after-pending');
+  const finalPointer = JSON.parse(readFileSync(join(sessionsDir(gw), `current-${process.pid}.json`), 'utf8'));
+  assert.equal(finalPointer.generation, finished.binding.generation);
+  assert.equal(finalPointer.hook_started_ms, finished.binding.hook_started_ms);
+});
+
+test('equal timestamps with different sessions fail closed, and the same session does not', () => {
+  const home = tempHome();
+  const root = typedRoot(join(home, 'root'));
+  const gw = gatewayDir(home);
+  const first = writePendingSession({
+    home: gw,
+    sessionId: 'session-sametie1',
+    harnessPid: process.pid,
+    cwd: root,
+    hookStartedMs: 3000,
+  });
+  assert.equal(first.ok, true, JSON.stringify(first));
+  const again = writePendingSession({
+    home: gw,
+    sessionId: 'session-sametie1',
+    harnessPid: process.pid,
+    cwd: root,
+    hookStartedMs: 3000,
+  });
+  assert.equal(again.ok, true, JSON.stringify(again));
+  assert.equal(again.generation, first.generation + 1);
+
+  const other = writePendingSession({
+    home: gw,
+    sessionId: 'session-othertie',
+    harnessPid: process.pid,
+    cwd: root,
+    hookStartedMs: 3000,
+  });
+  assert.equal(other.ok, false, JSON.stringify(other));
+  assert.equal(other.reason, 'tie');
+  const pointer = JSON.parse(readFileSync(join(sessionsDir(gw), `current-${process.pid}.json`), 'utf8'));
+  assert.equal(pointer.pending, true);
+  assert.equal(pointer.session_id, 'session-othertie');
+  assert.equal(pointer.hook_started_ms, 3000);
+  assert.equal(verify({ home: gw, harnessPid: process.pid, sessionId: 'session-sametie1' }).reason, 'stale-session');
+  assert.equal(verify({ home: gw, harnessPid: process.pid, sessionId: 'session-othertie' }).reason, 'pending');
+});
+
+test('a backward clock step does not replace a newer pointer', () => {
+  const home = tempHome();
+  const root = typedRoot(join(home, 'root'));
+  const gw = gatewayDir(home);
+  const forward = writeSession({
+    home: gw,
+    sessionId: 'session-clocknew',
+    harnessPid: process.pid,
+    cwd: root,
+    homeDir: home,
+    hookStartedMs: 8000,
+    argsReader: () => '',
+  });
+  assert.equal(forward.ok, true, JSON.stringify(forward));
+  const back = writeSession({
+    home: gw,
+    sessionId: 'session-clockold',
+    harnessPid: process.pid,
+    cwd: root,
+    homeDir: home,
+    hookStartedMs: 1000,
+    argsReader: () => '',
+  });
+  assert.equal(back.lost, true);
+  const pointer = JSON.parse(readFileSync(join(sessionsDir(gw), `current-${process.pid}.json`), 'utf8'));
+  assert.equal(pointer.session_id, 'session-clocknew');
+  assert.equal(pointer.hook_started_ms, 8000);
+  assert.equal(verify({ home: gw, harnessPid: process.pid, sessionId: 'session-clocknew' }).ok, true);
+  assert.equal(verify({ home: gw, harnessPid: process.pid, sessionId: 'session-clockold' }).reason, 'stale-session');
+});
+
+test('a pointer moved between verify reads is stale', () => {
+  const home = tempHome();
+  const root = typedRoot(join(home, 'root'));
+  const gw = gatewayDir(home);
+  const recorded = writeSession({
+    home: gw,
+    sessionId: 'session-movedsrc',
+    harnessPid: process.pid,
+    cwd: root,
+    homeDir: home,
+    argsReader: () => '',
+  });
+  assert.equal(recorded.ok, true, JSON.stringify(recorded));
+  const file = join(sessionsDir(gw), `current-${process.pid}.json`);
+  const moved = verify({
+    home: gw,
+    harnessPid: process.pid,
+    sessionId: 'session-movedsrc',
+    betweenReads() {
+      const doc = JSON.parse(readFileSync(file, 'utf8'));
+      doc.generation += 1;
+      doc.session_id = 'session-moveddst';
+      writeFileSync(file, `${JSON.stringify(doc)}\n`);
+    },
+  });
+  assert.equal(moved.ok, false);
+  assert.equal(moved.reason, 'stale-session');
+});
+
+test('two writers for one harness meet at the lock, and the older one does not replace the pointer', async () => {
+  const home = tempHome();
+  const root = typedRoot(join(home, 'root'));
+  const gw = gatewayDir(home);
+  const waitFile = join(home, 'lock-wait');
+  const bindingUrl = pathToFileURL(fileURLToPath(new URL('../lib/binding.mjs', import.meta.url))).href;
+  const workerFile = join(home, 'lock-worker.mjs');
+  writeFileSync(workerFile, `import { writeSession } from ${JSON.stringify(bindingUrl)};
+import { parentPort, workerData } from 'node:worker_threads';
+const result = writeSession(workerData);
+parentPort.postMessage(result);
+`);
+  const reader = () => 'lock-boundary-start';
+  let worker;
+  const parent = writeSession({
+    home: gw,
+    sessionId: 'session-lock-new',
+    harnessPid: process.pid,
+    cwd: root,
+    homeDir: home,
+    hookStartedMs: 5000,
+    argsReader: () => '',
+    harnessStartedReader: reader,
+    whileLocked() {
+      worker = new Worker(workerFile, {
+        workerData: {
+          home: gw,
+          sessionId: 'session-lock-old',
+          harnessPid: process.pid,
+          cwd: root,
+          homeDir: home,
+          hookStartedMs: 1000,
+        },
+        env: { ...process.env, WISER_BINDING_LOCK_WAIT_FILE: waitFile },
+      });
+      const deadline = Date.now() + 10000;
+      while (!existsSync(waitFile)) {
+        if (Date.now() > deadline) throw new Error('the second writer did not reach the lock');
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5);
+      }
+    },
+  });
+  const child = await new Promise((resolve, reject) => {
+    worker.on('message', resolve);
+    worker.on('error', reject);
+  });
+  assert.equal(parent.ok, true, JSON.stringify(parent));
+  assert.equal(child.lost, true);
+  const pointer = JSON.parse(readFileSync(join(sessionsDir(gw), `current-${process.pid}.json`), 'utf8'));
+  assert.equal(pointer.session_id, 'session-lock-new');
+  assert.equal(pointer.hook_started_ms, 5000);
+  assert.equal(pointer.pending, false);
+  const checked = verify({
+    home: gw, harnessPid: process.pid, sessionId: 'session-lock-new', harnessStartedReader: reader,
+  });
+  assert.equal(checked.ok, true, JSON.stringify(checked));
+  await worker.terminate();
+});
+
+test('an unreadable ancestor AGENTS.md fails the gateway closed', async () => {
+  const home = tempHome();
+  const parent = join(home, 'parent');
+  mkdirSync(parent, { recursive: true });
+  const agents = join(parent, 'AGENTS.md');
+  writeFileSync(agents, '---\nroot: container\n---\n');
+  const root = typedRoot(join(parent, 'work'));
+  const gwHome = gatewayDir(home);
+  writeStatus(home, attachedDoc(home));
+  const recorded = writeSession({
+    home: gwHome,
+    sessionId: 'session-unread01',
+    harnessPid: process.pid,
+    cwd: root,
+    homeDir: home,
+    argsReader: () => '',
+  });
+  assert.equal(recorded.ok, true, JSON.stringify(recorded));
+  assert.equal(recorded.binding.refused, false);
+  chmodSync(agents, 0o000);
+  try {
+    const calls = [];
+    const { gw } = await createTestGateway({
+      home: gwHome,
+      connectors: [],
+      session: false,
+      classifierIdentity: () => ({ harnessPid: process.pid, sessionId: null }),
+      classifier: {
+        name: 'direct',
+        actions: () => ['wiser.decide.choice'],
+        describe() { return {}; },
+        async execute(req) { calls.push(req); return { choice: 'x', confidence: 1, calibrated: false }; },
+      },
+    });
+    const executed = await gw.execute({
+      action: 'wiser.decide.choice',
+      input: { decision: 'item', options: ['x'], allow_uncalibrated: true },
+    });
+    assert.equal(executed.status, 'classifier_unbound');
+    assert.equal(executed.reason, 'refused');
+    assert.equal(calls.length, 0);
+  } finally {
+    chmodSync(agents, 0o644);
+  }
 });
