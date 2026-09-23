@@ -1,6 +1,6 @@
 ---
 standard: primitives
-version: 0.9.0
+version: 0.9.1
 description: The four typed primitives, how they invoke and sequence one another, and the frontmatter every typed file carries
 ---
 
@@ -29,7 +29,7 @@ Skills and experts invoke tools, and they alone do. Skills never invoke each oth
 
 **A tool may put a closed judgment to the classifier through the gateway**, where its `TOOL.md` names the judgment and the path that settles it when no classifier answers; it reaches the gateway for that call and nothing else. **The answer is an input the tool records, not a result it computes.** Its output carries the answer as received, with every confidence or score in it as returned, the question and the candidates it was asked over, and which path settled the judgment. The tool accepts that record back as an input, in which case it makes no call and settles the judgment the same way; a record whose question or candidates differ from the ones this run would send is refused, not applied. A tool that reads live state, a page or a site, replays the judgment on the candidates it recorded, does not claim to reproduce that state, and acts on live state only after reading it again. Every measurement, count and calculation the tool reports comes from its own code; the classifier's confidence appears only as the record of that one judgment. **It sends nothing unless its caller passed the owning root as an absolute path** whose `AGENTS.md` it can read, and no `AGENTS.md` at or above that folder declares `classifier_refusal: yes`, the same test `hooks/` applies and stricter than `standards/user-root.md` C13 alone; no root, an unreadable one, or a refusal takes the tool's own path. Which root owns the work is the calling primitive's to resolve, not the tool's.
 
-**Skills and experts do not put their own decisions or Success lines to the classifier**, with two exceptions until their measurements decide them: the passage ranking in `skills/Knowledge Recall/` Step 2, and the element pick `tools/Browser Control/` asks its caller to make. What a classifier answer is, and what its absence leaves, is the constitution's `## Classifier`.
+**Skills and experts do not put their own decisions or Success lines to the classifier**, with one exception until its measurement decides it: the passage ranking in `skills/Knowledge Recall/` Step 2. What a classifier answer is, and what its absence leaves, is the constitution's `## Classifier`.
 
 An expert may select and sequence skills. It names the skill it picked before running it, and it may tell that skill which files to read. It never reaches inside a skill's steps, overrides its internals, or presents a skill's output as its own. Anything an expert does that runs the same way every time is a tool, not expert behavior.
 
