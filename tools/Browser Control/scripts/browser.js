@@ -18,7 +18,6 @@ import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
 import { hardenProfile, launchArgs } from './lib/profile.js';
-import { pickFromSnapshot } from './lib/pick.js';
 import { installAuthorised, writeConsent } from '../../lib/consent.js';
 
 const HERE = fileURLToPath(import.meta.url);
@@ -49,11 +48,6 @@ Session:
 
 Reading:
   snapshot               Page content. --format accessibility|text|html|interactive
-  pick                   Choose an element for --goal from an interactive
-                         snapshot. Does not act on the page.
-                         --goal [text] [--owning-root absolute dir]
-                         [--gateway-home dir] [--snapshot-file file]
-                         [--classifier-record file]
   check                  Assert element state. --assert [name] --selector [s] [--expect v]
   console start|stop     Capture page console output; stop returns what it collected.
   network start|stop     Capture requests; stop returns what it collected.
@@ -168,7 +162,6 @@ if (argv.length === 0 || argv[0] === 'help' || argv.includes('--help') || argv.i
 const COMMANDS = {
   session: ['start', 'stop', 'status', 'restart'],
   snapshot: null,
-  pick: null,
   check: null,
   console: ['start', 'stop'],
   network: ['start', 'stop', 'block', 'unblock'],
@@ -240,8 +233,7 @@ const VALUE_FLAGS = new Set([
   '--delay', '--key', '--to', '--by', '--max', '--from', '--delta',
   '--value', '--label', '--name', '--src', '--device', '--viewport',
   '--geolocation', '--time', '--code', '--assert', '--expect', '--pattern',
-  '--output', '--output-dir', '--file', '--domain', '--expires', '--path',
-  '--goal', '--owning-root', '--gateway-home', '--snapshot-file', '--classifier-record'
+  '--output', '--output-dir', '--file', '--domain', '--expires', '--path'
 ]);
 const BARE_FLAGS = new Set([
   '--install',
@@ -276,24 +268,6 @@ for (let i = 0; i < rest.length; i++) {
   if (existing === undefined) flags.set(word, value);
   else if (Array.isArray(existing)) existing.push(value);
   else flags.set(word, [existing, value]);
-}
-
-// pick is the only command that reads these. On any other command they are
-// refused by name, the same way an option the script does not name is refused.
-const PICK_ONLY = ['--goal', '--owning-root', '--gateway-home', '--snapshot-file', '--classifier-record'];
-const PICK_FLAGS = new Set([...PICK_ONLY, '--port', '--install']);
-if (command === 'pick') {
-  for (const name of flags.keys()) {
-    if (!PICK_FLAGS.has(name)) {
-      fail(`Error: pick does not take ${name}. Run "node scripts/browser.js help" for usage.`);
-    }
-  }
-} else {
-  for (const name of PICK_ONLY) {
-    if (flags.has(name)) {
-      fail(`Error: ${name} is only valid on pick. Run "node scripts/browser.js help" for usage.`);
-    }
-  }
 }
 
 
@@ -567,7 +541,7 @@ async function stopHost() {
   return true;
 }
 
-async function hostResult(action, params) {
+async function send(action, params) {
   let answer;
   try {
     // The host enforces the same gate at its own boundary, so an authorised
@@ -584,11 +558,7 @@ async function hostResult(action, params) {
   if (!answer.ok) {
     fail(`Error: ${command} failed: ${answer.error}`);
   }
-  return answer.result;
-}
-
-async function send(action, params) {
-  emit(await hostResult(action, params));
+  emit(answer.result);
 }
 
 // Whether this process can create files in a directory. Used only to tell an
@@ -1196,44 +1166,6 @@ switch (command) {
       fail(`Error: --format must be one of: ${allowed.join(', ')}; got "${format}".`);
     }
     await send('snapshot', { format, selector: flag('--selector') });
-    break;
-  }
-
-  case 'pick': {
-    const goal = flag('--goal');
-    if (goal === undefined) {
-      fail('Error: pick needs --goal [text]. Run "node scripts/browser.js help" for usage.');
-    }
-    const owningRoot = callerPath('--owning-root', { directory: true });
-    const gatewayHome = callerPath('--gateway-home', { directory: true });
-    const snapshotFile = callerPath('--snapshot-file');
-    const classifierRecord = callerPath('--classifier-record');
-    let snapshot;
-    if (snapshotFile !== undefined) {
-      let text;
-      try {
-        text = readFileSync(snapshotFile, 'utf8');
-      } catch {
-        fail(`Error: could not read ${snapshotFile}. Confirm it is a readable file.`);
-      }
-      try {
-        snapshot = JSON.parse(text);
-      } catch {
-        fail(`Error: ${snapshotFile} is not valid JSON.`);
-      }
-    } else {
-      snapshot = await hostResult('snapshot', { format: 'interactive' });
-    }
-    try {
-      emit(await pickFromSnapshot(snapshot, {
-        goal,
-        owningRoot,
-        gatewayHome,
-        replay: classifierRecord,
-      }));
-    } catch (error) {
-      fail(`Error: ${error && error.message ? error.message : error}`);
-    }
     break;
   }
 

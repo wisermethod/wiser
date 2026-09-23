@@ -20,7 +20,6 @@ function conformingAnswer(actionId) {
   if (actionId === 'wiser.gate.check') return { judgments: [] };
   if (actionId === 'wiser.decide.choice') return { choice: 'none', confidence: 1, calibrated: false };
   if (actionId === 'wiser.recall.rank') return { ranked: [], calibrated: false };
-  if (actionId === 'wiser.browser.pick') return { index: null, verb: 'none', confidence: 1, calibrated: false };
   return { ...ASK_OK };
 }
 // A marker standing for whatever operator tree an adapter was loaded from. It is
@@ -987,23 +986,6 @@ test('a non-numeric probability is unavailable and is not coerced', async () => 
   assert.equal(judged.status, 'unavailable');
   assert.equal(judged.reason, 'malformed answer');
   assert.equal(judged.judgments, undefined);
-});
-
-test('browser pick keeps a non-string verb', async () => {
-  const { gw } = await createTestGateway({
-    classifier: createFakeClassifier({
-      result: { index: 0, verb: 7, confidence: 0.5, calibrated: false },
-    }),
-    connectors: [],
-  });
-  const result = await gw.execute({
-    action: 'wiser.browser.pick',
-    input: { goal: 'go', elements: [{ verb: 7 }], allow_uncalibrated: true },
-  });
-  assert.equal(result.verb, 7);
-  assert.equal(result.index, 0);
-  assert.equal(result.confidence, 0.5);
-  assert.equal(result.status, undefined);
 });
 
 test('an unexpected model version is a mismatch and not a scored judgment', async () => {

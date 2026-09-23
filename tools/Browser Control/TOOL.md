@@ -3,7 +3,7 @@ name: Browser Control
 type: tool
 category: automation
 description: Drives a persistent Chromium session to read, navigate, and act on pages that need a real browser, answering every command with the page state that followed
-version: 0.6.0
+version: 0.7.0
 ---
 
 # Browser Control
@@ -52,13 +52,9 @@ A page is not a function call. It redraws, it redirects, it shows a consent bann
 - **Hand a human what only a human can do.** A sign-in, a CAPTCHA, a second factor, or an operating-system dialog cannot be driven from here. Say what is blocking and let the person act in the window; a signed-in session stays in the profile directory afterwards.
 - **Report what the page did.** Close with what was found, where, and what was changed on the site. An automation whose effects nobody can name is not finished.
 
-**Who picks the element.** `pick` does it. The command reads an interactive snapshot, builds the element list, and puts the choice to the classifier. Deciding what the goal is still belongs to the skill or expert that called this tool, as Context says. Is this page a sign-in, a CAPTCHA, a second factor, or an operating-system dialog, the case the bullet above already hands to a person? Yes: do not run `pick`. The window goes to the person. That handoff is unchanged. No answer stands in for it. No: run `pick --goal` with the outcome this step is after.
+**Who picks the element.** The caller does, from the interactive snapshot. Deciding what to do with a page belongs to the skill or expert that called this tool, as Context says, and that includes which numbered element serves the step and whether it is clicked or typed into. Read `snapshot --format interactive`, choose the index, and act by it. Is this page a sign-in, a CAPTCHA, a second factor, or an operating-system dialog, the case the bullet above already hands to a person? Yes: do not pick. The window goes to the person. No: pick and act. `select option` is not this pick: it needs a selector, and the snapshot lines do not carry one. Nothing here puts the pick to a classifier.
 
-`pick` reads each element by the number its snapshot record carries, never by line position, because a label can contain a newline. It sends at most 255 elements on one `wiser.browser.pick` call and batches by those numbers, mapping a returned index back to the snapshot number in code. `verb` is `type` when the record is a field a person types into, and `click` otherwise, a dropdown included. `select option` is not this pick: it needs a selector, and the snapshot lines do not carry one. The command does not act on the page. Without an owning root that does not refuse, or without a classifier, it makes no call.
-
-**A confident answer is one predicate and everything that fails it leaves `pick` null.** It is an integer index in range for that batch and a verb that is `click` or `type` and equal to the verb sent for that index. A null index, a negative or fractional or out-of-range index, a missing index, a verb that is not one of those two strings, a verb that disagrees with the one sent, and any status all fail it. The lowest accepted snapshot number across batches is the result's `pick`. No accepted answer: `pick` is null and the caller picks the index from the snapshot as today. The caller's own pick approximates the choice and is what runs when the call is not made. Apply no bar to `confidence`. The answer carries `calibrated: false`. `click` uses that snapshot index. `type` uses that snapshot index and the text the goal already names. The answer does not carry the text, and a goal with no text to type is not acted: the caller picks. Then snapshot again, as the one-action bullet requires.
-
-An answer never supplies `--confirm`. Destructive Actions still requires a person to opt in. A confident index does not.
+A pick never supplies `--confirm`. Destructive Actions still requires a person to opt in.
 
 The pattern that reads a site-specific playbook before improvising travels with the root that owns the site, not with this tool; a shared root ships no account's navigation notes.
 
@@ -89,7 +85,6 @@ One entry script, one command per line, subcommands where a command has modes.
 | `session start\|stop\|status\|restart` | Manage the browser host; `start` and `restart` need `--profile` |
 | `navigate` | Go to `--url`, or `back`, `forward`, `reload`; `--wait` sets what counts as arrived |
 | `snapshot` | Read the page: `--format accessibility\|text\|html\|interactive` |
-| `pick` | Choose an element index and verb for `--goal` from an interactive snapshot. It does not act on the page |
 | `click` | Click by `--index`, `--selector`, `--text`, or `--coords`; `--button`, `--count`, `--delay`, `--force` |
 | `type` | Enter `--text` into a target, or press `--key`. **Read the per-command options below before using it**: the default replaces the field |
 | `wait` | Block on `--selector`, `--text`, `--time`, or `--network` |
@@ -117,11 +112,6 @@ Per-command options. Each belongs to the one command named and is refused elsewh
 
 | Command | Option | Effect | Default |
 |---------|--------|--------|---------|
-| `pick` | `--goal` | The outcome this step is after. Required | None; required |
-| `pick` | `--owning-root` | Absolute path of the owning root. Absent, unreadable, or refusing, `pick` makes no call | None |
-| `pick` | `--gateway-home` | Gateway home when the gateway was started with `--home` | The gateway's own home |
-| `pick` | `--snapshot-file` | A recorded interactive snapshot JSON (`url`, `title`, `format`, `elementCount`, `content`). Absent, `pick` reads a fresh interactive snapshot from the running session | The running session |
-| `pick` | `--classifier-record` | Replay a judgment's `records` array. A record whose question or candidates differ is refused, and no call is made | None |
 | `navigate` | `--wait` | What counts as arrived: `load`, `domcontentloaded`, `networkidle`, `commit` | `load` |
 | `click` | `--button` | Which mouse button | `left` |
 | `click` | `--count` | How many clicks; 2 is a double click | 1 |
@@ -211,7 +201,7 @@ Two scripts ship. `scripts/browser.js` is the only one a caller runs. `scripts/s
 
 ## Output
 
-Success is one JSON object on stdout and exit 0. Most commands return the page's `url` and `title` after the action, plus whatever they were asked for: `content` for a snapshot, `passed` for a check, `result` for executed code, a written path for an artifact. `pick` returns `{ goal, elementCount, pick, classifier }`. `pick` is `{ index, verb }` or null. `classifier` carries `path` (`classifier`, `replay`, or `builtin`), `reason`, `batches`, and `records`, the answers as received. A null `pick` means the caller picks from the snapshot as today.
+Success is one JSON object on stdout and exit 0. Most commands return the page's `url` and `title` after the action, plus whatever they were asked for: `content` for a snapshot, `passed` for a check, `result` for executed code, a written path for an artifact.
 
 `check` is the one to read carefully. It exits 0 when the assertion ran and reports the verdict in `passed`; an assertion that did not hold is a finding to report, never something to work around by loosening the assertion.
 
