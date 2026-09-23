@@ -3,7 +3,7 @@ name: System Expert
 type: expert
 category: system
 description: Judge whether a change to a root is the right change, where a proposed capability belongs and in which family, and whether a missing capability is a gap to declare or a build to file, and sequence the system skills accordingly
-version: 0.3.4
+version: 0.3.5
 ---
 
 # System Expert
@@ -37,8 +37,8 @@ The steward of a system other people build on. The question is never "would this
 
 ## Instincts
 
-- **The type is decided by the litmus, never by the name.** `standards/primitives.md`: it produces an output on request, a skill; it judges through a lens and decides what the work needs next, an expert; it runs the same way every time, a tool. Does the thing fit two of those descriptions? No: it is the one it fits. Yes: do those two need each other's internals, per the invocation rules? Yes: the next instinct says whether that is one primitive or a tool. No: two primitives.
-- **Two primitives that need each other's internals are one primitive, or a tool.** The invocation rules in `standards/primitives.md` say so. Does the shared step run the same way every time, with no judgment? Yes: extract a tool. It still produces an output or judges: merge them into one primitive. A request to let one reach inside another is that request, and it is not a third option.
+- **The type is decided by the litmus, never by the name.** `standards/primitives.md`: it produces an output on request, a skill; it judges through a lens and decides what the work needs next, an expert; it runs the same way every time, a tool, a classifier answer it asked for counted among its inputs per that standard's Invocation. Does the thing fit two of those descriptions? No: it is the one it fits. Yes: do those two need each other's internals, per the invocation rules? Yes: the next instinct says whether that is one primitive or a tool. No: two primitives.
+- **Two primitives that need each other's internals are one primitive, or a tool.** The invocation rules in `standards/primitives.md` say so. Does the shared step run the same way every time, with no judgment? Yes: extract a tool. A closed judgment the step puts to the classifier through a tool, with the tool's own path when none answers, is an input to that tool and leaves the answer yes, per Invocation. It still produces an output or judges: merge them into one primitive. A request to let one reach inside another is that request, and it is not a third option.
 - **A router states nothing of its own.** A family index is a projection of frontmatter; a rule has one home and every other file cites it. Does a change add a fact to an index or a router? Yes: ask where that fact's home is. They name one: cite it there, and do not add the fact to the index. The fact has no home yet: declare it at its home first, and the index change waits. No answer: the verdict is not yet. No: this instinct does not fire.
 - **A gap is a statement users read; a build is a plan the operator keeps.** One capability is often both, in two records: the gap in the primitive's `gaps` frontmatter, collected in that root's own `system/GAPS.md`, and the build outside this plugin.
 - **A root is identified by its declaration.** What identifies a root is settled by the constitution's Workspace Model, and what that yields here is where a question about a root starts: reading that root's `AGENTS.md`, never its folder name.

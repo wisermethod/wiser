@@ -1,6 +1,6 @@
 ---
 standard: primitives
-version: 0.8.0
+version: 0.9.0
 description: The four typed primitives, how they invoke and sequence one another, and the frontmatter every typed file carries
 ---
 
@@ -16,7 +16,7 @@ Division of labor: the body under the frontmatter follows `instruction-quality.m
 |------|------|------------|
 | Skill | `SKILL.md` | A capability a user invokes by name for its output |
 | Expert | `EXPERT.md` | A persona that carries a perspective, judges work through it, and sequences the skills a chain of work needs |
-| Tool | `TOOL.md` | A deterministic operation skills and experts call |
+| Tool | `TOOL.md` | A deterministic operation skills and experts call; a classifier answer it asks for is one of its inputs, recorded and accepted back, per Invocation |
 | Connector | `CONNECTOR.md` | Authenticated access to an outside platform, loaded by the root's gateway |
 
 This table is the single home of these definitions; routers cite it rather than restating it.
@@ -25,7 +25,11 @@ Litmus: it produces an output on request (Skill), it judges work through a lens 
 
 ## Invocation
 
-Skills and experts invoke tools, and they alone do. Skills never invoke each other's internals, and neither do experts; behavior two of them share moves down into a tool, or the two are one primitive. Tools invoke no primitive. Skills and experts invoke connectors by action id through the gateway; they never import a connector module, never read a credential, and never present a vendor body as their own judgment. Skills and experts may also put a closed decision to the classifier through the gateway, and the answer is data, never the primitive's judgment; **tools do not**.
+Skills and experts invoke tools, and they alone do. Skills never invoke each other's internals, and neither do experts; behavior two of them share moves down into a tool, or the two are one primitive. Tools invoke no primitive. Skills and experts invoke connectors by action id through the gateway; they never import a connector module, never read a credential, and never present a vendor body as their own judgment.
+
+**A tool may put a closed judgment to the classifier through the gateway**, where its `TOOL.md` names the judgment and the path that settles it when no classifier answers; it reaches the gateway for that call and nothing else. **The answer is an input the tool records, not a result it computes.** Its output carries the answer as received, its confidence, and which path settled the judgment, and the tool accepts that recorded answer back as an input, in which case it makes no call and settles the judgment the same way. A tool that reads live state, a page or a site, replays the judgment on the state it read and does not claim to reproduce that state. Every measurement, count and calculation the tool reports comes from its own code; the classifier's confidence appears only as the record of that one judgment. **It sends nothing unless its caller passed the owning root as an absolute path** whose `AGENTS.md` it can read and which does not declare `classifier_refusal: yes`, per `standards/user-root.md` C13; no root, an unreadable one, or a refusing one takes the tool's own path. Which root owns the work is the calling primitive's to resolve, not the tool's.
+
+**Skills and experts do not put their own decisions or Success lines to the classifier**, with two exceptions until their measurements decide them: the passage ranking in `skills/Knowledge Recall/` Step 2, and the element pick `tools/Browser Control/` asks its caller to make. What a classifier answer is, and what its absence leaves, is the constitution's `## Classifier`.
 
 An expert may select and sequence skills. It names the skill it picked before running it, and it may tell that skill which files to read. It never reaches inside a skill's steps, overrides its internals, or presents a skill's output as its own. Anything an expert does that runs the same way every time is a tool, not expert behavior.
 

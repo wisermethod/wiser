@@ -112,7 +112,7 @@ A classifier is an optional first-party service the gateway serves when one is a
 
 **Every other ask is put to `wiser.route.ask` before the routing table is read**, and a confident answer is the file to load. Where the ask names its output, the routed file is confirmed to yield that output before it is loaded, and an ask is never diverted to a file that does not. An answer that is not confident, or no answer at all, leaves the table to be read as it is read today. Where the harness runs plugin hooks, the app puts the ask before the model starts, through `hooks/`.
 
-**A closed decision a primitive states, and a Success line that reads the deliverable, may be put to the classifier.** A confident answer is taken for that decision and is data rather than the primitive's judgment. `needs_subscription`, `unavailable`, and an answer below the threshold are each the primitive's own step, as that primitive writes it.
+**Which primitives may put a judgment to the classifier is `standards/primitives.md` Invocation's.** Where one does, the answer is data rather than the primitive's judgment, and it is taken only as the typed file that asks for it says: against the threshold that file names, or by the acceptance test that file writes for an answer that carries none. A tool's output says which path settled the judgment, as any tool result is data. `needs_subscription`, `unavailable`, and an answer the file does not accept are each the primitive's own step, as that primitive writes it.
 
 **Where the owning root declares the refusal, nothing is sent.** A session that has resolved that root as owning sends nothing to a classifier, the routing ask included, and routing reads the table as today.
 
