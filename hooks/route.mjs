@@ -8,7 +8,8 @@ import { runHook } from './lib/run.mjs';
 
 /**
  * The named asks `wiser/AGENTS.md` lists, each handled before any call is
- * made; compared after trimming, dropping a closing mark, and lowering case.
+ * made; compared after trimming, dropping a closing mark, and lowering case,
+ * whole or followed by more words.
  */
 export const NAMED_ASKS = new Set([
   'update root', 'update this root', 'check root', 'is this root current',
@@ -19,7 +20,10 @@ export const NAMED_ASKS = new Set([
 /** @param {string} ask */
 export function isNamedAsk(ask) {
   const key = String(ask).trim().replace(/^["'`]+|["'`]+$/g, '').replace(/[.!?,;:\s]+$/, '').trim().toLowerCase();
-  return NAMED_ASKS.has(key);
+  if (NAMED_ASKS.has(key)) return true;
+  // A named ask with a target or a qualifier after it is still that ask.
+  for (const named of NAMED_ASKS) if (key.startsWith(`${named} `)) return true;
+  return false;
 }
 
 /**

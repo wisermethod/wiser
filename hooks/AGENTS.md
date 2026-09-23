@@ -8,7 +8,7 @@ One hook ships here, and it exists for the classifier. `hooks.json` registers it
 
 **It prints nothing and sends nothing** unless all three hold: the gateway's presence file says a classifier is attached and its process is alive; the working folder sits inside an owning root, the nearest `AGENTS.md` declaring a `type:`; and nothing at or above that folder declares `classifier_refusal: yes`. A plugin root and a workspace folder declare no `type:`, so a session started in one sends nothing, because the root that will own the request is not yet known.
 
-**It does not send the named asks** `wiser/AGENTS.md` lists, which are handled before any call is made, and **it does not route to a tool**: a request enters at a skill or an expert, so a tool answer leaves the routing table to be read as today. Its line defers to the request: it names a file to load unless the request names another, or names an output that file does not yield.
+**It does not send the named asks** `wiser/AGENTS.md` lists, whole or with more words after them, which are handled before any call is made, and **it does not route to a tool**: a request enters at a skill or an expert, so a tool answer leaves the routing table to be read as today. Its line defers to the request: it names a file to load unless the request names another, or names an output that file does not yield.
 
 **With no classifier attached** the hook still starts on every request and exits at once: about one short Node process, no output, and no tokens.
 

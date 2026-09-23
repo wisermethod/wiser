@@ -418,6 +418,9 @@ test('named asks are not sent, and a tool answer is not a route', () => {
     assert.equal(isNamedAsk(ask), true, ask);
   }
   assert.equal(isNamedAsk('update the root page copy for the launch'), false);
+  assert.equal(isNamedAsk('Update root for this client'), true);
+  assert.equal(isNamedAsk('set up connectors on this machine'), true);
+  assert.equal(isNamedAsk('wrap-up notes for the board'), false);
   const home = tempHome();
   const cwd = join(home, 'work');
   mkdirSync(cwd);
