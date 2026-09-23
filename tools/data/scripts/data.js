@@ -139,8 +139,9 @@ Options:
   --file <path>    Data file to read (absolute path), outside this tool
                    directory. Required.
   --owning-root <dir>
-                   Absolute path of the owning root. Absent, unreadable, or
-                   refusing, roles makes no call and every role is null.
+                   Optional absolute path of the owning root. Checked against
+                   the session binding. Absent, the binding's root is used.
+                   A mismatch, an unreadable root, or a refusal makes no call.
   --gateway-home <dir>
                    Gateway home when the gateway was started with --home.
   --classifier-record <file>
@@ -182,10 +183,12 @@ Options:
   --columns <list> Comma-separated column names to describe. Omit for every
                    numeric column. Not valid with --quantities.
   --quantities     Describe the columns roles calls quantity, and any column
-                   whose role is null. Requires --owning-root. The figures are
-                   the same ones describe computes today.
+                   whose role is null. The figures are the same ones describe
+                   computes today. The data file is the material the judgment
+                   is about.
   --owning-root <dir>
-                   Absolute path of the owning root. Valid only with --quantities.
+                   Optional absolute path of the owning root, checked against
+                   the session binding. Valid only with --quantities.
   --gateway-home <dir>
                    Gateway home when the gateway was started with --home.
                    Valid only with --quantities.
@@ -651,7 +654,12 @@ async function runRoles(argv) {
   const profile = executeParse({ content, format, delimiter, hasHeader });
   let roles;
   try {
-    roles = await judgeRoles(profile, { owningRoot: owningPath, gatewayHome: gatewayPath, replay: recordPath });
+    roles = await judgeRoles(profile, {
+      owningRoot: owningPath,
+      gatewayHome: gatewayPath,
+      replay: recordPath,
+      material: [filePath],
+    });
   } catch (error) {
     fail(`Error: ${error && error.message ? error.message : error}`);
   }
@@ -712,9 +720,6 @@ async function runDescribe(argv) {
   const owningRoot = flag('--owning-root');
   const gatewayHome = flag('--gateway-home');
   const classifierRecord = flag('--classifier-record');
-  if (quantities && owningRoot === undefined) {
-    fail(`Error: --quantities requires --owning-root. Run "${usageCmd}" for usage.`);
-  }
   for (const name of ['--owning-root', '--gateway-home', '--classifier-record']) {
     if (!quantities && argv.includes(name)) {
       fail(`Error: ${name} is valid only with --quantities. Run "${usageCmd}" for usage.`);
@@ -753,7 +758,12 @@ async function runDescribe(argv) {
     const profile = executeParse({ content, format, delimiter, hasHeader: true });
     let roles;
     try {
-      roles = await judgeRoles(profile, { owningRoot: owningPath, gatewayHome: gatewayPath, replay: recordPath });
+      roles = await judgeRoles(profile, {
+      owningRoot: owningPath,
+      gatewayHome: gatewayPath,
+      replay: recordPath,
+      material: [filePath],
+    });
     } catch (error) {
       fail(`Error: ${error && error.message ? error.message : error}`);
     }

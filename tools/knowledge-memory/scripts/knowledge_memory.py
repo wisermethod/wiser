@@ -36,8 +36,10 @@ passage candidate pool; an explicit --top-k governs every path.
 --select, --rank and --candidates-only are graph-only; --rank defaults to cosine.
 --rank classifier builds the same pool as --rank hybrid and records one judgment.
 --owning-root, --gateway-home and --classifier-record are valid only with
---rank classifier. --classifier-record replays a judgment record; a record
-that does not match this call is refused.
+--rank classifier. --owning-root is optional and is checked against the
+session binding. The set directory and the store directory are the material
+that judgment is about. --classifier-record replays a judgment record; a
+record that does not match this call is refused.
 --select accepts a JSON list in place of a file. --candidates-only returns passages alone.
 Unknown, repeated and command-inapplicable flags are refused by name.
 forget without confirm reports the planned store changes and writes nothing.

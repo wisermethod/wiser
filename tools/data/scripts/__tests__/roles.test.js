@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { writeSession } from '../../../../hooks/lib/binding.mjs';
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), '..', 'data.js');
 const ACTION = 'wiser.decide.batch';
@@ -18,7 +19,29 @@ function childEnv(extra = {}) {
   const env = { ...process.env, ...extra };
   if (!Object.prototype.hasOwnProperty.call(extra, 'WISER_HOOK_STUB_FILE')) delete env.WISER_HOOK_STUB_FILE;
   if (!Object.prototype.hasOwnProperty.call(extra, 'WISER_HOOK_STUB_LOG')) delete env.WISER_HOOK_STUB_LOG;
+  if (!Object.prototype.hasOwnProperty.call(extra, 'CLAUDE_PID')) delete env.CLAUDE_PID;
+  if (!Object.prototype.hasOwnProperty.call(extra, 'CLAUDE_CODE_SESSION_ID')) delete env.CLAUDE_CODE_SESSION_ID;
   return env;
+}
+
+function bind(home, root, sessionId = 'roles-session-01') {
+  const recorded = writeSession({
+    home,
+    sessionId,
+    harnessPid: process.pid,
+    cwd: root,
+    homeDir: home,
+  });
+  assert.equal(recorded && recorded.ok, true, JSON.stringify(recorded));
+  return sessionId;
+}
+
+function sessionEnv(sessionId, extra = {}) {
+  return {
+    ...extra,
+    CLAUDE_PID: String(process.pid),
+    CLAUDE_CODE_SESSION_ID: sessionId,
+  };
 }
 
 function writeAgents(dir, text = '---\ntype: personal\n---\n\n# Root\n') {
@@ -78,12 +101,13 @@ describe('roles', () => {
     const home = tempDir();
     const owning = writeAgents(join(dir, 'root'));
     attached(home);
-    const file = writeCsv(dir);
+    const file = writeCsv(owning);
     const env = stubEnv(dir, ANSWER);
+    const sessionId = bind(home, owning);
     const parsed = ok(['parse', '--file', file]);
     const judged = ok([
       'roles', '--file', file, '--owning-root', owning, '--gateway-home', home,
-    ], env);
+    ], sessionEnv(sessionId, env));
     const { roles, ...rest } = judged;
     assert.deepEqual(rest, parsed);
     assert.equal(roles.path, 'classifier');
@@ -110,32 +134,49 @@ describe('roles', () => {
 
     const noRoot = ok(['roles', '--file', file, '--gateway-home', home], env);
     assert.equal(noRoot.roles.path, 'builtin');
-    assert.equal(noRoot.roles.reason, 'no-owning-root');
+    assert.equal(noRoot.roles.reason, 'no-session');
     assert.deepEqual(noRoot.roles.columns, { id: null, year: null, revenue: null });
     assert.equal(noRoot.roles.record, null);
     assert.equal(existsSync(env.log), false);
 
+    const other = writeAgents(join(dir, 'other'));
+    const manyId = bind(home, owning, 'roles-session-many');
+    writeSession({
+      home,
+      sessionId: manyId,
+      harnessPid: process.pid,
+      cwd: owning,
+      homeDir: home,
+      argsReader: () => `--add-dir ${other}`,
+    });
+    const unnamed = ok(['roles', '--file', file, '--gateway-home', home], sessionEnv(manyId, env));
+    assert.equal(unnamed.roles.reason, 'no-owning-root');
+
+    const refusedId = bind(home, refused, 'roles-session-nope');
     const refusedRun = ok([
       'roles', '--file', file, '--owning-root', refused, '--gateway-home', home,
-    ], env);
+    ], sessionEnv(refusedId, env));
     assert.equal(refusedRun.roles.reason, 'refused');
     assert.equal(existsSync(env.log), false);
 
     const quiet = tempDir();
+    const inside = writeCsv(owning, CSV);
+    const openId = bind(quiet, owning, 'roles-session-open');
     const missing = ok([
-      'roles', '--file', file, '--owning-root', owning, '--gateway-home', quiet,
-    ], env);
+      'roles', '--file', inside, '--owning-root', owning, '--gateway-home', quiet,
+    ], sessionEnv(openId, env));
     assert.equal(missing.roles.reason, 'no-classifier');
     assert.equal(existsSync(env.log), false);
 
     attached(home);
+    const goodId = bind(home, owning, 'roles-session-good');
     const bad = stubEnv(dir, {
       answers: [{ id: 'id', choice: 'nope', confidence: 0.4 }, { id: 'year', status: 'unavailable', reason: 'choice outside the roster' }, { id: 'revenue', choice: 'none', confidence: 0.1 }],
       calibrated: false,
     }, 'bad');
     const failed = ok([
-      'roles', '--file', file, '--owning-root', owning, '--gateway-home', home,
-    ], bad);
+      'roles', '--file', inside, '--owning-root', owning, '--gateway-home', home,
+    ], sessionEnv(goodId, bad));
     assert.equal(failed.roles.path, 'builtin');
     assert.equal(failed.roles.reason, 'not-accepted');
     assert.deepEqual(failed.roles.columns, { id: null, year: null, revenue: null });
@@ -147,11 +188,12 @@ describe('roles', () => {
     const home = tempDir();
     const owning = writeAgents(join(dir, 'root'));
     attached(home);
-    const file = writeCsv(dir);
+    const file = writeCsv(owning);
     const env = stubEnv(dir, ANSWER);
+    const sessionId = bind(home, owning, 'roles-session-replay');
     const first = ok([
       'roles', '--file', file, '--owning-root', owning, '--gateway-home', home,
-    ], env);
+    ], sessionEnv(sessionId, env));
     const record = join(dir, 'record.json');
     writeFileSync(record, JSON.stringify(first.roles.record));
     const replayEnv = stubEnv(dir, {
@@ -185,11 +227,12 @@ describe('describe --quantities', () => {
     const home = tempDir();
     const owning = writeAgents(join(dir, 'root'));
     attached(home);
-    const file = writeCsv(dir);
+    const file = writeCsv(owning);
     const env = stubEnv(dir, ANSWER);
+    const sessionId = bind(home, owning, 'roles-session-cols');
     const judged = ok([
       'describe', '--file', file, '--quantities', '--owning-root', owning, '--gateway-home', home,
-    ], env);
+    ], sessionEnv(sessionId, env));
     const names = judged.columns.map((column) => column.name);
     assert.deepEqual(names, ['year', 'revenue']);
     assert.equal(judged.quantities.path, 'classifier');
@@ -207,11 +250,12 @@ describe('describe --quantities', () => {
     const dir = tempDir();
     const home = tempDir();
     const owning = writeAgents(join(dir, 'root'));
-    const file = writeCsv(dir);
+    const file = writeCsv(owning);
     const env = stubEnv(dir, ANSWER);
+    const sessionId = bind(home, owning, 'roles-session-quiet');
     const judged = ok([
       'describe', '--file', file, '--quantities', '--owning-root', owning, '--gateway-home', home,
-    ], env);
+    ], sessionEnv(sessionId, env));
     const plain = ok(['describe', '--file', file]);
     assert.equal(judged.quantities.path, 'builtin');
     assert.equal(judged.quantities.reason, 'no-classifier');
@@ -222,13 +266,12 @@ describe('describe --quantities', () => {
     assert.equal(existsSync(env.log), false);
   });
 
-  it('refuses --quantities without --owning-root, and --columns beside it', () => {
+  it('accepts --quantities without --owning-root, and refuses --columns beside it', () => {
     const dir = tempDir();
     const file = writeCsv(dir);
     const missing = run(['describe', '--file', file, '--quantities']);
-    assert.equal(missing.status, 1);
-    assert.equal(missing.stdout, '');
-    assert.match(missing.stderr, /--quantities requires --owning-root/);
+    assert.equal(missing.status, 0, missing.stderr);
+    assert.equal(JSON.parse(missing.stdout).quantities.reason, 'no-session');
     const both = run([
       'describe', '--file', file, '--quantities', '--owning-root', dir, '--columns', 'revenue',
     ]);

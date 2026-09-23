@@ -96,7 +96,7 @@ export function columnsForDescribe(roles) {
 
 /**
  * @param {object} profile
- * @param {{ owningRoot?: string, gatewayHome?: string, replay?: string }} [opts]
+ * @param {{ owningRoot?: string, gatewayHome?: string, replay?: string, material?: string[] }} [opts]
  */
 export async function judgeRoles(profile, opts = {}) {
   const decisions = numericDecisions(profile);
@@ -114,6 +114,7 @@ export async function judgeRoles(profile, opts = {}) {
     owningRoot: opts.owningRoot,
     gatewayHome: opts.gatewayHome,
     replay: opts.replay,
+    material: opts.material,
   });
   return settleRoles(result, decisions);
 }

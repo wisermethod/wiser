@@ -405,7 +405,7 @@ function rosterDigest(result) {
 async function main() {
   const [
     { createAudit },
-    { ConnectionGateway, classifierNeedsSubscription },
+    { ConnectionGateway, classifierNeedsSubscription, oneShotClassifierIdentity },
     { loadConnectors },
     { loadPolicy },
     { runStdio },
@@ -514,6 +514,7 @@ async function main() {
     connectors,
     envPath: flags.env,
     classifier,
+    classifierIdentity: (flags.route || flags.call !== null) ? oneShotClassifierIdentity : undefined,
   });
 
   if (flags.route) {

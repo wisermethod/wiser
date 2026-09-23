@@ -6,9 +6,13 @@ run that suite a second time.
 """
 import json
 import os
+from pathlib import Path
+import subprocess
 import unittest
 
 import test_graph_memory as graph_tests
+
+BINDING = Path(__file__).resolve().parents[3] / 'hooks' / 'lib' / 'binding.mjs'
 
 
 class ClassifierRank(unittest.TestCase):
@@ -21,6 +25,8 @@ class ClassifierRank(unittest.TestCase):
             raise
         self.root = self.fx.root
         self.env = self.fx.env
+        self.env.pop('CLAUDE_PID', None)
+        self.env.pop('CLAUDE_CODE_SESSION_ID', None)
         self.set = self.fx.set
         self.store = self.fx.store
 
@@ -37,12 +43,37 @@ class ClassifierRank(unittest.TestCase):
         return self.fx.run_cli(*args, **kwargs)
 
     def owning_root(self):
-        root = self.root / 'owning'
-        root.mkdir(exist_ok=True)
-        agents = root / 'AGENTS.md'
+        agents = self.root / 'AGENTS.md'
         if not agents.exists():
             agents.write_text('---\ntype: personal\n---\n\n# Owning\n')
-        return root
+        return self.root
+
+    def bind(self, home, session='km-session-01'):
+        root = self.owning_root()
+        spec = {
+            'home': str(home),
+            'sessionId': session,
+            'harnessPid': os.getpid(),
+            'cwd': str(root),
+            'homeDir': str(self.root),
+        }
+        script = (
+            'import { writeSession } from %s;\n'
+            'const spec = JSON.parse(process.env.BIND_SPEC);\n'
+            'const result = writeSession(spec);\n'
+            'if (!result || result.ok !== true) {\n'
+            '  console.error(JSON.stringify(result));\n'
+            '  process.exit(2);\n'
+            '}\n'
+        ) % json.dumps(BINDING.as_uri())
+        env = dict(os.environ)
+        env['BIND_SPEC'] = json.dumps(spec)
+        run = subprocess.run(
+            ['node', '--input-type=module', '-e', script],
+            env=env, text=True, capture_output=True)
+        self.assertEqual(run.returncode, 0, run.stderr or run.stdout)
+        self.env['CLAUDE_PID'] = str(os.getpid())
+        self.env['CLAUDE_CODE_SESSION_ID'] = session
 
     def gateway_home(self, attached=False):
         home = self.root / ('gateway-attached' if attached else 'gateway-empty')
@@ -70,6 +101,7 @@ class ClassifierRank(unittest.TestCase):
         return log
 
     def recall_classifier(self, query, home, owning, extra=(), code=0):
+        self.bind(home)
         args = ('--rank', 'classifier', '--owning-root', str(owning),
                 '--gateway-home', str(home), *extra)
         return self.recall(query, code=code, extra=args)

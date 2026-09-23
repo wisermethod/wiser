@@ -1,7 +1,8 @@
-import { mkdtempSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { writeSession } from '../../hooks/lib/binding.mjs';
 
 import { createAudit } from '../src/audit.js';
 import { ConnectionGateway } from '../src/gateway.js';
@@ -490,6 +491,39 @@ export function makeHome() {
 /**
  * @param {object} [options]
  */
+/**
+ * A verified session for in-process tests. The identity is this process, so
+ * `harness_started` is a real reading. `homeDir` is the temp home, so the
+ * machine's own Claude settings are not composed in.
+ * @param {string} home
+ */
+export function bindTestSession(home, opts = {}) {
+  const root = opts.root || join(home, 'bound-root');
+  mkdirSync(root, { recursive: true });
+  const agents = join(root, 'AGENTS.md');
+  if (!existsSync(agents)) {
+    writeFileSync(agents, opts.agents || '---\ntype: personal\n---\n\n# Root\n');
+  }
+  const sessionId = opts.sessionId || 'gateway-test-session';
+  const harnessPid = opts.harnessPid || process.pid;
+  const recorded = writeSession({
+    home,
+    sessionId,
+    harnessPid,
+    cwd: opts.cwd || root,
+    homeDir: opts.homeDir || home,
+    harnessStartedReader: opts.harnessStartedReader,
+    argsReader: opts.argsReader,
+    now: opts.now,
+    scanDepth: opts.scanDepth,
+    scanLimit: opts.scanLimit,
+  });
+  if (!recorded || recorded.ok !== true) {
+    throw new Error(`test session did not bind: ${JSON.stringify(recorded)}`);
+  }
+  return { ...recorded, sessionId, harnessPid, root };
+}
+
 export async function createTestGateway(options = {}) {
   const home = options.home || makeHome();
   const fake = options.fake || createFakeProviders();
@@ -498,6 +532,8 @@ export async function createTestGateway(options = {}) {
   const audit = options.audit || createAudit(home);
   const connectorDirs = options.connectorDirs !== undefined ? options.connectorDirs : [DEFAULT_CONNECTORS];
   const connectors = options.connectors || await loadConnectors(connectorDirs);
+  const customIdentity = typeof options.classifierIdentity === 'function';
+  if (options.session !== false && !customIdentity) bindTestSession(home);
   const gw = new ConnectionGateway({
     home,
     role: options.role || 'runtime',
@@ -512,6 +548,9 @@ export async function createTestGateway(options = {}) {
     connectors,
     envPath: options.envPath || null,
     classifier: options.classifier || null,
+    classifierIdentity: customIdentity
+      ? options.classifierIdentity
+      : (options.session === false ? undefined : () => ({ harnessPid: process.pid, sessionId: null })),
   });
   return { gw, home, store, fake, audit, connectors, policy };
 }

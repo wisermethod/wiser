@@ -102,7 +102,7 @@ An empty file, a header with no data rows, and a file whose content does not par
 
 Use it when a later `describe` should skip numbers that are not quantities. It parses exactly as `parse` does and changes none of that object's fields. Every column `parse` types `number` is one decision in a single `wiser.decide.batch` call. The question names the column, its sample values as `parse` reports them, and the file's other column names. The path that settles the judgment without a classifier is every role null, and the caller judges those columns as today.
 
-An accepted answer for a column is an entry for that column's id whose `choice` is `quantity`, `identifier`, `year`, `code`, or `flag`. `none`, a missing entry, an entry status, and any other choice leave that column's role null. No owning root, a refusal, no classifier, or a judgment that accepts nothing: `path` is `builtin` and every role is null. Nothing is sent without an owning root that does not refuse. The rule is `standards/primitives.md` Invocation.
+An accepted answer for a column is an entry for that column's id whose `choice` is `quantity`, `identifier`, `year`, `code`, or `flag`. `none`, a missing entry, an entry status, and any other choice leave that column's role null. No verified session, no owning root, a refusal, no classifier, or a judgment that accepts nothing: `path` is `builtin` and every role is null. The data file is the material the judgment is about, and it has to sit inside one of the session's roots. `--owning-root` is optional and is checked against that session. The rule is `standards/primitives.md` Invocation.
 
 ### Usage
 
@@ -114,7 +114,7 @@ An accepted answer for a column is an entry for that column's id whose `choice` 
 | Option | Effect | Default |
 |--------|--------|---------|
 | `--file <path>` | The data file to read, an absolute path. Required by `roles` | None; required |
-| `--owning-root <dir>` | Absolute path of the owning root. Absent, unreadable, or refusing, `roles` makes no call | None |
+| `--owning-root <dir>` | Optional absolute path of the owning root, checked against the session binding. The data file is checked as the material. A mismatch, an unreadable root, or a refusal makes no call | None |
 | `--gateway-home <dir>` | Gateway home when the gateway was started with `--home` | The gateway's own home |
 | `--classifier-record <file>` | Replay a judgment record. A record whose question or candidates differ is refused, and no call is made | None |
 | `--format <fmt>` | Force `csv`, `json`, or `tsv` instead of auto-detecting | Auto-detect from the content |
@@ -171,14 +171,14 @@ Every figure is rounded to four decimal places. A column that reaches the numeri
 |---------|---------|--------------|
 | `node scripts/data.js describe help` | Print usage and exit | No |
 | `node scripts/data.js describe --file <path>` | Compute the statistics for the file's numeric columns | Yes |
-| `node scripts/data.js describe --file <path> --quantities --owning-root <dir>` | Describe the columns `roles` calls `quantity`, and any column whose role is null | Yes |
+| `node scripts/data.js describe --file <path> --quantities [--owning-root <dir>]` | Describe the columns `roles` calls `quantity`, and any column whose role is null | Yes |
 
 | Option | Effect | Default |
 |--------|--------|---------|
 | `--file <path>` | The data file to read, an absolute path. Required by `describe` | None; required |
 | `--columns <list>` | Comma-separated column names to describe. Not valid with `--quantities` | Every numeric column |
-| `--quantities` | Run `roles` first and describe the columns it calls `quantity`, plus any column whose role is null. Requires `--owning-root`. Every figure is computed as `describe` computes it today; the classifier only chooses which columns are described | Off |
-| `--owning-root <dir>` | Absolute path of the owning root. Valid only with `--quantities` | None |
+| `--quantities` | Run `roles` first and describe the columns it calls `quantity`, plus any column whose role is null. The data file is the material. Every figure is computed as `describe` computes it today; the classifier only chooses which columns are described | Off |
+| `--owning-root <dir>` | Optional absolute path of the owning root, checked against the session binding. Valid only with `--quantities` | None |
 | `--gateway-home <dir>` | Gateway home when the gateway was started with `--home`. Valid only with `--quantities` | The gateway's own home |
 | `--classifier-record <file>` | Replay the `roles` judgment. Valid only with `--quantities` | None |
 | `--format <fmt>` | Force `csv`, `json`, or `tsv` instead of auto-detecting | Auto-detect from the content |

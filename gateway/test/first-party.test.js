@@ -159,11 +159,13 @@ async function overlappingKeys(order) {
 
 test('STATUS includes needs_subscription and nothing existing was renamed', () => {
   assert.equal(STATUS.NEEDS_SUBSCRIPTION, 'needs_subscription');
+  assert.equal(STATUS.CLASSIFIER_UNBOUND, 'classifier_unbound');
   assert.equal(STATUS.NEEDS_CONNECTOR, 'needs_connector');
   assert.equal(STATUS.NEEDS_CONFIRMATION, 'needs_confirmation');
   assert.equal(STATUS.TEARDOWN_INCOMPLETE, 'teardown_incomplete');
   assert.ok(Object.values(STATUS).includes('needs_subscription'));
-  assert.equal(Object.values(STATUS).length, 10);
+  assert.ok(Object.values(STATUS).includes('classifier_unbound'));
+  assert.equal(Object.values(STATUS).length, 11);
 });
 
 test('no classifier loaded: execute of a wiser id answers needs_subscription, not needs_connector', async () => {

@@ -16,7 +16,7 @@ An authoring tree, not a working folder. Nothing here is anyone's work product; 
 
 ## Writes
 
-In use this root is read-only, with one exception: a tool writes its own dependencies, and a browser tool also writes a browser build whose location depends on the platform and on `PLAYWRIGHT_BROWSERS_PATH`. `tools/AGENTS.md` lists every one of them and where each lands. The gateway's writes sit outside this plugin and are listed in `gateway/AGENTS.md`.
+In use this root is read-only, with one exception: a tool writes its own dependencies, and a browser tool also writes a browser build whose location depends on the platform and on `PLAYWRIGHT_BROWSERS_PATH`. `tools/AGENTS.md` lists every one of them and where each lands. The gateway's writes sit outside this plugin and are listed in `gateway/AGENTS.md`. The classifier session binding sits outside this plugin and is listed in `hooks/AGENTS.md`.
 
 Three install bases. This plugin copy holds a tool's own packages. The owning root holds work product. Person-scoped machine files that have no root context, including model weights, land in `models/` under the platform user-config directory `gateway/SETUP.md` names, never in this plugin, never in a root, never in the connector key file. An explicit absolute path still wins. A destination that is the key file is refused by the tool. A root path on an explicit `--model-cache` is the calling agent's refusal; the tool does not know the composed roots. A knowledge-set recipe names a file inside that folder; primitives name no model. **Roots do not receive models or libraries that have no root context.** `tools/AGENTS.md` is the inventory for those writes; do not restate the OS paths here.
 

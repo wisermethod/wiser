@@ -1,6 +1,17 @@
 {
-  "description": "When a classifier is attached, route each request before the model starts. When none is attached, when no owning root is known, or when that root refuses, this hook prints nothing and sends nothing.",
+  "description": "When a classifier is attached, bind the session and route each request before the model starts. When none is attached, when no owning root is known, or when that root refuses, the route hook prints nothing and sends nothing. The session hook writes the binding whenever the presence file exists.",
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session.mjs\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [

@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 import { classifierNeedsSubscription } from '../src/gateway.js';
 import { FIRST_PARTY_ACTIONS } from '../src/resolve.js';
+import { writeSession } from '../../hooks/lib/binding.mjs';
 import { buildRoster } from '../../hooks/lib/roster.mjs';
 import { makeHome } from './fake-provider.js';
 
@@ -76,6 +77,27 @@ function classifierDir() {
 
 function statusPath(home, harness = 'claude-code') {
   return join(home, 'classifier-status', `${harness}.json`);
+}
+
+function callEnv(home) {
+  const root = join(home, 'bound-root');
+  mkdirSync(root, { recursive: true });
+  if (!existsSync(join(root, 'AGENTS.md'))) {
+    writeFileSync(join(root, 'AGENTS.md'), '---\ntype: personal\n---\n\n# Root\n');
+  }
+  const recorded = writeSession({
+    home,
+    sessionId: 'presence-call-session',
+    harnessPid: process.pid,
+    cwd: root,
+    homeDir: home,
+  });
+  if (!recorded || recorded.ok !== true) throw new Error(`session did not bind: ${JSON.stringify(recorded)}`);
+  return {
+    ...process.env,
+    CLAUDE_PID: String(process.pid),
+    CLAUDE_CODE_SESSION_ID: 'presence-call-session',
+  };
 }
 
 function startServer(args) {
@@ -265,7 +287,7 @@ test('--call runs one first-party action, writes one audit line, and no presence
     '--classifier', dir,
     '--call', 'wiser.route.roster',
     '--input', JSON.stringify({ rows: ROWS }),
-  ], { encoding: 'utf8' });
+  ], { encoding: 'utf8', env: callEnv(home) });
   assert.equal(r.status, 0, r.stderr);
   assert.equal(r.stdout.includes(KEY), false);
   const lines = r.stdout.trim().split('\n');
@@ -298,7 +320,7 @@ test('--call reads JSON from stdin when --input is -', () => {
     '--classifier', dir,
     '--call', 'wiser.route.roster',
     '--input', '-',
-  ], { encoding: 'utf8', input: JSON.stringify({ rows: ROWS }) });
+  ], { encoding: 'utf8', input: JSON.stringify({ rows: ROWS }), env: callEnv(home) });
   assert.equal(r.status, 0, r.stderr);
   const result = JSON.parse(r.stdout);
   assert.match(result.roster_sha256, /^[a-f0-9]{64}$/);
@@ -346,11 +368,12 @@ test('a roster and an ask in two processes answer roster_unknown', () => {
   const env = envFile(makeHome(), KEY);
   const dir = classifierDir();
   const base = routeArgs(home, env, dir);
+  const session = callEnv(home);
   const roster = spawnSync(process.execPath, [
     ...base,
     '--call', 'wiser.route.roster',
     '--input', JSON.stringify({ rows: ROWS }),
-  ], { encoding: 'utf8' });
+  ], { encoding: 'utf8', env: session });
   assert.equal(roster.status, 0, roster.stderr);
   const held = JSON.parse(roster.stdout);
   assert.match(held.roster_sha256, /^[a-f0-9]{64}$/);
@@ -358,7 +381,7 @@ test('a roster and an ask in two processes answer roster_unknown', () => {
     ...base,
     '--call', 'wiser.route.ask',
     '--input', JSON.stringify({ ask: 'what should I load', roster_sha256: held.roster_sha256 }),
-  ], { encoding: 'utf8' });
+  ], { encoding: 'utf8', env: session });
   assert.equal(ask.status, 0, ask.stderr);
   const missed = JSON.parse(ask.stdout);
   assert.equal(missed.status, 'roster_unknown');
@@ -380,7 +403,7 @@ test('--route holds the roster and asks in one process', () => {
     ...routeArgs(home, env, dir),
     '--route',
     '--input', '-',
-  ], { encoding: 'utf8', input: JSON.stringify({ rows: ROWS, ask: 'what should I load' }) });
+  ], { encoding: 'utf8', input: JSON.stringify({ rows: ROWS, ask: 'what should I load' }), env: callEnv(home) });
   assert.equal(r.status, 0, r.stderr);
   assert.equal(r.stdout.includes(KEY), false);
   const lines = r.stdout.trim().split('\n');
@@ -424,7 +447,7 @@ export function createClassifier() {
     ...routeArgs(home, env, dir),
     '--route',
     '--input', JSON.stringify({ rows: ROWS, ask: 'what should I load' }),
-  ], { encoding: 'utf8' });
+  ], { encoding: 'utf8', env: callEnv(home) });
   assert.equal(r.status, 0, r.stderr);
   const result = JSON.parse(r.stdout);
   assert.equal(result.roster_sha256, '');
@@ -454,6 +477,7 @@ test('--route wall time with the plugin roster and an instant classifier', { tim
     input: JSON.stringify({ rows, ask: 'draft a research brief' }),
     timeout: 60000,
     maxBuffer: 16 * 1024 * 1024,
+    env: callEnv(home),
   });
   const wallMs = Math.round(performance.now() - started);
   assert.equal(r.status, 0, r.stderr);
@@ -466,4 +490,42 @@ test('--route wall time with the plugin roster and an instant classifier', { tim
   const line = `ROUTE_WALL_MS ${wallMs} ROSTER_BUILD_MS ${buildMs} ROWS ${rows.length}`;
   t.diagnostic(line);
   console.log(line);
+});
+
+test('one-shot --call with no CLAUDE_PID is classifier_unbound and does not call the adapter', () => {
+  const home = makeHome();
+  const env = envFile(makeHome(), KEY);
+  const dir = join(makeHome(), 'direct');
+  mkdirSync(dir, { recursive: true });
+  const marker = join(home, 'adapter-called');
+  writeFileSync(join(dir, 'index.mjs'), `
+import { writeFileSync } from 'node:fs';
+export function createClassifier() {
+  return {
+    name: 'direct',
+    actions: () => ${JSON.stringify(SIX)},
+    describe: () => ({ request: {}, answer: {} }),
+    async execute() {
+      writeFileSync(${JSON.stringify(marker)}, 'called\\n');
+      return { roster_sha256: 'abc', accepted: 1, rejected: 0 };
+    },
+  };
+}
+`);
+  const bare = { ...process.env };
+  delete bare.CLAUDE_PID;
+  delete bare.CLAUDE_CODE_SESSION_ID;
+  const r = spawnSync(process.execPath, [
+    SERVER, '--home', home, '--env', env, '--harness', 'claude-code',
+    '--classifier', dir, '--call', 'wiser.route.roster', '--input', JSON.stringify({ rows: ROWS }),
+  ], { encoding: 'utf8', env: bare });
+  assert.equal(r.status, 0, r.stderr);
+  const result = JSON.parse(r.stdout);
+  assert.equal(result.status, 'classifier_unbound');
+  assert.equal(result.reason, 'no-harness');
+  assert.equal(existsSync(marker), false);
+  const audit = auditLines(home);
+  assert.equal(audit.length, 1);
+  assert.equal(audit[0].status, 'classifier_unbound');
+  assert.equal(audit[0].action, 'wiser.route.roster');
 });

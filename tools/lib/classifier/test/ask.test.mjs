@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto';
-import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { verify, writeSession } from '../../../../hooks/lib/binding.mjs';
 
 const askPath = fileURLToPath(new URL('../ask.mjs', import.meta.url));
 const askUrl = pathToFileURL(askPath).href;
@@ -22,7 +23,34 @@ function childEnv(extra = {}) {
   const env = { ...process.env, ...extra };
   if (!Object.prototype.hasOwnProperty.call(extra, 'WISER_HOOK_STUB_FILE')) delete env.WISER_HOOK_STUB_FILE;
   if (!Object.prototype.hasOwnProperty.call(extra, 'WISER_HOOK_STUB_LOG')) delete env.WISER_HOOK_STUB_LOG;
+  if (!Object.prototype.hasOwnProperty.call(extra, 'CLAUDE_PID')) delete env.CLAUDE_PID;
+  if (!Object.prototype.hasOwnProperty.call(extra, 'CLAUDE_CODE_SESSION_ID')) delete env.CLAUDE_CODE_SESSION_ID;
   return env;
+}
+
+function bind(home, root, opts = {}) {
+  const sessionId = opts.sessionId || 'ask-session-01';
+  const recorded = writeSession({
+    home,
+    sessionId,
+    harnessPid: opts.harnessPid || process.pid,
+    cwd: opts.cwd || root,
+    homeDir: opts.homeDir || home,
+    harnessStartedReader: opts.harnessStartedReader,
+    argsReader: opts.argsReader,
+    now: opts.now,
+    scanLimit: opts.scanLimit,
+  });
+  assert.equal(recorded && recorded.ok, true, JSON.stringify(recorded));
+  return sessionId;
+}
+
+function sessionEnv(sessionId, extra = {}) {
+  return {
+    CLAUDE_PID: String(process.pid),
+    CLAUDE_CODE_SESSION_ID: sessionId,
+    ...extra,
+  };
 }
 
 function askInChild(opts, extraEnv = {}) {
@@ -176,15 +204,26 @@ test('a replay that does not match this judgment throws', () => {
   assert.match(cli.stderr, /does not match this judgment/);
 });
 
-test('a missing or relative owning root takes the builtin path and sends nothing', () => {
+test('a missing session, an unbound root, and a relative owning root send nothing', () => {
   const dir = tempDir();
   const env = stubEnv(dir, { ranked: [{ id: 'x', p: 0.25, calibrated: false }] });
   const home = tempDir();
   attached(home);
-  for (const owningRoot of [undefined, 'relative/root', 'root']) {
-    const result = answered({ action: ACTION, input: INPUT, owningRoot, gatewayHome: home }, env);
+  const root = writeAgents(join(dir, 'root'));
+  const other = writeAgents(join(dir, 'other'));
+  const sessionId = bind(home, root, { argsReader: () => `--add-dir ${other}` });
+  const missing = answered({ action: ACTION, input: INPUT, gatewayHome: home }, env);
+  assert.equal(missing.reason, 'no-session');
+  const unnamed = answered({
+    action: ACTION, input: INPUT, gatewayHome: home,
+  }, sessionEnv(sessionId, env));
+  assert.equal(unnamed.reason, 'no-owning-root');
+  for (const owningRoot of ['relative/root', 'root']) {
+    const result = answered({
+      action: ACTION, input: INPUT, owningRoot, gatewayHome: home,
+    }, sessionEnv(sessionId, env));
     assert.equal(result.path, 'builtin');
-    assert.equal(result.reason, 'no-owning-root');
+    assert.equal(result.reason, 'root-mismatch');
     assert.equal(result.answer, null);
     assert.equal(result.record, null);
   }
@@ -195,12 +234,13 @@ test('an unreadable AGENTS.md takes the builtin path and sends nothing', () => {
   const dir = tempDir();
   const root = writeAgents(join(dir, 'root'));
   const agents = join(root, 'AGENTS.md');
-  chmodSync(agents, 0o000);
   try {
     const env = stubEnv(dir, { ranked: [{ id: 'x', p: 0.25, calibrated: false }] });
     const home = tempDir();
     attached(home);
-    const result = answered({ action: ACTION, input: INPUT, owningRoot: root, gatewayHome: home }, env);
+    const sessionId = bind(home, root);
+    chmodSync(agents, 0o000);
+    const result = answered({ action: ACTION, input: INPUT, owningRoot: root, gatewayHome: home }, sessionEnv(sessionId, env));
     assert.equal(result.path, 'builtin');
     assert.equal(result.reason, 'unreadable-root');
     assert.equal(result.answer, null);
@@ -218,7 +258,8 @@ test('a refusal in a parent folder takes the builtin path and sends nothing', ()
   const env = stubEnv(dir, { ranked: [{ id: 'x', p: 0.25, calibrated: false }] });
   const home = tempDir();
   attached(home);
-  const result = answered({ action: ACTION, input: INPUT, owningRoot: child, gatewayHome: home }, env);
+  const sessionId = bind(home, child);
+  const result = answered({ action: ACTION, input: INPUT, owningRoot: child, gatewayHome: home }, sessionEnv(sessionId, env));
   assert.equal(result.path, 'builtin');
   assert.equal(result.reason, 'refused');
   assert.equal(result.answer, null);
@@ -230,12 +271,14 @@ test('no presence file takes the builtin path and sends nothing', () => {
   const dir = tempDir();
   const root = writeAgents(join(dir, 'root'));
   const env = stubEnv(dir, { ranked: [{ id: 'x', p: 0.25, calibrated: false }] });
+  const home = join(dir, 'empty-home');
+  const sessionId = bind(home, root);
   const result = answered({
     action: ACTION,
     input: INPUT,
     owningRoot: root,
-    gatewayHome: join(dir, 'empty-home'),
-  }, env);
+    gatewayHome: home,
+  }, sessionEnv(sessionId, env));
   assert.equal(result.path, 'builtin');
   assert.equal(result.reason, 'no-classifier');
   assert.equal(result.answer, null);
@@ -256,7 +299,8 @@ test('a presence file whose pid is dead takes the builtin path and sends nothing
     started_at: '2026-09-23T00:00:00.000Z',
   });
   const env = stubEnv(dir, { ranked: [{ id: 'x', p: 0.25, calibrated: false }] });
-  const result = answered({ action: ACTION, input: INPUT, owningRoot: root, gatewayHome: home }, env);
+  const sessionId = bind(home, root);
+  const result = answered({ action: ACTION, input: INPUT, owningRoot: root, gatewayHome: home }, sessionEnv(sessionId, env));
   assert.equal(result.path, 'builtin');
   assert.equal(result.reason, 'no-classifier');
   assert.equal(result.answer, null);
@@ -277,7 +321,8 @@ test('a stub answer returns classifier, the answer unchanged, and a full record'
     calibrated: false,
   };
   const env = stubEnv(dir, answer);
-  const result = answered({ action: ACTION, input: INPUT, owningRoot: root, gatewayHome: home }, env);
+  const sessionId = bind(home, root);
+  const result = answered({ action: ACTION, input: INPUT, owningRoot: root, gatewayHome: home }, sessionEnv(sessionId, env));
   assert.equal(result.path, 'classifier');
   assert.equal(result.reason, null);
   assert.deepEqual(result.answer, answer);
@@ -304,7 +349,8 @@ test('a stub answer with a status returns builtin with that reason', () => {
     ranked: [{ id: 'p1', p: 0.25, calibrated: false }],
     p: 0.25,
   });
-  const result = answered({ action: ACTION, input: INPUT, owningRoot: root, gatewayHome: home }, env);
+  const sessionId = bind(home, root);
+  const result = answered({ action: ACTION, input: INPUT, owningRoot: root, gatewayHome: home }, sessionEnv(sessionId, env));
   assert.deepEqual(result, {
     path: 'builtin',
     reason: 'needs_subscription',
@@ -319,7 +365,8 @@ test('callOnce returning null returns unavailable', () => {
   const home = tempDir();
   attached(home);
   const env = stubEnv(dir, null);
-  const result = answered({ action: ACTION, input: INPUT, owningRoot: root, gatewayHome: home }, env);
+  const sessionId = bind(home, root);
+  const result = answered({ action: ACTION, input: INPUT, owningRoot: root, gatewayHome: home }, sessionEnv(sessionId, env));
   assert.deepEqual(result, { path: 'builtin', reason: 'unavailable', answer: null, record: null });
   assert.equal(readFileSync(env.log, 'utf8'), `${ACTION}\n`);
 });
@@ -335,6 +382,8 @@ test('help exits 0 and a missing --action or --input exits 1', () => {
   const help = runCli(['help']);
   assert.equal(help.status, 0);
   assert.match(help.stdout, /--action/);
+  assert.match(help.stdout, /--material/);
+  assert.match(help.stdout, /session binding/);
   assert.equal(help.stderr, '');
   const dashed = runCli(['--help']);
   assert.equal(dashed.status, 0);
@@ -354,4 +403,121 @@ test('help exits 0 and a missing --action or --input exits 1', () => {
   assert.equal(bad.status, 1);
   assert.equal(bad.stdout, '');
   assert.match(bad.stderr, /unparseable input/);
+});
+
+test('a symlink to the bound root is sent, and a start time that is not the live one is not', () => {
+  const dir = tempDir();
+  const root = writeAgents(join(dir, 'root'));
+  const home = tempDir();
+  attached(home);
+  const link = join(dir, 'link-root');
+  symlinkSync(root, link);
+  const sessionId = bind(home, root);
+  const env = stubEnv(dir, { ranked: [{ id: 'p', p: 0.5, calibrated: false }] });
+  const sent = answered({
+    action: ACTION, input: INPUT, owningRoot: link, gatewayHome: home,
+  }, sessionEnv(sessionId, env));
+  assert.equal(sent.path, 'classifier');
+  assert.equal(readFileSync(env.log, 'utf8'), `${ACTION}\n`);
+
+  const staleHome = tempDir();
+  attached(staleHome);
+  const staleId = bind(staleHome, root, { sessionId: 'ask-session-stale', harnessStartedReader: () => 'not-the-live-start' });
+  const quiet = stubEnv(tempDir(), { ranked: [{ id: 'p', p: 0.5, calibrated: false }] });
+  const missed = answered({
+    action: ACTION, input: INPUT, owningRoot: root, gatewayHome: staleHome,
+  }, sessionEnv(staleId, quiet));
+  assert.equal(missed.path, 'builtin');
+  assert.ok(missed.reason === 'stale-session' || missed.reason === 'unverifiable', missed.reason);
+  assert.equal(existsSync(quiet.log), false);
+  const checked = verify({ home: staleHome, harnessPid: process.pid, sessionId: staleId });
+  assert.equal(checked.ok, false);
+  assert.ok(checked.reason === 'stale-session' || checked.reason === 'unverifiable');
+});
+
+test('material outside the roots, or inside a refusing folder the scan does not reach, sends nothing', () => {
+  const dir = tempDir();
+  const root = writeAgents(join(dir, 'root'));
+  const outside = join(dir, 'outside.txt');
+  writeFileSync(outside, 'x');
+  let deep = root;
+  for (let i = 1; i <= 7; i += 1) {
+    deep = join(deep, `d${i}`);
+    mkdirSync(deep);
+  }
+  writeFileSync(join(deep, 'AGENTS.md'), '---\nclassifier_refusal: yes\n---\n');
+  const buried = join(deep, 'note.txt');
+  writeFileSync(buried, 'note');
+  const inside = join(root, 'rows.txt');
+  writeFileSync(inside, 'rows');
+  const home = tempDir();
+  attached(home);
+  const sessionId = bind(home, root);
+  const env = stubEnv(dir, { ranked: [{ id: 'p', p: 0.5, calibrated: false }] });
+  const bound = readSession(home, sessionId);
+  assert.equal(bound.binding.refused, false);
+
+  const out = answered({
+    action: ACTION, input: INPUT, owningRoot: root, material: [outside], gatewayHome: home,
+  }, sessionEnv(sessionId, env));
+  assert.equal(out.reason, 'material-outside-root');
+  const refused = answered({
+    action: ACTION, input: INPUT, owningRoot: root, material: [buried], gatewayHome: home,
+  }, sessionEnv(sessionId, env));
+  assert.equal(refused.reason, 'refused');
+  const kept = answered({
+    action: ACTION, input: INPUT, owningRoot: root, material: [inside, realpathSync(inside)], gatewayHome: home,
+  }, sessionEnv(sessionId, env));
+  assert.equal(kept.path, 'classifier');
+  assert.equal(existsSync(env.log), true);
+});
+
+function readSession(home, sessionId) {
+  return verify({ home, harnessPid: process.pid, sessionId });
+}
+
+test('one named root among several is sent, and none named is not', () => {
+  const dir = tempDir();
+  const root = writeAgents(join(dir, 'root'));
+  const other = writeAgents(join(dir, 'other'));
+  const file = join(root, 'rows.txt');
+  writeFileSync(file, 'rows');
+  const home = tempDir();
+  attached(home);
+  const sessionId = bind(home, root, { sessionId: 'ask-session-many', argsReader: () => `--add-dir ${other}` });
+  const checked = verify({ home, harnessPid: process.pid, sessionId });
+  assert.equal(checked.binding.owning_root, null);
+  assert.equal(checked.binding.refused, false);
+  const env = stubEnv(dir, { ranked: [{ id: 'p', p: 0.5, calibrated: false }] });
+  const unnamed = answered({
+    action: ACTION, input: INPUT, material: [file], gatewayHome: home,
+  }, sessionEnv(sessionId, env));
+  assert.equal(unnamed.reason, 'no-owning-root');
+  assert.equal(existsSync(env.log), false);
+  const named = answered({
+    action: ACTION, input: INPUT, owningRoot: root, material: [file], gatewayHome: home,
+  }, sessionEnv(sessionId, env));
+  assert.equal(named.path, 'classifier');
+});
+
+test('the CLI repeats --material', () => {
+  const dir = tempDir();
+  const root = writeAgents(join(dir, 'root'));
+  const file = join(root, 'rows.txt');
+  writeFileSync(file, 'rows');
+  const home = tempDir();
+  attached(home);
+  const sessionId = bind(home, root, { sessionId: 'ask-session-cli' });
+  const env = stubEnv(dir, { ranked: [{ id: 'p', p: 0.5, calibrated: false }] });
+  const run = runCli([
+    '--action', ACTION,
+    '--owning-root', root,
+    '--gateway-home', home,
+    '--material', file,
+    '--material', file,
+    '--input', JSON.stringify(INPUT),
+  ], { env: sessionEnv(sessionId, env) });
+  assert.equal(run.status, 0, run.stderr);
+  const result = JSON.parse(run.stdout);
+  assert.equal(result.path, 'classifier');
 });

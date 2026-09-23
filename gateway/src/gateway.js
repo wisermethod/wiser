@@ -1,7 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { isAbsolute, join } from 'node:path';
-import { isRefused } from '../../hooks/lib/presence.mjs';
+import { verify } from '../../hooks/lib/binding.mjs';
 import { buildContext } from './context.js';
 import { STATUS, StatusSignal, classifierAuditStatus, isStatusObject, sanitizeError, statusObject, vendorErrorFrom } from './errors.js';
 import { composeSummary, discloseInput } from './disclosure.js';
@@ -174,6 +172,34 @@ export function classifierNeedsSubscription(classifier, envPath) {
  */
 const STOPPED_GRANT_STATES = ['EXPIRED', 'FAILED', 'INACTIVE', 'INITIATED', 'ABSENT'];
 
+/** The pre-seam sentence. `tools/list` returns this byte for byte when no classifier is loaded. */
+const SEARCH_ACTIONS_DESCRIPTION = 'Search action ids this gateway serves, with privilege, risk, and confirmation.';
+/** One sentence, at most 120 characters, added only when a classifier is loaded. */
+const SEARCH_ACTIONS_PICK = 'An accepted pick is listed first and marked.';
+
+/**
+ * Long-running MCP server. The env session id is the one from startup and is
+ * stale after /clear, so the pointer for the parent process is the session.
+ * @returns {{ harnessPid: number, sessionId: null }}
+ */
+export function mcpClassifierIdentity() {
+  return { harnessPid: process.ppid, sessionId: null };
+}
+
+/**
+ * One-shot `--call` / `--route`. Both values are required; neither is optional.
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {{ harnessPid: number, sessionId: string } | { ok: false, reason: string }}
+ */
+export function oneShotClassifierIdentity(env = process.env) {
+  const raw = env.CLAUDE_PID;
+  const sessionId = env.CLAUDE_CODE_SESSION_ID;
+  const harnessPid = typeof raw === 'string' && /^[0-9]+$/.test(raw) ? Number(raw) : Number.NaN;
+  if (!Number.isInteger(harnessPid) || harnessPid <= 0) return { ok: false, reason: 'no-harness' };
+  if (typeof sessionId !== 'string' || sessionId.length === 0) return { ok: false, reason: 'no-session' };
+  return { harnessPid, sessionId };
+}
+
 const TOOLS = [
   {
     name: 'execute',
@@ -242,13 +268,12 @@ const TOOLS = [
   },
   {
     name: 'search_actions',
-    description: 'Search action ids this gateway serves, with privilege, risk, and confirmation, and when an absolute owning_root, a query, and a loaded classifier are all present, put one closed pick through the first-party path and list an accepted action first.',
+    description: SEARCH_ACTIONS_DESCRIPTION,
     inputSchema: {
       type: 'object',
       properties: {
         query: { type: 'string' },
         service: { type: 'string' },
-        owning_root: { type: 'string' },
       },
       additionalProperties: false,
     },
@@ -315,7 +340,6 @@ export function validateArgs(name, args) {
     case 'search_actions':
       if (!optString('query')) return bad('query');
       if (!optString('service', NAME_RE)) return bad('service');
-      if (!optString('owning_root')) return bad('owning_root');
       return null;
     case 'describe_action':
       if (typeof a.action !== 'string' || !ACTION_RE.test(a.action)) return bad('action');
@@ -383,8 +407,33 @@ export class ConnectionGateway {
     this.connectors = Array.isArray(opts.connectors) ? opts.connectors : [];
     this.envPath = opts.envPath || null;
     this.classifier = opts.classifier || null;
+    this.classifierIdentity = typeof opts.classifierIdentity === 'function'
+      ? opts.classifierIdentity
+      : mcpClassifierIdentity;
     /** @type {Set<string>} */
     this.confirmedOnce = new Set();
+  }
+
+  /**
+   * Verified, unrefused, with at least one root. Otherwise a reason and no send.
+   * @returns {{ ok: true, binding: Record<string, unknown> } | { ok: false, reason: string }}
+   */
+  classifierSession() {
+    const ident = this.classifierIdentity();
+    if (!ident || ident.ok === false) {
+      return { ok: false, reason: (ident && ident.reason) || 'no-harness' };
+    }
+    const verified = verify({
+      home: this.home,
+      harnessPid: ident.harnessPid,
+      sessionId: ident.sessionId ?? null,
+    });
+    if (!verified.ok) return verified;
+    if (verified.binding.refused === true) return { ok: false, reason: 'refused' };
+    if (!Array.isArray(verified.binding.roots) || verified.binding.roots.length === 0) {
+      return { ok: false, reason: 'no-owning-root' };
+    }
+    return verified;
   }
 
   classifiers() {
@@ -431,7 +480,14 @@ export class ConnectionGateway {
   }
 
   listTools() {
-    return TOOLS;
+    if (this.classifiers().length === 0) return TOOLS;
+    return TOOLS.map((tool) => {
+      if (tool.name !== 'search_actions') return tool;
+      return {
+        ...tool,
+        description: `${SEARCH_ACTIONS_DESCRIPTION} ${SEARCH_ACTIONS_PICK}`,
+      };
+    });
   }
 
   /**
@@ -645,24 +701,18 @@ export class ConnectionGateway {
   }
 
   /**
-   * Null when this search is today's substring list and nothing is sent.
-   * A refused or unreadable owning root is reported and still sends nothing.
-   * @param {{ query?: unknown, owning_root?: unknown }} args
+   * Null when this search is today's substring list and nothing is sent:
+   * no query, or no classifier loaded. A failed session gate is reported
+   * and still sends nothing.
+   * @param {{ query?: unknown }} args
    * @returns {{ call: boolean, reason: string | null } | null}
    */
   classifierSearchAttempt(args) {
     const query = args.query;
-    const owningRoot = args.owning_root;
     if (typeof query !== 'string' || query.length === 0) return null;
     if (this.classifiers().length === 0) return null;
-    if (typeof owningRoot !== 'string' || !isAbsolute(owningRoot)) return null;
-    try {
-      readFileSync(join(owningRoot, 'AGENTS.md'), 'utf8');
-    } catch {
-      return { call: false, reason: 'unreadable-root' };
-    }
-    // The shared caller's refusal rule, before execute, so nothing is sent.
-    if (isRefused(owningRoot)) return { call: false, reason: 'refused' };
+    const session = this.classifierSession();
+    if (!session.ok) return { call: false, reason: session.reason };
     return { call: true, reason: null };
   }
 
@@ -673,7 +723,7 @@ export class ConnectionGateway {
     if (!attempt.call) {
       return {
         actions,
-        classifier: { path: 'builtin', reason: attempt.reason, choice: null, confidence: null },
+        classifier: { path: 'builtin', reason: attempt.reason },
       };
     }
     return this.rankSearch(actions, args);
@@ -1066,6 +1116,9 @@ export class ConnectionGateway {
    * @param {object} args
    */
   async executeFirstParty({ action, input, confirm, parsed, decision, resolved, line }) {
+    const session = this.classifierSession();
+    if (!session.ok) return statusObject(STATUS.CLASSIFIER_UNBOUND, { reason: session.reason });
+
     const def = resolved.def || firstPartyDef(action) || {};
     line.privilege = def.privilege ?? line.privilege ?? null;
 

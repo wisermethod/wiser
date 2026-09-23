@@ -996,6 +996,8 @@ def classify_passages(query, items, paths):
         cmd.extend(('--gateway-home', paths['gateway_home']))
     if paths.get('classifier_record'):
         cmd.extend(('--replay', paths['classifier_record']))
+    for material in paths.get('material') or ():
+        cmd.extend(('--material', material))
     payload = dict(
         question=query,
         candidates=[{'id': it['name'], 'text': it.get('quote')} for it in passages],
@@ -1102,6 +1104,10 @@ def recall(values, recipe, screen, positive):
                 '--classifier-record', values['classifier_record'], must_exist=True))
     runtime = None if match or chosen is not None else embedding_runtime(recipe)
     path = store_path(values['store'], False, screen)
+    if mode == 'classifier':
+        # The store directory and the set directory this recall read.
+        set_dir = screen('--set', values['set'], must_exist=True, as_dir=True)
+        classifier_paths['material'] = [str(path.parent), str(set_dir)]
     db = open_database(path, True)
     conn = ENGINE.Connection(db)
     try:

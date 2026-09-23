@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
@@ -6,6 +6,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 
+import { pruneSessions, readBinding, sessionsDir, verify, writeSession } from '../lib/binding.mjs';
+import { createTestGateway } from '../../gateway/test/fake-provider.js';
 import { buildRoster } from '../lib/roster.mjs';
 import { classifierRefusalValue, isAttached, isRefused, pidAlive } from '../lib/presence.mjs';
 import { formatRoute, isNamedAsk } from '../route.mjs';
@@ -13,6 +15,7 @@ import { owningRoot } from '../lib/presence.mjs';
 
 const pluginRoot = fileURLToPath(new URL('../..', import.meta.url));
 const SCRIPTS = {
+  SessionStart: fileURLToPath(new URL('../session.mjs', import.meta.url)),
   UserPromptSubmit: fileURLToPath(new URL('../route.mjs', import.meta.url)),
 };
 const SKILL = join(pluginRoot, 'skills', 'Deep Research', 'SKILL.md');
@@ -46,15 +49,21 @@ function attachedDoc(home, pid = process.pid) {
   };
 }
 
-function runHook(script, event, { home, cwd, stub, log, timeout = 8000 } = {}) {
-  const env = { ...process.env, HOME: home };
+function runHook(script, event, { home, cwd, stub, log, timeout = 8000, sessionId } = {}) {
+  const fromEvent = event && typeof event === 'object' && !Array.isArray(event) ? event.session_id : undefined;
+  const sid = fromEvent || sessionId || 'hook-session-1';
+  let payload = event;
+  if (event && typeof event === 'object' && !Array.isArray(event)) {
+    payload = { ...event, session_id: sid };
+  }
+  const env = { ...process.env, HOME: home, CLAUDE_PID: String(process.pid), CLAUDE_CODE_SESSION_ID: sid };
   delete env.WISER_HOOK_STUB_FILE;
   delete env.WISER_HOOK_STUB_LOG;
   delete env.WISER_CLASSIFIER_KEY;
   if (stub) env.WISER_HOOK_STUB_FILE = stub;
   if (log) env.WISER_HOOK_STUB_LOG = log;
   return spawnSync(process.execPath, [script], {
-    input: event === undefined ? '' : (typeof event === 'string' ? event : JSON.stringify(event)),
+    input: payload === undefined ? '' : (typeof payload === 'string' ? payload : JSON.stringify(payload)),
     encoding: 'utf8',
     env,
     cwd: cwd || home,
@@ -124,10 +133,14 @@ test('roster rows come from the three family indexes', () => {
   assert.ok(rows.some((row) => row.family === 'tool' && row.name.length > 0 && !row.name.includes('/')));
 });
 
-test('hooks.json registers the route hook and nothing else', () => {
+test('hooks.json registers SessionStart and the route hook', () => {
   const doc = JSON.parse(readFileSync(join(pluginRoot, 'hooks', 'hooks.json'), 'utf8'));
   assert.equal(typeof doc.description, 'string');
-  assert.deepEqual(Object.keys(doc.hooks), ['UserPromptSubmit']);
+  assert.deepEqual(Object.keys(doc.hooks).sort(), ['SessionStart', 'UserPromptSubmit']);
+  assert.equal(doc.hooks.SessionStart[0].matcher, undefined);
+  assert.equal(doc.hooks.SessionStart[0].hooks.length, 1);
+  assert.equal(doc.hooks.SessionStart[0].hooks[0].command, 'node "${CLAUDE_PLUGIN_ROOT}/hooks/session.mjs"');
+  assert.equal(doc.hooks.SessionStart[0].hooks[0].timeout, 5);
   assert.equal(doc.hooks.UserPromptSubmit[0].hooks.length, 1);
   assert.equal(doc.hooks.UserPromptSubmit[0].hooks[0].command, 'node "${CLAUDE_PLUGIN_ROOT}/hooks/route.mjs"');
   assert.equal(doc.hooks.UserPromptSubmit[0].hooks[0].timeout, 5);
@@ -437,4 +450,321 @@ test('named asks are not sent, and a tool answer is not a route', () => {
   assert.equal(existsSync(log), false);
   const rows = [{ family: 'tool', name: 'data' }];
   assert.equal(formatRoute({ family: 'tool', target: 'data', confidence: 0.95, pass: true }, rows), null);
+});
+
+function sessionNames(home) {
+  const dir = join(gatewayDir(home), 'classifier-sessions');
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir).filter((name) => !name.startsWith('.'));
+}
+
+function typedRoot(dir, extra = '') {
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'AGENTS.md'), `---\ntype: personal\n${extra}---\n\n# Root\n`);
+  return dir;
+}
+
+const ASK = fileURLToPath(new URL('../../tools/lib/classifier/ask.mjs', import.meta.url));
+
+function askAt(home, sessionId, { log } = {}) {
+  const env = { ...process.env, HOME: home };
+  delete env.WISER_HOOK_STUB_FILE;
+  delete env.WISER_HOOK_STUB_LOG;
+  delete env.CLAUDE_PID;
+  delete env.CLAUDE_CODE_SESSION_ID;
+  const stub = join(home, 'ask-stub.json');
+  if (!existsSync(stub)) {
+    writeFileSync(stub, JSON.stringify({ 'wiser.recall.rank': { ranked: [{ id: 'p', p: 0.5, calibrated: false }], calibrated: false } }));
+  }
+  env.WISER_HOOK_STUB_FILE = stub;
+  if (log) env.WISER_HOOK_STUB_LOG = log;
+  if (sessionId) {
+    env.CLAUDE_PID = String(process.pid);
+    env.CLAUDE_CODE_SESSION_ID = sessionId;
+  }
+  const run = spawnSync(process.execPath, [
+    ASK, '--action', 'wiser.recall.rank', '--gateway-home', gatewayDir(home), '--input', '{}',
+  ], { encoding: 'utf8', env });
+  assert.equal(run.status, 0, run.stderr);
+  return JSON.parse(run.stdout);
+}
+
+test('no presence file: neither hook writes under classifier-sessions', () => {
+  const home = tempHome();
+  const cwd = join(home, 'work');
+  typedRoot(cwd);
+  for (const script of Object.values(SCRIPTS)) {
+    const r = runHook(script, { cwd, prompt: 'draft a research brief', session_id: 'session-nopresence', source: 'startup' }, { home, cwd });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout, '');
+  }
+  assert.deepEqual(sessionNames(home), []);
+});
+
+test('a presence file is enough to write the binding and then the pointer', () => {
+  const home = tempHome();
+  const cwd = join(home, 'work');
+  typedRoot(cwd);
+  writeStatus(home, { attached: false, classifier_dirs: [], pid: process.pid, started_at: '2026-09-23T00:00:00.000Z' });
+  const r = runHook(SCRIPTS.SessionStart, {
+    cwd, session_id: 'session-unattached', source: 'startup', hook_event_name: 'SessionStart',
+  }, { home, cwd });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout, '');
+  const names = sessionNames(home);
+  assert.ok(names.includes('session-unattached.json'), names.join(','));
+  assert.ok(names.includes(`current-${process.pid}.json`), names.join(','));
+  const binding = readBinding(gatewayDir(home), 'session-unattached');
+  assert.equal(binding.refused, false);
+  assert.equal(binding.owning_root, realpathSync(cwd));
+  const verified = verify({ home: gatewayDir(home), harnessPid: process.pid, sessionId: 'session-unattached' });
+  assert.equal(verified.ok, true);
+  const route = runHook(SCRIPTS.UserPromptSubmit, { cwd, prompt: 'draft a research brief' }, {
+    home, cwd, sessionId: 'session-unattached', stub: join(home, 'absent-stub.json'), log: join(home, 'absent.log'),
+  });
+  assert.equal(route.stdout, '');
+  assert.equal(existsSync(join(home, 'absent.log')), false);
+});
+
+test('a refusing descendant two levels down refuses the binding, and a dot directory does not', () => {
+  const home = tempHome();
+  const root = typedRoot(join(home, 'root'));
+  mkdirSync(join(root, 'a', 'b'), { recursive: true });
+  writeFileSync(join(root, 'a', 'b', 'AGENTS.md'), '---\nclassifier_refusal: yes\n---\n');
+  mkdirSync(join(root, '.hidden'));
+  writeFileSync(join(root, '.hidden', 'AGENTS.md'), '---\nclassifier_refusal: yes\n---\n');
+  writeStatus(home, attachedDoc(home));
+  const r = runHook(SCRIPTS.UserPromptSubmit, { cwd: root, prompt: 'draft a research brief', session_id: 'session-descendant' }, {
+    home, cwd: root, stub: join(home, 'stub.json'), log: join(home, 'calls.log'),
+  });
+  writeFileSync(join(home, 'stub.json'), '{"wiser.route.ask":{"family":"skill","target":"Deep Research","confidence":1,"pass":true}}\n');
+  assert.equal(r.stdout, '');
+  assert.equal(existsSync(join(home, 'calls.log')), false);
+  const binding = readBinding(gatewayDir(home), 'session-descendant');
+  assert.equal(binding.refused, true);
+  assert.equal(binding.refused_by, 'descendant');
+
+  const onlyDot = typedRoot(join(home, 'dots'));
+  mkdirSync(join(onlyDot, '.hidden'));
+  writeFileSync(join(onlyDot, '.hidden', 'AGENTS.md'), '---\nclassifier_refusal: yes\n---\n');
+  const hidden = writeSession({
+    home: gatewayDir(home),
+    sessionId: 'session-dotskip1',
+    harnessPid: process.pid,
+    cwd: onlyDot,
+    homeDir: home,
+    argsReader: () => '',
+  });
+  assert.equal(hidden.binding.refused, false);
+});
+
+test('an added directory that refuses, several roots, and the scan cap', () => {
+  const home = tempHome();
+  const gw = gatewayDir(home);
+  const good = typedRoot(join(home, 'good'));
+  const other = typedRoot(join(home, 'other'));
+  const refused = typedRoot(join(home, 'refused'), 'classifier_refusal: yes\n');
+  const several = writeSession({
+    home: gw,
+    sessionId: 'session-several',
+    harnessPid: process.pid,
+    cwd: good,
+    homeDir: home,
+    argsReader: () => `node --add-dir ${other}`,
+  });
+  assert.equal(several.ok, true);
+  assert.equal(several.binding.owning_root, null);
+  assert.equal(several.binding.refused, false);
+  assert.deepEqual(several.binding.roots, [realpathSync(good), realpathSync(other)].sort());
+
+  const added = writeSession({
+    home: gw,
+    sessionId: 'session-added',
+    harnessPid: process.pid,
+    cwd: good,
+    homeDir: home,
+    argsReader: () => `node --add-dir=${refused}`,
+  });
+  assert.equal(added.binding.refused, true);
+  assert.equal(added.binding.refused_by, 'at-or-above');
+
+  mkdirSync(join(good, 'child'));
+  const capped = writeSession({
+    home: gw,
+    sessionId: 'session-capped1',
+    harnessPid: process.pid,
+    cwd: good,
+    homeDir: home,
+    argsReader: () => '',
+    scanLimit: 1,
+  });
+  assert.equal(capped.binding.refused, true);
+  assert.equal(capped.binding.refused_by, 'scan-cap');
+});
+
+test('a pointer whose start time is not the live reading does not verify', () => {
+  const home = tempHome();
+  const root = typedRoot(join(home, 'root'));
+  const recorded = writeSession({
+    home: gatewayDir(home),
+    sessionId: 'session-reusedpid',
+    harnessPid: process.pid,
+    cwd: root,
+    homeDir: home,
+    harnessStartedReader: () => 'not-the-live-start',
+  });
+  assert.equal(recorded.ok, true);
+  const checked = verify({ home: gatewayDir(home), harnessPid: process.pid, sessionId: 'session-reusedpid' });
+  assert.equal(checked.ok, false);
+  assert.ok(checked.reason === 'stale-session' || checked.reason === 'unverifiable', checked.reason);
+});
+
+test('a mismatched CLAUDE_PID writes nothing', () => {
+  const home = tempHome();
+  const cwd = join(home, 'work');
+  typedRoot(cwd);
+  writeStatus(home, attachedDoc(home));
+  const env = { ...process.env, HOME: home, CLAUDE_PID: '999999', CLAUDE_CODE_SESSION_ID: 'session-mismatch' };
+  const r = spawnSync(process.execPath, [SCRIPTS.SessionStart], {
+    input: JSON.stringify({ cwd, session_id: 'session-mismatch', source: 'startup' }),
+    encoding: 'utf8',
+    env,
+  });
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(sessionNames(home), []);
+});
+
+test('prune drops a dead harness and a binding older than seven days', async () => {
+  const home = tempHome();
+  const root = typedRoot(join(home, 'root'));
+  const gw = gatewayDir(home);
+  const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
+  await new Promise((resolve, reject) => {
+    child.once('spawn', resolve);
+    child.once('error', reject);
+  });
+  writeSession({
+    home: gw,
+    sessionId: 'session-deadpid1',
+    harnessPid: child.pid,
+    cwd: root,
+    homeDir: home,
+  });
+  child.kill('SIGKILL');
+  await new Promise((resolve) => child.once('exit', resolve));
+  const old = writeSession({
+    home: gw,
+    sessionId: 'session-oldbind1',
+    harnessPid: process.pid,
+    cwd: root,
+    homeDir: home,
+  });
+  assert.equal(old.ok, true);
+  const file = join(sessionsDir(gw), 'session-oldbind1.json');
+  const doc = JSON.parse(readFileSync(file, 'utf8'));
+  doc.written_at = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
+  writeFileSync(file, `${JSON.stringify(doc)}\n`);
+  pruneSessions(gw);
+  assert.equal(readBinding(gw, 'session-deadpid1'), null);
+  assert.equal(existsSync(join(sessionsDir(gw), `current-${child.pid}.json`)), false);
+  assert.equal(readBinding(gw, 'session-oldbind1'), null);
+  assert.equal(existsSync(join(sessionsDir(gw), `current-${process.pid}.json`)), true);
+});
+
+test('/clear moves the pointer, and the other direction sends only after it', async () => {
+  const home = tempHome();
+  const open = typedRoot(join(home, 'open'));
+  const shut = typedRoot(join(home, 'shut'), 'classifier_refusal: yes\n');
+  writeStatus(home, attachedDoc(home));
+  const stub = join(home, 'ask-stub.json');
+  writeFileSync(stub, JSON.stringify({
+    'wiser.recall.rank': { ranked: [{ id: 'p', p: 0.5, calibrated: false }], calibrated: false },
+  }));
+
+  const started = runHook(SCRIPTS.SessionStart, {
+    cwd: open, session_id: 'session-s1-clear', source: 'startup',
+  }, { home, cwd: open });
+  assert.equal(started.status, 0, started.stderr);
+  const before = askAt(home, 'session-s1-clear', { log: join(home, 'before.log') });
+  assert.equal(before.path, 'classifier');
+
+  const cleared = runHook(SCRIPTS.SessionStart, {
+    cwd: shut, session_id: 'session-s3-clear', source: 'clear',
+  }, { home, cwd: shut, sessionId: 'session-s3-clear' });
+  assert.equal(cleared.status, 0, cleared.stderr);
+  const pointer = JSON.parse(readFileSync(join(sessionsDir(gatewayDir(home)), `current-${process.pid}.json`), 'utf8'));
+  assert.equal(pointer.session_id, 'session-s3-clear');
+  assert.equal(readBinding(gatewayDir(home), 'session-s3-clear').refused_by, 'at-or-above');
+
+  const stale = askAt(home, 'session-s1-clear', { log: join(home, 'stale.log') });
+  assert.equal(stale.reason, 'stale-session');
+  const none = askAt(home, null, { log: join(home, 'none.log') });
+  assert.equal(none.reason, 'no-session');
+  const refused = askAt(home, 'session-s3-clear', { log: join(home, 'refused.log') });
+  assert.equal(refused.reason, 'refused');
+  assert.equal(existsSync(join(home, 'stale.log')), false);
+  assert.equal(existsSync(join(home, 'refused.log')), false);
+
+  const calls = [];
+  const { gw } = await createTestGateway({
+    home: gatewayDir(home),
+    connectors: [],
+    session: false,
+    classifierIdentity: () => ({ harnessPid: process.pid, sessionId: null }),
+    classifier: {
+      name: 'direct',
+      actions: () => ['wiser.decide.choice'],
+      describe() { return {}; },
+      async execute(req) { calls.push(req); return { choice: 'x', confidence: 1, calibrated: false }; },
+    },
+  });
+  const searched = await gw.searchActions({ query: 'item' });
+  assert.equal(searched.classifier.reason, 'refused');
+  const executed = await gw.execute({
+    action: 'wiser.decide.choice',
+    input: { decision: 'item', options: ['x'], allow_uncalibrated: true },
+  });
+  assert.equal(executed.status, 'classifier_unbound');
+  assert.equal(executed.reason, 'refused');
+  assert.equal(calls.length, 0);
+
+  const home2 = tempHome();
+  const open2 = typedRoot(join(home2, 'open'));
+  const shut2 = typedRoot(join(home2, 'shut'), 'classifier_refusal: yes\n');
+  writeStatus(home2, attachedDoc(home2));
+  runHook(SCRIPTS.SessionStart, { cwd: shut2, session_id: 'session-s1-other', source: 'startup' }, { home: home2, cwd: shut2 });
+  const early = askAt(home2, 'session-s1-other', { log: join(home2, 'early.log') });
+  assert.equal(early.reason, 'refused');
+  const calls2 = [];
+  const { gw: gw2 } = await createTestGateway({
+    home: gatewayDir(home2),
+    connectors: [],
+    session: false,
+    classifierIdentity: () => ({ harnessPid: process.pid, sessionId: null }),
+    classifier: {
+      name: 'direct',
+      actions: () => ['wiser.decide.choice'],
+      describe() { return {}; },
+      async execute(req) { calls2.push(req); return { choice: 'x', confidence: 1, calibrated: false }; },
+    },
+  });
+  const blocked = await gw2.execute({
+    action: 'wiser.decide.choice',
+    input: { decision: 'item', options: ['x'], allow_uncalibrated: true },
+  });
+  assert.equal(blocked.status, 'classifier_unbound');
+  assert.equal(calls2.length, 0);
+
+  runHook(SCRIPTS.SessionStart, {
+    cwd: open2, session_id: 'session-s3-other', source: 'clear',
+  }, { home: home2, cwd: open2, sessionId: 'session-s3-other' });
+  const later = askAt(home2, 'session-s3-other', { log: join(home2, 'later.log') });
+  assert.equal(later.path, 'classifier');
+  assert.equal(readFileSync(join(home2, 'later.log'), 'utf8').trim(), 'wiser.recall.rank');
+  const sent = await gw2.execute({
+    action: 'wiser.decide.choice',
+    input: { decision: 'item', options: ['x'], allow_uncalibrated: true },
+  });
+  assert.equal(sent.status, undefined);
+  assert.equal(calls2.length, 1);
 });

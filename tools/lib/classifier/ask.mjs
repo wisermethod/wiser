@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, realpathSync } from 'node:fs';
-import { isAbsolute, join } from 'node:path';
+import { isAbsolute, join, relative, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { verify } from '../../../hooks/lib/binding.mjs';
 import { callOnce } from '../../../hooks/lib/call.mjs';
 import {
   classifierDirs,
@@ -13,14 +14,18 @@ import {
 } from '../../../hooks/lib/presence.mjs';
 
 const USAGE = `Usage: ask.mjs help | --help
-  ask.mjs --action <id> --input - [--owning-root <abs dir>] [--gateway-home <abs dir>] [--replay <file>] [--timeout-ms <n>]
+  ask.mjs --action <id> --input - [--owning-root <abs dir>] [--material <abs path>] [--gateway-home <abs dir>] [--replay <file>] [--timeout-ms <n>]
 
 Put one closed judgment to the classifier and print one JSON object.
 --input - reads one JSON value from stdin. Any other --input value is that
 JSON value. --replay is a record file from an earlier call; a record that
-does not match this judgment is refused. --owning-root is the absolute
-owning root. --gateway-home is the gateway home when the gateway was
-started with --home. --timeout-ms defaults to 20000.
+does not match this judgment is refused. The owning root comes from the
+session binding the hooks wrote (hooks/AGENTS.md). --owning-root, when
+given, has to be one of that binding's roots. --material is an absolute
+path the judgment is about, a file or a directory, and may be repeated;
+each has to sit inside one of those roots and not be refused.
+--gateway-home is the gateway home when the gateway was started with
+--home. --timeout-ms defaults to 20000.
 
 help and --help print this usage and exit 0. An unknown flag, a missing
 --action or --input, unparseable input, and a replay that does not match
@@ -30,6 +35,7 @@ this judgment print to stderr and exit 1. Every other result exits 0.
 const VALUE_FLAGS = new Set([
   '--action',
   '--owning-root',
+  '--material',
   '--gateway-home',
   '--replay',
   '--timeout-ms',
@@ -103,11 +109,23 @@ function loadReplay(replay) {
 }
 
 /**
+ * @param {string} real
+ * @param {string} root
+ * @returns {boolean}
+ */
+function insideRoot(real, root) {
+  const rel = relative(root, real);
+  if (rel === '') return true;
+  if (isAbsolute(rel) || rel === '..' || rel.startsWith(`..${sep}`)) return false;
+  return true;
+}
+
+/**
  * One closed judgment. Replay is decided before any presence read or call.
  * A builtin path sends nothing and carries no record. The answer is returned
- * as received.
+ * as received. The owning root comes from the session binding.
  *
- * @param {{ action?: string, input?: unknown, owningRoot?: string, gatewayHome?: string, replay?: unknown, timeoutMs?: number }} [opts]
+ * @param {{ action?: string, input?: unknown, owningRoot?: string, material?: string[], gatewayHome?: string, replay?: unknown, timeoutMs?: number }} [opts]
  * @returns {Promise<{ path: 'classifier' | 'builtin' | 'replay', reason: string | null, answer: object | null, record: object | null }>}
  */
 export async function ask(opts = {}) {
@@ -127,8 +145,38 @@ export async function ask(opts = {}) {
     };
   }
 
-  const root = opts.owningRoot;
-  if (typeof root !== 'string' || !isAbsolute(root)) return builtin('no-owning-root');
+  const envPid = process.env.CLAUDE_PID;
+  const envSession = process.env.CLAUDE_CODE_SESSION_ID;
+  if (typeof envPid !== 'string' || envPid.length === 0 || typeof envSession !== 'string' || envSession.length === 0) {
+    return builtin('no-session');
+  }
+  const home = typeof opts.gatewayHome === 'string' && opts.gatewayHome.length > 0
+    ? opts.gatewayHome
+    : defaultGatewayHome();
+  const harnessPid = /^[0-9]+$/.test(envPid) ? Number(envPid) : Number.NaN;
+  const verified = verify({ home, harnessPid, sessionId: envSession });
+  if (!verified.ok) return builtin(verified.reason);
+  const binding = verified.binding;
+  if (binding.refused === true) return builtin('refused');
+  const roots = Array.isArray(binding.roots) ? binding.roots.filter((root) => typeof root === 'string') : [];
+  if (roots.length === 0) return builtin('no-owning-root');
+
+  let root;
+  if (opts.owningRoot != null && opts.owningRoot !== '') {
+    if (typeof opts.owningRoot !== 'string') return builtin('root-mismatch');
+    let resolved;
+    try {
+      resolved = realpathSync(opts.owningRoot);
+    } catch {
+      return builtin('root-mismatch');
+    }
+    if (!roots.includes(resolved)) return builtin('root-mismatch');
+    root = resolved;
+  } else if (typeof binding.owning_root === 'string' && roots.includes(binding.owning_root)) {
+    root = binding.owning_root;
+  } else {
+    return builtin('no-owning-root');
+  }
   try {
     readFileSync(join(root, 'AGENTS.md'), 'utf8');
   } catch {
@@ -136,9 +184,19 @@ export async function ask(opts = {}) {
   }
   if (isRefused(root)) return builtin('refused');
 
-  const home = typeof opts.gatewayHome === 'string' && opts.gatewayHome.length > 0
-    ? opts.gatewayHome
-    : defaultGatewayHome();
+  const material = Array.isArray(opts.material) ? opts.material : [];
+  for (const item of material) {
+    if (typeof item !== 'string' || !isAbsolute(item)) return builtin('material-outside-root');
+    let real;
+    try {
+      real = realpathSync(item);
+    } catch {
+      return builtin('material-outside-root');
+    }
+    if (!roots.some((candidate) => insideRoot(real, candidate))) return builtin('material-outside-root');
+    if (isRefused(real)) return builtin('refused');
+  }
+
   const status = readClassifierStatus(home);
   const dirs = classifierDirs(status);
   if (!isAttached(status) || dirs.length === 0) return builtin('no-classifier');
@@ -179,24 +237,26 @@ function parseArgs(argv) {
     return { help: true };
   }
   const flags = {};
+  const material = [];
   for (let i = 0; i < argv.length; i += 1) {
     const word = argv[i];
     if (!VALUE_FLAGS.has(word)) {
       throw new Error(`unknown option "${word}". Run ask.mjs help.`);
     }
-    if (Object.prototype.hasOwnProperty.call(flags, word)) {
+    if (word !== '--material' && Object.prototype.hasOwnProperty.call(flags, word)) {
       throw new Error(`${word} was given more than once.`);
     }
     const value = argv[i + 1];
     if (value === undefined || value.startsWith('--')) {
       throw new Error(`${word} needs a value.`);
     }
-    flags[word] = value;
+    if (word === '--material') material.push(value);
+    else flags[word] = value;
     i += 1;
   }
   if (!flags['--action']) throw new Error('--action is required. Run ask.mjs help.');
   if (!flags['--input']) throw new Error('--input is required. Run ask.mjs help.');
-  return { help: false, flags };
+  return { help: false, flags, material };
 }
 
 /**
@@ -211,6 +271,7 @@ async function main(argv = process.argv.slice(2)) {
       return 0;
     }
     const flags = parsed.flags;
+    const material = parsed.material;
     let input;
     try {
       const text = flags['--input'] === '-' ? readFileSync(0, 'utf8') : flags['--input'];
@@ -229,6 +290,7 @@ async function main(argv = process.argv.slice(2)) {
       action: flags['--action'],
       input,
       owningRoot: flags['--owning-root'],
+      material: material.length > 0 ? material : undefined,
       gatewayHome: flags['--gateway-home'],
       replay: flags['--replay'],
       timeoutMs,

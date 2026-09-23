@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { presenceFileExists, recordHookSession } from './lib/binding.mjs';
 import { routeOnce } from './lib/call.mjs';
-import { gate, pluginRoot } from './lib/presence.mjs';
+import { gate, gatewayHome, pluginRoot } from './lib/presence.mjs';
 import { buildRoster } from './lib/roster.mjs';
 import { runHook } from './lib/run.mjs';
 
@@ -65,8 +66,20 @@ export function formatRoute(answer, rows) {
  * @returns {Promise<string | null>}
  */
 export async function routePrompt(event, clock) {
+  // The binding is written before any routing decision, including a refusal,
+  // so a /clear into a refusing root moves the pointer.
+  let recorded = null;
+  try {
+    const home = gatewayHome();
+    if (presenceFileExists(home)) recorded = recordHookSession({ home, event });
+  } catch {
+    recorded = null;
+  }
   const opened = gate(event);
   if (!opened || opened.dirs.length === 0) return null;
+  if (!recorded || recorded.ok !== true) return null;
+  if (recorded.binding.refused === true) return null;
+  if (!Array.isArray(recorded.binding.roots) || recorded.binding.roots.length === 0) return null;
   const raw = promptText(event);
   if (typeof raw !== 'string') return null;
   const ask = raw.trim();
