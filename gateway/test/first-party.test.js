@@ -11,7 +11,7 @@ import { FIRST_PARTY_ACTIONS } from '../src/resolve.js';
 import { createTestGateway, DEFAULT_POLICY, makeHome } from './fake-provider.js';
 
 const SERVER = fileURLToPath(new URL('../server.js', import.meta.url));
-const SIX = Object.keys(FIRST_PARTY_ACTIONS);
+const FIVE = Object.keys(FIRST_PARTY_ACTIONS);
 const ASK = { ask: 'what should I load', roster_sha256: 'abc' };
 const ASK_OK = { family: 'skill', target: 'example', confidence: 1, pass: true };
 
@@ -30,7 +30,7 @@ function conformingAnswer(actionId) {
 const OPERATOR_DIR = 'operator-tree-7f3a9c/private-adapter';
 
 function createFakeClassifier(overrides = {}) {
-  const ids = overrides.ids || SIX;
+  const ids = overrides.ids || FIVE;
   const calls = [];
   return {
     name: 'direct',
@@ -183,11 +183,11 @@ test('no classifier loaded: describe_action on a wiser id answers needs_subscrip
   assert.notEqual(result.status, 'needs_connector');
 });
 
-test('with a classifier loaded, search_actions lists all six first-party ids', async () => {
+test('with a classifier loaded, search_actions lists all five first-party ids', async () => {
   const { gw } = await createTestGateway({ classifier: createFakeClassifier(), connectors: [] });
   const { actions } = gw.searchActions({});
   const ids = actions.map((a) => a.action);
-  for (const id of SIX) assert.ok(ids.includes(id), id);
+  for (const id of FIVE) assert.ok(ids.includes(id), id);
   const row = actions.find((a) => a.action === 'wiser.route.ask');
   assert.equal(row.privilege, 'read');
   assert.equal(row.risk, 'low');
@@ -196,7 +196,7 @@ test('with a classifier loaded, search_actions lists all six first-party ids', a
 
 test('with a classifier loaded, describe_action answers each first-party id with its input shape', async () => {
   const { gw } = await createTestGateway({ classifier: createFakeClassifier(), connectors: [] });
-  for (const id of SIX) {
+  for (const id of FIVE) {
     const row = gw.describeAction(id);
     assert.equal(row.status, undefined, id);
     assert.equal(row.action, id);
@@ -485,7 +485,7 @@ test('invalid first-party input is refused before the adapter is called', async 
 
 test('an adapter advertising an undeclared wiser id is refused and is not invented as read', async () => {
   const extra = 'wiser.secret.write';
-  const classifier = createFakeClassifier({ ids: [...SIX, extra] });
+  const classifier = createFakeClassifier({ ids: [...FIVE, extra] });
   const { gw } = await createTestGateway({ classifier, connectors: [], role: 'readonly' });
   const result = await gw.execute({ action: extra, input: {} });
   assert.equal(result.status, 'needs_connector');
@@ -495,7 +495,7 @@ test('an adapter advertising an undeclared wiser id is refused and is not invent
 
   const { actions } = gw.searchActions({});
   assert.equal(actions.some((a) => a.action === extra), false);
-  for (const id of SIX) assert.ok(actions.some((a) => a.action === id), id);
+  for (const id of FIVE) assert.ok(actions.some((a) => a.action === id), id);
 
   const described = gw.describeAction(extra);
   assert.equal(described.status, 'needs_connector');
@@ -530,7 +530,7 @@ test('--check with --classifier lists the loaded first-party actions', () => {
 export function createClassifier() {
   return {
     name: 'direct',
-    actions: () => ${JSON.stringify(SIX)},
+    actions: () => ${JSON.stringify(FIVE)},
     describe: (id) => ({ request: {}, answer: {} }),
     execute: async () => ({ ok: true }),
   };
@@ -540,7 +540,7 @@ export function createClassifier() {
   assert.equal(r.status, 0, r.stderr);
   const obj = JSON.parse(r.stdout);
   assert.equal(obj.ok, true);
-  assert.deepEqual(obj.classifier, SIX);
+  assert.deepEqual(obj.classifier, FIVE);
 });
 
 test('--check without --classifier still succeeds and reports no classifier actions', () => {
@@ -655,9 +655,9 @@ function createContractClassifier() {
   let rosterSeq = 0;
   return {
     name: 'contract',
-    actions: () => SIX.slice(),
+    actions: () => FIVE.slice(),
     describe(id) {
-      if (!SIX.includes(id)) return null;
+      if (!FIVE.includes(id)) return null;
       return { request: FIRST_PARTY_ACTIONS[id]?.input?.properties || {}, answer: { ok: true } };
     },
     async execute(req) {
@@ -817,7 +817,7 @@ test('a first-party call that never reaches the adapter writes both version keys
   assertVersionsNull(lastAuditLine(auditDeny).line);
 
   const extra = 'wiser.secret.write';
-  const undeclared = createFakeClassifier({ ids: [...SIX, extra] });
+  const undeclared = createFakeClassifier({ ids: [...FIVE, extra] });
   const { gw: gwExtra, audit: auditExtra } = await createTestGateway({
     classifier: undeclared,
     connectors: [],

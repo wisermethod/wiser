@@ -14,7 +14,6 @@ import os
 from pathlib import Path
 import re
 import subprocess
-import time
 import sys
 import warnings
 
@@ -944,104 +943,6 @@ def select_path(conn, chosen, top_k):
     return attach(conn, ordered)
 
 
-ABSTAIN_ID = 'none'
-ABSTAIN_TEXT = 'None of these passages answers the question.'
-
-
-def accept_rank(result, names):
-    """Knowledge Recall's acceptance test for one wiser.recall.rank answer.
-
-    The candidate `none` is the abstention. If the answer ranks it first, nothing
-    is kept and the settlement says abstained. Otherwise keep the first three id
-    values, in the answer's order, that equal a passage name sent on this call,
-    skipping `none` wherever it falls. No bar is applied to p. Anything else is
-    the caller's own chooser: builtin, not-accepted, nothing kept, no record.
-    """
-    path = result.get('path')
-    reason = result.get('reason')
-    if path in ('classifier', 'replay'):
-        answer = result.get('answer')
-        ranked = answer.get('ranked') if isinstance(answer, dict) else None
-        if isinstance(ranked, list) and ranked and isinstance(ranked[0], dict) and ranked[0].get('id') == ABSTAIN_ID:
-            return dict(path=path, reason=reason, kept=[], record=result.get('record'), abstained=True)
-        kept = []
-        allowed = set(names)
-        if isinstance(ranked, list):
-            for entry in ranked:
-                if not isinstance(entry, dict):
-                    continue
-                ident = entry.get('id')
-                if ident == ABSTAIN_ID:
-                    continue
-                if isinstance(ident, str) and ident in allowed:
-                    kept.append(ident)
-                    if len(kept) == 3:
-                        break
-        if kept:
-            return dict(path=path, reason=reason, kept=kept, record=result.get('record'))
-        return dict(path='builtin', reason='not-accepted', kept=[], record=None)
-    return dict(path=path if isinstance(path, str) else 'builtin',
-                reason=reason, kept=[], record=None)
-
-
-def classify_passages(query, items, paths):
-    """Ask which of the pool's passages to read in full. Items are not rewritten.
-
-    No passage with a string name, and no replay record: do not call. A replay
-    is checked first, including against that empty judgment. The caller is a subprocess of
-    tools/lib/classifier/ask.mjs, found from this script's own location. A
-    replay that does not match this judgment fails the command.
-    """
-    passages = [it for it in items
-                if it.get('part') == 'passage' and isinstance(it.get('name'), str)]
-    # A supplied replay is checked against this judgment before the empty return,
-    # so a record from a populated pool is refused rather than ignored.
-    if not passages and not paths.get('classifier_record'):
-        return dict(path='builtin', reason='no-candidates', kept=[], record=None)
-    root = plugin_root()
-    if root is None:
-        fail('classifier: the plugin root could not be found from this script.')
-    script = root / 'tools' / 'lib' / 'classifier' / 'ask.mjs'
-    cmd = ['node', str(script), '--action', 'wiser.recall.rank', '--input', '-']
-    if paths.get('owning_root'):
-        cmd.extend(('--owning-root', paths['owning_root']))
-    if paths.get('gateway_home'):
-        cmd.extend(('--gateway-home', paths['gateway_home']))
-    if paths.get('classifier_record'):
-        cmd.extend(('--replay', paths['classifier_record']))
-    for material in paths.get('material') or ():
-        cmd.extend(('--material', material))
-    candidates = [{'id': it['name'], 'text': it.get('quote')} for it in passages]
-    candidates.append({'id': ABSTAIN_ID, 'text': ABSTAIN_TEXT})
-    payload = dict(
-        question=query,
-        candidates=candidates,
-        allow_uncalibrated=True,
-    )
-    started = time.monotonic()
-    try:
-        run = subprocess.run(
-            cmd, input=json.dumps(payload, ensure_ascii=False),
-            capture_output=True, text=True, timeout=30)
-    except OSError as error:
-        fail('classifier: the caller could not be started (%s).' % error)
-    except subprocess.TimeoutExpired:
-        fail('classifier: the caller timed out.')
-    if run.returncode != 0:
-        detail = (run.stderr or '').strip() or ('the caller exited %s' % run.returncode)
-        fail('classifier: %s' % detail)
-    try:
-        result = json.loads(run.stdout)
-    except json.JSONDecodeError:
-        fail('classifier: the caller did not print one JSON object.')
-    if not isinstance(result, dict):
-        fail('classifier: the caller did not print one JSON object.')
-    out = accept_rank(result, [it['name'] for it in passages])
-    # The whole judgment's wall clock, the caller's process and the gateway's included.
-    out['ms'] = int((time.monotonic() - started) * 1000)
-    return out
-
-
 def recall(values, recipe, screen, positive):
     query = values['query']
     match = bool(re.match(r'^\s*MATCH\b', query, re.I))
@@ -1073,11 +974,9 @@ def recall(values, recipe, screen, positive):
             fail('rank: a ranking applies to the embedding path, not to MATCH.')
         if select_value is not None:
             fail('rank: a selection already fixes the passages; --rank ranks nothing.')
-        if mode != 'classifier':
-            rank_passages = load_rank_passages()
-            if mode not in rank_passages.MODES:
-                known = rank_passages.MODES + ('classifier',)
-                fail('rank: unknown mode %r; one of %s' % (mode, ', '.join(known)))
+        rank_passages = load_rank_passages()
+        if mode not in rank_passages.MODES:
+            fail('rank: unknown mode %r; one of %s' % (mode, ', '.join(rank_passages.MODES)))
     if candidates_only:
         if match:
             fail('candidates-only: MATCH returns match items and there are no candidates. '
@@ -1105,24 +1004,8 @@ def recall(values, recipe, screen, positive):
                 not isinstance(c, dict) or not isinstance(c.get('name'), str)
                 for c in chosen):
             fail('select: expected a JSON list of objects each carrying a name.')
-    # Screen before the model loads. A bad path fails the command and sends nothing.
-    classifier_paths = {}
-    if mode == 'classifier':
-        if 'owning_root' in values:
-            classifier_paths['owning_root'] = str(screen(
-                '--owning-root', values['owning_root'], must_exist=True, as_dir=True))
-        if 'gateway_home' in values:
-            classifier_paths['gateway_home'] = str(screen(
-                '--gateway-home', values['gateway_home'], must_exist=True, as_dir=True))
-        if 'classifier_record' in values:
-            classifier_paths['classifier_record'] = str(screen(
-                '--classifier-record', values['classifier_record'], must_exist=True))
     runtime = None if match or chosen is not None else embedding_runtime(recipe)
     path = store_path(values['store'], False, screen)
-    if mode == 'classifier':
-        # The store directory and the set directory this recall read.
-        set_dir = screen('--set', values['set'], must_exist=True, as_dir=True)
-        classifier_paths['material'] = [str(path.parent), str(set_dir)]
     db = open_database(path, True)
     conn = ENGINE.Connection(db)
     try:
@@ -1145,9 +1028,7 @@ def recall(values, recipe, screen, positive):
             if chosen is not None:
                 items = select_path(conn, chosen, top_k)
             elif has_passages(conn):
-                # classifier judges the hybrid pool and changes no item, score, or rank.
-                pool_mode = 'hybrid' if mode == 'classifier' else mode
-                items = three_part(conn, runtime, query, pool_k, pool_mode,
+                items = three_part(conn, runtime, query, pool_k, mode,
                                    candidates_only=candidates_only)
             else:
                 if ranked:
@@ -1180,6 +1061,4 @@ def recall(values, recipe, screen, positive):
         out['ranking'] = mode
     if candidates_only:
         out['candidates_only'] = True
-    if mode == 'classifier':
-        out['classifier'] = classify_passages(query, items, classifier_paths)
     return out

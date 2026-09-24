@@ -14,7 +14,7 @@ USAGE = """Usage: knowledge_memory.py help | --help | -h
   chunk --set DIR
   chunk --source FILE --out DIR --dataset NAME [--max-chars N]
   ingest --set DIR --store FILE --extraction FILE [--install]
-  recall --set DIR --store FILE --query TEXT [--as-of YYYY-MM-DD] [--top-k N] [--select FILE|JSON] [--rank MODE] [--candidates-only] [--owning-root DIR] [--gateway-home DIR] [--classifier-record FILE] [--install]
+  recall --set DIR --store FILE --query TEXT [--as-of YYYY-MM-DD] [--top-k N] [--select FILE|JSON] [--rank MODE] [--candidates-only] [--install]
   wiki-lint --set DIR
   review-pass --set DIR --store FILE
   promote --set DIR --store FILE (--decided FILE | --from-canon | --replay)
@@ -34,12 +34,6 @@ graph MATCH-only Cypher, or local embeddings with retrieval: embedding.
 as-of is recorded, never filtered. Default top-k is 15, and 25 for graph's
 passage candidate pool; an explicit --top-k governs every path.
 --select, --rank and --candidates-only are graph-only; --rank defaults to cosine.
---rank classifier builds the same pool as --rank hybrid and records one judgment.
---owning-root, --gateway-home and --classifier-record are valid only with
---rank classifier. --owning-root is optional and has to equal the session's
-owning root (hooks/AGENTS.md). The set directory and the store directory are
-the material, and each has to sit inside that root. --classifier-record
-replays a judgment record; a record that does not match this call is refused.
 --select accepts a JSON list in place of a file. --candidates-only returns passages alone.
 Unknown, repeated and command-inapplicable flags are refused by name.
 forget without confirm reports the planned store changes and writes nothing.
@@ -78,7 +72,7 @@ OPTIONS = {
     "bootstrap": ({"--store"}, {"--set"}),
     "chunk": (set(), {"--set", "--source", "--out", "--dataset", "--max-chars"}),
     "ingest": ({"--set", "--store", "--extraction"}, set()),
-    "recall": ({"--set", "--store", "--query"}, {"--as-of", "--top-k", "--select", "--rank", "--candidates-only", "--owning-root", "--gateway-home", "--classifier-record"}),
+    "recall": ({"--set", "--store", "--query"}, {"--as-of", "--top-k", "--select", "--rank", "--candidates-only"}),
     "wiki-lint": ({"--set"}, set()),
     "review-pass": ({"--set", "--store"}, set()),
     "promote": ({"--set", "--store"}, {"--decided", "--from-canon", "--replay"}),
@@ -140,12 +134,6 @@ def parse(argv):
     for cmd, modes in [('promote', ('decided', 'from_canon', 'replay')), ('forget', ('memory_only', 'dataset', 'data_id'))]:
         if command == cmd and sum(k in values for k in modes) != 1:
             fail(cmd + ' requires exactly one mode: ' + ', '.join('--' + k.replace('_', '-') for k in modes))
-    # Valid only beside the mode that asks the judgment. Any other use is the
-    # same refusal an unknown flag gets: the name, before any work.
-    if values.get('rank') != 'classifier':
-        for key in ('owning_root', 'gateway_home', 'classifier_record'):
-            if key in values:
-                fail('--%s is valid only with --rank classifier. Run knowledge_memory.py help.' % key.replace('_', '-'))
     return command, values
 
 

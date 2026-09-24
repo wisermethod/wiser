@@ -14,7 +14,7 @@ import { makeHome } from './fake-provider.js';
 
 const SERVER = fileURLToPath(new URL('../server.js', import.meta.url));
 const PLUGIN_ROOT = fileURLToPath(new URL('../..', import.meta.url));
-const SIX = Object.keys(FIRST_PARTY_ACTIONS);
+const FIVE = Object.keys(FIRST_PARTY_ACTIONS);
 const KEY = 'presence-key-7f3a9c';
 const ROWS = [{ family: 'skill', name: 'Deep Research/SKILL.md', description: 'research', body: 'Full body.\n' }];
 
@@ -46,7 +46,7 @@ export function createClassifier() {
 
   return {
     name: 'direct',
-    actions: () => ${JSON.stringify(SIX)},
+    actions: () => ${JSON.stringify(FIVE)},
     describe: () => ({ request: {}, answer: {} }),
     roster(rows) {
       return holdRoster(rows);
@@ -432,7 +432,7 @@ test('--route prints a roster result with no digest and does not ask', () => {
 export function createClassifier() {
   return {
     name: 'direct',
-    actions: () => ${JSON.stringify(SIX)},
+    actions: () => ${JSON.stringify(FIVE)},
     describe: () => ({ request: {}, answer: {} }),
     async execute(req) {
       if (req && req.actionId === 'wiser.route.roster') {
@@ -503,7 +503,7 @@ import { writeFileSync } from 'node:fs';
 export function createClassifier() {
   return {
     name: 'direct',
-    actions: () => ${JSON.stringify(SIX)},
+    actions: () => ${JSON.stringify(FIVE)},
     describe: () => ({ request: {}, answer: {} }),
     async execute() {
       writeFileSync(${JSON.stringify(marker)}, 'called\\n');
@@ -539,7 +539,7 @@ import { writeFileSync } from 'node:fs';
 export function createClassifier() {
   return {
     name: 'direct',
-    actions: () => ${JSON.stringify(SIX)},
+    actions: () => ${JSON.stringify(FIVE)},
     describe: () => ({ request: {}, answer: {} }),
     async execute() {
       writeFileSync(${JSON.stringify(marker)}, 'called\\n');

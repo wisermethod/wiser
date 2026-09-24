@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 
 import { writeSession } from '../../hooks/lib/binding.mjs';
-import { FIRST_PARTY_ACTIONS, validateFirstPartyAnswer } from '../src/resolve.js';
+import { FIRST_PARTY_ACTIONS } from '../src/resolve.js';
 import { SEARCH_PICK_BAND } from '../src/gateway.js';
 import { bindTestSession, createTestGateway, makeHome } from './fake-provider.js';
 
@@ -103,59 +103,6 @@ function startCaller() {
   };
   return { child, nextLine };
 }
-
-test('wiser.decide.batch is declared, and a malformed answer is refused', async () => {
-  const def = FIRST_PARTY_ACTIONS['wiser.decide.batch'];
-  assert.equal(def.privilege, 'read');
-  assert.equal(def.risk, 'low');
-  assert.equal(def.confirmation, 'none');
-  assert.equal(def.input.properties.state.properties.request.type, 'string');
-  assert.equal(def.input.properties.decisions.type, 'array');
-  assert.equal(def.input.properties.allow_uncalibrated.type, 'boolean');
-  assert.equal(def.input.required.includes('state'), true);
-  assert.equal(def.input.required.includes('decisions'), true);
-  assert.deepEqual(def.answer, { answers: { type: 'array' }, calibrated: { const: false } });
-
-  const input = {
-    state: { request: '{"columns":[]}' },
-    decisions: [
-      { id: 'revenue', question: 'Which role?', options: ['quantity', 'identifier', 'year', 'code', 'flag'] },
-    ],
-    allow_uncalibrated: true,
-  };
-  const good = {
-    answers: [{ id: 'revenue', choice: 'quantity', confidence: 0.125 }],
-    calibrated: false,
-  };
-  assert.equal(validateFirstPartyAnswer('wiser.decide.batch', input, good), true);
-  assert.equal(validateFirstPartyAnswer('wiser.decide.batch', input, {
-    answers: [{ id: 'revenue', choice: 'quantity' }],
-    calibrated: false,
-  }), false);
-  assert.equal(validateFirstPartyAnswer('wiser.decide.batch', input, {
-    answers: [{ id: 'revenue', choice: 'destroy', confidence: 0.5 }],
-    calibrated: false,
-  }), false);
-  assert.equal(validateFirstPartyAnswer('wiser.decide.batch', input, {
-    answers: [{ id: 'revenue', choice: 'quantity', confidence: 0.5 }],
-    calibrated: true,
-  }), false);
-
-  const { gw, classifier } = await gateway(good);
-  const kept = await gw.execute({ action: 'wiser.decide.batch', input });
-  assert.equal(kept.status, undefined);
-  assert.equal(kept.answers[0].confidence, 0.125);
-  assert.equal(classifier.calls.length, 1);
-
-  const { gw: gwBad } = await gateway({
-    answers: [{ id: 'revenue', choice: 'quantity' }],
-    calibrated: false,
-  });
-  const refused = await gwBad.execute({ action: 'wiser.decide.batch', input });
-  assert.equal(refused.status, 'unavailable');
-  assert.equal(refused.reason, 'malformed answer');
-  assert.equal(refused.answers, undefined);
-});
 
 test('an accepted search choice is listed first and marked, through the first-party execute path', async () => {
   const { gw, classifier, audit } = await gateway({

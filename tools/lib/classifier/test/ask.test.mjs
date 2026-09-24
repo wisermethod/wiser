@@ -180,6 +180,42 @@ test('a matching replay makes no call and reads no presence', () => {
   assert.equal(existsSync(env.log), false);
 });
 
+test('an own __proto__ key changes the canonical hash', () => {
+  const withProto = JSON.parse('{"a":1,"__proto__":1}');
+  assert.equal(Object.hasOwn(withProto, '__proto__'), true);
+  const without = { a: 1 };
+  const withHash = createHash('sha256').update('{"__proto__":1,"a":1}', 'utf8').digest('hex');
+  const withoutHash = createHash('sha256').update('{"a":1}', 'utf8').digest('hex');
+  assert.notEqual(withHash, withoutHash);
+  const answer = { ranked: [] };
+  const matched = answered({
+    action: ACTION,
+    input: withProto,
+    replay: {
+      action: ACTION,
+      input_sha256: withHash,
+      input: withProto,
+      answer,
+      path: 'classifier',
+    },
+  });
+  assert.equal(matched.path, 'replay');
+  const mismatched = askInChild({
+    action: ACTION,
+    input: withProto,
+    replay: {
+      action: ACTION,
+      input_sha256: withoutHash,
+      input: without,
+      answer,
+      path: 'classifier',
+    },
+  });
+  assert.equal(mismatched.status, 0, mismatched.stderr);
+  assert.equal(mismatched.body.ok, false);
+  assert.match(mismatched.body.message, /does not match this judgment/);
+});
+
 test('a replay that does not match this judgment throws', () => {
   const dir = tempDir();
   const env = stubEnv(dir, { ranked: [] });

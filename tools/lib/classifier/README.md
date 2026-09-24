@@ -1,6 +1,6 @@
 # Classifier caller
 
-`ask.mjs` is the shared caller a tool uses to put one closed judgment to the classifier. `standards/primitives.md` Invocation is the rule it implements. The module reaches the gateway for that call and nothing else: it computes nothing in the answer, reads no credential, and writes no file. The owning root comes from the session binding `hooks/AGENTS.md` describes. This caller does not choose it.
+`ask.mjs` is the shared caller a future tool seam uses to put one closed judgment to the classifier. No shipped tool calls it today. `standards/primitives.md` Invocation is the rule it implements. The module reaches the gateway for that call and nothing else: it computes nothing in the answer, reads no credential, and writes no file. The owning root comes from the session binding `hooks/AGENTS.md` describes. This caller does not choose it.
 
 ## Call
 

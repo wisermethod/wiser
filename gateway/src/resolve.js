@@ -118,50 +118,6 @@ export const FIRST_PARTY_ACTIONS = {
       calibrated: { const: false },
     },
   },
-  'wiser.decide.batch': {
-    privilege: 'read',
-    risk: 'low',
-    confirmation: 'none',
-    description: 'Settle several closed decisions from one request in one call.',
-    input: {
-      type: 'object',
-      properties: {
-        state: {
-          type: 'object',
-          properties: {
-            request: { type: 'string' },
-          },
-          required: ['request'],
-        },
-        decisions: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'string' },
-              question: { type: 'string' },
-              options: {
-                type: 'array',
-                items: { type: 'string' },
-              },
-            },
-            required: ['id', 'question', 'options'],
-          },
-        },
-        allow_uncalibrated: { type: 'boolean' },
-      },
-      required: ['state', 'decisions'],
-    },
-    // Each entry is `{ id, choice, confidence }` or, when that decision's
-    // choice was outside its own options, `{ id, status, reason }`. `choice`
-    // is one of that decision's options or `none`. `fieldsMatch` cannot say
-    // "one shape or the other", so `validateFirstPartyAnswer` checks this
-    // action itself.
-    answer: {
-      answers: { type: 'array' },
-      calibrated: { const: false },
-    },
-  },
   'wiser.recall.rank': {
     privilege: 'read',
     risk: 'low',
@@ -289,46 +245,7 @@ function fieldsMatch(value, fields, input) {
 export function validateFirstPartyAnswer(actionId, input, result) {
   const def = FIRST_PARTY_ACTIONS[actionId];
   if (!def || !def.answer) return false;
-  if (actionId === 'wiser.decide.batch') return batchAnswerOk(input, result);
   return fieldsMatch(result, def.answer, input);
-}
-
-/**
- * A batch success is `calibrated: false` and one entry per returned decision.
- * An entry the adapter kept is `{ id, choice, confidence }` with `choice` in
- * that decision's options or `none`. An entry it refused is
- * `{ id, status: 'unavailable', reason: 'choice outside the roster' }` and
- * does not take the rest of the batch with it.
- * @param {unknown} input
- * @param {unknown} result
- */
-function batchAnswerOk(input, result) {
-  if (!isPlain(result) || result.calibrated !== false || !Array.isArray(result.answers)) return false;
-  const rosters = new Map();
-  const decisions = isPlain(input) && Array.isArray(input.decisions) ? input.decisions : [];
-  for (const decision of decisions) {
-    if (!isPlain(decision) || typeof decision.id !== 'string') continue;
-    const keys = new Set(['none']);
-    const options = Array.isArray(decision.options) ? decision.options : [];
-    for (const opt of options) {
-      if (typeof opt === 'string') keys.add(opt);
-      else if (isPlain(opt) && typeof opt.id === 'string') keys.add(opt.id);
-    }
-    rosters.set(decision.id, keys);
-  }
-  for (const item of result.answers) {
-    if (!isPlain(item) || typeof item.id !== 'string') return false;
-    if (item.status === 'unavailable') {
-      if (item.reason !== 'choice outside the roster') return false;
-      continue;
-    }
-    if (typeof item.choice !== 'string') return false;
-    if (typeof item.confidence !== 'number' || !Number.isFinite(item.confidence)) return false;
-    if (item.confidence < 0 || item.confidence > 1) return false;
-    const keys = rosters.get(item.id);
-    if (!keys || !keys.has(item.choice)) return false;
-  }
-  return true;
 }
 
 /**

@@ -61,7 +61,8 @@ function canonicalJson(value) {
 function canonicalize(value) {
   if (Array.isArray(value)) return value.map(canonicalize);
   if (value !== null && typeof value === 'object') {
-    const out = {};
+    // A null prototype keeps an own __proto__ key in the hash.
+    const out = Object.create(null);
     for (const key of Object.keys(value).sort()) out[key] = canonicalize(value[key]);
     return out;
   }
