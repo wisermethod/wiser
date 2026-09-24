@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -970,6 +970,38 @@ test('an on-arm run the classifier never answered is invalid, and a mid-run stop
     assert.match(String(safety.stopped_early), pattern);
     assert.ok(Array.isArray(safety.changed));
   }
+});
+
+test('an interrupt stops the host and the safety judgment still runs', { timeout: 180000 }, async () => {
+  const box = world();
+  const tree = syntheticTree(join(box.parent, 'tree'));
+  const ask = 'SLEEP_LONG\nAnswer none of the candidates.';
+  writeFileSync(join(tree, 'trial-open.json'), `${JSON.stringify({ [ask]: { expect: 'none', via: 'read' } })}\n`);
+  const classifier = classifierAt(join(box.parent, 'classifier'));
+  writeSpec(box.work, validSpec(tree, classifier, {
+    cases: [{ id: 'none', ask, expect: 'none', rubric: [{ id: 'N1', text: 'It answers none.' }], none: true, none_item: 'N1' }],
+  }));
+  const ceiling = join(box.parent, 'ceiling.json');
+  jsonOut(runCli(['ceiling', '--ceiling-file', ceiling, '--usd', '100'], box.home));
+  jsonOut(runCli(['plan', '--work', box.work, '--ceiling-file', ceiling], box.home));
+  const captureDir = join(box.parent, 'captures');
+  mkdirSync(captureDir, { recursive: true });
+  const child = spawn(process.execPath, [trialPath, 'run', '--work', box.work], { env: envFor(box.home, { WISER_TRIAL_HOST: hostPath, TRIAL_CAPTURE_DIR: captureDir }) });
+  let stderr = '';
+  child.stderr.on('data', (chunk) => { stderr += chunk; });
+  const started = Date.now();
+  // Wait until the first host has started, which writes its capture before it sleeps.
+  while (readdirSync(captureDir).length === 0 && Date.now() - started < 60000) {
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  await new Promise((r) => setTimeout(r, 500));
+  child.kill('SIGTERM');
+  const code = await new Promise((r) => child.on('close', r));
+  assert.equal(code, 1, stderr);
+  assert.match(stderr, /interrupted by SIGTERM/);
+  const safety = JSON.parse(readFileSync(join(box.work, 'safety.json'), 'utf8'));
+  assert.match(String(safety.stopped_early), /interrupted by SIGTERM/);
+  assert.ok(Date.now() - started < 30000, 'the host was stopped, not waited out');
 });
 
 test('keyscan is clean, finds a planted key, and fails closed with no value', () => {

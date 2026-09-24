@@ -133,6 +133,7 @@ for (const [marker, pidOf] of [
   writeFileSync(join(realGateway, 'classifier-status', 'codex.json'), `${JSON.stringify({ attached: false, pid: pidOf() })}\n`);
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 3000);
 }
+if (prompt.includes('SLEEP_LONG')) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 30000);
 if (prompt.includes('PLANT_SESSION')) {
   mkdirSync(realGateway, { recursive: true });
   writeFileSync(join(realGateway, 'leak.txt'), `${sessionId}\n`);
