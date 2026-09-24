@@ -3,7 +3,7 @@ name: Play Author
 type: skill
 category: authoring
 description: Write or review Plays, primitive instruction bodies, and library components
-version: 0.4.2
+version: 0.4.3
 ---
 
 # Play Author
@@ -60,7 +60,7 @@ When files reference other files: state explicitly what to load and when; keep X
 
 ## Review Mode
 
-For auditing an existing instruction file, follow the Review Process in `standards/instruction-quality.md` end to end, triage through the closing distillation pass. Within that pass, audit every Steps decision for the closed form that process states. In a `SKILL.md`, `EXPERT.md` or `TOOL.md`, audit the classifier seam against `standards/primitives.md` Classifier Seam: required on a new file or a changed seam, absent only on an earlier file whose seam this change does not touch; where present, in Context and in that form, a skill's or expert's seam is routing or code a step runs and never one of its own steps, and each else path is one the file takes; a changed seam records runs both ways that passed. Record each miss as a finding in the shape that process requires. When the file references or is referenced by others, a TOOL.md beside its SETUP.md, a skill and the type files it loads, the composition review is not optional. A triage verdict of rewrite becomes a write: return to this skill's writing workflow with the old file as source material.
+For auditing an existing instruction file, follow the Review Process in `standards/instruction-quality.md` end to end, triage through the closing distillation pass. Within that pass, audit every Steps decision for the closed form that process states. In a `SKILL.md`, `EXPERT.md` or `TOOL.md`, audit the classifier seam against `standards/primitives.md` Classifier Seam. It is required on a new file or a changed seam, absent only on an earlier file whose seam this change does not touch; where present, in Context and in that form, a skill's or expert's seam is routing or code a step runs and never one of its own steps, and each else path is one the file takes; a changed seam records runs both ways that passed. Record each miss as a finding in the shape that process requires. When the file references or is referenced by others, a TOOL.md beside its SETUP.md, a skill and the type files it loads, the composition review is not optional. A triage verdict of rewrite becomes a write: return to this skill's writing workflow with the old file as source material.
 
 ## Success
 
