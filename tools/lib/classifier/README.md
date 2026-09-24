@@ -34,3 +34,33 @@ At least one `--material` is required for a call to be sent, and it may be repea
 ## Test seam
 
 The call goes through `hooks/lib/call.mjs`. When `WISER_HOOK_STUB_FILE` names a JSON map of action id to an answer, no gateway is started. A null or missing entry is the `unavailable` path. `WISER_HOOK_STUB_LOG`, when set, receives one line per call and stays empty when no call is made.
+
+## Trial runner
+
+`trial.mjs` runs a paired trial: the same cases, host on (`C`) and host off (`E`), in a seeded order. The skill that calls it decides and talks to the person. This script is the machinery.
+
+```
+node tools/lib/classifier/trial.mjs <command> [flags]
+```
+
+`help` and `--help` print usage and exit 0. An unknown flag is refused by that name. Success prints one JSON object and exits 0. Failure prints to stderr only and exits 1. `--work` is an absolute directory the caller creates. It is refused when it resolves inside this plugin or inside the directory that holds the key file. Nothing is written inside the script's directory.
+
+| Command | Flags | What it writes |
+|---|---|---|
+| `plan` | `--work`, `--ceiling-file` | `<work>/plan.json` |
+| `ceiling` | `--ceiling-file`, `--usd` | the ceiling file, `{"usd", "set"}` |
+| `run` | `--work`, `--go`, `--keep-temp`, `--key-file` | `<work>/runs/<id>/`, `<work>/safety.json` |
+| `blind` | `--work`, `--seed` | `<work>/blind/packets/`, `<work>/blind/map.json` |
+| `score` | `--work`, `--model` | `<work>/scores/<oid>.json` |
+| `report` | `--work` | `<work>/verdict.json` |
+| `keyscan` | `--work`, `--key-file`, extra directories | nothing; prints counts |
+
+`plan` reads `<work>/spec.json`. It refuses a `kind` other than `routing` or `seam`, no cases, a case with no `id`, `ask`, or `rubric`, fewer than one case with `"none": true`, `repeats` under 3, a non-absolute `tree` or `classifier`, and a tree without `gateway/server.js` and `skills/AGENTS.md`. Dollar figures come from `usd_per_run` in the spec, else the median `usd` of `meta.json` files under the parent of `--work` whose `model` matches, else the table in `COST_TABLE` (`opus`, `sonnet`, `haiku`, and the judge row). `needs_go` is true when there is no ceiling or `usd_worst` exceeds it.
+
+`run` refuses without `plan.json`, and when `needs_go` is true and `--go` is absent. Each run is `<case>-<arm>-<repeat>` in `plan.order`. Arm `C` symlinks `auth-provider.env` at the trial home's platform config path to `--key-file` (default `defaultProviderEnvPath()`). Arm `E` writes the three empty lines, mode 0600. The host keeps the real `HOME`. `HOME` moves only in `--settings` `env` and the gateway MCP `env`. Temp state is removed at the end, including after a stop, unless `--keep-temp`.
+
+`blind` writes one packet per valid run: the ask, the rubric items, and the deliverable. The map from opaque id to run id is a separate file. `score` asks for one fenced JSON block and records `scores`, `reasons`, `score`, and `usd`, or `status: unparsed`. `report` writes the five pass lines from `standards/primitives.md` `## Classifier Seam`. `release` is always `a separate decision; this verdict releases nothing`.
+
+`keyscan` prints the key's length and the first 12 hex of its sha256, never the value. Exit 0 is `clean`. Any other verdict goes to stderr and exits 1.
+
+`WISER_TRIAL_HOST`, when set, names an executable run in place of `claude` with the same argv. It is a test seam, the same kind of switch as `WISER_HOOK_STUB_FILE`, and it is not passed through to the host.
