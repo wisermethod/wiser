@@ -3,11 +3,10 @@ name: Knowledge Recall
 type: skill
 category: knowledge
 description: Answer a question from one named knowledge set, scoped to that set alone, with the quotes and sources the answer rests on and an evidence label on every claim, saying Not available when the set does not cover it
-version: 0.6.3
+version: 0.6.4
 gaps:
   - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
   - temporal filtering of recall by a date, so an as-of question is answered from the facts the set dates rather than filtered by the engine
-  - passage ranking that keeps or drops each candidate, which the name-sorted chooser approximates
 ---
 
 # Knowledge Recall
