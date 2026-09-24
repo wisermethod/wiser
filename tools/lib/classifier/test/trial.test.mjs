@@ -254,7 +254,8 @@ test('plan figures, history, and needs_go', () => {
   assert.ok(Math.abs(planned.usd_expected - (1.8 + 6 * 0.00015)) < 1e-9);
   assert.ok(Math.abs(planned.usd_worst - (4.8 + 6 * 0.00015)) < 1e-9);
   assert.equal(planned.ceiling_usd, null);
-  assert.equal(planned.needs_go, true);
+  // No ceiling set: nothing is asked.
+  assert.equal(planned.needs_go, false);
   assert.equal(planned.order.length, 6);
   assert.deepEqual(planned.order, seededOrder(['none'], 3, 1));
   assert.equal(interleaved(planned.order), true);
@@ -326,12 +327,15 @@ test('plan figures, history, and needs_go', () => {
   assert.equal(secretHits(box.work).length, 0);
 });
 
-test('run refuses without --go when needs_go is set', () => {
+test('run refuses without --go only when a ceiling the person set is passed', () => {
   const box = world();
   const tree = syntheticTree(join(box.parent, 'tree'));
   const classifier = classifierAt(join(box.parent, 'classifier'));
   writeSpec(box.work, validSpec(tree, classifier, { cases: [validSpec(tree, classifier).cases[2]] }));
-  jsonOut(runCli(['plan', '--work', box.work], box.home));
+  const tiny = join(box.parent, 'ceiling.json');
+  jsonOut(runCli(['ceiling', '--ceiling-file', tiny, '--usd', '0.01'], box.home));
+  const planned = jsonOut(runCli(['plan', '--work', box.work, '--ceiling-file', tiny], box.home));
+  assert.equal(planned.needs_go, true);
   const sentinel = join(box.parent, 'sentinel');
   const run = runCli(['run', '--work', box.work], box.home, {
     WISER_TRIAL_HOST: hostPath,
@@ -445,12 +449,20 @@ test('the arm switch, seeded order, opened files, and blind packets', () => {
     assert.equal(readFileSync(join(run.temp_dir, 'roots', id, 'inbox', 'note.txt'), 'utf8'), 'hello from root files');
   }
 
-  const blind = jsonOut(runCli(['blind', '--work', box.work, '--seed', '7'], box.home));
+  const readMap = () => JSON.parse(readFileSync(join(box.work, 'blind', 'map.json'), 'utf8'));
+  const printed = runCli(['blind', '--work', box.work, '--seed', '7'], box.home);
+  const shown = jsonOut(printed);
+  assert.equal(shown.packets, plan.order.length);
+  // The map is on disk only: nothing printed names a run.
+  for (const id of plan.order) assert.equal(printed.stdout.includes(id), false, id);
+  assert.equal(shown.map, undefined);
+  const blind = readMap();
   assert.equal(blind.order.length, plan.order.length);
-  const again = jsonOut(runCli(['blind', '--work', box.work, '--seed', '7'], box.home));
-  assert.deepEqual(again.order, blind.order);
-  const other = jsonOut(runCli(['blind', '--work', box.work, '--seed', '8'], box.home));
-  assert.notDeepEqual(other.order, blind.order);
+  jsonOut(runCli(['blind', '--work', box.work, '--seed', '7'], box.home));
+  assert.deepEqual(readMap().order, blind.order);
+  jsonOut(runCli(['blind', '--work', box.work, '--seed', '8'], box.home));
+  assert.notDeepEqual(readMap().order, blind.order);
+  jsonOut(runCli(['blind', '--work', box.work, '--seed', '7'], box.home));
   const forbidden = ['claude-sonnet', '0.2', 'skills/', 'experts/', '/tmp', '/var', ['', 'Volumes'].join('/'), '-C-', '-E-'];
   for (const oid of blind.order) {
     const text = readFileSync(join(box.work, 'blind', 'packets', `${oid}.md`), 'utf8');

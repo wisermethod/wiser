@@ -764,7 +764,8 @@ function buildPlan(spec, work, ceiling) {
   const classifierUsd = classifierCalls * rate;
   const usdExpected = usdPerRun == null ? null : hostRuns * usdPerRun + judgeRuns * judge.median + classifierUsd;
   const usdWorst = usdP90 == null ? null : hostRuns * usdP90 + judgeRuns * judge.p90 + classifierUsd;
-  const needsGo = ceiling == null || usdWorst == null || usdWorst > ceiling;
+  // A ceiling is the person's option: without one nothing is asked, and the runaway stop in `run` still holds.
+  const needsGo = ceiling != null && (usdWorst == null || usdWorst > ceiling);
   const seed = Number.isFinite(spec.seed) ? spec.seed : 1;
   return {
     host_runs: hostRuns,
@@ -1879,7 +1880,12 @@ async function dispatch(command, flags, rest) {
     }
     const doc = { seed, order, map, provenance_sentences_removed: removed };
     writeFileSync(join(work, 'blind', 'map.json'), `${JSON.stringify(doc, null, 2)}\n`);
-    return doc;
+    // The map stays on disk: printing it would put which run is which into the session driving the trial.
+    return {
+      ok: true,
+      packets: order.length,
+      provenance_sentences_removed: Object.values(removed).reduce((sum, n) => sum + n, 0),
+    };
   }
 
   if (command === 'score') {
