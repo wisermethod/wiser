@@ -401,6 +401,24 @@ function rootsOf(dirs) {
  * @param {{ depthLimit?: number, cap?: number }} [limits]
  * @returns {'descendant' | 'scan-cap' | null}
  */
+/**
+ * The descendant refusal scan again, at send time, over the directories the
+ * binding recorded (or its roots and working folder for a record without them),
+ * so a refusal declared after the last hook write still stops a call.
+ * @param {Record<string, unknown>} binding
+ * @returns {string | null} the refusal reason, or null
+ */
+export function rescanRefusal(binding) {
+  const recorded = Array.isArray(binding && binding.scan_targets) ? binding.scan_targets : null;
+  const targets = recorded || [...(Array.isArray(binding && binding.roots) ? binding.roots : []), binding && binding.cwd].filter((d) => typeof d === 'string' && d.length > 0);
+  for (const dir of targets) {
+    if (typeof dir !== 'string' || dir.length === 0) continue;
+    const found = scanDescendants(dir);
+    if (found) return found;
+  }
+  return null;
+}
+
 function scanDescendants(root, limits = {}) {
   const depthLimit = limits.depthLimit ?? DEFAULT_SCAN_DEPTH;
   const cap = limits.cap ?? DEFAULT_SCAN_CAP;
@@ -854,6 +872,7 @@ export function finishSession(opts) {
       generation,
       cwd: stored,
       roots,
+      scan_targets: scanTargets(composed.dirs, roots),
       owning_root: roots.length === 1 ? roots[0] : null,
       refused,
       refused_by: refusedBy,

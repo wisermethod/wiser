@@ -373,6 +373,29 @@ test('two concurrent sessions send only for the root that does not refuse', asyn
   }
 });
 
+test('a refusing client added below the root after a clean binding stops the gateway before another hook', async () => {
+  const home = makeHome();
+  const root = writeAgents(join(home, 'open'));
+  bindTestSession(home, { root, cwd: root });
+  const { gw, classifier } = await gateway(
+    { choice: 'acme.items.list', confidence: 1, calibrated: false },
+    [CONNECTOR],
+    { home, session: false, classifierIdentity: () => ({ harnessPid: process.pid, sessionId: null }) },
+  );
+  const client = join(root, 'clients', 'harbor');
+  mkdirSync(client, { recursive: true });
+  writeFileSync(join(client, 'AGENTS.md'), '---\ntype: client\nclassifier_refusal: yes\n---\n\n# Client\n');
+  const searched = await gw.searchActions({ query: 'item' });
+  assert.deepEqual(searched.classifier, { path: 'builtin', reason: 'refused' });
+  const executed = await gw.execute({
+    action: 'wiser.decide.choice',
+    input: { decision: 'item', options: ['keep'], allow_uncalibrated: true },
+  });
+  assert.equal(executed.status, 'classifier_unbound');
+  assert.equal(executed.reason, 'refused');
+  assert.equal(classifier.calls.length, 0);
+});
+
 test('a refusal added at the owning root after a clean binding stops the gateway at once', async () => {
   const home = makeHome();
   const root = writeAgents(join(home, 'open'));

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, realpathSync } from 'node:fs';
 import { isAbsolute, join, relative, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { isAncestorPid, verify } from '../../../hooks/lib/binding.mjs';
+import { isAncestorPid, rescanRefusal, verify } from '../../../hooks/lib/binding.mjs';
 import { callOnce } from '../../../hooks/lib/call.mjs';
 import {
   classifierDirs,
@@ -192,6 +192,7 @@ export async function ask(opts = {}) {
     return builtin('unreadable-root');
   }
   if (isRefused(root)) return builtin('refused');
+  if (rescanRefusal(binding)) return builtin('refused');
 
   const material = Array.isArray(opts.material) ? opts.material : [];
   if (material.length === 0) return builtin('no-material');

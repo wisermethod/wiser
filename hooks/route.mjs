@@ -19,7 +19,10 @@ export const NAMED_ASKS = new Set([
   'wrap up',
 ]);
 
-const NAMED_ASK_TAIL = /[: ,;\-.\s]/;
+// Any character that is not a letter or a digit ends the named phrase, so
+// punctuation of any kind after it (a colon, a dash of any length, a question
+// mark, a newline) leaves it that ask.
+const NAMED_ASK_TAIL = /[^\p{L}\p{N}]/u;
 
 /** @param {string} ask */
 export function isNamedAsk(ask) {

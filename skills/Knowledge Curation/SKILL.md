@@ -3,7 +3,7 @@ name: Knowledge Curation
 type: skill
 category: knowledge
 description: Keep an existing knowledge set accurate through source updates, wiki lint or databased review, human decisions, reproducible rebuilds, and supported backend upgrades
-version: 0.4.2
+version: 0.4.3
 gaps:
   - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
 ---
@@ -57,7 +57,7 @@ Read the recipe's backend. Wiki: gather one immutable source with its provenance
 
 Databased: chunk included new corpus material, report the chunk count, extract with the session model using the pack and `tools/knowledge-memory/references/schemas.md`, then `ingest --extraction <file>`. The skill appends source context and canonical names to the prompt and rewrites the extraction object after each chunk. The four-part extraction identity controls reuse. Does this stretch argue, define, or spend a paragraph on the idea? Yes, in one stretch or in several: extract it. It only mentions the idea: do not extract an Idea from the mention. You cannot tell: extract it. Do not skip an argued idea because the theme list missed it. Read the ingest report, resolve or record rejections, then run `review-pass`. No script estimates or spends model cost.
 
-After wiki compile or databased extract, check coverage against the corpus, per `tools/knowledge-memory/references/backends.md` Organizing pass. Does the idea locate, and does it have a page or a Candidate? It locates, it has neither, and it is important: add it. Missing that idea is worse than keeping a mildly interesting located one. It locates, it has neither, and it is only mildly interesting: adding it is allowed. It locates, it has neither, and you cannot tell whether it is important: record it for review, and do not add it on that uncertainty. It locates and already has a page or a Candidate: coverage is satisfied; continue. It does not locate: do not add it.
+After wiki compile or databased extract, check coverage against the corpus, per `tools/knowledge-memory/references/backends.md` Organizing pass. Does the idea locate, and does it have a page or a Candidate? It locates, it has neither, and it is important: add it. Missing that idea is worse than keeping a mildly interesting located one. It locates, it has neither, and it is only mildly interesting: adding it is allowed. It locates, it has neither, and you cannot tell whether it is important: add it as a Candidate Idea, which is the set's review queue, and do not write a page for it on that uncertainty. It locates and already has a page or a Candidate: coverage is satisfied; continue. It does not locate: do not add it.
 
 **Graph.** Follow `experts/Knowledge Expert/graph.md`: `chunk --set <absolute set>`, session extraction using the pack and located quotes, then `ingest --set <absolute set> --store <absolute graph.lbdb> --extraction <absolute file>`. Read the Candidate ingest report, including name skips, unsupported types, unresolved links and rejections. Existing primary keys are skipped; changed evidence requiring replacement goes to the human rather than being claimed applied. No graph promote or replay runs.
 

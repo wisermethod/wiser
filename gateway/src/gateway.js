@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { isAncestorPid, verify } from '../../hooks/lib/binding.mjs';
+import { isAncestorPid, rescanRefusal, verify } from '../../hooks/lib/binding.mjs';
 import { isRefused } from '../../hooks/lib/presence.mjs';
 import { buildContext } from './context.js';
 import { STATUS, StatusSignal, classifierAuditStatus, isStatusObject, sanitizeError, statusObject, vendorErrorFrom } from './errors.js';
@@ -444,6 +444,7 @@ export class ConnectionGateway {
       return { ok: false, reason: 'no-owning-root' };
     }
     if (isRefused(owning)) return { ok: false, reason: 'refused' };
+    if (rescanRefusal(verified.binding)) return { ok: false, reason: 'refused' };
     return verified;
   }
 
