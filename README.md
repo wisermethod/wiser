@@ -1,77 +1,40 @@
 # Wiser
 
-The general knowledge-work plugin: skills, experts, tools, and the standards that bind them, for doing real work in your own voice on your own material.
+The skills here are built to work together: state your voice and facts once, the skills that write for you read them, and experts check your work. Your voice, your facts and your work live in plain files you own, and each task can leave them better for the next. Built on the book *The WISER Method*; guided by AI First Principles (aifirstprinciples.org). Training and hosted services come next.
 
-It carries no dependency on any single agent host: everything in it is instruction text, one shell script, and the scripts its tools run, and it runs wherever a root of this shape can be composed. A tool ships its manifest and never its packages, so nothing is installed on your machine until a tool is actually called, and a tool nobody calls costs nothing.
+## What it is for
 
-## What is in it
-
-**41 skills** that produce something you asked for by name: writing a post, an essay, a press release, a speech; researching a question; designing a page, a palette, a type system, or a whole design system; analyzing a spreadsheet; building a funnel or a proposal; setting up a new working folder; standing up a site; hosting it through Cloudflare Pages or Vercel Deploy; authoring a connector from an approved plan; setting up connectors on a new machine (attach and project key); connecting an account; naming the next step when a grant fails; onboarding, keeping, and recalling a knowledge set.
-
-**11 experts** that judge work through a perspective rather than producing it, and each owns the skills it gates: a review gate before writing ships, a marketing strategist, a conversion advisor, a webmaster for the live site, a creative director who directs design before it is made and judges it after, a research expert who judges what a finding rests on, Knowledge Expert for what a knowledge set should hold and how far to trust it, an IT expert for a DNS or hosting change, a system expert for changes to the plugin and to a root, a connector advisor for how a new connector is built, and a first-principles problem solver. Every skill is owned by one of them, and `experts/AGENTS.md` is the routing table that says which.
-
-**15 tools** that do the deterministic work a skill or expert calls for: parsing, describing, aggregating, joining, charting and computing over tabular data; rendering HTML, SVG and Mermaid diagrams and live pages to images; editing images and video; driving a browser; on-page, sitemap and analytics-tag checks and Search Console datasets for SEO; building and exporting decks; gathering candidate source material; transcribing audio on your own machine; checking references; and knowledge-memory for wiki lint and a databased store (SQLite FTS5).
-
-**6 standards** that bind all of it: how a primitive is shaped, how instructions are written, the conventions every file follows, the two shapes for work written down rather than done once, and what every script a tool ships, and every connector module, must do.
-
-**A local gateway** and the connectors under `connectors/`. A person attaches one process; account access is that process, not a file in a root. The gateway's provider holds vendor keys through hosted connect, including catalog-absent API-key services registered as custom toolkits. Local-file is last resort when that injection cannot match the vendor.
-
-Knowledge sets keep permitted sources and the knowledge drawn from them under `memory/knowledge/<set>/` in the owning root. Simple keeps a cited wiki. Standard keeps a local databased store (SQLite FTS5) with human-reviewed canon and retrieval checks. Pro is the local graph path (LadybugDB), with named stops for missing engine or embedding weights; Enterprise remains the hosted stub. These are choices of memory option, separate from source kind and close intensity; the contract is `tools/knowledge-memory/references/backends.md`.
+Knowledge work in your own voice, on your own material: writing, research, design, data, sites and marketing. The work lands in a folder you own, never inside Wiser, so one copy serves every folder you point it at.
 
 ## How it works
 
-Install the plugin, then attach a **working folder**: the root the work is about. That folder describes itself in its own `AGENTS.md`, including a `Provides` block that binds what the plugin asks for, like the voice to write in and the facts about you or your organization.
+You attach a **working folder**, the one the work is about. Its `AGENTS.md` says what the folder is and points to the files that hold your voice, the facts about you, and your design. Every skill that writes reads those files, so you state them once. Your voice file can be revised as you use it, and a knowledge set grows as you add to it, so the next task starts from better files.
 
-The plugin is **read-only in use, with one exception**. Everything it produces lands in the working folder you attached, in the directories that folder declares. **The exception is what a tool installs for itself.** A tool that needs packages installs them into its own directory after the first `--install` in this copy, and a browser tool also downloads a Chromium build, which lands outside this plugin unless `PLAYWRIGHT_BROWSERS_PATH=0` puts it inside. So the plugin directory has to be writable, and a tool that carries dependencies cannot work from a read-only install. **`tools/AGENTS.md` has the full list**: what gets written, where, and which of the fifteen tools it applies to.
+Wiser is made of five kinds of part:
 
-`AGENTS.md` is the constitution and the place to start reading; `GLOSSARY.md` defines the words it uses. `skills/AGENTS.md`, `experts/AGENTS.md`, `tools/AGENTS.md` and `connectors/AGENTS.md` index what is available. The named ask **set up connectors** attaches the gateway to a new harness or machine and confirms the project key; `gateway/SETUP.md` is the recipe that skill prints from.
+- **Skills** produce something you ask for by name: a post, a brief, a page, a palette, an analysis.
+- **Experts** judge work through one perspective, and most check it before it ships, in a second context that did not write it.
+- **Tools** do the parts that should come out the same every time, such as parsing data, rendering images, or driving a browser. The first time a tool needs packages, Wiser asks once, then installs them into its own folder; later tools install without asking.
+- **Connectors** reach the outside accounts you connect, through a local gateway you attach to each app you use. The grants are held by an authentication provider you set up an account with, never on your machine, and the accounts stay yours.
+- **Standards** say how every other part is written, so each one reads and behaves alike.
 
-## What each host gives up
-
-The writing skills and the judging experts run on any model that can read the files. The tools need a host that runs commands. Two of the constitution's rules need something a host may not have, and this is what each host does about it.
-
-- **Claude Code.** Start in your working folder, add this directory to the session, and say to read this directory's `AGENTS.md` first: Claude Code reads a `CLAUDE.md` from an added directory only where it is configured to, so the constitution loads because you asked. Then everything runs as written: approving the `--install` re-run is a tool's consent, and a subagent is the second context the review rule needs.
-- **Claude Cowork.** Add `wisermethod/wiser` as a marketplace, install `wiser`, then attach the working folder the work is about. All three of the things that matter were run here and they hold: the skills arrive with the install, the constitution loads from `AGENTS.md`, and work lands in the attached folder rather than in this tree. **The tool half is the honest stop, and the reason this file gave for it was too broad.** It said Cowork runs in a virtual machine the gateway has no route to. Cowork runs two ways: a session on your own machine, and a sandboxed virtual machine on that machine which an organization can require. The route argument holds for the sandbox and not for the other, and this plugin in any case declares no MCP server, so nothing starts the gateway for you on either. **A tool step and a connector step are unproved on Cowork and stay unproved here.** Read `gateway/SETUP.md` for what attaching actually needs.
-- **Cursor.** Reads `AGENTS.md` at each workspace root. Where it offers a subagent, delegate the review to one with the draft and the reviewing expert; where it does not, a new chat given the same is the review, carried across by hand. Where Cursor is set to ask before a terminal command, `--install` is a second approval for the same action.
-- **Codex, and ChatGPT for desktop.** Two doors, and the first is easier than the second. **Install it**: add `wisermethod/wiser` as a marketplace and install `wiser`. Codex reads this repository's `.claude-plugin/marketplace.json` directly and resolves the skills from its own plugin cache, so there is no second manifest to write and nothing to rename; the same install serves ChatGPT for desktop once plugins are turned on there. **Or compose it**: Codex reads the `AGENTS.md` files from the project root down to the working directory, and nothing beside that path, so a plugin that sits beside or inside the working folder is not read. Start Codex in a directory that holds both, and give that directory a two-line `AGENTS.md` that says to read the plugin's `AGENTS.md` first and the working folder's second. Its sandbox has network off by default, and an install stops until you turn it on. A review is a second `codex` session.
-- **Grok Build, the `grok` CLI.** The same two doors as Codex. Neither has been run with this plugin yet, so what follows is Grok's own user guide, read at version 1.0.40. **Install it**: run `grok plugin marketplace add wisermethod/wiser`, then `grok plugin install wiser --trust`. Grok accepts a catalog under `.claude-plugin/`, so there is no second manifest to write, and the install puts the skills in its slash menu. **Or compose it**: Grok reads `AGENTS.md` and `CLAUDE.md` in every directory from the repository root down to the one it starts in, or only the starting directory outside a repository, and only once you have trusted the folder. A plugin that sits beside the working folder is not read, so start Grok in a directory that holds both and give that directory a two-line `AGENTS.md` that says to read the plugin's `AGENTS.md` first and the working folder's second. To have the skills listed without installing, add this directory's `skills/` to `[skills] paths` in `~/.grok/config.toml`. Where Grok asks before a command, `--install` is a second approval for the same action. A review is a subagent given the draft and the reviewing expert, or a second `grok` session.
-- **A chat model with no filesystem.** Paste `AGENTS.md`, your working folder's own `AGENTS.md` with its Provides block, the files it binds (`voice.md`, `about.md`), the skill, the type file for the kind of piece, `openings.md` for a piece with a cold reader, `standards/conventions.md` and `standards/instruction-quality.md`. Writing works, and saving the piece is yours to do. The review goes to a fresh chat given the draft and nothing of the reasoning, with the same packet the writing had, the reviewing expert in place of the type file, and the intended reader named: Ghost Writer needs the working folder, `voice.md`, `standards/conventions.md`, and Content Author's Steps for its layering test. Every tool step is an honest stop, and Data Analysis in particular refuses to read rows by eye, so a pasted spreadsheet gets a correct refusal.
-
-**The review rule on one context** is the constitution's, in its Behavioral Core: a new chat given the work and the reviewing primitive, and nothing of the reasoning, is the context.
-
-## What it does not do yet
-
-This release ships a local gateway and connectors, including GitHub, Cloudflare, Google Search Console and Analytics, Drive, Calendar, Gmail, Sheets, Docs, Slides, Vercel, Replicate, Google Vision, Clarity, address verification, CourtListener, Tiny Fish search and fetch, Zoho CRM, Mail, Books invoices, Desk tickets, Inventory contacts, Invoice, Bigin contacts, HubSpot contacts, Notion pages, Stripe billing, Figma files, Zoom meetings, monday.com boards, LinkedIn profile and posts, Hugging Face hub, Supabase projects, and Microsoft Outlook, Calendar, OneDrive, SharePoint, Excel, and Teams; the 11 new service directories and the expanded Zoho and Microsoft modules are shipped unconnected. Gmail, Sheets, Docs, Slides, Clarity, and address verification still need their human connects. Keyword research, page-speed readings, and site crawling all ship. Primitives that still need an absent service say so at the step rather than guessing the numbers. Zone Publisher still names rulesets as a remaining gap on the skill side.
-
-**Automated site crawling is not here either**, and unlike the readings above it is not waiting on a connector: nothing in this release crawls a site, and the SEO primitives take the pages and sitemaps you give them rather than discovering them.
-
-**Nothing hides that.** Where a step depends on something absent, the primitive says which step cannot run and what it would have produced, rather than approximating the result. Every such gap is declared in the primitive's own frontmatter and collected in `system/GAPS.md`.
-
-Press and public-affairs judgment is not here either: whether something is a story, who to pitch it to, and what to say during an unfolding incident. Primitives that used to route those questions elsewhere now name them as gaps instead of answering them.
-
-## Renamed in this release
-
-Fifteen tools became five, ten fewer, and their old script paths are gone with no shim. A script of your own that named one of these paths breaks and needs the new form:
-
-| Was | Is now |
-|---|---|
-| `tools/data-parse`, `data-describe`, `data-aggregate`, `data-join`, `data-chart` | `tools/data/scripts/data.js parse`, `describe`, `aggregate`, `join`, `chart`, and a new `compute` |
-| `tools/html-to-png`, `svg-to-png`, `mermaid-to-png`, `web-screenshot` | `tools/render/scripts/render.js html`, `svg`, `mermaid`, `url`, and `check` |
-| `tools/image-edit`, `image-overlay` | `tools/image/scripts/image.js edit`, `compose` |
-| `tools/sitemap-fetch`, `sitemap-diff` | `tools/sitemap/scripts/sitemap.js fetch`, `diff` |
-| `tools/seo-audit` (`build`), `seo-keywords` (`analyze`, `previous-window`) | `tools/seo-data/scripts/seo-data.js audit`, `keywords`, `previous-window` |
-
-Every flag, every JSON field and every exit code is what it was; only the path and the verb changed. The six copies of the browser launch runtime are one file at `tools/lib/browser-runtime/`, and Playwright installs there once.
+Each family keeps its own index: `skills/AGENTS.md`, `experts/AGENTS.md`, `tools/AGENTS.md`, `connectors/AGENTS.md` and `standards/AGENTS.md`. What Wiser does not do is listed in `system/GAPS.md`, and a step that needs a missing part says so rather than guessing.
 
 ## Install
 
-Point your harness at this repository as a plugin root, then attach your working folder: that folder, not this repository, is where the work lands. **This repository is also its own marketplace.** In Claude Cowork, open Customize, then Plugins, then Add marketplace, and give it `wisermethod/wiser` or `https://github.com/wisermethod/wiser`; install `wiser` from the catalog that appears, then attach the working folder the same way. `.claude-plugin/` declares no version, which is what lets a host resolve the source commit. **This file used to add that Update therefore follows `main`**, an assertion about Update that nothing here had run; that half is withdrawn and not replaced. What is known is the shape, not the outcome. That one catalog serves Claude Code, Cowork, Codex and ChatGPT for desktop; a host that reads a directory rather than a catalog ignores `.claude-plugin/` and composes the root as before. Read `AGENTS.md` first either way.
+Install Wiser, then attach your working folder. If your folder has no `AGENTS.md` yet, ask Wiser to set it up; it can start a new folder or adopt one that already holds work.
 
-`skills/Onboard Root/` creates a user root from `system/templates/User Root Template/`, or adopts a folder that already holds work, against `standards/user-root.md`. Your own root takes its personal path: three bound files and a read-back pass. Every other type takes the full path, which keeps records and runs a gate harness.
+- **Claude Cowork.** Open Customize, then Plugins, then Add marketplace. Give it `wisermethod/wiser`, install `wiser`, then attach your working folder.
+- **Claude Code.** Clone this repository, start Claude Code in your working folder, add the clone with `/add-dir`, and ask Claude to read the clone's `AGENTS.md` first.
+- **Codex and ChatGPT for desktop.** Add `wisermethod/wiser` as a marketplace and install `wiser`. The same install serves ChatGPT for desktop once plugins are turned on there. Codex's sandbox has network off by default, so a tool's first install stops until you turn network on.
+- **Grok.** Run `grok plugin marketplace add wisermethod/wiser`, then `grok plugin install wiser --trust`. We have not run this with Wiser yet; these are Grok's own documented steps, read at version 1.0.40.
+- **Cursor.** Add your clone of this repository as a workspace root beside your working folder. Cursor reads each root's `AGENTS.md`.
 
-`skills/Onboard Plugin Root/` creates a domain plugin beside this one from `system/templates/Plugin Root Template/`, or adopts a placeholder repository whose name is already reserved, against `standards/plugin-root.md`. A domain plugin loads alongside `wiser` and references its primitives rather than copying them. It runs on the operator's authorization for a named phase and target, and refuses an ordinary write to any plugin that is installed and in use. That skill produces the tree and stops there; `skills/Scope Plugin Bench/` is the one that decides what the new plugin should hold, proposing a first slice across all four families and handing `skills/Playbook Author/` the plan to build it.
+Where it does not work yet: tools need a host that can run commands, so in a chat with no files you get the writing but not the tool steps. In Cowork, tool and connector steps are unproved, because neither has been run there.
 
-`skills/Housekeeping/` proposes a clause-cited structural plan for a pointed-at directory and applies the approved transaction with verified recovery. Already-Wiser layout drift takes Housekeeping; adoption composes it before declaring and rebuilding memory.
+## Where to start reading
+
+`AGENTS.md` is the constitution: the rules every part follows, and the place a session starts. `GLOSSARY.md` defines the words it uses. `gateway/SETUP.md` is the recipe for attaching the gateway to a new machine or app; ask Wiser to set up connectors and it walks you through it.
 
 ## License
 
