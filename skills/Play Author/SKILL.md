@@ -3,7 +3,7 @@ name: Play Author
 type: skill
 category: authoring
 description: Write or review Plays, primitive instruction bodies, and library components
-version: 0.4.0
+version: 0.4.1
 ---
 
 # Play Author
@@ -26,9 +26,9 @@ The requesting owner rides with the request: Before Writing's reuse check search
 
 ## Before Writing
 
-Is the output type, the success test, the content it will process, and the scope each named by the request? Yes: do not ask them again. Any one is not named: ask that one. What type of file? What does success look like? What content will it process? What scope? Do not guess the missing one.
+Where the request names the output type, the success test, the content it will process, and the scope, do not ask them again. Ask any one it does not name: What type of file? What does success look like? What content will it process? What scope? Do not guess the missing one.
 
-Is the requesting owner named? No: ask who the owner is. Do not run the reuse check and do not place a file. Yes: search this root's skills, that owner's existing Plays (the home its `AGENTS.md` names, the default in `standards/play.md` if it is silent), and existing primitives before writing new. Did that search find a file that already does what the request asks? No: write new. Yes, and the request changes how that file works: extend it. Do not copy it into a new file. Yes, and the request is a use of that file: compose it. Do not copy it. Several files could be the one: ask which. No answer: do not write a new file beside them. You cannot tell whether a found file does what was asked: ask. No answer: do not write a second file.
+Reuse check: where the requesting owner is not named, ask who the owner is, and do not run the check or place a file until they answer. Search this root's skills, that owner's existing Plays (the home its `AGENTS.md` names, the default in `standards/play.md` if it is silent), and existing primitives before writing new. Where the search finds nothing that already does what the request asks, write new. Where it finds a file and the request changes how that file works, extend it rather than copy it into a new file. Where the request is a use of that file, compose it rather than copy it. Where several files could be the one, ask which, and do not write a new file beside them without an answer. Where you cannot tell whether a found file does what was asked, ask, and do not write a second file without an answer.
 
 ## Output Types
 
@@ -40,7 +40,7 @@ Is the requesting owner named? No: ask who the owner is. Do not run the reuse ch
 
 Litmus: a file containing verbs that direct agent action is a Play or a primitive body, never a library component.
 
-Play instances belong in the requesting owner's root, never in this plugin root. The owner is the one Before Writing named. No owner yet: that step already stopped. Do not place the file. Does that root's `AGENTS.md` name a home? Yes: use it. No: the default home in `standards/play.md`, projecting `standards/user-root.md` C3. A client root places the Play in the `work/<subject>/` folder of the work it produces, as `<does-this-thing>.play.md`, per that standard.
+Play instances belong in the requesting owner's root, never in this plugin root. Where that root's `AGENTS.md` names a home, use it; otherwise the default home in `standards/play.md`, projecting `standards/user-root.md` C3. A client root places the Play in the `work/<subject>/` folder of the work it produces, as `<does-this-thing>.play.md`, per that standard.
 
 ## Writing Process
 
@@ -49,10 +49,10 @@ Play instances belong in the requesting owner's root, never in this plugin root.
 3. Define verifiable success
 4. Write minimal; cut until quality would degrade
 5. Add a decision point in the closed form `standards/instruction-quality.md` states wherever the file asks the agent to choose
-6. Declare the classifier seam in Context, in the form `standards/primitives.md` Classifier Seam states, when the file is a new `SKILL.md`, `EXPERT.md` or `TOOL.md`, or when the change adds or alters a seam. A typed file first written under an earlier version of that standard may carry none until a change adds or alters a seam in it. Is a closed judgment in this primitive's work put to a classifier by code? The possible callers are the route hook, because an index `hooks/` reads will list it; a tool or gateway action one of its steps runs; or, for a tool, its own script. Yes: declare each, naming the code, with its else path. No: declare `none.` A judgment the file would have the agent put to the classifier: it is not a seam; write the step's own path and declare nothing for it. A Play or a library component: no declaration
+6. Declare the classifier seam in Context, in the form `standards/primitives.md` Classifier Seam states, when the file is a new `SKILL.md`, `EXPERT.md` or `TOOL.md`, or when the change adds or alters a seam. A typed file first written under an earlier version of that standard may carry none until a change adds or alters a seam in it. Where code puts a closed judgment in this primitive's work to a classifier, declare each caller, naming the code, with its else path. The possible callers are the route hook, because an index `hooks/` reads will list it; a tool or gateway action one of its steps runs; or, for a tool, its own script. Where no such caller exists, declare `none.` A judgment the file would have the agent put to the classifier is not a seam: write the step's own path and declare nothing for it. A Play or a library component gets no declaration
 7. Add pitfall responses
 8. Verify with three varied inputs. A change that adds or alters a seam also runs the file both ways, as Classifier Seam states, and records the runs with the change
-9. On failure, which section broke? Wrong scope: Context. Wrong goal: Objective. Missing information: Inputs. Wrong judgment: Steps. Unhandled edge case: Pitfalls. One of them: fix that section and retest. More than one: fix each, in that order, and retest. None of them: ask what failed. Do not rewrite a section you cannot name
+9. On failure, diagnose which section broke: wrong scope is Context, wrong goal is Objective, missing information is Inputs, wrong judgment is Steps, unhandled edge case is Pitfalls. Fix that section and retest. Where more than one broke, fix each in that order and retest. Where none of them fits, ask what failed, and do not rewrite a section you cannot name
 
 ## Composition
 
@@ -60,7 +60,7 @@ When files reference other files: state explicitly what to load and when; keep X
 
 ## Review Mode
 
-For auditing an existing instruction file, follow the Review Process in `standards/instruction-quality.md` end to end, triage through the closing distillation pass. Within that pass, audit every Steps decision for the closed form that process states, and record each miss as a finding in the shape it requires. In a `SKILL.md`, `EXPERT.md` or `TOOL.md`, audit the classifier seam declaration against `standards/primitives.md` Classifier Seam. Require the declaration for a new file or a changed seam, and allow its absence on an earlier file whose seam this change does not touch. Where the line is present, check that it is in Context and in its form. Check that a skill's or expert's seam is routing or code a step runs, never one of its own steps. Check that each else path is one the file actually takes. Where the change under review adds or alters a seam, check that the change records the runs both ways and that they passed. Record each miss as a finding the same way. When the file references or is referenced by others, a TOOL.md beside its SETUP.md, a skill and the type files it loads, the composition review is not optional. A triage verdict of rewrite becomes a write: return to this skill's writing workflow with the old file as source material.
+For auditing an existing instruction file, follow the Review Process in `standards/instruction-quality.md` end to end, triage through the closing distillation pass. Within that pass, audit every Steps decision for the closed form that process states. In a `SKILL.md`, `EXPERT.md` or `TOOL.md`, audit the classifier seam declaration against `standards/primitives.md` Classifier Seam: require it for a new file or a changed seam, and allow its absence on an earlier file whose seam this change does not touch. Where the line is present, check that it is in Context and in its form, that a skill's or expert's seam is routing or code a step runs and never one of its own steps, and that each else path is one the file actually takes. Where the change under review adds or alters a seam, check that the change records the runs both ways and that they passed. Record each miss as a finding in the shape that process requires. When the file references or is referenced by others, a TOOL.md beside its SETUP.md, a skill and the type files it loads, the composition review is not optional. A triage verdict of rewrite becomes a write: return to this skill's writing workflow with the old file as source material.
 
 ## Success
 

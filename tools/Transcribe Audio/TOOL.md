@@ -3,7 +3,7 @@ name: Transcribe Audio
 type: tool
 category: media
 description: Turns one audio file into a text transcript with a speech model that runs on this machine
-version: 0.2.4
+version: 0.2.5
 gaps:
   - Speaker labeling, which would say which speaker said each turn
 ---
@@ -96,17 +96,17 @@ Options:
 | `--model [name]` | Speech model: `tiny`, `base`, `small`, `medium`, `large` | `base` |
 | `--help` | Print usage and exit | Off |
 
-Model choice trades time for accuracy. Which `--model` is the question under the table. Weights live in the person-scoped `models/` folder, or in `--model-cache` when that flag is passed. A weight already present is reused. A weight that is not already present stops, with no download, until `--install` or `WISER_ALLOW_INSTALL=1`:
+Model choice trades time for accuracy, and the weights are downloaded once per model into the person-scoped `models/` folder, or into `--model-cache` when that flag is passed:
 
-| Model | Weights | Request that selects it |
-|-------|---------|-------------------------|
-| `tiny` | Smallest, fastest | Only a gist is needed, and none of the other rows |
-| `base` | Small | None of the other rows. The default |
+| Model | Weights | Choose it when |
+|-------|---------|----------------|
+| `tiny` | Smallest, fastest | Only the gist is needed |
+| `base` | Small | The default; ordinary speech, ordinary stakes |
 | `small` | Larger | Accents, crosstalk, or domain vocabulary |
 | `medium` | Large | The transcript will be quoted or acted on |
-| `large` | Largest, slowest | Accuracy outranks time, or the audio is hard |
+| `large` | Largest, slowest | Accuracy outranks time, or the audio is genuinely hard |
 
-Which `--model` is passed? The caller named `tiny`, `base`, `small`, `medium`, or `large`: that one. The caller named none. Apply the first match the request itself states, in the order `large`, then `medium`, then `small`, then `tiny`, and do not infer one by listening. Do not take the first row of the table. The request says accuracy outranks time, or says the audio is hard: `large`. The request says the transcript will be quoted or acted on: `medium`. The request names accents, crosstalk, or domain vocabulary: `small`. The request says only the gist is needed, and it names none of those: `tiny`. None of these is stated: `base`, the default. Do not ask in that last case. A named model outside that list: ask. Do not substitute `base`.
+When the request states more than one of these, pass the first match in the order `large`, then `medium`, then `small`, then `tiny`, from what the request states rather than by listening. A `--model` name outside that list: ask, and do not substitute `base`.
 
 ## Script Contract
 

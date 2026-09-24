@@ -3,7 +3,7 @@ name: keynote-render
 type: tool
 category: documents
 description: Builds and edits native Keynote decks from JSON or markdown SSOT, with zArchive safety before every in-place mutation
-version: 0.2.2
+version: 0.2.3
 ---
 
 # keynote-render
@@ -14,7 +14,7 @@ One tool for native Keynote: greenfield build from a JSON deck spec, and in-plac
 
 Use it when the deliverable is a Keynote file: a deck someone will open, edit, and present in Keynote, or an export that has to come out of Keynote's own renderer rather than a browser. Styling comes from a theme already installed in Keynote.
 
-Does the `.key` already exist at `--deck`? Yes: load the markdown, archive the `.key`, diff, minimal patch, save, verify. Do not rebuild the whole document when a patch will do. No: full build from the markdown. There is no archive step. The workstream table below is this same question.
+**Primary agent path for an existing deck:** load markdown → archive the `.key` → diff → minimal patch → save → verify. Do not rebuild the whole document when a patch will do.
 
 Do not use it to author a deck in HTML: reveal.js decks belong to `skills/Create Presentation/`. Do not use it to decide what the slides say. It places the text it is handed; the writing discipline and visual review belong to the skill that calls this tool.
 
@@ -121,7 +121,7 @@ What you say.
 | Images | `image: path` or `**Visual (full slide):** path`; relative to the markdown file. On update, named images **replace** existing images on that slide then add; documented here so agents do not expect dual stacks |
 | Secondary text | `texts.<key>:` or brand-mapped semantic keys after resolve |
 
-**The numbered-slide course shape** (`## Slide N. Title` with `On slide:` / `Presenter notes:` / visual labels) parses without a permanent one-off fork. Does the slide's mapping fit a shape this file already parses? Yes: leave the markdown. No: edit the markdown toward a shape already parsed here. Do not add a tool special-case.
+**The numbered-slide course shape** (`## Slide N. Title` with `On slide:` / `Presenter notes:` / visual labels) parses without a permanent one-off fork. Prefer light markdown edits over tool special-cases when mapping is incomplete.
 
 ### Diff rules
 
@@ -184,7 +184,7 @@ logo:
   slides: all | first | [1, 3]
 ```
 
-Is `--theme` passed? Yes: it overrides the brand file. No: the brand file's `theme` key is required. That key is missing: do not build. Misspelled keys are refused.
+Only `theme` is required when no `--theme` is passed. Misspelled keys are refused.
 
 ## Usage
 

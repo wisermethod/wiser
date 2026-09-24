@@ -3,7 +3,7 @@ name: List Hygiene
 type: skill
 category: communication
 description: Decide what an email contact list keeps and drops, verified through the usebouncer connector, with the cost put to the user before it is spent and every drop traced to the result field that caused it.
-version: 0.10.1
+version: 0.10.2
 ---
 
 # List Hygiene
@@ -41,9 +41,8 @@ Verification uses the gateway's `execute` tool with `usebouncer.verify.*`. Under
 
 Before an address leaves the machine, two things are on the record: where the list came from, and what will be sent to it. Submitting addresses processes other people's personal data through a third party, and nothing in the verification service supplies a lawful basis for that; the account holder whose credentials this run spends is the one who establishes it, and this step is where they get the chance.
 
-Can the caller account for the list's origin, and can they name the send?
-- Yes, and the list was not bought, scraped, or inherited with no origin: proceed.
-- Yes, and the list was bought, scraped, or inherited with no origin: say plainly what verification does and does not do here. It removes the addresses that would bounce. It does not turn a list nobody opted into into a list anyone may be mailed. Then ask whether to verify anyway, with that on the record. They say yes: proceed, and record what was said. They say no, or they do not answer: stop. Do not submit.
+- The caller can account for the list's origin and name the send, and the list was not bought, scraped, or inherited with no origin: proceed.
+- They can, and the list was bought, scraped, or inherited with no origin: say plainly what verification does and does not do here. It removes the addresses that would bounce. It does not turn a list nobody opted into into a list anyone may be mailed. Then ask whether to verify anyway, with that on the record. They say yes: proceed, and record what was said. They say no, or they do not answer: stop. Do not submit.
 - They cannot account for the origin, or they cannot name the send: ask. A list whose origin nobody can state does not get submitted on the assumption that someone will remember later. Do not submit.
 
 ### Step 2: Profile the file before extracting anything from it
@@ -54,7 +53,7 @@ Run `tools/data/` `parse` on the absolute path. Its profile settles three things
 - how many rows carry no address at all, from that column's non-null count against the row count; those rows are never submitted, and they leave this run labeled rather than quietly missing
 - what did not parse, which is rows the caller believes are on the list
 
-What does the profile show? No rows or no columns: report what the profile's parse errors say and stop. Rows present alongside parse errors: continue on what parsed and carry the dropped count into the record. The caller named the address column, and the profile lists that exact spelling: use it. The caller named none, and the profile shows exactly one column whose values are addresses: use that column's exact spelling and case. Two or more columns have values that are addresses, or none does: ask. Do not pick one. The wrong column submits a list of names and pays a credit for every one of them.
+Outcomes: no rows or no columns, report what the profile's parse errors say and stop. Rows present alongside parse errors, continue on what parsed and carry the dropped count into the record. The caller named the address column and the profile lists that exact spelling: use it. The caller named none, and exactly one column's values are addresses: use that column's exact spelling and case. Two or more columns have values that are addresses, or none does: ask, and do not pick one. The wrong column submits a list of names and pays a credit for every one of them.
 
 ### Step 3: Build the submission file
 
@@ -75,11 +74,7 @@ The normalized address is the only key results come back on, which makes it the 
 
 The local-file grant is bound by `--secret usebouncer=<abs file>` or Provides `secrets:usebouncer`, per the constitution's Secrets rule. This skill never takes a key in conversation or reads its contents.
 
-Read `usebouncer.verify.credits` with `{}` for `{ credits }`, then count the normalized, deduplicated addresses in Step 3's file and estimate the credits required. Put the balance, address count, and estimate in front of the user together. Before any call:
-
-- Do any lines in that file lack an `@`? Yes: over a file built from a parsed column, the extraction went wrong rather than the list. Return to Step 3. Do not submit. No: continue.
-- Is the estimate above the balance? Yes: ask which addresses get verified now and which wait. That split is the caller's call. They name a now-set: put that set's balance, count, and estimate in front of them. Do not carry the rest into this batch, and do not truncate the file to fit the balance. They name no split, or they do not answer: stop. Do not submit a smaller batch on your own. No: the file just shown is the batch.
-- Did they approve the batch just shown, its balance, its count, and its estimate? Yes: call `usebouncer.verify.bulk` with `{ emails: [{ email }] }` and `confirm: true`. No, or no answer: do not call. Never confirm on your own initiative.
+Read `usebouncer.verify.credits` with `{}` for `{ credits }`, then count the normalized, deduplicated addresses in Step 3's file and estimate the credits required. Put the balance, address count, and estimate in front of the user together. Before any call, check locally for lines with no `@`: over a file built from a parsed column, these mean the extraction went wrong rather than the list, so return to Step 3 and do not submit. An estimate above the balance is a question, not a smaller batch. Which addresses get verified now and which wait is the caller's call, never a silent truncation to fit the balance. A now-set they name is priced again, its balance, count, and estimate put in front of them, and the rest is not carried into this batch. No split, or no answer: stop, and do not submit a smaller batch on your own. Call `usebouncer.verify.bulk` with `{ emails: [{ email }] }` and `confirm: true` only after they approve the batch just shown, its balance, its count, and its estimate. Otherwise do not call. Never confirm on your own initiative.
 
 This action is `confirmation: always`, so **every** submission stops, not only the first of a session; without the required approval the gateway returns `needs_confirmation`. A second batch in one session therefore needs its own balance, count and estimate put in front of the user, because the approval they gave was for the batch they saw. The connector writes no files and supplies no policy.
 
@@ -98,10 +93,10 @@ A run that ends without results has undone nothing. An expired wait, an interrup
 | `status` risky, `domain.disposable` yes | Drop |
 | `status` undeliverable | Drop, and suppress it, so a later import cannot put it back |
 | `status` unknown | Neither group. It waits for a retry after the result's `retryAfter`, and is never counted as deliverable |
-| Any other risky result | Not Send, and not the accept-all caution. The send question under this table names review or drop |
+| Any other risky result | Review or drop, named as that rather than folded into Send or the accept-all caution; the send named in Step 1 is what bends it |
 | A row that carried no address | Never submitted and never billed; out of every group, and counted in the record |
 
-The policy is a default, not a law, and the send named in Step 1 is what bends a risky row. What send did Step 1 name? A transactional message to a customer of record: a risky address survives. The accept-all row stays Send with its caution. Any other risky result goes to Send, and the record names that send as the reason. Say why. Do not relabel it as the accept-all caution. A first cold campaign from a domain with no sending history: a risky address does not survive. The accept-all row does not stay Send. Name it as a drop, with the result field and this send as the reason. Do not suppress it; suppress stays the undeliverable row. Any other risky result is a drop, named as that, with its result field. Any other send: do not decide the risky rows yourself. Each row that is not risky keeps the group the table gave it. For the accept-all row and for any other risky result, ask whether it is sent with the caution, reviewed, or dropped. They name one: record that group. A drop names its result field. A send-with-caution keeps the caution. They do not answer: do not put it in Send, and do not drop it yourself.
+The policy is a default, not a law, and the send named in Step 1 is what bends a risky row. A transactional message to a customer of record lets a risky address survive: the accept-all row stays Send with its caution, and any other risky result goes to Send, the record naming that send as the reason, not relabeled as the accept-all caution. A first cold campaign from a domain with no sending history does not let a risky address survive: the accept-all row is named as a drop, with the result field and this send as the reason, and is not suppressed, because suppress stays the undeliverable row; any other risky result is a drop, named as that, with its result field. Any other send does not decide the risky rows. Each row that is not risky keeps the group the table gave it. For the accept-all row and for any other risky result, ask whether it is sent with the caution, reviewed, or dropped, and record the group they name. A drop names its result field. A send-with-caution keeps the caution. No answer: do not put it in Send, and do not drop it yourself.
 
 Take the cost from the completed job's own credits figure when returned. If that figure is absent, label actual cost `Not available` per `standards/conventions.md`; Step 4's estimate is an upper bound and is never reported as spent.
 
@@ -115,7 +110,7 @@ Before the response ships, the gate: hand the send group, merged back onto the s
 
 ## Pitfalls
 
-- **The second bill.** The expensive failure here, and it arrives disguised as a retry: a lost identifier, an expired wait, a transport failure over a job that was accepted anyway. Nothing on the platform lists past jobs and nothing deduplicates across them. Is `batchId` in the work record? Yes: resume with `usebouncer.verify.status` and `{ id: batchId }`, then, when completed, `usebouncer.verify.download` with the same id. Do not resubmit. No: check the account before submitting anything again, then ask the caller before any new submission. Do not submit again on your own in this turn.
+- **The second bill.** The expensive failure here, and it arrives disguised as a retry: a lost identifier, an expired wait, a transport failure over a job that was accepted anyway. Nothing on the platform lists past jobs and nothing deduplicates across them. Recover through the `batchId` in the work record every time: `usebouncer.verify.status` with `{ id: batchId }`, then, when completed, `usebouncer.verify.download` with the same id. Do not resubmit. When the identifier is gone, check the account and ask the caller before any new submission. Do not submit again on your own in this turn.
 - **Verification read as permission.** A deliverable address is a mailbox that accepts mail, not a person who agreed to hear from anyone. A verified list sent without consent still earns complaints, and complaints, not bounces, are what end a sending domain.
 - **Catch-all read as confirmed.** An accept-all domain answers yes for every address, including ones that do not exist. The policy lets those through because the alternative is dropping whole company domains, and the caution is the price of that: it travels with them into whatever sends them, and it is never dropped on the way.
 - **Unknown read as dead.** Unknown means the mailbox could not be reached in the time allowed, not that it is gone. Dropping unknowns deletes reachable people permanently, and rechecking them later costs again what was already paid.

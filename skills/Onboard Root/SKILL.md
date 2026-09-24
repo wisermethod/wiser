@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types
-version: 0.38.3
+version: 0.38.4
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -41,7 +41,7 @@ Before any copy, inspect the established destination under the constitution's Wo
 | shared-toolkit | Explicit toolkit workspace paths | `existing-root.md` if adoption was requested |
 | populated-undeclared | Other populated destination | `existing-root.md` if adoption was requested |
 
-A missing Onboarding section or directory table on a declared Wiser root is drift. Which class did the table above already give it? Keep that class. The drift is missing shelves work inside it, not a new class. Matching layout alone does not prove conformance. Missing type or Provides alone does not establish toolkit identity. For predecessor-plugin, shared-toolkit, and populated-undeclared, was adoption requested? Yes: enter `existing-root.md`. No: report the class for a scope decision before any write, and do not enter the companion. Declared Wiser classes enter the companion without an adoption request. The companion owns predecessor search targets and the adoption procedure; this entry file does not duplicate them.
+A missing Onboarding section or directory table on a declared Wiser root is drift. Keep the class the table above already gave it: the drift is missing shelves work inside that class, not a new class. Matching layout alone does not prove conformance. Missing type or Provides alone does not establish toolkit identity. A nonempty undeclared destination with no adoption request is reported for a scope decision before writes. Declared Wiser classes enter the companion without an adoption request. The companion owns predecessor search targets and the adoption procedure; this entry file does not duplicate them.
 
 ## Two paths
 
@@ -74,7 +74,7 @@ Copy `system/templates/User Root Template/` whole, hidden files included, to the
 grep -rn '\[name\]' "<the root>"
 ```
 
-Does that command print anything? Nothing: continue. One or more hits: replace those remaining `[name]` tokens and run the command again. Do not start Step 2 while any remain.
+Where that command prints nothing, continue. Where it prints one or more hits, replace those remaining `[name]` tokens and run the command again. Do not start Step 2 while any remain.
 
 Then confirm the host's workspace definition composes the new root; a root on disk that the workspace never loads is not onboarded. Where the host cannot register it, hand the person that one step.
 
@@ -86,14 +86,7 @@ Current Focus carries the date the person confirmed it. Design fills from a desi
 
 ### Step 3: Voice
 
-`memory/voice.md` is written by `skills/Build Voice/` and by nothing else. Build Voice's confirmation sample is Ghost-Writer-gated as prose before the authority sees it, per `skills/Build Voice/SKILL.md` step 10. How much writing of their own did the person supply, and did they confirm the file Build Voice returned?
-
-- Three or more pieces from different contexts, and they confirm: close `voice` complete.
-- Three or more from different contexts, and they do not confirm: close `voice` provisional, naming the confirmation it waits on and the person as owner. Do not close it complete.
-- One or two pieces, or three from one context: Build Voice writes the file and names which sections rest on thin evidence. Close `voice` provisional, naming how many more pieces are wanted.
-- None: do not run Build Voice. Replace each prompt line in `voice.md` with `[Not available: no writing supplied; Build Voice runs when writing is]` and close the key provisional in Step 5.
-
-A provisional voice does not block a deliverable that loads only `about` or `design`.
+`memory/voice.md` is written by `skills/Build Voice/` and by nothing else. Build Voice's confirmation sample is Ghost-Writer-gated as prose before the authority sees it, per `skills/Build Voice/SKILL.md` step 10. Run it when the person supplies any writing of their own, and record what it returned: with three pieces or more from different contexts it closes `voice` complete once the person confirms, and where they do not confirm it closes provisional, naming the confirmation it waits on and the person as owner; with one or two, or three from one context, it writes the file and says which sections rest on thin evidence, and the key closes provisional naming how many more pieces are wanted. When they supply none, replace each prompt line in `voice.md` with `[Not available: no writing supplied; Build Voice runs when writing is]` and close the key provisional in Step 5. A provisional voice does not block a deliverable that loads only `about` or `design`.
 
 ### Step 4: Read back
 

@@ -3,7 +3,7 @@ name: Content Harvester
 type: tool
 category: research
 description: Turns one harvest request into a timeboxed, deduplicated, ranked bundle of source candidates with a record of what was rejected and what failed
-version: 0.1.3
+version: 0.1.4
 ---
 
 # Content Harvester
@@ -14,7 +14,7 @@ One run turns a harvest request into a bundle of source candidates: collected fr
 
 Use it when a piece of work needs a repeatable sweep of named sources over a window: a roundup, a market scan, a competitor watch, a research queue. It is subject-agnostic and holds no opinion about any topic; the request supplies the vocabulary, the sources, and the standards.
 
-Do not use it to decide anything. It does not verify a claim, rank truth, summarize a body of work, or write a deliverable, and its scores rank likely relevance only. Has a person, or a skill the caller named, selected candidates from the list? Yes: whatever verifies claims runs after this tool, on that selection. No: the bundle is the yield. Do not verify from it. Does the work name one URL the caller already has, and no sweep of sources over a window? Yes: do not write a request file. A roundup, a market scan, a competitor watch, or a research queue over named sources: use it. You cannot tell: ask. Do not write a request while asking.
+Do not use it to decide anything. It does not verify a claim, rank truth, summarize a body of work, or write a deliverable, and its scores rank likely relevance only. Whatever verifies claims in this workflow runs after it, on the candidates a person or a skill selected from the list. Do not reach for it to read one known page either; fetching a single URL you already have is not worth a request file. When you cannot tell whether the work is one known page or a sweep of sources over a window, ask, and do not write a request while asking.
 
 It authenticates to nothing and reaches no other primitive. Material behind a login reaches it only through the handoff below, and it fetches nothing inside the machine or its network.
 
@@ -81,7 +81,7 @@ This tool needs no credentials and takes no `--env`: it fetches public addresses
 
 This tool authenticates to nothing, holds no credential, and invokes no other primitive. Material behind a login therefore never arrives by this tool reaching for it; it arrives already authorized, from the caller, on these terms.
 
-**What the caller supplies.** The skill or expert running this tool fetches or authorizes the material through the connector for that platform, then hands it in as one `manual_urls` source. Does the platform issue a signed, time-limited URL? Yes: that URL is the address. Does the address answer without a session? Yes: the plain address is the address. Does it answer only with a cookie or an authorization header, and no signed URL exists? Do not put it in the request. The caller extracts what it needs before the harvest and leaves that source out. You cannot tell which of these holds: do not put the address in the request. The caller supplies that source's `source` name and its `role` as well; the role is a claim about what the material is, never about how it was obtained. Addresses only, one list, no headers and no session: what the caller hands over is a way in that stands on its own.
+**What the caller supplies.** The skill or expert running this tool fetches or authorizes the material through the connector for that platform, then hands it in as one `manual_urls` source whose `urls` are addresses that answer without a session: a signed, time-limited URL the platform issued, or a plain address for material that turned out not to need the login. The caller supplies that source's `source` name and its `role` as well; the role is a claim about what the material is, never about how it was obtained. Addresses only, one list, no headers and no session: what the caller hands over is a way in that stands on its own.
 
 **What the tool guarantees about it.** It sends exactly the URL it was handed, adding only the request's User-Agent and Accept headers and no credential of its own, because it holds none. Every URL it records is stripped first, of userinfo and of every credential-bearing query or fragment parameter, so the signature that authorized the fetch reaches no file the run writes, no message it prints, and no entry in `errors`. The destination screen below applies to a handed-in address exactly as to any other, and a redirect it takes is screened the same way. A handed-in URL that fails becomes one entry in `errors` naming the status and the address as scheme, host, and path. The material itself is then scored, filtered, and deduplicated by the same rules as everything else: arriving through a connector earns it no standing here.
 
@@ -123,8 +123,8 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 | `Refused the redirect from <url> to <url>` in `errors` | A source answered with a redirect toward a blocked destination | The hop was refused and never sent, and that item failed. A public source redirecting inward is worth distrusting; drop it |
 | `did not run: the host does not resolve` in `errors` | The source's hostname returned no address | Check the hostname. A name that resolves only inside a private network is not a source for this tool |
 | `redirected more than 5 times without reaching a page` in `errors` | A redirect loop, or a chain longer than this tool follows | Name the address the chain settles on as the source, or drop it |
-| `Request to <url> returned HTTP <status>` in `errors` | That source answered with an error | Is the status 404? The address moved. Name the address it settled on, or drop the source. Is it 401 or 403? This tool does not authenticate. Fetch it through the connector for that platform and hand it in as `manual_urls`. The caller does not: leave the entry in `errors`. Any other status: leave the entry in `errors`. Do not treat the bundle as covering that source, and do not invent a retry |
-| `got no response within <n>ms` in `errors` | The source timed out or refused the connection | Did the caller say this source still belongs in the sweep? Yes: raise `timeout_ms` in the request and run again. No: drop the source. No answer: ask once. Do not raise the timeout and do not drop the source until they answer |
+| `Request to <url> returned HTTP <status>` in `errors` | That source answered with an error | 404 means the address moved: name the address it settled on, or drop the source. 401 or 403 means it needs authentication, which this tool does not do: fetch it through the connector for that platform and hand it in as `manual_urls`. When the caller does not, leave the entry in `errors`. Any other status: leave the entry in `errors`, do not treat the bundle as covering that source, and do not invent a retry |
+| `got no response within <n>ms` in `errors` | The source timed out or refused the connection | When the caller said this source still belongs in the sweep, raise `timeout_ms` in the request and run again. When they said it does not, drop the source. When they have not said, ask once, and do not raise the timeout or drop the source until they answer |
 | `unsupported_adapter_type` in `rejected` | The request named a `type` this tool does not collect | Use one from `REQUEST_SCHEMA.md` |
 | Fewer candidates than expected | Timebox, filters, or deduplication | Read `harvest-summary.md`, which counts rejections by reason |
 

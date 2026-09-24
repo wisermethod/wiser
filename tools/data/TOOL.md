@@ -3,7 +3,7 @@ name: data
 type: tool
 category: data
 description: Parses, describes, aggregates, joins, and charts a CSV, JSON, or TSV file, and computes a percentage, difference, or rate from two numeric fields of a JSON object
-version: 0.3.1
+version: 0.3.2
 ---
 
 # data
@@ -83,7 +83,7 @@ Values that are empty, null, or whitespace are counted as null, not typed. `nonN
 | `--no-header` | Treat the first row as data; columns are named `column_1`, `column_2`, and so on | Header row assumed |
 | `--help`, `-h` | Print usage and exit | Off |
 
-One file per run. Is the format or the delimiter already known, because the caller named it or a previous run's `parseErrors` names a JSON or delimiter problem? Yes: pass `--format` or `--delimiter` for the one that is known. No: omit that flag and take auto-detect from the content. JSON input must be an array of objects.
+One file per run. Pass `--format` or `--delimiter` when the caller named that shape, or a previous run's `parseErrors` names a JSON or delimiter problem. Otherwise omit the flag and take auto-detect from the content. JSON input must be an array of objects.
 
 ### Output
 
@@ -112,7 +112,7 @@ A column is numeric, and gets statistics, when at least 80 percent of its non-em
 
 Name columns with `--columns` to describe only those. The list is split on commas and each name is resolved against the file's headers. When every split name is a header, those columns are described, including when another header contains a comma. A requested name that cannot be represented that way, because a header contains a comma, is refused. `--column` names exactly one header, may be repeated, and may contain commas. The argument after `--column` is the header, including a header that starts with `--`. Giving `--column` and `--columns` together is refused. A named column that exists but is not numeric is listed in `skippedColumns` with its reason and also named in `errors`. A named column that does not exist is reported only in `errors` (it is not a present column that was skipped); the not-found message lists what the file does hold, so a misspelling is one run to fix. The rest of the named columns are still computed either way.
 
-The first row of a delimited file is its header. Is that first row a header? Yes: those names are the columns. No, the first row is already data: the command still reports that row as the column names. Do not pass those values to `--columns`. Run `parse --no-header` when the shape of a headerless file is what you need. You cannot tell: run `parse` and read `sampleValues` before you name a column.
+The first row of a delimited file is its header. A file whose first row is already data will report those values as column names. Do not pass those values to `--columns`. Run `parse --no-header` when the shape of a headerless file is what you need. When you cannot tell, run `parse` and read `sampleValues` before you name a column.
 
 ### The Statistics
 
@@ -232,7 +232,7 @@ Use it whenever two files share a key and the answer needs columns from both. Pr
 | `inner` (default) | Only keys present on both sides | Dropped |
 | `left` | Every left row | Kept, with right-side columns set to null |
 
-Does the answer need every left row, including keys the right file lacks? Yes: pass `--how left`. No, or you cannot tell: pass `--how inner`, the default. Keys are compared as text exactly as the files hold them, after each value is stringified; a missing key value joins the group named `null`. One left row that matches several right rows produces one result row per match. The join key appears once in the result, taken from the left side. A right column whose name collides with a left column other than the key is renamed to `<name>_right`.
+Keys are compared as text exactly as the files hold them, after each value is stringified; a missing key value joins the group named `null`. One left row that matches several right rows produces one result row per match. The join key appears once in the result, taken from the left side. A right column whose name collides with a left column other than the key is renamed to `<name>_right`.
 
 ### Usage
 
@@ -274,7 +274,7 @@ One JSON object on stdout, exit 0, whenever both paths were read, including a re
 
 One self-contained HTML file holding an SVG bar or line chart of two named columns from a data file, plus a JSON object naming the output path, the chart type, how many points were plotted, how many rows were skipped, any notes, and the canvas size.
 
-Use it whenever a numeric series or comparison should be seen rather than only stated. Are the columns to plot already named, by the caller or by a `parse` of this file? No: run `parse` first. Do not chart yet. Yes: does each plotted point need to be one row as the file holds it? Yes: chart this file. Does the number to plot exist only as a total, average, or other metric over rows that share a group, and this file is one row per member of that group? Yes: run `aggregate` first, and do not chart this file as it sits. You cannot tell: ask, and do not chart. It plots the values as they sit in the file. The HTML it writes loads no external script, stylesheet, or font: the chart is inline SVG and opens with no network.
+Use it whenever a numeric series or comparison should be seen rather than only stated, after the columns are known, typically after `parse` has named them. It plots the values as they sit in the file; aggregation belongs to `aggregate` first when the file needs grouping. When you cannot tell whether the file needs grouping, ask, and do not chart. The HTML it writes loads no external script, stylesheet, or font: the chart is inline SVG and opens with no network.
 
 A usage mistake, a path holding no file or holding a directory, a missing column, content that does not parse, a y column with no numeric values, an occupied `--output` without `--overwrite`, and an unknown option each name the cause on stderr and exit 1, with stdout empty and nothing written (or nothing new written).
 
@@ -285,7 +285,7 @@ A usage mistake, a path holding no file or holding a directory, a missing column
 | `bar` (default) | One rectangle per row | Comparing categories |
 | `line` | A polyline through one point per row, with dots | A sequence or trend across ordered labels |
 
-Are the x labels categories to compare, with no order the chart has to keep? Pass `--type bar`, or omit `--type`. Are they an ordered sequence or a trend? Pass `--type line`. Both readings fit, or you cannot tell: `bar`, the default. The `--x` column supplies labels, kept as text. The `--y` column supplies heights: only values that parse as finite numbers after `$`, commas, and spaces are stripped are plotted; a row whose y value does not parse is skipped rather than plotted as zero. A run that skips every row refuses rather than writing an empty chart. The vertical axis starts at zero and tops out at a rounded maximum above the largest value.
+The `--x` column supplies labels, kept as text. The `--y` column supplies heights: only values that parse as finite numbers after `$`, commas, and spaces are stripped are plotted; a row whose y value does not parse is skipped rather than plotted as zero. A run that skips every row refuses rather than writing an empty chart. The vertical axis starts at zero and tops out at a rounded maximum above the largest value.
 
 ### Usage
 

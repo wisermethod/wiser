@@ -3,7 +3,7 @@ name: video-edit
 type: tool
 category: media
 description: Edits a video with FFmpeg and writes the result where the caller names, covering trim, resize, speed, text overlay, audio removal, concatenation, frame extraction, and GIF conversion
-version: 0.1.3
+version: 0.1.4
 ---
 
 # video-edit
@@ -66,7 +66,7 @@ This tool imports no npm package, so there is no package install and no consent 
 
 Trim selects the input window, so everything after it sees only the kept range: `--trim-start 0 --trim-end 10 --speed 2` gives about five seconds of output, not ten. Durations land within a frame or so of the arithmetic, because a container rounds to whole frames and an encoder pads its tail.
 
-Audio follows the speed change while a factor stays from 0.5 through 2.0, endpoints included. Outside that range the audio filter cannot follow, and the track is dropped rather than left out of sync; the JSON reports `audio` as `removed` so a caller can see it happened. Is the factor from 0.5 through 2.0? Yes: the track follows. Run it. Is it outside that range? The track will be dropped. Did the request require the audio to survive? Yes: do not run that factor. Ask for a factor from 0.5 through 2.0, or for a run with the track dropped. No, it says the audio may go, or it does not mention audio: run it, and say in the delivery that `audio` is `removed`. The request asks for a speed change and names no factor: ask for one. Do not pick a factor. No speed change is asked for: omit `--speed`.
+Audio follows the speed change while a factor stays from 0.5 through 2.0, endpoints included. Outside that range the audio filter cannot follow, and the track is dropped rather than left out of sync; the JSON reports `audio` as `removed` so a caller can see it happened. When the factor is outside that range and the request requires the audio to survive, do not run it: ask for a factor from 0.5 through 2.0, or for a run with the track dropped. When the factor is outside that range and the request allows the audio to go, or does not mention audio, run it and say in the delivery that `audio` is `removed`. A requested speed change that names no factor: ask for one, and do not pick a factor. When no speed change is asked for, omit `--speed`.
 
 Text is drawn horizontally centered, and `--text-position` chooses the vertical band: `top` sits 50 pixels down, `bottom` sits 100 pixels up from the bottom, `center` is the middle. A caller's text is escaped for both parsers FFmpeg runs it through, so a colon, an apostrophe, a comma, a percent sign, or a bracket is drawn rather than read as part of the filter.
 
@@ -99,7 +99,7 @@ Options:
 | `--fps <n>` | Sample rate for `frames` and `gif` | 10 |
 | `--help` | Print usage and exit | Off |
 
-`edit` needs at least one operation; the five are independent and any combination runs. Every option outside a command's own set is refused rather than ignored, so a caller who reaches for `--trim-start` on `gif` is told it does not apply instead of quietly getting an untrimmed GIF. Does the `frames` output directory already contain `frame_NNNN.png` files? Yes: pass an empty directory. The reported `frames` count includes files already there. No: pass it. You cannot list it: pass a new directory. Do not treat the count as this run's alone while older frames may sit in it.
+`edit` needs at least one operation; the five are independent and any combination runs. Every option outside a command's own set is refused rather than ignored, so a caller who reaches for `--trim-start` on `gif` is told it does not apply instead of quietly getting an untrimmed GIF. Before `frames`, pass an empty directory, or a new one when the directory cannot be listed: the reported count includes any `frame_NNNN.png` files already there, and do not treat the count as this run's alone while older frames may sit in it.
 
 Outputs are MP4 for `edit` and `concat` and GIF for `gif`, and the extension has to say so; the video is re-encoded to H.264 with AAC audio every run. Paths are absolute because a relative one resolves against whichever directory the caller happened to be in. This tool never picks an output location and never falls back to one: the caller resolves a work directory in the owning root per `standards/conventions.md` and names the file inside it. Missing parent directories are created; a file already there is replaced.
 
@@ -155,7 +155,7 @@ The stops every tool shares, an unknown flag and a path that is relative or insi
 | `Error: FFmpeg could not join N videos` | An input has no audio track, or the inputs disagree on frame size | Give every input a video and an audio stream at one size; `frames` and `edit` have no such constraint. The partial output file is removed on failure |
 | `Error: FFmpeg could not apply ... to <path>` | The input is not a video FFmpeg can decode, or the output path is not writable | Open the input in a player; confirm the output directory exists and is writable. Any partial file at `--output` is removed on failure |
 | `frames` reports more files than the video should yield | An earlier extraction left frame files in the same directory | Extract into an empty directory; the count is of what is there, not of what this run wrote |
-| The GIF is 480 pixels wide when the video was larger | Expected: GIF output is scaled to 480 wide, height following the aspect ratio | Does the request need a width other than 480? `gif` always scales to 480 wide, so resizing first does not change it, and this tool has no other GIF width: say so and ask whether 480 is acceptable. Yes: run `gif`. No, or no answer: produce no GIF. No: run `gif` |
+| The GIF is 480 pixels wide when the video was larger | Expected: GIF output is scaled to 480 wide, height following the aspect ratio | `gif` always scales to 480 wide, so resizing with `edit` first does not change the width, and this tool has no other GIF width. When the request needs another width, say so and ask whether 480 is acceptable; run `gif` only if it is, and produce no GIF when it is not or there is no answer. Otherwise run `gif` |
 | The overlay is tiny on a large frame, or huge on a small one | Expected: the overlay is a fixed 50 pixels whatever the frame | Resize to the delivery size first, then add the text |
 | Audio vanished after a speed change | Expected outside 0.5 to 2.0; the audio filter cannot follow that far | Read `audio` in the output; stay inside the range to keep the track |
 
