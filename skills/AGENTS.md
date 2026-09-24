@@ -92,6 +92,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 
 | Skill | Description | Owner |
 |-------|-------------|-------|
+| `Classifier Trial/SKILL.md` | Test whether the classifier improves one use case or one primitive, by paired runs with it on and off on a synthetic root scored blind, and return a verdict with its runs, cost and noise that releases nothing | System Expert |
 | `Housekeeping/SKILL.md` | Propose a clause-cited layout plan and apply its approved transaction with verified recovery, serving as the layout engine callable any time to bring a declared root up to current layout specs | System Expert |
 | `Onboard Plugin Root/SKILL.md` | Create a domain plugin beside wiser or adopt a placeholder repository into declared plugin layout, producing its constitution, families and catalog, scored clause by clause, and closed by writing every boundary still owed to a person into the root itself | System Expert |
 | `Scope Plugin Bench/SKILL.md` | Decide what experts, skills, tools and connectors a named domain plugin should hold in its first slice, and hand Playbook Author the source material to plan it | System Expert |
