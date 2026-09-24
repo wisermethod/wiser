@@ -511,7 +511,7 @@ function watchPresence(realGateway) {
     let names = [];
     try { names = readdirSync(dir); } catch { return; }
     for (const name of names) {
-      if (!name.endsWith('.json') || name === 'claude-code.json') continue;
+      if (!name.endsWith('.json')) continue;
       const file = join(dir, name);
       const pid = presencePid(file);
       const key = `${file}\0${pid}`;
@@ -540,27 +540,47 @@ function watchPresence(realGateway) {
 }
 
 /**
- * The key file and every file a trial could write stay strict. A change to another
- * harness's presence file, `classifier-status/<harness>.json` other than
- * `claude-code.json`, stops the run only when the process it names was not alive
- * when the watcher saw it, or descends from this script; otherwise it is recorded
- * as attributed to that other session.
+ * Judges what changed in the real gateway home and the key file between the
+ * before-hash and the after-hash. A trial's gateway and hooks run in its own
+ * trial home, so what one could leave behind here is its session id in a file
+ * or its own process in a presence file; the person's other sessions write here
+ * all the time. So:
+ * - the key file changing stops the run;
+ * - a presence file, `classifier-status/<harness>.json`, `claude-code.json`
+ *   included, is attributed when the watcher saw the process it names alive and
+ *   outside this script's process tree, and stops the run otherwise;
+ * - any other change is attributed only when every presence file that changed
+ *   was attributed and no file here names a trial session id, and stops the run
+ *   otherwise.
  * @param {string[]} changed
  * @param {string} realGateway
  * @param {Map<string, object>} seen
+ * @param {{ keyFile: string, sessionIds: string[] }} opts
  * @returns {{ stops: string[], attributed: object[] }}
  */
-function judgeChanges(changed, realGateway, seen) {
+function judgeChanges(changed, realGateway, seen, opts) {
   const stops = [];
   const attributed = [];
   const dir = join(realGateway, 'classifier-status');
+  const rest = [];
   for (const file of changed) {
-    const other = dirname(file) === dir && file.endsWith('.json') && basename(file) !== 'claude-code.json';
-    const pid = other && existsSync(file) ? presencePid(file) : null;
+    if (file === opts.keyFile) { stops.push(file); continue; }
+    const presence = dirname(file) === dir && file.endsWith('.json');
+    if (!presence) { rest.push(file); continue; }
+    const pid = existsSync(file) ? presencePid(file) : null;
     const obs = pid == null ? null : seen.get(`${file}\0${pid}`);
     if (obs && obs.alive && !obs.ours) attributed.push(obs);
     else stops.push(file);
   }
+  const named = [];
+  for (const id of opts.sessionIds || []) {
+    if (id) named.push(...filesContaining(realGateway, id));
+  }
+  for (const file of rest) {
+    if (stops.length === 0 && named.length === 0) attributed.push({ path: file, reason: 'another live session: every changed presence file attributed and no trial session named' });
+    else stops.push(file);
+  }
+  for (const file of named) if (!stops.includes(file)) stops.push(file);
   return { stops, attributed };
 }
 
@@ -1381,7 +1401,7 @@ async function commandRun(spec, plan, flags, work, keyFile) {
           throw fail(`a connector execute returned ok in ${id}: ${escaped.map((line) => line.action).join(', ')}`);
         }
         const sessionHits = sessionId ? filesContaining(realGateway, sessionId) : [];
-        footprints.push({ id, session_in_real_gateway: sessionHits });
+        footprints.push({ id, session_id: sessionId, session_in_real_gateway: sessionHits });
         if (sessionHits.length) {
           throw fail(`session id of ${id} appears in the real gateway home: ${sessionHits.join(', ')}`);
         }
@@ -1401,7 +1421,10 @@ async function commandRun(spec, plan, flags, work, keyFile) {
     const keyHashAfter = hashOne(keyFile);
     if (keyHashAfter) after[keyFile] = keyHashAfter;
     const changed = changedPaths(before, after);
-    const { stops, attributed } = judgeChanges(changed, realGateway, watch.seen);
+    const { stops, attributed } = judgeChanges(changed, realGateway, watch.seen, {
+      keyFile,
+      sessionIds: footprints.map((f) => f.session_id).filter(Boolean),
+    });
     const safety = {
       lock_proof: { status: 'needs_connect', action: 'google.gmail.list_messages' },
       before,

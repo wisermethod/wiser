@@ -830,7 +830,7 @@ test('report pass lines, overlap, and the noise note', () => {
   assert.equal(apart.seam_passes, true, JSON.stringify(apart.lines));
 });
 
-test('another harness presence file is attributed only when its process was alive and outside the trial', { timeout: 180000 }, () => {
+test('another live session is attributed; a trial process, a dead process, or a trial session id stops the run', { timeout: 180000 }, () => {
   function prepare(ask) {
     const box = world();
     const tree = syntheticTree(join(box.parent, 'tree'));
@@ -844,6 +844,16 @@ test('another harness presence file is attributed only when its process was aliv
     jsonOut(runCli(['plan', '--work', box.work, '--ceiling-file', ceiling], box.home));
     return box;
   }
+  const other = prepare('PLANT_OTHER_SESSION\nAnswer none of the candidates.');
+  const otherRun = runCli(['run', '--work', other.work], other.home, { WISER_TRIAL_HOST: hostPath, FAKE_LIVE_PID: String(process.pid) });
+  assert.equal(otherRun.status, 0, otherRun.stderr);
+  const otherSafety = JSON.parse(readFileSync(join(other.work, 'safety.json'), 'utf8'));
+  for (const name of ['claude-code.json', 'audit.jsonl', 'connections.json']) {
+    assert.ok(otherSafety.changed.some((p) => p.endsWith(name)), name);
+    assert.ok(otherSafety.attributed.some((a) => a.path.endsWith(name)), name);
+  }
+  assert.deepEqual(otherSafety.stops, []);
+
   const live = prepare('PLANT_PRESENCE_LIVE\nAnswer none of the candidates.');
   const liveRun = runCli(['run', '--work', live.work], live.home, { WISER_TRIAL_HOST: hostPath, FAKE_LIVE_PID: String(process.pid) });
   assert.equal(liveRun.status, 0, liveRun.stderr);

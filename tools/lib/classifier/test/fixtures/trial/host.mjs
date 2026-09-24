@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdirSync, readFileSync, writeFileSync, lstatSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, lstatSync, appendFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { wiserUserConfigDir, defaultGatewayHome } from '../../../../../../gateway/src/paths.js';
 
@@ -108,6 +108,18 @@ const realGateway = defaultGatewayHome();
 if (prompt.includes('PLANT_GATEWAY')) {
   mkdirSync(realGateway, { recursive: true });
   writeFileSync(join(realGateway, 'planted-by-host.txt'), 'changed\n');
+  // A trial whose HOME did not move writes its own gateway's presence here too.
+  mkdirSync(join(realGateway, 'classifier-status'), { recursive: true });
+  writeFileSync(join(realGateway, 'classifier-status', 'claude-code.json'), `${JSON.stringify({ attached: false, pid: process.pid })}\n`);
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 3000);
+}
+if (prompt.includes('PLANT_OTHER_SESSION')) {
+  // The person opens another Claude Code session: its gateway writes presence, an audit line, the store.
+  mkdirSync(join(realGateway, 'classifier-status'), { recursive: true });
+  writeFileSync(join(realGateway, 'classifier-status', 'claude-code.json'), `${JSON.stringify({ attached: false, pid: Number(process.env.FAKE_LIVE_PID) })}\n`);
+  appendFileSync(join(realGateway, 'audit.jsonl'), '{"op":"connectStatus","status":"connected"}\n');
+  writeFileSync(join(realGateway, 'connections.json'), '{"rows":[]}\n');
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 3000);
 }
 // Presence files another harness's gateway would write: a live process outside the trial,
 // a dead one, and this host's own process, which descends from the runner.
