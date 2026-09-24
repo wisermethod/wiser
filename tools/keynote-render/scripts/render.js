@@ -27,7 +27,7 @@ import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSyn
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { installAuthorised, writeConsent } from '../../lib/consent.js';
+import { installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
 
 const HERE = fileURLToPath(import.meta.url);
 const SCRIPT_DIR = dirname(HERE);
@@ -175,6 +175,8 @@ for (let index = 1; index < argv.length; index += 1) {
     fail(`Error: unknown option "${option}". Run "node scripts/render.js help" for usage.`);
   }
 }
+
+const install = parsedInstallFlag(argv, VALUE_FLAGS);
 
 function flag(name) {
   const index = argv.indexOf(name);
@@ -395,8 +397,8 @@ function installPlan() {
 // "this tool is not installed yet", nor name a registry fetch and an npm cache
 // write that this install will not make.
 function requireInstallConsent(what) {
-  if (installAuthorised(HERE)) {
-    writeConsent(HERE, 'keynote-render');
+  if (installAuthorised(HERE, install)) {
+    writeConsent(HERE, 'keynote-render', install);
     return;
   }
   if (what === 'browser') {

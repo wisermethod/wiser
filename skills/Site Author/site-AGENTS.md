@@ -13,7 +13,7 @@ Attach this envelope for content work, with the Wiser plugin and owning root ava
 
 {{provides}}
 
-These local keys overlay the owning root's Provides. Stand-up copies available owning-root memory, then the skill asks what changes, if anything. Missing or unavailable local keys fall back to the owning root; say when that happens.
+These local keys overlay the owning root's Provides. Stand-up copies available owning-root memory, then the skill asks what changes. A named change is applied. No change named, or no answer: the copies stay unchanged. Do not invent a change. Missing or unavailable local keys fall back to the owning root; say when that happens.
 
 ## Layout
 
@@ -29,7 +29,7 @@ These local keys overlay the owning root's Provides. Stand-up copies available o
 
 Content jobs may change `site/src/content/**` and `site/public/images/**`. SEO Assets may write `site/public/llms.txt`. A changed published slug needs a `site/public/_redirects` row and Webmaster Job 3 before publish.
 
-Content jobs may not change `site/src/components/**`, `site/src/layouts/**`, `site/src/pages/**`, `site/astro.config.mjs`, `site/package.json`, `site/package-lock.json`, `site/src/styles/**` except a Designer-gated token update, `site/.github/**`, `site/KIT.md`, or `site/kit.json`. Load `site/KIT.md` for collection schemas, required frontmatter, and SEO mechanics.
+Content jobs may not change `site/src/components/**`, `site/src/layouts/**`, `site/src/pages/**`, `site/astro.config.mjs`, `site/package.json`, `site/package-lock.json`, `site/src/styles/**`, `site/.github/**`, `site/KIT.md`, or `site/kit.json`. The one exception is `site/src/styles/tokens.css` when `skills/Designer/` has already gated that token update. Any other write under `site/src/styles/**`: refuse it. Load `site/KIT.md` for collection schemas, required frontmatter, and SEO mechanics.
 
 ## Check and preview
 

@@ -3,9 +3,7 @@ name: Browser Control
 type: tool
 category: automation
 description: Drives a persistent Chromium session to read, navigate, and act on pages that need a real browser, answering every command with the page state that followed
-version: 0.5.1
-gaps:
-  - an element index and verb picked from an interactive snapshot, which the caller's own pick approximates
+version: 0.7.2
 ---
 
 # Browser Control
@@ -16,9 +14,11 @@ A run of one command acts on a browser that is already open and returns what the
 
 Use when the work needs a real browser: a form to fill, a workflow behind a sign-in, content a page builds in JavaScript, a layout to look at, or any sequence of act-then-check steps against a live site.
 
-Do not use when a plain fetch of a static page would answer, when the question is answerable without a page at all, or when a connector already covers the platform; a connector is faster, survives redesigns, and does not need a window. Reaching a platform through its own site instead of its connector is a last resort, not a shortcut.
+Do not use when a plain fetch of a static page would answer, when the question is answerable without a page at all, or when a connector already covers the platform and declares the action this job needs; a connector is faster, survives redesigns, and does not need a window. Reaching a platform through its own site instead of its connector, including where that connector declares no such action, is a last resort, not a shortcut.
 
 This tool holds a session and drives it. Deciding what to do with a page belongs to the skill or expert that called it.
+
+Classifier seam: none.
 
 ## Quick Start
 
@@ -50,25 +50,11 @@ A page is not a function call. It redraws, it redirects, it shows a consent bann
 - **Snapshot before acting.** Read the page before the first action and after anything that could change it. `--format interactive` numbers what can be clicked or typed into; act by index rather than by a selector guessed from a screenshot.
 - **One action, then one check.** Never chain actions on the strength of what the page looked like two steps ago. A stale index is the single most common failure, and a fresh snapshot costs less than an action aimed at the wrong element.
 - **Verify against the page, not the exit code.** `check` exits 0 whenever the assertion ran; whether it held is the `passed` field. A caller that reads only the exit code will report a failed assertion as a pass.
-- **Never repeat an action that just failed.** Snapshot, work out what the page actually shows, and try a different route. Two or three failed routes is the point to stop and report the blocker rather than a fourth.
+- **Never repeat an action that just failed.** Snapshot, work out what the page actually shows, and try a different route. After two failed routes, one more only when the snapshot shows an untried route; three failed routes, or no untried route, is the stop, and there is no fourth.
 - **Hand a human what only a human can do.** A sign-in, a CAPTCHA, a second factor, or an operating-system dialog cannot be driven from here. Say what is blocking and let the person act in the window; a signed-in session stays in the profile directory afterwards.
 - **Report what the page did.** Close with what was found, where, and what was changed on the site. An automation whose effects nobody can name is not finished.
 
-**Who picks the element.** Deciding what to do with a page belongs to the skill or expert that called this tool, as Context says. This tool does not put that decision. The caller does. `standards/primitives.md` Invocation is why the call below is a branch for that caller, and why nothing under `scripts/` makes it. After `snapshot --format interactive`, the caller asks these questions in order. Each one states what a yes does and what a no does. A yes that stops does not ask the later questions.
-
-Is this page a sign-in, a CAPTCHA, a second factor, or an operating-system dialog, the case the bullet above already hands to a person? Yes: do not call. The window goes to the person. That handoff is unchanged. No answer stands in for it. No: ask the next.
-
-Does the owning root refuse, per `standards/user-root.md` C13? Yes: do not call. The caller picks the index from the snapshot. No: ask the next.
-
-Is a classifier attached, per `wiser/AGENTS.md` `## Classifier`? No: the caller picks the index from the snapshot. The caller's own pick approximates the choice below and is what runs when the call is not made. Yes: ask the next.
-
-Is `elementCount` over 255? Yes: do not send the list on one call. The snapshot's `content` is numbered lines and does not carry box positions, so a viewport filter cannot be run from it. **Batch by the snapshot's own numbers and never by line position.** A line is not an element: an element's label can itself contain a newline, so splitting `content` on newlines produces more entries than there are elements and every index after the first such label is wrong. Read the number each record carries, take them in order, and batch 255 records at a time. **Keep the map from each batch position back to the snapshot number**, because that map and not an offset is what resolves the answer. Call once per batch, each batch its own `elements` array of at most 255, in the shape below. Do not ask for a choice across batches. Read each answer the same way as a single call. Map a returned index back onto the snapshot by adding that batch's offset, in code. Act on the lowest snapshot index among the batches that named one. None named one: the caller picks from the snapshot. No: one call, as follows.
-
-Each call, the one call and any batch call, puts the pick to `wiser.browser.pick`. `goal` is the outcome this step is after. `elements` follows the order of the list being sent. Each object has a string `verb` and a `name`. `verb` is `type` when the line is a field a person types into, and `click` otherwise, a dropdown included. `name` is that line's description. Pass `allow_uncalibrated: true`. At most 255 elements go on one call. `select option` is not this pick: it needs a selector, and the snapshot lines do not carry one.
-
-**A confident answer is one predicate and everything that fails it returns to the caller's own pick.** It is an `index` that is an integer, at least zero, and less than the number of elements sent in that call, **and** a `verb` that is the string `click` or `type` **and is the verb that was sent for that index**. A null index, a negative or fractional or out-of-range index, a missing index, a verb that is not one of those two strings, a verb that disagrees with the one sent, and any status all fail it, and every one of them means the caller picks. **There is no other outcome.** The answer carries `calibrated: false`. Apply no bar to `confidence`. This answer does not carry one. Act once. `click` uses that snapshot index. `type` uses that snapshot index and the text the goal already names. The answer does not carry the text, and a goal with no text to type is not acted: the caller picks. Then snapshot again, as the one-action bullet requires. `index` null, `verb` `none`, a `verb` that is not `click` or `type`, or an answer that is a status rather than that pair: the caller picks, and nothing is acted on from it.
-
-An answer never supplies `--confirm`. Destructive Actions still requires a person to opt in. A confident index does not.
+**Who picks the element.** The caller does, from the interactive snapshot: read `snapshot --format interactive`, choose the index, and act by it. `select option` is not this pick: it needs a selector, and the snapshot lines do not carry one. Nothing here puts the pick to a classifier.
 
 The pattern that reads a site-specific playbook before improvising travels with the root that owns the site, not with this tool; a shared root ships no account's navigation notes.
 

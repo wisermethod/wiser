@@ -36,8 +36,7 @@
  * **4. `blueprint`.** A guide that mentions a blueprint carries the canonical sentence from
  * `shared-text.md`: one per toolkit, the gateway creates it when a toolkit has none, and a
  * second one makes every module on that toolkit unconnectable. A guide that says "Prepare" one
- * instructs the step that broke `microsoft`, recorded at
- * `playbooks/gates/connector-stack-audit/2026-09-20-cold-connect.md` C3. The sentence lives in
+ * instructs the step that broke `microsoft` in a cold connect on 2026-09-20. The sentence lives in
  * the source rather than in this file, so that rewording it is one edit in the place a connector
  * author reads and this gate cannot disagree with the document it enforces.
  *

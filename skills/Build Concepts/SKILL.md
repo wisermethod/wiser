@@ -3,7 +3,7 @@ name: Build Concepts
 type: skill
 category: authoring
 description: Develop one tested core insight from source material or a bare direction, with the angles, specifics, and boundaries a piece can be drafted from
-version: 0.2.1
+version: 0.2.3
 ---
 
 # Build Concepts
@@ -38,13 +38,11 @@ From material: read it through once before extracting anything, then again, mark
 
 From a direction: interrogate the starting point by its kind. A subject is narrowed until a specific take appears, by asking what the field gets wrong here and what surprised whoever met it first. A take is sharpened until it could be false, bound to observable behavior and to consequences that matter. A claim is pressed for its mechanism, its failure conditions, and why it matters. A question is answered outright: the answer, the evidence or pattern under it, why it beats the competing explanation, and what would disprove it.
 
-**3. Test what survives being obvious.** Four tests, run on each candidate: does it cut against what the field currently repeats, is it concrete enough to be shown wrong, would someone doing this work learn from it, and does it join ideas that were not joined before. Rank what passes and carry the strong and the middling forward.
+**3. Test what survives being obvious.** Four tests, run on each candidate: does it cut against what the field currently repeats, is it concrete enough to be shown wrong, would someone doing this work learn from it, and does it join ideas that were not joined before. Rank what passes and carry the strong and the middling forward. In direction mode, a candidate that fails the falsifiability test ranks low and is not carried. Do not drop a candidate that passed one test, the falsifiability test included, for being only middling.
 
-Everything ranking low is a result rather than a failed extraction. Say so plainly. Either the material has nothing to teach, or the insight sits in the synthesis rather than in any statement inside it, and the second is worth one more pass before the first is accepted.
+Everything ranking low is a result rather than a failed extraction. Say so plainly. Either the material has nothing to teach, or the insight sits in the synthesis rather than in any statement inside it, and the second is worth one more pass before the first is accepted. Where that pass still ranks every candidate low, deliver that the material has nothing to teach and stop the run there. Do not accept that finding before the extra pass.
 
-**4. Choose the one insight the rest serves.** Test each survivor: does it contain the others, can the others stand as its evidence, is it large enough to anchor a whole piece, is it specific enough to act on. Write it in one or two sentences, then a sentence saying why it matters.
-
-No single insight rising is itself the finding: the run is carrying two concepts, or the synthesis is unfinished. Say which, then split the run or return to step 3. Nominating the strongest fragment as core produces a piece organized around nothing.
+**4. Choose the one insight the rest serves.** Test each survivor: does it contain the others, can the others stand as its evidence, is it large enough to anchor a whole piece, is it specific enough to act on. Where one survivor contains the others, the others can stand as its evidence, and it is large enough to anchor a piece and specific enough to act on, that is the core insight. Write it in one or two sentences, then a sentence saying why it matters. Where no single survivor contains the rest, but the survivors fall into two or more groups, each with one survivor that contains its own group and passes the other three tests, say the run is carrying that many concepts, split the run, and package each. Where none pass, say the synthesis is unfinished and return to step 3. Do not nominate the strongest fragment as core.
 
 **5. Build the angles that develop it.** From material, group what survived by its relationship to the core insight. From a direction, generate what the core insight needs: what causes it, what follows from it, what it looks like in practice, why anyone would disagree, and what has to be true first.
 
@@ -52,9 +50,7 @@ Either way, keep three to five, state each in one sentence, and cut anything tha
 
 Then order them, so each rests on what the ones before it established. Where two are genuinely independent, the package says so rather than implying a sequence that is not there.
 
-**6. Ground every angle in something a reader could point at.** Per angle: the named example, the number, the moment someone observed, the contrast that makes the point land. Separate what is already in hand from what is missing. What is missing and reachable, the agent finds. What is missing and out of reach, the agent asks for once, naming which angle goes generic without it.
-
-What cannot be found is constructed and marked as constructed, or carried into step 7 as a gap. Quotes and facts about people carry their source and register per `standards/conventions.md`. Nothing is invented to fill a hole, and an angle standing only on invented evidence is not standing.
+**6. Ground every angle in something a reader could point at.** Per angle: the named example, the number, the moment someone observed, the contrast that makes the point land. Separate what is already in hand from what is missing. What is missing and reachable, in the material already handed over, in a file the request names, or by a search this session can run, the agent finds and marks sourced. What is missing and out of reach, the agent asks for once, naming which angle goes generic without it, and marks sourced what the requester supplies. Where they do not, or they cannot be asked this run, a quote or a fact about a person is not constructed and the gap is carried; anything else is constructed and marked constructed only when the angle would not then stand only on that construction, and is otherwise carried into step 7 as a gap. Quotes and facts about people carry their source and register per `standards/conventions.md`. Nothing is invented to fill a hole, and an angle standing only on invented evidence is not standing.
 
 **7. Draw the boundaries.** Where the insight stops being true: the contexts it holds in, the contexts it does not, the conditions it depends on, the exceptions already known. Two or three sentences.
 
@@ -64,7 +60,7 @@ Boundaries are scope information, not hedging. A boundary tells a reader where t
 
 Name the formats the concept fits by what it holds rather than by a catalog: depth across several angles carries a long piece, a single sharp angle carries a short post, angles resting on stories carry something spoken. One package can feed several formats at once and usually should, since that is what keeps them saying the same thing. Where the request already named the format, the package names what the concept has to give up to fit it, and says so plainly when the fit is poor; a concept forced into the wrong shape fails as the format's problem long after it was the concept's.
 
-Then the gate, before anything is handed on. A vague core insight, angles that are elaborations, no specifics anywhere, nothing that survived step 3, or boundaries covering everything: the package does not go forward. Name what is weak and stop, or go back for another pass. Drafting cannot repair a concept, only conceal it for a paragraph.
+Then the gate, before anything is handed on. A vague core insight, angles that are elaborations, no specifics anywhere, nothing that survived step 3, or boundaries covering everything: the package does not go forward. Nothing that survived step 3 is named and the run stops. Any other of those, on the first fail, goes back one pass to the step that owns it, step 4 for the core insight or the boundaries, step 5 for an elaboration, step 6 for specifics. Where that pass already happened, name what is weak and stop. Drafting cannot repair a concept, only conceal it for a paragraph.
 
 When the package is written down rather than carried in the session, it goes where `standards/conventions.md` puts the owning root's working files.
 
@@ -78,7 +74,7 @@ Then the gate: hand the package, wrapped in `<draft>`, with the intended reader 
 
 **The package that is quietly a draft.** Angles arriving as paragraphs, specifics arriving as finished sentences. The package holds decisions, not prose. Prose written here is written before the reader, the voice, and the format are settled, and it is thrown away or, worse, kept.
 
-**Sunk effort passing as novelty.** Seven steps of work make the gate in step 8 unwelcome exactly when it matters. The question is whether you would pass this concept to someone whose time you respect, not whether it was expensive to reach.
+**Sunk effort passing as novelty.** Seven steps of work make the gate in step 8 unwelcome exactly when it matters. The question is that gate, not whether the package was expensive to reach. A package the gate fails does not go forward.
 
 ## Success
 

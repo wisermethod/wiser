@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { isAncestorPid, rescanRefusal, verify } from '../../hooks/lib/binding.mjs';
+import { isRefused } from '../../hooks/lib/presence.mjs';
 import { buildContext } from './context.js';
 import { STATUS, StatusSignal, classifierAuditStatus, isStatusObject, sanitizeError, statusObject, vendorErrorFrom } from './errors.js';
 import { composeSummary, discloseInput } from './disclosure.js';
@@ -142,6 +144,24 @@ const CLASSIFIER_SETUP = 'Open the credential file the gateway created, paste th
 const CLASSIFIER_SETUP_MISSING = 'Pass --classifier with an absolute path to a classifier directory, set WISER_CLASSIFIER_KEY in the credential file, and restart. Do not paste the key into chat.';
 
 /**
+ * True when a first-party call would answer needs_subscription.
+ *
+ * No classifier loaded is the `resolved.path === 'none'` branch in `execute`.
+ * An empty key line is `readClassifierKey` returning null, the same read
+ * `executeFirstParty` passes as `key`. That null is what the contract answers
+ * as needs_subscription. This does not call the adapter.
+ *
+ * @param {object | object[] | null | undefined} classifier
+ * @param {string | null | undefined} envPath
+ * @returns {boolean}
+ */
+export function classifierNeedsSubscription(classifier, envPath) {
+  const list = Array.isArray(classifier) ? classifier : (classifier ? [classifier] : []);
+  if (list.length === 0) return true;
+  return readClassifierKey(envPath) == null;
+}
+
+/**
  * Grant states a provider may report that are not ACTIVE, and that the gateway
  * records on the connection row as the reason it stopped.
  *
@@ -152,6 +172,41 @@ const CLASSIFIER_SETUP_MISSING = 'Pass --classifier with an absolute path to a c
  * it in the other, which is this family's named defect shape.
  */
 const STOPPED_GRANT_STATES = ['EXPIRED', 'FAILED', 'INACTIVE', 'INITIATED', 'ABSENT'];
+
+/** The pre-seam sentence. `tools/list` returns this byte for byte when no classifier is loaded. */
+const SEARCH_ACTIONS_DESCRIPTION = 'Search action ids this gateway serves, with privilege, risk, and confirmation.';
+/** One sentence, at most 120 characters, added only when a classifier is loaded. */
+const SEARCH_ACTIONS_PICK = 'An accepted pick is listed first and marked.';
+/** The lowest classifier confidence at which a search pick is accepted. */
+export const SEARCH_PICK_BAND = 0.51;
+
+/**
+ * Long-running MCP server. The env session id is the one from startup and is
+ * stale after /clear, so the pointer for the parent process is the session.
+ * @returns {{ harnessPid: number, sessionId: null }}
+ */
+export function mcpClassifierIdentity() {
+  return { harnessPid: process.ppid, sessionId: null };
+}
+
+/**
+ * One-shot `--call` / `--route`. Both values are required; neither is optional.
+ * `CLAUDE_PID` is accepted only when it is an ancestor of this process.
+ * @param {NodeJS.ProcessEnv} [env]
+ * @param {{ ancestorReader?: (pid: number) => number | null, ancestorStart?: number }} [opts]
+ * @returns {{ harnessPid: number, sessionId: string } | { ok: false, reason: string }}
+ */
+export function oneShotClassifierIdentity(env = process.env, opts = {}) {
+  const raw = env.CLAUDE_PID;
+  const sessionId = env.CLAUDE_CODE_SESSION_ID;
+  const harnessPid = typeof raw === 'string' && /^[0-9]+$/.test(raw) ? Number(raw) : Number.NaN;
+  if (!Number.isInteger(harnessPid) || harnessPid <= 0) return { ok: false, reason: 'no-harness' };
+  if (typeof sessionId !== 'string' || sessionId.length === 0) return { ok: false, reason: 'no-session' };
+  if (!isAncestorPid(harnessPid, { reader: opts.ancestorReader, start: opts.ancestorStart })) {
+    return { ok: false, reason: 'not-ancestor' };
+  }
+  return { harnessPid, sessionId };
+}
 
 const TOOLS = [
   {
@@ -221,7 +276,7 @@ const TOOLS = [
   },
   {
     name: 'search_actions',
-    description: 'Search action ids this gateway serves, with privilege, risk, and confirmation.',
+    description: SEARCH_ACTIONS_DESCRIPTION,
     inputSchema: {
       type: 'object',
       properties: {
@@ -360,8 +415,37 @@ export class ConnectionGateway {
     this.connectors = Array.isArray(opts.connectors) ? opts.connectors : [];
     this.envPath = opts.envPath || null;
     this.classifier = opts.classifier || null;
+    this.classifierIdentity = typeof opts.classifierIdentity === 'function'
+      ? opts.classifierIdentity
+      : mcpClassifierIdentity;
     /** @type {Set<string>} */
     this.confirmedOnce = new Set();
+  }
+
+  /**
+   * Verified, unrefused, with exactly one owning root, still unrefused at
+   * send time. Otherwise a reason and no send.
+   * @returns {{ ok: true, binding: Record<string, unknown> } | { ok: false, reason: string }}
+   */
+  classifierSession() {
+    const ident = this.classifierIdentity();
+    if (!ident || ident.ok === false) {
+      return { ok: false, reason: (ident && ident.reason) || 'no-harness' };
+    }
+    const verified = verify({
+      home: this.home,
+      harnessPid: ident.harnessPid,
+      sessionId: ident.sessionId ?? null,
+    });
+    if (!verified.ok) return verified;
+    if (verified.binding.refused === true) return { ok: false, reason: 'refused' };
+    const owning = verified.binding.owning_root;
+    if (typeof owning !== 'string' || owning.length === 0) {
+      return { ok: false, reason: 'no-owning-root' };
+    }
+    if (isRefused(owning)) return { ok: false, reason: 'refused' };
+    if (rescanRefusal(verified.binding)) return { ok: false, reason: 'refused' };
+    return verified;
   }
 
   classifiers() {
@@ -408,7 +492,14 @@ export class ConnectionGateway {
   }
 
   listTools() {
-    return TOOLS;
+    if (this.classifiers().length === 0) return TOOLS;
+    return TOOLS.map((tool) => {
+      if (tool.name !== 'search_actions') return tool;
+      return {
+        ...tool,
+        description: `${SEARCH_ACTIONS_DESCRIPTION} ${SEARCH_ACTIONS_PICK}`,
+      };
+    });
   }
 
   /**
@@ -573,7 +664,7 @@ export class ConnectionGateway {
     }
   }
 
-  searchActions({ query, service } = {}) {
+  listActions({ query, service } = {}) {
     const q = typeof query === 'string' ? query.toLowerCase() : '';
     const actions = [];
     for (const c of this.connectors) {
@@ -618,7 +709,72 @@ export class ConnectionGateway {
         });
       }
     }
-    return { actions };
+    return actions;
+  }
+
+  /**
+   * Null when this search is today's substring list and nothing is sent:
+   * no query, no classifier loaded, or a loaded classifier whose key reads
+   * null. A failed session gate is reported and still sends nothing.
+   * @param {{ query?: unknown }} args
+   * @returns {{ call: boolean, reason: string | null } | null}
+   */
+  classifierSearchAttempt(args) {
+    const query = args.query;
+    if (typeof query !== 'string' || query.length === 0) return null;
+    if (this.classifiers().length === 0) return null;
+    const session = this.classifierSession();
+    if (!session.ok) return { call: false, reason: session.reason };
+    if (readClassifierKey(this.envPath) == null) return null;
+    return { call: true, reason: null };
+  }
+
+  searchActions(args = {}) {
+    const actions = this.listActions({ query: args.query, service: args.service });
+    const attempt = this.classifierSearchAttempt(args);
+    if (!attempt) return { actions };
+    if (!attempt.call) {
+      return {
+        actions,
+        classifier: { path: 'builtin', reason: attempt.reason },
+      };
+    }
+    return this.rankSearch(actions, args);
+  }
+
+  async rankSearch(actions, args) {
+    const universe = this.listActions({ service: args.service })
+      .filter((row) => !String(row.action).startsWith('wiser.'));
+    const options = universe.map((row) => ({ id: row.action, label: row.description || '' }));
+    const answer = await this.execute({
+      action: 'wiser.decide.choice',
+      input: { decision: args.query, options, allow_uncalibrated: true },
+    });
+    const choice = answer && typeof answer.choice === 'string' ? answer.choice : null;
+    const confidence = answer && Object.hasOwn(answer, 'confidence') ? answer.confidence : null;
+    const accepted = choice !== null
+      && !(typeof answer.status === 'string' && answer.status.length > 0)
+      && options.some((opt) => opt.id === choice);
+    // The confidence band: a pick below it is not acted on, and today's results stand. Set by rule on a
+    // calibration set of its own, the lowest confidence at which the pick was at least as precise as a
+    // host choosing, then tested on a second set.
+    const inBand = typeof confidence === 'number' && Number.isFinite(confidence)
+      && confidence >= 0 && confidence <= 1 && confidence >= SEARCH_PICK_BAND;
+    if (!accepted || !inBand) {
+      const reason = answer && typeof answer.status === 'string' && answer.status
+        ? answer.status
+        : (accepted ? 'below-band' : 'not-accepted');
+      return {
+        actions,
+        classifier: { path: 'builtin', reason, choice, confidence },
+      };
+    }
+    const chosen = universe.find((row) => row.action === choice);
+    const rest = actions.filter((row) => row.action !== choice);
+    return {
+      actions: [{ ...chosen, classifier: true }, ...rest],
+      classifier: { path: 'classifier', reason: null, choice, confidence },
+    };
   }
 
   describeAction(id) {
@@ -978,6 +1134,9 @@ export class ConnectionGateway {
    * @param {object} args
    */
   async executeFirstParty({ action, input, confirm, parsed, decision, resolved, line }) {
+    const session = this.classifierSession();
+    if (!session.ok) return statusObject(STATUS.CLASSIFIER_UNBOUND, { reason: session.reason });
+
     const def = resolved.def || firstPartyDef(action) || {};
     line.privilege = def.privilege ?? line.privilege ?? null;
 
@@ -1026,10 +1185,11 @@ export class ConnectionGateway {
     }
 
     try {
+      const key = readClassifierKey(this.envPath);
+      if (key == null) return this.needsSubscriptionResult();
       if (typeof resolved.fn !== 'function') {
         return { status: 'unavailable', reason: 'unknown action id' };
       }
-      const key = readClassifierKey(this.envPath);
       const raw = await resolved.fn(input ?? {}, key);
       if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) {
         return { status: 'unavailable', reason: 'malformed answer' };

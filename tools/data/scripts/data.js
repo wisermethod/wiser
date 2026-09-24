@@ -29,7 +29,7 @@ import {
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { installAuthorised, writeConsent } from '../../lib/consent.js';
+import { installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
 
 const HERE = fileURLToPath(import.meta.url);
 const SCRIPT_DIR = dirname(HERE);
@@ -52,6 +52,7 @@ Usage:
   node scripts/data.js help
   node scripts/data.js parse --file <path> [--format csv|json|tsv] [--delimiter <char>] [--no-header]
   node scripts/data.js describe --file <path> [--format csv|json|tsv] [--delimiter <char>] [--columns a,b]
+                                [--column <name> ...]
   node scripts/data.js aggregate --file <path> --group-by <column> --metric <column>:<function>
                                  [--group-by <column> ...] [--metric <column>:<function> ...]
                                  [--format csv|json|tsv] [--delimiter <char>]
@@ -122,6 +123,7 @@ const DESCRIBE_USAGE = `data describe - descriptive statistics for the numeric c
 Usage:
   node scripts/data.js describe help
   node scripts/data.js describe --file <path> [--format csv|json|tsv] [--delimiter <char>] [--columns a,b]
+                                [--column <name> ...]
 
 Commands:
   describe         Compute count, mean, median, min, max, standard deviation,
@@ -133,8 +135,13 @@ Options:
                    directory. Required.
   --format <fmt>   Force csv, json, or tsv. Omit to auto-detect from the content.
   --delimiter <c>  Field delimiter for delimited text. Omit to auto-detect.
-  --columns <list> Comma-separated column names to describe. Omit for every
-                   numeric column.
+  --columns <list> Comma-separated column names to describe. Split names are
+                   resolved against the file's headers. A name that cannot be
+                   represented, because a header contains a comma, is refused.
+                   Omit for every numeric column. Not valid with --column.
+  --column <name>  One header, repeated to name more. The argument after this
+                   flag is the name, including a name that contains commas or
+                   starts with --. Not valid with --columns.
   --install   Authorise the first install in this copy of the plugin.
               Without it, the first command that needs a package this
               copy has not installed reports what it would fetch, and
@@ -407,11 +414,26 @@ function screenedOutputPath(name, value) {
   return target;
 }
 
-function refuseUnknown(argv, valueFlags, bareFlags, usageCmd) {
-  const valuePositions = new Set();
+function valuePositionsOf(argv, valueFlags) {
+  const positions = new Set();
   for (let index = 1; index < argv.length; index += 1) {
-    if (valueFlags.has(argv[index])) valuePositions.add(index + 1);
+    if (positions.has(index)) continue;
+    if (valueFlags.has(argv[index])) positions.add(index + 1);
   }
+  return positions;
+}
+
+function hasBare(argv, name, valueFlags) {
+  const positions = valuePositionsOf(argv, valueFlags);
+  for (let index = 1; index < argv.length; index += 1) {
+    if (positions.has(index)) continue;
+    if (argv[index] === name) return true;
+  }
+  return false;
+}
+
+function refuseUnknown(argv, valueFlags, bareFlags, usageCmd) {
+  const valuePositions = valuePositionsOf(argv, valueFlags);
   for (let index = 1; index < argv.length; index += 1) {
     const option = argv[index];
     if (valuePositions.has(index)) continue;
@@ -442,9 +464,9 @@ function installPlan() {
   };
 }
 
-function requireInstallConsent(what) {
-  if (installAuthorised(HERE)) {
-    writeConsent(HERE, 'data');
+function requireInstallConsent(what, install) {
+  if (installAuthorised(HERE, install)) {
+    writeConsent(HERE, 'data', install);
     return;
   }
   if (what === 'browser') {
@@ -458,9 +480,9 @@ function requireInstallConsent(what) {
   );
 }
 
-function ensureDependencies() {
+function ensureDependencies(install) {
   if (existsSync(DEP_MARKER)) return;
-  requireInstallConsent('packages');
+  requireInstallConsent('packages', install);
   process.stderr.write('First run: installing dependencies in this tool directory.\n');
   try {
     const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
@@ -518,7 +540,7 @@ async function runParse(argv) {
   const delimiter = flag('--delimiter');
   const hasHeader = !argv.includes('--no-header');
 
-  ensureDependencies();
+  ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS));
   const { executeParse } = await import('./parse-core.js');
 
   let content;
@@ -534,21 +556,42 @@ async function runParse(argv) {
 
 async function runDescribe(argv) {
   const usageCmd = helpRef('describe');
-  const VALUE_FLAGS = new Set(['--file', '--format', '--delimiter', '--columns']);
+  const VALUE_FLAGS = new Set(['--file', '--format', '--delimiter', '--columns', '--column']);
   const BARE_FLAGS = new Set(['--install', '--help', '-h']);
   refuseUnknown(argv, VALUE_FLAGS, BARE_FLAGS, usageCmd);
 
   function flag(name) {
-    const index = argv.indexOf(name);
-    if (index === -1) return undefined;
-    const value = argv[index + 1];
-    if (argv.indexOf(name, index + 1) !== -1) {
+    const positions = valuePositionsOf(argv, VALUE_FLAGS);
+    const indexes = [];
+    for (let index = 0; index < argv.length; index += 1) {
+      if (positions.has(index)) continue;
+      if (argv[index] === name) indexes.push(index);
+    }
+    if (indexes.length === 0) return undefined;
+    if (indexes.length > 1) {
       fail(`Error: ${name} was given more than once and takes one value. Run "${usageCmd}" for usage.`);
     }
+    const value = argv[indexes[0] + 1];
     if (value === undefined || value.startsWith('--')) {
       fail(`Error: ${name} needs a value. Run "${usageCmd}" for usage.`);
     }
     return value;
+  }
+
+  // The argument after --column is always the header, including one that
+  // starts with --. Other flags still refuse a value that looks like a flag.
+  function columnNames() {
+    const found = [];
+    for (let i = 0; i < argv.length; i += 1) {
+      if (argv[i] !== '--column') continue;
+      const value = argv[i + 1];
+      if (value === undefined) {
+        fail(`Error: --column needs a value. Run "${usageCmd}" for usage.`);
+      }
+      found.push(value);
+      i += 1;
+    }
+    return found;
   }
 
   const fileArgument = flag('--file');
@@ -579,17 +622,13 @@ async function runDescribe(argv) {
   }
 
   const delimiter = flag('--delimiter');
-
   const columnsArg = flag('--columns');
-  let columns;
-  if (columnsArg !== undefined) {
-    columns = columnsArg.split(',').map((name) => name.trim()).filter((name) => name !== '');
-    if (columns.length === 0) {
-      fail('Error: --columns needs at least one column name. Omit it to describe every numeric column.');
-    }
+  const namedColumns = columnNames();
+  if (columnsArg !== undefined && namedColumns.length > 0) {
+    fail('Error: --column and --columns were both given. Use --column for one header, including a header that contains a comma; --columns cannot name such a header.');
   }
 
-  ensureDependencies();
+  ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS));
   const { executeDescribe } = await import('./describe-core.js');
 
   let content;
@@ -597,6 +636,35 @@ async function runDescribe(argv) {
     content = readFileSync(filePath, 'utf8');
   } catch {
     failUnreadable();
+  }
+
+  let columns;
+  if (namedColumns.length > 0) {
+    columns = namedColumns;
+  } else if (columnsArg !== undefined) {
+    const parts = columnsArg.split(',').map((name) => name.trim()).filter((name) => name !== '');
+    if (parts.length === 0) {
+      fail('Error: --columns needs at least one column name. Omit it to describe every numeric column.');
+    }
+    const { readTable } = await import('./read-core.js');
+    const table = readTable({ content, format, delimiter });
+    const headers = table.columns
+      .map((column) => column.name)
+      .filter((name) => typeof name === 'string');
+    const headerSet = new Set(headers);
+    // Split names that are themselves headers are that selection, even when
+    // another header contains a comma. Refuse only a name the split cannot
+    // represent, which is a header whose own text contains a comma.
+    if (parts.every((name) => headerSet.has(name))) {
+      columns = parts;
+    } else {
+      for (const name of headers) {
+        if (name.includes(',') && columnsArg.includes(name)) {
+          fail(`Error: --columns cannot name a header that contains a comma ("${name}"). Use --column for that header.`);
+        }
+      }
+      columns = parts;
+    }
   }
 
   const result = executeDescribe({ content, format, delimiter, columns });
@@ -674,7 +742,7 @@ async function runAggregate(argv) {
 
   const delimiter = flag('--delimiter');
 
-  ensureDependencies();
+  ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS));
   const { executeAggregate } = await import('./aggregate-core.js');
 
   let content;
@@ -744,7 +812,7 @@ async function runJoin(argv) {
 
   const delimiter = flag('--delimiter');
 
-  ensureDependencies();
+  ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS));
   const { executeJoin } = await import('./join-core.js');
 
   function readContent(path) {
@@ -855,7 +923,7 @@ async function runChart(argv) {
 
   const delimiter = flag('--delimiter');
 
-  ensureDependencies();
+  ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS));
   const { buildChart } = await import('./chart-core.js');
 
   let content;
@@ -1004,7 +1072,16 @@ if (!SUBCOMMANDS.has(command)) {
   fail(`Error: unknown command "${command}". Run "node scripts/data.js help" for usage.`);
 }
 
-if (argv[1] === 'help' || argv.includes('--help') || argv.includes('-h')) {
+const COMMAND_VALUE_FLAGS = {
+  parse: new Set(['--file', '--format', '--delimiter']),
+  describe: new Set(['--file', '--format', '--delimiter', '--columns', '--column']),
+  aggregate: new Set(['--file', '--group-by', '--metric', '--format', '--delimiter']),
+  join: new Set(['--left', '--right', '--on', '--how', '--format', '--delimiter']),
+  chart: new Set(['--file', '--x', '--y', '--output', '--type', '--title', '--format', '--delimiter']),
+  compute: new Set(['--file', '--op', '--a', '--b', '--digits', '--format', '--delimiter']),
+};
+
+if (argv[1] === 'help' || hasBare(argv, '--help', COMMAND_VALUE_FLAGS[command]) || hasBare(argv, '-h', COMMAND_VALUE_FLAGS[command])) {
   process.stdout.write(`${SUB_USAGE[command]}\n`);
   process.exit(0);
 }

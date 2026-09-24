@@ -3,7 +3,7 @@ name: keynote-render
 type: tool
 category: documents
 description: Builds and edits native Keynote decks from JSON or markdown SSOT, with zArchive safety before every in-place mutation
-version: 0.2.1
+version: 0.2.3
 ---
 
 # keynote-render

@@ -2,7 +2,7 @@
 
 A written question-and-answer document: briefing answers, a posted FAQ, or the Q&A half of an announcement package. Read this file at Frame and hold it through Draft. Spoken answers in an interview are `skills/Speech Writing/` with `occasions/media-interview.md`. A statement with no questions is `statement.md`.
 
-Review expert: `experts/Ghost Writer/`. This root carries no news-desk reviewer, so whether a desk would find the answers coverable, and what it would still need from them, is not judged here; name that gap. Where the Q&A is for a crisis or an incident there is a second judgment this root does not carry, whether to answer at all and what would make it worse, and that gap is named before the pack is used. On an ordinary Q&A that second judgment is not missing and is not named.
+Review expert: `experts/Ghost Writer/`. This root carries no news-desk reviewer, so whether a desk would find the answers coverable, and what it would still need from them, is not judged here; name that gap. Is this Q&A for a crisis or an incident? Yes: there is a second judgment this root does not carry, whether to answer at all and what would make it worse, and that gap is named before the pack is used. Do not decide it. No: that second judgment is not missing and is not named. You cannot tell: ask before the pack is used. Do not decide the crisis question either way.
 
 ## Shape
 
@@ -15,7 +15,7 @@ Review expert: `experts/Ghost Writer/`. This root carries no news-desk reviewer,
 - **Real questions.** Write the question as it will be asked, including the unfriendly wording. A sanitized question produces an answer that collapses on contact.
 - **Answer first.** The first sentence answers. Context follows. A preamble before the answer is a dodge.
 - **Bridge, do not duck.** A hostile question gets a short factual answer, then one sentence back to the message. Skipping the answer to reach the message is a duck, and it will be clipped.
-- **Unanswered.** A question the speaker cannot or will not answer is written that way, with the reason (unknown, not theirs, legal). Inventing a soft answer is the failure.
+- **Unanswered.** Can the speaker answer, and will they? Yes: answer, per the rule above. Cannot, or will not: write it as unanswered. Which reason does the brief or counsel state? Unknown, not theirs, or legal: name that one. The reason is not stated: ask which. Do not invent a soft answer, and do not invent a reason.
 - **Numbers.** Every figure carries its date and source, or is marked as the evidence labels in `standards/conventions.md` require.
 
 ## Failure modes

@@ -3,7 +3,7 @@ name: Site Author
 type: skill
 category: web
 description: Stand up, content-edit, check, wrap, and upgrade a kit site envelope at sites/<domain>/ or work/<slug>/sites/<domain>/ when the site dies with that work, with the kit in site/, in an owning root that declares sites/
-version: 0.2.0
+version: 0.2.4
 memory:
   - about
   - design
@@ -20,7 +20,7 @@ gaps:
 
 Use when the job is a kit site envelope in an owning root: stand up, edit content files, check, wrap an old kit tree, or upgrade kit code. The envelope is `sites/<domain>/`, or `work/<slug>/sites/<domain>/` when the site dies with that work. The kit is its `site/` folder.
 
-Not for judging findability, broken URLs, or publish safety; that is `experts/Webmaster/`, and Webmaster Job 3 is the gate before publish. Not for writing the article; that is `skills/Content Author/`, then `experts/Ghost Writer/`, then this skill's Edit content files the file. Not for visual direction; that is `skills/Designer/` and `skills/Marketing Page Design/`. A Designer-gated token update is the only style-path write this skill will make. Not for hostname DNS, zone files, mail, credentials, or nameservers; that is `experts/IT Expert/`, which owns `skills/Zone Publisher/`. This skill does not call a DNS or host API. Not for a live host; sequence `skills/Cloudflare Pages/` for simple sites or `skills/Vercel Deploy/` for managed sites, loading the selected skill before hand-off. Not for a root whose `AGENTS.md` does not declare `sites/` as a table row. Not for standing up over any existing domain folder; Shape below determines the next job. Not for `git init`, nested or otherwise. Not for connecting an envelope or owning root to a host. Host skills take `site/` or `site/dist/` only. Not for a site whose engine is not this kit, and not for an application, authenticated, or database-backed site.
+Not for judging findability, broken URLs, or publish safety; that is `experts/Webmaster/`, and Webmaster Job 3 is the gate before publish. Not for writing the article; that is `skills/Content Author/`, then `experts/Ghost Writer/`, then this skill's Edit content files the file. Not for visual direction; that is `skills/Designer/` and `skills/Marketing Page Design/`. A Designer-gated token update is the only style-path write this skill will make. Not for hostname DNS, zone files, mail, credentials, or nameservers; that is `experts/IT Expert/`, which owns `skills/Zone Publisher/`. This skill does not call a DNS or host API. Not for a live host. Sequence `skills/Cloudflare Pages/` when the host named is Cloudflare Pages or the site was called simple and not managed, and `skills/Vercel Deploy/` when the host named is Vercel or the site was called managed and not simple, loading the selected skill before hand-off, except where both hosts are named, the site was called both simple and managed, the named host disagrees with the word, or neither a host nor simple or managed is stated, in which case ask and do not pick, and do not load either while that question is unanswered. Not for a root whose `AGENTS.md` does not declare `sites/` as a table row. Not for standing up over any existing domain folder; Shape below determines the next job. Not for `git init`, nested or otherwise. Not for connecting an envelope or owning root to a host. Host skills take `site/` or `site/dist/` only. Not for a site whose engine is not this kit, and not for an application, authenticated, or database-backed site.
 
 ## Objective
 
@@ -38,7 +38,7 @@ Three memory keys are requested, bound per the constitution's Workspace Model wi
 
 - `about`, optional. Organization facts the kit layout may emit; unbound, omit them and label the omission, never invent.
 - `design`, optional. Token direction for stand-up customization or a Designer-gated token update; unbound, keep the kit defaults.
-- `voice`, not required for stand-up, check, wrap, or upgrade. Required for Edit content when copy is written here rather than handed over from `skills/Content Author/`. Unbound on that write: stop and ask, or hand the copy to Content Author.
+- `voice`, not required for stand-up, check, wrap, or upgrade. Required for Edit content when copy is written here rather than handed over from `skills/Content Author/`. Unbound or unavailable on that write: ask whether to stop or to hand the copy to Content Author.
 
 ## Identity
 
@@ -103,11 +103,11 @@ Gate: Webmaster Job 3 before the requester publishes, not after this write. Chec
 
 Allowed paths: `site/src/content/**`, `site/public/images/**`. A retired or changed published slug may add a row to `site/public/_redirects`; that edit is the redirect case Webmaster Job 3 gates. `site/public/llms.txt` is `skills/SEO Assets/` when it writes into a kit tree, not this job.
 
-Refuse, and do not perform: `site/src/components/**`, `site/src/layouts/**`, `site/src/pages/**` (routes), `site/astro.config.mjs`, `site/package.json`, `site/package-lock.json`, `site/src/styles/**` except a Designer-gated token update, `site/.github/**`, `site/KIT.md`, `site/kit.json`. A request to add a component or edit the Astro config is a refusal, not a stretch.
+Refuse, and do not perform: `site/src/components/**`, `site/src/layouts/**`, `site/src/pages/**` (routes), `site/astro.config.mjs`, `site/package.json`, `site/package-lock.json`, `site/src/styles/**` except a Designer-gated update to `site/src/styles/tokens.css`, `site/.github/**`, `site/KIT.md`, `site/kit.json`. A request to add a component or edit the Astro config is a refusal, not a stretch.
 
 File an article Content Author wrote, after Ghost Writer's gate, at `site/src/content/articles/<slug>.md`. Required frontmatter: `title`, `description`, `pubDate`, `author`, `tags`, `draft`. Empty `pubDate` or missing `description` fails `check`; do not write that file. Hero image optional. Pages need `title` and `description`.
 
-When this job writes copy itself rather than filing a hand-over, `voice` must be bound and available. Otherwise stop, or route the prose to Content Author.
+Where this job writes new prose here, `voice` must be bound and available; otherwise ask whether to stop or to hand the copy to Content Author. An edit that is neither new prose nor a hand-over from Content Author does not require `voice`.
 
 A new URL, a slug change, or a redirect is gated by Webmaster Job 3 before publish. A draft (`draft: true`) that is not a new public URL is not. Check has no gate.
 
@@ -121,7 +121,7 @@ node "<this-skill-dir>/scripts/check.mjs" "<envelope-folder>"
 
 Step 6 in `KIT.md` is a fetch after preview: `/`, one article route without a trailing slash, sitemap, RSS when articles are enabled, `/llms.txt`, `/robots.txt`. Canonical and `og:url` use that site's `site/kit.json` `siteUrl`.
 
-A failed Check is not permission to replace the tree. Repair or Upgrade a current envelope; Wrap an old shape, or declare it foreign. Do not stand up over it.
+A failed Check is not permission to replace the tree. Where it prints `check PASS` and exits 0, continue. Where it prints FAIL, throws, exits nonzero, or prints nothing, stop with its diagnostic. Repair or Upgrade a current envelope; a repair fixes only the named failure. Do not stand up over it.
 
 ### 4. Wrap
 

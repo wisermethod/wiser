@@ -7,9 +7,10 @@
  *   node server.js [--env <abs file>] [--home <abs dir>] [--role runtime|readonly]
  *                  [--harness <name>] [--provider <name>] [--connectors <abs dir>]
  *                  [--classifier <abs dir>] [--secrets <abs dir>] [--check]
+ *                  [--call <action id>] [--route] [--input <json>]
  */
 
-import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
+import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { defaultGatewayHome, defaultProviderEnvPath, ensureProviderEnvFile } from './src/paths.js';
@@ -31,6 +32,7 @@ Usage:
   node server.js [--env <abs file>] [--home <abs dir>] [--role runtime|readonly]
                  [--harness <name>] [--provider <name>] [--connectors <abs dir>]
                  [--classifier <abs dir>] [--secrets <abs dir>] [--check]
+                 [--call <action id>] [--route] [--input <json>]
 
 Options:
   help, --help             Print this message and exit. Reads no files.
@@ -41,6 +43,7 @@ Options:
   --home <abs dir>         State directory (default ~/.wiser/gateway), created 0700.
   --role <role>            runtime | readonly (default: policy default_role).
   --harness <name>         Free-text label for the audit log (default: unknown).
+                           Also the classifier presence file name.
   --provider <name>        Adapter directory under providers/ (default: the name in
                            providers/default.json).
   --connectors <abs dir>   Extra connectors directory. Repeatable. ../connectors
@@ -51,14 +54,34 @@ Options:
   --secret <svc>=<abs file>  Bind one service's credential file directly. Repeatable.
                            Overrides --secrets for that service.
   --check                  Validate manifests and policy, print one JSON object, exit.
+  --call <action id>       Run one first-party wiser.* action, print the result as
+                           one JSON line, and exit. Any other id is refused
+                           (exit 2) and is not called. Does not serve MCP and does
+                           not write the classifier presence file.
+  --route                  Run wiser.route.roster and then wiser.route.ask in this
+                           process, print the ask result as one JSON line, and
+                           exit. --input is an object with rows and ask. Both
+                           calls go through execute, so both write an audit line.
+                           A roster result with no roster_sha256 is printed and
+                           the ask is not run. Does not serve MCP and does not
+                           write the classifier presence file.
+  --input <json>           JSON object for --call or --route. "-" reads one JSON
+                           value from stdin. Required with --call or --route.
 
 State paths are screened before anything opens them: --home is canonicalised and
 refused inside this plugin, inside the directory holding --env, inside --secrets,
 or on a symbolic link.
 
+A normal start writes <home>/classifier-status/<harness>.json (mode 0600, directory
+0700) after classifiers load: attached, the absolute classifier directories loaded,
+the process id, and the start time. It never contains a key. --check, --call, and
+--route do not write it. A failure to write it does not stop the gateway.
+
 Unknown flags are refused by name. Success for --check prints one JSON object to
-stdout. help prints usage to stdout. The MCP server writes JSON-RPC messages to
-stdout, one per line. Errors go to stderr with exit 1.`;
+stdout. Success for --call prints the result object to stdout. Success for --route
+prints the ask result, or the roster result when that result has no roster_sha256.
+help prints usage to stdout. The MCP server writes JSON-RPC messages to stdout, one
+per line. Errors go to stderr with exit 1, except a refused --call id, which exits 2.`;
 
 function fail(message) {
   process.stderr.write(`${message}\n`);
@@ -74,8 +97,8 @@ if (argv.includes('help') || argv.includes('--help')) {
   process.exit(0);
 }
 
-const VALUE_FLAGS = new Set(['--env', '--home', '--role', '--harness', '--provider', '--connectors', '--classifier', '--secrets', '--secret']);
-const BARE_FLAGS = new Set(['--check']);
+const VALUE_FLAGS = new Set(['--env', '--home', '--role', '--harness', '--provider', '--connectors', '--classifier', '--secrets', '--secret', '--call', '--input']);
+const BARE_FLAGS = new Set(['--check', '--route']);
 const ABS_FLAGS = new Set(['--env', '--home', '--connectors', '--classifier', '--secrets']);
 
 const flags = {
@@ -89,12 +112,16 @@ const flags = {
   secrets: null,
   secretFiles: {},
   check: false,
+  call: null,
+  route: false,
+  input: null,
 };
 
 for (let i = 0; i < argv.length; i += 1) {
   const a = argv[i];
   if (BARE_FLAGS.has(a)) {
-    flags.check = true;
+    if (a === '--route') flags.route = true;
+    else flags.check = true;
     continue;
   }
   if (VALUE_FLAGS.has(a)) {
@@ -114,6 +141,8 @@ for (let i = 0; i < argv.length; i += 1) {
     else if (a === '--connectors') flags.connectors.push(value);
     else if (a === '--classifier') flags.classifier.push(value);
     else if (a === '--secrets') flags.secrets = value;
+    else if (a === '--call') flags.call = value;
+    else if (a === '--input') flags.input = value;
     else if (a === '--secret') {
       const eq = value.indexOf('=');
       const svc = eq > 0 ? value.slice(0, eq) : '';
@@ -133,6 +162,29 @@ for (let i = 0; i < argv.length; i += 1) {
 
 if (flags.role !== null && !ROLES.has(flags.role)) {
   fail(`Error: --role must be runtime or readonly; got "${flags.role}". Run "node server.js help" for usage.`);
+}
+
+if (flags.call !== null && !Object.hasOwn(FIRST_PARTY_ACTIONS, flags.call)) {
+  process.stderr.write(`Error: --call refuses "${flags.call}" because it is not a first-party wiser action.\n`);
+  process.exit(2);
+}
+if (flags.route && flags.call !== null) {
+  fail('Error: --route cannot be combined with --call. Run "node server.js help" for usage.');
+}
+if (flags.route && flags.check) {
+  fail('Error: --route cannot be combined with --check. Run "node server.js help" for usage.');
+}
+if (flags.call !== null && flags.check) {
+  fail('Error: --call cannot be combined with --check. Run "node server.js help" for usage.');
+}
+if (flags.route && flags.input === null) {
+  fail('Error: --route requires --input. Run "node server.js help" for usage.');
+}
+if (flags.call !== null && flags.input === null) {
+  fail('Error: --call requires --input. Run "node server.js help" for usage.');
+}
+if (flags.input !== null && flags.call === null && !flags.route) {
+  fail('Error: --input requires --call or --route. Run "node server.js help" for usage.');
 }
 
 if (!flags.env) {
@@ -272,10 +324,94 @@ async function loadClassifier(dir, envPath) {
   fail(`Error: --classifier ${abs} has no index.mjs or index.js.`);
 }
 
+/**
+ * A harness label may be a file name and nothing else. Anything else is a
+ * write this process skips, which does not stop the gateway.
+ * @param {string} harness
+ * @returns {string | null}
+ */
+function safeStatusName(harness) {
+  if (typeof harness !== 'string') return null;
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(harness)) return null;
+  return harness;
+}
+
+/**
+ * Atomic presence file. A failure here is swallowed: the gateway still serves.
+ * The body is the four presence fields and nothing else.
+ * @param {string} home
+ * @param {string} harness
+ * @param {{ attached: boolean, classifier_dirs: string[], pid: number, started_at: string }} body
+ */
+function writeClassifierStatus(home, harness, body) {
+  const name = safeStatusName(harness);
+  if (!name || !home) return;
+  const dir = join(home, 'classifier-status');
+  const dest = join(dir, `${name}.json`);
+  const tmp = join(dir, `.${name}.${process.pid}.${Date.now()}.tmp`);
+  try {
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
+    let dirStat;
+    try {
+      dirStat = lstatSync(dir);
+    } catch {
+      return;
+    }
+    if (dirStat.isSymbolicLink() || !dirStat.isDirectory()) return;
+    try { chmodSync(dir, 0o700); } catch { /* umask */ }
+    try {
+      if (lstatSync(dest).isSymbolicLink()) return;
+    } catch (err) {
+      if (!err || err.code !== 'ENOENT') return;
+    }
+    const payload = `${JSON.stringify({
+      attached: body.attached === true,
+      classifier_dirs: body.classifier_dirs,
+      pid: body.pid,
+      started_at: body.started_at,
+    })}\n`;
+    writeFileSync(tmp, payload, { encoding: 'utf8', mode: 0o600 });
+    try { chmodSync(tmp, 0o600); } catch { /* umask */ }
+    renameSync(tmp, dest);
+    try { chmodSync(dest, 0o600); } catch { /* umask */ }
+  } catch {
+    try { unlinkSync(tmp); } catch { /* best effort */ }
+  }
+}
+
+async function readAllStdin() {
+  const chunks = [];
+  for await (const chunk of process.stdin) chunks.push(chunk);
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+async function readCallInput() {
+  let inputText = flags.input;
+  if (inputText === '-') inputText = await readAllStdin();
+  try {
+    return JSON.parse(inputText);
+  } catch {
+    fail('Error: --input must be one JSON value.');
+  }
+}
+
+/**
+ * A held digest is a non-empty string. Anything else means the roster call did
+ * not register a roster this process can ask against.
+ * @param {unknown} result
+ * @returns {string}
+ */
+function rosterDigest(result) {
+  if (!result || typeof result !== 'object' || Array.isArray(result)) return '';
+  const digest = result.roster_sha256;
+  if (typeof digest !== 'string' || digest.length === 0) return '';
+  return digest;
+}
+
 async function main() {
   const [
     { createAudit },
-    { ConnectionGateway },
+    { ConnectionGateway, classifierNeedsSubscription, oneShotClassifierIdentity },
     { loadConnectors },
     { loadPolicy },
     { runStdio },
@@ -312,10 +448,13 @@ async function main() {
     fail(`Error: ${err instanceof Error ? err.message : 'manifest validation failed'}`);
   }
 
+  const classifierDirs = [];
   const classifiers = [];
   for (const extra of flags.classifier) {
     if (!extra || !existsSync(extra)) continue;
-    classifiers.push(await loadClassifier(extra, flags.env));
+    const abs = resolve(extra);
+    classifiers.push(await loadClassifier(abs, flags.env));
+    classifierDirs.push(abs);
   }
   const classifier = classifiers.length === 0 ? null : (classifiers.length === 1 ? classifiers[0] : classifiers);
 
@@ -381,6 +520,43 @@ async function main() {
     connectors,
     envPath: flags.env,
     classifier,
+    classifierIdentity: (flags.route || flags.call !== null) ? oneShotClassifierIdentity : undefined,
+  });
+
+  if (flags.route) {
+    const input = await readCallInput();
+    if (!input || typeof input !== 'object' || Array.isArray(input)) {
+      fail('Error: --route input must be one JSON object.');
+    }
+    const roster = await gateway.callTool('execute', {
+      action: 'wiser.route.roster',
+      input: { rows: input.rows },
+    });
+    const digest = rosterDigest(roster);
+    if (!digest) {
+      process.stdout.write(`${JSON.stringify(roster)}\n`);
+      process.exit(0);
+    }
+    const asked = await gateway.callTool('execute', {
+      action: 'wiser.route.ask',
+      input: { ask: input.ask, roster_sha256: digest },
+    });
+    process.stdout.write(`${JSON.stringify(asked)}\n`);
+    process.exit(0);
+  }
+
+  if (flags.call !== null) {
+    const input = await readCallInput();
+    const result = await gateway.callTool('execute', { action: flags.call, input });
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+    process.exit(0);
+  }
+
+  writeClassifierStatus(screenedHome, flags.harness, {
+    attached: !classifierNeedsSubscription(classifier, flags.env),
+    classifier_dirs: classifierDirs,
+    pid: process.pid,
+    started_at: new Date().toISOString(),
   });
 
   runStdio({ gateway, version: VERSION });

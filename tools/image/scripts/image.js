@@ -25,7 +25,7 @@ import {
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { installAuthorised, writeConsent } from '../../lib/consent.js';
+import { installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
 
 import {
   ALPHA_ENCODERS,
@@ -265,9 +265,11 @@ function installPlan() {
   };
 }
 
+let install = false;
+
 function requireInstallConsent(what) {
-  if (installAuthorised(HERE)) {
-    writeConsent(HERE, 'image');
+  if (installAuthorised(HERE, install)) {
+    writeConsent(HERE, 'image', install);
     return;
   }
   if (what === 'browser') {
@@ -300,6 +302,7 @@ function ensureDependencies() {
 }
 
 async function runEdit(argv) {
+  install = parsedInstallFlag(argv, EDIT_VALUE_FLAGS);
   const usageCmd = helpRef('edit');
 
   function flag(name) {
@@ -648,6 +651,7 @@ async function runEdit(argv) {
 }
 
 async function runCompose(argv) {
+  install = parsedInstallFlag(argv, COMPOSE_VALUE_FLAGS);
   const usageCmd = helpRef('compose');
   const values = new Map();
   const switches = new Set();

@@ -3,7 +3,7 @@ name: Design System
 type: skill
 category: design
 description: Compose existing color and type tokens into a complete design system, delivered as an agent-readable specification, a combined CSS token file, and optional Tailwind configuration
-version: 0.2.3
+version: 0.2.7
 memory:
   - design
 ---
@@ -48,7 +48,7 @@ A design-systems architect whose work is judged by transfer rather than by taste
 
 Five steps, in order. Steps 1 to 4 build token categories; Step 5 composes the deliverables.
 
-On a merge into a shipped system, the shipped values hold: Steps 2 to 4 build only the categories that are absent and the values the requester named for change, and Step 5 says which values were adopted and which were generated. A layer that shipped as a single value where the register needs a set, one radius standing in for four, is extended to the steps the register needs with the shipped value kept as one of them; that is neither a silent replacement nor a skipped layer. A shipped value that fails Step 3's taxonomy read or a criterion in Success is reported to the owner as a finding, naming the change it would take, and is never rewritten on this run's own authority; where the owner declines the change, Step 5 names the criteria the merged system does not meet and the values holding them open. On a replacement, all four steps run fresh.
+On a merge into a shipped system, the shipped values hold: Steps 2 to 4 build only the categories that are absent and the values the requester named for change, and Step 5 says which values were adopted and which were generated. A layer that shipped as a single value where the register needs a set, one radius standing in for four, is extended to the steps the register needs with the shipped value kept as one of them; that is neither a silent replacement nor a skipped layer. A shipped value that fails Step 3's taxonomy read or a criterion in Success is reported to the owner as a finding, naming the change it would take, and is never rewritten on this run's own authority. Where the owner accepts, make the change the finding names. Where the owner declines the change, Step 5 names the criteria the merged system does not meet and the values holding them open. On a replacement, all four steps run fresh.
 
 ### 1. Validate the inputs and fix the register
 
@@ -91,13 +91,13 @@ Every step ships with the context it is for, so the scale carries rhythm instead
 | 12 to 16 | Between major page sections |
 | 24 to 32 | Page margins, hero spacing |
 
-Where the type system defines a vertical rhythm base, state how the two relate, so section spacing and line spacing do not drift apart.
+Where the type system defines a vertical rhythm base, state how the two relate, so section spacing and line spacing do not drift apart. Where it defines none, state that.
 
 ### 3. Border, radius, and elevation tokens
 
 This layer carries most of what the system feels like, so each choice states its reasoning.
 
-Radius calibrates to personality: geometric and professional sits at the low end, friendly and expressive at the high end. Move the whole set together so the ratio between steps holds, and state why the set sits where it does.
+Radius calibrates to the personality the bound `design` key names, or the request when that key is unavailable, the key winning when they disagree: geometric and professional sits at the low end, friendly and expressive at the high end. Move the whole set together so the ratio between steps holds, and state why the set sits where it does.
 
 ```css
 :root {
@@ -127,7 +127,7 @@ A dark theme takes its depth from lighter surfaces rather than from this scale, 
 
 ### 4. Motion tokens
 
-A duration scale and easing curves. The four duration bands are the same Duration Scale as `skills/Component Design/motion-design.md`, the operational home for UI motion; these tokens name that scale for builders. The register from Step 1 chooses which bands ship as the default language, not different numbers: application stays on the first two bands; marketing may use layout and entrance.
+A duration scale and easing curves. The four duration bands are the same Duration Scale as `skills/Component Design/motion-design.md`, the operational home for UI motion; these tokens name that scale for builders. The register from Step 1 chooses which bands ship as the default language, not different numbers: application stays on the first two bands; marketing uses layout and entrance when the direction calls for a dramatic entrance or scroll-driven motion, and otherwise the first two. Content's default is almost none: a feedback or state motion the direction already names may use the first two bands, and motion the direction does not name is not added.
 
 ```css
 :root {
@@ -169,7 +169,7 @@ The specification, `DESIGN.md` unless the project names it otherwise:
 [What the system prohibits, what it requires, the accessibility minimums it inherits]
 ```
 
-Write the Visual Direction section against the bound `design` key, and consult `experts/Creative Director/` where the direction needs judgment rather than transcription. Every section is written to be built from: a sentence a builder cannot act on is not yet finished.
+Write the Visual Direction section against the bound `design` key and the request, and consult `experts/Creative Director/` where the direction needs judgment rather than transcription. Every section is written to be built from: a sentence a builder cannot act on is not yet finished.
 
 The CSS token file carries all of it in one place, grouped and commented by category (color by role, typography, spacing, borders, radius, elevation, motion), with a `prefers-color-scheme: dark` block overriding the semantic layer alone where the palette carries a dark mode.
 
@@ -183,7 +183,7 @@ Then the gate: hand the specification and the token file as `<design_artifact>`,
 
 The shape the tokens above are organized in.
 
-- **Three layers, where they apply.** Primitive holds the raw value (`--blue-500`), semantic holds the role (`--color-primary`), component holds the specific use (`--button-bg`). Not every category needs all three: spacing is usually primitive and semantic only, and a component layer with one consumer is overhead.
+- **Three layers, where they apply.** Primitive holds the raw value (`--blue-500`), semantic holds the role (`--color-primary`), component holds the specific use (`--button-bg`). Not every category needs all three: spacing is primitive and semantic unless the requester named a component-layer spacing token, in which case include it; any other component layer ships only at two or more consumers, which an untellable count is not.
 - **Themes move the semantic layer.** Dark mode and any alternate theme override semantic tokens, never primitives and never component tokens, so one override block re-themes everything.
 - **No orphans.** Every token appears in the usage guidance or in a component reference. A token nothing uses is removed before delivery, not left for someone to interpret later.
 

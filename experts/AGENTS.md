@@ -1,6 +1,6 @@
 # Experts
 
-Personas that carry a perspective and judge work through it; `standards/primitives.md` owns the type's definition, invocation rules, and frontmatter. The directory is flat, and the index below is grouped by category.
+Personas that carry a perspective and judge work through it; `standards/primitives.md` owns the type's definition, invocation rules, frontmatter, and the classifier seam every new typed file here, and any file whose seam changes, declares in its Context. The directory is flat, and the index below is grouped by category.
 
 An expert owns a skill when its Context carries one line of this fixed form, paths only, outside any code block:
 

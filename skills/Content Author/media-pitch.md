@@ -17,13 +17,13 @@ Review expert: `experts/Ghost Writer/`, which judges the sentences. This root ca
 - **Subject line.** The news, under about 60 characters. Not "quick question", not the announcing organization's name alone, not a tease that hides the story.
 - **Why now.** A date, a filing, a number, a news cycle the desk is already in. Without it the mail waits.
 - **One ask.** An interview, an embargoed look, a fact check, a copy of the report. Not "would love to connect".
-- **Assets.** Offer one, named: the release, a data table, a spokesperson, a photo. Do not attach a kit unless the journalist asked.
+- **Assets.** Offer one, named: the release, a data table, a spokesperson, a photo. Did the journalist ask for a kit? Yes: attach it. No: do not attach it.
 
 ## Failure modes
 
 - **Blast copy.** First name mail-merged onto a generic body. Test: could the subject line and first two lines go to another beat unchanged? Then it is not about them.
 - **The release in the body.** Pasting the announcement and adding "thought this might interest you". The pitch has to argue the story, not deliver the inventory.
-- **Three asks.** Interview and exclusive and a feature. Pick one.
+- **Three asks.** Interview and exclusive and a feature. How many asks does the draft make? One: keep it. More than one: keep the one the brief names as the point of the pitch. The brief names more than one as equal: ask which single ask. Do not send three.
 - **Flattery with no beat.** Praising the journalist's work without tying it to this news. Cut it.
 
 ## Format checks

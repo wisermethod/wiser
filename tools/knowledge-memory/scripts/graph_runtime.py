@@ -976,8 +976,7 @@ def recall(values, recipe, screen, positive):
             fail('rank: a selection already fixes the passages; --rank ranks nothing.')
         rank_passages = load_rank_passages()
         if mode not in rank_passages.MODES:
-            fail('rank: unknown mode %r; one of %s' % (mode,
-                                                       ', '.join(rank_passages.MODES)))
+            fail('rank: unknown mode %r; one of %s' % (mode, ', '.join(rank_passages.MODES)))
     if candidates_only:
         if match:
             fail('candidates-only: MATCH returns match items and there are no candidates. '

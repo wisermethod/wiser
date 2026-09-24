@@ -19,7 +19,7 @@ import { accessSync, constants, cpSync, copyFileSync, existsSync, mkdirSync, rea
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { flagAuthorised, installAuthorised, writeConsent } from '../../lib/consent.js';
+import { flagAuthorised, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
 
 const HERE = fileURLToPath(import.meta.url);
 const SCRIPT_DIR = dirname(HERE);
@@ -195,8 +195,8 @@ function installPlan() {
 // "this tool is not installed yet", nor name a registry fetch and an npm cache
 // write that this install will not make.
 function requireInstallConsent(what) {
-  if (installAuthorised(HERE)) {
-    writeConsent(HERE, 'deck-export');
+  if (installAuthorised(HERE, install)) {
+    writeConsent(HERE, 'deck-export', install);
     return;
   }
   if (what === 'browser') {
@@ -220,6 +220,7 @@ const VALUE_FLAGS = new Set([
 ]);
 const BARE_FLAGS = new Set([
   '--install','--help', '-h']);
+const install = parsedInstallFlag(argv, VALUE_FLAGS);
 
 // The position after each value flag belongs to that flag. A path or number
 // that opens with a dash is a value, not a flag.
@@ -683,7 +684,7 @@ if (command === 'check') {
   // while the remediation it printed named `--install`; here it did nothing at
   // all. The same one line answers both, so the printed remedy is true on every
   // command of every browser tool rather than on all but the surveying one.
-  if (flagAuthorised()) {
+  if (flagAuthorised(install)) {
     ensurePackage('reveal.js');
     ensurePackage('playwright');
     await ensureChromium();

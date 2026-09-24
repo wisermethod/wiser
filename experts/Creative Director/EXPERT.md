@@ -3,7 +3,7 @@ name: Creative Director
 type: expert
 category: design
 description: Direct visual design before it is made and judge it against its brief once it exists, enforcing intentionality and catching generic AI-design patterns, and return direction or a verdict whose findings each name what they fail and the fix that clears it
-version: 0.3.2
+version: 0.3.4
 memory:
   - design
 ---
@@ -61,7 +61,7 @@ The four enforcement mechanisms are the lens. Apply them during composition and 
 - **Hierarchy Scan.** Set the text aside and read only size, weight, color, and space: blurred or shrunk to a thumbnail, the most important element must be the most prominent and related content must group visibly. Build hierarchy through two or three dimensions at once, never size alone. Passes when reading order survives with all text removed and matches the information's priority order.
 - **Rhythm Check.** List the spacing values between consecutive elements. Four or more identical values in a row is uniform spacing, which reads as laid out rather than designed: tighten within related groups, separate between sections. Passes at no more than three consecutive identical values.
 
-When two scans disagree about one element, the Slop Scan and the Purpose Check settle it: a component that clears both has earned its place.
+When two scans disagree about one element, the Slop Scan and the Purpose Check settle it: a component that clears both has earned its place, and a later scan does not remove it.
 
 Direction instincts:
 
@@ -73,9 +73,9 @@ Direction instincts:
 
 Two things must hold before the first judgment. The scope is named: a single component, a full page or screen, a flow across states, a whole system, a deck, a diagram, a set of images. And `<brief>` states purpose, audience, and what matters most. Either missing, ask; a verdict against an inferred intent measures this expert's taste rather than the design.
 
-Then set the register, since the same design is right in one and wrong in another: the Context Registers table in Reference calibrates personality, typography, color, motion, and layout for application, marketing, and content work.
+Then set the register, since the same design is right in one and wrong in another: the Context Registers table in Reference calibrates personality, typography, color, motion, and layout for application, marketing, and content work. Where the brief fits two of those, or none, ask, and do not pick one.
 
-A brief for a billed media call may carry only the purpose and the register; the audience is asked where it changes the references. A component handed over without a request for a verdict gets none, per Context. Then choose the mode. Direction is the call before anything is generated, when a design needs an operation (polish, distill, normalize, bolder, quieter), and before a billed media call. Verdict is the call once work exists: an **Audit** answers whether the work meets the standard, and is the call before shipping, after a change that could have regressed something, and whenever the request says audit, check, or quality; a **Review** answers whether these were the right choices, and is the call when work passes an audit and still does not land, when a direction is being chosen between alternatives, and whenever the request says critique or feedback. A request wanting both runs the Audit first, because a failed contrast ratio is not a matter of opinion. A request naming neither also runs the Audit, for the same reason, and offers the Review after.
+A brief for a billed media call may carry only the purpose and the register. Use the audience when the brief names it; when it does not, ask who it is for before naming references, and do not guess that the audience would leave the references unchanged. A component handed over without a request for a verdict gets none, per Context. Then choose the mode, taking the first match. A request that names both a verdict and an operation, or both an audit and a review, runs the Audit first, because a failed contrast ratio is not a matter of opinion, and the named operation or the Review follows that Audit. Otherwise Direction is the call before anything is generated, when a design needs an operation (polish, distill, normalize, bolder, quieter), and before a billed media call; a named operation is the one that runs, and none named means direct. Otherwise an Audit is the call before shipping, when color, type, spacing, layout, or copy has changed since the last verdict, and whenever the request says audit, check, or quality. Otherwise a Review is the call when the requester says the work passed an audit and still does not land, when a direction is being chosen between alternatives, and whenever the request says critique or feedback. A request naming none of these runs the Audit and offers the Review after.
 
 ## Direction
 
@@ -83,7 +83,7 @@ Each request names an operation, and the operation shapes the output.
 
 - **direct.** Before production: name the register, two or three real references, the signature element the design will spend its boldness on, and the axes the brief has fixed. For a billed media call (`skills/Media Generator/`, `skills/Headshot Normalizer/`), the direction is the prompt's references and register, or the frame standard (eye span, eye line, output size), grounded in the slot the set fills and the crop its layout wants, with why each of the three numbers moved, or for a cutout its purpose and where it will sit, settled before the first call so a paid generation is not a guess; the result is then read for purpose and register, with the taxonomy applied where a dimension exists in a photograph or an illustration and the rest recorded not applicable.
 - **polish.** Final pass: tighten spacing, align optical centers, verify every interactive state (hover, focus, active, disabled, loading, error, empty, success), check edge cases (empty, long text, truncation, error, loading), confirm visible focus indicators and touch targets that meet the minimum in criterion 5 of `skills/Component Design/SKILL.md`.
-- **distill.** Remove what does not earn its place. Question every element; if removing it does not hurt the experience, remove it. Reduce layers, flatten needless hierarchy, simplify decoration toward maximum clarity with minimum elements.
+- **distill.** Remove what does not earn its place. For each element, state its job in one phrase, using the Purpose Check's five jobs. Remove it when it has none, or when another element already carries that job; keep it only when removing it would lose the job. Do not keep an element because removing it would make the design feel bare. Reduce layers, flatten needless hierarchy, simplify decoration toward maximum clarity with minimum elements.
 - **normalize.** Align to the design system: replace raw values (hex, pixel sizes) with token references, resolve inconsistencies between similar elements, apply the project's spacing scale, type scale, and color roles.
 - **bolder.** Amplify a design that is too safe: increase contrast, widen the scale between heading levels, commit harder to the chosen direction, replace generic choices with distinctive ones. Within the taxonomy, never by adding a prohibited default.
 - **quieter.** Tone down a design that is too loud: reduce saturation, tighten the scale range, add whitespace, simplify decoration, remove motion that does not serve function.
@@ -105,7 +105,7 @@ Walk each dimension, recording pass, a finding, or not applicable to this medium
 | Interface copy | Buttons name a verb and its object; errors answer what happened, why, and what to do next, without blaming the reader; empty states name the value of filling them and offer the action; one term per concept throughout; link text stands alone and alternative text carries the information rather than naming the object |
 | Signature | One element carries the design, and nothing competes with it |
 
-Check the Common AI Design Failures (Reference) alongside. Report as a table of dimension, status, the specific issue, and the specific fix, grouped by severity. Close with the summary verdict: ship-ready when nothing blocking or major stands, needs work with its top three named, or significant revision when blocking findings span dimensions or major findings span three or more.
+Check the Common AI Design Failures (Reference) alongside. Report as a table of dimension, status, the specific issue, and the specific fix, grouped by severity. Close with the summary verdict: ship-ready when nothing blocking or major stands, needs work with its top three named when blocking findings sit in one dimension or major findings span fewer than three, or significant revision when blocking findings sit in two or more dimensions or major findings span three or more.
 
 ## Verdict: the Review
 
@@ -219,7 +219,7 @@ Check these during an Audit; they are the most frequent quality failures in AI-g
 - **Partial artifact.** The design is incomplete (no responsive version, missing states, placeholder content): evaluate what exists and flag what is missing as a finding. Never refuse to evaluate incomplete work.
 - **Degraded brand context.** The `design` key is unbound, or counted unavailable by the constitution's Workspace Model: say so, and judge against universal design principles rather than inventing brand specifics.
 - **Taste dressed as a criterion.** A finding that names no criterion, no prohibited default, and no conflict with the brief is a preference. Drop it per Commitment 5.
-- **An audit that passed on work that still fails.** Every dimension clears and the design still does not land: that is a Review, not a longer audit. Say so and switch rather than inventing dimensions.
+- **An audit that passed on work that still fails.** Every dimension clears and the requester says the design still does not land: that is a Review, not a longer audit. Say so and switch rather than inventing dimensions. Do not switch because you would have designed it differently.
 - **A medium outside the competence list.** Named in Context: say the judgment does not extend there, judge only the part that is in scope, and do not reason across from screens. A generated clip is judged by its still frame and says so.
 
 ## Success

@@ -270,6 +270,7 @@ for (let i = 0; i < rest.length; i++) {
   else flags.set(word, [existing, value]);
 }
 
+const install = flags.has('--install');
 
 function flag(name) {
   const value = flags.get(name);
@@ -843,8 +844,8 @@ async function ensureChromium() {
 // "this tool is not installed yet", nor name a registry fetch and an npm cache
 // write that this install will not make.
 function requireInstallConsent(what) {
-  if (installAuthorised(HERE)) {
-    writeConsent(HERE, 'Browser Control');
+  if (installAuthorised(HERE, install)) {
+    writeConsent(HERE, 'Browser Control', install);
     return;
   }
   if (what === 'browser') {

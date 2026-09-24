@@ -3,7 +3,7 @@ name: Transcribe Audio
 type: tool
 category: media
 description: Turns one audio file into a text transcript with a speech model that runs on this machine
-version: 0.2.2
+version: 0.2.5
 gaps:
   - Speaker labeling, which would say which speaker said each turn
 ---
@@ -100,11 +100,13 @@ Model choice trades time for accuracy, and the weights are downloaded once per m
 
 | Model | Weights | Choose it when |
 |-------|---------|----------------|
-| `tiny` | Smallest, fastest | The audio is clean and only the gist is needed |
+| `tiny` | Smallest, fastest | Only the gist is needed |
 | `base` | Small | The default; ordinary speech, ordinary stakes |
-| `small` | Larger | Accents, crosstalk, or domain vocabulary start costing accuracy |
+| `small` | Larger | Accents, crosstalk, or domain vocabulary |
 | `medium` | Large | The transcript will be quoted or acted on |
 | `large` | Largest, slowest | Accuracy outranks time, or the audio is genuinely hard |
+
+When the request states more than one of these, pass the first match in the order `large`, then `medium`, then `small`, then `tiny`, from what the request states rather than by listening. A `--model` name outside that list: ask, and do not substitute `base`.
 
 ## Script Contract
 

@@ -8,14 +8,18 @@
  *   pluginRoot(fromFile) -> string | null
  *     Walk up from the script to the nearest directory that contains
  *     tools/AGENTS.md, and return that directory's realpath.
- *   flagAuthorised() -> boolean
- *     True when this run carries --install or WISER_ALLOW_INSTALL=1.
- *   installAuthorised(fromFile) -> boolean
- *     True when flagAuthorised(), or when .wiser-consent at the plugin root
+ *   parsedInstallFlag(argv, valueFlags) -> boolean
+ *     True when argv carries a bare --install that is not the value of a flag
+ *     in valueFlags. Does not read process.argv.
+ *   flagAuthorised(install) -> boolean
+ *     True when the tool's parsed install flag is true, or WISER_ALLOW_INSTALL=1.
+ *     Does not read process.argv. A value whose text is --install is not consent.
+ *   installAuthorised(fromFile, install) -> boolean
+ *     True when flagAuthorised(install), or when .wiser-consent at the plugin root
  *     records a realpath equal to the current plugin root. A missing, unreadable,
  *     or mismatched marker is not consent. help never calls this.
- *   writeConsent(fromFile, tool) -> void
- *     When flagAuthorised(), write .wiser-consent at the plugin root: one JSON
+ *   writeConsent(fromFile, tool, install) -> void
+ *     When flagAuthorised(install), write .wiser-consent at the plugin root: one JSON
  *     object with realpath, date (YYYY-MM-DD), and the tool that wrote it, mode
  *     0600. A mismatched marker is overwritten. Called at the moment an authorised
  *     install runs, so a survey check without --install never reaches it.
@@ -42,12 +46,38 @@ export function pluginRoot(fromFile) {
   }
 }
 
-export function flagAuthorised() {
-  return process.argv.includes('--install') || process.env.WISER_ALLOW_INSTALL === '1';
+/**
+ * A bare `--install` in `argv`, ignoring tokens that belong to `valueFlags`.
+ * The next word after a value flag is its value, including a value spelled
+ * `--install`. This does not read `process.argv`.
+ * @param {readonly string[]} argv
+ * @param {ReadonlySet<string>} [valueFlags]
+ * @returns {boolean}
+ */
+export function parsedInstallFlag(argv, valueFlags) {
+  const flags = valueFlags || new Set();
+  const values = new Set();
+  for (let index = 0; index < argv.length; index += 1) {
+    if (values.has(index)) continue;
+    if (flags.has(argv[index])) values.add(index + 1);
+  }
+  for (let index = 0; index < argv.length; index += 1) {
+    if (values.has(index)) continue;
+    if (argv[index] === '--install') return true;
+  }
+  return false;
 }
 
-export function installAuthorised(fromFile) {
-  if (flagAuthorised()) return true;
+/**
+ * @param {boolean} install the tool's parsed bare `--install`, never an argv scan
+ * @returns {boolean}
+ */
+export function flagAuthorised(install) {
+  return install === true || process.env.WISER_ALLOW_INSTALL === '1';
+}
+
+export function installAuthorised(fromFile, install) {
+  if (flagAuthorised(install)) return true;
   const root = pluginRoot(fromFile);
   if (!root) return false;
   try {
@@ -58,8 +88,8 @@ export function installAuthorised(fromFile) {
   }
 }
 
-export function writeConsent(fromFile, tool) {
-  if (!flagAuthorised()) return;
+export function writeConsent(fromFile, tool, install) {
+  if (!flagAuthorised(install)) return;
   const root = pluginRoot(fromFile);
   if (!root) return;
   const now = new Date();

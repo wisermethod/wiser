@@ -3,7 +3,7 @@ name: SEO Assets
 type: skill
 category: seo
 description: Produce the ready-to-use artifacts a site's decided search changes need, each built from evidence pulled for it, held to its own standards, and written into an envelope's site/ kit tree or handed over for someone else to deploy
-version: 0.12.1
+version: 0.12.5
 memory:
   - voice
   - about
@@ -51,13 +51,13 @@ Someone who ships the artifact rather than the argument for it. On a kit site th
 
 The constraints under each, where losing one costs something on a live site:
 
-**Head elements.** A title is written to be read in a result list, not to hold a keyword: the term appears once, early where the sentence allows it, never forced. Around sixty characters for a title, and a hundred and twenty to a hundred and sixty for a description, are display conventions rather than published limits, so the count travels beside every element and a crossing is a decision stated rather than an error. Each is unique against the rest of the site, and each description ends in something specific to do. A page whose current element is already strong comes back unchanged and said to be so.
+**Head elements.** A title is written to be read in a result list, not to hold a keyword: the term appears once, early where the sentence allows it, never forced. Around sixty characters for a title, and a hundred and twenty to a hundred and sixty for a description, are display conventions rather than published limits, so the count travels beside every element and a crossing is a decision stated rather than an error. Each is unique against the rest of the site, and each description ends in something specific to do. A page whose current element already meets every one of those requirements comes back unchanged and said to be so. Where it fails a requirement, rewrite the one it fails.
 
 **Structured data.** A type the page is not, a rating no visible review supports, or a property filled in to qualify for a richer result is a penalty rather than an optimization. Hand every block over with the search platform's own validator named as the next step, because eligibility is that platform's answer and never this skill's.
 
 **Answer-engine surface.** List only canonical, indexable pages, each with the one thing it covers; a staging address, a redirect, or a line reading "our blog" makes the file worse than absent. The description block is what a generated answer will repeat, so it states what the thing is before it says anything persuasive. Crawler directives are written as a decision the requester made about each crawler, never as a default copied from another site.
 
-**Redirect map.** Permanent unless the requester names a reason for a temporary one. The old address is the exact path served, and the target is the closest live equivalent: a blanket redirect to the homepage turns every inbound link into nothing. Chains are collapsed to their endpoint and loops are named. An address with no equivalent is listed with none and said to have none.
+**Redirect map.** Permanent unless the requester names a reason for a temporary one. The old address is the exact path served, and the target is the one live page that covers what the old address covered: a blanket redirect to the homepage turns every inbound link into nothing. Chains are collapsed to their endpoint and loops are named. An address with no equivalent is listed with none and said to have none.
 
 **Content brief.** Settle the intent before writing the brief; one written over an ambiguous query produces a page that satisfies neither reading. Format and length are calibrated from the pages actually ranking for the query, never from a word-count rule; where no source in Evidence returns them, that reading is taken by hand and carries `Estimated: manual review`. Separate what every ranking page covers from what none of them does, since the second is the only reason the new page wins.
 
@@ -96,13 +96,13 @@ What each hand-off needs to be right:
 
 Name the one site, the artifacts wanted, and where their order came from. Two requests stop here rather than proceeding.
 
-One names an artifact but not what it should fix, "write me some meta descriptions": which pages carry the problem, and why those, is what `experts/Webmaster/` answers, and the run resumes with its findings. An artifact whose scope its own evidence settles proceeds without one, an `llms.txt` over the pages the site publishes as canonical or a tracker report between two snapshots being the ordinary cases.
+One names an artifact but not what it should fix, "write me some meta descriptions": which pages carry the problem, and why those, is what `experts/Webmaster/` answers, and the run resumes with its findings. An artifact whose scope its own evidence settles proceeds without one, an `llms.txt` over the pages the site publishes as canonical or a tracker report between two snapshots being the ordinary cases, and so does another artifact whose row is filled by a reading the run takes, with no page chosen and no order chosen.
 
 The other names more than one site to produce artifacts for, which is two runs. A competitor named as the thing this site is measured against is evidence rather than a second subject, and stays in one run.
 
-Where a plan file for this site already exists, read it before anything else: the run continues from its first entry that is not live rather than starting the set over, and a request for a fresh set supersedes that file, which is archived per `standards/conventions.md` rather than edited past. A request naming one artifact is served on its own and recorded against that file's entry where it implements one.
+Where a plan file for this site already exists, take the first match and not a later one. A request for a fresh set supersedes that file, which is archived per `standards/conventions.md` rather than edited past. A request naming one artifact is served on its own and recorded against that file's entry where it implements one, and not given a new entry where it implements none. Otherwise read the file before anything else: the run continues from its first entry that is not live rather than starting the set over.
 
-Then settle four things before any evidence is pulled, because each decides what can be produced at all: whether the envelope has `site/kit.json`, which permits a kit write, only domain-folder `kit.json`, which requires Site Author Wrap before that write, or neither, which means foreign paste-ready files; whether anyone can change the site's code, since an artifact nobody can deploy is worth saying out loud before it is written rather than after; what the site runs on, since a redirect map and a set of head elements are implemented differently on a server, at the edge, and inside a content platform; and which login reaches the property, per Inputs.
+Then settle four things before any evidence is pulled, because each decides what can be produced at all: whether the envelope has `site/kit.json`, which permits a kit write, only domain-folder `kit.json`, which requires Site Author Wrap before that write, or neither, which means foreign paste-ready files; whether anyone can change the site's code, since an artifact nobody can deploy is worth saying out loud before it is written rather than after, and is still written; what the site runs on, since a redirect map and a set of head elements are implemented differently on a server, at the edge, and inside a content platform; and which login reaches the property, per Inputs.
 
 ### Step 2: Pull the evidence once
 
@@ -116,7 +116,7 @@ An artifact whose central reading is missing is a different case: say which arti
 
 Build each to its row in The Artifacts and the constraint under it. Three rules cut across all of them.
 
-A value the evidence did not supply is asked for or left out and named as missing, never filled, per the evidence labels in `standards/conventions.md`: a placeholder that survives into a delivered artifact is published as though someone meant it.
+A value the evidence did not supply is asked of the requester, and their answer is used; only where they decline or do not answer is it left out and named as missing, never filled, per the evidence labels in `standards/conventions.md`: a placeholder that survives into a delivered artifact is published as though someone meant it.
 
 Every count, change list, and total in an artifact is computed, never estimated. Character counts are counted, the difference between two sitemap snapshots comes from the tool that computes it, and a figure carried from a reading names the reading.
 
@@ -124,11 +124,11 @@ Copy that a visitor will read follows `voice` resolved through Inputs' overlay w
 
 ### Step 4: Hand it over
 
-Before the hand-over, the gate: hand each finished artifact, the finding it was built to close, which stands as the goal, or its row in the artifacts table where its own evidence settled the scope, and the evidence it rests on, never the reasoning that produced it, to `experts/Webmaster/` in a second context. It returns a verdict per artifact, pass or return with what fails; a returned artifact goes back to Step 3; a declined review is named in the hand-over.
+Before the hand-over, the gate: hand each finished artifact, the finding it was built to close, which stands as the goal, or its row in the artifacts table where its own evidence settled the scope, and the evidence it rests on, never the reasoning that produced it, to `experts/Webmaster/` in a second context. It returns a verdict per artifact, pass or return with what fails; a returned artifact goes back to Step 3; a declined review is named in the hand-over. Neither a verdict nor a decline, and it is not handed over as ready.
 
 For deployable artifacts in a current envelope (`site/kit.json` exists), write into that tree: frontmatter on files under `site/src/content/`, `site/public/llms.txt` for the answer-engine surface, and do not duplicate layout-owned slots (canonical, Open Graph, JSON-LD the kit already emits) as parallel files. Plans belong beside `site/`, registered in envelope `builds.md`, with multi-session plans following `standards/playbook.md`. Briefs, reports, snapshots, and other artifacts without a deployed-path mapping go into the owning root's `work/<subject>/`, never the host payload. An old shape with only domain-folder `kit.json` must be wrapped by Site Author before a kit write; do not silently write at the old paths. Where the site is foreign (neither marker), write paste-ready files into the owning root's work directory under a subject folder for the site, per `standards/conventions.md`, never into that site. Never into this plugin root. An artifact that replaces an earlier one is archived first, by the same standard, which is what makes the status snapshot's comparison possible next period.
 
-For a custom `site/public/llms.txt`, inspect the kit's generated `/llms.txt` route and verify the built or served response matches the intended artifact before declaring it ready. A route collision or a response still generated from the old content returns that artifact for code integration outside this skill; report the unverified surface and leave the kit route unchanged. A file write alone does not prove the custom text will be served.
+For a custom `site/public/llms.txt`, inspect the kit's generated `/llms.txt` route and verify the built or served response matches the intended artifact before declaring it ready. A route collision or a response still generated from the old content returns that artifact for code integration outside this skill. Where you cannot fetch a built or served response, do not declare it ready. In either case, report the unverified surface and leave the kit route unchanged. A file write alone does not prove the custom text will be served.
 
 Then say, for each: what it is, which finding it implements, where on the site it goes, what has to be true before it goes there, and how to confirm it landed. Where a platform publishes its own validator for that artifact, name it as the check rather than asserting the artifact passes.
 

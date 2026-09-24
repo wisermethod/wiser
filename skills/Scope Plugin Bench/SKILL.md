@@ -3,7 +3,7 @@ name: Scope Plugin Bench
 type: skill
 category: system
 description: Decide what experts, skills, tools and connectors a named domain plugin should hold in its first slice, and hand Playbook Author the source material to plan it
-version: 0.1.0
+version: 0.1.3
 ---
 
 # Scope Plugin Bench
@@ -43,7 +43,7 @@ A refusal writes nothing: no primitive, no Playbook, no tree, no file inside the
 
 ## Three input states
 
-Decide the state before any research runs. One request, one state.
+State (c) is decided from the ask alone, before any research runs. States (a) and (b) wait until step 2's inventory tells them apart. One request, one state.
 
 | State | Evidence | Route |
 |-------|----------|-------|
@@ -57,7 +57,7 @@ Ambiguous which plugin, or more than one composed plugin root fits: ask once, wr
 
 ## Objective
 
-A hand-off package `skills/Playbook Author/` Create can take without this skill staying in the room: the owning root, the Type, the Key files, one first slice across all four families, named deferrals, and at least one `wiser` primitive to reference rather than duplicate. The yield is a proposal a person decides on, not a verdict; where judgment is genuinely open, say so and give the reader what they need to settle it rather than forcing a false precision. Verified by Success. No primitive authored, no Playbook written, no tree produced.
+A hand-off package `skills/Playbook Author/` Create can take without this skill staying in the room: the owning root, the Type, the Key files, one first slice across all four families, named deferrals, and the `wiser` primitives the slice would duplicate, each named, or the statement that it references none. The yield is a proposal a person decides on, not a verdict; where judgment is genuinely open, say so and give the reader what they need to settle it rather than forcing a false precision. Verified by Success. No primitive authored, no Playbook written, no tree produced.
 
 ## Inputs
 
@@ -104,9 +104,9 @@ Then classify the request against Three input states. State (c) ends the run at 
 
 Direct `skills/Internal Research/` by name. Hand it `<scan_request>` whose topic is the domain the plugin's constitution says it is for, and whose scope is named rather than left open: the plugin being scoped, `wiser`, and any composed user root. Take the inventory it returns.
 
-A composed workspace can hold directories whose paths may not appear in anything this skill yields. Where a returned card is one of those, **say that hits were found and omitted because they cannot be named in this package, and carry the finding without the path.** Do not copy the path, and do not silently drop the card as though the inventory found nothing there.
+A composed workspace can hold directories whose paths may not appear in anything this skill yields. Where a returned card's path names a build-workspace directory, or you cannot tell, say that hits were found and omitted because they cannot be named in this package, and carry the finding without the path. Do not copy the path, and do not silently drop the card as though the inventory found nothing there.
 
-This skill does not scan. An empty result is a finding, not a reason to skip the step: state (b) is proved here, not assumed. Coverage enough to propose a first slice under the failing-lens test is this skill's judgment.
+This skill does not scan. An empty result is a finding, not a reason to skip the step: state (b) is proved here, not assumed. Coverage is enough for a first slice only when the material the inventory found, read where it sits, supports a failure this domain's work meets and a lens that would catch it; a reading you cannot tell about is not enough.
 
 Handed `<source_material>` is read as material and does not replace this step.
 
@@ -130,14 +130,14 @@ Require all of the following, or the proposal is not done:
 
 - **One first slice**, not the full bench: the set that lets one lens catch its failure end to end, judged by the failing-lens test. **Size is an outcome of that test, never the target.** Do not argue a slice down below what the demonstration needs in order to make it look minimal.
 - **Named deferrals.** Every candidate considered and not in the slice is named, with its family and the condition that would bring it forward. An unnamed remainder is not a deferral.
-- **The failing-lens test**, above, stated against each proposed expert. An expert with no failure of its own is dropped or deferred, not kept for completeness, and **never invented so that a slice has a lens in it**. A first slice whose useful primitive is a skill, with no new expert, is a finished proposal.
-- **The `wiser` primitives the slice references** rather than duplicates, where it references any. Name them. Copying one is refused. A slice that genuinely references none says so.
+- **The failing-lens test**, above, stated against each proposed expert. An expert with no failure of its own is deferred when research or the requester named it, the condition being a failure of its own, and dropped, not deferred, when it was added so the slice would have a lens; never invented so that a slice has a lens in it. One with a failure of its own stays a candidate, including when it resembles something that already exists, and goes to Job 2: in the slice when the demonstration needs it, otherwise deferred until it does. A first slice whose useful primitive is a skill, with no new expert, is a finished proposal.
+- **The `wiser` primitives the slice references** rather than duplicates, where it references any. Name them. Copying one is refused. A slice that genuinely references none says so. Where you cannot tell, the proposal is not done.
 - **A slice may be empty.** Where Job 2 routes every candidate to `wiser` or to the user's own root, or research finds no failure a new lens would catch, the finished answer is that this plugin needs nothing yet, with the homes the verdicts named and the deferrals. That is a result, not a failure to produce one.
 
 Show structure, not a filled catalog:
 
 - First slice. Expert: name, and the failure its lens catches that nothing else on the bench catches. Skills it would own. Tools it would call, or none. Connectors it would reach, or none with why.
-- Referenced `wiser` primitives: at least one, named.
+- Referenced `wiser` primitives: each one the slice would duplicate, named, or the statement that the inventory showed none.
 - Deferred: name, family, condition that brings it forward.
 
 Do not author any of these. Names in a proposal are candidates, not directories.
@@ -153,6 +153,7 @@ Adjust the proposal from the home the verdict named:
 - The domain plugin: it remains a candidate, at the type the verdict returned, which may not be the type it was proposed as.
 - `wiser`, or the user's own root: remove it from this plugin's bench and name the home the verdict named.
 - Already covered by an existing primitive: it becomes a reference, not a new primitive.
+- The verdict names some other home: do not invent a place for it. That candidate does not enter the hand-off. Say what the verdict returned.
 
 **A candidate Job 2 has not judged does not enter the hand-off, and a run that could not reach Job 2 does not assemble one.** Dropping the unjudged names and shipping the rest produces a package that looks finished and was never judged.
 
@@ -215,7 +216,7 @@ State (c) does not produce this package from a research run. It produces the ref
 - **Connectors omitted in silence.** Address the family. None is an answer only when it is written.
 - **A named primitive treated as a bench.** State (c) refuses. Opening research on "add this expert" is the defect.
 - **A bench invented with no inventory and no research.** State (b) directs `skills/Deep Research/`. If that skill cannot run, stop honestly. Do not fill the hole from memory of the domain.
-- **A `wiser` primitive copied.** Name it as a reference. If the proposal cannot name one, it is not done.
+- **A `wiser` primitive copied.** Name it as a reference. Where you cannot tell whether the slice references one, the proposal is not done; where it references none, say so.
 - **Create run from here.** Assembling the package is the yield. Writing the Playbook is Create's, in a later turn.
 - **Constitution-level questions answered here.** What kind of root the target is, and whether this plugin should exist: Job 1 or the producer that Job 1 sequences, never this skill.
 - **The tree producer's steps restated in the proposal.** A hand-off that explains how a plugin root is created or adopted has answered a question nobody asked and duplicates `skills/Onboard Plugin Root/`. Name that skill where the tree is the subject, and say nothing about how it works.

@@ -3,7 +3,7 @@ name: Content Harvester
 type: tool
 category: research
 description: Turns one harvest request into a timeboxed, deduplicated, ranked bundle of source candidates with a record of what was rejected and what failed
-version: 0.1.2
+version: 0.1.4
 ---
 
 # Content Harvester
@@ -14,7 +14,7 @@ One run turns a harvest request into a bundle of source candidates: collected fr
 
 Use it when a piece of work needs a repeatable sweep of named sources over a window: a roundup, a market scan, a competitor watch, a research queue. It is subject-agnostic and holds no opinion about any topic; the request supplies the vocabulary, the sources, and the standards.
 
-Do not use it to decide anything. It does not verify a claim, rank truth, summarize a body of work, or write a deliverable, and its scores rank likely relevance only. Whatever verifies claims in this workflow runs after it, on the candidates a person or a skill selected from the list. Do not reach for it to read one known page either; fetching a single URL you already have is not worth a request file.
+Do not use it to decide anything. It does not verify a claim, rank truth, summarize a body of work, or write a deliverable, and its scores rank likely relevance only. Whatever verifies claims in this workflow runs after it, on the candidates a person or a skill selected from the list. Do not reach for it to read one known page either; fetching a single URL you already have is not worth a request file. When you cannot tell whether the work is one known page or a sweep of sources over a window, ask, and do not write a request while asking.
 
 It authenticates to nothing and reaches no other primitive. Material behind a login reaches it only through the handoff below, and it fetches nothing inside the machine or its network.
 
@@ -123,8 +123,8 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 | `Refused the redirect from <url> to <url>` in `errors` | A source answered with a redirect toward a blocked destination | The hop was refused and never sent, and that item failed. A public source redirecting inward is worth distrusting; drop it |
 | `did not run: the host does not resolve` in `errors` | The source's hostname returned no address | Check the hostname. A name that resolves only inside a private network is not a source for this tool |
 | `redirected more than 5 times without reaching a page` in `errors` | A redirect loop, or a chain longer than this tool follows | Name the address the chain settles on as the source, or drop it |
-| `Request to <url> returned HTTP <status>` in `errors` | That source answered with an error | 404 means the address moved. 401 or 403 means it needs authentication, which this tool does not do: fetch it through the connector for that platform and hand it in as `manual_urls` |
-| `got no response within <n>ms` in `errors` | The source timed out or refused the connection | Raise `timeout_ms` in the request, or drop the source |
+| `Request to <url> returned HTTP <status>` in `errors` | That source answered with an error | 404 means the address moved: name the address it settled on, or drop the source. 401 or 403 means it needs authentication, which this tool does not do: fetch it through the connector for that platform and hand it in as `manual_urls`. When the caller does not, leave the entry in `errors`. Any other status: leave the entry in `errors`, do not treat the bundle as covering that source, and do not invent a retry |
+| `got no response within <n>ms` in `errors` | The source timed out or refused the connection | When the caller said this source still belongs in the sweep, raise `timeout_ms` in the request and run again. When they said it does not, drop the source. When they have not said, ask once, and do not raise the timeout or drop the source until they answer |
 | `unsupported_adapter_type` in `rejected` | The request named a `type` this tool does not collect | Use one from `REQUEST_SCHEMA.md` |
 | Fewer candidates than expected | Timebox, filters, or deduplication | Read `harvest-summary.md`, which counts rejections by reason |
 

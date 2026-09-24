@@ -12,7 +12,7 @@ Review expert: `experts/Ghost Writer/`. This root carries no news-desk reviewer,
 
 ## Format rules
 
-- **One subject.** A fact sheet about three products is three sheets, or a comparison table with a reason.
+- **One subject.** How many subjects does the brief name? One: one sheet. More than one, and the brief gives a reason to compare them: one comparison table, and that reason is stated on the sheet. More than one, and no comparison reason: one sheet per subject. Do not braid them into one narrative.
 - **Labeled claims.** Each line is a field a journalist can lift: founded, headquarters, what it does, scale, the number with its date, the named customer, the next milestone. A sentence of vision is not a field.
 - **Sources on the sheet.** A figure, a ranking, or a person-fact carries its source and date on the same line, per `standards/conventions.md`. A sheet that sends the reader hunting has failed.
 - **What it is not.** No lede, no quote block, no call to action. Those belong to the release or the pitch.
@@ -21,7 +21,7 @@ Review expert: `experts/Ghost Writer/`. This root carries no news-desk reviewer,
 ## Failure modes
 
 - **Brochure.** Adjectives, benefits, and "leading provider" lines where a field should be. Test: can a reporter paste a line into a story without rewriting out the marketing? If not, it is not a fact.
-- **Undated scale.** Users, revenue, countries, employees, with no when. Cut or date.
+- **Undated scale.** Users, revenue, countries, employees, with no when. Does the source state an as-of date? Yes: put it on the line. No, and the brief needs the figure: mark the evidence label the format check names. Do not invent a date. No, and the brief does not need the figure: cut it.
 - **Buried news.** The one new fact sitting in paragraph four of a narrative. Put it in a labeled field at the top, or this is the wrong format.
 
 ## Format checks

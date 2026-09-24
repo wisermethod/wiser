@@ -192,8 +192,9 @@ function installPlan() {
 // "this tool is not installed yet", nor name a registry fetch and an npm cache
 // write that this install will not make.
 function requireInstallConsent(what) {
-  if (installAuthorised(HERE)) {
-    writeConsent(HERE, 'sitemap');
+  const install = parsedArgs.install === true;
+  if (installAuthorised(HERE, install)) {
+    writeConsent(HERE, 'sitemap', install);
     return;
   }
   if (what === 'browser') {
@@ -337,7 +338,7 @@ export async function runFetch(argv) {
 }
 
 function parseArgs(rest) {
-  const args = { urls: [], files: [], domain: null, max: DEFAULT_MAX_URLS, date: null, output: null };
+  const args = { urls: [], files: [], domain: null, max: DEFAULT_MAX_URLS, date: null, output: null, install: false };
   const seenSingletons = new Set();
 
   for (let index = 0; index < rest.length; index++) {
@@ -360,14 +361,15 @@ function parseArgs(rest) {
       fail(`Error: unknown option "${flag}". Run "node scripts/sitemap.js fetch help" for usage.`);
     }
 
-    // `--install` is a bare flag: the entry script reads it from raw process.argv
-    // above, so here it neither takes a value nor consumes the next word. Round 5
+    // `--install` is a bare flag. It neither takes a value nor consumes the next
+    // word, and the boolean it sets is what consent receives. Round 5
     // found it named in the allowlist above with no branch here, so it fell into
     // the value-taking refusal below; round 6 found the branch written with an
     // `index++` that the `for` already performs, which skipped whatever followed
     // the flag. `continue` alone is the whole of it: the loop's own increment
     // moves to the next word, and the next word is not this flag's value.
     if (flag === '--install') {
+      args.install = true;
       continue;
     }
 

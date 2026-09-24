@@ -3,7 +3,7 @@ name: Media Generator
 type: skill
 category: media
 description: Produce an image or a video that does not exist yet, or a photograph with its background removed, by finishing the prompt, choosing the model, and running the billed generation through a generation connector to a file the user named.
-version: 0.11.0
+version: 0.11.4
 gaps:
   - judgment of a generated clip's motion, which no expert in this root carries; the clip is judged by its still frame
 ---
@@ -80,19 +80,19 @@ Platform calls use the gateway's `execute` tool with `replicate.models.*`. Under
    | Nothing amateur and nothing generic | Elementary or clip-art aesthetics only where children's content was asked for; specificity is what keeps the rest off the stock-photo average |
    | No uncanny hallmarks | Ask for natural proportion, coherent geometry, and real materials, which is what keeps faces, hands, and reflections out of the melted register these models fall into |
 
-3. **Choose the model and the frame.** Call `replicate.models.list_collections` with `{}` (`confirmation: none`) and choose for the category you need, image, video, or background removal. Where it names none suitable, search the platform's public collections. Say in the delivery which model you chose and why; the connector infers no model or version.
+3. **Choose the model and the frame.** Call `replicate.models.list_collections` with `{}` (`confirmation: none`) and choose for the category you need, image, video, or background removal, using a model the user named when the list or its public page carries it. Where it names none suitable, search the platform's public collections. Where none still pass, stop and tell the user rather than inventing a model. Say in the delivery which model you chose and why, including a difference the brief settles such as price, speed or visual suitability; the connector infers no model or version.
 
    Read the chosen model's input schema from its public model page before composing anything; there is no schema-read action. Models differ on what they accept and what they name it: aspect ratio, duration, audio, a first-frame or reference image, a negative prompt, a seed. Never promise a property the schema does not carry, and never copy an input block from another model's example.
 
    Address the run through `replicate.models.create_prediction`'s `version` field, using the chosen version from the platform's public model page. Supply its matching `input` object; the connector never infers either.
 
-   Frame last, where a frame is being composed: models take named ratios and users state pixels, so pick the closest ratio the schema lists, tell the user the pixel size that ratio actually delivers, and send exact dimensions to `tools/image/` `edit` afterward rather than hunting for a model that outputs them natively.
+   Frame last, where a frame is being composed: where `<style_requirements>` states no aspect ratio and no pixel dimensions, do not pick a ratio; otherwise models take named ratios and users state pixels, so pick the closest ratio the schema lists, tell the user the pixel size that ratio actually delivers, and send exact dimensions to `tools/image/` `edit` afterward rather than hunting for a model that outputs them natively.
 
-4. **Run the generation.** Say what the run will cost, in shape if not to the cent, before the first call, and say when a request means several calls. Call `replicate.models.create_prediction` with `{ version, input }`. Its gateway confirmation is `always`: on `needs_confirmation`, wait for the person to say yes, then repeat the action with `confirm: true`. Every run stops, not only the first of a session. Spend disclosure accompanies that gateway confirmation.
+4. **Run the generation.** Say what the run will cost, in shape if not to the cent, before the first call, and say how many billed calls the request requires: one for an image, a photograph, or a still to animate, and for video one per segment, plus one still first when the video is from text alone. Call `replicate.models.create_prediction` with `{ version, input }`. Its gateway confirmation is `always`: on `needs_confirmation`, wait for the person to say yes, then repeat the action with `confirm: true`. Every run stops, not only the first of a session. Spend disclosure accompanies that gateway confirmation.
 
    `create_prediction` returns the catalog prediction object with an id. Keep it in the work record, then call `replicate.models.get_prediction` with `{ prediction_id }` (`confirmation: none`) for status and output URLs. A slow prediction is resumed later on that same id, never submitted again to collect its result. Retrieve a finished prediction's outputs promptly; never leave one unretrieved.
 
-   A still handed to an image-to-video model has to be reachable by the platform: in an inline form supported by the chosen model's documented input contract, or at an address the platform can fetch. The connector states no inline size ceiling; do not invent one. A larger local file with no address does not go as it is, so say that and put the two ways forward to the user, a smaller rendition made by `tools/image/` `edit` or an address the platform can reach. Never fall back to text-to-video without saying so; the still was the point.
+   A still handed to an image-to-video model has to be reachable by the platform: in an inline form supported by the chosen model's documented input contract, or at an address the platform can fetch. The connector states no inline size ceiling; do not invent one. A larger local file with no address does not go as it is, so say that and put the two ways forward to the user, a smaller rendition made by `tools/image/` `edit` or an address the platform can reach. Generate from text only when they choose text-to-video: say that the still was the point, say that this is a fallback, and only then generate from text. If they do not answer, do not fall back and do not bill.
 
    Video from text alone is two runs and better for it: generate the still first, judge it against the brief, then animate the one that earned it. A clip longer than a single model run is several runs joined by `tools/video-edit/`, never one longer prompt. And a motion prompt describes motion: name the camera move and name what the subject does, and where the movement should barely register, say it in those words, because these models exaggerate anything left vague.
 

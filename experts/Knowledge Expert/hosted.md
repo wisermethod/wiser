@@ -35,7 +35,7 @@ Knowledge Curation, asked to upgrade to hosted: same stop.
 
 Knowledge Recall, pointed at a hosted set: same stop.
 
-Knowledge Expert Job 1, asked to recommend Enterprise: may recommend it as the future path and must say it cannot be built in this plugin yet.
+Knowledge Expert Job 1, asked to recommend Enterprise: recommend it only as the future path, name this stub, and say it cannot be built in this plugin yet. Do not recommend it as a path that can run.
 
 ## Grant
 

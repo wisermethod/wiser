@@ -3,7 +3,7 @@ name: site-crawl
 type: tool
 category: seo
 description: One JSON inventory of the URLs a bounded polite crawl can reach from one start URL
-version: 0.1.0
+version: 0.1.2
 ---
 
 # site-crawl
@@ -16,7 +16,7 @@ Use it when the question is what a crawler can reach from one start URL: to inve
 
 Do not use it to decide whether a page should exist, whether it ranks, or whether it is indexed. Do not use it as a search-engine crawl: it does not execute JavaScript, does not fill forms, and never submits or mutates anything. A site that builds itself in the browser defeats it; the tell is an HTML page that carries no `a href` at all, listed under `renderingSuspected`. A PDF is inventoried unread: status, content type, and length, with `pdf: true`, and its body is not parsed.
 
-`sitemap.unreached` lists addresses the sitemap named that this crawl never reached. They are orphan candidates only. A bounded crawl proves nothing beyond its bound: a URL past `--max-pages` or `--max-depth` can sit in `unreached` without being an orphan, and a JavaScript-only link will not be followed even when the bound still had room.
+`sitemap.unreached` lists addresses the sitemap named that this crawl never reached. They are orphan candidates only. A bounded crawl proves nothing beyond its bound: a URL past `--max-pages` or `--max-depth` can sit in `unreached` without being an orphan, and a JavaScript-only link will not be followed even when the bound still had room. When `stoppedByBound` is true, or `reason` is `max-pages` or `max-depth`, raise the bound and re-run before treating a URL in `unreached` as an orphan. When the page is listed under `renderingSuspected`, use a browser-driving tool for that site, and do not call the URL an orphan from this crawl. When `stoppedByBound` or `reason` is missing, do not call the URL an orphan.
 
 It is polite by default: 250 ms between requests, one host, a named user agent, and `robots.txt` `Disallow` honored for that agent and for `*`, per origin, on every request including redirect destinations. URLs discovered but not fetched because of a `Disallow` are listed under `robotsBlocked`. The screen resolves the hostname before the request and the request resolves it again, so a name that changes its answer between the two is not caught; the tool refuses what it can see and does not claim more.
 

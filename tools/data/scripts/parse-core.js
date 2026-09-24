@@ -133,7 +133,9 @@ function parseCSV(content, delimiter, hasHeader) {
     let raggedRowCount = 0;
     const rows = dataRecords.map((row) => {
       if (!Array.isArray(row) || row.length !== expectedWidth) raggedRowCount += 1;
-      const obj = {};
+      // A null prototype keeps a header named __proto__, constructor, or
+      // toString as its own column. Assignment on {} drops __proto__.
+      const obj = Object.create(null);
       // Short rows fill missing columns as null; long rows drop the extras.
       // Either way the row still contributes, and the unevenness is counted.
       for (let i = 0; i < expectedWidth; i += 1) {

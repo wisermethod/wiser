@@ -10,7 +10,7 @@ Duration range: 5 to 20 minutes. At 130 to 150 words per minute, that is 650 to 
 
 ## Register
 
-Confident but honest, specific over grand. Founder energy is earned by clarity rather than by volume. First-person density is very high; the founder is the evidence. Technical depth is modulated to audience: investor rooms want unit economics and business logic; customer rooms want outcomes; team rooms want operational truth about the next six months. The register stays consistent across audiences; the depth shifts.
+Confident but honest, specific over grand. Founder energy is earned by clarity rather than by volume. First-person density is very high; the founder is the evidence. Which room is the audience? Investor: unit economics and business logic. Customer: outcomes. Team: operational truth about the next six months. None of those three, or more than one: ask which depth applies, and do not blend them. The register stays consistent across audiences; the depth shifts.
 
 ## Ritual beats
 
@@ -25,7 +25,7 @@ Confident but honest, specific over grand. Founder energy is earned by clarity r
 - **Product demos, when embedded**, are subordinate to story. The talk works without the demo.
 - **Numbers without context are noise.** Every metric pairs with what it replaced, what it compares against, or what it makes possible.
 - **The founder's own role** is named plainly. "I built the first version" carries more weight than "we were lucky enough to ship." Passive constructions distance the founder from the evidence.
-- **Audience shapes depth.** Investor audience: unit economics, distribution, why-now, defensibility. Customer audience: outcome for the customer, time-to-value, comparison to the current state. Team audience: operational truth, honest constraints, the shape of the next quarter.
+- **Audience shapes depth.** Which room is the audience? Investor: unit economics, distribution, why-now, defensibility. Customer: outcome for the customer, time-to-value, comparison to the current state. Team: operational truth, honest constraints, the shape of the next quarter. None of those three, or more than one: ask which depth applies, and do not blend them.
 - **Humility without self-diminishment.** Stated failures are specific. Stated wins are specific. Both are told in the same register.
 - **Vision placement.** Vision statements belong in the gift, not in the opening. Opening with vision reads as abstraction; closing with vision reads as earned.
 - **Opening line patterns** that hold: entering on the origin moment ("In 2022 I was sitting in a hospital waiting room..."), entering on the customer's voice ("Last month a user wrote us: 'I stopped dreading Mondays.'"), entering on the problem made concrete ("Forty-one percent of small clinics spend more on billing than on care."). Entering on company valuation, team size, or press coverage treats ballast as lift.

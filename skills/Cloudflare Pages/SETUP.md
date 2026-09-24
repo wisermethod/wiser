@@ -4,7 +4,7 @@ Load `connectors/cloudflare/auth.md` ([auth guide](../../connectors/cloudflare/a
 
 The gateway lists and gets projects and lists deployments. It does not create a Pages deployment. Select an existing project before preparing upload; a missing project is returned to the requester, never created by this skill.
 
-Wrangler is a human-run CLI, not a Wiser tool. After Webmaster Job 3 passes the proposed publish, the human confirms Wrangler's account, project, and publish target match the reviewed destination and uploads only the kit site folder at `sites/<domain>/site/` (or `work/<slug>/sites/<domain>/site/`). A changed source or destination returns to Job 3 before upload. Typical human sequence, with the owning root and project placeholders replaced and paths quoted:
+Wrangler is a human-run CLI, not a Wiser tool. After Webmaster Job 3 passes the proposed publish, did the human confirm that Wrangler's account, project, and publish target match the reviewed destination? Yes: they upload only the kit site folder at `sites/<domain>/site/` (or `work/<slug>/sites/<domain>/site/`). No, or they have not said: do not treat the upload as ready to run. A changed source or destination returns to Job 3 before upload. The unknown case does not upload. Typical human sequence, with the owning root and project placeholders replaced and paths quoted:
 
 ```sh
 cd "<owning-root>/sites/<domain>/site/"

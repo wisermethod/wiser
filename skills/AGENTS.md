@@ -1,6 +1,6 @@
 # Skills
 
-Capabilities a user invokes by name for their output; `standards/primitives.md` owns the type's definition, invocation rules, and frontmatter. The directory is flat, and the index below is grouped by category. Every skill here is owned by an expert whose `Owns:` line names it, or says in its own Context why it stands alone, and one carrying neither has no declared owner yet; the rule and the routing table are in `experts/AGENTS.md`. The Owner column projects that rule: each cell lists the experts whose `Owns:` line names the skill, or `Stands alone` when the skill's own Context says so. Two owners are comma-space separated, in the order the skill's file states its gates. The column is not the declaration.
+Capabilities a user invokes by name for their output; `standards/primitives.md` owns the type's definition, invocation rules, frontmatter, and the classifier seam every new typed file here, and any file whose seam changes, declares in its Context. The directory is flat, and the index below is grouped by category. Every skill here is owned by an expert whose `Owns:` line names it, or says in its own Context why it stands alone, and one carrying neither has no declared owner yet; the rule and the routing table are in `experts/AGENTS.md`. The Owner column projects that rule: each cell lists the experts whose `Owns:` line names the skill, or `Stands alone` when the skill's own Context says so. Two owners are comma-space separated, in the order the skill's file states its gates. The column is not the declaration.
 
 <!-- generated:index -->
 

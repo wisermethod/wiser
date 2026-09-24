@@ -15,7 +15,7 @@ Conversational, on the record, short enough to clip without changing meaning. Fi
 ## Ritual beats
 
 - **Open, if the format has one.** 15 to 20 seconds: the one sentence the speaker came to say.
-- **Answer, then bridge.** First sentence meets the question. Second sentence, if needed, carries the message. A third sentence is rare.
+- **Answer, then bridge.** Does the first sentence meet the question and already carry the message? Yes: stop. It meets the question and does not carry the message: the second sentence carries the message, then stop. A third sentence is rare: only when the first two cannot carry both the answer and the message, and then stop.
 - **Proof.** One named fact, number, or scene per answer. Not a stack.
 - **Stop.** Silence is how an answer ends. Filling it gives the journalist the next clip.
 

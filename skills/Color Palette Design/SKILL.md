@@ -3,7 +3,7 @@ name: Color Palette Design
 type: skill
 category: design
 description: Produce a complete OKLCH color palette with defined roles, WCAG-validated contrast, and optional dark mode, derived from brand context and delivered as CSS custom properties
-version: 0.2.2
+version: 0.2.6
 memory:
   - design
 ---
@@ -48,13 +48,13 @@ When `<existing_tokens>` carries a palette, this run extends it rather than rege
 
 **5. Surface colors.** Depth layers, each tinted toward the primary hue with the low chroma of the neutrals: a base near 99% lightness, a raised layer, an overlay carrying a shadow, and a sunken layer near 96%. These invert in dark mode, per Step 7.
 
-**6. Contrast validation.** For every foreground/background pairing that will appear, compute the ratio and mark it against WCAG AA. Convert each OKLCH color to sRGB, linearize every channel (`c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4`), sum the linearized channels for relative luminance `L = 0.2126R + 0.7152G + 0.0722B`, then `ratio = (L_lighter + 0.05) / (L_darker + 0.05)`. Check the arithmetic against a known pair before trusting a table: #767676 on #ffffff is 4.54:1, and 2.05:1 means the linearization was skipped. Present the pairings as a table with pass or fail. Any failure is fixed by moving the lighter color up or the darker color down until it passes; state the adjustment and its effect on the scale.
+**6. Contrast validation.** For every foreground/background pairing that will appear, and any pair you cannot tell will appear, compute the ratio and mark it against WCAG AA. Convert each OKLCH color to sRGB, linearize every channel (`c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4`), sum the linearized channels for relative luminance `L = 0.2126R + 0.7152G + 0.0722B`, then `ratio = (L_lighter + 0.05) / (L_darker + 0.05)`. Check the arithmetic against a known pair before trusting a table: #767676 on #ffffff is 4.54:1, and 2.05:1 means the linearization was skipped. Present the pairings as a table with pass or fail. Any failure is fixed by moving the lighter color up or the darker color down until it passes while the color stays in its role, the lighter up where both moves pass in role; when neither can pass without leaving its role, do not ship the pairing and ask. State the adjustment and its effect on the scale.
 
-**7. Dark mode, when the target needs one.** Not an inversion. Reduce chroma by 10 to 15 percent, set the base to a dark neutral (never pure black), lift primary and semantic lightness to hold contrast, and use light neutral steps for text (never pure white). Depth comes from lighter surfaces rather than shadows, since shadows vanish against a dark base. See Dark Mode Principles.
+**7. Dark mode, when the target needs one.** Not an inversion. Reduce chroma by 10 to 15 percent (10, and say so, where the brief picks no point in that span), set the base to a dark neutral (never pure black), lift primary and semantic lightness to hold contrast, and use light neutral steps for text (never pure white). Depth comes from lighter surfaces rather than shadows, since shadows vanish against a dark base. See Dark Mode Principles.
 
 **8. Output.** CSS custom properties with OKLCH values and hex fallbacks, grouped by role (primary, neutral, semantic, surface), plus a summary table of name, OKLCH, hex, and role, and the contrast table from Step 6. Keep primitive values and semantic aliases in two layers, so only the semantic layer changes between themes.
 
-For an accent or secondary color, derive it geometrically from the primary hue angle and state the relationship: 180 degrees for a complement, 120 for a triad, 150 and 210 for a split-complement.
+For an accent or secondary color the user asked for, derive it geometrically from the primary hue angle and state the relationship: 180 degrees for a complement, 120 for a triad, 150 and 210 for a split-complement, choosing among those three by the palette's purpose where they named none, and saying why.
 
 Then the gate: hand the palette with its contrast table, dark mode included, as `<design_artifact>`, the tokens it used as `<design_system>`, and a `<brief>` carrying the purpose, the audience and what matters most, to `experts/Creative Director/` for a verdict in a second context that did not produce it. It ships on that verdict with the findings worked, or on the requester's explicit decline; a declined review is named in the delivery. Dark-mode pairings from step 7 run through step 6 before the table ships.
 

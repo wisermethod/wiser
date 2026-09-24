@@ -3,7 +3,7 @@ name: Zone Publisher
 type: skill
 category: development
 description: Bring one Cloudflare zone's live DNS into a reviewable zone file, apply the intended record changes, and publish them back with every removal approved by name and every published record re-read from the platform.
-version: 0.7.0
+version: 0.7.5
 gaps:
   - Cloudflare redirect rules API (Page Rules successor / Rulesets)
 ---
@@ -55,7 +55,7 @@ Two things the file cannot say, which is why it is never the whole input:
 - **Proxy status.** Serving a record through Cloudflare is a platform attribute, not a DNS field. The connector's record list returns it per record; carry it beside the file and treat a change to it as a change to be approved like any other. Never infer it from what a record points at.
 - **Automatic TTL.** Cloudflare reports an automatic TTL as `1`, and a proxied record ignores TTL entirely. Writing `1` out as a number of seconds converts "let the platform decide" into a fixed interval and republishes it as intent. Leave an automatic TTL automatic unless the request asks for a specific one.
 
-An export that is entirely comment lines, or a tabular listing of records, is a report about a zone rather than a zone file. It parses to nothing. Publishing from one publishes nothing and, worse, reads as a zone whose every record was deleted.
+An export that is entirely comment lines, or a tabular listing of records, is a report about a zone rather than a zone file. It parses to nothing. Publishing from one publishes nothing and, worse, reads as a zone whose every record was deleted. Do not publish from it.
 
 ## Steps
 
@@ -73,7 +73,7 @@ The pulled file, its archive, and anything else this run produces sit in the own
 
 **3. Apply the change to the file.** Edit the pulled file so it states the whole intended end state, not just the delta; steps 4 and 5 read absence as removal, which only means something if the file is complete.
 
-A `<zone_file>` the requester supplied is a proposal, never the pulled state. Read it against step 2's pull first. Where the pull holds records the supplied file does not, ask which of the two it is, a deliberate removal or a file written before those records existed, and carry the answer into the file; do not let step 4 decide it by absence. Only then does the reconciled file become the intended state.
+A `<zone_file>` the requester supplied is a proposal, never the pulled state. Read it against step 2's pull first. Where the pull holds records the supplied file does not, ask which of the two it is, a deliberate removal or a file written before those records existed, per record where they split, and carry the answer into the file; do not let step 4 decide it by absence. Only then does the reconciled file become the intended state.
 
 Values that belong to a provider or to the domain rather than to DNS are asked for, never invented and never filled with a placeholder that would publish:
 
@@ -84,11 +84,11 @@ Values that belong to a provider or to the domain rather than to DNS are asked f
 | DMARC policy and reporting address | The requester, who chooses the policy; there is no safe default |
 | A provider's standing records, such as MX and SPF sets | That provider's current documentation, read at need |
 
-A guess here fails silently: mail keeps flowing while it is unsigned, a verification quietly lapses, a DMARC policy rejects mail nobody meant to reject. Ask, and if the answer is not available, leave the record out and say which one is missing.
+A guess here fails silently: mail keeps flowing while it is unsigned, a verification quietly lapses, a DMARC policy rejects mail nobody meant to reject. Ask, and if the answer is not available, leave a new record out and say which value is missing; where the pull already holds that name and type, keep the live record, say the replacement is blocked until its value is sourced, and do not publish the replacement or treat the missing value as a deletion.
 
 Where the change is a redirect, this skill owns only its DNS precondition: the name being redirected needs a record, and that record must be served through Cloudflare or nothing intercepts the request. A name with no origin to point at takes a reserved documentation address, `192.0.2.1`, which routes nowhere by design. Creating the redirect rule itself is out of scope, per Context.
 
-**4. Diff intended against live.** Three lists, built from the file against step 2's record objects, matching on type and name, and on priority as well for MX:
+**4. Diff intended against live.** Three lists, built from the file against step 2's record objects, matching on type and name, and on priority as well for MX, so an MX whose priority differs is one Remove and one Create:
 
 - **Create:** in the file, not in the zone.
 - **Change:** in both, with different content, TTL, priority, or proxy status. Name the field.
@@ -96,11 +96,11 @@ Where the change is a redirect, this skill owns only its DNS precondition: the n
 
 Compare the way the platform stores records, or the diff invents work: CNAME, NS, MX, and SRV targets differ only by a trailing dot, TXT content differs only by surrounding quotes, an automatic TTL reads as `1`, and a proxied record's TTL is not meaningful. None of those is a change.
 
-**5. Confirm before anything is written.** Put all three lists in front of the requester in one message. Removals get named individually, with what each record points at now, plus the count and the rule that selected them; a requester who approved "the changes" has not approved a deletion they never saw. Nothing is written until they answer. If the removal list is longer than the request implies, say so and stop: that is usually a sign the file is a partial state rather than a complete one.
+**5. Confirm before anything is written.** Put all three lists in front of the requester in one message. Removals get named individually, with what each record points at now, plus the count and the rule that selected them; a requester who approved "the changes" has not approved a deletion they never saw. Nothing is written until they answer. A partial approval is not written as a subset: take it back to step 3 so the file matches the accepted set, then diff and confirm again. If the removal list is longer than the request implies, say so and stop: that is usually a sign the file is a partial state rather than a complete one.
 
 Give the apex its own line in that message. Deleting or overwriting an apex `A`, `NS`, or `MX` record takes the domain or its mail down for everyone, and it is the removal most likely to arrive by accident.
 
-Before anything would be written, the gate: hand the three lists from step 5 wrapped in `<diff>`, the archived before-state in `<zone_state>` and the intended file in `<intended_file>`, to `experts/IT Expert/` in a second context. It judges the blast radius, the rollback as records, the timing and the sourcing of every provider value, and returns safe as planned, safe with named conditions, or not as proposed; the requester's approval of removals by name is theirs and never the expert's, and a declined review is named in the record. The grant stop is stated at the head of these steps.
+Before anything would be written, the gate: hand the three lists from step 5 wrapped in `<diff>`, the archived before-state in `<zone_state>` and the intended file in `<intended_file>`, to `experts/IT Expert/` in a second context. It judges the blast radius, the rollback as records, the timing and the sourcing of every provider value, and returns safe as planned, safe with named conditions, or not as proposed. On safe with named conditions, tell the requester the conditions. A condition that changes the records, the order, or the timing goes back to step 3 and is confirmed again. Not as proposed: do not write, and a later decline does not lift that stop. The requester's approval of removals by name is theirs and never the expert's, and a declined review is named in the record. The grant stop is stated at the head of these steps.
 
 **6. Publish, matching the action to the intent.** Every gated action's `confirm: true` comes from step 5's answer covering that action and never from this skill's own initiative. The gateway returns `needs_confirmation` without the required approval: create and update are `confirmation: once`; delete, batch, and import are `confirmation: always`, requiring confirmation on every call. Reads are `confirmation: none`.
 
@@ -114,13 +114,15 @@ Before anything would be written, the gate: hand the three lists from step 5 wra
 
 `cloudflare.dns.import_zone` with `{ zone_id, zone_file, proxied? }` is not the publish path for a zone that already exists. It creates from a file, expresses no removals, takes proxy status as one flag across every record it reads unless a record carries its own `cf-proxied` tag in the file, which overrides the flag for that record, and its merge behavior against existing records is undocumented. Reach for it to stand a new zone up, and read the zone first even then.
 
+Where the approved lists hold more than one intent, one `cloudflare.dns.batch` carries every approved edit, creates on `posts`, field changes on `patches`, whole overwrites on `puts`, and removals on `deletes`, omitting a key the lists do not hold, rather than asking the requester to drop one.
+
 A single failure stops the run rather than continuing down the list. Report which record failed and what the platform's numeric code was, then leave the rest unpublished; a half-applied zone is harder to reason about than an unstarted one.
 
 **7. Verify from the platform.** Re-read the zone with `cloudflare.dns.list_records` and `{ zone_id }` and compare it against the file, using step 4's comparison rules. For each record the file names, a live record of that type and name whose content matches; for each record step 5 approved for removal, nothing. Report every mismatch by type and name.
 
 Propagation across the edge is not instantaneous. A record missing on the first read is re-read once before it is called a failure. What is never acceptable is reporting success from the write responses: they say the API accepted a payload, not that the zone now resolves the way the file says.
 
-**8. Close.** Leave the published file and its archive in place, and state what changed, what was removed, and what verification found. A verification mismatch is the run's result, not a footnote; the requester decides whether to correct it or roll back from the archive.
+**8. Close.** Leave the published file and its archive in place, and state what changed, what was removed, and what verification found. A verification mismatch is the run's result, not a footnote; the requester decides whether to correct it or roll back from the archive. That correction or rollback is a new change request from step 1, the archive, the approval, and the gate included, not a write from this step.
 
 ## Pitfalls
 
@@ -129,7 +131,7 @@ Propagation across the edge is not instantaneous. A record missing on the first 
 - **Approval that outran what was shown.** A count without names, or a removal list scrolled past. Present removals by name once, get one answer for that set, and if the set changes, ask again.
 - **Success declared from the write.** The API accepting a payload is not the zone resolving. Step 7 is not optional and cannot be replaced by a summary of step 6.
 - **Proxy status changed by accident.** A record that stops being proxied stops redirecting and starts exposing the origin address; one that starts being proxied breaks anything that needed to reach the origin directly. It is never inferred, always carried, and always named in the diff.
-- **A placeholder that publishes.** An invented DKIM key or a guessed DMARC policy looks like a working record and is worse than a missing one. Ask, or leave it out and name the gap.
+- **A placeholder that publishes.** An invented DKIM key or a guessed DMARC policy looks like a working record and is worse than a missing one. Ask, or leave a new record out and name the gap; where the pull already holds that name and type, keep the live record and block the replacement rather than deleting it.
 - **The request that names no zone.** "Fix the DNS", a domain with no account when several are reachable, a change described only by its outcome. Ask before step 2; a pull against the wrong zone is harmless, and everything after it is not.
 
 ## Success

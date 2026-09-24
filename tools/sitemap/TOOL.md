@@ -3,7 +3,7 @@ name: sitemap
 type: tool
 category: seo
 description: One deterministic snapshot of the URLs a site publishes in its sitemaps, and one JSON report of what changed between two snapshots of the same site
-version: 0.2.1
+version: 0.2.3
 ---
 
 # sitemap
@@ -66,7 +66,7 @@ One JSON object listing every URL a site publishes in its sitemaps, each with it
 
 Use it whenever a question turns on what a site publishes: to inventory a site's own pages, to read a competitor's published surface, or to produce the snapshot files `diff` consumes. A run per domain, repeated on the user's schedule, is what makes month over month comparison possible at all.
 
-Offline use: when the sitemap already sits on disk, a saved historical export, a body fetched through a browser-driving tool because the host refused non-browser clients, or a gzip archive kept from an earlier pull, pass it with `--file` instead of opening a network connection. The snapshot shape is the same, so `diff` compares an offline historical snapshot to a live one without caring which mode produced each side.
+Offline use: when the sitemap already sits on disk, a saved historical export, a body fetched through a browser-driving tool because the host refused non-browser clients, or a gzip archive kept from an earlier pull, pass it with `--file` instead of opening a network connection. When both a local file and a live refresh were asked for, the live refresh wins on that run, and do not pass `--file` with it. When you have a file and cannot tell whether it is the sitemap, ask, and do not fetch it to decide. The snapshot shape is the same either way, so `diff` compares an offline historical snapshot to a live one without caring which mode produced each side.
 
 ### Snapshot Shape
 
@@ -116,7 +116,7 @@ The shape is the contract a snapshot comparison reads, so two snapshots of one s
 
 One domain per run in network mode. A sitemap index is followed to its child sitemaps, five levels deep, and a sitemap already read in this run is not read twice. Passing both `--domain` and `--url` collects the named addresses and labels the snapshot with the domain.
 
-Offline mode takes only `--file` seeds: no robots discovery, no http(s) request, and no following of child locs a local index declares. Pass each child sitemap as its own `--file`. Stamp `--date` with the historical date the file represents so a later `diff` run compares the right pair of points in time.
+Offline mode takes only `--file` seeds: no robots discovery, no http(s) request, and no following of child locs a local index declares. Pass each child sitemap as its own `--file`. Stamp `--date` with the historical date the file represents when the request or the file name states it, so a later `diff` run compares the right pair of points in time. When the fetch was just made, or the request does not call the file historical, omit `--date` and the tool stamps today. When the request calls the file historical and states no date, ask, and do not stamp today on that file.
 
 ### What It Requests
 
@@ -246,11 +246,11 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 | `errors` names `redirected more than 5 times without reaching a sitemap` | A redirect loop, or a chain longer than this command follows | Pass the address the chain settles on with `--url` |
 | `errors` names `is <n> characters, past the 2048 a sitemap URL may be` | The sitemap published a URL longer than the protocol allows one to be | That URL is absent from `urls` and named here instead of being cut down to fit, because a shortened address is a different address. The rest of the snapshot is complete |
 | `errors` names `named by a local sitemap index; offline mode does not fetch child sitemaps` | A `--file` was a sitemap index | Pass each child sitemap as its own `--file` |
-| `count` is far below the site's real page count | An index was deeper than five levels, or `--max` stopped the walk | Check `truncated`; raise `--max`, or pass the deep child sitemaps directly with `--url` or `--file` |
+| `count` is far below the site's real page count | An index was deeper than five levels, or `--max` stopped the walk | When `truncated` is true, raise `--max` and re-run. When it is not, and a child sitemap sits deeper than five levels in the index you read, pass those children with `--url` or `--file`. When you do not know the site's real page count, deliver this snapshot, and do not raise `--max` on a guess |
 | `count` 0 with the `N/A:` note on a site that has a sitemap | The document is not a `urlset` this reader recognizes, for instance one whose elements carry a namespace prefix | Confirm the document is a plain sitemap; a sitemap in another dialect needs a different reader |
 | A `loc` in the snapshot ends in `redacted` | The published URL carried a query parameter whose name reads as authorization | Expected: the value is deliberately not recorded |
 | `domainMismatch` is populated | Two different sites were compared | Re-run with two snapshots of the same site; the lists in this result describe two sites, not one site's change |
-| A routine re-fetch reports removals in the thousands | The current snapshot is partial: a cap stopped the walk, or a sitemap failed to read, so URLs that still exist were never collected | Check `sourceIncomplete`. Named there, those removals are a gap in the fetch and not pages the site retired; re-fetch with a higher `--max`, or once the failing sitemap reads, then diff again |
+| A routine re-fetch reports removals in the thousands | The current snapshot is partial: a cap stopped the walk, or a sitemap failed to read, so URLs that still exist were never collected | When the result carries `sourceIncomplete`, those removals are a gap in the fetch and not pages the site retired; re-fetch with a higher `--max`, or once the failing sitemap reads, then diff again. When it does not, report the removals as the diff computed them. When the field was not read, read it before you describe the removals, and do not call them retirements while it is unread |
 | Every URL reports as added and removed | The snapshots come from different sites, or one site changed protocol or host and every `loc` changed with it | Check `domainMismatch` and the `loc` values; a host or protocol move is a real change, and the pair before it is not comparable |
 | `changedLastmod` is empty on a site that plainly republished | One or both snapshots carry no `lastmod` for those URLs | Confirm the sitemap publishes `lastmod`; without it on both sides, revisions are invisible to a sitemap diff |
 | `newPathSegments` is empty while `addedUrls` is not | The snapshots carry no `segment`, or the new URLs sit under sections that already existed | Both are normal; read `addedUrls` for the detail |

@@ -3,7 +3,7 @@ name: Typography Design
 type: skill
 category: design
 description: Design a modular type system delivered as CSS custom properties with a type specimen, chosen from brand personality and usage context
-version: 0.2.1
+version: 0.2.4
 gaps:
   - right-to-left and CJK typography, which need script-specific knowledge this skill does not carry
 memory:
@@ -55,11 +55,11 @@ Select a ratio from the domain context using the Scale Ratios table: tight for d
 
 ### 2. Scale generation
 
-Apply the ratio to a 16px (1rem) base as a five-level scale: caption (minus 1), body (0), subheading (plus 1), heading (plus 2), display (plus 3). A marketing context may add a plus-4 hero step. Generate the scale as a config, a base size, a ratio, and a viewport range, so every size derives from it rather than being set individually.
+Apply the ratio to a 16px (1rem) base as a five-level scale: caption (minus 1), body (0), subheading (plus 1), heading (plus 2), display (plus 3). Add a plus-4 hero step only when the brief asks for one larger than display and the domain is marketing, editorial, or a landing page; where that domain is named and the brief does not ask, keep five levels and say a plus-4 step can be added, and do not offer the extra step in any other case. Generate the scale as a config, a base size, a ratio, and a viewport range, so every size derives from it rather than being set individually.
 
 ### 3. Font selection
 
-Map the brand personality to font characteristics using the Font Archetypes table, then verify availability against Google Fonts, system fonts, or a user-provided family. Never start from the catalog. Never take a primary family from the prohibited defaults. System fonts are a valid primary where performance outweighs personality. Keep to a maximum of two families; one family across several weights often reads cleaner than two competing typefaces, so add a second only for genuine contrast (for example a display serif with a body sans), and state the pairing rationale.
+Map the brand personality to font characteristics using the Font Archetypes table, then verify availability against Google Fonts, system fonts, or a user-provided family. A family they supplied or mandated is the primary unless it is a prohibited default, and it names the Font Archetypes row whose characteristics it shares most, which the availability and partner choices use. Where they supplied none, take the matching row's families in the order listed and use the first available, and tell them the other families in the row. Where a family covers only display or only body, add one partner from that row and state the pairing rationale. Never start from the catalog. Never take a primary family from the prohibited defaults. System fonts are a valid primary where performance outweighs personality. Keep to a maximum of two families; one family across several weights often reads cleaner than two competing typefaces, so add a second only for genuine contrast (for example a display serif with a body sans), and state the pairing rationale.
 
 ### 4. Weight hierarchy
 
@@ -67,11 +67,11 @@ Map weights to information levels per the Weight Hierarchy table. Do not use 300
 
 ### 5. Line heights and vertical rhythm
 
-Set a line height for each scale level per the Line Heights table, opening the value for light text on dark backgrounds. Take the vertical rhythm base from the body line-height (16px at 1.5 is a 24px base) and space sections in multiples of it (24, 48, 72, 96). Set letter spacing to 0 for body, tighten headings (-0.02em to -0.01em), and open captions and all-caps labels (+0.05em to +0.08em).
+Set a line height for each scale level per the Line Heights table, opening the value for light text on dark backgrounds: add 0.1 where they asked for more room, otherwise 0.05, and where the background is not light on dark use the table's value unchanged. Where you cannot tell the background, use the table's value unchanged and say the light-on-dark adjustment was not applied. Take the vertical rhythm base from the body line-height (16px at 1.5 is a 24px base) and space sections in multiples of it (24, 48, 72, 96). Set letter spacing to 0 for body, tighten headings (-0.02em to -0.01em), and open captions and all-caps labels (+0.05em to +0.08em); where they named none, use -0.01em on headings and +0.05em on captions and all-caps labels, and say the rest of each range is open. Where they named a value outside the range, ask before using it.
 
 ### 6. Fluid sizing
 
-Use clamp() for every size above body, derived from the scale config in the Utopia-style approach: a mobile base, a desktop base, a mobile ratio, a desktop ratio, and a viewport range (320 to 1280px), from which each step's single clamp() value follows. Include the rem offset so text never collapses on small screens. Do not fluid-size button text, labels, or UI elements, which need viewport consistency, nor caption size, where fluid scaling at small sizes hurts readability.
+Use clamp() for every size above body, derived from the scale config in the Utopia-style approach: a mobile base, a desktop base, a mobile ratio, a desktop ratio, and a viewport range (320 to 1280px), from which each step's single clamp() value follows. Use a desktop base they named inside the reference range of 18 to 20px; where they named one outside it, ask before using it; where they named none, use 18px and say a base up to 20px is open. Include the rem offset so text never collapses on small screens. Do not fluid-size button text, labels, or UI elements, which need viewport consistency, nor caption size, where fluid scaling at small sizes hurts readability.
 
 ### 7. Output
 

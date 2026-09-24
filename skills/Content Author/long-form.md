@@ -1,12 +1,12 @@
 # Long-Form
 
-An extended argument: an essay, a guide, a framework piece, roughly 2,000 words and up, read by someone who chose to spend the time and expects the density that choice bought. Read this file at Frame and hold it through Draft. A shorter web-published article is `blog-post.md`. Finding the claim the piece will argue, before any of this, is `skills/Build Concepts/`.
+An extended argument: an essay, a guide, a framework piece, 2,000 words and up, read by someone who chose to spend the time and expects the density that choice bought. Read this file at Frame and hold it through Draft. A shorter web-published article is `blog-post.md`. Finding the claim the piece will argue, before any of this, is `skills/Build Concepts/`.
 
 ## Shape
 
 - **Length.** 2,000 to 5,000 words and beyond, set by the argument rather than by a target. Depth is what buys the length, and a reader who chose to spend the time notices immediately when something else was substituted for it.
 - **Thesis.** In the opening two or three paragraphs. The reader should know what is being argued before they scroll, and a thesis that arrives at the halfway mark has spent half the piece on a reader who did not know what they were reading.
-- **Sections.** Six to eight for 2,000 to 3,000 words; eight to twelve past 3,000, where sub-sections start earning their place.
+- **Sections.** Six to eight for 2,000 to 3,000 words; eight to twelve past 3,000. Does a sub-section do work a header in its parent could not? Yes: it earns its place. No: do not add it.
 - **Register.** Long-form has room to shift between sections and is the only format that does: analytical through the argument, narrative where a case carries the point, terse where a principle lands. The bound voice governs each of them.
 
 ## Format rules

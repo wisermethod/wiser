@@ -6,14 +6,14 @@ Review expert: `experts/Ghost Writer/`. This root carries no news-desk reviewer,
 
 ## Shape
 
-- **Length.** 600 to 800 words, the band most opinion pages still assign. Under 500 is a letter. Over 900 needs the page's own longer slot, confirmed, not assumed.
+- **Length.** 600 to 800 words, the band most opinion pages still assign. What is the length? Under 500: it is a letter, not an op-ed. Say so, and do not pad. 500 to 599: this file gives no band. Ask whether it is a letter or an op-ed before stretching it. 600 to 800: the band. 801 to 900: this file gives no band. Ask whether to cut to 800 or to confirm a longer slot. Do not choose, and do not pad. Over 900: did the page confirm a longer slot? Yes: it may run to that slot. No, or not stated: cut to 800. Do not assume the longer slot.
 - **Structure.** A timely hook, the claim, the argument in two or three turns, the concession that makes the claim honest, the close that asks the reader to see or do one thing.
 - **Paragraphs.** Two to four sentences. Print and web opinion both punish walls.
 - **Stance.** First person. The byline is the point. "One might argue" is someone else's piece.
 
 ## Format rules
 
-- **One claim.** A sentence the headline could carry. Two claims is two op-eds.
+- **One claim.** How many claims could the headline carry? One: that sentence is the claim. Two or more: keep the one the brief names. The brief names two as equal: this is two op-eds. Say so, draft the one this run is, and do not braid them.
 - **Why this author.** The piece has to be one this person can uniquely sign: a role, a result, a scene they were in. Credentials in a bio line, not in the opening.
 - **Why now.** A hook dated in the last news cycle, a vote, a filing, a number that just landed. An evergreen lecture is not an op-ed.
 - **Evidence in the body.** One number, one scene, or one named case per turn. A turn with none is a sermon.

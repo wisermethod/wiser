@@ -3,7 +3,7 @@ name: knowledge-memory
 type: tool
 category: knowledge
 description: Lints local knowledge wikis, builds and queries a dataset-scoped databased store (SQLite FTS5), and ingests and recalls a local LadybugDB graph, all from session-extracted knowledge with located provenance
-version: 0.5.0
+version: 0.6.2
 gaps:
   - temporal filtering of recall by a date, so an as-of question is answered from the facts the set dates rather than filtered by the engine
   - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
@@ -16,6 +16,8 @@ gaps:
 Use through `skills/Knowledge Set Onboarding/`, `skills/Knowledge Curation/`, and `skills/Knowledge Recall/` for deterministic wiki lint, databased operations, or graph ingest and recall. Read `tools/knowledge-memory/references/backends.md` for the backend contract. Storage is local for wiki, databased, and graph; extraction is as local as the harness. The session compiles or extracts; graph recall may run a local embedding model, never a chat completion.
 
 Graph follows `experts/Knowledge Expert/graph.md`, with prerequisite stops before source or store access. A map of existing files belongs to `skills/Knowledge Map/`. Hosted is a documented stop on `experts/Knowledge Expert/hosted.md`, never a command. Apply the constitution's Behavioral Core for the three absences and honest stops.
+
+Classifier seam: none.
 
 ## Dependencies
 
@@ -55,7 +57,7 @@ For databased, the skill appends source context and canonical names to the pack 
 
 Databased `recall` returns the items object in `references/schemas.md` section 3, with no `answer` key. Lexical terms search FTS5; alias hits resolve to their supported target at the lexical rank, then outgoing typed links add one hop. Every query and hop checks dataset isolation. The skill composes from those items alone.
 
-Load `references/wiki-schemas.md` for wiki shapes. Compile establishes the grounding invariant: every number, date and direct quote is locatable in linked corpus. Lint locates quoted strings and arabic numerals after whitespace collapse. It fixes only missing index entries and links with exactly one safe match; all other findings remain in its report. `wiki/log.md` is append-only. Lint is a deterministic check, not a judgment of whether a paraphrase is faithful.
+Load `references/wiki-schemas.md` for wiki shapes. Compile establishes the grounding invariant: every number, date and direct quote is locatable in linked corpus. Lint locates quoted strings and arabic numerals after whitespace collapse. It fixes only a missing index entry, and a broken link whose target is not absolute and not a URI scheme, resolves inside the set, and matches exactly one allowed file by basename. Every other finding stays in its report. `wiki/log.md` is append-only. Lint is a deterministic check, not a judgment of whether a paraphrase is faithful.
 
 Databased human decisions are portable. `promote` applies a filled Decision block; replay identifies its Subject by `(dataset, kind, normalized_name)`. Alias and merge decisions retain the source node as Alias and record a same-kind target by normalized name. Canonical comes only from a human decision. `--from-canon` reads the canonical tables in Knowledge Set Onboarding, requires located quotes and ingested subjects, and takes the reviewer and date from `canon_confirmed`. Ontology edits stay pending for the human; they do not silently change the pack.
 

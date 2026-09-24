@@ -11,7 +11,7 @@ An outreach email to one person who never asked to hear from you, read on a phon
 
 ## Before the first email
 
-Cold is usually avoidable. Where the recipient posts publicly, engage once or twice before the email lands so the name arrives familiar rather than unknown. The research behind one email costs five to ten minutes and decides whether it reads as addressed to them or to a list, which is the only thing that decides whether it is answered.
+Cold is usually avoidable. Does the recipient post publicly? No, or you cannot tell: do not invent an engagement. Write the email, and if you could not tell, say the public-post check could not be made. Yes, and the sender has not yet engaged once or twice: engage once or twice before the email lands, so the name arrives familiar rather than unknown. Yes, and that engagement already happened: write the email. The research behind one email costs five to ten minutes and decides whether it reads as addressed to them or to a list, which is the only thing that decides whether it is answered.
 
 ## Subject line
 

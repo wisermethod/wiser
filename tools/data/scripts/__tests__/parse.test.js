@@ -169,6 +169,27 @@ describe('parse', () => {
       assert.ok(result.parseErrors.some((e) => e.includes('2 of 3') && e.includes('column count')));
     });
 
+    it('keeps a numeric CSV or TSV header named __proto__, constructor, or toString', () => {
+      const csv = executeParse({
+        content: '__proto__,constructor,toString\n1,2,3\n4,5,6\n',
+        format: 'csv',
+      });
+      const tsv = executeParse({
+        content: '__proto__\tconstructor\ttoString\n1\t2\t3\n4\t5\t6\n',
+        format: 'tsv',
+      });
+      for (const result of [csv, tsv]) {
+        assert.deepEqual(
+          result.columns.map((column) => column.name),
+          ['__proto__', 'constructor', 'toString'],
+        );
+        for (const column of result.columns) {
+          assert.equal(column.type, 'number');
+          assert.equal(column.nonNullCount, 2);
+        }
+      }
+    });
+
     it('reports raggedRowCount 0 for JSON', () => {
       const result = executeParse({
         content: '[{"a":1},{"a":2}]',

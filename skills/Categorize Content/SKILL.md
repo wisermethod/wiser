@@ -3,7 +3,7 @@ name: Categorize Content
 type: skill
 category: authoring
 description: Reduce source material to a minimal set of themes, each an action a practitioner can take and the insight that makes that action non-obvious
-version: 0.2.2
+version: 0.2.4
 ---
 
 # Categorize Content
@@ -30,7 +30,7 @@ A practitioner who already holds the domain's standard advice, reading for what 
 
 ## Steps
 
-**1. Read the whole thing for surprise.** One question governs the first pass: what would a reader who believes they already know this field not have expected to find here. What the material covers is not the question; what it discloses is. Across several sources, watch for the readings only the combination produces: a claim two independent sources land on without prompting, a conflict that is informative rather than noise, and anything the set states that no member of it states alone. Material too large to hold at once is read in passes, carrying a running list forward across them, and the passes are the agent's work to sequence rather than the requester's to supervise.
+**1. Read the whole thing for surprise.** One question governs the first pass: what would a reader who believes they already know this field not have expected to find here. What the material covers is not the question; what it discloses is. Across several sources, watch for the readings only the combination produces: a claim two independent sources land on without prompting, a conflict that changes an action a practitioner would take, and anything the set states that no member of it states alone. A conflict that changes no action is noise and does not enter the list. Material too large to hold at once is read in passes, carrying a running list forward across them, and the passes are the agent's work to sequence rather than the requester's to supervise.
 
 **2. Collect the revelations, without organizing them.** List what the material actually reveals: counterintuitive claims that arrive with their evidence, connections between concepts that read as unrelated, reframings that change how a familiar problem looks, mechanisms explaining why something works rather than that it works, distinctions that are subtle to state and decisive in practice. Each item names the part of the material it came from; an item that cannot point at one came from you.
 
@@ -38,18 +38,18 @@ Apply the surprise test to each: an item that would draw "yes, obviously" from a
 
 **3. Compress until reduction costs something.** Group related insights, then keep reducing while nothing essential is lost; the threshold test in `standards/instruction-quality.md` is the cut. Keep the cut list as you go, because the completeness check in step 5 asks what got cut. Let the material set the theme count: some material yields four themes and some yields twelve, and a count fixed in advance forces the structure to a number instead of to the material. A request naming a count states an expectation of scale rather than a result; produce the count the material supports, and name what a forced number would have merged or split.
 
-Then sequence. Order the themes so that acting on an early one is what makes a later one reachable. Where no dependency exists, first test whether the themes sit at the right level of abstraction, because a set that refuses to order often sits too high; if they are genuinely parallel, the output says so rather than implying a sequence the material does not have.
+Then sequence. Order the themes so that acting on an early one is what makes a later one reachable. Where no dependency exists, and splitting a theme or stating it at a lower level would create one, they sit too high: return to the grouping, lower them, and sequence again. Where lowering them would not create one, they are genuinely parallel, and the output says so rather than implying a sequence the material does not have.
 
-**4. Express each theme as action carrying its insight.** The title states what to do and reframes how to think about it at once. A title that names an activity without the reframe is generic; a title whose action survives with the insight stripped out never carried one. Under each title:
+**4. Express each theme as action carrying its insight.** The title states what to do and reframes how to think about it at once. A title that names an activity without the reframe is generic; a title whose action survives with the insight stripped out never carried one, and it is rewritten until the action needs the insight. Under each title:
 
 - **Stakes.** What doing this well produces and what skipping it costs, in two or three sentences. Consequences, never assertions that the theme is important.
-- **Key practices.** Concrete enough that someone could start tomorrow, in the number the material supports. Each takes one of four shapes: a technique for an outcome, a rule bound to a situation, a design choice enabling a capability, or a priority rule with the condition that triggers it.
+- **Key practices.** Concrete enough that someone could start tomorrow, in the number the material supports. Each takes one of four shapes: a technique for an outcome, a rule bound to a situation, a design choice enabling a capability, or a priority rule with the condition that triggers it. Where two fit, write the one the material's own wording states; where it states both or neither, write the first of the two in that order, and keep any condition the material states. Where none of the four fits and the material supports the detail, rewrite it into one of them; where the material supports no such detail, cut it. Do not invent a fifth shape.
 
-The specificity test on both: a reader who still has to work out what this means for them was handed an abstraction, not a practice.
+The specificity test on both: a reader who still has to work out what this means for them was handed an abstraction, not a practice. Add detail the material supports until someone could start tomorrow. Where the material does not support that detail, cut it and say so.
 
 **5. Verify against two checks, both of which must pass.**
 
-- **Completeness.** Which important idea in the material has no home in these themes? A homeless idea earns its own theme if it is distinct enough, joins an existing one if it belongs there, or is named explicitly as secondary. It is never stuffed into an unrelated theme; that buys completeness with the structure.
+- **Completeness.** Which important idea in the material has no home in these themes? A homeless idea that states an action the other themes do not earns its own theme; one that is the same action as a theme that exists joins that theme; one that is not an action a practitioner would take, or that the material marks as an aside, is named as secondary, with why. It is never stuffed into an unrelated theme; that buys completeness with the structure.
 - **Inevitability.** Would someone hearing this categorization explained say that is the obvious way to organize the material? If a different organizing axis seems equally good, compression is unfinished; return to step 3.
 
 **6. Shape and place the categorization, then gate it.** One categorization ships, not a set of alternatives; produce alternatives only when asked. The deliverable carries no running insight list, no phase notes, no progress announcements, and no self-assigned grade, because quality here is the requester's judgment to make.
@@ -74,7 +74,7 @@ Key Practices:
 
 Placement follows `standards/conventions.md`, in the root that owns the output. Where the source material happens to sit never decides where the categorization lands.
 
-Then the gate: hand the categorization, wrapped in `<draft>`, with the intended reader (the reader of whatever it feeds, or the person it is delivered to where it is the deliverable) and the owning root named, to `experts/Ghost Writer/` in a second context that did not produce it. It ships on that expert's ship verdict or the requester's explicit decline; a return goes back to the step its findings name, and a declined review is named in the delivery. The no-findings note, the secondary list and any forced-count note travel in the delivery message and in the opening paragraph, never as phase notes.
+Then the gate: hand the categorization, wrapped in `<draft>`, with the intended reader (the reader of whatever it feeds, or the person it is delivered to where it is the deliverable) and the owning root named, to `experts/Ghost Writer/` in a second context that did not produce it. It ships on that expert's ship verdict or the requester's explicit decline; a return goes back to the step its findings name, and a return whose findings name no step goes back to step 5 to run both checks again. A declined review is named in the delivery. The no-findings note, the secondary list and any forced-count note travel in the delivery message and in the opening paragraph, never as phase notes.
 
 ## Pitfalls
 
@@ -82,13 +82,13 @@ Then the gate: hand the categorization, wrapped in `<draft>`, with the intended 
 
 **Insight theater.** Themes that could have been written without opening the material, assembled from what the domain already says. For each, point at the passage behind it. What you cannot point at does not ship.
 
-**Generic action language.** Themes reading as "build systems that" or "establish practices for". Run the specificity test in step 4 and add detail until someone could execute tomorrow.
+**Generic action language.** Themes reading as "build systems that" or "establish practices for". Run the specificity test in step 4, including its cut when the material does not support the detail.
 
 **Over-compression.** The structure feels clean and something important has quietly vanished. Run the completeness check against the cut list from step 3, not from memory.
 
 **Under-compression.** Themes overlap and the arrangement feels arbitrary. Two themes that merge without losing an insight were one theme.
 
-**Forced consensus.** Sources that disagree get flattened into a single position that none of them holds. The disagreement is itself a finding: state what it reveals, and let a theme carry the tension where that is the honest structure.
+**Forced consensus.** Sources that disagree get flattened into a single position that none of them holds. The disagreement is itself a finding: state what it reveals. Where one theme's action stays honest only by carrying both readings, that theme carries the tension and the output states both. Where each reading is its own action, they are two themes.
 
 ## Success
 

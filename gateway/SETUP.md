@@ -72,7 +72,7 @@ Then start a new Agent chat. The current chat does not pick up a newly added ser
 
 Any other harness that reads an `mcpServers` JSON block uses the same shape, with that host's label in `--harness`.
 
-`--harness` is a label for the audit log and nothing else. Two other flags matter:
+`--harness` is the label on each audit line. A normal start also writes `<home>/classifier-status/<harness>.json` after classifiers load. These flags matter:
 
 | Flag | Default | Use it when |
 |------|---------|-------------|
@@ -82,6 +82,9 @@ Any other harness that reads an `mcpServers` JSON block uses the same shape, wit
 | `--classifier <abs dir>` | none | You have a classifier directory to load from outside this plugin; repeat the flag per directory |
 | `--secrets <abs dir>` | none | A connector uses the local-file provider and its credential file sits under one directory by the name its manifest gives |
 | `--secret <service>=<abs file>` | none | The working folder's `AGENTS.md` binds `secrets:<service>` to a file of its own; repeat per service, and it wins over `--secrets` |
+| `--call <action id>` | none | You want one first-party `wiser.*` action run through the same path as `execute`, printed as one JSON line, then exit. Any other id is refused and is not called. Does not write the presence file |
+| `--route` | none | You want `wiser.route.roster` and then `wiser.route.ask` run in this one process, through the same path as `execute`. `--input` is an object with `rows` and `ask`. The ask result is printed as one JSON line, then exit. Both calls write an audit line. A roster result with no `roster_sha256` is printed and the ask is not run. Does not write the presence file |
+| `--input <json>` | none | You are using `--call` or `--route`. Pass one JSON object, or `-` to read that object from stdin |
 
 `--home` is screened before anything opens it: refused inside this plugin, beside a credential file, or on a symbolic link.
 
@@ -154,6 +157,7 @@ Every answer is one JSON object. A `status` field on it usually means the work d
 | `teardown_incomplete` | A `disconnect` ran and did not end with the credential gone | **Nothing local was removed.** The records that survive are recovery metadata and may be stale: neither their survival nor this status proves the credential is still there. The answer is what to believe, not the rows. `reason` says which case it is and each has one next step; Connection Troubleshooter names them. Do not simply retry: one of the cases means the state is unknown and retrying acts on it blind |
 | `invalid_arguments` | A tool was called with something that is not an identifier, or an action was called with an input its published schema refuses. The answer names the field at fault | The agent mis-called the tool or the action, and nothing ran. A mis-called tool is refused before the audit line; a refused action's stop is audited by status, and neither the field name nor any value is. What an action accepts is its `input` in the connector's manifest, and `describe_action` returns it |
 | `vendor_error` | The vendor refused | The status code and endpoint are in the answer; the body never is |
+| `classifier_unbound` | A first-party classifier action was not sent, because the session has no verified binding with one owning root that does not refuse. The `reason` says which (`no-harness`, `no-pointer`, `stale-session`, `pending`, `not-ancestor`, `refused`, `no-owning-root` and the rest `hooks/AGENTS.md` lists). A harness that runs no plugin hooks always answers this | Nothing to fix when it is expected: routing and every tool fall back to their own path. Where a classifier is meant to answer, start the session inside the one owning root, on a harness that runs plugin hooks |
 | `needs_subscription` | No classifier is loaded, or the `WISER_CLASSIFIER_KEY` line of the credential file is empty | Pass `--classifier` with an absolute directory if you have one, paste the classifier key after `WISER_CLASSIFIER_KEY=` in the file step 3 names, save, and restart. The first-party actions then appear in `search_actions`. An empty key line is the else path: primitives keep their own step |
 
 ## 6. What the gateway writes, and where

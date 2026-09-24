@@ -10,8 +10,8 @@
 /**
  * Privilege, risk, confirmation, input schema and answer shape a first-party
  * action carries. The gateway decides these; a classifier directory has no
- * manifest. All six read nothing durable and change nothing, so they are
- * `read` / `low` / `none`.
+ * manifest. Every first-party action reads nothing durable and changes
+ * nothing, so they are `read` / `low` / `none`.
  *
  * `answer` is the success object `executeFirstParty` checks the adapter's
  * result against. It is not the object `describe` serves, and `meta` is not a
@@ -141,30 +141,6 @@ export const FIRST_PARTY_ACTIONS = {
           calibrated: { const: false },
         },
       },
-      calibrated: { const: false },
-    },
-  },
-  'wiser.browser.pick': {
-    privilege: 'read',
-    risk: 'low',
-    confirmation: 'none',
-    description: 'Pick an element and a verb for a goal.',
-    input: {
-      type: 'object',
-      properties: {
-        goal: { type: 'string' },
-        elements: { type: 'array' },
-        allow_uncalibrated: { type: 'boolean' },
-      },
-      required: ['goal', 'elements'],
-    },
-    // `verb` is present and untyped. The adapter's own expression can return a
-    // non-string, and rejecting that here would coerce the contract's open gap
-    // into a refusal. `index` null is the `none` choice.
-    answer: {
-      index: { type: 'integer', nullable: true, roster: 'elements' },
-      verb: { type: 'present' },
-      confidence: { type: 'unit' },
       calibrated: { const: false },
     },
   },

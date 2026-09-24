@@ -3,7 +3,7 @@ name: tag-audit
 type: tool
 category: marketing
 description: One JSON report of which analytics and behavior tags a live page serves, with each tag's id where the served HTML exposes it
-version: 0.1.2
+version: 0.1.4
 ---
 
 # tag-audit
@@ -100,7 +100,7 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 | `Error: --url must be http or https` | A scheme this tool does not fetch | Pass an http or https address; this tool reads web pages, never a path on this machine |
 | `Error: could not fetch <url>: no response within 20 seconds` | The host did not answer inside the fixed timeout | Confirm the host is reachable from this machine, then re-run |
 | `Error: could not fetch <url>: the request did not complete` | DNS, TLS, or connection failure | Check the address and the machine's network path to it |
-| `Error: <url> returned HTTP <status>` | The page did not serve | Fix the URL or the access path. A 403 or 429 usually means the host refuses non-browser clients, which this read cannot pass; audit it with a browser-driving tool instead |
+| `Error: <url> returned HTTP <status>` | The page did not serve | Fix the URL or the access path. A 403 or 429 usually means the host refuses non-browser clients, which this read cannot pass; audit it with a browser-driving tool instead. When you also have a different access path that is not this read, fix that path and re-run. When you have no other path, do not re-run this tool on the same URL |
 | `Error: unknown command` | A command word other than `audit` | Run `help` |
 | Every tag reports `present: false` on a site known to be instrumented | The loaders are injected client-side, after the HTML this tool reads | Confirm with a tool that drives a real browser before reporting anything as missing |
 | A tag reports `present: true` with `id: null` | The markup carries the loader but not the id, which is normal for several of these tags | Read the id from the platform's own console if it is needed |

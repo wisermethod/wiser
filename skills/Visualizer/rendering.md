@@ -18,7 +18,7 @@ The default. One self-contained HTML file with inline CSS, inline data, and the 
 | Timeline | vis-timeline, script and stylesheet | 7.7.3 | `https://cdnjs.cloudflare.com/ajax/libs/vis-timeline/7.7.3/vis-timeline-graph2d.min.js` and the matching `.min.css` |
 | Matrix | none, CSS Grid carries it | not applicable | not applicable |
 
-**Always pin the version.** An unpinned URL lets a major release change the API under a file that was working. When a library's call signature is uncertain, read that library's own current documentation rather than working from memory or from a version pinned here; a version in this table is what was proven, not a claim about what is current.
+**Always pin the version.** An unpinned URL lets a major release change the API under a file that was working. Can you write the call from the usage this file already states for the pinned version? Yes: use that. No: read that library's own documentation for the pinned version. Do not work from memory, and do not treat a version in this table as a claim about what is current.
 
 **Separate the data from the machinery.** Put the structure in named declarations at the top of the file, marked as the part to edit, and keep the rendering code below untouched by content. Changing what the diagram says then means editing a list, not recalculating a layout.
 
@@ -43,7 +43,7 @@ Per technique: a hierarchy is nested elements with indentation; a flow is positi
 
 Interactions worth having: expand and collapse driven by a class rather than by inline display values, hover detail from a data attribute rendered through a pseudo-element, and zoom applied as a transform with the origin set so the layout does not jump. Where tooltips clip, the parent is clipping them.
 
-Beyond a handful of elements, hand-positioned coordinates drift and arrows stop landing. That is the signal to go back to step 4 and take the library, not to nudge the numbers.
+Do nodes overlap, or do arrows miss, under hand-positioned coordinates? Yes: go back to step 4 and take the library. Do not nudge the numbers. The medium is hand-built because the file must open with no network, or the technique is Matrix: do not take the library. Group or collapse as that technique's entry states. No overlap and no miss: leave the coordinates.
 
 ## Mermaid
 

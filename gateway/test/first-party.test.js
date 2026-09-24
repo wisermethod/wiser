@@ -11,7 +11,7 @@ import { FIRST_PARTY_ACTIONS } from '../src/resolve.js';
 import { createTestGateway, DEFAULT_POLICY, makeHome } from './fake-provider.js';
 
 const SERVER = fileURLToPath(new URL('../server.js', import.meta.url));
-const SIX = Object.keys(FIRST_PARTY_ACTIONS);
+const FIVE = Object.keys(FIRST_PARTY_ACTIONS);
 const ASK = { ask: 'what should I load', roster_sha256: 'abc' };
 const ASK_OK = { family: 'skill', target: 'example', confidence: 1, pass: true };
 
@@ -20,7 +20,6 @@ function conformingAnswer(actionId) {
   if (actionId === 'wiser.gate.check') return { judgments: [] };
   if (actionId === 'wiser.decide.choice') return { choice: 'none', confidence: 1, calibrated: false };
   if (actionId === 'wiser.recall.rank') return { ranked: [], calibrated: false };
-  if (actionId === 'wiser.browser.pick') return { index: null, verb: 'none', confidence: 1, calibrated: false };
   return { ...ASK_OK };
 }
 // A marker standing for whatever operator tree an adapter was loaded from. It is
@@ -31,7 +30,7 @@ function conformingAnswer(actionId) {
 const OPERATOR_DIR = 'operator-tree-7f3a9c/private-adapter';
 
 function createFakeClassifier(overrides = {}) {
-  const ids = overrides.ids || SIX;
+  const ids = overrides.ids || FIVE;
   const calls = [];
   return {
     name: 'direct',
@@ -160,11 +159,13 @@ async function overlappingKeys(order) {
 
 test('STATUS includes needs_subscription and nothing existing was renamed', () => {
   assert.equal(STATUS.NEEDS_SUBSCRIPTION, 'needs_subscription');
+  assert.equal(STATUS.CLASSIFIER_UNBOUND, 'classifier_unbound');
   assert.equal(STATUS.NEEDS_CONNECTOR, 'needs_connector');
   assert.equal(STATUS.NEEDS_CONFIRMATION, 'needs_confirmation');
   assert.equal(STATUS.TEARDOWN_INCOMPLETE, 'teardown_incomplete');
   assert.ok(Object.values(STATUS).includes('needs_subscription'));
-  assert.equal(Object.values(STATUS).length, 10);
+  assert.ok(Object.values(STATUS).includes('classifier_unbound'));
+  assert.equal(Object.values(STATUS).length, 11);
 });
 
 test('no classifier loaded: execute of a wiser id answers needs_subscription, not needs_connector', async () => {
@@ -182,11 +183,11 @@ test('no classifier loaded: describe_action on a wiser id answers needs_subscrip
   assert.notEqual(result.status, 'needs_connector');
 });
 
-test('with a classifier loaded, search_actions lists all six first-party ids', async () => {
+test('with a classifier loaded, search_actions lists all five first-party ids', async () => {
   const { gw } = await createTestGateway({ classifier: createFakeClassifier(), connectors: [] });
   const { actions } = gw.searchActions({});
   const ids = actions.map((a) => a.action);
-  for (const id of SIX) assert.ok(ids.includes(id), id);
+  for (const id of FIVE) assert.ok(ids.includes(id), id);
   const row = actions.find((a) => a.action === 'wiser.route.ask');
   assert.equal(row.privilege, 'read');
   assert.equal(row.risk, 'low');
@@ -195,7 +196,7 @@ test('with a classifier loaded, search_actions lists all six first-party ids', a
 
 test('with a classifier loaded, describe_action answers each first-party id with its input shape', async () => {
   const { gw } = await createTestGateway({ classifier: createFakeClassifier(), connectors: [] });
-  for (const id of SIX) {
+  for (const id of FIVE) {
     const row = gw.describeAction(id);
     assert.equal(row.status, undefined, id);
     assert.equal(row.action, id);
@@ -330,6 +331,7 @@ test('empty classifier key line answers needs_subscription', async () => {
     const result = await gw.execute({ action: 'wiser.route.ask', input: ASK });
     assert.equal(result.status, 'needs_subscription');
     assert.ok(isStatusObject(result));
+    assert.equal(classifier.calls.length, 0);
     assert.equal(process.env['WISER_CLASSIFIER_KEY'], sentinel);
   });
 });
@@ -381,7 +383,7 @@ test('an adapter that throws answers unavailable with a fixed reason and does no
 test('an adapter throw never discloses a credential, a vendor name, or an operator-tree path', async () => {
   const cases = [
     'sk-live-credential-9f3a',
-    'TypeSafeAI',
+    'ExampleVendorAI',
     `failed at /private/${OPERATOR_DIR}/direct/index.mjs`,
   ];
   for (const message of cases) {
@@ -484,7 +486,7 @@ test('invalid first-party input is refused before the adapter is called', async 
 
 test('an adapter advertising an undeclared wiser id is refused and is not invented as read', async () => {
   const extra = 'wiser.secret.write';
-  const classifier = createFakeClassifier({ ids: [...SIX, extra] });
+  const classifier = createFakeClassifier({ ids: [...FIVE, extra] });
   const { gw } = await createTestGateway({ classifier, connectors: [], role: 'readonly' });
   const result = await gw.execute({ action: extra, input: {} });
   assert.equal(result.status, 'needs_connector');
@@ -494,7 +496,7 @@ test('an adapter advertising an undeclared wiser id is refused and is not invent
 
   const { actions } = gw.searchActions({});
   assert.equal(actions.some((a) => a.action === extra), false);
-  for (const id of SIX) assert.ok(actions.some((a) => a.action === id), id);
+  for (const id of FIVE) assert.ok(actions.some((a) => a.action === id), id);
 
   const described = gw.describeAction(extra);
   assert.equal(described.status, 'needs_connector');
@@ -529,7 +531,7 @@ test('--check with --classifier lists the loaded first-party actions', () => {
 export function createClassifier() {
   return {
     name: 'direct',
-    actions: () => ${JSON.stringify(SIX)},
+    actions: () => ${JSON.stringify(FIVE)},
     describe: (id) => ({ request: {}, answer: {} }),
     execute: async () => ({ ok: true }),
   };
@@ -539,7 +541,7 @@ export function createClassifier() {
   assert.equal(r.status, 0, r.stderr);
   const obj = JSON.parse(r.stdout);
   assert.equal(obj.ok, true);
-  assert.deepEqual(obj.classifier, SIX);
+  assert.deepEqual(obj.classifier, FIVE);
 });
 
 test('--check without --classifier still succeeds and reports no classifier actions', () => {
@@ -555,7 +557,7 @@ test('a classifier import error does not include the exception message', () => {
   const dir = join(root, 'direct');
   mkdirSync(dir, { recursive: true });
   const secret = 'sk-live-credential-9f3a';
-  const vendor = 'TypeSafeAI';
+  const vendor = 'ExampleVendorAI';
   writeFileSync(
     join(dir, 'index.mjs'),
     `throw new Error(${JSON.stringify(`${secret} ${vendor} ${OPERATOR_DIR}`)});\n`,
@@ -654,9 +656,9 @@ function createContractClassifier() {
   let rosterSeq = 0;
   return {
     name: 'contract',
-    actions: () => SIX.slice(),
+    actions: () => FIVE.slice(),
     describe(id) {
-      if (!SIX.includes(id)) return null;
+      if (!FIVE.includes(id)) return null;
       return { request: FIRST_PARTY_ACTIONS[id]?.input?.properties || {}, answer: { ok: true } };
     },
     async execute(req) {
@@ -816,7 +818,7 @@ test('a first-party call that never reaches the adapter writes both version keys
   assertVersionsNull(lastAuditLine(auditDeny).line);
 
   const extra = 'wiser.secret.write';
-  const undeclared = createFakeClassifier({ ids: [...SIX, extra] });
+  const undeclared = createFakeClassifier({ ids: [...FIVE, extra] });
   const { gw: gwExtra, audit: auditExtra } = await createTestGateway({
     classifier: undeclared,
     connectors: [],
@@ -987,23 +989,6 @@ test('a non-numeric probability is unavailable and is not coerced', async () => 
   assert.equal(judged.status, 'unavailable');
   assert.equal(judged.reason, 'malformed answer');
   assert.equal(judged.judgments, undefined);
-});
-
-test('browser pick keeps a non-string verb', async () => {
-  const { gw } = await createTestGateway({
-    classifier: createFakeClassifier({
-      result: { index: 0, verb: 7, confidence: 0.5, calibrated: false },
-    }),
-    connectors: [],
-  });
-  const result = await gw.execute({
-    action: 'wiser.browser.pick',
-    input: { goal: 'go', elements: [{ verb: 7 }], allow_uncalibrated: true },
-  });
-  assert.equal(result.verb, 7);
-  assert.equal(result.index, 0);
-  assert.equal(result.confidence, 0.5);
-  assert.equal(result.status, undefined);
 });
 
 test('an unexpected model version is a mismatch and not a scored judgment', async () => {

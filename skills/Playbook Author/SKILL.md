@@ -3,7 +3,7 @@ name: Playbook Author
 type: skill
 category: authoring
 description: Create, instantiate, resume, review, hand off at a session's end, or close out a WISER Playbook for work that spans sessions
-version: 0.1.6
+version: 0.1.8
 gaps:
   - the trade-offs beside a recommendation at a session stop, so an open decision is put with one course and its reason rather than with the alternatives weighed
   - a starting prompt delivered without being asked for, so a cold resume is assembled by hand wherever the wrap up is declined
@@ -43,11 +43,11 @@ Decide the job before running any section.
 ## Create
 
 1. Fix ownership and placement. Name the root that owns the work per the constitution's Workspace Model, asking when no root fits or more than one does; then place and name the file per `standards/playbook.md`, stating the path and asking only for a correction.
-2. Choose Type. One-time is the default; choose Template only when the same process will run again with different inputs.
+2. Choose Type. One-time is the default. Choose Template only when the requester has said this same process will run again with different inputs.
 3. Do the Witness audit for real before drafting anything downstream. Write the Standards pointer in Context per `standards/playbook.md`, as a path that opens, distinct from Key files. Read the Key files and record what you found. If a file cannot be read, say which and stop.
 4. Interrogate before designing the plan. Fill the risk table, then derive the riskiest piece from it, then let that choice set Solve. Drafting Expand first produces a plausible sequence built on nothing.
 5. Confirm the execution mode once risks are on the table, not before; choose by the Execution Mode section of `standards/playbook.md`.
-6. Ask the user only what cannot be inferred or researched, each question carrying a recommended default.
+6. Ask the user only what cannot be read from the request, the Key files, or a source the plan already names, each question carrying a recommended default.
 7. Decompose Expand into milestones and tasks against the tests in `standards/playbook.md`.
 8. Verify before delivering: read the draft cold three times, from three different execution states (nothing started, mid-Expand, Solve just failed). Each read must yield one specific next action with no questions asked. If one does not, fix the section that broke, then reread.
 
@@ -58,7 +58,7 @@ Copy the master to a dated instance per the Type section of `standards/playbook.
 ## Resume
 
 1. Reconcile before doing any work, in the order the Resume discipline in `standards/playbook.md` fixes. Later items get corrected to match earlier ones, never the reverse. If the standards pointer is missing, write it before any other edit.
-2. If Status is Paused, read the recorded blocker and resolve or escalate it. Never resume past a blocker silently.
+2. If Status is not Paused, go to the next step. If it is, read the recorded blocker. Where the disk shows it already resolved, record what shows it and continue. Otherwise, where the Playbook names an action that removes it and this session is authorised to take that action, run step 3's staleness check first: a stale plan follows step 3 and the action waits; a plan that still holds is taken, confirmed on disk, recorded, and the run continues. Where no such action exists, or the action ran and the disk still shows the blocker, escalate it, leave Status Paused, and do not resume past it.
 3. Judge staleness before executing anything: re-read the Key files and compare disk against the Witness findings. On divergence, re-run Witness on the affected part and record a learning. If the divergence changes which assumption would invalidate the plan, re-enter Interrogate and re-pick the riskiest piece before touching Expand: set Status to the re-entered canon, mark invalidated checkpoints and dependent task evidence with the date and a learning, and point Progress at the first action of that canon. Otherwise continue from the next action in Progress.
 4. If the document contradicts disk in a way you cannot adjudicate, stop and ask; do not pick a winner and proceed.
 
@@ -81,9 +81,9 @@ The named ask **wrap up** runs all four steps with step 4's answer already given
 
 1. Confirm this file is an instance or a one-time Playbook; a Template master is never closed out.
 2. Run Final Check and record its evidence, then set Status to Complete.
-3. Name the artifacts this work's completion affects and update them, or hand that list to whoever owns them.
+3. Name the artifacts this work's completion affects. Update an artifact this session owns and can write; otherwise hand the list to whoever owns it. Where you cannot name the owner, ask who owns it, and do not update it.
 4. Archive per `standards/conventions.md`.
-5. Decide promotion. If this process will run again, promote by the reset in `standards/playbook.md`: the undated master is a new file beside the archived run, its header declaring Template. If this was a Template instance, choose which learnings generalize and write only those back to the master; instance-specific ones stay behind.
+5. Decide promotion. A Template instance is not promoted; the master already exists. Write a learning back to the master only when the next instance would run it unchanged whoever the inputs are. A learning that names this run's dates, inputs, or results stays behind, and so does one you cannot tell about. A One-time Playbook is promoted by the reset in `standards/playbook.md`, the undated master a new file beside the archived run with its header declaring Template, only when the requester has said this process will run again. Where they have said it will not, do not promote. Where you cannot tell, ask, and do not promote while the answer is open.
 
 ## Pitfalls
 

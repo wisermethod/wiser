@@ -3,7 +3,7 @@ name: Component Design
 type: skill
 category: design
 description: Design a single UI component as self-contained, renderable HTML and CSS with every applicable state, semantic markup, and design tokens
-version: 0.2.2
+version: 0.2.5
 memory:
   - design
 ---
@@ -53,17 +53,17 @@ Eight steps, in order.
 
 1. **Purpose.** Before any markup, state what the component does, what it displays or the action it enables, where it sits, and how it relates to what surrounds it.
 
-2. **States.** Decide which of criterion 1's states apply to this component, then design each explicitly. `interaction-design.md` carries the visual treatment for each: the eight states of an interactive element in one table, and the container's empty state in its own section. `motion-design.md` carries the timing of the transitions between them. Scope hover to `@media (hover: hover)` so a touch device does not hold a hover state after a tap. Designing every applicable state here, before styling, is the discipline this skill exists to enforce.
+2. **States.** Decide which of criterion 1's states apply to this component, then design each explicitly. Hover, focus, and active apply when it can be operated; disabled when it can be made unavailable; loading when it waits on something; error when an input or an operation can fail. A listed state with no moment is named as not applicable and not designed. Hover is scoped to `@media (hover: hover)` so a touch device does not hold a hover state after a tap. `interaction-design.md` carries the visual treatment for each: the eight states of an interactive element in one table, and the container's empty state in its own section. `motion-design.md` carries the timing of the transitions between them. Designing every applicable state here, before styling, is the discipline this skill exists to enforce.
 
 3. **Structure.** Write the semantic markup criterion 2 calls for, and manage focus for composite components (modals, dropdowns). Content is realistic from the first draft, never filled in later.
 
 4. **Tokens.** Style with the tokens Inputs resolved, in this order: component-level tokens, then semantic tokens (`--color-primary`, `--text-body`), then primitive tokens (`--space-4`, `--radius-md`).
 
-5. **Visual design.** Where quality is won. Set hierarchy so the primary element carries the most weight, across two or three dimensions at once (size, weight, color); spacing that groups the related and separates the distinct; typography mapped to the type scale, weight carrying emphasis; and color used semantically, primary sparingly for calls to action and active states.
+5. **Visual design.** Where quality is won. A dense data application or an unusual shell is taken to `experts/Creative Director/` for spatial, density, and type-scale judgment before the hierarchy below. Set hierarchy so the primary element carries the most weight, across two or three dimensions at once (size, weight, color): the two or three the user or the tokens name, or, where they name one, that one plus size, or weight if they already named size, or, where they name none, size and weight, plus color when the component has a call to action or an active state; spacing that groups the related and separates the distinct; typography mapped to the type scale, weight carrying emphasis; and color, when it is one of the dimensions, used semantically, primary sparingly for calls to action and active states.
 
 6. **Variants.** Design the base plus the variants the user named. None named: ask which, rather than generating every combination of size, emphasis, color, and layout.
 
-7. **Responsive behavior.** Define how the component adapts: reflow, resize, hide, or change of interaction. Write the rules mobile-first with `min-width` queries. `responsive-design.md` carries breakpoints, input-method detection, and per-element adaptation.
+7. **Responsive behavior.** Define how the component adapts: reflow, resize, hide, or change of interaction. Use what the user named. Do not hide the only path to a critical action: reflow it, or change the interaction, and say so; where you cannot tell whether a hide is critical, do not hide. Where the user named none, use the Adaptation Patterns row in `responsive-design.md` for this element, including a hide that row names. Where there is no row, reflow. Write the rules mobile-first with `min-width` queries. `responsive-design.md` carries breakpoints, input-method detection, and per-element adaptation.
 
 8. **Output.** Emit one self-contained unit: a `<style>` block carrying the tokens, the component styles for every state designed in step 2, and the responsive rules. For a Tailwind target, put utility classes on the elements instead of a `<style>` block. Where the caller asked for a verdict, hand this unit as `<design_artifact>`, the resolved tokens as `<design_system>`, and step 1's purpose with the audience and what matters most as `<brief>`, to `experts/Creative Director/` in a second context, and work the findings before delivering; otherwise the component ships on the checks in Success.
 
@@ -82,7 +82,7 @@ Per-type essentials, loaded when the component is one of these; the interaction 
 
 - **Ambiguous component.** A request like "design a card" leaves the content and the action undefined, and a product card, a profile card, and a metric card are different components. Ask what it displays and what it enables before designing.
 - **Conflicting states.** When two states collide, disabled and loading at once, state the precedence in the output rather than guessing: loading takes precedence, showing the spinner and blocking the click.
-- **Variant explosion.** A request for every size by emphasis by color is a dozen thin components. Offer to design the three or four actually needed, fully, instead of all of them thinly.
+- **Variant explosion.** A request for every size by emphasis by color is a dozen thin components. Offer to design the three or four actually needed, fully, instead of all of them thinly; where they name more than four, say that more variants means each is thinner, recommend the three or four, and design what they confirm.
 - **Raw values over tokens.** A hardcoded `16px` or hex breaks theming silently, and nothing at render time reveals it. A bound design system missing the token a component needs gets a new one defined alongside the rest, never a literal left in place.
 - **Placeholder content.** Reserved placeholder text and names read as unfinished and hide real layout problems, a name that runs too long, a number that does not fit. Write realistic content from the first pass; `ux-writing.md` carries the label and message patterns.
 

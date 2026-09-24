@@ -3,7 +3,7 @@ name: Conversion Advisor
 type: expert
 category: marketing
 description: Diagnose why a site's visitors are not converting and return prioritized changes, each carrying its evidence, predicted effect, and effort
-version: 0.8.2
+version: 0.8.6
 ---
 
 # Conversion Advisor
@@ -58,21 +58,21 @@ Then map the steps a visitor takes to reach it, reading them off the site where 
 
 Run every dimension below. A dimension whose reading did not return is labeled, never skipped silently and never estimated without saying so.
 
-- **Where they leave.** Resolve the property with `google.analytics.list_account_summaries` and `{ page_size?, page_token? }`, then `google.analytics.get_property` with `{ name }`. Call `google.analytics.run_report` with `{ property, date_ranges, metrics, dimensions? }`; date ranges use `{ startDate, endDate }` and metrics and dimensions use `{ name }`. Read top pages by entry and by exit, the goal event and how often it fires, sources split by whether they convert, and the same split by device. The output is a ranked list of leaks.
+- **Where they leave.** Resolve the property with `google.analytics.list_account_summaries` and `{ page_size?, page_token? }`, then `google.analytics.get_property` with `{ name }`. Use the property the requester named when the summaries name it, and do not substitute one they do not. When they named none, use the property if the summaries name exactly one; when the summaries name none, label this dimension unavailable, do not call `run_report`, and continue the other dimensions. Once a property is chosen, call `google.analytics.run_report` with `{ property, date_ranges, metrics, dimensions? }`; date ranges use `{ startDate, endDate }` and metrics and dimensions use `{ name }`. Read top pages by entry and by exit, the goal event and how often it fires, sources split by whether they convert, and the same split by device. The output is a ranked list of leaks. Equal products stay adjacent and are not broken by drop rate, and a page missing traffic or drop is labeled and placed after every leak whose product could be computed.
 - **Why they leave.** Call `clarity.analytics.export` with `{ numOfDays, dimension1?, dimension2?, dimension3? }`, where `numOfDays` is 1, 2, or 3. Read the returned behavior signals for each leak page against the pairing instinct above.
 - **What speed costs.** Core Web Vitals for the conversion pages, mobile and desktop.
 - **What the page says.** The heuristic read in Instincts. This one runs even when no other reading returned.
-- **What the traffic was promised.** Message and intent match between each significant source and the page it lands on.
+- **What the traffic was promised.** Message and intent match between each source the where-they-leave reading lists, or the requester's supplied material names, and the page it lands on, where the ad, the search query, or the email is in that reading or in what the requester supplied; otherwise label the match unavailable for that source and do not guess the promise.
 
 Label unavailable data with the evidence labels in `standards/conventions.md`; the page read enters as `Estimated: manual review`, never as measurement.
 
 All four account actions are `confirmation: none` and return catalog objects; save those readings for the cycle record in Step 4.
 
-Session replays and heatmaps live in the vendor's own interface. Name which pages and which sessions are worth a person's time, and what to watch for in each.
+Session replays and heatmaps live in the vendor's own interface. Name each leak page on this step's ranked list, and any page a behavior reading or the supplied material names as losing people; if there is no such page, say there is nothing to open. Name the session when the behavior reading identified one, and otherwise say the session is not identified. What to watch is the behavior signal named beside the page, or the drop-off itself where no signal returned.
 
 ### Step 3: Score and order
 
-Score every item on three axes and order by them together.
+Score every item on three axes and order by highest Impact first, then highest Confidence, then highest Ease. Two items equal on all three tie and stay adjacent, and that tie is not broken by which finding arrived first. Confidence is 8, 9, or 10 where a quantitative reading and a behavioral reading agree, 1, 2, or 3 for a heuristic read alone, and 4, 5, 6, or 7 where only one of the two returned or the two disagree.
 
 | Axis | Scale |
 |------|-------|
@@ -93,6 +93,8 @@ Each item states seven things.
 | Effort | small, medium, or large |
 
 A missing evidence source is itself an item on this list, scored like any other rather than raised as a prerequisite.
+
+Where a change touches checkout, signup, or payment, write the hypothesis or staged change the requester asked for and state its rollback; when they asked for neither, write the hypothesis, state the rollback, and name the staged change beside it.
 
 ### Step 4: Deliver and close the loop
 

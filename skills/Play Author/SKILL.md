@@ -3,7 +3,7 @@ name: Play Author
 type: skill
 category: authoring
 description: Write or review Plays, primitive instruction bodies, and library components
-version: 0.3.0
+version: 0.4.4
 ---
 
 # Play Author
@@ -26,9 +26,9 @@ The requesting owner rides with the request: Before Writing's reuse check search
 
 ## Before Writing
 
-If the request is unclear, ask: What type of file? What does success look like? What content will it process? What scope? Do not guess; wrong assumptions waste time.
+Ask whichever of these the request does not name: What type of file? What does success look like? What content will it process? What scope? Do not guess the missing one; wrong assumptions waste time.
 
-Reuse check: search this root's skills, the requesting owner's existing Plays (the home its AGENTS.md names, the default in `standards/play.md` if it is silent), and existing primitives before writing new. Extend or compose rather than duplicate.
+Reuse check: where the requesting owner is not named, ask who the owner is, and do not run the reuse check or place a file. Otherwise search this root's skills, the requesting owner's existing Plays (the home its AGENTS.md names, the default in `standards/play.md` if it is silent), and existing primitives before writing new. Extend or compose rather than duplicate.
 
 ## Output Types
 
@@ -48,10 +48,11 @@ Play instances belong in the requesting owner's root, never in this plugin root.
 2. Define context, negative boundary first
 3. Define verifiable success
 4. Write minimal; cut until quality would degrade
-5. Add decision points wherever judgment is needed
-6. Add pitfall responses
-7. Verify with three varied inputs
-8. On failure, diagnose which section broke: wrong scope is Context, wrong goal is Objective, missing information is Inputs, wrong judgment is Steps, unhandled edge case is Pitfalls. Fix that section; retest
+5. Add a decision point, in the closed form `standards/instruction-quality.md` states, wherever the file asks the agent to choose
+6. Declare the classifier seam in Context, in the form `standards/primitives.md` Classifier Seam states, when the file is a new `SKILL.md`, `EXPERT.md` or `TOOL.md`, or the change adds or alters a seam. An earlier typed file may carry none until such a change. Where code puts a closed judgment in this primitive's work to a classifier, declare each caller, naming the code, with its else path; where no such caller exists, declare `none.` A judgment the file would have the agent put to the classifier is not a seam: write the step's own path and declare nothing for it. A Play or a library component gets no declaration
+7. Add pitfall responses
+8. Verify with three varied inputs. A change that adds or alters a seam also runs the file both ways, as Classifier Seam states, and records the runs with the change
+9. On failure, diagnose which section broke: wrong scope is Context, wrong goal is Objective, missing information is Inputs, wrong judgment is Steps, unhandled edge case is Pitfalls. Fix that section; retest. Where more than one broke, fix each in that order and retest
 
 ## Composition
 
@@ -59,8 +60,8 @@ When files reference other files: state explicitly what to load and when; keep X
 
 ## Review Mode
 
-For auditing an existing instruction file, follow the Review Process in `standards/instruction-quality.md` end to end, triage through the closing distillation pass. Within that pass, audit every Steps decision for the closed form that process states, and record each miss as a finding in the shape it requires. When the file references or is referenced by others, a TOOL.md beside its SETUP.md, a skill and the type files it loads, the composition review is not optional. A triage verdict of rewrite becomes a write: return to this skill's writing workflow with the old file as source material.
+For auditing an existing instruction file, follow the Review Process in `standards/instruction-quality.md` end to end, triage through the closing distillation pass. Within that pass, audit every Steps decision for the closed form that process states. In a `SKILL.md`, `EXPERT.md` or `TOOL.md`, audit the classifier seam against `standards/primitives.md` Classifier Seam. It is required on a new file or a changed seam, absent only on an earlier file whose seam this change does not touch; where present, in Context and in that form, a skill's or expert's seam is routing or code a step runs and never one of its own steps, and each else path is one the file takes; a changed seam records runs both ways that passed. Record each miss as a finding in the shape that process requires. When the file references or is referenced by others, a TOOL.md beside its SETUP.md, a skill and the type files it loads, the composition review is not optional. A triage verdict of rewrite becomes a write: return to this skill's writing workflow with the old file as source material.
 
 ## Success
 
-The file passes the three quality tests (clarity, completeness, elegance) and the three-varied-inputs verification.
+The file passes the three quality tests (clarity, completeness, elegance) and the three-varied-inputs verification. A new `SKILL.md`, `EXPERT.md` or `TOOL.md`, or one whose seam changed, carries its classifier seam declaration in the form `standards/primitives.md` Classifier Seam states. An earlier file whose seam this change does not touch may omit it. A change that adds or alters a seam has passed the runs both ways that section requires, recorded with the change.

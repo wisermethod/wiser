@@ -54,7 +54,7 @@ The seven geometries, read one at a time at step 3 of `SKILL.md`. Each entry giv
 
 **Fits** items compared across two independent dimensions, where position carries meaning and the pattern across many items is the finding. Not more than two primary dimensions, not sequence, not nesting.
 
-**Layout.** Three shapes. A quadrant splits two dimensions into high and low and gives each of the four regions a meaning. A comparison table puts items in rows, criteria in columns, and an assessment in each cell. A positioning scatter places items at real values on two continuous dimensions and shows clusters and gaps. Whichever shape, the two dimensions must be independent of each other.
+**Layout.** Three shapes. Count how many of these are true, and do not stop at the first. Both dimensions are continuous quantities with values in the material: a positioning scatter, items at those values, clusters and gaps visible. Both dimensions are only high and low: a quadrant, each of the four regions named for what sitting there means. The columns are criteria and the rows are items: a comparison table, an assessment in each cell, the rating scale stated. One true: use that shape. Two or more true: ask which shape, and name what each would show. None true: ask. Do not pick silently. Whichever shape, the two dimensions must be independent of each other. They are not independent: do not build the matrix. Return to step 2 of `SKILL.md`.
 
 **Labels.** Both axes name what they measure and which direction means more. Each quadrant carries a name conveying what sitting there means. Every item is identifiable. In a comparison table, the rating scale is stated.
 
@@ -66,19 +66,19 @@ The seven geometries, read one at a time at step 3 of `SKILL.md`. Each entry giv
 
 **Fits** one effect with multiple contributing factors that group into categories, where systematic cause analysis is the goal. Not solutions, which this geometry cannot express, not sequence, and not relationships without a central effect.
 
-**Layout.** The effect sits in the head at one end, a spine runs to it, major bones angle off the spine for cause categories, minor bones branch from those for specific causes, and sub-bones carry root causes behind an expansion. Bones alternate above and below the spine at a consistent angle. Common category sets are people, machine, method, material, measurement, and environment, or a set the domain actually uses; adapt rather than forcing the standard six.
+**Layout.** The effect sits in the head at one end, a spine runs to it, major bones angle off the spine for cause categories, minor bones branch from those for specific causes, and sub-bones carry root causes behind an expansion. Bones alternate above and below the spine at a consistent angle. Does the material name its own cause categories? Yes: use those. No: use people, machine, method, material, measurement, and environment. A category with no cause in the material: leave it out. Do not invent a cause to fill a category, and do not force all six.
 
 **Labels.** The head states the effect as a sentence. Major bones name categories. Minor bones name specific causes, phrased as causes rather than symptoms and specific enough to investigate.
 
 **Ceiling.** Four to six categories, three to five causes each. Above it, group causes and put the sub-bones behind expansion.
 
-**Breaks it.** Symptoms written where causes belong. Every cause landing in one category, which means either the categories are wrong or the problem is simpler than assumed. Stopping at surface causes instead of asking why down each bone. Causes with no evidence and no mark distinguishing confirmed from hypothesized. Using it to propose fixes.
+**Breaks it.** Symptoms written where causes belong. Did every cause land in one category? The other categories are empty because the material names no cause for them: the problem is simpler than six categories, and the empty ones stay out. The material's causes could sit in a category that was not offered: the categories are wrong. Use the ones the material names. You cannot tell which of those two: ask. Do not force the six. Stopping at surface causes instead of asking why down each bone. Causes with no evidence and no mark distinguishing confirmed from hypothesized. Using it to propose fixes.
 
 ## Timeline
 
 **Fits** events, phases, or milestones in temporal order, where when and how long carry the meaning. Not a process with no time dimension, which is Flow, and not cause and effect, which is Fishbone or Concept Map.
 
-**Layout.** Horizontal for most, vertical when the timeline is long and the destination scrolls. A marked scale whose consistent spacing means consistent intervals, with major ticks at significant periods and a now marker where the timeline is live. Points for moments, bars for durations, position for when and length for how long. Several streams get parallel labeled lanes with the dependencies between them drawn.
+**Layout.** Does the destination scroll vertically, and are there more events than fifteen to twenty in one view? Yes: vertical. No, or you cannot tell whether it scrolls: horizontal. Horizontal is the default. A marked scale whose consistent spacing means consistent intervals, with major ticks at significant periods and a now marker where the timeline is live. Points for moments, bars for durations, position for when and length for how long. Several streams get parallel labeled lanes with the dependencies between them drawn.
 
 **Labels.** The scale states what its intervals are. Every event carries a name and a date. Every duration carries its start, its end, and what the period is. Dependencies name what must precede what.
 
