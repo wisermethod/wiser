@@ -497,17 +497,49 @@ function ancestorsOf(pid) {
 }
 
 /**
- * Watches every other harness's presence file under the real gateway home while
- * the runs go, and records, the first time a file names a pid, whether that
- * process was alive and whether this script is among its ancestors. Another
- * session's gateway, a reviewer's especially, often exits before the runs end,
- * so it is judged when it writes rather than afterwards.
+ * Every process that descends from this script, from one `ps` listing; empty
+ * where `ps` cannot answer.
+ * @returns {number[]}
+ */
+function trialProcesses() {
+  let out = '';
+  try {
+    out = execFileSync('ps', ['-Ao', 'pid=,ppid='], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  } catch {
+    return [];
+  }
+  const children = new Map();
+  for (const line of out.split('\n')) {
+    const [pid, ppid] = line.trim().split(/\s+/).map((v) => Number.parseInt(v, 10));
+    if (!Number.isInteger(pid) || !Number.isInteger(ppid)) continue;
+    if (!children.has(ppid)) children.set(ppid, []);
+    children.get(ppid).push(pid);
+  }
+  const found = [];
+  const stack = [process.pid];
+  while (stack.length) {
+    const cur = stack.pop();
+    for (const child of children.get(cur) || []) {
+      found.push(child);
+      stack.push(child);
+    }
+  }
+  return found;
+}
+
+/**
+ * Records, every 2 s while the runs go, every process that descends from this
+ * script, and every presence file under the real gateway home with the pid it
+ * names and whether that process then descended from this script. A trial's
+ * gateway lives for its whole run, so it is always among the processes seen.
  * @param {string} realGateway
  */
 function watchPresence(realGateway) {
   const seen = new Map();
+  const trial = new Set();
   const dir = join(realGateway, 'classifier-status');
   const poll = () => {
+    for (const pid of trialProcesses()) trial.add(pid);
     let names = [];
     try { names = readdirSync(dir); } catch { return; }
     for (const name of names) {
@@ -531,6 +563,7 @@ function watchPresence(realGateway) {
   const timer = setInterval(poll, 2000);
   return {
     seen,
+    trial,
     finish() {
       clearInterval(timer);
       poll();
@@ -541,24 +574,24 @@ function watchPresence(realGateway) {
 
 /**
  * Judges what changed in the real gateway home and the key file between the
- * before-hash and the after-hash. A trial's gateway and hooks run in its own
- * trial home, so what one could leave behind here is its session id in a file
- * or its own process in a presence file; the person's other sessions write here
- * all the time. So:
+ * before-hash and the after-hash, by the trial's own processes. A trial's
+ * gateway and hooks run in its own trial home, so what one could leave here is
+ * its session id in a file or one of its processes in a presence file, while
+ * the person's other sessions, short-lived gateways included, write here all
+ * the time. So:
  * - the key file changing stops the run;
- * - a presence file, `classifier-status/<harness>.json`, `claude-code.json`
- *   included, is attributed when the watcher saw the process it names alive and
- *   outside this script's process tree, and stops the run otherwise;
- * - any other change is attributed only when every presence file that changed
- *   was attributed and no file here names a trial session id, and stops the run
- *   otherwise.
+ * - a presence file, `classifier-status/<harness>.json`, stops the run when the
+ *   pid it names was ever seen descending from this script, or cannot be read;
+ *   otherwise it is attributed to another session;
+ * - any other change is attributed only when no presence file stopped the run
+ *   and no file here names a trial session id; otherwise it stops.
  * @param {string[]} changed
  * @param {string} realGateway
- * @param {Map<string, object>} seen
+ * @param {{ seen: Map<string, object>, trial: Set<number> }} watch
  * @param {{ keyFile: string, sessionIds: string[] }} opts
  * @returns {{ stops: string[], attributed: object[] }}
  */
-function judgeChanges(changed, realGateway, seen, opts) {
+function judgeChanges(changed, realGateway, watch, opts) {
   const stops = [];
   const attributed = [];
   const dir = join(realGateway, 'classifier-status');
@@ -568,8 +601,9 @@ function judgeChanges(changed, realGateway, seen, opts) {
     const presence = dirname(file) === dir && file.endsWith('.json');
     if (!presence) { rest.push(file); continue; }
     const pid = existsSync(file) ? presencePid(file) : null;
-    const obs = pid == null ? null : seen.get(`${file}\0${pid}`);
-    if (obs && obs.alive && !obs.ours) attributed.push(obs);
+    const obs = pid == null ? null : watch.seen.get(`${file}\0${pid}`);
+    const trialPid = pid != null && (watch.trial.has(pid) || Boolean(obs && obs.ours));
+    if (pid != null && !trialPid) attributed.push(obs || { path: file, pid });
     else stops.push(file);
   }
   const named = [];
@@ -577,7 +611,7 @@ function judgeChanges(changed, realGateway, seen, opts) {
     if (id) named.push(...filesContaining(realGateway, id));
   }
   for (const file of rest) {
-    if (stops.length === 0 && named.length === 0) attributed.push({ path: file, reason: 'another live session: every changed presence file attributed and no trial session named' });
+    if (stops.length === 0 && named.length === 0) attributed.push({ path: file, reason: 'another session: no presence file names a trial process and no trial session is named' });
     else stops.push(file);
   }
   for (const file of named) if (!stops.includes(file)) stops.push(file);
@@ -1421,7 +1455,7 @@ async function commandRun(spec, plan, flags, work, keyFile) {
     const keyHashAfter = hashOne(keyFile);
     if (keyHashAfter) after[keyFile] = keyHashAfter;
     const changed = changedPaths(before, after);
-    const { stops, attributed } = judgeChanges(changed, realGateway, watch.seen, {
+    const { stops, attributed } = judgeChanges(changed, realGateway, watch, {
       keyFile,
       sessionIds: footprints.map((f) => f.session_id).filter(Boolean),
     });
@@ -1433,6 +1467,7 @@ async function commandRun(spec, plan, flags, work, keyFile) {
       stops,
       attributed,
       presence_observed: observed,
+      trial_processes_seen: watch.trial.size,
       tree: { commit, digest },
       runs: footprints,
     };

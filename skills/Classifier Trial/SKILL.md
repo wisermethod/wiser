@@ -3,7 +3,7 @@ name: Classifier Trial
 type: skill
 category: system
 description: Test whether the classifier improves one use case or one primitive, by paired runs with it on and off on a synthetic root scored blind, and return a verdict with its runs, cost and noise that releases nothing
-version: 0.1.1
+version: 0.1.2
 ---
 
 # Classifier Trial
@@ -35,7 +35,7 @@ The trial also needs three things the request may not give: the classifier direc
 3. **Where it files.** The owning root's `programs/classifier-trials/<slug>/`, a project under a standing concern (`standards/user-root.md` C3), unless that root's `AGENTS.md` names another home. The ceiling lives once at `programs/classifier-trials/ceiling.json`.
 4. **The cases.** Write `spec.json` in the trial's directory, in the shape the README states, with at least one case whose right answer is none. What each case should reach is labelled by two readers who did not write the cases, each a fresh context handed the cases and the skills and experts indexes and nothing of the other's labels; a case they disagree on is rewritten or dropped. An existing labelled set, scored under its own rule, may stand in for them. A seam trial also needs the seam's own right answer for each case, the candidate it should pick or none, labelled the same way. A case's rubric is the expected primitive's `## Success` lines, verbatim; a none case's is one item, which is also its `none_item`: the reply does not present the ask as served by a primitive that does not serve it. The trial's root is synthetic: the runner builds one from the plugin's user-root template unless the person names a directory they made for trials. A root the person works in is never a trial's root.
 5. **Cost before anything runs.** Run `plan` with the ceiling file and tell the person the host runs, classifier calls, judge runs, the expected and worst dollars, and where the per-run figure came from. Which does `plan.json` show? No ceiling set: ask the person for one, write it with `ceiling`, and plan again. `needs_go`: ask for a go; without one, stop. Neither: go on.
-6. **Run.** Run `run`, with `--go` when the person gave one. Did it stop? The lock proof did not answer `needs_connect`, a connector action answered `ok`, the person's gateway home or key file changed, or a run's session appeared in that home: tell the person the trial touched or could have touched their real setup, and stop. A change another of their live sessions made is not a stop; `safety.json` names it, and the report says so. A run invalid twice, or spend past the worst estimate: report where it stopped. Never re-run around a stop.
+6. **Run.** Run `run`, with `--go` when the person gave one. Did it stop? The lock proof did not answer `needs_connect`, a connector action answered `ok`, the person's gateway home or key file changed, or a run's session appeared in that home: tell the person the trial touched or could have touched their real setup, and stop. A change another of their sessions made is not a stop; `safety.json` names it, and the report says so. A run invalid twice, or spend past the worst estimate: report where it stopped. Never re-run around a stop.
 7. **Score blind.** Run `blind`, then `score`. Nothing of `blind/map.json` is read until every packet is scored.
 8. **The verdict.** Run `report`, then `keyscan` on the trial's directory. Is the scan anything but clean? Say which file, give no verdict, and stop. Clean: report from `verdict.json` the kind, each arm's runs, scores, median and range, cost, wall time and classifier calls; each case's reach per arm for a routing trial; every Classifier Seam line with its numbers; the plan's estimate beside the spend; and the noise note. Then take the first of these that holds:
    - The trial was an ask no primitive serves, and it landed nowhere in both arms: the ask needs a primitive this plugin lacks; hand it to `experts/System Expert/` Job 3.
@@ -56,7 +56,7 @@ The trial also needs three things the request may not give: the classifier direc
 ## Success
 
 - Before the first run, the person was told the host runs, classifier calls and dollars, and gave a go wherever the worst figure passed their ceiling.
-- Every run used a synthetic root and its own gateway home; `safety.json` shows the lock proof answering `needs_connect`, the key file unchanged, and every change in the person's gateway home attributed to another of their live sessions.
+- Every run used a synthetic root and its own gateway home; `safety.json` shows the lock proof answering `needs_connect`, the key file unchanged, and every change in the person's gateway home attributed to another of their sessions, none to a trial process or session.
 - Scoring was blind: no packet carried an arm, a run, a model or a cost.
 - The verdict states runs, classifier calls, cost, each arm's range and the noise note, and every Classifier Seam line with its numbers where one was scored.
 - Release is named as the person's separate decision, and nothing was released.

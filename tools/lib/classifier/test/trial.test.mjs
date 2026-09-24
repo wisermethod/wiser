@@ -830,7 +830,7 @@ test('report pass lines, overlap, and the noise note', () => {
   assert.equal(apart.seam_passes, true, JSON.stringify(apart.lines));
 });
 
-test('another live session is attributed; a trial process, a dead process, or a trial session id stops the run', { timeout: 180000 }, () => {
+test('another session is attributed, a short-lived one included; a trial process stops the run', { timeout: 180000 }, () => {
   function prepare(ask) {
     const box = world();
     const tree = syntheticTree(join(box.parent, 'tree'));
@@ -863,7 +863,16 @@ test('another live session is attributed; a trial process, a dead process, or a 
   assert.equal(liveSafety.attributed.length, 1);
   assert.equal(liveSafety.attributed[0].pid, process.pid);
 
-  for (const marker of ['PLANT_PRESENCE_DEAD', 'PLANT_PRESENCE_OURS']) {
+  // A short-lived gateway of another session is gone before any poll: not a trial process, so attributed.
+  const dead = prepare('PLANT_PRESENCE_DEAD\nAnswer none of the candidates.');
+  const deadRun = runCli(['run', '--work', dead.work], dead.home, { WISER_TRIAL_HOST: hostPath });
+  assert.equal(deadRun.status, 0, deadRun.stderr);
+  const deadSafety = JSON.parse(readFileSync(join(dead.work, 'safety.json'), 'utf8'));
+  assert.deepEqual(deadSafety.stops, []);
+  assert.ok(deadSafety.attributed.some((a) => a.path.endsWith('codex.json')));
+  assert.ok(deadSafety.trial_processes_seen > 0);
+
+  for (const marker of ['PLANT_PRESENCE_OURS']) {
     const box = prepare(`${marker}\nAnswer none of the candidates.`);
     const run = runCli(['run', '--work', box.work], box.home, { WISER_TRIAL_HOST: hostPath });
     assert.equal(run.status, 1, `${marker} should stop`);
