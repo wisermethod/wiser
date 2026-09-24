@@ -28,6 +28,8 @@ The one list; a tool's pages point here.
 | A dated copy of a deck before an in-place edit | `--archive-dir`, or `zArchive/` beside the deck | `keynote-render` |
 | A harvest bundle | the `output.directory` inside the request file, absent `--output` | `Content Harvester` |
 | A knowledge store: databased SQLite or one native graph `graph.lbdb` file per dataset, at caller-named `--store` | exactly the path the caller passes as `--store`, by convention `memory/knowledge/store/` in the owning root; wiki writes no store | `knowledge-memory` |
+| A classifier trial's per-run state: a trial gateway home per run, whose key file is a symbolic link to the person's key file or three empty lines, a copied synthetic root, an empty secrets directory, and a tree exported from a commit | one directory in the platform's temporary directory, `wiser-classifier-trial-<random>`, removed at the end of the run and after a stop unless `--keep-temp` | `tools/lib/classifier/trial.mjs` `run` |
+| A classifier trial's records: spec, plan, runs, blind packets, scores, verdict, safety record | the caller-named `--work` directory in the owning root; a ceiling file at the caller-named `--ceiling-file` | `tools/lib/classifier/trial.mjs` |
 | A knowledge set's own records: corpus, wiki or extraction, review items, reports | inside the set directory the caller passes as `--set`, at `corpus/`, `wiki/`, `extraction/`, `review/`, and `reports/` as the backend uses them | `knowledge-memory` |
 
 The gateway's writes (connection store, audit log, empty project-key template) are listed in `gateway/AGENTS.md` and are not restated here.
