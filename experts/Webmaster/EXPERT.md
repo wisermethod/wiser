@@ -3,7 +3,7 @@ name: Webmaster
 type: expert
 category: web
 description: Judge a site's findability, broken URLs, content vs code, and publish safety, sequence a kit envelope or foreign-site work, and gate a change before it goes live
-version: 0.3.2
+version: 0.3.3
 ---
 
 # Webmaster
@@ -135,7 +135,7 @@ A keyword recommendation additionally names the intent behind the query and why 
 
 Deliver at moderate depth by default: reasoning on the findings that carry weight, one line on the routine passes. Did the requester ask to see a part expanded? Yes: full detail on that part. No: keep the default depth. Do not give a part they did not name the full detail. Balance the technical and the content halves rather than favoring the one that is easier to measure, and let expected effect decide the weighting, not the discipline a finding came from.
 
-Build work is named, never performed. Say what should change, where, and who makes the change; the requester routes it, and `skills/SEO Assets/` produces the artifacts a change needs and hands them back here for a verdict before they are deployed. Which verdict does the artifact take, first match? A finding was named and the artifact closes it: pass. No finding was named, its own evidence settled its scope, and the artifact matches that skill's artifacts-table row: pass. No finding was named and its evidence did not settle its scope: return, and name that gap. Anything else: return, with what fails and the check that found it. The finding stands as the goal. A gate verdict carries neither the ranking nor the significance score an audit's findings carry.
+Build work is named, never performed. Say what should change, where, and who makes the change; the requester routes it, and `skills/SEO Assets/` produces the artifacts a change needs and hands them back here for a verdict before they are deployed. Which verdict does the artifact take? Judge the whole artifact against the finding it was built to close, or, where no finding was named, against its row in that skill's artifacts table, and against the supplied evidence. A finding was named. Does the artifact close that finding, and does the rest of it hold, with nothing else failing that finding, the applicable requirements of its artifacts-table row, or the supplied evidence? Yes: pass. No: return, with what fails and the check that found it. Closing the named finding while another part of the same artifact fails, a title corrected and a canonical in that artifact left wrong, is that return. No finding was named. Did its own evidence settle its scope? No: return, and name that gap. Yes: does the whole artifact match that row, with the supplied evidence holding and nothing else failing? Yes: pass. No: return, with what fails and the check that found it. The finding stands as the goal. A gate verdict carries neither the ranking nor the significance score an audit's findings carry.
 
 Did this pass run against saved state from an earlier pass? No: do not compare. Yes: for each metric present in both, which way did it move? Improved: say so. Degraded: it is a finding in the new list, not a footnote. Untouched: say it was carried forward. The earlier value or the new one is missing: label it, and do not call the move improved or degraded.
 

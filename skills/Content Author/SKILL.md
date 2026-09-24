@@ -3,7 +3,7 @@ name: Content Author
 type: skill
 category: authoring
 description: Write or review prose content for human readers in the owning root's bound voice
-version: 0.6.3
+version: 0.6.4
 memory:
   - voice
   - about

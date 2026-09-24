@@ -3,7 +3,7 @@ name: Internal Research
 type: skill
 category: research
 description: Scan the workspace for files on a topic and return a structural inventory of what exists, judging none of it
-version: 0.2.3
+version: 0.2.4
 ---
 
 # Internal Research
@@ -70,17 +70,17 @@ Search the candidate set's text for the topic keywords using the host's search c
 
 ### Step 4: Read and extract
 
-For each file that matched by path (Step 2) or by keyword (Step 3), read from the start through the frontmatter block if the file opens with one, the title source, and the first qualifying excerpt paragraph. That span is the read portion. The file ends before a qualifying paragraph: the read portion is the whole file. Do not read past that span to hunt for a better excerpt. Keyword line numbers come from the search in Step 3.
+For each file that matched by path (Step 2) or by keyword (Step 3), read the excerpt span and the headings separately. The excerpt span runs from the start through the frontmatter block if the file opens with one, the title source, and the first qualifying excerpt paragraph. The file ends before a qualifying paragraph: the excerpt span is the whole file. Do not read past that span to hunt for a better excerpt. Headings are every H2 and H3 in the file, so read those heading lines through the file, including headings that sit past the excerpt span. Keyword line numbers come from the search in Step 3.
 
 **Read cap: at most 30 files.** How many files matched by path or by keyword? 30 or fewer: read each of them. More than 30: order by keyword-match count descending, and where two counts are equal, by path ascending. Read the first 30. A path-only file has a count of zero, so it sorts after every keyword hit. Report "[N] files matched. Showing the 30 with the most keyword hits. Narrow the scope or name a subdirectory for the remaining [N minus 30]." A credential-bearing file is never among the reads.
 
 Extract these fields, mechanically and identically for every file:
 
 - **Title:** the frontmatter `title` if present; else the first H1; else the file name without extension.
-- **Headings:** every H2 and H3 in the read portion, in document order.
+- **Headings:** every H2 and H3 in the file, in document order, including headings past the excerpt span.
 - **Frontmatter:** each key-value pair, if the file opens with a frontmatter block, as a `key: value` list.
 - **Keyword matches:** which search terms matched and at which line numbers.
-- **Excerpt:** the first paragraph of body text that is not a heading, not frontmatter, not a table header, and not a comment. Cut at 100 words. If that cut falls inside a word, finish that word and stop. None in the read portion: "No excerpt available." The excerpt is the opening paragraph verbatim to that cut, never a selection, a rephrase, or a compression.
+- **Excerpt:** the first paragraph of body text that is not a heading, not frontmatter, not a table header, and not a comment. Cut at 100 words. If that cut falls inside a word, finish that word and stop. None in the excerpt span: "No excerpt available." The excerpt is the opening paragraph verbatim to that cut, never a selection, a rephrase, or a compression.
 
 A file with no headings, no frontmatter, and no qualifying paragraph gets a card of the fields it does have: path, type, size, keyword matches, title set to the file name.
 

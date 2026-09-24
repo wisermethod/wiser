@@ -3,7 +3,7 @@ name: Cloudflare Pages
 type: skill
 category: web
 description: List and get a Cloudflare Pages project, list its deployments, and take a kit site live by Wrangler upload of the envelope's site/dist/ payload only
-version: 0.2.1
+version: 0.2.2
 gaps:
   - create a Pages deployment through the gateway
 ---
@@ -43,7 +43,7 @@ Quote filesystem paths containing spaces, including this skill's directory.
 
 ## Steps
 
-**1. Settle the job and scope.** Apply Context's hand-offs and refusal before selecting an action. Which job does `<request>` name? A create, a Pages write, Workers, R2, rulesets, or hostname DNS: apply that hand-off or refusal, and do not select a read in its place. A list of the account's projects, with no one project named: project-list. One named project's record: project-get. The deployments of a named project, and not a publish: deployment-list. Taking a kit site live, a publish, or an upload: live upload. Two of those four jobs, or none of them: ask before proceeding. Missing or ambiguous account, project, or site: ask before proceeding. Never select the first project. Get and deployment-list need `project_name`; without it, ask, and do not get or list.
+**1. Settle the job and scope.** Apply Context's hand-offs and refusal before selecting an action. Which job does `<request>` name? Take the first of these that fits, and do not also apply a later one. Taking a kit site live, a publish, or an upload of the site folder, including a human-run Wrangler upload: live upload. That hand-off is the supported path. A create of a Pages deployment through the gateway, or a Pages write through the gateway: refuse, name the gap, and do not select a read or invent a write in its place. Workers, R2, rulesets, or hostname DNS: apply that hand-off, and do not select a read in its place. A list of the account's projects, with no one project named: project-list. One named project's record: project-get. The deployments of a named project, and not a publish: deployment-list. Two of those four jobs, or none of them: ask before proceeding. Missing or ambiguous account, project, or site: ask before proceeding. Never select the first project. Get and deployment-list need `project_name`; without it, ask, and do not get or list.
 
 **2. Read through the declared grant.** Use the gateway's `execute` tool with only the following actions, as declared in `connectors/cloudflare/CONNECTOR.md`:
 

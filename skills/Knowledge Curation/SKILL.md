@@ -3,7 +3,7 @@ name: Knowledge Curation
 type: skill
 category: knowledge
 description: Keep an existing knowledge set accurate through source updates, wiki lint or databased review, human decisions, reproducible rebuilds, and supported backend upgrades
-version: 0.4.1
+version: 0.4.2
 gaps:
   - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
 ---
@@ -57,7 +57,7 @@ Read the recipe's backend. Wiki: gather one immutable source with its provenance
 
 Databased: chunk included new corpus material, report the chunk count, extract with the session model using the pack and `tools/knowledge-memory/references/schemas.md`, then `ingest --extraction <file>`. The skill appends source context and canonical names to the prompt and rewrites the extraction object after each chunk. The four-part extraction identity controls reuse. Does this stretch argue, define, or spend a paragraph on the idea? Yes, in one stretch or in several: extract it. It only mentions the idea: do not extract an Idea from the mention. You cannot tell: extract it. Do not skip an argued idea because the theme list missed it. Read the ingest report, resolve or record rejections, then run `review-pass`. No script estimates or spends model cost.
 
-After wiki compile or databased extract, check coverage against the corpus, per `tools/knowledge-memory/references/backends.md` Organizing pass. Does the idea locate, and does it have a page or a Candidate? It locates and has neither, including when you cannot tell whether it is important or only mildly interesting: add it. It locates and already has a page or a Candidate: coverage is satisfied; continue. It does not locate: do not add it. Missing a located idea is worse than keeping a mildly interesting located one.
+After wiki compile or databased extract, check coverage against the corpus, per `tools/knowledge-memory/references/backends.md` Organizing pass. Does the idea locate, and does it have a page or a Candidate? It locates, it has neither, and it is important: add it. Missing that idea is worse than keeping a mildly interesting located one. It locates, it has neither, and it is only mildly interesting: adding it is allowed. It locates, it has neither, and you cannot tell whether it is important: record it for review, and do not add it on that uncertainty. It locates and already has a page or a Candidate: coverage is satisfied; continue. It does not locate: do not add it.
 
 **Graph.** Follow `experts/Knowledge Expert/graph.md`: `chunk --set <absolute set>`, session extraction using the pack and located quotes, then `ingest --set <absolute set> --store <absolute graph.lbdb> --extraction <absolute file>`. Read the Candidate ingest report, including name skips, unsupported types, unresolved links and rejections. Existing primary keys are skipped; changed evidence requiring replacement goes to the human rather than being claimed applied. No graph promote or replay runs.
 
@@ -83,7 +83,7 @@ A decided node rejection uses `promote --decided` and sets Rejected. A human dec
 
 ### 5. Rebuild or upgrade
 
-State the reason and source/chunk counts before rebuilding. Wiki recompiles from immutable `corpus/`, keeping Status blocks and archive pages, then runs the coverage question in `tools/knowledge-memory/references/backends.md` Organizing pass. A located idea with no home is added, including when the old theme list was short. An idea that does not locate is not added. Then check the index and run lint. A recompile is not permission to erase disputes.
+State the reason and source/chunk counts before rebuilding. Wiki recompiles from immutable `corpus/`, keeping Status blocks and archive pages, then runs the coverage question in `tools/knowledge-memory/references/backends.md` Organizing pass, on the same materiality question Step 2 states, so a load-bearing located idea cannot disappear because the old theme list was short. An idea whose importance is uncertain is recorded for review and is not added on that uncertainty. An idea that does not locate is not added. Then check the index and run lint. A recompile is not permission to erase disputes.
 
 Databased: check extraction reuse before dropping memory. An entry is reusable only when dataset, source hash, chunk hash and pack hash match. Report reused and new extraction counts. With the rebuild authorized, run `forget --memory-only --confirm`, chunk, extract only entries needing it, ingest every extraction, `promote --replay`, `review-pass`, then `healthcheck --eval`. Have a human read the composed answers. Did that read happen? No: do not report the eval as accepted. Say the read has not happened. Yes: compare with the last pack filled per `tools/knowledge-memory/references/backends.md` Databased eval. A template-floor self-hit is not that baseline. Does the new run fail a row the last passing run passed, or does the human read name a wrong answer the last run had right? Yes: report a regression. Do not weaken a correct eval and do not drop a row to make it pass. There is no last passing run, or the new run does not fail such a row: report the comparison that could be made. Do not call a missing baseline a regression.
 

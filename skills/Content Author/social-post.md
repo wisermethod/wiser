@@ -6,7 +6,7 @@ A short public post on an open social feed: one post, a thread of them, or a cap
 
 Which of three feeds is the piece going to? Character-limited, image-led, or conversational, as defined below. One: use that band and that hashtag rule, and name the feed before drafting. The brief names none, or two could fit: ask which. Do not pick one, and do not draft before the feed is named. The archetypes are named for what each one is built around, and the rules below use these names and no others.
 
-- **Character-limited feed.** The post is text and the feed caps it, at 280 characters. What is the post for? To be forwarded: 70 to 100 characters. To start an argument: 140 to 280. Neither, or both: ask which. Do not pick a length between the two bands.
+- **Character-limited feed.** The post is text and the feed caps it, at 280 characters. What is the post for? To be forwarded: 70 to 100 characters. To start an argument: 140 to 280. Neither, a routine announcement or an informational update included: any length inside that 280-character cap. Both: ask which. Do not write past the cap.
 - **Image-led feed.** The image stops the scroll and the words are a caption under it. 150 to 300 words.
 - **Conversational feed.** Mixed text, links, and images, read for what a post starts rather than for what it shows. 100 to 250 words.
 - **Threads.** Five to ten posts, seven being the usual best shape. Each post stands alone and earns the next, the first is the hook for the whole thread, and the last lands the insight rather than trailing off.

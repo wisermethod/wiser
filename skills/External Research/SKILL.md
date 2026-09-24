@@ -3,7 +3,7 @@ name: External Research
 type: skill
 category: research
 description: Gather and credibility-tag sources on a question, surfacing contradictions, returning an evidence package to a calling expert or skill or a verified, confidence-rated brief to a user asking directly
-version: 0.2.6
+version: 0.2.7
 ---
 
 # External Research
@@ -125,7 +125,7 @@ The input is a natural-language question.
 1. **Scope.** Apply the Context routing boundary first. Is the lookup specific and answerable as stated? Yes: proceed, at the depth it names or Standard. No: ask for the outcome wanted, what is in and out of scope, and the depth, naming Standard as the default, before searching. No answer: do not search.
 2. **Formulate** queries from the scoped question, each specific and factual, none leading or opinion-seeking. How many? The depth table's Searches cell, not a count chosen for taste. Quick: 1 or 2. Standard: 3 to 5. Deep: 5 to 10. Where in that cell? Count the independent factual parts of the scoped question. Fewer parts than the top of the cell: use the number of parts, and not below the bottom of the cell. At least as many parts as the top: use the top. Do not add a query that restates another.
 3. **Gather**, then **seek counter-evidence** at the depth.
-4. **State the answer** as source-backed claims, keeping disagreeing claims paired. What does the cited passage do? It states the claim in the words used: tag `direct`. It states the same claim in other words and adds nothing: tag `paraphrase`. The claim adds a conclusion the passage does not state: tag `inference`. You cannot find a passage: do not tag it `direct` or `paraphrase`. The not-supported question in Verification decides whether it is dropped or re-tagged `inference` at Low. Do not interpret patterns across angles or rank competing positions.
+4. **State the answer** as source-backed claims, keeping disagreeing claims paired. What does the cited passage do? It states the claim in the words used: tag `direct`. It states the same claim in other words and adds nothing: tag `paraphrase`. The claim is a conclusion reasoned from evidence the passage does state, and the passage does not state the conclusion itself: tag `inference`. You cannot find a passage, or the passage does not carry the claim: do not tag it `direct`, `paraphrase`, or `inference`. Verification drops that claim. Where the drop leaves the scoped question with nothing that answers it, state that the question remains unanswered. Do not interpret patterns across angles or rank competing positions.
 5. **Verify** at the depth (below).
 6. **Assign confidence** to each finding (below).
 7. **Assemble** the brief (Output, below), then the gate, then deliver.
@@ -138,7 +138,7 @@ Mechanical claim-to-source matching: does the cited source actually support the 
 
 - **supported** if the source states the claim, or states facts from which the claim follows with nothing added: no change. "Clearly implies" means that, and not a further conclusion.
 - **partially supported** if the source is related but the claim overstates or extrapolates: set confidence to Low, and add the qualifier naming what the source does and does not say;
-- **not supported** if the source does not carry the claim. Is the claim a quote or a person-fact? Yes: drop it. No, and the scoped question can be answered without it: drop it. No, and the question cannot: re-tag it `inference` at Low confidence and name what the source does not say. Do not leave it tagged `direct` or `paraphrase`.
+- **not supported** if the source does not carry the claim. Drop it. Where the scoped question then has nothing that answers it, state that the question remains unanswered. Do not re-tag the claim `inference`, and do not leave it tagged `direct` or `paraphrase`. An `inference` tag is reserved for a conclusion reasoned from evidence the cited source states, which is standalone step 4. A source that does not carry the claim is not that evidence.
 
 A source that no longer resolves is tagged `dead`. A claim resting only on it moves to Low, on that criterion. A claim that still has another independent live source keeps the level that live source supports, and the output names the dead one. Was the claim confirmed across independent sources, aggregator duplicates excluded? Yes, and no Low criterion below holds: raise its confidence one level toward High, and not past High. A Low criterion holds: it stays Low. It is already High: it stays High. Name the confirming sources. No: leave the level the table below gives.
 

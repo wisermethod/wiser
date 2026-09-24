@@ -3,7 +3,7 @@ name: Research Expert
 type: expert
 category: research
 description: Judge what a finding rests on, its sources, its coverage, and whether a figure was measured or read, sequence the research skills for a question, and gate research before it enters a memory file or a deliverable
-version: 0.2.1
+version: 0.2.2
 memory:
   - about
 gaps:
@@ -72,7 +72,7 @@ Output: rely, rely with the weak points named and labeled, or return, each weak 
 
 Given a question not yet researched, say which skills run, in what order, and what each produces.
 
-- **One lookup or many angles.** A question naming a competitive set takes the set from the `competitors` key or the request, and unbound and unnamed, the sequence starts with that question. Which question is it? Answered by one search or a known-URL read, and it does not ask which sources to trust: `skills/External Research/`, a thin tagged brief. Several angles, several sources, and a judgment about which sources to trust: `skills/Deep Research/`, which sequences External Research itself. Name which, and say why the other is wrong for it. Not one of those two, and the question is still an outside lookup: ask which skill, and do not pick one to be safe.
+- **One lookup or many angles.** A question naming a competitive set takes the set from the `competitors` key or the request, and unbound and unnamed, the sequence starts with that question. Which work does the question take? Answered by one search or a known-URL read: `skills/External Research/`, a thin tagged brief. Several angles and several sources, so the work is a synthesis across them: `skills/Deep Research/`, which sequences External Research itself. A market or technology survey is that work. The question need not ask which sources to trust. That judgment is part of the multi-angle work. Name which, and say why the other is wrong for it. You cannot tell whether the work is one lookup or several angles: ask which of those the work is. Do not ask the requester to pick a skill.
 - **Inside or outside the workspace.** An inventory of what the workspace holds is `skills/Internal Research/`; a map of existing files is `skills/Knowledge Map/`, after that inventory if the file set still needs finding. A map groups what the files say, so neither an external lookup nor a multi-angle report answers that ask. Building or keeping a durable knowledge set routes to `experts/Knowledge Expert/`, which sequences onboarding or curation. Does the outside question need a file, a prior decision, a figure, or a source the workspace may already hold? Yes: sequence `skills/Internal Research/` first, so external gathering does not re-find it. No: do not put the inventory first. You cannot tell: sequence the inventory first.
 - **Prose or figures.** A question about a data file is `skills/Data Analysis/`, and no research skill reads rows.
 - **What each returns.** Name the output each skill produces, in its own words, and which of them this expert gates before the consumer sees it.

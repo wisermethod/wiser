@@ -3,7 +3,7 @@ name: Create Presentation
 type: skill
 category: design
 description: Build a single-file reveal.js HTML slide deck with a narrative arc, conclusion headlines, and brand-consistent design
-version: 0.9.19
+version: 0.9.20
 memory:
   - design
 ---
@@ -59,7 +59,7 @@ Staged composition: resolve design, route the material, calibrate, design the ar
 
    Route the copy to `experts/Ghost Writer/`, the default review gate for prose leaving the workspace, handing it the copy with the intended reader and the owning root named. Then route the visual design to `experts/Creative Director/` for a verdict, as an **Audit**, for the squint test, pacing, and brand-consistency read, handing it the deck with its brief.
 
-   Has the copy the reader reads changed since that gate, or have color, type, or layout changed? Nothing changed, or only a spelling corrected with no word replaced and no visual change: the earlier pass stands. A sentence reworded, added, cut, or moved, or a color, type, or layout value changed, or you cannot tell what changed: re-run the gate that covers it, copy to `experts/Ghost Writer/` and design to `experts/Creative Director/`, not only on first draft. Per review: an explicit decline is named in the delivery, and otherwise that expert's returned findings are worked before delivering. Where a consulted expert is not present in the workspace, say the review degraded and stand on this skill's own quality checks rather than skipping the check.
+   Has the copy the reader reads changed since that gate, or has the design changed? Nothing changed, or only a spelling corrected with no word replaced and no visual change: the earlier pass stands. A sentence reworded, added, cut, or moved, or a color, type, or layout value changed, or an image or other substantive visual content changed, a supplied image replaced at the same size included, or you cannot tell what changed: re-run the gate that covers it, copy to `experts/Ghost Writer/` and design to `experts/Creative Director/`, not only on first draft. Per review: an explicit decline is named in the delivery, and otherwise that expert's returned findings are worked before delivering. Where a consulted expert is not present in the workspace, say the review degraded and stand on this skill's own quality checks rather than skipping the check.
 
 ## Pitfalls
 

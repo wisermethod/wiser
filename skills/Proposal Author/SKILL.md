@@ -3,7 +3,7 @@ name: Proposal Author
 type: skill
 category: writing
 description: Build a reusable base proposal through discovery, then generate audience-specific proposals through layered persuasion in the owning root's voice
-version: 0.2.5
+version: 0.2.6
 memory:
   - voice
 gaps:
@@ -62,7 +62,7 @@ The skill runs in two phases. Discovery builds the Base Proposal once. Generatio
 
 ### Generation: an audience proposal
 
-1. **Profile the audience.** Ask who it is for, by role, industry, and context, then build a profile of how they decide, their specific concerns and objections, and what would make them say yes or no. What has this audience said or done that the materials or the requester can point to? A point: the profile uses it. An assumption with no such point: it does not enter the profile. No point at all: ask once for what this audience has said or done. Still none: say the profile is ungrounded and do not write the audience proposal on it. The Base Proposal can still be saved.
+1. **Profile the audience.** Ask who it is for, by role, industry, and context, then build a profile of how they decide, their specific concerns and objections, and what would make them say yes or no. What has this audience said or done that the materials or the requester can point to? A point: the profile uses it. An assumption with no such point: it does not enter the profile as an established fact. No point at all: ask once for what this audience has said or done. Still none. Is the requester asking that profile to be stated as established fact? Yes: say the profile is ungrounded and do not write the audience proposal as established fact. No, or they do not say, a first pitch included: write the audience proposal, mark the ungrounded profile hypothetical, and say it is a draft profile. The Base Proposal can still be saved.
 2. **Calibrate.** Ask the proposal type (initial pitch, full proposal, revision, or competitive response), the investment level, the persuasion intensity (consultative or assertive), the call to action, the target length, and which supporting elements to include (pricing, timeline, bios, appendices). Use every answer they gave. Target length unanswered: the Elegance rule in the next step is the length. Any other of these unanswered: ask for that one before writing the part that uses it. Proposal type is needed before Structure. Intensity is needed before a trigger row is selected. Investment level and the call to action are needed before Natural Offer. A supporting element they did not name: leave it out. Do not pick a type, an intensity, an investment level, a call to action, or a supporting element for them.
 3. **Structure.** Run the six persuasion layers below in order. Weight them by the starting-state question in that section, and select triggers by the row question there. Length follows Elegance (`standards/instruction-quality.md`): the shortest form that leaves nothing the objective needs. They named a target length: use it by shortening inside the layers. Do not drop a layer to meet a length.
 4. **Write in voice.** The bound `voice` governs register, vocabulary, and structure. Every claim, quote, and person-fact carries its source and register per `standards/conventions.md`, and its evidence labels govern what the materials do not contain, marked hypothetical where it stays in the draft.
