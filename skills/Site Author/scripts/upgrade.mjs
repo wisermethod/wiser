@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Copy kit code over a site. Archive each replaced kit-owned file first.
-// Does not touch src/content/** or public/images/**. Does not git init.
+// Does not touch src/content/**, public/images/** or public/fonts/**. Does not git init.
 import fs from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
@@ -76,6 +76,10 @@ function copyTree(from, to, { preserveContentImages = false } = {}) {
       preserved.add(out);
       continue;
     }
+    if (preserveContentImages && name === "fonts" && path.basename(from) === "public") {
+      preserved.add(out);
+      continue;
+    }
     if (st.isDirectory()) copyTree(src, out, { preserveContentImages });
     else copyFile(src, out);
   }
@@ -104,4 +108,4 @@ if (fs.readFileSync(configPath, "utf8") !== updated) {
 }
 
 console.log(`upgrade: applied kit ${template.kitVersion} onto ${site}`);
-console.log("upgrade: left src/content and public/images untouched");
+console.log("upgrade: left src/content, public/images and public/fonts untouched");

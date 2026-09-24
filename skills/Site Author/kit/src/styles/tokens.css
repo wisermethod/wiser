@@ -2,7 +2,9 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
-/* Tokens. A Designer-gated token update changes values in this block and the font-source line above, and nothing below this block. Every role token defaults to the palette tokens, so a site that sets only paper, ink and link needs nothing else. */
+/* Self-hosted fonts. A token update may replace this comment with @font-face rules whose src is url("/fonts/<file>") pointing at files in public/fonts/. A site uses one mechanism or the other: this slot, or the font-source @import above. @font-face cannot precede @import, which is why this slot is separate. Self-hosting keeps every font request on the site's own origin. */
+
+/* Tokens. A Designer-gated token update changes values in this block and either font slot above, and nothing below this block. Every role token defaults to the palette tokens, so a site that sets only paper, ink and link needs nothing else. */
 @theme {
   --color-paper: #faf9f6;
   --color-ink: #202b32;

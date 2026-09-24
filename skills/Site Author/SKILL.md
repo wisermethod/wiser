@@ -24,7 +24,7 @@ Not for judging findability, broken URLs, or publish safety; that is `experts/We
 
 ## Objective
 
-One kit site envelope at its named parent that `check` accepts, whose content jobs stayed on content paths, and whose upgrades archived kit-owned files then left `site/src/content/` and `site/public/images/` byte-identical. Verified by the Success criteria at the close.
+One kit site envelope at its named parent that `check` accepts, whose content jobs stayed on content paths, and whose upgrades archived kit-owned files then left `site/src/content/`, `site/public/images/` and `site/public/fonts/` byte-identical. Verified by the Success criteria at the close.
 
 ## Inputs
 
@@ -93,7 +93,7 @@ The script copies available owning-root `memory/about.md`, `memory/voice.md`, an
 
 Then in `<envelope>/site/`, per `SETUP.md`: `node -v` at or above 22.12, `npm install`, `npm run dev` or `build` plus preview. Stand-up is not done until Check passes steps 1 to 5 and `KIT.md` step 6's served HTML is fetched at the canonical paths, including `/articles/hello` with no trailing slash.
 
-Optional stand-up customization, before the first content job: homepage copy under `site/src/content/pages/` and a token palette in `site/src/styles/tokens.css`. Tokens are kit-owned; Upgrade will replace them.
+Optional stand-up customization, before the first content job: homepage copy under `site/src/content/pages/` and a token palette in `site/src/styles/tokens.css`. Tokens are kit-owned; Upgrade will replace them. Files under `site/public/fonts/` are site-owned and stay.
 
 Domain-folder `AGENTS.md` is written by the script from `site-AGENTS.md`. Do not also run Onboard Root. Do not create empty `sites/` on a root that has no site.
 
@@ -101,9 +101,9 @@ Gate: Webmaster Job 3 before the requester publishes, not after this write. Chec
 
 ### 2. Edit content
 
-Allowed paths: `site/src/content/**`, `site/public/images/**`. A retired or changed published slug may add a row to `site/public/_redirects`; that edit is the redirect case Webmaster Job 3 gates. `site/public/llms.txt` is `skills/SEO Assets/` when it writes into a kit tree, not this job.
+Allowed paths: `site/src/content/**`, `site/public/images/**`. `site/public/fonts/**` is writable only within a Designer-gated token update. A retired or changed published slug may add a row to `site/public/_redirects`; that edit is the redirect case Webmaster Job 3 gates. `site/public/llms.txt` is `skills/SEO Assets/` when it writes into a kit tree, not this job.
 
-Refuse, and do not perform: `site/src/components/**`, `site/src/layouts/**`, `site/src/pages/**` (routes), `site/astro.config.mjs`, `site/package.json`, `site/package-lock.json`, `site/src/styles/**` except a Designer-gated update to `site/src/styles/tokens.css`, `site/.github/**`, `site/KIT.md`, `site/kit.json`. A request to add a component or edit the Astro config is a refusal, not a stretch.
+Refuse, and do not perform: `site/src/components/**`, `site/src/layouts/**`, `site/src/pages/**` (routes), `site/astro.config.mjs`, `site/package.json`, `site/package-lock.json`, `site/src/styles/**` except a Designer-gated update to `site/src/styles/tokens.css`, `site/public/fonts/**` except within that same token update, `site/.github/**`, `site/KIT.md`, `site/kit.json`. A request to add a component or edit the Astro config is a refusal, not a stretch.
 
 File an article Content Author wrote, after Ghost Writer's gate, at `site/src/content/articles/<slug>.md`. Required frontmatter: `title`, `description`, `pubDate`, `author`, `tags`, `draft`. Empty `pubDate` or missing `description` fails `check`; do not write that file. Hero image optional. Pages need `title` and `description`.
 
@@ -141,7 +141,7 @@ Foreign, already wrapped, or colliding `site/` folders are refused. Content and 
 node "<this-skill-dir>/scripts/upgrade.mjs" --site "<envelope-folder>" --kit "<this-skill-dir>/kit"
 ```
 
-The script archives each replaced kit-owned file first, per `standards/conventions.md`, then copies kit code. It requires `site/kit.json`, names Wrap for the old shape, and refuses foreign folders or a nested `.git`. Envelope `AGENTS.md`, memory, `builds.md`, and Playbooks are outside Upgrade. It does not merge `site/src/content/` or `site/public/images/`. It does not copy `kit.json` wholesale; `domain`, `siteUrl`, and `collections` stay the site's. Tokens reverting to the kit default is Upgrade working.
+The script archives each replaced kit-owned file first, per `standards/conventions.md`, then copies kit code. It requires `site/kit.json`, names Wrap for the old shape, and refuses foreign folders or a nested `.git`. Envelope `AGENTS.md`, memory, `builds.md`, and Playbooks are outside Upgrade. It does not merge `site/src/content/`, `site/public/images/` or `site/public/fonts/`. It does not copy `kit.json` wholesale; `domain`, `siteUrl`, and `collections` stay the site's. Tokens reverting to the kit default is Upgrade working.
 
 Run Check after Upgrade. Gate: Webmaster Job 3 before the requester publishes.
 
@@ -157,7 +157,7 @@ Run Check after Upgrade. Gate: Webmaster Job 3 before the requester publishes.
 - **The undeclared root.** Creating `sites/` because the requester asked for a site invents a top-level folder. Ask them to declare the row, or stop. The script already refuses; do not go around it.
 - **The foreign folder.** A live WordPress or Webflow tree with neither kit marker is Job 1 of Webmaster to audit and not this skill to replace. Leave it untouched.
 - **The slashed article URL.** Fetching `/articles/hello/` against `trailingSlash: 'never'` 404s. Fetch `/articles/hello`.
-- **Upgrade skipped archive, or treated as a content merge.** The script archives; do not copy over it by hand. Content that "should keep its palette" is still kit-owned in `site/src/styles/tokens.css`.
+- **Upgrade skipped archive, or treated as a content merge.** The script archives; do not copy over it by hand. `site/src/content/`, `site/public/images/` and `site/public/fonts/` stay byte-identical. Content that "should keep its palette" is still kit-owned in `site/src/styles/tokens.css`.
 - **Code-path creep.** A component, an Astro config tweak, or a `site/package.json` bump "while we are in there" is the content-vs-code failure. Refuse.
 - **The nested repo.** `git init` inside `sites/<domain>/` of a parent that already has `.git` is the synced-volume failure. A site with no git is complete.
 - **The parent host.** Connecting the envelope or owning-root repository includes files outside the kit. Refuse; the host skill takes only `site/` or `site/dist/`.
@@ -171,7 +171,7 @@ Run Check after Upgrade. Gate: Webmaster Job 3 before the requester publishes.
 - Stand-up or Wrap copied missing available memory, asked what changes, and preserved unanswered copies. The envelope was not onboarded as a root. Wrap preserved content and images under `site/`.
 - `check` printed PASS for steps 1 to 5, and step 6's served HTML carried the required SEO slots at that site's `siteUrl`.
 - Content jobs changed only allowed paths. Refused paths were not written.
-- Upgrade archived kit-owned files it replaced and left `site/src/content/` and `site/public/images/` byte-identical to the pre-upgrade tree.
+- Upgrade archived kit-owned files it replaced and left `site/src/content/`, `site/public/images/` and `site/public/fonts/` byte-identical to the pre-upgrade tree.
 - No `git init` ran. Neither the envelope nor owning root was connected to a host. No DNS or host API was called.
 - Stand-up, Wrap, and Upgrade were handed to `experts/Webmaster/` Job 3 before publish, or the requester has not asked to publish yet. A new URL, slug change, or redirect took that same gate. Check had no gate.
 - Copy written here rather than filed from Content Author ran with `voice` bound and available, or the run stopped.

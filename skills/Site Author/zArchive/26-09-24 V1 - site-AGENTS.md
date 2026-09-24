@@ -27,9 +27,9 @@ These local keys overlay the owning root's Provides. Stand-up copies available o
 
 ## Content vs code
 
-Content jobs may change `site/src/content/**` and `site/public/images/**`. SEO Assets may write `site/public/llms.txt`. `site/public/fonts/**` is writable only within a Designer-gated token update. A changed published slug needs a `site/public/_redirects` row and Webmaster Job 3 before publish.
+Content jobs may change `site/src/content/**` and `site/public/images/**`. SEO Assets may write `site/public/llms.txt`. A changed published slug needs a `site/public/_redirects` row and Webmaster Job 3 before publish.
 
-Content jobs may not change `site/src/components/**`, `site/src/layouts/**`, `site/src/pages/**`, `site/astro.config.mjs`, `site/package.json`, `site/package-lock.json`, `site/src/styles/**`, `site/public/fonts/**`, `site/.github/**`, `site/KIT.md`, or `site/kit.json`. The one exception is `site/src/styles/tokens.css` and `site/public/fonts/**` when `skills/Designer/` has already gated that token update. Any other write under `site/src/styles/**`, and any write under `site/public/fonts/**` outside that token update: refuse it. Load `site/KIT.md` for collection schemas, required frontmatter, and SEO mechanics.
+Content jobs may not change `site/src/components/**`, `site/src/layouts/**`, `site/src/pages/**`, `site/astro.config.mjs`, `site/package.json`, `site/package-lock.json`, `site/src/styles/**`, `site/.github/**`, `site/KIT.md`, or `site/kit.json`. The one exception is `site/src/styles/tokens.css` when `skills/Designer/` has already gated that token update. Any other write under `site/src/styles/**`: refuse it. Load `site/KIT.md` for collection schemas, required frontmatter, and SEO mechanics.
 
 ## Check and preview
 

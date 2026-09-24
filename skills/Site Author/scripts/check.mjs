@@ -76,6 +76,57 @@ function walkMd(dir, onFile) {
   }
 }
 
+// A comment opener inside a quoted string is text, not a comment.
+function stripComments(css) {
+  let out = "";
+  for (let i = 0; i < css.length; i++) {
+    const c = css[i];
+    if (c === '"' || c === "'") {
+      const from = i;
+      for (i++; i < css.length && css[i] !== c; i++) if (css[i] === "\\") i++;
+      out += css.slice(from, i + 1);
+    } else if (c === "/" && css[i + 1] === "*") {
+      const end = css.indexOf("*/", i + 2);
+      i = end === -1 ? css.length : end + 1;
+    } else out += c;
+  }
+  return out;
+}
+
+// Braces and at-keywords inside a quoted string are not CSS structure, so the scan steps over strings and their escapes.
+function fontFaceBlocks(css) {
+  const blocks = [];
+  let start = -1;
+  let depth = 0;
+  for (let i = 0; i < css.length; i++) {
+    const c = css[i];
+    if (c === '"' || c === "'") {
+      for (i++; i < css.length && css[i] !== c; i++) if (css[i] === "\\") i++;
+      continue;
+    }
+    if (c === "\\") { i++; continue; }
+    if (start === -1) {
+      if (c === "@" && /^@font-face\b/i.test(css.slice(i, i + 11))) start = i;
+      continue;
+    }
+    if (c === "{") depth++;
+    else if (c === "}" && depth > 0 && --depth === 0) {
+      blocks.push(css.slice(start, i + 1));
+      start = -1;
+    }
+  }
+  if (start !== -1) blocks.push(null);
+  return blocks;
+}
+
+function urlsIn(block) {
+  const urls = [];
+  const re = /url\(\s*(?:"([^"]*)"|'([^']*)'|([^)"'\s]*))\s*\)/gi;
+  let match;
+  while ((match = re.exec(block))) urls.push((match[1] ?? match[2] ?? match[3]).trim());
+  return urls;
+}
+
 function frontmatter(file) {
   const text = fs.readFileSync(file, "utf8");
   const m = text.match(/^---\n([\s\S]*?)\n---/);
@@ -111,7 +162,7 @@ for (const rel of ["public/_redirects", "public/images/og-default.png", "src/sty
 }
 const tokensPath = path.join(site, "src/styles/tokens.css");
 if (fs.existsSync(tokensPath)) {
-  const tokens = fs.readFileSync(tokensPath, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const tokens = stripComments(fs.readFileSync(tokensPath, "utf8"));
   const layerBody = (name) => {
     const start = tokens.search(new RegExp(`@layer\\s+${name}\\s*\\{`));
     if (start < 0) return null;
@@ -126,6 +177,53 @@ if (fs.existsSync(tokensPath)) {
   const utilities = layerBody("utilities");
   if (base === null || utilities === null) fail("src/styles/tokens.css lacks the kit's @layer base or @layer utilities block; run Upgrade, then reapply the site's token update");
   else if (base.includes("--tw-prose-") || !/main\.prose\s*\{[^}]*--tw-prose-body/.test(utilities)) fail("src/styles/tokens.css predates the prose-colour fix: prose colours must sit in @layer utilities, not @layer base, where @tailwindcss/typography outranks them; run Upgrade, then reapply the site's token update");
+  const faces = fontFaceBlocks(tokens);
+  const imports = tokens.match(/@import\b[^;]*;?/gi) ?? [];
+  if ([...faces, ...imports].some((rule) => rule?.includes("\\"))) fail("src/styles/tokens.css uses a CSS escape in an @import or @font-face rule; write font URLs plainly so check can read them");
+  if (faces.length && /@import\s+(?:url\(\s*["']?|["'])(?:https?:)?\/\//i.test(tokens)) fail("src/styles/tokens.css uses both font mechanisms: a remote font-source @import beside self-hosted @font-face rules still sends every visitor to the remote host; keep one");
+  for (const block of faces) {
+    if (block === null) {
+      fail("src/styles/tokens.css has an unclosed @font-face rule");
+      break;
+    }
+    for (const value of urlsIn(block)) {
+      if (/^https?:/i.test(value) || value.startsWith("//")) {
+        fail(`a font-face must load from /fonts/ on the site's own origin (a remote font belongs in the font-source @import, if at all): ${value}`);
+        continue;
+      }
+      let pathname = value;
+      const cut = pathname.search(/[?#]/);
+      if (cut !== -1) pathname = pathname.slice(0, cut);
+      let decoded = pathname;
+      try { decoded = decodeURIComponent(pathname); } catch { decoded = pathname; }
+      const parts = decoded.startsWith("/fonts/") ? decoded.slice("/fonts/".length).split("/") : null;
+      if (!parts || parts.some((part) => part === "" || part === "." || part === "..")) {
+        fail(`a font-face src must be a root-relative /fonts/ path on this site: ${value}`);
+        continue;
+      }
+      const rel = parts.join("/");
+      const fontsRoot = path.resolve(site, "public", "fonts");
+      const file = path.resolve(fontsRoot, rel);
+      const relToRoot = path.relative(fontsRoot, file);
+      if (relToRoot === ".." || relToRoot.startsWith(`..${path.sep}`) || path.isAbsolute(relToRoot)) fail(`a font-face src must be a root-relative /fonts/ path on this site: ${value}`);
+      else if (!fs.existsSync(file) || !fs.statSync(file).isFile()) fail(`missing public/fonts/${rel}`);
+    }
+  }
+  const fontExt = new Set([".woff2", ".woff", ".ttf", ".otf"]);
+  const fontNames = [];
+  const walkFonts = (dir) => {
+    if (!fs.existsSync(dir)) return;
+    for (const name of fs.readdirSync(dir)) {
+      const p = path.join(dir, name);
+      const st = fs.lstatSync(p);
+      if (st.isDirectory()) walkFonts(p);
+      else if (st.isFile()) fontNames.push(name);
+    }
+  };
+  walkFonts(path.join(site, "public", "fonts"));
+  const hasFont = fontNames.some((name) => fontExt.has(path.extname(name).toLowerCase()));
+  const hasLicence = fontNames.some((name) => !fontExt.has(path.extname(name).toLowerCase()) && /licen[cs]e|ofl/i.test(name));
+  if (hasFont && !hasLicence) fail("font files ship without their licence");
 }
 const astroConfig = ["astro.config.mjs", "astro.config.ts"].map((p) => path.join(site, p)).find((p) => fs.existsSync(p));
 if (astroConfig && !/format\s*:\s*['"]file['"]/.test(fs.readFileSync(astroConfig, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1"))) fail("astro config lacks build.format 'file': routes would build as <slug>/index.html, which static hosts redirect to a trailing slash; run Upgrade");
