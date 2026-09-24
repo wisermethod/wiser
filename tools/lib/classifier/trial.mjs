@@ -659,6 +659,14 @@ function validateSpec(spec, tree) {
   if (spec.kind !== 'routing' && spec.kind !== 'seam') {
     throw fail(`kind must be "routing" or "seam"; got ${JSON.stringify(spec.kind)}. Run trial.mjs help.`);
   }
+  if (spec.kind === 'seam' && !(typeof spec.seam_action === 'string' && /^wiser\.[a-z]+\.[a-z_]+$/.test(spec.seam_action))) {
+    throw fail('a seam trial names seam_action, the first-party action id its seam calls, such as wiser.decide.batch.');
+  }
+  for (const key of ['usd_per_run', 'classifier_usd_per_call']) {
+    if (spec[key] !== undefined && !(typeof spec[key] === 'number' && Number.isFinite(spec[key]) && spec[key] >= 0)) {
+      throw fail(`${key} must be a number at or above 0; got ${JSON.stringify(spec[key])}.`);
+    }
+  }
   if (!Array.isArray(spec.cases) || spec.cases.length === 0) {
     throw fail('spec has no cases. Add at least one case with id, ask, and rubric.');
   }
@@ -1062,6 +1070,9 @@ function filesContaining(dir, needle) {
  * @param {{ cwd: string, env: NodeJS.ProcessEnv, deadlineS: number }} opts
  * @returns {Promise<{ code: number | null, stdout: string, stderr: string, timedOut: boolean, error: string | null }>}
  */
+/** The host process running now, so an interrupt can stop its group. */
+let CURRENT_HOST = null;
+
 function spawnHost(argv, opts) {
   return new Promise((resolvePromise) => {
     const child = spawn(argv[0], argv.slice(1), {
@@ -1070,6 +1081,7 @@ function spawnHost(argv, opts) {
       detached: true,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
+    CURRENT_HOST = child;
     let stdout = '';
     let stderr = '';
     let timedOut = false;
@@ -1077,6 +1089,7 @@ function spawnHost(argv, opts) {
     const finish = (result) => {
       if (settled) return;
       settled = true;
+      if (CURRENT_HOST === child) CURRENT_HOST = null;
       clearTimeout(timer);
       resolvePromise(result);
     };
@@ -1130,7 +1143,7 @@ function lockProof(opts) {
     '--provider', 'local-file',
     '--secrets', opts.secrets,
   ];
-  const env = { ...process.env, HOME: opts.trialHome };
+  const env = { ...process.env, ...trialConfigEnv(opts.trialHome) };
   return new Promise((resolvePromise) => {
     const child = spawn(process.execPath, args, {
       env,
@@ -1286,28 +1299,12 @@ async function commandRun(spec, plan, flags, work, keyFile) {
       : canonicalPath(spec.root);
     if (!existsSync(rootSrc)) throw fail(`root source does not exist: ${rootSrc}`);
 
-    const proofHome = join(temp, 'homes', 'lock-proof');
-    mkdirSync(proofHome, { recursive: true });
-    makeTrialHome(proofHome, 'C', keyFile);
-    const proof = await lockProof({
-      server: join(tree, 'gateway', 'server.js'),
-      classifier,
-      secrets,
-      trialHome: proofHome,
-    });
-    const proofStatus = proof && proof.status;
-    if (proofStatus !== 'needs_connect') {
-      const detail = proof && proof.stderr
-        ? ` ${String(proof.stderr).replace(/WISER_CLASSIFIER_KEY=\S*/g, 'WISER_CLASSIFIER_KEY=<redacted>').slice(0, 400)}`
-        : '';
-      throw fail(`lock proof returned ${proofStatus == null ? 'no answer' : proofStatus}, not needs_connect. No host run was started.${detail}`);
-    }
-
     const realGateway = defaultGatewayHome();
     const before = hashFiles(realGateway);
     const keyHashBefore = hashOne(keyFile);
     if (keyHashBefore) before[keyFile] = keyHashBefore;
     const watch = watchPresence(realGateway);
+
 
     const candidates = typedCandidates(tree);
     const model = typeof spec.model === 'string' ? spec.model : '';
@@ -1325,8 +1322,36 @@ async function commandRun(spec, plan, flags, work, keyFile) {
     let validCount = 0;
 
     let runError = null;
+    let proofStatus = null;
+    let interrupted = null;
+    const onSignal = (signal) => {
+      interrupted = signal;
+      if (CURRENT_HOST && CURRENT_HOST.pid) {
+        try { process.kill(-CURRENT_HOST.pid, 'SIGTERM'); } catch { /* already gone */ }
+      }
+    };
+    process.once('SIGINT', onSignal);
+    process.once('SIGTERM', onSignal);
     try {
-    for (const id of plan.order) {
+      const proofHome = join(temp, 'homes', 'lock-proof');
+      mkdirSync(proofHome, { recursive: true });
+      makeTrialHome(proofHome, 'C', keyFile);
+      const proof = await lockProof({
+        server: join(tree, 'gateway', 'server.js'),
+        classifier,
+        secrets,
+        trialHome: proofHome,
+      });
+      proofStatus = proof && proof.status;
+      if (proofStatus !== 'needs_connect') {
+        const detail = proof && proof.stderr
+          ? ` ${String(proof.stderr).replace(/WISER_CLASSIFIER_KEY=\S*/g, 'WISER_CLASSIFIER_KEY=<redacted>').slice(0, 400)}`
+          : '';
+        throw fail(`lock proof returned ${proofStatus == null ? 'no answer' : proofStatus}, not needs_connect. No host run was started.${detail}`);
+      }
+
+      for (const id of plan.order) {
+        if (interrupted) throw fail(`interrupted by ${interrupted}; no further run was started.`);
       const parsed = parseRunId(id);
       if (!parsed || !cases.has(parsed.caseId)) throw fail(`plan.order id is not a case run: ${id}. Re-run plan.`);
       const caseSpec = cases.get(parsed.caseId);
@@ -1363,9 +1388,16 @@ async function commandRun(spec, plan, flags, work, keyFile) {
         };
         writeFileSync(mcpPath, JSON.stringify(mcp));
         const trialCfg = wiserUserConfigDir(process.platform, moved, trialHome);
+        // The host's shell runs in Claude Code's OS sandbox with no unsandboxed fallback, and can
+        // read neither key file. Hooks and the MCP gateway run outside that sandbox, so they still can.
         const settings = {
           env: moved,
           permissions: { deny: [`Read(/${trialCfg}/**)`, `Read(/${keyFile})`, `Read(/${dirname(keyFile)}/**)`] },
+          sandbox: {
+            enabled: true,
+            allowUnsandboxedCommands: false,
+            filesystem: { denyRead: [trialCfg, dirname(keyFile)] },
+          },
         };
         const argv = [
           hostBin,
@@ -1390,6 +1422,7 @@ async function commandRun(spec, plan, flags, work, keyFile) {
         );
         const started = Date.now();
         const run = await runHost(argv, { cwd: root, env: childEnv(), deadlineS });
+        if (interrupted) throw fail(`interrupted by ${interrupted} during ${id}; the host was stopped.`);
         const wall = Date.now() - started;
         const parsedStream = parseStream(run.stdout, candidates);
         const result = parsedStream.result;
@@ -1410,9 +1443,11 @@ async function commandRun(spec, plan, flags, work, keyFile) {
             status: line.status ?? null,
             reason: line.reason ?? null,
           }));
-        const answered = firstParty.some((line) => line.status === 'ok');
-        if (parsed.arm === 'C' && !answered) reasons.push('the classifier answered nothing in the on arm');
-        if (parsed.arm === 'E' && answered) reasons.push('the classifier answered in the off arm');
+        const seamAction = typeof spec.seam_action === 'string' && spec.seam_action ? spec.seam_action : 'wiser.route.ask';
+        const answered = firstParty.some((line) => line.action === seamAction && line.status === 'ok');
+        const anyAnswer = firstParty.some((line) => line.status === 'ok');
+        if (parsed.arm === 'C' && !answered) reasons.push(`${seamAction} did not answer in the on arm`);
+        if (parsed.arm === 'E' && anyAnswer) reasons.push('the classifier answered in the off arm');
         valid = reasons.length === 0;
         let classifierCalls = 0;
         if (usageLog && usagePath && existsSync(usagePath)) {
@@ -1485,6 +1520,9 @@ async function commandRun(spec, plan, flags, work, keyFile) {
     }
     } catch (error) {
       runError = error;
+    } finally {
+      process.removeListener('SIGINT', onSignal);
+      process.removeListener('SIGTERM', onSignal);
     }
 
     const observed = watch.finish();
@@ -1497,7 +1535,7 @@ async function commandRun(spec, plan, flags, work, keyFile) {
       sessionIds: footprints.map((f) => f.session_id).filter(Boolean),
     });
     const safety = {
-      lock_proof: { status: 'needs_connect', action: 'google.gmail.list_messages' },
+      lock_proof: { status: proofStatus ?? null, action: 'google.gmail.list_messages' },
       before,
       after,
       changed,
@@ -1506,6 +1544,7 @@ async function commandRun(spec, plan, flags, work, keyFile) {
       presence_observed: observed,
       trial_processes_seen: watch.trial.size,
       tree: { commit, digest },
+      key_file: keyFile,
       runs: footprints,
     };
     safety.stopped_early = runError ? String(runError.message || runError) : null;
@@ -1548,7 +1587,7 @@ async function commandRun(spec, plan, flags, work, keyFile) {
  * @returns {{ text: string, removed: number }}
  */
 export function removeProvenance(text) {
-  const tell = /classifier|builtin|needs_subscription|below_threshold|classifier_unbound|wiser\.(route|decide|gate|recall)\.|WISER routing/i;
+  const tell = /classifier|builtin|needs_subscription|below_threshold|classifier_unbound|wiser\.(route|decide|gate|recall)\.|WISER routing|automatic(ally)? rout|routing hint|routed automatically|first-party|gateway (status|answered)/i;
   let removed = 0;
   const lines = String(text || '').split('\n').map((line) => {
     if (!tell.test(line)) return line;
@@ -1761,7 +1800,16 @@ async function dispatch(command, flags, rest) {
       packets[i] = packets[j];
       packets[j] = swap;
     }
-    const keyValue = readClassifierKey(keyFileFrom(flags));
+    let recordedKey = null;
+    try { recordedKey = JSON.parse(readFileSync(join(work, 'safety.json'), 'utf8')).key_file || null; } catch { recordedKey = null; }
+    const keyValue = readClassifierKey(flags['--key-file'] ? keyFileFrom(flags) : (recordedKey || keyFileFrom(flags)));
+    for (const meta of metas) {
+      let text = '';
+      try { text = readFileSync(join(work, 'runs', meta.id, 'deliverable.md'), 'utf8'); } catch { text = ''; }
+      if (keyValue && text.includes(keyValue)) {
+        throw fail(`the deliverable of ${meta.id} holds the classifier key; no packet was written. Run keyscan and remove it.`);
+      }
+    }
     const dir = join(work, 'blind', 'packets');
     mkdirSync(dir, { recursive: true });
     const map = {};
@@ -1807,21 +1855,49 @@ async function dispatch(command, flags, rest) {
     mkdirSync(scoresDir, { recursive: true });
     let scored = 0;
     let unparsed = 0;
+    let plan = {};
+    try { plan = JSON.parse(readFileSync(join(work, 'plan.json'), 'utf8')); } catch { plan = {}; }
+    const worst = typeof plan.usd_worst === 'number' && Number.isFinite(plan.usd_worst) ? plan.usd_worst : null;
+    let hostSpend = 0;
+    try {
+      for (const name of readdirSync(join(work, 'runs'))) {
+        try {
+          const meta = JSON.parse(readFileSync(join(work, 'runs', name, 'meta.json'), 'utf8'));
+          if (Number.isFinite(meta.usd)) hostSpend += meta.usd;
+        } catch { /* no record */ }
+      }
+    } catch { /* no runs */ }
+    let judgeSpend = 0;
+    for (const name of existsSync(scoresDir) ? readdirSync(scoresDir) : []) {
+      try {
+        const row = JSON.parse(readFileSync(join(scoresDir, name), 'utf8'));
+        if (Number.isFinite(row.usd)) judgeSpend += row.usd;
+      } catch { /* skip */ }
+    }
     try {
       const emptyMcp = join(temp, 'mcp.json');
       writeFileSync(emptyMcp, `${JSON.stringify({ mcpServers: {} })}\n`);
       for (const [oid, runId] of Object.entries(mapDoc.map || {})) {
         const dest = join(scoresDir, `${oid}.json`);
-        if (existsSync(dest)) continue;
         const packetPath = join(work, 'blind', 'packets', `${oid}.md`);
         const packet = readFileSync(packetPath, 'utf8');
+        const packetSha = createHash('sha256').update(packet).digest('hex');
+        if (existsSync(dest)) {
+          let prior = null;
+          try { prior = JSON.parse(readFileSync(dest, 'utf8')); } catch { prior = null; }
+          if (prior && prior.packet_sha256 === packetSha && prior.status !== 'unparsed') continue;
+        }
         const parsedId = parseRunId(runId);
         const caseSpec = parsedId ? cases.get(parsedId.caseId) : null;
         const rubricIds = caseSpec ? caseSpec.rubric.map((item) => item.id) : [];
         const prompt = SCORING_PROMPT.replace('{{PACKET}}', packet);
         let accepted = null;
         let usd = null;
+        let spent = 0;
         for (let attempt = 1; attempt <= 2; attempt += 1) {
+          if (worst != null && hostSpend + judgeSpend + COST_TABLE.judge.p90 > worst) {
+            throw fail(`scoring would pass the plan usd_worst ${worst} (host ${hostSpend}, judge so far ${judgeSpend}); stopped before ${oid}.`);
+          }
           const cwd = join(temp, `judge-${oid}-${attempt}`);
           mkdirSync(cwd, { recursive: true });
           const argv = [hostBin, '-p', prompt];
@@ -1839,6 +1915,9 @@ async function dispatch(command, flags, rest) {
           const run = await runHost(argv, { cwd, env: childEnv(), deadlineS });
           const parsed = parseJudgeOutput(run.stdout);
           usd = parsed.usd;
+          const charge = Number.isFinite(usd) ? usd : COST_TABLE.judge.p90;
+          spent += charge;
+          judgeSpend += charge;
           if (scoresValid(parsed.doc, rubricIds)) {
             accepted = parsed.doc;
             break;
@@ -1846,7 +1925,7 @@ async function dispatch(command, flags, rest) {
         }
         if (!accepted) {
           writeFileSync(dest, `${JSON.stringify({
-            oid, status: 'unparsed', scores: null, reasons: null, score: null, usd: usd ?? null,
+            oid, status: 'unparsed', scores: null, reasons: null, score: null, usd: spent, packet_sha256: packetSha,
           }, null, 2)}\n`);
           unparsed += 1;
           continue;
@@ -1855,7 +1934,7 @@ async function dispatch(command, flags, rest) {
         for (const id of rubricIds) scores[id] = accepted.scores[id];
         const reasons = accepted.reasons && typeof accepted.reasons === 'object' ? accepted.reasons : {};
         const score = rubricIds.reduce((sum, id) => sum + scores[id], 0);
-        writeFileSync(dest, `${JSON.stringify({ oid, scores, reasons, score, usd: usd ?? null }, null, 2)}\n`);
+        writeFileSync(dest, `${JSON.stringify({ oid, scores, reasons, score, usd: spent, packet_sha256: packetSha }, null, 2)}\n`);
         scored += 1;
       }
     } finally {
@@ -1998,6 +2077,13 @@ function writeReport(work) {
     const rubric = ((spec.cases || []).find((item) => item.id === meta.case) || {}).rubric || [];
     if (!row || row.status === 'unparsed' || !row.scores || !rubric.every((item) => row.scores[item.id] === 0 || row.scores[item.id] === 1)) {
       missing.push(`${id}: no complete score`);
+      continue;
+    }
+    const oid = runToOid[id];
+    let packet = null;
+    try { packet = readFileSync(join(work, 'blind', 'packets', `${oid}.md`)); } catch { packet = null; }
+    if (!packet || row.packet_sha256 !== createHash('sha256').update(packet).digest('hex')) {
+      missing.push(`${id}: its score is not for the packet on disk`);
     }
   }
   if (missing.length) throw fail(`report needs every planned run valid and fully scored; missing:\n${missing.join('\n')}`);

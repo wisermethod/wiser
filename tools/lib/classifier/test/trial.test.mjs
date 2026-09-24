@@ -1,7 +1,8 @@
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -313,6 +314,7 @@ test('plan figures, history, and needs_go', () => {
 
   writeSpec(box.work, validSpec(tree, classifier, {
     kind: 'seam',
+    seam_action: 'wiser.decide.batch',
     cases: [validSpec(tree, classifier).cases[2]],
     calls_per_run: 4,
     usd_per_run: 0.4,
@@ -387,6 +389,11 @@ test('the arm switch, seeded order, opened files, and blind packets', () => {
     assert.equal(row.mcpEnv.HOME, row.trialHome);
     assert.equal(row.env.HOME === row.trialHome, false);
     assert.equal(JSON.parse(row.argv[row.argv.indexOf('--settings') + 1]).env.HOME, row.trialHome);
+    const hostSettings = JSON.parse(row.argv[row.argv.indexOf('--settings') + 1]);
+    assert.equal(hostSettings.sandbox.enabled, true);
+    assert.equal(hostSettings.sandbox.allowUnsandboxedCommands, false);
+    assert.ok(hostSettings.sandbox.filesystem.denyRead.includes(dirname(box.key)));
+    assert.ok(hostSettings.sandbox.filesystem.denyRead.some((p) => p.startsWith(row.trialHome)));
     assert.equal(row.argv.includes('mcp__wiser-gateway__execute'), false);
     assert.ok(row.argv.includes('mcp__wiser-gateway__search_actions'));
     assert.ok(row.argv.includes('mcp__wiser-gateway__list_connections'));
@@ -629,7 +636,8 @@ test('score parses a fenced block, retries once, and records unparsed', () => {
   const row = JSON.parse(readFileSync(join(box.work, 'scores', `${oid}.json`), 'utf8'));
   assert.deepEqual(row.scores, { R1: 1, R2: 1 });
   assert.equal(row.score, 2);
-  assert.equal(row.usd, 0.01);
+  // Both attempts are charged: the failed first and the accepted second.
+  assert.ok(Math.abs(row.usd - 0.03) < 1e-9);
   const scoreCaps = captures(captureDir).filter((item) => item.mode === 'score');
   assert.equal(scoreCaps.length, 2);
   const argv = scoreCaps[0].argv.join('\n');
@@ -699,7 +707,7 @@ function buildReport(dir, mutate) {
   const scoreOrder = [];
   mkdirSync(join(dir, 'runs'), { recursive: true });
   mkdirSync(join(dir, 'scores'), { recursive: true });
-  mkdirSync(join(dir, 'blind'), { recursive: true });
+  mkdirSync(join(dir, 'blind', 'packets'), { recursive: true });
   metas.forEach((meta, index) => {
     const oid = `o${String(index).padStart(4, '0')}`;
     map[oid] = meta.id;
@@ -711,8 +719,11 @@ function buildReport(dir, mutate) {
       writeFileSync(join(dir, 'scores', `${oid}.json`), JSON.stringify({ oid, status: 'unparsed' }));
       return;
     }
+    const packet = `packet ${oid}`;
+    writeFileSync(join(dir, 'blind', 'packets', `${oid}.md`), packet);
+    const packet_sha256 = createHash('sha256').update(packet).digest('hex');
     const score = Object.values(scores).reduce((sum, value) => sum + value, 0);
-    writeFileSync(join(dir, 'scores', `${oid}.json`), JSON.stringify({ oid, scores, reasons: {}, score, usd: 0.01 }));
+    writeFileSync(join(dir, 'scores', `${oid}.json`), JSON.stringify({ oid, scores, reasons: {}, score, usd: 0.01, packet_sha256 }));
   });
   writeFileSync(join(dir, 'blind', 'map.json'), JSON.stringify({ seed: 1, order: scoreOrder, map }));
 }
@@ -917,9 +928,11 @@ test('report refuses an unparsed score or an invalid run', () => {
   for (const mutate of [
     (_spec, metas) => { metas.find((meta) => meta.arm === 'C').scores = null; },
     (_spec, metas) => { metas.find((meta) => meta.arm === 'E').valid = false; },
+    'stale',
   ]) {
     const box = world();
-    buildReport(box.work, mutate);
+    buildReport(box.work, mutate === 'stale' ? () => {} : mutate);
+    if (mutate === 'stale') writeFileSync(join(box.work, 'blind', 'packets', 'o0000.md'), 'a changed deliverable');
     const run = runCli(['report', '--work', box.work], box.home);
     assert.equal(run.status, 1);
     assert.equal(run.stdout, '');
@@ -938,7 +951,7 @@ test('removeProvenance drops sentences naming how a judgment was settled, in eit
 });
 
 test('an on-arm run the classifier never answered is invalid, and a mid-run stop still judges the real home', { timeout: 180000 }, () => {
-  for (const [marker, pattern] of [['NO_ANSWER', /classifier answered nothing in the on arm/], ['CONNECTOR_OK', /connector execute returned ok/]]) {
+  for (const [marker, pattern] of [['NO_ANSWER', /did not answer in the on arm/], ['CONNECTOR_OK', /connector execute returned ok/]]) {
     const box = world();
     const tree = syntheticTree(join(box.parent, 'tree'));
     const ask = `${marker}\nAnswer none of the candidates.`;
