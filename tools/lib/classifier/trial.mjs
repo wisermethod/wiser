@@ -1014,7 +1014,43 @@ function parseStream(stdout, candidates) {
       }
     }
   }
-  return { result, sessionId, opened };
+  return { result, sessionId, opened, route: routeReply(stdout) };
+}
+
+/**
+ * The route hook's own reply, from the `UserPromptSubmit` hook events that
+ * `--include-hook-events` puts in the stream: the file the classifier picked and
+ * its confidence, or `none` when the hook ran and printed nothing. `observed` is
+ * false when no reply from that hook is in the stream, so the answer is unknown.
+ * @param {string} stdout
+ * @returns {{ observed: boolean, answer: string | null, p: number | null }}
+ */
+export function routeReply(stdout) {
+  let observed = false;
+  let answer = null;
+  let p = null;
+  const line = /WISER routing \(classifier\): (.+?), p=([0-9.eE+-]+)\./;
+  for (const raw of String(stdout || '').split('\n')) {
+    if (!raw.includes('UserPromptSubmit')) continue;
+    let event;
+    try { event = JSON.parse(raw); } catch { continue; }
+    if (!event || event.type !== 'system' || event.subtype !== 'hook_response' || event.hook_event !== 'UserPromptSubmit') continue;
+    observed = true;
+    let text = typeof event.stdout === 'string' ? event.stdout : '';
+    if (!text && typeof event.output === 'string') text = event.output;
+    try {
+      const doc = JSON.parse(text);
+      const extra = doc && doc.hookSpecificOutput && doc.hookSpecificOutput.additionalContext;
+      if (typeof extra === 'string') text = extra;
+    } catch { /* plain text */ }
+    const match = line.exec(text);
+    if (match) {
+      answer = match[1];
+      p = Number(match[2]);
+    }
+  }
+  if (observed && answer == null) answer = 'none';
+  return { observed, answer, p };
 }
 
 /**
@@ -1408,6 +1444,7 @@ async function commandRun(spec, plan, flags, work, keyFile) {
         argv.push(
           '--output-format', 'stream-json',
           '--verbose',
+          '--include-hook-events',
           '--strict-mcp-config',
           '--mcp-config', mcpPath,
           '--plugin-dir', tree,
@@ -1447,6 +1484,8 @@ async function commandRun(spec, plan, flags, work, keyFile) {
         const answered = firstParty.some((line) => line.action === seamAction && line.status === 'ok');
         const anyAnswer = firstParty.some((line) => line.status === 'ok');
         if (parsed.arm === 'C' && !answered) reasons.push(`${seamAction} did not answer in the on arm`);
+        if (!parsedStream.route.observed) reasons.push('the route hook reply is not in the stream');
+        if (parsed.arm === 'E' && parsedStream.route.answer && parsedStream.route.answer !== 'none') reasons.push('the route hook routed in the off arm');
         if (parsed.arm === 'E' && anyAnswer) reasons.push('the classifier answered in the off arm');
         valid = reasons.length === 0;
         let classifierCalls = 0;
@@ -1480,6 +1519,8 @@ async function commandRun(spec, plan, flags, work, keyFile) {
           opened,
           first_opened: opened[0] || null,
           reached,
+          route_answer: parsedStream.route.answer,
+          route_p: parsedStream.route.p,
           classifier_calls: classifierCalls,
           first_party: firstParty,
           session_id: sessionId,
@@ -2110,6 +2151,10 @@ function writeReport(work) {
       classifier_calls: rows.reduce((sum, meta) => sum + (Number.isFinite(meta.classifier_calls) ? meta.classifier_calls : 0), 0),
     };
   }
+  const classifierPicks = {};
+  for (const item of spec.cases || []) {
+    classifierPicks[item.id] = ordered.filter((meta) => meta.arm === 'C' && meta.case === item.id).map((meta) => meta.route_answer ?? null);
+  }
   let reached = null;
   if (spec.kind === 'routing') {
     reached = { C: {}, E: {} };
@@ -2136,14 +2181,21 @@ function writeReport(work) {
   };
   const lineBCases = [];
   let lineBPass = true;
+  const routing = spec.kind === 'routing';
   for (const item of spec.cases || []) {
     if (item.none !== true) continue;
-    const scores = ordered
-      .filter((meta) => meta.arm === 'C' && meta.case === item.id)
-      .map((meta) => {
-        const row = scoreByRun[meta.id];
-        return row && row.scores ? row.scores[item.none_item] : null;
-      });
+    const cRuns = ordered.filter((meta) => meta.arm === 'C' && meta.case === item.id);
+    if (routing) {
+      const answers = cRuns.map((meta) => (typeof meta.route_answer === 'string' ? meta.route_answer : null));
+      const pass = answers.length > 0 && answers.every((value) => value === 'none');
+      if (!pass) lineBPass = false;
+      lineBCases.push({ id: item.id, classifier_answers: answers, pass });
+      continue;
+    }
+    const scores = cRuns.map((meta) => {
+      const row = scoreByRun[meta.id];
+      return row && row.scores ? row.scores[item.none_item] : null;
+    });
     const pass = scores.length > 0 && scores.every((value) => value === 1);
     if (!pass) lineBPass = false;
     lineBCases.push({ id: item.id, none_item: item.none_item, scores, pass });
@@ -2152,7 +2204,9 @@ function writeReport(work) {
   const lineB = {
     pass: lineBPass,
     cases: lineBCases,
-    basis: 'judged from each on-arm deliverable by its none item; this runner does not record the classifier answer itself',
+    basis: routing
+      ? "the classifier's own answer in each on-arm run, read from the route hook's reply"
+      : "judged from each on-arm deliverable by its none item; a tool seam's own answer is not read by this runner",
   };
   const lineCCases = {};
   let lineCPass = true;
@@ -2210,6 +2264,7 @@ function writeReport(work) {
     repeats,
     arms,
     reached,
+    classifier_picks: classifierPicks,
     lines: { a: lineA, b: lineB, c: lineC, d: lineD, e: lineE },
     seam_passes: seamPasses,
     overlap,

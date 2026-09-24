@@ -3,7 +3,7 @@ name: Classifier Trial
 type: skill
 category: system
 description: Test whether the classifier improves one use case or one primitive, by paired runs with it on and off on a synthetic root scored blind, and return a verdict with its runs, cost and noise that releases nothing
-version: 0.1.5
+version: 0.1.6
 ---
 
 # Classifier Trial
@@ -42,7 +42,7 @@ The trial also needs three things the request may not give: the classifier direc
    - A line fails: the seam does not pass; the primitive ships without it and its else path runs, as the standard says. Name each failing line with its numbers.
    - Every line passes: say what shipping would change, name the file and its seam, and say release is the person's separate decision, which `skills/Playbook Author/` plans.
    Whichever it is, where the arms' score ranges overlap, say no difference in score was detected at this number of repeats and offer a trial with more beside the verdict, never in place of it.
-   Three things the verdict states whatever it says: line b is judged from each deliverable, not from the classifier's own answer; the primitive's own three-varied-inputs verification belongs to the change, not to this trial, and whether it is recorded; and a seam whose wrong answer acts on the world, a click or a write, cannot pass here, because the standard's live-recovery test is not one this trial runs.
+   Three things the verdict states whatever it says: on a seam trial, line b is judged from each deliverable, not from the tool's own record of the classifier's answer, where on a routing trial it is that answer; the primitive's own three-varied-inputs verification belongs to the change, not to this trial, and whether it is recorded; and a seam whose wrong answer acts on the world, a click or a write, cannot pass here, because the standard's live-recovery test is not one this trial runs.
 9. **A cheaper host.** Offer once to repeat the same cases on a cheaper model, in a new directory. Every verdict names the model it ran on.
 
 ## Pitfalls

@@ -166,6 +166,17 @@ if (plugin) {
   } catch { /* no table: open nothing */ }
 }
 const events = [{ type: 'system', subtype: 'init', session_id: sessionId }];
+// The route hook's reply, as --include-hook-events puts it in the stream.
+if (!prompt.includes('NO_HOOK_EVENT')) {
+  let context = '';
+  const routed = prompt.includes('ROUTE_WRONG') ? 'skills/Other/SKILL.md' : expectLine;
+  if (link && !prompt.includes('NO_ANSWER') && routed && routed !== 'none') {
+    context = `WISER routing (classifier): ${routed}, p=0.9. Load that file unless the request names another, or names an output that file does not yield.`;
+  }
+  const stdoutText = context ? JSON.stringify({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: context } }) : '';
+  events.push({ type: 'system', subtype: 'hook_started', hook_event: 'UserPromptSubmit', session_id: sessionId });
+  events.push({ type: 'system', subtype: 'hook_response', hook_event: 'UserPromptSubmit', stdout: stdoutText, output: stdoutText, session_id: sessionId });
+}
 if (link && expectLine && expectLine !== 'none' && plugin) {
   const file = join(plugin, expectLine);
   let text = '';

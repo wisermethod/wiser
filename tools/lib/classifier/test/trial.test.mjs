@@ -690,6 +690,7 @@ function buildReport(dir, mutate) {
           wall_ms: arm === 'C' ? 1000 : 3000,
           classifier_calls: arm === 'C' ? 1 : 0,
           reached: arm === 'C' && item.id === 'c1',
+          route_answer: arm === 'C' && item.id === 'c1' ? 'skills/X/SKILL.md' : 'none',
           scores,
         });
       }
@@ -771,14 +772,29 @@ test('report pass lines, overlap, and the noise note', () => {
   assert.equal(failA.lines.e.pass, true);
   assert.equal(failA.seam_passes, false);
 
+  // A routing trial judges line b from the classifier's own answer: one on-arm pick on the none case fails it,
+  // even when the deliverable scored its none item.
   const failB = report((_spec, metas) => {
     const hit = metas.find((meta) => meta.arm === 'C' && meta.case === 'n1' && meta.repeat === 1);
-    hit.scores = { R1: 0, R2: 1 };
+    hit.route_answer = 'skills/Wrong/SKILL.md';
   });
   assert.equal(failB.lines.a.pass, true);
   assert.equal(failB.lines.b.pass, false);
+  assert.match(failB.lines.b.basis, /classifier's own answer/);
+  assert.deepEqual(failB.lines.b.cases[0].classifier_answers, ['skills/Wrong/SKILL.md', 'none', 'none']);
   assert.equal(failB.lines.c.pass, true);
   assert.equal(failB.seam_passes, false);
+  assert.deepEqual(failB.classifier_picks.c1, ['skills/X/SKILL.md', 'skills/X/SKILL.md', 'skills/X/SKILL.md']);
+
+  // A seam trial still judges line b from the deliverable, and says so.
+  const failBSeam = report((spec, metas) => {
+    spec.kind = 'seam';
+    spec.seam_action = 'wiser.decide.batch';
+    const hit = metas.find((meta) => meta.arm === 'C' && meta.case === 'n1' && meta.repeat === 1);
+    hit.scores = { R1: 0, R2: 1 };
+  });
+  assert.equal(failBSeam.lines.b.pass, false);
+  assert.match(failBSeam.lines.b.basis, /judged from each on-arm deliverable/);
 
   const failC = report((spec, metas) => {
     for (let n = 2; n <= 9; n += 1) {
@@ -1002,6 +1018,33 @@ test('an interrupt stops the host and the safety judgment still runs', { timeout
   const safety = JSON.parse(readFileSync(join(box.work, 'safety.json'), 'utf8'));
   assert.match(String(safety.stopped_early), /interrupted by SIGTERM/);
   assert.ok(Date.now() - started < 30000, 'the host was stopped, not waited out');
+});
+
+test('routeReply reads the classifier answer from the route hook reply, none when it printed nothing', async () => {
+  const { routeReply } = await import(pathToFileURL(trialPath).href);
+  const event = (stdout) => JSON.stringify({ type: 'system', subtype: 'hook_response', hook_event: 'UserPromptSubmit', stdout, output: stdout });
+  const line = 'WISER routing (classifier): experts/Marketing Strategist/EXPERT.md, p=1. Load that file unless the request names another.';
+  const picked = routeReply([event(JSON.stringify({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: line } }))].join('\n'));
+  assert.deepEqual(picked, { observed: true, answer: 'experts/Marketing Strategist/EXPERT.md', p: 1 });
+  assert.deepEqual(routeReply(event('')), { observed: true, answer: 'none', p: null });
+  assert.deepEqual(routeReply(JSON.stringify({ type: 'system', subtype: 'hook_response', hook_event: 'SessionStart', stdout: '' })), { observed: false, answer: null, p: null });
+});
+
+test('a run whose stream lacks the route hook reply is invalid; an off-arm route is invalid', { timeout: 180000 }, () => {
+  const box = world();
+  const tree = syntheticTree(join(box.parent, 'tree'));
+  const ask = 'NO_HOOK_EVENT\nAnswer none of the candidates.';
+  writeFileSync(join(tree, 'trial-open.json'), `${JSON.stringify({ [ask]: { expect: 'none', via: 'read' } })}\n`);
+  const classifier = classifierAt(join(box.parent, 'classifier'));
+  writeSpec(box.work, validSpec(tree, classifier, {
+    cases: [{ id: 'none', ask, expect: 'none', rubric: [{ id: 'N1', text: 'It answers none.' }], none: true, none_item: 'N1' }],
+  }));
+  const ceiling = join(box.parent, 'ceiling.json');
+  jsonOut(runCli(['ceiling', '--ceiling-file', ceiling, '--usd', '100'], box.home));
+  jsonOut(runCli(['plan', '--work', box.work, '--ceiling-file', ceiling], box.home));
+  const run = runCli(['run', '--work', box.work], box.home, { WISER_TRIAL_HOST: hostPath });
+  assert.equal(run.status, 1);
+  assert.match(run.stderr, /route hook reply is not in the stream/);
 });
 
 test('keyscan is clean, finds a planted key, and fails closed with no value', () => {
