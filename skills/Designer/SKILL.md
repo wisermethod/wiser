@@ -3,7 +3,7 @@ name: Designer
 type: skill
 category: design
 description: Run a design job end to end, from brief and visual direction through foundations, composition, and validation, producing the wireframe, style guide, or extracted system itself and directing every other phase to the design skill that owns it
-version: 0.9.5
+version: 0.9.6
 memory:
   - design
 gaps:
@@ -52,18 +52,18 @@ Direct, never re-perform. Where a sibling skill owns a phase, this one hands ove
 
 ## Steps
 
-Five phases in order. A phase the request or the bound `design` file has already settled is stated as settled and skipped, never re-run. A phase only partly fixed states the fixed part as settled and runs only what is not fixed.
+Five phases in order. A phase the request or the bound memory has already settled is stated as settled and skipped, never re-run. A phase only partly fixed states the fixed part as settled and runs only what is not fixed.
 
 ### 1. Brief
 
 Understand what is being designed before any visual decision. Four things are required and everything else is inferred.
 
-- **The deliverable.** A specific output, not a goal: "a pricing page", not "improve the site". A named output a skill in this root produces is the deliverable. A named output no skill here produces is named as unproduced when Phase 4 is reached, and is not approximated. Where the request leaves it open, offer the choice between one component, one page, a system, and a set of screens, and confirm before continuing. A different output this root produces, named in answer, is continued with. No answer: do not continue.
+- **The deliverable.** A specific output, not a goal: "a pricing page", not "improve the site". Where the request leaves it open, offer the choice between one component, one page, a system, and a set of screens, and confirm before continuing.
 - **The audience.** Who sees it, how expert they are in this domain, on what device, and in what situation they are looking.
 - **The job.** What the design must accomplish, in one sentence, including the single most important action or impression.
 - **The constraints.** Brand, technical, accessibility, fixed content, and anything it must differentiate from.
 
-None of the four required items unset: summarize the brief in a few lines and confirm it before designing. One to three unset: ask those, and no others, each carrying a recommended default drawn from the request. Where more than three questions would be needed, ask only the deliverable, the audience, and the job, each with a recommended default, infer the constraints, and state every inference. The user corrects anything: update the brief and confirm again. No answer, or a correction that leaves one of the four unset: do not design. The brief is a working document, not a deliverable, and is not saved as a file unless the user asks for one.
+A vague request gets at most three questions, each carrying a recommended default; where more than three would be needed, ask only the deliverable, the audience, and the job, and infer the constraints. The rest is inferred and the inferences are stated. Summarize the brief in a few lines and confirm it before designing. If the user corrects anything, update and confirm again rather than proceeding with an unresolved ambiguity. The brief is a working document, not a deliverable, and is not saved as a file unless the user asks for one.
 
 ### 2. Direction
 
@@ -71,13 +71,13 @@ Fix the visual direction before anything is generated, and name the register whi
 
 State five things:
 
-- **Subject anchor.** The one concrete subject, its audience, the single job of the artifact, and what in the subject's own world the design can draw from. State the four the confirmed brief names. Where one is missing and the brief supports an inference, state the inference and say it was inferred. Where the brief does not support it, ask for that one before stating the direction. Do not invent a subject, an audience, a job, or a world the brief does not supply.
+- **Subject anchor.** The one concrete subject, its audience, the single job of the artifact, and what in the subject's own world the design can draw from. If the brief does not pin these down, pin them and say so.
 - **Personality.** A position on each spectrum: playful to professional, bold to restrained, warm to cool, dense to spacious.
 - **References.** Two or three real products or sites, named for the specific execution quality being borrowed, plus what the work must not look like, which is often the clearer half of the direction. "Clean and modern" is not a direction. Reach outside the familiar software cluster; the same handful of references produces the same generic result.
 - **Color mood and typographic voice.** Warm or cool, saturated or muted, light or dark; geometric or humanist, sharp or rounded, condensed or wide. This is direction for the Phase 3 skills to work from, not values decided here.
-- **Signature.** The single element this design will be remembered by, and the one place boldness is spent, with everything around it quiet and disciplined. Where the brief justifies one aesthetic risk, that risk is the signature. Where it does not, still name one signature, state that the brief did not justify it, and confirm it with the direction before proceeding. Do not ship a direction with no signature. A design with no memorable anchor reads as templated, so declining the risk is itself a risk.
+- **Signature.** The single element this design will be remembered by, and the one place boldness is spent, with everything around it quiet and disciplined. Take one real aesthetic risk the brief can justify; where it justifies none, still name one signature, say the brief did not justify it, and confirm it with the direction. A design with no memorable anchor reads as templated, so declining the risk is itself a risk.
 
-Where a live site or a codebase already carries a direction that shipped and was never written down, read it back first (Reference: Brand extraction) and let what it returns stand as the direction, and as Phase 3's existing tokens. Otherwise state the five things in this phase. Either way, state the direction before proceeding, and confirm before proceeding where the request names none or contradicts the extraction.
+Where the direction already exists in work that shipped but was never written down, a live site or a codebase, read it back first (Reference: Brand extraction) and let what it returns stand as the direction, and as Phase 3's existing tokens. State the direction before proceeding, and where the request was ambiguous, confirm it.
 
 ### 3. Foundation
 
@@ -114,8 +114,8 @@ What ships from this phase is code that renders in a browser. Where the user nee
 
 Three checks the producer runs, then one review, then delivery. The first two run during composition and not only at the end: a default caught while composing costs a line, and the same default caught at the end costs the section.
 
-- **Intentional Choice Check.** Point at any element and state its job in one phrase and the reason behind its value. "It looks nice", "it is modern", and "standard practice" are not reasons. An element whose job and reason can be stated, and whose reason is none of those three, is kept, with both recorded. One that cannot is redesigned until it can. A redesign that still cannot, where the brief does not require the element, removes it; where the brief requires it, the element stays and the value with no stated reason is named as a finding for the review below.
-- **Distinctiveness Check.** Scan the artifact against the Prohibited Defaults Taxonomy in `experts/Creative Director/EXPERT.md`, the list's single home; it is dated and it changes, so read it rather than working from memory, and replace each match with an intentional alternative. A match the brief fixed or Phase 2 chose as the justified signature is exempt: a deliberate, stated choice on an axis the brief or direction settled is a decision, not a default, and the check records the justification instead of replacing the choice. Then run the same-prompt test on the whole direction: work through a generic version of this brief and see where it lands. Landing in the same palette, the same type pairing, and the same layout means the direction is a default: revise it, and state what changed and why. One or two of the three matching: revise each part that matches, keep what differs, and state what changed and why. None matching: this test passes. Where the artifact documents or extends a system that already shipped, a match inside that system is reported to its owner as a finding rather than replaced: a deliverable that documents a system never quietly rewrites it.
+- **Intentional Choice Check.** Point at any element and state its job in one phrase and the reason behind its value. "It looks nice", "it is modern", and "standard practice" are not reasons. An element whose reason cannot be stated is redesigned until it can; if it still cannot, remove it unless the brief requires it, in which case it stays and the missing reason is a finding for the review below.
+- **Distinctiveness Check.** Scan the artifact against the Prohibited Defaults Taxonomy in `experts/Creative Director/EXPERT.md`, the list's single home; it is dated and it changes, so read it rather than working from memory, and replace each match with an intentional alternative. A match the brief fixed or Phase 2 chose as the justified signature is exempt: a deliberate, stated choice on an axis the brief or direction settled is a decision, not a default, and the check records the justification instead of replacing the choice. Then run the same-prompt test on the whole direction: work through a generic version of this brief and see where it lands. Landing in the same palette, pairing, and layout means the direction is a default rather than a decision. Revise what fails, and state what changed and why. Where the artifact documents or extends a system that already shipped, a match inside that system is reported to its owner as a finding rather than replaced: a deliverable that documents a system never quietly rewrites it.
 - **Accessibility pass** (Reference: Accessibility pass).
 
 Then the review, by surface (ship-gate routing):
@@ -127,7 +127,7 @@ Then the review, by surface (ship-gate routing):
 | Taxonomy, direction, and Context Registers | `experts/Creative Director/` owns those in its direction mode; the same expert's verdict mode is the UI ship gate |
 | A single component composed only through `skills/Component Design/` | No expert ship gate unless the caller requests one; mid-work consult to Creative Director for density or type judgment stays optional |
 
-Hand a UI or page artifact to `experts/Creative Director/` for a verdict, with Phase 1's brief plus Phase 2's direction and register as its `<brief>`, so any axis a deliberate choice already fixed is judged as fixed, and work the findings before delivering. A finding that reorders or replaces a region so another element's place would no longer exist as composed sends the affected work back through Phase 4 and re-runs this phase; any other finding is worked in place. A verdict with no findings is delivered. The requester's decline is delivered and said. Where the expert is absent from the workspace, say the review degraded and stand on the three checks above. Where a Phase 4 skill already ran its own pre-ship design review, work those findings first so the expert judges a revised artifact rather than a draft, and never run the same review twice.
+Hand a UI or page artifact to `experts/Creative Director/` for a verdict, with Phase 1's brief plus Phase 2's direction and register as its `<brief>`, so any axis a deliberate choice already fixed is judged as fixed, and work the findings before delivering; a finding that reorders or replaces a region so another element's place would no longer exist as composed sends the affected work back through Phase 4 and re-runs this phase, and any other finding is worked in place. Where a Phase 4 skill already ran its own pre-ship design review, work those findings first so the expert judges a revised artifact rather than a draft, and never run the same review twice. Where the expert is absent from the workspace, say the review degraded and stand on the three checks above.
 
 Delivery states, beside the artifact: which phases ran and which were already settled, which skill produced each foundation and each composed piece, and anything Phase 4 named as unproduced.
 
@@ -148,7 +148,7 @@ A wireframe answers what goes where and why, before how it looks. It is a differ
 | States | Noted | Designed |
 | Job | Validate the structure | Deliver the design |
 
-Four moves. Inventory the content and rank it in tiers: what the page's job requires, what supports it, what can sit lower. Choose the structural pattern the page's job matches and state why: a single column for content and forms, two columns for a sidebar beside a main area, a grid for collections, alternating blocks for a narrative page, a top-and-left shell for data-heavy screens, a hub for a portal. Two that match equally are both stated, with the one that will be written named and why, and confirmed before the file is written. None of the six: ask which, and do not invent a seventh. Write it as one self-contained HTML file with a small grayscale custom-property set, a system font, and no decoration. Then annotate, since the annotations carry what a grayscale block cannot: interaction behavior, content rules, conditional content, and what changes at each breakpoint.
+Four moves. Inventory the content and rank it in tiers: what the page's job requires, what supports it, what can sit lower. Choose a structural pattern and state why: a single column for content and forms, two columns for a sidebar beside a main area, a grid for collections, alternating blocks for a narrative page, a top-and-left shell for data-heavy screens, a hub for a portal. Two that match equally are both stated, with the one that will be written named and why, and confirmed before the file is written. Write it as one self-contained HTML file with a small grayscale custom-property set, a system font, and no decoration. Then annotate, since the annotations carry what a grayscale block cannot: interaction behavior, content rules, conditional content, and what changes at each breakpoint.
 
 Hierarchy has to survive without color, carried by size, weight, and space alone. Every label is the real thing ("Add to cart", "Unit price"), never "Heading 1" and never Lorem ipsum, and every placeholder block states its aspect ratio and what belongs in it.
 
@@ -170,7 +170,7 @@ Reading back a system that exists but was never written down. Three sources, in 
 - **The live site**, where the code is not reachable: drive it with `tools/Browser Control/`, reading computed styles off the rendered page with its `execute` command and capturing the pages that matter for reference.
 - **A screenshot or a mockup**, where nothing else exists: sample the palette, characterize the type, and judge spacing and component patterns by eye. This source is the least precise, and everything read this way is marked approximate.
 
-The output is the observed system handed to `skills/Design System/` to compose into a specification and token file, together with what was approximate, what was inferred, and what needs a person to confirm. Extraction reports what is there, inconsistencies included. One role that comes back with two values is reported as both, marked unresolved, and not picked here. Phase 2 states the one the request names, and confirms with the requester before either value is used when the request names neither. Resolving a conflict is a design decision and does not happen inside this read.
+The output is the observed system handed to `skills/Design System/` to compose into a specification and token file, together with what was approximate, what was inferred, and what needs a person to confirm. Extraction reports what is there, inconsistencies included; resolving them is a design decision and belongs to a later phase.
 
 ### Accessibility pass
 
@@ -187,7 +187,7 @@ Group the findings blocking, then major, then minor, each naming its location an
 
 ## Pitfalls
 
-- **A vague request answered with a questionnaire.** Twelve questions read as an intake form and stall the work. Phase 1 caps the ask at three, each with a recommended default, and the inferences are only the ones that step names, stated as inferred.
+- **A vague request answered with a questionnaire.** Twelve questions read as an intake form and stall the work. Ask at most three, each with a recommended default, infer the rest, and state what was inferred.
 - **The whole arc run around a settled single artifact.** The request names one output and its direction is already fixed: invoke the owning skill directly (Context) rather than opening a brief.
 - **A sibling's method restated here.** Working from a remembered version of a sibling's method instead of running it produces output that contradicts what that skill would have made, and the contradiction surfaces later, in someone else's work. Hand over the brief, the direction, and the register, and use what comes back.
 - **A value generated to save a handoff.** One color or one type size invented in Phase 3 or 4, because running the skill that owns it looked like overhead, is invisible in the artifact and wrong in the system everything after it builds from.

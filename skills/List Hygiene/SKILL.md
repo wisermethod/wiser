@@ -3,7 +3,7 @@ name: List Hygiene
 type: skill
 category: communication
 description: Decide what an email contact list keeps and drops, verified through the usebouncer connector, with the cost put to the user before it is spent and every drop traced to the result field that caused it.
-version: 0.10.2
+version: 0.10.3
 ---
 
 # List Hygiene
@@ -42,8 +42,8 @@ Verification uses the gateway's `execute` tool with `usebouncer.verify.*`. Under
 Before an address leaves the machine, two things are on the record: where the list came from, and what will be sent to it. Submitting addresses processes other people's personal data through a third party, and nothing in the verification service supplies a lawful basis for that; the account holder whose credentials this run spends is the one who establishes it, and this step is where they get the chance.
 
 - The caller can account for the list's origin and name the send, and the list was not bought, scraped, or inherited with no origin: proceed.
-- They can, and the list was bought, scraped, or inherited with no origin: say plainly what verification does and does not do here. It removes the addresses that would bounce. It does not turn a list nobody opted into into a list anyone may be mailed. Then ask whether to verify anyway, with that on the record. They say yes: proceed, and record what was said. They say no, or they do not answer: stop. Do not submit.
-- They cannot account for the origin, or they cannot name the send: ask. A list whose origin nobody can state does not get submitted on the assumption that someone will remember later. Do not submit.
+- The list was bought, scraped, or inherited with no origin: say plainly what verification does and does not do here. It removes the addresses that would bounce. It does not turn a list nobody opted into into a list anyone may be mailed. Then let the caller decide, with that on the record.
+- They cannot: ask. A list whose origin nobody can state does not get submitted on the assumption that someone will remember later.
 
 ### Step 2: Profile the file before extracting anything from it
 
@@ -53,7 +53,7 @@ Run `tools/data/` `parse` on the absolute path. Its profile settles three things
 - how many rows carry no address at all, from that column's non-null count against the row count; those rows are never submitted, and they leave this run labeled rather than quietly missing
 - what did not parse, which is rows the caller believes are on the list
 
-Outcomes: no rows or no columns, report what the profile's parse errors say and stop. Rows present alongside parse errors, continue on what parsed and carry the dropped count into the record. The caller named the address column and the profile lists that exact spelling: use it. The caller named none, and exactly one column's values are addresses: use that column's exact spelling and case. Two or more columns have values that are addresses, or none does: ask, and do not pick one. The wrong column submits a list of names and pays a credit for every one of them.
+Outcomes: no rows or no columns, report what the profile's parse errors say and stop. Rows present alongside parse errors, continue on what parsed and carry the dropped count into the record. Two columns that could each hold addresses, or none that obviously does, ask; the wrong column submits a list of names and pays a credit for every one of them.
 
 ### Step 3: Build the submission file
 
@@ -74,11 +74,13 @@ The normalized address is the only key results come back on, which makes it the 
 
 The local-file grant is bound by `--secret usebouncer=<abs file>` or Provides `secrets:usebouncer`, per the constitution's Secrets rule. This skill never takes a key in conversation or reads its contents.
 
-Read `usebouncer.verify.credits` with `{}` for `{ credits }`, then count the normalized, deduplicated addresses in Step 3's file and estimate the credits required. Put the balance, address count, and estimate in front of the user together. Before any call, check locally for lines with no `@`: over a file built from a parsed column, these mean the extraction went wrong rather than the list, so return to Step 3 and do not submit. An estimate above the balance is a question, not a smaller batch. Which addresses get verified now and which wait is the caller's call, never a silent truncation to fit the balance. A now-set they name is priced again, its balance, count, and estimate put in front of them, and the rest is not carried into this batch. No split, or no answer: stop, and do not submit a smaller batch on your own. Call `usebouncer.verify.bulk` with `{ emails: [{ email }] }` and `confirm: true` only after they approve the batch just shown, its balance, its count, and its estimate. Otherwise do not call. Never confirm on your own initiative.
+Read `usebouncer.verify.credits` with `{}` for `{ credits }`, then count the normalized, deduplicated addresses in Step 3's file and estimate the credits required. Put the balance, address count, and estimate in front of the user together. After their answer, call `usebouncer.verify.bulk` with `{ emails: [{ email }] }` and `confirm: true`. This action is `confirmation: always`, so **every** submission stops, not only the first of a session; without the required approval the gateway returns `needs_confirmation`. A second batch in one session therefore needs its own balance, count and estimate put in front of the user, because the approval they gave was for the batch they saw. Never confirm on your own initiative. The connector writes no files and supplies no policy.
 
-This action is `confirmation: always`, so **every** submission stops, not only the first of a session; without the required approval the gateway returns `needs_confirmation`. A second batch in one session therefore needs its own balance, count and estimate put in front of the user, because the approval they gave was for the batch they saw. The connector writes no files and supplies no policy.
+The judgment this step carries:
 
-The vendor object returned by `usebouncer.verify.bulk` includes `batchId`. Keep that identifier in the work record before anything else happens.
+- Before submission, check locally for lines with no `@`: over a file built from a parsed column, these mean the extraction went wrong rather than the list. Return to Step 3.
+- An estimate above the balance is a question, not a smaller batch. Which addresses get verified now and which wait is the caller's call, never a silent truncation to fit the balance. A subset they name is priced again before it is submitted, and the rest is not carried into this batch.
+- The vendor object returned by `usebouncer.verify.bulk` includes `batchId`. Keep that identifier in the work record before anything else happens.
 
 A run that ends without results has undone nothing. An expired wait, an interrupted session, a transport failure over a submission that was accepted anyway: in every one of them the job is submitted and billed, and is running or already finished. Resume with `usebouncer.verify.status` and `{ id: batchId }`, then, when completed, `usebouncer.verify.download` with the same `{ id: batchId }`. Resubmitting the file to get results is a second full bill for the same list, and nothing on the platform prevents it.
 
@@ -93,10 +95,10 @@ A run that ends without results has undone nothing. An expired wait, an interrup
 | `status` risky, `domain.disposable` yes | Drop |
 | `status` undeliverable | Drop, and suppress it, so a later import cannot put it back |
 | `status` unknown | Neither group. It waits for a retry after the result's `retryAfter`, and is never counted as deliverable |
-| Any other risky result | Review or drop, named as that rather than folded into Send or the accept-all caution; the send named in Step 1 is what bends it |
+| Any other risky result | Review or drop, named as that rather than folded into either group |
 | A row that carried no address | Never submitted and never billed; out of every group, and counted in the record |
 
-The policy is a default, not a law, and the send named in Step 1 is what bends a risky row. A transactional message to a customer of record lets a risky address survive: the accept-all row stays Send with its caution, and any other risky result goes to Send, the record naming that send as the reason, not relabeled as the accept-all caution. A first cold campaign from a domain with no sending history does not let a risky address survive: the accept-all row is named as a drop, with the result field and this send as the reason, and is not suppressed, because suppress stays the undeliverable row; any other risky result is a drop, named as that, with its result field. Any other send does not decide the risky rows. Each row that is not risky keeps the group the table gave it. For the accept-all row and for any other risky result, ask whether it is sent with the caution, reviewed, or dropped, and record the group they name. A drop names its result field. A send-with-caution keeps the caution. No answer: do not put it in Send, and do not drop it yourself.
+The policy is a default, not a law, and the send named in Step 1 is what bends it. A transactional message to a customer of record survives a risky address; a first cold campaign from a domain with no sending history does not. A risky result the send lets survive is not relabeled as the accept-all caution. Say which way the risky group goes and why. Where the send does not settle it, ask rather than deciding for the caller.
 
 Take the cost from the completed job's own credits figure when returned. If that figure is absent, label actual cost `Not available` per `standards/conventions.md`; Step 4's estimate is an upper bound and is never reported as spent.
 
@@ -110,7 +112,7 @@ Before the response ships, the gate: hand the send group, merged back onto the s
 
 ## Pitfalls
 
-- **The second bill.** The expensive failure here, and it arrives disguised as a retry: a lost identifier, an expired wait, a transport failure over a job that was accepted anyway. Nothing on the platform lists past jobs and nothing deduplicates across them. Recover through the `batchId` in the work record every time: `usebouncer.verify.status` with `{ id: batchId }`, then, when completed, `usebouncer.verify.download` with the same id. Do not resubmit. When the identifier is gone, check the account and ask the caller before any new submission. Do not submit again on your own in this turn.
+- **The second bill.** The expensive failure here, and it arrives disguised as a retry: a lost identifier, an expired wait, a transport failure over a job that was accepted anyway. Nothing on the platform lists past jobs and nothing deduplicates across them. Recover through the identifier every time; when it is gone, check the account and ask the caller before any new submission.
 - **Verification read as permission.** A deliverable address is a mailbox that accepts mail, not a person who agreed to hear from anyone. A verified list sent without consent still earns complaints, and complaints, not bounces, are what end a sending domain.
 - **Catch-all read as confirmed.** An accept-all domain answers yes for every address, including ones that do not exist. The policy lets those through because the alternative is dropping whole company domains, and the caution is the price of that: it travels with them into whatever sends them, and it is never dropped on the way.
 - **Unknown read as dead.** Unknown means the mailbox could not be reached in the time allowed, not that it is gone. Dropping unknowns deletes reachable people permanently, and rechecking them later costs again what was already paid.

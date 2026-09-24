@@ -3,7 +3,7 @@ name: Cloudflare Pages
 type: skill
 category: web
 description: List and get a Cloudflare Pages project, list its deployments, and take a kit site live by Wrangler upload of the envelope's site/dist/ payload only
-version: 0.2.3
+version: 0.2.4
 gaps:
   - create a Pages deployment through the gateway
 ---
@@ -43,7 +43,7 @@ Quote filesystem paths containing spaces, including this skill's directory.
 
 ## Steps
 
-**1. Settle the job and scope.** Apply Context's hand-offs and refusal before selecting an action, taking the first case that fits and not a later one. Taking a kit site live, a publish, or an upload of the site folder, including a human-run Wrangler upload, is live upload, and that hand-off is the supported path. A create of a Pages deployment through the gateway, or a Pages write through the gateway, is refused: name the gap, and do not select a read or invent a write in its place. Workers, R2, rulesets, or hostname DNS take that hand-off, and not a read in its place. A list of the account's projects, with no one project named, is project-list. One named project's record is project-get. The deployments of a named project, and not a publish, are deployment-list. Two of those four jobs, or none of them: ask before proceeding. Missing or ambiguous account, project, or site: ask before proceeding. Never select the first project. Get and deployment-list need `project_name`; without it, ask, and do not get or list.
+**1. Settle the job and scope.** Choose project-list, project-get, deployment-list, or live upload from `<request>`. Missing or ambiguous account, project, or site: ask before proceeding. Apply Context's hand-offs and refusal before selecting an action.
 
 **2. Read through the declared grant.** Use the gateway's `execute` tool with only the following actions, as declared in `connectors/cloudflare/CONNECTOR.md`:
 
@@ -55,9 +55,9 @@ Quote filesystem paths containing spaces, including this skill's directory.
 
 The grant is `cloudflare` / `pages`. Under the constitution's Behavioral Core, `needs_connect` stops this skill with no yield; `skills/Connect Account/` is the next human turn, using `connectors/cloudflare/auth.md`. Do not continue toward upload on a missing grant or invent a reading. Other unavailable actions follow that same heading, with the missing reading labeled per `standards/conventions.md` Evidence Labels.
 
-Return only what the selected read supplies, scoped to the account and project. An empty `result` is an empty listing. A failed get is not a project, and a project listing is not proof of a deployment. List and get, including deployment-list, are not a publish and take no Job 3 gate. For live upload, get the named project first; if it is absent, failed, or unreadable, stop the upload hand-off and report it. This skill does not create a Pages project.
+Return only what the selected read supplies, scoped to the account and project. An empty `result` is an empty listing. A failed get is not a project, and a project listing is not proof of a deployment. List and get, including deployment-list, are not a publish and take no Job 3 gate. For live upload, get the named project first; if absent or unreadable, stop the upload hand-off and report it. This skill does not create a Pages project.
 
-**3. Prepare the live step.** Resolve `<site>` to the inner `site/` kit folder beneath the named envelope and owning root. That folder is in scope when it contains `kit.json`, so the envelope has `site/kit.json`. Only a domain-folder `kit.json` is the old shape and needs `skills/Site Author/` Wrap before this hand-off, and it is not uploaded. The envelope, the owning root, a foreign tree, or a path you cannot verify as that inner `site/` folder stops the hand-off. Load the owning chain per the constitution's Workspace Model; its yield here is the declared site path. Payload is `site/dist/` when the human build in `SETUP.md` produced it, and the inner `site/` folder when there is no build and the requester named that folder as the payload. Anything outside that `site/` folder and outside `site/dist/` stops the hand-off. Envelope memory is in neither, and it is never the payload. Where contract evidence for this envelope is in `<evidence>` and still matches this envelope and this payload, do not re-run Check. Where it is missing, or you cannot show that it still matches, sequence `skills/Site Author/` Check with the envelope folder. A failing check returns to the requester for repair and the hand-off does not continue.
+**3. Prepare the live step.** Resolve `<site>` to the inner `site/` kit folder beneath the named envelope and owning root. The envelope has `site/kit.json`; only domain-folder `kit.json` is old shape and needs Site Author Wrap before this hand-off. Load the owning chain per the constitution's Workspace Model; its yield here is the declared site path. An envelope, owning root, foreign tree, or unverified upload scope stops the hand-off. Payload is `site/dist/` when the human build in `SETUP.md` produced it, and the inner `site/` folder when there is no build and the requester named that folder; anything else, envelope memory included, stops the hand-off. Sequence `skills/Site Author/` Check with the envelope folder when its contract evidence is missing, stale, or not shown to still match this envelope and this payload; a failing check returns to the requester for repair.
 
 Hand `<site>` (payload plus enclosing envelope), `<goal>` (publish), `<change>` (the exact site change, folder, and project), and `<evidence>` to `experts/Webmaster/` Job 3 in a second context before the requester publishes. A return waits for the named fix and another verdict. The requester's intent to publish cannot replace this gate.
 

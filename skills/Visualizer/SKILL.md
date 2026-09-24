@@ -3,7 +3,7 @@ name: Visualizer
 type: skill
 category: design
 description: Turn source material into one diagram whose geometry matches the structure the material actually has, delivered as a self-contained HTML file or as Mermaid for markdown
-version: 0.8.2
+version: 0.8.3
 ---
 
 # Visualizer
@@ -32,7 +32,9 @@ A diagram designer who selects geometry by cognitive fit and never by appearance
 
 **1. Read the structure out of the material.** A `<categorization_output>` supplied with the request is this step's answer already; take it and go to step 2 rather than reducing the material a second time. Otherwise decide whether the material already carries its structure or has to be reduced to find it.
 
-Where one of these covers the material as a whole, a dated record, a procedure written as ordered steps, a problem with its contributing factors named, or a set of options set against criteria, read the structure directly. There is nothing to reduce. Where none does, including a book, a paper set, a transcript, a body of notes, or anything else, hand it to `skills/Categorize Content/` and treat what returns as `<categorization_output>`.
+Already carrying it, where one of these covers the material as a whole: a dated record, a procedure written as ordered steps, a problem with its contributing factors named, a set of options set against criteria. Read the structure directly; there is nothing to reduce.
+
+Not carrying it, where none of those does: a book, a paper set, a transcript, a body of notes, or anything else. Hand it to `skills/Categorize Content/` and treat what returns as `<categorization_output>`.
 
 Know what that skill returns before relying on it. It returns a flat set of themes, each an action carrying its insight; one paragraph naming the reading that ties them together; an ordering that either reflects a real dependency between themes or states that they are parallel; and anything its completeness check named secondary. It returns no verdict on geometry, no sub-theme levels, no labeled relations between themes, and no dates. Never ask it for a structure type, and never read one out of an output that does not carry one.
 
@@ -52,29 +54,29 @@ Everything else is read from the material and from what the themes say, never fr
 | One effect and the factors contributing to it | Causal | Fishbone |
 | Dates, phases, or durations | Temporal | Timeline |
 
-Two rows fit and the material does not choose between them: ask. Name both readings and what each would make visible, and build the one the requester picks. Where they pick neither, or they do not answer, ask once more, and where there is still no choice, stop before building. Never build both, and never pick silently.
+Two rows fit and the material does not choose between them: ask. Name both readings and what each would make visible, and build the one the requester picks. Never build both, and never pick silently.
 
-A `<visualization_requirements>` naming a technique settles the choice. Where the material argues for a different one, say so once, naming what the other geometry would make visible, then build what the requester keeps. Where they keep neither, or they do not answer, ask once more, and where there is still no choice, stop before building. Do not pick silently.
+A `<visualization_requirements>` naming a technique settles the choice. Where the material argues for a different one, say so once, naming what the other geometry would make visible, then build what the requester keeps.
 
 **3. Load the technique's rules.** `techniques.md` in this directory holds the seven: what each geometry is for, how it is laid out, what it must label, the ceiling above which it stops working, and the mistakes that break it. Read the selected one; the rest are not needed this run.
 
 **4. Choose the medium.** `rendering.md` in this directory holds the three and the library each technique uses. Library-backed HTML is the default, because layout libraries compute node positions and connection endpoints, which is where hand-built diagrams fail and keep failing as the diagram grows. Check the technique limits before the requester's format, and take the first departure that applies:
 
-- The technique is Matrix: CSS Grid, hand-built, no library. Mermaid cannot express it. They asked for markdown: still the grid, and say so.
-- The technique is Fishbone: Mermaid cannot express it. The file has to open with no network: hand-built HTML. Otherwise: library-backed HTML. They asked for markdown: say what Mermaid cannot carry, and keep the hand-built or library-backed result the network question just gave. Do not switch to Mermaid.
-- The requester wants output that embeds in markdown, and `rendering.md` says Mermaid can carry the technique: Mermaid, within the limits that file records. A file that also has to open with no network still takes Mermaid here, because this departure is a fenced block, not a library loaded from a CDN.
-- The file has to open with no network, and the bullet above did not apply: hand-built HTML, since library-backed output loads its library from a pinned CDN when opened and is not an offline bundle.
-- The diagram is two or three elements, nothing in it needs expansion, hover, or zoom, no bullet above applied, and the technique is not Matrix or Fishbone: Mermaid is faster and loses nothing.
+- Matrix: CSS Grid, hand-built, even when they asked for markdown, and say so. Mermaid cannot express it.
+- Fishbone: hand-built HTML when the file must open with no network, otherwise library-backed HTML. A markdown request is told what Mermaid cannot carry rather than switched.
+- Markdown, where `rendering.md` says Mermaid can carry the technique: Mermaid, within the limits that file records, including when the file must also open offline, because the block loads no CDN library.
+- Otherwise a file that must open with no network: hand-built HTML, since library-backed output loads its library from a pinned CDN when opened and is not an offline bundle.
+- Two or three elements that need no expansion, hover, or zoom, and the bullets above did not apply: Mermaid is faster and loses nothing.
 - None of these: library-backed HTML.
 
 **5. Build it.** These hold whatever the technique and whatever the medium.
 
 - Labels sit with what they label. A reader who must look elsewhere to learn what an element is has been handed a legend, not a diagram.
 - Every connection states why the two things connect. An unlabeled line asserts a relationship and names none, which is the most common way one of these fails. Hierarchy is the single exception: parent to child needs no label, because the line means one thing.
-- Keep five to nine peers in view under any one parent or grouping; the technique's own entry in `techniques.md` governs the diagram's total. Above either ceiling, do what that entry says: group, collapse, or split as it states. Where the entry allows more than one and does not say which is first, take them in the order that entry lists them, and take the next when the view is still over the ceiling after the first. Do not shrink the type.
+- Keep five to nine peers in view under any one parent or grouping; the technique's own entry in `techniques.md` governs the diagram's total. Above either ceiling, do what that entry in `techniques.md` says, in the order it lists them, taking the next when the view is still over the ceiling; do not shrink the type.
 - Use proximity, similarity, and continuity deliberately: related things sit close, same-category things look the same, and lines run along the path the eye should take.
 - Layer detail rather than showing all of it: expand and collapse, hover for the full text, zoom between overview and detail.
-- Color encodes category and nothing else, capped at five to seven categories, with one meaning per color across the whole diagram. Give seven or fewer categories one hue each. Where there are more than seven, group categories until seven or fewer remain, so each hue still has one meaning, and say what was grouped. Where the requester or the destination names a palette, use it inside that cap. Where no palette is named, choose one set of distinguishable hues and hold it, rather than recoloring per section.
+- Color encodes category and nothing else, capped at five to seven categories, with one meaning per color across the whole diagram. Above seven, group categories until seven or fewer remain and say what was grouped. Where the requester or the destination names a palette, use it; otherwise choose one set of distinguishable hues and hold it, rather than recoloring per section.
 - A produced file goes where `standards/conventions.md` puts the owning root's work; a block written for embedding goes into the file the requester named. Where the source material happens to sit never decides where the diagram lands.
 
 **6. Validate cognitive fit, then cut.** Open the rendered file and read it as someone who has not seen the material. Three questions, each a defect when the answer is yes: does understanding it require transforming it mentally into some other shape, does it require holding one part in mind while scanning for another, does it require looking back and forth to connect ideas that belong together.

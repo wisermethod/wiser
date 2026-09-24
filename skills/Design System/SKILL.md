@@ -3,7 +3,7 @@ name: Design System
 type: skill
 category: design
 description: Compose existing color and type tokens into a complete design system, delivered as an agent-readable specification, a combined CSS token file, and optional Tailwind configuration
-version: 0.2.5
+version: 0.2.6
 memory:
   - design
 ---
@@ -48,17 +48,17 @@ A design-systems architect whose work is judged by transfer rather than by taste
 
 Five steps, in order. Steps 1 to 4 build token categories; Step 5 composes the deliverables.
 
-On a merge into a shipped system, the shipped values hold: Steps 2 to 4 build only the categories that are absent and the values the requester named for change, and Step 5 says which values were adopted and which were generated. A layer that shipped as a single value where the register needs a set, one radius standing in for four, is extended to the steps the register needs with the shipped value kept as one of them; that is neither a silent replacement nor a skipped layer. A shipped value that fails Step 3's taxonomy read or a criterion in Success is reported to the owner as a finding, naming the change it would take, and is never rewritten on this run's own authority. Where the owner accepts, make the change the finding names and no other rewrite of a shipped value, and Step 5 records that value as adopted. Where the owner declines or does not answer, do not rewrite it, and Step 5 names the criteria the merged system does not meet and the values holding them open. On a replacement, all four steps run fresh.
+On a merge into a shipped system, the shipped values hold: Steps 2 to 4 build only the categories that are absent and the values the requester named for change, and Step 5 says which values were adopted and which were generated. A layer that shipped as a single value where the register needs a set, one radius standing in for four, is extended to the steps the register needs with the shipped value kept as one of them; that is neither a silent replacement nor a skipped layer. A shipped value that fails Step 3's taxonomy read or a criterion in Success is reported to the owner as a finding, naming the change it would take, and is never rewritten on this run's own authority. Where the owner accepts, make the change the finding names. Where the owner declines the change, Step 5 names the criteria the merged system does not meet and the values holding them open. On a replacement, all four steps run fresh.
 
 ### 1. Validate the inputs and fix the register
 
 Color tokens must carry a primary scale, a neutral scale, the semantic colors, and the surface layers. Type tokens must carry the scale sizes, families, weights, and line heights.
 
-- Both complete: continue.
+- Complete: continue.
 - Missing or partial: resolve per Inputs by running the skill that owns them. Where the requester declines, compose from what exists and mark the absent section of the specification as missing, rather than filling it.
-- A shipped system whose values disagree with the supplied tokens: ask whether to replace it or merge into it before writing anything. Replace: archive the file per `standards/conventions.md`, then run all four steps fresh. Merge: archive the file the same way, then the intro's merge rule. No answer: do not write and do not archive.
+- A shipped system whose values disagree with the supplied tokens: ask whether to replace it or merge into it before writing anything, and archive the file being rewritten per `standards/conventions.md`.
 
-Then name the register the system targets, application, marketing, or content, from the request or from the purpose it settles. None, or more than one: ask before Step 2, and do not compose without an answer. The Context Registers table in `experts/Creative Director/EXPERT.md` calibrates how much personality the border, elevation, and motion layers below should carry. The wrong register produces a system that is loud where it should recede.
+Then name the register the system targets. The Context Registers table in `experts/Creative Director/EXPERT.md` calibrates how much personality the border, elevation, and motion layers below should carry; the wrong register produces a system that is loud where it should recede.
 
 ### 2. Spacing scale
 
@@ -91,13 +91,13 @@ Every step ships with the context it is for, so the scale carries rhythm instead
 | 12 to 16 | Between major page sections |
 | 24 to 32 | Page margins, hero spacing |
 
-Where the type system defines a vertical rhythm base, state how the two relate, so section spacing and line spacing do not drift apart. Where it defines none, state that, and do not invent a base.
+Where the type system defines a vertical rhythm base, state how the two relate, so section spacing and line spacing do not drift apart. Where it defines none, state that.
 
 ### 3. Border, radius, and elevation tokens
 
 This layer carries most of what the system feels like, so each choice states its reasoning.
 
-Radius calibrates to personality: geometric and professional sits at the low end, friendly and expressive at the high end. The personality is the one the bound `design` key names, or the request when that key is unavailable, and the key wins when the two disagree. Where neither names a personality, ask which end. On a merge, a shipped radius holds, per the intro's rule. Move the whole set together so the ratio between steps holds, and state why the set sits where it does.
+Radius calibrates to the personality the bound `design` key names, or the request when that key is unavailable, the key winning when they disagree: geometric and professional sits at the low end, friendly and expressive at the high end. Move the whole set together so the ratio between steps holds, and state why the set sits where it does.
 
 ```css
 :root {
@@ -127,7 +127,7 @@ A dark theme takes its depth from lighter surfaces rather than from this scale, 
 
 ### 4. Motion tokens
 
-A duration scale and easing curves. The four duration bands are the same Duration Scale as `skills/Component Design/motion-design.md`, the operational home for UI motion; these tokens name that scale for builders. The register from Step 1 chooses which bands ship as the default language, not different numbers, and in every register the four duration tokens still ship. Application stays on the first two bands, feedback and state. Marketing uses the layout and entrance bands when the direction calls for a dramatic entrance or scroll-driven motion, as that register's row in the Context Registers table allows, and otherwise stays on the first two, with the longer bands still available. Content follows that table's content row, almost none: the longer bands are not the default language, a feedback or state motion the direction already names may use the first two bands, and motion the direction does not name is not added. A register Step 1 did not settle is not a reason to pick the bands.
+A duration scale and easing curves. The four duration bands are the same Duration Scale as `skills/Component Design/motion-design.md`, the operational home for UI motion; these tokens name that scale for builders. The register from Step 1 chooses which bands ship as the default language, not different numbers: application stays on the first two bands; marketing uses layout and entrance when the direction calls for a dramatic entrance or scroll-driven motion, and otherwise the first two. Content's default is almost none: a feedback or state motion the direction already names may use the first two bands, and motion the direction does not name is not added.
 
 ```css
 :root {
@@ -169,7 +169,7 @@ The specification, `DESIGN.md` unless the project names it otherwise:
 [What the system prohibits, what it requires, the accessibility minimums it inherits]
 ```
 
-Write the Visual Direction section by restating the bound `design` key and the request, including a register Step 1 already named, where that restatement makes no choice those texts do not state. Where it would, consult `experts/Creative Director/` before writing the section. A direction that comes back is written; when none comes back, ask the requester, and with no answer do not invent a direction and do not deliver the specification. Every section is written to be built from: a sentence a builder cannot act on is not yet finished.
+Write the Visual Direction section against the bound `design` key and the request, and consult `experts/Creative Director/` where the direction needs judgment rather than transcription. Every section is written to be built from: a sentence a builder cannot act on is not yet finished.
 
 The CSS token file carries all of it in one place, grouped and commented by category (color by role, typography, spacing, borders, radius, elevation, motion), with a `prefers-color-scheme: dark` block overriding the semantic layer alone where the palette carries a dark mode.
 
@@ -177,13 +177,13 @@ A Tailwind configuration ships only when the project uses Tailwind: a `@theme` b
 
 Where the owner adopts the result as the root's design system, this specification is what the `design` key binds; making that binding is the owner's act under the constitution's Workspace Model, not this skill's.
 
-Then the gate: hand the specification and the token file as `<design_artifact>`, the tokens it used as `<design_system>`, and a `<brief>` carrying the purpose, the audience and what matters most, to `experts/Creative Director/` for a verdict in a second context that did not produce it. It ships on that verdict with the findings worked, or on the requester's explicit decline, named in the delivery, and otherwise it does not ship. A finding against a supplied color or type value is returned to the skill that owns it, or reported to the owner as on a merge, never rewritten here; a sibling skill run in step 1 carries its own gate, and one decline covers this gate only.
+Then the gate: hand the specification and the token file as `<design_artifact>`, the tokens it used as `<design_system>`, and a `<brief>` carrying the purpose, the audience and what matters most, to `experts/Creative Director/` for a verdict in a second context that did not produce it. It ships on that verdict with the findings worked, or on the requester's explicit decline; a declined review is named in the delivery. A finding against a supplied color or type value is returned to the skill that owns it, or reported to the owner as on a merge, never rewritten here; a sibling skill run in step 1 carries its own gate, and one decline covers this gate only.
 
 ## Token Architecture
 
 The shape the tokens above are organized in.
 
-- **Three layers, where they apply.** Primitive holds the raw value (`--blue-500`), semantic holds the role (`--color-primary`), component holds the specific use (`--button-bg`). Spacing is primitive and semantic unless the requester named a component-layer spacing token. Any other category gets a component layer when it has two or more consumers, and not when it has one, none, or a count you cannot tell.
+- **Three layers, where they apply.** Primitive holds the raw value (`--blue-500`), semantic holds the role (`--color-primary`), component holds the specific use (`--button-bg`). Not every category needs all three: spacing is primitive and semantic unless the requester named a component-layer spacing token, and a component layer ships only at two or more consumers, which an untellable count is not.
 - **Themes move the semantic layer.** Dark mode and any alternate theme override semantic tokens, never primitives and never component tokens, so one override block re-themes everything.
 - **No orphans.** Every token appears in the usage guidance or in a component reference. A token nothing uses is removed before delivery, not left for someone to interpret later.
 
@@ -192,7 +192,7 @@ The shape the tokens above are organized in.
 - **Ambiguity.** The project, the register, or which of several token sets is the input cannot be settled from the request: ask before composing. A system built to the wrong register is wrong in every section at once.
 - **The gap filled inline.** Tokens arrive missing a scale, and generating the missing values here is one line of work and the thing this skill must never do. Run the skill that owns them, or deliver the system with the section marked missing.
 - **The specification that reads well and builds nothing.** "Use generous spacing in hero sections" is not buildable; "hero sections use `--space-24` above and `--space-32` below" is. Test each section by asking what a builder would type after reading it.
-- **Silent replacement of a shipped system.** New tokens overwriting an existing specification lose decisions nobody recorded. Ask replace or merge before writing, archive per `standards/conventions.md` when the answer is replace or merge, and do not write or archive without an answer.
+- **Silent replacement of a shipped system.** New tokens overwriting an existing specification lose decisions nobody recorded. Ask replace or merge, and archive per `standards/conventions.md` before rewriting.
 - **Orphan tokens from generosity.** A scale extended past what the project uses looks thorough and delivers dead weight. Ship the steps the system needs and say where to extend.
 - **Uniform spacing passed off as rhythm.** One value repeated between every element is a taxonomy Layout entry, and it survives review easily because nothing about it is wrong in isolation. The usage guidance in Step 2 is what prevents it; deliver it with the scale, never after.
 
