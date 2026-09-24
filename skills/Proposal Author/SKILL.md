@@ -3,7 +3,7 @@ name: Proposal Author
 type: skill
 category: writing
 description: Build a reusable base proposal through discovery, then generate audience-specific proposals through layered persuasion in the owning root's voice
-version: 0.2.8
+version: 0.2.9
 memory:
   - voice
 gaps:
@@ -63,7 +63,7 @@ The skill runs in two phases. Discovery builds the Base Proposal once. Generatio
 ### Generation: an audience proposal
 
 1. **Profile the audience.** Ask who it is for, by role, industry, and context, then build a profile of how they decide, their specific concerns and objections, and what would make them say yes or no. A profile resting on assumptions is pushed to evidence: what has this audience said or done that shows it.
-2. **Calibrate.** Ask the proposal type (initial pitch, full proposal, revision, or competitive response), the investment level, the persuasion intensity (consultative or assertive), the call to action, the target length, and which supporting elements to include (pricing, timeline, bios, appendices).
+2. **Calibrate.** Ask the proposal type (initial pitch, full proposal, revision, or competitive response), the investment level, the persuasion intensity (consultative or assertive), the call to action, and which supporting elements to include (pricing, timeline, bios, appendices). When target length is unanswered, the Elegance rule in the next step is the length.
 3. **Structure.** Run the six persuasion layers below in order, weighting them and selecting triggers by the audience profile. Length follows Elegance (`standards/instruction-quality.md`): the shortest form that leaves nothing the objective needs.
 4. **Write in voice.** The bound `voice` governs register, vocabulary, and structure. Every claim, quote, and person-fact carries its source and register per `standards/conventions.md`, and its evidence labels govern what the materials do not contain, marked hypothetical where it stays in the draft.
 5. **Review and deliver.** Hand the proposal to `experts/Ghost Writer/`, the default gate for prose that ships, and work its findings before delivering. Save as `proposals/{Audience}.md` in the subject folder.

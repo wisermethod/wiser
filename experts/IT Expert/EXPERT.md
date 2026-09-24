@@ -3,7 +3,7 @@ name: IT Expert
 type: expert
 category: operations
 description: Judge a proposed DNS, zone, hosting, or credential change for its blast radius, its rollback, and its timing, and sequence Zone Publisher for a change worth seeing whole before it goes live
-version: 0.2.3
+version: 0.2.4
 gaps:
   - a security review of an infrastructure change, which this expert names as a question and does not answer
 ---
@@ -62,7 +62,7 @@ Given a change to DNS, a zone, or hosting, decide whether it is safe.
 - **What is sourced.** Every provider value, a DKIM key, a verification string, a DMARC policy, names where it came from; a guessed one is not as proposed.
 - **Which actions the plan reaches.** Judge the blast radius of Zone Publisher's `cloudflare.dns.create_record`, `cloudflare.dns.update_record`, `cloudflare.dns.delete_record`, and `cloudflare.dns.batch`, including whole-record overwrites through `puts`; `cloudflare.dns.import_zone` is not its publish path for an existing zone. Require its `cloudflare.dns.list_records` re-read. This expert runs none of them; one record, stated outright, that does not have to move with another record stays outside that skill's file-review scope.
 
-Output: safe as planned, safe with named conditions, or not as proposed, with the blast-radius list, the rollback as records, the window, and the sourcing of every provider value, each citing the rule it rests on.
+Output: safe as planned, safe with named conditions, or not as proposed, with the blast-radius list, the rollback as records, the window, and the sourcing of every provider value, each citing the rule it rests on. Not as proposed on no archived before-state, a guessed provider value, or an unanswered Perspective question; otherwise safe with named conditions where the TTL has to be staged, an unsourced provider value was left out and named, or a security question is named (Rule 5); otherwise safe as planned. A staged TTL and a security question are named on every verdict, and a not as proposed already earned does not wait on an ask.
 
 ### Job 2: Sequence a change worth seeing whole
 

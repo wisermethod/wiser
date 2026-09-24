@@ -3,7 +3,7 @@ name: Media Generator
 type: skill
 category: media
 description: Produce an image or a video that does not exist yet, or a photograph with its background removed, by finishing the prompt, choosing the model, and running the billed generation through a generation connector to a file the user named.
-version: 0.11.3
+version: 0.11.4
 gaps:
   - judgment of a generated clip's motion, which no expert in this root carries; the clip is judged by its still frame
 ---
@@ -92,7 +92,7 @@ Platform calls use the gateway's `execute` tool with `replicate.models.*`. Under
 
    `create_prediction` returns the catalog prediction object with an id. Keep it in the work record, then call `replicate.models.get_prediction` with `{ prediction_id }` (`confirmation: none`) for status and output URLs. A slow prediction is resumed later on that same id, never submitted again to collect its result. Retrieve a finished prediction's outputs promptly; never leave one unretrieved.
 
-   A still handed to an image-to-video model has to be reachable by the platform: in an inline form supported by the chosen model's documented input contract, or at an address the platform can fetch. The connector states no inline size ceiling; do not invent one. A larger local file with no address does not go as it is, so say that and put the two ways forward to the user, a smaller rendition made by `tools/image/` `edit` or an address the platform can reach. Never fall back to text-to-video without saying so; the still was the point.
+   A still handed to an image-to-video model has to be reachable by the platform: in an inline form supported by the chosen model's documented input contract, or at an address the platform can fetch. The connector states no inline size ceiling; do not invent one. A larger local file with no address does not go as it is, so say that and put the two ways forward to the user, a smaller rendition made by `tools/image/` `edit` or an address the platform can reach. Generate from text only when they choose text-to-video: say that the still was the point, say that this is a fallback, and only then generate from text. If they do not answer, do not fall back and do not bill.
 
    Video from text alone is two runs and better for it: generate the still first, judge it against the brief, then animate the one that earned it. A clip longer than a single model run is several runs joined by `tools/video-edit/`, never one longer prompt. And a motion prompt describes motion: name the camera move and name what the subject does, and where the movement should barely register, say it in those words, because these models exaggerate anything left vague.
 

@@ -3,7 +3,7 @@ name: Designer
 type: skill
 category: design
 description: Run a design job end to end, from brief and visual direction through foundations, composition, and validation, producing the wireframe, style guide, or extracted system itself and directing every other phase to the design skill that owns it
-version: 0.9.6
+version: 0.9.7
 memory:
   - design
 gaps:
@@ -71,13 +71,13 @@ Fix the visual direction before anything is generated, and name the register whi
 
 State five things:
 
-- **Subject anchor.** The one concrete subject, its audience, the single job of the artifact, and what in the subject's own world the design can draw from. If the brief does not pin these down, pin them and say so.
+- **Subject anchor.** The one concrete subject, its audience, the single job of the artifact, and what in the subject's own world the design can draw from. If the brief does not pin these down, pin each one it supports and say so, and ask for a missing one it does not support before stating the direction.
 - **Personality.** A position on each spectrum: playful to professional, bold to restrained, warm to cool, dense to spacious.
 - **References.** Two or three real products or sites, named for the specific execution quality being borrowed, plus what the work must not look like, which is often the clearer half of the direction. "Clean and modern" is not a direction. Reach outside the familiar software cluster; the same handful of references produces the same generic result.
 - **Color mood and typographic voice.** Warm or cool, saturated or muted, light or dark; geometric or humanist, sharp or rounded, condensed or wide. This is direction for the Phase 3 skills to work from, not values decided here.
 - **Signature.** The single element this design will be remembered by, and the one place boldness is spent, with everything around it quiet and disciplined. Take one real aesthetic risk the brief can justify; where it justifies none, still name one signature, say the brief did not justify it, and confirm it with the direction. A design with no memorable anchor reads as templated, so declining the risk is itself a risk.
 
-Where the direction already exists in work that shipped but was never written down, a live site or a codebase, read it back first (Reference: Brand extraction) and let what it returns stand as the direction, and as Phase 3's existing tokens. State the direction before proceeding, and where the request was ambiguous, confirm it.
+Where the direction already exists in work that shipped but was never written down, a live site or a codebase, read it back first (Reference: Brand extraction) and let what it returns stand as the direction, and as Phase 3's existing tokens. State the direction before proceeding, and confirm before proceeding where the request was ambiguous or names no direction, or where it contradicts the extraction.
 
 ### 3. Foundation
 
@@ -148,7 +148,7 @@ A wireframe answers what goes where and why, before how it looks. It is a differ
 | States | Noted | Designed |
 | Job | Validate the structure | Deliver the design |
 
-Four moves. Inventory the content and rank it in tiers: what the page's job requires, what supports it, what can sit lower. Choose a structural pattern and state why: a single column for content and forms, two columns for a sidebar beside a main area, a grid for collections, alternating blocks for a narrative page, a top-and-left shell for data-heavy screens, a hub for a portal. Two that match equally are both stated, with the one that will be written named and why, and confirmed before the file is written. Write it as one self-contained HTML file with a small grayscale custom-property set, a system font, and no decoration. Then annotate, since the annotations carry what a grayscale block cannot: interaction behavior, content rules, conditional content, and what changes at each breakpoint.
+Four moves. Inventory the content and rank it in tiers: what the page's job requires, what supports it, what can sit lower. Choose a structural pattern and state why: a single column for content and forms, two columns for a sidebar beside a main area, a grid for collections, alternating blocks for a narrative page, a top-and-left shell for data-heavy screens, a hub for a portal. Two that match equally are both stated, with the one that will be written named and why, and confirmed before the file is written. When none matches, ask which of the six, and do not invent a seventh, before writing the file. Write it as one self-contained HTML file with a small grayscale custom-property set, a system font, and no decoration. Then annotate, since the annotations carry what a grayscale block cannot: interaction behavior, content rules, conditional content, and what changes at each breakpoint.
 
 Hierarchy has to survive without color, carried by size, weight, and space alone. Every label is the real thing ("Add to cart", "Unit price"), never "Heading 1" and never Lorem ipsum, and every placeholder block states its aspect ratio and what belongs in it.
 

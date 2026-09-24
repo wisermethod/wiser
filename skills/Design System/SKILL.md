@@ -3,7 +3,7 @@ name: Design System
 type: skill
 category: design
 description: Compose existing color and type tokens into a complete design system, delivered as an agent-readable specification, a combined CSS token file, and optional Tailwind configuration
-version: 0.2.6
+version: 0.2.7
 memory:
   - design
 ---
@@ -183,7 +183,7 @@ Then the gate: hand the specification and the token file as `<design_artifact>`,
 
 The shape the tokens above are organized in.
 
-- **Three layers, where they apply.** Primitive holds the raw value (`--blue-500`), semantic holds the role (`--color-primary`), component holds the specific use (`--button-bg`). Not every category needs all three: spacing is primitive and semantic unless the requester named a component-layer spacing token, and a component layer ships only at two or more consumers, which an untellable count is not.
+- **Three layers, where they apply.** Primitive holds the raw value (`--blue-500`), semantic holds the role (`--color-primary`), component holds the specific use (`--button-bg`). Not every category needs all three: spacing is primitive and semantic unless the requester named a component-layer spacing token, in which case include it; any other component layer ships only at two or more consumers, which an untellable count is not.
 - **Themes move the semantic layer.** Dark mode and any alternate theme override semantic tokens, never primitives and never component tokens, so one override block re-themes everything.
 - **No orphans.** Every token appears in the usage guidance or in a component reference. A token nothing uses is removed before delivery, not left for someone to interpret later.
 

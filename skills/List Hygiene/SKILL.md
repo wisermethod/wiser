@@ -3,7 +3,7 @@ name: List Hygiene
 type: skill
 category: communication
 description: Decide what an email contact list keeps and drops, verified through the usebouncer connector, with the cost put to the user before it is spent and every drop traced to the result field that caused it.
-version: 0.10.3
+version: 0.10.4
 ---
 
 # List Hygiene
@@ -53,7 +53,7 @@ Run `tools/data/` `parse` on the absolute path. Its profile settles three things
 - how many rows carry no address at all, from that column's non-null count against the row count; those rows are never submitted, and they leave this run labeled rather than quietly missing
 - what did not parse, which is rows the caller believes are on the list
 
-Outcomes: no rows or no columns, report what the profile's parse errors say and stop. Rows present alongside parse errors, continue on what parsed and carry the dropped count into the record. Two columns that could each hold addresses, or none that obviously does, ask; the wrong column submits a list of names and pays a credit for every one of them.
+Outcomes: no rows or no columns, report what the profile's parse errors say and stop. Rows present alongside parse errors, continue on what parsed and carry the dropped count into the record. When the caller named the address column and the profile lists that exact spelling, use it. When that does not hold, two columns that could each hold addresses, or none that obviously does, ask; the wrong column submits a list of names and pays a credit for every one of them.
 
 ### Step 3: Build the submission file
 
@@ -98,7 +98,7 @@ A run that ends without results has undone nothing. An expired wait, an interrup
 | Any other risky result | Review or drop, named as that rather than folded into either group |
 | A row that carried no address | Never submitted and never billed; out of every group, and counted in the record |
 
-The policy is a default, not a law, and the send named in Step 1 is what bends it. A transactional message to a customer of record survives a risky address; a first cold campaign from a domain with no sending history does not. A risky result the send lets survive is not relabeled as the accept-all caution. Say which way the risky group goes and why. Where the send does not settle it, ask rather than deciding for the caller.
+The policy is a default, not a law, and the send named in Step 1 is what bends it. A transactional message to a customer of record survives a risky address; a first cold campaign from a domain with no sending history does not, so its accept-all row does not stay Send: name it as a drop, with the result field and this send as the reason, and do not suppress it. A risky result the send lets survive is not relabeled as the accept-all caution. Say which way the risky group goes and why. Where the send does not settle it, ask rather than deciding for the caller.
 
 Take the cost from the completed job's own credits figure when returned. If that figure is absent, label actual cost `Not available` per `standards/conventions.md`; Step 4's estimate is an upper bound and is never reported as spent.
 

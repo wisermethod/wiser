@@ -3,7 +3,7 @@ name: SEO Assets
 type: skill
 category: seo
 description: Produce the ready-to-use artifacts a site's decided search changes need, each built from evidence pulled for it, held to its own standards, and written into an envelope's site/ kit tree or handed over for someone else to deploy
-version: 0.12.4
+version: 0.12.5
 memory:
   - voice
   - about
@@ -116,7 +116,7 @@ An artifact whose central reading is missing is a different case: say which arti
 
 Build each to its row in The Artifacts and the constraint under it. Three rules cut across all of them.
 
-A value the evidence did not supply is asked for or left out and named as missing, never filled, per the evidence labels in `standards/conventions.md`: a placeholder that survives into a delivered artifact is published as though someone meant it.
+A value the evidence did not supply is asked of the requester, and their answer is used; only where they decline or do not answer is it left out and named as missing, never filled, per the evidence labels in `standards/conventions.md`: a placeholder that survives into a delivered artifact is published as though someone meant it.
 
 Every count, change list, and total in an artifact is computed, never estimated. Character counts are counted, the difference between two sitemap snapshots comes from the tool that computes it, and a figure carried from a reading names the reading.
 

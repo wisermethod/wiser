@@ -3,7 +3,7 @@ name: Play Author
 type: skill
 category: authoring
 description: Write or review Plays, primitive instruction bodies, and library components
-version: 0.4.3
+version: 0.4.4
 ---
 
 # Play Author
@@ -28,7 +28,7 @@ The requesting owner rides with the request: Before Writing's reuse check search
 
 Ask whichever of these the request does not name: What type of file? What does success look like? What content will it process? What scope? Do not guess the missing one; wrong assumptions waste time.
 
-Reuse check: search this root's skills, the requesting owner's existing Plays (the home its AGENTS.md names, the default in `standards/play.md` if it is silent), and existing primitives before writing new. Extend or compose rather than duplicate.
+Reuse check: where the requesting owner is not named, ask who the owner is, and do not run the reuse check or place a file. Otherwise search this root's skills, the requesting owner's existing Plays (the home its AGENTS.md names, the default in `standards/play.md` if it is silent), and existing primitives before writing new. Extend or compose rather than duplicate.
 
 ## Output Types
 

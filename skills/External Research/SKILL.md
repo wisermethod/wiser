@@ -3,7 +3,7 @@ name: External Research
 type: skill
 category: research
 description: Gather and credibility-tag sources on a question, surfacing contradictions, returning an evidence package to a calling expert or skill or a verified, confidence-rated brief to a user asking directly
-version: 0.2.9
+version: 0.2.10
 ---
 
 # External Research
@@ -125,7 +125,7 @@ The input is a natural-language question.
 1. **Scope.** Apply the Context routing boundary first. If the lookup is specific and answerable as stated, proceed. If it is vague, ask for the outcome wanted, what is in and out of scope, and the depth (default Standard) before searching.
 2. **Formulate** queries from the scoped question, the count in the depth table's Searches cell, each specific and factual, none leading or opinion-seeking. Inside that cell, use the number of independent factual parts, not below the cell's bottom and not above its top. Do not add a query that restates another.
 3. **Gather**, then **seek counter-evidence** at the depth.
-4. **State the answer** as source-backed claims tagged `direct` (the passage's words), `paraphrase` (the same claim in other words, nothing added), or `inference` (a conclusion from evidence the passage states and does not itself state), keeping disagreeing claims paired. No passage, or a passage that does not carry the claim, is not tagged. Do not interpret patterns across angles or rank competing positions.
+4. **State the answer** as source-backed claims tagged `direct` (the passage's words), `paraphrase` (the same claim in other words, nothing added), or `inference` (a conclusion from evidence the passage states and does not itself state), keeping disagreeing claims paired. No passage, or a passage that does not carry the claim, is not tagged, and verification drops that claim; where the drop leaves the scoped question unanswered, say so. Do not interpret patterns across angles or rank competing positions.
 5. **Verify** at the depth (below).
 6. **Assign confidence** to each finding (below).
 7. **Assemble** the brief (Output, below), then the gate, then deliver.

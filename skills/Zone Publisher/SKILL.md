@@ -3,7 +3,7 @@ name: Zone Publisher
 type: skill
 category: development
 description: Bring one Cloudflare zone's live DNS into a reviewable zone file, apply the intended record changes, and publish them back with every removal approved by name and every published record re-read from the platform.
-version: 0.7.4
+version: 0.7.5
 gaps:
   - Cloudflare redirect rules API (Page Rules successor / Rulesets)
 ---
@@ -100,7 +100,7 @@ Compare the way the platform stores records, or the diff invents work: CNAME, NS
 
 Give the apex its own line in that message. Deleting or overwriting an apex `A`, `NS`, or `MX` record takes the domain or its mail down for everyone, and it is the removal most likely to arrive by accident.
 
-Before anything would be written, the gate: hand the three lists from step 5 wrapped in `<diff>`, the archived before-state in `<zone_state>` and the intended file in `<intended_file>`, to `experts/IT Expert/` in a second context. It judges the blast radius, the rollback as records, the timing and the sourcing of every provider value, and returns safe as planned, safe with named conditions, or not as proposed. A condition that changes the records, the order, or the timing goes back to step 3 and is confirmed again. Not as proposed: do not write, and a later decline does not lift that stop. The requester's approval of removals by name is theirs and never the expert's, and a declined review is named in the record. The grant stop is stated at the head of these steps.
+Before anything would be written, the gate: hand the three lists from step 5 wrapped in `<diff>`, the archived before-state in `<zone_state>` and the intended file in `<intended_file>`, to `experts/IT Expert/` in a second context. It judges the blast radius, the rollback as records, the timing and the sourcing of every provider value, and returns safe as planned, safe with named conditions, or not as proposed. On safe with named conditions, tell the requester the conditions. A condition that changes the records, the order, or the timing goes back to step 3 and is confirmed again. Not as proposed: do not write, and a later decline does not lift that stop. The requester's approval of removals by name is theirs and never the expert's, and a declined review is named in the record. The grant stop is stated at the head of these steps.
 
 **6. Publish, matching the action to the intent.** Every gated action's `confirm: true` comes from step 5's answer covering that action and never from this skill's own initiative. The gateway returns `needs_confirmation` without the required approval: create and update are `confirmation: once`; delete, batch, and import are `confirmation: always`, requiring confirmation on every call. Reads are `confirmation: none`.
 

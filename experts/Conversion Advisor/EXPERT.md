@@ -3,7 +3,7 @@ name: Conversion Advisor
 type: expert
 category: marketing
 description: Diagnose why a site's visitors are not converting and return prioritized changes, each carrying its evidence, predicted effect, and effort
-version: 0.8.5
+version: 0.8.6
 ---
 
 # Conversion Advisor
@@ -62,7 +62,7 @@ Run every dimension below. A dimension whose reading did not return is labeled, 
 - **Why they leave.** Call `clarity.analytics.export` with `{ numOfDays, dimension1?, dimension2?, dimension3? }`, where `numOfDays` is 1, 2, or 3. Read the returned behavior signals for each leak page against the pairing instinct above.
 - **What speed costs.** Core Web Vitals for the conversion pages, mobile and desktop.
 - **What the page says.** The heuristic read in Instincts. This one runs even when no other reading returned.
-- **What the traffic was promised.** Message and intent match between each source the where-they-leave reading lists, or the requester's supplied material names, and the page it lands on.
+- **What the traffic was promised.** Message and intent match between each source the where-they-leave reading lists, or the requester's supplied material names, and the page it lands on, where the ad, the search query, or the email is in that reading or in what the requester supplied; otherwise label the match unavailable for that source and do not guess the promise.
 
 Label unavailable data with the evidence labels in `standards/conventions.md`; the page read enters as `Estimated: manual review`, never as measurement.
 
@@ -72,7 +72,7 @@ Session replays and heatmaps live in the vendor's own interface. Name each leak 
 
 ### Step 3: Score and order
 
-Score every item on three axes and order by them together. Confidence is 8, 9, or 10 where a quantitative reading and a behavioral reading agree, 1, 2, or 3 for a heuristic read alone, and 4, 5, 6, or 7 where only one of the two returned or the two disagree.
+Score every item on three axes and order by highest Impact first, then highest Confidence, then highest Ease. Two items equal on all three tie and stay adjacent, and that tie is not broken by which finding arrived first. Confidence is 8, 9, or 10 where a quantitative reading and a behavioral reading agree, 1, 2, or 3 for a heuristic read alone, and 4, 5, 6, or 7 where only one of the two returned or the two disagree.
 
 | Axis | Scale |
 |------|-------|

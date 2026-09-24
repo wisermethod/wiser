@@ -3,7 +3,7 @@ name: Marketing Page Design
 type: skill
 category: design
 description: Design a complete marketing page as responsive HTML with a narrative scroll arc, clear visual hierarchy, and one primary action
-version: 0.3.5
+version: 0.3.6
 memory:
   - design
 gaps:
@@ -55,7 +55,7 @@ A designer who treats the page as an argument made in a single scroll. Every sec
 
 Staged composition. Design the page in order and never in one shot; each stage sets the constraints the next works inside.
 
-1. **Define the page's job.** Every page has one primary job; state it before designing. Name the single most important action a visitor should take, the information hierarchy that serves it, and the entry context (ad click, search, referral, direct). A vague brief such as "design a landing page", with no product, audience, or action, is answered by asking three targeted questions with recommended defaults, not by guessing.
+1. **Define the page's job.** Every page has one primary job; state it before designing. Name the single most important action a visitor should take, the information hierarchy that serves it, and the entry context (ad click, search, referral, direct). A vague brief such as "design a landing page", with no product, audience, or action, is answered by asking what the product is, who the audience is, and what the primary action is, offering a recommended default only for a single candidate already in the brief's material, offering several and asking which, and, where there is no candidate, asking that question with no default, not by guessing a product, an audience, or an action.
 
 2. **Set the visual direction.** Design from references, never from adjectives. Ask for or propose two or three real products or brands that fix the aesthetic; a direction like "Swiss editorial meets warm minimalism" is usable, "clean and modern" is not. When the user cannot name references, offer three from different aesthetic families and ask which resonates. When `design` is bound, its brand rules and personality are the direction, and references only sharpen it.
 
