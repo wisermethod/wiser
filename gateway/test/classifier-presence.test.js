@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { performance } from 'node:perf_hooks';
@@ -231,6 +231,30 @@ test('--check does not write the presence file', () => {
   ], { encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
   assert.equal(existsSync(statusPath(home)), false);
+});
+
+test('a symlinked classifier-status directory is left unchanged', async () => {
+  const home = makeHome();
+  const env = envFile(makeHome(), KEY);
+  const target = join(home, 'real-status');
+  mkdirSync(target);
+  chmodSync(target, 0o755);
+  const before = statSync(target).mode & 0o777;
+  symlinkSync(target, join(home, 'classifier-status'));
+  const { child, stderr } = startServer([
+    '--home', home,
+    '--env', env,
+    '--harness', 'claude-code',
+  ]);
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  try {
+    assert.equal(child.exitCode, null, stderr());
+  } finally {
+    await stop(child);
+  }
+  assert.equal(lstatSync(join(home, 'classifier-status')).isSymbolicLink(), true);
+  assert.equal(statSync(target).mode & 0o777, before);
+  assert.equal(existsSync(join(target, 'claude-code.json')), false);
 });
 
 test('a presence write failure does not stop the gateway', async () => {

@@ -351,8 +351,14 @@ function writeClassifierStatus(home, harness, body) {
   const tmp = join(dir, `.${name}.${process.pid}.${Date.now()}.tmp`);
   try {
     mkdirSync(dir, { recursive: true, mode: 0o700 });
+    let dirStat;
+    try {
+      dirStat = lstatSync(dir);
+    } catch {
+      return;
+    }
+    if (dirStat.isSymbolicLink() || !dirStat.isDirectory()) return;
     try { chmodSync(dir, 0o700); } catch { /* umask */ }
-    if (lstatSync(dir).isSymbolicLink()) return;
     try {
       if (lstatSync(dest).isSymbolicLink()) return;
     } catch (err) {

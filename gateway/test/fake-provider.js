@@ -534,6 +534,15 @@ export async function createTestGateway(options = {}) {
   const connectors = options.connectors || await loadConnectors(connectorDirs);
   const customIdentity = typeof options.classifierIdentity === 'function';
   if (options.session !== false && !customIdentity) bindTestSession(home);
+  let envPath = null;
+  if (options.envPath !== undefined) {
+    envPath = options.envPath;
+  } else if (options.classifier) {
+    envPath = join(home, 'auth-provider.env');
+    if (!existsSync(envPath)) {
+      writeFileSync(envPath, 'WISER_AUTH_PROVIDER_KEY=\nWISER_USER_ID=\nWISER_CLASSIFIER_KEY=test-classifier-key\n');
+    }
+  }
   const gw = new ConnectionGateway({
     home,
     role: options.role || 'runtime',
@@ -546,7 +555,7 @@ export async function createTestGateway(options = {}) {
     localFileProvider: options.localFileProvider || null,
     authConfigured: options.authConfigured !== false,
     connectors,
-    envPath: options.envPath || null,
+    envPath,
     classifier: options.classifier || null,
     classifierIdentity: customIdentity
       ? options.classifierIdentity

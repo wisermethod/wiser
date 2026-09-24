@@ -9,8 +9,9 @@ import { runHook } from './lib/run.mjs';
 
 /**
  * The named asks `wiser/AGENTS.md` lists, each handled before any call is
- * made; compared after trimming, dropping a closing mark, and lowering case,
- * whole or followed by more words.
+ * made. Compared after trimming, dropping surrounding quotes and a closing
+ * mark, and lowering case. The phrase alone is that ask. So is the phrase
+ * followed by whitespace, a line break, or one of `:`, `,`, `;`, `-`, `.`.
  */
 export const NAMED_ASKS = new Set([
   'update root', 'update this root', 'check root', 'is this root current',
@@ -18,12 +19,17 @@ export const NAMED_ASKS = new Set([
   'wrap up',
 ]);
 
+const NAMED_ASK_TAIL = /[: ,;\-.\s]/;
+
 /** @param {string} ask */
 export function isNamedAsk(ask) {
   const key = String(ask).trim().replace(/^["'`]+|["'`]+$/g, '').replace(/[.!?,;:\s]+$/, '').trim().toLowerCase();
   if (NAMED_ASKS.has(key)) return true;
-  // A named ask with a target or a qualifier after it is still that ask.
-  for (const named of NAMED_ASKS) if (key.startsWith(`${named} `)) return true;
+  for (const named of NAMED_ASKS) {
+    if (!key.startsWith(named)) continue;
+    const next = key[named.length];
+    if (next !== undefined && NAMED_ASK_TAIL.test(next)) return true;
+  }
   return false;
 }
 

@@ -713,8 +713,8 @@ export class ConnectionGateway {
 
   /**
    * Null when this search is today's substring list and nothing is sent:
-   * no query, or no classifier loaded. A failed session gate is reported
-   * and still sends nothing.
+   * no query, no classifier loaded, or a loaded classifier whose key reads
+   * null. A failed session gate is reported and still sends nothing.
    * @param {{ query?: unknown }} args
    * @returns {{ call: boolean, reason: string | null } | null}
    */
@@ -724,6 +724,7 @@ export class ConnectionGateway {
     if (this.classifiers().length === 0) return null;
     const session = this.classifierSession();
     if (!session.ok) return { call: false, reason: session.reason };
+    if (readClassifierKey(this.envPath) == null) return null;
     return { call: true, reason: null };
   }
 
@@ -1183,10 +1184,11 @@ export class ConnectionGateway {
     }
 
     try {
+      const key = readClassifierKey(this.envPath);
+      if (key == null) return this.needsSubscriptionResult();
       if (typeof resolved.fn !== 'function') {
         return { status: 'unavailable', reason: 'unknown action id' };
       }
-      const key = readClassifierKey(this.envPath);
       const raw = await resolved.fn(input ?? {}, key);
       if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) {
         return { status: 'unavailable', reason: 'malformed answer' };

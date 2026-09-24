@@ -5,6 +5,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parsedInstallFlag } from '../../../lib/consent.js';
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), '..', 'data.js');
 
@@ -56,5 +57,23 @@ describe('describe --column and --columns', () => {
     assert.equal(described.columns.length, 1);
     assert.equal(described.columns[0].name, '--amount');
     assert.equal(described.columns[0].mean, 2);
+  });
+
+  it('treats --install, --file, and --help as column names when they follow --column', () => {
+    const file = tempFile('dash.json', '[{"--install":1,"--file":2,"--help":3},{"--install":5,"--file":4,"--help":7}]\n');
+    for (const name of ['--install', '--file', '--help']) {
+      const described = ok(['describe', '--file', file, '--column', name]);
+      assert.equal(described.columns.length, 1, name);
+      assert.equal(described.columns[0].name, name);
+    }
+    const helped = run(['describe', '--column', '--help', '--file', file]);
+    assert.equal(helped.status, 0, helped.stderr);
+    assert.equal(JSON.parse(helped.stdout).columns[0].name, '--help');
+    assert.doesNotMatch(helped.stdout, /data describe - descriptive statistics/);
+    const namedFile = ok(['describe', '--column', '--file', '--file', file]);
+    assert.equal(namedFile.columns[0].name, '--file');
+    const valueFlags = new Set(['--file', '--format', '--delimiter', '--columns', '--column']);
+    assert.equal(parsedInstallFlag(['describe', '--file', file, '--column', '--install'], valueFlags), false);
+    assert.equal(parsedInstallFlag(['describe', '--install', '--file', file], valueFlags), true);
   });
 });

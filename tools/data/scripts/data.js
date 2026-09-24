@@ -29,7 +29,7 @@ import {
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { installAuthorised, writeConsent } from '../../lib/consent.js';
+import { installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
 
 const HERE = fileURLToPath(import.meta.url);
 const SCRIPT_DIR = dirname(HERE);
@@ -414,11 +414,26 @@ function screenedOutputPath(name, value) {
   return target;
 }
 
-function refuseUnknown(argv, valueFlags, bareFlags, usageCmd) {
-  const valuePositions = new Set();
+function valuePositionsOf(argv, valueFlags) {
+  const positions = new Set();
   for (let index = 1; index < argv.length; index += 1) {
-    if (valueFlags.has(argv[index])) valuePositions.add(index + 1);
+    if (positions.has(index)) continue;
+    if (valueFlags.has(argv[index])) positions.add(index + 1);
   }
+  return positions;
+}
+
+function hasBare(argv, name, valueFlags) {
+  const positions = valuePositionsOf(argv, valueFlags);
+  for (let index = 1; index < argv.length; index += 1) {
+    if (positions.has(index)) continue;
+    if (argv[index] === name) return true;
+  }
+  return false;
+}
+
+function refuseUnknown(argv, valueFlags, bareFlags, usageCmd) {
+  const valuePositions = valuePositionsOf(argv, valueFlags);
   for (let index = 1; index < argv.length; index += 1) {
     const option = argv[index];
     if (valuePositions.has(index)) continue;
@@ -449,9 +464,9 @@ function installPlan() {
   };
 }
 
-function requireInstallConsent(what) {
-  if (installAuthorised(HERE)) {
-    writeConsent(HERE, 'data');
+function requireInstallConsent(what, install) {
+  if (installAuthorised(HERE, install)) {
+    writeConsent(HERE, 'data', install);
     return;
   }
   if (what === 'browser') {
@@ -465,9 +480,9 @@ function requireInstallConsent(what) {
   );
 }
 
-function ensureDependencies() {
+function ensureDependencies(install) {
   if (existsSync(DEP_MARKER)) return;
-  requireInstallConsent('packages');
+  requireInstallConsent('packages', install);
   process.stderr.write('First run: installing dependencies in this tool directory.\n');
   try {
     const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
@@ -525,7 +540,7 @@ async function runParse(argv) {
   const delimiter = flag('--delimiter');
   const hasHeader = !argv.includes('--no-header');
 
-  ensureDependencies();
+  ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS));
   const { executeParse } = await import('./parse-core.js');
 
   let content;
@@ -546,12 +561,17 @@ async function runDescribe(argv) {
   refuseUnknown(argv, VALUE_FLAGS, BARE_FLAGS, usageCmd);
 
   function flag(name) {
-    const index = argv.indexOf(name);
-    if (index === -1) return undefined;
-    const value = argv[index + 1];
-    if (argv.indexOf(name, index + 1) !== -1) {
+    const positions = valuePositionsOf(argv, VALUE_FLAGS);
+    const indexes = [];
+    for (let index = 0; index < argv.length; index += 1) {
+      if (positions.has(index)) continue;
+      if (argv[index] === name) indexes.push(index);
+    }
+    if (indexes.length === 0) return undefined;
+    if (indexes.length > 1) {
       fail(`Error: ${name} was given more than once and takes one value. Run "${usageCmd}" for usage.`);
     }
+    const value = argv[indexes[0] + 1];
     if (value === undefined || value.startsWith('--')) {
       fail(`Error: ${name} needs a value. Run "${usageCmd}" for usage.`);
     }
@@ -608,7 +628,7 @@ async function runDescribe(argv) {
     fail('Error: --column and --columns were both given. Use --column for one header, including a header that contains a comma; --columns cannot name such a header.');
   }
 
-  ensureDependencies();
+  ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS));
   const { executeDescribe } = await import('./describe-core.js');
 
   let content;
@@ -722,7 +742,7 @@ async function runAggregate(argv) {
 
   const delimiter = flag('--delimiter');
 
-  ensureDependencies();
+  ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS));
   const { executeAggregate } = await import('./aggregate-core.js');
 
   let content;
@@ -792,7 +812,7 @@ async function runJoin(argv) {
 
   const delimiter = flag('--delimiter');
 
-  ensureDependencies();
+  ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS));
   const { executeJoin } = await import('./join-core.js');
 
   function readContent(path) {
@@ -903,7 +923,7 @@ async function runChart(argv) {
 
   const delimiter = flag('--delimiter');
 
-  ensureDependencies();
+  ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS));
   const { buildChart } = await import('./chart-core.js');
 
   let content;
@@ -1052,7 +1072,16 @@ if (!SUBCOMMANDS.has(command)) {
   fail(`Error: unknown command "${command}". Run "node scripts/data.js help" for usage.`);
 }
 
-if (argv[1] === 'help' || argv.includes('--help') || argv.includes('-h')) {
+const COMMAND_VALUE_FLAGS = {
+  parse: new Set(['--file', '--format', '--delimiter']),
+  describe: new Set(['--file', '--format', '--delimiter', '--columns', '--column']),
+  aggregate: new Set(['--file', '--group-by', '--metric', '--format', '--delimiter']),
+  join: new Set(['--left', '--right', '--on', '--how', '--format', '--delimiter']),
+  chart: new Set(['--file', '--x', '--y', '--output', '--type', '--title', '--format', '--delimiter']),
+  compute: new Set(['--file', '--op', '--a', '--b', '--digits', '--format', '--delimiter']),
+};
+
+if (argv[1] === 'help' || hasBare(argv, '--help', COMMAND_VALUE_FLAGS[command]) || hasBare(argv, '-h', COMMAND_VALUE_FLAGS[command])) {
   process.stdout.write(`${SUB_USAGE[command]}\n`);
   process.exit(0);
 }

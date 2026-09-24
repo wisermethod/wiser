@@ -1,6 +1,6 @@
 import { chmodSync, existsSync, mkdtempSync, mkdirSync, readdirSync, readFileSync, realpathSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { Worker } from 'node:worker_threads';
 import { test } from 'node:test';
@@ -18,6 +18,7 @@ import {
   writeSession,
 } from '../lib/binding.mjs';
 import { createTestGateway } from '../../gateway/test/fake-provider.js';
+import { defaultProviderEnvPath } from '../../gateway/src/paths.js';
 import { buildRoster } from '../lib/roster.mjs';
 import { classifierRefusalValue, isAttached, isRefused, pidAlive } from '../lib/presence.mjs';
 import { formatRoute, isNamedAsk } from '../route.mjs';
@@ -344,6 +345,9 @@ export function createClassifier() {
 }
 `);
   writeStatus(home, attachedDoc(home));
+  const envPath = defaultProviderEnvPath(process.platform, { ...process.env, HOME: home }, home);
+  mkdirSync(dirname(envPath), { recursive: true });
+  writeFileSync(envPath, 'WISER_AUTH_PROVIDER_KEY=\nWISER_USER_ID=\nWISER_CLASSIFIER_KEY=hook-test-key\n');
   const r = runHook(SCRIPTS.UserPromptSubmit, { cwd, prompt: 'draft a research brief' }, { home, cwd, timeout: 20000 });
   assert.equal(r.status, 0, r.stderr);
   const doc = JSON.parse(r.stdout);
@@ -446,6 +450,13 @@ test('named asks are not sent, and a tool answer is not a route', () => {
   assert.equal(isNamedAsk('Update root for this client'), true);
   assert.equal(isNamedAsk('set up connectors on this machine'), true);
   assert.equal(isNamedAsk('wrap-up notes for the board'), false);
+  assert.equal(isNamedAsk('wrap up: include the open gates'), true);
+  assert.equal(isNamedAsk('wrap up\ninclude the open gates'), true);
+  assert.equal(isNamedAsk('update root: …'), true);
+  assert.equal(isNamedAsk('update root, please'), true);
+  assert.equal(isNamedAsk('wrap up; then stop'), true);
+  assert.equal(isNamedAsk('wrap up- the notes'), true);
+  assert.equal(isNamedAsk('wrap up. include the open gates'), true);
   const home = tempHome();
   const cwd = join(home, 'work');
   mkdirSync(cwd);
@@ -460,6 +471,12 @@ test('named asks are not sent, and a tool answer is not a route', () => {
   const r = runHook(SCRIPTS.UserPromptSubmit, { cwd, prompt: 'update root' }, { home, cwd, stub, log });
   assert.equal(r.stdout, '');
   assert.equal(existsSync(log), false);
+  for (const ask of ['wrap up: include the open gates', 'wrap up\ninclude the open gates', 'update root: …']) {
+    const namedLog = join(home, `named-${ask.length}.log`);
+    const sent = runHook(SCRIPTS.UserPromptSubmit, { cwd, prompt: ask }, { home, cwd, stub, log: namedLog });
+    assert.equal(sent.stdout, '', ask);
+    assert.equal(existsSync(namedLog), false, ask);
+  }
   const rows = [{ family: 'tool', name: 'data' }];
   assert.equal(formatRoute({ family: 'tool', target: 'data', confidence: 0.95, pass: true }, rows), null);
 });
@@ -573,6 +590,78 @@ test('a refusing descendant two levels down refuses the binding, and a dot direc
     argsReader: () => '',
   });
   assert.equal(hidden.binding.refused, false);
+});
+
+test('a refusal added below the root between two prompts stops the second', () => {
+  const home = tempHome();
+  const cwd = join(home, 'work');
+  mkdirSync(cwd);
+  declareRoot(cwd);
+  const stub = join(home, 'stub.json');
+  writeFileSync(stub, `${JSON.stringify({
+    'wiser.route.roster': { roster_sha256: 'd', accepted: 1, rejected: 0 },
+    'wiser.route.ask': { family: 'skill', target: 'Deep Research', confidence: 0.91, pass: true },
+  })}\n`);
+  writeStatus(home, attachedDoc(home));
+  const firstLog = join(home, 'first.log');
+  const first = runHook(SCRIPTS.UserPromptSubmit, {
+    cwd, prompt: 'draft a research brief', session_id: 'session-rescan01',
+  }, { home, cwd, stub, log: firstLog });
+  assert.equal(first.status, 0, first.stderr);
+  assert.match(first.stdout, /Deep Research/);
+  mkdirSync(join(cwd, 'client'));
+  writeFileSync(join(cwd, 'client', 'AGENTS.md'), '---\nclassifier_refusal: yes\n---\n');
+  const secondLog = join(home, 'second.log');
+  const second = runHook(SCRIPTS.UserPromptSubmit, {
+    cwd, prompt: 'draft another brief', session_id: 'session-rescan01',
+  }, { home, cwd, stub, log: secondLog });
+  assert.equal(second.status, 0, second.stderr);
+  assert.equal(second.stdout, '');
+  assert.equal(existsSync(secondLog), false);
+  const binding = readBinding(gatewayDir(home), 'session-rescan01');
+  assert.equal(binding.refused, true);
+  assert.equal(binding.refused_by, 'descendant');
+});
+
+test('a refusing client under a composed directory that is not a root refuses the binding', () => {
+  const home = tempHome();
+  const owning = typedRoot(join(home, 'owning'));
+  const added = join(home, 'added');
+  mkdirSync(join(added, 'client'), { recursive: true });
+  writeFileSync(join(added, 'client', 'AGENTS.md'), '---\ntype: client\nclassifier_refusal: yes\n---\n');
+  const recorded = writeSession({
+    home: gatewayDir(home),
+    sessionId: 'session-belowb1',
+    harnessPid: process.pid,
+    cwd: owning,
+    homeDir: home,
+    argsReader: () => `node --add-dir=${added}`,
+  });
+  assert.equal(recorded.ok, true, JSON.stringify(recorded));
+  assert.equal(recorded.binding.owning_root, realpathSync(owning));
+  assert.equal(recorded.binding.refused, true);
+  assert.equal(recorded.binding.refused_by, 'descendant');
+});
+
+test('classifier_refusal yes with a comment refuses, and junk after yes fails closed', () => {
+  const home = tempHome();
+  assert.equal(isRefused(typedRoot(join(home, 'commented'), 'classifier_refusal: yes # private\n')), true);
+  assert.equal(isRefused(typedRoot(join(home, 'upper'), 'classifier_refusal: YES\n')), true);
+  assert.equal(isRefused(typedRoot(join(home, 'junk'), 'classifier_refusal: yes extra\n')), true);
+  assert.equal(isRefused(typedRoot(join(home, 'plain'), 'classifier_refusal: no # yes\n')), false);
+  const root = typedRoot(join(home, 'root'));
+  mkdirSync(join(root, 'child'));
+  writeFileSync(join(root, 'child', 'AGENTS.md'), '---\nclassifier_refusal: yes # private\n---\n');
+  const recorded = writeSession({
+    home: gatewayDir(home),
+    sessionId: 'session-comment1',
+    harnessPid: process.pid,
+    cwd: root,
+    homeDir: home,
+    argsReader: () => '',
+  });
+  assert.equal(recorded.binding.refused, true);
+  assert.equal(recorded.binding.refused_by, 'descendant');
 });
 
 test('an added directory that refuses, several roots, and the scan cap', () => {

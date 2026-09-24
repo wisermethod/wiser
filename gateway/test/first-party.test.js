@@ -331,6 +331,7 @@ test('empty classifier key line answers needs_subscription', async () => {
     const result = await gw.execute({ action: 'wiser.route.ask', input: ASK });
     assert.equal(result.status, 'needs_subscription');
     assert.ok(isStatusObject(result));
+    assert.equal(classifier.calls.length, 0);
     assert.equal(process.env['WISER_CLASSIFIER_KEY'], sentinel);
   });
 });

@@ -18,7 +18,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { destinationReason, destinationReasonText } from './lib/destination.js';
-import { installAuthorised, writeConsent } from '../../lib/consent.js';
+import { installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
 
 const HERE = fileURLToPath(import.meta.url);
 const TOOL_DIR = resolve(dirname(HERE), '..');
@@ -196,8 +196,8 @@ function installPlan() {
 // "this tool is not installed yet", nor name a registry fetch and an npm cache
 // write that this install will not make.
 function requireInstallConsent(what) {
-  if (installAuthorised(HERE)) {
-    writeConsent(HERE, 'tag-audit');
+  if (installAuthorised(HERE, install)) {
+    writeConsent(HERE, 'tag-audit', install);
     return;
   }
   if (what === 'browser') {
@@ -248,6 +248,8 @@ for (let index = 1; index < argv.length; index += 1) {
     fail(`Error: unknown option "${option}". Run "node scripts/tag-audit.js help" for usage.`);
   }
 }
+
+const install = parsedInstallFlag(argv, VALUE_FLAGS);
 {
   const urlCount = argv.filter((word, i) => i >= 1 && word === '--url').length;
   if (urlCount > 1) {

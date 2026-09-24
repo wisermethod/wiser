@@ -19,7 +19,9 @@ import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSyn
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { flagAuthorised, installAuthorised, writeConsent } from '../../lib/consent.js';
+import { flagAuthorised, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
+
+let install = false;
 
 import {
   DEFAULT_SCALE as HTML_DEFAULT_SCALE,
@@ -400,8 +402,8 @@ function installPlan(needsMermaid) {
 }
 
 function requireInstallConsent(what, { needsMermaid = false } = {}) {
-  if (installAuthorised(HERE)) {
-    writeConsent(HERE, 'render');
+  if (installAuthorised(HERE, install)) {
+    writeConsent(HERE, 'render', install);
     return;
   }
   if (what === 'browser') {
@@ -577,6 +579,7 @@ async function runHtml(argv) {
   const VALUE_FLAGS = new Set([
     '--input', '--output', '--width', '--height', '--scale', '--quality', '--timeout'
   ]);
+  install = parsedInstallFlag(argv, VALUE_FLAGS);
   const BARE_FLAGS = new Set(['--install', '--overwrite', '--help', '-h']);
   refuseUnknown(argv, VALUE_FLAGS, BARE_FLAGS, usageCmd);
   const flag = (name) => flagFrom(argv, name, usageCmd);
@@ -727,6 +730,7 @@ async function runHtml(argv) {
 async function runSvg(argv) {
   const usageCmd = 'node scripts/render.js help';
   const VALUE_FLAGS = new Set(['--file', '--output', '--scale', '--width', '--timeout']);
+  install = parsedInstallFlag(argv, VALUE_FLAGS);
   const BARE_FLAGS = new Set(['--install', '--overwrite', '--help', '-h']);
   refuseUnknown(argv, VALUE_FLAGS, BARE_FLAGS, usageCmd);
   const flag = (name) => flagFrom(argv, name, usageCmd);
@@ -849,6 +853,9 @@ async function runSvg(argv) {
 }
 
 async function runMermaid(argv) {
+  install = parsedInstallFlag(argv, new Set([
+    '--file', '--output', '--width', '--scale', '--theme', '--background', '--timeout',
+  ]));
   let options;
 
   try {
@@ -1009,6 +1016,7 @@ async function runMermaid(argv) {
 }
 
 async function runUrl(argv) {
+  install = parsedInstallFlag(argv, URL_VALUE_FLAGS);
   const usageCmd = 'node scripts/render.js help';
   refuseUnknown(argv, URL_VALUE_FLAGS, URL_BARE_FLAGS, usageCmd);
   const flag = (name) => flagFrom(argv, name, usageCmd);
@@ -1098,14 +1106,15 @@ async function runUrl(argv) {
 }
 
 async function runCheck(argv) {
+  install = parsedInstallFlag(argv, URL_VALUE_FLAGS);
   const usageCmd = 'node scripts/render.js help';
   refuseUnknown(argv, URL_VALUE_FLAGS, URL_BARE_FLAGS, usageCmd);
 
-  if (!existsSync(PLAYWRIGHT_MARKER) && flagAuthorised()) {
+  if (!existsSync(PLAYWRIGHT_MARKER) && flagAuthorised(install)) {
     ensurePlaywright();
   }
 
-  if (flagAuthorised()) await ensureChromium();
+  if (flagAuthorised(install)) await ensureChromium();
 
   if (browserSurvey === null && !existsSync(PLAYWRIGHT_MARKER)) {
     browserSurvey = {

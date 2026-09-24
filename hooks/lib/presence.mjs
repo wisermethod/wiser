@@ -100,6 +100,44 @@ export function classifierRefusalValue(text) {
 }
 
 /**
+ * True when a `classifier_refusal` value refuses. The first token `yes`, in
+ * any case, refuses. A comment after that token still refuses. Any other
+ * text after `yes` fails closed and refuses too.
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+export function classifierRefusalDeclares(value) {
+  if (typeof value !== 'string') return false;
+  return refusalToken(value) === 'yes';
+}
+
+/**
+ * The first token of a refusal value, with an unquoted `#` comment removed.
+ * A quoted value keeps its interior and drops a comment that follows the
+ * closing quote. Anything after `yes` stays in the string so a later token
+ * cannot turn a `yes` into a permission.
+ * @param {string} value
+ * @returns {string}
+ */
+function refusalToken(value) {
+  let text = value.trim();
+  if (text.startsWith('"') || text.startsWith("'")) {
+    const quote = text[0];
+    const close = text.indexOf(quote, 1);
+    if (close > 0) {
+      const inner = text.slice(1, close);
+      const after = text.slice(close + 1).trim();
+      text = after === '' || after.startsWith('#') ? inner.trim() : `${inner} ${after}`.trim();
+    }
+  } else {
+    const commentAt = text.search(/(^|\s)#/);
+    if (commentAt >= 0) text = text.slice(0, commentAt).trim();
+  }
+  const token = text.split(/\s+/)[0] || '';
+  return token.toLowerCase();
+}
+
+/**
  * Walk from `cwd` up to the filesystem root. The first AGENTS.md whose
  * frontmatter says `classifier_refusal: yes` refuses. A nearer file that says
  * `no`, or that has no such key, does not stop the walk. A file that exists
@@ -130,7 +168,7 @@ export function isRefused(cwd) {
         return true;
       }
       const value = classifierRefusalValue(text);
-      if (typeof value === 'string' && value.toLowerCase() === 'yes') return true;
+      if (classifierRefusalDeclares(value)) return true;
     }
     if (dir === root) break;
     const parent = dirname(dir);

@@ -16,6 +16,7 @@ import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import {
+  classifierRefusalDeclares,
   classifierRefusalValue,
   isRefused,
   owningRoot,
@@ -27,7 +28,6 @@ export const SESSION_ID_RE = /^[A-Za-z0-9-]{8,128}$/;
 
 const SESSIONS = 'classifier-sessions';
 const PRESENCE = join('classifier-status', 'claude-code.json');
-const TEN_MIN_MS = 10 * 60 * 1000;
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const LOCK_WAIT_MS = 1000;
 const LOCK_STALE_MS = 10 * 1000;
@@ -419,7 +419,7 @@ function scanDescendants(root, limits = {}) {
     if (depth > 0 && entries.some((ent) => ent.isFile() && ent.name === 'AGENTS.md')) {
       try {
         const value = classifierRefusalValue(readFileSync(join(dir, 'AGENTS.md'), 'utf8'));
-        if (typeof value === 'string' && value.toLowerCase() === 'yes') return 'descendant';
+        if (classifierRefusalDeclares(value)) return 'descendant';
       } catch {
         // an unreadable file is not a declaration
       }
@@ -436,14 +436,27 @@ function scanDescendants(root, limits = {}) {
 }
 
 /**
- * @param {unknown} left
- * @param {unknown} right
- * @returns {boolean}
+ * Every composed directory, plus each owning root those directories resolve
+ * to. A directory that declares no `type:` is still scanned: a refusing
+ * client under it is a descendant of the workspace, not of the owning root.
+ * @param {string[]} dirs
+ * @param {string[]} roots
+ * @returns {string[]}
  */
-function sameRoots(left, right) {
-  if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
-  for (let i = 0; i < left.length; i += 1) if (left[i] !== right[i]) return false;
-  return true;
+function scanTargets(dirs, roots) {
+  const found = new Set();
+  for (const dir of dirs) {
+    if (typeof dir !== 'string' || dir.length === 0) continue;
+    try {
+      found.add(realpathSync(dir));
+    } catch {
+      found.add(dir);
+    }
+  }
+  for (const root of roots) {
+    if (typeof root === 'string' && root.length > 0) found.add(root);
+  }
+  return [...found];
 }
 
 /**
@@ -752,7 +765,6 @@ export function writePendingSession(opts) {
  *   now?: number,
  *   homeDir?: string,
  *   projectDir?: string,
- *   previous?: Record<string, unknown> | null,
  *   harnessStartedReader?: (pid: number) => string,
  *   argsReader?: (pid: number) => string,
  *   scanDepth?: number,
@@ -803,27 +815,12 @@ export function finishSession(opts) {
     }
   }
 
-  const existing = opts.previous && opts.previous.pending !== true ? opts.previous : null;
-  const scanFresh = Boolean(
-    existing
-    && sameRoots(existing.roots, roots)
-    && typeof existing.descendant_scan_at === 'number'
-    && now >= existing.descendant_scan_at
-    && now - existing.descendant_scan_at < TEN_MIN_MS,
-  );
   let descendantReason = null;
   let descendantScanAt = null;
-  if (scanFresh) {
-    descendantReason = typeof existing.descendant_reason === 'string' ? existing.descendant_reason : null;
-    descendantScanAt = existing.descendant_scan_at;
-    if (!refused && (descendantReason === 'descendant' || descendantReason === 'scan-cap')) {
-      refused = true;
-      refusedBy = descendantReason;
-    }
-  } else if (!refused) {
+  if (!refused) {
     const limits = { depthLimit: opts.scanDepth, cap: opts.scanLimit };
-    for (const root of roots) {
-      const found = scanDescendants(root, limits);
+    for (const dir of scanTargets(composed.dirs, roots)) {
+      const found = scanDescendants(dir, limits);
       if (found) {
         descendantReason = found;
         refused = true;
@@ -912,7 +909,6 @@ export function writeSession(opts) {
     ...opts,
     hookStartedMs: pending.hookStartedMs,
     generation: pending.generation,
-    previous: pending.previous,
   });
   if (finished && pending.staleLockRemoved && !finished.staleLockRemoved) {
     finished.staleLockRemoved = true;

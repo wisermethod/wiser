@@ -225,6 +225,32 @@ test('no query, no classifier, an unbound session, and a refusal send nothing', 
   ]);
 });
 
+test('an empty classifier key sends nothing and search returns today\'s results', async () => {
+  const home = makeHome();
+  const envPath = join(home, 'auth-provider.env');
+  writeFileSync(envPath, 'WISER_AUTH_PROVIDER_KEY=\nWISER_USER_ID=\nWISER_CLASSIFIER_KEY=\n');
+  const { gw, classifier } = await gateway(
+    { choice: 'acme.items.get', confidence: 0.99, calibrated: false },
+    [CONNECTOR],
+    { home, envPath },
+  );
+  const today = gw.listActions({ query: 'item' });
+  const searched = await gw.searchActions({ query: 'item' });
+  assert.equal(classifier.calls.length, 0);
+  assert.equal(searched.classifier, undefined);
+  assert.deepEqual(searched.actions, today);
+  const direct = await gw.execute({
+    action: 'wiser.decide.choice',
+    input: {
+      decision: 'item',
+      options: [{ id: 'acme.items.get', label: 'Get one item' }],
+      allow_uncalibrated: true,
+    },
+  });
+  assert.equal(direct.status, 'needs_subscription');
+  assert.equal(classifier.calls.length, 0);
+});
+
 test('search_actions publishes today\'s description and no owning_root', async () => {
   const { gw } = await createTestGateway({ connectors: [], session: false });
   const bare = gw.listTools().find((tool) => tool.name === 'search_actions');
