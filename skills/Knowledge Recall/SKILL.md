@@ -18,6 +18,8 @@ Use when someone asks a question of a knowledge set that exists: what a book say
 
 Not for a question no set covers, which is `skills/External Research/` or `skills/Deep Research/`. Not for a question across sets: every recall is scoped to one dataset, and a question that needs two is asked twice, with the two answers presented as two. Not for creating or keeping a set. Not for a judgment about whether the set should be trusted for a deliverable; that is `experts/Knowledge Expert/`, and this skill reports what the set returned and how it is labeled.
 
+Classifier seam: routing, where `hooks/route.mjs` may open this skill for an ask. Else: the routing table, read as `AGENTS.md` states.
+
 ## Objective
 
 One answer, in the response, in which every claim carries a quote and a source path from the set or is marked as this skill's inference, every claim carries its evidence label per `standards/conventions.md`, an as-of question states how the date was handled, and a question the set does not cover is answered `Not available` with the reason rather than from anything outside the set. Verified against Success, below.

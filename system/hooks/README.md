@@ -33,3 +33,26 @@ Run it by hand at any time:
 
 `--self-test` proves the gate can fail as well as pass, by building a fixture
 whose typed file omits a flag and asserting the refusal.
+
+## The classifier seam check
+
+Added 2026-09-23. When any staged path of status A, C, M, R or T begins
+with `skills/`, `experts/` or `tools/` in any letter case, the hook runs
+`system/gates/classifier-seam.sh`, which asserts that every typed file
+added in the commit declares its classifier seam, or declares that it has
+none, in one line of its Context, per `standards/primitives.md` Classifier
+Seam. A file that already existed at the base is not failed for lacking the
+line. A line that is present is held to the form. A typed file at a depth
+other than `<family>/<name>/<file>` is refused under Placement, and a typed
+file staged as a symlink is refused because the index holds the link text.
+On an unborn branch, where `HEAD` does not resolve, the base is the empty
+tree. A commit that touches none of those directories does not run it.
+
+The gate distinguishes a breach from a failure to measure and never reports
+the second as a pass. If the script is missing, the hook refuses the commit
+rather than letting it through unchecked. It reads the index, so what is
+checked is what lands.
+
+Run it by hand at any time:
+
+    bash system/gates/classifier-seam.sh --tree . --base HEAD

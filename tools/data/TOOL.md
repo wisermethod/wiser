@@ -18,6 +18,8 @@ Do not use it to transform, clean, or deduplicate data. It reads the files the c
 
 It authenticates to nothing, holds no credential, reaches no other primitive, and after the packages described in `tools/AGENTS.md` are installed it makes no network request.
 
+Classifier seam: none.
+
 ## Quick Start
 
 ```bash

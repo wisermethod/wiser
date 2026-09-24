@@ -18,6 +18,8 @@ Would a plain fetch of a static page answer, or can the question be answered wit
 
 This tool holds a session and drives it. Deciding what to do with a page belongs to the skill or expert that called it.
 
+Classifier seam: none.
+
 ## Quick Start
 
 ```bash

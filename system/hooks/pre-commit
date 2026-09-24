@@ -1,5 +1,5 @@
 #!/bin/sh
-# Two checks, on the staged set only.
+# Three checks, on the staged set only.
 #
 # Why these and not the others: over the 52 commits of the Close-out range, the
 # em-dash sweep fired zero times, the retired-word sweep fired zero times, and
@@ -16,8 +16,15 @@
 # complete, and wrote a call that would have discarded an approved post body.
 # The first item is a rule nobody breaks; this one is a rule somebody just did.
 #
+# The third, added 2026-09-23, is the classifier seam check: every typed file
+# added in the commit declares its classifier seam, per standards/primitives.md
+# Classifier Seam. A missing declaration is refused only on a typed file added
+# since the base, so an earlier file is not failed for lacking the line; a
+# declaration that is present, on any typed file, is held to the form.
+#
 # It is also cheap and quiet. It runs only when the staged set touches tools/,
-# so a commit to standards/ or skills/ pays nothing, and a full run over all
+# so a commit to standards/ pays nothing (the seam check runs when the staged
+# set touches skills/, experts/ or tools/), and a full run over all
 # fifteen tools takes about a second.
 #
 # wiser ships on its own. A reader who installs it and follows a path into the
@@ -36,8 +43,13 @@
 GREP=/usr/bin/grep
 PATTERN='zBuilds/playbooks/gates/|zBuilds/registry\.md|zBuilds/templates/|wiser-builds|/Volumes'
 
-staged=$(git diff --cached --name-only --diff-filter=ACMR)
-[ -n "$staged" ] || exit 0
+staged=$(git -c core.quotePath=false diff --cached --name-only --diff-filter=ACMR)
+# The seam check also sees a type change (T), including a regular file
+# replaced by a symlink. The checks above stay on A, C, M and R.
+# core.quotePath=false: a path with a non-ASCII name, which the conventions
+# allow, is printed as it is rather than quoted, so the trigger below sees it.
+seam_staged=$(git -c core.quotePath=false diff --cached --name-only --diff-filter=ACMRT)
+[ -n "$staged" ] || [ -n "$seam_staged" ] || exit 0
 
 printf '%s\n' "$staged" | while IFS= read -r f; do
   [ -n "$f" ] || continue
@@ -78,5 +90,39 @@ if printf '%s\n' "$staged" | $GREP -q '^tools/'; then
   # to run a script against, and the window is one commit wide in a repo whose
   # tools are edited by one person at a time.
   "$GATE" "$ROOT/tools" || exit 1
+fi
+
+# Every typed file added in this commit declares its classifier seam,
+# per standards/primitives.md Classifier Seam. Runs when any staged path of
+# status A, C, M, R or T begins with skills/, experts/ or tools/ in any
+# letter case, so a wrongly cased family path reaches the gate's own
+# wrong-case detector. On an unborn branch HEAD does not resolve, and the
+# base is the empty tree. Reads the index, so what is checked is what lands.
+if printf '%s\n' "$seam_staged" | $GREP -q -i -E '^(skills|experts|tools)/'; then
+  ROOT=$(git rev-parse --show-toplevel)
+  SEAM="$ROOT/system/gates/classifier-seam.sh"
+  if [ ! -f "$SEAM" ]; then
+    echo "pre-commit: $SEAM is missing, so the classifier seam check could not" >&2
+    echo "run. That is a failure to measure and not a pass." >&2
+    exit 1
+  fi
+  # The gate that runs must be the gate that is staged: an unstaged edit to it
+  # would check the commit with a gate the commit does not carry.
+  if ! git diff --quiet -- system/gates/classifier-seam.sh; then
+    echo "pre-commit: system/gates/classifier-seam.sh has unstaged changes, so the" >&2
+    echo "gate on disk is not the gate being committed. Stage or discard them first." >&2
+    exit 1
+  fi
+  if git rev-parse --verify --quiet HEAD >/dev/null 2>&1; then
+    SEAM_BASE=HEAD
+  else
+    SEAM_BASE=$(git hash-object -t tree /dev/null) || {
+      echo "pre-commit: could not name the empty tree, so the classifier seam" >&2
+      echo "check could not run. That is a failure to measure and not a pass." >&2
+      exit 1
+    }
+  fi
+  bash "$SEAM" --tree "$ROOT" --base "$SEAM_BASE" --staged >/dev/null || {
+    bash "$SEAM" --tree "$ROOT" --base "$SEAM_BASE" --staged >&2; exit 1; }
 fi
 exit 0

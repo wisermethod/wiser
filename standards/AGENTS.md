@@ -11,4 +11,4 @@ Standards define HOW things are done; they do not do things. Cite them; never re
 | `user-root.md` | One declared user-root tree, layout clauses and scoring |
 | `plugin-root.md` | One declared plugin-root tree, base or domain; layout clauses and scoring |
 | `conventions.md` | Formatting, dates, naming, working files, archives, sourcing registers |
-| `primitives.md` | The four primitive types, their invocation relationships, and the typed-file frontmatter |
+| `primitives.md` | The four primitive types, their invocation relationships, the typed-file frontmatter, and the classifier seam a new typed file declares, and any file whose seam changes |

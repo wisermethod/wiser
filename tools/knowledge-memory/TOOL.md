@@ -17,6 +17,8 @@ Use through `skills/Knowledge Set Onboarding/`, `skills/Knowledge Curation/`, an
 
 Graph follows `experts/Knowledge Expert/graph.md`, with prerequisite stops before source or store access. A map of existing files belongs to `skills/Knowledge Map/`. Hosted is a documented stop on `experts/Knowledge Expert/hosted.md`, never a command. Apply the constitution's Behavioral Core for the three absences and honest stops.
 
+Classifier seam: none.
+
 ## Dependencies
 
 Paths are absolute. `--set` names `memory/knowledge/<set>/`; `--store` names a SQLite file, conventionally `<owning-root>/memory/knowledge/store/databased.sqlite`, or one dataset-owned `graph.lbdb` file for graph. Both are refused inside this tool, including aliases. Wiki commands take no store. `templates/set.yaml` lists the recipe keys; unknown keys are refused by name. Session permission is recorded before sources are read.

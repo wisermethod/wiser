@@ -1,6 +1,6 @@
 # Tools
 
-Deterministic operations that skills and experts call; `standards/primitives.md` owns the type. Running one is `tools/RUNNING.md`; the contract is `standards/script-contract.md`.
+Deterministic operations that skills and experts call; `standards/primitives.md` owns the type and the classifier seam every new typed file here, and any file whose seam changes, declares in its Context. Running one is `tools/RUNNING.md`; the contract is `standards/script-contract.md`.
 
 ## Installing
 
