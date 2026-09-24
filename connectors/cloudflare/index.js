@@ -1,4 +1,464 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import {
+  closeSync, constants as fsConstants, fstatSync, lstatSync, openSync, readFileSync, readdirSync, realpathSync, statSync,
+} from 'node:fs';
+import { homedir } from 'node:os';
+import { basename, dirname, extname, join, resolve, sep } from 'node:path';
+
+// Copied from the vercel connector's path screen. A module may not import
+// another connector (standards/script-contract.md, Connector modules), which
+// is why this duplicate exists. userConfigDir must stay in step with
+// gateway/src/paths.js wiserUserConfigDir.
+function userConfigDir(platform = process.platform, env = process.env, home = homedir()) {
+  if (platform === 'win32') {
+    const base = env.APPDATA && env.APPDATA.length > 0 ? env.APPDATA : join(home, 'AppData', 'Roaming');
+    return join(base, 'wiser');
+  }
+  if (platform === 'darwin') return join(home, 'Library', 'Application Support', 'wiser');
+  const xdg = env.XDG_CONFIG_HOME;
+  if (typeof xdg === 'string' && xdg.length > 0) return join(xdg, 'wiser');
+  return join(home, '.config', 'wiser');
+}
+
+function canonicalize(input) {
+  let head = resolve(String(input));
+  const below = [];
+  for (;;) {
+    try {
+      return below.length === 0 ? realpathSync(head) : join(realpathSync(head), ...[...below].reverse());
+    } catch {
+      const parent = dirname(head);
+      if (parent === head) return null;
+      below.push(basename(head));
+      head = parent;
+    }
+  }
+}
+
+function identity(path) {
+  try {
+    const s = statSync(path);
+    return `${s.dev}:${s.ino}`;
+  } catch {
+    return null;
+  }
+}
+
+function isInside(child, parent) {
+  return child === parent || child.startsWith(parent.endsWith(sep) ? parent : parent + sep);
+}
+
+function refusedSet() {
+  const dir = canonicalize(userConfigDir());
+  const ids = new Set();
+  const home = canonicalize(homedir());
+  if (home) ids.add(identity(home));
+  if (dir) {
+    const seen = new Set();
+    const stack = [dir];
+    while (stack.length > 0) {
+      const here = stack.pop();
+      const hereId = identity(here);
+      if (hereId) {
+        if (seen.has(hereId)) continue;
+        seen.add(hereId);
+        ids.add(hereId);
+      }
+      let entries;
+      try {
+        entries = readdirSync(here, { withFileTypes: true });
+      } catch { continue; }
+      for (const entry of entries) {
+        const child = canonicalize(join(here, entry.name));
+        if (!child) continue;
+        const childId = identity(child);
+        if (childId) ids.add(childId);
+        if (entry.isDirectory()) stack.push(child);
+      }
+    }
+  }
+  ids.delete(null);
+  return { dir, home, ids };
+}
+
+function screenFile(input, refused, root) {
+  const resolved = canonicalize(input);
+  if (!resolved) return { refused: 'unresolvable' };
+  if (root && !isInside(resolved, root)) return { refused: 'outside the named directory', resolved };
+  let stats;
+  try {
+    stats = statSync(resolved);
+  } catch {
+    return { refused: 'not found', resolved };
+  }
+  if (!stats.isFile()) return { refused: 'not a regular file', resolved };
+  if (refused.ids.has(`${stats.dev}:${stats.ino}`)) return { refused: 'credential', resolved };
+  if (refused.dir && isInside(resolved, refused.dir)) return { refused: 'credential', resolved };
+  const base = basename(resolved);
+  if (base === '.env' || base.startsWith('.env.')) return { refused: 'credential', resolved };
+  return { resolved, size: stats.size, id: `${stats.dev}:${stats.ino}` };
+}
+
+function relativeName(root, full) {
+  const rest = full === root ? '' : full.slice(root.length).replace(/^[\\/]+/, '');
+  return rest.split(sep).join('/');
+}
+
+function invalid(field, reason) {
+  return reason === undefined
+    ? { status: 'invalid_arguments', field }
+    : { status: 'invalid_arguments', field, reason };
+}
+
+function requiredString(value) {
+  return typeof value === 'string' && [...value].length >= 1;
+}
+
+// Published on pages.create_project name. Lowercase letters, digits, hyphens,
+// 1 to 58 characters, no leading or trailing hyphen.
+const PROJECT_NAME = /^[a-z0-9](?:[a-z0-9-]{0,56}[a-z0-9])?$/;
+
+function projectNameOk(value) {
+  return typeof value === 'string' && PROJECT_NAME.test(value);
+}
+
+const MAX_FILES = 20000;
+const MAX_FILE_BYTES = 25 * 1024 * 1024;
+const MAX_BUCKET_FILES = 1000;
+const MAX_BUCKET_BASE64 = 5 * 1024 * 1024;
+
+const CONTENT_TYPES = {
+  html: 'text/html',
+  css: 'text/css',
+  js: 'text/javascript',
+  mjs: 'text/javascript',
+  json: 'application/json',
+  svg: 'image/svg+xml',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  avif: 'image/avif',
+  ico: 'image/x-icon',
+  txt: 'text/plain',
+  xml: 'application/xml',
+  woff: 'font/woff',
+  woff2: 'font/woff2',
+  ttf: 'font/ttf',
+  otf: 'font/otf',
+  pdf: 'application/pdf',
+  webmanifest: 'application/manifest+json',
+  map: 'application/json',
+};
+
+function contentTypeFor(extension) {
+  const key = extension.startsWith('.') ? extension.slice(1).toLowerCase() : extension.toLowerCase();
+  return CONTENT_TYPES[key] || 'application/octet-stream';
+}
+
+// Wrangler uses blake3(base64(content) + extension), hex, first 32 characters.
+// Node has no blake3 built-in and a connector module may not add a dependency,
+// so this is sha256 of that same input. extension is Node's extname, including
+// the leading dot. The key is client-chosen, and that Pages accepts a key it did
+// not derive with blake3 is UNVERIFIED until a live deploy serves the files.
+function assetHash(bytes, extension) {
+  const material = Buffer.from(bytes).toString('base64') + extension;
+  return createHash('sha256').update(material).digest('hex').slice(0, 32);
+}
+
+function screenDeployDir(input, refused) {
+  const lexical = resolve(String(input));
+  if (basename(lexical) !== 'dist') return { error: invalid('dir', 'basename is not dist') };
+  if (basename(dirname(lexical)) !== 'site') return { error: invalid('dir', 'parent basename is not site') };
+  const resolved = canonicalize(lexical);
+  if (!resolved) return { error: invalid('dir', 'unresolvable') };
+  // The path the person approved is the path deployed. A symbolic link at site/ or
+  // at dist/ would let an approved spelling publish some other kit, so the two
+  // named segments must resolve to themselves under their canonical grandparent.
+  const above = canonicalize(dirname(dirname(lexical)));
+  if (!above || resolved !== join(above, 'site', 'dist')) {
+    return { error: invalid('dir', 'site or dist is a symbolic link') };
+  }
+  let stats;
+  try {
+    stats = statSync(resolved);
+  } catch {
+    return { error: invalid('dir', 'not found') };
+  }
+  if (!stats.isDirectory()) return { error: invalid('dir', 'not a directory') };
+  const parent = dirname(resolved);
+  let kitStat;
+  try {
+    kitStat = lstatSync(join(parent, 'kit.json'));
+  } catch {
+    return { error: invalid('dir', 'kit.json missing') };
+  }
+  if (!kitStat.isFile()) return { error: invalid('dir', 'kit.json missing') };
+  const id = `${stats.dev}:${stats.ino}`;
+  if (refused.ids.has(id)) return { error: invalid('dir', 'credential directory') };
+  if (refused.dir && (isInside(resolved, refused.dir) || isInside(refused.dir, resolved))) {
+    return { error: invalid('dir', 'credential directory') };
+  }
+  if (refused.home && resolved === refused.home) return { error: invalid('dir', 'home directory') };
+  return { resolved };
+}
+
+function isDirectoryPath(path) {
+  try {
+    return statSync(path).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+// Build output has no business holding a dotfile or a key. A hidden name is
+// skipped (`.well-known` excepted, which sites publish on purpose), and a name
+// shaped like a private key or certificate bundle is skipped as a credential.
+// This is a screen for the common shapes, not a data-loss boundary: the
+// confirmation stop and the returned file list are the controls for the rest.
+const KEY_NAME = /\.(pem|key|p12|pfx|jks|keystore)$|^id_(rsa|dsa|ecdsa|ed25519)/i;
+
+// Opens without following a link and checks the handle is the file the walk
+// screened, so a file swapped for a link after screening is not read.
+function readScreened(resolved, id) {
+  let fd;
+  try {
+    fd = openSync(resolved, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW || 0));
+  } catch {
+    return null;
+  }
+  try {
+    const st = fstatSync(fd);
+    if (!st.isFile() || `${st.dev}:${st.ino}` !== id) return null;
+    return readFileSync(fd);
+  } catch {
+    return null;
+  } finally {
+    closeSync(fd);
+  }
+}
+
+function walkPages(root, refused) {
+  const assets = [];
+  const skipped = [];
+  let headers = null;
+  let redirects = null;
+  const names = new Set();
+  const stack = [root];
+  const walked = new Set([identity(root)].filter(Boolean));
+  while (stack.length > 0) {
+    const dir = stack.pop();
+    const atRoot = dir === root;
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      skipped.push({ file: relativeName(root, dir), reason: 'unreadable' });
+      continue;
+    }
+    for (const entry of entries) {
+      const full = join(dir, entry.name);
+      const logical = relativeName(root, full);
+      if (atRoot && entry.name === '_worker.js') {
+        return { error: invalid('dir', 'static kit output only') };
+      }
+      if (atRoot && entry.name === 'functions' && (entry.isDirectory() || isDirectoryPath(full))) {
+        return { error: invalid('dir', 'static kit output only') };
+      }
+      if (entry.name === 'node_modules') {
+        skipped.push({ file: logical, reason: 'skipped name' });
+        continue;
+      }
+      if (entry.name.startsWith('.') && entry.name !== '.well-known') {
+        skipped.push({ file: logical, reason: 'hidden' });
+        continue;
+      }
+      if (KEY_NAME.test(entry.name)) {
+        skipped.push({ file: logical, reason: 'credential' });
+        continue;
+      }
+      const resolved = canonicalize(full);
+      if (!resolved || !isInside(resolved, root)) {
+        skipped.push({ file: logical, reason: 'outside the named directory' });
+        continue;
+      }
+      let stats;
+      try {
+        stats = statSync(resolved);
+      } catch {
+        skipped.push({ file: logical, reason: 'not found' });
+        continue;
+      }
+      if (entry.isSymbolicLink() && stats.isDirectory()) {
+        skipped.push({ file: logical, reason: 'link to a directory' });
+        continue;
+      }
+      if (stats.isDirectory()) {
+        const dirId = `${stats.dev}:${stats.ino}`;
+        if (walked.has(dirId)) {
+          skipped.push({ file: logical, reason: 'already walked' });
+          continue;
+        }
+        walked.add(dirId);
+        stack.push(resolved);
+        continue;
+      }
+      const top = !logical.includes('/');
+      if (top && entry.name === '_routes.json') {
+        skipped.push({ file: logical, reason: 'not an asset' });
+        continue;
+      }
+      const screened = screenFile(resolved, refused, root);
+      if (screened.refused) {
+        skipped.push({ file: logical, reason: screened.refused });
+        continue;
+      }
+      if (screened.size > MAX_FILE_BYTES) {
+        return { error: invalid('dir', `file over 25 MiB: ${logical}`) };
+      }
+      if (names.has(logical)) {
+        skipped.push({ file: logical, reason: 'duplicate path' });
+        continue;
+      }
+      names.add(logical);
+      // The inode screenFile checked, not a fresh lookup, so a file swapped in
+      // after screening fails the handle check. An intermediate directory swapped
+      // for a link between screening and open is not caught: Node has no openat,
+      // and that residual belongs to whoever can write into dist while it deploys.
+      const id = screened.id;
+      const bytes = readScreened(resolved, id);
+      if (!bytes) {
+        skipped.push({ file: logical, reason: 'unreadable' });
+        continue;
+      }
+      if (top && (entry.name === '_headers' || entry.name === '_redirects')) {
+        const kept = { resolved, id, bytes };
+        if (entry.name === '_headers') headers = kept;
+        else redirects = kept;
+        continue;
+      }
+      if (assets.length >= MAX_FILES) {
+        return { error: invalid('dir', 'more than 20000 files') };
+      }
+      const extension = extname(logical);
+      // Only the hash is kept. The bytes are read again, bucket by bucket, when a
+      // file is uploaded, so memory holds one bucket rather than the whole site.
+      assets.push({
+        rel: logical,
+        resolved,
+        id,
+        extension,
+        hash: assetHash(bytes, extension),
+        base64Length: Math.ceil(bytes.length / 3) * 4,
+        contentType: contentTypeFor(extension),
+      });
+    }
+  }
+  assets.sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0));
+  return { assets, headers, redirects, skipped };
+}
+
+// A bucket closes at 1,000 files or 5 MiB of base64, except that one file always
+// fits: a file up to the 25 MiB per-file limit travels alone, as about 33 MiB of
+// base64. Whether the provider's proxy accepts a request that size is UNVERIFIED.
+function bucketize(items) {
+  const out = [];
+  let current = [];
+  let size = 0;
+  for (const item of items) {
+    const n = item.base64Length;
+    if (current.length > 0 && (current.length >= MAX_BUCKET_FILES || size + n > MAX_BUCKET_BASE64)) {
+      out.push(current);
+      current = [];
+      size = 0;
+    }
+    current.push(item);
+    size += n;
+  }
+  if (current.length > 0) out.push(current);
+  return out;
+}
+
+// Route for the JWT asset calls is UNVERIFIED. All three go through this
+// helper so a live probe can swap the path in one place. The token is only
+// an Authorization header parameter. It is never copied into a result, an
+// error message, or a log.
+async function assetCall(ctx, jwt, endpoint, body) {
+  const res = await ctx.proxy({
+    endpoint,
+    method: 'POST',
+    body,
+    parameters: [{ name: 'Authorization', value: `Bearer ${jwt}`, type: 'header' }],
+  });
+  if (res && typeof res === 'object' && Object.prototype.hasOwnProperty.call(res, 'data')) {
+    return res.data;
+  }
+  return res;
+}
+
+// Cloudflare answers { success, errors, messages, result }. A 2xx envelope that
+// says success: false is a failure, and the flow stops on it.
+function envelopeOk(data) {
+  return Boolean(data) && typeof data === 'object' && !Array.isArray(data) && data.success !== false;
+}
+
+function readJwt(data) {
+  if (!envelopeOk(data)) return null;
+  const result = data.result;
+  const jwt = result && typeof result === 'object' && !Array.isArray(result) ? result.jwt : undefined;
+  return typeof jwt === 'string' && jwt.length > 0 ? jwt : null;
+}
+
+function readMissing(data) {
+  if (!envelopeOk(data) || !Array.isArray(data.result)) return null;
+  if (!data.result.every((item) => typeof item === 'string')) return null;
+  return data.result;
+}
+
+function vendorError(endpoint, method) {
+  return { status: 'vendor_error', endpoint, method };
+}
+
+function redact(value, secret) {
+  if (!secret || typeof value === 'number' || typeof value === 'boolean' || value == null) return value;
+  if (typeof value === 'string') {
+    return value.includes(secret) ? value.split(secret).join('[redacted]') : value;
+  }
+  if (Array.isArray(value)) return value.map((item) => redact(item, secret));
+  if (typeof value === 'object') {
+    const out = {};
+    for (const [key, item] of Object.entries(value)) out[key] = redact(item, secret);
+    return out;
+  }
+  return value;
+}
+
+function buildMultipart(parts) {
+  let boundary;
+  do {
+    boundary = `wiser-${randomUUID()}`;
+  } while (parts.some((part) => part.value.includes(boundary)));
+  const chunks = [];
+  for (const part of parts) {
+    const filename = part.filename ? `; filename="${part.filename}"` : '';
+    chunks.push(Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="${part.name}"${filename}\r\nContent-Type: ${part.contentType}\r\n\r\n`,
+      'utf8',
+    ));
+    chunks.push(part.value);
+    chunks.push(Buffer.from('\r\n', 'utf8'));
+  }
+  chunks.push(Buffer.from(`--${boundary}--\r\n`, 'utf8'));
+  return { boundary, body: Buffer.concat(chunks) };
+}
+
+function accountPath(accountId, projectName, rest) {
+  const base = `/accounts/${encodeURIComponent(accountId)}/pages/projects`;
+  if (!projectName) return base;
+  const tail = rest ? `/${rest}` : '';
+  return `${base}/${encodeURIComponent(projectName)}${tail}`;
+}
 
 function remap(input, pairs) {
   const out = { ...(input || {}) };
@@ -196,6 +656,138 @@ export const modules = {
         endpoint: `/accounts/${input.account_id}/pages/projects/${input.project_name}/deployments`,
         method: 'GET',
       });
+    },
+    async create_project(input, ctx) {
+      if (!requiredString(input && input.account_id)) return invalid('account_id');
+      if (!projectNameOk(input && input.name)) return invalid('name');
+      if (!requiredString(input && input.production_branch)) return invalid('production_branch');
+      return proxyData(ctx, {
+        endpoint: accountPath(input.account_id),
+        method: 'POST',
+        body: { name: input.name, production_branch: input.production_branch },
+      });
+    },
+    async add_domain(input, ctx) {
+      if (!requiredString(input && input.account_id)) return invalid('account_id');
+      if (!requiredString(input && input.project_name)) return invalid('project_name');
+      if (!requiredString(input && input.domain)) return invalid('domain');
+      return proxyData(ctx, {
+        endpoint: accountPath(input.account_id, input.project_name, 'domains'),
+        method: 'POST',
+        body: { name: input.domain },
+      });
+    },
+    async deploy(input, ctx) {
+      if (!requiredString(input && input.account_id)) return invalid('account_id');
+      if (!requiredString(input && input.project_name)) return invalid('project_name');
+      if (!requiredString(input && input.dir)) return invalid('dir');
+      const refused = refusedSet();
+      const root = screenDeployDir(input.dir, refused);
+      if (root.error) return root.error;
+      const walked = walkPages(root.resolved, refused);
+      if (walked.error) return walked.error;
+      if (walked.assets.length === 0) {
+        return { status: 'invalid_arguments', field: 'dir', reason: 'no uploadable files', skipped: walked.skipped };
+      }
+      const tokenEndpoint = accountPath(input.account_id, input.project_name, 'upload-token');
+      const tokenData = await proxyData(ctx, { endpoint: tokenEndpoint, method: 'GET' });
+      const jwt = readJwt(tokenData);
+      if (!jwt) return vendorError(tokenEndpoint, 'GET');
+      const byHash = new Map();
+      for (const asset of walked.assets) {
+        if (!byHash.has(asset.hash)) byHash.set(asset.hash, asset);
+      }
+      const allHashes = [...byHash.keys()];
+      const checked = await assetCall(ctx, jwt, '/pages/assets/check-missing', { hashes: allHashes });
+      const missing = readMissing(checked);
+      if (!missing) return vendorError('/pages/assets/check-missing', 'POST');
+      // Only hashes this deploy asked about are uploaded; anything else in the
+      // answer is ignored rather than trusted.
+      const missingSet = new Set(missing.filter((hash) => byHash.has(hash)));
+      let uploaded = 0;
+      let alreadyPresent = 0;
+      for (const asset of walked.assets) {
+        if (missingSet.has(asset.hash)) uploaded += 1;
+        else alreadyPresent += 1;
+      }
+      const toUpload = [...missingSet].map((hash) => byHash.get(hash));
+      for (const bucket of bucketize(toUpload)) {
+        const payload = [];
+        for (const asset of bucket) {
+          const bytes = readScreened(asset.resolved, asset.id);
+          if (!bytes || assetHash(bytes, asset.extension) !== asset.hash) {
+            return invalid('dir', `file changed during deploy: ${asset.rel}`);
+          }
+          payload.push({
+            key: asset.hash,
+            value: bytes.toString('base64'),
+            metadata: { contentType: asset.contentType },
+            base64: true,
+          });
+        }
+        const up = await assetCall(ctx, jwt, '/pages/assets/upload', payload);
+        if (!envelopeOk(up)) return vendorError('/pages/assets/upload', 'POST');
+      }
+      // Every file, uploaded or already present, is read again and must still be
+      // what was hashed, so the manifest describes the tree as it stands now.
+      for (const asset of walked.assets) {
+        const bytes = readScreened(asset.resolved, asset.id);
+        if (!bytes || assetHash(bytes, asset.extension) !== asset.hash) {
+          return invalid('dir', `file changed during deploy: ${asset.rel}`);
+        }
+      }
+      for (const [name, kept] of [['_headers', walked.headers], ['_redirects', walked.redirects]]) {
+        if (!kept) continue;
+        const now = readScreened(kept.resolved, kept.id);
+        if (!now || !now.equals(kept.bytes)) return invalid('dir', `file changed during deploy: ${name}`);
+      }
+      const upserted = await assetCall(ctx, jwt, '/pages/assets/upsert-hashes', { hashes: allHashes });
+      if (!envelopeOk(upserted)) return vendorError('/pages/assets/upsert-hashes', 'POST');
+      const manifest = {};
+      for (const asset of walked.assets) manifest[`/${asset.rel}`] = asset.hash;
+      const parts = [{
+        name: 'manifest',
+        contentType: 'application/json',
+        value: Buffer.from(JSON.stringify(manifest), 'utf8'),
+      }];
+      if (walked.headers) {
+        parts.push({
+          name: '_headers',
+          filename: '_headers',
+          contentType: 'text/plain',
+          value: walked.headers.bytes,
+        });
+      }
+      if (walked.redirects) {
+        parts.push({
+          name: '_redirects',
+          filename: '_redirects',
+          contentType: 'text/plain',
+          value: walked.redirects.bytes,
+        });
+      }
+      const form = buildMultipart(parts);
+      const deploymentsEndpoint = accountPath(input.account_id, input.project_name, 'deployments');
+      const deploymentData = await proxyData(ctx, {
+        endpoint: deploymentsEndpoint,
+        method: 'POST',
+        binary_body: {
+          base64: form.body.toString('base64'),
+          content_type: `multipart/form-data; boundary=${form.boundary}`,
+        },
+      });
+      if (!envelopeOk(deploymentData) || !deploymentData.result || typeof deploymentData.result !== 'object') {
+        return vendorError(deploymentsEndpoint, 'POST');
+      }
+      return redact({
+        deployment: deploymentData.result,
+        dir: root.resolved,
+        files: walked.assets.length,
+        uploaded,
+        already_present: alreadyPresent,
+        manifest: Object.keys(manifest),
+        skipped: walked.skipped,
+      }, jwt);
     },
   },
 

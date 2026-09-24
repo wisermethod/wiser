@@ -1,8 +1,9 @@
 {
   "note": "Known manifest-to-module divergences. This file may only shrink. See test/agreement.test.js.",
   "measured": "2026-09-20",
-  "count": 1,
+  "count": 2,
   "divergences": [
+    "A cloudflare pages.deploy dir",
     "A vercel deployments.upload_file path"
   ]
 }

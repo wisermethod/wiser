@@ -289,6 +289,57 @@
             "required": ["account_id", "project_name"],
             "additionalProperties": false
           }
+        },
+        "create_project": {
+          "description": "Create a Pages project. name is lowercase letters, digits, and hyphens, 1 to 58 characters, with no leading or trailing hyphen.",
+          "risk": "medium",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "minLength": 1 },
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,56}[a-z0-9])?$"
+              },
+              "production_branch": { "type": "string", "minLength": 1 }
+            },
+            "required": ["account_id", "name", "production_branch"],
+            "additionalProperties": false
+          }
+        },
+        "add_domain": {
+          "description": "Attach a domain to a Pages project. This does not create the DNS CNAME record. The domain stays pending until that record exists. The record is Zone Publisher's job.",
+          "risk": "medium",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "minLength": 1 },
+              "project_name": { "type": "string", "minLength": 1 },
+              "domain": { "type": "string", "minLength": 1 }
+            },
+            "required": ["account_id", "project_name", "domain"],
+            "additionalProperties": false
+          }
+        },
+        "deploy": {
+          "description": "Deploy static kit output to Pages production by Direct Upload. Replaces what production serves. dir must be a directory named dist whose parent directory is named site and contains a regular file kit.json, and neither site nor dist may be a symbolic link. Refuses the user-config credential directory, the home directory, a tree whose root contains _worker.js or a functions directory, more than 20000 files, any file over 25 MiB, and a file that changes between hashing and upload. Skips node_modules, hidden names other than .well-known, names shaped like private keys or certificate bundles, .env files, _routes.json, and links that resolve outside dir, and lists every skip in the result. _headers and _redirects are sent with the deployment and are not assets. The asset route that carries the upload token is unverified.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "minLength": 1 },
+              "project_name": { "type": "string", "minLength": 1 },
+              "dir": { "type": "string", "minLength": 1 }
+            },
+            "required": ["account_id", "project_name", "dir"],
+            "additionalProperties": false
+          }
         }
       },
       "unwrap_token": false,

@@ -42,6 +42,9 @@
  *   residual no schema change can close, so no adversarial exemplar probes for it.
  * - **`vercel deployments.upload_file` requires `path` to name a readable file.** That is
  *   filesystem state. Its baseline row and its fixture are permanent.
+ * - **`cloudflare pages.deploy` requires `dir` to be a kit `site/dist` directory beside a
+ *   `site/kit.json`.** Filesystem state again, of the same class, so its baseline row and its
+ *   fixture are permanent for the same reason. Added 2026-09-24 with the action.
  *
  * And one that changed shape when the validator moved into the gateway, stated because a
  * reader could otherwise take direction B for more than it is. **For a constraint the gateway
@@ -52,7 +55,7 @@
  * carries a validator. What direction B still measures against the module alone is the
  * constraints the gateway leaves to it: `maxLength`, `minimum`, `maximum` and `maxItems`.
  */
-import { readFileSync, readdirSync, existsSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, writeFileSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { chdir, cwd } from 'node:process';
 import { tmpdir } from 'node:os';
@@ -82,6 +85,7 @@ const PATTERN_OK = {
   '^[^/]+$': 'abc123',
   '^[A-Za-z0-9+/_-]+={0,2}$': 'abcd',
   '^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$': 'audit-key',
+  '^[a-z0-9](?:[a-z0-9-]{0,56}[a-z0-9])?$': 'wiser-site',
   '^[Hh][Tt][Tt][Pp][Ss]://': 'https://example.com/x',
   // `bing`, `google` and `google-apis` parse a URL with `new URL()` and check the
   // protocol, which no regular expression expresses. What they publish is the scheme,
@@ -128,6 +132,7 @@ const VIOLATION_CANDIDATES = [' ', '/', '!', '', 'a/b', '\u0000', 'ZZ ZZ', '../.
  * every suite run, at a predictable path an existing symlink could redirect.
  */
 let FIXTURE_FILE = '';
+let FIXTURE_DIST = '';
 
 /**
  * Field overrides that give an action a baseline its module accepts.
@@ -141,6 +146,7 @@ const URL_OK = 'https://example.com/';
 const FIXTURES = {
   // Resolved at call time, because FIXTURE_FILE is created per run rather than at import.
   'vercel:deployments.upload_file': () => ({ path: FIXTURE_FILE }),
+  'cloudflare:pages.deploy': () => ({ dir: FIXTURE_DIST }),
 };
 
 function sampleString(s) {
@@ -392,6 +398,10 @@ export async function collectDivergences() {
   const previousCwd = cwd();
   FIXTURE_FILE = join(scratch, 'upload-fixture.txt');
   writeFileSync(FIXTURE_FILE, 'agreement fixture\n');
+  FIXTURE_DIST = join(scratch, 'site', 'dist');
+  mkdirSync(FIXTURE_DIST, { recursive: true });
+  writeFileSync(join(scratch, 'site', 'kit.json'), '{}\n');
+  writeFileSync(join(FIXTURE_DIST, 'index.html'), '<!doctype html>\n');
   chdir(scratch);
   try {
     return await collect();

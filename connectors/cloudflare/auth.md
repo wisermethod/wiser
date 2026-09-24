@@ -12,10 +12,12 @@ Make an API token (not a Global API Key). Permissions are fixed when you make it
 |--------|-------------|
 | `dns` | Zone / DNS / Edit on the named zone or zones |
 | `zones` | Zone / Zone / Read, or an account-wide list of zones. `create` and `delete` need Edit |
-| `pages` | Account / Cloudflare Pages / Read (Edit to change) |
+| `pages` | Account / Cloudflare Pages / Read for list and get. Edit for `create_project`, `add_domain`, and `deploy`. A Read-only token returns 403 on those three |
 | `rulesets` | Zone / Zone WAF or the rulesets permission for the zones you mean |
 
 One wider token can serve several modules. You still connect each module separately and paste that same token on each hosted page. **Extra permissions on one grant do not unlock another**: a token connected as `dns` does not serve `zones`, and `pages` needs Account / Cloudflare Pages in its own right. A 403 on a Pages call from a token that works for DNS is that, and not an outage.
+
+`pages.add_domain` registers the hostname on the Pages project and does not create the DNS record. That record needs Zone / DNS / Edit, which is the `dns` grant, and Zone Publisher is the skill that publishes it. A Pages Edit token does not do that job.
 
 Keep the create-token page open; the value is shown once.
 
