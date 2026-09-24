@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { defaultGatewayHome, wiserUserConfigDir } from '../../../../gateway/src/paths.js';
 import { COST_TABLE, EMPTY_ENV, SCORING_PROMPT, seededOrder } from '../trial.mjs';
 
@@ -250,8 +250,8 @@ test('plan figures, history, and needs_go', () => {
   assert.equal(planned.source, 'default');
   assert.equal(planned.usd_per_run, 0.2);
   assert.equal(planned.usd_p90, 0.55);
-  assert.ok(Math.abs(planned.usd_expected - 1.8) < 1e-9);
-  assert.ok(Math.abs(planned.usd_worst - 4.8) < 1e-9);
+  assert.ok(Math.abs(planned.usd_expected - (1.8 + 6 * 0.00015)) < 1e-9);
+  assert.ok(Math.abs(planned.usd_worst - (4.8 + 6 * 0.00015)) < 1e-9);
   assert.equal(planned.ceiling_usd, null);
   assert.equal(planned.needs_go, true);
   assert.equal(planned.order.length, 6);
@@ -308,8 +308,8 @@ test('plan figures, history, and needs_go', () => {
   assert.equal(history.source, 'history');
   assert.equal(history.usd_per_run, 0.3);
   assert.equal(history.usd_p90, 0.5);
-  assert.ok(Math.abs(history.usd_expected - 2.4) < 1e-9);
-  assert.ok(Math.abs(history.usd_worst - 4.5) < 1e-9);
+  assert.ok(Math.abs(history.usd_expected - (2.4 + history.classifier_calls_estimate * 0.00015)) < 1e-9);
+  assert.ok(Math.abs(history.usd_worst - (4.5 + history.classifier_calls_estimate * 0.00015)) < 1e-9);
 
   writeSpec(box.work, validSpec(tree, classifier, {
     kind: 'seam',
@@ -707,6 +707,10 @@ function buildReport(dir, mutate) {
     const { scores, ...rest } = meta;
     mkdirSync(join(dir, 'runs', meta.id), { recursive: true });
     writeFileSync(join(dir, 'runs', meta.id, 'meta.json'), JSON.stringify(rest));
+    if (scores === null) {
+      writeFileSync(join(dir, 'scores', `${oid}.json`), JSON.stringify({ oid, status: 'unparsed' }));
+      return;
+    }
     const score = Object.values(scores).reduce((sum, value) => sum + value, 0);
     writeFileSync(join(dir, 'scores', `${oid}.json`), JSON.stringify({ oid, scores, reasons: {}, score, usd: 0.01 }));
   });
@@ -907,6 +911,52 @@ test('a root the person names keeps its own declaration; a template root is decl
   assert.match(text, /^root: mine$/m);
   assert.match(text, /^type: org$/m);
   rmSync(temp, { recursive: true, force: true });
+});
+
+test('report refuses an unparsed score or an invalid run', () => {
+  for (const mutate of [
+    (_spec, metas) => { metas.find((meta) => meta.arm === 'C').scores = null; },
+    (_spec, metas) => { metas.find((meta) => meta.arm === 'E').valid = false; },
+  ]) {
+    const box = world();
+    buildReport(box.work, mutate);
+    const run = runCli(['report', '--work', box.work], box.home);
+    assert.equal(run.status, 1);
+    assert.equal(run.stdout, '');
+    assert.match(run.stderr, /every planned run valid and fully scored/);
+  }
+});
+
+test('removeProvenance drops sentences naming how a judgment was settled, in either arm', async () => {
+  const { removeProvenance } = await import(pathToFileURL(trialPath).href);
+  const out = removeProvenance('Revenue is highest in the West. The classifier called latitude a quantity. Units track revenue.\nThe automatic classifier was unavailable, so I judged the columns myself.\nA plain line.');
+  assert.equal(out.removed, 2);
+  assert.equal(/classifier/i.test(out.text), false);
+  assert.match(out.text, /Revenue is highest in the West\./);
+  assert.match(out.text, /Units track revenue\./);
+  assert.match(out.text, /A plain line\./);
+});
+
+test('an on-arm run the classifier never answered is invalid, and a mid-run stop still judges the real home', { timeout: 180000 }, () => {
+  for (const [marker, pattern] of [['NO_ANSWER', /classifier answered nothing in the on arm/], ['CONNECTOR_OK', /connector execute returned ok/]]) {
+    const box = world();
+    const tree = syntheticTree(join(box.parent, 'tree'));
+    const ask = `${marker}\nAnswer none of the candidates.`;
+    writeFileSync(join(tree, 'trial-open.json'), `${JSON.stringify({ [ask]: { expect: 'none', via: 'read' } })}\n`);
+    const classifier = classifierAt(join(box.parent, 'classifier'));
+    writeSpec(box.work, validSpec(tree, classifier, {
+      cases: [{ id: 'none', ask, expect: 'none', rubric: [{ id: 'N1', text: 'It answers none.' }], none: true, none_item: 'N1' }],
+    }));
+    const ceiling = join(box.parent, 'ceiling.json');
+    jsonOut(runCli(['ceiling', '--ceiling-file', ceiling, '--usd', '100'], box.home));
+    jsonOut(runCli(['plan', '--work', box.work, '--ceiling-file', ceiling], box.home));
+    const run = runCli(['run', '--work', box.work], box.home, { WISER_TRIAL_HOST: hostPath });
+    assert.equal(run.status, 1, marker);
+    assert.match(run.stderr, pattern);
+    const safety = JSON.parse(readFileSync(join(box.work, 'safety.json'), 'utf8'));
+    assert.match(String(safety.stopped_early), pattern);
+    assert.ok(Array.isArray(safety.changed));
+  }
 });
 
 test('keyscan is clean, finds a planted key, and fails closed with no value', () => {

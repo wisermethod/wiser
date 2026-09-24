@@ -3,7 +3,7 @@ name: Classifier Trial
 type: skill
 category: system
 description: Test whether the classifier improves one use case or one primitive, by paired runs with it on and off on a synthetic root scored blind, and return a verdict with its runs, cost and noise that releases nothing
-version: 0.1.3
+version: 0.1.4
 ---
 
 # Classifier Trial
@@ -31,18 +31,18 @@ The trial also needs three things the request may not give: the classifier direc
 ## Steps
 
 1. **Which trial.** What does the request name? An ask and the primitive it should reach, or a new skill's or expert's own routing: a routing trial. A committed change that adds or alters a tool's seam: a seam trial. An ask no row of the skills or experts index covers: a routing trial whose expected answer is none. Two of these, or none: ask which.
-2. **Can it run here.** Does this session run under Claude Code with the plugin's hooks? No: say that routing and every seam are silent on this harness, and stop. Is a classifier directory named? No: ask for it. The person has none: say a paired trial needs one, and stop.
+2. **Can it run here.** Does this session run under Claude Code with the plugin's hooks, on macOS or Linux? No hooks: say that routing and every seam are silent on this harness, and stop. Another operating system: say the runner does not support it, and stop. Is a classifier directory named? No: ask for it. The person has none: say a paired trial needs one, and stop.
 3. **Where it files.** The owning root's `programs/classifier-trials/<slug>/`, a project under a standing concern (`standards/user-root.md` C3), unless that root's `AGENTS.md` names another home. The ceiling lives once at `programs/classifier-trials/ceiling.json`.
 4. **The cases.** Write `spec.json` in the trial's directory, in the shape the README states, with at least one case whose right answer is none. What each case should reach is labelled by two readers who did not write the cases, each a fresh context handed the cases and the skills and experts indexes and nothing of the other's labels; a case they disagree on is rewritten or dropped. An existing labelled set, scored under its own rule, may stand in for them. A seam trial also needs the seam's own right answer for each case, the candidate it should pick or none, labelled the same way. A case's rubric is the expected primitive's `## Success` lines, verbatim; a none case's is one item, which is also its `none_item`: the reply does not present the ask as served by a primitive that does not serve it. The trial's root is synthetic: the runner builds one from the plugin's user-root template unless the person names a directory they made for trials. A root the person works in is never a trial's root.
 5. **Cost before anything runs.** Run `plan` with the ceiling file and tell the person the host runs, classifier calls, judge runs, the expected and worst dollars, and where the per-run figure came from. Which does `plan.json` show? No ceiling set: ask the person for one, write it with `ceiling`, and plan again. `needs_go`: ask for a go; without one, stop. Neither: go on.
 6. **Run.** Run `run`, with `--go` when the person gave one. Did it stop? The lock proof did not answer `needs_connect`, a connector action answered `ok`, the person's gateway home or key file changed, or a run's session appeared in that home: tell the person the trial touched or could have touched their real setup, and stop. A change another of their sessions made is not a stop; `safety.json` names it, and the report says so. A run invalid twice, or spend past the worst estimate: report where it stopped. Never re-run around a stop.
-7. **Score blind.** Run `blind`, then `score`. Nothing of `blind/map.json` is read until every packet is scored.
+7. **Score blind.** Run `blind`, then `score`. Nothing of `blind/map.json` is read until every packet is scored. Did `score` leave a packet unparsed? Run `score` again; still unparsed, report that the trial cannot give a verdict and stop, because `report` refuses an incomplete set.
 8. **The verdict.** Run `report`, then `keyscan` on the trial's directory. Is the scan anything but clean? Say which file, give no verdict, and stop. Clean: report from `verdict.json` the kind, each arm's runs, scores, median and range, cost, wall time and classifier calls; each case's reach per arm for a routing trial; every Classifier Seam line with its numbers; the plan's estimate beside the spend; and the noise note. Then take the first of these that holds:
    - The trial was an ask no primitive serves, and it landed nowhere in both arms: the ask needs a primitive this plugin lacks; hand it to `experts/System Expert/` Job 3.
    - A line fails: the seam does not pass; the primitive ships without it and its else path runs, as the standard says. Name each failing line with its numbers.
    - Every line passes: say what shipping would change, name the file and its seam, and say release is the person's separate decision, which `skills/Playbook Author/` plans.
    Whichever it is, where the arms' score ranges overlap, say no difference in score was detected at this number of repeats and offer a trial with more beside the verdict, never in place of it.
-   Two things the verdict states whatever it says: the primitive's own three-varied-inputs verification belongs to the change, not to this trial, and whether it is recorded; and a seam whose wrong answer acts on the world, a click or a write, cannot pass here, because the standard's live-recovery test is not one this trial runs.
+   Three things the verdict states whatever it says: line b is judged from each deliverable, not from the classifier's own answer; the primitive's own three-varied-inputs verification belongs to the change, not to this trial, and whether it is recorded; and a seam whose wrong answer acts on the world, a click or a write, cannot pass here, because the standard's live-recovery test is not one this trial runs.
 9. **A cheaper host.** Offer once to repeat the same cases on a cheaper model, in a new directory. Every verdict names the model it ran on.
 
 ## Pitfalls
@@ -51,6 +51,7 @@ The trial also needs three things the request may not give: the classifier direc
 - **A pass is taken as a release.** Say again that release is a separate decision and nothing has shipped.
 - **The person offers to empty their own key line for the off arm.** Decline: the runner switches arms without touching their key file or gateway home, and editing either is the failure the hashes exist to catch.
 - **The per-run cost came from the default table.** Say so; the next trial in the same folder estimates from this one's runs.
+- **A case asks the host about the person's own setup.** Rewrite it. The hosts run as the person with a shell, so a case that tells one to read the key file or open another gateway could; write cases about the primitive's work, and let the key scan catch anything that slipped.
 - **One run looks decisive.** Three repeats per arm is the floor, and a single run's reach or score is never reported as the arm's.
 
 ## Success

@@ -132,7 +132,7 @@ const FLAGS = {
   plan: { value: ['--work', '--ceiling-file'], bare: [] },
   ceiling: { value: ['--ceiling-file', '--usd'], bare: [] },
   run: { value: ['--work', '--key-file'], bare: ['--go', '--keep-temp'] },
-  blind: { value: ['--work', '--seed'], bare: [] },
+  blind: { value: ['--work', '--seed', '--key-file'], bare: [] },
   score: { value: ['--work', '--model'], bare: [] },
   report: { value: ['--work'], bare: [] },
   keyscan: { value: ['--work', '--key-file'], bare: [], rest: true },
@@ -750,8 +750,12 @@ function buildPlan(spec, work, ceiling) {
   }
 
   const judge = COST_TABLE.judge;
-  const usdExpected = usdPerRun == null ? null : hostRuns * usdPerRun + judgeRuns * judge.median;
-  const usdWorst = usdP90 == null ? null : hostRuns * usdP90 + judgeRuns * judge.p90;
+  const rate = typeof spec.classifier_usd_per_call === 'number' && Number.isFinite(spec.classifier_usd_per_call)
+    ? spec.classifier_usd_per_call
+    : CLASSIFIER_USD_PER_CALL_DEFAULT;
+  const classifierUsd = classifierCalls * rate;
+  const usdExpected = usdPerRun == null ? null : hostRuns * usdPerRun + judgeRuns * judge.median + classifierUsd;
+  const usdWorst = usdP90 == null ? null : hostRuns * usdP90 + judgeRuns * judge.p90 + classifierUsd;
   const needsGo = ceiling == null || usdWorst == null || usdWorst > ceiling;
   const seed = Number.isFinite(spec.seed) ? spec.seed : 1;
   return {
@@ -843,8 +847,22 @@ function childEnv() {
  * @param {string} keyFile
  * @returns {string}
  */
+/**
+ * The variables that move a child's platform config path into the trial home:
+ * macOS and Linux read `HOME`; Linux also reads `XDG_CONFIG_HOME`, which would
+ * otherwise leave the key path in the person's real config directory.
+ * @param {string} home
+ * @returns {Record<string, string>}
+ */
+function trialConfigEnv(home) {
+  const env = { HOME: home };
+  if (process.platform === 'linux') env.XDG_CONFIG_HOME = join(home, '.config');
+  return env;
+}
+
 function makeTrialHome(home, arm, keyFile) {
-  const cfg = wiserUserConfigDir(process.platform, process.env, home);
+  const cfg = wiserUserConfigDir(process.platform, trialConfigEnv(home), home);
+  if (!isWithin(cfg, home)) throw fail(`the trial key path ${cfg} is not inside the trial home; nothing was written.`);
   mkdirSync(cfg, { recursive: true, mode: 0o700 });
   try { chmodSync(cfg, 0o700); } catch { /* platform may ignore */ }
   const envFile = join(cfg, 'auth-provider.env');
@@ -1236,6 +1254,9 @@ async function commandRun(spec, plan, flags, work, keyFile) {
     removed = true;
   };
   try {
+    if (process.platform !== 'darwin' && process.platform !== 'linux') {
+      throw fail(`the trial runner supports macOS and Linux; this is ${process.platform}. Nothing was run.`);
+    }
     const keyPresent = readClassifierKey(keyFile) != null;
     if (!existsSync(keyFile) || !keyPresent) {
       throw fail('key_present: false. The key file has no WISER_CLASSIFIER_KEY value. Set that line and re-run.');
@@ -1294,12 +1315,17 @@ async function commandRun(spec, plan, flags, work, keyFile) {
     const maxTurns = Number.isInteger(spec.max_turns) && spec.max_turns > 0 ? spec.max_turns : 30;
     const deadlineS = Number.isFinite(spec.deadline_s) && spec.deadline_s > 0 ? spec.deadline_s : 720;
     const usageLog = spec.usage_log === true;
+    const classifierRate = typeof spec.classifier_usd_per_call === 'number' && Number.isFinite(spec.classifier_usd_per_call)
+      ? spec.classifier_usd_per_call
+      : CLASSIFIER_USD_PER_CALL_DEFAULT;
     const p90 = typeof plan.usd_p90 === 'number' && Number.isFinite(plan.usd_p90) ? plan.usd_p90 : 0;
     const cases = new Map(spec.cases.map((item) => [item.id, item]));
     const footprints = [];
     let spend = 0;
     let validCount = 0;
 
+    let runError = null;
+    try {
     for (const id of plan.order) {
       const parsed = parseRunId(id);
       if (!parsed || !cases.has(parsed.caseId)) throw fail(`plan.order id is not a case run: ${id}. Re-run plan.`);
@@ -1312,7 +1338,7 @@ async function commandRun(spec, plan, flags, work, keyFile) {
         makeTrialHome(trialHome, parsed.arm, keyFile);
         const root = join(temp, 'roots', id);
         copyRoot(rootSrc, root, spec, fromTemplate);
-        const moved = { HOME: trialHome };
+        const moved = trialConfigEnv(trialHome);
         let usagePath = null;
         if (usageLog) {
           usagePath = join(temp, `usage-${id}.log`);
@@ -1336,7 +1362,11 @@ async function commandRun(spec, plan, flags, work, keyFile) {
           },
         };
         writeFileSync(mcpPath, JSON.stringify(mcp));
-        const settings = { env: moved };
+        const trialCfg = wiserUserConfigDir(process.platform, moved, trialHome);
+        const settings = {
+          env: moved,
+          permissions: { deny: [`Read(/${trialCfg}/**)`, `Read(/${keyFile})`, `Read(/${dirname(keyFile)}/**)`] },
+        };
         const argv = [
           hostBin,
           '-p', caseSpec.ask,
@@ -1368,7 +1398,7 @@ async function commandRun(spec, plan, flags, work, keyFile) {
         if (run.timedOut) reasons.push('deadline');
         if (!result) reasons.push('no result event');
         else if (result.subtype !== 'success') reasons.push(`subtype ${result.subtype == null ? 'missing' : result.subtype}`);
-        const valid = reasons.length === 0;
+        let valid = reasons.length === 0;
         let usd = 0;
         if (!result) usd = p90;
         else if (typeof result.total_cost_usd === 'number' && Number.isFinite(result.total_cost_usd)) usd = result.total_cost_usd;
@@ -1380,6 +1410,10 @@ async function commandRun(spec, plan, flags, work, keyFile) {
             status: line.status ?? null,
             reason: line.reason ?? null,
           }));
+        const answered = firstParty.some((line) => line.status === 'ok');
+        if (parsed.arm === 'C' && !answered) reasons.push('the classifier answered nothing in the on arm');
+        if (parsed.arm === 'E' && answered) reasons.push('the classifier answered in the off arm');
+        valid = reasons.length === 0;
         let classifierCalls = 0;
         if (usageLog && usagePath && existsSync(usagePath)) {
           const text = readFileSync(usagePath, 'utf8');
@@ -1423,7 +1457,7 @@ async function commandRun(spec, plan, flags, work, keyFile) {
         const deliverable = result && typeof result.result === 'string' ? result.result : '';
         writeFileSync(join(runDir, 'deliverable.md'), deliverable);
         writeFileSync(join(runDir, 'stream.jsonl'), run.stdout);
-        spend += usd;
+        spend += usd + (Number.isFinite(classifierCalls) ? classifierCalls : 0) * classifierRate;
 
         const escaped = audit.filter((line) => (
           line.op === 'execute'
@@ -1449,6 +1483,9 @@ async function commandRun(spec, plan, flags, work, keyFile) {
         throw fail(`spend ${spend} passed the plan usd_worst ${plan.usd_worst}. Stopped after ${id}.`);
       }
     }
+    } catch (error) {
+      runError = error;
+    }
 
     const observed = watch.finish();
     const after = hashFiles(realGateway);
@@ -1471,7 +1508,12 @@ async function commandRun(spec, plan, flags, work, keyFile) {
       tree: { commit, digest },
       runs: footprints,
     };
+    safety.stopped_early = runError ? String(runError.message || runError) : null;
     writeFileSync(join(work, 'safety.json'), `${JSON.stringify(safety, null, 2)}\n`);
+    if (runError) {
+      if (stops.length) runError.message = `${runError.message}\nthe real gateway home or key file also changed:\n${stops.join('\n')}`;
+      throw runError;
+    }
     if (stops.length) {
       throw fail(`the real gateway home or key file changed:\n${stops.join('\n')}`);
     }
@@ -1495,6 +1537,29 @@ async function commandRun(spec, plan, flags, work, keyFile) {
     }
     throw error;
   }
+}
+
+/**
+ * Removes, silently, every sentence or line that names how a judgment was
+ * settled (the classifier, a builtin path, a gateway status, the route line), in
+ * both arms alike, so a scorer cannot tell the arm from what the host reported
+ * about its own tools. Returns the text and how many were removed.
+ * @param {string} text
+ * @returns {{ text: string, removed: number }}
+ */
+export function removeProvenance(text) {
+  const tell = /classifier|builtin|needs_subscription|below_threshold|classifier_unbound|wiser\.(route|decide|gate|recall)\.|WISER routing/i;
+  let removed = 0;
+  const lines = String(text || '').split('\n').map((line) => {
+    if (!tell.test(line)) return line;
+    const parts = line.split(/(?<=[.!?])\s+/);
+    const kept = parts.filter((part) => {
+      if (tell.test(part)) { removed += 1; return false; }
+      return true;
+    });
+    return kept.join(' ');
+  });
+  return { text: lines.join('\n'), removed };
 }
 
 /**
@@ -1696,22 +1761,30 @@ async function dispatch(command, flags, rest) {
       packets[i] = packets[j];
       packets[j] = swap;
     }
+    const keyValue = readClassifierKey(keyFileFrom(flags));
     const dir = join(work, 'blind', 'packets');
     mkdirSync(dir, { recursive: true });
     const map = {};
     const order = [];
+    const removed = {};
     for (const packet of packets) {
       const meta = packet.meta;
       const caseSpec = cases.get(meta.case) || { ask: '', rubric: [] };
       let deliverable = '';
       try { deliverable = readFileSync(join(work, 'runs', meta.id, 'deliverable.md'), 'utf8'); } catch { deliverable = ''; }
+      if (keyValue && deliverable.includes(keyValue)) {
+        throw fail(`the deliverable of ${meta.id} holds the classifier key; no packet was written. Run keyscan and remove it.`);
+      }
+      const blinded = removeProvenance(deliverable);
+      deliverable = blinded.text;
+      removed[packet.oid] = blinded.removed;
       const rubric = (caseSpec.rubric || []).map((item) => `- ${item.id}: ${item.text}`).join('\n');
       const body = `## Ask\n\n${caseSpec.ask}\n\n## Rubric\n\n${rubric}\n\n## Deliverable\n\n${deliverable}`;
       writeFileSync(join(dir, `${packet.oid}.md`), body);
       map[packet.oid] = meta.id;
       order.push(packet.oid);
     }
-    const doc = { seed, order, map };
+    const doc = { seed, order, map, provenance_sentences_removed: removed };
     writeFileSync(join(work, 'blind', 'map.json'), `${JSON.stringify(doc, null, 2)}\n`);
     return doc;
   }
@@ -1917,6 +1990,17 @@ function writeReport(work) {
     if (!existsSync(file)) continue;
     try { scoreByRun[meta.id] = JSON.parse(readFileSync(file, 'utf8')); } catch { /* skip */ }
   }
+  const missing = [];
+  for (const id of order) {
+    const meta = byId.get(id);
+    if (!meta || meta.valid !== true) { missing.push(`${id}: no valid run`); continue; }
+    const row = scoreByRun[id];
+    const rubric = ((spec.cases || []).find((item) => item.id === meta.case) || {}).rubric || [];
+    if (!row || row.status === 'unparsed' || !row.scores || !rubric.every((item) => row.scores[item.id] === 0 || row.scores[item.id] === 1)) {
+      missing.push(`${id}: no complete score`);
+    }
+  }
+  if (missing.length) throw fail(`report needs every planned run valid and fully scored; missing:\n${missing.join('\n')}`);
   const totalOf = (meta) => {
     const row = scoreByRun[meta.id];
     if (!row || row.status === 'unparsed' || typeof row.score !== 'number') return null;
@@ -1979,7 +2063,11 @@ function writeReport(work) {
     lineBCases.push({ id: item.id, none_item: item.none_item, scores, pass });
   }
   if (!(spec.cases || []).some((item) => item.none === true)) lineBPass = false;
-  const lineB = { pass: lineBPass, cases: lineBCases };
+  const lineB = {
+    pass: lineBPass,
+    cases: lineBCases,
+    basis: 'judged from each on-arm deliverable by its none item; this runner does not record the classifier answer itself',
+  };
   const lineCCases = {};
   let lineCPass = true;
   for (const item of spec.cases || []) {
@@ -2025,6 +2113,7 @@ function writeReport(work) {
   const repeats = Number.isInteger(spec.repeats) ? spec.repeats : null;
   let hostUsd = 0;
   let judgeUsd = 0;
+  const classifierUsd = ordered.reduce((sum, meta) => sum + (Number.isFinite(meta.classifier_calls) ? meta.classifier_calls : 0) * rate, 0);
   for (const meta of ordered) {
     if (Number.isFinite(meta.usd)) hostUsd += meta.usd;
     const row = scoreByRun[meta.id];
@@ -2044,7 +2133,7 @@ function writeReport(work) {
       usd_expected: plan.usd_expected ?? null,
       usd_worst: plan.usd_worst ?? null,
     },
-    actual: { host_usd: hostUsd, judge_usd: judgeUsd, usd: hostUsd + judgeUsd },
+    actual: { host_usd: hostUsd, judge_usd: judgeUsd, classifier_usd: classifierUsd, usd: hostUsd + judgeUsd + classifierUsd },
   };
   writeFileSync(join(work, 'verdict.json'), `${JSON.stringify(verdict, null, 2)}\n`);
   return verdict;
