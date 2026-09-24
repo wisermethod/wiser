@@ -1,8 +1,8 @@
 {
   "name": "wiser-method",
   "owner": {
-    "name": "WiserMind.ai",
-    "url": "https://wisermind.ai"
+    "name": "Wiser Memory",
+    "url": "https://wisermemory.com"
   },
   "description": "Wiser, the general knowledge-work plugin.",
   "plugins": [
