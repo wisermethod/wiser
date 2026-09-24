@@ -37,7 +37,7 @@ The call goes through `hooks/lib/call.mjs`. When `WISER_HOOK_STUB_FILE` names a 
 
 ## Trial runner
 
-`trial.mjs` runs a paired trial: the same cases, host on (`C`) and host off (`E`), in a seeded order. The skill that calls it decides and talks to the person. This script is the machinery.
+`trial.mjs` runs a paired trial: the same cases run by a headless Claude Code host with the classifier on (`C`) and off (`E`), in a seeded order. The skill that calls it decides and talks to the person. This script is the machinery.
 
 ```
 node tools/lib/classifier/trial.mjs <command> [flags]
@@ -55,9 +55,27 @@ node tools/lib/classifier/trial.mjs <command> [flags]
 | `report` | `--work` | `<work>/verdict.json` |
 | `keyscan` | `--work`, `--key-file`, extra directories | nothing; prints counts |
 
-`plan` reads `<work>/spec.json`. It refuses a `kind` other than `routing` or `seam`, no cases, a case with no `id`, `ask`, or `rubric`, fewer than one case with `"none": true`, `repeats` under 3, a non-absolute `tree` or `classifier`, and a tree without `gateway/server.js` and `skills/AGENTS.md`. Dollar figures come from `usd_per_run` in the spec, else the median `usd` of `meta.json` files under the parent of `--work` whose `model` matches, else the table in `COST_TABLE` (`opus`, `sonnet`, `haiku`, and the judge row). `needs_go` is true when there is no ceiling or `usd_worst` exceeds it.
+`plan` reads `<work>/spec.json`:
+
+```
+{
+  "kind": "routing" | "seam",
+  "tree": "<abs plugin dir>", "commit": "<optional rev, exported with git archive>",
+  "classifier": "<abs dir the gateway loads with --classifier>",
+  "model": "<host model id>", "effort": "<optional>",
+  "repeats": 3, "seed": <int>, "max_turns": 30, "deadline_s": 720,
+  "root": "<optional abs dir of a synthetic root>", "root_files": {"<rel path>": "<content>"},
+  "usd_per_run": <optional>, "calls_per_run": <optional>, "classifier_usd_per_call": <optional>,
+  "cases": [ {"id": "c1", "ask": "...", "expect": "skills/X/SKILL.md" | "experts/Y/EXPERT.md" | "none",
+              "rubric": [{"id": "S1", "text": "..."}], "none": false, "none_item": "<rubric id when none is true>"} ]
+}
+```
+
+Without `root`, each run's root is built from `system/templates/User Root Template/` and declared `type: personal`; a named `root` is copied as it is. It refuses a `kind` other than `routing` or `seam`, no cases, a case with no `id`, `ask`, or `rubric`, fewer than one case with `"none": true`, `repeats` under 3, a non-absolute `tree` or `classifier`, and a tree without `gateway/server.js` and `skills/AGENTS.md`. Dollar figures come from `usd_per_run` in the spec, else the median `usd` of `meta.json` files under the parent of `--work` whose `model` matches, else the table in `COST_TABLE` (`opus`, `sonnet`, `haiku`, and the judge row). `needs_go` is true when there is no ceiling or `usd_worst` exceeds it.
 
 `run` refuses without `plan.json`, and when `needs_go` is true and `--go` is absent. Each run is `<case>-<arm>-<repeat>` in `plan.order`. Arm `C` symlinks `auth-provider.env` at the trial home's platform config path to `--key-file` (default `defaultProviderEnvPath()`). Arm `E` writes the three empty lines, mode 0600. The host keeps the real `HOME`. `HOME` moves only in `--settings` `env` and the gateway MCP `env`. Temp state is removed at the end, including after a stop, unless `--keep-temp`.
+
+**What stops `run`**, each before or after the host runs as stated, with the reason on stderr and the records so far kept: the key file has no `WISER_CLASSIFIER_KEY` value; the lock proof, a connector `execute` put to a fresh gateway started as a `C` run's is, does not answer `needs_connect`; a connector `execute` answers `ok` in any trial home; a run's session id appears in any file under the real gateway home; a run invalid twice; spend past `usd_worst`; and the real gateway home or key file changing between before the first run and after the last. On that last one, the key file and every file a trial could write are strict. A change to another harness's presence file, `classifier-status/<harness>.json` other than `claude-code.json`, is attributed to that session and does not stop the run when the process it names was alive and did not descend from this script when a watcher polling every 2 s first saw it; otherwise it stops. `safety.json` records the lock proof, both hash sets, what changed, what stopped, what was attributed, and each run's footprint check.
 
 `blind` writes one packet per valid run: the ask, the rubric items, and the deliverable. The map from opaque id to run id is a separate file. `score` asks for one fenced JSON block and records `scores`, `reasons`, `score`, and `usd`, or `status: unparsed`. `report` writes the five pass lines from `standards/primitives.md` `## Classifier Seam`. `release` is always `a separate decision; this verdict releases nothing`.
 

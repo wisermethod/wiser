@@ -830,6 +830,66 @@ test('report pass lines, overlap, and the noise note', () => {
   assert.equal(apart.seam_passes, true, JSON.stringify(apart.lines));
 });
 
+test('another harness presence file is attributed only when its process was alive and outside the trial', { timeout: 180000 }, () => {
+  function prepare(ask) {
+    const box = world();
+    const tree = syntheticTree(join(box.parent, 'tree'));
+    writeFileSync(join(tree, 'trial-open.json'), `${JSON.stringify({ [ask]: { expect: 'none', via: 'read' } })}\n`);
+    const classifier = classifierAt(join(box.parent, 'classifier'));
+    writeSpec(box.work, validSpec(tree, classifier, {
+      cases: [{ id: 'none', ask, expect: 'none', rubric: [{ id: 'N1', text: 'It answers none.' }], none: true, none_item: 'N1' }],
+    }));
+    const ceiling = join(box.parent, 'ceiling.json');
+    jsonOut(runCli(['ceiling', '--ceiling-file', ceiling, '--usd', '100'], box.home));
+    jsonOut(runCli(['plan', '--work', box.work, '--ceiling-file', ceiling], box.home));
+    return box;
+  }
+  const live = prepare('PLANT_PRESENCE_LIVE\nAnswer none of the candidates.');
+  const liveRun = runCli(['run', '--work', live.work], live.home, { WISER_TRIAL_HOST: hostPath, FAKE_LIVE_PID: String(process.pid) });
+  assert.equal(liveRun.status, 0, liveRun.stderr);
+  const liveSafety = JSON.parse(readFileSync(join(live.work, 'safety.json'), 'utf8'));
+  assert.ok(liveSafety.changed.some((p) => p.endsWith('codex.json')));
+  assert.deepEqual(liveSafety.stops, []);
+  assert.equal(liveSafety.attributed.length, 1);
+  assert.equal(liveSafety.attributed[0].pid, process.pid);
+
+  for (const marker of ['PLANT_PRESENCE_DEAD', 'PLANT_PRESENCE_OURS']) {
+    const box = prepare(`${marker}\nAnswer none of the candidates.`);
+    const run = runCli(['run', '--work', box.work], box.home, { WISER_TRIAL_HOST: hostPath });
+    assert.equal(run.status, 1, `${marker} should stop`);
+    assert.match(run.stderr, /codex\.json/);
+    const safety = JSON.parse(readFileSync(join(box.work, 'safety.json'), 'utf8'));
+    assert.ok(safety.stops.some((p) => p.endsWith('codex.json')));
+    assert.equal(safety.attributed.length, 0);
+  }
+});
+
+test('a root the person names keeps its own declaration; a template root is declared personal', { timeout: 180000 }, () => {
+  const box = world();
+  const tree = syntheticTree(join(box.parent, 'tree'));
+  const ask = 'Answer none of the candidates.';
+  writeFileSync(join(tree, 'trial-open.json'), `${JSON.stringify({ [ask]: { expect: 'none', via: 'read' } })}\n`);
+  const own = join(box.parent, 'own-root');
+  mkdirSync(own, { recursive: true });
+  writeFileSync(join(own, 'AGENTS.md'), '---\nroot: mine\ntype: org\nlayout: 3\nclassifier_refusal: no\n---\n\n# mine\n');
+  const classifier = classifierAt(join(box.parent, 'classifier'));
+  writeSpec(box.work, validSpec(tree, classifier, {
+    root: own,
+    cases: [{ id: 'none', ask, expect: 'none', rubric: [{ id: 'N1', text: 'It answers none.' }], none: true, none_item: 'N1' }],
+  }));
+  const ceiling = join(box.parent, 'ceiling.json');
+  jsonOut(runCli(['ceiling', '--ceiling-file', ceiling, '--usd', '100'], box.home));
+  jsonOut(runCli(['plan', '--work', box.work, '--ceiling-file', ceiling], box.home));
+  const run = runCli(['run', '--work', box.work, '--keep-temp'], box.home, { WISER_TRIAL_HOST: hostPath });
+  assert.equal(run.status, 0, run.stderr);
+  const temp = JSON.parse(run.stdout).temp_dir;
+  const roots = readdirSync(join(temp, 'roots'));
+  const text = readFileSync(join(temp, 'roots', roots[0], 'AGENTS.md'), 'utf8');
+  assert.match(text, /^root: mine$/m);
+  assert.match(text, /^type: org$/m);
+  rmSync(temp, { recursive: true, force: true });
+});
+
 test('keyscan is clean, finds a planted key, and fails closed with no value', () => {
   const box = world();
   writeFileSync(join(box.work, 'note.txt'), 'nothing to see\n');

@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import {
   chmodSync,
@@ -16,7 +16,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { delimiter, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { basename, delimiter, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createInterface } from 'node:readline';
 import {
@@ -457,6 +457,111 @@ function hashOne(file) {
   } catch {
     return null;
   }
+}
+
+/**
+ * The pid a presence file names, or null.
+ * @param {string} file
+ * @returns {number | null}
+ */
+function presencePid(file) {
+  try {
+    const pid = JSON.parse(readFileSync(file, 'utf8')).pid;
+    return Number.isInteger(pid) && pid > 0 ? pid : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The process and its ancestors, nearest first; empty when `ps` does not know the pid.
+ * @param {number} pid
+ * @returns {number[]}
+ */
+function ancestorsOf(pid) {
+  const chain = [];
+  let cur = pid;
+  while (Number.isInteger(cur) && cur > 1 && chain.length < 64) {
+    let out = '';
+    try {
+      out = execFileSync('ps', ['-o', 'ppid=', '-p', String(cur)], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    } catch {
+      break;
+    }
+    chain.push(cur);
+    const next = Number.parseInt(out, 10);
+    if (!Number.isInteger(next) || next === cur) break;
+    cur = next;
+  }
+  return chain;
+}
+
+/**
+ * Watches every other harness's presence file under the real gateway home while
+ * the runs go, and records, the first time a file names a pid, whether that
+ * process was alive and whether this script is among its ancestors. Another
+ * session's gateway, a reviewer's especially, often exits before the runs end,
+ * so it is judged when it writes rather than afterwards.
+ * @param {string} realGateway
+ */
+function watchPresence(realGateway) {
+  const seen = new Map();
+  const dir = join(realGateway, 'classifier-status');
+  const poll = () => {
+    let names = [];
+    try { names = readdirSync(dir); } catch { return; }
+    for (const name of names) {
+      if (!name.endsWith('.json') || name === 'claude-code.json') continue;
+      const file = join(dir, name);
+      const pid = presencePid(file);
+      const key = `${file}\0${pid}`;
+      if (pid == null || seen.has(key)) continue;
+      const chain = ancestorsOf(pid);
+      seen.set(key, {
+        path: file,
+        pid,
+        alive: chain[0] === pid,
+        ours: chain.includes(process.pid),
+        ancestors: chain,
+        at: new Date().toISOString(),
+      });
+    }
+  };
+  poll();
+  const timer = setInterval(poll, 2000);
+  return {
+    seen,
+    finish() {
+      clearInterval(timer);
+      poll();
+      return [...seen.values()];
+    },
+  };
+}
+
+/**
+ * The key file and every file a trial could write stay strict. A change to another
+ * harness's presence file, `classifier-status/<harness>.json` other than
+ * `claude-code.json`, stops the run only when the process it names was not alive
+ * when the watcher saw it, or descends from this script; otherwise it is recorded
+ * as attributed to that other session.
+ * @param {string[]} changed
+ * @param {string} realGateway
+ * @param {Map<string, object>} seen
+ * @returns {{ stops: string[], attributed: object[] }}
+ */
+function judgeChanges(changed, realGateway, seen) {
+  const stops = [];
+  const attributed = [];
+  const dir = join(realGateway, 'classifier-status');
+  for (const file of changed) {
+    const other = dirname(file) === dir && file.endsWith('.json') && basename(file) !== 'claude-code.json';
+    const pid = other && existsSync(file) ? presencePid(file) : null;
+    const obs = pid == null ? null : seen.get(`${file}\0${pid}`);
+    if (obs && obs.alive && !obs.ours) attributed.push(obs);
+    else stops.push(file);
+  }
+  return { stops, attributed };
 }
 
 /**
@@ -1010,7 +1115,7 @@ function lockProof(opts) {
  * @param {string} dest
  * @param {object} spec
  */
-function copyRoot(src, dest, spec) {
+function copyRoot(src, dest, spec, fromTemplate) {
   rmSync(dest, { recursive: true, force: true });
   mkdirSync(dirname(dest), { recursive: true });
   cpSync(src, dest, {
@@ -1026,11 +1131,14 @@ function copyRoot(src, dest, spec) {
   try { text = readFileSync(agents, 'utf8'); } catch {
     throw fail(`root copy has no AGENTS.md: ${dest}`);
   }
-  writeFileSync(agents, setFrontmatter(text, {
-    root: 'trial',
-    type: 'personal',
-    classifier_refusal: 'no',
-  }));
+  // Only a root built from the template is given a declaration; a root the person names keeps its own.
+  if (fromTemplate) {
+    writeFileSync(agents, setFrontmatter(text, {
+      root: 'trial',
+      type: 'personal',
+      classifier_refusal: 'no',
+    }));
+  }
   const files = spec.root_files && typeof spec.root_files === 'object' ? spec.root_files : {};
   for (const [rel, content] of Object.entries(files)) {
     if (typeof rel !== 'string' || isAbsolute(rel) || rel.split(/[\\/]/).includes('..')) {
@@ -1097,9 +1205,10 @@ async function commandRun(spec, plan, flags, work, keyFile) {
     }
     const digest = contentDigest(tree);
 
-    const rootSrc = typeof spec.root === 'string' && spec.root.length > 0
-      ? canonicalPath(spec.root)
-      : join(tree, 'system', 'templates', 'User Root Template');
+    const fromTemplate = !(typeof spec.root === 'string' && spec.root.length > 0);
+    const rootSrc = fromTemplate
+      ? join(tree, 'system', 'templates', 'User Root Template')
+      : canonicalPath(spec.root);
     if (!existsSync(rootSrc)) throw fail(`root source does not exist: ${rootSrc}`);
 
     const proofHome = join(temp, 'homes', 'lock-proof');
@@ -1123,6 +1232,7 @@ async function commandRun(spec, plan, flags, work, keyFile) {
     const before = hashFiles(realGateway);
     const keyHashBefore = hashOne(keyFile);
     if (keyHashBefore) before[keyFile] = keyHashBefore;
+    const watch = watchPresence(realGateway);
 
     const candidates = typedCandidates(tree);
     const model = typeof spec.model === 'string' ? spec.model : '';
@@ -1147,7 +1257,7 @@ async function commandRun(spec, plan, flags, work, keyFile) {
         mkdirSync(trialHome, { recursive: true });
         makeTrialHome(trialHome, parsed.arm, keyFile);
         const root = join(temp, 'roots', id);
-        copyRoot(rootSrc, root, spec);
+        copyRoot(rootSrc, root, spec, fromTemplate);
         const moved = { HOME: trialHome };
         let usagePath = null;
         if (usageLog) {
@@ -1286,21 +1396,26 @@ async function commandRun(spec, plan, flags, work, keyFile) {
       }
     }
 
+    const observed = watch.finish();
     const after = hashFiles(realGateway);
     const keyHashAfter = hashOne(keyFile);
     if (keyHashAfter) after[keyFile] = keyHashAfter;
     const changed = changedPaths(before, after);
+    const { stops, attributed } = judgeChanges(changed, realGateway, watch.seen);
     const safety = {
       lock_proof: { status: 'needs_connect', action: 'google.gmail.list_messages' },
       before,
       after,
       changed,
+      stops,
+      attributed,
+      presence_observed: observed,
       tree: { commit, digest },
       runs: footprints,
     };
     writeFileSync(join(work, 'safety.json'), `${JSON.stringify(safety, null, 2)}\n`);
-    if (changed.length) {
-      throw fail(`the real gateway home or key file changed:\n${changed.join('\n')}`);
+    if (stops.length) {
+      throw fail(`the real gateway home or key file changed:\n${stops.join('\n')}`);
     }
     removeTemp();
     return {

@@ -109,6 +109,18 @@ if (prompt.includes('PLANT_GATEWAY')) {
   mkdirSync(realGateway, { recursive: true });
   writeFileSync(join(realGateway, 'planted-by-host.txt'), 'changed\n');
 }
+// Presence files another harness's gateway would write: a live process outside the trial,
+// a dead one, and this host's own process, which descends from the runner.
+for (const [marker, pidOf] of [
+  ['PLANT_PRESENCE_LIVE', () => Number(process.env.FAKE_LIVE_PID)],
+  ['PLANT_PRESENCE_DEAD', () => 2147483000],
+  ['PLANT_PRESENCE_OURS', () => process.pid],
+]) {
+  if (!prompt.includes(marker)) continue;
+  mkdirSync(join(realGateway, 'classifier-status'), { recursive: true });
+  writeFileSync(join(realGateway, 'classifier-status', 'codex.json'), `${JSON.stringify({ attached: false, pid: pidOf() })}\n`);
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 3000);
+}
 if (prompt.includes('PLANT_SESSION')) {
   mkdirSync(realGateway, { recursive: true });
   writeFileSync(join(realGateway, 'leak.txt'), `${sessionId}\n`);
