@@ -1481,8 +1481,12 @@ async function commandRun(spec, plan, flags, work, keyFile) {
             reason: line.reason ?? null,
           }));
         const seamAction = typeof spec.seam_action === 'string' && spec.seam_action ? spec.seam_action : 'wiser.route.ask';
-        const answered = firstParty.some((line) => line.action === seamAction && line.status === 'ok');
-        const anyAnswer = firstParty.some((line) => line.status === 'ok');
+        // The classifier answered when the adapter settled the call: `ok`, or `below_threshold`, which is
+        // how a routing ask says it is not confident enough to pick, the hook's `none`. A gateway status
+        // (`classifier_unbound`, `needs_subscription`) or `unavailable` means it did not answer.
+        const ANSWERED = new Set(['ok', 'below_threshold']);
+        const answered = firstParty.some((line) => line.action === seamAction && ANSWERED.has(line.status));
+        const anyAnswer = firstParty.some((line) => ANSWERED.has(line.status));
         if (parsed.arm === 'C' && !answered) reasons.push(`${seamAction} did not answer in the on arm`);
         if (!parsedStream.route.observed) reasons.push('the route hook reply is not in the stream');
         if (parsed.arm === 'E' && parsedStream.route.answer && parsedStream.route.answer !== 'none') reasons.push('the route hook routed in the off arm');

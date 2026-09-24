@@ -147,7 +147,7 @@ if (trialHome && link) {
     ? [{ op: 'execute', action: 'wiser.route.ask', status: 'classifier_unbound', reason: 'stale-session' }]
     : [
       { op: 'execute', action: 'wiser.route.roster', status: 'ok', reason: null },
-      { op: 'execute', action: 'wiser.route.ask', status: 'ok', reason: null },
+      { op: 'execute', action: 'wiser.route.ask', status: prompt.includes('BELOW_THRESHOLD') ? 'below_threshold' : 'ok', reason: null },
     ];
   if (prompt.includes('CONNECTOR_OK')) audit.push({ op: 'execute', action: 'google.gmail.list_messages', status: 'ok', reason: null });
   mkdirSync(gw, { recursive: true });

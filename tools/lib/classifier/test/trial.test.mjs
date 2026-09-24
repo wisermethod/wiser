@@ -1047,6 +1047,25 @@ test('a run whose stream lacks the route hook reply is invalid; an off-arm route
   assert.match(run.stderr, /route hook reply is not in the stream/);
 });
 
+test('a below_threshold routing answer is the classifier answering none, and the run is valid', { timeout: 180000 }, () => {
+  const box = world();
+  const tree = syntheticTree(join(box.parent, 'tree'));
+  const ask = 'BELOW_THRESHOLD\nAnswer none of the candidates.';
+  writeFileSync(join(tree, 'trial-open.json'), `${JSON.stringify({ [ask]: { expect: 'none', via: 'read' } })}\n`);
+  const classifier = classifierAt(join(box.parent, 'classifier'));
+  writeSpec(box.work, validSpec(tree, classifier, {
+    cases: [{ id: 'none', ask, expect: 'none', rubric: [{ id: 'N1', text: 'It answers none.' }], none: true, none_item: 'N1' }],
+  }));
+  const ceiling = join(box.parent, 'ceiling.json');
+  jsonOut(runCli(['ceiling', '--ceiling-file', ceiling, '--usd', '100'], box.home));
+  jsonOut(runCli(['plan', '--work', box.work, '--ceiling-file', ceiling], box.home));
+  const run = runCli(['run', '--work', box.work], box.home, { WISER_TRIAL_HOST: hostPath });
+  assert.equal(run.status, 0, run.stderr);
+  const meta = JSON.parse(readFileSync(join(box.work, 'runs', 'none-C-1', 'meta.json'), 'utf8'));
+  assert.equal(meta.valid, true);
+  assert.equal(meta.route_answer, 'none');
+});
+
 test('keyscan is clean, finds a planted key, and fails closed with no value', () => {
   const box = world();
   writeFileSync(join(box.work, 'note.txt'), 'nothing to see\n');
