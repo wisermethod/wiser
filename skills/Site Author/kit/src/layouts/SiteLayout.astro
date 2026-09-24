@@ -14,7 +14,8 @@ if (!title?.trim() || !description?.trim()) {
   throw new Error('Every page requires a title and description.');
 }
 const SITE_URL = kit.siteUrl;
-const path = Astro.url.pathname.replace(/\/+$/, '') || '/';
+// With build.format 'file' the build-time pathname ends in .html (/index.html, /articles/x.html); the public URL does not.
+const path = Astro.url.pathname.replace(/\.html$/, '').replace(/\/index$/, '').replace(/\/+$/, '') || '/';
 const canonical = SITE_URL + path;
 const image = new URL(article?.data.hero ?? '/images/og-default.png', SITE_URL).href;
 const home = await getEntry('pages', 'index');
