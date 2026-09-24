@@ -1,0 +1,7 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+// Without a top-level 404.html, Cloudflare Pages treats the site as a single-page app and serves the homepage for every missing path.
+---
+<SiteLayout title="Page not found" description="There is no page at this address." noindex>
+  <p>There is no page at this address.</p>
+</SiteLayout>

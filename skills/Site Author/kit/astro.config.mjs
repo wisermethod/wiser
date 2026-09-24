@@ -15,6 +15,9 @@ export default defineConfig({
   site: kit.siteUrl,
   output: 'static',
   trailingSlash: 'never',
+  // A route builds as <slug>.html, which Cloudflare Pages and most static hosts serve at the slashless URL;
+  // the default <slug>/index.html is redirected to a trailing slash, contradicting the canonical.
+  build: { format: 'file' },
   // Drafts have no generated routes, so sitemap and Pagefind cannot include them.
   integrations: [mdx(), sitemap(), pagefind()],
   vite: { plugins: [tailwindcss()] },

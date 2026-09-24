@@ -52,6 +52,8 @@ Stand-up fails `check` without every row.
 | Redirects | `public/_redirects`; a published slug is not deleted without a row |
 | Drafts | `draft: true` excluded from sitemap, RSS, and canonical index |
 
+Routes build as `<slug>.html` (`build.format: 'file'`), so a static host serves them at the slashless URL the canonical names; the default `<slug>/index.html` is redirected to a trailing slash by Cloudflare Pages. A top-level `404.html` ships from `src/pages/404.astro`, marked `noindex` and left out of Pagefind's index; without it Cloudflare Pages serves the homepage for every missing path. The page id `404` is reserved: `check` fails a `src/content/pages/404.md`. `vercel.json` at the kit root and `public/vercel.json` both turn on Vercel's `cleanUrls` with `trailingSlash: false`, which Vercel needs to serve `<slug>.html` at the slashless URL. The first covers an upload of `site/`, the second lands at the root of `dist/`. Cloudflare Pages ignores both. `check` fails a site missing any of the three, so an older site is told to run Upgrade.
+
 A missing description in frontmatter fails `check` rather than shipping an empty meta tag. Empty `pubDate` on an article fails `check`.
 
 ## Content vs code
@@ -69,7 +71,7 @@ A token update changes the values in `tokens.css`'s `@theme` block and may repla
 
 ## Collections
 
-`pages`, `articles`, `authors` always in the schema. `sections` / `issues` exist in the schema and stay disabled unless stand-up is magazine. A brochure and a magazine are one kit.
+`pages`, `articles`, `authors` always in the schema. An author may set `type: Organization` for an organisation byline; it defaults to `Person` in the Article JSON-LD. `sections` / `issues` exist in the schema and stay disabled unless stand-up is magazine. A brochure and a magazine are one kit.
 
 ## Frontmatter for articles
 

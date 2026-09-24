@@ -7,8 +7,9 @@ interface Props {
   title: string;
   description: string;
   article?: CollectionEntry<'articles'>;
+  noindex?: boolean;
 }
-const { title, description, article } = Astro.props;
+const { title, description, article, noindex } = Astro.props;
 if (!title?.trim() || !description?.trim()) {
   throw new Error('Every page requires a title and description.');
 }
@@ -53,7 +54,7 @@ if (article) {
     mainEntityOfPage: canonical,
     isPartOf: { '@id': websiteId },
     ...(organization ? { publisher: { '@id': organizationId } } : {}),
-    author: { '@type': 'Person', name: author.data.name, ...(author.data.url ? { url: author.data.url } : {}) },
+    author: { '@type': author.data.type ?? 'Person', name: author.data.name, ...(author.data.url ? { url: author.data.url } : {}) },
     keywords: article.data.tags,
   });
 }
@@ -66,6 +67,7 @@ const jsonLd = JSON.stringify({ '@context': 'https://schema.org', '@graph': grap
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex" />}
     <link rel="canonical" href={canonical} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
@@ -79,7 +81,7 @@ const jsonLd = JSON.stringify({ '@context': 'https://schema.org', '@graph': grap
   <body>
     <a class="skip-link" href="#content">Skip to content</a>
     <header><nav aria-label="Main"><a href="/">Home</a><a href="/rss.xml">RSS</a></nav></header>
-    <main id="content" class="prose" data-pagefind-body>
+    <main id="content" class="prose" data-pagefind-body={noindex ? undefined : ""}>
       <h1>{title}</h1>
       <slot />
     </main>

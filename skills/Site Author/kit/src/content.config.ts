@@ -32,7 +32,7 @@ const articles = defineCollection({
 });
 const authors = defineCollection({
   loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/authors' }),
-  schema: z.object({ name: text, description: text.optional(), url: z.string().url().optional() }),
+  schema: z.object({ name: text, description: text.optional(), url: z.string().url().optional(), type: z.enum(['Person', 'Organization']).optional() }),
 });
 const sections = defineCollection({
   loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/sections' }),
