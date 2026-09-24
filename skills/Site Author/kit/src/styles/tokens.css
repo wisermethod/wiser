@@ -1,12 +1,22 @@
+/* Font source. A token update may replace this comment with one @import url(...) line loading the site's web fonts. It stays the first statement in the file. */
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+/* Tokens. A Designer-gated token update changes values in this block and the font-source line above, and nothing below this block. Every role token defaults to the palette tokens, so a site that sets only paper, ink and link needs nothing else. */
 @theme {
   --color-paper: #faf9f6;
   --color-ink: #202b32;
   --color-link: #245775;
+  --color-title: var(--color-ink);
+  --color-heading: var(--color-ink);
+  --color-meta: var(--color-ink);
+  --color-nav: var(--color-link);
   --font-sans: system-ui, sans-serif;
   --font-serif: Georgia, serif;
+  --font-title: var(--font-serif);
+  --font-heading: var(--font-serif);
+  --title-style: normal;
+  --text-prose: 1rem;
   --spacing: 0.25rem;
   --spacing-gutter: clamp(1rem, 4vw, 2.5rem);
   --spacing-section: 3rem;
@@ -15,12 +25,36 @@
 @layer base {
   body { margin: 0; background: var(--color-paper); color: var(--color-ink); font-family: var(--font-sans); }
   header, main { max-width: 48rem; margin-inline: auto; padding-inline: var(--spacing-gutter); }
-  header { padding-block: 1.5rem; }
-  nav { display: flex; gap: 1.5rem; }
-  main.prose { max-width: 48rem; padding-block: var(--spacing-section); --tw-prose-body: var(--color-ink); --tw-prose-headings: var(--color-ink); --tw-prose-links: var(--color-link); }
-  h1, h2, h3 { font-family: var(--font-serif); }
+  header { padding-block: 1rem; color: var(--color-meta); }
+  nav { display: flex; gap: 1rem; }
+  nav a { display: inline-flex; align-items: center; min-height: 44px; padding-inline: 0.5rem; color: var(--color-nav); }
+  main.prose { max-width: 48rem; padding-block: var(--spacing-section); }
   a { color: var(--color-link); }
   :focus-visible { outline: 2px solid var(--color-link); outline-offset: 4px; }
   .skip-link { position: absolute; left: 1rem; top: -5rem; }
   .skip-link:focus { top: 1rem; background: var(--color-paper); padding: 0.5rem; }
+}
+
+/* @tailwindcss/typography sets its prose colours and size in the utilities layer, which outranks base, so the kit's prose rules live there too. */
+@layer utilities {
+  main.prose {
+    font-size: var(--text-prose);
+    --tw-prose-body: var(--color-ink);
+    --tw-prose-lead: var(--color-ink);
+    --tw-prose-headings: var(--color-heading);
+    --tw-prose-links: var(--color-link);
+    --tw-prose-bold: var(--color-heading);
+    --tw-prose-counters: var(--color-meta);
+    --tw-prose-bullets: var(--color-meta);
+    --tw-prose-hr: var(--color-meta);
+    --tw-prose-quotes: var(--color-title);
+    --tw-prose-quote-borders: var(--color-meta);
+    --tw-prose-captions: var(--color-meta);
+    --tw-prose-code: var(--color-heading);
+    --tw-prose-th-borders: var(--color-meta);
+    --tw-prose-td-borders: var(--color-meta);
+  }
+  main.prose > h1 { font-family: var(--font-title); font-style: var(--title-style); color: var(--color-title); }
+  main.prose h2, main.prose h3 { font-family: var(--font-heading); color: var(--color-heading); }
+  main.prose small { color: var(--color-meta); }
 }

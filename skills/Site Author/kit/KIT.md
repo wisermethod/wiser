@@ -65,6 +65,8 @@ A missing description in frontmatter fails `check` rather than shipping an empty
 
 A request to add a component or edit `astro.config.mjs` is refused. A request to add `src/content/articles/hello.md` with required frontmatter succeeds.
 
+A token update changes the values in `tokens.css`'s `@theme` block and may replace the font-source comment at the top of the file with one `@import url(...)` line that loads the site's web fonts. The base and utilities layers below the `@theme` block are kit code: a token update never edits them, and Upgrade replaces them. The role tokens (`--color-title`, `--color-heading`, `--color-meta`, `--color-nav`, `--font-title`, `--font-heading`, `--title-style`, `--text-prose`) default to the palette tokens, so a site that sets only `--color-paper`, `--color-ink` and `--color-link` needs nothing else. The kit's prose colours sit in the utilities layer, beside `@tailwindcss/typography`'s own, so the tokens reach body text and headings on a dark palette as well as a light one. Until 2026-09-24 they sat in the base layer, which the typography plugin's defaults outrank, so prose text rendered in the plugin's slate whatever `--color-ink` said. `check` fails a `tokens.css` that still sets prose colours in the base layer. Upgrade replaces `tokens.css` with the kit defaults, as it replaces every kit file present in the template, so a customised site reapplies its token update after Upgrade; only then do body text and headings show its own ink. Navigation links carry a 44px minimum target.
+
 ## Collections
 
 `pages`, `articles`, `authors` always in the schema. `sections` / `issues` exist in the schema and stay disabled unless stand-up is magazine. A brochure and a magazine are one kit.
@@ -111,5 +113,5 @@ Node 22.12 or newer (Astro 7's floor). The 2026-09-08 Playbook said 18; current 
 2. Read `kit.json`. `kitVersion` matches this file. `siteUrl` has no trailing path or slash.
 3. Confirm `trailingSlash: 'never'` in the Astro config.
 4. Confirm collections schema includes `pages`, `articles`, `authors`, and disabled `sections` / `issues` unless magazine.
-5. For every content file in `pages` and `articles`, required frontmatter is present. Articles: `title`, `description`, `pubDate`, `author`, `tags`, `draft`.
+5. For every content file in `pages` and `articles`, required frontmatter is present. Articles: `title`, `description`, `pubDate`, `author`, `tags`, `draft`. `src/styles/tokens.css` carries the kit's `@layer base` and `@layer utilities` blocks, sets its prose colours in the utilities block, and sets none in the base block.
 6. After `npm run dev` or `build` plus preview, fetch `/`, one article route, sitemap, RSS (if articles enabled), `/llms.txt`, `/robots.txt`. Homepage `<head>` carries title, meta description, canonical, `og:title`, `og:description`, `og:url`, JSON-LD WebSite + Organization. Canonical and `og:url` use `kit.json` `siteUrl`. Article route additionally carries Article JSON-LD. Drafts are absent from sitemap, RSS, and canonical index.
