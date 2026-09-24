@@ -3,7 +3,7 @@ name: Headshot Normalizer
 type: skill
 category: media
 description: Turn photographs into square transparent PNGs whose faces sit at the same size and the same place in the frame, by removing each background, measuring the eyes, and cutting every frame to one standard, reporting the transparent band left where a photograph is too short to fill its frame.
-version: 0.12.4
+version: 0.12.5
 ---
 
 # Headshot Normalizer
@@ -120,7 +120,7 @@ Platform calls use the gateway's `execute` tool with the ids below. Under the co
 - **A batch under two standards.** Changing a parameter part way through a set produces files that each look correct and do not match, which is the one failure this skill exists to prevent and the hardest to see one file at a time. Closing a transparent band does the same thing without anyone changing a parameter: a photograph too short to fill the frame, enlarged or shifted down until it does, carries its eyes off the standard while looking finished alone. The band is never closed; Step 5 leaves it and Step 8 names its height.
 - **The bystander.** The largest face wins, and in a photograph where the subject stands behind someone the largest face is the wrong person. Say how many faces were found; a count above one is the caller's cue to look before the file ships.
 - **Rerunning a miss.** Both calls bill again and neither is random, so the same photograph returns the same failure at the same cost. Change the photograph.
-- **An ambiguous request.** A request that does not say where the files go, or which face is the subject, gets a question before any billed call, never a default. Where the caller stated no frame numbers, apply The Frame, state the three numbers back, and have the caller confirm them before any billed call.
+- **An ambiguous request.** A request that does not say where the files go, or, where the photographs may hold more than one person, which face is the subject, gets a question before any billed call, never a default; with only one person, Step 4's rule chooses the face. Where the caller stated no frame numbers, apply The Frame, state the three numbers back, and have the caller confirm them before any billed call.
 
 ## Success
 
