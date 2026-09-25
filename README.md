@@ -24,7 +24,7 @@ Each family keeps its own index: `skills/AGENTS.md`, `experts/AGENTS.md`, `tools
 
 Install Wiser, then attach your working folder. If your folder has no `AGENTS.md` yet, ask Wiser to set it up; it can start a new folder or adopt one that already holds work.
 
-- **Claude Cowork.** Open Customize, then Plugins, then Add marketplace. Give it `wisermethod/wiser`, install `wiser`, then attach your working folder.
+- **Claude Cowork.** Open Customize, then Plugins, then Add marketplace. Give it the full address, `https://github.com/wisermethod/wiser`, install `wiser`, then attach your working folder.
 - **Claude Code.** Clone this repository, start Claude Code in your working folder, add the clone with `/add-dir`, and ask Claude to read the clone's `AGENTS.md` first.
 - **Codex and ChatGPT for desktop.** Add `wisermethod/wiser` as a marketplace and install `wiser`. The same install serves ChatGPT for desktop once plugins are turned on there. Codex's sandbox has network off by default, so a tool's first install stops until you turn network on.
 - **Grok.** Run `grok plugin marketplace add wisermethod/wiser`, then `grok plugin install wiser --trust`. We have not run this with Wiser yet; these are Grok's own documented steps, read at version 1.0.40.
