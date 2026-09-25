@@ -4,8 +4,9 @@
   "description": "The general knowledge-work plugin: skills, experts, tools, and the standards that bind them.",
   "author": {
     "name": "Wiser Memory",
+    "email": "support@wisermemory.com",
     "url": "https://wisermemory.com"
   },
-  "homepage": "https://github.com/wisermethod/wiser",
+  "homepage": "https://wisermemory.com",
   "repository": "https://github.com/wisermethod/wiser"
 }

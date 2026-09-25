@@ -30,11 +30,13 @@ Install Wiser, then attach your working folder. If your folder has no `AGENTS.md
 - **Grok.** Run `grok plugin marketplace add wisermethod/wiser`, then `grok plugin install wiser --trust`. We have not run this with Wiser yet; these are Grok's own documented steps, read at version 1.0.40.
 - **Cursor.** Add your clone of this repository as a workspace root beside your working folder. Cursor reads each root's `AGENTS.md`.
 
-Where it does not work yet: tools need a host that can run commands, so in a chat with no files you get the writing but not the tool steps. In Cowork, tool and connector steps are unproved, because neither has been run there.
-
 ## Where to start reading
 
 `AGENTS.md` is the constitution: the rules every part follows, and the place a session starts. `GLOSSARY.md` defines the words it uses. `gateway/SETUP.md` is the recipe for attaching the gateway to a new machine or app; ask Wiser to set up connectors and it walks you through it.
+
+## Support
+
+Email support@wisermemory.com.
 
 ## License
 
