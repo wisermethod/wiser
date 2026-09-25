@@ -3,7 +3,7 @@ name: Onboard Plugin Root
 type: skill
 category: system
 description: Create a domain plugin beside wiser or adopt a placeholder repository into declared plugin layout, producing its constitution, families and catalog, scored clause by clause, and closed by writing every boundary still owed to a person into the root itself
-version: 0.3.4
+version: 0.3.5
 ---
 
 # Onboard Plugin Root
@@ -83,7 +83,7 @@ What comes back is read by the same three branches above, and a verdict that can
 
 **No scorer would have caught it.** C1 reads the root's own `AGENTS.md` and not a copy, C2 governs only the children of family directories, C9 lists user-root material, and C4 is the one that does, which is why the sweep at step 7 runs over the whole tree and not over the part that looks like the product.
 
-5. **Produce the tree** from `system/templates/Plugin Root Template/`: the constitution with its `root:` id, plugin class, write mode and composition declaration, and the family directories the brief calls for, each with its index. The constitution's family table carries one row per directory produced and none for a family this tree does not ship, which `{{FAMILIES}}` in the template is for. Then place the license that the declared plugin class entails, which is C8's check and not a second declaration of class.
+5. **Produce the tree** from `system/templates/Plugin Root Template/`, its `claude-plugin.template/` becoming the root's `.claude-plugin/` with each `.json.template` file renamed to `.json`, as `system/templates/AGENTS.md` states: the constitution with its `root:` id, plugin class, write mode and composition declaration, and the family directories the brief calls for, each with its index. The constitution's family table carries one row per directory produced and none for a family this tree does not ship, which `{{FAMILIES}}` in the template is for. Then place the license that the declared plugin class entails, which is C8's check and not a second declaration of class.
 
 6. **Write what is still owed into the root, before scoring it.** Every human boundary this run reached goes into the produced `AGENTS.md` as a `## Handover` section, one line each. It is written here rather than at the close so that the score at step 7 reads the file a person will actually read; a section appended after scoring ships bytes no clause ever saw.
 

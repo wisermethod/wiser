@@ -14,4 +14,6 @@ Every template here is inert until copied. Its declarations do not join this plu
 
 A department earns its own root when a unit has facts or a register of its own. Personal is the person's own work and voice; org is the organization's shared work and public voice; client is work done for a client and its brand voice; industry holds a field's facts and terminology register. A department without distinct facts or register uses its organization's root.
 
+**`Plugin Root Template/` carries its catalog as `claude-plugin.template/plugin.json.template` and `marketplace.json.template`, never as a `.claude-plugin/` directory.** A second `.claude-plugin/` inside this plugin, placeholders and all, makes Claude Cowork's marketplace sync of this plugin fail, measured 2026-09-25. The producer renames them into the new root's `.claude-plugin/` when it copies the template.
+
 `Script Contract.md` stays the pointer to `standards/script-contract.md` that tools cite. Archive trees are historical and never copy sources for a new root.
