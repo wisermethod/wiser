@@ -3,7 +3,7 @@ name: Site Author
 type: skill
 category: web
 description: Stand up, content-edit, check, wrap, and upgrade a kit site envelope at sites/<domain>/ or work/<slug>/sites/<domain>/ when the site dies with that work, with the kit in site/, in an owning root that declares sites/
-version: 0.2.4
+version: 0.3.0
 memory:
   - about
   - design
@@ -101,9 +101,9 @@ Gate: Webmaster Job 3 before the requester publishes, not after this write. Chec
 
 ### 2. Edit content
 
-Allowed paths: `site/src/content/**`, `site/public/images/**`. `site/public/fonts/**` is writable only within a Designer-gated token update. A retired or changed published slug may add a row to `site/public/_redirects`; that edit is the redirect case Webmaster Job 3 gates. `site/public/llms.txt` is `skills/SEO Assets/` when it writes into a kit tree, not this job.
+Allowed paths: `site/src/content/**`, `site/public/images/**`. A content job may change `nav` and `footer` in `site/kit.json` and nothing else in that file. Those two are site-owned keys like `domain`, `siteUrl`, and `collections`, and Upgrade preserves them. `site/public/fonts/**` is writable only within a Designer-gated token update. A retired or changed published slug may add a row to `site/public/_redirects`; that edit is the redirect case Webmaster Job 3 gates. `site/public/llms.txt` is `skills/SEO Assets/` when it writes into a kit tree, not this job.
 
-Refuse, and do not perform: `site/src/components/**`, `site/src/layouts/**`, `site/src/pages/**` (routes), `site/astro.config.mjs`, `site/package.json`, `site/package-lock.json`, `site/src/styles/**` except a Designer-gated update to `site/src/styles/tokens.css`, `site/public/fonts/**` except within that same token update, `site/.github/**`, `site/KIT.md`, `site/kit.json`. A request to add a component or edit the Astro config is a refusal, not a stretch.
+Refuse, and do not perform: `site/src/components/**`, `site/src/layouts/**`, `site/src/pages/**` (routes), `site/astro.config.mjs`, `site/package.json`, `site/package-lock.json`, `site/src/styles/**` except a Designer-gated update to `site/src/styles/tokens.css`, `site/public/fonts/**` except within that same token update, `site/.github/**`, `site/KIT.md`, and any key of `site/kit.json` other than `nav` and `footer`. A request to add a component or edit the Astro config is a refusal, not a stretch.
 
 File an article Content Author wrote, after Ghost Writer's gate, at `site/src/content/articles/<slug>.md`. Required frontmatter: `title`, `description`, `pubDate`, `author`, `tags`, `draft`. Empty `pubDate` or missing `description` fails `check`; do not write that file. Hero image optional. Pages need `title` and `description`.
 
@@ -141,7 +141,9 @@ Foreign, already wrapped, or colliding `site/` folders are refused. Content and 
 node "<this-skill-dir>/scripts/upgrade.mjs" --site "<envelope-folder>" --kit "<this-skill-dir>/kit"
 ```
 
-The script archives each replaced kit-owned file first, per `standards/conventions.md`, then copies kit code. It requires `site/kit.json`, names Wrap for the old shape, and refuses foreign folders or a nested `.git`. Envelope `AGENTS.md`, memory, `builds.md`, and Playbooks are outside Upgrade. It does not merge `site/src/content/`, `site/public/images/` or `site/public/fonts/`. It does not copy `kit.json` wholesale; `domain`, `siteUrl`, and `collections` stay the site's. Tokens reverting to the kit default is Upgrade working.
+The script archives each replaced kit-owned file first, per `standards/conventions.md`, then copies kit code. It requires `site/kit.json`, names Wrap for the old shape, and refuses foreign folders or a nested `.git`. Envelope `AGENTS.md`, memory, `builds.md`, and Playbooks are outside Upgrade. It does not merge `site/src/content/`, `site/public/images/` or `site/public/fonts/`. It does not copy `kit.json` wholesale; `domain`, `siteUrl`, `collections`, `nav`, and `footer` stay the site's. Tokens reverting to the kit default is Upgrade working.
+
+An envelope `AGENTS.md` written before `kit.json` gained `nav` and `footer` still lists all of `kit.json` as refused. Refresh its Content vs code section from `site-AGENTS.md`, archiving the old router first. Check fails a site whose `kit.json` sets either key while its layout predates them.
 
 Run Check after Upgrade. Gate: Webmaster Job 3 before the requester publishes.
 

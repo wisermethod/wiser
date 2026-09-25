@@ -36,6 +36,46 @@ try {
 }
 
 if (kit.kitVersion !== "0.1.0") fail(`kitVersion ${kit.kitVersion} does not match KIT.md 0.1.0`);
+
+function hrefProblem(href) {
+  if (typeof href !== "string" || href === "") return "must be a non-empty string";
+  if (/[\u0000-\u001f\u007f\s\\]/.test(href)) return "must not contain whitespace, control characters or backslashes";
+  if (href.startsWith("/")) return href.startsWith("//") ? "must be a site path, not // (protocol-relative)" : null;
+  if (href.startsWith("https://")) {
+    try { const u = new URL(href); return u.protocol === "https:" && u.hostname ? null : "must be a valid https:// URL"; } catch { return "must be a valid https:// URL"; }
+  }
+  if (href.startsWith("mailto:")) return /^mailto:[^@]+@[^@]+$/.test(href) ? null : "must be mailto:<address>";
+  return "must start with / (a site path), https://, or mailto:";
+}
+
+function checkLinkList(key) {
+  if (!Object.hasOwn(kit, key)) return;
+  const list = kit[key];
+  if (!Array.isArray(list)) {
+    fail(`kit.json ${key} must be an array of {label, href}`);
+    return;
+  }
+  list.forEach((item, i) => {
+    const where = `kit.json ${key}[${i}]`;
+    if (item === null || typeof item !== "object" || Array.isArray(item)) {
+      fail(`${where} must be an object with a non-empty label and an href`);
+      return;
+    }
+    if (typeof item.label !== "string" || item.label.trim() === "") fail(`${where}.label must be a non-empty string`);
+    const problem = hrefProblem(item.href);
+    if (problem) fail(`${where}.href ${problem}`);
+  });
+}
+checkLinkList("nav");
+checkLinkList("footer");
+if (Object.hasOwn(kit, "nav") || Object.hasOwn(kit, "footer")) {
+  const layoutPath = path.join(site, "src", "layouts", "SiteLayout.astro");
+  const layout = fs.existsSync(layoutPath) ? fs.readFileSync(layoutPath, "utf8") : "";
+  if (!layout.includes("site.nav.map(") || !layout.includes("site.footer.map(")) fail("kit.json sets nav or footer, but src/layouts/SiteLayout.astro does not render them: run Upgrade");
+  const routerPath = path.join(envelope, "AGENTS.md");
+  const router = fs.existsSync(routerPath) ? fs.readFileSync(routerPath, "utf8") : "";
+  if (!router.includes("`nav` and `footer`")) fail("kit.json sets nav or footer, but the envelope AGENTS.md predates them and still refuses every kit.json edit: refresh its Content vs code section from site-AGENTS.md");
+}
 if (!kit.siteUrl) fail("kit.json siteUrl missing");
 else if (typeof kit.siteUrl !== "string") fail("kit.json siteUrl is not a string");
 else if (kit.siteUrl.endsWith("/")) fail("siteUrl has a trailing slash");

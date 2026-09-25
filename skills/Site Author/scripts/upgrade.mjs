@@ -99,6 +99,7 @@ if (fs.existsSync(kitSrc)) copyTree(kitSrc, path.join(site, "src"), { preserveCo
 const kitPublic = path.join(kit, "public");
 if (fs.existsSync(kitPublic)) copyTree(kitPublic, path.join(site, "public"), { preserveContentImages: true });
 
+// Rewrite from the site's own kit.json so site-owned keys stay, including domain, siteUrl, collections, nav, and footer.
 originalKit.kitVersion = template.kitVersion;
 const configPath = path.join(site, "kit.json");
 const updated = JSON.stringify(originalKit, null, 2) + "\n";

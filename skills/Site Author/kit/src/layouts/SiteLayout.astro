@@ -10,6 +10,8 @@ interface Props {
   noindex?: boolean;
 }
 const { title, description, article, noindex } = Astro.props;
+interface SiteLink { label: string; href: string }
+const site = kit as typeof kit & { nav?: SiteLink[]; footer?: SiteLink[] };
 if (!title?.trim() || !description?.trim()) {
   throw new Error('Every page requires a title and description.');
 }
@@ -81,10 +83,11 @@ const jsonLd = JSON.stringify({ '@context': 'https://schema.org', '@graph': grap
   </head>
   <body>
     <a class="skip-link" href="#content">Skip to content</a>
-    <header><nav aria-label="Main"><a href="/">Home</a><a href="/rss.xml">RSS</a></nav></header>
+    {site.nav === undefined ? <header><nav aria-label="Main"><a href="/">Home</a><a href="/rss.xml">RSS</a></nav></header> : <header><nav aria-label="Main">{site.nav.map((item) => <a href={item.href}>{item.label}</a>)}</nav></header>}
     <main id="content" class="prose" data-pagefind-body={noindex ? undefined : ""}>
       <h1>{title}</h1>
       <slot />
     </main>
+    {site.footer !== undefined && <footer><nav aria-label="Footer">{site.footer.map((item) => <a href={item.href}>{item.label}</a>)}</nav></footer>}
   </body>
 </html>

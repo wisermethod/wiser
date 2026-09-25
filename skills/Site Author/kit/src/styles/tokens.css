@@ -26,9 +26,10 @@
 
 @layer base {
   body { margin: 0; background: var(--color-paper); color: var(--color-ink); font-family: var(--font-sans); }
-  header, main { max-width: 48rem; margin-inline: auto; padding-inline: var(--spacing-gutter); }
+  header, main, footer { max-width: 48rem; margin-inline: auto; padding-inline: var(--spacing-gutter); }
   header { padding-block: 1rem; color: var(--color-meta); }
-  nav { display: flex; gap: 1rem; }
+  footer { margin-top: var(--spacing-section); padding-block: 1rem; color: var(--color-meta); }
+  nav { display: flex; flex-wrap: wrap; gap: 0 1rem; }
   nav a { display: inline-flex; align-items: center; min-height: 44px; padding-inline: 0.5rem; color: var(--color-nav); }
   main.prose { max-width: 48rem; padding-block: var(--spacing-section); }
   a { color: var(--color-link); }
