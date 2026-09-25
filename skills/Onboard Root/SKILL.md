@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types
-version: 0.38.4
+version: 0.38.5
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -76,7 +76,7 @@ grep -rn '\[name\]' "<the root>"
 
 Where that command prints nothing, continue. Where it prints one or more hits, replace those remaining `[name]` tokens and run the command again. Do not start Step 2 while any remain.
 
-Then confirm the host's workspace definition composes the new root; a root on disk that the workspace never loads is not onboarded. Where the host cannot register it, hand the person that one step.
+Then confirm this session loads the new root; a root on disk that no session loads is not onboarded. A root that is a folder this session already has open is loaded: the folder a person attached in Claude Cowork, or the working directory of a command-line session. Say nothing to the person about adding it anywhere, because there is nothing to add. Where the root is not one of those folders and the host keeps a workspace file this session can edit, add the root there. Otherwise hand the person that one step in their app's own terms, such as attaching the folder in Cowork, and never describe it as adding the folder to Wiser, which keeps no workspace of its own.
 
 ### Step 2: Fill about and design
 
@@ -136,7 +136,7 @@ It is a check, not a step. A personal root that never runs it is onboarded; one 
 
 ## Success
 
-- The root exists at its real name beside the workspace's other roots, and the workspace composes it, or the person holds the single step that will.
+- The root exists at its real name beside the workspace's other roots, and this session loads it, or the person holds the single step that will.
 - No `[name]` and no prompt line survives in the root.
 - Every claim in a memory file names the person who said it or the file that says it, or carries one of the four labels in place.
 - The read-back pass ran after the files were written, and what it could not find is labeled and asked, not bound.

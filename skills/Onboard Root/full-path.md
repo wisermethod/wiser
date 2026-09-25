@@ -274,7 +274,7 @@ Keys are `about`, `voice`, `design`, and `competitors`. **An unbound `competitor
 
 **The competitors file, on the record.** On yes, write `memory/competitors.md` from the confirmed set only and add `competitors: memory/competitors.md` to the Provides block; bind after confirmation, never before. On not now or no, remove any unbound competitors stub this run created, following `standards/conventions.md` Archives, leave the key unbound, and record the deferral in the operating file with an owner, or the decline in the run record so a later session sees the answer was given.
 
-Then confirm the workspace composes the new root, as Step 1 of the personal path in `SKILL.md` says, and hand the requester the one registering step where the host cannot take it.
+Then confirm this session loads the new root, as Step 1 of the personal path in `SKILL.md` says: a root that is a folder the session already has open needs nothing more, and only a root outside every such folder hands the requester one step in their app's own terms.
 
 Exit: G17, G18, G19.
 
@@ -397,6 +397,6 @@ Twenty-seven checks. Run them at Phase 9, per key. Each names what runs and what
 - An audit ran in a context that did not produce the root, its findings each disposed of with the check that decided it, and any surviving disagreement stands in the bound file labeled disputed.
 - Every gap in the operating file has a named person or role as owner and one of the four statuses.
 - The `## Onboarding` section of `AGENTS.md` carries every key's close state, and each matches the run record.
-- The workspace composes the root, or the requester holds the single step that will.
+- This session loads the root, or the requester holds the single step that will.
 
 A credential's value never enters the conversation, a log, a commit, or another file.
