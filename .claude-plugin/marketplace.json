@@ -5,12 +5,12 @@
     "email": "support@wisermemory.com",
     "url": "https://wisermemory.com"
   },
-  "description": "Wiser, the general knowledge-work plugin.",
+  "description": "Wiser, from Wiser Memory. Skills that work together in your own voice, on files you own, with experts that check the work.",
   "plugins": [
     {
       "name": "wiser",
       "source": "./",
-      "description": "The general knowledge-work plugin: skills, experts, tools, and the standards that bind them."
+      "description": "Skills that work together in your own voice, on files you own, with experts that check the work."
     }
   ]
 }
