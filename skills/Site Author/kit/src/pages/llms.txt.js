@@ -14,7 +14,7 @@ export async function GET() {
   const articles = (await getCollection('articles', ({ data }) => !data.draft))
     .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
   const lines = [
-    `# ${home.data.title}`,
+    `# ${kit.siteName ?? home.data.title}`,
     '',
     `> ${home.data.description}`,
     '',

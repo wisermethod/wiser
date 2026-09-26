@@ -35,6 +35,8 @@ Required at the kit-folder root, the envelope's `site/`. Invoke `check` on the e
 
 `nav` and `footer` are optional site-owned keys, like `domain`, `siteUrl`, and `collections`, and Upgrade preserves them. The template does not set them. Each, when present, is an array of `{ "label": string, "href": string }`: `label` a non-empty string, `href` a string starting with `/` (a site path), `https://`, or `mailto:`. `check` fails a present key that is not that array. A content job may change those two keys and nothing else in `kit.json`. Absent `nav` leaves the header as Home and RSS. Absent `footer` renders no footer.
 
+`siteName`, also optional and site-owned, is a non-empty string naming the site. When set, it is the `WebSite` name in the JSON-LD, the RSS channel title and the `llms.txt` heading; when absent, those use the index page's title, as before.
+
 ## Required SEO slots
 
 Stand-up fails `check` without every row.
@@ -66,7 +68,7 @@ A missing description in frontmatter fails `check` rather than shipping an empty
 | `public/images/**` | `astro.config.mjs`, `package.json`, `package-lock.json` |
 | `public/llms.txt` when SEO Assets writes it | `src/styles/**`, except `src/styles/tokens.css` when `skills/Designer/` has already gated that token update. Any other write under `src/styles/**` is refused |
 | `public/fonts/**` only within a Designer-gated token update | `.github/**`, `KIT.md` copies |
-| `kit.json` keys `nav` and `footer` only | any other key in `kit.json` |
+| `kit.json` keys `nav` and `footer`, and `siteName`, only | any other key in `kit.json` |
 
 A request to add a component or edit `astro.config.mjs` is refused. A request to add `src/content/articles/hello.md` with required frontmatter succeeds.
 
@@ -84,7 +86,7 @@ A token update changes the values in `tokens.css`'s `@theme` block and may repla
 
 `check` compares `kitVersion` to this file, and **fails if a `.git` exists in the envelope or kit folder** (nested git is never the silent default). Fail if any required SEO slot is missing.
 
-`upgrade` archives every kit-owned file it will replace, per `standards/conventions.md` (a `zArchive/` next to the file, unless that root declares git history as recovery **and** the site is in a committed current repo), then copies kit code files over and refuses to merge `src/content/**`, `public/images/**` and `public/fonts/**`. Two sites on the same `kitVersion` are maintainable as a class; a site that failed `check` is a foreign site until it is upgraded or declared foreign.
+`upgrade` archives every kit-owned file it will replace, per `standards/conventions.md` (a `zArchive/` next to the file, except that a file under `src/` archives to `zArchive/src/<its path>/` at the kit root, because a `zArchive/` inside `src/pages/` would build as routes; unless that root declares git history as recovery **and** the site is in a committed current repo), then copies kit code files over and refuses to merge `src/content/**`, `public/images/**` and `public/fonts/**`. Two sites on the same `kitVersion` are maintainable as a class; a site that failed `check` is a foreign site until it is upgraded or declared foreign.
 
 Paths in this contract are relative to `site/`. Envelope `AGENTS.md`, `memory/`, `builds.md`, and Playbooks are outside Upgrade. Kit-owned means everything except `src/content/**`, `public/images/**` and `public/fonts/**`. Those three trees stay byte-identical across Upgrade.
 

@@ -68,6 +68,7 @@ function checkLinkList(key) {
 }
 checkLinkList("nav");
 checkLinkList("footer");
+if (Object.hasOwn(kit, "siteName") && (typeof kit.siteName !== "string" || kit.siteName.trim() === "")) fail("kit.json siteName must be a non-empty string");
 if (Object.hasOwn(kit, "nav") || Object.hasOwn(kit, "footer")) {
   const layoutPath = path.join(site, "src", "layouts", "SiteLayout.astro");
   const layout = fs.existsSync(layoutPath) ? fs.readFileSync(layoutPath, "utf8") : "";

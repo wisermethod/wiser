@@ -11,7 +11,7 @@ interface Props {
 }
 const { title, description, article, noindex } = Astro.props;
 interface SiteLink { label: string; href: string }
-const site = kit as typeof kit & { nav?: SiteLink[]; footer?: SiteLink[] };
+const site = kit as typeof kit & { nav?: SiteLink[]; footer?: SiteLink[]; siteName?: string };
 if (!title?.trim() || !description?.trim()) {
   throw new Error('Every page requires a title and description.');
 }
@@ -30,7 +30,7 @@ const graph: Record<string, unknown>[] = [
     '@type': 'WebSite',
     '@id': websiteId,
     url: `${SITE_URL}/`,
-    name: home?.data.title ?? title,
+    name: site.siteName ?? home?.data.title ?? title,
     inLanguage: 'en',
     publisher: { '@id': organizationId },
   },

@@ -39,7 +39,11 @@ function archivePath(filePath) {
   const mm = String(now.getMonth() + 1).padStart(2, "0");
   const dd = String(now.getDate()).padStart(2, "0");
   const prefix = `${yy}-${mm}-${dd}`;
-  const archiveDir = path.join(dir, "zArchive");
+  // Beside the file, except under src/: a zArchive there is inside Astro's source tree (src/pages/zArchive becomes routes), so it mirrors into site/zArchive/src/.
+  const srcRoot = path.join(site, "src");
+  const relToSrc = path.relative(srcRoot, dir);
+  const underSrc = relToSrc === "" || (!relToSrc.startsWith("..") && !path.isAbsolute(relToSrc));
+  const archiveDir = underSrc ? path.join(site, "zArchive", "src", relToSrc) : path.join(dir, "zArchive");
   fs.mkdirSync(archiveDir, { recursive: true });
   let n = 1;
   let dest;
