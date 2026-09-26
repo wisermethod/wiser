@@ -599,3 +599,89 @@ test('pages.deploy stops when a file changes mid-deploy, even one already presen
     }
   }
 });
+
+test('pages.remove_domain confirms every call and sends DELETE to the domain', async () => {
+  const { gw, requests } = await pagesGateway();
+  const call = {
+    action: 'cloudflare.pages.remove_domain',
+    input: { account_id: 'acct-1', project_name: 'kit-site', domain: 'www.example.com' },
+  };
+  assert.equal((await gw.execute(call)).status, 'needs_confirmation');
+  assert.equal(requests.length, 0);
+  await gw.execute({ ...call, confirm: true });
+  assert.equal(requests[0].method, 'DELETE');
+  assert.equal(requests[0].endpoint, '/accounts/acct-1/pages/projects/kit-site/domains/www.example.com');
+  assert.equal((await gw.execute(call)).status, 'needs_confirmation');
+  assert.equal(requests.length, 1);
+});
+
+test('pages.delete_project reads first, refuses with a custom domain, and deletes otherwise', async () => {
+  for (const [domains, expectDelete, blocked] of [
+    [['kit-site.pages.dev', 'www.example.com'], false, ['www.example.com']],
+    [['kit-site.pages.dev', 'other.pages.dev'], false, ['other.pages.dev']],
+    [['KIT-SITE.pages.dev.'], true],
+    [[], true],
+  ]) {
+    const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS] });
+    await putActive(store, fake, { service: 'cloudflare', module: 'pages' });
+    const requests = [];
+    fake.auth.proxy = async (request) => {
+      requests.push(request);
+      const result = request.method === 'GET' ? { name: 'kit-site', subdomain: 'kit-site.pages.dev', domains } : null;
+      return { status: 200, data: { success: true, result, errors: [], messages: [] }, headers: {} };
+    };
+    const call = { action: 'cloudflare.pages.delete_project', input: { account_id: 'acct-1', project_name: 'kit-site' } };
+    assert.equal((await gw.execute(call)).status, 'needs_confirmation');
+    assert.equal(requests.length, 0);
+    const result = await gw.execute({ ...call, confirm: true });
+    assert.equal(requests[0].method, 'GET');
+    assert.equal(requests[0].endpoint, '/accounts/acct-1/pages/projects/kit-site');
+    if (expectDelete) {
+      assert.equal(requests.length, 2);
+      assert.equal(requests[1].method, 'DELETE');
+      assert.equal(requests[1].endpoint, '/accounts/acct-1/pages/projects/kit-site');
+      assert.equal(result.success, true);
+    } else {
+      assert.equal(requests.length, 1);
+      assert.equal(result.status, 'invalid_arguments');
+      assert.equal(result.reason, 'custom domain still attached');
+      assert.deepEqual(result.domains, blocked);
+    }
+  }
+});
+
+test('pages.delete_project fails closed on a read without a domain list', async () => {
+  for (const domains of [undefined, null, {}, ['kit-site.pages.dev', 7]]) {
+    const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS] });
+    await putActive(store, fake, { service: 'cloudflare', module: 'pages' });
+    const requests = [];
+    fake.auth.proxy = async (request) => {
+      requests.push(request);
+      const result = { name: 'kit-site' };
+      if (domains !== undefined) result.domains = domains;
+      return { status: 200, data: { success: true, result, errors: [], messages: [] }, headers: {} };
+    };
+    const result = await gw.execute({
+      action: 'cloudflare.pages.delete_project',
+      input: { account_id: 'acct-1', project_name: 'kit-site' },
+      confirm: true,
+    });
+    assert.equal(result.status, 'vendor_error', JSON.stringify(domains));
+    assert.equal(requests.some((request) => request.method === 'DELETE'), false);
+  }
+});
+
+test('pages.remove_domain and delete_project refuse dot segments before any call', async () => {
+  const { gw, requests } = await pagesGateway();
+  for (const [action, input, field] of [
+    ['cloudflare.pages.remove_domain', { account_id: 'acct-1', project_name: 'kit-site', domain: '..' }, 'domain'],
+    ['cloudflare.pages.remove_domain', { account_id: 'acct-1', project_name: 'kit-site', domain: '.' }, 'domain'],
+    ['cloudflare.pages.remove_domain', { account_id: 'acct-1', project_name: '..', domain: 'www.example.com' }, 'project_name'],
+    ['cloudflare.pages.delete_project', { account_id: 'acct-1', project_name: '..' }, 'project_name'],
+  ]) {
+    const result = await gw.execute({ action, input, confirm: true });
+    assert.equal(result.status, 'invalid_arguments', JSON.stringify(input));
+    assert.equal(result.field, field);
+  }
+  assert.equal(requests.length, 0);
+});

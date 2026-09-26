@@ -2,7 +2,7 @@
 
 Load `connectors/cloudflare/auth.md` ([auth guide](../../connectors/cloudflare/auth.md)) for the separate `cloudflare` / `pages` grant and its Pages permissions. `needs_connect` ends the skill run; `skills/Connect Account/` is the next human turn. The requester supplies `account_id`; this skill does not use the auth guide's account-discovery action.
 
-Reads need Account / Cloudflare Pages / Read. `create_project`, `add_domain`, and `deploy` need Edit on that same permission. A Read-only token returns 403 on those three.
+Reads need Account / Cloudflare Pages / Read. Every write (`create_project`, `add_domain`, `remove_domain`, `delete_project`, `deploy`) needs Edit on that same permission. A Read-only token returns 403 on them.
 
 The primary publish path is the gateway. `cloudflare.pages.deploy` takes `dir` as the absolute path of the kit `site/dist/` (`sites/<domain>/site/dist/`, or `work/<slug>/sites/<domain>/site/dist/`). The connector refuses any other directory: the folder must be named `dist`, its parent must be named `site`, and that parent must contain a regular file `kit.json`. It deploys static kit output only. A tree with `_worker.js` or a `functions/` directory at the root of `dist` is refused. Deploy, and a create or add-domain that is part of that publish, run only after Webmaster Job 3 passes and the requester confirms the gateway's `needs_confirmation` stop. Every write confirms on every call.
 

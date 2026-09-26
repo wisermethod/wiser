@@ -2,8 +2,8 @@
 name: cloudflare
 type: connector
 category: development
-description: Reaches Cloudflare DNS, the account's zones, Pages projects and production deploys, and rulesets, with every removal and every production deploy confirmed
-version: 0.4.0
+description: Reaches Cloudflare DNS, the account's zones, Pages projects, domains and production deploys, and rulesets, with every removal and every production deploy confirmed
+version: 0.5.0
 ---
 
 # Cloudflare
@@ -14,7 +14,7 @@ Not for Workers, R2, cache, encryption mode, or mail routing. Those wait on late
 
 ## Status
 
-Shipped 2026-09-08. Four modules, each its own grant on toolkit `CLOUDFLARE_API_KEY` (API token, not Global API Key plus email). Verified live: `dns.get_record`, `list_records`, `create_record`, `update_record`, `export_zone` and `batch` all returned; record calls return `{ success, result, errors, messages }`, with `result` an object for one record and an array plus `result_info` for a list, and export returns `{ zone_file }`. Import JSON returned HTTP 400. Multipart via `binary_body` confirmed live. Import and batch return data only, never proxy headers. `pages.list_projects` returned `{ success, result, errors, messages, result_info }` with an empty `result` on every account reached, so `get_project` and `list_deployments` remain unexercised. `rulesets.create` and `rulesets.get` were not run, and `rulesets.get`'s live envelope is UNVERIFIED. Fake-provider tests cover the rest, including `pages.create_project`, `pages.add_domain`, and `pages.deploy`. Verified live 2026-09-24: `pages.create_project` created a throwaway project and `pages.get_project` read it back with the same name, id, subdomain and production branch, both returning `{ success, result, errors, messages }`. `add_domain` and `deploy` have not run live. The asset route `deploy` uses for the upload token's bearer calls (`/pages/assets/check-missing`, `/pages/assets/upload`, `/pages/assets/upsert-hashes`) is unverified and isolated in one helper so a live probe can swap it. See [gateway/SETUP.md](../../gateway/SETUP.md).
+Shipped 2026-09-08. Four modules, each its own grant on toolkit `CLOUDFLARE_API_KEY` (API token, not Global API Key plus email). Verified live: `dns.get_record`, `list_records`, `create_record`, `update_record`, `export_zone` and `batch` all returned; record calls return `{ success, result, errors, messages }`, with `result` an object for one record and an array plus `result_info` for a list, and export returns `{ zone_file }`. Import JSON returned HTTP 400. Multipart via `binary_body` confirmed live. Import and batch return data only, never proxy headers. `pages.list_projects` returned `{ success, result, errors, messages, result_info }` with an empty `result` on every account reached at the time; `get_project` has since run live (below), and `list_deployments` has not been exercised here. `rulesets.create` and `rulesets.get` were not run, and `rulesets.get`'s live envelope is UNVERIFIED. Fake-provider tests cover the rest, including `pages.create_project`, `pages.add_domain`, and `pages.deploy`. Verified live 2026-09-24: `pages.create_project` created a throwaway project and `pages.get_project` read it back with the same name, id, subdomain and production branch, both returning `{ success, result, errors, messages }`. Verified live 2026-09-24 and 2026-09-25: `pages.add_domain` attached `wisermind.ai` and `wisermemory.com`, and `pages.deploy` ran five times across two projects, each returning ok, with `wisermemory.com` serving the uploaded files. That settles the asset route: the upload token rides the proxy as an `Authorization` header parameter on `/pages/assets/check-missing`, `/pages/assets/upload` and `/pages/assets/upsert-hashes`, and Pages accepts the sha256-derived keys. A single file near the 25 MiB limit has not been sent. `pages.remove_domain` and `pages.delete_project` are covered by fake-provider tests; `delete_project` ran live 2026-09-26 on the throwaway project, and `remove_domain` has not run live. See [gateway/SETUP.md](../../gateway/SETUP.md).
 
 
 ## Reaching it
@@ -42,6 +42,8 @@ cloudflare.pages.get_project     { account_id, project_name }
 cloudflare.pages.list_deployments { account_id, project_name }
 cloudflare.pages.create_project  { account_id, name, production_branch }     confirmation: always
 cloudflare.pages.add_domain      { account_id, project_name, domain }        confirmation: always
+cloudflare.pages.remove_domain   { account_id, project_name, domain }        confirmation: always
+cloudflare.pages.delete_project  { account_id, project_name }                confirmation: always
 cloudflare.pages.deploy          { account_id, project_name, dir }           confirmation: always
 
 cloudflare.rulesets.create       { accounts_or_zones, account_or_zone_id, kind, name, phase }
@@ -61,7 +63,7 @@ This connector holds none. Each module is its own connect. The vendor secret is 
 |--------|-----------|----------------|
 | `dns` | write | Records in a named zone |
 | `zones` | write | Every zone the token can see, plus accounts |
-| `pages` | write | Pages projects, domains, and production deploys of static kit output |
+| `pages` | write | Pages projects, domains, and production deploys of static kit output, and their removal |
 | `rulesets` | write | Rulesets |
 
 Workers and R2 are later modules, never extra permissions on these four.
@@ -76,10 +78,14 @@ Workers and R2 are later modules, never extra permissions on these four.
 | `zones.delete` | Deletes the zone | No |
 | `rulesets.delete` / `remove_rule` | Removes the ruleset or rule | No |
 | `pages.deploy` | Replaces what production serves | A later deploy can replace it; this action does not undo one |
-| `pages.create_project` | Creates a Pages project | This connector does not delete a project |
-| `pages.add_domain` | Attaches a domain to a project and does not create the DNS record | This connector does not remove a domain |
+| `pages.create_project` | Creates a Pages project | `pages.delete_project` removes it |
+| `pages.add_domain` | Attaches a domain to a project and does not create the DNS record | `pages.remove_domain` detaches it |
+| `pages.remove_domain` | Detaches a custom domain; the hostname stops serving the project, and the DNS record stays | Only by adding it again |
+| `pages.delete_project` | Deletes the project and every deployment in it | No |
 
 Each is gated `always`. The Pages writes are `always` rather than `once` because the gateway remembers a `once` approval by action id for the life of the process, not by input, so after one approved domain a second, different domain would run unasked.
+
+`pages.delete_project` reads the project first and refuses while any domain other than its own `pages.dev` subdomain (the read's `subdomain`) is attached, another `*.pages.dev` name included, or when the read carries no domain list, so a project serving a real hostname takes two confirmed calls to remove: `remove_domain`, then `delete_project`. That check is best effort: a domain someone attaches between the read and the delete is not caught. `remove_domain` and `delete_project` take a Cloudflare project name and, for `remove_domain`, a dotted hostname, published as patterns, because both values land in a DELETE path where `.` or `..` would address something else. Cloudflare may refuse to delete a project with many deployments.
 
 `pages.add_domain` posts the hostname onto the project. It does not create the DNS CNAME. The domain stays pending until that record exists. The record is Zone Publisher's job, through the `dns` grant.
 

@@ -118,6 +118,11 @@ function requiredString(value) {
 // 1 to 58 characters, no leading or trailing hyphen.
 const PROJECT_NAME = /^[a-z0-9](?:[a-z0-9-]{0,56}[a-z0-9])?$/;
 
+// Published on remove_domain and delete_project, whose values land in a DELETE
+// path: a hostname of dot-separated labels, so `.` and `..` cannot turn a domain
+// removal into a request against the project itself.
+const HOSTNAME = /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$/;
+
 function projectNameOk(value) {
   return typeof value === 'string' && PROJECT_NAME.test(value);
 }
@@ -160,8 +165,8 @@ function contentTypeFor(extension) {
 // Wrangler uses blake3(base64(content) + extension), hex, first 32 characters.
 // Node has no blake3 built-in and a connector module may not add a dependency,
 // so this is sha256 of that same input. extension is Node's extname, including
-// the leading dot. The key is client-chosen, and that Pages accepts a key it did
-// not derive with blake3 is UNVERIFIED until a live deploy serves the files.
+// the leading dot. The key is client-chosen: Pages accepted these keys and served
+// the files on the live deploys of 2026-09-24 and 2026-09-25.
 function assetHash(bytes, extension) {
   const material = Buffer.from(bytes).toString('base64') + extension;
   return createHash('sha256').update(material).digest('hex').slice(0, 32);
@@ -380,8 +385,9 @@ function bucketize(items) {
   return out;
 }
 
-// Route for the JWT asset calls is UNVERIFIED. All three go through this
-// helper so a live probe can swap the path in one place. The token is only
+// The JWT rides the provider proxy as an Authorization header parameter, which
+// overrides the grant's own header on these three calls. Verified live by the
+// deploys of 2026-09-24 and 2026-09-25, which uploaded and served. The token is only
 // an Authorization header parameter. It is never copied into a result, an
 // error message, or a log.
 async function assetCall(ctx, jwt, endpoint, body) {
@@ -676,6 +682,42 @@ export const modules = {
         method: 'POST',
         body: { name: input.domain },
       });
+    },
+    async remove_domain(input, ctx) {
+      if (!requiredString(input && input.account_id)) return invalid('account_id');
+      if (!projectNameOk(input && input.project_name)) return invalid('project_name');
+      if (typeof (input && input.domain) !== 'string' || !HOSTNAME.test(input.domain)) return invalid('domain');
+      return proxyData(ctx, {
+        endpoint: accountPath(input.account_id, input.project_name, `domains/${encodeURIComponent(input.domain)}`),
+        method: 'DELETE',
+      });
+    },
+    // Reads the project first and refuses while a custom domain is attached, so
+    // remove_domain comes first, as its own confirmed call. Best effort: a domain
+    // attached by someone else between the read and the DELETE is not caught.
+    // A read with no domains array fails closed rather than counting as none.
+    async delete_project(input, ctx) {
+      if (!requiredString(input && input.account_id)) return invalid('account_id');
+      if (!projectNameOk(input && input.project_name)) return invalid('project_name');
+      const endpoint = accountPath(input.account_id, input.project_name);
+      const project = await proxyData(ctx, { endpoint, method: 'GET' });
+      if (!envelopeOk(project) || !project.result || typeof project.result !== 'object') {
+        return vendorError(endpoint, 'GET');
+      }
+      const domains = project.result.domains;
+      if (!Array.isArray(domains) || !domains.every((domain) => typeof domain === 'string')) {
+        return vendorError(endpoint, 'GET');
+      }
+      // The live read lists the project's own subdomain among its domains
+      // (2026-09-24), so exactly that one is exempt and any other name blocks,
+      // another *.pages.dev included. No subdomain on the read means none is exempt.
+      const norm = (name) => name.toLowerCase().replace(/\.+$/, '');
+      const own = typeof project.result.subdomain === 'string' ? norm(project.result.subdomain) : null;
+      const custom = domains.filter((domain) => norm(domain) !== own);
+      if (custom.length > 0) {
+        return { status: 'invalid_arguments', field: 'project_name', reason: 'custom domain still attached', domains: custom };
+      }
+      return proxyData(ctx, { endpoint, method: 'DELETE' });
     },
     async deploy(input, ctx) {
       if (!requiredString(input && input.account_id)) return invalid('account_id');

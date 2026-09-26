@@ -86,6 +86,7 @@ const PATTERN_OK = {
   '^[A-Za-z0-9+/_-]+={0,2}$': 'abcd',
   '^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$': 'audit-key',
   '^[a-z0-9](?:[a-z0-9-]{0,56}[a-z0-9])?$': 'wiser-site',
+  '^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$': 'www.example.com',
   '^[Hh][Tt][Tt][Pp][Ss]://': 'https://example.com/x',
   // `bing`, `google` and `google-apis` parse a URL with `new URL()` and check the
   // protocol, which no regular expression expresses. What they publish is the scheme,

@@ -325,8 +325,48 @@
             "additionalProperties": false
           }
         },
+        "remove_domain": {
+          "description": "Detach a custom domain from a Pages project. The DNS record is left in place; removing it is Zone Publisher's job.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "minLength": 1 },
+              "project_name": {
+                "type": "string",
+                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,56}[a-z0-9])?$"
+              },
+              "domain": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$"
+              }
+            },
+            "required": ["account_id", "project_name", "domain"],
+            "additionalProperties": false
+          }
+        },
+        "delete_project": {
+          "description": "Delete a Pages project and every deployment in it. Reads the project first and refuses while any domain other than its own pages.dev subdomain is attached, and when the read carries no domain list; remove_domain comes first. Best effort: a domain attached between the read and the delete is not caught. Cloudflare may refuse a project with many deployments.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "minLength": 1 },
+              "project_name": {
+                "type": "string",
+                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,56}[a-z0-9])?$"
+              }
+            },
+            "required": ["account_id", "project_name"],
+            "additionalProperties": false
+          }
+        },
         "deploy": {
-          "description": "Deploy static kit output to Pages production by Direct Upload. Replaces what production serves. dir must be a directory named dist whose parent directory is named site and contains a regular file kit.json, and neither site nor dist may be a symbolic link. Refuses the user-config credential directory, the home directory, a tree whose root contains _worker.js or a functions directory, more than 20000 files, any file over 25 MiB, and a file that changes between hashing and upload. Skips node_modules, hidden names other than .well-known, names shaped like private keys or certificate bundles, .env files, _routes.json, and links that resolve outside dir, and lists every skip in the result. _headers and _redirects are sent with the deployment and are not assets. The asset route that carries the upload token is unverified.",
+          "description": "Deploy static kit output to Pages production by Direct Upload. Replaces what production serves. dir must be a directory named dist whose parent directory is named site and contains a regular file kit.json, and neither site nor dist may be a symbolic link. Refuses the user-config credential directory, the home directory, a tree whose root contains _worker.js or a functions directory, more than 20000 files, any file over 25 MiB, and a file that changes between hashing and upload. Skips node_modules, hidden names other than .well-known, names shaped like private keys or certificate bundles, .env files, _routes.json, and links that resolve outside dir, and lists every skip in the result. _headers and _redirects are sent with the deployment and are not assets. The upload token rides the proxy as an Authorization header on the asset calls, verified live 2026-09-25.",
           "risk": "high",
           "confirmation": "always",
           "execution": { "prefer": "proxy" },
