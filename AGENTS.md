@@ -102,7 +102,7 @@ The named ask **set up connectors** (also "setup connectors" and "enable connect
 
 The named ask **wrap up** enters `skills/Playbook Author/` and runs its Hand Off, which readies this session's Playbooks for the next one and owns what it commits and hands over.
 
-This plugin is the base: a domain plugin loads beside it, may assume it is present, and references its primitives and standards rather than duplicating them, and nothing here references a domain plugin. What is general belongs here; what changes with a sector, in its steps and not merely its audience, belongs in the domain plugin.
+This plugin is the base: a domain plugin loads beside it, may assume it is present, and references its primitives and standards rather than duplicating them, and nothing here references a domain plugin. Where a skill, expert or tool belongs is decided in this order. Whatever a skill, expert or tool here needs for the work its description already covers belongs here: a primitive it sequences, calls, owns or is gated by; one that sets up a connector it calls; and, for a change a skill here writes to a live system, one that answers a question the expert gating that change names and leaves open. Otherwise, one whose steps are a specialist practice's own, steps a person follows only while practising it, belongs outside this plugin, in a domain plugin. Otherwise, what is general belongs here, and what changes with a sector, in its steps and not merely its audience, belongs in the domain plugin. A connector ships here, beside the gateway that loads it, whichever plugin's work it serves.
 
 ## Classifier
 

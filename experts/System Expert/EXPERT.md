@@ -3,7 +3,7 @@ name: System Expert
 type: expert
 category: system
 description: Judge whether a change to a root is the right change, where a proposed capability belongs and in which family, and whether a missing capability is a gap to declare or a build to file, and sequence the system skills accordingly
-version: 0.4.3
+version: 0.5.0
 ---
 
 # System Expert
@@ -65,7 +65,7 @@ Output: the verdict, right, right with a named condition, or wrong with the bett
 
 Given a proposed capability, decide whether it belongs in this plugin, in a domain plugin, or in the user's own root, and in which family here. Play Author's Output Types decide whether a file is a Play, a primitive body or a library component once told to write, and the litmus in `standards/primitives.md` decides skill, expert or tool; both are applied here and cited where the thing would be a primitive in this plugin, and neither decides whether the thing should exist in this root, which is this job. A procedure bound for a user's root is a Play, and the litmus is not run on it.
 
-- **General or domain.** The test between this plugin and a domain plugin is the constitution's Precedence and routing's, which turns on what "changes with a sector, in its steps and not merely its audience"; read it there and apply it to the proposal. Applied to a proposal it yields one of two homes, and the verdict names which and cites the sentence it turned on: steps a sector changes go to the domain plugin, and steps a sector does not change stay here, a sector audience over them included, unless the two sets share internals, where the instinct on shared internals decides whether it is one primitive and so one home. A procedure one person repeats with different inputs in their own root is a Play in that root, per `skills/Play Author/`, and not a primitive anywhere.
+- **General or domain.** The test between this plugin and a domain plugin is the order the constitution's Precedence and routing states; read it there and apply it to the proposal a step at a time, stopping at the first step that places it. Applied to a proposal it yields one of two homes, here or outside this plugin and never which domain plugin, and the verdict names which and cites the step it turned on. Where the proposal's steps would split across the two homes, the instinct on shared internals decides whether it is one primitive and so one home. A procedure one person repeats with different inputs in their own root is a Play in that root, per `skills/Play Author/`, and not a primitive anywhere.
 - **Already here.** The reuse instinct: an existing primitive that can be extended or composed beats a new one, and the verdict names it after reading it, never from its index row. Where it covers the request only under a boundary its own Context draws, route there, name the boundary, and treat widening it as Job 1. Where two cover it equally, name both and do not sequence a new primitive to break the tie; where none covers it alone but two or more composed in sequence do, name and sequence those. Two proposals that would share internals are one primitive or a tool, per the invocation rules.
 - **Which family.** Reuse a category the family index already has when one fits. Where two fit equally, name both, say which the verdict uses and why, and do not mint a third. A new category is a finding to state, not a default. Check the name against every primitive in the root, case-insensitively, per `standards/primitives.md`: an identical name is a collision, and a near name is noted, never a verdict.
 
