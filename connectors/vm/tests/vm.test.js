@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
+import { modules } from '../index.js';
 
 const MACHINE = 'web-1';
 const UNIT = 'app.service';
@@ -210,6 +211,20 @@ test('units build systemctl argv and never forward a caller vector', async () =>
     assert.deepEqual(fixture.calls[0].body.argv, ['systemctl', verb, '--', UNIT]);
     assert.equal(fixture.calls[0].body.argv.includes('rm'), false);
   }
+});
+
+// The gateway's schema refuses these first, so this calls the module directly: the
+// module's own pattern is the second layer and must refuse them without the schema.
+test('the units module refuses a leading-dash unit itself, before any proxy call', async () => {
+  let calls = 0;
+  const ctx = { proxy: async () => { calls += 1; return { data: { outcome: 'ok' } }; } };
+  for (const unit of ['-Hother.service', '-Mcontainer.service', '-.mount']) {
+    assert.deepEqual(await modules.units.status({ machine: MACHINE, unit }, ctx), { status: 'invalid_arguments', field: 'unit' });
+    assert.deepEqual(await modules.units.service({ machine: MACHINE, verb: 'restart', unit }, ctx), { status: 'invalid_arguments', field: 'unit' });
+  }
+  assert.equal(calls, 0);
+  assert.equal((await modules.units.status({ machine: MACHINE, unit: UNIT }, ctx)).outcome, 'ok');
+  assert.equal(calls, 1);
 });
 
 test('each router outcome is returned intact and an outer failure stays vendor_error', async () => {
