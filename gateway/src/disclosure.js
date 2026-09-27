@@ -70,9 +70,27 @@ const DIGEST_LENGTH = 16;
  */
 const UNSAFE_CLASS = /[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}\p{Default_Ignorable_Code_Point}]/u;
 
-/** @param {string} ch one code point */
-function isUnsafeCodePoint(ch) {
+/**
+ * One code point, tested against {@link UNSAFE_CLASS}. Exported so a caller
+ * that must refuse a raw value uses this class rather than a copy of it.
+ *
+ * @param {string} ch one code point
+ */
+export function isUnsafeCodePoint(ch) {
   return UNSAFE_CLASS.test(ch);
+}
+
+/**
+ * True when `raw` contains any code point {@link isUnsafeCodePoint} refuses.
+ * The walk is by code point, so a surrogate pair is one character.
+ *
+ * @param {unknown} raw
+ */
+export function containsUnsafeCodePoint(raw) {
+  for (const ch of String(raw)) {
+    if (isUnsafeCodePoint(ch)) return true;
+  }
+  return false;
 }
 
 /**
@@ -334,8 +352,10 @@ function cutRendered(rendered, cap) {
 /**
  * Render an array or object, and anything nested in it. Strings are quoted and
  * escaped; numbers are `String(n)`; booleans are `true` / `false`; null is
- * `null`. Keys stay in input order. Callers refuse a value deeper than
- * {@link MAX_DEPTH} before this runs.
+ * `null`. Keys stay in input order. An undefined object member is omitted, and
+ * an undefined array element is `null`, which is how `JSON.stringify` sends the
+ * value and how the confirmation key reads it. Callers refuse a value deeper
+ * than {@link MAX_DEPTH} before this runs.
  *
  * @param {unknown} value
  * @returns {string}
@@ -348,8 +368,9 @@ function renderData(value) {
   if (Array.isArray(value)) return `[${value.map((item) => renderData(item)).join(', ')}]`;
   if (typeof value === 'object') {
     const parts = [];
-    for (const [key, item] of Object.entries(value)) {
-      parts.push(`"${escapeForDisplay(key)}": ${renderData(item)}`);
+    for (const key of Object.keys(value)) {
+      if (value[key] === undefined) continue;
+      parts.push(`"${escapeForDisplay(key)}": ${renderData(value[key])}`);
     }
     return `{${parts.join(', ')}}`;
   }

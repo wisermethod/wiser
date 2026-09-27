@@ -3,7 +3,7 @@ import { isAncestorPid, rescanRefusal, verify } from '../../hooks/lib/binding.mj
 import { isRefused } from '../../hooks/lib/presence.mjs';
 import { buildContext } from './context.js';
 import { STATUS, StatusSignal, classifierAuditStatus, isStatusObject, sanitizeError, statusObject, vendorErrorFrom } from './errors.js';
-import { composeSummary, discloseInput } from './disclosure.js';
+import { composeSummary, containsUnsafeCodePoint, discloseInput } from './disclosure.js';
 import { validateInput } from './input-schema.js';
 import { evaluate } from './policy.js';
 import { readProviderUserId, writeProviderUserIdIfEmpty } from './paths.js';
@@ -352,6 +352,31 @@ function inputValueEntries(shown) {
     if (f.truncated) entry.full = f.full;
     return entry;
   });
+}
+
+/**
+ * Disclosure for a call that needs an approval. A withheld field is refused
+ * here, before a stop is recorded: the stop must not offer an approval for a
+ * value it did not show. The caller computes the confirmation key only from
+ * `inputForKey`, and only after this returns it, so the key is never taken on
+ * a value deeper than the disclosure limit.
+ *
+ * @param {object} spec manifest action or first-party definition
+ * @param {unknown} input
+ * @returns {{ disclosure: ReturnType<typeof discloseInput>, inputForKey: object } | { refusal: Record<string, unknown> }}
+ */
+function approvalDisclosure(spec, input) {
+  const disclosure = discloseInput(spec, input);
+  if (disclosure.withheld.length > 0) {
+    const first = disclosure.withheld[0];
+    return {
+      refusal: statusObject(STATUS.INVALID_ARGUMENTS, {
+        field: first.name,
+        reason: first.reason,
+      }),
+    };
+  }
+  return { disclosure, inputForKey: input === undefined ? {} : input };
 }
 
 const NAME_RE = /^[a-z0-9][a-z0-9-]*$/;
@@ -1092,19 +1117,23 @@ export class ConnectionGateway {
         (confirmation === 'once' && !this.confirmedOnce.has(onceKey));
       // What may be shown lives in src/disclosure.js. This block decides that a
       // stop happens, on which of the three entry paths, and that `confirm: true`
-      // matches the stop for this exact input. The key is taken after
-      // validateInput, so it is always a valid input.
-      const confirmKey = confirmationDigest([
-        'execute',
-        action,
-        input === undefined ? {} : input,
-        record.provider_account_id,
-      ]);
+      // matches the stop for this exact input. Disclosure runs first. A withheld
+      // field is refused, and the key is taken only when a stop or a match is
+      // needed, after that check, so it is a valid input no deeper than the
+      // disclosure limit. A call that needs no approval does not reach either.
       if (needsConfirm) {
+        const approval = approvalDisclosure(act, input);
+        if (approval.refusal) return approval.refusal;
+        const confirmKey = confirmationDigest([
+          'execute',
+          action,
+          approval.inputForKey,
+          record.provider_account_id,
+        ]);
         const matched = confirm === true && this.takePendingConfirmation(confirmKey);
         if (!matched) {
           this.recordPendingConfirmation(confirmKey);
-          const disclosure = discloseInput(act, input);
+          const disclosure = approval.disclosure;
           const summary = composeSummary({
             action,
             service: parsed.service,
@@ -1243,17 +1272,21 @@ export class ConnectionGateway {
       decision.effect === 'confirm' ||
       confirmation === 'always' ||
       (confirmation === 'once' && !this.confirmedOnce.has(onceKey));
-    const confirmKey = confirmationDigest([
-      'execute',
-      action,
-      input === undefined ? {} : input,
-      null,
-    ]);
+    // Same rule as the connector path: disclosure first, and the key only when
+    // a stop or a match is needed and nothing was withheld.
     if (needsConfirm) {
+      const approval = approvalDisclosure(def, input);
+      if (approval.refusal) return approval.refusal;
+      const confirmKey = confirmationDigest([
+        'execute',
+        action,
+        approval.inputForKey,
+        null,
+      ]);
       const matched = confirm === true && this.takePendingConfirmation(confirmKey);
       if (!matched) {
         this.recordPendingConfirmation(confirmKey);
-        const disclosure = discloseInput(def, input);
+        const disclosure = approval.disclosure;
         const summary = composeSummary({
           action,
           service: parsed.service,
@@ -1667,7 +1700,7 @@ export class ConnectionGateway {
       // row carries its own `privilege` and `provider`, validated above, and every gate
       // below still runs: the policy is
       // evaluated on that stored privilege, the stop names the account and every module
-      // on it, the approval binds to the account id, and removal still needs ABSENT
+      // on it, the approval binds to the account id and to those modules, and removal still needs ABSENT
       // corroborated by the teardown's final step. **A row with no stored privilege is
       // refused**, because authorizing on nothing is what the sibling check already
       // taught this function not to do.
@@ -1733,6 +1766,17 @@ export class ConnectionGateway {
       }
       line.provider_account_id = accountId;
 
+      // A stored id is echoed raw on the stop, because the caller sends it back.
+      // One that contains a code point the disclosure policy will not emit raw is
+      // refused before that stop, and the id is not copied onto the refusal.
+      if (containsUnsafeCodePoint(accountId)) {
+        return statusObject(STATUS.DENIED, {
+          service,
+          module,
+          reason: 'unsafe_account_id',
+        });
+      }
+
       // Every row on this credential, because every one of them ends.
       const boundRows = this.store.listConnections()
         .filter((row) => row.provider_account_id === accountId);
@@ -1793,8 +1837,11 @@ export class ConnectionGateway {
 
       // The account id is rendered through the same escaper and cap as any other
       // displayed value; the module list rides the description, which that function
-      // also escapes. The pending key is the stored account, not the caller's copy.
-      const confirmKey = confirmationDigest(['disconnect', service, module, accountId]);
+      // also escapes. The pending key is the stored account and the modules bound
+      // to it, not the caller's copy of the account. The list is sorted so two
+      // stores that hold the same rows in a different order are one approval.
+      const boundNames = bound.map((row) => `${row.service}/${row.module}`).sort();
+      const confirmKey = confirmationDigest(['disconnect', service, module, accountId, boundNames]);
       const confirmationStop = (reason) => {
         this.recordPendingConfirmation(confirmKey);
         const disclosure = discloseInput(
@@ -1807,7 +1854,7 @@ export class ConnectionGateway {
           service,
           module,
           risk: 'destructive',
-          description: `revokes this credential at the provider and removes ${bound.length} local record${bound.length === 1 ? '' : 's'}, ending ${names}. You are approving the credential, so anything else bound to it before you answer ends too${orphaned ? `. NOTE: nothing declares ${service}/${module} any more, so this record has outlived what made it; other bindings listed above may still be declared and still able to use this credential` : ''}`,
+          description: `revokes this credential at the provider and removes ${bound.length} local record${bound.length === 1 ? '' : 's'}, ending ${names}. You are approving this credential and these modules. A module bound to it after this stop is not covered by this approval${orphaned ? `. NOTE: nothing declares ${service}/${module} any more, so this record has outlived what made it; other bindings listed above may still be declared and still able to use this credential` : ''}`,
           disclosure,
         });
         return statusObject(STATUS.NEEDS_CONFIRMATION, {

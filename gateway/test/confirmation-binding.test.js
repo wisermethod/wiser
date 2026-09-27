@@ -9,6 +9,7 @@ import {
   PENDING_CONFIRMATION_TTL_MS,
   confirmationDigest,
 } from '../src/gateway.js';
+import { containsUnsafeCodePoint, discloseInput } from '../src/disclosure.js';
 import { createTestGateway, makeHome, putActive } from './fake-provider.js';
 
 /**
@@ -369,4 +370,274 @@ test('17 a stop with a truncated value carries full and the summary names input_
   for (const s of everyString(stop)) assert.equal(RAW_UNSAFE.test(s), false, s.slice(0, 40));
   const plain = await gw.execute({ action: 'probe.thing.act', input: { n: 'short' } });
   assert.equal(Object.hasOwn(plain.input_values[0], 'full'), false);
+});
+
+/** One object wrapped `levels` times. Built by assignment, so the build itself does not recurse. */
+function nestObject(levels, leaf) {
+  let value = leaf;
+  for (let i = 0; i < levels; i += 1) value = { n: value };
+  return value;
+}
+
+/** One array wrapped `levels` times. */
+function nestArray(levels, leaf) {
+  let value = leaf;
+  for (let i = 0; i < levels; i += 1) value = [value];
+  return value;
+}
+
+const GATED_LIMITS = {
+  description: 'Probe',
+  risk: 'low',
+  confirmation: 'always',
+  execution: { prefer: 'proxy' },
+  input: {
+    type: 'object',
+    properties: {
+      n: { type: 'string', maxLength: 3 },
+      count: { type: 'number', minimum: 0, maximum: 10, multipleOf: 1 },
+      payload: { type: 'object' },
+    },
+  },
+};
+
+test('R1.2 a disconnect approval names the rows it will end', async () => {
+  const { gw, store, fake } = await createTestGateway();
+  const id = 'fake-acct-shared';
+  fake.auth.setStatus(id, 'ACTIVE');
+  const row = (module) => ({
+    id: `conn-${module}`,
+    service: 'github',
+    module,
+    privilege: 'write',
+    provider: 'catalog',
+    provider_account_id: id,
+    scopes: [],
+    status: 'ACTIVE',
+    created: new Date().toISOString(),
+    updated: new Date().toISOString(),
+  });
+  store.putConnection(row('repos'));
+  const stop = await gw.disconnect({ service: 'github', module: 'repos' });
+  assert.equal(stop.status, 'needs_confirmation');
+  assert.equal(Object.hasOwn(stop, 'reason'), false);
+  const shown = stop.modules_ending.map((m) => `${m.service}/${m.module}`).sort();
+  assert.deepEqual(shown, ['github/repos']);
+  const key = confirmationDigest(['disconnect', 'github', 'repos', id, shown]);
+  assert.equal(gw.pendingConfirmations.has(key), true);
+  assert.equal(
+    gw.pendingConfirmations.has(confirmationDigest(['disconnect', 'github', 'repos', id])),
+    false,
+    'the approval must name the modules, not only the account',
+  );
+
+  store.putConnection(row('issues'));
+  const refused = await gw.disconnect({
+    service: 'github', module: 'repos', provider_account_id: id, confirm: true,
+  });
+  assert.equal(refused.status, 'needs_confirmation');
+  assert.equal(refused.reason, 'unmatched_confirm');
+  assert.deepEqual(
+    refused.modules_ending.map((m) => `${m.service}/${m.module}`).sort(),
+    ['github/issues', 'github/repos'],
+  );
+  assert.equal(store.listConnections().length, 2);
+  assert.equal(await fake.auth.status({ providerAccountId: id }), 'ACTIVE');
+  const current = ['github/issues', 'github/repos'];
+  assert.equal(
+    gw.pendingConfirmations.has(confirmationDigest(['disconnect', 'github', 'repos', id, current])),
+    true,
+    'the fresh stop records the modules it shows',
+  );
+
+  const ran = await gw.disconnect({
+    service: 'github', module: 'repos', provider_account_id: id, confirm: true,
+  });
+  assert.equal(ran.status, 'disconnected');
+  assert.equal(store.listConnections().length, 0);
+  assert.equal(await fake.auth.status({ providerAccountId: id }), 'ABSENT');
+});
+
+test('R1.3 a stop never offers an approval for a value it did not show', async () => {
+  const { gw, calls, audit } = await probe(GATED_LIMITS);
+  const action = 'probe.thing.act';
+  const canary = 'zzq-withheld-canary-9c3f';
+
+  const refused = await gw.execute({ action, input: { n: canary } });
+  assert.deepEqual(refused, { status: 'invalid_arguments', field: 'n', reason: 'maxLength' });
+  assert.equal(calls.length, 0);
+  assert.equal(gw.pendingConfirmations.size, 0);
+  assert.equal(JSON.stringify(refused).includes(canary), false);
+  assert.equal(auditText(audit).includes(canary), false);
+
+  const withConfirm = await gw.execute({ action, input: { n: canary }, confirm: true });
+  assert.deepEqual(withConfirm, { status: 'invalid_arguments', field: 'n', reason: 'maxLength' });
+  assert.equal(calls.length, 0);
+  assert.equal(gw.pendingConfirmations.size, 0);
+
+  assert.deepEqual(
+    await gw.execute({ action, input: { count: -1 } }),
+    { status: 'invalid_arguments', field: 'count', reason: 'minimum' },
+  );
+  assert.deepEqual(
+    await gw.execute({ action, input: { count: 11 } }),
+    { status: 'invalid_arguments', field: 'count', reason: 'maximum' },
+  );
+  assert.deepEqual(
+    await gw.execute({ action, input: { count: 1.5 } }),
+    { status: 'invalid_arguments', field: 'count', reason: 'multipleOf' },
+  );
+  assert.deepEqual(
+    await gw.execute({ action, input: { count: Number.NaN } }),
+    { status: 'invalid_arguments', field: 'count', reason: 'type' },
+  );
+  assert.equal(calls.length, 0);
+  assert.equal(gw.pendingConfirmations.size, 0);
+
+  // The first withheld field follows the order the caller supplied the keys.
+  assert.deepEqual(
+    await gw.execute({ action, input: { n: canary, count: -1 } }),
+    { status: 'invalid_arguments', field: 'n', reason: 'maxLength' },
+  );
+  assert.deepEqual(
+    await gw.execute({ action, input: { count: -1, n: canary } }),
+    { status: 'invalid_arguments', field: 'count', reason: 'minimum' },
+  );
+
+  const deep = await gw.execute({ action, input: { payload: nestObject(20000, 'zzq-depth-canary') } });
+  assert.deepEqual(deep, { status: 'invalid_arguments', field: 'payload', reason: 'depth' });
+  assert.equal(JSON.stringify(deep).includes('zzq-depth-canary'), false);
+  const deepConfirm = await gw.execute({
+    action, input: { payload: nestObject(20000, 'zzq-depth-canary') }, confirm: true,
+  });
+  assert.deepEqual(deepConfirm, { status: 'invalid_arguments', field: 'payload', reason: 'depth' });
+  assert.equal(calls.length, 0);
+  assert.equal(gw.pendingConfirmations.size, 0);
+
+  // A call that needs no approval does not consult the disclosure check.
+  const ungated = await probe({ ...GATED_LIMITS, confirmation: 'none', risk: 'low' });
+  const ran = await ungated.gw.execute({ action, input: { n: canary } });
+  assert.equal(ran.ok, true);
+  assert.equal(ungated.calls.length, 1);
+  assert.equal(ungated.gw.pendingConfirmations.size, 0);
+
+  const fpCalls = [];
+  const classifier = {
+    name: 'direct',
+    actions: () => ['wiser.route.roster'],
+    describe() { return { request: {}, answer: {} }; },
+    async execute(req) {
+      fpCalls.push(req);
+      return { ok: true, roster_sha256: 'abc', accepted: 1, rejected: 0 };
+    },
+  };
+  const policy = {
+    roles: ['runtime'],
+    default_role: 'runtime',
+    rules: [
+      { role: '*', service: 'wiser', effect: 'confirm' },
+      { role: '*', effect: 'allow' },
+    ],
+  };
+  const first = await createTestGateway({ classifier, policy, connectors: [] });
+  const rows = nestArray(20000, 'zzq-fp-depth');
+  const fp = await first.gw.execute({ action: 'wiser.route.roster', input: { rows } });
+  assert.deepEqual(fp, { status: 'invalid_arguments', field: 'rows', reason: 'depth' });
+  assert.equal(JSON.stringify(fp).includes('zzq-fp-depth'), false);
+  const fpConfirm = await first.gw.execute({
+    action: 'wiser.route.roster', input: { rows }, confirm: true,
+  });
+  assert.deepEqual(fpConfirm, { status: 'invalid_arguments', field: 'rows', reason: 'depth' });
+  assert.equal(fpCalls.length, 0, 'a withheld first-party confirm reached the adapter');
+  assert.equal(first.gw.pendingConfirmations.size, 0);
+});
+
+test('R1.4 an ungated call with a hostile depth runs', async () => {
+  const { gw, calls } = await probe({ ...ALWAYS, confirmation: 'none', risk: 'low' });
+  const input = { payload: nestObject(20000, 'leaf') };
+  const ran = await gw.execute({ action: 'probe.thing.act', input });
+  assert.equal(ran.ok, true);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].body, input);
+  assert.equal(gw.pendingConfirmations.size, 0);
+});
+
+test('R1.5 a disconnect refuses an unsafe stored account id before any stop', async () => {
+  const unsafeIds = ['acct-\u0007', 'acct-\u202e', 'acct-\u2028', 'acct-\u2060'];
+  for (const id of unsafeIds) {
+    assert.equal(containsUnsafeCodePoint(id), true, `fixture is not unsafe: ${JSON.stringify(id)}`);
+    const { gw, store, fake } = await createTestGateway();
+    fake.auth.setStatus(id, 'ACTIVE');
+    store.putConnection({
+      id: 'conn-repos', service: 'github', module: 'repos', privilege: 'write', provider: 'catalog',
+      provider_account_id: id, scopes: [], status: 'ACTIVE',
+      created: new Date().toISOString(), updated: new Date().toISOString(),
+    });
+    for (const args of [
+      { service: 'github', module: 'repos' },
+      { service: 'github', module: 'repos', provider_account_id: id, confirm: true },
+    ]) {
+      const refused = await gw.disconnect(args);
+      assert.equal(refused.status, 'denied');
+      assert.equal(refused.reason, 'unsafe_account_id');
+      assert.equal(Object.hasOwn(refused, 'provider_account_id'), false);
+      for (const s of everyString(refused)) {
+        assert.equal(containsUnsafeCodePoint(s), false, `raw unsafe code point in ${JSON.stringify(refused)}`);
+      }
+      assert.equal(gw.pendingConfirmations.size, 0);
+      assert.equal(store.listConnections().length, 1);
+      assert.equal(await fake.auth.status({ providerAccountId: id }), 'ACTIVE');
+    }
+  }
+
+  const { gw, store, fake } = await createTestGateway();
+  const safe = 'fake-acct-plain';
+  assert.equal(containsUnsafeCodePoint(safe), false);
+  fake.auth.setStatus(safe, 'ACTIVE');
+  store.putConnection({
+    id: 'conn-repos', service: 'github', module: 'repos', privilege: 'write', provider: 'catalog',
+    provider_account_id: safe, scopes: [], status: 'ACTIVE',
+    created: new Date().toISOString(), updated: new Date().toISOString(),
+  });
+  const stop = await gw.disconnect({ service: 'github', module: 'repos' });
+  assert.equal(stop.status, 'needs_confirmation');
+  assert.equal(stop.provider_account_id, safe);
+});
+
+test('R1.6 a shown value renders what JSON would send', async () => {
+  const action = 'probe.thing.act';
+  const account = 'fake-acct-probe-thing';
+  const withHole = { payload: { x: undefined, y: 1 } };
+  const withoutHole = { payload: { y: 1 } };
+  const withElement = { items: [undefined, 'a'] };
+  const asNull = { items: [null, 'a'] };
+
+  const renderedObject = discloseInput(ALWAYS, withHole).shown[0].text;
+  const renderedEmpty = discloseInput(ALWAYS, { payload: { x: undefined } }).shown[0].text;
+  const renderedArray = discloseInput(ALWAYS, withElement).shown[0].text;
+  assert.equal(renderedObject, '{"y": 1}');
+  assert.equal(renderedEmpty, '{}');
+  assert.equal(renderedArray, '[null, "a"]');
+  assert.equal(
+    confirmationDigest(['execute', action, withHole, account]),
+    confirmationDigest(['execute', action, withoutHole, account]),
+  );
+  assert.equal(
+    confirmationDigest(['execute', action, withElement, account]),
+    confirmationDigest(['execute', action, asNull, account]),
+  );
+
+  const { gw, calls } = await probe(ALWAYS);
+  const objectStop = await gw.execute({ action, input: withHole });
+  assert.equal(objectStop.status, 'needs_confirmation');
+  assert.equal(objectStop.input_values.find((f) => f.name === 'payload').value, '{"y": 1}');
+  const objectRan = await gw.execute({ action, input: withoutHole, confirm: true });
+  assert.equal(objectRan.ok, true, 'an omitted undefined member must share the approval of the object JSON sends');
+  assert.equal(calls.length, 1);
+
+  const arrayStop = await gw.execute({ action, input: withElement });
+  assert.equal(arrayStop.input_values.find((f) => f.name === 'items').value, '[null, "a"]');
+  const arrayRan = await gw.execute({ action, input: asNull, confirm: true });
+  assert.equal(arrayRan.ok, true, 'an undefined array element must share the approval of null');
+  assert.equal(calls.length, 2);
 });
