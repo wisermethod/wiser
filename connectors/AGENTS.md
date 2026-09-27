@@ -85,6 +85,7 @@ guide's `## Revoking` section carries the same working through, from `connectors
 | `monday/CONNECTOR.md` | Lists boards and reads a page of board items |
 | `supabase/CONNECTOR.md` | Lists projects and reads one project |
 | `google-cloud/CONNECTOR.md` | Reads Google Cloud projects and IAM policy, lists and enables services, and creates restricted API keys, with every mutation stopping for a confirmation that names the project and the resource |
+| `vm/CONNECTOR.md` | Reads health, facts and mapped host identifiers, runs a root command, reads and writes one file, and controls a systemd unit, with every command, write and unit change confirmed |
 
 ### Analytics
 

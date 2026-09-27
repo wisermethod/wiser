@@ -108,6 +108,10 @@ const PATTERN_OK = {
   // Both rounds found by adversarial review 2026-09-20.
   '^[\\u0000-\\u0020]*[Hh][Tt][Tt][Pp][Ss]?://': 'https://example.com/x',
   '^([\\u0000-\\u0020]*[Hh][Tt][Tt][Pp][Ss]?://|\\s*[Ss][Cc]-[Dd][Oo][Mm][Aa][Ii][Nn]:)': 'https://example.com/x',
+  // vm: mapped-host identifier, absolute path, systemd unit name.
+  '^[a-z0-9][a-z0-9-]{0,62}$': 'web-1',
+  '^/[^\\u0000\\r\\n]*$': '/a',
+  '^[A-Za-z0-9@._:-]{1,120}\\.(service|timer|socket|target|path|mount)$': 'app.service',
 };
 const PATTERN_ADVERSARIAL = {
   // The tightened pattern excludes exactly the two relative segments

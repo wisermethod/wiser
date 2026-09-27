@@ -1,0 +1,220 @@
+{
+  "id": "vm",
+  "service": "vm",
+  "modules": {
+    "inventory": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "CUSTOM_VM",
+        "scheme": "API_KEY",
+        "privilege": "admin"
+      },
+      "actions": {
+        "health": {
+          "description": "Ask whether one mapped host answers. machine matches ^[a-z0-9][a-z0-9-]{0,62}$. Returns the router's outcome, including when that host is unreachable.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "machine": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+              }
+            },
+            "required": ["machine"],
+            "additionalProperties": false
+          }
+        },
+        "facts": {
+          "description": "Read one mapped host's facts. Returns the router's output and its truncation flag. The router caps encoded output at 65536 bytes.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "machine": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+              }
+            },
+            "required": ["machine"],
+            "additionalProperties": false
+          }
+        },
+        "list_hosts": {
+          "description": "List mapped host identifiers and whether each entry is the router host. The result is identifiers only, never an address, and it excludes withdrawn identifiers.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    },
+    "command": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "CUSTOM_VM",
+        "scheme": "API_KEY",
+        "privilege": "admin"
+      },
+      "actions": {
+        "run": {
+          "description": "Run an argument vector as root on one mapped host. argv is 1 to 64 strings, each at most 4096 code points, and the first element must be nonempty. SSH reconstructs the vector as a remote shell command, and a root command can bypass file roots. An element the router cannot represent comes back as outcome quote_refused. A body over the router's 262144-byte request cap comes back as outcome oversize.",
+          "risk": "destructive",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "machine": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+              },
+              "argv": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 64,
+                "items": {
+                  "type": "string",
+                  "maxLength": 4096
+                }
+              }
+            },
+            "required": ["machine", "argv"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    },
+    "files": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "CUSTOM_VM",
+        "scheme": "API_KEY",
+        "privilege": "admin"
+      },
+      "actions": {
+        "read_file": {
+          "description": "Read one absolute path on a mapped host. path matches ^/[^\\u0000\\r\\n]*$, is at most 4096 code points, and a lone UTF-16 surrogate is refused because it has no UTF-8 encoding. The router enforces its allowlist and its 262144-byte read limit; a path outside the allowlist comes back as outcome path_refused, and a file over that limit comes back as outcome oversize.",
+          "risk": "medium",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "machine": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+              },
+              "path": {
+                "type": "string",
+                "pattern": "^/[^\\u0000\\r\\n]*$",
+                "maxLength": 4096
+              }
+            },
+            "required": ["machine", "path"],
+            "additionalProperties": false
+          }
+        },
+        "write_file": {
+          "description": "Overwrite one absolute path on a mapped host. path follows the read_file rule, including the lone-surrogate refusal. content is a string of at most 60000 code points, a lone UTF-16 surrogate is refused, and the encoded JSON body must be at most 262144 bytes. The router enforces confinement and the same request cap.",
+          "risk": "destructive",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "machine": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+              },
+              "path": {
+                "type": "string",
+                "pattern": "^/[^\\u0000\\r\\n]*$",
+                "maxLength": 4096
+              },
+              "content": {
+                "type": "string",
+                "maxLength": 60000
+              }
+            },
+            "required": ["machine", "path", "content"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    },
+    "units": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "CUSTOM_VM",
+        "scheme": "API_KEY",
+        "privilege": "admin"
+      },
+      "actions": {
+        "status": {
+          "description": "Read one systemd unit's status. unit matches ^[A-Za-z0-9@._:-]{1,120}\\.(service|timer|socket|target|path|mount)$. The call sends systemctl status --no-pager and that unit. A nonzero status still returns the router's output.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "machine": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+              },
+              "unit": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9@._:-]{1,120}\\.(service|timer|socket|target|path|mount)$"
+              }
+            },
+            "required": ["machine", "unit"],
+            "additionalProperties": false
+          }
+        },
+        "service": {
+          "description": "Change one systemd unit. verb is start, stop, restart, reload, enable, or disable, and unit matches the status pattern. The call builds ['systemctl', verb, unit] itself. Caller argv is never sent.",
+          "risk": "destructive",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "machine": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+              },
+              "verb": {
+                "type": "string",
+                "enum": ["start", "stop", "restart", "reload", "enable", "disable"]
+              },
+              "unit": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9@._:-]{1,120}\\.(service|timer|socket|target|path|mount)$"
+              }
+            },
+            "required": ["machine", "verb", "unit"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    }
+  }
+}

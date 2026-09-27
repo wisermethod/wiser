@@ -1,0 +1,5 @@
+{
+  "name": "wiser-connector-vm",
+  "private": true,
+  "type": "module"
+}
