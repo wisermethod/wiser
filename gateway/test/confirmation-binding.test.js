@@ -604,40 +604,49 @@ test('R1.5 a disconnect refuses an unsafe stored account id before any stop', as
   assert.equal(stop.provider_account_id, safe);
 });
 
-test('R1.6 a shown value renders what JSON would send', async () => {
+// R1.6 rendered an undefined member absent so the stop agreed with the key. Review
+// round two (R2.2) found the class wider than undefined: a nested NaN rendered `NaN`
+// and keyed `null`, and the connector still received the original object. A gated
+// structured value must now be plain JSON, and anything else is refused unshown.
+test('R1.6 and R2.2 a gated structured value that is not plain JSON is refused, never shown', async () => {
   const action = 'probe.thing.act';
-  const account = 'fake-acct-probe-thing';
-  const withHole = { payload: { x: undefined, y: 1 } };
-  const withoutHole = { payload: { y: 1 } };
-  const withElement = { items: [undefined, 'a'] };
-  const asNull = { items: [null, 'a'] };
+  const notJson = [
+    ['an undefined member', { payload: { x: undefined, y: 1 } }, 'payload'],
+    ['an undefined element', { items: [undefined, 'a'] }, 'items'],
+    ['an array hole', { items: [, 'a'] }, 'items'], // eslint-disable-line no-sparse-arrays
+    ['a nested NaN', { payload: { x: NaN } }, 'payload'],
+    ['a nested Infinity', { items: [1, -Infinity] }, 'items'],
+    ['a nested Date', { payload: { at: new Date(0) } }, 'payload'],
+    ['a nested bigint', { payload: { n: 1n } }, 'payload'],
+    ['a nested function', { payload: { f() {} } }, 'payload'],
+  ];
+  for (const [label, input, field] of notJson) {
+    assert.deepEqual(discloseInput(ALWAYS, input).withheld, [{ name: field, reason: 'not_json' }], label);
+    const { gw, calls } = await probe(ALWAYS);
+    const stop = await gw.execute({ action, input });
+    assert.equal(stop.status, 'invalid_arguments', label);
+    assert.equal(stop.field, field, label);
+    assert.equal(stop.reason, 'not_json', label);
+    assert.equal(gw.pendingConfirmations.size, 0, `${label}: no approval recorded`);
+    const confirmed = await gw.execute({ action, input, confirm: true });
+    assert.equal(confirmed.status, 'invalid_arguments', label);
+    assert.equal(calls.length, 0, `${label}: nothing ran`);
+  }
 
-  const renderedObject = discloseInput(ALWAYS, withHole).shown[0].text;
-  const renderedEmpty = discloseInput(ALWAYS, { payload: { x: undefined } }).shown[0].text;
-  const renderedArray = discloseInput(ALWAYS, withElement).shown[0].text;
-  assert.equal(renderedObject, '{"y": 1}');
-  assert.equal(renderedEmpty, '{}');
-  assert.equal(renderedArray, '[null, "a"]');
-  assert.equal(
-    confirmationDigest(['execute', action, withHole, account]),
-    confirmationDigest(['execute', action, withoutHole, account]),
-  );
-  assert.equal(
-    confirmationDigest(['execute', action, withElement, account]),
-    confirmationDigest(['execute', action, asNull, account]),
-  );
-
+  // The stop for the null a NaN would have keyed as must not be reachable from the NaN.
   const { gw, calls } = await probe(ALWAYS);
-  const objectStop = await gw.execute({ action, input: withHole });
-  assert.equal(objectStop.status, 'needs_confirmation');
-  assert.equal(objectStop.input_values.find((f) => f.name === 'payload').value, '{"y": 1}');
-  const objectRan = await gw.execute({ action, input: withoutHole, confirm: true });
-  assert.equal(objectRan.ok, true, 'an omitted undefined member must share the approval of the object JSON sends');
-  assert.equal(calls.length, 1);
+  const nullStop = await gw.execute({ action, input: { payload: { x: null } } });
+  assert.equal(nullStop.status, 'needs_confirmation');
+  const viaNaN = await gw.execute({ action, input: { payload: { x: NaN } }, confirm: true });
+  assert.equal(viaNaN.status, 'invalid_arguments');
+  assert.equal(calls.length, 0);
 
-  const arrayStop = await gw.execute({ action, input: withElement });
-  assert.equal(arrayStop.input_values.find((f) => f.name === 'items').value, '[null, "a"]');
-  const arrayRan = await gw.execute({ action, input: asNull, confirm: true });
-  assert.equal(arrayRan.ok, true, 'an undefined array element must share the approval of null');
-  assert.equal(calls.length, 2);
+  // Plain JSON still renders, keys and runs, and the connector receives exactly it.
+  const plain = { payload: { x: null, y: [1, 'a', { z: false }] } };
+  const plainStop = await gw.execute({ action, input: plain });
+  assert.equal(plainStop.input_values.find((f) => f.name === 'payload').value, '{"x": null, "y": [1, "a", {"z": false}]}');
+  const ran = await gw.execute({ action, input: plain, confirm: true });
+  assert.equal(ran.ok, true);
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].body, plain);
 });

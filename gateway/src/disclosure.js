@@ -176,6 +176,33 @@ function isContainer(value) {
 }
 
 /**
+ * True when a value is plain JSON data all the way down: finite numbers, strings,
+ * booleans, null, arrays with no holes, and plain objects with no undefined member.
+ * Anything else renders one way, keys the approval another and runs as a third:
+ * a nested `NaN` rendered `NaN` and keyed `null`, so a stop for one approved the
+ * other. Review round two, R2.2. Called only after {@link deeperThan} has passed,
+ * so the recursion is bounded by MAX_DEPTH.
+ *
+ * @param {unknown} value
+ */
+function isJsonData(value) {
+  if (value === null) return true;
+  const kind = typeof value;
+  if (kind === 'string' || kind === 'boolean') return true;
+  if (kind === 'number') return Number.isFinite(value);
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i += 1) {
+      if (!(i in value) || !isJsonData(value[i])) return false;
+    }
+    return true;
+  }
+  if (kind !== 'object') return false;
+  const proto = Object.getPrototypeOf(value);
+  if (proto !== Object.prototype && proto !== null) return false;
+  return Object.values(value).every(isJsonData);
+}
+
+/**
  * True when any container sits deeper than {@link MAX_DEPTH}. Walks with a
  * depth counter and stops at the limit, so a hostile nest cannot recurse away
  * the stack. A cycle counts as depth too: each step goes one level deeper.
@@ -403,6 +430,7 @@ export function discloseInput(action, input) {
     // is what makes the text safe. Scalar validation is unchanged.
     if (isContainer(value)) {
       if (deeperThan(value, 1)) { withheld.push({ name, reason: 'depth' }); continue; }
+      if (!isJsonData(value)) { withheld.push({ name, reason: 'not_json' }); continue; }
       shown.push({ name, ...renderCapped(renderData(value)) });
       continue;
     }
