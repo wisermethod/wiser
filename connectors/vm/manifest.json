@@ -167,7 +167,7 @@
       },
       "actions": {
         "status": {
-          "description": "Read one systemd unit's status. unit matches ^[A-Za-z0-9@._:-]{1,120}\\.(service|timer|socket|target|path|mount)$. The call sends systemctl status --no-pager and that unit. A nonzero status still returns the router's output.",
+          "description": "Read one systemd unit's status. unit matches ^[A-Za-z0-9@._:][A-Za-z0-9@._:-]{0,119}\\.(service|timer|socket|target|path|mount)$, so it never starts with -. The call sends systemctl status --no-pager -- and that unit. A nonzero status still returns the router's output.",
           "risk": "low",
           "confirmation": "none",
           "execution": { "prefer": "proxy" },
@@ -180,7 +180,7 @@
               },
               "unit": {
                 "type": "string",
-                "pattern": "^[A-Za-z0-9@._:-]{1,120}\\.(service|timer|socket|target|path|mount)$"
+                "pattern": "^[A-Za-z0-9@._:][A-Za-z0-9@._:-]{0,119}\\.(service|timer|socket|target|path|mount)$"
               }
             },
             "required": ["machine", "unit"],
@@ -188,7 +188,7 @@
           }
         },
         "service": {
-          "description": "Change one systemd unit. verb is start, stop, restart, reload, enable, or disable, and unit matches the status pattern. The call builds ['systemctl', verb, unit] itself. Caller argv is never sent.",
+          "description": "Change one systemd unit. verb is start, stop, restart, reload, enable, or disable, and unit matches the status pattern. The call builds ['systemctl', verb, '--', unit] itself. Caller argv is never sent.",
           "risk": "destructive",
           "confirmation": "always",
           "execution": { "prefer": "proxy" },
@@ -205,7 +205,7 @@
               },
               "unit": {
                 "type": "string",
-                "pattern": "^[A-Za-z0-9@._:-]{1,120}\\.(service|timer|socket|target|path|mount)$"
+                "pattern": "^[A-Za-z0-9@._:][A-Za-z0-9@._:-]{0,119}\\.(service|timer|socket|target|path|mount)$"
               }
             },
             "required": ["machine", "verb", "unit"],

@@ -19,7 +19,9 @@ function representable(value) {
 }
 
 const MACHINE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$/;
-const UNIT = /^[A-Za-z0-9@._:-]{1,120}\.(service|timer|socket|target|path|mount)$/;
+// A unit starting with - would be read by systemctl as an option, so the pattern
+// refuses one and both vectors end option parsing with -- before the unit.
+const UNIT = /^[A-Za-z0-9@._:][A-Za-z0-9@._:-]{0,119}\.(service|timer|socket|target|path|mount)$/;
 const ABS_PATH = /^\/[^\u0000\r\n]*$/;
 const VERBS = new Set(['start', 'stop', 'restart', 'reload', 'enable', 'disable']);
 const ARGV_MAX_ITEMS = 64;
@@ -130,7 +132,7 @@ export const modules = {
       if (bad) return bad;
       return callRouter(ctx, '/service', {
         machine: input.machine,
-        argv: ['systemctl', 'status', '--no-pager', input.unit],
+        argv: ['systemctl', 'status', '--no-pager', '--', input.unit],
       });
     },
     async service(input, ctx) {
@@ -141,7 +143,7 @@ export const modules = {
       if (bad) return bad;
       return callRouter(ctx, '/service', {
         machine: input.machine,
-        argv: ['systemctl', input.verb, input.unit],
+        argv: ['systemctl', input.verb, '--', input.unit],
       });
     },
   },

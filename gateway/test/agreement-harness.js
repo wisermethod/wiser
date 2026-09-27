@@ -111,7 +111,7 @@ const PATTERN_OK = {
   // vm: mapped-host identifier, absolute path, systemd unit name.
   '^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$': 'web-1',
   '^/[^\\u0000\\r\\n]*$': '/a',
-  '^[A-Za-z0-9@._:-]{1,120}\\.(service|timer|socket|target|path|mount)$': 'app.service',
+  '^[A-Za-z0-9@._:][A-Za-z0-9@._:-]{0,119}\\.(service|timer|socket|target|path|mount)$': 'app.service',
 };
 const PATTERN_ADVERSARIAL = {
   // The tightened pattern excludes exactly the two relative segments

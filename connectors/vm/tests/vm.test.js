@@ -74,7 +74,7 @@ const CASES = [
     module: 'units',
     input: { machine: MACHINE, unit: UNIT },
     endpoint: '/service',
-    body: { machine: MACHINE, argv: ['systemctl', 'status', '--no-pager', UNIT] },
+    body: { machine: MACHINE, argv: ['systemctl', 'status', '--no-pager', '--', UNIT] },
     confirm: false,
   },
   {
@@ -82,7 +82,7 @@ const CASES = [
     module: 'units',
     input: { machine: MACHINE, verb: 'restart', unit: UNIT },
     endpoint: '/service',
-    body: { machine: MACHINE, argv: ['systemctl', 'restart', UNIT] },
+    body: { machine: MACHINE, argv: ['systemctl', 'restart', '--', UNIT] },
     confirm: true,
   },
 ];
@@ -189,7 +189,7 @@ test('units build systemctl argv and never forward a caller vector', async () =>
     await fixture.gw.execute({ action: 'vm.units.status', input: { machine: MACHINE, unit } });
     assert.deepEqual(fixture.calls[0].body, {
       machine: MACHINE,
-      argv: ['systemctl', 'status', '--no-pager', unit],
+      argv: ['systemctl', 'status', '--no-pager', '--', unit],
     });
   }
   for (const verb of ['start', 'stop', 'restart', 'reload', 'enable', 'disable']) {
@@ -207,7 +207,7 @@ test('units build systemctl argv and never forward a caller vector', async () =>
       confirm: true,
     });
     assert.deepEqual(fixture.calls[0].endpoint, '/service');
-    assert.deepEqual(fixture.calls[0].body.argv, ['systemctl', verb, UNIT]);
+    assert.deepEqual(fixture.calls[0].body.argv, ['systemctl', verb, '--', UNIT]);
     assert.equal(fixture.calls[0].body.argv.includes('rm'), false);
   }
 });
@@ -365,6 +365,11 @@ test('out-of-bound input is refused before transport', async () => {
   await refused('vm.files.write_file', { machine: MACHINE, path: '/a', content: over });
   await refused('vm.units.status', { machine: MACHINE, unit: 'nope' });
   await refused('vm.units.status', { machine: MACHINE, unit: `${'a'.repeat(121)}.service` });
+  // A leading - is a systemctl option: -H names a remote host, -M a container.
+  for (const unit of ['-Hother.service', '-Mcontainer.service', '-.mount']) {
+    await refused('vm.units.status', { machine: MACHINE, unit });
+    await refused('vm.units.service', { machine: MACHINE, verb: 'restart', unit });
+  }
   await refused('vm.units.service', { machine: MACHINE, verb: 'status', unit: UNIT });
   await refused('vm.units.service', { machine: MACHINE, verb: 'START', unit: UNIT });
   await refused('vm.inventory.list_hosts', { machine: MACHINE });
@@ -402,7 +407,7 @@ test('bounds the gateway does not enforce are accepted at the published limit', 
   await ok('vm.files.write_file', { machine: MACHINE, path: '/a', content: controls });
   const unit = `${'a'.repeat(120)}.service`;
   const status = await ok('vm.units.status', { machine: MACHINE, unit });
-  assert.deepEqual(status.body.argv, ['systemctl', 'status', '--no-pager', unit]);
+  assert.deepEqual(status.body.argv, ['systemctl', 'status', '--no-pager', '--', unit]);
   await ok('vm.inventory.health', { machine: 'a'.repeat(63) });
   await ok('vm.command.run', { machine: MACHINE, argv: ['true'] });
 });

@@ -41,9 +41,9 @@ vm.units.service          { machine, verb, unit }    confirmation: always
 
 `vm.files.write_file` posts `{ machine, path, content }` to `/write_file`. `path` follows the read rule. `content` is a string of at most 60000 code points, a lone UTF-16 surrogate is refused, and the encoded JSON body must be at most 262144 bytes. One call's worst case is that path, that content, and that byte cap. The router enforces confinement and the same request cap.
 
-`vm.units.status` posts `{ machine, argv }` to `/service`, with `argv` built as `['systemctl', 'status', '--no-pager', unit]`. `unit` matches `^[A-Za-z0-9@._:-]{1,120}\.(service|timer|socket|target|path|mount)$`. A nonzero status still returns the router's output.
+`vm.units.status` posts `{ machine, argv }` to `/service`, with `argv` built as `['systemctl', 'status', '--no-pager', '--', unit]`. `unit` matches `^[A-Za-z0-9@._:][A-Za-z0-9@._:-]{0,119}\.(service|timer|socket|target|path|mount)$`, so it never starts with `-`, and `--` ends `systemctl`'s option parsing before it. A nonzero status still returns the router's output.
 
-`vm.units.service` posts `{ machine, argv }` to `/service`, with `argv` built as `['systemctl', verb, unit]`. `verb` is `start`, `stop`, `restart`, `reload`, `enable`, or `disable`. The same unit pattern applies. Caller argv is never sent.
+`vm.units.service` posts `{ machine, argv }` to `/service`, with `argv` built as `['systemctl', verb, '--', unit]`. `verb` is `start`, `stop`, `restart`, `reload`, `enable`, or `disable`. The same unit pattern applies. Caller argv is never sent.
 
 Every action returns the router's JSON, read from `outcome`. `ok`, `remote_failure`, `timeout`, `busy`, `path_refused`, `unknown_machine`, `truncated`, `oversize` and `quote_refused` are results. An outer provider or transport failure stays `vendor_error`.
 
