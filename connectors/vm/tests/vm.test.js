@@ -349,7 +349,7 @@ test('out-of-bound input is refused before transport', async () => {
   await refused('vm.command.run', { machine: MACHINE, argv: Array.from({ length: 65 }, () => 'a') });
   await refused('vm.command.run', { machine: MACHINE, argv: [''] });
   await refused('vm.command.run', { machine: MACHINE, argv: ['😀'.repeat(4097)] });
-  await refused('vm.command.run', { machine: 'WEB', argv: ['true'] });
+  await refused('vm.command.run', { machine: '_web', argv: ['true'] });
   await refused('vm.command.run', { machine: 'a'.repeat(64), argv: ['true'] });
   await refused('vm.files.read_file', { machine: MACHINE, path: 'relative' });
   await refused('vm.files.read_file', { machine: MACHINE, path: `/a\n` });
@@ -414,4 +414,23 @@ test('a success body with no outcome stays vendor_error', async () => {
   assert.equal(result.status, 'vendor_error');
   assert.equal(result.endpoint, '/health');
   assert.equal(Object.hasOwn(result, 'request_id'), false);
+});
+
+test('machine accepts every identifier the router registers, within 63 characters, and refuses the rest', async () => {
+  const fixture = await connected(allowVm);
+  const health = CASES.find((row) => row.id === 'vm.inventory.health');
+  for (const machine of ['web_1', 'Web.2', 'a', 'x'.repeat(63)]) {
+    fixture.calls.length = 0;
+    const result = await run(fixture, health, { input: { machine } });
+    assert.equal(result.outcome, 'ok', machine);
+    assert.equal(fixture.calls.length, 1, machine);
+    assert.equal(fixture.calls[0].endpoint, '/health', machine);
+    assert.deepEqual(fixture.calls[0].body, { machine }, machine);
+  }
+  for (const machine of ['-x', '.a', '_a', 'a/b', 'a b', '../x', 'x'.repeat(64), '']) {
+    fixture.calls.length = 0;
+    const result = await run(fixture, health, { input: { machine } });
+    assert.equal(result.status, 'invalid_arguments', JSON.stringify(machine));
+    assert.equal(fixture.calls.length, 0, JSON.stringify(machine));
+  }
 });

@@ -16,7 +16,7 @@ Shipped 2026-09-26. Fake-provider checks only; no live call was made.
 
 ## Reaching it
 
-Through the gateway, by action id. `machine` matches `^[a-z0-9][a-z0-9-]{0,62}$`. Length bounds below count code points. The gateway applies types, enums, patterns, required fields and item types before the module runs. The module applies `maxLength`, `minItems`, `maxItems`, the nonempty first argument, the encoded write size, and the lone-surrogate refusal.
+Through the gateway, by action id. `machine` matches `^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$`. Length bounds below count code points. The gateway applies types, enums, patterns, required fields and item types before the module runs. The module applies `maxLength`, `minItems`, `maxItems`, the nonempty first argument, the encoded write size, and the lone-surrogate refusal.
 
 ```
 vm.inventory.health       { machine }

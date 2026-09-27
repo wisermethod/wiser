@@ -18,7 +18,7 @@ function representable(value) {
   return Buffer.from(value, 'utf8').toString('utf8') === value;
 }
 
-const MACHINE = /^[a-z0-9][a-z0-9-]{0,62}$/;
+const MACHINE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$/;
 const UNIT = /^[A-Za-z0-9@._:-]{1,120}\.(service|timer|socket|target|path|mount)$/;
 const ABS_PATH = /^\/[^\u0000\r\n]*$/;
 const VERBS = new Set(['start', 'stop', 'restart', 'reload', 'enable', 'disable']);
