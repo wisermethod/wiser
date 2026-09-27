@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
+import { confirmCall, createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
 import { modules } from '../index.js';
 
 const DIR = fileURLToPath(new URL('..', import.meta.url));
@@ -32,7 +32,7 @@ async function activeGateway() {
 }
 
 function run(gw, input, extra = {}) {
-  return gw.execute({ action: ACTION, input, confirm: true, ...extra });
+  return confirmCall(gw, { action: ACTION, input, confirm: true, ...extra });
 }
 
 test('text needs_connect until the translate read grant is active', async () => {
@@ -49,7 +49,7 @@ test('text requires confirmation on every call and returns translations', async 
   const { gw, calls } = await activeGateway();
   const call = { action: ACTION, input: VALID };
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
-  assert.deepEqual((await gw.execute({ ...call, confirm: true })).translations, VENDOR.data.translations);
+  assert.deepEqual((await confirmCall(gw, { ...call, confirm: true })).translations, VENDOR.data.translations);
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
   assert.equal(calls.length, 1);
 });
@@ -76,7 +76,7 @@ test('text with confirm uses an absolute GET proxy and exposes translations only
 test('a later text call also stops without confirm', async () => {
   const { gw, calls } = await activeGateway();
   const call = { action: ACTION, input: VALID };
-  const first = await gw.execute({ ...call, confirm: true });
+  const first = await confirmCall(gw, { ...call, confirm: true });
   assert.equal(first.status, undefined);
   assert.equal(first.translations[0].translatedText, 'Hallo Welt');
   const second = await gw.execute(call);

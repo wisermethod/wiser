@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
+import { confirmCall, createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
 
 const localFileProvider = {
   isConfigured: () => true,
@@ -50,7 +50,7 @@ test('credits, single, bulk, status and download use safe HTTP and preserve vend
     assert.notEqual(single.status, 'needs_confirmation');
     assert.deepEqual(single, vendor);
     assert.equal(seen[1].parsed.searchParams.get('email'), 'example+tag@example.com');
-    const bulk = await gw.execute({ action: 'usebouncer.verify.bulk', input: { emails: [{ email: 'example@example.com' }] }, confirm: true });
+    const bulk = await confirmCall(gw, { action: 'usebouncer.verify.bulk', input: { emails: [{ email: 'example@example.com' }] }, confirm: true });
     assert.equal(bulk.batchId, 'batch-example');
     assert.equal((await gw.execute({ action: 'usebouncer.verify.status', input: { id: bulk.batchId } })).status, 'completed');
     assert.deepEqual(await gw.execute({ action: 'usebouncer.verify.download', input: { id: bulk.batchId } }), [vendor]);

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
+import { confirmCall, createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
 import { modules } from '../index.js';
 
 const service = 'huggingface';
@@ -30,7 +30,7 @@ for (const [action, fixture] of Object.entries(cases)) {
     const execute = fake.catalog.execute;
     fake.catalog.execute = async (request) => { calls.push(request); return execute(request); };
     const input = structuredClone(fixture.input);
-    const result = await gw.execute({ action: `${service}.${module}.${action}`, input, confirm: true });
+    const result = await confirmCall(gw, { action: `${service}.${module}.${action}`, input, confirm: true });
     assert.deepEqual(result, fixture.result);
     assert.equal(calls.length, 1);
     assert.equal(calls[0].actionId, `${service}.${module}.${action}`);
@@ -42,7 +42,7 @@ for (const [action, fixture] of Object.entries(cases)) {
     const { gw, store, fake } = await createTestGateway();
     await putActive(store, fake, { service, module, privilege });
     const input = Object.fromEntries(fixture.required.map((field) => [field, fixture.input[field]]));
-    assert.deepEqual(await gw.execute({ action: `${service}.${module}.${action}`, input, confirm: true }), fixture.result);
+    assert.deepEqual(await confirmCall(gw, { action: `${service}.${module}.${action}`, input, confirm: true }), fixture.result);
     const failure = { status: 'vendor_error', error: { code: 'vendor_error', endpoint: '/example', method: 'GET' } };
     const ctx = { service, module, action, catalog: async () => failure };
     assert.equal(await modules[module][action](input, ctx), failure);
@@ -65,14 +65,14 @@ for (const [action, fixture] of Object.entries(cases)) {
       for (const item of wrong) invalid.push({ input: { ...fixture.input, [field]: item }, field });
     }
     for (const { input, field } of invalid) {
-      assert.deepEqual(await gw.execute({ action: `${service}.${module}.${action}`, input, confirm: true }), { status: 'invalid_arguments', field });
+      assert.deepEqual(await confirmCall(gw, { action: `${service}.${module}.${action}`, input, confirm: true }), { status: 'invalid_arguments', field });
     }
     // Asserted at the gateway boundary. This connector carried a copy of the schema
     // validator until 2026-09-20, so a malformed input was refused by the module itself;
     // the gateway now validates against the published schema before any module runs, and
     // the refusal is the same object from the only place that still makes it.
     for (const input of [null, [], 'example', 1]) {
-      assert.deepEqual(await gw.execute({ action: `${service}.${module}.${action}`, input, confirm: true }), { status: 'invalid_arguments', field: 'input' });
+      assert.deepEqual(await confirmCall(gw, { action: `${service}.${module}.${action}`, input, confirm: true }), { status: 'invalid_arguments', field: 'input' });
     }
   });
 }

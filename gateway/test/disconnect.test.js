@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createTestGateway, putActive } from './fake-provider.js';
+import { confirmCall, createTestGateway, putActive } from './fake-provider.js';
 
 /**
  * The teardown tool.
@@ -39,11 +39,17 @@ async function shared(options = {}) {
 
 const rows = (store) => store.listConnections().map((r) => `${r.service}/${r.module}`).sort();
 
+/** A confirm with an account id answers the stop for that same call. */
+function callDisconnect(gw, args) {
+  if (args && args.confirm === true && args.provider_account_id !== undefined) return confirmCall(gw, args);
+  return gw.callTool('disconnect', args);
+}
+
 // ------------------------------------------------------- the stop, before anything
 
 test('an unconfirmed call stops, and the stop names every module the credential ends', async () => {
   const { gw, store } = await shared();
-  const r = await gw.callTool('disconnect', { service: 'github', module: 'repos' });
+  const r = await callDisconnect(gw, { service: 'github', module: 'repos' });
   assert.equal(r.status, 'needs_confirmation');
   assert.equal(r.provider_account_id, KIT);
   assert.deepEqual(r.modules_ending.map((m) => `${m.service}/${m.module}`).sort(),
@@ -62,7 +68,7 @@ test('the stop is enforced, not advisory: confirmation is not a manifest field h
   // Witness 14: `confirmation` lives inside `execute` and a top-level tool is not on
   // that path, so this tool implements its own or it has none.
   const { gw, store, fake } = await shared();
-  await gw.callTool('disconnect', { service: 'github', module: 'repos' });
+  await callDisconnect(gw, { service: 'github', module: 'repos' });
   assert.equal(await fake.auth.status({ providerAccountId: KIT }), 'ACTIVE',
     'the credential was revoked without an approval');
   assert.equal(rows(store).length, 2);
@@ -72,7 +78,7 @@ test('the stop is enforced, not advisory: confirmation is not a manifest field h
 
 test('a confirmed teardown revokes once and removes every row on that credential', async () => {
   const { gw, store, fake, home } = await shared();
-  const r = await gw.callTool('disconnect', {
+  const r = await callDisconnect(gw, {
     service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
   });
   assert.equal(r.status, 'disconnected');
@@ -99,7 +105,7 @@ test('a provider that refuses the revoke removes nothing, and says what each ste
     supported: true,
     steps: [{ step: 'revoke', status: 400, ok: false }, { step: 'delete', status: 500, ok: false }],
   });
-  const r = await gw.callTool('disconnect', {
+  const r = await callDisconnect(gw, {
     service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
   });
   assert.equal(r.status, 'teardown_incomplete');
@@ -121,7 +127,7 @@ test('absence is verified and never inferred: a revoke that reports success but 
     steps: [{ step: 'revoke', status: 200, ok: true }, { step: 'delete', status: 200, ok: true }],
   });
   t.mock.method(fake.auth, 'status', async () => 'ACTIVE');
-  const r = await gw.callTool('disconnect', {
+  const r = await callDisconnect(gw, {
     service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
   });
   assert.notEqual(r.status, 'disconnected');
@@ -134,7 +140,7 @@ test('an adapter with no revoke is a missing capability, not a failure to report
   const { gw, store } = await shared();
   const provider = gw.authProvider;
   delete provider.revoke;
-  const r = await gw.callTool('disconnect', {
+  const r = await callDisconnect(gw, {
     service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
   });
   assert.equal(r.status, 'needs_provider_capability');
@@ -145,7 +151,7 @@ test('an adapter with no revoke is a missing capability, not a failure to report
 test('an adapter answering supported: false reports how, and removes nothing', async () => {
   const { gw, store, fake } = await shared();
   fake.auth.setRevokeOutcome({ supported: false, how: 'delete the file', steps: [] });
-  const r = await gw.callTool('disconnect', {
+  const r = await callDisconnect(gw, {
     service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
   });
   assert.equal(r.status, 'needs_provider_capability');
@@ -155,14 +161,14 @@ test('an adapter answering supported: false reports how, and removes nothing', a
 
 test('a grant absent locally is said plainly rather than reported as a success that removed nothing', async () => {
   const { gw } = await createTestGateway();
-  const r = await gw.callTool('disconnect', { service: 'github', module: 'repos' });
+  const r = await callDisconnect(gw, { service: 'github', module: 'repos' });
   assert.equal(r.status, 'needs_connect');
   assert.equal(r.reason, 'nothing_to_disconnect');
 });
 
 test('a readonly caller is denied by a policy rule, not by a metadata field', async () => {
   const { gw, store } = await shared({ role: 'readonly' });
-  const r = await gw.callTool('disconnect', { service: 'github', module: 'repos' });
+  const r = await callDisconnect(gw, { service: 'github', module: 'repos' });
   assert.equal(r.status, 'denied');
   assert.equal(rows(store).length, 2);
   // And denied before any stop is composed, so a readonly caller never sees the summary.
@@ -171,11 +177,11 @@ test('a readonly caller is denied by a policy rule, not by a metadata field', as
 
 test('a repeated disconnect finds nothing to do the second time', async () => {
   const { gw } = await shared();
-  const first = await gw.callTool('disconnect', {
+  const first = await callDisconnect(gw, {
     service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
   });
   assert.equal(first.status, 'disconnected');
-  const second = await gw.callTool('disconnect', { service: 'github', module: 'repos' });
+  const second = await callDisconnect(gw, { service: 'github', module: 'repos' });
   assert.equal(second.status, 'needs_connect');
   assert.equal(second.reason, 'nothing_to_disconnect');
 });
@@ -184,7 +190,7 @@ test('a repeated disconnect finds nothing to do the second time', async () => {
 
 test('a confirmed call carrying no account id is refused', async () => {
   const { gw, store } = await shared();
-  const r = await gw.callTool('disconnect', { service: 'github', module: 'repos', confirm: true });
+  const r = await callDisconnect(gw, { service: 'github', module: 'repos', confirm: true });
   assert.equal(r.status, 'invalid_arguments');
   assert.equal(r.field, 'provider_account_id');
   assert.equal(rows(store).length, 2);
@@ -192,7 +198,7 @@ test('a confirmed call carrying no account id is refused', async () => {
 
 test('a reconnect between the stop and the confirmed call refuses audibly', async () => {
   const { gw, store } = await shared();
-  const stop = await gw.callTool('disconnect', { service: 'github', module: 'repos' });
+  const stop = await callDisconnect(gw, { service: 'github', module: 'repos' });
   assert.equal(stop.status, 'needs_confirmation');
 
   // A reconnect installs a different account id on that row.
@@ -202,7 +208,7 @@ test('a reconnect between the stop and the confirmed call refuses audibly', asyn
     status: 'ACTIVE', created: new Date().toISOString(), updated: new Date().toISOString(),
   });
 
-  const r = await gw.callTool('disconnect', {
+  const r = await callDisconnect(gw, {
     service: 'github', module: 'repos', provider_account_id: stop.provider_account_id, confirm: true,
   });
   assert.equal(r.status, 'denied');
@@ -235,7 +241,7 @@ test('a reconnect DURING the provider round trip cannot take the new row, within
       steps: [{ step: 'revoke', status: 200, ok: true }, { step: 'delete', status: 200, ok: true }],
     };
   });
-  const r = await gw.callTool('disconnect', {
+  const r = await callDisconnect(gw, {
     service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
   });
   assert.equal(r.status, 'disconnected');
@@ -257,7 +263,7 @@ test('a provider error after the revoke leaves every row alone', async () => {
     steps: [{ step: 'revoke', status: 200, ok: true }, { step: 'delete', status: 200, ok: true }],
   });
   fake.auth.status = async () => ({ status: 503, error: { code: 'vendor_error', endpoint: '/x', method: 'GET' } });
-  const r = await gw.callTool('disconnect', {
+  const r = await callDisconnect(gw, {
     service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
   });
   assert.equal(r.status, 'vendor_error');
@@ -274,7 +280,7 @@ test('an INACTIVE account after the revoke is not absence, so nothing is removed
     steps: [{ step: 'revoke', status: 200, ok: true }, { step: 'delete', status: 200, ok: true }],
   });
   t.mock.method(fake.auth, 'status', async () => 'INACTIVE');
-  const r = await gw.callTool('disconnect', {
+  const r = await callDisconnect(gw, {
     service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
   });
   assert.equal(r.reason, 'not_absent_after_revoke');
@@ -292,7 +298,7 @@ test('every non-absent word leaves the rows alone, so the gate is ABSENT and not
       steps: [{ step: 'revoke', status: 200, ok: true }, { step: 'delete', status: 200, ok: true }],
     });
     t.mock.method(fake.auth, 'status', async () => word);
-    const r = await gw.callTool('disconnect', {
+    const r = await callDisconnect(gw, {
       service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
     });
     assert.notEqual(r.status, 'disconnected', `${word} permitted a removal`);
@@ -307,7 +313,7 @@ test('every non-absent word leaves the rows alone, so the gate is ABSENT and not
     steps: [{ step: 'revoke', status: 200, ok: true }, { step: 'delete', status: 200, ok: true }],
   });
   t.mock.method(fake.auth, 'status', async () => 'ABSENT');
-  const ok = await gw.callTool('disconnect', {
+  const ok = await callDisconnect(gw, {
     service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
   });
   assert.equal(ok.status, 'disconnected');
@@ -316,7 +322,7 @@ test('every non-absent word leaves the rows alone, so the gate is ABSENT and not
 
 test('a module no connector declares is a connector gap, not a teardown', async () => {
   const { gw } = await createTestGateway();
-  const r = await gw.callTool('disconnect', { service: 'github', module: 'nosuchmodule' });
+  const r = await callDisconnect(gw, { service: 'github', module: 'nosuchmodule' });
   assert.equal(r.status, 'needs_connector');
 });
 
@@ -328,7 +334,7 @@ test('arguments that are not identifiers are refused before anything is read', a
     { service: 'github', module: 'repos', provider_account_id: '' },
     { service: 'github', module: 'repos', confirm: 'yes' },
   ]) {
-    const r = await gw.callTool('disconnect', args);
+    const r = await callDisconnect(gw, args);
     assert.equal(r.status, 'invalid_arguments', JSON.stringify(args));
   }
 });
@@ -349,7 +355,7 @@ test('a module the policy denies cannot be ended through a sibling that shares i
       ],
     },
   });
-  const r = await gw.callTool('disconnect', { service: 'github', module: 'repos' });
+  const r = await callDisconnect(gw, { service: 'github', module: 'repos' });
   assert.equal(r.status, 'denied');
   assert.equal(r.reason, 'bound_module_denied');
   assert.equal(r.module, 'issues');
@@ -369,7 +375,7 @@ test('the same call is permitted once no bound module is denied, so the denial a
       ],
     },
   });
-  const r = await gw.callTool('disconnect', {
+  const r = await callDisconnect(gw, {
     service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
   });
   assert.equal(r.status, 'disconnected');
@@ -386,7 +392,7 @@ test('an account that reads absent after a FAILED teardown fails closed and remo
     steps: [{ step: 'revoke', status: 200, ok: true }, { step: 'delete', status: 500, ok: false }],
   });
   t.mock.method(fake.auth, 'status', async () => 'ABSENT');
-  const r = await gw.callTool('disconnect', {
+  const r = await callDisconnect(gw, {
     service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
   });
   assert.equal(r.status, 'teardown_incomplete');
@@ -404,7 +410,7 @@ test('the measured API_KEY case still passes: a refused revoke POST with a succe
     steps: [{ step: 'revoke', status: 400, ok: false }, { step: 'delete', status: 200, ok: true }],
   });
   t.mock.method(fake.auth, 'status', async () => 'ABSENT');
-  const r = await gw.callTool('disconnect', {
+  const r = await callDisconnect(gw, {
     service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
   });
   assert.equal(r.status, 'disconnected');
@@ -416,7 +422,7 @@ test('an adapter that throws is a vendor error, not a missing capability', async
   // report a broken connector cannot tell that the right move was to retry.
   const { gw, store, fake } = await shared();
   fake.auth.revoke = async () => { throw new Error('socket hang up'); };
-  const r = await gw.callTool('disconnect', {
+  const r = await callDisconnect(gw, {
     service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
   });
   assert.equal(r.status, 'vendor_error');
@@ -436,7 +442,7 @@ test('a readonly caller is denied on a module the MANIFEST declares read', async
     provider: 'catalog', provider_account_id: KIT, scopes: [], status: 'ACTIVE',
     created: new Date().toISOString(), updated: new Date().toISOString(),
   });
-  const r = await gw.callTool('disconnect', { service: 'github', module: 'users' });
+  const r = await callDisconnect(gw, { service: 'github', module: 'users' });
   assert.equal(r.status, 'denied');
   assert.equal(r.rule.op, 'disconnect', 'denied by some other rule than the one for this tool');
   assert.equal(rows(store).length, 1);
@@ -488,7 +494,7 @@ test('a bound row whose module no longer resolves is denied, not authorized as p
       created: new Date().toISOString(), updated: new Date().toISOString(),
     });
   }
-  const r = await gw.callTool('disconnect', { service: 'github', module: 'repos' });
+  const r = await callDisconnect(gw, { service: 'github', module: 'repos' });
   assert.equal(r.status, 'denied');
   assert.equal(r.reason, 'bound_module_denied');
   assert.equal(r.module, 'retired_module');
@@ -502,7 +508,7 @@ test('an adapter reporting no steps has established nothing, so nothing is remov
   const { gw, store, fake } = await shared();
   fake.auth.setRevokeOutcome({ supported: true, steps: [] });
   t.mock.method(fake.auth, 'status', async () => 'ABSENT');
-  const r = await gw.callTool('disconnect', {
+  const r = await callDisconnect(gw, {
     service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
   });
   assert.equal(r.status, 'teardown_incomplete');
@@ -515,7 +521,7 @@ test('hydration does not resurrect a credential this process just revoked', asyn
   // from a listing it may have captured before the revoke. Checking whether a row
   // exists cannot catch this, because writing missing rows is what hydration is for.
   const { gw, store, fake } = await shared();
-  const done = await gw.callTool('disconnect', {
+  const done = await callDisconnect(gw, {
     service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
   });
   assert.equal(done.status, 'disconnected');
@@ -566,7 +572,7 @@ test('a status check that cannot be made is unknown state, not a credential that
     steps: [{ step: 'revoke', status: 200, ok: true }, { step: 'delete', status: 200, ok: true }],
   });
   t.mock.method(fake.auth, 'status', async () => { throw new Error('socket hang up'); });
-  const r = await gw.callTool('disconnect', {
+  const r = await callDisconnect(gw, {
     service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
   });
   assert.equal(r.status, 'teardown_incomplete');
@@ -582,7 +588,7 @@ test('a provider that answers ACTIVE is still reported as still there, so the tw
     steps: [{ step: 'revoke', status: 200, ok: true }, { step: 'delete', status: 200, ok: true }],
   });
   t.mock.method(fake.auth, 'status', async () => 'ACTIVE');
-  const r = await gw.callTool('disconnect', {
+  const r = await callDisconnect(gw, {
     service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
   });
   assert.equal(r.reason, 'not_absent_after_revoke');
@@ -600,7 +606,7 @@ test('a finished teardown says what it established, not only that it finished', 
     steps: [{ step: 'revoke', status: 400, ok: false }, { step: 'delete', status: 200, ok: true }],
   });
   t.mock.method(fake.auth, 'status', async () => 'ABSENT');
-  const r = await gw.callTool('disconnect', {
+  const r = await callDisconnect(gw, {
     service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
   });
   assert.equal(r.status, 'disconnected');
@@ -616,7 +622,7 @@ test('a teardown whose every step succeeded says so, so the two are distinguisha
     steps: [{ step: 'revoke', status: 200, ok: true }, { step: 'delete', status: 200, ok: true }],
   });
   t.mock.method(fake.auth, 'status', async () => 'ABSENT');
-  const r = await gw.callTool('disconnect', {
+  const r = await callDisconnect(gw, {
     service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
   });
   assert.equal(r.credential_revoked, 'yes');
@@ -636,7 +642,7 @@ test("the teardown's own error survives a later check that also fails", async (t
     steps: [{ step: 'revoke', status: 200, ok: true }, { step: 'delete', status: 500, ok: false }],
   });
   t.mock.method(fake.auth, 'status', async () => 'ACTIVE');
-  const r = await gw.callTool('disconnect', {
+  const r = await callDisconnect(gw, {
     service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
   });
   assert.equal(r.status, 'teardown_incomplete');
@@ -652,7 +658,7 @@ test('a teardown with no error of its own carries none, so the field means somet
     steps: [{ step: 'revoke', status: 200, ok: true }, { step: 'delete', status: 200, ok: true }],
   });
   t.mock.method(fake.auth, 'status', async () => 'ACTIVE');
-  const r = await gw.callTool('disconnect', {
+  const r = await callDisconnect(gw, {
     service: 'github', module: 'repos', provider_account_id: KIT, confirm: true,
   });
   assert.equal(r.teardown_error, null);
@@ -687,13 +693,13 @@ test('a record whose connector was retired can still be taken down, and the stop
   orphanedRow(store);
   assert.equal(gw.lookupModule('pagespeed', 'insights'), null, 'the fixture must be undeclared');
 
-  const stop = await gw.callTool('disconnect', { service: 'pagespeed', module: 'insights' });
+  const stop = await callDisconnect(gw, { service: 'pagespeed', module: 'insights' });
   assert.equal(stop.status, 'needs_confirmation');
   assert.equal(stop.provider_account_id, 'ca_orphan_fixture');
   assert.match(stop.summary, /nothing declares pagespeed\/insights any more/);
   assert.deepEqual(stop.modules_ending.map((m) => `${m.service}/${m.module}`), ['pagespeed/insights']);
 
-  const done = await gw.callTool('disconnect', {
+  const done = await callDisconnect(gw, {
     service: 'pagespeed', module: 'insights',
     provider_account_id: 'ca_orphan_fixture', confirm: true,
   });
@@ -715,7 +721,7 @@ test('an orphaned record carrying no usable privilege is refused, and the vendor
     const original = fake.auth.revoke.bind(fake.auth);
     fake.auth.revoke = async (a) => { revokes += 1; return original(a); };
     orphanedRow(store, { privilege });
-    const r = await gw.callTool('disconnect', {
+    const r = await callDisconnect(gw, {
       service: 'pagespeed', module: 'insights',
       provider_account_id: 'ca_orphan_fixture', confirm: true,
     });
@@ -728,7 +734,7 @@ test('an orphaned record carrying no usable privilege is refused, and the vendor
   const ok = await createTestGateway();
   ok.fake.auth.setStatus('ca_orphan_fixture', 'ACTIVE');
   orphanedRow(ok.store, { privilege: 'read' });
-  const stop = await ok.gw.callTool('disconnect', { service: 'pagespeed', module: 'insights' });
+  const stop = await callDisconnect(ok.gw, { service: 'pagespeed', module: 'insights' });
   assert.equal(stop.status, 'needs_confirmation');
 });
 
@@ -743,7 +749,7 @@ test('an orphaned record naming an unknown provider is refused rather than sent 
     const original = fake.auth.revoke.bind(fake.auth);
     fake.auth.revoke = async (a) => { revokes += 1; return original(a); };
     orphanedRow(store, { provider });
-    const r = await gw.callTool('disconnect', {
+    const r = await callDisconnect(gw, {
       service: 'pagespeed', module: 'insights',
       provider_account_id: 'ca_orphan_fixture', confirm: true,
     });
@@ -757,7 +763,7 @@ test('an orphaned record naming an unknown provider is refused rather than sent 
     const { gw, store, fake } = await createTestGateway();
     fake.auth.setStatus('ca_orphan_fixture', 'ACTIVE');
     orphanedRow(store, { provider });
-    const stop = await gw.callTool('disconnect', { service: 'pagespeed', module: 'insights' });
+    const stop = await callDisconnect(gw, { service: 'pagespeed', module: 'insights' });
     assert.equal(stop.status, 'needs_confirmation', `provider ${provider} was refused`);
   }
 });
@@ -766,13 +772,13 @@ test('an orphaned record is still held to every gate: readonly, the binding, and
   const readonly = await createTestGateway({ role: 'readonly' });
   readonly.fake.auth.setStatus('ca_orphan_fixture', 'ACTIVE');
   orphanedRow(readonly.store);
-  const denied = await readonly.gw.callTool('disconnect', { service: 'pagespeed', module: 'insights' });
+  const denied = await callDisconnect(readonly.gw, { service: 'pagespeed', module: 'insights' });
   assert.equal(denied.status, 'denied', 'an orphan let a readonly caller through');
 
   const bound = await createTestGateway();
   bound.fake.auth.setStatus('ca_orphan_fixture', 'ACTIVE');
   orphanedRow(bound.store);
-  const wrong = await bound.gw.callTool('disconnect', {
+  const wrong = await callDisconnect(bound.gw, {
     service: 'pagespeed', module: 'insights', provider_account_id: 'ca_something_else', confirm: true,
   });
   assert.equal(wrong.status, 'denied');
@@ -782,7 +788,7 @@ test('an orphaned record is still held to every gate: readonly, the binding, and
   absent.fake.auth.setStatus('ca_orphan_fixture', 'ACTIVE');
   orphanedRow(absent.store);
   t.mock.method(absent.fake.auth, 'status', async () => 'ACTIVE');
-  const notGone = await absent.gw.callTool('disconnect', {
+  const notGone = await callDisconnect(absent.gw, {
     service: 'pagespeed', module: 'insights', provider_account_id: 'ca_orphan_fixture', confirm: true,
   });
   assert.equal(notGone.status, 'teardown_incomplete');
@@ -792,7 +798,7 @@ test('an orphaned record is still held to every gate: readonly, the binding, and
 test('a service that is undeclared AND has no record is still needs_connector', async () => {
   // The guard that was there before is not relaxed; it now fires on the case it was for.
   const { gw } = await createTestGateway();
-  const r = await gw.callTool('disconnect', { service: 'pagespeed', module: 'insights' });
+  const r = await callDisconnect(gw, { service: 'pagespeed', module: 'insights' });
   assert.equal(r.status, 'needs_connector');
   assert.equal(r.reason, 'undeclared');
 });
@@ -810,7 +816,7 @@ test('a sibling orphan naming an unknown provider blocks the teardown from eithe
     fake.auth.revoke = async (a) => { revokes += 1; return original(a); };
     orphanedRow(store);                                             // provider: catalog
     orphanedRow(store, { id: 'other', service: 'retired', module: 'thing', provider: 'made-up' });
-    const r = await gw.callTool('disconnect', {
+    const r = await callDisconnect(gw, {
       service: entry[0], module: entry[1],
       provider_account_id: 'ca_orphan_fixture', confirm: true,
     });
@@ -823,7 +829,7 @@ test('a sibling orphan naming an unknown provider blocks the teardown from eithe
   fake.auth.setStatus('ca_orphan_fixture', 'ACTIVE');
   orphanedRow(store);
   orphanedRow(store, { id: 'other', service: 'retired', module: 'thing' });
-  const ok = await gw.callTool('disconnect', {
+  const ok = await callDisconnect(gw, {
     service: 'pagespeed', module: 'insights',
     provider_account_id: 'ca_orphan_fixture', confirm: true,
   });
@@ -843,7 +849,7 @@ test('a declared sibling is covered by its manifest, not by the stored provider 
     scopes: [], status: 'ACTIVE',
     created: new Date().toISOString(), updated: new Date().toISOString(),
   });
-  const r = await gw.callTool('disconnect', {
+  const r = await callDisconnect(gw, {
     service: 'pagespeed', module: 'insights',
     provider_account_id: 'ca_orphan_fixture', confirm: true,
   });

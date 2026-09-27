@@ -28,8 +28,11 @@ import { Buffer } from 'node:buffer';
  * section, which states the narrowed guarantee.
  */
 
-/** Scalar types a value may be rendered from. Nested fields are never rendered. */
-const SCALAR_TYPES = new Set(['string', 'number', 'integer', 'boolean']);
+/**
+ * A container past this level is withheld with reason `depth` and never rendered.
+ * The top-level value is level 1. Thirty-two keeps a hostile nest off the stack.
+ */
+const MAX_DEPTH = 32;
 
 /** Escaped characters of a rendered value, before the truncation marker. */
 export const VALUE_CAP = 120;
@@ -121,23 +124,55 @@ function escapeToCap(raw, cap) {
 }
 
 /**
- * Does the value satisfy any scalar type the declaration permits? A union is
- * checked member by member: `["string","number"]` accepts either, and taking the
- * first scalar member alone would withhold the other.
+ * Does the value satisfy any type the declaration permits? A union is checked
+ * member by member. `array` matches an array, `object` a non-null non-array
+ * object, `null` null, and the scalars match as they always have.
  *
+ * @param {string} type
+ * @param {unknown} value
+ */
+function matchesDeclaredType(type, value) {
+  if (type === 'boolean') return typeof value === 'boolean';
+  if (type === 'integer') return typeof value === 'number' && Number.isInteger(value);
+  if (type === 'number') return typeof value === 'number' && Number.isFinite(value);
+  if (type === 'string') return typeof value === 'string';
+  if (type === 'array') return Array.isArray(value);
+  if (type === 'object') return value !== null && typeof value === 'object' && !Array.isArray(value);
+  if (type === 'null') return value === null;
+  return false;
+}
+
+/**
  * @param {object} declaration
  * @param {unknown} value
  */
 function isEligible(declaration, value) {
   const declared = declaration?.type;
-  const candidates = (Array.isArray(declared) ? declared : [declared]).filter((t) => SCALAR_TYPES.has(t));
-  if (!candidates.length) return false;
-  return candidates.some((type) => {
-    if (type === 'boolean') return typeof value === 'boolean';
-    if (type === 'integer') return typeof value === 'number' && Number.isInteger(value);
-    if (type === 'number') return typeof value === 'number' && Number.isFinite(value);
-    return typeof value === 'string';
-  });
+  const candidates = Array.isArray(declared) ? declared : [declared];
+  return candidates.some((type) => matchesDeclaredType(type, value));
+}
+
+/** An array, or a non-null non-array object. Null is a scalar rendering. */
+function isContainer(value) {
+  return Array.isArray(value) || (value !== null && typeof value === 'object');
+}
+
+/**
+ * True when any container sits deeper than {@link MAX_DEPTH}. Walks with a
+ * depth counter and stops at the limit, so a hostile nest cannot recurse away
+ * the stack. A cycle counts as depth too: each step goes one level deeper.
+ *
+ * @param {unknown} value
+ * @param {number} depth
+ */
+function deeperThan(value, depth) {
+  if (!isContainer(value)) return false;
+  if (depth > MAX_DEPTH) return true;
+  const children = Array.isArray(value) ? value : Object.values(value);
+  for (const child of children) {
+    if (isContainer(child) && deeperThan(child, depth + 1)) return true;
+  }
+  return false;
 }
 
 /** JSON Schema counts a string's length in characters, which are code points. */
@@ -222,9 +257,103 @@ export function renderValue(value) {
   const length = codePointLength(raw);
   return {
     text: `${quote}${out}${quote}… (${length} characters total, sha256:${digest})`,
+    full: `${quote}${escapeForDisplay(raw)}${quote}`,
     truncated: true,
     length,
   };
+}
+
+/**
+ * One already-rendered value, capped on whole escape tokens and surrogate pairs.
+ * Length and digest are of the complete rendered text. `full` is that text, and
+ * it is present only when the cap cut something.
+ *
+ * @param {string} rendered
+ */
+function renderCapped(rendered) {
+  const { out, truncated } = cutRendered(rendered, VALUE_CAP);
+  const length = codePointLength(rendered);
+  if (!truncated) return { text: out, truncated: false, length };
+  const digest = createHash('sha256').update(Buffer.from(rendered, 'utf16le')).digest('hex').slice(0, DIGEST_LENGTH);
+  return {
+    text: `${out}… (${length} characters total, sha256:${digest})`,
+    full: rendered,
+    truncated: true,
+    length,
+  };
+}
+
+function isHexDigit(ch) {
+  return typeof ch === 'string' && ch.length === 1 && /[0-9a-f]/i.test(ch);
+}
+
+/**
+ * The escape token starting at `chars[i]`, which is a backslash. Incomplete
+ * tails are one character, so a cut still lands on a boundary.
+ *
+ * @param {string[]} chars code points
+ * @param {number} i
+ */
+function escapeTokenAt(chars, i) {
+  const next = chars[i + 1];
+  if (next === '\\' || next === '"') return `\\${next}`;
+  if (next === 'x' && isHexDigit(chars[i + 2]) && isHexDigit(chars[i + 3])) {
+    return `\\x${chars[i + 2]}${chars[i + 3]}`;
+  }
+  if (next === 'u' && chars[i + 2] === '{') {
+    let j = i + 3;
+    while (isHexDigit(chars[j])) j += 1;
+    if (chars[j] === '}' && j > i + 3) return chars.slice(i, j + 1).join('');
+  }
+  if (next === 'u' && [2, 3, 4, 5].every((k) => isHexDigit(chars[i + k]))) {
+    return chars.slice(i, i + 6).join('');
+  }
+  return '\\';
+}
+
+/**
+ * Cut rendered text at `cap` UTF-16 units without splitting an escape or a
+ * surrogate pair. Surrogate pairs stay whole because the walk is by code point.
+ *
+ * @param {string} rendered
+ * @param {number} cap
+ */
+function cutRendered(rendered, cap) {
+  const chars = [...rendered];
+  let out = '';
+  let i = 0;
+  while (i < chars.length) {
+    const token = chars[i] === '\\' ? escapeTokenAt(chars, i) : chars[i];
+    if (out.length + token.length > cap) return { out, truncated: true };
+    out += token;
+    i += [...token].length;
+  }
+  return { out, truncated: false };
+}
+
+/**
+ * Render an array or object, and anything nested in it. Strings are quoted and
+ * escaped; numbers are `String(n)`; booleans are `true` / `false`; null is
+ * `null`. Keys stay in input order. Callers refuse a value deeper than
+ * {@link MAX_DEPTH} before this runs.
+ *
+ * @param {unknown} value
+ * @returns {string}
+ */
+function renderData(value) {
+  if (value === null || value === undefined) return 'null';
+  if (typeof value === 'string') return `"${escapeForDisplay(value)}"`;
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (Array.isArray(value)) return `[${value.map((item) => renderData(item)).join(', ')}]`;
+  if (typeof value === 'object') {
+    const parts = [];
+    for (const [key, item] of Object.entries(value)) {
+      parts.push(`"${escapeForDisplay(key)}": ${renderData(item)}`);
+    }
+    return `{${parts.join(', ')}}`;
+  }
+  return 'null';
 }
 
 /**
@@ -243,18 +372,19 @@ export function discloseInput(action, input) {
   const fields = given.filter((k) => declaredKeys.includes(k));
 
   const shown = [];
-  const nested = [];
   const withheld = [];
 
   for (const name of fields) {
     const declaration = properties[name];
     const value = input[name];
-    const declared = declaration?.type;
-    const types = Array.isArray(declared) ? declared : [declared];
-    // A declaration permitting a nested type is never rendered, whatever else it
-    // permits, because one member of the union is enough to carry a structure.
-    if (types.some((t) => t === 'object' || t === 'array')) { nested.push(name); continue; }
     if (!isEligible(declaration, value)) { withheld.push({ name, reason: 'type' }); continue; }
+    // Arrays and objects are rendered whatever their schema says. The escaper
+    // is what makes the text safe. Scalar validation is unchanged.
+    if (isContainer(value)) {
+      if (deeperThan(value, 1)) { withheld.push({ name, reason: 'depth' }); continue; }
+      shown.push({ name, ...renderCapped(renderData(value)) });
+      continue;
+    }
     const violated = violatedKeyword(declaration, value);
     if (violated) { withheld.push({ name, reason: violated }); continue; }
     shown.push({ name, ...renderValue(value) });
@@ -264,7 +394,6 @@ export function discloseInput(action, input) {
     fields,
     undeclared: given.length - fields.length,
     shown,
-    nested,
     withheld,
   };
 }
@@ -296,7 +425,7 @@ const RISK_BUDGET = 40;
 /** Characters reserved for the clauses saying what is NOT being shown. */
 const WARNING_BUDGET = 600;
 
-/** Characters reserved for the list of nested field names inside that clause. */
+/** Characters reserved for field names inside one warning clause. */
 const NESTED_NAME_BUDGET = 400;
 
 /** Escape anything bound for the summary, whatever it came from. */
@@ -340,22 +469,23 @@ export function composeSummary({ action, service, module, risk, description, dis
   const head = cap(`${esc(action)} on ${esc(service)}/${esc(module)}`, HEAD_BUDGET);
   const riskClause = `; risk ${cap(esc(risk ?? 'unknown'), RISK_BUDGET)}`;
 
-  // Warning clauses carry what is NOT being shown, so they are budgeted before values
-  // and before the description, and an overflow is itself announced rather than cut.
+  // Warning clauses carry what is NOT being shown, and where a shortened value's
+  // full text went, so they are budgeted before values and before the description,
+  // and an overflow is itself announced rather than cut. The shortening clause is
+  // first so the fit keeps it.
   const warningTexts = [];
-  if (disclosure.nested.length) {
-    // The names are fitted one at a time rather than joined into a single clause.
-    // Joined, a long list overran the budget and the WHOLE warning was dropped, so a
-    // person was told nothing about what was hidden. A truncated list beats no list.
-    const verb = disclosure.nested.length === 1 ? 'is' : 'are';
-    const tail = ` ${verb} not shown, so this approves the target and not the change`;
+  const shortened = disclosure.shown.filter((f) => f.truncated);
+  if (shortened.length) {
+    const verb = shortened.length === 1 ? 'is' : 'are';
+    const pronoun = shortened.length === 1 ? 'its' : 'their';
+    const tail = ` ${verb} shortened here, ${pronoun} full text is in input_values`;
     const names = fit(
-      disclosure.nested.map(esc),
+      shortened.map((f) => esc(f.name)),
       Math.max(0, NESTED_NAME_BUDGET - tail.length),
       (n) => ` and ${n} more`,
       ', ',
     );
-    warningTexts.push(`; the content of ${names.text}${tail}`);
+    warningTexts.push(`; ${names.text}${tail}`);
   }
   for (const item of disclosure.withheld) {
     warningTexts.push(`; ${esc(item.name)} was supplied and is not shown, because it fails its own ${esc(item.reason)}`);

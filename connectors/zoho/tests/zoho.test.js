@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
+import { confirmCall, createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
 import { modules } from '../index.js';
 
 const service = 'zoho';
@@ -31,7 +31,7 @@ for (const [action, fixture] of Object.entries(cases)) {
     const execute = fake.catalog.execute;
     fake.catalog.execute = async (request) => { calls.push(request); return execute(request); };
     const input = structuredClone(fixture.input);
-    const result = await gw.execute({ action: `${service}.${module}.${action}`, input, confirm: true });
+    const result = await confirmCall(gw, { action: `${service}.${module}.${action}`, input, confirm: true });
     assert.deepEqual(result, fixture.result);
     assert.equal(calls.length, 1);
     assert.equal(calls[0].actionId, `${service}.${module}.${action}`);
@@ -43,7 +43,7 @@ for (const [action, fixture] of Object.entries(cases)) {
     const { gw, store, fake } = await createTestGateway();
     await putActive(store, fake, { service, module, privilege });
     const input = Object.fromEntries(fixture.required.map((field) => [field, fixture.input[field]]));
-    assert.deepEqual(await gw.execute({ action: `${service}.${module}.${action}`, input, confirm: true }), fixture.result);
+    assert.deepEqual(await confirmCall(gw, { action: `${service}.${module}.${action}`, input, confirm: true }), fixture.result);
     const failure = { status: 'vendor_error', error: { code: 'vendor_error', endpoint: '/example', method: 'GET' } };
     const ctx = { service, module, action, catalog: async () => failure };
     assert.equal(await modules[module][action](input, ctx), failure);
@@ -66,14 +66,14 @@ for (const [action, fixture] of Object.entries(cases)) {
       for (const item of wrong) invalid.push({ input: { ...fixture.input, [field]: item }, field });
     }
     for (const { input, field } of invalid) {
-      assert.deepEqual(await gw.execute({ action: `${service}.${module}.${action}`, input, confirm: true }), { status: 'invalid_arguments', field });
+      assert.deepEqual(await confirmCall(gw, { action: `${service}.${module}.${action}`, input, confirm: true }), { status: 'invalid_arguments', field });
     }
     // Asserted at the gateway boundary. This connector carried a copy of the schema
     // validator until 2026-09-20, so a malformed input was refused by the module itself;
     // the gateway now validates against the published schema before any module runs, and
     // the refusal is the same object from the only place that still makes it.
     for (const input of [null, [], 'example', 1]) {
-      assert.deepEqual(await gw.execute({ action: `${service}.${module}.${action}`, input, confirm: true }), { status: 'invalid_arguments', field: 'input' });
+      assert.deepEqual(await confirmCall(gw, { action: `${service}.${module}.${action}`, input, confirm: true }), { status: 'invalid_arguments', field: 'input' });
     }
   });
 }
@@ -89,13 +89,13 @@ test('create requires confirmation once and readonly cannot use the write grant'
   assert.equal(needs.status, 'needs_confirmation');
   assert.equal(needs.action, request.action);
   assert.equal(calls.length, 0);
-  assert.deepEqual(await gw.execute({ ...request, confirm: true }), cases.create.result);
+  assert.deepEqual(await confirmCall(gw, { ...request, confirm: true }), cases.create.result);
   assert.deepEqual(await gw.execute(request), cases.create.result);
   const readonly = await createTestGateway({ role: 'readonly' });
   await putActive(readonly.store, readonly.fake, { service, module, privilege });
   readonly.fake.catalog.execute = async () => assert.fail('readonly reached catalog');
   for (const [action, fixture] of Object.entries(cases)) {
-    assert.equal((await readonly.gw.execute({ action: `${service}.${module}.${action}`, input: fixture.input, confirm: true })).status, 'denied');
+    assert.equal((await confirmCall(readonly.gw, { action: `${service}.${module}.${action}`, input: fixture.input, confirm: true })).status, 'denied');
   }
 });
 
@@ -108,7 +108,7 @@ test('get refuses a caller-selected CRM module', async () => {
   await putActive(store, fake, { service, module, privilege });
   fake.catalog.execute = async () => assert.fail('module override reached catalog');
   assert.deepEqual(
-    await gw.execute({ action: 'zoho.crm.get', input: { id: 'lead-example', module_api_name: 'Contacts' }, confirm: true }),
+    await confirmCall(gw, { action: 'zoho.crm.get', input: { id: 'lead-example', module_api_name: 'Contacts' }, confirm: true }),
     { status: 'invalid_arguments', field: 'module_api_name' });
 });
 
@@ -236,7 +236,7 @@ for (const grant of Object.keys(modules)) {
     fake.catalog.execute = async (request) => { calls.push(request); return execute(request); };
     for (const [id, fixture] of Object.entries(isolationCases)) {
       const target = id.split('.')[1];
-      const result = await gw.execute({ action: id, input: fixture.input, confirm: true });
+      const result = await confirmCall(gw, { action: id, input: fixture.input, confirm: true });
       if (target === grant) assert.deepEqual(result, fixture.result);
       else {
         assert.equal(result.status, 'needs_connect', id);

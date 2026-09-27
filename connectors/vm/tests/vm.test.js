@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
+import { confirmCall, createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
 import { modules } from '../index.js';
 
 const MACHINE = 'web-1';
@@ -129,11 +129,13 @@ async function connected(policy) {
 }
 
 async function run(fixture, row, extra = {}) {
-  return fixture.gw.execute({
+  const args = {
     action: row.id,
     input: extra.input ?? row.input,
     confirm: extra.confirm ?? (row.confirm ? true : undefined),
-  });
+  };
+  if (args.confirm === true) return confirmCall(fixture.gw, args);
+  return fixture.gw.execute(args);
 }
 
 test('every action posts its fixed relative endpoint and body', async () => {
@@ -202,7 +204,7 @@ test('units build systemctl argv and never forward a caller vector', async () =>
     assert.equal(refused.status, 'invalid_arguments');
     assert.equal(fixture.calls.length, 0, verb);
     fixture.calls.length = 0;
-    await fixture.gw.execute({
+    await confirmCall(fixture.gw, {
       action: 'vm.units.service',
       input: { machine: MACHINE, verb, unit: UNIT },
       confirm: true,
@@ -248,7 +250,7 @@ test('each router outcome is returned intact and an outer failure stays vendor_e
   assert.equal(outer.method, 'POST');
   assert.equal(Object.hasOwn(outer, 'outcome'), false);
   assert.equal(JSON.stringify(outer).includes('boom'), false);
-  const command = await fixture.gw.execute({
+  const command = await confirmCall(fixture.gw, {
     action: 'vm.command.run',
     input: { machine: MACHINE, argv: ['uname'] },
     confirm: true,
@@ -260,7 +262,7 @@ test('each router outcome is returned intact and an outer failure stays vendor_e
 test('a router remote_failure on a command keeps output and exit code', async () => {
   const fixture = await connected(allowVm);
   fixture.reply(OUTCOMES.remote_failure);
-  const result = await fixture.gw.execute({
+  const result = await confirmCall(fixture.gw, {
     action: 'vm.command.run',
     input: { machine: MACHINE, argv: ['false'] },
     confirm: true,
@@ -293,7 +295,7 @@ test('the shipped default policy denies admin before any router call', async () 
     throw new Error('denied action reached the router');
   };
   for (const row of CASES) {
-    const result = await fixture.gw.execute({ action: row.id, input: row.input, confirm: true });
+    const result = await confirmCall(fixture.gw, { action: row.id, input: row.input, confirm: true });
     assert.equal(result.status, 'denied', row.id);
   }
 });
@@ -304,7 +306,7 @@ test('each module needs its own admin grant before transport', async () => {
     throw new Error('unconnected action reached the router');
   };
   for (const row of CASES) {
-    const result = await gw.execute({ action: row.id, input: row.input, confirm: true });
+    const result = await confirmCall(gw, { action: row.id, input: row.input, confirm: true });
     assert.equal(result.status, 'needs_connect', row.id);
     assert.equal(result.module, row.module, row.id);
     assert.equal(result.privilege, 'admin', row.id);
@@ -313,7 +315,7 @@ test('each module needs its own admin grant before transport', async () => {
   fake.auth.proxy = async () => ({ status: 200, data: { outcome: 'ok', request_id: 'req-1' }, headers: {} });
   const health = await gw.execute({ action: 'vm.inventory.health', input: { machine: MACHINE } });
   assert.equal(health.outcome, 'ok');
-  const command = await gw.execute({
+  const command = await confirmCall(gw, {
     action: 'vm.command.run',
     input: { machine: MACHINE, argv: ['true'] },
     confirm: true,
@@ -332,18 +334,18 @@ test('published schema refusals happen at the gateway boundary', async () => {
   for (const row of CASES) {
     const sample = row.id === 'vm.inventory.list_hosts' ? {} : { ...row.input };
     const undeclared = { ...sample, undeclared: 'example' };
-    assert.equal((await fixture.gw.execute({ action: row.id, input: undeclared, confirm: true })).status, 'invalid_arguments', row.id);
+    assert.equal((await confirmCall(fixture.gw, { action: row.id, input: undeclared, confirm: true })).status, 'invalid_arguments', row.id);
     if (row.id !== 'vm.inventory.list_hosts') {
       const key = Object.keys(sample)[0];
       const mistyped = { ...sample, [key]: 12345 };
       const missing = { ...sample };
       delete missing[key];
-      assert.equal((await fixture.gw.execute({ action: row.id, input: mistyped, confirm: true })).status, 'invalid_arguments', `${row.id} type`);
-      assert.equal((await fixture.gw.execute({ action: row.id, input: missing, confirm: true })).status, 'invalid_arguments', `${row.id} required`);
+      assert.equal((await confirmCall(fixture.gw, { action: row.id, input: mistyped, confirm: true })).status, 'invalid_arguments', `${row.id} type`);
+      assert.equal((await confirmCall(fixture.gw, { action: row.id, input: missing, confirm: true })).status, 'invalid_arguments', `${row.id} required`);
     }
     for (const input of [null, [], 'example', 1]) {
       assert.deepEqual(
-        await fixture.gw.execute({ action: row.id, input, confirm: true }),
+        await confirmCall(fixture.gw, { action: row.id, input, confirm: true }),
         { status: 'invalid_arguments', field: 'input' },
         row.id,
       );
@@ -357,7 +359,7 @@ test('out-of-bound input is refused before transport', async () => {
     throw new Error('out-of-bound input reached the router');
   };
   const refused = async (action, input) => {
-    const result = await fixture.gw.execute({ action, input, confirm: true });
+    const result = await confirmCall(fixture.gw, { action, input, confirm: true });
     assert.equal(result.status, 'invalid_arguments', `${action} ${JSON.stringify(input).slice(0, 80)}`);
   };
   await refused('vm.command.run', { machine: MACHINE, argv: [] });
@@ -394,7 +396,7 @@ test('bounds the gateway does not enforce are accepted at the published limit', 
   const fixture = await connected(allowVm);
   const ok = async (action, input) => {
     fixture.calls.length = 0;
-    const result = await fixture.gw.execute({ action, input, confirm: true });
+    const result = await confirmCall(fixture.gw, { action, input, confirm: true });
     assert.equal(result.outcome, 'ok', action);
     assert.equal(fixture.calls.length, 1, action);
     return fixture.calls[0];

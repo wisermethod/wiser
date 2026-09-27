@@ -3,7 +3,7 @@ name: zoho
 type: connector
 category: crm
 description: Reads mail, Books and Invoice invoices, Desk tickets, Inventory and Bigin contacts through six read grants, and reads, searches, and creates CRM leads with confirmation
-version: 0.3.0
+version: 0.3.1
 ---
 
 # Zoho
@@ -37,7 +37,7 @@ Through the gateway's `execute` tool by action id. Required strings must be nonb
 | `zoho.bigin.list` | `fields`: string, `cvid?`: string, `page_token?`: string, `page?`: integer, `per_page?`: integer | none |
 | `zoho.bigin.get` | `record_id`: string | none |
 
-Get is fixed to Leads. The CRM grant is write privilege, so readonly is denied even for get and search. Create requires `confirm: true` on the first approved call in a session.
+Get is fixed to Leads. The CRM grant is write privilege, so readonly is denied even for get and search. Create is `confirmation: once`: the first call returns `needs_confirmation`, and the identical call with `confirm: true` runs. Later calls in the session do not stop.
 
 Bigin list and get are fixed to Contacts; caller-supplied `module` and `module_api_name` are refused. Listing requires `fields`. Mail refuses `region`, `accept_language`, and `use_bearer_auth`. Desk `ticket_id` must be an integer. Inventory reads contacts. Optional filters are limited to the declared manifest properties.
 
@@ -72,7 +72,7 @@ None. Lead creation is a medium-risk write with confirmation once.
 - `needs_connect`: use Connect Account for `zoho` and the module named by the status in its own human turn.
 - `invalid_arguments`: correct the named field using the action inputs above.
 - `vendor_error`: give Connection Troubleshooter the gateway status object; live vendor envelopes remain unverified.
-- `needs_confirmation`: review the intended lead, then repeat with `confirm: true`.
+- `needs_confirmation`: review the intended lead on the stop, then repeat the identical call with `confirm: true`.
 - `denied` under readonly: use a runtime session authorized for the write grant.
 
 ## Reference

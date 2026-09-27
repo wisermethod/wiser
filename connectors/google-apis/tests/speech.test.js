@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
+import { confirmCall, createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
 import { modules } from '../index.js';
 
 const DIR = fileURLToPath(new URL('..', import.meta.url));
@@ -56,7 +56,7 @@ async function activeGateway(data = TRANSCRIPTION) {
 }
 
 function run(gw, input, extra = {}) {
-  return gw.execute({ action: ACTION, input, confirm: true, ...extra });
+  return confirmCall(gw, { action: ACTION, input, confirm: true, ...extra });
 }
 
 function recognize(input, data) {
@@ -79,7 +79,7 @@ test('recognize requires confirmation on every call and returns a transcription'
   const { gw, calls } = await activeGateway();
   const call = { action: ACTION, input: VALID };
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
-  assert.deepEqual((await gw.execute({ ...call, confirm: true })).results, TRANSCRIPTION.results);
+  assert.deepEqual((await confirmCall(gw, { ...call, confirm: true })).results, TRANSCRIPTION.results);
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
   assert.equal(calls.length, 1);
 });
@@ -106,7 +106,7 @@ test('recognize with confirm uses an absolute POST proxy and sends only supplied
 test('a later recognize also stops without confirm', async () => {
   const { gw, calls } = await activeGateway();
   const call = { action: ACTION, input: VALID };
-  const first = await gw.execute({ ...call, confirm: true });
+  const first = await confirmCall(gw, { ...call, confirm: true });
   assert.equal(first.status, undefined);
   assert.deepEqual(first.results, TRANSCRIPTION.results);
   const second = await gw.execute(call);

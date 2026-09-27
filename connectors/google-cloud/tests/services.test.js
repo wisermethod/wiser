@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
+import { confirmCall, createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
 import { modules } from '../index.js';
 
 const DIR = fileURLToPath(new URL('..', import.meta.url));
@@ -38,7 +38,7 @@ async function activeGateway(data = SERVICE_ENVELOPE) {
 }
 
 function run(gw, action, input, extra = {}) {
-  return gw.execute({ action, input, confirm: true, ...extra });
+  return confirmCall(gw, { action, input, ...extra });
 }
 
 function call(action, input, data) {

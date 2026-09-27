@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
+import { confirmCall, createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
 import { modules } from '../index.js';
 
 const DIR = fileURLToPath(new URL('..', import.meta.url));
@@ -50,7 +50,7 @@ async function activeGateway(data = ANNOTATION) {
 }
 
 function run(gw, input, extra = {}) {
-  return gw.execute({ action: ACTION, input, confirm: true, ...extra });
+  return confirmCall(gw, { action: ACTION, input, confirm: true, ...extra });
 }
 
 function analyze(input, data) {
@@ -102,7 +102,7 @@ test('analyze requires confirmation on every call and returns annotations', asyn
   const { gw, calls } = await activeGateway();
   const call = { action: ACTION, input: VALID };
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
-  assert.equal((await gw.execute({ ...call, confirm: true })).language, ANNOTATION.language);
+  assert.equal((await confirmCall(gw, { ...call, confirm: true })).language, ANNOTATION.language);
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
   assert.equal(calls.length, 1);
 });
@@ -131,7 +131,7 @@ test('analyze with confirm uses an absolute POST proxy and sends only supplied k
 test('a later analyze also stops without confirm', async () => {
   const { gw, calls } = await activeGateway();
   const call = { action: ACTION, input: VALID };
-  const first = await gw.execute({ ...call, confirm: true });
+  const first = await confirmCall(gw, { ...call, confirm: true });
   assert.equal(first.status, undefined);
   assert.equal(first.language, ANNOTATION.language);
   const second = await gw.execute(call);

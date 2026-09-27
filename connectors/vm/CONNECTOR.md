@@ -3,7 +3,7 @@ name: vm
 type: connector
 category: development
 description: Reads health, facts and mapped host identifiers, runs a root command, reads and writes one file, and controls a systemd unit, with every command, write and unit change confirmed
-version: 0.1.0
+version: 0.1.1
 ---
 
 # Virtual machines
@@ -76,7 +76,7 @@ A grant is per module. All four modules use one toolkit. How to connect is `auth
 
 `needs_connect`: connect the named module in its own turn using `auth.md`. Privilege on that stop is `admin`.
 
-`needs_confirmation`: the call is `vm.command.run`, `vm.files.write_file` or `vm.units.service`. Read the summary, then repeat with `confirm: true` only when that call is the one you want.
+`needs_confirmation`: the call is `vm.command.run`, `vm.files.write_file` or `vm.units.service`. The summary shows every declared value, `argv` and file content included; a value cut short carries its full text on `input_values`. Read that stop, then repeat the identical call with `confirm: true` only when it is the one you want. A confirm with no matching stop is a fresh stop.
 
 `denied`: the shipped default policy denies privilege `admin` for the runtime role. These modules declare `admin` because the bearer is root on every mapped host. Until `policy.json` in the gateway home allows service `vm` at privilege `admin`, no request is sent.
 

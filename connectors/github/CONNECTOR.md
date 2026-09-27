@@ -3,7 +3,7 @@ name: github
 type: connector
 category: development
 description: Reaches one GitHub account's repositories and issues to read them, list them, and open an issue, and reports the authenticated account
-version: 0.3.0
+version: 0.3.1
 ---
 
 # GitHub
@@ -42,7 +42,7 @@ Three modules are three grants. Privilege is what the grant can do at the vendor
 
 ## Destructive Actions
 
-None. `issues.create` writes and is gated `once`: the first call in a session returns `needs_confirmation` with the title and target, and runs on the re-call that carries `confirm: true`. Nothing here deletes, closes, merges, or changes a repository, and adding an action that does is a manifest row with `confirmation: always` and a row in this section, in one change.
+None. `issues.create` writes and is gated `once`: the first call in a session returns `needs_confirmation` with the title and target, and runs on the re-call of that identical input with `confirm: true`. Nothing here deletes, closes, merges, or changes a repository, and adding an action that does is a manifest row with `confirmation: always` and a row in this section, in one change.
 
 ## Troubleshooting
 

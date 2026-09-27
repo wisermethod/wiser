@@ -3,12 +3,12 @@ name: google-cloud
 type: connector
 category: development
 description: Reads Google Cloud projects and IAM policy, lists and enables services, and creates restricted API keys, with every mutation stopping for a confirmation that names the project and the resource
-version: 0.3.0
+version: 0.3.1
 ---
 
 # Google Cloud
 
-Reads project metadata and IAM policy through Cloud Resource Manager, lists and enables services through Service Usage, and lists, reads, creates, and patches restricted API keys through API Keys v2. Every mutating action is `confirmation: always`, and **the stop carries the project and the resource it will act on**, rendered from the values the caller sent. **An omitted optional field is simply absent from the stop; a supplied value that fails its own declaration is named as withheld.** The two are different and the stop distinguishes them. What it does not carry is `restrictions`; see the next section, which is the first thing to read before approving a key change. It does not mint key material, access Secret Manager, disable a service, delete a key, set IAM policy, or create a project.
+Reads project metadata and IAM policy through Cloud Resource Manager, lists and enables services through Service Usage, and lists, reads, creates, and patches restricted API keys through API Keys v2. Every mutating action is `confirmation: always`, and **the stop carries the project, the resource, and `restrictions`**, rendered from the values the caller sent. **An omitted optional field is simply absent from the stop; a supplied scalar that fails its own declaration is named as withheld.** The two are different and the stop distinguishes them. It does not mint key material, access Secret Manager, disable a service, delete a key, set IAM policy, or create a project.
 
 ## Status
 
@@ -34,20 +34,17 @@ The practical case is `keys.create`, where `key_id` and `display_name` are both 
 
 This matters here more than anywhere else in this plugin, because the grant is **user-scoped**. A `cloud-platform` grant carries every project the signed-in user can reach, so an approval that could not name the project was an approval of "enable this service somewhere". **It can now name it.**
 
-**What the stop still does not show is `restrictions`, and on two actions that is the change itself.** `keys.create` and `keys.patch` both take `restrictions` as a nested object, and the gateway's disclosure policy renders no nested input. So a `keys.patch` stop reads:
+**`restrictions` is rendered with the rest of the call.** `keys.create` and `keys.patch` both take it as an object, and the stop shows that object: keys in the order supplied, strings quoted and escaped, nested arrays in the same form. A `keys.patch` stop reads:
 
 ```
 google-cloud.keys.patch on google-cloud/keys with project="wiser-method-prod",
-key_id="a1b2c3d4-key"; the content of restrictions is not shown, so this approves the
-target and not the change; risk high; Patch restrictions on the named API key in the
-named Google Cloud project
+key_id="a1b2c3d4-key", restrictions={"apiTargets": [{"service": "translate.googleapis.com"}]};
+risk high; Patch restrictions on the named API key in the named Google Cloud project
 ```
 
-**So approving `keys.patch` approves which key on which project, and not what the restriction becomes.** Read the intended restriction from the call you are approving rather than from the stop. `services.enable` has no such gap, because there the target *is* the change.
+Approving `keys.patch` approves that rendered change. Read it from the stop. A value cut at 120 characters carries the rest on `input_values` as `full`. `services.enable` has no object field; there the target is the change, and both values are in the stop.
 
-**This is a decided limit and not an oversight.** Showing the target alone was decided on 2026-09-20, against a rendered comparison of both stops, and nothing is scheduled to render a nested input; the gateway's own `AGENTS.md` carries the rule and the reasoning. A later reader should not read the absence as a gap waiting to be closed here.
-
-**The section this replaces described the opposite**, and was accurate when written: until 2026-09-20 the stop carried field names and no values at all. That gap held a public release. It is closed, and the paragraph naming it has gone with it rather than being left to mislead.
+Call without `confirm`, show the stop, and repeat the identical call with `confirm: true` only after the person says yes. The approval is used once. A confirm with no matching stop is a fresh stop.
 
 ## Reaching it
 
@@ -68,8 +65,8 @@ JSON Schema cannot carry three rules the module still enforces, and they are nam
 | `google-cloud.services.get_operation` | Required `operation_name`, matching `^operations/(?!\.{1,2}$)[^/]+$`. That is the pattern both generated documents declare, `^operations/[^/]+$`, narrowed to exclude `.` and `..`, which the module has always refused and the published pattern admitted until 2026-09-20. The id is encoded as one path segment |
 | `google-cloud.keys.list` | Required `project`; optional `page_size`, `page_token`, `show_deleted` |
 | `google-cloud.keys.get` | Required `project` and `key_id` |
-| `google-cloud.keys.create` | Required `project` and `restrictions`; optional `key_id` as a query parameter matching `[a-z]([a-z0-9-]{0,61}[a-z0-9])?`, which the generated parameter states in its description as a hard rule and which also excludes UUID-like ids; optional `display_name` of at most 63 characters. Confirmation always; the stop carries whichever of `project`, `key_id` and `display_name` the caller supplied and that passes its own declaration, and says in words that `restrictions` is not shown. **Both `key_id` and `display_name` are optional**, so a create that supplies neither is approved by project alone, and one that supplies `display_name` names that too |
-| `google-cloud.keys.patch` | Required `project`, `key_id`, `restrictions`. `updateMask=restrictions` is fixed. Confirmation always; the stop carries `project` and `key_id` and says in words that `restrictions` is not shown, so it approves the target and not the change |
+| `google-cloud.keys.create` | Required `project` and `restrictions`; optional `key_id` as a query parameter matching `[a-z]([a-z0-9-]{0,61}[a-z0-9])?`, which the generated parameter states in its description as a hard rule and which also excludes UUID-like ids; optional `display_name` of at most 63 characters. Confirmation always; the stop carries whichever of `project`, `key_id`, `display_name` and `restrictions` the caller supplied. **Both `key_id` and `display_name` are optional**, so a create that supplies neither still shows the project and the restrictions |
+| `google-cloud.keys.patch` | Required `project`, `key_id`, `restrictions`. `updateMask=restrictions` is fixed. Confirmation always; the stop carries `project`, `key_id` and the rendered `restrictions` |
 | `google-cloud.keys.get_operation` | Required `operation_name`, matching `^operations/(?!\.{1,2}$)[^/]+$`. That is the pattern both generated documents declare, `^operations/[^/]+$`, narrowed to exclude `.` and `..`, which the module has always refused and the published pattern admitted until 2026-09-20. The id is encoded as one path segment |
 
 `project` is either a project id, being 6 to 30 lowercase ASCII letters, digits or hyphens, starting with a letter and not ending in a hyphen, which is Google's `Project.projectId` rule and nothing more; or a project number of up to 19 digits, which Resource Manager's own parameter description gives as its example and which `tests/keys.test.js` asserts is accepted. This sentence said a project number was refused until 2026-09-20, contradicting the action table above it and the manifest pattern both. The `projects` module carries no test of its own for the number form; the coverage is on `keys`, and the validator is shared.
@@ -117,7 +114,7 @@ A grant is per module. Privilege describes the grant, not just these actions: `s
 ## Troubleshooting
 
 - `needs_connect`: follow `auth.md` for the named module's grant.
-- `needs_confirmation`: the summary names the action, the project field, and the resource field; review those, then repeat with `confirm: true` if intended.
+- `needs_confirmation`: the summary names the action and every declared value, `restrictions` included. Review that stop, then repeat the identical call with `confirm: true` if intended. A confirm with no matching stop is a fresh stop.
 - `invalid_arguments`: provide a project id of 6 to 30 lowercase letters, digits or hyphens, starting with a letter and not ending in a hyphen; a nonempty `service` with no whitespace and no `/`; a nonempty `key_id` with no `/` on `get` and `patch`; an `operation_name` matching `^operations/(?!\.{1,2}$)[^/]+$`, which refuses `.` and `..`; `requested_policy_version` 0, 1 or 3; `restrictions` with at least one `api_targets` entry that names a `service`; and none of the four client-restriction kinds.
 - `vendor_error` with 401 or 403: have the operator check the grant, the enabled APIs, and that the named project is one the grant can reach; never paste a token in chat.
 - `vendor_error` with 429: stop and wait for the vendor's rate-limit window; do not poll.

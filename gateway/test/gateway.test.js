@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createTestGateway, makeHome, putActive } from './fake-provider.js';
+import { confirmCall, createTestGateway, makeHome, putActive } from './fake-provider.js';
 
 test('execute with no record returns needs_connect and starts nothing', async () => {
   const { gw, fake } = await createTestGateway();
@@ -83,7 +83,7 @@ test('execute with confirmation always without confirm returns needs_confirmatio
   assert.equal(denied.status, 'needs_confirmation');
   assert.equal(denied.action, 'cloudflare.dns.batch');
 
-  const ran = await gw.execute({
+  const ran = await confirmCall(gw, {
     action: 'cloudflare.dns.batch',
     input: { zone_id: 'zone-example', deletes: [], posts: [] },
     confirm: true,

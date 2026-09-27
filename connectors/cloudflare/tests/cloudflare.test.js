@@ -1,3 +1,4 @@
+import { confirmCall } from '../../../gateway/test/fake-provider.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -109,7 +110,7 @@ test('update_record remaps the identifier and executes the catalog after confirm
     assert.equal(args.ttl, 300);
     return { success: true, result: { id: 'rec-1', ttl: 300 }, errors: [], messages: [] };
   });
-  const result = await gw.execute({ action, input: { zone_id: 'zone-example', record_id: 'rec-1', ttl: 300 }, confirm: true });
+  const result = await confirmCall(gw, { action, input: { zone_id: 'zone-example', record_id: 'rec-1', ttl: 300 }, confirm: true });
   assert.equal(result.result.ttl, 300);
 });
 
@@ -127,7 +128,7 @@ test('delete_record needs confirmation on every call and reaches the fake catalo
   const call = { action, input: { zone_id: 'zone-example', record_id: 'rec-1' } };
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
   assert.equal(calls, 0);
-  assert.equal((await gw.execute({ ...call, confirm: true })).result.id, 'rec-1');
+  assert.equal((await confirmCall(gw, { ...call, confirm: true })).result.id, 'rec-1');
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
   assert.equal(calls, 1);
 });
@@ -146,7 +147,7 @@ test('import needs confirmation and forwards multipart bytes through the import 
   const call = { action: 'cloudflare.dns.import_zone', input: { zone_id: 'zone-example', zone_file, proxied: false } };
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
   assert.equal(requests.length, 0);
-  const result = await gw.execute({ ...call, confirm: true });
+  const result = await confirmCall(gw, { ...call, confirm: true });
   assert.equal(result.result.recs_added, 1);
   assert.equal(Object.hasOwn(result, 'headers'), false);
   assert.equal(Object.hasOwn(result, 'set-cookie'), false);
@@ -162,7 +163,7 @@ test('import needs confirmation and forwards multipart bytes through the import 
   assert.ok(body.includes(`\r\n\r\n${zone_file}\r\n`));
   assert.ok(body.includes('name="proxied"\r\n\r\nfalse\r\n'));
   assert.ok(body.endsWith(`--${boundary}--\r\n`));
-  await gw.execute({ ...call, input: { zone_id: 'zone-example', zone_file }, confirm: true });
+  await confirmCall(gw, { ...call, input: { zone_id: 'zone-example', zone_file }, confirm: true });
   const withoutProxied = Buffer.from(requests[1].binary_body.base64, 'base64').toString('utf8');
   assert.equal(withoutProxied.includes('name="proxied"'), false);
 });
@@ -170,7 +171,7 @@ test('import needs confirmation and forwards multipart bytes through the import 
 test('confirmed batch reaches the batch rule and returns data only', async () => {
   const { gw, store, fake } = await createTestGateway();
   await putActive(store, fake, { service: 'cloudflare', module: 'dns' });
-  const result = await gw.execute({ action: 'cloudflare.dns.batch', input: { zone_id: 'zone-example', posts: [{ type: 'TXT', name: 'example.com', content: 'example' }] }, confirm: true });
+  const result = await confirmCall(gw, { action: 'cloudflare.dns.batch', input: { zone_id: 'zone-example', posts: [{ type: 'TXT', name: 'example.com', content: 'example' }] }, confirm: true });
   assert.equal(result.success, true);
   assert.equal(result.result.batch, true);
   assert.equal(Object.hasOwn(result, 'headers'), false);
@@ -182,7 +183,7 @@ test('create_record confirms a proxy write and returns one record rather than a 
   await putActive(store, fake, { service: 'cloudflare', module: 'dns' });
   const call = { action: 'cloudflare.dns.create_record', input: { zone_id: 'zone-example', type: 'TXT', name: 'example.com', content: 'example', ttl: 300 } };
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
-  const result = await gw.execute({ ...call, confirm: true });
+  const result = await confirmCall(gw, { ...call, confirm: true });
   assert.equal(result.success, true);
   assert.equal(result.result.type, 'TXT');
   assert.equal(result.result.ttl, 300);
@@ -266,7 +267,7 @@ test('pages.create_project confirms every call, posts the body, and refuses a ba
     return original(request);
   };
   for (const name of ['Bad_Name', 'a'.repeat(59)]) {
-    const bad = await gw.execute({
+    const bad = await confirmCall(gw, {
       action: 'cloudflare.pages.create_project',
       input: { account_id: 'acct-1', name, production_branch: 'main' },
       confirm: true,
@@ -281,7 +282,7 @@ test('pages.create_project confirms every call, posts the body, and refuses a ba
   };
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
   assert.equal(requests.length, 0);
-  const created = await gw.execute({ ...call, confirm: true });
+  const created = await confirmCall(gw, { ...call, confirm: true });
   assert.equal(created.result.name, 'kit-site');
   assert.equal(created.result.production_branch, 'main');
   assert.equal(requests[0].method, 'POST');
@@ -317,7 +318,7 @@ test('pages.add_domain confirms every call and posts the domain name', async () 
   };
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
   assert.equal(requests.length, 0);
-  const added = await gw.execute({ ...call, confirm: true });
+  const added = await confirmCall(gw, { ...call, confirm: true });
   assert.equal(added.result.name, 'www.example.com');
   assert.equal(requests[0].endpoint, '/accounts/acct-1/pages/projects/kit-site/domains');
   assert.equal(requests[0].method, 'POST');
@@ -344,7 +345,7 @@ test('pages.deploy refuses a dir that is not site/dist', async () => {
   const { gw, requests } = await pagesGateway();
   const tree = makeTree({ parentName: 'site', distName: 'public', kit: true, files: { 'index.html': '<h1>Hi</h1>' } });
   try {
-    const result = await gw.execute({
+    const result = await confirmCall(gw, {
       action: 'cloudflare.pages.deploy',
       input: { account_id: 'acct-1', project_name: 'kit-site', dir: tree.dist },
       confirm: true,
@@ -362,7 +363,7 @@ test('pages.deploy refuses site/dist without site/kit.json', async () => {
   const { gw, requests } = await pagesGateway();
   const tree = makeTree({ kit: false, files: { 'index.html': '<h1>Hi</h1>' } });
   try {
-    const result = await gw.execute({
+    const result = await confirmCall(gw, {
       action: 'cloudflare.pages.deploy',
       input: { account_id: 'acct-1', project_name: 'kit-site', dir: tree.dist },
       confirm: true,
@@ -382,7 +383,7 @@ test('pages.deploy refuses _worker.js and a functions directory at the dist root
   try {
     for (const tree of [worker, functions]) {
       const { gw, requests } = await pagesGateway();
-      const result = await gw.execute({
+      const result = await confirmCall(gw, {
         action: 'cloudflare.pages.deploy',
         input: { account_id: 'acct-1', project_name: 'kit-site', dir: tree.dist },
         confirm: true,
@@ -451,7 +452,7 @@ test('pages.deploy confirms on every call and uploads only missing assets', asyn
   try {
     assert.equal((await gw.execute(call)).status, 'needs_confirmation');
     assert.equal(calls.length, 0);
-    const result = await gw.execute({ ...call, confirm: true });
+    const result = await confirmCall(gw, { ...call, confirm: true });
     assert.equal((await gw.execute(call)).status, 'needs_confirmation');
     assert.deepEqual(calls.map((item) => `${item.method} ${item.endpoint}`), [
       'GET /accounts/acct-1/pages/projects/kit-site/upload-token',
@@ -517,7 +518,7 @@ test('pages.deploy refuses a symbolic link at site or at dist', async () => {
     symlinkSync(join(real.root, 'site'), join(holder, 'b', 'site'));
     for (const dir of [join(holder, 'a', 'site', 'dist'), join(holder, 'b', 'site', 'dist')]) {
       const { gw, requests } = await pagesGateway();
-      const result = await gw.execute({
+      const result = await confirmCall(gw, {
         action: 'cloudflare.pages.deploy',
         input: { account_id: 'acct-1', project_name: 'kit-site', dir },
         confirm: true,
@@ -554,7 +555,7 @@ test('pages.deploy stops at the first envelope that says success: false', async 
       return envelope(null);
     };
     try {
-      const result = await gw.execute({
+      const result = await confirmCall(gw, {
         action: 'cloudflare.pages.deploy',
         input: { account_id: 'acct-1', project_name: 'kit-site', dir: tree.dist },
         confirm: true,
@@ -586,7 +587,7 @@ test('pages.deploy stops when a file changes mid-deploy, even one already presen
       return ok({ id: 'dep-should-not-exist' });
     };
     try {
-      const result = await gw.execute({
+      const result = await confirmCall(gw, {
         action: 'cloudflare.pages.deploy',
         input: { account_id: 'acct-1', project_name: 'kit-site', dir: tree.dist },
         confirm: true,
@@ -608,7 +609,7 @@ test('pages.remove_domain confirms every call and sends DELETE to the domain', a
   };
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
   assert.equal(requests.length, 0);
-  await gw.execute({ ...call, confirm: true });
+  await confirmCall(gw, { ...call, confirm: true });
   assert.equal(requests[0].method, 'DELETE');
   assert.equal(requests[0].endpoint, '/accounts/acct-1/pages/projects/kit-site/domains/www.example.com');
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
@@ -633,7 +634,7 @@ test('pages.delete_project reads first, refuses with a custom domain, and delete
     const call = { action: 'cloudflare.pages.delete_project', input: { account_id: 'acct-1', project_name: 'kit-site' } };
     assert.equal((await gw.execute(call)).status, 'needs_confirmation');
     assert.equal(requests.length, 0);
-    const result = await gw.execute({ ...call, confirm: true });
+    const result = await confirmCall(gw, { ...call, confirm: true });
     assert.equal(requests[0].method, 'GET');
     assert.equal(requests[0].endpoint, '/accounts/acct-1/pages/projects/kit-site');
     if (expectDelete) {
@@ -661,7 +662,7 @@ test('pages.delete_project fails closed on a read without a domain list', async 
       if (domains !== undefined) result.domains = domains;
       return { status: 200, data: { success: true, result, errors: [], messages: [] }, headers: {} };
     };
-    const result = await gw.execute({
+    const result = await confirmCall(gw, {
       action: 'cloudflare.pages.delete_project',
       input: { account_id: 'acct-1', project_name: 'kit-site' },
       confirm: true,
@@ -679,7 +680,7 @@ test('pages.remove_domain and delete_project refuse dot segments before any call
     ['cloudflare.pages.remove_domain', { account_id: 'acct-1', project_name: '..', domain: 'www.example.com' }, 'project_name'],
     ['cloudflare.pages.delete_project', { account_id: 'acct-1', project_name: '..' }, 'project_name'],
   ]) {
-    const result = await gw.execute({ action, input, confirm: true });
+    const result = await confirmCall(gw, { action, input, confirm: true });
     assert.equal(result.status, 'invalid_arguments', JSON.stringify(input));
     assert.equal(result.field, field);
   }

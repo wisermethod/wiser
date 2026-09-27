@@ -1,5 +1,7 @@
+import { createHash } from 'node:crypto';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { Buffer } from 'node:buffer';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -95,22 +97,25 @@ test('services.enable displays its project and its service, correct and within t
   assert.match(summary, /service="translate\.googleapis\.com"/);
   assert.ok(summary.length <= SUMMARY_CAP);
   assert.equal(disclosure.shown.filter((f) => f.truncated).length, 0);
-  assert.deepEqual(disclosure.nested, []);
   assert.deepEqual(disclosure.withheld, []);
   assert.doesNotMatch(summary, /not shown/);
 });
 
-test('keys.patch names restrictions, shows no part of it, and says what that costs', () => {
+test('keys.patch renders restrictions in full, keys in input order', () => {
   const { summary, disclosure } = summaryFor(keysPatch, 'google-cloud.keys.patch', {
     project: 'wiser-method-prod',
     key_id: 'abc-123',
     restrictions: { apiTargets: [{ service: 'translate.googleapis.com' }] },
   });
-  assert.deepEqual(disclosure.nested, ['restrictions']);
-  assert.deepEqual(disclosure.shown.map((f) => f.name), ['project', 'key_id']);
-  assert.match(summary, /the content of restrictions is not shown/);
-  assert.match(summary, /approves the target and not the change/);
-  assert.doesNotMatch(summary, /apiTargets/);
+  assert.deepEqual(disclosure.shown.map((f) => f.name), ['project', 'key_id', 'restrictions']);
+  assert.equal(
+    disclosure.shown.find((f) => f.name === 'restrictions').text,
+    '{"apiTargets": [{"service": "translate.googleapis.com"}]}',
+  );
+  assert.match(summary, /restrictions=\{"apiTargets": \[\{"service": "translate\.googleapis\.com"\}\]\}/);
+  assert.doesNotMatch(summary, /the content of restrictions is not shown/);
+  assert.equal(disclosure.shown.find((f) => f.name === 'restrictions').truncated, false);
+  assert.equal(Object.hasOwn(disclosure.shown.find((f) => f.name === 'restrictions'), 'full'), false);
 });
 
 // ------------------------------------------------------------ forged structure
@@ -127,7 +132,7 @@ test('a value cannot forge another field, which needs no control character at al
     key_id: payload,
     restrictions: {},
   });
-  assert.equal(disclosure.shown.length, 2);
+  assert.equal(disclosure.shown.length, 3);
   // The payload's text survives, escaped, which is honest. What must not survive is
   // its STRUCTURE. A quote is a delimiter only when an EVEN number of backslashes
   // precedes it; `(?<!\\)"` got that wrong for a value ending in a backslash, which
@@ -267,20 +272,21 @@ test('escapes are measured against the cap, so a value of escapes cannot slip pa
 
 test('a long description can never push out the sentence saying what is not shown', () => {
   // Adversarial review, finding 5. The warning clauses are reserved before the
-  // description gets any budget at all.
-  const disclosure = discloseInput(keysPatch, {
-    project: 'wiser-method-prod', key_id: 'abc', restrictions: {}, extra_key: 'v',
+  // description gets any budget at all. The nested-content clause is gone;
+  // a withheld scalar and an undeclared key are the warnings that remain.
+  const disclosure = discloseInput(servicesEnable, {
+    project: 'Not A Valid Project', service: 'translate.googleapis.com', extra_key: 'v',
   });
   const summary = composeSummary({
-    action: 'google-cloud.keys.patch',
+    action: 'google-cloud.services.enable',
     service: 'google-cloud',
-    module: 'keys',
+    module: 'services',
     risk: 'high',
     description: 'd'.repeat(SUMMARY_CAP * 3),
     disclosure,
   });
   assert.ok(summary.length <= SUMMARY_CAP);
-  assert.match(summary, /the content of restrictions is not shown/);
+  assert.match(summary, /project was supplied and is not shown, because it fails its own pattern/);
   assert.match(summary, /1 undeclared field not shown/);
   assert.match(summary, /risk high/);
   assert.match(summary, /\u2026$/);
@@ -348,8 +354,10 @@ test('a scalar whose runtime type contradicts its declaration is withheld, not c
   assert.deepEqual(disclosure.withheld, [{ name: 'project', reason: 'type' }]);
 });
 
-test('a scalar union accepts either member, and a nested member makes the whole field nested', () => {
+test('a scalar union accepts either member, and a structured member renders when the value matches it', () => {
   // Adversarial review, finding 6: taking the first scalar member withheld the other.
+  // A union that also permits object used to withhold every value. It now renders
+  // whichever member the value matches.
   const action = { input: { properties: {
     either: { type: ['string', 'number'] },
     mixed: { type: ['string', 'object'] },
@@ -357,10 +365,14 @@ test('a scalar union accepts either member, and a nested member makes the whole 
   const asNumber = discloseInput(action, { either: 42 });
   const asString = discloseInput(action, { either: 'forty-two' });
   assert.deepEqual(asNumber.shown.map((f) => f.name), ['either']);
+  assert.equal(asNumber.shown[0].text, '42');
   assert.deepEqual(asString.shown.map((f) => f.name), ['either']);
-  const mixed = discloseInput(action, { mixed: 'a plain string' });
-  assert.deepEqual(mixed.nested, ['mixed'], 'one nested member is enough to withhold');
-  assert.deepEqual(mixed.shown, []);
+  const asText = discloseInput(action, { mixed: 'a plain string' });
+  assert.equal(asText.shown[0].text, '"a plain string"');
+  const asObject = discloseInput(action, { mixed: { cpu: 2 } });
+  assert.equal(asObject.shown[0].text, '{"cpu": 2}');
+  const mismatch = discloseInput(action, { mixed: ['no'] });
+  assert.deepEqual(mismatch.withheld, [{ name: 'mixed', reason: 'type' }]);
 });
 
 test('an object supplied to a string declaration is withheld rather than stringified', () => {
@@ -470,22 +482,106 @@ test('the summary cap holds when the mandatory material alone would exceed it', 
   assert.match(summary, /risk /, 'the risk clause must survive');
 });
 
-test('a long list of nested names is truncated, not dropped whole', () => {
-  // Found by the author while fuzzing, between the two review rounds: joined into
-  // one clause, a 200-name list overran its budget and the entire warning vanished,
-  // so a person was told nothing about what was hidden.
+test('many long structured values stay inside the summary cap and name input_values', () => {
   const properties = {};
   const input = {};
-  for (let i = 0; i < 200; i += 1) {
-    properties[`nested_field_${i}`] = { type: 'object' };
-    input[`nested_field_${i}`] = {};
+  for (let i = 0; i < 30; i += 1) {
+    properties[`field_${i}`] = { type: 'array' };
+    input[`field_${i}`] = ['\u0000'.repeat(80), { note: 'x'.repeat(80) }];
   }
+  const disclosure = discloseInput({ input: { properties } }, input);
+  assert.equal(disclosure.shown.length, 30);
+  assert.equal(disclosure.shown.every((f) => f.truncated && typeof f.full === 'string' && f.full.length > VALUE_CAP), true);
   const summary = composeSummary({
     action: 'a.b.c', service: 's', module: 'm', risk: 'high',
-    disclosure: discloseInput({ input: { properties } }, input),
+    description: 'd'.repeat(SUMMARY_CAP),
+    disclosure,
   });
-  assert.ok(summary.length <= SUMMARY_CAP);
-  assert.match(summary, /nested_field_0/, 'at least some names must survive');
-  assert.match(summary, /and \d+ more are not shown/);
-  assert.match(summary, /approves the target and not the change/);
+  assert.ok(summary.length <= SUMMARY_CAP, `summary was ${summary.length}`);
+  assert.match(summary, /input_values/);
+  assert.match(summary, /shortened here/);
+  assert.equal(carriesRawUnsafe(summary), null);
+  for (const field of disclosure.shown) assert.equal(carriesRawUnsafe(field.full), null);
+});
+
+test('structured values render in the stated form, and a hostile element or key is escaped', () => {
+  const action = { input: { properties: {
+    argv: { type: 'array' },
+    limits: { type: 'object' },
+    hostile: { type: 'array' },
+    keyed: { type: 'object' },
+  } } };
+  const argv = discloseInput(action, { argv: ['sh', '-c', 'echo hi'] });
+  assert.equal(argv.shown[0].text, '["sh", "-c", "echo hi"]');
+  const limits = discloseInput(action, { limits: { cpu: 2, list: [1, 'a'] } });
+  assert.equal(limits.shown[0].text, '{"cpu": 2, "list": [1, "a"]}');
+  const ordered = discloseInput(action, { limits: { b: 1, a: 2 } });
+  assert.equal(ordered.shown[0].text, '{"b": 1, "a": 2}');
+  const hostile = discloseInput(action, { hostile: ['a", "b', 'c\\d', 'e\u0000f'] });
+  assert.equal(hostile.shown[0].text, '["a\\", \\"b", "c\\\\d", "e\\x00f"]');
+  assert.equal(carriesRawUnsafe(hostile.shown[0].text), null);
+  const keyed = discloseInput(action, { keyed: { 'a"b': 1, 'c\\d': true, 'e\u0000f': null } });
+  assert.equal(keyed.shown[0].text, '{"a\\"b": 1, "c\\\\d": true, "e\\x00f": null}');
+  assert.equal(carriesRawUnsafe(keyed.shown[0].text), null);
+});
+
+test('a value nested deeper than 32 levels is withheld with reason depth and never rendered', () => {
+  const action = { input: { properties: { box: { type: 'array' } } } };
+  const nest = (levels, leaf) => {
+    let value = leaf;
+    for (let i = 0; i < levels; i += 1) value = [value];
+    return value;
+  };
+  const shown = discloseInput(action, { box: nest(32, 'canary-32') });
+  assert.equal(shown.withheld.length, 0);
+  assert.match(shown.shown[0].text, /canary-32/);
+  const hidden = discloseInput(action, { box: nest(33, 'canary-33') });
+  assert.deepEqual(hidden.withheld, [{ name: 'box', reason: 'depth' }]);
+  assert.equal(hidden.shown.length, 0);
+  assert.equal(JSON.stringify(hidden).includes('canary-33'), false);
+  const hostile = discloseInput(action, { box: nest(10000, 'canary-deep') });
+  assert.deepEqual(hostile.withheld, [{ name: 'box', reason: 'depth' }]);
+  assert.equal(JSON.stringify(hostile).includes('canary-deep'), false);
+});
+
+test('a truncated scalar keeps today\'s length and digest, and carries full only when cut', () => {
+  const raw = 'a'.repeat(VALUE_CAP + 1);
+  const rendered = renderValue(raw);
+  assert.equal(rendered.truncated, true);
+  assert.equal(rendered.length, VALUE_CAP + 1);
+  assert.equal(rendered.full, `"${raw}"`);
+  const digest = createHash('sha256').update(Buffer.from(raw, 'utf16le')).digest('hex').slice(0, 16);
+  assert.match(rendered.text, new RegExp(`sha256:${digest}\\)`));
+  const whole = renderValue('short');
+  assert.equal(whole.truncated, false);
+  assert.equal(Object.hasOwn(whole, 'full'), false);
+});
+
+test('a 60000-character scalar is carried whole in full and capped in value', () => {
+  const content = `${'z'.repeat(60000)}\u0000`;
+  assert.equal([...content].length, 60001);
+  const action = { input: { properties: { content: { type: 'string' } } } };
+  const field = discloseInput(action, { content }).shown[0];
+  assert.equal(field.truncated, true);
+  assert.equal(field.full, `"${escapeForDisplay(content)}"`);
+  assert.ok(field.full.length > VALUE_CAP);
+  assert.equal(carriesRawUnsafe(field.full), null);
+  assert.equal(carriesRawUnsafe(field.text), null);
+  assert.doesNotMatch(field.text, /\\x0(?![0-9a-f])/);
+});
+
+test('a truncated structured value caps on whole escape tokens and digests the rendered text', () => {
+  const action = { input: { properties: { argv: { type: 'array' } } } };
+  const field = discloseInput(action, { argv: ['\u001b'.repeat(40)] }).shown[0];
+  const rendered = `["${'\\x1b'.repeat(40)}"]`;
+  assert.equal(field.full, rendered);
+  assert.equal(field.truncated, true);
+  assert.ok(field.text.startsWith('["'));
+  assert.match(field.text, /… \(/);
+  assert.doesNotMatch(field.text, /\\x[0-9a-f]?…/);
+  const digest = createHash('sha256').update(Buffer.from(rendered, 'utf16le')).digest('hex').slice(0, 16);
+  assert.match(field.text, new RegExp(`sha256:${digest}\\)`));
+  assert.equal(field.length, [...rendered].length);
+  assert.equal(carriesRawUnsafe(field.text), null);
+  assert.equal(carriesRawUnsafe(field.full), null);
 });

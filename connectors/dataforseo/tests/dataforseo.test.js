@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
+import { confirmCall, createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
 import { loadConnectors } from '../../../gateway/src/manifest.js';
 import { modules } from '../index.js';
 
@@ -79,12 +79,12 @@ test('a research grant does not unlock backlinks, and the reverse', async () => 
   const { gw, store, fake } = await createTestGateway();
   await putActive(store, fake, { service: 'dataforseo', module: 'research', privilege: 'write' });
   for (const [action, input] of Object.entries(BACKLINKS)) {
-    assert.equal((await gw.execute({ action: `dataforseo.backlinks.${action}`, input, confirm: true })).status, 'needs_connect');
+    assert.equal((await confirmCall(gw, { action: `dataforseo.backlinks.${action}`, input, confirm: true })).status, 'needs_connect');
   }
   const { gw: gw2, store: store2, fake: fake2 } = await createTestGateway();
   await putActive(store2, fake2, { service: 'dataforseo', module: 'backlinks', privilege: 'write' });
   for (const [action, input] of Object.entries({ ...RESEARCH_BILLED, locations: {} })) {
-    assert.equal((await gw2.execute({ action: `dataforseo.research.${action}`, input, confirm: true })).status, 'needs_connect');
+    assert.equal((await confirmCall(gw2, { action: `dataforseo.research.${action}`, input, confirm: true })).status, 'needs_connect');
   }
 });
 
@@ -105,7 +105,7 @@ test('search_volume requires confirmation on every call', async () => {
   await putActive(store, fake, { service: 'dataforseo', module: 'research', privilege: 'write' });
   const call = { action: 'dataforseo.research.search_volume', input: RESEARCH_BILLED.search_volume };
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
-  assert.equal(Object.hasOwn(await gw.execute({ ...call, confirm: true }), 'cost'), true);
+  assert.equal(Object.hasOwn(await confirmCall(gw, { ...call, confirm: true }), 'cost'), true);
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
 });
 
@@ -126,7 +126,7 @@ test('backlinks.summary requires confirmation on every call', async () => {
   await putActive(store, fake, { service: 'dataforseo', module: 'backlinks', privilege: 'write' });
   const call = { action: 'dataforseo.backlinks.summary', input: BACKLINKS.summary };
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
-  assert.equal(Object.hasOwn(await gw.execute({ ...call, confirm: true }), 'cost'), true);
+  assert.equal(Object.hasOwn(await confirmCall(gw, { ...call, confirm: true }), 'cost'), true);
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
 });
 
@@ -135,7 +135,7 @@ for (const [action, input] of Object.entries(RESEARCH_BILLED)) {
     const { gw, store, fake } = await createTestGateway();
     await putActive(store, fake, { service: 'dataforseo', module: 'research', privilege: 'write' });
     const calls = wrapProxy(fake);
-    const result = await gw.execute({ action: `dataforseo.research.${action}`, input, confirm: true });
+    const result = await confirmCall(gw, { action: `dataforseo.research.${action}`, input, confirm: true });
     assert.equal(Object.hasOwn(result, 'cost'), true);
     assert.equal(Object.hasOwn(result, 'tasks'), true);
     assert.equal(Object.hasOwn(result, 'headers'), false);
@@ -153,7 +153,7 @@ for (const [action, input] of Object.entries(BACKLINKS)) {
     const { gw, store, fake } = await createTestGateway();
     await putActive(store, fake, { service: 'dataforseo', module: 'backlinks', privilege: 'write' });
     const calls = wrapProxy(fake);
-    const result = await gw.execute({ action: `dataforseo.backlinks.${action}`, input, confirm: true });
+    const result = await confirmCall(gw, { action: `dataforseo.backlinks.${action}`, input, confirm: true });
     assert.equal(Object.hasOwn(result, 'cost'), true);
     assert.equal(Object.hasOwn(result, 'tasks'), true);
     assert.equal(Object.hasOwn(result, 'headers'), false);
@@ -203,7 +203,7 @@ test('invalid input with confirm true produces zero proxy calls', async () => {
     ['dataforseo.research.serp', { keyword: 'example', location_code: 2840, language_code: 'en', depth: 700 }, 'depth'],
   ];
   for (const [action, input, field] of cases) {
-    const result = await gw.execute({ action, input, confirm: true });
+    const result = await confirmCall(gw, { action, input, confirm: true });
     assert.equal(result.status, 'invalid_arguments', `${action} ${field}`);
     assert.equal(result.field, field, `${action} ${field}`);
   }
@@ -235,7 +235,7 @@ test('HTTP 200 with a charged failed task is returned as data', async () => {
     },
     headers: { 'x-example': 'secret' },
   });
-  const result = await gw.execute({
+  const result = await confirmCall(gw, {
     action: 'dataforseo.research.keyword_ideas',
     input: { keywords: ['example'], location_code: 2840, language_code: 'en' },
     confirm: true,
@@ -255,7 +255,7 @@ for (const httpStatus of [401, 403, 429, 500]) {
       error: { code: 'vendor_error', endpoint: request.endpoint, method: request.method },
       data: { secret: 'should-not-leak' },
     });
-    const result = await gw.execute({
+    const result = await confirmCall(gw, {
       action: 'dataforseo.research.serp',
       input: { keyword: 'example', location_code: 2840, language_code: 'en' },
       confirm: true,
@@ -279,7 +279,7 @@ test('serp refuses vendor operator tokens in keyword, including after one URL de
     'cache:example.com',
   ];
   for (const keyword of cases) {
-    const result = await gw.execute({
+    const result = await confirmCall(gw, {
       action: 'dataforseo.research.serp',
       input: { keyword, location_code: 2840, language_code: 'en' },
       confirm: true,
@@ -294,14 +294,14 @@ test('serp depth 200 is accepted and 210 is refused', async () => {
   const { gw, store, fake } = await createTestGateway();
   await putActive(store, fake, { service: 'dataforseo', module: 'research', privilege: 'write' });
   const calls = wrapProxy(fake);
-  const ok = await gw.execute({
+  const ok = await confirmCall(gw, {
     action: 'dataforseo.research.serp',
     input: { keyword: 'example', location_code: 2840, language_code: 'en', depth: 200 },
     confirm: true,
   });
   assert.equal(Object.hasOwn(ok, 'cost'), true);
   assert.equal(calls.length, 1);
-  const refused = await gw.execute({
+  const refused = await confirmCall(gw, {
     action: 'dataforseo.research.serp',
     input: { keyword: 'example', location_code: 2840, language_code: 'en', depth: 210 },
     confirm: true,
@@ -317,14 +317,14 @@ test('filters accept a flat triple and a nested group, and refuse the vendor gra
   const calls = wrapProxy(fake);
   const base = { keywords: ['example'], location_code: 2840, language_code: 'en' };
 
-  const flat = await gw.execute({
+  const flat = await confirmCall(gw, {
     action: 'dataforseo.research.keyword_ideas',
     input: { ...base, filters: ['keyword_info.search_volume', '>', 0] },
     confirm: true,
   });
   assert.equal(Object.hasOwn(flat, 'cost'), true);
 
-  const nested = await gw.execute({
+  const nested = await confirmCall(gw, {
     action: 'dataforseo.research.keyword_ideas',
     input: {
       ...base,
@@ -342,7 +342,7 @@ test('filters accept a flat triple and a nested group, and refuse the vendor gra
   });
   assert.equal(Object.hasOwn(nested, 'cost'), true);
 
-  const five = await gw.execute({
+  const five = await confirmCall(gw, {
     action: 'dataforseo.research.keyword_ideas',
     input: {
       ...base,
@@ -377,7 +377,7 @@ test('filters accept a flat triple and a nested group, and refuse the vendor gra
     ],
   ];
   for (const filters of refusals) {
-    const result = await gw.execute({
+    const result = await confirmCall(gw, {
       action: 'dataforseo.research.keyword_ideas',
       input: { ...base, filters },
       confirm: true,
@@ -423,7 +423,7 @@ test('filter operands are checked per operator before transport', async () => {
     ['keyword_info.search_volume', 'regex', 'x'.repeat(1001)],
     ['keyword_info.search_volume', 'in', []],
   ]) {
-    const result = await gw.execute({ action: 'dataforseo.research.keyword_ideas', input: { ...base, filters }, confirm: true });
+    const result = await confirmCall(gw, { action: 'dataforseo.research.keyword_ideas', input: { ...base, filters }, confirm: true });
     assert.equal(result.status, 'invalid_arguments');
     assert.equal(result.field, 'filters');
   }

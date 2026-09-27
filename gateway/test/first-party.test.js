@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { STATUS, StatusSignal, isStatusObject } from '../src/errors.js';
 import { loadPolicy } from '../src/policy.js';
 import { FIRST_PARTY_ACTIONS } from '../src/resolve.js';
-import { createTestGateway, DEFAULT_POLICY, makeHome } from './fake-provider.js';
+import { confirmCall, createTestGateway, DEFAULT_POLICY, makeHome } from './fake-provider.js';
 
 const SERVER = fileURLToPath(new URL('../server.js', import.meta.url));
 const FIVE = Object.keys(FIRST_PARTY_ACTIONS);
@@ -308,7 +308,7 @@ test('a policy rule demanding confirmation for a classifier call produces needs_
   assert.match(stopped.summary, /risk low/);
   assert.equal(classifier.calls.length, 0);
 
-  const ran = await gw.execute({ action: 'wiser.route.ask', input: ASK, confirm: true });
+  const ran = await confirmCall(gw, { action: 'wiser.route.ask', input: ASK, confirm: true });
   assert.equal(classifier.calls.length, 1);
   assert.equal(ran.ok, true);
 });

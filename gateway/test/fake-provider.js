@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -557,11 +558,34 @@ export async function createTestGateway(options = {}) {
     connectors,
     envPath,
     classifier: options.classifier || null,
+    pendingConfirmations: options.pendingConfirmations,
+    now: options.now,
     classifierIdentity: customIdentity
       ? options.classifierIdentity
       : (options.session === false ? undefined : () => ({ harnessPid: process.pid, sessionId: null })),
   });
   return { gw, home, store, fake, audit, connectors, policy };
+}
+
+/**
+ * Run a call that may require confirmation. Takes the stop, asserts it is
+ * `needs_confirmation`, then repeats the identical call with `confirm: true`.
+ * A call that does not stop is returned as that result, so a read is not run twice.
+ *
+ * A disconnect-shaped call (service and module, no action) goes to `disconnect`.
+ *
+ * @param {import('../src/gateway.js').ConnectionGateway} gw
+ * @param {Record<string, unknown>} args
+ */
+export async function confirmCall(gw, args) {
+  const useDisconnect = args.action === undefined && args.service !== undefined;
+  const invoke = (call) => (useDisconnect ? gw.disconnect(call) : gw.execute(call));
+  const pending = { ...args };
+  delete pending.confirm;
+  const stop = await invoke(pending);
+  if (!stop || stop.status !== 'needs_confirmation') return stop;
+  assert.equal(stop.status, 'needs_confirmation');
+  return invoke({ ...pending, confirm: true });
 }
 
 export async function putActive(store, fake, { service, module, privilege = 'write', provider = 'catalog' }) {

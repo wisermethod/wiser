@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { isAncestorPid, rescanRefusal, verify } from '../../hooks/lib/binding.mjs';
 import { isRefused } from '../../hooks/lib/presence.mjs';
 import { buildContext } from './context.js';
@@ -217,7 +217,7 @@ const TOOLS = [
       properties: {
         action: { type: 'string', description: 'Action id, service.module.action' },
         input: { type: 'object', description: 'Action arguments' },
-        confirm: { type: 'boolean', description: 'True only after a person approved a needs_confirmation stop' },
+        confirm: { type: 'boolean', description: 'True only after a person approved a needs_confirmation stop for this exact input. The approval is used once. A confirm with no matching stop is answered with a fresh stop' },
       },
       required: ['action'],
       additionalProperties: false,
@@ -261,7 +261,7 @@ const TOOLS = [
         service: { type: 'string' },
         module: { type: 'string' },
         provider_account_id: { type: 'string', description: 'The account the confirmation named. Required with confirm, and refused if the binding has changed since' },
-        confirm: { type: 'boolean', description: 'True only after a person approved a needs_confirmation stop' },
+        confirm: { type: 'boolean', description: 'True only after a person approved a needs_confirmation stop for this exact input. The approval is used once. A confirm with no matching stop is answered with a fresh stop' },
       },
       required: ['service', 'module'],
       additionalProperties: false,
@@ -304,6 +304,54 @@ const TOOLS = [
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+/** How long a pending approval stays matchable. A restart drops it sooner. */
+export const PENDING_CONFIRMATION_TTL_MS = 15 * 60 * 1000;
+
+/** Oldest pending approvals past this count are dropped. */
+export const PENDING_CONFIRMATION_MAX = 256;
+
+/**
+ * Canonical JSON: object keys sorted by UTF-16 code unit, array order kept.
+ * `undefined` in an array is null; an undefined object member is omitted.
+ * `{a:1,b:2}` and `{b:2,a:1}` are one value. `['a','b']` and `['b','a']` are two.
+ *
+ * @param {unknown} value
+ * @returns {string}
+ */
+export function canonicalJson(value) {
+  if (value === undefined) return 'null';
+  if (value === null || typeof value !== 'object') {
+    const text = JSON.stringify(value);
+    return text === undefined ? 'null' : text;
+  }
+  if (Array.isArray(value)) return `[${value.map((item) => canonicalJson(item)).join(',')}]`;
+  const keys = Object.keys(value).filter((key) => value[key] !== undefined).sort();
+  return `{${keys.map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
+}
+
+/**
+ * sha256 hex of the canonical JSON of a confirmation tuple.
+ *
+ * @param {unknown[]} parts
+ */
+export function confirmationDigest(parts) {
+  return createHash('sha256').update(canonicalJson(parts)).digest('hex');
+}
+
+/**
+ * `input_values` entries. `full` is the uncapped rendered text, and it is absent
+ * when the value was not cut.
+ *
+ * @param {{ name: string, text: string, truncated: boolean, full?: string }[]} shown
+ */
+function inputValueEntries(shown) {
+  return shown.map((f) => {
+    const entry = { name: f.name, value: f.text, truncated: f.truncated };
+    if (f.truncated) entry.full = f.full;
+    return entry;
+  });
 }
 
 const NAME_RE = /^[a-z0-9][a-z0-9-]*$/;
@@ -420,6 +468,55 @@ export class ConnectionGateway {
       : mcpClassifierIdentity;
     /** @type {Set<string>} */
     this.confirmedOnce = new Set();
+    /**
+     * Pending approvals, key to expiry in milliseconds. In memory only. A host
+     * that builds one gateway per request hydrates and flushes this Map the
+     * same way it does `confirmedOnce`.
+     * @type {Map<string, number>}
+     */
+    this.pendingConfirmations = opts.pendingConfirmations instanceof Map
+      ? opts.pendingConfirmations
+      : new Map();
+    /** Milliseconds. Read on every use so a test can reassign `gw.now`. */
+    this.now = typeof opts.now === 'function' ? opts.now : Date.now;
+  }
+
+  /** Drop pending approvals whose expiry has passed. */
+  prunePendingConfirmations() {
+    const now = this.now();
+    for (const [key, expiry] of this.pendingConfirmations) {
+      if (expiry <= now) this.pendingConfirmations.delete(key);
+    }
+  }
+
+  /**
+   * Record a stop. A repeated key is deleted and set again, so expiry and
+   * recency both refresh. Past the maximum, the oldest entry is dropped.
+   * @param {string} key
+   */
+  recordPendingConfirmation(key) {
+    this.prunePendingConfirmations();
+    this.pendingConfirmations.delete(key);
+    this.pendingConfirmations.set(key, this.now() + PENDING_CONFIRMATION_TTL_MS);
+    while (this.pendingConfirmations.size > PENDING_CONFIRMATION_MAX) {
+      const oldest = this.pendingConfirmations.keys().next().value;
+      this.pendingConfirmations.delete(oldest);
+    }
+  }
+
+  /**
+   * A matching unexpired approval is deleted and returns true. Single use.
+   * @param {string} key
+   */
+  takePendingConfirmation(key) {
+    this.prunePendingConfirmations();
+    const expiry = this.pendingConfirmations.get(key);
+    if (expiry === undefined || expiry <= this.now()) {
+      if (expiry !== undefined) this.pendingConfirmations.delete(key);
+      return false;
+    }
+    this.pendingConfirmations.delete(key);
+    return true;
   }
 
   /**
@@ -993,47 +1090,44 @@ export class ConnectionGateway {
         decision.effect === 'confirm' ||
         confirmation === 'always' ||
         (confirmation === 'once' && !this.confirmedOnce.has(onceKey));
-      if (needsConfirm && confirm !== true) {
-        // What may be shown, how it is rendered, and what the summary must say it is
-        // NOT showing all live in src/disclosure.js; the contract is stated in
-        // gateway/AGENTS.md under "What the confirmation stop shows, and what it
-        // does not". This block decides only that a stop happens and on which of
-        // the three entry paths; it does not decide what a person is told.
-        const disclosure = discloseInput(act, input);
-        const summary = composeSummary({
-          action,
-          service: parsed.service,
-          module: parsed.module,
-          risk,
-          description: act?.description,
-          disclosure,
-        });
-        return statusObject(STATUS.NEEDS_CONFIRMATION, {
-          action,
-          service: parsed.service,
-          module: parsed.module,
-          risk: risk ?? null,
-          confirmation,
-          // Unchanged in meaning since before the disclosure policy. Values arrived
-          // as new fields beside them; nothing here was renamed or given a new sense.
-          input_fields: disclosure.fields,
-          undeclared_fields: disclosure.undeclared,
-          // Added. `value` is already escaped and capped; it is display text, not the
-          // input. A consumer wanting the input has the input.
-          input_values: disclosure.shown.map((f) => ({
-            name: f.name,
-            value: f.text,
-            truncated: f.truncated,
-          })),
-          // Added. Declared fields the policy would not render, and why, so a person
-          // knows something was supplied that they are not being shown.
-          withheld_fields: [
-            ...disclosure.nested.map((name) => ({ name, reason: 'nested' })),
-            ...disclosure.withheld,
-          ],
-          summary,
-          description: act?.description ?? null,
-        });
+      // What may be shown lives in src/disclosure.js. This block decides that a
+      // stop happens, on which of the three entry paths, and that `confirm: true`
+      // matches the stop for this exact input. The key is taken after
+      // validateInput, so it is always a valid input.
+      const confirmKey = confirmationDigest([
+        'execute',
+        action,
+        input === undefined ? {} : input,
+        record.provider_account_id,
+      ]);
+      if (needsConfirm) {
+        const matched = confirm === true && this.takePendingConfirmation(confirmKey);
+        if (!matched) {
+          this.recordPendingConfirmation(confirmKey);
+          const disclosure = discloseInput(act, input);
+          const summary = composeSummary({
+            action,
+            service: parsed.service,
+            module: parsed.module,
+            risk,
+            description: act?.description,
+            disclosure,
+          });
+          return statusObject(STATUS.NEEDS_CONFIRMATION, {
+            action,
+            service: parsed.service,
+            module: parsed.module,
+            risk: risk ?? null,
+            confirmation,
+            input_fields: disclosure.fields,
+            undeclared_fields: disclosure.undeclared,
+            input_values: inputValueEntries(disclosure.shown),
+            withheld_fields: disclosure.withheld,
+            summary,
+            description: act?.description ?? null,
+            ...(confirm === true ? { reason: 'unmatched_confirm' } : {}),
+          });
+        }
       }
       if (confirm === true && confirmation === 'once') {
         this.confirmedOnce.add(onceKey);
@@ -1149,36 +1243,40 @@ export class ConnectionGateway {
       decision.effect === 'confirm' ||
       confirmation === 'always' ||
       (confirmation === 'once' && !this.confirmedOnce.has(onceKey));
-    if (needsConfirm && confirm !== true) {
-      const disclosure = discloseInput(def, input);
-      const summary = composeSummary({
-        action,
-        service: parsed.service,
-        module: parsed.module,
-        risk: def.risk,
-        description: def.description,
-        disclosure,
-      });
-      return statusObject(STATUS.NEEDS_CONFIRMATION, {
-        action,
-        service: parsed.service,
-        module: parsed.module,
-        risk: def.risk ?? null,
-        confirmation,
-        input_fields: disclosure.fields,
-        undeclared_fields: disclosure.undeclared,
-        input_values: disclosure.shown.map((f) => ({
-          name: f.name,
-          value: f.text,
-          truncated: f.truncated,
-        })),
-        withheld_fields: [
-          ...disclosure.nested.map((name) => ({ name, reason: 'nested' })),
-          ...disclosure.withheld,
-        ],
-        summary,
-        description: def.description ?? null,
-      });
+    const confirmKey = confirmationDigest([
+      'execute',
+      action,
+      input === undefined ? {} : input,
+      null,
+    ]);
+    if (needsConfirm) {
+      const matched = confirm === true && this.takePendingConfirmation(confirmKey);
+      if (!matched) {
+        this.recordPendingConfirmation(confirmKey);
+        const disclosure = discloseInput(def, input);
+        const summary = composeSummary({
+          action,
+          service: parsed.service,
+          module: parsed.module,
+          risk: def.risk,
+          description: def.description,
+          disclosure,
+        });
+        return statusObject(STATUS.NEEDS_CONFIRMATION, {
+          action,
+          service: parsed.service,
+          module: parsed.module,
+          risk: def.risk ?? null,
+          confirmation,
+          input_fields: disclosure.fields,
+          undeclared_fields: disclosure.undeclared,
+          input_values: inputValueEntries(disclosure.shown),
+          withheld_fields: disclosure.withheld,
+          summary,
+          description: def.description ?? null,
+          ...(confirm === true ? { reason: 'unmatched_confirm' } : {}),
+        });
+      }
     }
     if (confirm === true && confirmation === 'once') {
       this.confirmedOnce.add(onceKey);
@@ -1693,10 +1791,12 @@ export class ConnectionGateway {
       const denied = authorizeBound(boundRows);
       if (denied) return denied;
 
-      if (confirm !== true) {
-        // The first consumer of the confirmation summary Session 1 wrote. The account
-        // id is rendered through the same escaper and cap as any other displayed value;
-        // the module list rides the description, which that function also escapes.
+      // The account id is rendered through the same escaper and cap as any other
+      // displayed value; the module list rides the description, which that function
+      // also escapes. The pending key is the stored account, not the caller's copy.
+      const confirmKey = confirmationDigest(['disconnect', service, module, accountId]);
+      const confirmationStop = (reason) => {
+        this.recordPendingConfirmation(confirmKey);
         const disclosure = discloseInput(
           { input: { properties: { provider_account_id: { type: 'string' } } } },
           { provider_account_id: accountId },
@@ -1720,20 +1820,21 @@ export class ConnectionGateway {
           modules_ending: bound,
           input_fields: disclosure.fields,
           undeclared_fields: disclosure.undeclared,
-          input_values: disclosure.shown.map((f) => ({ name: f.name, value: f.text, truncated: f.truncated })),
-          withheld_fields: [
-            ...disclosure.nested.map((name) => ({ name, reason: 'nested' })),
-            ...disclosure.withheld,
-          ],
+          input_values: inputValueEntries(disclosure.shown),
+          withheld_fields: disclosure.withheld,
           summary,
           description: null,
+          ...(reason ? { reason } : {}),
         });
-      }
+      };
+
+      if (confirm !== true) return confirmationStop();
 
       // The approval named an account. If the binding moved between the stop and here,
       // the approval is for something else. `startConnect` is the mechanism that moves
       // it, and it installs a DIFFERENT id, so the delete below would skip the new row
       // in any case; this refuses audibly instead of removing nothing in silence.
+      // These checks run before the pending-approval match.
       if (approvedAccount === undefined) {
         return statusObject(STATUS.INVALID_ARGUMENTS, { tool: 'disconnect', field: 'provider_account_id' });
       }
@@ -1744,6 +1845,7 @@ export class ConnectionGateway {
           module,
         });
       }
+      if (!this.takePendingConfirmation(confirmKey)) return confirmationStop('unmatched_confirm');
 
       const provider = this.providerFor(target.auth);
       if (!provider || typeof provider.revoke !== 'function') {

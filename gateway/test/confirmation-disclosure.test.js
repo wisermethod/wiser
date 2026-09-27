@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createTestGateway, makeHome, putActive } from './fake-provider.js';
+import { confirmCall, createTestGateway, makeHome, putActive } from './fake-provider.js';
 
 /**
  * The disclosure policy proved through `execute` rather than through the renderer.
@@ -119,7 +119,7 @@ test('entry path two, confirmation once: the first call stops with values, the c
   // not notice `confirmedOnce.add` being deleted. Adversarial review found both.
   assert.equal(calls.length, 0, 'a stop must not reach the vendor');
 
-  const confirmed = await gw.execute({ action: 'cloudflare.dns.create_record', input, confirm: true });
+  const confirmed = await confirmCall(gw, { action: 'cloudflare.dns.create_record', input, confirm: true });
   assert.equal(confirmed.status, undefined, `the confirmed call did not run: ${JSON.stringify(confirmed)}`);
   assert.equal(calls.length, 1, 'the confirmed call did not reach the vendor');
   assert.equal(calls[0].method, 'POST');
@@ -219,7 +219,7 @@ test('the renderer still withholds an undeclared key, which the refusal makes un
   assert.equal(JSON.stringify(d).includes('x_undeclared'), false);
 });
 
-test('a nested field is named and its content never appears, through the whole stack', async () => {
+test('a structured field is rendered through the whole stack, and a stop carries no reason', async () => {
   const { gw, store, fake } = await createTestGateway();
   await putActive(store, fake, { service: 'google-cloud', module: 'keys', privilege: 'write' });
   const r = await gw.execute({
@@ -231,10 +231,11 @@ test('a nested field is named and its content never appears, through the whole s
     },
   });
   assert.equal(r.status, 'needs_confirmation');
-  assert.deepEqual(r.withheld_fields, [{ name: 'restrictions', reason: 'nested' }]);
-  assert.match(r.summary, /the content of restrictions is not shown, so this approves the target and not the change/);
-  const complete = JSON.stringify(r);
-  assert.equal(complete.includes('apiTargets'), false);
+  assert.equal(Object.hasOwn(r, 'reason'), false);
+  assert.deepEqual(r.withheld_fields, []);
+  assert.match(r.summary, /restrictions=\{"apiTargets": \[\{"service": "translate\.googleapis\.com"\}\]\}/);
+  assert.doesNotMatch(r.summary, /the content of restrictions is not shown/);
+  assert.equal(rawUnsafeAnywhere(r), null);
 });
 
 test('a control character in a pattern-valid value is escaped before it reaches the caller', async () => {
@@ -259,8 +260,7 @@ test('a declared field failing its own pattern is refused before the stop, and i
   // The renderer withheld such a value and named it, on the stated ground that showing a
   // person a value the call will then reject wastes their approval. The gateway now
   // carries that reasoning one step further and rejects it before the stop happens, so
-  // the approval is never asked for. `withheld_fields` keeps `nested`, which no schema
-  // check can decide; `pattern` can no longer arise through execute.
+  // the approval is never asked for. `pattern` can no longer arise through execute.
   const { gw, store, fake } = await createTestGateway();
   await putActive(store, fake, { service: 'google-cloud', module: 'services', privilege: 'write' });
   const r = await gw.execute({
@@ -312,9 +312,9 @@ test('input_fields and undeclared_fields keep their meaning, and values arrive b
   // before the stop is reached. The field keeps its meaning and keeps being asserted.
   assert.deepEqual(r.input_fields, ['project', 'key_id', 'restrictions']);
   assert.equal(r.undeclared_fields, 0);
-  // Added: only what the policy renders, and why the rest was not.
-  assert.deepEqual(r.input_values.map((f) => f.name), ['project', 'key_id']);
-  assert.deepEqual(r.withheld_fields, [{ name: 'restrictions', reason: 'nested' }]);
+  assert.deepEqual(r.input_values.map((f) => f.name), ['project', 'key_id', 'restrictions']);
+  assert.equal(r.input_values.find((f) => f.name === 'restrictions').value, '{}');
+  assert.deepEqual(r.withheld_fields, []);
 });
 
 // ----------------------------------------------- the test helpers, tested themselves
@@ -348,9 +348,10 @@ test('keys.create omitting the optional key_id: the stop shows what was supplied
   });
   assert.equal(r.status, 'needs_confirmation');
   // key_id was not supplied, so it is absent entirely: not shown, and not named.
-  assert.deepEqual(r.input_values.map((f) => f.name), ['project', 'display_name']);
+  assert.deepEqual(r.input_values.map((f) => f.name), ['project', 'display_name', 'restrictions']);
   assert.deepEqual(r.input_fields, ['project', 'display_name', 'restrictions']);
-  assert.deepEqual(r.withheld_fields, [{ name: 'restrictions', reason: 'nested' }]);
+  assert.deepEqual(r.withheld_fields, []);
   assert.doesNotMatch(r.summary, /key_id/);
   assert.match(r.summary, /display_name="Translate key"/);
+  assert.match(r.summary, /apiTargets/);
 });

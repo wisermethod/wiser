@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
+import { confirmCall, createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
 
 test('billed face detection proceeds without confirmation and maps both eyes', async () => {
   const { gw, store, fake } = await createTestGateway();
@@ -27,12 +27,12 @@ test('incomplete faces are omitted, zero coordinates survive, and base64 is wrap
       { detectionConfidence: 0.9, landmarks: [{ type: 'LEFT_EYE', position: {} }, { type: 'RIGHT_EYE', position: { x: 2 } }] },
     ] }] };
   });
-  const result = await gw.execute({ action, input: { image_base64: 'ZXhhbXBsZQ==' }, confirm: true });
+  const result = await confirmCall(gw, { action, input: { image_base64: 'ZXhhbXBsZQ==' }, confirm: true });
   assert.equal(result.count, 1);
   assert.deepEqual(result.faces[0].left_eye, { x: 0, y: 0 });
   assert.deepEqual(result.faces[0].right_eye, { x: 2, y: 0 });
-  assert.equal((await gw.execute({ action, input: {}, confirm: true })).status, 'invalid_arguments');
-  assert.equal((await gw.execute({ action, input: { image_base64: 'ZXhhbXBsZQ==', image_uri: 'https://example.com/face.png' }, confirm: true })).status, 'invalid_arguments');
+  assert.equal((await confirmCall(gw, { action, input: {}, confirm: true })).status, 'invalid_arguments');
+  assert.equal((await confirmCall(gw, { action, input: { image_base64: 'ZXhhbXBsZQ==', image_uri: 'https://example.com/face.png' }, confirm: true })).status, 'invalid_arguments');
 });
 
 test('annotation failure is a safe stop, never a fabricated zero-face success', async () => {
@@ -40,5 +40,5 @@ test('annotation failure is a safe stop, never a fabricated zero-face success', 
   await putActive(store, fake, { service: 'google-vision', module: 'images', privilege: 'read' });
   const action = 'google-vision.images.detect_faces';
   fake.catalog.setResult(fake.catalog.toSlug(action), { responses: [{ error: { code: 400 } }] });
-  assert.equal((await gw.execute({ action, input: { image_uri: 'https://example.com/face.png' }, confirm: true })).status, 'vendor_error');
+  assert.equal((await confirmCall(gw, { action, input: { image_uri: 'https://example.com/face.png' }, confirm: true })).status, 'vendor_error');
 });

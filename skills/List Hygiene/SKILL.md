@@ -3,7 +3,7 @@ name: List Hygiene
 type: skill
 category: communication
 description: Decide what an email contact list keeps and drops, verified through the usebouncer connector, with the cost put to the user before it is spent and every drop traced to the result field that caused it.
-version: 0.10.4
+version: 0.10.5
 ---
 
 # List Hygiene
@@ -74,7 +74,7 @@ The normalized address is the only key results come back on, which makes it the 
 
 The local-file grant is bound by `--secret usebouncer=<abs file>` or Provides `secrets:usebouncer`, per the constitution's Secrets rule. This skill never takes a key in conversation or reads its contents.
 
-Read `usebouncer.verify.credits` with `{}` for `{ credits }`, then count the normalized, deduplicated addresses in Step 3's file and estimate the credits required. Put the balance, address count, and estimate in front of the user together. After their answer, call `usebouncer.verify.bulk` with `{ emails: [{ email }] }` and `confirm: true`. This action is `confirmation: always`, so **every** submission stops, not only the first of a session; without the required approval the gateway returns `needs_confirmation`. A second batch in one session therefore needs its own balance, count and estimate put in front of the user, because the approval they gave was for the batch they saw. Never confirm on your own initiative. The connector writes no files and supplies no policy.
+Read `usebouncer.verify.credits` with `{}` for `{ credits }`, then count the normalized, deduplicated addresses in Step 3's file and estimate the credits required. Put the balance, address count, and estimate in front of the user together. After their answer, call `usebouncer.verify.bulk` with `{ emails: [{ email }] }` and no `confirm`. This action is `confirmation: always`, so **every** submission returns `needs_confirmation`, not only the first of a session. Show that stop, including the address list it renders. When the person says yes, repeat the identical call with `confirm: true`. A confirm that does not match that stop is another stop, `reason: unmatched_confirm`, and nothing is submitted. The approval is used once. A second batch in one session therefore needs its own balance, count, estimate, stop, and yes, because the approval they gave was for the batch they saw. Never confirm on your own initiative. The connector writes no files and supplies no policy.
 
 The judgment this step carries:
 

@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createTestGateway, createFakeProviders, putActive } from '../../../gateway/test/fake-provider.js';
+import { confirmCall, createTestGateway, createFakeProviders, putActive } from '../../../gateway/test/fake-provider.js';
 
 // The shipped fake's proxy destructures { endpoint, method } only, so a test routed
 // through it cannot see binary_body or parameters and would assert nothing about the
@@ -49,7 +49,7 @@ test('upload_file needs the deployments grant before it reads or sends anything'
   const { fake, calls } = recording();
   const { gw } = await createTestGateway({ fake });
   const root = fixture(SITE);
-  const res = await gw.execute({
+  const res = await confirmCall(gw, {
     action: 'vercel.deployments.upload_file',
     input: { path: join(root, 'index.html') },
     confirm: true,
@@ -70,7 +70,7 @@ test('upload_file sends the exact bytes and the digest as a request header', asy
   assert.equal(unconfirmed.status, 'needs_confirmation');
   assert.equal(calls.length, 0, 'nothing is read or sent before confirmation');
 
-  const res = await gw.execute({
+  const res = await confirmCall(gw, {
     action: 'vercel.deployments.upload_file',
     input: { path: join(root, 'index.html'), team_id: 'team-example' },
     confirm: true,
@@ -106,7 +106,7 @@ test('upload_file refuses a path it must not read, and sends nothing', async () 
   ]) {
     const { fake, calls } = recording();
     const gw = await gatewayWithGrants(fake);
-    const res = await gw.execute({ action: 'vercel.deployments.upload_file', input: { path }, confirm: true });
+    const res = await confirmCall(gw, { action: 'vercel.deployments.upload_file', input: { path }, confirm: true });
     assert.equal(res.status, 'invalid_arguments', note);
     assert.equal(res.field, 'path', note);
     assert.equal(calls.length, 0, `${note}: no proxy call was made`);
@@ -117,7 +117,7 @@ test('upload_file refuses a path it must not read, and sends nothing', async () 
   if (existsSync(join(userConfig, 'auth-provider.env'))) {
     const { fake } = recording();
     const gw = await gatewayWithGrants(fake);
-    const res = await gw.execute({
+    const res = await confirmCall(gw, {
       action: 'vercel.deployments.upload_file',
       input: { path: join(userConfig, 'auth-provider.env') },
       confirm: true,
@@ -137,7 +137,7 @@ test('create with a directory uploads every file by reference and inlines none',
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
   assert.equal(calls.length, 0, 'nothing is read or uploaded before confirmation');
 
-  const res = await gw.execute({ ...call, confirm: true });
+  const res = await confirmCall(gw, { ...call, confirm: true });
   assert.deepEqual(res.deployment, { id: 'dpl_example', readyState: 'QUEUED' });
 
   assert.equal(calls.length, 4, 'three uploads and one deployment');
@@ -171,7 +171,7 @@ test('create skips a credential and a link out of the tree, and says which it sk
   writeFileSync(join(root, '.env'), 'TOKEN=should-never-be-uploaded');
   symlinkSync(join(outside, 'secret.txt'), join(root, 'escape.txt'));
 
-  const res = await gw.execute({
+  const res = await confirmCall(gw, {
     action: 'vercel.deployments.create',
     input: { name: 'example-site', dir: root },
     confirm: true,
@@ -196,7 +196,7 @@ test('create refuses a directory it must not walk', async () => {
   for (const dir of [userConfig, homedir()]) {
     const { fake, calls } = recording();
     const gw = await gatewayWithGrants(fake);
-    const res = await gw.execute({
+    const res = await confirmCall(gw, {
       action: 'vercel.deployments.create',
       input: { name: 'example-site', dir },
       confirm: true,
@@ -228,7 +228,7 @@ test('create refuses a source set that is not exactly one, and an empty one', as
   for (const [input, note] of cases) {
     const { fake, calls } = recording();
     const gw = await gatewayWithGrants(fake);
-    const res = await gw.execute({ action: 'vercel.deployments.create', input, confirm: true });
+    const res = await confirmCall(gw, { action: 'vercel.deployments.create', input, confirm: true });
     assert.equal(res.status, 'invalid_arguments', note);
     assert.equal(calls.length, 0, `${note}: no proxy call was made`);
   }
@@ -238,7 +238,7 @@ test('create still forwards a non-empty inline files array verbatim, uploading n
   const { fake, calls } = recording(() => ({ status: 200, data: { id: 'dpl_example' } }));
   const gw = await gatewayWithGrants(fake);
   const files = [{ file: 'index.html', data: 'PGgxPm9uZTwvaDE+', encoding: 'base64' }];
-  const res = await gw.execute({
+  const res = await confirmCall(gw, {
     action: 'vercel.deployments.create',
     input: { name: 'example-site', files, target: 'production' },
     confirm: true,
@@ -256,7 +256,7 @@ test('create accepts an explicit list of paths and uploads only those', async ()
     : { status: 200, data: { id: 'dpl_example' } }));
   const gw = await gatewayWithGrants(fake);
   const root = fixture(SITE);
-  const res = await gw.execute({
+  const res = await confirmCall(gw, {
     action: 'vercel.deployments.create',
     input: { name: 'example-site', files: [join(root, 'index.html'), join(root, 'style.css')] },
     confirm: true,
@@ -270,7 +270,7 @@ test('create forwards git_source as gitSource and uploads nothing', async () => 
   const { fake, calls } = recording(() => ({ status: 200, data: { id: 'dpl_example' } }));
   const gw = await gatewayWithGrants(fake);
   const git_source = { type: 'github', repo: 'example/site', ref: 'main' };
-  await gw.execute({
+  await confirmCall(gw, {
     action: 'vercel.deployments.create',
     input: { name: 'example-site', git_source, skip_auto_detection: true },
     confirm: true,
@@ -288,7 +288,7 @@ test('an upload failure stops the run before the deployment is created', async (
   });
   const gw = await gatewayWithGrants(fake);
   const root = fixture(SITE);
-  const res = await gw.execute({
+  const res = await confirmCall(gw, {
     action: 'vercel.deployments.create',
     input: { name: 'example-site', dir: root },
     confirm: true,
@@ -306,7 +306,7 @@ test('every creation needs its own confirmation, and reads need none', async () 
     input: { name: 'example-site', files: [{ file: 'a.html', data: 'eA==' }] },
   };
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
-  assert.equal((await gw.execute({ ...call, confirm: true })).deployment.id, 'dpl_example');
+  assert.equal((await confirmCall(gw, { ...call, confirm: true })).deployment.id, 'dpl_example');
   assert.equal((await gw.execute(call)).status, 'needs_confirmation', 'success does not bank a confirmation');
 
   const deployments = await gw.execute({ action: 'vercel.deployments.list', input: {} });
@@ -345,7 +345,7 @@ test('a directory symlink is not followed, and a cycle cannot hang the walk', { 
   writeFileSync(join(root, 'real/page.html'), 'real');
   symlinkSync(join(root, 'real'), join(root, 'alias'));
 
-  const res = await gw.execute({
+  const res = await confirmCall(gw, {
     action: 'vercel.deployments.create',
     input: { name: 'example-site', dir: root },
     confirm: true,
@@ -371,7 +371,7 @@ test('a worktree .git file is excluded, not uploaded as content', async () => {
   const root = fixture(SITE);
   writeFileSync(join(root, '.git'), 'gitdir: /private/work/project/.git/worktrees/site\n');
 
-  const res = await gw.execute({
+  const res = await confirmCall(gw, {
     action: 'vercel.deployments.create',
     input: { name: 'example-site', dir: root },
     confirm: true,
@@ -388,7 +388,7 @@ test('binary bytes survive the round trip, NUL and invalid UTF-8 included', asyn
   const bytes = Buffer.from([0x00, 0xff, 0xfe, 0x89, 0x50, 0x4e, 0x47, 0x00, 0x1a, 0x0a]);
   writeFileSync(join(root, 'logo.png'), bytes);
 
-  const res = await gw.execute({
+  const res = await confirmCall(gw, {
     action: 'vercel.deployments.upload_file',
     input: { path: join(root, 'logo.png') },
     confirm: true,
@@ -411,7 +411,7 @@ test('a deployment name that is not safe is refused however it was generated', a
   for (const [input, note] of cases) {
     const { fake, calls } = recording();
     const gw = await gatewayWithGrants(fake);
-    const res = await gw.execute({ action: 'vercel.deployments.create', input, confirm: true });
+    const res = await confirmCall(gw, { action: 'vercel.deployments.create', input, confirm: true });
     assert.equal(res.status, 'invalid_arguments', note);
     assert.equal(calls.length, 0, `${note}: nothing was uploaded first`);
   }
@@ -420,7 +420,7 @@ test('a deployment name that is not safe is refused however it was generated', a
 test('uploaded reports only what this call uploaded', async () => {
   const { fake } = recording(() => ({ status: 200, data: { id: 'dpl_example' } }));
   const gw = await gatewayWithGrants(fake);
-  const res = await gw.execute({
+  const res = await confirmCall(gw, {
     action: 'vercel.deployments.create',
     input: { name: 'example-site', files: [{ file: 'a.html', sha: 'a'.repeat(40), size: 3 }] },
     confirm: true,

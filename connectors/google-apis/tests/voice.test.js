@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
+import { confirmCall, createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
 import { modules } from '../index.js';
 
 const DIR = fileURLToPath(new URL('..', import.meta.url));
@@ -36,7 +36,7 @@ async function activeGateway() {
 }
 
 function run(gw, input, extra = {}) {
-  return gw.execute({ action: SYNTHESIZE, input, confirm: true, ...extra });
+  return confirmCall(gw, { action: SYNTHESIZE, input, confirm: true, ...extra });
 }
 
 function list(gw, input = {}, extra = {}) {
@@ -66,7 +66,7 @@ test('synthesize requires confirmation on every call and returns audioContent', 
   const { gw, calls } = await activeGateway();
   const call = { action: SYNTHESIZE, input: VALID };
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
-  assert.equal((await gw.execute({ ...call, confirm: true })).audioContent, AUDIO.audioContent);
+  assert.equal((await confirmCall(gw, { ...call, confirm: true })).audioContent, AUDIO.audioContent);
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
   assert.equal(calls.length, 1);
 });
@@ -103,7 +103,7 @@ test('synthesize with confirm uses an absolute POST proxy and exposes audioConte
 test('a later synthesize also stops without confirm', async () => {
   const { gw, calls } = await activeGateway();
   const call = { action: SYNTHESIZE, input: VALID };
-  const first = await gw.execute({ ...call, confirm: true });
+  const first = await confirmCall(gw, { ...call, confirm: true });
   assert.equal(first.status, undefined);
   assert.equal(first.audioContent, AUDIO.audioContent);
   const second = await gw.execute(call);

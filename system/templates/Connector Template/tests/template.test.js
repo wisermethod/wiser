@@ -25,7 +25,7 @@ function __findGateway() {
   }
   throw new Error('gateway/test/fake-provider.js not found above this test');
 }
-const { createTestGateway, makeHome, putActive } = await import(__findGateway());
+const { confirmCall, createTestGateway, makeHome, putActive } = await import(__findGateway());
 
 const TEMPLATE_DIR = fileURLToPath(new URL('..', import.meta.url));
 
@@ -86,7 +86,7 @@ test('template loads through the gateway after substituting placeholders in memo
   });
   assert.equal(needs.status, 'needs_confirmation');
 
-  const ran = await gw.execute({
+  const ran = await confirmCall(gw, {
     action: `${service}.${module}.update`,
     input: { id: 'item-1', name: 'renamed' },
     confirm: true,

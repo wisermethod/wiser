@@ -1,3 +1,4 @@
+import { confirmCall } from '../../../gateway/test/fake-provider.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
@@ -78,7 +79,7 @@ test('github.issues.create needs confirmation', async () => {
 test('github.issues.create runs on confirm', async () => {
   const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS] });
   await putActive(store, fake, { service: 'github', module: 'issues', privilege: 'write' });
-  const result = await gw.execute({
+  const result = await confirmCall(gw, {
     action: 'github.issues.create',
     input: { owner: 'example-org', repo: 'example-repo', title: 'Example' },
     confirm: true,

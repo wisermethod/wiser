@@ -3,7 +3,7 @@ name: Vercel Deploy
 type: skill
 category: web
 description: List and get a Vercel project, list deployments, and create a deployment from the isolated site/ payload, uploaded by reference, with confirmation always
-version: 0.2.7
+version: 0.2.8
 gaps:
   - read or modify environment variables
   - delete a Vercel project
@@ -66,7 +66,7 @@ Present the exact creation input, including the resolved project/team, source, a
 
 Hand `<site>` (payload plus enclosing envelope), `<goal>` (publish), `<change>` (the proposed deployment input and site changes), and `<evidence>` to `experts/Webmaster/` Job 3 in a second context before creation. A return waits for the named fix and a new verdict. The requester's "publish" does not replace Job 3. Do not call `vercel.deployments.upload_file` or `vercel.deployments.create` before the pass and step 4's confirmation.
 
-**4. Confirm every creation call.** After the pass, require the requester's confirmation of that exact action and input. `vercel.deployments.create` and `vercel.deployments.upload_file` are each `confirmation: always`: `confirm: true` comes from the requester, never this skill's own initiative, and is sent as gateway confirmation, not an extra deployment input. No skip exists. A changed source, destination, target, or payload returns to Step 3 for a new Job 3 verdict before confirmation. Every call requires its own confirmation; `needs_confirmation` waits for that approval and never triggers a self-confirmed retry.
+**4. Confirm every creation call.** After the pass, call `vercel.deployments.create` or `vercel.deployments.upload_file` without `confirm`. Each is `confirmation: always` and returns `needs_confirmation`. Show the person that stop. Repeat the identical call with `confirm: true` only after they say yes. The approval is used once. A confirm with no matching stop is a fresh stop, `reason: unmatched_confirm`, and nothing is uploaded or published. `confirm` is gateway confirmation, not an extra deployment input, and it never comes from this skill's own initiative. A changed source, destination, target, or payload returns to Step 3 for a new Job 3 verdict before the next stop. Every call requires its own stop. A stop never triggers a self-confirmed retry.
 
 **5. Create once, then verify what returned.** Execute only the confirmed call. Report its returned id, status, and URL where present, and for an uploaded source the returned `uploaded` manifest and any `skipped` entries. Use deployment-list scoped to the resolved project and team to inspect that id's status; a pending deployment stays pending, and missing verification is labeled. A failure or uncertain response stops creation rather than retrying a potentially accepted publish. Have the requester review the available deployment listing before deciding whether another confirmed call is needed. Custom-domain resolution follows Context's DNS hand-off.
 
