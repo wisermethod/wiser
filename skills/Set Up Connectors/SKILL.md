@@ -41,11 +41,9 @@ A steward of how this app reaches Wiser's connectors, who prefers the endpoint a
    - No, in Claude Code: step 4.
    - No, in Claude Cowork: the plugin declares the endpoint, so Wiser is listed among the app's connectors, not connected, and no Wiser tool exists until it is. Tell the person to open the app's connectors, press Connect on Wiser, and sign in, then ask again in a new task. If Wiser is not listed there, tell them to add a custom connector with the address from step 2 and sign in. Stop.
    - No, in any other app (Claude on the web or desktop, ChatGPT, Codex, Grok, Cursor, and the rest): give the person the address from step 2 and one step: add it in the app's connector or MCP server settings as a remote server, then sign in when the app asks. Stop.
-4. **Claude Code without the endpoint's tools.** Run `claude mcp list` in this process, so `CLAUDE_CONFIG_DIR` is inherited, and find the entry whose address is the one from step 2, under any name. Which does it show?
-   - Needs authentication: the endpoint is attached and awaits sign-in. Tell the person to run `/mcp`, choose that server, and sign in in the browser page it opens, then ask again. Stop.
-   - Connected: the tools have not reached this session. Name reload: `/mcp` to reconnect, or a new session. Stop.
-   - No entry with that address: Wiser was added as a folder rather than installed as a plugin, so nothing declared the endpoint. Run `claude mcp add --transport http wiser "<address>"` in this process with the address from step 2, then tell the person to run `/mcp`, choose `wiser`, and sign in. Stop.
-   - `claude mcp list` cannot run here: print that same `claude mcp add` command and the `/mcp` step, and stop.
+4. **Claude Code without the endpoint's tools.** Which does this session show?
+   - An `authenticate` tool on Wiser's server, the plugin's `wiser` server or one whose description names the address from step 2: the endpoint is attached and awaits sign-in. Call it, and give the person the link it returns: "To sign in to Wiser, open this link:" and the link. Wiser's tools appear in this session once they finish. Never ask them to paste the address their browser lands on afterwards; if that page fails to load, tell them to run `/mcp`, choose Wiser, and sign in there. Stop.
+   - Neither: nothing in this session declares the endpoint, as when Wiser was added as a folder rather than installed as a plugin. Run `claude mcp add --transport http --scope user wiser "<address>"` in this process, so `CLAUDE_CONFIG_DIR` is inherited, with the address from step 2; then tell the person to run `/mcp`, choose `wiser`, and sign in. If the command cannot run here, print it with the `/mcp` step. Stop.
 5. **Signed in.** Call `list_connections` with `{}` and follow one branch:
    - Any `status`: Connection Troubleshooter.
    - Otherwise this account's ACTIVE grants are listed. Do not reconnect an ACTIVE row. Then:
@@ -82,6 +80,7 @@ A steward of how this app reaches Wiser's connectors, who prefers the endpoint a
 - Codex: on the local route, use the Codex add command in SETUP.md; do not paste the generic `mcpServers` JSON into Codex.
 - Cursor: on the local route, write or merge `~/.cursor/mcp.json`; do not add a project `mcp.json` under this plugin, and do not invent a `cursor mcp add`.
 - Claude Code: run `claude mcp` commands in this process. `CLAUDE_CONFIG_DIR` selects the config file; do not assume `~/.claude.json` is the one this session reads.
+- A sign-in callback address, or anything from it, pasted into chat: never asked for, and never passed on; it carries the sign-in's code.
 
 ## Success
 
