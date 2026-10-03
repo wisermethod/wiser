@@ -150,7 +150,6 @@ function mapStatus(raw) {
 const LISTING_FAILED = 'could not list connected accounts';
 const LISTING_PAGE_SIZE = 100;
 const LISTING_MAX_PAGES = 100;
-const ALL_ACCOUNT_STATES = ['INITIALIZING', 'INITIATED', 'ACTIVE', 'FAILED', 'EXPIRED', 'INACTIVE'];
 
 function failListing() {
   throw new Error(LISTING_FAILED);
@@ -187,7 +186,7 @@ function listedStatus(raw, keepAll) {
 
 /**
  * @param {string | undefined} userId
- * @param {string[]} statuses
+ * @param {string[]} statuses Empty sends no status filter.
  * @param {string} cursor
  */
 function listingParams(userId, statuses, cursor) {
@@ -213,6 +212,21 @@ function nextCursor(data) {
   if (next == null || next === '') return null;
   if (typeof next !== 'string') failListing();
   return next;
+}
+
+/**
+ * The cursor has ended. That ends the listing only when this page does not
+ * also say a later page exists. Both counts have to be numbers; a string or a
+ * missing count is not that claim. A last page is one whose current_page is
+ * not lower than its total_pages.
+ * @param {object} data
+ * @returns {boolean}
+ */
+function countsSayMorePages(data) {
+  const current = data?.current_page;
+  const total = data?.total_pages;
+  if (typeof current !== 'number' || typeof total !== 'number') return false;
+  return current < total;
 }
 
 /**
@@ -243,17 +257,19 @@ export function createAuthProvider({ envPath } = {}) {
     /**
      * Every account for this user, or a rejection. An empty array means the
      * provider holds none, so a missing key, a failed page, a page that is not
-     * a list, a repeated cursor, or a listing that does not end within
+     * a list, a repeated cursor, a cursor that ended while the page counts say
+     * a later page remains, or a listing that does not end within
      * LISTING_MAX_PAGES rejects instead of returning the pages already read.
      * `states` omitted asks for ACTIVE only and drops anything else the
-     * provider sends. `states: 'all'` asks for every documented state and
-     * keeps each account.
+     * provider sends. `states: 'all'` sends no status filter and keeps each
+     * account.
      */
     async listAccounts({ userId, states } = {}) {
       if (states !== undefined && states !== 'all') failListing();
       if (!apiKey) failListing();
       const keepAll = states === 'all';
-      const statuses = keepAll ? ALL_ACCOUNT_STATES : ['ACTIVE'];
+      // No statuses parameter: the provider then returns every state.
+      const statuses = keepAll ? [] : ['ACTIVE'];
       const followed = new Set();
       const out = [];
       let cursor = '';
@@ -272,7 +288,10 @@ export function createAuthProvider({ envPath } = {}) {
           out.push({ id: item.id, toolkit: accountToolkit(item), status });
         }
         const next = nextCursor(res.data);
-        if (next === null) return out;
+        if (next === null) {
+          if (countsSayMorePages(res.data)) failListing();
+          return out;
+        }
         if (followed.has(next)) failListing();
         followed.add(next);
         cursor = next;
