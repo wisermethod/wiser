@@ -146,6 +146,75 @@ function mapStatus(raw) {
   return null;
 }
 
+/** One message for every listing refusal. Never the provider's body. */
+const LISTING_FAILED = 'could not list connected accounts';
+const LISTING_PAGE_SIZE = 100;
+const LISTING_MAX_PAGES = 100;
+const ALL_ACCOUNT_STATES = ['INITIALIZING', 'INITIATED', 'ACTIVE', 'FAILED', 'EXPIRED', 'INACTIVE'];
+
+function failListing() {
+  throw new Error(LISTING_FAILED);
+}
+
+/**
+ * `toolkit.slug`, else `toolkit_slug`, else null. An empty string is not a slug.
+ * @param {object} item
+ * @returns {string | null}
+ */
+function accountToolkit(item) {
+  const nested = item.toolkit;
+  const slug = nested && typeof nested === 'object' && !Array.isArray(nested) ? nested.slug : undefined;
+  if (typeof slug === 'string' && slug.length > 0) return slug;
+  if (typeof item.toolkit_slug === 'string' && item.toolkit_slug.length > 0) return item.toolkit_slug;
+  return null;
+}
+
+/**
+ * ACTIVE listings keep only ACTIVE. `all` keeps mapStatus where it knows the
+ * word, and otherwise the provider's own word uppercased, so a state mapStatus
+ * does not name is still returned.
+ * @param {unknown} raw
+ * @param {boolean} keepAll
+ * @returns {string | null}
+ */
+function listedStatus(raw, keepAll) {
+  const mapped = mapStatus(raw);
+  if (!keepAll) return mapped === 'ACTIVE' ? mapped : null;
+  if (mapped) return mapped;
+  if (typeof raw === 'string') return raw.toUpperCase();
+  return '';
+}
+
+/**
+ * @param {string | undefined} userId
+ * @param {string[]} statuses
+ * @param {string} cursor
+ */
+function listingParams(userId, statuses, cursor) {
+  const params = new URLSearchParams();
+  if (userId) params.append('user_ids', userId);
+  for (const status of statuses) params.append('statuses', status);
+  params.set('limit', String(LISTING_PAGE_SIZE));
+  if (cursor) params.append('cursor', cursor);
+  return params;
+}
+
+/**
+ * Null means the listing ended. A cursor that is not a string is not a page
+ * boundary we can follow, and stopping there would hide every later account.
+ * @param {object} data
+ * @returns {string | null}
+ */
+function nextCursor(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data) || !Object.hasOwn(data, 'next_cursor')) {
+    return null;
+  }
+  const next = data.next_cursor;
+  if (next == null || next === '') return null;
+  if (typeof next !== 'string') failListing();
+  return next;
+}
+
 /**
  * @param {{ envPath?: string | null }} opts
  */
@@ -171,27 +240,44 @@ export function createAuthProvider({ envPath } = {}) {
         'Restart the harness.',
       ].join(' ');
     },
-    async listAccounts({ userId } = {}) {
-      if (!apiKey) return [];
-      const params = new URLSearchParams();
-      if (userId) params.append('user_ids', userId);
-      params.append('statuses', 'ACTIVE');
-      params.set('limit', '100');
-      const path = `/connected_accounts?${params}`;
-      const res = await request(apiKey, 'GET', path);
-      if (!res.ok || res.malformed) return [];
-      const items = res.data?.items || res.data?.connected_accounts || res.data?.data || [];
-      if (!Array.isArray(items)) return [];
+    /**
+     * Every account for this user, or a rejection. An empty array means the
+     * provider holds none, so a missing key, a failed page, a page that is not
+     * a list, a repeated cursor, or a listing that does not end within
+     * LISTING_MAX_PAGES rejects instead of returning the pages already read.
+     * `states` omitted asks for ACTIVE only and drops anything else the
+     * provider sends. `states: 'all'` asks for every documented state and
+     * keeps each account.
+     */
+    async listAccounts({ userId, states } = {}) {
+      if (states !== undefined && states !== 'all') failListing();
+      if (!apiKey) failListing();
+      const keepAll = states === 'all';
+      const statuses = keepAll ? ALL_ACCOUNT_STATES : ['ACTIVE'];
+      const followed = new Set();
       const out = [];
-      for (const item of items) {
-        if (!item || typeof item !== 'object') continue;
-        const toolkit = item.toolkit?.slug || item.toolkit_slug || null;
-        const id = item.id || item.nanoid || item.connected_account_id || null;
-        const status = mapStatus(item.status);
-        if (!id || !toolkit || status !== 'ACTIVE') continue;
-        out.push({ id, toolkit, status });
+      let cursor = '';
+      for (let page = 0; page < LISTING_MAX_PAGES; page += 1) {
+        const params = listingParams(userId, statuses, cursor);
+        const res = await request(apiKey, 'GET', `/connected_accounts?${params}`);
+        if (!res.ok || res.malformed) failListing();
+        const items = res.data && typeof res.data === 'object' ? res.data.items : undefined;
+        if (!Array.isArray(items)) failListing();
+        for (const item of items) {
+          // A broken item is a broken page. Skipping it would return a partial list.
+          if (!item || typeof item !== 'object' || Array.isArray(item)) failListing();
+          if (typeof item.id !== 'string' || item.id.length === 0) failListing();
+          const status = listedStatus(item.status, keepAll);
+          if (status === null) continue;
+          out.push({ id: item.id, toolkit: accountToolkit(item), status });
+        }
+        const next = nextCursor(res.data);
+        if (next === null) return out;
+        if (followed.has(next)) failListing();
+        followed.add(next);
+        cursor = next;
       }
-      return out;
+      failListing();
     },
     async initiate({ userId, toolkit, scheme, callbackUrl }) {
       if (!apiKey) return { status: 0, error: { code: 'vendor_error', endpoint: '/auth_configs', method: 'GET' } };
@@ -208,8 +294,8 @@ export function createAuthProvider({ envPath } = {}) {
       if (!list.ok && list.status !== 404) return vendorError('/auth_configs', 'GET', list.status);
       // A body this adapter could not read is not an empty list. Treating it as one
       // would skip the two-config refusal below and create a third config. `status` and
-      // `proxy` already refuse a malformed body and `listAccounts` returns empty by its
-      // own contract; `initiate` is the consumer that needs the DATA rather than the
+      // `proxy` already refuse a malformed body and `listAccounts` rejects by its own
+      // contract; `initiate` is the consumer that needs the DATA rather than the
       // status line, and it was left behind when `request` stopped throwing on an
       // unreadable body. Found by adversarial review 2026-09-20.
       if (list.ok && list.malformed) return vendorError('/auth_configs', 'GET', list.status);
