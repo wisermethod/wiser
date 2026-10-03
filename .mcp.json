@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "wiser": {
+      "type": "http",
+      "url": "https://account.wisermemory.com/mcp"
+    }
+  }
+}

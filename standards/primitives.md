@@ -1,6 +1,6 @@
 ---
 standard: primitives
-version: 0.11.0
+version: 0.12.0
 description: The four typed primitives, how they invoke and sequence one another, the frontmatter every typed file carries, and the classifier seam a new typed file declares, and any file whose seam changes
 ---
 
@@ -68,7 +68,7 @@ A seam that fails is not shipped. The primitive ships without it, declaring the 
 
 A connector is one directory under `connectors/`, named for the service, holding `CONNECTOR.md`, `manifest.json`, `index.js`, and `auth.md`. The directory is flat; modules are files and keys inside that directory, not nested service folders. Templates live at `system/templates/Connector Template/`, never as a directory under `connectors/`.
 
-The New generation is a module the root's gateway loads and serves over stdio. The person attaches one process, `gateway/server.js`. That process loads every connector's manifest, resolves each action id, applies policy, and either runs the action or returns a status object that names the next step. A hosted client that cannot spawn a process gets the provider's hosted catalog only, documented as such in `gateway/SETUP.md`.
+The New generation is a module the root's gateway loads. The gateway runs in one of two places: hosted, inside the Wiser endpoint this plugin declares in `.mcp.json`, the one home of the endpoint's address; or local, as one process the person attaches, `gateway/server.js`, served over stdio. Either way it loads every connector's manifest, resolves each action id, applies policy, and either runs the action or returns a status object that names the next step. A local-file module runs on the local gateway only. `gateway/SETUP.md` says how a person reaches each.
 
 A module holds no credential. Vendor grants live with the auth provider. A local-file module's key is `--secret <service>=<abs file>` or a Provides `secrets:<platform>` path the root names, never a default directory in a root, and never `memory/secrets/`. The module receives a context (`catalog`, `proxy`, `http` when unwrap is allowed, `audit`) and never a provider client. It imports Node built-ins and files inside its own directory only. It never reads a credential file, never writes a file, and never names a provider slug. Agent-facing ids are `service.module.action`. A grant is per module: two modules are two `needs_connect` stops.
 
