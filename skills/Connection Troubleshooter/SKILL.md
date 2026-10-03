@@ -10,7 +10,7 @@ version: 0.5.0
 
 ## Context
 
-Use when `execute`, `start_connect`, `connect_status`, `disconnect`, `list_connections`, or an audit line returned a status and the person needs the next step, whether it came from the Wiser endpoint or the local gateway (`skills/Set Up Connectors/`); a session exposing `whoami` is on the endpoint. Connecting belongs to Connect Account; planning or building a connector belongs to Connector Advisor or Connector Author. This skill does not work around policy.
+Use when `execute`, `start_connect`, `connect_status`, `disconnect`, `list_connections`, or an audit line returned a status and the person needs the next step, whether it came from the Wiser endpoint or the local gateway (`skills/Set Up Connectors/`). The route is the server that returned the status: the endpoint is the one that also offers `whoami`, the local gateway is `wiser-gateway`; where the answer in hand does not say which, ask. Connecting belongs to Connect Account; planning or building a connector belongs to Connector Advisor or Connector Author. This skill does not work around policy.
 
 Connector Advisor owns this skill with no expert gate after it. Its yield is one next step, not a deliverable that ships.
 
