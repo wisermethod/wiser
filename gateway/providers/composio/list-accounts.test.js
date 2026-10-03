@@ -54,6 +54,7 @@ function assertActiveQuery(parsed, { userId = 'wiser-user', cursor = null } = {}
   assert.equal(parsed.pathname, '/api/v3.1/connected_accounts');
   assert.equal(parsed.searchParams.get('user_ids'), userId);
   assert.deepEqual(parsed.searchParams.getAll('statuses'), ['ACTIVE']);
+  assert.equal(parsed.searchParams.has('account_type'), false);
   assert.equal(parsed.searchParams.get('limit'), '100');
   assert.equal(parsed.searchParams.get('cursor'), cursor);
 }
@@ -63,6 +64,7 @@ function assertNoStatusFilter(parsed, { userId = 'wiser-user', cursor = null } =
   assert.equal(parsed.searchParams.get('user_ids'), userId);
   assert.equal(parsed.searchParams.has('statuses'), false);
   assert.deepEqual(parsed.searchParams.getAll('statuses'), []);
+  assert.equal(parsed.searchParams.get('account_type'), 'ALL');
   assert.equal(parsed.searchParams.get('limit'), '100');
   assert.equal(parsed.searchParams.get('cursor'), cursor);
 }
@@ -125,7 +127,7 @@ test('listAccounts follows next_cursor across three pages and keeps the query on
   assert.equal(JSON.stringify(accounts).includes(SENTINEL), false);
 });
 
-test('states all sends no status filter on every page and keeps each status', async (t) => {
+test('states all sends no status filter and account_type ALL on every page and keeps each status', async (t) => {
   const pages = [
     {
       items: [
@@ -356,15 +358,23 @@ function assertListingQuery(parsed, states, cursor = null) {
 test('listAccounts rejects when the cursor ended but the page counts say more remain', async (t) => {
   let body = {};
   const { provider, calls } = configured(t, () => jsonResponse(200, body));
+  // total_pages equal to the one page read leaves only current_page < total_pages.
+  // The other claim is also above the pages read.
+  const claims = [
+    { current_page: 1, total_pages: 4 },
+    { current_page: 0, total_pages: 1 },
+  ];
   for (const states of [undefined, 'all']) {
     for (const cursor of ENDED_CURSORS) {
-      body = pageWithCursor(cursor, { current_page: 1, total_pages: 4 });
-      const before = calls.length;
-      const args = { userId: 'wiser-user' };
-      if (states !== undefined) args.states = states;
-      await rejectsListing(provider.listAccounts(args));
-      assert.equal(calls.length, before + 1);
-      assertListingQuery(calls[before], states);
+      for (const counts of claims) {
+        body = pageWithCursor(cursor, counts);
+        const before = calls.length;
+        const args = { userId: 'wiser-user' };
+        if (states !== undefined) args.states = states;
+        await rejectsListing(provider.listAccounts(args));
+        assert.equal(calls.length, before + 1);
+        assertListingQuery(calls[before], states);
+      }
     }
   }
 });
@@ -398,37 +408,165 @@ test('listAccounts does not keep an earlier page when a later page ends against 
   }
 });
 
-test('listAccounts ends on a last page whose counts agree for a null, empty or absent cursor', async (t) => {
+test('listAccounts rejects a present page count that is not a finite number', async (t) => {
   let body = {};
   const { provider, calls } = configured(t, () => jsonResponse(200, body));
-  const expected = [{ id: 'ca_page', toolkit: 'GITHUB', status: 'ACTIVE' }];
+  // Strings and null used to be ignored. A boolean is the same kind of count:
+  // present, and not a finite number. 'later' is a real cursor, so the check
+  // has to run before this call follows it.
+  const badCounts = [
+    { current_page: '1', total_pages: '3' },
+    { current_page: '1' },
+    { total_pages: '3' },
+    { current_page: null },
+    { total_pages: null },
+    { current_page: null, total_pages: null },
+    { current_page: true },
+    { total_pages: false },
+  ];
+  const cursors = [...ENDED_CURSORS, 'later'];
+  for (const states of [undefined, 'all']) {
+    for (const cursor of cursors) {
+      for (const counts of badCounts) {
+        body = pageWithCursor(cursor, counts);
+        const before = calls.length;
+        const args = { userId: 'wiser-user' };
+        if (states !== undefined) args.states = states;
+        await rejectsListing(provider.listAccounts(args));
+        assert.equal(calls.length, before + 1);
+        assertListingQuery(calls[before], states);
+      }
+    }
+  }
+});
+
+test('listAccounts rejects a non-numeric count on a later page and drops the earlier page', async (t) => {
+  const seconds = [
+    { current_page: '2', total_pages: '2' },
+    { current_page: null },
+    { total_pages: null },
+  ];
+  let pages = [];
+  let i = 0;
+  const { provider, calls } = configured(t, () => jsonResponse(200, pages[i++]));
+  for (const states of [undefined, 'all']) {
+    for (const counts of seconds) {
+      pages = [
+        {
+          items: [account('ca_1', 'ACTIVE')],
+          next_cursor: 'page-2',
+          current_page: 1,
+          total_pages: 2,
+        },
+        pageWithCursor(null, counts),
+      ];
+      i = 0;
+      const before = calls.length;
+      const args = { userId: 'wiser-user' };
+      if (states !== undefined) args.states = states;
+      await rejectsListing(provider.listAccounts(args));
+      assert.equal(calls.length, before + 2);
+      assertListingQuery(calls[before], states, null);
+      assertListingQuery(calls[before + 1], states, 'page-2');
+    }
+  }
+});
+
+test('listAccounts rejects when total_pages is above the pages this call has read', async (t) => {
+  let body = {};
+  const { provider, calls } = configured(t, () => jsonResponse(200, body));
+  // Lone total_pages, counts that match each other, and a current_page that is
+  // not below total_pages. Each used to end the listing. None agrees with the
+  // one page read, and the boundary is total_pages one above that page.
+  const above = [
+    { total_pages: 2 },
+    { total_pages: 5 },
+    { current_page: 3, total_pages: 3 },
+    { current_page: 4, total_pages: 2 },
+  ];
   for (const states of [undefined, 'all']) {
     for (const cursor of ENDED_CURSORS) {
-      body = pageWithCursor(cursor, { current_page: 3, total_pages: 3 });
-      const before = calls.length;
-      const args = { userId: 'wiser-user' };
-      if (states !== undefined) args.states = states;
-      const accounts = await provider.listAccounts(args);
-      assert.deepEqual(accounts, expected);
-      assert.equal(calls.length, before + 1);
-      assertListingQuery(calls[before], states);
+      for (const counts of above) {
+        body = pageWithCursor(cursor, counts);
+        const before = calls.length;
+        const args = { userId: 'wiser-user' };
+        if (states !== undefined) args.states = states;
+        await rejectsListing(provider.listAccounts(args));
+        assert.equal(calls.length, before + 1);
+        assertListingQuery(calls[before], states);
+      }
     }
-    // A higher current page, a count that is not a number, or one count
-    // missing does not say a later page remains.
-    const stillEnds = [
-      pageWithCursor(null, { current_page: 4, total_pages: 2 }),
-      pageWithCursor(null, { current_page: '1', total_pages: '3' }),
-      pageWithCursor('', { current_page: 1 }),
-      pageWithCursor(undefined, { total_pages: 5 }),
-    ];
-    for (const ending of stillEnds) {
-      body = ending;
+  }
+});
+
+test('listAccounts rejects a later page whose total_pages exceeds the pages read', async (t) => {
+  let pages = [];
+  let i = 0;
+  const { provider, calls } = configured(t, () => jsonResponse(200, pages[i++]));
+  for (const states of [undefined, 'all']) {
+    for (const cursor of ENDED_CURSORS) {
+      const last = {
+        items: [account('ca_2', 'ACTIVE')],
+        total_pages: 3,
+      };
+      if (cursor !== undefined) last.next_cursor = cursor;
+      pages = [
+        { items: [account('ca_1', 'ACTIVE')], next_cursor: 'page-2' },
+        last,
+      ];
+      i = 0;
       const before = calls.length;
       const args = { userId: 'wiser-user' };
       if (states !== undefined) args.states = states;
-      const accounts = await provider.listAccounts(args);
-      assert.deepEqual(accounts, expected);
-      assert.equal(calls.length, before + 1);
+      await rejectsListing(provider.listAccounts(args));
+      assert.equal(calls.length, before + 2);
+      assertListingQuery(calls[before], states, null);
+      assertListingQuery(calls[before + 1], states, 'page-2');
+    }
+  }
+});
+
+test('listAccounts ends on agreeing counts, on no counts, and on zero pages', async (t) => {
+  let body = {};
+  const { provider, calls } = configured(t, () => jsonResponse(200, body));
+  const one = [{ id: 'ca_page', toolkit: 'GITHUB', status: 'ACTIVE' }];
+  for (const states of [undefined, 'all']) {
+    for (const cursor of ENDED_CURSORS) {
+      const endings = [
+        { current_page: 1, total_pages: 1 },
+        { total_pages: 1 },
+        { current_page: 1 },
+        {},
+        // A higher current page is not a later page when total_pages matches
+        // the one page read.
+        { current_page: 4, total_pages: 1 },
+      ];
+      for (const fields of endings) {
+        body = pageWithCursor(cursor, fields);
+        const before = calls.length;
+        const args = { userId: 'wiser-user' };
+        if (states !== undefined) args.states = states;
+        const accounts = await provider.listAccounts(args);
+        assert.deepEqual(accounts, one);
+        assert.equal(calls.length, before + 1);
+        assertListingQuery(calls[before], states);
+      }
+      const zeros = [
+        { total_pages: 0 },
+        { current_page: 0, total_pages: 0 },
+      ];
+      for (const fields of zeros) {
+        const empty = { items: [], ...fields };
+        if (cursor !== undefined) empty.next_cursor = cursor;
+        body = empty;
+        const before = calls.length;
+        const args = { userId: 'wiser-user' };
+        if (states !== undefined) args.states = states;
+        const accounts = await provider.listAccounts(args);
+        assert.deepEqual(accounts, []);
+        assert.equal(calls.length, before + 1);
+        assertListingQuery(calls[before], states);
+      }
     }
   }
 });

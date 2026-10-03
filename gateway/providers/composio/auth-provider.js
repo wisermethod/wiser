@@ -188,11 +188,14 @@ function listedStatus(raw, keepAll) {
  * @param {string | undefined} userId
  * @param {string[]} statuses Empty sends no status filter.
  * @param {string} cursor
+ * @param {string | undefined} accountType Omitted on the default listing, which is PRIVATE only.
  */
-function listingParams(userId, statuses, cursor) {
+function listingParams(userId, statuses, cursor, accountType) {
   const params = new URLSearchParams();
   if (userId) params.append('user_ids', userId);
   for (const status of statuses) params.append('statuses', status);
+  // `ALL` is PRIVATE and SHARED. The parameter is absent unless this call asked for both.
+  if (accountType) params.set('account_type', accountType);
   params.set('limit', String(LISTING_PAGE_SIZE));
   if (cursor) params.append('cursor', cursor);
   return params;
@@ -215,18 +218,36 @@ function nextCursor(data) {
 }
 
 /**
- * The cursor has ended. That ends the listing only when this page does not
- * also say a later page exists. Both counts have to be numbers; a string or a
- * missing count is not that claim. A last page is one whose current_page is
- * not lower than its total_pages.
+ * A count key the provider included. Absent is null. Present and not a finite
+ * number rejects, on this page and on every page: Composio documents both
+ * counts as numbers, and a string, null, or anything else is not a boundary
+ * this listing can trust.
  * @param {object} data
+ * @param {string} key
+ * @returns {number | null}
+ */
+function pageCount(data, key) {
+  if (!data || typeof data !== 'object' || Array.isArray(data) || !Object.hasOwn(data, key)) {
+    return null;
+  }
+  const value = data[key];
+  if (typeof value !== 'number' || !Number.isFinite(value)) failListing();
+  return value;
+}
+
+/**
+ * The cursor has ended. `total_pages` above the pages actually read means a
+ * page was withheld. `current_page` below `total_pages` is the same claim
+ * when both counts are present. A missing count is not that claim.
+ * @param {number | null} current
+ * @param {number | null} total
+ * @param {number} pagesRead
  * @returns {boolean}
  */
-function countsSayMorePages(data) {
-  const current = data?.current_page;
-  const total = data?.total_pages;
-  if (typeof current !== 'number' || typeof total !== 'number') return false;
-  return current < total;
+function endedListingWithheld(current, total, pagesRead) {
+  if (total !== null && total > pagesRead) return true;
+  if (current !== null && total !== null && current < total) return true;
+  return false;
 }
 
 /**
@@ -257,11 +278,13 @@ export function createAuthProvider({ envPath } = {}) {
     /**
      * Every account for this user, or a rejection. An empty array means the
      * provider holds none, so a missing key, a failed page, a page that is not
-     * a list, a repeated cursor, a cursor that ended while the page counts say
-     * a later page remains, or a listing that does not end within
-     * LISTING_MAX_PAGES rejects instead of returning the pages already read.
-     * `states` omitted asks for ACTIVE only and drops anything else the
-     * provider sends. `states: 'all'` sends no status filter and keeps each
+     * a list, a repeated cursor, a present page count that is not a finite
+     * number, a cursor that ended while total_pages is above the pages read
+     * or current_page is below total_pages, or a listing that does not end
+     * within LISTING_MAX_PAGES rejects instead of returning the pages already
+     * read. `states` omitted asks for ACTIVE only and drops anything else the
+     * provider sends. `states: 'all'` sends no status filter, sends
+     * account_type=ALL so PRIVATE and SHARED both come back, and keeps each
      * account.
      */
     async listAccounts({ userId, states } = {}) {
@@ -269,12 +292,14 @@ export function createAuthProvider({ envPath } = {}) {
       if (!apiKey) failListing();
       const keepAll = states === 'all';
       // No statuses parameter: the provider then returns every state.
+      // account_type stays omitted on the default listing, which is PRIVATE only.
       const statuses = keepAll ? [] : ['ACTIVE'];
+      const accountType = keepAll ? 'ALL' : undefined;
       const followed = new Set();
       const out = [];
       let cursor = '';
       for (let page = 0; page < LISTING_MAX_PAGES; page += 1) {
-        const params = listingParams(userId, statuses, cursor);
+        const params = listingParams(userId, statuses, cursor, accountType);
         const res = await request(apiKey, 'GET', `/connected_accounts?${params}`);
         if (!res.ok || res.malformed) failListing();
         const items = res.data && typeof res.data === 'object' ? res.data.items : undefined;
@@ -287,9 +312,13 @@ export function createAuthProvider({ envPath } = {}) {
           if (status === null) continue;
           out.push({ id: item.id, toolkit: accountToolkit(item), status });
         }
+        // Checked on every page, including one whose cursor continues.
+        const pagesRead = page + 1;
+        const current = pageCount(res.data, 'current_page');
+        const total = pageCount(res.data, 'total_pages');
         const next = nextCursor(res.data);
         if (next === null) {
-          if (countsSayMorePages(res.data)) failListing();
+          if (endedListingWithheld(current, total, pagesRead)) failListing();
           return out;
         }
         if (followed.has(next)) failListing();
