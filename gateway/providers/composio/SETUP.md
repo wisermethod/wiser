@@ -98,9 +98,9 @@ For GitHub the skill hands you a link and you approve at GitHub in your own brow
 
 What each vendor asks of you on its side is in that connector's `auth.md`.
 
-## The hosted endpoint, for clients that cannot run the gateway
+## Composio's own hosted endpoint
 
-Composio can expose a session as a hosted MCP endpoint that a hosted chat client attaches as a custom connector. Read on 2026-09-05 from Composio's session docs: you make one from the Composio dashboard or its SDK, with `mcp: true` on the session, and the client sends the `x-api-key` header it gives you. What that endpoint serves is Composio's stock catalog for the toolkits you named. It does not serve this plugin's connectors, its policy or its audit log, and it does not stop on `needs_connect`; it is a smaller thing than the gateway, and it is the only route for a client that cannot start a local process.
+Composio can also expose a session as a hosted MCP endpoint that a chat client attaches as a custom connector. Read on 2026-09-05 from Composio's session docs: you make one from the Composio dashboard or its SDK, with `mcp: true` on the session, and the client sends the `x-api-key` header it gives you. What that endpoint serves is Composio's stock catalog for the toolkits you named. It does not serve this plugin's connectors, its policy or its audit log, and it does not stop on `needs_connect`. **It is not how Wiser reaches an app that cannot start a process**: that is the Wiser endpoint, `gateway/SETUP.md` section 1, where the provider project is the service's and you hold no key.
 
 ## Checking your account
 

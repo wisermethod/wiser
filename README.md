@@ -15,24 +15,24 @@ Wiser is made of five kinds of part:
 - **Skills** produce something you ask for by name: a post, a brief, a page, a palette, an analysis.
 - **Experts** judge work through one perspective, and most check it before it ships, in a second context that did not write it.
 - **Tools** do the parts that should come out the same every time, such as parsing data, rendering images, or driving a browser. The first time a tool needs packages, Wiser asks once, then installs them into its own folder; later tools install without asking.
-- **Connectors** reach the outside accounts you connect, through a local gateway you attach to each app you use. The grants are held by an authentication provider you set up an account with, never on your machine, and the accounts stay yours.
+- **Connectors** reach the outside accounts you connect, through the Wiser endpoint: installing Wiser brings it where your app allows, and you sign in to it once with your Wiser account. The grants are held by an authentication provider, never on your machine, and the accounts stay yours. In a command-line harness you can ask for the gateway to run locally instead, with a provider account of your own.
 - **Standards** say how every other part is written, so each one reads and behaves alike.
 
 Each family keeps its own index: `skills/AGENTS.md`, `experts/AGENTS.md`, `tools/AGENTS.md`, `connectors/AGENTS.md` and `standards/AGENTS.md`. What Wiser does not do is listed in `system/GAPS.md`, and a step that needs a missing part says so rather than guessing.
 
 ## Install
 
-Install Wiser, then attach your working folder. If your folder has no `AGENTS.md` yet, ask Wiser to set it up; it can start a new folder or adopt one that already holds work.
+Install Wiser, sign in to the Wiser endpoint, then attach your working folder. If your folder has no `AGENTS.md` yet, ask Wiser to set it up; it can start a new folder or adopt one that already holds work. To connect accounts, ask Wiser to **set up connectors**; `gateway/SETUP.md` is the recipe it follows, and its section 1 adds the endpoint by hand in an app that does not list it after install.
 
-- **Claude Cowork.** Open Customize, then Plugins, then Add marketplace. Give it the full address, `https://github.com/wisermethod/wiser`, install `wiser`, then attach your working folder.
-- **Claude Code.** Clone this repository, start Claude Code in your working folder, add the clone with `/add-dir`, and ask Claude to read the clone's `AGENTS.md` first.
-- **Codex and ChatGPT for desktop.** Add `wisermethod/wiser` as a marketplace and install `wiser`. The same install serves ChatGPT for desktop once plugins are turned on there. Codex's sandbox has network off by default, so a tool's first install stops until you turn network on.
+- **Claude Cowork.** Open Customize, then Plugins, then Add marketplace. Give it the full address, `https://github.com/wisermethod/wiser`, and install `wiser`. Cowork warns, for any plugin, that installing grants it access to everything available to Cowork. Then find Wiser among your connectors, press Connect and sign in, and attach your working folder.
+- **Claude Code.** Run `claude plugin marketplace add wisermethod/wiser`, then `claude plugin install wiser@wiser-method`, and start Claude Code in your working folder. Run `/mcp`, choose Wiser's endpoint, and sign in. A clone added with `/add-dir` reads the same files, but brings neither the endpoint nor the hooks. When a session starts, the installed plugin shows Wiser's current notice, if there is one; `hooks/AGENTS.md` says what that hook reads and sends, and how to turn it off.
+- **Codex and ChatGPT for desktop.** In either, add `wisermethod/wiser` as a marketplace and install `wiser`. Codex's sandbox has network off by default, so a tool's first install stops until you turn network on.
 - **Grok.** Run `grok plugin marketplace add wisermethod/wiser`, then `grok plugin install wiser --trust`. We have not run this with Wiser yet; these are Grok's own documented steps, read at version 1.0.40.
 - **Cursor.** Add your clone of this repository as a workspace root beside your working folder. Cursor reads each root's `AGENTS.md`.
 
 ## Where to start reading
 
-`AGENTS.md` is the constitution: the rules every part follows, and the place a session starts. `GLOSSARY.md` defines the words it uses. `gateway/SETUP.md` is the recipe for attaching the gateway to a new machine or app; ask Wiser to set up connectors and it walks you through it.
+`AGENTS.md` is the constitution: the rules every part follows, and the place a session starts. `GLOSSARY.md` defines the words it uses. `gateway/SETUP.md` is the recipe for reaching connectors from a new app or machine; ask Wiser to set up connectors and it walks you through it.
 
 ## Support
 

@@ -1,6 +1,6 @@
 # Gateway
 
-The one process a harness attaches to reach an outside account through this plugin. `standards/primitives.md` defines the connector type it serves; `gateway/SETUP.md` says how a person attaches it; `gateway/providers/AGENTS.md` says how a provider plugs in. This file is the gateway's write inventory and its contract with the rest of the root.
+How this plugin reaches an outside account: hosted inside the Wiser endpoint, or as the one local process a harness attaches, as `standards/primitives.md` Connector Bodies states. `standards/primitives.md` defines the connector type it serves; `gateway/SETUP.md` says how a person reaches each; `gateway/providers/AGENTS.md` says how a provider plugs in. This file is the local gateway's write inventory and the gateway's contract with the rest of the root.
 
 ## What the gateway is
 
