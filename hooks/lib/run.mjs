@@ -27,12 +27,27 @@ export function writeContext(hookEventName, additionalContext) {
 }
 
 /**
+ * The notice line for the person. `runHook` passes a string, and this writes
+ * `{"systemMessage":"Wiser: <text>"}`. Session and route keep `writeContext`.
+ * @param {string} text
+ */
+export function writeSystemMessage(text) {
+  process.stdout.write(`${JSON.stringify({ systemMessage: `Wiser: ${text}` })}\n`);
+}
+
+/**
  * Run a hook inside a 3 second budget. Any error, timeout, or empty result
  * exits 0 and prints nothing.
+ *
+ * `options.output === 'systemMessage'` writes the notice line. Any other
+ * value, including a missing option, writes `hookSpecificOutput` as before.
+ * The returned value has to be a string either way.
  * @param {string} hookEventName
  * @param {(event: Record<string, unknown>, clock: { started: number, budgetMs: number }) => Promise<string | null | undefined> | string | null | undefined} fn
+ * @param {{ output?: 'systemMessage' }} [options]
  */
-export function runHook(hookEventName, fn) {
+export function runHook(hookEventName, fn, options) {
+  const output = options && options.output === 'systemMessage' ? 'systemMessage' : 'context';
   const started = Date.now();
   const budgetMs = 3000;
   let finished = false;
@@ -50,7 +65,8 @@ export function runHook(hookEventName, fn) {
       if (typeof text !== 'string' || text.length === 0) return;
       finished = true;
       clearTimeout(timer);
-      writeContext(hookEventName, text);
+      if (output === 'systemMessage') writeSystemMessage(text);
+      else writeContext(hookEventName, text);
     } catch {
       // exit 0 with no output
     } finally {

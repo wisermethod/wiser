@@ -149,11 +149,21 @@ test('roster rows come from the three family indexes', () => {
 test('hooks.json registers SessionStart and the route hook', () => {
   const doc = JSON.parse(readFileSync(join(pluginRoot, 'hooks', 'hooks.json'), 'utf8'));
   assert.equal(typeof doc.description, 'string');
+  assert.equal(
+    doc.description,
+    'Three hooks, whose contract is hooks/AGENTS.md: session and route serve the classifier and send nothing when none is attached; notice shows Wiser\'s current notice when a session starts, or nothing, and WISER_DISABLE_NOTICES=1 turns it off.',
+  );
   assert.deepEqual(Object.keys(doc.hooks).sort(), ['SessionStart', 'UserPromptSubmit']);
+  assert.equal(doc.hooks.SessionStart.length, 2);
   assert.equal(doc.hooks.SessionStart[0].matcher, undefined);
   assert.equal(doc.hooks.SessionStart[0].hooks.length, 1);
   assert.equal(doc.hooks.SessionStart[0].hooks[0].command, 'node "${CLAUDE_PLUGIN_ROOT}/hooks/session.mjs"');
   assert.equal(doc.hooks.SessionStart[0].hooks[0].timeout, 5);
+  assert.equal(doc.hooks.SessionStart[1].matcher, 'startup|resume|clear');
+  assert.equal(doc.hooks.SessionStart[1].hooks.length, 1);
+  assert.equal(doc.hooks.SessionStart[1].hooks[0].type, 'command');
+  assert.equal(doc.hooks.SessionStart[1].hooks[0].command, 'node "${CLAUDE_PLUGIN_ROOT}/hooks/notice.mjs"');
+  assert.equal(doc.hooks.SessionStart[1].hooks[0].timeout, 5);
   assert.equal(doc.hooks.UserPromptSubmit[0].hooks.length, 1);
   assert.equal(doc.hooks.UserPromptSubmit[0].hooks[0].command, 'node "${CLAUDE_PLUGIN_ROOT}/hooks/route.mjs"');
   assert.equal(doc.hooks.UserPromptSubmit[0].hooks[0].timeout, 5);

@@ -1,5 +1,5 @@
 {
-  "description": "When a classifier is attached, bind the session and route each request before the model starts. When none is attached, when no owning root is known, or when that root refuses, the route hook prints nothing and sends nothing. The session hook writes the binding whenever the presence file exists.",
+  "description": "Three hooks, whose contract is hooks/AGENTS.md: session and route serve the classifier and send nothing when none is attached; notice shows Wiser's current notice when a session starts, or nothing, and WISER_DISABLE_NOTICES=1 turns it off.",
   "hooks": {
     "SessionStart": [
       {
@@ -7,6 +7,16 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session.mjs\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/notice.mjs\"",
             "timeout": 5
           }
         ]
