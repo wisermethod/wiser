@@ -14,7 +14,7 @@ Use when a connector needs a build plan or Connector Author brings a plan for ap
 
 Owns: `skills/Set Up Connectors/`, `skills/Connect Account/`, `skills/Connection Troubleshooter/`, `skills/Connector Author/`
 
-The gate on Connector Author is this plan, before the skill writes. No default end-of-skill gate follows it. Set Up Connectors, Connect Account, and Connection Troubleshooter take no expert gate: the person attaching the harness and pasting the project key into the instituted file is the setup gate, the person is the connect gate, and a diagnosis names one next step. A connector shipping in this plugin requires an authoring Playbook; the constitution's Writes rule governs an installed plugin.
+The gate on Connector Author is this plan, before the skill writes. No default end-of-skill gate follows it. Set Up Connectors, Connect Account, and Connection Troubleshooter take no expert gate: the person signing in to the Wiser endpoint, or on the local route attaching the harness and pasting the project key into the instituted file, is the setup gate, the person is the connect gate, and a diagnosis names one next step. A connector shipping in this plugin requires an authoring Playbook; the constitution's Writes rule governs an installed plugin.
 
 ## Objective
 
