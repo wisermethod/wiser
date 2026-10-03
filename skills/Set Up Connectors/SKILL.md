@@ -35,7 +35,7 @@ A steward of how this app reaches Wiser's connectors, who prefers the endpoint a
    - Yes, and this session is Claude Code, Codex, Grok, or Cursor: the local route, step 6.
    - Yes, in any other app: stop. Say this app cannot start a local process, and the Wiser endpoint is its route.
    Never describe the local gateway as working offline: every connector call it makes reaches the provider over the network, as the endpoint's do.
-2. **Read the endpoint's address** from this plugin's `.mcp.json`: the `url` of its `wiser` server, in the loaded copy. That file is the address's one home: never type the address from memory, and never give a different one. If the file, its `wiser` server, or an `https:` address there is missing, stop and ask for the loaded plugin path.
+2. **Read the endpoint's address** from this plugin's `.mcp.json`: the `url` of its `wiser` server, in the loaded copy. That file is the address's one home: never type the address from memory, and never give a different one. If the file, its `wiser` server, or that server's `url` is missing, stop and ask for the loaded plugin path.
 3. **Which state is this session in?** Does it expose `whoami` beside `list_connections` on one server? `whoami` is the endpoint's own tool and the local gateway has none, so the server offering it is the endpoint, and every call this turn makes goes to that server.
    - Yes: signed in. Go to step 5.
    - No, in Claude Code: step 4.
