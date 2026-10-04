@@ -260,7 +260,14 @@ const saved = moments.flatMap((moment) => moment.files ?? []);
     });
     const onMotion = () => {
       reduced = motion.matches;
-      if (reduced) generation += 1;
+      if (reduced) {
+        // Stop, and start again from the first moment if motion is allowed again.
+        generation += 1;
+        started = false;
+        chat.replaceChildren();
+        filesEl.replaceChildren();
+        if (noticeEl) noticeEl.hidden = true;
+      }
       paint();
       if (!reduced) ensure();
     };

@@ -72,7 +72,7 @@ Two page frontmatter keys, both optional booleans:
 - `showTitle: false`: the layout prints no `<h1>`, and the page's body writes its own, so a homepage can carry a designed headline. The title still fills `<title>` and `og:title`. `check` fails such a page unless its body has exactly one `<h1>`.
 - `listArticles`: `true` lists the site's published articles after the page's content, each with its title, description and date; `false` lists none. Missing: the index page lists them under an "Articles" heading, as at 0.1.0, and no other page does. A page that lists articles is how a site gets an articles page, at whatever address and under whatever title it chooses. A page whose id is `articles` builds `articles.html` beside the `articles/` routes; Vercel serves it at `/articles`, and Cloudflare Pages has not been verified, so prefer another name.
 
-The options' styles live in `src/styles/tokens.css`, below the `@theme` block, each reading its tokens with a fallback: `--page-width`, `--measure`, `--brand-height`, `--color-header`, `--color-nav-button`, `--color-nav-button-ink`, `--band-padding`, `--text-prose-weight`. A token update may set any of them in the `@theme` block. A token must be read by a rule in `tokens.css` to reach the page: Tailwind drops a theme variable nothing in that file reads.
+The options' styles live in `src/styles/tokens.css`, below the `@theme` block, each reading its tokens with a fallback: `--page-width`, `--measure`, `--logo-height`, `--header-background`, `--sticky-offset`, `--nav-button-background`, `--nav-button-ink`, `--band-padding`, `--text-prose-weight`. A token update may set any of them in the `@theme` block. A token must be read by a rule in `tokens.css` to reach the page: Tailwind drops a theme variable nothing in that file reads.
 
 ## Kit components
 
@@ -108,7 +108,7 @@ timing:                           # optional, milliseconds
   moment: 3000
 ```
 
-Its styles read `--player-surface`, `--player-ink`, `--player-member`, `--player-member-ink`, `--player-assistant`, `--player-chrome`, `--player-folder` and `--player-radius`, each falling back to the palette. `check` fails a `<ConversationPlayer>` whose `id` is not a literal naming a file in `src/content/conversations/`; the build fails a script outside the schema.
+Its styles read `--player-surface`, `--player-ink`, `--player-member`, `--player-member-ink`, `--player-assistant`, `--player-chrome`, `--player-folder`, `--player-radius`, `--player-height`, `--player-width` and `--player-text`, each with a fallback. `check` fails a `<ConversationPlayer>` whose `id` is not a literal naming a file in `src/content/conversations/`; the build fails a script outside the schema.
 
 ## Required SEO slots
 

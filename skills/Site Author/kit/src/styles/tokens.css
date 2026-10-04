@@ -39,6 +39,8 @@
   --player-folder: color-mix(in srgb, var(--color-ink) 6%, var(--color-paper));
   --player-radius: 0.75rem;
   --player-height: 22rem;
+  --player-width: 52rem;
+  --player-text: 1rem;
 }
 
 @layer base {
@@ -111,6 +113,7 @@
     gap: 0.5rem;
     min-height: 44px;
     padding-inline: 0.5rem;
+    margin-inline-end: auto;
     color: var(--color-nav);
     text-decoration: none;
   }
@@ -154,24 +157,24 @@
     padding-block: 0;
   }
   [data-kit-layout][data-sections="bands"] > footer { margin-top: 0; }
+  /* A band's own inline padding puts its contents in the page column, aligned with the header, so no child of a band needs a rule and none is stretched. */
   [data-kit-layout][data-sections="bands"] > main > section {
-    width: 100%;
     max-width: none;
     margin: 0;
     padding-block: var(--band-padding, var(--spacing-section));
-    padding-inline: 0;
+    padding-inline: calc(max(0px, (100% - 48rem) / 2) + var(--spacing-gutter));
     box-sizing: border-box;
   }
-  [data-kit-layout][data-sections="bands"] > main > :not(section),
-  [data-kit-layout][data-sections="bands"] > main > section > * {
-    width: 100%;
+  [data-kit-layout][data-width="wide"][data-sections="bands"] > main > section {
+    padding-inline: calc(max(0px, (100% - var(--page-width, 80rem)) / 2) + var(--spacing-gutter));
+  }
+  [data-kit-layout][data-sections="bands"] > main > :not(section) {
     max-width: 48rem;
     margin-inline: auto;
     padding-inline: var(--spacing-gutter);
     box-sizing: border-box;
   }
-  [data-kit-layout][data-width="wide"][data-sections="bands"] > main > :not(section),
-  [data-kit-layout][data-width="wide"][data-sections="bands"] > main > section > * {
+  [data-kit-layout][data-width="wide"][data-sections="bands"] > main > :not(section) {
     max-width: var(--page-width, 80rem);
   }
   [data-kit-layout][data-sections="bands"] > main > :first-child:not(section) {
@@ -195,7 +198,8 @@
   [data-kit-layout][data-sections="bands"] > main.prose {
     max-width: none;
   }
-  [data-kit-layout][data-width="wide"] > main.prose > :is(p, ul, ol, dl, h1, h2, h3, h4, h5, h6, blockquote, pre, hr, table):not(.not-prose) {
+  [data-kit-layout][data-width="wide"] > main.prose > :is(p, ul, ol, dl, h1, h2, h3, h4, h5, h6, blockquote, pre, hr, table):not(.not-prose),
+  [data-kit-layout][data-width="wide"] > main.prose > section:not(.not-prose) > :is(p, ul, ol, dl, h1, h2, h3, h4, h5, h6, blockquote, pre, hr, table):not(.not-prose) {
     max-width: var(--measure, 65ch);
     width: auto;
     padding-inline: 0;
@@ -206,9 +210,12 @@
 @layer base {
   .conversation-player {
     position: relative;
-    max-width: 100%;
+    max-width: min(100%, var(--player-width, 52rem));
     min-width: 0;
     margin-block: 1.5rem;
+    margin-inline: auto;
+    font-size: var(--player-text, 1rem);
+    line-height: 1.5;
   }
   .conversation-player .conversation-window {
     background: var(--player-surface, var(--color-paper));
@@ -239,7 +246,7 @@
     padding: 0.75rem;
   }
   .conversation-player .conversation-folder {
-    width: 11rem;
+    width: 13rem;
     flex: none;
     min-width: 0;
     background: var(--player-folder, color-mix(in srgb, var(--color-ink) 6%, var(--color-paper)));
