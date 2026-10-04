@@ -2,8 +2,8 @@
 name: Site Author
 type: skill
 category: web
-description: Stand up, content-edit, check, wrap, and upgrade a kit site envelope at sites/<domain>/ or work/<slug>/sites/<domain>/ when the site dies with that work, with the kit in site/, in an owning root that declares sites/
-version: 0.3.1
+description: Stand up, content-edit, check, wrap, and upgrade a kit site envelope in sites/, in a folder named for its domain, or in the sites/ of a work folder when the site dies with that work, with the kit in site/, in an owning root that declares sites/
+version: 0.3.2
 memory:
   - about
   - design
