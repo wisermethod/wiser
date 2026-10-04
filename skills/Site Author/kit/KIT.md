@@ -61,7 +61,7 @@ Every option is chosen by the site, and every option is absent by default. **Abs
 |-----|--------|---------|--------------|
 | `width` | `narrow`, `wide` | `narrow` | `narrow` is the 48rem column. `wide` sets the page to `--page-width` (80rem); running text keeps a reading width of `--measure` (65ch), and every other block, a `not-prose` block included, uses the page width |
 | `sections` | `column`, `bands` | `column` | `bands` makes every `<section>` that is a direct child of the page's content span the full window, flush with its neighbours, its contents at the page width. Its colour is the section's own, for example a colour class on the `<section>`. `column` keeps sections in the column |
-| `header.brand` | `{ "text", "logo" }`, either or both | none | A link home at the start of the header: the logo image, the text, or both. `logo` is a `/images/` path whose file is in `public/images/`. A logo with no text takes `siteName`, or the index page's title, as its accessible name |
+| `header.brand` | `{ "text", "logo" }`, either or both | none | A link home at the start of the header: the logo image, the text, or both. `logo` is a `/images/` path, with no query or fragment, whose file is in `public/images/`. A logo with no text takes `siteName`, or the index page's title, as its accessible name |
 | `header.sticky` | `true`, `false` | `false` | The header stays at the top of the window while the page scrolls, on an opaque background; anchor jumps and focused elements land below it |
 | `header.menu` | `links`, `button` | `links` | `button` collapses the links behind a Menu control below 48rem. No script |
 
@@ -82,7 +82,7 @@ Every role and spacing token the kit layers read carries the kit's default as a 
 |-----------|-------------|----------|
 | `ConversationPlayer` | `<ConversationPlayer id="<name>" />` | `src/content/conversations/<name>.yaml`, `.yml` or `.json` |
 
-A conversation's file name is its id: lowercase letters, digits and hyphens, ending `.yaml`, `.yml` or `.json`, and `check` fails any other name, because Astro would give the file a different id than the one written.
+A conversation's file name is its id: lowercase letters, digits and hyphens, ending `.yaml`, `.yml` or `.json`, directly in `src/content/conversations/` with no subfolders. `check` fails any other name or place, because Astro would give the file a different id than the one written, or give two files one id.
 
 `ConversationPlayer` plays a scripted conversation in a small app window, one moment at a time, with a folder panel where files appear as they are saved, an optional notice shown once, and Pause and Replay controls. It starts when scrolled into view and pauses when scrolled away. With reduced motion, or with no script, the whole conversation shows still. The full transcript is always in the page for assistive technology. Its schema:
 

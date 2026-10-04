@@ -73,8 +73,8 @@ if (Object.hasOwn(kit, "siteName") && (typeof kit.siteName !== "string" || kit.s
 
 function checkLogo(logo) {
   const where = "kit.json layout.header.brand.logo";
-  if (typeof logo !== "string" || !logo.startsWith("/images/") || logo.includes("..") || logo.includes("\\") || logo.includes("?")) {
-    fail(`${where} must be a path starting /images/, with no .., no backslash and no query`);
+  if (typeof logo !== "string" || !logo.startsWith("/images/") || logo.includes("..") || logo.includes("\\") || logo.includes("?") || logo.includes("#")) {
+    fail(`${where} must be a path starting /images/, with no .., no backslash, no query and no fragment`);
     return;
   }
   let rel;
@@ -265,7 +265,12 @@ walkMd(path.join(site, "src/content/articles"), (file) => {
 function renderedSource(body) {
   const out = [];
   let fence = null;
-  for (const line of body.split(/\r?\n/)) {
+  let prevBlank = true;
+  let inIndentedCode = false;
+  let inList = false;
+  for (const raw of body.split(/\r?\n/)) {
+    // A blockquote's contents render, so its markers are not part of the line.
+    const line = raw.replace(/^(?: {0,3}>[ \t]?)+/, "");
     const marker = line.match(/^ {0,3}(`{3,}|~{3,})/);
     if (marker) {
       const token = marker[1];
@@ -278,31 +283,53 @@ function renderedSource(body) {
         continue;
       }
     }
-    if (!fence) out.push(line);
+    if (fence) continue;
+    const blank = line.trim() === "";
+    // An indented code block starts after a blank line and outside a list; its lines render as code, not markup.
+    const indented = /^(?: {4}|\t)/.test(line);
+    if (!blank && indented && (inIndentedCode || (prevBlank && !inList))) { inIndentedCode = true; prevBlank = false; continue; }
+    if (!blank) {
+      inIndentedCode = false;
+      if (!indented) inList = /^ {0,3}(?:[-*+]|\d+[.)])[ \t]/.test(line);
+    }
+    prevBlank = blank;
+    out.push(line);
   }
   return out.join("\n").replace(/<!--[\s\S]*?-->/g, "").replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, "").replace(/`[^`\n]*`/g, "");
 }
 // A source count: an h1 that only an MDX expression decides is counted as written, and KIT.md step 6 counts the rendered page.
-function countH1(body) {
+// In MDX a capitalised <H1> is a component, not the HTML element, so only lowercase counts there.
+function countH1(body, mdx) {
   const lines = renderedSource(body).split("\n");
   let count = 0;
   lines.forEach((line, i) => {
     if (/^ {0,3}#(?:[ \t]|$)/.test(line)) count += 1;
     else if (/^ {0,3}=+[ \t]*$/.test(line) && i > 0 && lines[i - 1].trim() !== "" && !/^ {0,3}(?:#|>|[-*+] |\d+[.)] )/.test(lines[i - 1])) count += 1;
-    count += (line.match(/<h1(?=[\s>/])/gi) ?? []).length;
+    count += (line.match(mdx ? /<h1(?=[\s>/])/g : /<h1(?=[\s>/])/gi) ?? []).length;
   });
   return count;
 }
-// Top-level frontmatter keys only: an indented line belongs to a value, and a quoted key is still that key.
+// Top-level frontmatter keys only: the root mapping sits at the indentation of its first key, a deeper line belongs to a value, and a quoted key is still that key.
 function topLevelFrontmatter(file) {
-  const m = fs.readFileSync(file, "utf8").match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  const m = fs.readFileSync(file, "utf8").replace(/^\uFEFF/, "").match(/^---\r?\n([\s\S]*?)\r?\n---/);
   const out = {};
   if (!m) return out;
-  for (const line of m[1].split(/\r?\n/)) {
-    const k = line.match(/^(?:"([^"]+)"|'([^']+)'|([A-Za-z0-9_-]+))\s*:(.*)$/);
+  const lines = m[1].split(/\r?\n/);
+  const first = lines.find((line) => line.trim() !== "" && !/^\s*#/.test(line));
+  const root = first ? first.match(/^ */)[0].length : 0;
+  for (const line of lines) {
+    if (line.match(/^ */)[0].length !== root) continue;
+    const k = line.slice(root).match(/^(?:"([^"]+)"|'([^']+)'|([A-Za-z0-9_-]+))\s*:(.*)$/);
     if (k) out[k[1] ?? k[2] ?? k[3]] = k[4].replace(/\s+#.*$/, "").trim();
   }
   return out;
+}
+// The spellings Astro's YAML reads as a boolean; anything else, a quoted one included, is not one.
+function yamlBoolean(value) {
+  const v = value.replace(/^!!bool\s+/, "");
+  if (/^(?:true|True|TRUE)$/.test(v)) return "true";
+  if (/^(?:false|False|FALSE)$/.test(v)) return "false";
+  return null;
 }
 walkMd(path.join(site, "src/content/pages"), (file) => {
   const fm = frontmatter(file);
@@ -312,11 +339,11 @@ walkMd(path.join(site, "src/content/pages"), (file) => {
   }
   const top = topLevelFrontmatter(file);
   for (const key of ["showTitle", "listArticles"]) {
-    if (Object.hasOwn(top, key) && top[key] !== "true" && top[key] !== "false") fail(`${file}: ${key} must be true or false, unquoted`);
+    if (Object.hasOwn(top, key) && yamlBoolean(top[key]) === null) fail(`${file}: ${key} must be true or false, unquoted`);
   }
-  if (top.showTitle === "false") {
-    const body = fs.readFileSync(file, "utf8").replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
-    const count = countH1(body);
+  if (Object.hasOwn(top, "showTitle") && yamlBoolean(top.showTitle) === "false") {
+    const body = fs.readFileSync(file, "utf8").replace(/^\uFEFF/, "").replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
+    const count = countH1(body, file.endsWith(".mdx"));
     if (count !== 1) fail(`${file}: showTitle false requires exactly one h1 in the body, found ${count}`);
   }
 });
@@ -337,15 +364,57 @@ function walkFiles(dir, pattern, onFile) {
 // Astro gives a conversation the slug of its file name as its id, so a file name and the id that places it are both lowercase letters, digits and hyphens.
 const conversationName = /^[a-z0-9][a-z0-9-]*$/;
 walkFiles(path.join(site, "src/content/conversations"), /\.(ya?ml|json)$/i, (file) => {
+  // Astro derives an id from the path and drops a trailing /index, so a subfolder can give two files one id.
+  if (path.dirname(file) !== path.join(site, "src/content/conversations")) fail(`${file}: conversations sit directly in src/content/conversations/, with no subfolders`);
   const stem = path.basename(file).replace(/\.(ya?ml|json)$/i, "");
   if (!conversationName.test(stem) || !/\.(yaml|yml|json)$/.test(file)) fail(`${file}: a conversation file name is lowercase letters, digits and hyphens, ending .yaml, .yml or .json`);
 });
+// Each <ConversationPlayer ...> tag's attributes, read with quotes and braces respected, so one attribute's text cannot pose as another and a > inside a value does not end the tag. A braced value is recorded as an expression, not a literal.
+function playerTags(text) {
+  const tags = [];
+  const re = /<ConversationPlayer(?=[\s/>])/g;
+  let m;
+  while ((m = re.exec(text))) {
+    let i = m.index + m[0].length;
+    const attrs = {};
+    while (i < text.length) {
+      while (/\s/.test(text[i] ?? "")) i++;
+      if (text[i] === ">" || text.startsWith("/>", i)) break;
+      if (text[i] === "{") {
+        let depth = 0;
+        for (; i < text.length; i++) { if (text[i] === "{") depth++; else if (text[i] === "}" && --depth === 0) { i++; break; } }
+        attrs["{...}"] = true;
+        continue;
+      }
+      const name = text.slice(i).match(/^[A-Za-z_:][-\w:.]*/);
+      if (!name) { i++; continue; }
+      i += name[0].length;
+      while (/\s/.test(text[i] ?? "")) i++;
+      if (text[i] !== "=") { attrs[name[0]] = true; continue; }
+      i++;
+      while (/\s/.test(text[i] ?? "")) i++;
+      const q = text[i];
+      if (q === '"' || q === "'") {
+        const end = text.indexOf(q, i + 1);
+        attrs[name[0]] = text.slice(i + 1, end === -1 ? text.length : end);
+        i = end === -1 ? text.length : end + 1;
+      } else if (q === "{") {
+        let depth = 0;
+        for (; i < text.length; i++) { if (text[i] === "{") depth++; else if (text[i] === "}" && --depth === 0) { i++; break; } }
+        attrs[name[0]] = { expression: true };
+      } else {
+        attrs[name[0]] = true;
+      }
+    }
+    tags.push(attrs);
+    re.lastIndex = i;
+  }
+  return tags;
+}
 walkFiles(path.join(site, "src/content"), /\.mdx$/, (file) => {
   const text = renderedSource(fs.readFileSync(file, "utf8"));
-  const tags = text.matchAll(/<ConversationPlayer\b([^>]*)>/g);
-  for (const tag of tags) {
-    const idMatch = tag[1].match(/(?:^|\s)id\s*=\s*(?:"([^"]*)"|'([^']*)')/);
-    const id = idMatch ? (idMatch[1] ?? idMatch[2]) : "";
+  for (const attrs of playerTags(text)) {
+    const id = typeof attrs.id === "string" ? attrs.id : "";
     if (!id) {
       fail(`${file}: ConversationPlayer is missing a literal id="..."`);
       continue;

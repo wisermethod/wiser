@@ -98,6 +98,17 @@ function copyTree(from, to, { preserveContentImages = false } = {}) {
 }
 
 if (indexOfLayerBase(kitTokensEarly) < 0) fail("kit tokens.css has no @layer base");
+// The site's stylesheet is read now too, so one that is a folder or unreadable stops Upgrade before anything is replaced.
+const siteTokensPathEarly = path.join(site, "src/styles/tokens.css");
+let siteTokensEarly = null;
+if (fs.existsSync(siteTokensPathEarly)) {
+  try {
+    if (!fs.statSync(siteTokensPathEarly).isFile()) throw new Error("not a file");
+    siteTokensEarly = fs.readFileSync(siteTokensPathEarly, "utf8");
+  } catch (error) {
+    fail(`site src/styles/tokens.css cannot be read (${error.message}); nothing was replaced`);
+  }
+}
 
 for (const name of fs.readdirSync(kit)) {
   if (skipTop.has(name)) continue;
@@ -145,7 +156,7 @@ if (!fs.existsSync(siteTokensPath)) {
   fs.writeFileSync(siteTokensPath, kitTokens);
   console.log("upgrade: tokens.css was missing and was replaced with the kit file; the site must reapply its token update");
 } else {
-  const siteTokens = fs.readFileSync(siteTokensPath, "utf8");
+  const siteTokens = siteTokensEarly;
   const siteLayer = indexOfLayerBase(siteTokens);
   if (siteLayer < 0) {
     writeTokens(siteTokensPath, kitTokens, "upgrade: tokens.css has no @layer base and was replaced with the kit file; the site must reapply its token update");
