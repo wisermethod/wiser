@@ -3,7 +3,7 @@ name: Set Up Connectors
 type: skill
 category: system
 description: Lead this app to the Wiser endpoint and its sign-in, or on request attach the local gateway in a command-line harness with its project key, naming the one step the state in front of it needs
-version: 0.4.1
+version: 0.4.2
 ---
 
 # Set Up Connectors
@@ -39,7 +39,7 @@ A steward of how this app reaches Wiser's connectors, who prefers the endpoint a
 3. **Which state is this session in?** Does it expose `whoami` beside `list_connections` on one server? `whoami` is the endpoint's own tool and the local gateway has none, so the server offering it is the endpoint, and every call this turn makes goes to that server.
    - Yes: signed in. Go to step 5.
    - No, in Claude Code: step 4.
-   - No, in Claude Cowork: no Wiser tool exists until the person connects the endpoint the plugin declares. Tell them to open Customize, then Plugins, then Wiser, then its Connectors tab; next to `wiser`, if it shows Not added, to press Connect to add it, and once it shows Not connected, to press Connect and sign in; then to ask again in a new task. Customize, Connectors lists it only once it is added, so its absence there is not a reason to add another. If the plugin's Connectors tab has no `wiser`, tell them to add a custom connector with the address from step 2 and sign in. Stop.
+   - No, in Claude Cowork: no Wiser tool exists until the person connects the endpoint the plugin declares. Tell them to open Customize, then Plugins, then Wiser, then its Connectors tab; next to `wiser`, if it shows Not added, to press Connect to add it, or, if they cannot, to ask an Owner of their organization to add it; once it shows Not connected, to press Connect and sign in; then to ask again in a new task. Never send them to add another connector because Customize, Connectors does not list Wiser. Only if, once the plugin's page has finished loading, its Connectors tab has no `wiser` and Customize, Connectors has no connector at the address from step 2: tell them to add a custom connector with that address and sign in, or, if they cannot add one, to ask an Owner of their organization. Stop.
    - No, in any other app (Claude on the web or desktop, ChatGPT, Codex, Grok, Cursor, and the rest): give the person the address from step 2 and one step: add it in the app's connector or MCP server settings as a remote server, then sign in when the app asks. Stop.
 4. **Claude Code without the endpoint's tools.** Which applies?
    - This session has an `authenticate` tool on Wiser's server, the plugin's `wiser` server or one whose description names the address from step 2: the endpoint is attached and awaits sign-in. Call it, and give the person the link it returns: "To sign in to Wiser, open this link:" and the link. Wiser's tools appear in this session once they finish. Never ask them to paste the address their browser lands on afterwards; if that page fails to load, tell them to run `/mcp`, choose Wiser, and sign in there. Stop.
