@@ -39,7 +39,7 @@ Required at the kit-folder root, the envelope's `site/`. Invoke `check` on the e
 
 `layout`, also optional and site-owned, holds the site's layout options; Layout options below defines it. A `nav` item may carry `"style": "button"`, which renders that link as a button-style pill when `layout` is present and is ignored when it is absent; `check` fails any other `style` value.
 
-`collections.articles` set to `false` turns articles off: no article routes are built even if article files exist, no `rss.xml`, no RSS link in any page's head, `llms.txt` lists no articles, no page lists articles, and the header with no `nav` shows Home only. `check` fails a published article (one without `draft: true`) while articles are off.
+Every `collections` value is `true` or `false`, and `check` fails any other. `collections.articles` set to `false` turns articles off: no article routes are built even if article files exist, no `rss.xml`, no RSS link in any page's head, `llms.txt` lists no articles, no page lists articles, and the header with no `nav` shows Home only. `check` fails a published article (one without `draft: true`) while articles are off.
 
 ## Layout options
 
@@ -69,10 +69,10 @@ Any `layout` key, even `{}`, switches the header and footer to a full-width bar 
 
 Two page frontmatter keys, both optional booleans:
 
-- `showTitle: false`: the layout prints no `<h1>`, and the page's body writes its own, so a homepage can carry a designed headline. The title still fills `<title>` and `og:title`. `check` fails such a page unless its body has exactly one `<h1>`.
+- `showTitle: false`: the layout prints no `<h1>`, and the page's body writes its own, so a homepage can carry a designed headline. The title still fills `<title>` and `og:title`. `check` fails such a page unless its source has exactly one `<h1>`, counting `#` and underlined headings and `<h1>` tags outside code and comments; an `<h1>` that only an MDX expression decides is counted as written, and step 6 counts the rendered page.
 - `listArticles`: `true` lists the site's published articles after the page's content, each with its title, description and date; `false` lists none. Missing: the index page lists them under an "Articles" heading, as at 0.1.0, and no other page does. A page that lists articles is how a site gets an articles page, at whatever address and under whatever title it chooses. A page whose id is `articles` builds `articles.html` beside the `articles/` routes; Vercel serves it at `/articles`, and Cloudflare Pages has not been verified, so prefer another name.
 
-The options' styles live in `src/styles/tokens.css`, below the `@theme` block, each reading its tokens with a fallback: `--page-width`, `--measure`, `--logo-height`, `--header-background`, `--sticky-offset`, `--nav-button-background`, `--nav-button-ink`, `--band-padding`, `--text-prose-weight`. A token update may set any of them in the `@theme` block. A token must be read by a rule in `tokens.css` to reach the page: Tailwind drops a theme variable nothing in that file reads.
+Every role and spacing token the kit layers read carries the kit's default as a fallback, so a site whose `@theme` block predates a token, which Upgrade keeps, renders as the kit intends. The options' styles live in `src/styles/tokens.css`, below the `@theme` block, each reading its tokens with a fallback: `--page-width`, `--measure`, `--logo-height`, `--header-background`, `--sticky-offset`, `--nav-button-background`, `--nav-button-ink`, `--band-padding`, `--text-prose-weight`. A token update may set any of them in the `@theme` block. A token must be read by a rule in `tokens.css` to reach the page: Tailwind drops a theme variable nothing in that file reads.
 
 ## Kit components
 
@@ -81,6 +81,8 @@ The options' styles live in `src/styles/tokens.css`, below the `@theme` block, e
 | Component | Place it as | Its data |
 |-----------|-------------|----------|
 | `ConversationPlayer` | `<ConversationPlayer id="<name>" />` | `src/content/conversations/<name>.yaml`, `.yml` or `.json` |
+
+A conversation's file name is its id: lowercase letters, digits and hyphens, ending `.yaml`, `.yml` or `.json`, and `check` fails any other name, because Astro would give the file a different id than the one written.
 
 `ConversationPlayer` plays a scripted conversation in a small app window, one moment at a time, with a folder panel where files appear as they are saved, an optional notice shown once, and Pause and Replay controls. It starts when scrolled into view and pauses when scrolled away. With reduced motion, or with no script, the whole conversation shows still. The full transcript is always in the page for assistive technology. Its schema:
 

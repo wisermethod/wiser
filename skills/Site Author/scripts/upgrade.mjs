@@ -27,6 +27,11 @@ if (!fs.existsSync(path.join(kit, "KIT.md")) || !fs.existsSync(path.join(kit, "p
 const template = JSON.parse(fs.readFileSync(path.join(kit, "kit.json"), "utf8"));
 if (template.kitVersion !== "0.2.0") fail(`unsupported kitVersion ${template.kitVersion}`);
 
+// Read and split the kit stylesheet before anything is replaced, so a kit that cannot be spliced stops Upgrade with the site untouched.
+const kitTokensPath = path.join(kit, "src/styles/tokens.css");
+if (!fs.existsSync(kitTokensPath)) fail("kit missing src/styles/tokens.css");
+const kitTokensEarly = fs.readFileSync(kitTokensPath, "utf8");
+
 const skipTop = new Set(["node_modules", "dist", ".astro", ".git", "src", "public", "kit.json", "site-AGENTS.md", "AGENTS.md", "memory", "builds.md", "zArchive"]);
 const preserved = new Set();
 const originalKit = JSON.parse(fs.readFileSync(path.join(site, "kit.json"), "utf8"));
@@ -92,6 +97,8 @@ function copyTree(from, to, { preserveContentImages = false } = {}) {
   }
 }
 
+if (indexOfLayerBase(kitTokensEarly) < 0) fail("kit tokens.css has no @layer base");
+
 for (const name of fs.readdirSync(kit)) {
   if (skipTop.has(name)) continue;
   const src = path.join(kit, name);
@@ -128,9 +135,8 @@ function writeTokens(file, next, note) {
   fs.writeFileSync(file, next);
   console.log(note);
 }
-const kitTokensPath = path.join(kit, "src/styles/tokens.css");
 const siteTokensPath = path.join(site, "src/styles/tokens.css");
-const kitTokens = fs.readFileSync(kitTokensPath, "utf8");
+const kitTokens = kitTokensEarly;
 const kitLayer = indexOfLayerBase(kitTokens);
 if (kitLayer < 0) fail("kit tokens.css has no @layer base");
 const kitTail = kitTokens.slice(kitLayer);

@@ -77,7 +77,12 @@ function checkLogo(logo) {
     fail(`${where} must be a path starting /images/, with no .., no backslash and no query`);
     return;
   }
-  const rel = logo.slice("/images/".length);
+  let rel;
+  try { rel = decodeURIComponent(logo.slice("/images/".length)); } catch { rel = null; }
+  if (rel === null || rel.includes("\\")) {
+    fail(`${where} must be a path starting /images/, with no .., no backslash and no query`);
+    return;
+  }
   const parts = rel.split("/");
   if (rel === "" || parts.some((part) => part === "" || part === "." || part === "..")) {
     fail(`${where} must be a path starting /images/, with no .., no backslash and no query`);
@@ -128,6 +133,10 @@ function checkLayout(layout) {
   if (Object.hasOwn(header, "brand")) checkBrand(header.brand);
 }
 if (Object.hasOwn(kit, "layout")) checkLayout(kit.layout);
+if (kit.collections === null || typeof kit.collections !== "object" || Array.isArray(kit.collections)) fail("kit.json collections must be an object of true or false values");
+else for (const [name, value] of Object.entries(kit.collections)) {
+  if (typeof value !== "boolean") fail(`kit.json collections.${name} must be true or false`);
+}
 const envelopeRouter = fs.existsSync(path.join(envelope, "AGENTS.md")) ? fs.readFileSync(path.join(envelope, "AGENTS.md"), "utf8") : "";
 if (Object.hasOwn(kit, "layout") && !envelopeRouter.includes("`layout`")) fail("kit.json sets layout, but the envelope AGENTS.md does not mention it: refresh its Content vs code section from site-AGENTS.md");
 if (kit.collections && kit.collections.articles === false && !envelopeRouter.includes("`collections.articles`")) fail("kit.json sets collections.articles to false, but the envelope AGENTS.md does not mention it: refresh its Content vs code section from site-AGENTS.md");
@@ -252,8 +261,9 @@ walkMd(path.join(site, "src/content/articles"), (file) => {
     if (fm[key] === undefined || fm[key] === "") fail(`${file}: missing ${key}`);
   }
 });
-function countH1(body) {
-  let count = 0;
+// Fenced code, inline code, HTML comments and MDX comments never render as markup, so neither a heading nor a component inside them counts.
+function renderedSource(body) {
+  const out = [];
   let fence = null;
   for (const line of body.split(/\r?\n/)) {
     const marker = line.match(/^ {0,3}(`{3,}|~{3,})/);
@@ -268,12 +278,31 @@ function countH1(body) {
         continue;
       }
     }
-    if (fence) continue;
-    if (/^ {0,3}# /.test(line)) count += 1;
-    const tags = line.match(/<h1\b/gi);
-    if (tags) count += tags.length;
+    if (!fence) out.push(line);
   }
+  return out.join("\n").replace(/<!--[\s\S]*?-->/g, "").replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, "").replace(/`[^`\n]*`/g, "");
+}
+// A source count: an h1 that only an MDX expression decides is counted as written, and KIT.md step 6 counts the rendered page.
+function countH1(body) {
+  const lines = renderedSource(body).split("\n");
+  let count = 0;
+  lines.forEach((line, i) => {
+    if (/^ {0,3}#(?:[ \t]|$)/.test(line)) count += 1;
+    else if (/^ {0,3}=+[ \t]*$/.test(line) && i > 0 && lines[i - 1].trim() !== "" && !/^ {0,3}(?:#|>|[-*+] |\d+[.)] )/.test(lines[i - 1])) count += 1;
+    count += (line.match(/<h1(?=[\s>/])/gi) ?? []).length;
+  });
   return count;
+}
+// Top-level frontmatter keys only: an indented line belongs to a value, and a quoted key is still that key.
+function topLevelFrontmatter(file) {
+  const m = fs.readFileSync(file, "utf8").match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  const out = {};
+  if (!m) return out;
+  for (const line of m[1].split(/\r?\n/)) {
+    const k = line.match(/^(?:"([^"]+)"|'([^']+)'|([A-Za-z0-9_-]+))\s*:(.*)$/);
+    if (k) out[k[1] ?? k[2] ?? k[3]] = k[4].replace(/\s+#.*$/, "").trim();
+  }
+  return out;
 }
 walkMd(path.join(site, "src/content/pages"), (file) => {
   const fm = frontmatter(file);
@@ -281,10 +310,11 @@ walkMd(path.join(site, "src/content/pages"), (file) => {
   for (const key of requiredPage) {
     if (fm[key] === undefined || fm[key] === "") fail(`${file}: missing ${key}`);
   }
+  const top = topLevelFrontmatter(file);
   for (const key of ["showTitle", "listArticles"]) {
-    if (Object.hasOwn(fm, key) && fm[key] !== "true" && fm[key] !== "false") fail(`${file}: ${key} must be true or false`);
+    if (Object.hasOwn(top, key) && top[key] !== "true" && top[key] !== "false") fail(`${file}: ${key} must be true or false, unquoted`);
   }
-  if (fm.showTitle === "false") {
+  if (top.showTitle === "false") {
     const body = fs.readFileSync(file, "utf8").replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
     const count = countH1(body);
     if (count !== 1) fail(`${file}: showTitle false requires exactly one h1 in the body, found ${count}`);
@@ -304,16 +334,26 @@ function walkFiles(dir, pattern, onFile) {
     else if (pattern.test(name)) onFile(p);
   }
 }
+// Astro gives a conversation the slug of its file name as its id, so a file name and the id that places it are both lowercase letters, digits and hyphens.
+const conversationName = /^[a-z0-9][a-z0-9-]*$/;
+walkFiles(path.join(site, "src/content/conversations"), /\.(ya?ml|json)$/i, (file) => {
+  const stem = path.basename(file).replace(/\.(ya?ml|json)$/i, "");
+  if (!conversationName.test(stem) || !/\.(yaml|yml|json)$/.test(file)) fail(`${file}: a conversation file name is lowercase letters, digits and hyphens, ending .yaml, .yml or .json`);
+});
 walkFiles(path.join(site, "src/content"), /\.mdx$/, (file) => {
-  const text = fs.readFileSync(file, "utf8");
+  const text = renderedSource(fs.readFileSync(file, "utf8"));
   const tags = text.matchAll(/<ConversationPlayer\b([^>]*)>/g);
   for (const tag of tags) {
-    const idMatch = tag[1].match(/\bid\s*=\s*"([^"]*)"/);
-    if (!idMatch || idMatch[1] === "") {
+    const idMatch = tag[1].match(/(?:^|\s)id\s*=\s*(?:"([^"]*)"|'([^']*)')/);
+    const id = idMatch ? (idMatch[1] ?? idMatch[2]) : "";
+    if (!id) {
       fail(`${file}: ConversationPlayer is missing a literal id="..."`);
       continue;
     }
-    const id = idMatch[1];
+    if (!conversationName.test(id)) {
+      fail(`${file}: ConversationPlayer id "${id}" must be lowercase letters, digits and hyphens, the name of its file in src/content/conversations/`);
+      continue;
+    }
     const dir = path.resolve(site, "src/content/conversations");
     const found = [".yaml", ".yml", ".json"].some((ext) => {
       const candidate = path.resolve(dir, `${id}${ext}`);

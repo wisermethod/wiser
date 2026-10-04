@@ -1,5 +1,4 @@
 import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { defineCollection, reference } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
@@ -89,7 +88,7 @@ const conversations = defineCollection({
 });
 
 // A declared collection whose folder is missing makes every build warn. Upgrade never creates content folders, so declare this only when the folder is already there.
-const hasConversations = existsSync(resolve(process.cwd(), 'src/content/conversations'));
+const hasConversations = existsSync(new URL('./content/conversations/', import.meta.url));
 
 export const collections = {
   pages,
