@@ -35,7 +35,7 @@ try {
   kit = {};
 }
 
-if (kit.kitVersion !== "0.1.0") fail(`kitVersion ${kit.kitVersion} does not match KIT.md 0.1.0`);
+if (kit.kitVersion !== "0.2.0") fail(`kitVersion ${kit.kitVersion} does not match KIT.md 0.2.0: run Upgrade`);
 
 function hrefProblem(href) {
   if (typeof href !== "string" || href === "") return "must be a non-empty string";
@@ -64,18 +64,80 @@ function checkLinkList(key) {
     if (typeof item.label !== "string" || item.label.trim() === "") fail(`${where}.label must be a non-empty string`);
     const problem = hrefProblem(item.href);
     if (problem) fail(`${where}.href ${problem}`);
+    if (Object.hasOwn(item, "style") && item.style !== "button") fail(`${where}.style must be button`);
   });
 }
 checkLinkList("nav");
 checkLinkList("footer");
 if (Object.hasOwn(kit, "siteName") && (typeof kit.siteName !== "string" || kit.siteName.trim() === "")) fail("kit.json siteName must be a non-empty string");
+
+function checkLogo(logo) {
+  const where = "kit.json layout.header.brand.logo";
+  if (typeof logo !== "string" || !logo.startsWith("/images/") || logo.includes("..") || logo.includes("\\") || logo.includes("?")) {
+    fail(`${where} must be a path starting /images/, with no .., no backslash and no query`);
+    return;
+  }
+  const rel = logo.slice("/images/".length);
+  const parts = rel.split("/");
+  if (rel === "" || parts.some((part) => part === "" || part === "." || part === "..")) {
+    fail(`${where} must be a path starting /images/, with no .., no backslash and no query`);
+    return;
+  }
+  const imagesRoot = path.resolve(site, "public", "images");
+  const file = path.resolve(imagesRoot, ...parts);
+  const relTo = path.relative(imagesRoot, file);
+  if (relTo === ".." || relTo.startsWith(`..${path.sep}`) || path.isAbsolute(relTo) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
+    fail(`${where} file is missing under public/images/: ${logo}`);
+  }
+}
+function checkBrand(brand) {
+  if (brand === null || typeof brand !== "object" || Array.isArray(brand)) {
+    fail("kit.json layout.header.brand must be an object");
+    return;
+  }
+  for (const key of Object.keys(brand)) {
+    if (key !== "text" && key !== "logo") fail(`kit.json layout.header.brand.${key} is not allowed`);
+  }
+  const hasText = Object.hasOwn(brand, "text");
+  const hasLogo = Object.hasOwn(brand, "logo");
+  if (!hasText && !hasLogo) fail("kit.json layout.header.brand needs a text, a logo, or both");
+  if (hasText && (typeof brand.text !== "string" || brand.text.trim() === "")) fail("kit.json layout.header.brand.text must be a non-empty string");
+  if (hasLogo) checkLogo(brand.logo);
+}
+function checkLayout(layout) {
+  if (layout === null || typeof layout !== "object" || Array.isArray(layout)) {
+    fail("kit.json layout must be an object");
+    return;
+  }
+  for (const key of Object.keys(layout)) {
+    if (key !== "width" && key !== "sections" && key !== "header") fail(`kit.json layout.${key} is not allowed`);
+  }
+  if (Object.hasOwn(layout, "width") && layout.width !== "narrow" && layout.width !== "wide") fail("kit.json layout.width must be narrow or wide");
+  if (Object.hasOwn(layout, "sections") && layout.sections !== "column" && layout.sections !== "bands") fail("kit.json layout.sections must be column or bands");
+  if (!Object.hasOwn(layout, "header")) return;
+  const header = layout.header;
+  if (header === null || typeof header !== "object" || Array.isArray(header)) {
+    fail("kit.json layout.header must be an object");
+    return;
+  }
+  for (const key of Object.keys(header)) {
+    if (key !== "brand" && key !== "sticky" && key !== "menu") fail(`kit.json layout.header.${key} is not allowed`);
+  }
+  if (Object.hasOwn(header, "sticky") && typeof header.sticky !== "boolean") fail("kit.json layout.header.sticky must be a boolean");
+  if (Object.hasOwn(header, "menu") && header.menu !== "links" && header.menu !== "button") fail("kit.json layout.header.menu must be links or button");
+  if (Object.hasOwn(header, "brand")) checkBrand(header.brand);
+}
+if (Object.hasOwn(kit, "layout")) checkLayout(kit.layout);
+const envelopeRouter = fs.existsSync(path.join(envelope, "AGENTS.md")) ? fs.readFileSync(path.join(envelope, "AGENTS.md"), "utf8") : "";
+if (Object.hasOwn(kit, "layout") && !envelopeRouter.includes("`layout`")) fail("kit.json sets layout, but the envelope AGENTS.md does not mention it: refresh its Content vs code section from site-AGENTS.md");
+if (kit.collections && kit.collections.articles === false && !envelopeRouter.includes("`collections.articles`")) fail("kit.json sets collections.articles to false, but the envelope AGENTS.md does not mention it: refresh its Content vs code section from site-AGENTS.md");
 if (Object.hasOwn(kit, "nav") || Object.hasOwn(kit, "footer")) {
   const layoutPath = path.join(site, "src", "layouts", "SiteLayout.astro");
   const layout = fs.existsSync(layoutPath) ? fs.readFileSync(layoutPath, "utf8") : "";
   if (!layout.includes("site.nav.map(") || !layout.includes("site.footer.map(")) fail("kit.json sets nav or footer, but src/layouts/SiteLayout.astro does not render them: run Upgrade");
   const routerPath = path.join(envelope, "AGENTS.md");
   const router = fs.existsSync(routerPath) ? fs.readFileSync(routerPath, "utf8") : "";
-  if (!router.includes("`nav` and `footer`")) fail("kit.json sets nav or footer, but the envelope AGENTS.md predates them and still refuses every kit.json edit: refresh its Content vs code section from site-AGENTS.md");
+  if (!router.includes("`nav`") || !router.includes("`footer`")) fail("kit.json sets nav or footer, but the envelope AGENTS.md predates them and still refuses every kit.json edit: refresh its Content vs code section from site-AGENTS.md");
 }
 if (!kit.siteUrl) fail("kit.json siteUrl missing");
 else if (typeof kit.siteUrl !== "string") fail("kit.json siteUrl is not a string");
@@ -190,11 +252,75 @@ walkMd(path.join(site, "src/content/articles"), (file) => {
     if (fm[key] === undefined || fm[key] === "") fail(`${file}: missing ${key}`);
   }
 });
+function countH1(body) {
+  let count = 0;
+  let fence = null;
+  for (const line of body.split(/\r?\n/)) {
+    const marker = line.match(/^ {0,3}(`{3,}|~{3,})/);
+    if (marker) {
+      const token = marker[1];
+      if (!fence) {
+        fence = token;
+        continue;
+      }
+      if (token[0] === fence[0] && token.length >= fence.length && line.trim() === token) {
+        fence = null;
+        continue;
+      }
+    }
+    if (fence) continue;
+    if (/^ {0,3}# /.test(line)) count += 1;
+    const tags = line.match(/<h1\b/gi);
+    if (tags) count += tags.length;
+  }
+  return count;
+}
 walkMd(path.join(site, "src/content/pages"), (file) => {
   const fm = frontmatter(file);
   if (!fm) return fail(`${file}: no frontmatter`);
   for (const key of requiredPage) {
     if (fm[key] === undefined || fm[key] === "") fail(`${file}: missing ${key}`);
+  }
+  for (const key of ["showTitle", "listArticles"]) {
+    if (Object.hasOwn(fm, key) && fm[key] !== "true" && fm[key] !== "false") fail(`${file}: ${key} must be true or false`);
+  }
+  if (fm.showTitle === "false") {
+    const body = fs.readFileSync(file, "utf8").replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
+    const count = countH1(body);
+    if (count !== 1) fail(`${file}: showTitle false requires exactly one h1 in the body, found ${count}`);
+  }
+});
+if (kit.collections && kit.collections.articles === false) {
+  walkMd(path.join(site, "src/content/articles"), (file) => {
+    const fm = frontmatter(file);
+    if (!fm || fm.draft !== "true") fail(`${file}: collections.articles is false and this article is not draft: true`);
+  });
+}
+function walkFiles(dir, pattern, onFile) {
+  if (!fs.existsSync(dir)) return;
+  for (const name of fs.readdirSync(dir)) {
+    const p = path.join(dir, name);
+    if (fs.statSync(p).isDirectory()) walkFiles(p, pattern, onFile);
+    else if (pattern.test(name)) onFile(p);
+  }
+}
+walkFiles(path.join(site, "src/content"), /\.mdx$/, (file) => {
+  const text = fs.readFileSync(file, "utf8");
+  const tags = text.matchAll(/<ConversationPlayer\b([^>]*)>/g);
+  for (const tag of tags) {
+    const idMatch = tag[1].match(/\bid\s*=\s*"([^"]*)"/);
+    if (!idMatch || idMatch[1] === "") {
+      fail(`${file}: ConversationPlayer is missing a literal id="..."`);
+      continue;
+    }
+    const id = idMatch[1];
+    const dir = path.resolve(site, "src/content/conversations");
+    const found = [".yaml", ".yml", ".json"].some((ext) => {
+      const candidate = path.resolve(dir, `${id}${ext}`);
+      const rel = path.relative(dir, candidate);
+      return rel !== ".." && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel) && fs.existsSync(candidate) && fs.statSync(candidate).isFile();
+    });
+    if (!found) fail(`${file}: ConversationPlayer id "${id}" has no file in src/content/conversations/`);
   }
 });
 

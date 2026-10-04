@@ -1,6 +1,8 @@
 ---
 import { getCollection, render } from 'astro:content';
 import SiteLayout from '../layouts/SiteLayout.astro';
+import { components } from '../components/index.js';
+import kit from '../../kit.json';
 
 export async function getStaticPaths() {
   const pages = await getCollection('pages', ({ data }) => !data.draft);
@@ -11,14 +13,22 @@ export async function getStaticPaths() {
 }
 const { page } = Astro.props;
 const { Content } = await render(page);
-const articles = page.id === 'index'
+// Absent listArticles: the index lists articles and no other page does. An explicit true uses the list without a heading.
+const wantsList = page.data.listArticles === true || (page.data.listArticles !== false && page.id === 'index');
+const articles = wantsList && kit.collections.articles !== false
   ? (await getCollection('articles', ({ data }) => !data.draft))
       .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
   : [];
 ---
-<SiteLayout title={page.data.title} description={page.data.description}>
-  <Content />
-  {articles.length > 0 && <section aria-label="Articles">
+<SiteLayout title={page.data.title} description={page.data.description} showTitle={page.data.showTitle}>
+  <Content components={components} />
+  {page.data.listArticles === true
+    ? articles.length > 0 && <section class="article-list" aria-label="Articles"><ul>{articles.map((article) => <li>
+      <a href={`/articles/${article.id}`}>{article.data.title}</a>
+      <p>{article.data.description}</p>
+      <time datetime={article.data.pubDate.toISOString()}>{article.data.pubDate.toISOString().slice(0, 10)}</time>
+    </li>)}</ul></section>
+    : articles.length > 0 && <section aria-label="Articles">
     <h2>Articles</h2>
     <ul>{articles.map((article) => <li>
       <a href={`/articles/${article.id}`}>{article.data.title}</a>

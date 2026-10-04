@@ -11,8 +11,10 @@ export async function GET() {
   if (!home) throw new Error('The index page is required for llms.txt.');
   const pages = (await getCollection('pages', ({ data }) => !data.draft))
     .sort((a, b) => (a.id === 'index' ? -1 : b.id === 'index' ? 1 : a.id.localeCompare(b.id)));
-  const articles = (await getCollection('articles', ({ data }) => !data.draft))
-    .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+  const articles = kit.collections.articles === false
+    ? []
+    : (await getCollection('articles', ({ data }) => !data.draft))
+        .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
   const lines = [
     `# ${kit.siteName ?? home.data.title}`,
     '',

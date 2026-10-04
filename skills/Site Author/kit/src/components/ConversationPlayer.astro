@@ -1,0 +1,278 @@
+---
+import { getEntry } from 'astro:content';
+
+interface Props {
+  id: string;
+}
+const { id } = Astro.props;
+if (!id || typeof id !== 'string') {
+  throw new Error('ConversationPlayer requires an id naming a file in src/content/conversations/.');
+}
+let entry;
+try {
+  entry = await getEntry('conversations', id);
+} catch (error) {
+  const detail = error instanceof Error ? error.message : String(error);
+  throw new Error(`Conversation "${id}" was not found in src/content/conversations/. ${detail}`);
+}
+if (!entry) throw new Error(`Conversation "${id}" was not found in src/content/conversations/.`);
+const data = entry.data;
+const windowTitle = data.window ?? data.title;
+const people = data.people;
+const moments = data.moments;
+const notice = data.notice;
+const payload = JSON.stringify({
+  title: data.title,
+  window: windowTitle,
+  folder: data.folder,
+  people,
+  moments,
+  notice: notice ?? null,
+  timing: data.timing ?? null,
+}).replace(/</g, '\\u003c');
+const saved = moments.flatMap((moment) => moment.files ?? []);
+---
+<div class="conversation-player not-prose" role="region" aria-label={data.title} data-conversation={id}>
+  <div class="conversation-transcript">
+    <div class="conversation-window">
+      <div class="conversation-titlebar">{windowTitle}</div>
+      <div class="conversation-body">
+        <div class="conversation-chat">
+          {moments.map((moment, index) => (
+            <>
+              <section class="conversation-moment">
+                {moment.caption && <p class="conversation-caption">{moment.caption}</p>}
+                {moment.lines.map((line) => (
+                  <p class="conversation-line" data-from={line.from}>
+                    {line.from !== 'status' && <span class="conversation-speaker">{line.from === 'member' ? people.member : people.assistant}</span>}
+                    <span class="conversation-text">{line.text}</span>
+                  </p>
+                ))}
+                {moment.files && moment.files.length > 0 && <ul class="conversation-saved">
+                  {moment.files.map((file) => <li>
+                    {file.folder && <span class="conversation-file-folder">{file.folder}</span>}
+                    <span class="conversation-file-name">{file.name}</span>
+                  </li>)}
+                </ul>}
+              </section>
+              {notice && notice.after === index + 1 && <aside class="conversation-notice">
+                {notice.title && <p class="conversation-notice-title">{notice.title}</p>}
+                <p>{notice.text}</p>
+              </aside>}
+            </>
+          ))}
+        </div>
+        <aside class="conversation-folder" aria-hidden="true">
+          <p class="conversation-folder-heading">{data.folder}</p>
+          <ul>
+            {saved.map((file) => <li>
+              {file.folder && <span class="conversation-file-folder">{file.folder}</span>}
+              <span class="conversation-file-name">{file.name}</span>
+            </li>)}
+          </ul>
+        </aside>
+      </div>
+    </div>
+  </div>
+  <div class="conversation-stage" aria-hidden="true">
+    <div class="conversation-window">
+      <div class="conversation-titlebar">{windowTitle}</div>
+      <div class="conversation-body">
+        <div class="conversation-chat" data-chat></div>
+        <aside class="conversation-folder">
+          <p class="conversation-folder-heading">{data.folder}</p>
+          <ul data-files></ul>
+        </aside>
+      </div>
+      {notice && <aside class="conversation-notice" data-notice hidden>
+        {notice.title && <p class="conversation-notice-title">{notice.title}</p>}
+        <p>{notice.text}</p>
+      </aside>}
+    </div>
+  </div>
+  <div class="conversation-controls">
+    <button type="button" data-pause aria-pressed="false">Pause</button>
+    <button type="button" data-replay>Replay</button>
+  </div>
+  <script type="application/json" is:inline set:html={payload}></script>
+</div>
+<script>
+  const LINE_MS = 1600;
+  const MOMENT_MS = 3000;
+  const TYPING_MS = 600;
+  const FILE_MS = 400;
+  const NOTICE_MS = 4000;
+  const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  function mount(root) {
+    if (root.dataset.kitPlayer) return;
+    root.dataset.kitPlayer = 'on';
+    const raw = root.querySelector(':scope > script[type="application/json"]');
+    if (!raw || !raw.textContent) return;
+    const data = JSON.parse(raw.textContent);
+    const stage = root.querySelector('.conversation-stage');
+    const chat = stage.querySelector('[data-chat]');
+    const filesEl = stage.querySelector('[data-files]');
+    const noticeEl = stage.querySelector('[data-notice]');
+    const pauseBtn = root.querySelector('[data-pause]');
+    const replayBtn = root.querySelector('[data-replay]');
+    let generation = 0;
+    let userPaused = false;
+    let inView = false;
+    let tabVisible = document.visibilityState === 'visible';
+    let reduced = motion.matches;
+    let started = false;
+    let noticeShown = false;
+
+    function shouldPlay() {
+      return !reduced && inView && tabVisible && !userPaused;
+    }
+    function paint() {
+      root.classList.toggle('is-animated', !reduced);
+      pauseBtn.setAttribute('aria-pressed', userPaused ? 'true' : 'false');
+      pauseBtn.textContent = userPaused ? 'Play' : 'Pause';
+    }
+    function wait(ms, token) {
+      return new Promise((resolve) => {
+        let elapsed = 0;
+        let last = null;
+        function frame(now) {
+          if (token !== generation) return resolve(false);
+          if (shouldPlay()) {
+            if (last !== null) elapsed += now - last;
+            last = now;
+            if (elapsed >= ms) return resolve(true);
+          } else {
+            last = null;
+          }
+          requestAnimationFrame(frame);
+        }
+        requestAnimationFrame(frame);
+      });
+    }
+    function scroll() {
+      chat.scrollTop = chat.scrollHeight;
+    }
+    function lineNode(line) {
+      const row = document.createElement('p');
+      row.className = 'conversation-line';
+      row.setAttribute('data-from', line.from);
+      if (line.from !== 'status') {
+        const speaker = document.createElement('span');
+        speaker.className = 'conversation-speaker';
+        speaker.textContent = line.from === 'member' ? data.people.member : data.people.assistant;
+        row.append(speaker);
+      }
+      const text = document.createElement('span');
+      text.className = 'conversation-text';
+      text.textContent = line.text;
+      row.append(text);
+      return row;
+    }
+    function typingNode() {
+      const row = document.createElement('p');
+      row.className = 'conversation-typing';
+      row.setAttribute('data-from', 'assistant');
+      for (let i = 0; i < 3; i += 1) row.append(document.createElement('span'));
+      return row;
+    }
+    async function run(token) {
+      const lineMs = data.timing && data.timing.line ? data.timing.line : LINE_MS;
+      const momentMs = data.timing && data.timing.moment ? data.timing.moment : MOMENT_MS;
+      while (token === generation) {
+        for (let i = 0; i < data.moments.length; i += 1) {
+          if (!await wait(0, token)) return;
+          const moment = data.moments[i];
+          chat.replaceChildren();
+          if (moment.caption) {
+            const caption = document.createElement('p');
+            caption.className = 'conversation-caption';
+            caption.textContent = moment.caption;
+            chat.append(caption);
+          }
+          scroll();
+          for (const line of moment.lines) {
+            if (line.from === 'assistant') {
+              const typing = typingNode();
+              chat.append(typing);
+              scroll();
+              if (!await wait(TYPING_MS, token)) return;
+              typing.remove();
+            }
+            chat.append(lineNode(line));
+            scroll();
+            if (!await wait(lineMs, token)) return;
+          }
+          for (const file of moment.files || []) {
+            const item = document.createElement('li');
+            item.className = 'conversation-file is-new';
+            if (file.folder) {
+              const folder = document.createElement('span');
+              folder.className = 'conversation-file-folder';
+              folder.textContent = file.folder;
+              item.append(folder);
+            }
+            const name = document.createElement('span');
+            name.className = 'conversation-file-name';
+            name.textContent = file.name;
+            item.append(name);
+            filesEl.append(item);
+            filesEl.scrollTop = filesEl.scrollHeight;
+            if (!await wait(FILE_MS, token)) return;
+            item.classList.remove('is-new');
+          }
+          if (!await wait(momentMs, token)) return;
+          if (!noticeShown && data.notice && data.notice.after === i + 1 && noticeEl) {
+            noticeShown = true;
+            noticeEl.hidden = false;
+            if (!await wait(NOTICE_MS, token)) return;
+            noticeEl.hidden = true;
+          }
+        }
+        filesEl.replaceChildren();
+      }
+    }
+    function ensure() {
+      paint();
+      if (!shouldPlay() || started) return;
+      started = true;
+      generation += 1;
+      run(generation);
+    }
+    pauseBtn.addEventListener('click', () => {
+      userPaused = !userPaused;
+      paint();
+      if (!userPaused) ensure();
+    });
+    replayBtn.addEventListener('click', () => {
+      userPaused = false;
+      filesEl.replaceChildren();
+      chat.replaceChildren();
+      if (noticeEl) noticeEl.hidden = true;
+      paint();
+      generation += 1;
+      started = true;
+      run(generation);
+    });
+    document.addEventListener('visibilitychange', () => {
+      tabVisible = document.visibilityState === 'visible';
+      ensure();
+    });
+    const onMotion = () => {
+      reduced = motion.matches;
+      if (reduced) generation += 1;
+      paint();
+      if (!reduced) ensure();
+    };
+    if (motion.addEventListener) motion.addEventListener('change', onMotion);
+    else motion.addListener(onMotion);
+    const observer = new IntersectionObserver((entries) => {
+      inView = entries.some((entry) => entry.isIntersecting);
+      ensure();
+    }, { threshold: 0.33 });
+    observer.observe(root);
+    paint();
+  }
+
+  for (const root of document.querySelectorAll('.conversation-player')) mount(root);
+</script>

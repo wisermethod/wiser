@@ -8,10 +8,17 @@ interface Props {
   description: string;
   article?: CollectionEntry<'articles'>;
   noindex?: boolean;
+  showTitle?: boolean;
 }
-const { title, description, article, noindex } = Astro.props;
-interface SiteLink { label: string; href: string }
-const site = kit as typeof kit & { nav?: SiteLink[]; footer?: SiteLink[]; siteName?: string };
+const { title, description, article, noindex, showTitle } = Astro.props;
+interface SiteLink { label: string; href: string; style?: string }
+interface LayoutBrand { text?: string; logo?: string }
+interface LayoutConfig {
+  width?: string;
+  sections?: string;
+  header?: { brand?: LayoutBrand; sticky?: boolean; menu?: string };
+}
+const site = kit as typeof kit & { nav?: SiteLink[]; footer?: SiteLink[]; siteName?: string; layout?: LayoutConfig };
 if (!title?.trim() || !description?.trim()) {
   throw new Error('Every page requires a title and description.');
 }
@@ -62,6 +69,21 @@ if (article) {
   });
 }
 const jsonLd = JSON.stringify({ '@context': 'https://schema.org', '@graph': graph }).replace(/</g, '\\u003c');
+const articlesOn = kit.collections.articles !== false;
+const layoutConfig = site.layout;
+const hasLayout = layoutConfig !== undefined && layoutConfig !== null && typeof layoutConfig === 'object' && !Array.isArray(layoutConfig);
+const width = layoutConfig?.width === 'wide' ? 'wide' : 'narrow';
+const sections = layoutConfig?.sections === 'bands' ? 'bands' : 'column';
+const header = layoutConfig?.header && typeof layoutConfig.header === 'object' ? layoutConfig.header : {};
+const sticky = header.sticky === true;
+const menu = header.menu === 'button' ? 'button' : 'links';
+const brand = header.brand && typeof header.brand === 'object' ? header.brand : undefined;
+const brandText = typeof brand?.text === 'string' && brand.text.trim() ? brand.text : '';
+const brandLogo = typeof brand?.logo === 'string' && brand.logo ? brand.logo : '';
+const brandLabel = site.siteName || home?.data.title || title;
+const links: SiteLink[] = site.nav ?? (articlesOn
+  ? [{ label: 'Home', href: '/' }, { label: 'RSS', href: '/rss.xml' }]
+  : [{ label: 'Home', href: '/' }]);
 ---
 <!doctype html>
 <html lang="en">
@@ -79,15 +101,43 @@ const jsonLd = JSON.stringify({ '@context': 'https://schema.org', '@graph': grap
     <meta property="og:image" content={image} />
     {!organization && <meta name="kit:organization" content="Organization facts omitted: no published about page with organization details is bound." />}
     <script type="application/ld+json" set:html={jsonLd} />
-    <link rel="alternate" type="application/rss+xml" title="Articles" href={`${SITE_URL}/rss.xml`} />
+    {articlesOn && <link rel="alternate" type="application/rss+xml" title="Articles" href={`${SITE_URL}/rss.xml`} />}
   </head>
-  <body>
+  <body data-kit-layout={hasLayout ? "" : undefined} data-width={hasLayout ? width : undefined} data-sections={hasLayout ? sections : undefined}>
     <a class="skip-link" href="#content">Skip to content</a>
-    {site.nav === undefined ? <header><nav aria-label="Main"><a href="/">Home</a><a href="/rss.xml">RSS</a></nav></header> : <header><nav aria-label="Main">{site.nav.map((item) => <a href={item.href}>{item.label}</a>)}</nav></header>}
+    {hasLayout ? (
+      <header data-sticky={sticky ? "" : undefined}>
+        <div class="site-bar">
+          {(brandText || brandLogo) && <a class="site-brand" href="/">
+            {brandLogo && <img src={brandLogo} alt={brandText ? '' : brandLabel} />}
+            {brandText && <span>{brandText}</span>}
+          </a>}
+          {menu === 'button' ? (
+            <>
+              <nav class="site-nav-inline" aria-label="Main">{links.map((item) => <a href={item.href} data-style={item.style === 'button' ? 'button' : undefined}>{item.label}</a>)}</nav>
+              <details class="site-nav-menu">
+                <summary>Menu</summary>
+                <nav aria-label="Main">{links.map((item) => <a href={item.href} data-style={item.style === 'button' ? 'button' : undefined}>{item.label}</a>)}</nav>
+              </details>
+            </>
+          ) : (
+            <nav aria-label="Main">{links.map((item) => <a href={item.href} data-style={item.style === 'button' ? 'button' : undefined}>{item.label}</a>)}</nav>
+          )}
+        </div>
+      </header>
+    ) : site.nav === undefined ? (
+      articlesOn
+        ? <header><nav aria-label="Main"><a href="/">Home</a><a href="/rss.xml">RSS</a></nav></header>
+        : <header><nav aria-label="Main"><a href="/">Home</a></nav></header>
+    ) : (
+      <header><nav aria-label="Main">{site.nav.map((item) => <a href={item.href}>{item.label}</a>)}</nav></header>
+    )}
     <main id="content" class="prose" data-pagefind-body={noindex ? undefined : ""}>
-      <h1>{title}</h1>
+      {showTitle === false ? null : <h1>{title}</h1>}
       <slot />
     </main>
-    {site.footer !== undefined && <footer><nav aria-label="Footer">{site.footer.map((item) => <a href={item.href}>{item.label}</a>)}</nav></footer>}
+    {site.footer !== undefined && (hasLayout
+      ? <footer><div class="site-bar"><nav aria-label="Footer">{site.footer.map((item) => <a href={item.href}>{item.label}</a>)}</nav></div></footer>
+      : <footer><nav aria-label="Footer">{site.footer.map((item) => <a href={item.href}>{item.label}</a>)}</nav></footer>)}
   </body>
 </html>

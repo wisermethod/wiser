@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { defineCollection, reference } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
@@ -10,6 +12,8 @@ const pages = defineCollection({
   loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/pages' }),
   schema: metadata.extend({
     draft: z.boolean().default(false),
+    showTitle: z.boolean().optional(),
+    listArticles: z.boolean().optional(),
     // Only the about page may supply organization facts to the layout.
     organization: z.object({
       name: text,
@@ -43,10 +47,55 @@ const issues = defineCollection({
   schema: metadata.extend({ pubDate: date }),
 });
 
+const line = z.object({
+  from: z.enum(['member', 'assistant', 'status']),
+  text,
+}).strict();
+const savedFile = z.object({
+  name: text,
+  folder: text.optional(),
+}).strict();
+const moment = z.object({
+  caption: text.optional(),
+  lines: z.array(line).min(1),
+  files: z.array(savedFile).optional(),
+}).strict();
+const conversations = defineCollection({
+  loader: glob({ pattern: '**/*.{yaml,yml,json}', base: './src/content/conversations' }),
+  schema: z.object({
+    title: text,
+    window: text.optional(),
+    folder: text,
+    people: z.object({ member: text, assistant: text }).strict(),
+    moments: z.array(moment).min(1),
+    notice: z.object({
+      title: text.optional(),
+      text,
+      after: z.number().int().min(1),
+    }).strict().optional(),
+    timing: z.object({
+      line: z.number().positive().optional(),
+      moment: z.number().positive().optional(),
+    }).strict().optional(),
+  }).strict().superRefine((data, ctx) => {
+    if (data.notice && data.notice.after > data.moments.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['notice', 'after'],
+        message: `notice.after ${data.notice.after} is beyond the ${data.moments.length} moments`,
+      });
+    }
+  }),
+});
+
+// A declared collection whose folder is missing makes every build warn. Upgrade never creates content folders, so declare this only when the folder is already there.
+const hasConversations = existsSync(resolve(process.cwd(), 'src/content/conversations'));
+
 export const collections = {
   pages,
   articles,
   authors,
   ...(kit.collections.sections ? { sections } : {}),
   ...(kit.collections.issues ? { issues } : {}),
+  ...(hasConversations ? { conversations } : {}),
 };

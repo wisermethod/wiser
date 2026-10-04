@@ -1,8 +1,11 @@
 ---
 import { getCollection, getEntry, render } from 'astro:content';
 import SiteLayout from '../../layouts/SiteLayout.astro';
+import { components } from '../../components/index.js';
+import kit from '../../../kit.json';
 
 export async function getStaticPaths() {
+  if (kit.collections.articles === false) return [];
   const articles = await getCollection('articles', ({ data }) => !data.draft);
   return articles.map((article) => ({ params: { slug: article.id }, props: { article } }));
 }
@@ -14,5 +17,5 @@ const { Content } = await render(article);
 <SiteLayout title={article.data.title} description={article.data.description} article={article}>
   <p>By {author.data.name} · <time datetime={article.data.pubDate.toISOString()}>{article.data.pubDate.toISOString().slice(0, 10)}</time></p>
   {article.data.hero && <img src={article.data.hero} alt="" />}
-  <Content />
+  <Content components={components} />
 </SiteLayout>

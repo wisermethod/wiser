@@ -13,6 +13,8 @@ node "<this-skill-dir>/scripts/upgrade.mjs" --site "<envelope-folder>" --kit "<t
 
 Did the requester ask for a magazine? Yes: pass `--magazine`, which enables `sections` and `issues`. No, or they do not say: do not pass it. Default is brochure: those collections stay in the schema and stay disabled.
 
+The layout and articles choices are flags too: `--width`, `--sections`, `--brand-text`, `--sticky-header`, `--menu`, `--articles` with `--articles-page` and `--articles-title`, `--headline`, and `--site-name`. `SKILL.md` Stand up puts them to the requester first and says which flags their answers imply. With none of them, the script writes the 0.1.0 shape.
+
 Does the site die with an existing work subject the request names? Yes: the envelope is `work/<slug>/sites/<domain>/` and stand-up passes `--work <slug>`. No, or the request does not say: the envelope is owning-root `sites/<domain>/`. The owning root and, on the work parent, the existing work subject must declare `sites/`. Site Author does not create the subject. Check and Upgrade take the envelope; Wrap takes the old domain folder with root `kit.json`. Stand-up and Wrap read `site-AGENTS.md` beside this file, not the obsolete copy inside the kit.
 
 In the kit folder (`<envelope>/site/`):
@@ -22,12 +24,12 @@ npm install
 npm run dev
 ```
 
-Stand-up is not done until `check` walks `KIT.md` (steps 1 to 5) and the preview serves the SEO slots (`KIT.md` step 6). Fetch the canonical article URL `/articles/hello`, never `/articles/hello/`. The kit is `trailingSlash: 'never'`; a slashed article URL 404s and is not a missing page.
+Stand-up is not done until `check` walks `KIT.md` (steps 1 to 5) and the preview serves the SEO slots (`KIT.md` step 6). Fetch the canonical article URL `/articles/hello`, never `/articles/hello/`, when articles are on. The kit is `trailingSlash: 'never'`; a slashed article URL 404s and is not a missing page.
 
 Never connect the envelope or owning root to a host. Host payload is `site/` or `site/dist/` only. Personal, client, and org roots carry `memory/` (a client root also carries `sources/`). A Pages or GitHub integration of the parent would commit those.
 
 Never `git init`. A site with no git is complete. A host skill may use an existing isolated repository containing only the kit payload; a build subdirectory does not isolate an envelope or owning-root repository.
 
-Upgrade archives each replaced kit-owned file into a `zArchive/` sibling before it copies kit code, per `standards/conventions.md`. It does not merge `site/src/content/`, `site/public/images/` or `site/public/fonts/`. Distinct stand-up palettes in `tokens.css` are kit-owned and Upgrade replaces them. Font files under `site/public/fonts/` stay.
+Upgrade archives each replaced kit-owned file into a `zArchive/` sibling before it copies kit code, per `standards/conventions.md`. It does not merge `site/src/content/`, `site/public/images/` or `site/public/fonts/`. In `tokens.css` it keeps the site's font slots and `@theme` block and replaces the kit layers after them. Font files under `site/public/fonts/` stay.
 
 Live publish is not this skill. Which host is named? Cloudflare Pages, or the requester called the site simple and did not call it managed: load `skills/Cloudflare Pages/SKILL.md`, then that skill's `SETUP.md`, before the live-host hand-off. Vercel, or the requester called the site managed and did not call it simple: load `skills/Vercel Deploy/SKILL.md`, then that skill's `SETUP.md`, before the hand-off. Both hosts, or the requester called it both simple and managed, or the named host disagrees with the word: ask, and do not pick. Neither a host nor simple or managed is stated: ask which it is, and do not pick one. No answer: do not load either. Webmaster Job 3 gates publish. Never connect the envelope or owning root to a host.

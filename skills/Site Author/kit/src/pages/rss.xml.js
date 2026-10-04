@@ -5,6 +5,10 @@ import kit from '../../kit.json';
 export async function GET() {
   const home = await getEntry('pages', 'index');
   if (!home) throw new Error('The index page is required for RSS metadata.');
+  // The route file stays so Upgrade does not leave an old rss.xml.js behind. The build hook removes the output when articles are off.
+  if (kit.collections.articles === false) {
+    return new Response('', { status: 404, headers: { 'Content-Type': 'application/xml; charset=utf-8' } });
+  }
   const articles = await getCollection('articles', ({ data }) => !data.draft);
   return rss({
     title: kit.siteName ?? home.data.title,

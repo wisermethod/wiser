@@ -6,7 +6,7 @@ Prep copy, 2026-09-09, from the Webmaster Playbook Context. This file is the liv
 
 ## Engine (v1)
 
-Astro, MIT, static by default. Markdown for articles. MDX allowed where a page needs one island. Tailwind CSS plus `@tailwindcss/typography`. Content Collections with typed schemas. Official sitemap and RSS integrations. Pagefind. One layout. One `src/styles/tokens.css`. Copy-paste islands only where needed; no shadcn library in v1.
+Astro, MIT, static by default. Markdown for articles. MDX where a page places a kit component (see Kit components). Tailwind CSS plus `@tailwindcss/typography`. Content Collections with typed schemas. Official sitemap and RSS integrations. Pagefind. One layout, whose options a site chooses in `kit.json` (see Layout options). One `src/styles/tokens.css`. No shadcn library in v1.
 
 ## Not v1
 
@@ -18,7 +18,7 @@ Required at the kit-folder root, the envelope's `site/`. Invoke `check` on the e
 
 ```json
 {
-  "kitVersion": "0.1.0",
+  "kitVersion": "0.2.0",
   "domain": "example-a.test",
   "siteUrl": "http://127.0.0.1:4321",
   "collections": {
@@ -37,6 +37,79 @@ Required at the kit-folder root, the envelope's `site/`. Invoke `check` on the e
 
 `siteName`, also optional and site-owned, is a non-empty string naming the site. When set, it is the `WebSite` name in the JSON-LD, the RSS channel title and the `llms.txt` heading; when absent, those use the index page's title, as before.
 
+`layout`, also optional and site-owned, holds the site's layout options; Layout options below defines it. A `nav` item may carry `"style": "button"`, which renders that link as a button-style pill when `layout` is present and is ignored when it is absent; `check` fails any other `style` value.
+
+`collections.articles` set to `false` turns articles off: no article routes are built even if article files exist, no `rss.xml`, no RSS link in any page's head, `llms.txt` lists no articles, no page lists articles, and the header with no `nav` shows Home only. `check` fails a published article (one without `draft: true`) while articles are off.
+
+## Layout options
+
+Every option is chosen by the site, and every option is absent by default. **Absent means the 0.1.0 page**: a site that sets no `layout` key and none of the page keys below builds the same HTML it built at 0.1.0. Site Author's Stand up offers these choices before a site is built; a content job may change them afterwards on the requester's ask.
+
+```json
+"layout": {
+  "width": "wide",
+  "sections": "bands",
+  "header": {
+    "brand": { "text": "Example", "logo": "/images/logo.svg" },
+    "sticky": false,
+    "menu": "button"
+  }
+}
+```
+
+| Key | Values | Missing | What it does |
+|-----|--------|---------|--------------|
+| `width` | `narrow`, `wide` | `narrow` | `narrow` is the 48rem column. `wide` sets the page to `--page-width` (80rem); running text keeps a reading width of `--measure` (65ch), and every other block, a `not-prose` block included, uses the page width |
+| `sections` | `column`, `bands` | `column` | `bands` makes every `<section>` that is a direct child of the page's content span the full window, flush with its neighbours, its contents at the page width. Its colour is the section's own, for example a colour class on the `<section>`. `column` keeps sections in the column |
+| `header.brand` | `{ "text", "logo" }`, either or both | none | A link home at the start of the header: the logo image, the text, or both. `logo` is a `/images/` path whose file is in `public/images/`. A logo with no text takes `siteName`, or the index page's title, as its accessible name |
+| `header.sticky` | `true`, `false` | `false` | The header stays at the top of the window while the page scrolls, on an opaque background; anchor jumps and focused elements land below it |
+| `header.menu` | `links`, `button` | `links` | `button` collapses the links behind a Menu control below 48rem. No script |
+
+Any `layout` key, even `{}`, switches the header and footer to a full-width bar with their links in an inner container at the page width. `check` fails an unknown key, an unknown value, a logo path outside `/images/` or whose file is missing, and a brand with neither `text` nor `logo`.
+
+Two page frontmatter keys, both optional booleans:
+
+- `showTitle: false`: the layout prints no `<h1>`, and the page's body writes its own, so a homepage can carry a designed headline. The title still fills `<title>` and `og:title`. `check` fails such a page unless its body has exactly one `<h1>`.
+- `listArticles`: `true` lists the site's published articles after the page's content, each with its title, description and date; `false` lists none. Missing: the index page lists them under an "Articles" heading, as at 0.1.0, and no other page does. A page that lists articles is how a site gets an articles page, at whatever address and under whatever title it chooses. A page whose id is `articles` builds `articles.html` beside the `articles/` routes; Vercel serves it at `/articles`, and Cloudflare Pages has not been verified, so prefer another name.
+
+The options' styles live in `src/styles/tokens.css`, below the `@theme` block, each reading its tokens with a fallback: `--page-width`, `--measure`, `--brand-height`, `--color-header`, `--color-nav-button`, `--color-nav-button-ink`, `--band-padding`, `--text-prose-weight`. A token update may set any of them in the `@theme` block. A token must be read by a rule in `tokens.css` to reach the page: Tailwind drops a theme variable nothing in that file reads.
+
+## Kit components
+
+`src/components/index.js` exports the components a content file may place without importing anything; the page and article routes pass them to the page body. A content job places one in an `.mdx` file and writes its data as content. Components are kit code: Upgrade replaces them and a content job never edits them.
+
+| Component | Place it as | Its data |
+|-----------|-------------|----------|
+| `ConversationPlayer` | `<ConversationPlayer id="<name>" />` | `src/content/conversations/<name>.yaml`, `.yml` or `.json` |
+
+`ConversationPlayer` plays a scripted conversation in a small app window, one moment at a time, with a folder panel where files appear as they are saved, an optional notice shown once, and Pause and Replay controls. It starts when scrolled into view and pauses when scrolled away. With reduced motion, or with no script, the whole conversation shows still. The full transcript is always in the page for assistive technology. Its schema:
+
+```yaml
+title: "A session, shortened"     # required: the player's accessible name
+window: "Assistant"               # optional: title-bar text; defaults to title
+folder: "Client folder"           # required: the folder panel's heading
+people:
+  member: "Dana"                  # required
+  assistant: "Assistant"          # required
+moments:                          # required, at least one
+  - caption: "Before starting"    # optional
+    lines:                        # required, at least one
+      - from: member              # member, assistant, or status
+        text: "Plain text, never HTML"
+    files:                        # optional: saved during this moment
+      - name: "proposal.pdf"
+        folder: "proposals"       # optional
+notice:                           # optional, shown once per page view
+  title: "New"                    # optional
+  text: "..."
+  after: 2                        # the moment, counted from 1, after which it shows
+timing:                           # optional, milliseconds
+  line: 1600
+  moment: 3000
+```
+
+Its styles read `--player-surface`, `--player-ink`, `--player-member`, `--player-member-ink`, `--player-assistant`, `--player-chrome`, `--player-folder` and `--player-radius`, each falling back to the palette. `check` fails a `<ConversationPlayer>` whose `id` is not a literal naming a file in `src/content/conversations/`; the build fails a script outside the schema.
+
 ## Required SEO slots
 
 Stand-up fails `check` without every row.
@@ -49,6 +122,7 @@ Stand-up fails `check` without every row.
 | Canonical | `SITE_URL` + path, `trailingSlash: 'never'` in the kit, sites do not change this |
 | Open Graph | `og:title`, `og:description`, `og:type`, `og:url`; `og:image` from article hero or `public/images/og-default.png` |
 | JSON-LD | WebSite + Organization on every page (Organization facts from bound `about` or omitted and labelled, never invented); Article on article routes |
+| One `h1` | the page title, printed by the layout; or the page's own when it sets `showTitle: false`, which `check` holds to exactly one |
 | `robots.txt` | emitted at `/robots.txt` from `kit.json` `siteUrl` (not a static `public/` file) |
 | `llms.txt` | emitted at `/llms.txt`, canonical pages only, URLs from `kit.json` `siteUrl` |
 | Sitemap | Astro sitemap integration, drafts excluded |
@@ -68,25 +142,27 @@ A missing description in frontmatter fails `check` rather than shipping an empty
 | `public/images/**` | `astro.config.mjs`, `package.json`, `package-lock.json` |
 | `public/llms.txt` when SEO Assets writes it | `src/styles/**`, except `src/styles/tokens.css` when `skills/Designer/` has already gated that token update. Any other write under `src/styles/**` is refused |
 | `public/fonts/**` only within a Designer-gated token update | `.github/**`, `KIT.md` copies |
-| `kit.json` keys `nav` and `footer`, and `siteName`, only | any other key in `kit.json` |
+| `kit.json` keys `nav`, `footer`, `siteName` and `layout`, and `articles` inside `collections`, only | any other key in `kit.json` |
 
-A request to add a component or edit `astro.config.mjs` is refused. A request to add `src/content/articles/hello.md` with required frontmatter succeeds.
+A request to add a component or edit `astro.config.mjs` is refused; placing a kit component in an `.mdx` page and writing its data under `src/content/` is content. A request to add `src/content/articles/hello.md` with required frontmatter succeeds. Turning articles on or off, or a new page that lists them, is a new or retired URL and takes Webmaster Job 3 before publish.
 
-A token update changes the values in `tokens.css`'s `@theme` block and may replace one of the two font slots. The font-source comment is the first statement in the file and may become one `@import url(...)` line loading the site's web fonts from a remote host. The self-hosted slot sits after `@plugin "@tailwindcss/typography";` and before `@theme`, and may become `@font-face` rules whose `src` is `url("/fonts/<file>")` pointing at files in `public/fonts/`. `@font-face` cannot precede `@import`, which is why that slot is separate. A site uses one mechanism or the other. Self-hosting keeps every font request on the site's own origin, and those files are written only within the Designer-gated token update. `check` requires every `url()` inside an `@font-face` rule to be a root-relative `/fonts/` path whose file is present under `public/fonts/`, and it names the file when that path is missing. An absolute `url()` (`http:`, `https:`, or `//`) fails: a font-face must load from `/fonts/` on the site's own origin, and a remote font belongs in the font-source `@import`, if at all. Any other path fails. Where `public/fonts/` holds a `.woff2`, `.woff`, `.ttf`, or `.otf` file, it must also hold a licence file whose name matches licence, license, or OFL, or `check` fails because font files ship without their licence. A remote `@import` with no `@font-face`, and a site that uses no web fonts, still pass. The base and utilities layers below the `@theme` block are kit code: a token update never edits them, and Upgrade replaces them. The role tokens (`--color-title`, `--color-heading`, `--color-meta`, `--color-nav`, `--font-title`, `--font-heading`, `--title-style`, `--text-prose`) default to the palette tokens, so a site that sets only `--color-paper`, `--color-ink` and `--color-link` needs nothing else. The kit's prose colours sit in the utilities layer, beside `@tailwindcss/typography`'s own, so the tokens reach body text and headings on a dark palette as well as a light one. Until 2026-09-24 they sat in the base layer, which the typography plugin's defaults outrank, so prose text rendered in the plugin's slate whatever `--color-ink` said. `check` fails a `tokens.css` that still sets prose colours in the base layer. Upgrade replaces `tokens.css` with the kit defaults, as it replaces every kit file present in the template, so a customised site reapplies its token update after Upgrade; only then do body text and headings show its own ink. Header and footer navigation links carry a 44px minimum target.
+A token update changes the values in `tokens.css`'s `@theme` block and may replace one of the two font slots. The font-source comment is the first statement in the file and may become one `@import url(...)` line loading the site's web fonts from a remote host. The self-hosted slot sits after `@plugin "@tailwindcss/typography";` and before `@theme`, and may become `@font-face` rules whose `src` is `url("/fonts/<file>")` pointing at files in `public/fonts/`. `@font-face` cannot precede `@import`, which is why that slot is separate. A site uses one mechanism or the other. Self-hosting keeps every font request on the site's own origin, and those files are written only within the Designer-gated token update. `check` requires every `url()` inside an `@font-face` rule to be a root-relative `/fonts/` path whose file is present under `public/fonts/`, and it names the file when that path is missing. An absolute `url()` (`http:`, `https:`, or `//`) fails: a font-face must load from `/fonts/` on the site's own origin, and a remote font belongs in the font-source `@import`, if at all. Any other path fails. Where `public/fonts/` holds a `.woff2`, `.woff`, `.ttf`, or `.otf` file, it must also hold a licence file whose name matches licence, license, or OFL, or `check` fails because font files ship without their licence. A remote `@import` with no `@font-face`, and a site that uses no web fonts, still pass. The base and utilities layers below the `@theme` block are kit code: a token update never edits them, and Upgrade replaces them. The role tokens (`--color-title`, `--color-heading`, `--color-meta`, `--color-nav`, `--font-title`, `--font-heading`, `--title-style`, `--text-prose`) default to the palette tokens, so a site that sets only `--color-paper`, `--color-ink` and `--color-link` needs nothing else. The kit's prose colours sit in the utilities layer, beside `@tailwindcss/typography`'s own, so the tokens reach body text and headings on a dark palette as well as a light one. Until 2026-09-24 they sat in the base layer, which the typography plugin's defaults outrank, so prose text rendered in the plugin's slate whatever `--color-ink` said. `check` fails a `tokens.css` that still sets prose colours in the base layer. Upgrade keeps everything in a site's `tokens.css` before its first `@layer base`, which is the two font slots and the `@theme` block, and replaces everything from there on with the kit's layers, archiving the old file first. A site whose `tokens.css` has no `@layer base` gets the kit's whole file, and Upgrade says so: that site reapplies its token update. Header and footer navigation links carry a 44px minimum target.
 
 ## Collections
 
-`pages`, `articles`, `authors` always in the schema. An author may set `type: Organization` for an organisation byline; it defaults to `Person` in the Article JSON-LD. `sections` / `issues` exist in the schema and stay disabled unless stand-up is magazine. A brochure and a magazine are one kit.
+`pages`, `articles`, `authors` always in the schema. An author may set `type: Organization` for an organisation byline; it defaults to `Person` in the Article JSON-LD. `sections` / `issues` exist in the schema and stay disabled unless stand-up is magazine. A brochure and a magazine are one kit. `conversations` is declared only when `src/content/conversations/` exists, so a site with no conversation builds without a warning.
 
-## Frontmatter for articles
+## Frontmatter
 
-`title`, `description`, `pubDate`, `author`, `tags`, `draft`. Hero image optional.
+Articles: `title`, `description`, `pubDate`, `author`, `tags`, `draft`. Hero image optional.
+
+Pages: `title`, `description`. Optional: `draft`, `showTitle`, `listArticles`, and `organization` on the about page only.
 
 ## Replication, check, upgrade
 
-`check` compares `kitVersion` to this file, and **fails if a `.git` exists in the envelope or kit folder** (nested git is never the silent default). Fail if any required SEO slot is missing.
+`check` compares `kitVersion` to this file, and **fails if a `.git` exists in the envelope or kit folder** (nested git is never the silent default). Fail if any required SEO slot is missing. A site at `kitVersion` 0.1.0 fails and is told to run Upgrade.
 
-`upgrade` archives every kit-owned file it will replace, per `standards/conventions.md` (a `zArchive/` next to the file, except that a file under `src/` archives to `zArchive/src/<its path>/` at the kit root, because a `zArchive/` inside `src/pages/` would build as routes; unless that root declares git history as recovery **and** the site is in a committed current repo), then copies kit code files over and refuses to merge `src/content/**`, `public/images/**` and `public/fonts/**`. Two sites on the same `kitVersion` are maintainable as a class; a site that failed `check` is a foreign site until it is upgraded or declared foreign.
+`upgrade` archives every kit-owned file it will replace, per `standards/conventions.md` (a `zArchive/` next to the file, except that a file under `src/` archives to `zArchive/src/<its path>/` at the kit root, because a `zArchive/` inside `src/pages/` would build as routes; unless that root declares git history as recovery **and** the site is in a committed current repo), then copies kit code files over and refuses to merge `src/content/**`, `public/images/**` and `public/fonts/**`. It takes a site at `kitVersion` 0.1.0 or 0.2.0 to 0.2.0 and refuses any other, and it keeps a site's `tokens.css` font slots and `@theme` block, as Content vs code states. Two sites on the same `kitVersion` are maintainable as a class; a site that failed `check` is a foreign site until it is upgraded or declared foreign.
 
 Paths in this contract are relative to `site/`. Envelope `AGENTS.md`, `memory/`, `builds.md`, and Playbooks are outside Upgrade. Kit-owned means everything except `src/content/**`, `public/images/**` and `public/fonts/**`. Those three trees stay byte-identical across Upgrade.
 
@@ -117,8 +193,8 @@ Node 22.12 or newer (Astro 7's floor). The 2026-09-08 Playbook said 18; current 
 ## How `check` walks this file
 
 1. Invoke Check on the envelope. Confirm the envelope and kit folder have no nested `.git`; walk `site/` for steps 2 to 5.
-2. Read `kit.json`. `kitVersion` matches this file. `siteUrl` has no trailing path or slash. When `nav` or `footer` is present, it is an array of `{label, href}` as this file's kit.json section states.
+2. Read `kit.json`. `kitVersion` matches this file. `siteUrl` has no trailing path or slash. When `nav` or `footer` is present, it is an array of `{label, href}` as this file's kit.json section states, and a `nav` item's `style` is `button`. When `layout` is present, its keys and values are those Layout options names. When `layout` is set, the envelope `AGENTS.md` names `layout`; when articles are off, it names `collections.articles`; otherwise it predates them and is refreshed from `site-AGENTS.md`.
 3. Confirm `trailingSlash: 'never'` in the Astro config.
 4. Confirm collections schema includes `pages`, `articles`, `authors`, and disabled `sections` / `issues` unless magazine.
-5. For every content file in `pages` and `articles`, required frontmatter is present. Articles: `title`, `description`, `pubDate`, `author`, `tags`, `draft`. `src/styles/tokens.css` carries the kit's `@layer base` and `@layer utilities` blocks, sets its prose colours in the utilities block, and sets none in the base block. An `@font-face` `url()` in that file is a `/fonts/` path on this site whose file exists under `public/fonts/`, a file with `@font-face` rules carries no remote `@import`, no `@import` or `@font-face` rule uses a CSS escape, and a `.woff2`, `.woff`, `.ttf`, or `.otf` there ships with a licence file.
-6. After `npm run dev` or `build` plus preview, fetch `/`, one article route, sitemap, RSS (if articles enabled), `/llms.txt`, `/robots.txt`. Homepage `<head>` carries title, meta description, canonical, `og:title`, `og:description`, `og:url`, JSON-LD WebSite + Organization. Canonical and `og:url` use `kit.json` `siteUrl`. Article route additionally carries Article JSON-LD. Drafts are absent from sitemap, RSS, and canonical index.
+5. For every content file in `pages` and `articles`, required frontmatter is present. Articles: `title`, `description`, `pubDate`, `author`, `tags`, `draft`. A page that sets `showTitle: false` has exactly one `<h1>` in its body; `showTitle` and `listArticles` are booleans. Every `<ConversationPlayer>` names a file in `src/content/conversations/`. With articles off, every article is a draft. `src/styles/tokens.css` carries the kit's `@layer base` and `@layer utilities` blocks, sets its prose colours in the utilities block, and sets none in the base block. An `@font-face` `url()` in that file is a `/fonts/` path on this site whose file exists under `public/fonts/`, a file with `@font-face` rules carries no remote `@import`, no `@import` or `@font-face` rule uses a CSS escape, and a `.woff2`, `.woff`, `.ttf`, or `.otf` there ships with a licence file.
+6. After `npm run dev` or `build` plus preview, fetch `/`, one article route (if articles enabled), sitemap, RSS (if articles enabled), `/llms.txt`, `/robots.txt`. Homepage `<head>` carries title, meta description, canonical, `og:title`, `og:description`, `og:url`, JSON-LD WebSite + Organization, and its body exactly one `<h1>`. Canonical and `og:url` use `kit.json` `siteUrl`. Article route additionally carries Article JSON-LD. Drafts are absent from sitemap, RSS, and canonical index.
