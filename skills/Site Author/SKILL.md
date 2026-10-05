@@ -3,7 +3,7 @@ name: Site Author
 type: skill
 category: web
 description: Stand up, content-edit, check, wrap, and upgrade a kit site envelope in sites/, in a folder named for its domain, or in the sites/ of a work folder when the site dies with that work, with the kit in site/, in an owning root that declares sites/
-version: 0.4.1
+version: 0.5.0
 memory:
   - about
   - design
@@ -91,15 +91,17 @@ Name the parent before running: default owning-root `sites/<domain>/`; use `--wo
 | Show the site's name in the header, linking home? A logo joins it once there is a file. | `--brand-text "<name>"` | yes | yes |
 | Keep the header on screen while scrolling? On a phone it takes part of every screen. | `--sticky-header` | no | no |
 | On phones, links that wrap, or a Menu button? | `--menu links` or `button` | a Menu button when there are more than four links | the same |
-| Articles: none, on their own page, on the homepage, or both? | `--articles none`, `page`, `home` or `both` | none unless they plan to publish; then their own page | the homepage |
+| Do you want an articles or blog section? If so, on its own page, on the homepage, or both? | `--articles none`, `page`, `home` or `both` | no, unless they plan to publish; then its own page | yes, on the homepage |
 | The homepage headline: the page title, or a designed headline the page writes itself? | `--headline title` or `page` | the page title, unless a design gives the headline | the page title |
 
-For `page` or `both`, ask what the articles page is called and pass `--articles-title "<title>"` and `--articles-page <slug>`. Recommend a slug other than `articles`: a page there builds beside the article routes, and Cloudflare Pages has not been verified serving it. Pass `--site-name "<name>"` when the requester names the site. **The script's own defaults are the 0.1.0 shape**, so a recommended default reaches the site only through its flag; pass every flag the answers imply. A logo is added after Stand up as a content job: the file goes under `site/public/images/`, and `layout.header.brand.logo` names it. `kit/KIT.md` Layout options states what each choice does.
+**An articles or blog section is optional, and only the requester's answer gives a site one.** Put the articles question whatever the site is for. A request that already asked for a blog, or for no articles, has settled it; "go" or "defaults" after the question was put takes its recommendation; silence on this one choice is not an answer, so ask it again. The script refuses to run without `--articles`.
+
+For `page` or `both`, ask what the articles page is called and pass `--articles-title "<title>"` and `--articles-page <slug>`. Recommend a slug other than `articles`: a page there builds beside the article routes, and Cloudflare Pages has not been verified serving it. Pass `--site-name "<name>"` when the requester names the site. **`--articles` has no default; every other flag defaults to the 0.1.0 shape**, so a recommended default reaches the site only through its flag; pass every flag the answers imply. A logo is added after Stand up as a content job: the file goes under `site/public/images/`, and `layout.header.brand.logo` names it. `kit/KIT.md` Layout options states what each choice does.
 
 Run:
 
 ```
-node "<this-skill-dir>/scripts/stand-up.mjs" --root "<owning-root>" --domain <domain> --site-url <site_url> --kit "<this-skill-dir>/kit" [--work <slug>] [the choice flags]
+node "<this-skill-dir>/scripts/stand-up.mjs" --root "<owning-root>" --domain <domain> --site-url <site_url> --kit "<this-skill-dir>/kit" [--work <slug>] --articles <none|page|home|both> [the other choice flags]
 ```
 
 `--magazine` only when the requester asked for a magazine; otherwise leave `sections` and `issues` disabled. The script refuses an undeclared parent, every existing domain folder per Shape, a nested `.git`, and a bad domain or site URL. Report its message. Do not invent a workaround. Do not `git init`.
@@ -175,7 +177,7 @@ Run Check after Upgrade. Gate: Webmaster Job 3 before the requester publishes.
 - **The foreign folder.** A live WordPress or Webflow tree with neither kit marker is Job 1 of Webmaster to audit and not this skill to replace. Leave it untouched.
 - **The slashed article URL.** Fetching `/articles/hello/` against `trailingSlash: 'never'` 404s. Fetch `/articles/hello`.
 - **Upgrade skipped archive, or treated as a content merge.** The script archives; do not copy over it by hand. `site/src/content/`, `site/public/images/`, `site/public/fonts/` and `site/public/_redirects` stay byte-identical. The palette survives in `site/src/styles/tokens.css` above its first `@layer base`; a rule written below that line is kit code and Upgrade replaces it.
-- **The fixed shape.** Running Stand up without putting the choices to the requester builds the 0.1.0 shape, articles included, whatever the site is for. Offer the choices first.
+- **The fixed shape.** Running Stand up without putting the choices to the requester builds the 0.1.0 shape whatever the site is for. The script refuses a missing `--articles`, but it cannot tell an answer from a guess: passing `--articles home` unasked gives articles to a site that may not want them. Offer the choices first.
 - **Code-path creep.** A component, an Astro config tweak, or a `site/package.json` bump "while we are in there" is the content-vs-code failure. Refuse.
 - **The nested repo.** `git init` inside `sites/<domain>/` of a parent that already has `.git` is the synced-volume failure. A site with no git is complete.
 - **The parent host.** Connecting the envelope or owning-root repository includes files outside the kit. Refuse; the host skill takes only `site/` or `site/dist/`.
@@ -186,7 +188,7 @@ Run Check after Upgrade. Gate: Webmaster Job 3 before the requester publishes.
 ## Success
 
 - The named parent holds the envelope with `AGENTS.md`, Provides bound only to present local files, `site/kit.json`, `site/KIT.md`, `builds.md`, and `zArchive/`. The owning root and any work subject declared `sites/`; no subject was invented and no nested `.git` exists.
-- Stand-up put the layout and articles choices to the requester with their recommended defaults before the script ran, and passed the flags the answers implied.
+- Stand-up put the layout and articles choices to the requester with their recommended defaults before the script ran, and passed the flags the answers implied. `--articles` carried the requester's answer to whether the site has an articles or blog section, never an assumed one.
 - Stand-up or Wrap copied missing available memory, asked what changes, and preserved unanswered copies. The envelope was not onboarded as a root. Wrap preserved content and images under `site/`.
 - `check` printed PASS for steps 1 to 5, and step 6's served HTML carried the required SEO slots at that site's `siteUrl`.
 - Content jobs changed only allowed paths. Refused paths were not written.

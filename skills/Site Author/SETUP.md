@@ -5,7 +5,7 @@ System dependency: Node 22.12 or newer. Astro 7's floor. `node -v` must say so b
 Scripts live in `scripts/` beside this file. Quote the path; the skill directory name contains a space. `--kit` is this skill's `kit/` directory, the proven tree, never a rebuilt copy.
 
 ```
-node "<this-skill-dir>/scripts/stand-up.mjs" --root "<owning-root>" --domain <host> --site-url <origin> --kit "<this-skill-dir>/kit" [--work <slug>]
+node "<this-skill-dir>/scripts/stand-up.mjs" --root "<owning-root>" --domain <host> --site-url <origin> --kit "<this-skill-dir>/kit" [--work <slug>] --articles <none|page|home|both>
 node "<this-skill-dir>/scripts/check.mjs" "<envelope-folder>"
 node "<this-skill-dir>/scripts/wrap.mjs" --root "<owning-root>" --site "<domain-folder>"
 node "<this-skill-dir>/scripts/upgrade.mjs" --site "<envelope-folder>" --kit "<this-skill-dir>/kit"
@@ -13,7 +13,7 @@ node "<this-skill-dir>/scripts/upgrade.mjs" --site "<envelope-folder>" --kit "<t
 
 Did the requester ask for a magazine? Yes: pass `--magazine`, which enables `sections` and `issues`. No, or they do not say: do not pass it. Default is brochure: those collections stay in the schema and stay disabled.
 
-The layout and articles choices are flags too: `--width`, `--sections`, `--brand-text`, `--sticky-header`, `--menu`, `--articles` with `--articles-page` and `--articles-title`, `--headline`, and `--site-name`. `SKILL.md` Stand up puts them to the requester first and says which flags their answers imply. With none of them, the script writes the 0.1.0 shape.
+The layout and articles choices are flags too: `--width`, `--sections`, `--brand-text`, `--sticky-header`, `--menu`, `--articles` with `--articles-page` and `--articles-title`, `--headline`, and `--site-name`. `SKILL.md` Stand up puts them to the requester first and says which flags their answers imply. `--articles` is required and has no default, because an articles or blog section is the requester's choice: the script refuses to run without it. With `--articles home` and none of the others, the script writes the 0.1.0 shape.
 
 Does the site die with an existing work subject the request names? Yes: the envelope is `work/<slug>/sites/<domain>/` and stand-up passes `--work <slug>`. No, or the request does not say: the envelope is owning-root `sites/<domain>/`. The owning root and, on the work parent, the existing work subject must declare `sites/`. Site Author does not create the subject. Check and Upgrade take the envelope; Wrap takes the old domain folder with root `kit.json`. Stand-up and Wrap read `site-AGENTS.md` beside this file, not the obsolete copy inside the kit.
 

@@ -3,7 +3,7 @@ name: Webmaster
 type: expert
 category: web
 description: Judge a site's findability, broken URLs, content vs code, and publish safety, sequence a kit envelope or foreign-site work, and gate a change before it goes live
-version: 0.3.8
+version: 0.3.9
 ---
 
 # Webmaster
@@ -143,7 +143,7 @@ Where the pass ran against saved state from an earlier pass, compare the two: wh
 
 Name the parent before Site Author stands up. Default: owning-root `sites/<domain>/`. Use `work/<slug>/sites/<domain>/` only when the site dies with that work. The subject already exists, its `AGENTS.md` declares `sites/` and names the site, and the owning root also declares `sites/`. Site Author does not invent the subject folder. Missing parent or declaration returns to the requester.
 
-Then classify the tree. `site/kit.json` means a current envelope: Site Author can Edit content, Check, or Upgrade, and a Stand up or a Wrap asked alongside is refused. Only domain-folder `kit.json` means the Milestone 1 to 3 shape: sequence Site Author Wrap if requested, or declare it foreign. Neither marker in an existing folder means foreign: Job 1 still runs, and stand-up over it is refused. Only an absent domain folder can take Stand up. Stand up puts the layout and articles choices `skills/Site Author/` lists to the requester, with recommended defaults, before it runs; the answers are the requester's. Turning articles on or off later, and a page that lists them, are new or retired URLs and take Job 3.
+Then classify the tree. `site/kit.json` means a current envelope: Site Author can Edit content, Check, or Upgrade, and a Stand up or a Wrap asked alongside is refused. Only domain-folder `kit.json` means the Milestone 1 to 3 shape: sequence Site Author Wrap if requested, or declare it foreign. Neither marker in an existing folder means foreign: Job 1 still runs, and stand-up over it is refused. Only an absent domain folder can take Stand up. Stand up puts the layout and articles choices `skills/Site Author/` lists to the requester, with recommended defaults, before it runs; the answers are the requester's. A site does not need articles: an articles or blog section is optional, the requester is asked whether the site has one, and Stand up does not run until they answer. Turning articles on or off later, and a page that lists them, are new or retired URLs and take Job 3.
 
 For content work, load the envelope `AGENTS.md` and its Provides overlay after the owning chain. Site Author copies available owning-root memory on Stand up or Wrap, then asks what changes; unbound or unavailable local keys fall back to the owning root with that fallback named.
 

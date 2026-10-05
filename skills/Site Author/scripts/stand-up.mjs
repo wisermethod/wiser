@@ -61,10 +61,12 @@ try {
   expectOne('menu', values.menu, menuValues);
   expectOne('articles', values.articles, articlesValues);
   expectOne('headline', values.headline, headlineValues);
+  // Articles have no default: the requester is asked whether the site has an articles or blog section, and a stand-up that skipped the question stops here.
+  if (values.articles === undefined) reject('--articles is required: ask the requester whether the site has an articles or blog section, then pass --articles none, page, home or both');
   if (values['brand-text'] !== undefined && values['brand-text'].trim() === '') reject('--brand-text must be a non-empty string');
   if (values['site-name'] !== undefined && values['site-name'].trim() === '') reject('--site-name must be a non-empty string');
   if (values['articles-title'] !== undefined && values['articles-title'].trim() === '') reject('--articles-title must be a non-empty string');
-  const articlesMode = values.articles ?? 'home';
+  const articlesMode = values.articles;
   const headline = values.headline ?? 'title';
   const articlesPage = values['articles-page'];
   if ((articlesMode === 'page' || articlesMode === 'both') && !articlesPage) reject('--articles-page is required when --articles is page or both');
