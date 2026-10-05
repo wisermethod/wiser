@@ -5,6 +5,7 @@ import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { exists, reject, parentFor, safeTree, noLinks, templateText, prepareMemory, writeEnvelope } from './envelope.mjs';
 
+const KIT_VERSION = '0.2.1';
 const widthValues = ['narrow', 'wide'];
 const sectionsValues = ['column', 'bands'];
 const menuValues = ['links', 'button'];
@@ -83,6 +84,10 @@ try {
     reject(`foreign folder (no kit.json) at ${dest}. Leaving it untouched`);
   }
   if (!exists(path.join(kit, 'KIT.md')) || !exists(path.join(kit, 'package.json'))) reject(`kit at ${kit} is missing KIT.md or package.json`);
+  // The version written below names this script's kit, so a kit of another version is refused before anything is written.
+  let kitTemplateVersion;
+  try { kitTemplateVersion = JSON.parse(fs.readFileSync(path.join(kit, 'kit.json'), 'utf8')).kitVersion; } catch { kitTemplateVersion = undefined; }
+  if (kitTemplateVersion !== KIT_VERSION) reject(`kit at ${kit} is kitVersion ${kitTemplateVersion ?? 'unreadable'}, not ${KIT_VERSION}: stand up from the kit beside this script`);
   const template = templateText(kit);
   prepareMemory(root, dest);
   const skip = new Set(['node_modules', 'dist', '.astro', '.git', 'site-AGENTS.md', 'AGENTS.md', 'memory', 'builds.md', 'zArchive']);
@@ -107,7 +112,7 @@ try {
     };
     layout = { width: values.width ?? 'narrow', sections: values.sections ?? 'column', header };
   }
-  const config = { kitVersion: '0.2.1', domain, siteUrl, collections: { pages: true, articles: articlesMode !== 'none', authors: true, sections: values.magazine, issues: values.magazine } };
+  const config = { kitVersion: KIT_VERSION, domain, siteUrl, collections: { pages: true, articles: articlesMode !== 'none', authors: true, sections: values.magazine, issues: values.magazine } };
   if (values['site-name']) config.siteName = values['site-name'];
   if (layout) config.layout = layout;
   if (articlesMode === 'page' || articlesMode === 'both') {

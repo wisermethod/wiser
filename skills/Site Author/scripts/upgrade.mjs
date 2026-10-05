@@ -120,6 +120,30 @@ if (fs.existsSync(siteTokensPathEarly)) {
   }
 }
 
+const siteRedirects = path.join(site, "public", "_redirects");
+if (fs.existsSync(siteRedirects) && !fs.lstatSync(siteRedirects).isFile()) fail("site public/_redirects is not a file; nothing was replaced");
+
+// Before 0.2.1, Upgrade archived a replaced public/ file into public/zArchive/, which is copied into dist/ and published. Move any such archive out first, and name an archived _redirects that differs from the site's, since its rows may be live redirects the site lost.
+const legacyArchive = path.join(site, "public", "zArchive");
+if (fs.existsSync(legacyArchive) && fs.lstatSync(legacyArchive).isDirectory()) {
+  const target = path.join(site, "zArchive", "public");
+  fs.mkdirSync(target, { recursive: true });
+  const current = fs.existsSync(siteRedirects) ? fs.readFileSync(siteRedirects, "utf8") : "";
+  for (const name of fs.readdirSync(legacyArchive)) {
+    let dest = path.join(target, name);
+    const parts = /^(\d\d-\d\d-\d\d) V(\d+) - (.+)$/.exec(name);
+    for (let n = parts ? Number(parts[2]) + 1 : 2; fs.existsSync(dest); n++) {
+      dest = path.join(target, parts ? `${parts[1]} V${n} - ${parts[3]}` : `${name} V${n}`);
+    }
+    const from = path.join(legacyArchive, name);
+    const lostRows = / - _redirects$/.test(name) && fs.lstatSync(from).isFile() && fs.readFileSync(from, "utf8") !== current;
+    fs.renameSync(from, dest);
+    console.log(`upgrade: moved public/zArchive/${name} to zArchive/public/${path.basename(dest)}, out of the published tree`);
+    if (lostRows) console.log(`upgrade: zArchive/public/${path.basename(dest)} differs from public/_redirects; an earlier Upgrade replaced the site's redirects, so compare the two and restore any row the site still needs`);
+  }
+  fs.rmdirSync(legacyArchive);
+}
+
 for (const name of fs.readdirSync(kit)) {
   if (skipTop.has(name)) continue;
   const src = path.join(kit, name);

@@ -85,8 +85,8 @@
   main.prose { line-height: var(--prose-leading, 1.75); }
 }
 
-/* The reading width, resolved once where it is set rather than in each element that reads it. An unregistered 65ch resolves against each element's own font, so a heading's line ran far wider than a paragraph's. */
-@property --reading-width {
+/* The reading width, resolved once where it is set rather than in each element that reads it. An unregistered 65ch resolves against each element's own font, so a heading's line ran far wider than a paragraph's. The kit- prefix keeps a site's own variable from meeting this registration's initial value. */
+@property --kit-reading-width {
   syntax: "<length-percentage>";
   inherits: true;
   initial-value: 100%;
@@ -152,7 +152,7 @@
     padding: 0.5rem 0.75rem;
   }
   /* A kit-made article list carries the 44px target the header and footer links have. */
-  main > section.article-list > ul > li > a,
+  main > section[data-kit-list] > ul > li > a,
   [data-kit-layout] > main > section[aria-label="Articles"] > ul > li > a {
     display: inline-flex;
     align-items: center;
@@ -211,16 +211,16 @@
   }
   /* A wide page keeps one reading column: every block outside a section, the layout's own h1 included, and the running text inside a section, centred at the reading width. A section is what spans the page. */
   [data-kit-layout][data-width="wide"] > main {
-    --reading-width: var(--measure, 65ch);
+    --kit-reading-width: var(--measure, 65ch);
   }
   [data-kit-layout][data-width="wide"][data-sections="column"] > main > :not(section),
   [data-kit-layout][data-width="wide"] > main > section:not(.not-prose) > :is(p, ul, ol, dl, h1, h2, h3, h4, h5, h6, blockquote, pre, hr, table):not(.not-prose) {
-    max-width: var(--reading-width, 65ch);
+    max-width: var(--kit-reading-width, 65ch);
     margin-inline: auto;
   }
   /* With bands, main has no inline padding, so the column keeps the gutter by its width. A list's or quote's own indent is the typography plugin's, in a later layer, and stays. */
   [data-kit-layout][data-width="wide"][data-sections="bands"] > main > :not(section) {
-    max-width: min(var(--reading-width, 65ch), 100% - 2 * var(--spacing-gutter, clamp(1rem, 4vw, 2.5rem)));
+    max-width: min(var(--kit-reading-width, 65ch), 100% - 2 * var(--spacing-gutter, clamp(1rem, 4vw, 2.5rem)));
     padding-inline: 0;
   }
   [data-kit-layout][data-sections="bands"] > main > :first-child:not(section) {
@@ -437,6 +437,7 @@
   .conversation-player .conversation-controls button:active {
     background: var(--player-button-active-background, var(--player-ink, #1f2328));
     color: var(--player-button-active-ink, var(--player-chrome, #e6e6e3));
+    outline-color: var(--player-button-active-ink, var(--player-chrome, #e6e6e3));
   }
   @media (max-width: 47.999rem) {
     .conversation-player .conversation-body { flex-direction: column; }

@@ -435,6 +435,7 @@ walkFiles(path.join(site, "src/content"), /\.mdx$/, (file) => {
 
 for (const rel of ["public/_redirects", "public/images/og-default.png", "src/styles/tokens.css", "package.json", ".gitignore"]) {
   if (!fs.existsSync(path.join(site, rel))) fail(`missing ${rel}`);
+  else if (!fs.statSync(path.join(site, rel)).isFile()) fail(`${rel} must be a file`);
 }
 const tokensPath = path.join(site, "src/styles/tokens.css");
 if (fs.existsSync(tokensPath)) {
@@ -453,6 +454,13 @@ if (fs.existsSync(tokensPath)) {
   const utilities = layerBody("utilities");
   if (base === null || utilities === null) fail("src/styles/tokens.css lacks the kit's @layer base or @layer utilities block; run Upgrade, then reapply the site's token update");
   else if (base.includes("--tw-prose-") || !/main\.prose\s*\{[^}]*--tw-prose-body/.test(utilities)) fail("src/styles/tokens.css predates the prose-colour fix: prose colours must sit in @layer utilities, not @layer base, where @tailwindcss/typography outranks them; run Upgrade, then reapply the site's token update");
+  // A wide page's reading column is registered as a length or percentage, so a --measure that is neither would widen it to the page.
+  for (const declared of tokens.matchAll(/--measure\s*:\s*([^;}]*)/g)) {
+    const value = declared[1].trim();
+    if (!/^(?:0|\+?(?:\d+\.?\d*|\.\d+)(?:ch|rem|em|ex|cap|ic|lh|rlh|px|vw|vh|vi|vb|vmin|vmax|cqw|cqi|cm|mm|q|in|pt|pc|%)|(?:calc|min|max|clamp)\(.*\))$/i.test(value)) {
+      fail(`src/styles/tokens.css sets --measure to "${value}": it must be a length or a percentage, such as 65ch`);
+    }
+  }
   const faces = fontFaceBlocks(tokens);
   const imports = tokens.match(/@import\b[^;]*;?/gi) ?? [];
   if ([...faces, ...imports].some((rule) => rule?.includes("\\"))) fail("src/styles/tokens.css uses a CSS escape in an @import or @font-face rule; write font URLs plainly so check can read them");

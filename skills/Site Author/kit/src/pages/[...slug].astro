@@ -23,7 +23,7 @@ const articles = wantsList && kit.collections.articles !== false
 <SiteLayout title={page.data.title} description={page.data.description} showTitle={page.data.showTitle}>
   <Content components={components} />
   {page.data.listArticles === true
-    ? articles.length > 0 && <section class="article-list" aria-label="Articles"><ul>{articles.map((article) => <li>
+    ? articles.length > 0 && <section class="article-list" aria-label="Articles" data-kit-list><ul>{articles.map((article) => <li>
       <a href={`/articles/${article.id}`}>{article.data.title}</a>
       <p>{article.data.description}</p>
       <time datetime={article.data.pubDate.toISOString()}>{article.data.pubDate.toISOString().slice(0, 10)}</time>
