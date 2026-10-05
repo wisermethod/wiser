@@ -454,11 +454,12 @@ if (fs.existsSync(tokensPath)) {
   const utilities = layerBody("utilities");
   if (base === null || utilities === null) fail("src/styles/tokens.css lacks the kit's @layer base or @layer utilities block; run Upgrade, then reapply the site's token update");
   else if (base.includes("--tw-prose-") || !/main\.prose\s*\{[^}]*--tw-prose-body/.test(utilities)) fail("src/styles/tokens.css predates the prose-colour fix: prose colours must sit in @layer utilities, not @layer base, where @tailwindcss/typography outranks them; run Upgrade, then reapply the site's token update");
-  // A wide page's reading column is registered as a length or percentage, so a --measure that is neither would widen it to the page.
-  for (const declared of tokens.matchAll(/--measure\s*:\s*([^;}]*)/g)) {
-    const value = declared[1].trim();
-    if (!/^(?:0|\+?(?:\d+\.?\d*|\.\d+)(?:ch|rem|em|ex|cap|ic|lh|rlh|px|vw|vh|vi|vb|vmin|vmax|cqw|cqi|cm|mm|q|in|pt|pc|%)|(?:calc|min|max|clamp)\(.*\))$/i.test(value)) {
-      fail(`src/styles/tokens.css sets --measure to "${value}": it must be a length or a percentage, such as 65ch`);
+  // A wide page's reading column is registered as a length or percentage, so a --measure that is a keyword or a bare number would widen it to the page. Check does not evaluate expressions; it refuses the values that cannot be lengths.
+  const declarations = tokens.replace(/"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*'/g, '""');
+  for (const declared of declarations.matchAll(/(?:^|[{;\s])--measure\s*:([^;}]*)/g)) {
+    const value = declared[1].replace(/!\s*important\s*$/i, "").replace(/\s+/g, " ").trim();
+    if (value === "" || /^[a-z-]+$/i.test(value) || /^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(value) && Number(value) !== 0) {
+      fail(`src/styles/tokens.css sets --measure to "${value}": it must be a length or a percentage, such as 65ch, not a keyword or a bare number`);
     }
   }
   const faces = fontFaceBlocks(tokens);
