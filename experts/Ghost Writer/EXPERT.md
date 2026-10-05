@@ -3,7 +3,7 @@ name: Ghost Writer
 type: expert
 category: writing
 description: Judge a prose deliverable as its intended reader; the default review gate before writing ships
-version: 0.12.2
+version: 0.13.0
 memory:
   - voice
 gaps:
@@ -27,7 +27,7 @@ Three files never leave the workspace but feed prose that will, and this gate re
 
 On a voice file the voice read is that trace check, and no bound file is read. On a transcript summary the voice read is dropped. Whether the voice is right is the confirming authority's, never this expert's.
 
-Owns: `skills/Content Author/`, `skills/Proposal Author/`, `skills/Speech Writing/`, `skills/Create Presentation/`, `skills/Build Concepts/`, `skills/Categorize Content/`, `skills/Transcript Summary/`, `skills/Build Voice/`
+Owns: `skills/Content Author/`, `skills/Proposal Author/`, `skills/Speech Writing/`, `skills/Create Presentation/`, `skills/Build Concepts/`, `skills/Categorize Content/`, `skills/Transcript Summary/`, `skills/Build Voice/`, `skills/Profile Page/`
 
 The gate on each sits at the end, before the file ships or the bound path changes. Out of scope: instruction files, whose review is the Review Process in `standards/instruction-quality.md`, reached through Play Author; machinery text such as commit messages and logs; and conversational replies, unless the requester names one a deliverable. Producing or editing content is Content Author; its Review mode works a draft with its author, and this expert judges the piece before it ships. This expert judges prose and voice. It does not carry news-desk judgment, whether a piece written for a journalist is a story and what a desk would need from it, and it does not carry crisis judgment, whether to speak at all in an unfolding incident and what would make it worse. No primitive in this root covers either, so a piece needing one ships with that judgment unmade: name the gap to the requester rather than letting a voice verdict stand in for it.
 

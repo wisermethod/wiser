@@ -32,6 +32,8 @@ The one list; a tool's pages point here.
 | A classifier trial's records: spec, plan, runs, blind packets, scores, verdict, safety record | the caller-named `--work` directory in the owning root; a ceiling file at the caller-named `--ceiling-file` | `tools/lib/classifier/trial.mjs` |
 | A knowledge set's own records: corpus, wiki or extraction, review items, reports | inside the set directory the caller passes as `--set`, at `corpus/`, `wiki/`, `extraction/`, `review/`, and `reports/` as the backend uses them | `knowledge-memory` |
 
+`copy-check` writes nothing and installs nothing: Node built-ins cover it, and every command prints one JSON object.
+
 The gateway's writes (connection store, audit log, empty project-key template) are listed in `gateway/AGENTS.md` and are not restated here.
 
 <!-- generated:index -->
@@ -52,6 +54,7 @@ The gateway's writes (connection store, audit log, empty project-key template) a
 
 | Tool | Description |
 |------|-------------|
+| `copy-check/TOOL.md` | Count and match page copy against a ledger, a fact map, patterns, and a corpus, and return one JSON object |
 | `deck-export/TOOL.md` | Writes a new reveal.js deck project on disk, from a brand template or as a self-contained starter, and renders a finished deck to a PDF or to one PNG per slide |
 | `keynote-render/TOOL.md` | Builds and edits native Keynote decks from JSON or markdown SSOT, with zArchive safety before every in-place mutation |
 

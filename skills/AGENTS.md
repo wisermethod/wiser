@@ -113,6 +113,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 
 | Skill | Description | Owner |
 |-------|-------------|-------|
+| `Profile Page/SKILL.md` | A gated copy package for a single page about one person, every fact on it checked against a claims ledger, stopped for review by that person or their named approver, then handed to whoever builds the page | Ghost Writer |
 | `Proposal Author/SKILL.md` | Build a reusable base proposal through discovery, then generate audience-specific proposals through layered persuasion in the owning root's voice | Ghost Writer |
 | `Speech Writing/SKILL.md` | Write a speech for a given occasion, audience, length, and venue, gated on an approved outline and delivered read-aloud ready in the owning root's bound voice | Ghost Writer |
 | `Transcript Summary/SKILL.md` | Turn a transcript into a summary that leads with analysis and preserves every decision, action item, open question, and nuance the recording carried | Ghost Writer |

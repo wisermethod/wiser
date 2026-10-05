@@ -3,7 +3,7 @@ name: Content Author
 type: skill
 category: authoring
 description: Write or review prose content for human readers in the owning root's bound voice
-version: 0.6.8
+version: 0.7.0
 memory:
   - voice
   - about
@@ -18,7 +18,7 @@ gaps:
 
 ## Context
 
-Use for prose a human reads: an article, a post, an essay, a press release, a media pitch, a statement, an op-ed, a Q&A, a fact sheet, or the prose inside a larger deliverable. Writing it, or reviewing a draft of it. The format table names which of those have a type file.
+Use for prose a human reads: an article, a post, an essay, a press release, a media pitch, a statement, an op-ed, a Q&A, a fact sheet, a page about one person, or the prose inside a larger deliverable. Writing it, or reviewing a draft of it. The format table names which of those have a type file.
 
 Not for a persuasion page or campaign landing page: that is `skills/Marketing Page Design/`. Not for whether a story is worth pitching, or to whom, and not for crisis judgment: no primitive in this root covers either, so name the gap rather than deciding it inside the draft. Not for agent instructions: a Play, a primitive body, or an AGENTS.md router is Play Author's work. Not for execution plans that span sessions; that is Playbook Author. Not for words written to be spoken at a live occasion, a speech, a talk, or speaking notes; that is `skills/Speech Writing/`. A recorded script, for a podcast, a video, or a voice-over, is neither: it is not read silently and it has no occasion to shape it, and no primitive in this root covers it yet, so name the gap rather than forcing the piece into either skill. Not for content whose voice does not exist yet: when the bound `voice` is missing, or the constitution's Workspace Model counts it as unavailable, that is Build Voice, not a voice to improvise.
 
@@ -58,6 +58,7 @@ Both modes also load one content-type file from the table below, the row that ma
 | An op-ed or bylined argument | `op-ed.md` |
 | A written Q&A | `q-and-a.md` |
 | A fact sheet | `fact-sheet.md` |
+| A single page about one person, for the people who will check them | `profile-page.md` |
 
 A web article under 800 words loads `blog-post.md`, the subject named as thin and not padded, when the brief asked for a web article. A web article past 2,000 words whose brief does not name why it runs long loads `long-form.md`. A format no row names is worked from the method alone, and the delivery says so. `openings.md` sits outside that table, so loading it never spends the one slot a row fills: it carries the craft of the line that earns the second one, and loads alongside whichever row applies when the reader arrives cold, with no prior commitment to finish. It does not load when the row owns its opening, when the piece opens on what the document is, or when the reader arrived searching for the document. The six press and public-affairs rows are reviewed by Ghost Writer like every other row. None names a second review expert, because this root carries no news-desk reviewer and no crisis reviewer; a piece needing either judgment ships without it, and that gap is named to the requester rather than read as a voice question.
 

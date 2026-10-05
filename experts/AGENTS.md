@@ -66,6 +66,6 @@ The line starts at the left margin, carries nothing but the paths, backticked an
 
 | Expert | Description | Owns |
 |--------|-------------|------|
-| `Ghost Writer/EXPERT.md` | Judge a prose deliverable as its intended reader; the default review gate before writing ships | `skills/Content Author/`, `skills/Proposal Author/`, `skills/Speech Writing/`, `skills/Create Presentation/`, `skills/Build Concepts/`, `skills/Categorize Content/`, `skills/Transcript Summary/`, `skills/Build Voice/` |
+| `Ghost Writer/EXPERT.md` | Judge a prose deliverable as its intended reader; the default review gate before writing ships | `skills/Content Author/`, `skills/Proposal Author/`, `skills/Speech Writing/`, `skills/Create Presentation/`, `skills/Build Concepts/`, `skills/Categorize Content/`, `skills/Transcript Summary/`, `skills/Build Voice/`, `skills/Profile Page/` |
 
 <!-- /generated:index -->
