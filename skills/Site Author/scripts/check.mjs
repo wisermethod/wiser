@@ -134,8 +134,12 @@ function checkLayout(layout) {
 }
 if (Object.hasOwn(kit, "layout")) checkLayout(kit.layout);
 if (kit.collections === null || typeof kit.collections !== "object" || Array.isArray(kit.collections)) fail("kit.json collections must be an object of true or false values");
-else for (const [name, value] of Object.entries(kit.collections)) {
-  if (typeof value !== "boolean") fail(`kit.json collections.${name} must be true or false`);
+else {
+  for (const [name, value] of Object.entries(kit.collections)) {
+    if (typeof value !== "boolean") fail(`kit.json collections.${name} must be true or false`);
+  }
+  // The kit reads a missing articles key as on, so a site without one has articles nobody chose.
+  if (!Object.hasOwn(kit.collections, "articles")) fail("kit.json collections.articles is missing: set it to true or false, because whether the site has an articles or blog section is the requester's choice");
 }
 const envelopeRouter = fs.existsSync(path.join(envelope, "AGENTS.md")) ? fs.readFileSync(path.join(envelope, "AGENTS.md"), "utf8") : "";
 if (Object.hasOwn(kit, "layout") && !envelopeRouter.includes("`layout`")) fail("kit.json sets layout, but the envelope AGENTS.md does not mention it: refresh its Content vs code section from site-AGENTS.md");

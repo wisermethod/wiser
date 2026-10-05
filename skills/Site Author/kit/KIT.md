@@ -33,13 +33,13 @@ Required at the kit-folder root, the envelope's `site/`. Invoke `check` on the e
 
 `siteUrl` is required at stand-up, no trailing path, no trailing slash. Solve uses `http://127.0.0.1:4321` on the site being fetched so canonical and OG match the preview. `kitVersion` is this contract's version. `check` fails if it disagrees with this file's current version.
 
-`nav` and `footer` are optional site-owned keys, like `domain`, `siteUrl`, and `collections`, and Upgrade preserves them. The template does not set them. Each, when present, is an array of `{ "label": string, "href": string }`: `label` a non-empty string, `href` a string starting with `/` (a site path), `https://`, or `mailto:`. `check` fails a present key that is not that array. A content job may change those two keys and nothing else in `kit.json`. Absent `nav` leaves the header as Home and RSS. Absent `footer` renders no footer.
+`nav` and `footer` are optional site-owned keys, like `domain`, `siteUrl`, and `collections`, and Upgrade preserves them. The template does not set them. Each, when present, is an array of `{ "label": string, "href": string }`: `label` a non-empty string, `href` a string starting with `/` (a site path), `https://`, or `mailto:`. `check` fails a present key that is not that array. A content job may change them; Content vs code below lists every `kit.json` key a content job may change, and `collections.articles` is among them only on the requester's ask. Absent `nav` leaves the header as Home and RSS. Absent `footer` renders no footer.
 
 `siteName`, also optional and site-owned, is a non-empty string naming the site. When set, it is the `WebSite` name in the JSON-LD, the RSS channel title and the `llms.txt` heading; when absent, those use the index page's title, as before.
 
 `layout`, also optional and site-owned, holds the site's layout options; Layout options below defines it. A `nav` item may carry `"style": "button"`, which renders that link as a button-style pill when `layout` is present and is ignored when it is absent; `check` fails any other `style` value.
 
-Every `collections` value is `true` or `false`, and `check` fails any other. `collections.articles` set to `false` turns articles off: no article routes are built even if article files exist, no `rss.xml`, no RSS link in any page's head, `llms.txt` lists no articles, no page lists articles, and the header with no `nav` shows Home only. `check` fails a published article (one without `draft: true`) while articles are off.
+Every `collections` value is `true` or `false`, and `check` fails any other. `collections.articles` must be present: the routes read a missing key as on, so `check` fails a `kit.json` without it rather than give a site articles nobody chose. `collections.articles` set to `false` turns articles off: no article routes are built even if article files exist, no `rss.xml`, no RSS link in any page's head, `llms.txt` lists no articles, no page lists articles, and the header with no `nav` shows Home only. `check` fails a published article (one without `draft: true`) while articles are off.
 
 ## Layout options
 
