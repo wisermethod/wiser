@@ -3,7 +3,7 @@ name: Site Author
 type: skill
 category: web
 description: Stand up, content-edit, check, wrap, and upgrade a kit site envelope in sites/, in a folder named for its domain, or in the sites/ of a work folder when the site dies with that work, with the kit in site/, in an owning root that declares sites/
-version: 0.4.0
+version: 0.4.1
 memory:
   - about
   - design
@@ -136,7 +136,7 @@ node "<this-skill-dir>/scripts/check.mjs" "<envelope-folder>"
 
 Step 6 in `KIT.md` is a fetch after preview: `/`, one article route without a trailing slash when articles are enabled, sitemap, RSS when articles are enabled, `/llms.txt`, `/robots.txt`, and exactly one `<h1>` on the homepage. Canonical and `og:url` use that site's `site/kit.json` `siteUrl`.
 
-A failed Check is not permission to replace the tree. Where it prints `check PASS` and exits 0, continue. Where it prints FAIL, throws, exits nonzero, or prints nothing, stop with its diagnostic. Repair or Upgrade a current envelope; a repair fixes only the named failure. Do not stand up over it.
+A failed Check is not permission to replace the tree. Where it prints `check PASS` and exits 0, continue. Where it prints FAIL, throws, exits nonzero, or prints nothing, stop with its diagnostic. Repair or Upgrade a current envelope; a repair fixes only the named failure. Do not stand up over it. A site behind this kit's `kitVersion` fails and is told to run Upgrade; a content release that cannot wait for Upgrade is checked with the `check.mjs` of the plugin release that matches the site's `kitVersion`, where that release is at hand, and otherwise waits.
 
 ### 4. Wrap
 
@@ -156,9 +156,9 @@ Foreign, already wrapped, or colliding `site/` folders are refused. Content and 
 node "<this-skill-dir>/scripts/upgrade.mjs" --site "<envelope-folder>" --kit "<this-skill-dir>/kit"
 ```
 
-The script archives each replaced kit-owned file first, per `standards/conventions.md`, then copies kit code. It requires `site/kit.json`, names Wrap for the old shape, and refuses foreign folders or a nested `.git`. Envelope `AGENTS.md`, memory, `builds.md`, and Playbooks are outside Upgrade. It does not merge `site/src/content/`, `site/public/images/` or `site/public/fonts/`. It does not copy `kit.json` wholesale; `domain`, `siteUrl`, `collections`, `nav`, `footer`, `siteName` and `layout` stay the site's. It takes a site at `kitVersion` 0.1.0 or 0.2.0 to 0.2.0 and changes none of its pages until the site sets an option. It keeps `site/src/styles/tokens.css` up to the first `@layer base`, the font slots and `@theme` block, and replaces the kit layers after it; where that file has no `@layer base` it replaces the whole file and says so, and the site reapplies its token update.
+The script archives each replaced kit-owned file first, per `standards/conventions.md`, then copies kit code. It requires `site/kit.json`, names Wrap for the old shape, and refuses foreign folders or a nested `.git`. Envelope `AGENTS.md`, memory, `builds.md`, and Playbooks are outside Upgrade. It does not merge `site/src/content/`, `site/public/images/` or `site/public/fonts/`. It does not copy `kit.json` wholesale; `domain`, `siteUrl`, `collections`, `nav`, `footer`, `siteName` and `layout` stay the site's. It takes a site at `kitVersion` 0.1.0, 0.2.0 or 0.2.1 to 0.2.1 and changes none of its pages until the site sets an option. It keeps `site/src/styles/tokens.css` up to the first `@layer base`, the font slots and `@theme` block, and replaces the kit layers after it; where that file has no `@layer base` it replaces the whole file and says so, and the site reapplies its token update.
 
-An envelope `AGENTS.md` written before `kit.json` gained `nav` and `footer`, or before 0.2.0 gained `layout` and `collections.articles`, refuses keys a content job may now change. Refresh its Content vs code section from `site-AGENTS.md`, archiving the old router first. Check fails a site whose `kit.json` sets `nav` or `footer` while its layout predates them, sets `layout` while its router does not name it, or turns articles off while its router does not name `collections.articles`.
+An envelope `AGENTS.md` written before `kit.json` gained `nav` and `footer`, or before 0.2.0 gained `layout` and `collections.articles`, refuses keys a content job may now change. Refresh its Content vs code section from `site-AGENTS.md`, archiving the old router first. Upgrade never writes the router; it says so when the router's frontmatter names another `kitVersion`, and the refresh sets that line to the new version too. Check fails a site whose `kit.json` sets `nav` or `footer` while its layout predates them, sets `layout` while its router does not name it, or turns articles off while its router does not name `collections.articles`.
 
 Run Check after Upgrade. Gate: Webmaster Job 3 before the requester publishes.
 

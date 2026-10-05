@@ -35,7 +35,7 @@ try {
   kit = {};
 }
 
-if (kit.kitVersion !== "0.2.0") fail(`kitVersion ${kit.kitVersion} does not match KIT.md 0.2.0: run Upgrade`);
+if (kit.kitVersion !== "0.2.1") fail(`kitVersion ${kit.kitVersion} does not match KIT.md 0.2.1: run Upgrade`);
 
 function hrefProblem(href) {
   if (typeof href !== "string" || href === "") return "must be a non-empty string";

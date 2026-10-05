@@ -25,7 +25,7 @@ let site;
 try { site = currentKit(envelope); } catch (error) { fail(error.message); }
 if (!fs.existsSync(path.join(kit, "KIT.md")) || !fs.existsSync(path.join(kit, "package.json"))) fail("kit missing KIT.md or package.json");
 const template = JSON.parse(fs.readFileSync(path.join(kit, "kit.json"), "utf8"));
-if (template.kitVersion !== "0.2.0") fail(`unsupported kitVersion ${template.kitVersion}`);
+if (template.kitVersion !== "0.2.1") fail(`unsupported kitVersion ${template.kitVersion}`);
 
 // Read and split the kit stylesheet before anything is replaced, so a kit that cannot be spliced stops Upgrade with the site untouched.
 const kitTokensPath = path.join(kit, "src/styles/tokens.css");
@@ -35,7 +35,7 @@ const kitTokensEarly = fs.readFileSync(kitTokensPath, "utf8");
 const skipTop = new Set(["node_modules", "dist", ".astro", ".git", "src", "public", "kit.json", "site-AGENTS.md", "AGENTS.md", "memory", "builds.md", "zArchive"]);
 const preserved = new Set();
 const originalKit = JSON.parse(fs.readFileSync(path.join(site, "kit.json"), "utf8"));
-if (originalKit.kitVersion !== "0.1.0" && originalKit.kitVersion !== "0.2.0") fail(`unsupported kitVersion ${originalKit.kitVersion}`);
+if (!["0.1.0", "0.2.0", "0.2.1"].includes(originalKit.kitVersion)) fail(`unsupported kitVersion ${originalKit.kitVersion}`);
 
 function archivePath(filePath) {
   const dir = path.dirname(filePath);
@@ -178,3 +178,13 @@ if (fs.readFileSync(configPath, "utf8") !== updated) {
 
 console.log(`upgrade: applied kit ${template.kitVersion} onto ${site}`);
 console.log("upgrade: left src/content, public/images and public/fonts untouched");
+
+// The envelope router is outside Upgrade; say so when its frontmatter still names another kitVersion.
+const routerPath = path.join(envelope, "AGENTS.md");
+if (fs.existsSync(routerPath) && fs.statSync(routerPath).isFile()) {
+  const front = /^---\r?\n([\s\S]*?)\r?\n---/.exec(fs.readFileSync(routerPath, "utf8"));
+  const routerVersion = front && /^kitVersion:[ \t]*["']?([^"'\s]+)["']?[ \t]*$/m.exec(front[1]);
+  if (!routerVersion || routerVersion[1] !== template.kitVersion) {
+    console.log(`upgrade: the envelope AGENTS.md was not touched; set its kitVersion to ${template.kitVersion} and refresh its Content vs code section from site-AGENTS.md`);
+  }
+}

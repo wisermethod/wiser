@@ -107,7 +107,7 @@ try {
     };
     layout = { width: values.width ?? 'narrow', sections: values.sections ?? 'column', header };
   }
-  const config = { kitVersion: '0.2.0', domain, siteUrl, collections: { pages: true, articles: articlesMode !== 'none', authors: true, sections: values.magazine, issues: values.magazine } };
+  const config = { kitVersion: '0.2.1', domain, siteUrl, collections: { pages: true, articles: articlesMode !== 'none', authors: true, sections: values.magazine, issues: values.magazine } };
   if (values['site-name']) config.siteName = values['site-name'];
   if (layout) config.layout = layout;
   if (articlesMode === 'page' || articlesMode === 'both') {

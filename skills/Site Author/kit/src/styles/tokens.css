@@ -30,13 +30,13 @@
   --sticky-offset: 5.5rem;
   --nav-button-background: var(--color-ink);
   --nav-button-ink: var(--color-paper);
-  --player-surface: var(--color-paper);
-  --player-ink: var(--color-ink);
-  --player-member: var(--color-link);
-  --player-member-ink: var(--color-paper);
-  --player-assistant: color-mix(in srgb, var(--color-ink) 8%, var(--color-paper));
-  --player-chrome: color-mix(in srgb, var(--color-ink) 12%, var(--color-paper));
-  --player-folder: color-mix(in srgb, var(--color-ink) 6%, var(--color-paper));
+  --player-surface: #ffffff;
+  --player-ink: #1f2328;
+  --player-member: #1f2328;
+  --player-member-ink: #ffffff;
+  --player-assistant: #efefec;
+  --player-chrome: #e6e6e3;
+  --player-folder: #f5f5f3;
   --player-radius: 0.75rem;
   --player-height: 22rem;
   --player-width: 52rem;
@@ -81,6 +81,15 @@
   main.prose h2, main.prose h3 { font-family: var(--font-heading, var(--font-serif)); color: var(--color-heading, var(--color-ink)); }
   main.prose small { color: var(--color-meta, var(--color-ink)); }
   main.prose { font-weight: var(--text-prose-weight, normal); }
+  /* 1.75 is the typography plugin's own leading for .prose, so a site that sets no --prose-leading renders as before. */
+  main.prose { line-height: var(--prose-leading, 1.75); }
+}
+
+/* The reading width, resolved once where it is set rather than in each element that reads it. An unregistered 65ch resolves against each element's own font, so a heading's line ran far wider than a paragraph's. */
+@property --reading-width {
+  syntax: "<length-percentage>";
+  inherits: true;
+  initial-value: 100%;
 }
 
 /* Opt-in layout. Every selector needs [data-kit-layout], which a 0.1.0 page does not emit. Token reads stay in this file, each with a fallback, because a site's own @theme block is kept across Upgrade and Tailwind drops a theme variable nothing here reads. */
@@ -135,6 +144,20 @@
   [data-kit-layout]:has(> header[data-sticky]) > .skip-link:focus {
     z-index: 30;
   }
+  [data-kit-layout] > .skip-link:focus {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    box-sizing: border-box;
+    padding: 0.5rem 0.75rem;
+  }
+  /* A kit-made article list carries the 44px target the header and footer links have. */
+  main > section.article-list > ul > li > a,
+  [data-kit-layout] > main > section[aria-label="Articles"] > ul > li > a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
   [data-kit-layout] nav a[data-style="button"] {
     background: var(--nav-button-background, var(--color-ink));
     color: var(--nav-button-ink, var(--color-paper));
@@ -142,7 +165,18 @@
     padding-inline: 0.9rem;
     text-decoration: none;
   }
+  @media (hover: hover) {
+    [data-kit-layout] nav a[data-style="button"]:hover {
+      box-shadow: inset 0 0 0 2px var(--nav-button-hover-ring, var(--nav-button-ink, var(--color-paper)));
+    }
+  }
+  [data-kit-layout] nav a[data-style="button"]:active {
+    background: var(--nav-button-active-background, var(--nav-button-ink, var(--color-paper)));
+    color: var(--nav-button-active-ink, var(--nav-button-background, var(--color-ink)));
+    box-shadow: inset 0 0 0 2px var(--nav-button-background, var(--color-ink));
+  }
   [data-kit-layout] .site-nav-menu { display: none; }
+  [data-kit-layout] .site-nav-actions { display: none; }
   [data-kit-layout] .site-nav-menu > summary {
     display: inline-flex;
     align-items: center;
@@ -175,8 +209,19 @@
     padding-inline: var(--spacing-gutter, clamp(1rem, 4vw, 2.5rem));
     box-sizing: border-box;
   }
+  /* A wide page keeps one reading column: every block outside a section, the layout's own h1 included, and the running text inside a section, centred at the reading width. A section is what spans the page. */
+  [data-kit-layout][data-width="wide"] > main {
+    --reading-width: var(--measure, 65ch);
+  }
+  [data-kit-layout][data-width="wide"][data-sections="column"] > main > :not(section),
+  [data-kit-layout][data-width="wide"] > main > section:not(.not-prose) > :is(p, ul, ol, dl, h1, h2, h3, h4, h5, h6, blockquote, pre, hr, table):not(.not-prose) {
+    max-width: var(--reading-width, 65ch);
+    margin-inline: auto;
+  }
+  /* With bands, main has no inline padding, so the column keeps the gutter by its width. A list's or quote's own indent is the typography plugin's, in a later layer, and stays. */
   [data-kit-layout][data-width="wide"][data-sections="bands"] > main > :not(section) {
-    max-width: var(--page-width, 80rem);
+    max-width: min(var(--reading-width, 65ch), 100% - 2 * var(--spacing-gutter, clamp(1rem, 4vw, 2.5rem)));
+    padding-inline: 0;
   }
   [data-kit-layout][data-sections="bands"] > main > :first-child:not(section) {
     margin-top: var(--spacing-section, 3rem);
@@ -189,6 +234,7 @@
 @media (max-width: 47.999rem) {
   [data-kit-layout] .site-nav-inline { display: none; }
   [data-kit-layout] .site-nav-menu { display: block; }
+  [data-kit-layout] .site-nav-actions { display: flex; }
 }
 
 /* The typography plugin sets max-width: 65ch on .prose in this layer, which outranks the base rule. Wide and band pages override it here. */
@@ -198,13 +244,6 @@
   }
   [data-kit-layout][data-sections="bands"] > main.prose {
     max-width: none;
-  }
-  [data-kit-layout][data-width="wide"] > main.prose > :is(p, ul, ol, dl, h1, h2, h3, h4, h5, h6, blockquote, pre, hr, table):not(.not-prose),
-  [data-kit-layout][data-width="wide"] > main.prose > section:not(.not-prose) > :is(p, ul, ol, dl, h1, h2, h3, h4, h5, h6, blockquote, pre, hr, table):not(.not-prose) {
-    max-width: var(--measure, 65ch);
-    width: auto;
-    padding-inline: 0;
-    margin-inline: auto;
   }
 }
 
@@ -219,16 +258,16 @@
     line-height: 1.5;
   }
   .conversation-player .conversation-window {
-    background: var(--player-surface, var(--color-paper));
-    color: var(--player-ink, var(--color-ink));
-    border: 1px solid var(--player-chrome, color-mix(in srgb, var(--color-ink) 18%, var(--color-paper)));
+    background: var(--player-surface, #ffffff);
+    color: var(--player-ink, #1f2328);
+    border: 1px solid var(--player-chrome, #e6e6e3);
     border-radius: var(--player-radius, 0.75rem);
     overflow: hidden;
     max-width: 100%;
   }
   .conversation-player .conversation-titlebar {
-    background: var(--player-chrome, color-mix(in srgb, var(--color-ink) 12%, var(--color-paper)));
-    color: var(--player-ink, var(--color-ink));
+    background: var(--player-chrome, #e6e6e3);
+    color: var(--player-ink, #1f2328);
     min-height: 2.5rem;
     display: flex;
     align-items: center;
@@ -250,8 +289,8 @@
     width: 13rem;
     flex: none;
     min-width: 0;
-    background: var(--player-folder, color-mix(in srgb, var(--color-ink) 6%, var(--color-paper)));
-    color: var(--player-ink, var(--color-ink));
+    background: var(--player-folder, #f5f5f3);
+    color: var(--player-ink, #1f2328);
     padding: 0.75rem;
   }
   .conversation-player .conversation-folder-heading {
@@ -268,7 +307,7 @@
   .conversation-player .conversation-caption {
     margin: 0 0 0.5rem;
     font-size: 0.8125rem;
-    color: var(--player-ink, var(--color-ink));
+    color: var(--player-ink, #1f2328);
   }
   .conversation-player .conversation-line {
     margin: 0.4rem 0;
@@ -279,19 +318,19 @@
   }
   .conversation-player .conversation-line[data-from="member"] {
     margin-left: auto;
-    background: var(--player-member, var(--color-link));
-    color: var(--player-member-ink, var(--color-paper));
+    background: var(--player-member, #1f2328);
+    color: var(--player-member-ink, #ffffff);
   }
   .conversation-player .conversation-line[data-from="assistant"] {
-    background: var(--player-assistant, color-mix(in srgb, var(--color-ink) 8%, var(--color-paper)));
-    color: var(--player-ink, var(--color-ink));
+    background: var(--player-assistant, #efefec);
+    color: var(--player-ink, #1f2328);
   }
   .conversation-player .conversation-line[data-from="status"] {
     max-width: none;
     padding-inline: 0;
     background: transparent;
     font-size: 0.8125rem;
-    color: color-mix(in srgb, var(--player-ink, var(--color-ink)) 80%, var(--player-surface, var(--color-paper)));
+    color: color-mix(in srgb, var(--player-ink, #1f2328) 80%, var(--player-surface, #ffffff));
   }
   .conversation-player .conversation-speaker {
     display: block;
@@ -306,13 +345,13 @@
     padding: 0.55rem 0.7rem;
     max-width: 4.5rem;
     border-radius: 0.5rem;
-    background: var(--player-assistant, color-mix(in srgb, var(--color-ink) 8%, var(--color-paper)));
+    background: var(--player-assistant, #efefec);
   }
   .conversation-player .conversation-typing span {
     width: 0.4rem;
     height: 0.4rem;
     border-radius: 999px;
-    background: var(--player-ink, var(--color-ink));
+    background: var(--player-ink, #1f2328);
   }
   .conversation-player .conversation-file-folder,
   .conversation-player .conversation-saved .conversation-file-folder {
@@ -323,18 +362,18 @@
     overflow-wrap: anywhere;
   }
   .conversation-player .conversation-file.is-new {
-    background: var(--player-member, var(--color-link));
-    color: var(--player-member-ink, var(--color-paper));
+    background: var(--player-member, #1f2328);
+    color: var(--player-member-ink, #ffffff);
     border-radius: 0.35rem;
     padding-inline: 0.35rem;
   }
   .conversation-player .conversation-notice {
     margin: 0.5rem 0.75rem 0.75rem;
     padding: 0.6rem 0.75rem;
-    border: 1px solid var(--player-chrome, color-mix(in srgb, var(--color-ink) 18%, var(--color-paper)));
+    border: 1px solid var(--player-chrome, #e6e6e3);
     border-radius: var(--player-radius, 0.75rem);
-    background: var(--player-surface, var(--color-paper));
-    color: var(--player-ink, var(--color-ink));
+    background: var(--player-surface, #ffffff);
+    color: var(--player-ink, #1f2328);
   }
   .conversation-player .conversation-notice-title {
     margin: 0 0 0.25rem;
@@ -380,10 +419,24 @@
     min-width: 44px;
     padding-inline: 1rem;
     font: inherit;
-    color: var(--player-ink, var(--color-ink));
-    background: var(--player-chrome, color-mix(in srgb, var(--color-ink) 12%, var(--color-paper)));
-    border: 1px solid var(--player-chrome, color-mix(in srgb, var(--color-ink) 18%, var(--color-paper)));
+    color: var(--player-ink, #1f2328);
+    background: var(--player-chrome, #e6e6e3);
+    border: 1px solid var(--player-chrome, #e6e6e3);
     border-radius: var(--player-radius, 0.75rem);
+  }
+  /* Drawn on the button's own surface, so the ring shows whatever ground the player sits on. */
+  .conversation-player .conversation-controls button:focus-visible {
+    outline: 2px solid var(--player-focus, var(--player-ink, #1f2328));
+    outline-offset: -5px;
+  }
+  @media (hover: hover) {
+    .conversation-player .conversation-controls button:hover {
+      box-shadow: inset 0 0 0 2px var(--player-button-hover-ring, var(--player-ink, #1f2328));
+    }
+  }
+  .conversation-player .conversation-controls button:active {
+    background: var(--player-button-active-background, var(--player-ink, #1f2328));
+    color: var(--player-button-active-ink, var(--player-chrome, #e6e6e3));
   }
   @media (max-width: 47.999rem) {
     .conversation-player .conversation-body { flex-direction: column; }
