@@ -45,11 +45,16 @@ function archivePath(filePath) {
   const mm = String(now.getMonth() + 1).padStart(2, "0");
   const dd = String(now.getDate()).padStart(2, "0");
   const prefix = `${yy}-${mm}-${dd}`;
-  // Beside the file, except under src/: a zArchive there is inside Astro's source tree (src/pages/zArchive becomes routes), so it mirrors into site/zArchive/src/.
-  const srcRoot = path.join(site, "src");
-  const relToSrc = path.relative(srcRoot, dir);
-  const underSrc = relToSrc === "" || (!relToSrc.startsWith("..") && !path.isAbsolute(relToSrc));
-  const archiveDir = underSrc ? path.join(site, "zArchive", "src", relToSrc) : path.join(dir, "zArchive");
+  // Beside the file, except under src/ and public/: a zArchive inside src/ is in Astro's source tree (src/pages/zArchive becomes routes), and one inside public/ is copied into dist/ and published, so each mirrors into site/zArchive/src/ or site/zArchive/public/.
+  const inside = (root) => {
+    const rel = path.relative(root, dir);
+    return rel === "" || (rel !== ".." && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel)) ? rel : null;
+  };
+  const relToSrc = inside(path.join(site, "src"));
+  const relToPublic = inside(path.join(site, "public"));
+  const archiveDir = relToSrc !== null ? path.join(site, "zArchive", "src", relToSrc)
+    : relToPublic !== null ? path.join(site, "zArchive", "public", relToPublic)
+    : path.join(dir, "zArchive");
   fs.mkdirSync(archiveDir, { recursive: true });
   let n = 1;
   let dest;
@@ -89,6 +94,11 @@ function copyTree(from, to, { preserveContentImages = false } = {}) {
       continue;
     }
     if (preserveContentImages && name === "fonts" && path.basename(from) === "public") {
+      preserved.add(out);
+      continue;
+    }
+    // A site's redirect rows are its own, written by content jobs; the kit's file only seeds a site that has none.
+    if (preserveContentImages && name === "_redirects" && path.basename(from) === "public" && fs.existsSync(out)) {
       preserved.add(out);
       continue;
     }

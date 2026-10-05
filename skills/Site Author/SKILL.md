@@ -24,7 +24,7 @@ Not for judging findability, broken URLs, or publish safety; that is `experts/We
 
 ## Objective
 
-One kit site envelope at its named parent that `check` accepts, whose content jobs stayed on content paths, and whose upgrades archived kit-owned files then left `site/src/content/`, `site/public/images/` and `site/public/fonts/` byte-identical. Verified by the Success criteria at the close.
+One kit site envelope at its named parent that `check` accepts, whose content jobs stayed on content paths, and whose upgrades archived kit-owned files then left `site/src/content/`, `site/public/images/`, `site/public/fonts/` and `site/public/_redirects` byte-identical. Verified by the Success criteria at the close.
 
 ## Inputs
 
@@ -156,7 +156,7 @@ Foreign, already wrapped, or colliding `site/` folders are refused. Content and 
 node "<this-skill-dir>/scripts/upgrade.mjs" --site "<envelope-folder>" --kit "<this-skill-dir>/kit"
 ```
 
-The script archives each replaced kit-owned file first, per `standards/conventions.md`, then copies kit code. It requires `site/kit.json`, names Wrap for the old shape, and refuses foreign folders or a nested `.git`. Envelope `AGENTS.md`, memory, `builds.md`, and Playbooks are outside Upgrade. It does not merge `site/src/content/`, `site/public/images/` or `site/public/fonts/`. It does not copy `kit.json` wholesale; `domain`, `siteUrl`, `collections`, `nav`, `footer`, `siteName` and `layout` stay the site's. It takes a site at `kitVersion` 0.1.0, 0.2.0 or 0.2.1 to 0.2.1 and changes none of its pages until the site sets an option. It keeps `site/src/styles/tokens.css` up to the first `@layer base`, the font slots and `@theme` block, and replaces the kit layers after it; where that file has no `@layer base` it replaces the whole file and says so, and the site reapplies its token update.
+The script archives each replaced kit-owned file first, per `standards/conventions.md`, then copies kit code. It requires `site/kit.json`, names Wrap for the old shape, and refuses foreign folders or a nested `.git`. Envelope `AGENTS.md`, memory, `builds.md`, and Playbooks are outside Upgrade. It does not merge `site/src/content/`, `site/public/images/` or `site/public/fonts/`, and it keeps `site/public/_redirects`, whose rows are the site's, writing the kit's file only where a site has none. It does not copy `kit.json` wholesale; `domain`, `siteUrl`, `collections`, `nav`, `footer`, `siteName` and `layout` stay the site's. It takes a site at `kitVersion` 0.1.0, 0.2.0 or 0.2.1 to 0.2.1 and changes none of its pages until the site sets an option. It keeps `site/src/styles/tokens.css` up to the first `@layer base`, the font slots and `@theme` block, and replaces the kit layers after it; where that file has no `@layer base` it replaces the whole file and says so, and the site reapplies its token update.
 
 An envelope `AGENTS.md` written before `kit.json` gained `nav` and `footer`, or before 0.2.0 gained `layout` and `collections.articles`, refuses keys a content job may now change. Refresh its Content vs code section from `site-AGENTS.md`, archiving the old router first. Upgrade never writes the router; it says so when the router's frontmatter names another `kitVersion`, and the refresh sets that line to the new version too. Check fails a site whose `kit.json` sets `nav` or `footer` while its layout predates them, sets `layout` while its router does not name it, or turns articles off while its router does not name `collections.articles`.
 
@@ -174,7 +174,7 @@ Run Check after Upgrade. Gate: Webmaster Job 3 before the requester publishes.
 - **The undeclared root.** Creating `sites/` because the requester asked for a site invents a top-level folder. Ask them to declare the row, or stop. The script already refuses; do not go around it.
 - **The foreign folder.** A live WordPress or Webflow tree with neither kit marker is Job 1 of Webmaster to audit and not this skill to replace. Leave it untouched.
 - **The slashed article URL.** Fetching `/articles/hello/` against `trailingSlash: 'never'` 404s. Fetch `/articles/hello`.
-- **Upgrade skipped archive, or treated as a content merge.** The script archives; do not copy over it by hand. `site/src/content/`, `site/public/images/` and `site/public/fonts/` stay byte-identical. The palette survives in `site/src/styles/tokens.css` above its first `@layer base`; a rule written below that line is kit code and Upgrade replaces it.
+- **Upgrade skipped archive, or treated as a content merge.** The script archives; do not copy over it by hand. `site/src/content/`, `site/public/images/`, `site/public/fonts/` and `site/public/_redirects` stay byte-identical. The palette survives in `site/src/styles/tokens.css` above its first `@layer base`; a rule written below that line is kit code and Upgrade replaces it.
 - **The fixed shape.** Running Stand up without putting the choices to the requester builds the 0.1.0 shape, articles included, whatever the site is for. Offer the choices first.
 - **Code-path creep.** A component, an Astro config tweak, or a `site/package.json` bump "while we are in there" is the content-vs-code failure. Refuse.
 - **The nested repo.** `git init` inside `sites/<domain>/` of a parent that already has `.git` is the synced-volume failure. A site with no git is complete.
@@ -190,7 +190,7 @@ Run Check after Upgrade. Gate: Webmaster Job 3 before the requester publishes.
 - Stand-up or Wrap copied missing available memory, asked what changes, and preserved unanswered copies. The envelope was not onboarded as a root. Wrap preserved content and images under `site/`.
 - `check` printed PASS for steps 1 to 5, and step 6's served HTML carried the required SEO slots at that site's `siteUrl`.
 - Content jobs changed only allowed paths. Refused paths were not written.
-- Upgrade archived kit-owned files it replaced and left `site/src/content/`, `site/public/images/` and `site/public/fonts/` byte-identical to the pre-upgrade tree, and the font slots and `@theme` block of `site/src/styles/tokens.css` unchanged where that file had a `@layer base`.
+- Upgrade archived kit-owned files it replaced and left `site/src/content/`, `site/public/images/`, `site/public/fonts/` and `site/public/_redirects` byte-identical to the pre-upgrade tree, and the font slots and `@theme` block of `site/src/styles/tokens.css` unchanged where that file had a `@layer base`.
 - No `git init` ran. Neither the envelope nor owning root was connected to a host. No DNS or host API was called.
 - Stand-up, Wrap, and Upgrade were handed to `experts/Webmaster/` Job 3 before publish, or the requester has not asked to publish yet. A new URL, slug change, or redirect took that same gate. Check had no gate.
 - Copy written here rather than filed from Content Author ran with `voice` bound and available, or the run stopped.
