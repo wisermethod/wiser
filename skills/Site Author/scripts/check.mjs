@@ -7,8 +7,8 @@ import path from "node:path";
 
 import { currentKit } from "./envelope.mjs";
 
-const CHECK_VERSION = "0.4.0";
-const KNOWN_VERSIONS = ["0.1.0", "0.2.0", "0.2.1", "0.2.2", "0.3.0", "0.4.0"];
+const CHECK_VERSION = "0.4.1";
+const KNOWN_VERSIONS = ["0.1.0", "0.2.0", "0.2.1", "0.2.2", "0.3.0", "0.4.0", "0.4.1"];
 // feature, version introduced. A later release adds a row.
 const introduced = [
   { feature: "layout", version: "0.2.0" },
@@ -28,6 +28,7 @@ const introduced = [
   { feature: "Video", version: "0.4.0" },
   { feature: "Faq", version: "0.4.0" },
   { feature: "person", version: "0.4.0" },
+  { feature: "src/content/llms.txt", version: "0.4.1" },
 ];
 
 const args = process.argv.slice(2);
@@ -249,6 +250,9 @@ function publishedPage(id) {
     return !fm || fm.draft !== "true";
   });
 }
+// A site's own llms.txt is src/content/llms.txt, which the kit's /llms.txt route serves; a public/llms.txt would collide with that route, and the build would skip one of them.
+if (fs.existsSync(path.join(site, "public", "llms.txt"))) fail("public/llms.txt collides with the kit's /llms.txt route: move the site's own file to src/content/llms.txt, which the route serves as written");
+if (fs.existsSync(path.join(site, "src", "content", "llms.txt"))) tooOld("src/content/llms.txt", "src/content/llms.txt");
 if (Object.hasOwn(kit, "person")) {
   tooOld("person", "kit.json person");
   if (!envelopeRouter.includes("`person`")) fail("kit.json sets person, but the envelope AGENTS.md does not mention it: refresh its Content vs code section from site-AGENTS.md");
@@ -1635,6 +1639,13 @@ if (built) {
   let distDir = false;
   try { distDir = fs.existsSync(dist) && fs.statSync(dist).isDirectory(); } catch { distDir = false; }
   const pages = distDir ? listHtml(dist, []) : [];
+  if (distDir && pages.length > 0) {
+    const own = path.join(site, "src", "content", "llms.txt");
+    const builtLlms = path.join(dist, "llms.txt");
+    if (fs.existsSync(own)) {
+      if (!fs.existsSync(builtLlms) || !fs.readFileSync(builtLlms).equals(fs.readFileSync(own))) fail("dist/llms.txt is not the site's own src/content/llms.txt, byte for byte: rebuild, and keep no public/llms.txt");
+    } else if (!fs.existsSync(builtLlms)) fail("dist/llms.txt is missing: the kit's /llms.txt route did not build");
+  }
   if (distDir && pages.length > 0 && isObject(kit.person)) {
     const profile = path.join(dist, `${typeof kit.person.page === "string" ? kit.person.page : "index"}.html`);
     if (!pages.some((page) => page.file === profile)) fail(`kit.json person.page names ${path.relative(site, profile)}, which the build did not write; a page's slug frontmatter may have moved it`);
@@ -1697,6 +1708,10 @@ if (built) {
         if (page.file === profile && !types.some((t) => t.type === "ProfilePage" && t.main === personId)) fail(`${shown}: the profile page carries no ProfilePage whose mainEntity is ${personId}`);
       }
       for (const finding of accessibilityFindings(html)) fail(`${shown}: ${finding}`);
+      // A header or navigation landmark with nothing in it is a blank strip that a screen reader still announces.
+      const liveMarkup = html.replace(/<!--[\s\S]*?-->/g, "").replace(/<template\b[\s\S]*?<\/template\s*>/gi, "");
+      if (/<nav\b[^>]*>\s*<\/nav\s*>/i.test(liveMarkup)) fail(`${shown}: an empty <nav>, a navigation landmark with no links`);
+      if (/<header\b[^>]*>\s*<\/header\s*>/i.test(liveMarkup)) fail(`${shown}: an empty <header>`);
       // A built page loads scripts and stylesheets from this site only, whatever wrote the tag.
       for (const tag of html.match(/<(?:script|link)\b[^>]*>/gi) ?? []) {
         const isLink = /^<link/i.test(tag);

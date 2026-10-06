@@ -18,7 +18,7 @@ Required at the kit-folder root, the envelope's `site/`. Invoke `check` on the e
 
 ```json
 {
-  "kitVersion": "0.4.0",
+  "kitVersion": "0.4.1",
   "domain": "example-a.test",
   "siteUrl": "http://127.0.0.1:4321",
   "collections": {
@@ -33,7 +33,7 @@ Required at the kit-folder root, the envelope's `site/`. Invoke `check` on the e
 
 `siteUrl` is required at stand-up, no trailing path, no trailing slash. Solve uses `http://127.0.0.1:4321` on the site being fetched so canonical and OG match the preview. `kitVersion` is this contract's version. Which values `check` accepts, and what an earlier site fails for, is Replication, check, upgrade.
 
-`nav` and `footer` are optional site-owned keys, like `domain`, `siteUrl`, and `collections`, and Upgrade preserves them. The template does not set them. Each, when present, is an array of `{ "label": string, "href": string }`: `label` a non-empty string, `href` a string starting with `/` (a site path), `https://`, or `mailto:`. `check` fails a present key that is not that array. A content job may change them; Content vs code below lists every `kit.json` key a content job may change, and `collections.articles` is among them only on the requester's ask. Absent `nav` leaves the header as Home and RSS. Absent `footer` renders no footer.
+`nav` and `footer` are optional site-owned keys, like `domain`, `siteUrl`, and `collections`, and Upgrade preserves them. The template does not set them. Each, when present, is an array of `{ "label": string, "href": string }`: `label` a non-empty string, `href` a string starting with `/` (a site path), `https://`, or `mailto:`. `check` fails a present key that is not that array. A content job may change them; Content vs code below lists every `kit.json` key a content job may change, and `collections.articles` is among them only on the requester's ask. Absent `nav` leaves the header as Home and RSS. `nav` set to an empty list, `[]`, gives no navigation: no `<nav>`, and no `<header>` at all unless the site's layout shows a brand, so a site that wants no top links carries no blank strip and no empty landmark; `check --built` fails an empty `<nav>` or `<header>` on any built page. Absent `footer` renders no footer.
 
 `siteName`, also optional and site-owned, is a non-empty string naming the site. When set, it is the `WebSite` name in the JSON-LD, the RSS channel title and the `llms.txt` heading; when absent, those use the index page's title, as before.
 
@@ -247,7 +247,7 @@ Stand-up fails `check` without every row.
 | JSON-LD | WebSite + Organization on every page (Organization facts from bound `about` or omitted and labelled, never invented); Article on article routes; Event on event routes |
 | One `h1` | the page title, printed by the layout; or the page's own when it sets `showTitle: false`, which `check` holds to exactly one |
 | `robots.txt` | emitted at `/robots.txt` from `kit.json` `siteUrl` (not a static `public/` file) |
-| `llms.txt` | emitted at `/llms.txt`, canonical pages, published articles and published events, URLs from `kit.json` `siteUrl`. Tag pages are not listed |
+| `llms.txt` | emitted at `/llms.txt`, canonical pages, published articles and published events, URLs from `kit.json` `siteUrl`. Tag pages are not listed. A site's own file is `src/content/llms.txt`, which the same route serves byte for byte in place of the generated one; `public/llms.txt` collides with the route and fails `check`, and `check --built` confirms `dist/llms.txt` is the site's own file when it has one |
 | Sitemap | Astro sitemap integration, drafts excluded |
 | RSS | articles collection; omitted by `check` only when articles are disabled |
 | Redirects | `public/_redirects`; a published slug is not deleted without a row |
@@ -263,7 +263,7 @@ A missing description in frontmatter fails `check` rather than shipping an empty
 |---|---|---|
 | `src/content/**` | `src/custom/**`, site code: filed only by Site Author's File site code job after the Creative Director's gate, never by a content job. Upgrade keeps it byte-identical | `src/components/**`, `src/layouts/**`, `src/pages/**` (routes) |
 | `public/images/**` | | `astro.config.mjs`, `package.json`, `package-lock.json` |
-| `public/llms.txt` when SEO Assets writes it | | `src/styles/**`, except `src/styles/tokens.css` when `skills/Designer/` has already gated that token update. Any other write under `src/styles/**` is refused |
+| `src/content/llms.txt` when SEO Assets writes it | | `src/styles/**`, except `src/styles/tokens.css` when `skills/Designer/` has already gated that token update. Any other write under `src/styles/**` is refused |
 | `public/fonts/**` only within a Designer-gated token update | | `.github/**`, `KIT.md` copies |
 | `kit.json` keys `nav`, `footer`, `siteName` and `layout`, `blog` and `person` on the requester's ask, and `articles` inside `collections`, only | | any other key in `kit.json` |
 

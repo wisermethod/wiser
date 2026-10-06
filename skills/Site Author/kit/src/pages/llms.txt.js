@@ -6,7 +6,11 @@ function pageUrl(id) {
   return `${kit.siteUrl}/${id}`;
 }
 
+// A site's own llms.txt is src/content/llms.txt, served here byte for byte. This route stays the one producer of /llms.txt, so nothing collides with it.
+const ownFile = Object.values(import.meta.glob('../content/llms.txt', { query: '?raw', import: 'default', eager: true }))[0];
+
 export async function GET() {
+  if (typeof ownFile === 'string') return new Response(ownFile, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
   const home = await getEntry('pages', 'index');
   if (!home) throw new Error('The index page is required for llms.txt.');
   const pages = (await getCollection('pages', ({ data }) => !data.draft))

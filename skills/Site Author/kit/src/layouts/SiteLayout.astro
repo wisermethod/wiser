@@ -191,7 +191,7 @@ const icon = typeof site.icon === 'string' && site.icon ? site.icon : '';
   </head>
   <body data-kit-layout={hasLayout ? "" : undefined} data-width={hasLayout ? width : undefined} data-sections={hasLayout ? sections : undefined}>
     <a class="skip-link" href="#content">Skip to content</a>
-    {CustomHeader ? <CustomHeader nav={links} siteName={brandLabel} brand={brand} path={path} /> : hasLayout ? (
+    {CustomHeader ? <CustomHeader nav={links} siteName={brandLabel} brand={brand} path={path} /> : hasLayout ? ((links.length > 0 || brandText || brandLogo) &&
       <header data-sticky={sticky ? "" : undefined}>
         <div class="site-bar">
           {(brandText || brandLogo) && <a class="site-brand" href="/">
@@ -200,14 +200,14 @@ const icon = typeof site.icon === 'string' && site.icon ? site.icon : '';
           </a>}
           {menu === 'button' ? (
             <>
-              <nav class="site-nav-inline" aria-label="Main">{links.map((item) => <a href={item.href} data-style={item.style === 'button' ? 'button' : undefined}>{item.label}</a>)}</nav>
+              {links.length > 0 && <nav class="site-nav-inline" aria-label="Main">{links.map((item) => <a href={item.href} data-style={item.style === 'button' ? 'button' : undefined}>{item.label}</a>)}</nav>}
               {buttonLinks.length > 0 && <nav class="site-nav-actions" aria-label="Actions">{buttonLinks.map((item) => <a href={item.href} data-style="button">{item.label}</a>)}</nav>}
               {menuLinks.length > 0 && <details class="site-nav-menu">
                 <summary>Menu</summary>
                 <nav aria-label="Main">{menuLinks.map((item) => <a href={item.href}>{item.label}</a>)}</nav>
               </details>}
             </>
-          ) : (
+          ) : (links.length > 0 &&
             <nav aria-label="Main">{links.map((item) => <a href={item.href} data-style={item.style === 'button' ? 'button' : undefined}>{item.label}</a>)}</nav>
           )}
         </div>
@@ -216,7 +216,7 @@ const icon = typeof site.icon === 'string' && site.icon ? site.icon : '';
       articlesOn
         ? <header><nav aria-label="Main"><a href="/">Home</a><a href="/rss.xml">RSS</a></nav></header>
         : <header><nav aria-label="Main"><a href="/">Home</a></nav></header>
-    ) : (
+    ) : (site.nav.length > 0 &&
       <header><nav aria-label="Main">{site.nav.map((item) => <a href={item.href}>{item.label}</a>)}</nav></header>
     )}
     <main id="content" class="prose" data-pagefind-body={noindex ? undefined : ""}>
