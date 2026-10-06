@@ -34,6 +34,8 @@ Install Wiser, sign in to the Wiser endpoint, then attach your working folder. I
 
 `AGENTS.md` is the constitution: the rules every part follows, and the place a session starts. `GLOSSARY.md` defines the words it uses. `gateway/SETUP.md` is the recipe for reaching connectors from a new app or machine; ask Wiser to set up connectors and it walks you through it.
 
+`CHANGELOG.md` lists what changed in each release, newest first.
+
 ## Support
 
 Email support@wisermemory.com.

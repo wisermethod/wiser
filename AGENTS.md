@@ -141,4 +141,6 @@ Stated here so a reader is not left hunting for it. This root ships skills, expe
 
 Work that changes this root is planned as a Playbook, per `standards/playbook.md`.
 
+A change a member would notice is recorded in `CHANGELOG.md` in the release that ships it, and that release is tagged. `CHANGELOG.md` says what an entry holds and how a tag is named.
+
 `system/templates/` holds the root templates a new working folder is created from, and `skills/Onboard Root/` is what reads them. Everything under `system/templates/` is inert: a template's `AGENTS.md` and declarations belong to the copy it will become, not to this chain.
