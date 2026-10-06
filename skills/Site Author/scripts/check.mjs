@@ -306,9 +306,18 @@ walkMd(path.join(site, "src/content/articles"), (file) => {
   for (const key of requiredArticle) {
     if (fm[key] === undefined || fm[key] === "") fail(`${file}: missing ${key}`);
   }
-  // A quoted date and time with no offset is read in the build machine's own zone, so its day can differ from one machine to the next.
-  const quotedTime = topLevelFrontmatter(file).pubDate?.match(/^(["'])\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?\1$/);
-  if (quotedTime) fail(`${file}: pubDate gives a time with no zone, so its day depends on the build machine; give a date alone, 2026-09-24, or add the offset, 2026-09-24T09:00:00Z`);
+  // A date and time with no offset can be read in the build machine's own zone, so its day can differ from one machine to the next. The value is read as YAML gives it: a !!str tag dropped, quotes removed, spaces trimmed.
+  const rawDate = topLevelFrontmatter(file).pubDate;
+  if (rawDate !== undefined) {
+    let value = rawDate.replace(/^!!str\s+/, "");
+    if (/^!/.test(value) || (value.startsWith('"') && value.includes("\\"))) fail(`${file}: pubDate uses a YAML tag or escape check does not read; write the date plainly`);
+    else {
+      const quoted = /^(["'])([\s\S]*)\1$/.exec(value);
+      if (quoted) value = quoted[1] === "'" ? quoted[2].replace(/''/g, "'") : quoted[2];
+      value = value.trim();
+      if (/^\d{4}-\d{1,2}-\d{1,2}(?:[Tt]|\s+)\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/.test(value)) fail(`${file}: pubDate gives a time with no zone, so its day depends on the build machine; give a date alone, 2026-09-24, or add the offset, 2026-09-24T09:00:00Z`);
+    }
+  }
 });
 // Fenced code, inline code, HTML comments and MDX comments never render as markup, so neither a heading nor a component inside them counts.
 function renderedSource(body) {
@@ -368,8 +377,11 @@ function topLevelFrontmatter(file) {
   const root = first ? first.match(/^ */)[0].length : 0;
   for (const line of lines) {
     if (line.match(/^ */)[0].length !== root) continue;
-    const k = line.slice(root).match(/^(?:"((?:[^"\\]|\\.)+)"|'((?:[^']|'')+)'|([A-Za-z0-9_-]+))\s*:(.*)$/);
-    if (!k) continue;
+    const rest = line.slice(root);
+    if (rest.trim() === "" || /^#/.test(rest) || /^-(?:\s|$)/.test(rest)) continue;
+    const k = rest.match(/^(?:"((?:[^"\\]|\\.)+)"|'((?:[^']|'')+)'|([A-Za-z0-9_-]+))\s*:(.*)$/);
+    // An explicit ? key, a << merge, a flow mapping or a tagged key can set showTitle or listArticles where this reader does not look, so each is refused.
+    if (!k || k[3] === "<<") { fail(`${file}: frontmatter line "${rest.trim()}" is YAML check does not read; write each key plainly on its own line`); continue; }
     // A YAML escape in a quoted key names a key this reader cannot see, so it is refused rather than read past.
     if (k[1] !== undefined && k[1].includes("\\")) { fail(`${file}: frontmatter key "${k[1]}" uses an escape; write the key plainly`); continue; }
     out[k[1] ?? (k[2] !== undefined ? k[2].replace(/''/g, "'") : k[3])] = k[4].replace(/\s+#.*$/, "").trim();
@@ -582,17 +594,41 @@ const llms = ["src/pages/llms.txt.js", "src/pages/llms.txt.ts"].some((p) => fs.e
 if (!robots) fail("missing src/pages/robots.txt.js (generated from kit.json, not a static public file)");
 if (!llms) fail("missing src/pages/llms.txt.js (generated from kit.json, not a static public file)");
 
-// Names that merely start with "a" are not anchors. In HTML a trailing slash does not close <a>; only inside <svg> or <math> does <a/> open nothing.
-// CDATA is text, a raw-text element ends only at its own closing tag, and a <template>'s contents are their own parsing scope.
+// The scan follows HTML's own parsing where content can reach it: a comment, a raw-text element that ends only at its own closing tag,
+// a <template> whose contents are their own scope, and SVG and MathML, where <a/> opens nothing, CDATA is text, and an HTML element
+// such as <div> or a <foreignObject> returns to HTML. In HTML a trailing slash does not close <a>, and <![CDATA[ is a comment to the next >.
+// It is not a full HTML parser; it reads what a site's content builds to.
 const RAW_TEXT = new Set(["script", "style", "textarea", "title"]);
+const FOREIGN = new Set(["svg", "math"]);
+const HTML_INSIDE_FOREIGN = new Set(["foreignobject", "desc", "title", "mi", "mo", "mn", "ms", "mtext", "annotation-xml"]);
+const BREAKOUT = new Set(["b", "big", "blockquote", "body", "br", "center", "code", "dd", "div", "dl", "dt", "em", "embed", "h1", "h2", "h3", "h4", "h5", "h6", "head", "hr", "i", "img", "li", "listing", "menu", "meta", "nobr", "ol", "p", "pre", "ruby", "s", "small", "span", "strong", "strike", "sub", "sup", "table", "tt", "u", "ul", "var"]);
+// From just after a tag's name to its closing >, reading attributes as HTML does, so a / inside an unquoted value is that value's.
+function readTag(html, k) {
+  while (k < html.length) {
+    const c = html[k];
+    if (c === ">") return { end: k, selfClosing: false };
+    if (c === "/") { if (html[k + 1] === ">") return { end: k + 1, selfClosing: true }; k++; continue; }
+    if (/\s/.test(c)) { k++; continue; }
+    k++;
+    while (k < html.length && !/[\s/>=]/.test(html[k])) k++;
+    while (k < html.length && /\s/.test(html[k])) k++;
+    if (html[k] !== "=") continue;
+    k++;
+    while (k < html.length && /\s/.test(html[k])) k++;
+    const q = html[k];
+    if (q === '"' || q === "'") { const e = html.indexOf(q, k + 1); k = e === -1 ? html.length : e + 1; }
+    else while (k < html.length && !/[\s>]/.test(html[k])) k++;
+  }
+  return { end: html.length, selfClosing: false };
+}
 function nestedAnchors(html) {
   const hits = [];
   let depth = 0;
   let outer = null;
-  let foreign = 0;
-  const templates = [];
+  const scopes = [];
+  const contexts = [];
+  const inForeign = () => contexts.length > 0 && contexts[contexts.length - 1].foreign;
   let i = 0;
-  const lower = html.toLowerCase();
   while (i < html.length) {
     const lt = html.indexOf("<", i);
     if (lt === -1) break;
@@ -601,52 +637,53 @@ function nestedAnchors(html) {
       i = end === -1 ? html.length : end + 3;
       continue;
     }
-    if (html.startsWith("<![CDATA[", lt)) {
+    if (html.startsWith("<![CDATA[", lt) && inForeign()) {
       const end = html.indexOf("]]>", lt + 9);
       i = end === -1 ? html.length : end + 3;
       continue;
     }
-    const match = /^<(\/?)([A-Za-z][A-Za-z0-9:-]*)/.exec(html.slice(lt, lt + 64));
-    if (!match) { i = lt + 1; continue; }
-    let j = lt + match[0].length;
-    let quote = null;
-    for (; j < html.length; j++) {
-      const c = html[j];
-      if (quote) { if (c === quote) quote = null; }
-      else if (c === '"' || c === "'") quote = c;
-      else if (c === ">") break;
-    }
-    const name = match[2].toLowerCase();
-    const closing = match[1] === "/";
-    const tag = html.slice(lt, j + 1);
-    const selfClosing = /\/\s*>$/.test(tag);
-    if (!closing && RAW_TEXT.has(name)) {
-      const close = new RegExp(`</${name}(?=[\\s/>])`, "g");
-      close.lastIndex = j;
-      const end = close.exec(lower);
-      i = end ? end.index : html.length;
+    if (html.startsWith("<!", lt) || html.startsWith("<?", lt)) {
+      const end = html.indexOf(">", lt + 2);
+      i = end === -1 ? html.length : end + 1;
       continue;
     }
-    if ((name === "svg" || name === "math") && !selfClosing) { if (closing) foreign = Math.max(0, foreign - 1); else foreign++; }
-    if (name === "template") {
-      if (!closing) { templates.push([depth, outer]); depth = 0; outer = null; }
-      else if (templates.length) [depth, outer] = templates.pop();
+    const match = /^<(\/?)([A-Za-z][A-Za-z0-9:-]*)/.exec(html.slice(lt, lt + 64));
+    if (!match) { i = lt + 1; continue; }
+    const name = match[2].toLowerCase();
+    const closing = match[1] === "/";
+    const { end, selfClosing } = readTag(html, lt + match[0].length);
+    const tag = html.slice(lt, end + 1);
+    i = end + 1;
+    if (closing) {
+      const at = contexts.map((c) => c.name).lastIndexOf(name);
+      if (at !== -1) contexts.length = at;
+      if (name === "template" && !inForeign() && scopes.length) [depth, outer] = scopes.pop();
+      if (name === "a") { depth = Math.max(0, depth - 1); if (depth === 0) outer = null; }
+      continue;
     }
-    if (name === "a") {
-      if (closing) {
-        depth = Math.max(0, depth - 1);
-        if (depth === 0) outer = null;
-      } else if (!(selfClosing && foreign > 0)) {
-        if (depth > 0) hits.push({ line: html.slice(0, lt).split("\n").length, outer, inner: tag });
-        else outer = tag;
-        depth++;
+    if (inForeign() && BREAKOUT.has(name)) while (inForeign()) contexts.pop();
+    if (inForeign()) {
+      if (HTML_INSIDE_FOREIGN.has(name) && !selfClosing) contexts.push({ name, foreign: false });
+    } else {
+      if (FOREIGN.has(name) && !selfClosing) contexts.push({ name, foreign: true });
+      if (RAW_TEXT.has(name)) {
+        const close = new RegExp(`</${name}(?=[\\s/>])`, "gi");
+        close.lastIndex = i;
+        const found = close.exec(html);
+        i = found ? found.index : html.length;
+        continue;
       }
+      if (name === "template") { scopes.push([depth, outer]); depth = 0; outer = null; continue; }
     }
-    i = j + 1;
+    if (name === "a" && !(selfClosing && inForeign())) {
+      if (depth > 0) hits.push({ line: html.slice(0, lt).split("\n").length, outer, inner: tag });
+      else outer = tag;
+      depth++;
+    }
   }
   return hits;
 }
-// A walk that cannot read a folder or a file fails, so a PASS covers every built page.
+// A walk that cannot read a folder or a file fails, so a PASS covers the whole built site.
 function listHtml(dir, out) {
   let names;
   try { names = fs.readdirSync(dir); } catch (error) { fail(`cannot read ${path.relative(site, dir) || "."}: ${error.code ?? error.message}`); return out; }
@@ -656,7 +693,10 @@ function listHtml(dir, out) {
     try { st = fs.lstatSync(file); } catch (error) { fail(`cannot read ${path.relative(site, file)}: ${error.code ?? error.message}`); continue; }
     if (st.isSymbolicLink()) fail(`${path.relative(site, file)} is a symbolic link in the built site`);
     else if (st.isDirectory()) listHtml(file, out);
-    else if (st.isFile() && name.endsWith(".html")) out.push({ file, mtimeMs: st.mtimeMs });
+    else if (st.isFile()) {
+      try { fs.accessSync(file, fs.constants.R_OK); } catch (error) { fail(`cannot read ${path.relative(site, file)}: ${error.code ?? error.message}`); continue; }
+      if (name.endsWith(".html")) out.push({ file, mtimeMs: st.mtimeMs });
+    }
   }
   return out;
 }
@@ -673,7 +713,6 @@ function newestNewerThan(dir, oldest, best) {
     let st;
     try { st = fs.statSync(file); } catch { continue; }
     if (st.isDirectory()) {
-      if (name === "node_modules" || name === ".astro") continue;
       best = newestNewerThan(file, oldest, best);
     } else if (st.isFile() && st.mtimeMs > oldest && (!best || st.mtimeMs > best.mtimeMs)) {
       best = { file, mtimeMs: st.mtimeMs };
