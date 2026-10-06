@@ -2,6 +2,11 @@
 import { getCollection, getEntry, type CollectionEntry } from 'astro:content';
 import kit from '../../kit.json';
 import '../styles/tokens.css';
+// A site's own folder, src/custom/. Each file is optional; with none, the page is the kit's alone.
+const customCss = import.meta.glob('../custom/custom.css', { eager: true });
+const customParts = import.meta.glob('../custom/{Header,Footer}.astro', { eager: true });
+const CustomHeader = (customParts['../custom/Header.astro'] as any)?.default;
+const CustomFooter = (customParts['../custom/Footer.astro'] as any)?.default;
 
 interface Props {
   title: string;
@@ -9,8 +14,9 @@ interface Props {
   article?: CollectionEntry<'articles'>;
   noindex?: boolean;
   showTitle?: boolean;
+  image?: string;
 }
-const { title, description, article, noindex, showTitle } = Astro.props;
+const { title, description, article, noindex, showTitle, image: pageImage } = Astro.props;
 interface SiteLink { label: string; href: string; style?: string }
 interface LayoutBrand { text?: string; logo?: string }
 interface LayoutConfig {
@@ -18,7 +24,7 @@ interface LayoutConfig {
   sections?: string;
   header?: { brand?: LayoutBrand; sticky?: boolean; menu?: string };
 }
-const site = kit as typeof kit & { nav?: SiteLink[]; footer?: SiteLink[]; siteName?: string; layout?: LayoutConfig };
+const site = kit as typeof kit & { nav?: SiteLink[]; footer?: SiteLink[]; siteName?: string; layout?: LayoutConfig; icon?: string; lang?: string };
 if (!title?.trim() || !description?.trim()) {
   throw new Error('Every page requires a title and description.');
 }
@@ -26,7 +32,7 @@ const SITE_URL = kit.siteUrl;
 // With build.format 'file' the build-time pathname ends in .html (/index.html, /articles/x.html); the public URL does not.
 const path = Astro.url.pathname.replace(/\.html$/, '').replace(/\/index$/, '').replace(/\/+$/, '') || '/';
 const canonical = SITE_URL + path;
-const image = new URL(article?.data.hero ?? '/images/og-default.png', SITE_URL).href;
+const image = new URL(article?.data.hero ?? pageImage ?? '/images/og-default.png', SITE_URL).href;
 const home = await getEntry('pages', 'index');
 const [about] = await getCollection('pages', ({ id, data }) => id === 'about' && !data.draft);
 const organization = about && !about.data.draft ? about.data.organization : undefined;
@@ -87,12 +93,15 @@ const links: SiteLink[] = site.nav ?? (articlesOn
 // Behind a Menu control on a phone, a button-style link stays beside the control rather than inside it.
 const buttonLinks = links.filter((item) => item.style === 'button');
 const menuLinks = links.filter((item) => item.style !== 'button');
+const lang = typeof site.lang === 'string' && site.lang ? site.lang : 'en';
+const icon = typeof site.icon === 'string' && site.icon ? site.icon : '';
 ---
 <!doctype html>
-<html lang="en">
+<html lang={lang}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {icon && <link rel="icon" href={icon} />}
     <title>{title}</title>
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex" />}
@@ -108,7 +117,7 @@ const menuLinks = links.filter((item) => item.style !== 'button');
   </head>
   <body data-kit-layout={hasLayout ? "" : undefined} data-width={hasLayout ? width : undefined} data-sections={hasLayout ? sections : undefined}>
     <a class="skip-link" href="#content">Skip to content</a>
-    {hasLayout ? (
+    {CustomHeader ? <CustomHeader nav={links} siteName={brandLabel} brand={brand} path={path} /> : hasLayout ? (
       <header data-sticky={sticky ? "" : undefined}>
         <div class="site-bar">
           {(brandText || brandLogo) && <a class="site-brand" href="/">
@@ -140,7 +149,7 @@ const menuLinks = links.filter((item) => item.style !== 'button');
       {showTitle === false ? null : <h1>{title}</h1>}
       <slot />
     </main>
-    {site.footer !== undefined && (hasLayout
+    {CustomFooter ? <CustomFooter footer={site.footer ?? []} siteName={brandLabel} path={path} /> : site.footer !== undefined && (hasLayout
       ? <footer><div class="site-bar"><nav aria-label="Footer">{site.footer.map((item) => <a href={item.href}>{item.label}</a>)}</nav></div></footer>
       : <footer><nav aria-label="Footer">{site.footer.map((item) => <a href={item.href}>{item.label}</a>)}</nav></footer>)}
   </body>

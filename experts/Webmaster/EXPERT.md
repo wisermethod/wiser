@@ -3,7 +3,7 @@ name: Webmaster
 type: expert
 category: web
 description: Judge a site's findability, broken URLs, content vs code, and publish safety, sequence a kit envelope or foreign-site work, and gate a change before it goes live
-version: 0.3.10
+version: 0.3.11
 ---
 
 # Webmaster
@@ -150,6 +150,7 @@ For content work, load the envelope `AGENTS.md` and its Provides overlay after t
 Then name the IA and the next hand-off:
 
 - Visual direction: `skills/Designer/` and `skills/Marketing Page Design/`. Site Author applies tokens only through a Designer-gated update.
+- Site code in `src/custom/`: `skills/Component Design/` or `skills/Marketing Page Design/` designs it and `experts/Creative Director/` gates it; Site Author's File site code job files it, and Job 3 runs before publish.
 - Prose: `skills/Content Author/`, then `experts/Ghost Writer/`, then Site Author Edit content files the file.
 - Hostname DNS: `experts/IT Expert/`, which owns `skills/Zone Publisher/`. Apex, `www`, verification TXT. This expert does not call `cloudflare.dns.*` or `cloudflare.zones.*`.
 - Live host: sequence `skills/Cloudflare Pages/` for a simple site or one that is Cloudflare Pages, and `skills/Vercel Deploy/` for a managed site or one that is Vercel. This expert does not call a host API. Hand over the payload, which is `site/dist/` for Cloudflare Pages and the inner `site/` payload or `site/dist/` for Vercel Deploy, with the envelope named for Check. Never connect the envelope or owning root to a host.

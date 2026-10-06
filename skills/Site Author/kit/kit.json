@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.2.2",
+  "kitVersion": "0.3.0",
   "domain": "example.test",
   "siteUrl": "http://127.0.0.1:4321",
   "collections": {

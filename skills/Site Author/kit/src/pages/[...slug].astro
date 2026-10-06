@@ -22,7 +22,7 @@ const articles = wantsList && kit.collections.articles !== false
       .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
   : [];
 ---
-<SiteLayout title={page.data.title} description={page.data.description} showTitle={page.data.showTitle}>
+<SiteLayout title={page.data.title} description={page.data.description} showTitle={page.data.showTitle} image={page.data.image}>
   <Content components={components} />
   {page.data.listArticles === true
     ? articles.length > 0 && <div class="kit-article-list not-prose" data-kit-list><ul aria-label="Articles">{articles.map((article) => <li>

@@ -7,8 +7,8 @@ import path from "node:path";
 
 import { currentKit } from "./envelope.mjs";
 
-const CHECK_VERSION = "0.2.2";
-const KNOWN_VERSIONS = ["0.1.0", "0.2.0", "0.2.1", "0.2.2"];
+const CHECK_VERSION = "0.3.0";
+const KNOWN_VERSIONS = ["0.1.0", "0.2.0", "0.2.1", "0.2.2", "0.3.0"];
 // feature, version introduced. A later release adds a row.
 const introduced = [
   { feature: "layout", version: "0.2.0" },
@@ -17,6 +17,10 @@ const introduced = [
   { feature: "listArticles", version: "0.2.0" },
   { feature: "ConversationPlayer", version: "0.2.0" },
   { feature: "collections.articles false", version: "0.2.0" },
+  { feature: "src/custom/", version: "0.3.0" },
+  { feature: "icon", version: "0.3.0" },
+  { feature: "lang", version: "0.3.0" },
+  { feature: "image", version: "0.3.0" },
 ];
 
 const args = process.argv.slice(2);
@@ -106,15 +110,22 @@ function checkLinkList(key) {
 checkLinkList("nav");
 checkLinkList("footer");
 if (Object.hasOwn(kit, "siteName") && (typeof kit.siteName !== "string" || kit.siteName.trim() === "")) fail("kit.json siteName must be a non-empty string");
+if (Object.hasOwn(kit, "icon")) {
+  tooOld("icon", "kit.json icon");
+  checkImagePath(kit.icon, "kit.json icon");
+}
+if (Object.hasOwn(kit, "lang")) {
+  tooOld("lang", "kit.json lang");
+  if (typeof kit.lang !== "string" || !/^[A-Za-z]+(?:-[A-Za-z0-9]+)*$/.test(kit.lang)) fail("kit.json lang must be a language tag of letters, then hyphen-separated letters or digits, such as en, en-GB or pt-BR");
+}
 
-function checkLogo(logo) {
-  const where = "kit.json layout.header.brand.logo";
-  if (typeof logo !== "string" || !logo.startsWith("/images/") || logo.includes("..") || logo.includes("\\") || logo.includes("?") || logo.includes("#")) {
+function checkImagePath(value, where) {
+  if (typeof value !== "string" || !value.startsWith("/images/") || value.includes("..") || value.includes("\\") || value.includes("?") || value.includes("#")) {
     fail(`${where} must be a path starting /images/, with no .., no backslash, no query and no fragment`);
     return;
   }
   let rel;
-  try { rel = decodeURIComponent(logo.slice("/images/".length)); } catch { rel = null; }
+  try { rel = decodeURIComponent(value.slice("/images/".length)); } catch { rel = null; }
   if (rel === null || rel.includes("\\")) {
     fail(`${where} must be a path starting /images/, with no .., no backslash and no query`);
     return;
@@ -128,8 +139,11 @@ function checkLogo(logo) {
   const file = path.resolve(imagesRoot, ...parts);
   const relTo = path.relative(imagesRoot, file);
   if (relTo === ".." || relTo.startsWith(`..${path.sep}`) || path.isAbsolute(relTo) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
-    fail(`${where} file is missing under public/images/: ${logo}`);
+    fail(`${where} file is missing under public/images/: ${value}`);
   }
+}
+function checkLogo(logo) {
+  checkImagePath(logo, "kit.json layout.header.brand.logo");
 }
 function checkBrand(brand) {
   if (brand === null || typeof brand !== "object" || Array.isArray(brand)) {
@@ -182,6 +196,7 @@ else {
 }
 const envelopeRouter = fs.existsSync(path.join(envelope, "AGENTS.md")) ? fs.readFileSync(path.join(envelope, "AGENTS.md"), "utf8") : "";
 if (Object.hasOwn(kit, "layout") && !envelopeRouter.includes("`layout`")) fail("kit.json sets layout, but the envelope AGENTS.md does not mention it: refresh its Content vs code section from site-AGENTS.md");
+checkCustom();
 if (kit.collections && kit.collections.articles === false) {
   tooOld("collections.articles false", "kit.json collections.articles");
   if (!envelopeRouter.includes("`collections.articles`")) fail("kit.json sets collections.articles to false, but the envelope AGENTS.md does not mention it: refresh its Content vs code section from site-AGENTS.md");
@@ -411,6 +426,13 @@ walkMd(path.join(site, "src/content/pages"), (file) => {
     const body = fs.readFileSync(file, "utf8").replace(/^\uFEFF/, "").replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
     const count = countH1(body, file.endsWith(".mdx"));
     if (count !== 1) fail(`${file}: showTitle false requires exactly one h1 in the body, found ${count}`);
+  }
+  if (Object.hasOwn(top, "image")) {
+    tooOld("image", file);
+    let imagePath = top.image.trim();
+    const quoted = /^(["'])([\s\S]*)\1$/.exec(imagePath);
+    if (quoted) imagePath = quoted[1] === "'" ? quoted[2].replace(/''/g, "'") : quoted[2];
+    checkImagePath(imagePath, `${file}: image`);
   }
 });
 if (kit.collections && kit.collections.articles === false) {
@@ -720,6 +742,423 @@ function newestNewerThan(dir, oldest, best) {
   }
   return best;
 }
+function relToSite(file) {
+  return path.relative(site, file).split(path.sep).join("/");
+}
+function isIdentChar(c) {
+  return typeof c === "string" && /[A-Za-z0-9_$]/.test(c);
+}
+function skipJsString(code, i) {
+  const q = code[i];
+  if (q !== '"' && q !== "'" && q !== "`") return i + 1;
+  for (let j = i + 1; j < code.length; j++) {
+    if (code[j] === "\\") { j++; continue; }
+    if (q === "`" && code[j] === "$" && code[j + 1] === "{") {
+      let depth = 1;
+      j += 2;
+      for (; j < code.length && depth > 0; j++) {
+        if (code[j] === '"' || code[j] === "'" || code[j] === "`") { j = skipJsString(code, j) - 1; continue; }
+        if (code[j] === "{") depth++;
+        else if (code[j] === "}") depth--;
+      }
+      j--;
+      continue;
+    }
+    if (code[j] === q) return j + 1;
+  }
+  return code.length;
+}
+function jsStringContents(code, i) {
+  const end = skipJsString(code, i);
+  return { value: code.slice(i + 1, Math.max(i + 1, end - 1)), end };
+}
+// import ... from '...', import '...', and import('...'). import.meta is not one of them.
+function readImportSpecifier(code, i) {
+  let j = i;
+  while (j < code.length && /\s/.test(code[j])) j++;
+  if (j >= code.length) return null;
+  if (code[j] === "(") {
+    j++;
+    while (j < code.length && /\s/.test(code[j])) j++;
+    if (code[j] === "'" || code[j] === '"') {
+      const read = jsStringContents(code, j);
+      return { spec: read.value, end: read.end };
+    }
+    return { spec: null, raw: "import()", end: j };
+  }
+  if (code[j] === "'" || code[j] === '"') {
+    const read = jsStringContents(code, j);
+    return { spec: read.value, end: read.end };
+  }
+  let depth = 0;
+  for (let k = j; k < code.length; k++) {
+    const c = code[k];
+    if (c === "'" || c === '"' || c === "`") { k = skipJsString(code, k) - 1; continue; }
+    if (c === "/" && code[k + 1] === "*") {
+      const end = code.indexOf("*/", k + 2);
+      k = end === -1 ? code.length : end + 1;
+      continue;
+    }
+    if (c === "/" && code[k + 1] === "/" && code[k - 1] !== ":") {
+      const end = code.indexOf("\n", k + 2);
+      k = end === -1 ? code.length : end;
+      continue;
+    }
+    if (c === "{" || c === "(" || c === "[") depth++;
+    else if ((c === "}" || c === ")" || c === "]") && depth > 0) depth--;
+    else if (depth === 0 && c === ";") return null;
+    else if (depth === 0 && code.startsWith("from", k) && !isIdentChar(code[k - 1]) && !isIdentChar(code[k + 4])) {
+      let m = k + 4;
+      while (m < code.length && /\s/.test(code[m])) m++;
+      if (code[m] === "'" || code[m] === '"') {
+        const read = jsStringContents(code, m);
+        return { spec: read.value, end: read.end };
+      }
+      return null;
+    }
+  }
+  return null;
+}
+function importSpecifiers(code) {
+  const found = [];
+  for (let i = 0; i < code.length; i++) {
+    if (code.startsWith("<!--", i)) {
+      const end = code.indexOf("-->", i + 4);
+      i = end === -1 ? code.length : end + 2;
+      continue;
+    }
+    const c = code[i];
+    if (c === '"' || c === "'" || c === "`") { i = skipJsString(code, i) - 1; continue; }
+    if (c === "/" && code[i + 1] === "*") {
+      const end = code.indexOf("*/", i + 2);
+      i = end === -1 ? code.length : end + 1;
+      continue;
+    }
+    if (c === "/" && code[i + 1] === "/" && code[i - 1] !== ":") {
+      const end = code.indexOf("\n", i + 2);
+      i = end === -1 ? code.length : end;
+      continue;
+    }
+    if (code.startsWith("import", i) && !isIdentChar(code[i - 1]) && !isIdentChar(code[i + 6])) {
+      if (code[i + 6] === ".") { i += 6; continue; }
+      const spec = readImportSpecifier(code, i + 6);
+      if (spec) found.push(spec);
+      if (spec && spec.end > i) i = spec.end - 1;
+    }
+  }
+  return found;
+}
+function tagAttrs(tag) {
+  const attrs = {};
+  const open = /^<\/?([A-Za-z][A-Za-z0-9:-]*)/.exec(tag);
+  if (!open) return attrs;
+  let i = open[0].length;
+  while (i < tag.length) {
+    while (i < tag.length && /[\s/]/.test(tag[i])) i++;
+    if (i >= tag.length || tag[i] === ">") break;
+    const name = /^[A-Za-z_:][-\w:.]*/.exec(tag.slice(i));
+    if (!name) { i++; continue; }
+    const key = name[0].toLowerCase();
+    i += name[0].length;
+    while (i < tag.length && /\s/.test(tag[i])) i++;
+    if (tag[i] !== "=") { attrs[key] = ""; continue; }
+    i++;
+    while (i < tag.length && /\s/.test(tag[i])) i++;
+    const q = tag[i];
+    if (q === '"' || q === "'") {
+      const end = tag.indexOf(q, i + 1);
+      attrs[key] = tag.slice(i + 1, end === -1 ? tag.length : end);
+      i = end === -1 ? tag.length : end + 1;
+    } else {
+      const start = i;
+      while (i < tag.length && !/[\s>]/.test(tag[i])) i++;
+      attrs[key] = tag.slice(start, i);
+    }
+  }
+  return attrs;
+}
+function isAbsoluteAddress(value) {
+  const v = String(value).trim();
+  return /^https?:/i.test(v) || v.startsWith("//");
+}
+function remoteAssetTags(code) {
+  const hits = [];
+  for (let i = 0; i < code.length; i++) {
+    if (code.startsWith("<!--", i)) {
+      const end = code.indexOf("-->", i + 4);
+      i = end === -1 ? code.length : end + 2;
+      continue;
+    }
+    const c = code[i];
+    if (c === '"' || c === "'" || c === "`") { i = skipJsString(code, i) - 1; continue; }
+    if (c === "/" && code[i + 1] === "*") {
+      const end = code.indexOf("*/", i + 2);
+      i = end === -1 ? code.length : end + 1;
+      continue;
+    }
+    if (c === "/" && code[i + 1] === "/" && code[i - 1] !== ":") {
+      const end = code.indexOf("\n", i + 2);
+      i = end === -1 ? code.length : end;
+      continue;
+    }
+    const open = /^<(script|link)(?=[\s/>])/i.exec(code.slice(i, i + 16));
+    if (!open) continue;
+    const name = open[1].toLowerCase();
+    const read = readTag(code, i + open[0].length);
+    const tag = code.slice(i, read.end + 1);
+    const attrs = tagAttrs(tag);
+    const value = name === "script" ? attrs.src : attrs.href;
+    if (typeof value === "string" && isAbsoluteAddress(value)) hits.push({ name, value: value.trim() });
+    i = read.end;
+  }
+  return hits;
+}
+function staysInsideCustom(fromFile, spec) {
+  if (spec.includes("\\") || spec.includes("\0")) return false;
+  let pathname = spec;
+  const cut = pathname.search(/[?#]/);
+  if (cut !== -1) pathname = pathname.slice(0, cut);
+  let decoded;
+  try { decoded = decodeURIComponent(pathname); } catch { return false; }
+  if (decoded.includes("\\") || decoded.includes("\0")) return false;
+  const resolved = path.resolve(path.dirname(fromFile), decoded);
+  const root = path.resolve(site, "src", "custom");
+  const rel = path.relative(root, resolved);
+  return rel === "" || (rel !== ".." && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel));
+}
+function packageNameOf(spec) {
+  if (!spec || spec.startsWith(".") || spec.startsWith("/") || spec.startsWith("\\") || /^[a-z][a-z0-9+.-]*:/i.test(spec)) return null;
+  if (spec.startsWith("@")) {
+    const parts = spec.split("/");
+    if (parts.length < 2 || parts[0] === "@" || !parts[1]) return null;
+    return `${parts[0]}/${parts[1]}`;
+  }
+  const name = spec.split("/")[0];
+  if (!name || name === "." || name === "..") return null;
+  return name;
+}
+function dependencyNames() {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(site, "package.json"), "utf8"));
+    if (pkg.dependencies && typeof pkg.dependencies === "object" && !Array.isArray(pkg.dependencies)) return new Set(Object.keys(pkg.dependencies));
+  } catch { /* a missing package.json is its own failure */ }
+  return new Set();
+}
+function kitComponentNames() {
+  const dir = path.join(site, "src", "components");
+  const names = new Set();
+  let entries = [];
+  try { entries = fs.readdirSync(dir); } catch { return names; }
+  for (const name of entries) {
+    if (!name.endsWith(".astro")) continue;
+    const file = path.join(dir, name);
+    let st;
+    try { st = fs.lstatSync(file); } catch { continue; }
+    if (st.isSymbolicLink() || !st.isFile()) continue;
+    names.add(name.slice(0, -".astro".length));
+  }
+  return names;
+}
+function classifyImport(spec, fromFile, deps) {
+  if (spec === null) return 'import() is not a string literal';
+  if (spec.includes("\\")) return `import "${spec}" uses an escape`;
+  if (spec === "astro:content") return null;
+  if (spec.startsWith("./") || spec.startsWith("../")) {
+    return staysInsideCustom(fromFile, spec) ? null : `import "${spec}" leaves src/custom/`;
+  }
+  const name = packageNameOf(spec);
+  if (name && deps.has(name)) return null;
+  return `import "${spec}" is not a relative path inside src/custom/, astro:content, or a kit dependency`;
+}
+function cssImportsAndUrls(css) {
+  const s = stripComments(css);
+  const imports = [];
+  const urls = [];
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === '"' || c === "'") { i = skipJsString(s, i) - 1; continue; }
+    if (c === "@" && /^@import\b/i.test(s.slice(i, i + 16))) {
+      let j = i;
+      for (; j < s.length; j++) {
+        if (s[j] === '"' || s[j] === "'") { j = skipJsString(s, j) - 1; continue; }
+        if (s[j] === ";") { j++; break; }
+      }
+      imports.push(s.slice(i, j));
+      i = j - 1;
+      continue;
+    }
+    if ((c === "u" || c === "U") && /^url\s*\(/i.test(s.slice(i, i + 8)) && !isIdentChar(s[i - 1])) {
+      const open = s.indexOf("(", i);
+      let depth = 0;
+      let j = open;
+      for (; j < s.length; j++) {
+        if (s[j] === '"' || s[j] === "'") { j = skipJsString(s, j) - 1; continue; }
+        if (s[j] === "(") depth++;
+        else if (s[j] === ")" && --depth === 0) { j++; break; }
+      }
+      urls.push(s.slice(i, j));
+      i = j - 1;
+    }
+  }
+  return { imports, urls };
+}
+function addressesInCssToken(token) {
+  const values = urlsIn(token);
+  const quoted = /@import\s+(?:"([^"]*)"|'([^']*)')/i.exec(token);
+  if (quoted) values.push((quoted[1] ?? quoted[2]).trim());
+  return values;
+}
+function checkCustomAstro(file, deps) {
+  let text;
+  try { text = fs.readFileSync(file, "utf8"); } catch (error) { fail(`cannot read ${relToSite(file)}: ${error.code ?? error.message}`); return; }
+  const where = relToSite(file);
+  for (const found of importSpecifiers(text)) {
+    const problem = classifyImport(found.spec, file, deps);
+    if (problem) fail(`${where}: ${problem}`);
+  }
+  for (const hit of remoteAssetTags(text)) {
+    const tag = hit.name === "script" ? "script src" : "link href";
+    fail(`${where}: <${tag}="${hit.value}"> must not load an absolute http:, https: or // address`);
+  }
+}
+function checkCustomCss(file) {
+  let text;
+  try { text = fs.readFileSync(file, "utf8"); } catch (error) { fail(`cannot read ${relToSite(file)}: ${error.code ?? error.message}`); return; }
+  const { imports, urls } = cssImportsAndUrls(text);
+  const where = relToSite(file);
+  let escaped = false;
+  for (const token of [...imports, ...urls]) {
+    if (token.includes("\\")) escaped = true;
+    for (const value of addressesInCssToken(token)) {
+      if (isAbsoluteAddress(value)) fail(`${where}: absolute address in an @import or url(): ${value}`);
+    }
+  }
+  if (escaped) fail(`${where} uses a CSS escape in an @import or url(); write it plainly so check can read it`);
+}
+function checkCustom() {
+  const root = path.join(site, "src", "custom");
+  let st;
+  try { st = fs.lstatSync(root); } catch { return; }
+  tooOld("src/custom/", "src/custom");
+  if (!envelopeRouter.includes("src/custom/")) fail("src/custom/ exists, but the envelope AGENTS.md does not mention it: refresh its Content vs code section from site-AGENTS.md");
+  if (st.isSymbolicLink()) { fail("src/custom is a symbolic link"); return; }
+  if (!st.isDirectory()) { fail("src/custom is not a directory"); return; }
+  const allowedTop = new Set(["Header.astro", "Footer.astro", "custom.css", "components"]);
+  const kitNames = kitComponentNames();
+  const deps = dependencyNames();
+  const astroFiles = [];
+  let names;
+  try { names = fs.readdirSync(root); } catch (error) { fail(`cannot read src/custom: ${error.code ?? error.message}`); return; }
+  for (const name of names) {
+    const file = path.join(root, name);
+    let entry;
+    try { entry = fs.lstatSync(file); } catch (error) { fail(`cannot read ${relToSite(file)}: ${error.code ?? error.message}`); continue; }
+    const shown = relToSite(file);
+    if (entry.isSymbolicLink()) { fail(`${shown} is a symbolic link`); continue; }
+    if (name === "components" && entry.isDirectory()) {
+      let children;
+      try { children = fs.readdirSync(file); } catch (error) { fail(`cannot read ${shown}: ${error.code ?? error.message}`); continue; }
+      for (const child of children) {
+        const childPath = path.join(file, child);
+        let childStat;
+        try { childStat = fs.lstatSync(childPath); } catch (error) { fail(`cannot read ${relToSite(childPath)}: ${error.code ?? error.message}`); continue; }
+        const childShown = relToSite(childPath);
+        if (childStat.isSymbolicLink()) { fail(`${childShown} is a symbolic link`); continue; }
+        if (childStat.isDirectory()) { fail(`${childShown} is not allowed in src/custom/components/`); continue; }
+        const stem = child.endsWith(".astro") ? child.slice(0, -".astro".length) : "";
+        if (!childStat.isFile() || !/^[A-Z][A-Za-z0-9]*\.astro$/.test(child)) { fail(`${childShown} is not allowed in src/custom/components/`); continue; }
+        if (kitNames.has(stem)) { fail(`${childShown} is the name of a kit component`); continue; }
+        astroFiles.push(childPath);
+      }
+      continue;
+    }
+    if (!allowedTop.has(name) || !entry.isFile()) { fail(`${shown} is not allowed in src/custom/`); continue; }
+    if (name.endsWith(".astro")) astroFiles.push(file);
+    if (name === "custom.css") checkCustomCss(file);
+  }
+  for (const file of astroFiles) checkCustomAstro(file, deps);
+}
+// Head slots of a built page. Comments, scripts, styles, titles' own text, and templates do not supply an h1.
+function builtPageFacts(html) {
+  const facts = { title: "", description: false, canonical: false, ogTitle: false, ogUrl: false, jsonLd: false, h1: 0 };
+  const contexts = [];
+  let templateDepth = 0;
+  const inForeign = () => contexts.length > 0 && contexts[contexts.length - 1].foreign;
+  let i = 0;
+  while (i < html.length) {
+    const lt = html.indexOf("<", i);
+    if (lt === -1) break;
+    if (html.startsWith("<!--", lt)) {
+      const end = html.indexOf("-->", lt + 4);
+      i = end === -1 ? html.length : end + 3;
+      continue;
+    }
+    if (html.startsWith("<![CDATA[", lt) && inForeign()) {
+      const end = html.indexOf("]]>", lt + 9);
+      i = end === -1 ? html.length : end + 3;
+      continue;
+    }
+    if (html.startsWith("<!", lt) || html.startsWith("<?", lt)) {
+      const end = html.indexOf(">", lt + 2);
+      i = end === -1 ? html.length : end + 1;
+      continue;
+    }
+    const match = /^<(\/?)([A-Za-z][A-Za-z0-9:-]*)/.exec(html.slice(lt, lt + 64));
+    if (!match) { i = lt + 1; continue; }
+    const name = match[2].toLowerCase();
+    const closing = match[1] === "/";
+    const { end, selfClosing } = readTag(html, lt + match[0].length);
+    const tag = html.slice(lt, end + 1);
+    i = end + 1;
+    if (closing) {
+      const at = contexts.map((c) => c.name).lastIndexOf(name);
+      if (at !== -1) contexts.length = at;
+      if (name === "template" && !inForeign() && templateDepth > 0) templateDepth--;
+      continue;
+    }
+    if (inForeign() && BREAKOUT.has(name)) while (inForeign()) contexts.pop();
+    if (inForeign()) {
+      if (HTML_INSIDE_FOREIGN.has(name) && !selfClosing) contexts.push({ name, foreign: false });
+    } else {
+      if (FOREIGN.has(name) && !selfClosing) contexts.push({ name, foreign: true });
+      if (RAW_TEXT.has(name)) {
+        const close = new RegExp(`</${name}(?=[\\s/>])`, "gi");
+        close.lastIndex = i;
+        const found = close.exec(html);
+        const textEnd = found ? found.index : html.length;
+        if (templateDepth === 0 && name === "title") {
+          const text = html.slice(i, textEnd).replace(/\s+/g, " ").trim();
+          if (text) facts.title = facts.title || text;
+        }
+        // A script is raw text, so its type is read here, before the body is skipped.
+        if (templateDepth === 0 && name === "script") {
+          const attrs = tagAttrs(tag);
+          if ((attrs.type || "").toLowerCase().split(/\s*;\s*/)[0] === "application/ld+json") facts.jsonLd = true;
+        }
+        i = found ? found.index : html.length;
+        continue;
+      }
+      if (name === "template") { templateDepth++; continue; }
+    }
+    if (templateDepth > 0 || inForeign()) continue;
+    const attrs = tagAttrs(tag);
+    if (name === "meta") {
+      if ((attrs.name || "").toLowerCase() === "description") facts.description = true;
+      const prop = (attrs.property || "").toLowerCase();
+      if (prop === "og:title") facts.ogTitle = true;
+      if (prop === "og:url") facts.ogUrl = true;
+    } else if (name === "link") {
+      if ((attrs.rel || "").toLowerCase().split(/\s+/).includes("canonical")) facts.canonical = true;
+    } else if (name === "h1") facts.h1++;
+  }
+  return facts;
+}
+function copiedFromPublic(dist, file) {
+  const rel = path.relative(dist, file);
+  if (rel === "pagefind" || rel.startsWith(`pagefind${path.sep}`)) return true;
+  const pub = path.join(site, "public", rel);
+  try { return fs.existsSync(pub) && fs.statSync(pub).isFile(); } catch { return false; }
+}
 let builtPages = 0;
 if (built) {
   const dist = path.join(site, "dist");
@@ -746,6 +1185,16 @@ if (built) {
       for (const hit of nestedAnchors(html)) {
         fail(`${path.relative(site, page.file)}:${hit.line} ${hit.inner} inside ${hit.outer}. ${cause}`);
       }
+      if (copiedFromPublic(dist, page.file)) continue;
+      const facts = builtPageFacts(html);
+      const shown = relToSite(page.file);
+      if (!facts.title) fail(`${shown}: missing a non-empty <title>`);
+      if (!facts.description) fail(`${shown}: missing a meta name="description"`);
+      if (!facts.canonical) fail(`${shown}: missing a link rel="canonical"`);
+      if (!facts.ogTitle) fail(`${shown}: missing og:title`);
+      if (!facts.ogUrl) fail(`${shown}: missing og:url`);
+      if (!facts.jsonLd) fail(`${shown}: missing a script type="application/ld+json"`);
+      if (facts.h1 !== 1) fail(`${shown}: expected exactly one <h1>, found ${facts.h1}`);
     }
   }
 }
