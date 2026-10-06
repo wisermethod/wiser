@@ -97,7 +97,7 @@ const hasEvents = existsSync(new URL('./content/events/', import.meta.url));
 const offsetInstant = z.union([
   z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/, 'a date and time with an offset, such as 2026-10-15T18:00:00-06:00'),
   z.date().transform((date) => date.toISOString()),
-]);
+]).refine((value) => Number.isFinite(Date.parse(value)), 'a real date and time');
 
 function eventsCollection() {
   return defineCollection({

@@ -37,6 +37,14 @@ const preserved = new Set();
 const originalKit = JSON.parse(fs.readFileSync(path.join(site, "kit.json"), "utf8"));
 if (!["0.1.0", "0.2.0", "0.2.1", "0.2.2", "0.3.0", "0.4.0"].includes(originalKit.kitVersion)) fail(`unsupported kitVersion ${originalKit.kitVersion}`);
 
+// A site's own component named like a component this kit ships would be replaced by the kit's after Upgrade, changing the site without its say, so Upgrade stops first and names the file.
+{
+  const kitComponents = new Set(fs.readdirSync(path.join(kit, "src", "components")).filter((n) => n.endsWith(".astro")).map((n) => n.slice(0, -".astro".length)));
+  const customDir = path.join(site, "src", "custom", "components");
+  const clashes = fs.existsSync(customDir) ? fs.readdirSync(customDir).filter((n) => n.endsWith(".astro") && kitComponents.has(n.slice(0, -".astro".length))) : [];
+  if (clashes.length) fail(`src/custom/components/${clashes.join(", src/custom/components/")} shares a name with a component kit ${template.kitVersion} ships; rename it and every place a page uses it, then run Upgrade. Nothing was replaced`);
+}
+
 function archivePath(filePath) {
   const dir = path.dirname(filePath);
   const base = path.basename(filePath);

@@ -1,5 +1,4 @@
 ---
-import { existsSync } from 'node:fs';
 import { getCollection, render } from 'astro:content';
 import SiteLayout from '../layouts/SiteLayout.astro';
 import { components } from '../components/index.js';
@@ -54,7 +53,8 @@ const documentTitle = paginate && pageNo > 1 ? `${page.data.title} (page ${pageN
 const listHref = (n: number) => (n <= 1 ? (page.id === 'index' ? '/' : `/${page.id}`) : `/${page.id}/${n}`);
 const readingOn = blog.readingTime === true;
 const showHero = blog.hero === true;
-const hasEvents = existsSync(new URL('../content/events/', import.meta.url));
+// A route runs from a bundled copy at build time, so a path relative to this file finds nothing; a glob resolves against the source.
+const hasEvents = Object.keys(import.meta.glob('../content/events/**/*.{md,mdx}')).length > 0;
 const listEvents = page.data.listEvents === true && hasEvents;
 const now = Date.now();
 const events: { id: string; data: { title: string; start: string; end?: string; timezone: string; location?: string; online?: boolean } }[] = listEvents

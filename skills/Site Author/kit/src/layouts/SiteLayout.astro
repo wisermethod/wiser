@@ -56,7 +56,6 @@ interface PersonBook { name: string; isbn: string; publisher: string; datePublis
 interface PersonDecl { name: string; page?: string; url?: string; image?: string; jobTitle?: string; worksFor?: PersonOrg; knowsAbout?: string[]; sameAs?: string[]; founded?: PersonFounded[]; books?: PersonBook[] }
 const person = (site as typeof site & { person?: PersonDecl }).person;
 const personId = `${SITE_URL}/#person`;
-const nodeSlug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 // An Organization node is emitted only when the site states organization facts; an empty one carries nothing but its @id.
 const publisherId = person ? personId : organization ? organizationId : undefined;
 const graph: Record<string, unknown>[] = [
@@ -90,10 +89,10 @@ if (person) {
   const profilePath = !person.page || person.page === 'index' ? '/' : `/${person.page}`;
   if (path === profilePath) {
     graph.push({ '@type': 'ProfilePage', '@id': `${canonical}#profilepage`, url: canonical, name: title, isPartOf: { '@id': websiteId }, mainEntity: { '@id': personId } });
-    for (const org of person.founded ?? []) {
+    for (const [n, org] of (person.founded ?? []).entries()) {
       graph.push({
         '@type': 'Organization',
-        '@id': `${SITE_URL}/#org-${nodeSlug(org.name)}`,
+        '@id': `${SITE_URL}/#founded-${n + 1}`,
         name: org.name,
         ...(org.url ? { url: org.url } : {}),
         ...(org.alternateName?.length ? { alternateName: org.alternateName } : {}),

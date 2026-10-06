@@ -32,6 +32,8 @@ export default defineConfig({
   site: kit.siteUrl,
   output: 'static',
   trailingSlash: 'never',
+  // Two routes writing one address fail the build, rather than one being dropped with a warning.
+  prerenderConflictBehavior: 'error',
   // A route builds as <slug>.html, which Cloudflare Pages and most static hosts serve at the slashless URL;
   // the default <slug>/index.html is redirected to a trailing slash, contradicting the canonical.
   build: { format: 'file' },

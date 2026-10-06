@@ -1,12 +1,12 @@
 ---
-import { existsSync } from 'node:fs';
 import { getCollection, render } from 'astro:content';
 import SiteLayout from '../../layouts/SiteLayout.astro';
 import { components } from '../../components/index.js';
 import { formatEventWhen } from '../../lib/event-time.mjs';
 
 export async function getStaticPaths() {
-  if (!existsSync(new URL('../../content/events/', import.meta.url))) return [];
+  // A route runs from a bundled copy at build time, so a path relative to this file finds nothing; a glob resolves against the source.
+  if (Object.keys(import.meta.glob('../../content/events/**/*.{md,mdx}')).length === 0) return [];
   const events = await (getCollection as (name: string, filter: (entry: { data: { draft?: boolean } }) => boolean) => Promise<{ id: string; data: Record<string, unknown> }[]>)('events', ({ data }) => !data.draft);
   return events.map((event) => ({ params: { slug: event.id }, props: { event } }));
 }

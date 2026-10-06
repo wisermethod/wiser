@@ -1,4 +1,3 @@
-import { existsSync } from 'node:fs';
 import { getCollection, getEntry } from 'astro:content';
 import kit from '../../kit.json';
 
@@ -16,7 +15,7 @@ export async function GET() {
     ? []
     : (await getCollection('articles', ({ data }) => !data.draft))
         .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
-  const events = existsSync(new URL('../content/events/', import.meta.url))
+  const events = Object.keys(import.meta.glob('../content/events/**/*.{md,mdx}')).length > 0
     ? (await getCollection('events', ({ data }) => !data.draft))
         .sort((a, b) => Date.parse(a.data.start) - Date.parse(b.data.start) || a.id.localeCompare(b.id))
     : [];

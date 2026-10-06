@@ -287,7 +287,11 @@ if (Object.hasOwn(kit, "person")) {
         if (!isText(book.name)) fail(`${w}.name must be non-empty text`);
         if (!isbnValid(book.isbn)) fail(`${w}.isbn must be an ISBN-10 or ISBN-13 whose check digit is right (hyphens allowed): ${book.isbn}`);
         if (!isText(book.publisher)) fail(`${w}.publisher must be the publisher's name`);
-        if (typeof book.datePublished !== "string" || !/^\d{4}(?:-\d{2}(?:-\d{2})?)?$/.test(book.datePublished)) fail(`${w}.datePublished must be YYYY, YYYY-MM or YYYY-MM-DD`);
+        {
+          const parts = typeof book.datePublished === "string" ? /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/.exec(book.datePublished) : null;
+          const ok = parts && (parts[2] === undefined || (Number(parts[2]) >= 1 && Number(parts[2]) <= 12)) && (parts[3] === undefined || calendarDate(Number(parts[1]), Number(parts[2]), Number(parts[3])));
+          if (!ok) fail(`${w}.datePublished must be a real date written YYYY, YYYY-MM or YYYY-MM-DD`);
+        }
         if (Object.hasOwn(book, "bookEdition") && !isText(book.bookEdition)) fail(`${w}.bookEdition must be non-empty text`);
         if (Object.hasOwn(book, "url") && !isHttps(book.url)) fail(`${w}.url must be an https:// URL`);
         if (Object.hasOwn(book, "coAuthors")) {
@@ -508,6 +512,7 @@ function checkBlogPages() {
   if (!(Number.isInteger(perPage) && perPage >= 2 && perPage <= 50)) return;
   for (const listing of contentPages) {
     if (!listing.listArticles) continue;
+    if (["articles", "tags", "events"].includes(listing.id)) fail(`${listing.file}: blog.perPage would put this page's later pages at /${listing.id}/2, which the kit's own ${listing.id} routes use; give the listing page another id`);
     const escaped = listing.id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const re = new RegExp(`^${escaped}/([1-9][0-9]*)$`);
     for (const page of contentPages) {
@@ -529,7 +534,16 @@ function checkArticleTags() {
     }
   }
 }
-const OFFSET_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/;
+const OFFSET_INSTANT_SHAPE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-](\d{2}):(\d{2}))$/;
+// A real calendar date: JavaScript turns 2026-02-30 into March 2 without a word, so the fields are checked, not just the parse.
+function calendarDate(y, m, d) { return m >= 1 && m <= 12 && d >= 1 && d <= new Date(Date.UTC(y, m, 0)).getUTCDate(); }
+const OFFSET_INSTANT = { test(value) {
+  const m = OFFSET_INSTANT_SHAPE.exec(value);
+  if (!m || !calendarDate(Number(m[1]), Number(m[2]), Number(m[3]))) return false;
+  if (Number(m[4]) > 23 || Number(m[5]) > 59 || (m[6] !== undefined && Number(m[6]) > 59)) return false;
+  if (m[7] !== undefined && (Number(m[7]) > 14 || Number(m[8]) > 59)) return false;
+  return Number.isFinite(Date.parse(value));
+} };
 function checkEvents() {
   const dir = path.join(site, "src/content/events");
   let st;
@@ -1470,11 +1484,12 @@ function snippetOf(tag) {
   const flat = tag.replace(/\s+/g, " ").trim();
   return flat.length <= 140 ? flat : `${flat.slice(0, 137)}...`;
 }
+// aria-labelledby is not a name until the ids it names are found to carry text, so it is resolved at the end of the page, not here.
 function namedBy(attrs, titleCounts) {
   if ((attrs["aria-label"] || "").trim() !== "") return true;
-  if ((attrs["aria-labelledby"] || "").trim() !== "") return true;
   return titleCounts && (attrs.title || "").trim() !== "";
 }
+const visibleText = (text) => text.replace(/&nbsp;|&#160;|&#x0*a0;/gi, " ").replace(/\s+/g, " ").trim();
 // The same scan as the head facts: comments, raw text, templates and foreign content stay out of the element rules. An id is counted on every start tag outside a template, including SVG and a raw-text element's own id.
 function accessibilityFindings(html) {
   const findings = [];
@@ -1483,15 +1498,20 @@ function accessibilityFindings(html) {
   const inForeign = () => contexts.length > 0 && contexts[contexts.length - 1].foreign;
   const stack = [];
   const ids = new Map();
-  const labelFor = new Set();
+  const labels = [];
+  const idText = new Map();
+  const deferred = [];
   const pending = [];
+  // Text under aria-hidden="true" names nothing. A frame collects text when it may need a name, is a label, or carries an id another element may point to.
   const addText = (chunk) => {
-    if (!chunk) return;
-    for (const frame of stack) if (frame.kind === "named") frame.text += chunk;
+    if (!chunk || stack.some((frame) => frame.hidden)) return;
+    for (const frame of stack) if (frame.kind !== "plain" || frame.id !== null) frame.text += chunk;
   };
   const finishFrame = (frame) => {
+    if (frame.id !== null && !idText.has(frame.id)) idText.set(frame.id, visibleText(frame.text) || (frame.imgAlt ? "image" : ""));
     if (frame.kind !== "named") return;
-    if (frame.text.replace(/\s+/g, " ").trim() || frame.imgAlt || frame.attrName) return;
+    if (visibleText(frame.text) || frame.imgAlt || frame.attrName) return;
+    if (frame.labelledby) { deferred.push(frame); return; }
     findings.push(`${frame.snippet} has no accessible name`);
   };
   const closeStack = (name) => {
@@ -1508,25 +1528,31 @@ function accessibilityFindings(html) {
     else ids.set(id, snippet);
   };
   const inspect = (name, attrs, tag) => {
+    const hidden = (attrs["aria-hidden"] || "").toLowerCase() === "true";
     if (name === "img") {
       if (!Object.hasOwn(attrs, "alt")) findings.push(`${snippetOf(tag)} has no alt attribute`);
-      else if (attrs.alt.trim() !== "") for (const frame of stack) if (frame.kind === "named") frame.imgAlt = true;
+      else if (attrs.alt.trim() !== "" && !hidden && !stack.some((frame) => frame.hidden)) for (const frame of stack) frame.imgAlt = true;
     }
     if (name === "iframe" && (attrs.title || "").trim() === "") findings.push(`${snippetOf(tag)} has no title`);
-    if (name === "label" && typeof attrs.for === "string" && attrs.for !== "") labelFor.add(attrs.for);
     if (name === "input" || name === "select" || name === "textarea") {
       const type = name === "input" ? (attrs.type || "text").toLowerCase() : "";
       if (!(name === "input" && LABEL_FREE_INPUT.has(type))) {
         pending.push({
           id: Object.hasOwn(attrs, "id") ? attrs.id : null,
           snippet: snippetOf(tag),
-          ok: namedBy(attrs, false) || stack.some((frame) => frame.name === "label"),
+          ok: namedBy(attrs, false),
+          labelledby: (attrs["aria-labelledby"] || "").trim(),
+          wrap: [...stack].reverse().find((frame) => frame.name === "label") ?? null,
         });
       }
     }
     if (VOID_TAGS.has(name) || RAW_TEXT.has(name)) return;
     const named = name === "button" || (name === "a" && Object.hasOwn(attrs, "href"));
-    stack.push({ name, kind: named ? "named" : "plain", text: "", imgAlt: false, attrName: named && namedBy(attrs, true), snippet: snippetOf(tag) });
+    const frame = { name, kind: named ? "named" : name === "label" ? "label" : "plain", text: "", imgAlt: false, hidden,
+      id: Object.hasOwn(attrs, "id") ? attrs.id : null, attrName: named && namedBy(attrs, true),
+      labelledby: named ? (attrs["aria-labelledby"] || "").trim() : "", forId: name === "label" && typeof attrs.for === "string" ? attrs.for : "", snippet: snippetOf(tag) };
+    if (name === "label") labels.push(frame);
+    stack.push(frame);
   };
   let i = 0;
   while (i < html.length) {
@@ -1585,9 +1611,14 @@ function accessibilityFindings(html) {
     if (templateDepth === 0) inspect(name, attrs, tag);
   }
   for (let n = stack.length - 1; n >= 0; n--) finishFrame(stack[n]);
+  const resolves = (refs) => refs.split(/\s+/).some((ref) => (idText.get(ref) || "") !== "");
+  const labelled = (frame) => Boolean(visibleText(frame.text) || frame.imgAlt);
+  for (const frame of deferred) if (!resolves(frame.labelledby)) findings.push(`${frame.snippet} has no accessible name: its aria-labelledby names no element with text`);
   for (const control of pending) {
     if (control.ok) continue;
-    if (control.id !== null && labelFor.has(control.id)) continue;
+    if (control.labelledby && resolves(control.labelledby)) continue;
+    if (control.wrap && labelled(control.wrap)) continue;
+    if (control.id !== null && labels.some((label) => label.forId === control.id && labelled(label))) continue;
     findings.push(`${control.snippet} has no label`);
   }
   return findings;
@@ -1604,6 +1635,10 @@ if (built) {
   let distDir = false;
   try { distDir = fs.existsSync(dist) && fs.statSync(dist).isDirectory(); } catch { distDir = false; }
   const pages = distDir ? listHtml(dist, []) : [];
+  if (distDir && pages.length > 0 && isObject(kit.person)) {
+    const profile = path.join(dist, `${typeof kit.person.page === "string" ? kit.person.page : "index"}.html`);
+    if (!pages.some((page) => page.file === profile)) fail(`kit.json person.page names ${path.relative(site, profile)}, which the build did not write; a page's slug frontmatter may have moved it`);
+  }
   if (!distDir || pages.length === 0) {
     fail("no built HTML in site/dist/: run npm run build in site/ and then check --built");
   } else {
@@ -1639,7 +1674,8 @@ if (built) {
       const refs = [];
       let parsed = true;
       const types = [];
-      for (const m of html.matchAll(/<script\b[^>]*type\s*=\s*["']?application\/ld\+json["']?[^>]*>([\s\S]*?)<\/script\s*>/gi)) {
+      const live = html.replace(/<!--[\s\S]*?-->/g, "").replace(/<template\b[\s\S]*?<\/template\s*>/gi, "");
+      for (const m of live.matchAll(/<script\b[^>]*type\s*=\s*["']?application\/ld\+json["']?[^>]*>([\s\S]*?)<\/script\s*>/gi)) {
         let data;
         try { data = JSON.parse(m[1]); } catch { parsed = false; continue; }
         const walk = (v) => {
