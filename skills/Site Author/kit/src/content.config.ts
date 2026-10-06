@@ -93,7 +93,11 @@ const conversations = defineCollection({
 // A declared collection whose folder is missing makes every build warn. Upgrade never creates content folders, so declare these only when the folder is already there.
 const hasConversations = existsSync(new URL('./content/conversations/', import.meta.url));
 const hasEvents = existsSync(new URL('./content/events/', import.meta.url));
-const offsetInstant = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/, 'a date and time with an offset, such as 2026-10-15T18:00:00-06:00');
+// Quoted, the value is text and must carry its offset. Unquoted, YAML has already read it as an instant, offset applied; check holds the source to an offset either way.
+const offsetInstant = z.union([
+  z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/, 'a date and time with an offset, such as 2026-10-15T18:00:00-06:00'),
+  z.date().transform((date) => date.toISOString()),
+]);
 
 function eventsCollection() {
   return defineCollection({
