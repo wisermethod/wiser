@@ -1,0 +1,15 @@
+---
+// A starter the site now owns.
+interface Props {
+  quote: string;
+  who: string;
+  role?: string;
+}
+const { quote, who, role } = Astro.props;
+---
+<figure class="not-prose border-s-2 border-ink ps-4 text-ink">
+  <blockquote class="font-heading">
+    <p>{quote}</p>
+  </blockquote>
+  <figcaption>{who}{role ? `, ${role}` : ""}</figcaption>
+</figure>

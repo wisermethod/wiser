@@ -1,17 +1,41 @@
 ---
+import { existsSync } from 'node:fs';
 import { getCollection, render } from 'astro:content';
 import SiteLayout from '../layouts/SiteLayout.astro';
 import { components } from '../components/index.js';
 import kit from '../../kit.json';
+import { readingMinutes } from '../lib/blog.mjs';
+import { formatEventWhen } from '../lib/event-time.mjs';
+
+const blog = kit.blog && typeof kit.blog === 'object' && !Array.isArray(kit.blog) ? kit.blog : {};
+const perPage = Number.isInteger(blog.perPage) && blog.perPage >= 2 && blog.perPage <= 50 ? blog.perPage : 0;
 
 export async function getStaticPaths() {
   const pages = await getCollection('pages', ({ data }) => !data.draft);
-  return pages.map((page) => ({
-    params: { slug: page.id === 'index' ? undefined : page.id },
-    props: { page },
-  }));
+  const blogConfig = kit.blog && typeof kit.blog === 'object' && !Array.isArray(kit.blog) ? kit.blog : {};
+  const size = Number.isInteger(blogConfig.perPage) && blogConfig.perPage >= 2 && blogConfig.perPage <= 50 ? blogConfig.perPage : 0;
+  let listed: { id: string }[] = [];
+  if (size && kit.collections.articles !== false) {
+    listed = await getCollection('articles', ({ data }) => !data.draft);
+  }
+  const ids = new Set(pages.map((page) => page.id));
+  const paths = [];
+  for (const page of pages) {
+    paths.push({
+      params: { slug: page.id === 'index' ? undefined : page.id },
+      props: { page, pageNo: 1 },
+    });
+    if (!size || page.data.listArticles !== true || kit.collections.articles === false) continue;
+    const count = Math.ceil(listed.length / size);
+    for (let n = 2; n <= count; n += 1) {
+      const id = `${page.id}/${n}`;
+      if (ids.has(id)) throw new Error(`Page id ${id} collides with list page ${n} of ${page.id}`);
+      paths.push({ params: { slug: id }, props: { page, pageNo: n } });
+    }
+  }
+  return paths;
 }
-const { page } = Astro.props;
+const { page, pageNo: givenNo = 1 } = Astro.props;
 // A kit-made list shows a reader's date, written the same on every build machine.
 const readableDate = (date: Date) => date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
 const { Content } = await render(page);
@@ -21,20 +45,56 @@ const articles = wantsList && kit.collections.articles !== false
   ? (await getCollection('articles', ({ data }) => !data.draft))
       .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
   : [];
+const paginate = perPage > 0 && page.data.listArticles === true && kit.collections.articles !== false;
+const pageNo = paginate ? givenNo : 1;
+const pageCount = paginate ? Math.max(1, Math.ceil(articles.length / perPage)) : 1;
+const shown = paginate ? articles.slice((pageNo - 1) * perPage, pageNo * perPage) : articles;
+const usePlainList = !(blog.hero === true || blog.readingTime === true || paginate);
+const documentTitle = paginate && pageNo > 1 ? `${page.data.title} (page ${pageNo})` : undefined;
+const listHref = (n: number) => (n <= 1 ? (page.id === 'index' ? '/' : `/${page.id}`) : `/${page.id}/${n}`);
+const readingOn = blog.readingTime === true;
+const showHero = blog.hero === true;
+const hasEvents = existsSync(new URL('../content/events/', import.meta.url));
+const listEvents = page.data.listEvents === true && hasEvents;
+const now = Date.now();
+const events: { id: string; data: { title: string; start: string; end?: string; timezone: string; location?: string; online?: boolean } }[] = listEvents
+  ? await (getCollection as (name: string, filter: (entry: { data: { draft?: boolean } }) => boolean) => Promise<{ id: string; data: { title: string; start: string; end?: string; timezone: string; location?: string; online?: boolean; draft?: boolean } }[]>)('events', ({ data }) => !data.draft)
+  : [];
+const upcoming = events.filter((event) => Date.parse(event.data.start) >= now).sort((a, b) => Date.parse(a.data.start) - Date.parse(b.data.start) || a.id.localeCompare(b.id));
+const past = events.filter((event) => Date.parse(event.data.start) < now).sort((a, b) => Date.parse(b.data.start) - Date.parse(a.data.start) || a.id.localeCompare(b.id));
+const showEvents = upcoming.length > 0 || past.length > 0;
+const linkStyle = 'display:inline-flex;align-items:center;box-sizing:border-box;min-height:44px';
 ---
-<SiteLayout title={page.data.title} description={page.data.description} showTitle={page.data.showTitle} image={page.data.image}>
+<SiteLayout title={page.data.title} description={page.data.description} showTitle={page.data.showTitle} image={page.data.image} documentTitle={documentTitle}>
   <Content components={components} />
   {page.data.listArticles === true
-    ? articles.length > 0 && <div class="kit-article-list not-prose" data-kit-list><ul aria-label="Articles">{articles.map((article) => <li>
+    ? articles.length > 0 && (usePlainList ? <div class="kit-article-list not-prose" data-kit-list><ul aria-label="Articles">{articles.map((article) => <li>
       <h2><a href={`/articles/${article.id}`}>{article.data.title}</a></h2>
       <p>{article.data.description}</p>
       <p class="kit-article-date"><time datetime={article.data.pubDate.toISOString().slice(0, 10)}>{readableDate(article.data.pubDate)}</time></p>
-    </li>)}</ul></div>
+    </li>)}</ul></div> : <div class="kit-article-list not-prose" data-kit-list><ul aria-label="Articles">{shown.map((article) => <li>
+      {showHero && article.data.hero ? (article.data.heroAlt ? <img src={article.data.hero} alt={article.data.heroAlt} /> : <img src={article.data.hero} alt="" />) : null}
+      <h2><a href={`/articles/${article.id}`}>{article.data.title}</a></h2>
+      <p>{article.data.description}</p>
+      <p class="kit-article-date"><time datetime={article.data.pubDate.toISOString().slice(0, 10)}>{readableDate(article.data.pubDate)}</time>{readingOn ? ` ${readingMinutes(article.body)} min read` : null}</p>
+    </li>)}</ul>{pageCount > 1 && <nav aria-label="Articles pages">{pageNo > 1 && <a href={listHref(pageNo - 1)} style={linkStyle}>Newer</a>}{pageNo < pageCount && <a href={listHref(pageNo + 1)} style={linkStyle}>Older</a>}</nav>}</div>)
     : articles.length > 0 && <section aria-label="Articles">
     <h2>Articles</h2>
     <ul>{articles.map((article) => <li>
       <a href={`/articles/${article.id}`}>{article.data.title}</a>
       <p>{article.data.description}</p>
     </li>)}</ul>
-  </section>}
+  </section>}{listEvents && showEvents && <div class="kit-article-list not-prose" data-kit-list>
+    {upcoming.length > 0 && <ul aria-label="Upcoming events">{upcoming.map((event) => <li>
+      <h2><a href={`/events/${event.id}`}>{event.data.title}</a></h2>
+      <p class="kit-article-date">{formatEventWhen(event.data.start, event.data.end, event.data.timezone)}</p>
+      <p>{event.data.online ? 'Online' : event.data.location}</p>
+    </li>)}</ul>}
+    {past.length > 0 && <h2>Past</h2>}
+    {past.length > 0 && <ul aria-label="Past events">{past.map((event) => <li>
+      <h2><a href={`/events/${event.id}`}>{event.data.title}</a></h2>
+      <p class="kit-article-date">{formatEventWhen(event.data.start, event.data.end, event.data.timezone)}</p>
+      <p>{event.data.online ? 'Online' : event.data.location}</p>
+    </li>)}</ul>}
+  </div>}
 </SiteLayout>

@@ -1,0 +1,15 @@
+---
+// A starter the site now owns.
+interface Props {
+  heading: string;
+  text: string;
+  href: string;
+  label: string;
+}
+const { heading, text, href, label } = Astro.props;
+---
+<section class="not-prose bg-paper text-ink">
+  <h2 class="font-heading text-title">{heading}</h2>
+  <p>{text}</p>
+  <a href={href} class="inline-flex min-h-11 items-center bg-ink px-4 text-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-link">{label}</a>
+</section>

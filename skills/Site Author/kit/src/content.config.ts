@@ -13,6 +13,7 @@ const pages = defineCollection({
     draft: z.boolean().default(false),
     showTitle: z.boolean().optional(),
     listArticles: z.boolean().optional(),
+    listEvents: z.boolean().optional(),
     image: text.optional(),
     // Only the about page may supply organization facts to the layout.
     organization: z.object({
@@ -32,6 +33,7 @@ const articles = defineCollection({
     tags: z.array(text),
     draft: z.boolean(),
     hero: text.optional(),
+    heroAlt: text.optional(),
   }),
 });
 const authors = defineCollection({
@@ -88,8 +90,34 @@ const conversations = defineCollection({
   }),
 });
 
-// A declared collection whose folder is missing makes every build warn. Upgrade never creates content folders, so declare this only when the folder is already there.
+// A declared collection whose folder is missing makes every build warn. Upgrade never creates content folders, so declare these only when the folder is already there.
 const hasConversations = existsSync(new URL('./content/conversations/', import.meta.url));
+const hasEvents = existsSync(new URL('./content/events/', import.meta.url));
+const offsetInstant = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/, 'a date and time with an offset, such as 2026-10-15T18:00:00-06:00');
+
+function eventsCollection() {
+  return defineCollection({
+    loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/events' }),
+    schema: metadata.extend({
+      start: offsetInstant,
+      end: offsetInstant.optional(),
+      timezone: text,
+      location: text.optional(),
+      online: z.literal(true).optional(),
+      signup: z.string().url().refine((value) => value.startsWith('https://'), { message: 'signup must be an https:// URL' }).optional(),
+      draft: z.boolean().default(false),
+    }).strict().superRefine((data, ctx) => {
+      if ((data.online === true) === (data.location !== undefined)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'set location or online: true, and not both', path: ['location'] });
+      }
+      if (data.end && Date.parse(data.end) <= Date.parse(data.start)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'end must be after start', path: ['end'] });
+      }
+      try { Intl.DateTimeFormat('en-US', { timeZone: data.timezone }); }
+      catch { ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'timezone must be an IANA name, such as America/Denver', path: ['timezone'] }); }
+    }),
+  });
+}
 
 export const collections = {
   pages,
@@ -98,4 +126,5 @@ export const collections = {
   ...(kit.collections.sections ? { sections } : {}),
   ...(kit.collections.issues ? { issues } : {}),
   ...(hasConversations ? { conversations } : {}),
+  ...(hasEvents ? { events: eventsCollection() } : {}),
 };

@@ -1,0 +1,11 @@
+---
+interface Props {
+  q?: string;
+}
+const { q } = Astro.props;
+if (typeof q !== 'string' || q.trim() === '') throw new Error('Faq requires a q.');
+---
+<details>
+  <summary style="display:flex;align-items:center;box-sizing:border-box;min-height:44px;cursor:pointer">{q}</summary>
+  <div><slot /></div>
+</details>

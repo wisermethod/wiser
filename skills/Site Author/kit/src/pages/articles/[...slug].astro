@@ -3,6 +3,7 @@ import { getCollection, getEntry, render } from 'astro:content';
 import SiteLayout from '../../layouts/SiteLayout.astro';
 import { components } from '../../components/index.js';
 import kit from '../../../kit.json';
+import { readingMinutes, relatedArticles, tagSlug } from '../../lib/blog.mjs';
 
 export async function getStaticPaths() {
   if (kit.collections.articles === false) return [];
@@ -13,9 +14,25 @@ const { article } = Astro.props;
 const author = await getEntry(article.data.author);
 if (!author) throw new Error(`Unknown author for article ${article.id}`);
 const { Content } = await render(article);
+const blog = kit.blog && typeof kit.blog === 'object' && !Array.isArray(kit.blog) ? kit.blog : {};
+const bylineMode = blog.byline === 'author-date' || blog.byline === 'date' || blog.byline === 'none' ? blog.byline : 'keep';
+const readingOn = blog.readingTime === true;
+const tagsOn = blog.tags === true;
+const showHero = blog.hero === true;
+const minutes = readingOn ? readingMinutes(article.body) : 0;
+const relatedLimit = Number.isInteger(blog.related) && blog.related >= 1 && blog.related <= 6 ? blog.related : 0;
+const related = relatedLimit ? relatedArticles(article, await getCollection('articles', ({ data }) => !data.draft), relatedLimit) : [];
+const readableDate = (date: Date) => date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+const writtenDate = readableDate(article.data.pubDate);
+const readNote = readingOn ? ` ${minutes} min read` : null;
 ---
-<SiteLayout title={article.data.title} description={article.data.description} article={article}>
-  <p>By {author.data.name} · <time datetime={article.data.pubDate.toISOString()}>{article.data.pubDate.toISOString().slice(0, 10)}</time></p>
-  {article.data.hero && <img src={article.data.hero} alt="" />}
-  <Content components={components} />
+<SiteLayout title={article.data.title} description={article.data.description} article={article}>{tagsOn && article.data.tags.length > 0 && <p>{article.data.tags.map((tag, index) => <span>{index > 0 ? ', ' : ''}<a href={`/tags/${tagSlug(tag)}`}>{tag}</a></span>)}</p>}
+  {bylineMode === 'keep' ? <p>By {author.data.name} · <time datetime={article.data.pubDate.toISOString()}>{article.data.pubDate.toISOString().slice(0, 10)}</time>{readNote}</p> : bylineMode === 'none' ? (readingOn ? <p>{minutes} min read</p> : null) : bylineMode === 'date' ? <p><time datetime={article.data.pubDate.toISOString().slice(0, 10)}>{writtenDate}</time>{readNote}</p> : <p>By {author.data.name} · <time datetime={article.data.pubDate.toISOString().slice(0, 10)}>{writtenDate}</time>{readNote}</p>}
+  {article.data.hero && (article.data.heroAlt ? <img src={article.data.hero} alt={article.data.heroAlt} /> : <img src={article.data.hero} alt="" />)}
+  <Content components={components} />{related.length > 0 && <div class="kit-article-list not-prose" data-kit-list><h2>Related</h2><ul aria-label="Related">{related.map((item) => <li>
+      {showHero && item.data.hero ? (item.data.heroAlt ? <img src={item.data.hero} alt={item.data.heroAlt} /> : <img src={item.data.hero} alt="" />) : null}
+      <h2><a href={`/articles/${item.id}`}>{item.data.title}</a></h2>
+      <p>{item.data.description}</p>
+      <p class="kit-article-date"><time datetime={item.data.pubDate.toISOString().slice(0, 10)}>{readableDate(item.data.pubDate)}</time>{readingOn ? ` ${readingMinutes(item.body)} min read` : null}</p>
+    </li>)}</ul></div>}
 </SiteLayout>

@@ -8,15 +8,26 @@ const customParts = import.meta.glob('../custom/{Header,Footer}.astro', { eager:
 const CustomHeader = (customParts['../custom/Header.astro'] as any)?.default;
 const CustomFooter = (customParts['../custom/Footer.astro'] as any)?.default;
 
+interface EventFacts {
+  title: string;
+  description: string;
+  start: string;
+  end?: string;
+  online?: boolean;
+  location?: string;
+  signup?: string;
+}
 interface Props {
   title: string;
   description: string;
   article?: CollectionEntry<'articles'>;
+  event?: { data: EventFacts };
+  documentTitle?: string;
   noindex?: boolean;
   showTitle?: boolean;
   image?: string;
 }
-const { title, description, article, noindex, showTitle, image: pageImage } = Astro.props;
+const { title, description, article, event, documentTitle, noindex, showTitle, image: pageImage } = Astro.props;
 interface SiteLink { label: string; href: string; style?: string }
 interface LayoutBrand { text?: string; logo?: string }
 interface LayoutConfig {
@@ -74,6 +85,20 @@ if (article) {
     keywords: article.data.tags,
   });
 }
+if (event) {
+  graph.push({
+    '@type': 'Event',
+    name: event.data.title,
+    description: event.data.description,
+    startDate: event.data.start,
+    ...(event.data.end ? { endDate: event.data.end } : {}),
+    eventAttendanceMode: event.data.online === true ? 'https://schema.org/OnlineEventAttendanceMode' : 'https://schema.org/OfflineEventAttendanceMode',
+    location: event.data.online === true
+      ? { '@type': 'VirtualLocation', url: event.data.signup || canonical }
+      : { '@type': 'Place', name: event.data.location },
+    url: canonical,
+  });
+}
 const jsonLd = JSON.stringify({ '@context': 'https://schema.org', '@graph': graph }).replace(/</g, '\\u003c');
 const articlesOn = kit.collections.articles !== false;
 const layoutConfig = site.layout;
@@ -102,7 +127,7 @@ const icon = typeof site.icon === 'string' && site.icon ? site.icon : '';
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     {icon && <link rel="icon" href={icon} />}
-    <title>{title}</title>
+    <title>{documentTitle ?? title}</title>
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex" />}
     <link rel="canonical" href={canonical} />

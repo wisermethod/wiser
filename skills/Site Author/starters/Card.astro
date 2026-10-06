@@ -1,0 +1,16 @@
+---
+// A starter the site now owns. One cell of a CardGrid.
+interface Props {
+  title: string;
+  text: string;
+  href?: string;
+  label?: string;
+}
+const { title, text, href, label } = Astro.props;
+const linkClass = "inline-flex min-h-11 items-center text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-link";
+---
+<li class="border border-meta p-4 text-ink">
+  <h2 class="font-heading text-title">{title}</h2>
+  <p>{text}</p>
+  {href ? <a href={href} class={linkClass}>{label || title}</a> : null}
+</li>

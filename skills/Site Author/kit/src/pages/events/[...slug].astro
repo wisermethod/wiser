@@ -1,0 +1,24 @@
+---
+import { existsSync } from 'node:fs';
+import { getCollection, render } from 'astro:content';
+import SiteLayout from '../../layouts/SiteLayout.astro';
+import { components } from '../../components/index.js';
+import { formatEventWhen } from '../../lib/event-time.mjs';
+
+export async function getStaticPaths() {
+  if (!existsSync(new URL('../../content/events/', import.meta.url))) return [];
+  const events = await (getCollection as (name: string, filter: (entry: { data: { draft?: boolean } }) => boolean) => Promise<{ id: string; data: Record<string, unknown> }[]>)('events', ({ data }) => !data.draft);
+  return events.map((event) => ({ params: { slug: event.id }, props: { event } }));
+}
+const { event } = Astro.props;
+const { Content } = await render(event);
+const when = formatEventWhen(event.data.start, event.data.end, event.data.timezone);
+const place = event.data.online ? 'Online' : event.data.location;
+const linkStyle = 'display:inline-flex;align-items:center;box-sizing:border-box;min-height:44px';
+---
+<SiteLayout title={event.data.title} description={event.data.description} event={event}>
+  <p>{when}</p>
+  <p>{place}</p>
+  {event.data.signup && <p><a href={event.data.signup} style={linkStyle}>Sign up</a></p>}
+  <Content components={components} />
+</SiteLayout>

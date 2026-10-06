@@ -1,0 +1,41 @@
+---
+import { getCollection } from 'astro:content';
+import SiteLayout from '../../layouts/SiteLayout.astro';
+import kit from '../../../kit.json';
+import { readingMinutes, tagSlug } from '../../lib/blog.mjs';
+
+export async function getStaticPaths() {
+  const blog = kit.blog && typeof kit.blog === 'object' && !Array.isArray(kit.blog) ? kit.blog : {};
+  if (blog.tags !== true || kit.collections.articles === false) return [];
+  const articles = (await getCollection('articles', ({ data }) => !data.draft))
+    .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+  const groups = new Map();
+  for (const article of articles) {
+    const seen = new Set();
+    for (const tag of article.data.tags ?? []) {
+      const slug = tagSlug(tag);
+      if (!slug) throw new Error(`Article ${article.id} has a tag that makes an empty slug: ${tag}`);
+      if (seen.has(slug)) continue;
+      seen.add(slug);
+      const group = groups.get(slug);
+      if (!group) groups.set(slug, { slug, tag, articles: [article] });
+      else if (group.tag !== tag) throw new Error(`Tags "${group.tag}" and "${tag}" both slug to ${slug}`);
+      else group.articles.push(article);
+    }
+  }
+  return [...groups.values()].map((group) => ({ params: { tag: group.slug }, props: { tag: group.tag, articles: group.articles } }));
+}
+const { tag, articles } = Astro.props;
+const blog = kit.blog && typeof kit.blog === 'object' && !Array.isArray(kit.blog) ? kit.blog : {};
+const readingOn = blog.readingTime === true;
+const showHero = blog.hero === true;
+const readableDate = (date: Date) => date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+---
+<SiteLayout title={tag} description={`Articles tagged ${tag}.`}>
+  <div class="kit-article-list not-prose" data-kit-list><ul aria-label="Articles">{articles.map((article) => <li>
+    {showHero && article.data.hero ? (article.data.heroAlt ? <img src={article.data.hero} alt={article.data.heroAlt} /> : <img src={article.data.hero} alt="" />) : null}
+    <h2><a href={`/articles/${article.id}`}>{article.data.title}</a></h2>
+    <p>{article.data.description}</p>
+    <p class="kit-article-date"><time datetime={article.data.pubDate.toISOString().slice(0, 10)}>{readableDate(article.data.pubDate)}</time>{readingOn ? ` ${readingMinutes(article.body)} min read` : null}</p>
+  </li>)}</ul></div>
+</SiteLayout>

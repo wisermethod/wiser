@@ -7,8 +7,8 @@ import path from "node:path";
 
 import { currentKit } from "./envelope.mjs";
 
-const CHECK_VERSION = "0.3.0";
-const KNOWN_VERSIONS = ["0.1.0", "0.2.0", "0.2.1", "0.2.2", "0.3.0"];
+const CHECK_VERSION = "0.4.0";
+const KNOWN_VERSIONS = ["0.1.0", "0.2.0", "0.2.1", "0.2.2", "0.3.0", "0.4.0"];
 // feature, version introduced. A later release adds a row.
 const introduced = [
   { feature: "layout", version: "0.2.0" },
@@ -21,6 +21,12 @@ const introduced = [
   { feature: "icon", version: "0.3.0" },
   { feature: "lang", version: "0.3.0" },
   { feature: "image", version: "0.3.0" },
+  { feature: "blog", version: "0.4.0" },
+  { feature: "listEvents", version: "0.4.0" },
+  { feature: "heroAlt", version: "0.4.0" },
+  { feature: "src/content/events/", version: "0.4.0" },
+  { feature: "Video", version: "0.4.0" },
+  { feature: "Faq", version: "0.4.0" },
 ];
 
 const args = process.argv.slice(2);
@@ -117,6 +123,25 @@ if (Object.hasOwn(kit, "icon")) {
 if (Object.hasOwn(kit, "lang")) {
   tooOld("lang", "kit.json lang");
   if (typeof kit.lang !== "string" || !/^[A-Za-z]+(?:-[A-Za-z0-9]+)*$/.test(kit.lang)) fail("kit.json lang must be a language tag of letters, then hyphen-separated letters or digits, such as en, en-GB or pt-BR");
+}
+let blogConfig = {};
+if (Object.hasOwn(kit, "blog")) {
+  tooOld("blog", "kit.json blog");
+  const blog = kit.blog;
+  if (blog === null || typeof blog !== "object" || Array.isArray(blog)) fail("kit.json blog must be an object");
+  else {
+    blogConfig = blog;
+    const allowed = new Set(["tags", "perPage", "readingTime", "byline", "hero", "related"]);
+    for (const key of Object.keys(blog)) {
+      if (!allowed.has(key)) fail(`kit.json blog.${key} is not allowed`);
+    }
+    for (const key of ["tags", "readingTime", "hero"]) {
+      if (Object.hasOwn(blog, key) && typeof blog[key] !== "boolean") fail(`kit.json blog.${key} must be true or false`);
+    }
+    if (Object.hasOwn(blog, "perPage") && !(Number.isInteger(blog.perPage) && blog.perPage >= 2 && blog.perPage <= 50)) fail("kit.json blog.perPage must be a whole number from 2 to 50");
+    if (Object.hasOwn(blog, "related") && !(Number.isInteger(blog.related) && blog.related >= 1 && blog.related <= 6)) fail("kit.json blog.related must be a whole number from 1 to 6");
+    if (Object.hasOwn(blog, "byline") && blog.byline !== "author-date" && blog.byline !== "date" && blog.byline !== "none") fail("kit.json blog.byline must be author-date, date, or none");
+  }
 }
 
 function checkImagePath(value, where) {
@@ -313,8 +338,182 @@ function frontmatter(file) {
   return out;
 }
 
+function unquote(value) {
+  let v = String(value ?? "").replace(/^!!str\s+/, "").trim();
+  const quoted = /^(["'])([\s\S]*)\1$/.exec(v);
+  if (quoted) v = quoted[1] === "'" ? quoted[2].replace(/''/g, "'") : quoted[2];
+  return v.trim();
+}
+function contentSegment(segment) {
+  return segment.toLowerCase().replace(/[^\p{L}\p{N} _-]+/gu, "").replace(/ /g, "-");
+}
+function pageIdOf(file, top) {
+  if (top && Object.hasOwn(top, "slug") && unquote(top.slug) !== "") return unquote(top.slug);
+  const root = path.join(site, "src/content/pages");
+  const rel = path.relative(root, file).replace(/\\/g, "/").replace(/\.(md|mdx)$/i, "");
+  return rel.split("/").map(contentSegment).join("/").replace(/\/index$/, "");
+}
+function tagSlug(tag) {
+  return String(tag).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "");
+}
+function flowList(value) {
+  const inner = String(value).trim();
+  if (!inner.startsWith("[") || !inner.endsWith("]")) return null;
+  const body = inner.slice(1, -1);
+  const items = [];
+  let buf = "";
+  let quote = null;
+  for (let i = 0; i < body.length; i++) {
+    const c = body[i];
+    if (quote) {
+      if (quote === "'" && c === "'" && body[i + 1] === "'") { buf += "'"; i++; continue; }
+      if (c === quote) { quote = null; continue; }
+      buf += c;
+      continue;
+    }
+    if (c === '"' || c === "'") { quote = c; continue; }
+    if (c === ",") { items.push(buf.trim()); buf = ""; continue; }
+    buf += c;
+  }
+  if (buf.trim() !== "" || items.length) items.push(buf.trim());
+  return items.filter((item) => item !== "");
+}
+function articleTags(file) {
+  const text = fs.readFileSync(file, "utf8").replace(/^\uFEFF/, "");
+  const matched = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!matched) return [];
+  const lines = matched[1].split(/\r?\n/);
+  const first = lines.find((line) => line.trim() !== "" && !/^\s*#/.test(line));
+  const rootIndent = first ? first.match(/^ */)[0].length : 0;
+  const tags = [];
+  let inTags = false;
+  let itemIndent = null;
+  for (const line of lines) {
+    if (line.trim() === "" || /^\s*#/.test(line)) continue;
+    const indent = line.match(/^ */)[0].length;
+    if (indent <= rootIndent) {
+      inTags = false;
+      itemIndent = null;
+      if (indent !== rootIndent) continue;
+      const key = line.slice(rootIndent).match(/^tags\s*:(.*)$/);
+      if (!key) continue;
+      const value = key[1].replace(/\s+#.*$/, "").trim();
+      if (value === "" || /^(?:>|\|)[+-]?$/.test(value)) { inTags = true; continue; }
+      const flow = flowList(value);
+      if (flow) return flow;
+      const scalar = unquote(value);
+      return scalar ? [scalar] : [];
+    }
+    if (!inTags) continue;
+    const item = line.match(/^(\s*)-\s+(.*)$/);
+    if (!item) continue;
+    const at = item[1].length;
+    if (itemIndent === null) itemIndent = at;
+    if (at !== itemIndent) continue;
+    const scalar = unquote(item[2].replace(/\s+#.*$/, "").trim());
+    if (scalar) tags.push(scalar);
+  }
+  return tags;
+}
+function checkBlogPages() {
+  if (blogConfig.tags === true) {
+    for (const page of contentPages) {
+      if (page.id === "tags" || page.id.startsWith("tags/")) fail(`${page.file}: page id ${page.id} collides with tag pages`);
+    }
+  }
+  const perPage = blogConfig.perPage;
+  if (!(Number.isInteger(perPage) && perPage >= 2 && perPage <= 50)) return;
+  for (const listing of contentPages) {
+    if (!listing.listArticles) continue;
+    const escaped = listing.id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`^${escaped}/([1-9][0-9]*)$`);
+    for (const page of contentPages) {
+      const match = re.exec(page.id);
+      if (match && Number(match[1]) >= 2) fail(`${page.file}: page id ${page.id} collides with a later page of ${listing.id}`);
+    }
+  }
+}
+function checkArticleTags() {
+  if (blogConfig.tags !== true) return;
+  const seen = new Map();
+  for (const file of publishedArticles) {
+    for (const tag of articleTags(file)) {
+      const slug = tagSlug(tag);
+      if (!slug) { fail(`${file}: tag "${tag}" makes an empty address`); continue; }
+      const prev = seen.get(slug);
+      if (!prev) seen.set(slug, { tag, file });
+      else if (prev.tag !== tag) fail(`${file}: tag "${tag}" and ${prev.file} tag "${prev.tag}" both slug to ${slug}`);
+    }
+  }
+}
+const OFFSET_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/;
+function checkEvents() {
+  const dir = path.join(site, "src/content/events");
+  let st;
+  try { st = fs.lstatSync(dir); } catch { return; }
+  tooOld("src/content/events/", "src/content/events/");
+  if (st.isSymbolicLink() || !st.isDirectory()) { fail("src/content/events must be a directory"); return; }
+  const known = new Set(["title", "description", "start", "end", "timezone", "location", "online", "signup", "draft"]);
+  walkMd(dir, (file) => {
+    if (!frontmatter(file)) return fail(`${file}: no frontmatter`);
+    const top = topLevelFrontmatter(file);
+    for (const key of Object.keys(top)) {
+      if (!known.has(key)) fail(`${file}: ${key} is not an events field`);
+    }
+    for (const key of ["title", "description", "start", "timezone"]) {
+      if (!Object.hasOwn(top, key) || unquote(top[key]) === "") fail(`${file}: missing ${key}`);
+    }
+    const start = Object.hasOwn(top, "start") ? unquote(top.start) : "";
+    if (start && !OFFSET_INSTANT.test(start)) fail(`${file}: start must be a date and time with an offset, such as 2026-10-15T18:00:00-06:00`);
+    if (Object.hasOwn(top, "end")) {
+      const end = unquote(top.end);
+      if (!OFFSET_INSTANT.test(end)) fail(`${file}: end must be a date and time with an offset, such as 2026-10-15T20:00:00-06:00`);
+      else if (OFFSET_INSTANT.test(start) && Date.parse(end) <= Date.parse(start)) fail(`${file}: end must be after start`);
+    }
+    const zone = Object.hasOwn(top, "timezone") ? unquote(top.timezone) : "";
+    if (zone) {
+      try { Intl.DateTimeFormat("en-US", { timeZone: zone }); }
+      catch { fail(`${file}: timezone must be an IANA name, such as America/Denver`); }
+    }
+    if (Object.hasOwn(top, "signup")) {
+      const signup = unquote(top.signup);
+      let ok = false;
+      try { const url = new URL(signup); ok = url.protocol === "https:" && url.hostname !== ""; }
+      catch { ok = false; }
+      if (!ok) fail(`${file}: signup must be an https:// URL`);
+    }
+    if (Object.hasOwn(top, "location") && unquote(top.location) === "") fail(`${file}: location must be non-empty text`);
+    if (Object.hasOwn(top, "online") && yamlBoolean(top.online) !== "true") fail(`${file}: online must be true, unquoted`);
+    const onlineOn = Object.hasOwn(top, "online") && yamlBoolean(top.online) === "true";
+    const hasLocation = Object.hasOwn(top, "location") && unquote(top.location) !== "";
+    if (onlineOn === hasLocation) fail(`${file}: set location or online: true, and not both`);
+    if (Object.hasOwn(top, "draft") && yamlBoolean(top.draft) === null) fail(`${file}: draft must be true or false, unquoted`);
+  });
+}
+function checkVideo(file, attrs) {
+  tooOld("Video", file);
+  if (attrs["{...}"]) fail(`${file}: Video uses a spread; write youtube, vimeo or src and title as literals`);
+  const title = attrs.title;
+  if (typeof title !== "string" || title.trim() === "") fail(`${file}: Video is missing a literal title="..."`);
+  const present = (key) => Object.hasOwn(attrs, key) && (typeof attrs[key] === "string" ? attrs[key] !== "" : true);
+  const sources = ["youtube", "vimeo", "src"].filter(present);
+  if (sources.length !== 1) {
+    fail(`${file}: Video requires exactly one of youtube, vimeo or src`);
+    return;
+  }
+  const key = sources[0];
+  const value = attrs[key];
+  if (typeof value !== "string") {
+    fail(`${file}: Video ${key} must be a literal`);
+    return;
+  }
+  if (key === "src") checkImagePath(value, `${file}: Video src`);
+  else if (!/^[A-Za-z0-9_-]+$/.test(value)) fail(`${file}: Video ${key} id must be letters, digits, hyphens or underscores`);
+}
 const requiredArticle = ["title", "description", "pubDate", "author", "tags", "draft"];
 const requiredPage = ["title", "description"];
+const publishedArticles = [];
+const contentPages = [];
 walkMd(path.join(site, "src/content/articles"), (file) => {
   const fm = frontmatter(file);
   if (!fm) return fail(`${file}: no frontmatter`);
@@ -322,7 +521,8 @@ walkMd(path.join(site, "src/content/articles"), (file) => {
     if (fm[key] === undefined || fm[key] === "") fail(`${file}: missing ${key}`);
   }
   // A date and time with no offset can be read in the build machine's own zone, so its day can differ from one machine to the next. The value is read as YAML gives it: a !!str tag dropped, quotes removed, spaces trimmed.
-  const rawDate = topLevelFrontmatter(file).pubDate;
+  const articleTop = topLevelFrontmatter(file);
+  const rawDate = articleTop.pubDate;
   if (rawDate !== undefined) {
     let value = rawDate.replace(/^!!str\s+/, "");
     if (/^!/.test(value) || (value.startsWith('"') && value.includes("\\"))) fail(`${file}: pubDate uses a YAML tag or escape check does not read; write the date plainly`);
@@ -333,6 +533,11 @@ walkMd(path.join(site, "src/content/articles"), (file) => {
       if (/^\d{4}-\d{1,2}-\d{1,2}(?:[Tt]|\s+)\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/.test(value)) fail(`${file}: pubDate gives a time with no zone, so its day depends on the build machine; give a date alone, 2026-09-24, or add the offset, 2026-09-24T09:00:00Z`);
     }
   }
+  if (Object.hasOwn(articleTop, "heroAlt")) {
+    tooOld("heroAlt", file);
+    if (unquote(articleTop.heroAlt) === "") fail(`${file}: heroAlt must be non-empty text`);
+  }
+  if (yamlBoolean(articleTop.draft ?? "") !== "true") publishedArticles.push(file);
 });
 // Fenced code, inline code, HTML comments and MDX comments never render as markup, so neither a heading nor a component inside them counts.
 function renderedSource(body) {
@@ -417,7 +622,7 @@ walkMd(path.join(site, "src/content/pages"), (file) => {
     if (fm[key] === undefined || fm[key] === "") fail(`${file}: missing ${key}`);
   }
   const top = topLevelFrontmatter(file);
-  for (const key of ["showTitle", "listArticles"]) {
+  for (const key of ["showTitle", "listArticles", "listEvents"]) {
     if (!Object.hasOwn(top, key)) continue;
     tooOld(key, file);
     if (yamlBoolean(top[key]) === null) fail(`${file}: ${key} must be true or false, unquoted`);
@@ -434,7 +639,10 @@ walkMd(path.join(site, "src/content/pages"), (file) => {
     if (quoted) imagePath = quoted[1] === "'" ? quoted[2].replace(/''/g, "'") : quoted[2];
     checkImagePath(imagePath, `${file}: image`);
   }
+  contentPages.push({ file, id: pageIdOf(file, top), listArticles: yamlBoolean(top.listArticles ?? "") === "true" });
 });
+checkBlogPages();
+checkArticleTags();
 if (kit.collections && kit.collections.articles === false) {
   walkMd(path.join(site, "src/content/articles"), (file) => {
     const fm = frontmatter(file);
@@ -457,10 +665,10 @@ walkFiles(path.join(site, "src/content/conversations"), /\.(ya?ml|json)$/i, (fil
   const stem = path.basename(file).replace(/\.(ya?ml|json)$/i, "");
   if (!conversationName.test(stem) || !/\.(yaml|yml|json)$/.test(file)) fail(`${file}: a conversation file name is lowercase letters, digits and hyphens, ending .yaml, .yml or .json`);
 });
-// Each <ConversationPlayer ...> tag's attributes, read with quotes and braces respected, so one attribute's text cannot pose as another and a > inside a value does not end the tag. A braced value is recorded as an expression, not a literal.
-function playerTags(text) {
+// Each <Name ...> tag's attributes, read with quotes and braces respected, so one attribute's text cannot pose as another and a > inside a value does not end the tag. A braced value is recorded as an expression, not a literal.
+function elementTags(text, component) {
   const tags = [];
-  const re = /<ConversationPlayer(?=[\s/>])/g;
+  const re = new RegExp(`<${component}(?=[\\s/>])`, "g");
   let m;
   while ((m = re.exec(text))) {
     let i = m.index + m[0].length;
@@ -499,6 +707,9 @@ function playerTags(text) {
   }
   return tags;
 }
+function playerTags(text) {
+  return elementTags(text, "ConversationPlayer");
+}
 walkFiles(path.join(site, "src/content"), /\.mdx$/, (file) => {
   const text = renderedSource(fs.readFileSync(file, "utf8"));
   for (const attrs of playerTags(text)) {
@@ -520,7 +731,10 @@ walkFiles(path.join(site, "src/content"), /\.mdx$/, (file) => {
     });
     if (!found) fail(`${file}: ConversationPlayer id "${id}" has no file in src/content/conversations/`);
   }
+  for (const attrs of elementTags(text, "Video")) checkVideo(file, attrs);
+  for (const _attrs of elementTags(text, "Faq")) tooOld("Faq", file);
 });
+checkEvents();
 
 for (const rel of ["public/_redirects", "public/images/og-default.png", "src/styles/tokens.css", "package.json", ".gitignore"]) {
   if (!fs.existsSync(path.join(site, rel))) fail(`missing ${rel}`);
@@ -1167,6 +1381,134 @@ function builtPageFacts(html) {
   }
   return facts;
 }
+const VOID_TAGS = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"]);
+const LABEL_FREE_INPUT = new Set(["hidden", "submit", "reset", "button", "image"]);
+function snippetOf(tag) {
+  const flat = tag.replace(/\s+/g, " ").trim();
+  return flat.length <= 140 ? flat : `${flat.slice(0, 137)}...`;
+}
+function namedBy(attrs, titleCounts) {
+  if ((attrs["aria-label"] || "").trim() !== "") return true;
+  if ((attrs["aria-labelledby"] || "").trim() !== "") return true;
+  return titleCounts && (attrs.title || "").trim() !== "";
+}
+// The same scan as the head facts: comments, raw text, templates and foreign content stay out of the element rules. An id is counted on every start tag outside a template, including SVG and a raw-text element's own id.
+function accessibilityFindings(html) {
+  const findings = [];
+  const contexts = [];
+  let templateDepth = 0;
+  const inForeign = () => contexts.length > 0 && contexts[contexts.length - 1].foreign;
+  const stack = [];
+  const ids = new Map();
+  const labelFor = new Set();
+  const pending = [];
+  const addText = (chunk) => {
+    if (!chunk) return;
+    for (const frame of stack) if (frame.kind === "named") frame.text += chunk;
+  };
+  const finishFrame = (frame) => {
+    if (frame.kind !== "named") return;
+    if (frame.text.replace(/\s+/g, " ").trim() || frame.imgAlt || frame.attrName) return;
+    findings.push(`${frame.snippet} has no accessible name`);
+  };
+  const closeStack = (name) => {
+    const at = stack.map((frame) => frame.name).lastIndexOf(name);
+    if (at === -1) return;
+    for (let n = stack.length - 1; n >= at; n--) finishFrame(stack[n]);
+    stack.length = at;
+  };
+  const noteId = (attrs, tag) => {
+    if (!Object.hasOwn(attrs, "id")) return;
+    const id = attrs.id;
+    const snippet = snippetOf(tag);
+    if (ids.has(id)) findings.push(`id "${id}" is used twice, on ${ids.get(id)} and ${snippet}`);
+    else ids.set(id, snippet);
+  };
+  const inspect = (name, attrs, tag) => {
+    if (name === "img") {
+      if (!Object.hasOwn(attrs, "alt")) findings.push(`${snippetOf(tag)} has no alt attribute`);
+      else if (attrs.alt.trim() !== "") for (const frame of stack) if (frame.kind === "named") frame.imgAlt = true;
+    }
+    if (name === "iframe" && (attrs.title || "").trim() === "") findings.push(`${snippetOf(tag)} has no title`);
+    if (name === "label" && typeof attrs.for === "string" && attrs.for !== "") labelFor.add(attrs.for);
+    if (name === "input" || name === "select" || name === "textarea") {
+      const type = name === "input" ? (attrs.type || "text").toLowerCase() : "";
+      if (!(name === "input" && LABEL_FREE_INPUT.has(type))) {
+        pending.push({
+          id: Object.hasOwn(attrs, "id") ? attrs.id : null,
+          snippet: snippetOf(tag),
+          ok: namedBy(attrs, false) || stack.some((frame) => frame.name === "label"),
+        });
+      }
+    }
+    if (VOID_TAGS.has(name) || RAW_TEXT.has(name)) return;
+    const named = name === "button" || (name === "a" && Object.hasOwn(attrs, "href"));
+    stack.push({ name, kind: named ? "named" : "plain", text: "", imgAlt: false, attrName: named && namedBy(attrs, true), snippet: snippetOf(tag) });
+  };
+  let i = 0;
+  while (i < html.length) {
+    const lt = html.indexOf("<", i);
+    if (lt === -1) {
+      if (templateDepth === 0 && !inForeign()) addText(html.slice(i));
+      break;
+    }
+    if (templateDepth === 0 && !inForeign()) addText(html.slice(i, lt));
+    if (html.startsWith("<!--", lt)) {
+      const end = html.indexOf("-->", lt + 4);
+      i = end === -1 ? html.length : end + 3;
+      continue;
+    }
+    if (html.startsWith("<![CDATA[", lt) && inForeign()) {
+      const end = html.indexOf("]]>", lt + 9);
+      i = end === -1 ? html.length : end + 3;
+      continue;
+    }
+    if (html.startsWith("<!", lt) || html.startsWith("<?", lt)) {
+      const end = html.indexOf(">", lt + 2);
+      i = end === -1 ? html.length : end + 1;
+      continue;
+    }
+    const match = /^<(\/?)([A-Za-z][A-Za-z0-9:-]*)/.exec(html.slice(lt, lt + 64));
+    if (!match) { i = lt + 1; continue; }
+    const name = match[2].toLowerCase();
+    const closing = match[1] === "/";
+    const { end, selfClosing } = readTag(html, lt + match[0].length);
+    const tag = html.slice(lt, end + 1);
+    i = end + 1;
+    if (closing) {
+      const at = contexts.map((c) => c.name).lastIndexOf(name);
+      if (at !== -1) contexts.length = at;
+      if (name === "template" && !inForeign() && templateDepth > 0) templateDepth--;
+      if (templateDepth === 0 && !inForeign()) closeStack(name);
+      continue;
+    }
+    if (inForeign() && BREAKOUT.has(name)) while (inForeign()) contexts.pop();
+    const attrs = tagAttrs(tag);
+    if (templateDepth === 0) noteId(attrs, tag);
+    if (inForeign()) {
+      if (HTML_INSIDE_FOREIGN.has(name) && !selfClosing) contexts.push({ name, foreign: false });
+      continue;
+    }
+    if (FOREIGN.has(name) && !selfClosing) { contexts.push({ name, foreign: true }); continue; }
+    if (RAW_TEXT.has(name)) {
+      if (templateDepth === 0) inspect(name, attrs, tag);
+      const close = new RegExp(`</${name}(?=[\\s/>])`, "gi");
+      close.lastIndex = i;
+      const found = close.exec(html);
+      i = found ? found.index : html.length;
+      continue;
+    }
+    if (name === "template") { templateDepth++; continue; }
+    if (templateDepth === 0) inspect(name, attrs, tag);
+  }
+  for (let n = stack.length - 1; n >= 0; n--) finishFrame(stack[n]);
+  for (const control of pending) {
+    if (control.ok) continue;
+    if (control.id !== null && labelFor.has(control.id)) continue;
+    findings.push(`${control.snippet} has no label`);
+  }
+  return findings;
+}
 function copiedFromPublic(dist, file) {
   const rel = path.relative(dist, file);
   if (rel === "pagefind" || rel.startsWith(`pagefind${path.sep}`)) return true;
@@ -1209,6 +1551,7 @@ if (built) {
       if (!facts.ogUrl) fail(`${shown}: missing og:url`);
       if (!facts.jsonLd) fail(`${shown}: missing a script type="application/ld+json"`);
       if (facts.h1 !== 1) fail(`${shown}: expected exactly one <h1>, found ${facts.h1}`);
+      for (const finding of accessibilityFindings(html)) fail(`${shown}: ${finding}`);
       // A built page loads scripts and stylesheets from this site only, whatever wrote the tag.
       for (const tag of html.match(/<(?:script|link)\b[^>]*>/gi) ?? []) {
         const isLink = /^<link/i.test(tag);
