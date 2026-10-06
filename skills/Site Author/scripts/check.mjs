@@ -1,15 +1,39 @@
 #!/usr/bin/env node
-// Walk KIT.md check steps 1 to 5. Step 6 (served HTML) is a later fetch.
+// Walk KIT.md check steps 1 to 5. Step 6's served-HTML fetch is a later fetch.
+// --built, before or after the envelope, also reads site/dist/ for nested anchors and a stale build.
 // Not a Wiser tool. Fail closed.
 import fs from "node:fs";
 import path from "node:path";
 
 import { currentKit } from "./envelope.mjs";
-const envelope = process.argv[2] && path.resolve(process.argv[2]);
-if (!envelope) {
-  console.error("usage: node check.mjs <envelope-folder>");
+
+const CHECK_VERSION = "0.2.2";
+const KNOWN_VERSIONS = ["0.1.0", "0.2.0", "0.2.1", "0.2.2"];
+// feature, version introduced. A later release adds a row.
+const introduced = [
+  { feature: "layout", version: "0.2.0" },
+  { feature: "style", version: "0.2.0" },
+  { feature: "showTitle", version: "0.2.0" },
+  { feature: "listArticles", version: "0.2.0" },
+  { feature: "ConversationPlayer", version: "0.2.0" },
+  { feature: "collections.articles false", version: "0.2.0" },
+];
+
+const args = process.argv.slice(2);
+let built = false;
+const positionals = [];
+for (const arg of args) {
+  if (arg === "--built") built = true;
+  else if (arg.startsWith("-")) {
+    console.error("usage: node check.mjs [--built] <envelope-folder>");
+    process.exit(2);
+  } else positionals.push(arg);
+}
+if (positionals.length !== 1) {
+  console.error("usage: node check.mjs [--built] <envelope-folder>");
   process.exit(2);
 }
+const envelope = path.resolve(positionals[0]);
 
 let site;
 try { site = currentKit(envelope); }
@@ -35,7 +59,16 @@ try {
   kit = {};
 }
 
-if (kit.kitVersion !== "0.2.1") fail(`kitVersion ${kit.kitVersion} does not match KIT.md 0.2.1: run Upgrade`);
+if (!KNOWN_VERSIONS.includes(kit.kitVersion)) {
+  const shown = typeof kit.kitVersion === "string" && kit.kitVersion !== "" ? kit.kitVersion : "missing";
+  fail(`kitVersion ${shown} is not one of ${KNOWN_VERSIONS.join(", ")}: run Upgrade`);
+}
+function tooOld(feature, where) {
+  const row = introduced.find((item) => item.feature === feature);
+  if (!row || !KNOWN_VERSIONS.includes(kit.kitVersion)) return;
+  if (KNOWN_VERSIONS.indexOf(kit.kitVersion) >= KNOWN_VERSIONS.indexOf(row.version)) return;
+  fail(`${where} uses ${feature}, which kitVersion ${row.version} introduced: run Upgrade`);
+}
 
 function hrefProblem(href) {
   if (typeof href !== "string" || href === "") return "must be a non-empty string";
@@ -64,7 +97,10 @@ function checkLinkList(key) {
     if (typeof item.label !== "string" || item.label.trim() === "") fail(`${where}.label must be a non-empty string`);
     const problem = hrefProblem(item.href);
     if (problem) fail(`${where}.href ${problem}`);
-    if (Object.hasOwn(item, "style") && item.style !== "button") fail(`${where}.style must be button`);
+    if (Object.hasOwn(item, "style")) {
+      tooOld("style", `${where}.style`);
+      if (item.style !== "button") fail(`${where}.style must be button`);
+    }
   });
 }
 checkLinkList("nav");
@@ -132,7 +168,10 @@ function checkLayout(layout) {
   if (Object.hasOwn(header, "menu") && header.menu !== "links" && header.menu !== "button") fail("kit.json layout.header.menu must be links or button");
   if (Object.hasOwn(header, "brand")) checkBrand(header.brand);
 }
-if (Object.hasOwn(kit, "layout")) checkLayout(kit.layout);
+if (Object.hasOwn(kit, "layout")) {
+  tooOld("layout", "kit.json layout");
+  checkLayout(kit.layout);
+}
 if (kit.collections === null || typeof kit.collections !== "object" || Array.isArray(kit.collections)) fail("kit.json collections must be an object of true or false values");
 else {
   for (const [name, value] of Object.entries(kit.collections)) {
@@ -143,7 +182,10 @@ else {
 }
 const envelopeRouter = fs.existsSync(path.join(envelope, "AGENTS.md")) ? fs.readFileSync(path.join(envelope, "AGENTS.md"), "utf8") : "";
 if (Object.hasOwn(kit, "layout") && !envelopeRouter.includes("`layout`")) fail("kit.json sets layout, but the envelope AGENTS.md does not mention it: refresh its Content vs code section from site-AGENTS.md");
-if (kit.collections && kit.collections.articles === false && !envelopeRouter.includes("`collections.articles`")) fail("kit.json sets collections.articles to false, but the envelope AGENTS.md does not mention it: refresh its Content vs code section from site-AGENTS.md");
+if (kit.collections && kit.collections.articles === false) {
+  tooOld("collections.articles false", "kit.json collections.articles");
+  if (!envelopeRouter.includes("`collections.articles`")) fail("kit.json sets collections.articles to false, but the envelope AGENTS.md does not mention it: refresh its Content vs code section from site-AGENTS.md");
+}
 if (Object.hasOwn(kit, "nav") || Object.hasOwn(kit, "footer")) {
   const layoutPath = path.join(site, "src", "layouts", "SiteLayout.astro");
   const layout = fs.existsSync(layoutPath) ? fs.readFileSync(layoutPath, "utf8") : "";
@@ -343,7 +385,9 @@ walkMd(path.join(site, "src/content/pages"), (file) => {
   }
   const top = topLevelFrontmatter(file);
   for (const key of ["showTitle", "listArticles"]) {
-    if (Object.hasOwn(top, key) && yamlBoolean(top[key]) === null) fail(`${file}: ${key} must be true or false, unquoted`);
+    if (!Object.hasOwn(top, key)) continue;
+    tooOld(key, file);
+    if (yamlBoolean(top[key]) === null) fail(`${file}: ${key} must be true or false, unquoted`);
   }
   if (Object.hasOwn(top, "showTitle") && yamlBoolean(top.showTitle) === "false") {
     const body = fs.readFileSync(file, "utf8").replace(/^\uFEFF/, "").replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
@@ -418,6 +462,7 @@ function playerTags(text) {
 walkFiles(path.join(site, "src/content"), /\.mdx$/, (file) => {
   const text = renderedSource(fs.readFileSync(file, "utf8"));
   for (const attrs of playerTags(text)) {
+    tooOld("ConversationPlayer", file);
     const id = typeof attrs.id === "string" ? attrs.id : "";
     if (!id) {
       fail(`${file}: ConversationPlayer is missing a literal id="..."`);
@@ -531,9 +576,121 @@ const llms = ["src/pages/llms.txt.js", "src/pages/llms.txt.ts"].some((p) => fs.e
 if (!robots) fail("missing src/pages/robots.txt.js (generated from kit.json, not a static public file)");
 if (!llms) fail("missing src/pages/llms.txt.js (generated from kit.json, not a static public file)");
 
+// Names that merely start with "a" are not anchors. A self-closing <a /> opens nothing.
+const RAW_TEXT = new Set(["script", "style", "textarea", "title"]);
+function nestedAnchors(html) {
+  const hits = [];
+  let depth = 0;
+  let outer = null;
+  let i = 0;
+  const lower = html.toLowerCase();
+  while (i < html.length) {
+    const lt = html.indexOf("<", i);
+    if (lt === -1) break;
+    if (html.startsWith("<!--", lt)) {
+      const end = html.indexOf("-->", lt + 4);
+      i = end === -1 ? html.length : end + 3;
+      continue;
+    }
+    const match = /^<(\/?)([A-Za-z][A-Za-z0-9:-]*)/.exec(html.slice(lt, lt + 64));
+    if (!match) { i = lt + 1; continue; }
+    let j = lt + match[0].length;
+    let quote = null;
+    for (; j < html.length; j++) {
+      const c = html[j];
+      if (quote) { if (c === quote) quote = null; }
+      else if (c === '"' || c === "'") quote = c;
+      else if (c === ">") break;
+    }
+    const name = match[2].toLowerCase();
+    const closing = match[1] === "/";
+    const tag = html.slice(lt, j + 1);
+    if (!closing && RAW_TEXT.has(name)) {
+      const end = lower.indexOf(`</${name}`, j);
+      i = end === -1 ? html.length : end;
+      continue;
+    }
+    if (name === "a") {
+      if (closing) {
+        depth = Math.max(0, depth - 1);
+        if (depth === 0) outer = null;
+      } else if (!/\/\s*>$/.test(tag)) {
+        if (depth > 0) hits.push({ line: html.slice(0, lt).split("\n").length, outer, inner: tag });
+        else outer = tag;
+        depth++;
+      }
+    }
+    i = j + 1;
+  }
+  return hits;
+}
+function listHtml(dir, out) {
+  let names;
+  try { names = fs.readdirSync(dir); } catch { return out; }
+  for (const name of names) {
+    const file = path.join(dir, name);
+    let st;
+    try { st = fs.statSync(file); } catch { continue; }
+    if (st.isDirectory()) listHtml(file, out);
+    else if (st.isFile() && name.endsWith(".html")) out.push({ file, mtimeMs: st.mtimeMs });
+  }
+  return out;
+}
+function newestNewerThan(dir, oldest, best) {
+  let names;
+  try { names = fs.readdirSync(dir); } catch { return best; }
+  for (const name of names) {
+    const file = path.join(dir, name);
+    let st;
+    try { st = fs.statSync(file); } catch { continue; }
+    if (st.isDirectory()) {
+      if (name === "node_modules" || name === ".astro" || name === "zArchive") continue;
+      best = newestNewerThan(file, oldest, best);
+    } else if (st.isFile() && st.mtimeMs > oldest && (!best || st.mtimeMs > best.mtimeMs)) {
+      best = { file, mtimeMs: st.mtimeMs };
+    }
+  }
+  return best;
+}
+let builtPages = 0;
+if (built) {
+  const dist = path.join(site, "dist");
+  let distDir = false;
+  try { distDir = fs.existsSync(dist) && fs.statSync(dist).isDirectory(); } catch { distDir = false; }
+  const pages = distDir ? listHtml(dist, []) : [];
+  if (!distDir || pages.length === 0) {
+    fail("no built HTML in site/dist/: run npm run build in site/ and then check --built");
+  } else {
+    builtPages = pages.length;
+    const oldest = pages.reduce((min, page) => Math.min(min, page.mtimeMs), Infinity);
+    let newest = null;
+    for (const dir of ["src", "public"]) newest = newestNewerThan(path.join(site, dir), oldest, newest);
+    for (const rel of ["kit.json", "astro.config.mjs"]) {
+      const file = path.join(site, rel);
+      let st;
+      try { st = fs.statSync(file); } catch { continue; }
+      if (st.isFile() && st.mtimeMs > oldest && (!newest || st.mtimeMs > newest.mtimeMs)) newest = { file, mtimeMs: st.mtimeMs };
+    }
+    if (newest) fail(`${path.relative(site, newest.file)} is newer than the built HTML: run npm run build in site/ and then check --built`);
+    const cause = 'An email address or web address written as a link\'s visible text is turned into a second link inside the first by the Markdown and MDX compilers. Write it as a Markdown link, [support@example.com](mailto:support@example.com), or in MDX as an expression, {"support@example.com"}.';
+    for (const page of pages) {
+      const html = fs.readFileSync(page.file, "utf8");
+      for (const hit of nestedAnchors(html)) {
+        fail(`${path.relative(site, page.file)}:${hit.line} ${hit.inner} inside ${hit.outer}. ${cause}`);
+      }
+    }
+  }
+}
+
 if (failures.length) {
   console.error(`check FAIL ${site}`);
   for (const f of failures) console.error(`- ${f}`);
   process.exit(1);
 }
-console.log(`check PASS ${site} (steps 1 to 5). Step 6 is the served-HTML fetch.`);
+const pass = built
+  ? `check PASS ${site} (steps 1 to 5, and the built HTML of ${builtPages} pages). Step 6's served-HTML fetch is still to do.`
+  : `check PASS ${site} (steps 1 to 5). Step 6 is the served-HTML fetch.`;
+const earlier = kit.kitVersion !== CHECK_VERSION
+  ? ` The site is at kitVersion ${kit.kitVersion}; this check is ${CHECK_VERSION}, and Upgrade takes the site to it.`
+  : "";
+console.log(pass + earlier);

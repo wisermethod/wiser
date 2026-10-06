@@ -7,6 +7,7 @@ Scripts live in `scripts/` beside this file. Quote the path; the skill directory
 ```
 node "<this-skill-dir>/scripts/stand-up.mjs" --root "<owning-root>" --domain <host> --site-url <origin> --kit "<this-skill-dir>/kit" [--work <slug>] --articles <none|page|home|both>
 node "<this-skill-dir>/scripts/check.mjs" "<envelope-folder>"
+node "<this-skill-dir>/scripts/check.mjs" --built "<envelope-folder>"
 node "<this-skill-dir>/scripts/wrap.mjs" --root "<owning-root>" --site "<domain-folder>"
 node "<this-skill-dir>/scripts/upgrade.mjs" --site "<envelope-folder>" --kit "<this-skill-dir>/kit"
 ```
@@ -24,7 +25,7 @@ npm install
 npm run dev
 ```
 
-Stand-up is not done until `check` walks `KIT.md` (steps 1 to 5) and the preview serves the SEO slots (`KIT.md` step 6). Fetch the canonical article URL `/articles/hello`, never `/articles/hello/`, when articles are on. The kit is `trailingSlash: 'never'`; a slashed article URL 404s and is not a missing page.
+Stand-up is not done until `npm run build` has run in `site/` and `check --built` walks `KIT.md` (steps 1 to 5, and the built HTML) and the preview serves the SEO slots (`KIT.md` step 6). Fetch the canonical article URL `/articles/hello`, never `/articles/hello/`, when articles are on. The kit is `trailingSlash: 'never'`; a slashed article URL 404s and is not a missing page.
 
 Never connect the envelope or owning root to a host. Host payload is `site/` or `site/dist/` only. Personal, client, and org roots carry `memory/` (a client root also carries `sources/`). A Pages or GitHub integration of the parent would commit those.
 

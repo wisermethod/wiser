@@ -12,6 +12,8 @@ export async function getStaticPaths() {
   }));
 }
 const { page } = Astro.props;
+// A kit-made list shows a reader's date, written the same on every build machine.
+const readableDate = (date: Date) => date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
 const { Content } = await render(page);
 // Absent listArticles: the index lists articles and no other page does. An explicit true uses the list without a heading.
 const wantsList = page.data.listArticles === true || (page.data.listArticles !== false && page.id === 'index');
@@ -23,11 +25,11 @@ const articles = wantsList && kit.collections.articles !== false
 <SiteLayout title={page.data.title} description={page.data.description} showTitle={page.data.showTitle}>
   <Content components={components} />
   {page.data.listArticles === true
-    ? articles.length > 0 && <section class="article-list" aria-label="Articles" data-kit-list><ul>{articles.map((article) => <li>
-      <a href={`/articles/${article.id}`}>{article.data.title}</a>
+    ? articles.length > 0 && <div class="kit-article-list not-prose" data-kit-list><ul aria-label="Articles">{articles.map((article) => <li>
+      <h2><a href={`/articles/${article.id}`}>{article.data.title}</a></h2>
       <p>{article.data.description}</p>
-      <time datetime={article.data.pubDate.toISOString()}>{article.data.pubDate.toISOString().slice(0, 10)}</time>
-    </li>)}</ul></section>
+      <p class="kit-article-date"><time datetime={article.data.pubDate.toISOString().slice(0, 10)}>{readableDate(article.data.pubDate)}</time></p>
+    </li>)}</ul></div>
     : articles.length > 0 && <section aria-label="Articles">
     <h2>Articles</h2>
     <ul>{articles.map((article) => <li>

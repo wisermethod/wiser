@@ -33,7 +33,7 @@ Content jobs may not change `site/src/components/**`, `site/src/layouts/**`, `si
 
 ## Check and preview
 
-Invoke Site Author Check on this envelope; it walks `site/` against `site/KIT.md`. Run `npm install` and `npm run dev` in `site/`. Report the check result and served-HTML verification before stand-up is done.
+Invoke Site Author Check on this envelope; it walks `site/` against `site/KIT.md`. Run `npm install` and `npm run dev` in `site/`. After a build, run `check --built`. Report the check result and served-HTML verification before stand-up is done.
 
 ## Publish boundary
 

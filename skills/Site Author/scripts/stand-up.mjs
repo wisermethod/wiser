@@ -5,7 +5,7 @@ import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { exists, reject, parentFor, safeTree, noLinks, templateText, prepareMemory, writeEnvelope } from './envelope.mjs';
 
-const KIT_VERSION = '0.2.1';
+const KIT_VERSION = '0.2.2';
 const widthValues = ['narrow', 'wide'];
 const sectionsValues = ['column', 'bands'];
 const menuValues = ['links', 'button'];

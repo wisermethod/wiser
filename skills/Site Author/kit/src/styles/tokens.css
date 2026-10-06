@@ -152,7 +152,6 @@
     padding: 0.5rem 0.75rem;
   }
   /* A kit-made article list carries the 44px target the header and footer links have. */
-  main > section[data-kit-list] > ul > li > a,
   [data-kit-layout] > main > section[aria-label="Articles"] > ul > li > a {
     display: inline-flex;
     align-items: center;
@@ -245,6 +244,18 @@
   [data-kit-layout][data-sections="bands"] > main.prose {
     max-width: none;
   }
+}
+
+/* The list a page asks for with listArticles: true. Marked not-prose, so the typography plugin leaves it alone and these rules are the whole of its look; each reads a site token with the kit default as fallback. */
+@layer utilities {
+  main > [data-kit-list] { margin-block: var(--list-spacing, 1.5rem) var(--spacing-section, 3rem); }
+  main > [data-kit-list] > ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--list-gap, 2rem); }
+  main > [data-kit-list] > ul > li { margin: 0; padding: 0; }
+  main > [data-kit-list] h2 { margin: 0; font-family: var(--font-heading, var(--font-serif)); font-size: var(--list-title-size, 1.375rem); line-height: 1.3; font-weight: 700; color: var(--color-heading, var(--color-ink)); }
+  /* Every title link is at least 44px tall, padded evenly whether it takes one line or three, so the list keeps one rhythm. */
+  main > [data-kit-list] h2 > a { display: inline-block; box-sizing: border-box; min-height: 44px; padding-block: max(0px, calc((44px - 1.3em) / 2)); color: inherit; text-decoration-line: underline; text-underline-offset: 0.15em; }
+  main > [data-kit-list] p { margin: 0.25rem 0 0; color: var(--color-ink); line-height: var(--prose-leading, 1.6); }
+  main > [data-kit-list] .kit-article-date { font-size: 0.875rem; color: var(--color-meta, var(--color-ink)); }
 }
 
 @layer base {

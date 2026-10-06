@@ -3,7 +3,7 @@ name: Webmaster
 type: expert
 category: web
 description: Judge a site's findability, broken URLs, content vs code, and publish safety, sequence a kit envelope or foreign-site work, and gate a change before it goes live
-version: 0.3.9
+version: 0.3.10
 ---
 
 # Webmaster
@@ -162,7 +162,7 @@ Run in a second context that did not produce the change. The human "requester sa
 
 Stand-up, Wrap, Upgrade, a Cloudflare Pages deploy (and a create or add-domain that is part of it, or its human-run Wrangler fallback), and Vercel Deploy deployment creation always take this gate before the requester publishes. Host list and get operations, including deployment lists, are not a publish and take no gate. Content-only edits take it when the edit is a new URL, a slug change, or a redirect. Check has no gate. SEO Assets keeps its per-artifact gate, aimed here, against the finding the artifact was built to close or against its row in that skill's artifacts table.
 
-Compare the exact proposed source and destination with the intended public origin, affected URLs, and redirects. For a kit site, read the applicable contract check and rendered-page evidence; the canonical and social URLs must match the intended public origin, not merely agree with a preview configuration. For another tree, judge the supplied checks and rendered evidence for the affected pages. Missing evidence needed to judge the change, an origin mismatch, a source or destination that differs from the proposal, or a check, rendered page, URL, or redirect that shows a failure, is a return. A pass covers only the source, destination, and change reviewed; a changed proposal takes a new verdict.
+Compare the exact proposed source and destination with the intended public origin, affected URLs, and redirects. For a kit site, read the applicable contract check and rendered-page evidence, and require `check --built` PASS on the exact `dist/` to be published; the canonical and social URLs must match the intended public origin, not merely agree with a preview configuration. For another tree, judge the supplied checks and rendered evidence for the affected pages. Missing evidence needed to judge the change, an origin mismatch, a source or destination that differs from the proposal, or a check, rendered page, URL, or redirect that shows a failure, is a return. A pass covers only the source, destination, and change reviewed; a changed proposal takes a new verdict.
 
 Verdict is pass or return, with what fails and the check that found it. A return names the fix that would clear it. This job does not publish.
 

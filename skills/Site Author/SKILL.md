@@ -3,7 +3,7 @@ name: Site Author
 type: skill
 category: web
 description: Stand up, content-edit, check, wrap, and upgrade a kit site envelope in sites/, in a folder named for its domain, or in the sites/ of a work folder when the site dies with that work, with the kit in site/, in an owning root that declares sites/
-version: 0.5.0
+version: 0.5.1
 memory:
   - about
   - design
@@ -108,7 +108,7 @@ node "<this-skill-dir>/scripts/stand-up.mjs" --root "<owning-root>" --domain <do
 
 The script copies available owning-root `memory/about.md`, `memory/voice.md`, and `memory/design.md` into the envelope and binds only files present. Ask what changes, if anything, for this site's facts, voice, and design; apply the answered deltas, or retain the copies unchanged. Do not invent answers. It also writes `builds.md` with no planned changes and creates `zArchive/`. Site plans belong in that roster plus Playbooks in the envelope.
 
-Then in `<envelope>/site/`, per `SETUP.md`: `node -v` at or above 22.12, `npm install`, `npm run dev` or `build` plus preview. Stand-up is not done until Check passes steps 1 to 5 and `KIT.md` step 6's served HTML is fetched at the canonical paths, including `/articles/hello` with no trailing slash when articles are on.
+Then in `<envelope>/site/`, per `SETUP.md`: `node -v` at or above 22.12, `npm install`, `npm run build`, then `check --built`, and `npm run dev` or preview for the served pages. Stand-up is not done until `check --built` passes and `KIT.md` step 6's served HTML is fetched at the canonical paths, including `/articles/hello` with no trailing slash when articles are on.
 
 Optional stand-up customization, before the first content job: homepage copy under `site/src/content/pages/` and a token palette in `site/src/styles/tokens.css`. Upgrade keeps that file's font slots and `@theme` block and replaces the kit layers below them. Files under `site/public/fonts/` are site-owned and stay.
 
@@ -132,13 +132,16 @@ A new URL, a slug change, or a redirect is gated by Webmaster Job 3 before publi
 
 ```
 node "<this-skill-dir>/scripts/check.mjs" "<envelope-folder>"
+node "<this-skill-dir>/scripts/check.mjs" --built "<envelope-folder>"
 ```
 
-`check` takes the envelope and walks `site/KIT.md` inside `site/`. It is not a tool. It refuses old-shape and foreign folders per Shape. It fails a nested `.git` in the envelope or `site/`, a `kitVersion` other than this kit's, a `siteUrl` with a trailing path or slash, a missing `trailingSlash: 'never'`, missing collection names, missing required frontmatter, a missing required file, a `kit.json` without `collections.articles`, a `layout` key or value it does not know, a page that writes its own headline without exactly one `<h1>`, a kit component whose data file is missing, and a published article while articles are off. Report PASS or FAIL as the script printed it. Do not treat a successful `astro build` as a passed check.
+`check` takes the envelope and walks `site/KIT.md` inside `site/`. It is not a tool. It refuses old-shape and foreign folders per Shape. It fails a nested `.git` in the envelope or `site/`, a `kitVersion` other than 0.1.0, 0.2.0, 0.2.1 or 0.2.2, a `siteUrl` with a trailing path or slash, a missing `trailingSlash: 'never'`, missing collection names, missing required frontmatter, a missing required file, a `kit.json` without `collections.articles`, a `layout` key or value it does not know, a page that writes its own headline without exactly one `<h1>`, a kit component whose data file is missing, and a published article while articles are off. Report PASS or FAIL as the script printed it. Do not treat a successful `astro build` as a passed check.
+
+`--built` is accepted before or after the envelope. Run it after `npm run build` in `site/`, and before Webmaster Job 3. It reads `site/dist/` and fails when that folder is missing or holds no HTML, when a file under `site/src/` or `site/public/`, or `site/kit.json` or `site/astro.config.mjs`, is newer than the built HTML, and when an anchor contains another anchor.
 
 Step 6 in `KIT.md` is a fetch after preview: `/`, one article route without a trailing slash when articles are enabled, sitemap, RSS when articles are enabled, `/llms.txt`, `/robots.txt`, and exactly one `<h1>` on the homepage. Canonical and `og:url` use that site's `site/kit.json` `siteUrl`.
 
-A failed Check is not permission to replace the tree. Where it prints `check PASS` and exits 0, continue. Where it prints FAIL, throws, exits nonzero, or prints nothing, stop with its diagnostic. Repair or Upgrade a current envelope; a repair fixes only the named failure. Do not stand up over it. A site behind this kit's `kitVersion` fails and is told to run Upgrade; a content release that cannot wait for Upgrade is checked with the `check.mjs` of the plugin release that matches the site's `kitVersion`, where that release is at hand, and otherwise waits.
+A failed Check is not permission to replace the tree. Where it prints `check PASS` and exits 0, continue. Where it prints FAIL, throws, exits nonzero, or prints nothing, stop with its diagnostic. Repair or Upgrade a current envelope; a repair fixes only the named failure. Do not stand up over it. `check` accepts a site at `kitVersion` 0.1.0, 0.2.0, 0.2.1 or 0.2.2, and fails any other value or a missing one, naming the versions it knows and saying to run Upgrade. Below 0.2.2 it runs every rule it runs for this kit, and also fails each thing that site's own kit cannot render, naming the version that introduced it and saying to run Upgrade. Those things are the 0.2.0 options, and 0.2.2 adds none, so a site at 0.2.0 or 0.2.1 is checked as 0.2.2 is.
 
 ### 4. Wrap
 
@@ -158,11 +161,11 @@ Foreign, already wrapped, or colliding `site/` folders are refused. Content and 
 node "<this-skill-dir>/scripts/upgrade.mjs" --site "<envelope-folder>" --kit "<this-skill-dir>/kit"
 ```
 
-The script archives each replaced kit-owned file first, per `standards/conventions.md`, then copies kit code. It requires `site/kit.json`, names Wrap for the old shape, and refuses foreign folders or a nested `.git`. Envelope `AGENTS.md`, memory, `builds.md`, and Playbooks are outside Upgrade. It does not merge `site/src/content/`, `site/public/images/` or `site/public/fonts/`, and it keeps `site/public/_redirects`, whose rows are the site's, writing the kit's file only where a site has none. It does not copy `kit.json` wholesale; `domain`, `siteUrl`, `collections`, `nav`, `footer`, `siteName` and `layout` stay the site's. It takes a site at `kitVersion` 0.1.0, 0.2.0 or 0.2.1 to 0.2.1 and changes none of its pages until the site sets an option. It keeps `site/src/styles/tokens.css` up to the first `@layer base`, the font slots and `@theme` block, and replaces the kit layers after it; where that file has no `@layer base` it replaces the whole file and says so, and the site reapplies its token update.
+The script archives each replaced kit-owned file first, per `standards/conventions.md`, then copies kit code. It requires `site/kit.json`, names Wrap for the old shape, and refuses foreign folders or a nested `.git`. Envelope `AGENTS.md`, memory, `builds.md`, and Playbooks are outside Upgrade. It does not merge `site/src/content/`, `site/public/images/` or `site/public/fonts/`, and it keeps `site/public/_redirects`, whose rows are the site's, writing the kit's file only where a site has none. It does not copy `kit.json` wholesale; `domain`, `siteUrl`, `collections`, `nav`, `footer`, `siteName` and `layout` stay the site's. It takes a site at `kitVersion` 0.1.0, 0.2.0, 0.2.1 or 0.2.2 to 0.2.2 and changes none of its pages until the site sets an option. It keeps `site/src/styles/tokens.css` up to the first `@layer base`, the font slots and `@theme` block, and replaces the kit layers after it; where that file has no `@layer base` it replaces the whole file and says so, and the site reapplies its token update.
 
 An envelope `AGENTS.md` written before `kit.json` gained `nav` and `footer`, or before 0.2.0 gained `layout` and `collections.articles`, refuses keys a content job may now change. Refresh its Content vs code section from `site-AGENTS.md`, archiving the old router first. Upgrade never writes the router; it says so when the router's frontmatter names another `kitVersion`, and the refresh sets that line to the new version too. Check fails a site whose `kit.json` sets `nav` or `footer` while its layout predates them, sets `layout` while its router does not name it, or turns articles off while its router does not name `collections.articles`.
 
-Run Check after Upgrade. Gate: Webmaster Job 3 before the requester publishes.
+Run `npm run build` in `site/`, then `check --built`, after Upgrade. Gate: Webmaster Job 3 before the requester publishes.
 
 ## Rules
 
@@ -176,6 +179,7 @@ Run Check after Upgrade. Gate: Webmaster Job 3 before the requester publishes.
 - **The undeclared root.** Creating `sites/` because the requester asked for a site invents a top-level folder. Ask them to declare the row, or stop. The script already refuses; do not go around it.
 - **The foreign folder.** A live WordPress or Webflow tree with neither kit marker is Job 1 of Webmaster to audit and not this skill to replace. Leave it untouched.
 - **The slashed article URL.** Fetching `/articles/hello/` against `trailingSlash: 'never'` 404s. Fetch `/articles/hello`.
+- **The link inside a link.** An email address or a web address written as a link's visible text is turned into a second link inside the first by the Markdown and MDX compilers, and `check --built` fails that page. Write it as a Markdown link, `[support@example.com](mailto:support@example.com)`, or in MDX as an expression, `{"support@example.com"}`.
 - **Upgrade skipped archive, or treated as a content merge.** The script archives; do not copy over it by hand. `site/src/content/`, `site/public/images/`, `site/public/fonts/` and `site/public/_redirects` stay byte-identical. The palette survives in `site/src/styles/tokens.css` above its first `@layer base`; a rule written below that line is kit code and Upgrade replaces it.
 - **The fixed shape.** Running Stand up without putting the choices to the requester builds the 0.1.0 shape whatever the site is for. The script refuses a missing `--articles`, but it cannot tell an answer from a guess: passing `--articles home` unasked gives articles to a site that may not want them. Offer the choices first.
 - **Code-path creep.** A component, an Astro config tweak, or a `site/package.json` bump "while we are in there" is the content-vs-code failure. Refuse.
@@ -190,7 +194,7 @@ Run Check after Upgrade. Gate: Webmaster Job 3 before the requester publishes.
 - The named parent holds the envelope with `AGENTS.md`, Provides bound only to present local files, `site/kit.json`, `site/KIT.md`, `builds.md`, and `zArchive/`. The owning root and any work subject declared `sites/`; no subject was invented and no nested `.git` exists.
 - Stand-up put the layout and articles choices to the requester with their recommended defaults before the script ran, and passed the flags the answers implied. `--articles` carried the requester's answer to whether the site has an articles or blog section, never an assumed one.
 - Stand-up or Wrap copied missing available memory, asked what changes, and preserved unanswered copies. The envelope was not onboarded as a root. Wrap preserved content and images under `site/`.
-- `check` printed PASS for steps 1 to 5, and step 6's served HTML carried the required SEO slots at that site's `siteUrl`.
+- `check --built` printed PASS on the built site, and step 6's served HTML carried the required SEO slots at that site's `siteUrl`.
 - Content jobs changed only allowed paths. Refused paths were not written.
 - Upgrade archived kit-owned files it replaced and left `site/src/content/`, `site/public/images/`, `site/public/fonts/` and `site/public/_redirects` byte-identical to the pre-upgrade tree, and the font slots and `@theme` block of `site/src/styles/tokens.css` unchanged where that file had a `@layer base`.
 - No `git init` ran. Neither the envelope nor owning root was connected to a host. No DNS or host API was called.
