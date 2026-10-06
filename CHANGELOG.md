@@ -4,6 +4,16 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.06.3, October 6, 2026
+
+- Sites built with the site kit can turn on blog features one at a time: a page for each tag, a blog page split into pages of a set length, reading time, the date written out under each article's title, a picture beside each post in the list, and related posts at the end of an article. (bed3f4c, 0e22bda)
+- A site can list classes and live sessions: each event gets its own page with the time written in its own time zone, a place or "Online", and a sign-up link, and a page can list upcoming sessions, then past ones. (bed3f4c, b9de292, 0e22bda)
+- Pages can place a video (YouTube, Vimeo or a file on the site) and questions that open to show their answers. (bed3f4c, 0e22bda)
+- Site Author can copy ready-made sections into a site's own folder: a testimonial, a grid of cards, numbered steps and a closing call to action, which the site then owns and can restyle. (bed3f4c, 7ad687c)
+- A profile site can describe the person it is about, their work, the organisations they founded and their books, and search engines read it as that person's profile page. A site that states no organisation details no longer carries an empty one. (427d136, 0e22bda)
+- Site Author's check on a built site now looks for images without descriptions, links and buttons without names, form fields without labels, embedded frames without titles and repeated ids. (bed3f4c, 0e22bda)
+- Profile Page hands a kit site the person's confirmed facts for that description, instead of naming a gap. (427d136)
+
 ## v2026.10.06.2, October 6, 2026
 
 - Sites built with the site kit can have a folder of their own code, `src/custom/`: their own header, footer, stylesheet and components, which a page places by name. Upgrading the kit never touches that folder, and a site without one looks exactly as before. Site Author files the code into it after the Creative Director has checked the design. (c0105de, 64d0cc3)
