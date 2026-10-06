@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.06.2, October 6, 2026
+
+- Sites built with the site kit can have a folder of their own code, `src/custom/`: their own header, footer, stylesheet and components, which a page places by name. Upgrading the kit never touches that folder, and a site without one looks exactly as before. Site Author files the code into it after the Creative Director has checked the design. (c0105de, 64d0cc3)
+- A site can name its own icon and its language, and a page can choose the picture shown when it is shared. (c0105de, 64d0cc3)
+- Site Author's check on a built site now looks at every page: each needs its title, description, link to itself, sharing details and one main heading, and none may load a script or stylesheet from another website. (c0105de, 64d0cc3)
+
 ## v2026.10.06, October 6, 2026
 
 - Sites built with the site kit: a page set to list the site's articles (`listArticles: true`) shows each one as its title, a short description and the date written out, such as "September 24, 2026". That list no longer has a bullet beside each article or a large gap under the page title. A homepage that lists articles without that setting is unchanged. A site sets the spacing and title size through three new design tokens. (a9e7f66, 54ca841)
