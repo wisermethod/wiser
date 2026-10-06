@@ -44,7 +44,7 @@ const graph: Record<string, unknown>[] = [
     '@id': websiteId,
     url: `${SITE_URL}/`,
     name: site.siteName ?? home?.data.title ?? title,
-    inLanguage: 'en',
+    inLanguage: typeof site.lang === 'string' && site.lang ? site.lang : 'en',
     publisher: { '@id': organizationId },
   },
   {

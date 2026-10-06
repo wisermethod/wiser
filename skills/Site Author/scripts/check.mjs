@@ -1008,10 +1008,33 @@ function addressesInCssToken(token) {
   if (quoted) values.push((quoted[1] ?? quoted[2]).trim());
   return values;
 }
+// CSS outside its strings and comments, where an escape could spell url or @import past the rules below.
+function cssOutsideStrings(css) {
+  return stripComments(css).replace(/"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*'/g, '""');
+}
+// The rules every piece of site CSS meets, in custom.css or in a component's <style>: no remote address, no escape outside a string, and nothing aimed at the frame's skip link or its #content target.
+function checkSiteCss(css, where) {
+  const { imports, urls } = cssImportsAndUrls(css);
+  let escaped = false;
+  for (const token of [...imports, ...urls]) {
+    if (token.includes("\\")) escaped = true;
+    for (const value of addressesInCssToken(token)) {
+      if (isAbsoluteAddress(value)) fail(`${where}: absolute address in an @import or url(): ${value}`);
+    }
+  }
+  const bare = cssOutsideStrings(css);
+  if (escaped || bare.includes("\\")) fail(`${where} uses a CSS escape outside a string; write it plainly so check can read it`);
+  if (/\.skip-link\b|#content\b/.test(bare)) fail(`${where} styles the kit's skip link or its #content target, which belong to the frame`);
+}
 function checkCustomAstro(file, deps) {
   let text;
   try { text = fs.readFileSync(file, "utf8"); } catch (error) { fail(`cannot read ${relToSite(file)}: ${error.code ?? error.message}`); return; }
   const where = relToSite(file);
+  // Only static imports can be read before the build runs, so a dynamic import or import.meta, however spaced or commented, is refused.
+  if (/\bimport\s*(?:\/\*[\s\S]*?\*\/\s*|\/\/[^\n]*\n\s*)*(?:\(|\.\s*meta\b)/.test(text)) fail(`${where}: a dynamic import() or import.meta is not allowed in src/custom/; use a static import`);
+  for (const m of text.matchAll(/<(script|link)\b[^>]*?\b(src|href)\s*=\s*\{/gi)) fail(`${where}: <${m[1].toLowerCase()} ${m[2].toLowerCase()}={...}> is an address check cannot read; write it as a quoted path on this site`);
+  if (/\bid\s*=\s*(?:"content"|'content'|\{\s*["'`]content["'`]\s*\})/.test(text)) fail(`${where}: id="content" is the kit's skip-link target and belongs to the frame`);
+  for (const m of text.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi)) checkSiteCss(m[1], `${where} <style>`);
   for (const found of importSpecifiers(text)) {
     const problem = classifyImport(found.spec, file, deps);
     if (problem) fail(`${where}: ${problem}`);
@@ -1024,16 +1047,7 @@ function checkCustomAstro(file, deps) {
 function checkCustomCss(file) {
   let text;
   try { text = fs.readFileSync(file, "utf8"); } catch (error) { fail(`cannot read ${relToSite(file)}: ${error.code ?? error.message}`); return; }
-  const { imports, urls } = cssImportsAndUrls(text);
-  const where = relToSite(file);
-  let escaped = false;
-  for (const token of [...imports, ...urls]) {
-    if (token.includes("\\")) escaped = true;
-    for (const value of addressesInCssToken(token)) {
-      if (isAbsoluteAddress(value)) fail(`${where}: absolute address in an @import or url(): ${value}`);
-    }
-  }
-  if (escaped) fail(`${where} uses a CSS escape in an @import or url(); write it plainly so check can read it`);
+  checkSiteCss(text, relToSite(file));
 }
 function checkCustom() {
   const root = path.join(site, "src", "custom");
@@ -1195,6 +1209,18 @@ if (built) {
       if (!facts.ogUrl) fail(`${shown}: missing og:url`);
       if (!facts.jsonLd) fail(`${shown}: missing a script type="application/ld+json"`);
       if (facts.h1 !== 1) fail(`${shown}: expected exactly one <h1>, found ${facts.h1}`);
+      // A built page loads scripts and stylesheets from this site only, whatever wrote the tag.
+      for (const tag of html.match(/<(?:script|link)\b[^>]*>/gi) ?? []) {
+        const isLink = /^<link/i.test(tag);
+        if (isLink && !/\brel\s*=\s*["']?(?:stylesheet|preload|modulepreload)\b/i.test(tag)) continue;
+        const attr = (isLink ? /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i : /\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i).exec(tag);
+        const value = attr && (attr[1] ?? attr[2] ?? attr[3]);
+        if (value && /^(?:[a-z][a-z0-9+.-]*:)?\/\//i.test(value.trim())) {
+          let origin = null;
+          try { origin = new URL(value.trim(), kit.siteUrl).origin; } catch { origin = null; }
+          if (origin !== kit.siteUrl) fail(`${shown}: loads ${isLink ? "a stylesheet" : "a script"} from another site, ${value}`);
+        }
+      }
     }
   }
 }
