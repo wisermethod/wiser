@@ -3,12 +3,10 @@ name: Profile Page
 type: skill
 category: writing
 description: A gated copy package for a single page about one person, every fact on it checked against a claims ledger, stopped for review by that person or their named approver, then handed to whoever builds the page
-version: 0.1.0
+version: 0.2.0
 memory:
   - voice
   - about
-gaps:
-  - Person and ProfilePage structured data on a page built with the site kit, which the kit does not emit
 ---
 
 # Profile Page
@@ -113,7 +111,7 @@ Stop here, and say so. The package is ready for review by the approver the Frame
 
 After approval, or the requester's recorded decision to publish without it. This skill deploys nothing.
 
-**Which site does the page go on?** A site built with this plugin's site kit: hand the copy to `skills/Site Author/` by name for a content edit or a stand-up, and name the gap, that the kit emits no Person or ProfilePage structured data. Produce nothing in its place, and never tell anyone to edit the kit's layout. Another site: deliver the copy package as the hand-over to whoever places the copy. Then hand `skills/SEO Assets/` the findability brief as a decided change from the requester, since they asked for a page whose format carries it, unless they said they do not want the markup: with it go the approved copy and its hash, the page's address and platform where the brief or the requester gives them, and the condition that the markup goes live only with the approved copy, so it is built from what the new page displays. SEO Assets builds the Person and ProfilePage blocks and `experts/Webmaster/` gates each. Never write to that site. Not yet decided: ask.
+**Which site does the page go on?** A site built with this plugin's site kit: hand the copy to `skills/Site Author/` by name for a content edit or a stand-up, and with it the facts about the person that the ledger confirms, for the kit's `person` declaration in `site/kit.json`, which that content job writes and the kit turns into Person and ProfilePage structured data (site kit 0.4.0 or later; `skills/Site Author/kit/KIT.md` names the fields). Only confirmed rows go into it, and a field the ledger does not confirm stays out. Never tell anyone to edit the kit's layout. Another site: deliver the copy package as the hand-over to whoever places the copy. Then hand `skills/SEO Assets/` the findability brief as a decided change from the requester, since they asked for a page whose format carries it, unless they said they do not want the markup: with it go the approved copy and its hash, the page's address and platform where the brief or the requester gives them, and the condition that the markup goes live only with the approved copy, so it is built from what the new page displays. SEO Assets builds the Person and ProfilePage blocks and `experts/Webmaster/` gates each. Never write to that site. Not yet decided: ask.
 
 ### 8. Cold-reader validation, offered
 
@@ -137,5 +135,5 @@ A human step the requester may run, never a gate, and never run by this skill. T
 - No claim whose evidence label is `Unverified: requires confirmation` is usable.
 - Each gate the run reached returned a verdict, or the requester's decline is named: Research Expert's where External Research ran, the concept gate where Build Concepts ran, and the page gate.
 - The run stopped at the named approver's review and the record is written, or the run named why it stopped earlier.
-- The hand-off named its route, and named the kit-site gap where the page goes on a kit site.
+- The hand-off named its route, and on a kit site handed the ledger's confirmed facts for the kit's `person` declaration.
 - Nothing was deployed.

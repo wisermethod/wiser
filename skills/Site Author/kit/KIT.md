@@ -181,6 +181,31 @@ Both are kit components, exported from `src/components/index.js` with `Conversat
 
 The video frame and the question use inline styles, not a new `tokens.css` rule.
 
+## A person, for a profile site
+
+`person`, an optional site-owned key in `kit.json`, describes the one person a profile site is about. A content job may write it on the requester's ask, Upgrade keeps it, and `check` validates every field and fails any key it does not know. Only what the site declares is emitted; nothing is filled in.
+
+```json
+"person": {
+  "name": "Ada Example",
+  "page": "index",
+  "url": "https://example.org",
+  "image": "/images/ada.jpg",
+  "jobTitle": "Chief Example Officer",
+  "worksFor": { "name": "Example Works", "url": "https://example.org" },
+  "knowsAbout": ["examples"],
+  "sameAs": ["https://example.net/ada"],
+  "founded": [{ "name": "Example Labs", "url": "https://labs.example.org", "alternateName": ["ExLabs"], "parentOrganization": { "name": "Example Group", "url": "https://group.example.org" } }],
+  "books": [{ "name": "A Book of Examples", "isbn": "978-0-306-40615-7", "publisher": "Example Press", "datePublished": "2020-03-24", "bookEdition": "First", "url": "https://example.org/book", "coAuthors": [{ "name": "Bo Sample" }, { "name": "The Example Team", "type": "Organization" }] }]
+}
+```
+
+`name` is required. `page` is the id of the page that is the person's profile, `index` when absent, and must be a published page. Every `url` and every `sameAs` entry is an `https://` address; `image` is an `/images/` path whose file is in `public/images/`; `isbn` is an ISBN-10 or ISBN-13, hyphens allowed, whose check digit `check` verifies; `datePublished` is `YYYY`, `YYYY-MM` or `YYYY-MM-DD`; a co-author's `type` is `Person` (the default) or `Organization`, for a team credit. The envelope router must name `person`.
+
+With a person declared, every page's JSON-LD carries a `Person` at `<siteUrl>/#person` (its `image` written in full), and the `WebSite` names that Person as its `publisher`. The profile page also carries a `ProfilePage` whose `mainEntity` is the Person, an `Organization` for each organisation the person founded, with the Person as `founder`, and a `Book` for each book, its `author` the Person and each co-author, its `publisher` an `Organization` by name.
+
+**An Organization node is emitted only when the site states organisation facts**, through the about page's `organization` frontmatter. Without them there is no `Organization` node and no `publisher` pointing to one; until 0.4.0 an empty node carrying only its `@id` was emitted, and a site without organisation facts loses it on Upgrade to 0.4.0, the one change 0.4.0 makes to a site that turns nothing on. `check --built` fails a page whose JSON-LD points to an `@id` the page does not carry, a page that lacks the declared Person, and a profile page that is not a `ProfilePage` about them.
+
 ## The site's own folder
 
 `src/custom/` is the site's own code. It is optional. A site with no `src/custom/` folder renders the kit's own header and footer. A site with no folder and none of `icon`, `lang` or a page's `image` builds the same files it built at 0.2.2, the stylesheet's file name included. A site that sets no `blog` key, has no `src/content/events/` folder, places neither `<Video>` nor `<Faq>`, and has copied no starter builds the same files it built at 0.3.0, the stylesheet's file name included.
@@ -240,7 +265,7 @@ A missing description in frontmatter fails `check` rather than shipping an empty
 | `public/images/**` | | `astro.config.mjs`, `package.json`, `package-lock.json` |
 | `public/llms.txt` when SEO Assets writes it | | `src/styles/**`, except `src/styles/tokens.css` when `skills/Designer/` has already gated that token update. Any other write under `src/styles/**` is refused |
 | `public/fonts/**` only within a Designer-gated token update | | `.github/**`, `KIT.md` copies |
-| `kit.json` keys `nav`, `footer`, `siteName` and `layout`, `blog` on the requester's ask, and `articles` inside `collections`, only | | any other key in `kit.json` |
+| `kit.json` keys `nav`, `footer`, `siteName` and `layout`, `blog` and `person` on the requester's ask, and `articles` inside `collections`, only | | any other key in `kit.json` |
 
 A request to add a kit component or edit `astro.config.mjs` is refused; placing a kit component in an `.mdx` page and writing its data under `src/content/` is content. Filing a header, footer, stylesheet or component into `src/custom/` is site code, Site Author's File site code job, not a content job. A request to add `src/content/articles/hello.md` with required frontmatter succeeds. Turning articles on or off, or a new page that lists them, is a new or retired URL and takes Webmaster Job 3 before publish.
 

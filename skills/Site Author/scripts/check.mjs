@@ -27,6 +27,7 @@ const introduced = [
   { feature: "src/content/events/", version: "0.4.0" },
   { feature: "Video", version: "0.4.0" },
   { feature: "Faq", version: "0.4.0" },
+  { feature: "person", version: "0.4.0" },
 ];
 
 const args = process.argv.slice(2);
@@ -221,6 +222,88 @@ else {
 }
 const envelopeRouter = fs.existsSync(path.join(envelope, "AGENTS.md")) ? fs.readFileSync(path.join(envelope, "AGENTS.md"), "utf8") : "";
 if (Object.hasOwn(kit, "layout") && !envelopeRouter.includes("`layout`")) fail("kit.json sets layout, but the envelope AGENTS.md does not mention it: refresh its Content vs code section from site-AGENTS.md");
+if (Object.hasOwn(kit, "blog") && !envelopeRouter.includes("`blog`")) fail("kit.json sets blog, but the envelope AGENTS.md does not mention it: refresh its Content vs code section from site-AGENTS.md");
+// The person a profile site declares. Only what is declared is emitted, so every field is checked here, and an unknown key fails rather than being dropped.
+const isObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+const isText = (v) => typeof v === "string" && v.trim() !== "";
+const isHttps = (v) => { if (typeof v !== "string") return false; try { const u = new URL(v); return u.protocol === "https:" && Boolean(u.hostname); } catch { return false; } };
+function onlyKeys(obj, allowed, where) { for (const key of Object.keys(obj)) if (!allowed.includes(key)) fail(`${where}.${key} is not allowed`); }
+function isbnValid(raw) {
+  if (typeof raw !== "string") return false;
+  const d = raw.replace(/[\s-]/g, "");
+  if (/^\d{9}[\dX]$/.test(d)) { let sum = 0; for (let i = 0; i < 10; i++) sum += (d[i] === "X" ? 10 : Number(d[i])) * (10 - i); return sum % 11 === 0; }
+  if (/^97[89]\d{10}$/.test(d)) { let sum = 0; for (let i = 0; i < 13; i++) sum += Number(d[i]) * (i % 2 ? 3 : 1); return sum % 10 === 0; }
+  return false;
+}
+function checkNamedOrg(org, where) {
+  if (!isObject(org)) { fail(`${where} must be an object with a name`); return; }
+  onlyKeys(org, ["name", "url"], where);
+  if (!isText(org.name)) fail(`${where}.name must be non-empty text`);
+  if (Object.hasOwn(org, "url") && !isHttps(org.url)) fail(`${where}.url must be an https:// URL`);
+}
+function publishedPage(id) {
+  return ["md", "mdx"].some((ext) => {
+    const file = path.join(site, "src/content/pages", `${id}.${ext}`);
+    if (!fs.existsSync(file)) return false;
+    const fm = frontmatter(file);
+    return !fm || fm.draft !== "true";
+  });
+}
+if (Object.hasOwn(kit, "person")) {
+  tooOld("person", "kit.json person");
+  if (!envelopeRouter.includes("`person`")) fail("kit.json sets person, but the envelope AGENTS.md does not mention it: refresh its Content vs code section from site-AGENTS.md");
+  const p = kit.person;
+  const W = "kit.json person";
+  if (!isObject(p)) fail(`${W} must be an object`);
+  else {
+    onlyKeys(p, ["name", "page", "url", "image", "jobTitle", "worksFor", "knowsAbout", "sameAs", "founded", "books"], W);
+    if (!isText(p.name)) fail(`${W}.name must be non-empty text`);
+    const page = Object.hasOwn(p, "page") ? p.page : "index";
+    if (typeof page !== "string" || !/^[a-z0-9][a-z0-9/-]*$/.test(page) || !publishedPage(page)) fail(`${W}.page must name a published page in src/content/pages/: ${page}`);
+    if (Object.hasOwn(p, "url") && !isHttps(p.url)) fail(`${W}.url must be an https:// URL`);
+    if (Object.hasOwn(p, "image")) checkImagePath(p.image, `${W}.image`);
+    if (Object.hasOwn(p, "jobTitle") && !isText(p.jobTitle)) fail(`${W}.jobTitle must be non-empty text`);
+    if (Object.hasOwn(p, "worksFor")) checkNamedOrg(p.worksFor, `${W}.worksFor`);
+    if (Object.hasOwn(p, "knowsAbout") && !(Array.isArray(p.knowsAbout) && p.knowsAbout.every(isText))) fail(`${W}.knowsAbout must be a list of non-empty text`);
+    if (Object.hasOwn(p, "sameAs") && !(Array.isArray(p.sameAs) && p.sameAs.every(isHttps))) fail(`${W}.sameAs must be a list of https:// URLs`);
+    if (Object.hasOwn(p, "founded")) {
+      if (!Array.isArray(p.founded)) fail(`${W}.founded must be a list`);
+      else p.founded.forEach((org, i) => {
+        const w = `${W}.founded[${i}]`;
+        if (!isObject(org)) { fail(`${w} must be an object`); return; }
+        onlyKeys(org, ["name", "url", "alternateName", "parentOrganization"], w);
+        if (!isText(org.name)) fail(`${w}.name must be non-empty text`);
+        if (Object.hasOwn(org, "url") && !isHttps(org.url)) fail(`${w}.url must be an https:// URL`);
+        if (Object.hasOwn(org, "alternateName") && !(Array.isArray(org.alternateName) && org.alternateName.every(isText))) fail(`${w}.alternateName must be a list of non-empty text`);
+        if (Object.hasOwn(org, "parentOrganization")) checkNamedOrg(org.parentOrganization, `${w}.parentOrganization`);
+      });
+    }
+    if (Object.hasOwn(p, "books")) {
+      if (!Array.isArray(p.books)) fail(`${W}.books must be a list`);
+      else p.books.forEach((book, i) => {
+        const w = `${W}.books[${i}]`;
+        if (!isObject(book)) { fail(`${w} must be an object`); return; }
+        onlyKeys(book, ["name", "isbn", "publisher", "datePublished", "bookEdition", "url", "coAuthors"], w);
+        if (!isText(book.name)) fail(`${w}.name must be non-empty text`);
+        if (!isbnValid(book.isbn)) fail(`${w}.isbn must be an ISBN-10 or ISBN-13 whose check digit is right (hyphens allowed): ${book.isbn}`);
+        if (!isText(book.publisher)) fail(`${w}.publisher must be the publisher's name`);
+        if (typeof book.datePublished !== "string" || !/^\d{4}(?:-\d{2}(?:-\d{2})?)?$/.test(book.datePublished)) fail(`${w}.datePublished must be YYYY, YYYY-MM or YYYY-MM-DD`);
+        if (Object.hasOwn(book, "bookEdition") && !isText(book.bookEdition)) fail(`${w}.bookEdition must be non-empty text`);
+        if (Object.hasOwn(book, "url") && !isHttps(book.url)) fail(`${w}.url must be an https:// URL`);
+        if (Object.hasOwn(book, "coAuthors")) {
+          if (!Array.isArray(book.coAuthors)) fail(`${w}.coAuthors must be a list`);
+          else book.coAuthors.forEach((co, j) => {
+            const c = `${w}.coAuthors[${j}]`;
+            if (!isObject(co)) { fail(`${c} must be an object with a name`); return; }
+            onlyKeys(co, ["name", "type"], c);
+            if (!isText(co.name)) fail(`${c}.name must be non-empty text`);
+            if (Object.hasOwn(co, "type") && co.type !== "Person" && co.type !== "Organization") fail(`${c}.type must be Person or Organization`);
+          });
+        }
+      });
+    }
+  }
+}
 checkCustom();
 if (kit.collections && kit.collections.articles === false) {
   tooOld("collections.articles false", "kit.json collections.articles");
@@ -1551,6 +1634,32 @@ if (built) {
       if (!facts.ogUrl) fail(`${shown}: missing og:url`);
       if (!facts.jsonLd) fail(`${shown}: missing a script type="application/ld+json"`);
       if (facts.h1 !== 1) fail(`${shown}: expected exactly one <h1>, found ${facts.h1}`);
+      // Every @id a page's structured data points to is a node that page carries; a declared person is on every page, and the profile page is a ProfilePage about them.
+      const nodes = new Set();
+      const refs = [];
+      let parsed = true;
+      const types = [];
+      for (const m of html.matchAll(/<script\b[^>]*type\s*=\s*["']?application\/ld\+json["']?[^>]*>([\s\S]*?)<\/script\s*>/gi)) {
+        let data;
+        try { data = JSON.parse(m[1]); } catch { parsed = false; continue; }
+        const walk = (v) => {
+          if (Array.isArray(v)) { v.forEach(walk); return; }
+          if (v === null || typeof v !== "object") return;
+          const keys = Object.keys(v);
+          if (typeof v["@id"] === "string") { if (keys.length === 1) refs.push(v["@id"]); else nodes.add(v["@id"]); }
+          if (v["@type"]) types.push({ type: v["@type"], id: v["@id"], main: v.mainEntity?.["@id"] });
+          for (const key of keys) if (key !== "@id") walk(v[key]);
+        };
+        walk(data);
+      }
+      if (!parsed) fail(`${shown}: its JSON-LD does not parse`);
+      for (const ref of refs) if (!nodes.has(ref)) fail(`${shown}: its JSON-LD points to ${ref}, a node the page does not carry`);
+      if (isObject(kit.person) && !page.file.endsWith(`${path.sep}404.html`)) {
+        const personId = `${kit.siteUrl}/#person`;
+        if (!types.some((t) => t.type === "Person" && t.id === personId)) fail(`${shown}: kit.json declares a person, and the page carries no Person ${personId}`);
+        const profile = path.join(dist, `${typeof kit.person.page === "string" ? kit.person.page : "index"}.html`);
+        if (page.file === profile && !types.some((t) => t.type === "ProfilePage" && t.main === personId)) fail(`${shown}: the profile page carries no ProfilePage whose mainEntity is ${personId}`);
+      }
       for (const finding of accessibilityFindings(html)) fail(`${shown}: ${finding}`);
       // A built page loads scripts and stylesheets from this site only, whatever wrote the tag.
       for (const tag of html.match(/<(?:script|link)\b[^>]*>/gi) ?? []) {

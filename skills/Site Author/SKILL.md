@@ -3,7 +3,7 @@ name: Site Author
 type: skill
 category: web
 description: Stand up, content-edit, file site code, check, wrap, and upgrade a kit site envelope in sites/, in a folder named for its domain, or in the sites/ of a work folder when the site dies with that work, with the kit in site/, in an owning root that declares sites/
-version: 0.6.0
+version: 0.7.0
 memory:
   - about
   - design
@@ -55,6 +55,8 @@ Someone who files the site, not someone who designs it, writes it, or puts it on
 | `scripts/check.mjs` | Check |
 | `scripts/wrap.mjs` | Wrap |
 | `scripts/upgrade.mjs` | Upgrade |
+| `scripts/starter.mjs` | File site code, to copy a starter |
+| `starters/` | The starter components `scripts/starter.mjs` copies; never edited in a site |
 
 Quote script paths; this directory's name contains a space. The scripts are not Wiser tools. `--kit` is this skill's `kit/` directory. Do not rebuild the kit. Do not copy the tree by hand.
 
@@ -118,9 +120,9 @@ Gate: Webmaster Job 3 before the requester publishes, not after this write. Chec
 
 ### 2. Edit content
 
-Allowed paths: `site/src/content/**`, `site/public/images/**`. A content job may change `nav`, `footer`, `siteName` and `layout` in `site/kit.json`, and `collections.articles` on the requester's ask, and nothing else in that file. These are site-owned keys like `domain` and `siteUrl`, and Upgrade preserves them. `icon` and `lang` are site-owned too, and a content job does not set them. A page's own frontmatter may set `showTitle: false`, when its body writes exactly one `<h1>`, `listArticles`, and `image`, an `/images/` path that is that page's `og:image`. An article keeps its `hero` and does not read `image`. An `.mdx` page may place a kit component that `kit/KIT.md` Kit components lists, or a component already filed under `site/src/custom/components/`, with its data under `site/src/content/`; writing or editing the component itself is not this job. A kit component is kit code. A file under `site/src/custom/` is File site code. `site/public/fonts/**` is writable only within a Designer-gated token update. A retired or changed published slug may add a row to `site/public/_redirects`; that edit is the redirect case Webmaster Job 3 gates. `site/public/llms.txt` is `skills/SEO Assets/` when it writes into a kit tree, not this job.
+Allowed paths: `site/src/content/**`, `site/public/images/**`. A content job may change `nav`, `footer`, `siteName` and `layout` in `site/kit.json`, and `blog`, `person` and `collections.articles` on the requester's ask, and nothing else in that file. It may write event files under `site/src/content/events/`, place `Video` and `Faq` in an `.mdx` page, and set an article's `heroAlt` and a page's `listEvents`, as `kit/KIT.md` states them. A `person` declaration for a profile site carries only facts the requester supplied from an approved source, such as a claims ledger `skills/Profile Page/` produced; never fill a field in. These are site-owned keys like `domain` and `siteUrl`, and Upgrade preserves them. `icon` and `lang` are site-owned too, and a content job does not set them. A page's own frontmatter may set `showTitle: false`, when its body writes exactly one `<h1>`, `listArticles`, and `image`, an `/images/` path that is that page's `og:image`. An article keeps its `hero` and does not read `image`. An `.mdx` page may place a kit component that `kit/KIT.md` Kit components lists, or a component already filed under `site/src/custom/components/`, with its data under `site/src/content/`; writing or editing the component itself is not this job. A kit component is kit code. A file under `site/src/custom/` is File site code. `site/public/fonts/**` is writable only within a Designer-gated token update. A retired or changed published slug may add a row to `site/public/_redirects`; that edit is the redirect case Webmaster Job 3 gates. `site/public/llms.txt` is `skills/SEO Assets/` when it writes into a kit tree, not this job.
 
-Refuse, and do not perform: `site/src/components/**`, `site/src/layouts/**`, `site/src/pages/**` (routes), `site/src/custom/**`, `site/astro.config.mjs`, `site/package.json`, `site/package-lock.json`, `site/src/styles/**` except a Designer-gated update to `site/src/styles/tokens.css`, `site/public/fonts/**` except within that same token update, `site/.github/**`, `site/KIT.md`, and any key of `site/kit.json` other than `nav`, `footer`, `siteName`, `layout` and `collections.articles`. A request to add a component, to restyle the header, or to edit the Astro config is a refusal, not a stretch. Restyling the header is File site code.
+Refuse, and do not perform: `site/src/components/**`, `site/src/layouts/**`, `site/src/pages/**` (routes), `site/src/custom/**`, `site/astro.config.mjs`, `site/package.json`, `site/package-lock.json`, `site/src/styles/**` except a Designer-gated update to `site/src/styles/tokens.css`, `site/public/fonts/**` except within that same token update, `site/.github/**`, `site/KIT.md`, and any key of `site/kit.json` other than `nav`, `footer`, `siteName`, `layout`, `blog`, `person` and `collections.articles`. A request to add a component, to restyle the header, or to edit the Astro config is a refusal, not a stretch. Restyling the header is File site code.
 
 File an article Content Author wrote, after Ghost Writer's gate, at `site/src/content/articles/<slug>.md`. Required frontmatter: `title`, `description`, `pubDate`, `author`, `tags`, `draft`. Empty `pubDate` or missing `description` fails `check`; do not write that file. Hero image optional. Pages need `title` and `description`.
 
@@ -131,6 +133,8 @@ A new URL, a slug change, or a redirect is gated by Webmaster Job 3 before publi
 ### 3. File site code
 
 Did `skills/Component Design/` or `skills/Marketing Page Design/` produce the header, footer, stylesheet or component in front of you, and did `experts/Creative Director/` pass it? Yes: file that file into `site/src/custom/` and change nothing else in it. No, or the pass is not in front of you: refuse, and name the gate it skipped. This job writes no design of its own.
+
+**A starter is the other way in.** The requester asks for a testimonial, a card grid, steps or a closing call to action: copy that starter with `node "<this-skill-dir>/scripts/starter.mjs" --site "<envelope-folder>" --name <Starter>` (`--list` names them). A starter shipped reviewed, so one copied unchanged needs no Creative Director pass; one the requester wants restyled is a design change and takes the pass above before the restyled file is filed. The script refuses a site below 0.3.0, a name it does not ship, and a file already there; a copied starter is the site's from then on, and no kit release changes it.
 
 Which file is it? `Header.astro`, `Footer.astro`, `custom.css`, or `components/<Name>.astro`, where `<Name>` starts with a capital letter and holds only letters and digits and is not the name of a kit component: those are the only names the folder may hold. Anything else, including another file, another folder, a nested folder under `components/`, or a symbolic link: refuse, and name it. `check` fails the same names.
 
