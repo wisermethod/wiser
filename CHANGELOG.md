@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.06.4, October 6, 2026
+
+- A site built with the site kit can publish its own `llms.txt`, the summary AI tools read, by keeping it at `src/content/llms.txt`; the kit serves it exactly as written, and Site Author's check confirms the built file is the site's own. (fbbfeb5)
+- A site that turns its top links off, with `nav` set to an empty list, no longer shows a blank header strip, and screen readers no longer announce an empty menu. (fbbfeb5)
+
 ## v2026.10.06.3, October 6, 2026
 
 - Sites built with the site kit can turn on blog features one at a time: a page for each tag, a blog page split into pages of a set length, reading time, the date written out under each article's title, a picture beside each post in the list, and related posts at the end of an article. (bed3f4c, 0e22bda)
