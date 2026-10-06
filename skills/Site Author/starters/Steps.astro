@@ -14,10 +14,10 @@ for (const step of steps) {
   if (step.image && step.alt === undefined) throw new Error("Steps requires alt when a step has an image.");
 }
 ---
-<ol class="not-prose list-decimal ps-6 text-ink">
+<ol class="not-prose my-8 list-decimal ps-6 text-ink">
   {steps.map((step) => <li class="mb-4">
     <h2 class="font-heading text-title">{step.title}</h2>
-    {step.image ? <img src={step.image} alt={step.alt ?? ""} /> : null}
+    {step.image ? <img class="mt-2 h-auto max-w-full rounded" src={step.image} alt={step.alt ?? ""} /> : null}
     <p>{step.text}</p>
   </li>)}
 </ol>
