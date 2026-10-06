@@ -306,6 +306,9 @@ walkMd(path.join(site, "src/content/articles"), (file) => {
   for (const key of requiredArticle) {
     if (fm[key] === undefined || fm[key] === "") fail(`${file}: missing ${key}`);
   }
+  // A quoted date and time with no offset is read in the build machine's own zone, so its day can differ from one machine to the next.
+  const quotedTime = topLevelFrontmatter(file).pubDate?.match(/^(["'])\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?\1$/);
+  if (quotedTime) fail(`${file}: pubDate gives a time with no zone, so its day depends on the build machine; give a date alone, 2026-09-24, or add the offset, 2026-09-24T09:00:00Z`);
 });
 // Fenced code, inline code, HTML comments and MDX comments never render as markup, so neither a heading nor a component inside them counts.
 function renderedSource(body) {
@@ -365,8 +368,11 @@ function topLevelFrontmatter(file) {
   const root = first ? first.match(/^ */)[0].length : 0;
   for (const line of lines) {
     if (line.match(/^ */)[0].length !== root) continue;
-    const k = line.slice(root).match(/^(?:"([^"]+)"|'([^']+)'|([A-Za-z0-9_-]+))\s*:(.*)$/);
-    if (k) out[k[1] ?? k[2] ?? k[3]] = k[4].replace(/\s+#.*$/, "").trim();
+    const k = line.slice(root).match(/^(?:"((?:[^"\\]|\\.)+)"|'((?:[^']|'')+)'|([A-Za-z0-9_-]+))\s*:(.*)$/);
+    if (!k) continue;
+    // A YAML escape in a quoted key names a key this reader cannot see, so it is refused rather than read past.
+    if (k[1] !== undefined && k[1].includes("\\")) { fail(`${file}: frontmatter key "${k[1]}" uses an escape; write the key plainly`); continue; }
+    out[k[1] ?? (k[2] !== undefined ? k[2].replace(/''/g, "'") : k[3])] = k[4].replace(/\s+#.*$/, "").trim();
   }
   return out;
 }
@@ -576,12 +582,15 @@ const llms = ["src/pages/llms.txt.js", "src/pages/llms.txt.ts"].some((p) => fs.e
 if (!robots) fail("missing src/pages/robots.txt.js (generated from kit.json, not a static public file)");
 if (!llms) fail("missing src/pages/llms.txt.js (generated from kit.json, not a static public file)");
 
-// Names that merely start with "a" are not anchors. A self-closing <a /> opens nothing.
+// Names that merely start with "a" are not anchors. In HTML a trailing slash does not close <a>; only inside <svg> or <math> does <a/> open nothing.
+// CDATA is text, a raw-text element ends only at its own closing tag, and a <template>'s contents are their own parsing scope.
 const RAW_TEXT = new Set(["script", "style", "textarea", "title"]);
 function nestedAnchors(html) {
   const hits = [];
   let depth = 0;
   let outer = null;
+  let foreign = 0;
+  const templates = [];
   let i = 0;
   const lower = html.toLowerCase();
   while (i < html.length) {
@@ -589,6 +598,11 @@ function nestedAnchors(html) {
     if (lt === -1) break;
     if (html.startsWith("<!--", lt)) {
       const end = html.indexOf("-->", lt + 4);
+      i = end === -1 ? html.length : end + 3;
+      continue;
+    }
+    if (html.startsWith("<![CDATA[", lt)) {
+      const end = html.indexOf("]]>", lt + 9);
       i = end === -1 ? html.length : end + 3;
       continue;
     }
@@ -605,16 +619,24 @@ function nestedAnchors(html) {
     const name = match[2].toLowerCase();
     const closing = match[1] === "/";
     const tag = html.slice(lt, j + 1);
+    const selfClosing = /\/\s*>$/.test(tag);
     if (!closing && RAW_TEXT.has(name)) {
-      const end = lower.indexOf(`</${name}`, j);
-      i = end === -1 ? html.length : end;
+      const close = new RegExp(`</${name}(?=[\\s/>])`, "g");
+      close.lastIndex = j;
+      const end = close.exec(lower);
+      i = end ? end.index : html.length;
       continue;
+    }
+    if ((name === "svg" || name === "math") && !selfClosing) { if (closing) foreign = Math.max(0, foreign - 1); else foreign++; }
+    if (name === "template") {
+      if (!closing) { templates.push([depth, outer]); depth = 0; outer = null; }
+      else if (templates.length) [depth, outer] = templates.pop();
     }
     if (name === "a") {
       if (closing) {
         depth = Math.max(0, depth - 1);
         if (depth === 0) outer = null;
-      } else if (!/\/\s*>$/.test(tag)) {
+      } else if (!(selfClosing && foreign > 0)) {
         if (depth > 0) hits.push({ line: html.slice(0, lt).split("\n").length, outer, inner: tag });
         else outer = tag;
         depth++;
@@ -624,27 +646,34 @@ function nestedAnchors(html) {
   }
   return hits;
 }
+// A walk that cannot read a folder or a file fails, so a PASS covers every built page.
 function listHtml(dir, out) {
   let names;
-  try { names = fs.readdirSync(dir); } catch { return out; }
+  try { names = fs.readdirSync(dir); } catch (error) { fail(`cannot read ${path.relative(site, dir) || "."}: ${error.code ?? error.message}`); return out; }
   for (const name of names) {
     const file = path.join(dir, name);
     let st;
-    try { st = fs.statSync(file); } catch { continue; }
-    if (st.isDirectory()) listHtml(file, out);
+    try { st = fs.lstatSync(file); } catch (error) { fail(`cannot read ${path.relative(site, file)}: ${error.code ?? error.message}`); continue; }
+    if (st.isSymbolicLink()) fail(`${path.relative(site, file)} is a symbolic link in the built site`);
+    else if (st.isDirectory()) listHtml(file, out);
     else if (st.isFile() && name.endsWith(".html")) out.push({ file, mtimeMs: st.mtimeMs });
   }
   return out;
 }
+// A folder's own time moves when a file in it is added, removed or renamed, so a page deleted after the build makes the build stale too.
 function newestNewerThan(dir, oldest, best) {
   let names;
-  try { names = fs.readdirSync(dir); } catch { return best; }
+  try {
+    const st = fs.statSync(dir);
+    if (st.mtimeMs > oldest && (!best || st.mtimeMs > best.mtimeMs)) best = { file: dir, mtimeMs: st.mtimeMs };
+    names = fs.readdirSync(dir);
+  } catch { return best; }
   for (const name of names) {
     const file = path.join(dir, name);
     let st;
     try { st = fs.statSync(file); } catch { continue; }
     if (st.isDirectory()) {
-      if (name === "node_modules" || name === ".astro" || name === "zArchive") continue;
+      if (name === "node_modules" || name === ".astro") continue;
       best = newestNewerThan(file, oldest, best);
     } else if (st.isFile() && st.mtimeMs > oldest && (!best || st.mtimeMs > best.mtimeMs)) {
       best = { file, mtimeMs: st.mtimeMs };

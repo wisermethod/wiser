@@ -6,7 +6,7 @@ Changes before September 27, 2026 are in the commit history only.
 
 ## v2026.10.06, October 6, 2026
 
-- Sites built with the site kit: a page that lists articles shows each one as its title, a short description and the date written out, such as "September 24, 2026". The list no longer has a bullet beside each article or a large gap under the page title. A site sets the spacing and title size through three new design tokens. (a9e7f66)
+- Sites built with the site kit: a page set to list the site's articles (`listArticles: true`) shows each one as its title, a short description and the date written out, such as "September 24, 2026". That list no longer has a bullet beside each article or a large gap under the page title. A homepage that lists articles without that setting is unchanged. A site sets the spacing and title size through three new design tokens. (a9e7f66)
 - Site Author's check can read a site after it is built, and stops when a link sits inside another link. That happens when an email address or a web address is written as a link's own text; the check says how to write it instead. (a9e7f66)
 - Site Author's check now works on a site still on an earlier kit version, and says an upgrade is available, instead of refusing it. (a9e7f66)
 - This changelog, from this release on, with the six releases before it since September 27, 2026.
