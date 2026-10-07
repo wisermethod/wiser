@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.07.4, October 7, 2026
+
+- Deploying a site to Cloudflare Pages sends its files in smaller requests, at most 3 MiB each, after a site whose first request was about 5 MiB was refused as too large and nothing was published. A site holding a single file too big to send this way, about 2.25 MiB or more, is refused before anything is uploaded, naming the file and pointing to Wrangler instead. If a request is still refused as too large, the answer now says so and gives the request's size, rather than a bare error. (50aff0b)
+
 ## v2026.10.07.3, October 7, 2026
 
 - The README now says to install Wiser from this repository rather than from the plugin directory in Claude, whose copy does not update; tells Claude Cowork users to turn on Sync automatically when they install; and has a new Updating section saying how to bring each app's copy up to date. (811893b)
