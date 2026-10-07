@@ -256,8 +256,8 @@ function publishedPage(id) {
 // A site's own llms.txt is src/content/llms.txt, which the kit's /llms.txt route serves; a public/llms.txt would collide with that route, and the build would skip one of them.
 if (fs.existsSync(path.join(site, "public", "llms.txt"))) fail("public/llms.txt collides with the kit's /llms.txt route: move the site's own file to src/content/llms.txt, which the route serves as written");
 if (fs.existsSync(path.join(site, "src", "content", "llms.txt"))) tooOld("src/content/llms.txt", "src/content/llms.txt");
-// public/files/ holds a site's downloads. It is content, so it holds no page, script or stylesheet that would carry code past the content-and-code line, no hidden file, and no symbolic link.
-const FILES_REFUSED = new Set([".html", ".htm", ".js", ".mjs", ".css"]);
+// public/files/ holds a site's downloads. It is content, so it holds no file a browser runs as a page, script or stylesheet, SVG and XML included because either can carry a script, no hidden file, and no symbolic link.
+const FILES_REFUSED = new Set([".html", ".htm", ".xhtml", ".xht", ".shtml", ".mht", ".mhtml", ".svg", ".svgz", ".xml", ".xsl", ".xslt", ".js", ".mjs", ".cjs", ".wasm", ".css"]);
 {
   const filesRoot = path.join(site, "public", "files");
   let rootStat = null;
@@ -278,7 +278,7 @@ const FILES_REFUSED = new Set([".html", ".htm", ".js", ".mjs", ".css"]);
           if (st.isSymbolicLink()) { fail(`${shown} is a symbolic link`); continue; }
           if (name.startsWith(".")) { fail(`${shown} is a hidden file or folder; public/files/ holds downloads only`); continue; }
           if (st.isDirectory()) { walk(file); continue; }
-          if (FILES_REFUSED.has(path.extname(name).toLowerCase())) fail(`${shown}: an .html, .htm, .js, .mjs or .css file is code, not a download, and public/files/ refuses it`);
+          if (FILES_REFUSED.has(path.extname(name).toLowerCase())) fail(`${shown}: a file a browser runs as a page, script or stylesheet (${[...FILES_REFUSED].join(" ")}) is code, not a download, and public/files/ refuses it`);
         }
       };
       walk(filesRoot);
@@ -1678,6 +1678,7 @@ if (built) {
     walkMd(path.join(site, "src/content/pages"), (file) => {
       const top = topLevelFrontmatter(file);
       if (!Object.hasOwn(top, "noindex") || yamlBoolean(top.noindex) !== "true") return;
+      if (Object.hasOwn(top, "draft") && yamlBoolean(top.draft) === "true") return;
       const id = pageIdOf(file, top);
       const url = id === "index" ? `${kit.siteUrl}/` : `${kit.siteUrl}/${id}`;
       const built = path.join(dist, `${id}.html`);
@@ -1685,7 +1686,14 @@ if (built) {
       const html = fs.readFileSync(built, "utf8").replace(/<!--[\s\S]*?-->/g, "");
       if (!html.includes('<meta name="robots" content="noindex, nofollow">')) fail(`${path.relative(site, built)}: a noindex page without <meta name="robots" content="noindex, nofollow">`);
       if (sitemapText.includes(`<loc>${url}</loc>`)) fail(`${path.relative(site, built)}: a noindex page listed in the sitemap`);
-      if (llmsText.includes(`(${url})`)) fail(`${path.relative(site, built)}: a noindex page listed in llms.txt`);
+      if (!/<body\b[^>]*\bdata-pagefind-ignore="all"/i.test(html) || /\bdata-pagefind-body\b/i.test(html)) fail(`${path.relative(site, built)}: a noindex page Pagefind would index; its <body> needs data-pagefind-ignore="all" and no data-pagefind-body`);
+      // Any written form of the address counts: a Markdown link, an autolink, a bare URL, or a path on this site.
+      const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const boundary = "(?![\\p{L}\\p{N}_\\-./~%])";
+      const listed = id === "index"
+        ? new RegExp(`${escape(kit.siteUrl)}/?${boundary}`, "u")
+        : new RegExp(`(?:${escape(kit.siteUrl)}|(?<=^|[\\s(<\\[\\]"':]))/${escape(id)}${boundary}`, "mu");
+      if (listed.test(llmsText)) fail(`${path.relative(site, built)}: a noindex page listed in llms.txt`);
     });
     const own = path.join(site, "src", "content", "llms.txt");
     const builtLlms = path.join(dist, "llms.txt");

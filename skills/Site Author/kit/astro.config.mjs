@@ -25,7 +25,7 @@ function anyHiddenPage() {
       if (statSync(file).isDirectory()) return walk(file);
       if (!/\.(md|mdx)$/.test(name)) return false;
       const front = /^---\r?\n([\s\S]*?)\r?\n---/.exec(readFileSync(file, 'utf8'));
-      return Boolean(front && /^["']?noindex["']?[ \t]*:/m.test(front[1]));
+      return Boolean(front && /^[ \t]*["']?noindex["']?[ \t]*:/m.test(front[1]));
     });
   };
   return walk(fileURLToPath(new URL('./src/content/pages', import.meta.url)));

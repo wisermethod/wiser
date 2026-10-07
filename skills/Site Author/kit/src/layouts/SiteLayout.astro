@@ -191,7 +191,7 @@ const icon = typeof site.icon === 'string' && site.icon ? site.icon : '';
     <script type="application/ld+json" set:html={jsonLd} />
     {articlesOn && <link rel="alternate" type="application/rss+xml" title="Articles" href={`${SITE_URL}/rss.xml`} />}
   </head>
-  <body data-kit-layout={hasLayout ? "" : undefined} data-width={hasLayout ? width : undefined} data-sections={hasLayout ? sections : undefined}>
+  <body data-kit-layout={hasLayout ? "" : undefined} data-width={hasLayout ? width : undefined} data-sections={hasLayout ? sections : undefined} data-pagefind-ignore={hidden ? "all" : undefined}>
     <a class="skip-link" href="#content">Skip to content</a>
     {CustomHeader ? <CustomHeader nav={links} siteName={brandLabel} brand={brand} path={path} /> : hasLayout ? ((links.length > 0 || brandText || brandLogo) &&
       <header data-sticky={sticky ? "" : undefined}>
