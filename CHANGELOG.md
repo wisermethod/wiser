@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.07.5, October 7, 2026
+
+- A site built with the site kit can schedule an article: give it a `pubDate` in the future, and it stays out of the site, its lists, feeds, sitemap, `llms.txt` and search until a build made at or after that moment. Until now such an article went live at the next build. A date and time with its offset sets the exact moment; a date alone means 00:00 UTC. (b0b6aa6)
+- Site Author's check lists each scheduled article with the moment it goes live, says when one is due for a rebuild and deploy, and fails a build that shows an article early. Going live stays a step a person approves: build, check, Webmaster's review, then the deploy. (b0b6aa6)
+
 ## v2026.10.07.4, October 7, 2026
 
 - Deploying a site to Cloudflare Pages sends its files in smaller requests, at most 3 MiB each, after a site whose first request was about 5 MiB was refused as too large and nothing was published. A site holding a single file too big to send this way, about 2.25 MiB or more, is refused before anything is uploaded, naming the file and pointing to Wrangler instead. If a request is still refused as too large, the answer now says so and gives the request's size, rather than a bare error. (50aff0b)
