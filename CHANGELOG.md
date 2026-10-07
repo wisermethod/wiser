@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.07.3, October 7, 2026
+
+- The README now says to install Wiser from this repository rather than from the plugin directory in Claude, whose copy does not update; tells Claude Cowork users to turn on Sync automatically when they install; and has a new Updating section saying how to bring each app's copy up to date. (811893b)
+
 ## v2026.10.07.2, October 7, 2026
 
 - A site built with the site kit can hide a page: `noindex: true` in its frontmatter keeps the page at its address, for someone given the link, and keeps it out of search engines, the sitemap, `llms.txt` and the site's own search. Nothing names the address publicly. (ee7f371, e3b77d8)
