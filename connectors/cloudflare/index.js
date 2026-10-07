@@ -130,7 +130,8 @@ function projectNameOk(value) {
 const MAX_FILES = 20000;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_BUCKET_FILES = 1000;
-const MAX_BUCKET_BASE64 = 5 * 1024 * 1024;
+// Byte length of JSON.stringify of one POST /pages/assets/upload body.
+const MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
 
 const CONTENT_TYPES = {
   html: 'text/html',
@@ -347,16 +348,28 @@ function walkPages(root, refused) {
         return { error: invalid('dir', 'more than 20000 files') };
       }
       const extension = extname(logical);
-      // Only the hash is kept. The bytes are read again, bucket by bucket, when a
-      // file is uploaded, so memory holds one bucket rather than the whole site.
+      // Only the hash and the upload-entry size are kept. The bytes are read again,
+      // bucket by bucket, when a file is uploaded, so memory holds one bucket rather
+      // than the whole site. Base64 is ASCII and JSON does not escape it, so the
+      // entry size is the empty-value skeleton plus the base64 length, without
+      // building the base64 a second time. Field order matches the object sent.
+      const hash = assetHash(bytes, extension);
+      const contentType = contentTypeFor(extension);
+      const base64Length = Math.ceil(bytes.length / 3) * 4;
+      const entryBytes = base64Length + Buffer.byteLength(JSON.stringify({
+        key: hash,
+        value: '',
+        metadata: { contentType },
+        base64: true,
+      }));
       assets.push({
         rel: logical,
         resolved,
         id,
         extension,
-        hash: assetHash(bytes, extension),
-        base64Length: Math.ceil(bytes.length / 3) * 4,
-        contentType: contentTypeFor(extension),
+        hash,
+        entryBytes,
+        contentType,
       });
     }
   }
@@ -364,22 +377,34 @@ function walkPages(root, refused) {
   return { assets, headers, redirects, skipped };
 }
 
-// A bucket closes at 1,000 files or 5 MiB of base64, except that one file always
-// fits: a file up to the 25 MiB per-file limit travels alone, as about 33 MiB of
-// base64. Whether the provider's proxy accepts a request that size is UNVERIFIED.
+// A bucket closes when the next asset would put it over 1,000 files or over
+// MAX_UPLOAD_BYTES of serialized body. A bucket of k entries is
+// 2 + sum(entry bytes) + (k - 1): the brackets and the commas between entries.
+// The count is the JSON body, so it includes each entry's key, metadata and
+// punctuation, and 3 MiB of body is at most 3 MiB of base64. There is no
+// exception that lets one oversized file travel alone: deploy refuses any asset
+// whose single-entry body exceeds the cap before this runs, so every item here
+// fits in a bucket of its own and no bucket is emitted over the cap.
+// Facts, 2026-10-07. A 73-file kit site batched as 29 files (4.94 MiB of base64)
+// then 43 files (1.83 MiB of base64). The first request came back HTTP 413
+// through the provider's proxy and nothing was published. wisermemory.com batches as
+// one request of 81 files, 2.08 MiB of base64, and has uploaded and served on
+// every deploy since 2026-10-03. The limit on this route therefore lies between
+// about 2.1 MiB and about 4.9 MiB per request. The adapter reports a 413 from the
+// proxy and one from Cloudflare alike, so which hop refused is not known. The
+// provider's proxy documentation, read 2026-10-07, states no request-size limit,
+// so the cap is taken from that evidence: 3 MiB.
 function bucketize(items) {
   const out = [];
   let current = [];
-  let size = 0;
+  let bytes = 0;
   for (const item of items) {
-    const n = item.base64Length;
-    if (current.length > 0 && (current.length >= MAX_BUCKET_FILES || size + n > MAX_BUCKET_BASE64)) {
+    if (current.length > 0 && (current.length >= MAX_BUCKET_FILES || bytes + 1 + item.entryBytes > MAX_UPLOAD_BYTES)) {
       out.push(current);
       current = [];
-      size = 0;
     }
+    bytes = current.length === 0 ? 2 + item.entryBytes : bytes + 1 + item.entryBytes;
     current.push(item);
-    size += n;
   }
   if (current.length > 0) out.push(current);
   return out;
@@ -731,6 +756,23 @@ export const modules = {
       if (walked.assets.length === 0) {
         return { status: 'invalid_arguments', field: 'dir', reason: 'no uploadable files', skipped: walked.skipped };
       }
+      // A file of about 2.25 MiB on disk is the practical ceiling. Base64 expands
+      // by 4/3, and the entry's key, content type and punctuation share the 3 MiB
+      // request, so one file whose single-entry body exceeds the cap can never be
+      // sent. Every walked asset is checked, not only those later reported missing,
+      // and this runs before the upload-token call: nothing is known about missing
+      // hashes yet, and a refusal sends nothing.
+      const oversize = walked.assets.filter((asset) => 2 + asset.entryBytes > MAX_UPLOAD_BYTES);
+      if (oversize.length > 0) {
+        const files = oversize.map((asset) => asset.rel);
+        return {
+          status: 'invalid_arguments',
+          field: 'dir',
+          reason: `file over the 3 MiB upload request limit: ${files[0]}`,
+          files,
+          fallback: 'Deploy with Wrangler, per skills/Cloudflare Pages/SETUP.md',
+        };
+      }
       const tokenEndpoint = accountPath(input.account_id, input.project_name, 'upload-token');
       const tokenData = await proxyData(ctx, { endpoint: tokenEndpoint, method: 'GET' });
       const jwt = readJwt(tokenData);
@@ -753,7 +795,9 @@ export const modules = {
         else alreadyPresent += 1;
       }
       const toUpload = [...missingSet].map((hash) => byHash.get(hash));
-      for (const bucket of bucketize(toUpload)) {
+      const buckets = bucketize(toUpload);
+      let batchesSent = 0;
+      for (const bucket of buckets) {
         const payload = [];
         for (const asset of bucket) {
           const bytes = readScreened(asset.resolved, asset.id);
@@ -767,8 +811,33 @@ export const modules = {
             base64: true,
           });
         }
-        const up = await assetCall(ctx, jwt, '/pages/assets/upload', payload);
+        const bodyBytes = Buffer.byteLength(JSON.stringify(payload));
+        let up;
+        try {
+          up = await assetCall(ctx, jwt, '/pages/assets/upload', payload);
+        } catch (err) {
+          // ctx.proxy throws a gateway StatusSignal. This module may not import
+          // the gateway, so the signal is recognized by its shape. status stays
+          // vendor_error: the gateway's closed STATUS set is the only one
+          // isStatusObject accepts, and a new string would be read as success.
+          // The upload JWT is not copied onto this result.
+          if (err && typeof err === 'object' && err.object && err.object.status === 'vendor_error' && err.object.http_status === 413) {
+            return {
+              status: 'vendor_error',
+              http_status: 413,
+              endpoint: '/pages/assets/upload',
+              method: 'POST',
+              reason: 'request too large',
+              batch: { files: bucket.length, bytes: bodyBytes },
+              limit_bytes: MAX_UPLOAD_BYTES,
+              batches_sent: batchesSent,
+              batches: buckets.length,
+            };
+          }
+          throw err;
+        }
         if (!envelopeOk(up)) return vendorError('/pages/assets/upload', 'POST');
+        batchesSent += 1;
       }
       // Every file, uploaded or already present, is read again and must still be
       // what was hashed, so the manifest describes the tree as it stands now.

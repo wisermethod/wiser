@@ -1,4 +1,5 @@
 import { confirmCall } from '../../../gateway/test/fake-provider.js';
+import { randomBytes } from 'node:crypto';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -685,4 +686,193 @@ test('pages.remove_domain and delete_project refuse dot segments before any call
     assert.equal(result.field, field);
   }
   assert.equal(requests.length, 0);
+});
+
+// Upload-entry size, from the same shape index.js sends. A 32-character key,
+// an empty value, metadata.contentType, and base64: true. Base64 is ASCII, so
+// the entry is that skeleton plus the base64 length. A one-entry body adds the
+// two brackets. Nothing here is imported from index.js.
+const UPLOAD_CAP = 3 * 1024 * 1024;
+
+function uploadSkeletonBytes(contentType) {
+  return Buffer.byteLength(JSON.stringify({
+    key: '0'.repeat(32),
+    value: '',
+    metadata: { contentType },
+    base64: true,
+  }));
+}
+
+function uploadEntryBytes(fileBytes, contentType) {
+  return Math.ceil(fileBytes / 3) * 4 + uploadSkeletonBytes(contentType);
+}
+
+function singleEntryBody(fileBytes, contentType) {
+  return 2 + uploadEntryBytes(fileBytes, contentType);
+}
+
+// Largest .bin whose one-entry body is strictly under the cap, and within 4
+// bytes of it. The base64 length steps by 4, so the gap is 1, 2, 3, or 4.
+function largestBinUnderCap() {
+  const skeleton = uploadSkeletonBytes('application/octet-stream');
+  const room = UPLOAD_CAP - 2 - skeleton;
+  let base64 = room - (room % 4);
+  if (2 + base64 + skeleton >= UPLOAD_CAP) base64 -= 4;
+  return (base64 / 4) * 3;
+}
+
+// Smallest .bin whose one-entry body exceeds the cap. One byte past the largest
+// file that still fits raises the base64 length by 4.
+function smallestBinOverCap() {
+  const skeleton = uploadSkeletonBytes('application/octet-stream');
+  const room = UPLOAD_CAP - 2 - skeleton;
+  const base64 = room - (room % 4);
+  return (base64 / 4) * 3 + 1;
+}
+
+function installDeployProxy(fake, { jwt, upload } = {}) {
+  const calls = [];
+  fake.auth.proxy = async (request) => {
+    calls.push(request);
+    const endpoint = request.endpoint;
+    const ok = (result) => ({ status: 200, data: { success: true, result, errors: [], messages: [] }, headers: {} });
+    if (request.method === 'GET' && endpoint.endsWith('/upload-token')) return ok({ jwt });
+    if (endpoint === '/pages/assets/check-missing') return ok(request.body.hashes);
+    if (endpoint === '/pages/assets/upload') {
+      if (upload) return upload(request);
+      return ok(null);
+    }
+    if (endpoint === '/pages/assets/upsert-hashes') return ok(null);
+    if (request.method === 'POST' && endpoint.endsWith('/deployments')) {
+      return ok({ id: 'dep-1', url: 'https://kit-site.pages.dev', environment: 'production' });
+    }
+    return ok({});
+  };
+  return calls;
+}
+
+test('pages.deploy keeps every upload request at or under 3 MiB of serialized body', async () => {
+  const files = {};
+  for (let i = 0; i < 6; i += 1) files[`part-${i}.bin`] = randomBytes(900 * 1024);
+  const tree = makeTree({ files });
+  const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS] });
+  await putActive(store, fake, { service: 'cloudflare', module: 'pages' });
+  const jwt = 'pages-upload-jwt-batch-cap';
+  const calls = installDeployProxy(fake, { jwt });
+  try {
+    const result = await confirmCall(gw, {
+      action: 'cloudflare.pages.deploy',
+      input: { account_id: 'acct-1', project_name: 'kit-site', dir: tree.dist },
+      confirm: true,
+    });
+    const uploads = calls.filter((call) => call.endpoint === '/pages/assets/upload');
+    assert.ok(uploads.length > 1);
+    for (const call of uploads) {
+      assert.ok(Buffer.byteLength(JSON.stringify(call.body)) <= UPLOAD_CAP);
+    }
+    const missing = calls.find((call) => call.endpoint === '/pages/assets/check-missing').body.hashes;
+    const uploaded = uploads.flatMap((call) => call.body.map((item) => item.key));
+    assert.equal(new Set(uploaded).size, uploaded.length);
+    assert.deepEqual([...uploaded].sort(), [...missing].sort());
+    assert.equal(result.deployment.id, 'dep-1');
+    assert.equal(result.uploaded, 6);
+    assert.equal(result.files, 6);
+    assert.equal(result.status, undefined);
+    assert.equal(JSON.stringify(result).includes(jwt), false);
+  } finally {
+    tree.cleanup();
+  }
+});
+
+test('pages.deploy sends a file just under the cap in an upload request of its own', async () => {
+  const binBytes = largestBinUnderCap();
+  const html = '<h1>Hi</h1>\n';
+  const binBody = singleEntryBody(binBytes, 'application/octet-stream');
+  const htmlEntry = uploadEntryBytes(Buffer.byteLength(html), 'text/html');
+  assert.ok(binBody < UPLOAD_CAP);
+  assert.ok(UPLOAD_CAP - binBody <= 4);
+  assert.ok(binBody + 1 + htmlEntry > UPLOAD_CAP);
+  const tree = makeTree({
+    files: {
+      'asset.bin': randomBytes(binBytes),
+      'index.html': html,
+    },
+  });
+  const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS] });
+  await putActive(store, fake, { service: 'cloudflare', module: 'pages' });
+  const calls = installDeployProxy(fake, { jwt: 'pages-upload-jwt-just-under' });
+  try {
+    const result = await confirmCall(gw, {
+      action: 'cloudflare.pages.deploy',
+      input: { account_id: 'acct-1', project_name: 'kit-site', dir: tree.dist },
+      confirm: true,
+    });
+    const uploads = calls.filter((call) => call.endpoint === '/pages/assets/upload');
+    assert.equal(uploads.length, 2);
+    const alone = uploads.find((call) => call.body.length === 1 && call.body[0].metadata.contentType === 'application/octet-stream');
+    assert.ok(alone);
+    const aloneBytes = Buffer.byteLength(JSON.stringify(alone.body));
+    assert.ok(aloneBytes <= UPLOAD_CAP);
+    assert.equal(aloneBytes, binBody);
+    assert.equal(result.deployment.id, 'dep-1');
+    assert.equal(result.uploaded, 2);
+    assert.equal(result.status, undefined);
+  } finally {
+    tree.cleanup();
+  }
+});
+
+test('pages.deploy refuses a file over the upload cap before any proxy call', async () => {
+  const binBytes = smallestBinOverCap();
+  assert.ok(singleEntryBody(binBytes, 'application/octet-stream') > UPLOAD_CAP);
+  const tree = makeTree({ files: { 'heavy.bin': randomBytes(binBytes) } });
+  const { gw, requests } = await pagesGateway();
+  try {
+    const result = await confirmCall(gw, {
+      action: 'cloudflare.pages.deploy',
+      input: { account_id: 'acct-1', project_name: 'kit-site', dir: tree.dist },
+      confirm: true,
+    });
+    assert.equal(result.status, 'invalid_arguments');
+    assert.equal(result.field, 'dir');
+    assert.equal(result.reason, 'file over the 3 MiB upload request limit: heavy.bin');
+    assert.deepEqual(result.files, ['heavy.bin']);
+    assert.equal(result.fallback, 'Deploy with Wrangler, per skills/Cloudflare Pages/SETUP.md');
+    assert.equal(requests.length, 0);
+  } finally {
+    tree.cleanup();
+  }
+});
+
+test('pages.deploy maps an upload 413 to request too large', async () => {
+  const jwt = 'pages-upload-jwt-413-sentinel';
+  const tree = makeTree({ files: { 'index.html': '<h1>Hi</h1>\n' } });
+  const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS] });
+  await putActive(store, fake, { service: 'cloudflare', module: 'pages' });
+  const calls = installDeployProxy(fake, {
+    jwt,
+    upload() {
+      return { status: 413, error: { code: 'vendor_error', endpoint: '/pages/assets/upload', method: 'POST' } };
+    },
+  });
+  try {
+    const result = await confirmCall(gw, {
+      action: 'cloudflare.pages.deploy',
+      input: { account_id: 'acct-1', project_name: 'kit-site', dir: tree.dist },
+      confirm: true,
+    });
+    const upload = calls.find((call) => call.endpoint === '/pages/assets/upload');
+    assert.ok(upload);
+    assert.equal(result.status, 'vendor_error');
+    assert.equal(result.http_status, 413);
+    assert.equal(result.endpoint, '/pages/assets/upload');
+    assert.equal(result.method, 'POST');
+    assert.equal(result.reason, 'request too large');
+    assert.equal(result.batch.files, upload.body.length);
+    assert.equal(result.batch.bytes, Buffer.byteLength(JSON.stringify(upload.body)));
+    assert.equal(calls.some((call) => call.endpoint.endsWith('/deployments')), false);
+    assert.equal(JSON.stringify(result).includes(jwt), false);
+  } finally {
+    tree.cleanup();
+  }
 });
