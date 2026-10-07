@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.07.2, October 7, 2026
+
+- A site built with the site kit can hide a page: `noindex: true` in its frontmatter keeps the page at its address, for someone given the link, and keeps it out of search engines, the sitemap, `llms.txt` and the site's own search. Nothing names the address publicly. (ee7f371, e3b77d8)
+- A site can publish downloads, such as PDFs, from `public/files/`, served at `/files/<name>`. Upgrades keep the folder exactly as it was, and Site Author's check refuses any file there that a browser would run as a page or script. (ee7f371, e3b77d8)
+- Site Author now says which version it is, and which site kit it ships, at the top of its instructions and as the first line its scripts print. When two copies are present it uses the newer one and says the other is out of date. (ee7f371)
+
 ## v2026.10.07, October 7, 2026
 
 - The virtual machines connector's guide now covers connecting through the Wiser endpoint as well as the local gateway, and says what happens there to a command that runs longer than 20 seconds: the answer comes back as `uncertain`, and the command may still finish on the machine. (f7a082d)
