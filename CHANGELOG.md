@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.07, October 7, 2026
+
+- The virtual machines connector's guide now covers connecting through the Wiser endpoint as well as the local gateway, and says what happens there to a command that runs longer than 20 seconds: the answer comes back as `uncertain`, and the command may still finish on the machine. (f7a082d)
+- When the Wiser endpoint answers that it could not confirm a call's outcome (`uncertain`), the setup guide's list of answers and Connection Troubleshooter now say what it means and what to check before trying again. (f7a082d)
+
 ## v2026.10.06.4, October 6, 2026
 
 - A site built with the site kit can publish its own `llms.txt`, the summary AI tools read, by keeping it at `src/content/llms.txt`; the kit serves it exactly as written, and Site Author's check confirms the built file is the site's own. (fbbfeb5)
