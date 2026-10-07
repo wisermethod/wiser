@@ -5,10 +5,11 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { currentKit } from "./envelope.mjs";
+import { currentKit, versionLine } from "./envelope.mjs";
+console.log(versionLine());
 
-const CHECK_VERSION = "0.4.1";
-const KNOWN_VERSIONS = ["0.1.0", "0.2.0", "0.2.1", "0.2.2", "0.3.0", "0.4.0", "0.4.1"];
+const CHECK_VERSION = "0.4.2";
+const KNOWN_VERSIONS = ["0.1.0", "0.2.0", "0.2.1", "0.2.2", "0.3.0", "0.4.0", "0.4.1", "0.4.2"];
 // feature, version introduced. A later release adds a row.
 const introduced = [
   { feature: "layout", version: "0.2.0" },
@@ -29,6 +30,8 @@ const introduced = [
   { feature: "Faq", version: "0.4.0" },
   { feature: "person", version: "0.4.0" },
   { feature: "src/content/llms.txt", version: "0.4.1" },
+  { feature: "noindex", version: "0.4.2" },
+  { feature: "public/files/", version: "0.4.2" },
 ];
 
 const args = process.argv.slice(2);
@@ -253,6 +256,35 @@ function publishedPage(id) {
 // A site's own llms.txt is src/content/llms.txt, which the kit's /llms.txt route serves; a public/llms.txt would collide with that route, and the build would skip one of them.
 if (fs.existsSync(path.join(site, "public", "llms.txt"))) fail("public/llms.txt collides with the kit's /llms.txt route: move the site's own file to src/content/llms.txt, which the route serves as written");
 if (fs.existsSync(path.join(site, "src", "content", "llms.txt"))) tooOld("src/content/llms.txt", "src/content/llms.txt");
+// public/files/ holds a site's downloads. It is content, so it holds no page, script or stylesheet that would carry code past the content-and-code line, no hidden file, and no symbolic link.
+const FILES_REFUSED = new Set([".html", ".htm", ".js", ".mjs", ".css"]);
+{
+  const filesRoot = path.join(site, "public", "files");
+  let rootStat = null;
+  try { rootStat = fs.lstatSync(filesRoot); } catch { rootStat = null; }
+  if (rootStat) {
+    tooOld("public/files/", "public/files");
+    if (rootStat.isSymbolicLink()) fail("public/files is a symbolic link");
+    else if (!rootStat.isDirectory()) fail("public/files is not a folder");
+    else {
+      const walk = (dir) => {
+        let names;
+        try { names = fs.readdirSync(dir); } catch (error) { fail(`cannot read ${path.relative(site, dir)}: ${error.code ?? error.message}`); return; }
+        for (const name of names) {
+          const file = path.join(dir, name);
+          const shown = path.relative(site, file);
+          let st;
+          try { st = fs.lstatSync(file); } catch (error) { fail(`cannot read ${shown}: ${error.code ?? error.message}`); continue; }
+          if (st.isSymbolicLink()) { fail(`${shown} is a symbolic link`); continue; }
+          if (name.startsWith(".")) { fail(`${shown} is a hidden file or folder; public/files/ holds downloads only`); continue; }
+          if (st.isDirectory()) { walk(file); continue; }
+          if (FILES_REFUSED.has(path.extname(name).toLowerCase())) fail(`${shown}: an .html, .htm, .js, .mjs or .css file is code, not a download, and public/files/ refuses it`);
+        }
+      };
+      walk(filesRoot);
+    }
+  }
+}
 if (Object.hasOwn(kit, "person")) {
   tooOld("person", "kit.json person");
   if (!envelopeRouter.includes("`person`")) fail("kit.json sets person, but the envelope AGENTS.md does not mention it: refresh its Content vs code section from site-AGENTS.md");
@@ -723,7 +755,7 @@ walkMd(path.join(site, "src/content/pages"), (file) => {
     if (fm[key] === undefined || fm[key] === "") fail(`${file}: missing ${key}`);
   }
   const top = topLevelFrontmatter(file);
-  for (const key of ["showTitle", "listArticles", "listEvents"]) {
+  for (const key of ["showTitle", "listArticles", "listEvents", "noindex"]) {
     if (!Object.hasOwn(top, key)) continue;
     tooOld(key, file);
     if (yamlBoolean(top[key]) === null) fail(`${file}: ${key} must be true or false, unquoted`);
@@ -1640,6 +1672,21 @@ if (built) {
   try { distDir = fs.existsSync(dist) && fs.statSync(dist).isDirectory(); } catch { distDir = false; }
   const pages = distDir ? listHtml(dist, []) : [];
   if (distDir && pages.length > 0) {
+    // A page a site hides with noindex: true builds, carries the robots meta, and is in neither the sitemap nor llms.txt.
+    const sitemapText = (() => { try { return fs.readdirSync(dist).filter((n) => /^sitemap.*\.xml$/.test(n)).map((n) => fs.readFileSync(path.join(dist, n), "utf8")).join("\n"); } catch { return ""; } })();
+    const llmsText = fs.existsSync(path.join(dist, "llms.txt")) ? fs.readFileSync(path.join(dist, "llms.txt"), "utf8") : "";
+    walkMd(path.join(site, "src/content/pages"), (file) => {
+      const top = topLevelFrontmatter(file);
+      if (!Object.hasOwn(top, "noindex") || yamlBoolean(top.noindex) !== "true") return;
+      const id = pageIdOf(file, top);
+      const url = id === "index" ? `${kit.siteUrl}/` : `${kit.siteUrl}/${id}`;
+      const built = path.join(dist, `${id}.html`);
+      if (!fs.existsSync(built)) { fail(`${path.relative(site, file)} sets noindex, and the build wrote no ${path.relative(site, built)}`); return; }
+      const html = fs.readFileSync(built, "utf8").replace(/<!--[\s\S]*?-->/g, "");
+      if (!html.includes('<meta name="robots" content="noindex, nofollow">')) fail(`${path.relative(site, built)}: a noindex page without <meta name="robots" content="noindex, nofollow">`);
+      if (sitemapText.includes(`<loc>${url}</loc>`)) fail(`${path.relative(site, built)}: a noindex page listed in the sitemap`);
+      if (llmsText.includes(`(${url})`)) fail(`${path.relative(site, built)}: a noindex page listed in llms.txt`);
+    });
     const own = path.join(site, "src", "content", "llms.txt");
     const builtLlms = path.join(dist, "llms.txt");
     if (fs.existsSync(own)) {

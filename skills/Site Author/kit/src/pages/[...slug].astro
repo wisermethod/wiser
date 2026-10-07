@@ -65,7 +65,7 @@ const past = events.filter((event) => Date.parse(event.data.start) < now).sort((
 const showEvents = upcoming.length > 0 || past.length > 0;
 const linkStyle = 'display:inline-flex;align-items:center;box-sizing:border-box;min-height:44px';
 ---
-<SiteLayout title={page.data.title} description={page.data.description} showTitle={page.data.showTitle} image={page.data.image} documentTitle={documentTitle}>
+<SiteLayout title={page.data.title} description={page.data.description} showTitle={page.data.showTitle} image={page.data.image} documentTitle={documentTitle} hidden={page.data.noindex === true}>
   <Content components={components} />
   {page.data.listArticles === true
     ? articles.length > 0 && (usePlainList ? <div class="kit-article-list not-prose" data-kit-list><ul aria-label="Articles">{articles.map((article) => <li>

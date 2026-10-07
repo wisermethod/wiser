@@ -24,10 +24,11 @@ interface Props {
   event?: { data: EventFacts };
   documentTitle?: string;
   noindex?: boolean;
+  hidden?: boolean;
   showTitle?: boolean;
   image?: string;
 }
-const { title, description, article, event, documentTitle, noindex, showTitle, image: pageImage } = Astro.props;
+const { title, description, article, event, documentTitle, noindex, hidden, showTitle, image: pageImage } = Astro.props;
 interface SiteLink { label: string; href: string; style?: string }
 interface LayoutBrand { text?: string; logo?: string }
 interface LayoutConfig {
@@ -179,6 +180,7 @@ const icon = typeof site.icon === 'string' && site.icon ? site.icon : '';
     <title>{documentTitle ?? title}</title>
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex" />}
+    {hidden && <meta name="robots" content="noindex, nofollow" />}
     <link rel="canonical" href={canonical} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
@@ -219,7 +221,7 @@ const icon = typeof site.icon === 'string' && site.icon ? site.icon : '';
     ) : (site.nav.length > 0 &&
       <header><nav aria-label="Main">{site.nav.map((item) => <a href={item.href}>{item.label}</a>)}</nav></header>
     )}
-    <main id="content" class="prose" data-pagefind-body={noindex ? undefined : ""}>
+    <main id="content" class="prose" data-pagefind-body={noindex || hidden ? undefined : ""}>
       {showTitle === false ? null : <h1>{title}</h1>}
       <slot />
     </main>

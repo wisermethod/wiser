@@ -13,7 +13,7 @@ export async function GET() {
   if (typeof ownFile === 'string') return new Response(ownFile, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
   const home = await getEntry('pages', 'index');
   if (!home) throw new Error('The index page is required for llms.txt.');
-  const pages = (await getCollection('pages', ({ data }) => !data.draft))
+  const pages = (await getCollection('pages', ({ data }) => !data.draft && data.noindex !== true))
     .sort((a, b) => (a.id === 'index' ? -1 : b.id === 'index' ? 1 : a.id.localeCompare(b.id)));
   const articles = kit.collections.articles === false
     ? []

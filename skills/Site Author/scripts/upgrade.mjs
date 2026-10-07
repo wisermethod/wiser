@@ -17,7 +17,8 @@ function fail(msg) {
   process.exit(1);
 }
 
-import { currentKit, safeTree } from "./envelope.mjs";
+import { currentKit, safeTree, versionLine } from "./envelope.mjs";
+console.log(versionLine());
 const envelope = values.site && path.resolve(values.site);
 const kit = values.kit && path.resolve(values.kit);
 if (!envelope || !kit) fail("required: --site --kit");
@@ -25,7 +26,7 @@ let site;
 try { site = currentKit(envelope); } catch (error) { fail(error.message); }
 if (!fs.existsSync(path.join(kit, "KIT.md")) || !fs.existsSync(path.join(kit, "package.json"))) fail("kit missing KIT.md or package.json");
 const template = JSON.parse(fs.readFileSync(path.join(kit, "kit.json"), "utf8"));
-if (template.kitVersion !== "0.4.1") fail(`unsupported kitVersion ${template.kitVersion}`);
+if (template.kitVersion !== "0.4.2") fail(`unsupported kitVersion ${template.kitVersion}`);
 
 // Read and split the kit stylesheet before anything is replaced, so a kit that cannot be spliced stops Upgrade with the site untouched.
 const kitTokensPath = path.join(kit, "src/styles/tokens.css");
@@ -35,7 +36,7 @@ const kitTokensEarly = fs.readFileSync(kitTokensPath, "utf8");
 const skipTop = new Set(["node_modules", "dist", ".astro", ".git", "src", "public", "kit.json", "site-AGENTS.md", "AGENTS.md", "memory", "builds.md", "zArchive"]);
 const preserved = new Set();
 const originalKit = JSON.parse(fs.readFileSync(path.join(site, "kit.json"), "utf8"));
-if (!["0.1.0", "0.2.0", "0.2.1", "0.2.2", "0.3.0", "0.4.0", "0.4.1"].includes(originalKit.kitVersion)) fail(`unsupported kitVersion ${originalKit.kitVersion}`);
+if (!["0.1.0", "0.2.0", "0.2.1", "0.2.2", "0.3.0", "0.4.0", "0.4.1", "0.4.2"].includes(originalKit.kitVersion)) fail(`unsupported kitVersion ${originalKit.kitVersion}`);
 
 // A site's own component named like a component this kit ships would be replaced by the kit's after Upgrade, changing the site without its say, so Upgrade stops first and names the file.
 {
@@ -99,6 +100,10 @@ function copyTree(from, to, { preserveContentImages = false } = {}) {
     }
     // src/custom/ is site-owned, like src/content/: never copied over, never archived.
     if (preserveContentImages && name === "custom" && path.basename(from) === "src") {
+      preserved.add(out);
+      continue;
+    }
+    if (preserveContentImages && name === "files" && path.basename(from) === "public") {
       preserved.add(out);
       continue;
     }
@@ -224,7 +229,7 @@ if (fs.readFileSync(configPath, "utf8") !== updated) {
 }
 
 console.log(`upgrade: applied kit ${template.kitVersion} onto ${site}`);
-console.log("upgrade: left src/content, src/custom, public/images and public/fonts untouched");
+console.log("upgrade: left src/content, src/custom, public/images, public/files and public/fonts untouched");
 
 // The envelope router is outside Upgrade; say so when its frontmatter still names another kitVersion.
 const routerPath = path.join(envelope, "AGENTS.md");

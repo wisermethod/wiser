@@ -13,6 +13,7 @@ const pages = defineCollection({
     draft: z.boolean().default(false),
     showTitle: z.boolean().optional(),
     listArticles: z.boolean().optional(),
+    noindex: z.boolean().optional(),
     listEvents: z.boolean().optional(),
     image: text.optional(),
     // Only the about page may supply organization facts to the layout.

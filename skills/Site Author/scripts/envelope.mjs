@@ -88,3 +88,13 @@ export function writeEnvelope(root, dest, kit, template) {
   if (!exists(roster)) fs.writeFileSync(roster, `# ${kit.domain} builds\n\nThis site's change roster. No planned changes.\n\n| Change | State | Playbook |\n|--------|-------|----------|\n`);
   console.log(`memory keys copied: ${copied.join(', ') || 'none'}; retained: ${retained.join(', ') || 'none'}. The skill must ask what changes, if anything. Missing keys stay unbound and fall back to the owning root.`);
 }
+
+// The skill's version and the kit it ships, read from this copy, so a run says which copy it is before it does anything.
+export function versionLine() {
+  const home = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  let skill = 'unknown';
+  let kitVersion = 'unknown';
+  try { skill = /^version:[ \t]*['"]?([^'"\s]+)/m.exec(fs.readFileSync(path.join(home, 'SKILL.md'), 'utf8'))[1]; } catch { skill = 'unknown'; }
+  try { kitVersion = JSON.parse(fs.readFileSync(path.join(home, 'kit', 'kit.json'), 'utf8')).kitVersion ?? 'unknown'; } catch { kitVersion = 'unknown'; }
+  return `Site Author ${skill}, kit ${kitVersion}`;
+}
