@@ -389,8 +389,9 @@ function walkPages(root, refused) {
 // then 43 files (1.83 MiB of base64). The first request came back HTTP 413
 // through the provider's proxy and nothing was published. wisermemory.com batches as
 // one request of 81 files, 2.08 MiB of base64, and has uploaded and served on
-// every deploy since 2026-10-03. The limit on this route therefore lies between
-// about 2.1 MiB and about 4.9 MiB per request. The adapter reports a 413 from the
+// every deploy since 2026-10-03. At this cap, the same 73-file site then deployed
+// live on 2026-10-07 in three requests of about 2.07, 2.88 and 1.84 MiB. The limit
+// on this route therefore lies between about 2.9 MiB and about 4.9 MiB per request. The adapter reports a 413 from the
 // proxy and one from Cloudflare alike, so which hop refused is not known. The
 // provider's proxy documentation, read 2026-10-07, states no request-size limit,
 // so the cap is taken from that evidence: 3 MiB.
