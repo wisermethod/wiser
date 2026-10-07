@@ -24,11 +24,22 @@ Each family keeps its own index: `skills/AGENTS.md`, `experts/AGENTS.md`, `tools
 
 Install Wiser, sign in to the Wiser endpoint, then attach your working folder. If your folder has no `AGENTS.md` yet, ask Wiser to set it up; it can start a new folder or adopt one that already holds work. To connect accounts, ask Wiser to **set up connectors**; `gateway/SETUP.md` is the recipe it follows, and its section 1 adds the endpoint by hand in an app that does not list it after install.
 
-- **Claude Cowork.** Open Customize, then Plugins, then Add marketplace. Give it the full address, `https://github.com/wisermethod/wiser`, and install `wiser`. If Cowork warns that installing grants the plugin access to everything available to Cowork, continue. Then open Customize, then Plugins, then Wiser, then its Connectors tab. Next to `wiser`, if it shows Not added, press Connect to add it, or, if you cannot, ask an Owner of your organization to add it; once it shows Not connected, press Connect and sign in. Do not add another Wiser connector because Customize, Connectors does not list it. Then attach your working folder.
+Install from this repository, as the steps below do, and not from the plugin directory in Claude: a copy installed from the directory does not update when Wiser does.
+
+- **Claude Cowork.** Open Customize, then Plugins, then Add marketplace. Give it the full address, `https://github.com/wisermethod/wiser`, and install `wiser`. If Cowork warns that installing grants the plugin access to everything available to Cowork, continue. Then open Customize, then Plugins, then Add, then Manage marketplaces, open the `wiser` marketplace's menu, and turn on Sync automatically, so your copy follows each release. Then open Customize, then Plugins, then Wiser, then its Connectors tab. Next to `wiser`, if it shows Not added, press Connect to add it, or, if you cannot, ask an Owner of your organization to add it; once it shows Not connected, press Connect and sign in. Do not add another Wiser connector because Customize, Connectors does not list it. Then attach your working folder.
 - **Claude Code.** Run `claude plugin marketplace add wisermethod/wiser`, then `claude plugin install wiser@wiser-method`, and start Claude Code in your working folder. Run `/mcp`, choose Wiser's endpoint, and sign in. A clone added with `/add-dir` instead is not an installed plugin; `gateway/SETUP.md` section 1 says how to add the endpoint by hand. The plugin carries a hook that asks the Wiser service for its current notice when a session starts and shows it; `hooks/AGENTS.md` says what that hook reads and sends, and how to turn it off.
 - **Codex and ChatGPT for desktop.** In either, add `wisermethod/wiser` as a marketplace and install `wiser`. Codex's sandbox has network off by default, so a tool's first install stops until you turn network on.
 - **Grok.** Run `grok plugin marketplace add wisermethod/wiser`, then `grok plugin install wiser --trust`. We have not run this with Wiser yet; these are Grok's own documented steps, read at version 1.0.40.
 - **Cursor.** Add your clone of this repository as a workspace root beside your working folder. Cursor reads each root's `AGENTS.md`.
+
+## Updating
+
+Each release is listed in `CHANGELOG.md`, and not every app updates its copy by itself, so check that yours is current:
+
+- **Claude Cowork.** With Sync automatically on, as Install sets it, your copy follows each release. To update by hand, open Customize, then Plugins, then Add, then Manage marketplaces, open the `wiser` marketplace's menu, and choose Check for updates.
+- **Claude Code.** Run `claude plugin marketplace update wiser-method`, then `claude plugin update wiser@wiser-method`, and start a new session.
+- **Codex, ChatGPT for desktop and Grok.** Update the `wisermethod/wiser` marketplace and the `wiser` plugin with that app's own update step.
+- **Cursor.** Run `git pull` in your clone.
 
 ## Where to start reading
 
