@@ -2,9 +2,18 @@
 
 What you do, on which side, to make `vm.*` actions run. The Connect Account skill walks this in its own turn; this file is what it reads.
 
+## Which route
+
+- **The Wiser endpoint** offers `vm` only to an account the service has set up for it, because the bearer is root on every mapped host. For any other account every `vm` action answers `needs_provider_capability` with the message "This connector is not offered on the hosted endpoint." To ask for it, write to support@wisermemory.com; otherwise the route is the local gateway.
+- **The local gateway**, in a command-line harness, with a provider project of your own.
+
 ## On your side, first
 
-Run your own router and the hosts it maps. Then, in your own provider project, register one custom toolkit:
+Run your own router and the hosts it maps, with the router's https origin reachable from the public internet, since the provider's proxy calls it.
+
+**On the Wiser endpoint the custom toolkit is the service's.** It holds toolkit `CUSTOM_VM` in its own provider project, with your router's https origin and one auth config, so you register nothing at the provider.
+
+**On the local gateway**, register it in your own provider project:
 
 1. Slug `VM`. The connector names the registered slug `CUSTOM_VM`.
 2. Set `app_url` to your router's https origin.
@@ -14,20 +23,24 @@ Run your own router and the hosts it maps. Then, in your own provider project, r
 
 **One blueprint per toolkit, not per module**, and for a toolkit the provider already ships there is nothing to prepare: the gateway creates the blueprint on the first connect that finds none. A second blueprint on one toolkit makes every module on that toolkit unconnectable until it is removed, with a `vendor_error` naming the toolkit and the count.
 
-This toolkit is not one the provider ships. The origin is different for every installer, so the gateway does not register a row for it. You create slug `VM`, and you keep a single auth config on it.
+This toolkit is not one the provider ships. The origin is different for every installer, so the gateway does not register a row for it. On the local gateway you create slug `VM`, and you keep a single auth config on it.
 
 The bearer is root on every mapped host. To rotate, replace the bearer in the router's accepted set, run `start_connect` again, and enter the new value only on the hosted page. Disconnecting the provider account removes the provider's copy and does not revoke a bearer the router already holds; withdraw that bearer from the accepted set as well.
 
 ## Through the gateway
 
+The same steps on both routes:
+
 1. Say "Connect virtual machines" and name the module: `inventory`, `command`, `files` or `units`.
 2. The skill runs `start_connect` and hands you a link.
-3. Open that link in your own browser and enter the bearer only on the hosted page. Nothing is typed into the conversation.
+3. Open that link in your own browser. The provider's page names your router and asks for one API key: enter the bearer there and nowhere else. Nothing is typed into the conversation.
 4. The skill runs `connect_status`. On `ACTIVE`, that module's actions can run.
 
 Repeat for each module. All four use the one toolkit, so the second and later may adopt the account the first created. A second auth config on that toolkit makes every module on it unconnectable until the extra one is removed.
 
-The shipped default policy denies privilege `admin` for the runtime role. Each of these modules declares `admin`. Until `policy.json` in the gateway home allows service `vm` at privilege `admin`, an action answers `denied` and no request is sent.
+**On the local gateway**, the shipped default policy denies privilege `admin` for the runtime role. Each of these modules declares `admin`. Until `policy.json` in the gateway home allows service `vm` at privilege `admin`, an action answers `denied` and no request is sent. **On the Wiser endpoint** the policy is the service's, and you change nothing.
+
+Through the endpoint each provider call has 20 seconds; `CONNECTOR.md` says what that means for a long command.
 
 ## The route this connector does not use
 
@@ -49,4 +62,4 @@ Local-file is not a route here. This connector does not read a bound file, use a
 
 ## Last connected
 
-Not yet.
+Yes.
