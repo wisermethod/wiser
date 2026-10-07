@@ -4,10 +4,11 @@ import SiteLayout from '../../layouts/SiteLayout.astro';
 import { components } from '../../components/index.js';
 import kit from '../../../kit.json';
 import { readingMinutes, relatedArticles, tagSlug } from '../../lib/blog.mjs';
+import { isPublished } from '../../lib/schedule.mjs';
 
 export async function getStaticPaths() {
   if (kit.collections.articles === false) return [];
-  const articles = await getCollection('articles', ({ data }) => !data.draft);
+  const articles = await getCollection('articles', ({ data }) => isPublished(data));
   return articles.map((article) => ({ params: { slug: article.id }, props: { article } }));
 }
 const { article } = Astro.props;
@@ -21,7 +22,7 @@ const tagsOn = blog.tags === true;
 const showHero = blog.hero === true;
 const minutes = readingOn ? readingMinutes(article.body) : 0;
 const relatedLimit = Number.isInteger(blog.related) && blog.related >= 1 && blog.related <= 6 ? blog.related : 0;
-const related = relatedLimit ? relatedArticles(article, await getCollection('articles', ({ data }) => !data.draft), relatedLimit) : [];
+const related = relatedLimit ? relatedArticles(article, await getCollection('articles', ({ data }) => isPublished(data)), relatedLimit) : [];
 const readableDate = (date: Date) => date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
 const writtenDate = readableDate(article.data.pubDate);
 const readNote = readingOn ? ` ${minutes} min read` : null;

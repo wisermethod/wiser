@@ -1,5 +1,6 @@
 import { getCollection, getEntry } from 'astro:content';
 import kit from '../../kit.json';
+import { isPublished } from '../lib/schedule.mjs';
 
 function pageUrl(id) {
   if (id === 'index') return `${kit.siteUrl}/`;
@@ -17,7 +18,7 @@ export async function GET() {
     .sort((a, b) => (a.id === 'index' ? -1 : b.id === 'index' ? 1 : a.id.localeCompare(b.id)));
   const articles = kit.collections.articles === false
     ? []
-    : (await getCollection('articles', ({ data }) => !data.draft))
+    : (await getCollection('articles', ({ data }) => isPublished(data)))
         .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
   const events = Object.keys(import.meta.glob('../content/events/**/*.{md,mdx}')).length > 0
     ? (await getCollection('events', ({ data }) => !data.draft))

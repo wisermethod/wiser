@@ -6,7 +6,7 @@ A gap is a capability this root does not provide that a primitive's own body nam
 
 **This file carries capability gaps only.** What the operator plans to build is a separate record and is not a user's business, so nothing about future work appears here. **A gap names the capability that is missing, never where that capability went.**
 
-Counted 2026-10-06: 36 gaps across 23 primitives. Bullet count: `/usr/bin/grep -E '^- ' wiser/system/GAPS.md | wc -l` returns 36, and the same count derived from the primitives' own `gaps:` frontmatter returns 36. One was removed on 2026-10-06 because the capability shipped: Profile Page's Person and ProfilePage structured data on a kit site, now the site kit's `person` declaration (kit 0.4.0). Verify each bullet against its primitive's frontmatter in both directions.
+Counted 2026-10-07: 37 gaps across 23 primitives. Bullet count: `/usr/bin/grep -E '^- ' wiser/system/GAPS.md | wc -l` returns 37, and the same count derived from the primitives' own `gaps:` frontmatter returns 37. One was added on 2026-10-07: Site Author's unattended deploy at a scheduled article's go-live instant, since a deploy always takes a person's approval. One was removed on 2026-10-06 because the capability shipped: Profile Page's Person and ProfilePage structured data on a kit site, now the site kit's `person` declaration (kit 0.4.0). Verify each bullet against its primitive's frontmatter in both directions.
 
 Seven were removed on 2026-09-20 because the capability had shipped and the declaration outlived it: `page-speed readings` on Conversion Advisor and Webmaster, now `google-apis.insights.run`; `keyword research` and `keyword and backlink data source` on Webmaster and `keyword research` on SEO Assets, now `connectors/dataforseo/`; and `automated site crawling` on Webmaster and SEO Assets, now `tools/site-crawl/`. Each primitive's body said the same thing and was corrected with it, which is the half that changes behaviour: an expert that declares a reading absent declines to fetch one it can get.
 
@@ -94,6 +94,7 @@ Seven were removed on 2026-09-20 because the capability had shipped and the decl
 - a site whose engine is not the shipped kit
 - application, authenticated, or database-backed sites
 - creating a nested git repository for the site
+- an unattended deploy at a scheduled article's go-live instant
 
 ### Speech Writing
 

@@ -1,10 +1,11 @@
-import { readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
 import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
 import pagefind from 'astro-pagefind';
 import tailwindcss from '@tailwindcss/vite';
+import { BUILD_TIME_SHAPE } from './src/lib/schedule.mjs';
 
 const kit = JSON.parse(readFileSync(new URL('./kit.json', import.meta.url), 'utf8'));
 const site = new URL(kit.siteUrl);
@@ -13,6 +14,26 @@ if (!['http:', 'https:'].includes(site.protocol) || site.origin !== kit.siteUrl)
 }
 
 const articlesOn = kit.collections.articles !== false;
+
+// The build instant, fixed once here so every route judges a scheduled article against the same moment. A KIT_BUILD_TIME already set builds as of that moment instead.
+if (process.env.KIT_BUILD_TIME === undefined || process.env.KIT_BUILD_TIME === '') process.env.KIT_BUILD_TIME = new Date().toISOString();
+if (!BUILD_TIME_SHAPE.test(process.env.KIT_BUILD_TIME) || !Number.isFinite(Date.parse(process.env.KIT_BUILD_TIME))) {
+  throw new Error(`KIT_BUILD_TIME must be a date, 2026-10-09, read as 00:00 UTC, or a date and time with an offset, 2026-10-09T09:00:00-06:00; it is ${process.env.KIT_BUILD_TIME}`);
+}
+
+// check --built reads the instant this build used from .astro/kit-build.json, outside dist/, so nothing is published.
+function recordBuildInstant() {
+  return {
+    name: 'record-build-instant',
+    hooks: {
+      'astro:build:done': () => {
+        const folder = fileURLToPath(new URL('./.astro/', import.meta.url));
+        mkdirSync(folder, { recursive: true });
+        writeFileSync(`${folder}kit-build.json`, `${JSON.stringify({ buildTime: process.env.KIT_BUILD_TIME })}\n`);
+      },
+    },
+  };
+}
 
 // A page a site hides with noindex: true carries this robots meta, which the layout writes. When any page sets it, the sitemap reads each built page and leaves those out.
 const HIDDEN_META = '<meta name="robots" content="noindex, nofollow">';
@@ -61,13 +82,14 @@ export default defineConfig({
   // A route builds as <slug>.html, which Cloudflare Pages and most static hosts serve at the slashless URL;
   // the default <slug>/index.html is redirected to a trailing slash, contradicting the canonical.
   build: { format: 'file' },
-  // Drafts have no generated routes, so sitemap and Pagefind cannot include them.
+  // Drafts and scheduled articles have no generated routes, so sitemap and Pagefind cannot include them.
   // sitemap() with no options when articles are on, so that build matches a site that never set a filter.
   integrations: [
     mdx(),
     articlesOn && !hidesPages ? sitemap() : sitemap({ filter: sitemapFilter }),
     pagefind(),
     dropRssWhenArticlesOff(),
+    recordBuildInstant(),
   ],
   vite: { plugins: [tailwindcss()] },
 });

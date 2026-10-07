@@ -5,6 +5,7 @@ import { components } from '../components/index.js';
 import kit from '../../kit.json';
 import { readingMinutes } from '../lib/blog.mjs';
 import { formatEventWhen } from '../lib/event-time.mjs';
+import { isPublished } from '../lib/schedule.mjs';
 
 const blog = kit.blog && typeof kit.blog === 'object' && !Array.isArray(kit.blog) ? kit.blog : {};
 const perPage = Number.isInteger(blog.perPage) && blog.perPage >= 2 && blog.perPage <= 50 ? blog.perPage : 0;
@@ -15,7 +16,7 @@ export async function getStaticPaths() {
   const size = Number.isInteger(blogConfig.perPage) && blogConfig.perPage >= 2 && blogConfig.perPage <= 50 ? blogConfig.perPage : 0;
   let listed: { id: string }[] = [];
   if (size && kit.collections.articles !== false) {
-    listed = await getCollection('articles', ({ data }) => !data.draft);
+    listed = await getCollection('articles', ({ data }) => isPublished(data));
   }
   const ids = new Set(pages.map((page) => page.id));
   const paths = [];
@@ -41,7 +42,7 @@ const { Content } = await render(page);
 // Absent listArticles: the index lists articles and no other page does. An explicit true uses the list without a heading.
 const wantsList = page.data.listArticles === true || (page.data.listArticles !== false && page.id === 'index');
 const articles = wantsList && kit.collections.articles !== false
-  ? (await getCollection('articles', ({ data }) => !data.draft))
+  ? (await getCollection('articles', ({ data }) => isPublished(data)))
       .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
   : [];
 const paginate = perPage > 0 && page.data.listArticles === true && kit.collections.articles !== false;

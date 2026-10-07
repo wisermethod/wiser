@@ -8,8 +8,8 @@ import path from "node:path";
 import { currentKit, versionLine } from "./envelope.mjs";
 console.log(versionLine());
 
-const CHECK_VERSION = "0.4.2";
-const KNOWN_VERSIONS = ["0.1.0", "0.2.0", "0.2.1", "0.2.2", "0.3.0", "0.4.0", "0.4.1", "0.4.2"];
+const CHECK_VERSION = "0.4.3";
+const KNOWN_VERSIONS = ["0.1.0", "0.2.0", "0.2.1", "0.2.2", "0.3.0", "0.4.0", "0.4.1", "0.4.2", "0.4.3"];
 // feature, version introduced. A later release adds a row.
 const introduced = [
   { feature: "layout", version: "0.2.0" },
@@ -32,6 +32,7 @@ const introduced = [
   { feature: "src/content/llms.txt", version: "0.4.1" },
   { feature: "noindex", version: "0.4.2" },
   { feature: "public/files/", version: "0.4.2" },
+  { feature: "a future pubDate", version: "0.4.3" },
 ];
 
 const args = process.argv.slice(2);
@@ -470,8 +471,20 @@ function unquote(value) {
 function contentSegment(segment) {
   return segment.toLowerCase().replace(/[^\p{L}\p{N} _-]+/gu, "").replace(/ /g, "-");
 }
+// A slug sets the address. An escape in a double-quoted one would give the build a different address than check reads, so it is refused.
+const slugEscapeReported = new Set();
+function slugOf(file, top) {
+  if (!top || !Object.hasOwn(top, "slug")) return null;
+  const raw = String(top.slug).replace(/^!!str\s+/, "").trim();
+  if (raw.startsWith('"') && raw.includes("\\") && !slugEscapeReported.has(file)) {
+    slugEscapeReported.add(file);
+    fail(`${path.relative(site, file)}: slug uses a YAML escape, which check does not read; write the slug plainly`);
+  }
+  const value = unquote(top.slug);
+  return value === "" ? null : value;
+}
 function pageIdOf(file, top) {
-  if (top && Object.hasOwn(top, "slug") && unquote(top.slug) !== "") return unquote(top.slug);
+  if (slugOf(file, top) !== null) return slugOf(file, top);
   const root = path.join(site, "src/content/pages");
   const rel = path.relative(root, file).replace(/\\/g, "/").replace(/\.(md|mdx)$/i, "");
   return rel.split("/").map(contentSegment).join("/").replace(/\/index$/, "");
@@ -1779,6 +1792,126 @@ if (built) {
           if (origin !== kit.siteUrl) fail(`${shown}: loads ${isLink ? "a stylesheet" : "a script"} from another site, ${value}`);
         }
       }
+    }
+  }
+}
+
+// Scheduled articles. A published article whose pubDate is after the build instant has no route until a build at or after that instant.
+function articleIdOf(file, top) {
+  if (slugOf(file, top) !== null) return slugOf(file, top);
+  const root = path.join(site, "src/content/articles");
+  const rel = path.relative(root, file).replace(/\\/g, "/").replace(/\.(md|mdx)$/i, "");
+  return rel.split("/").map(contentSegment).join("/").replace(/\/index$/, "");
+}
+// pubDate as the build reads it. A plain YAML date or timestamp is read as YAML defines one, a one-digit month, day, hour or offset included; anything else is text, which the schema hands to Date.
+const YAML_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+const YAML_TIMESTAMP = /^(\d{4})-(\d\d?)-(\d\d?)(?:[Tt]|[ \t]+)(\d\d?):(\d\d):(\d\d)(?:\.(\d*))?(?:[ \t]*(Z|([-+])(\d\d?)(?::(\d\d))?))?$/;
+function pubInstant(top) {
+  if (!Object.hasOwn(top, "pubDate")) return null;
+  const raw = String(top.pubDate).trim();
+  const text = /^!!str\s/.test(raw) || /^["']/.test(raw);
+  const value = unquote(raw);
+  if (!text) {
+    const day = YAML_DATE.exec(value);
+    if (day) return { at: Date.UTC(+day[1], +day[2] - 1, +day[3]), dateOnly: true };
+    const stamp = YAML_TIMESTAMP.exec(value);
+    if (stamp) {
+      const ms = stamp[7] ? Number(stamp[7].slice(0, 3).padEnd(3, "0")) : 0;
+      let at = Date.UTC(+stamp[1], +stamp[2] - 1, +stamp[3], +stamp[4], +stamp[5], +stamp[6], ms);
+      if (stamp[9]) at -= (stamp[9] === "-" ? -1 : 1) * ((+stamp[10] * 60 + Number(stamp[11] ?? 0)) * 60000);
+      return { at, dateOnly: false };
+    }
+  }
+  const at = Date.parse(value);
+  return Number.isFinite(at) ? { at, dateOnly: /^\d{4}-\d{2}-\d{2}$/.test(value) } : null;
+}
+const instantText = (at) => new Date(at).toISOString().replace(/\.000Z$/, "Z");
+const BUILD_TIME_SHAPE = /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2}))?$/;
+let envInstant = null;
+if (process.env.KIT_BUILD_TIME !== undefined && process.env.KIT_BUILD_TIME !== "") {
+  if (BUILD_TIME_SHAPE.test(process.env.KIT_BUILD_TIME) && Number.isFinite(Date.parse(process.env.KIT_BUILD_TIME))) envInstant = Date.parse(process.env.KIT_BUILD_TIME);
+  else fail(`KIT_BUILD_TIME must be a date, 2026-10-09, read as 00:00 UTC, or a date and time with an offset, 2026-10-09T09:00:00-06:00; it is ${process.env.KIT_BUILD_TIME}`);
+}
+// The instant the build in dist/ judged articles against: what the build recorded, else KIT_BUILD_TIME, else the time of the oldest built page.
+function distInstant() {
+  const dist = path.join(site, "dist");
+  const pages = [];
+  const walk = (dir) => {
+    let names = [];
+    try { names = fs.readdirSync(dir); } catch { return; }
+    for (const name of names) {
+      const file = path.join(dir, name);
+      let st;
+      try { st = fs.lstatSync(file); } catch { continue; }
+      if (st.isDirectory()) walk(file);
+      else if (st.isFile() && name.endsWith(".html")) pages.push({ file, mtimeMs: st.mtimeMs });
+    }
+  };
+  walk(dist);
+  if (pages.length === 0) return null;
+  const oldest = pages.reduce((min, page) => Math.min(min, page.mtimeMs), Infinity);
+  try {
+    const file = path.join(site, ".astro", "kit-build.json");
+    const record = JSON.parse(fs.readFileSync(file, "utf8"));
+    const at = Date.parse(record.buildTime);
+    // A record older than the built pages belongs to an earlier build.
+    if (Number.isFinite(at) && BUILD_TIME_SHAPE.test(record.buildTime) && fs.statSync(file).mtimeMs >= oldest) return { at, from: "recorded by the build in .astro/kit-build.json" };
+  } catch { /* no record */ }
+  if (envInstant !== null) return { at: envInstant, from: "KIT_BUILD_TIME" };
+  return { at: oldest, from: "the time of the oldest built page, since the build recorded none" };
+}
+if (kit.collections.articles !== false) {
+  const scheduled = [];
+  walkMd(path.join(site, "src/content/articles"), (file) => {
+    const top = topLevelFrontmatter(file);
+    if (yamlBoolean(top.draft ?? "") === "true") return;
+    const when = pubInstant(top);
+    if (when) scheduled.push({ file, id: articleIdOf(file, top), ...when });
+    else if (Object.hasOwn(top, "pubDate")) fail(`${path.relative(site, file)}: pubDate is not a date the build reads; write a date, 2026-10-09, or a date and time with its offset, 2026-10-09T09:00:00-06:00`);
+  });
+  const nowAt = envInstant ?? Date.now();
+  const builtAt = distInstant();
+  for (const item of scheduled) {
+    const shown = path.relative(site, item.file);
+    if (item.at > nowAt) {
+      tooOld("a future pubDate", `${shown}, dated ${instantText(item.at)} and not a draft,`);
+      const note = item.dateOnly ? "; a date alone goes live at 00:00 UTC, which is the evening before in the Americas, so give a time and offset, such as 2026-10-09T09:00:00-06:00, for an exact moment" : "";
+      console.log(`scheduled: ${shown} goes live ${instantText(item.at)}${note}`);
+    } else if (builtAt && item.at > builtAt.at) {
+      console.log(`due: ${shown} went live ${instantText(item.at)}, after dist/ was built (${instantText(builtAt.at)}): rebuild, run check --built and Webmaster Job 3, and deploy`);
+    }
+  }
+  if (built && builtAt) {
+    console.log(`check --built: build instant ${instantText(builtAt.at)}, from ${builtAt.from}`);
+    const dist = path.join(site, "dist");
+    const read = (name) => { try { return fs.readFileSync(path.join(dist, name), "utf8"); } catch { return ""; } };
+    const feeds = [["rss.xml", read("rss.xml")], ["llms.txt", read("llms.txt")]];
+    try { for (const name of fs.readdirSync(dist).filter((n) => /^sitemap.*\.xml$/.test(n))) feeds.push([name, read(name)]); } catch { /* listed above */ }
+    const pageUrl = (file) => {
+      const rel = path.relative(dist, file).split(path.sep).join("/").replace(/\.html$/, "");
+      return `${kit.siteUrl}/${rel === "index" ? "" : rel.replace(/(^|\/)index$/, "")}`;
+    };
+    const htmlPages = listHtml(dist, []).map((page) => ({ shown: path.relative(site, page.file), url: pageUrl(page.file), html: fs.readFileSync(page.file, "utf8").replace(/<!--[\s\S]*?-->/g, "") }));
+    const entities = { amp: "&", quot: '"', apos: "'", lt: "<", gt: ">", sol: "/", period: "." };
+    const decodeAttr = (text) => text.replace(/&(?:#x([0-9a-f]+)|#(\d+)|([a-z]+));?/gi, (whole, hex, dec, name) => hex ? String.fromCodePoint(parseInt(hex, 16)) : dec ? String.fromCodePoint(Number(dec)) : (entities[name.toLowerCase()] ?? whole));
+    const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    for (const item of scheduled) {
+      if (item.at <= builtAt.at) continue;
+      const route = `/articles/${item.id}`;
+      const shown = path.relative(site, item.file);
+      if (fs.existsSync(path.join(dist, `${route.slice(1)}.html`))) fail(`dist${route}.html: ${shown} is dated ${instantText(item.at)}, after this build's instant, and must not be built`);
+      for (const page of htmlPages) {
+        for (const m of page.html.matchAll(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi)) {
+          let target;
+          try { target = new URL(decodeAttr((m[1] ?? m[2] ?? m[3]).trim()), page.url); } catch { continue; }
+          if (target.origin !== new URL(kit.siteUrl).origin) continue;
+          let href = target.pathname.replace(/\/+$/, "");
+          try { href = decodeURI(href); } catch { /* keep as written */ }
+          if (href === route) { fail(`${page.shown} links to ${route}, which ${shown} schedules for ${instantText(item.at)}, after this build's instant`); break; }
+        }
+      }
+      const listed = new RegExp(`(?:${escape(kit.siteUrl)}|(?<=^|[\\s(<\\[\\]"':]))${escape(route)}(?![\\p{L}\\p{N}_\\-./~%])`, "mu");
+      for (const [name, text] of feeds) if (listed.test(text)) fail(`dist/${name} lists ${route}, which ${shown} schedules for ${instantText(item.at)}, after this build's instant`);
     }
   }
 }

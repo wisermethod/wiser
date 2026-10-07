@@ -1,6 +1,7 @@
 import rss from '@astrojs/rss';
 import { getCollection, getEntry } from 'astro:content';
 import kit from '../../kit.json';
+import { isPublished } from '../lib/schedule.mjs';
 
 export async function GET() {
   const home = await getEntry('pages', 'index');
@@ -9,7 +10,7 @@ export async function GET() {
   if (kit.collections.articles === false) {
     return new Response('', { status: 404, headers: { 'Content-Type': 'application/xml; charset=utf-8' } });
   }
-  const articles = await getCollection('articles', ({ data }) => !data.draft);
+  const articles = await getCollection('articles', ({ data }) => isPublished(data));
   return rss({
     title: kit.siteName ?? home.data.title,
     description: home.data.description,

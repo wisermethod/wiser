@@ -26,7 +26,7 @@ let site;
 try { site = currentKit(envelope); } catch (error) { fail(error.message); }
 if (!fs.existsSync(path.join(kit, "KIT.md")) || !fs.existsSync(path.join(kit, "package.json"))) fail("kit missing KIT.md or package.json");
 const template = JSON.parse(fs.readFileSync(path.join(kit, "kit.json"), "utf8"));
-if (template.kitVersion !== "0.4.2") fail(`unsupported kitVersion ${template.kitVersion}`);
+if (template.kitVersion !== "0.4.3") fail(`unsupported kitVersion ${template.kitVersion}`);
 
 // Read and split the kit stylesheet before anything is replaced, so a kit that cannot be spliced stops Upgrade with the site untouched.
 const kitTokensPath = path.join(kit, "src/styles/tokens.css");
@@ -36,7 +36,7 @@ const kitTokensEarly = fs.readFileSync(kitTokensPath, "utf8");
 const skipTop = new Set(["node_modules", "dist", ".astro", ".git", "src", "public", "kit.json", "site-AGENTS.md", "AGENTS.md", "memory", "builds.md", "zArchive"]);
 const preserved = new Set();
 const originalKit = JSON.parse(fs.readFileSync(path.join(site, "kit.json"), "utf8"));
-if (!["0.1.0", "0.2.0", "0.2.1", "0.2.2", "0.3.0", "0.4.0", "0.4.1", "0.4.2"].includes(originalKit.kitVersion)) fail(`unsupported kitVersion ${originalKit.kitVersion}`);
+if (!["0.1.0", "0.2.0", "0.2.1", "0.2.2", "0.3.0", "0.4.0", "0.4.1", "0.4.2", "0.4.3"].includes(originalKit.kitVersion)) fail(`unsupported kitVersion ${originalKit.kitVersion}`);
 
 // A site's own component named like a component this kit ships would be replaced by the kit's after Upgrade, changing the site without its say, so Upgrade stops first and names the file.
 {

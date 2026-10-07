@@ -6,7 +6,7 @@ import { parseArgs } from 'node:util';
 import { exists, reject, parentFor, safeTree, noLinks, templateText, prepareMemory, writeEnvelope, versionLine } from './envelope.mjs';
 console.log(versionLine());
 
-const KIT_VERSION = '0.4.2';
+const KIT_VERSION = '0.4.3';
 const widthValues = ['narrow', 'wide'];
 const sectionsValues = ['column', 'bands'];
 const menuValues = ['links', 'button'];
