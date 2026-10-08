@@ -4,6 +4,14 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.08, October 8, 2026
+
+- A site built with the site kit can now publish a scheduled article by itself, at its moment, on Cloudflare Pages. Give the article a `pubDate` in the future and approve its deploy once, when you file it: at that moment it appears on its own page, in the site's article lists, tag pages and related articles, and in its feed, sitemap and `llms.txt`, with no rebuild and no second deploy. Until then nothing about it shows anywhere. The kit does this with a small piece of server code, the same for every site, that runs only when an article is scheduled; if it ever stops running, visitors see the site exactly as it was built, never a post early. (833afeb, 8121017, e250120, 95d9823)
+- A scheduled article joins the site's own search at the next build after it goes live. On Vercel, or with a Wrangler deploy, a scheduled article still goes live at the first build and deploy after its date. (8121017)
+- Site Author's check says, for each scheduled article, whether it will go live by itself and when. It refuses a scheduled article whose styling would put its words in the site's stylesheet early, a redirect that names a scheduled article, and any page that would later go live while breaking the site's page rules. (8121017, e250120, 95d9823)
+- Deploying a site kit site to Cloudflare Pages carries that server code only when an article is scheduled, and only the exact code the kit released; the deploy says what it carried and when each article goes live. Before such a deploy, the Cloudflare Pages skill explains the free plan's daily limit on server requests, which the account's sites share, and what visitors see past it. (8121017)
+- Webmaster reviews a scheduled article once, when it is filed, instead of again on the day it goes live. (8121017)
+
 ## v2026.10.07.7, October 7, 2026
 
 - Deploying a site with Pages Functions now refuses more before anything is sent: a published file that is a copy of the Function's own source code, under any name; any folder inside a site kit's built output; a compiled bundle with module names outside plain letters, digits and simple punctuation; and a path written with `..` or doubled slashes. A database connection that fails still reports any other setting Cloudflare changed, and a migration runs only after Cloudflare has confirmed the record of migrations already applied. (9a4e639)
