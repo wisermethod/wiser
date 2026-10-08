@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.07.7, October 7, 2026
+
+- Deploying a site with Pages Functions now refuses more before anything is sent: a published file that is a copy of the Function's own source code, under any name; any folder inside a site kit's built output; a compiled bundle with module names outside plain letters, digits and simple punctuation; and a path written with `..` or doubled slashes. A database connection that fails still reports any other setting Cloudflare changed, and a migration runs only after Cloudflare has confirmed the record of migrations already applied. (9a4e639)
+- The `pages-functions` tool keeps Wrangler off the network even when a settings file above its working folder names another package registry, and on Windows keeps Wrangler's files inside its own temporary folder. (9a4e639)
+
 ## v2026.10.07.6, October 7, 2026
 
 - A website that was not built with the site kit can now go live on Cloudflare Pages with its own server code, the Pages Functions in its `functions/` folder. A new tool, `pages-functions`, compiles that folder on your computer with Cloudflare's own compiler and no Cloudflare sign-in; its first run asks to install about 210 MB. The Cloudflare Pages skill then deploys the site and the compiled code together, after Webmaster's review, through the local gateway. (3a7f5a7, 7856ccb)
