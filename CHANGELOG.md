@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.08.2, October 8, 2026
+
+- Webmaster's review before publishing now says exactly which record it reads for a site with server code: a site kit site's scheduled-article record, or another site's own build record, so the review of a scheduled article no longer has to work that out. (829a121)
+
 ## v2026.10.08, October 8, 2026
 
 - A site built with the site kit can now publish a scheduled article by itself, at its moment, on Cloudflare Pages. Give the article a `pubDate` in the future and approve its deploy once, when you file it: at that moment it appears on its own page, in the site's article lists, tag pages and related articles, and in its feed, sitemap and `llms.txt`, with no rebuild and no second deploy. Until then nothing about it shows anywhere. The kit does this with a small piece of server code, the same for every site, that runs only when an article is scheduled; if it ever stops running, visitors see the site exactly as it was built, never a post early. (833afeb, 8121017, e250120, 95d9823)
