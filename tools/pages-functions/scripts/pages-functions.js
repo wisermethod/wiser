@@ -205,8 +205,17 @@ function wranglerEnv(tmp) {
   // not npm's own npm_config_registry. The stand-in HOME holds no .npmrc.
   const env = {
     npm_registry: 'http://127.0.0.1:9/',
+    // registry-url prefers the scope key over registry, and Wrangler's package
+    // has no scope, so an .npmrc above the working directory carrying
+    // null:registry would win; the environment is read after every file.
+    'npm_null:registry': 'http://127.0.0.1:9/',
     PATH: process.env.PATH || '',
     HOME: home,
+    // Windows reads the home directory from USERPROFILE, and application data
+    // from APPDATA and LOCALAPPDATA, so those point inside this run as well.
+    USERPROFILE: home,
+    APPDATA: join(home, 'AppData', 'Roaming'),
+    LOCALAPPDATA: join(home, 'AppData', 'Local'),
     XDG_CONFIG_HOME: xdg,
     WRANGLER_LOG_PATH: logs,
     WRANGLER_SEND_METRICS: 'false',

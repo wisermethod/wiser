@@ -439,7 +439,7 @@ export async function collectDivergences() {
   ].join(''));
   writeFileSync(join(FIXTURE_FUNCTIONS_BUILD, '_routes.json'), `${JSON.stringify({ version: 1, include: ['/api/*'], exclude: [] })}\n`);
   writeFileSync(join(FIXTURE_FUNCTIONS_BUILD, 'functions-filepath-routing-config.json'), `${JSON.stringify({ routes: [] })}\n`);
-  writeFileSync(join(FIXTURE_FUNCTIONS_BUILD, 'build.json'), `${JSON.stringify({ assets: FIXTURE_STATIC, functions: join(realScratch, 'functions-src') })}\n`);
+  writeFileSync(join(FIXTURE_FUNCTIONS_BUILD, 'build.json'), `${JSON.stringify({ assets: FIXTURE_STATIC, functions: join(realScratch, 'functions-src'), sources: [{ path: 'api/x.js', sha256: '5f2b1e7c0d9a8b6c4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d' }] })}\n`);
   chdir(scratch);
   try {
     return await collect();

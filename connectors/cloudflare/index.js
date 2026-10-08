@@ -3,7 +3,7 @@ import {
   closeSync, constants as fsConstants, fstatSync, lstatSync, openSync, readFileSync, readdirSync, realpathSync, statSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
+import { basename, dirname, extname, isAbsolute, join, normalize, resolve, sep } from 'node:path';
 
 // Copied from the vercel connector's path screen. A module may not import
 // another connector (standards/script-contract.md, Connector modules), which
@@ -245,7 +245,7 @@ function readScreened(resolved, id) {
   }
 }
 
-function walkPages(root, refused, kitRule = true) {
+function walkPages(root, refused, kitRule = true, sourceHashes = null) {
   const assets = [];
   const skipped = [];
   let headers = null;
@@ -361,6 +361,9 @@ function walkPages(root, refused, kitRule = true) {
       // than the whole site. Base64 is ASCII and JSON does not escape it, so the
       // entry size is the empty-value skeleton plus the base64 length, without
       // building the base64 a second time. Field order matches the object sent.
+      if (sourceHashes && sourceHashes.has(createHash('sha256').update(bytes).digest('hex'))) {
+        return { error: invalid('dir', `functions source in dir: ${logical}`) };
+      }
       const hash = assetHash(bytes, extension);
       const contentType = contentTypeFor(extension);
       const base64Length = Math.ceil(bytes.length / 3) * 4;
@@ -570,9 +573,12 @@ const FOREIGN_SKIPPED = new Set(['package.json', 'package-lock.json', 'wrangler.
 // A path whose spelling holds `.` or `..` or an empty segment is refused rather
 // than normalized: `/tmp/../x` normalizes to `/x`, while the filesystem follows
 // the /tmp link first, so the approved spelling and the file read would differ.
+// The comparison is with the platform's own normal form, so every separator it
+// accepts is inspected (on Windows `/` as well as `\`), a UNC root keeps its
+// double separator, and one trailing separator is allowed.
 function notNormalForm(input) {
-  const trimmed = input.length > 1 && input.endsWith(sep) ? input.slice(0, -1) : input;
-  return trimmed.split(sep).slice(1).some((segment) => segment === '' || segment === '.' || segment === '..');
+  const strip = (value) => (value.length > 1 && /[\\/]$/.test(value) ? value.slice(0, -1) : value);
+  return strip(normalize(input)) !== strip(input);
 }
 
 function codePoints(value) {
@@ -877,6 +883,8 @@ const BUNDLE_MODULE_TYPES = new Set([
   'application/source-map',
 ]);
 
+const BUNDLE_PART_NAME = /^[A-Za-z0-9._\/-]{1,256}$/;
+
 function parseDisposition(value) {
   const match = /^form-data((?:\s*;\s*[A-Za-z]+="[^"\\\r\n]*")*)\s*$/i.exec(value);
   if (!match) return null;
@@ -918,6 +926,9 @@ function parseBundle(bytes) {
     }
     const disposition = headers['content-disposition'] ? parseDisposition(headers['content-disposition']) : null;
     if (!disposition) return { error: 'bundle part has an ambiguous or missing name' };
+    // Latin-1 here and UTF-8 at the receiver would read a non-ASCII name as two
+    // different names, so a part name is plain ASCII.
+    if (!BUNDLE_PART_NAME.test(disposition.name)) return { error: 'bundle part name is not plain ASCII' };
     if (names.has(disposition.name)) return { error: `bundle has two parts named ${disposition.name}` };
     names.add(disposition.name);
     parts.push({
@@ -1365,21 +1376,12 @@ export const modules = {
       if (!envelopeOk(patched) || !asObject(afterConfigs)) {
         return { status: 'vendor_error', endpoint, method: 'PATCH', reason: 'binding not applied', environments: [...environments] };
       }
-      const missing = [];
-      for (const env of environments) {
-        const afterEnv = asObject(afterConfigs[env]);
-        const bindings = afterEnv && asObject(afterEnv.d1_databases);
-        const applied = bindings && bindings[input.binding];
-        if (!applied || applied.id !== input.database_id) missing.push(env);
-      }
-      if (missing.length > 0) {
-        return { status: 'vendor_error', endpoint, method: 'PATCH', reason: 'binding not applied', environments: missing };
-      }
       const fail_open = {};
       const compatibility_date = {};
       const collateral_changes = [];
       // Both environments are compared, so a PATCH that changed one it was not
-      // sent for is reported; the requested binding is exempt only where it was set.
+      // sent for is reported; the requested binding is exempt only where it was
+      // set. Computed before the binding is checked, so a failed bind reports it too.
       for (const env of ['production', 'preview']) {
         const afterEnv = asObject(afterConfigs[env]) || {};
         const named = environments.includes(env);
@@ -1390,6 +1392,16 @@ export const modules = {
         collateral_changes.push(...collateralChanges(env, configs[env], afterEnv, named ? input.binding : null));
       }
       collateral_changes.sort();
+      const missing = [];
+      for (const env of environments) {
+        const afterEnv = asObject(afterConfigs[env]);
+        const bindings = afterEnv && asObject(afterEnv.d1_databases);
+        const applied = bindings && bindings[input.binding];
+        if (!applied || applied.id !== input.database_id) missing.push(env);
+      }
+      if (missing.length > 0) {
+        return { status: 'vendor_error', endpoint, method: 'PATCH', reason: 'binding not applied', environments: missing, collateral_changes };
+      }
       return {
         project_name: input.project_name,
         binding: input.binding,
@@ -1415,7 +1427,16 @@ export const modules = {
       try {
         kitMarker = lstatSync(join(dirname(root.resolved), 'kit.json'));
       } catch { /* none */ }
-      if (kitMarker || (basename(root.resolved) === 'dist' && basename(dirname(root.resolved)) === 'site')) {
+      let insideKit = false;
+      for (let above = dirname(root.resolved); ; above = dirname(above)) {
+        let marker = null;
+        try {
+          marker = lstatSync(join(above, 'kit.json'));
+        } catch { /* none */ }
+        if (marker && marker.isFile() && isInside(root.resolved, join(above, 'dist'))) insideKit = true;
+        if (dirname(above) === above) break;
+      }
+      if (kitMarker || insideKit || (basename(root.resolved) === 'dist' && basename(dirname(root.resolved)) === 'site')) {
         return invalid('dir', 'kit payload: use cloudflare.pages.deploy');
       }
       const blocked = screenNotBuildOutput(root.resolved);
@@ -1475,13 +1496,21 @@ export const modules = {
       if (buildProvenance.assets !== root.resolved) {
         return invalid('functions_build', 'build.json assets is not dir');
       }
-      if (typeof buildProvenance.functions !== 'string' || !isAbsolute(buildProvenance.functions)) {
-        return invalid('functions_build', 'build.json names no functions source');
+      if (typeof buildProvenance.functions !== 'string' || !isAbsolute(buildProvenance.functions)
+        || notNormalForm(buildProvenance.functions) || canonicalize(buildProvenance.functions) !== resolve(buildProvenance.functions)) {
+        return invalid('functions_build', 'build.json names no functions source by its real path');
       }
+      // The function source's own bytes may not be published anywhere in dir,
+      // under any name: build.json lists each source file's sha256.
+      if (!Array.isArray(buildProvenance.sources) || buildProvenance.sources.length === 0
+        || !buildProvenance.sources.every((item) => asObject(item) && typeof item.sha256 === 'string' && /^[0-9a-f]{64}$/.test(item.sha256))) {
+        return invalid('functions_build', 'build.json lists no sources');
+      }
+      const sourceHashes = new Set(buildProvenance.sources.map((item) => item.sha256));
       if (isInside(buildProvenance.functions, root.resolved) || isInside(root.resolved, buildProvenance.functions)) {
         return invalid('functions_build', 'functions source overlaps dir');
       }
-      const walked = walkPages(root.resolved, refused, false);
+      const walked = walkPages(root.resolved, refused, false, sourceHashes);
       if (walked.error) return walked.error;
       const oversize = oversizeAssetError(walked.assets);
       if (oversize) return oversize;
@@ -1623,7 +1652,7 @@ export const modules = {
       });
       const createdRows = migrationResultRows(created, endpoint);
       if (createdRows.error) return createdRows.error;
-      if (createdRows.rows.length === 0 || createdRows.rows.some((row) => !row || row.success === false)) {
+      if (createdRows.rows.length !== 1 || createdRows.rows.some((row) => !asObject(row) || row.success !== true)) {
         return { status: 'vendor_error', endpoint, method: 'POST', reason: 'migration table not created' };
       }
       const listed = await proxyData(ctx, {
@@ -1634,7 +1663,7 @@ export const modules = {
       const listedRows = migrationResultRows(listed, endpoint);
       if (listedRows.error) return listedRows.error;
       const first = listedRows.rows[0];
-      if (listedRows.rows.length !== 1 || !first || first.success === false || !Array.isArray(first.results)) {
+      if (listedRows.rows.length !== 1 || !asObject(first) || first.success !== true || !Array.isArray(first.results)) {
         return { status: 'vendor_error', endpoint, method: 'POST', reason: 'migration history unreadable' };
       }
       if (first.results.length > 0) {

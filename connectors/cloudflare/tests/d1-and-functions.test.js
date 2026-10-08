@@ -5,7 +5,8 @@ import {
   mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, posix, win32 } from 'node:path';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { modules } from '../index.js';
 
@@ -62,7 +63,8 @@ function writeBuild(dir, { bundle, routes, routing, extra, linkName, assets, fun
     tool: 'pages-functions',
     assets: assets || join(dirname(dir), 'static'),
     functions: functions || join(dirname(dir), 'functions-src'),
-    sources: [],
+    // The sha256 of a function source that is not in the static fixture.
+    sources: [{ path: 'api/x.js', sha256: '5f2b1e7c0d9a8b6c4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d' }],
   };
   if (provenance !== null) writeFileSync(join(dir, 'build.json'), typeof provenance === 'string' ? provenance : `${JSON.stringify(provenance)}\n`);
   writeFileSync(join(dir, '_worker.bundle'), bundle || bundleBytes());
@@ -902,4 +904,121 @@ test('bind_d1 does not report an empty setting rewritten in another shape (null 
     input: { account_id: ACCOUNT, project_name: PROJECT, binding: 'DB', database_id: DATABASE },
   });
   assert.deepEqual(emptied.collateral_changes, ['production.env_vars']);
+});
+
+// Adversarial review round 2, 2026-10-07: one case per supported finding.
+
+test('review 2.1: a function source published under any name, or an unresolved source path, is refused', async () => {
+  const { gw, fake } = await granted('pages');
+  fake.auth.proxy = deployProxy([]);
+  const deploy = (tree) => confirmCall(gw, {
+    action: 'cloudflare.pages.deploy_with_functions',
+    input: { account_id: ACCOUNT, project_name: PROJECT, dir: tree.dir, functions_build: tree.build },
+  });
+  const source = Buffer.from('export const onRequest = () => new Response("secret logic");\n');
+  const sha256 = createHash('sha256').update(source).digest('hex');
+  const tree = staticAndBuild();
+  try {
+    mkdirSync(join(tree.dir, 'public', 'functions'), { recursive: true });
+    writeFileSync(join(tree.dir, 'public', 'functions', 'api.ts'), source);
+    rmSync(tree.build, { recursive: true, force: true });
+    writeBuild(tree.build, { build: { assets: tree.dir, functions: join(tree.root, 'functions-src'), sources: [{ path: 'api.ts', sha256 }] } });
+    assert.equal((await deploy(tree)).reason, 'functions source in dir: public/functions/api.ts');
+    rmSync(tree.build, { recursive: true, force: true });
+    writeBuild(tree.build, { build: { assets: tree.dir, functions: `${tree.root}/alias/../static/server`, sources: [{ path: 'x', sha256 }] } });
+    assert.equal((await deploy(tree)).reason, 'build.json names no functions source by its real path');
+    rmSync(tree.build, { recursive: true, force: true });
+    writeBuild(tree.build, { build: { assets: tree.dir, functions: join(tree.root, 'functions-src'), sources: [] } });
+    assert.equal((await deploy(tree)).reason, 'build.json lists no sources');
+  } finally {
+    cleanup(tree.root);
+  }
+});
+
+test('review 2.2: normal form is the platform normal form, so Windows separators and UNC roots are judged right', () => {
+  // The helper is not exported; its rule is path.normalize, checked here on both platforms' modules.
+  const strip = (value) => (value.length > 1 && /[\\/]$/.test(value) ? value.slice(0, -1) : value);
+  const notNormal = (p, input) => strip(p.normalize(input)) !== strip(input);
+  assert.equal(notNormal(win32, 'C:/work/link/../out'), true);
+  assert.equal(notNormal(win32, 'C:\\work\\link\\..\\out'), true);
+  assert.equal(notNormal(win32, 'C:\\work\\out'), false);
+  assert.equal(notNormal(win32, '\\\\server\\share\\out'), false);
+  assert.equal(notNormal(win32, 'C:\\work\\out\\'), false);
+  assert.equal(notNormal(posix, '/work/out/'), false);
+  assert.equal(notNormal(posix, '/work//out'), true);
+});
+
+test('review 2.5: a migration table or history statement without success true stops the migration', async () => {
+  const root = scratch();
+  try {
+    const file = join(root, '0002_y.sql');
+    writeFileSync(file, 'CREATE TABLE y(id INTEGER);\n');
+    const input = { account_id: ACCOUNT, database_id: DATABASE, file };
+    const tableSilent = await d1Calls('apply_migration', input, () => envelope([{}]));
+    assert.equal(tableSilent.result.reason, 'migration table not created');
+    assert.equal(tableSilent.calls.length, 1);
+    const historySilent = await d1Calls('apply_migration', input, (req, calls) => (calls.length === 1
+      ? envelope([{ success: true, results: [] }])
+      : envelope([{ results: [], error: 'lookup failed' }])));
+    assert.equal(historySilent.result.reason, 'migration history unreadable');
+    assert.equal(historySilent.calls.length, 2);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test('review 2.6: a directory inside a kit dist is a kit payload', async () => {
+  const { gw, fake } = await granted('pages');
+  fake.auth.proxy = deployProxy([]);
+  const root = scratch();
+  try {
+    const nested = join(root, 'site', 'dist', 'public');
+    mkdirSync(nested, { recursive: true });
+    writeFileSync(join(root, 'site', 'kit.json'), '{}\n');
+    writeFileSync(join(nested, 'index.html'), 'x\n');
+    const build = join(root, 'build');
+    writeBuild(build, { assets: nested });
+    const result = await confirmCall(gw, {
+      action: 'cloudflare.pages.deploy_with_functions',
+      input: { account_id: ACCOUNT, project_name: PROJECT, dir: nested, functions_build: build },
+    });
+    assert.equal(result.reason, 'kit payload: use cloudflare.pages.deploy');
+  } finally {
+    cleanup(root);
+  }
+});
+
+test('review 2.7: a failed bind still reports collateral changes', async () => {
+  const { gw, fake } = await granted('pages');
+  fake.auth.proxy = async (request) => {
+    if (request.method === 'GET') {
+      return envelope({ deployment_configs: { production: {}, preview: { d1_databases: { OTHER: { id: DATABASE } } } } });
+    }
+    return envelope({ deployment_configs: { production: {}, preview: {} } });
+  };
+  const result = await confirmCall(gw, {
+    action: 'cloudflare.pages.bind_d1',
+    input: { account_id: ACCOUNT, project_name: PROJECT, binding: 'DB', database_id: DATABASE, environments: ['production'] },
+  });
+  assert.equal(result.reason, 'binding not applied');
+  assert.deepEqual(result.collateral_changes, ['preview.d1_databases.OTHER']);
+});
+
+test('review 2.8: a bundle part name that is not plain ASCII is refused', async () => {
+  const { gw, fake } = await granted('pages');
+  fake.auth.proxy = deployProxy([]);
+  const B = 'Ascii';
+  const name = Buffer.from('café.js', 'utf8').toString('latin1');
+  const bundle = Buffer.from(`--${B}\r\nContent-Disposition: form-data; name="metadata"\r\n\r\n${JSON.stringify({ main_module: name })}\r\n--${B}\r\nContent-Disposition: form-data; name="${name}"\r\nContent-Type: application/javascript+module\r\n\r\nexport default {}\r\n--${B}--\r\n`, 'latin1');
+  const tree = staticAndBuild();
+  try {
+    writeFileSync(join(tree.build, '_worker.bundle'), bundle);
+    const result = await confirmCall(gw, {
+      action: 'cloudflare.pages.deploy_with_functions',
+      input: { account_id: ACCOUNT, project_name: PROJECT, dir: tree.dir, functions_build: tree.build },
+    });
+    assert.equal(result.reason, 'bundle part name is not plain ASCII');
+  } finally {
+    cleanup(tree.root);
+  }
 });
