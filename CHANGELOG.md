@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.07.6, October 7, 2026
+
+- A website that was not built with the site kit can now go live on Cloudflare Pages with its own server code, the Pages Functions in its `functions/` folder. A new tool, `pages-functions`, compiles that folder on your computer with Cloudflare's own compiler and no Cloudflare sign-in; its first run asks to install about 210 MB. The Cloudflare Pages skill then deploys the site and the compiled code together, after Webmaster's review, through the local gateway. (3a7f5a7, 7856ccb)
+- The Cloudflare connector now works with D1 databases: create one, set up its tables from a migration file the way Wrangler does and skip a file already applied, read it, change it with a confirmation every time, connect it to a Pages project under the name the site's code expects, and delete it. These use the Cloudflare Pages connection you already have; its token needs the Account, D1, Edit permission beside its Pages one, and nothing is reconnected. (3a7f5a7, 9df924a, 7856ccb, 3cb1178)
+- A site kit site is still deployed only as it was, with no server code of its own. (3a7f5a7)
+
 ## v2026.10.07.5, October 7, 2026
 
 - A site built with the site kit can schedule an article: give it a `pubDate` in the future, and it stays out of the site, its lists, feeds, sitemap, `llms.txt` and search until a build made at or after that moment. Until now such an article went live at the next build. A date and time with its offset sets the exact moment; a date alone means 00:00 UTC. (b0b6aa6)
