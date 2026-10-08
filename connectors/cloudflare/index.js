@@ -1027,6 +1027,17 @@ function readBuildEntry(root, name, refused) {
   return { name, resolved: screened.resolved, id: screened.id, bytes };
 }
 
+// Cloudflare writes an empty setting back in another shape (env_vars null
+// before a PATCH, {} after, seen live 2026-10-07), so null, a missing key, {}
+// and [] compare equal and are not reported as a change.
+function sameSetting(left, right) {
+  const empty = (value) => value == null
+    || (Array.isArray(value) && value.length === 0)
+    || (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0);
+  if (empty(left) && empty(right)) return true;
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 function collateralChanges(env, before, after, binding) {
   const names = [];
   const left = asObject(before) || {};
@@ -1034,14 +1045,14 @@ function collateralChanges(env, before, after, binding) {
   const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
   for (const key of keys) {
     if (key === 'd1_databases') continue;
-    if (JSON.stringify(left[key]) !== JSON.stringify(right[key])) names.push(`${env}.${key}`);
+    if (!sameSetting(left[key], right[key])) names.push(`${env}.${key}`);
   }
   const leftBindings = asObject(left.d1_databases) || {};
   const rightBindings = asObject(right.d1_databases) || {};
   const bindingNames = new Set([...Object.keys(leftBindings), ...Object.keys(rightBindings)]);
   for (const key of bindingNames) {
     if (key === binding) continue;
-    if (JSON.stringify(leftBindings[key]) !== JSON.stringify(rightBindings[key])) {
+    if (!sameSetting(leftBindings[key], rightBindings[key])) {
       names.push(`${env}.d1_databases.${key}`);
     }
   }

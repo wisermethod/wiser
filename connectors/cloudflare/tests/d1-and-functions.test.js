@@ -874,3 +874,32 @@ test('review 5: a change to an environment the bind did not name is reported', a
   assert.equal(JSON.stringify(result).includes('secret_text'), false);
   assert.deepEqual(Object.keys(result.fail_open), ['production']);
 });
+
+test('bind_d1 does not report an empty setting rewritten in another shape (null to {}, seen live)', async () => {
+  const { gw, fake } = await granted('pages');
+  fake.auth.proxy = async (request) => {
+    if (request.method === 'GET') {
+      return envelope({ deployment_configs: { production: { env_vars: null, fail_open: true }, preview: { env_vars: null, fail_open: true } } });
+    }
+    return envelope({ deployment_configs: {
+      production: { env_vars: {}, fail_open: true, d1_databases: { DB: { id: DATABASE } } },
+      preview: { env_vars: {}, fail_open: true, d1_databases: { DB: { id: DATABASE } } },
+    } });
+  };
+  const result = await confirmCall(gw, {
+    action: 'cloudflare.pages.bind_d1',
+    input: { account_id: ACCOUNT, project_name: PROJECT, binding: 'DB', database_id: DATABASE },
+  });
+  assert.deepEqual(result.collateral_changes, []);
+  fake.auth.proxy = async (request) => {
+    if (request.method === 'GET') {
+      return envelope({ deployment_configs: { production: { env_vars: { A: { type: 'plain_text', value: 'x' } } }, preview: {} } });
+    }
+    return envelope({ deployment_configs: { production: { env_vars: {}, d1_databases: { DB: { id: DATABASE } } }, preview: { d1_databases: { DB: { id: DATABASE } } } } });
+  };
+  const emptied = await confirmCall(gw, {
+    action: 'cloudflare.pages.bind_d1',
+    input: { account_id: ACCOUNT, project_name: PROJECT, binding: 'DB', database_id: DATABASE },
+  });
+  assert.deepEqual(emptied.collateral_changes, ['production.env_vars']);
+});
