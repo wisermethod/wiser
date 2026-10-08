@@ -5,6 +5,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { gunzipSync } from "node:zlib";
 
 import { currentKit, versionLine } from "./envelope.mjs";
@@ -1924,18 +1925,155 @@ function carriedRoutesFinding(routes, name) {
   if (!routes.include.some((rule) => pagesRuleMatches(rule, name))) return `_routes.json does not include ${name}, which schedule.bin carries`;
   return null;
 }
-// A Tailwind arbitrary value or arbitrary property. The brackets hold no whitespace, and a quote or a url function is inside them.
-function stylesheetTokens(text) {
+// Arbitrary Tailwind syntax: square brackets (a value, a property or a variant) or a (--var) value.
+function isArbitrarySyntax(candidate) {
+  return candidate.includes("[") || /\([^)]*--/.test(candidate);
+}
+// A bracket pair with no whitespace, attached the way a candidate is. A Markdown link and a spaced list are not candidates.
+function isTailwindArbitrary(token) {
+  if (/\([^)]*--[A-Za-z0-9_-]+\)/.test(token)) return true;
+  if (!token.includes("[")) return false;
+  if (/\[[^\]]*:[^\]]*\]/.test(token)) return true;
+  if (/\[[^\]]+\]:/.test(token)) return true;
+  if (/[A-Za-z0-9][!:-][^\s]*\[/.test(token) || /[A-Za-z0-9_-]-\[/.test(token)) return true;
+  return false;
+}
+function arbitrarySyntaxTokens(text) {
   const hits = [];
   const seen = new Set();
-  const keep = (token) => {
-    if (seen.has(token) || !/['"]|url\(/.test(token)) return;
+  const pattern = /(?:!?[A-Za-z0-9_]*:)*!?[A-Za-z0-9_-]*\[[^\s\]]+\][A-Za-z0-9_:/.[\]()'!#%&>,+;?=^$|~@*-]*|(?:!?[A-Za-z0-9_]*:)*!?[A-Za-z0-9_-]*\((?:[A-Za-z-]+:)?--[A-Za-z0-9_-]+\)[A-Za-z0-9_:/.-]*/g;
+  for (const match of text.matchAll(pattern)) {
+    const token = match[0];
+    if (seen.has(token) || !isArbitrarySyntax(token) || !isTailwindArbitrary(token)) continue;
     seen.add(token);
     hits.push(token);
-  };
-  for (const match of text.matchAll(/[A-Za-z0-9:-]+-\[[^\]\s]*\]/g)) keep(match[0]);
-  for (const match of text.matchAll(/(?<![A-Za-z0-9:]-)\[[A-Za-z-][A-Za-z0-9-]*:[^\]\s]*\]/g)) keep(match[0]);
+  }
   return hits;
+}
+// The site's pinned Tailwind. Null when node_modules cannot answer, and the caller then uses the regex.
+async function loadStylesheetJudge(site) {
+  const root = path.join(site, "node_modules", "@tailwindcss");
+  const nodeEntry = path.join(root, "node", "dist", "index.mjs");
+  const oxideEntry = path.join(root, "oxide", "index.js");
+  const cssPath = path.join(site, "src", "styles", "tokens.css");
+  if (!fs.existsSync(nodeEntry) || !fs.existsSync(oxideEntry) || !fs.existsSync(cssPath)) return null;
+  try {
+    const tw = await import(pathToFileURL(nodeEntry).href);
+    const oxide = await import(pathToFileURL(oxideEntry).href);
+    const Scanner = oxide.Scanner || (oxide.default && oxide.default.Scanner);
+    if (typeof tw.compile !== "function" || typeof Scanner !== "function") return null;
+    const compiled = await tw.compile(fs.readFileSync(cssPath, "utf8"), {
+      base: path.dirname(cssPath),
+      onDependency() {},
+    });
+    const scanner = new Scanner({});
+    let previous = compiled.build([]);
+    const decided = new Map();
+    const compiles = (token) => {
+      if (decided.has(token)) return decided.get(token);
+      let next;
+      try { next = compiled.build([token]); }
+      catch { decided.set(token, false); return false; }
+      const added = next !== previous;
+      previous = next;
+      decided.set(token, added);
+      return added;
+    };
+    return {
+      tokens(text, extension) {
+        try {
+          const found = scanner.getCandidatesWithPositions({ content: text, extension: extension || "md" });
+          const seen = new Set();
+          const out = [];
+          for (const item of found) {
+            const token = item && item.candidate;
+            if (typeof token !== "string" || seen.has(token) || !isArbitrarySyntax(token)) continue;
+            seen.add(token);
+            if (compiles(token)) out.push(token);
+          }
+          return out;
+        } catch { return null; }
+      },
+    };
+  } catch { return null; }
+}
+// A destination on another origin is ignored. One on this origin is the path: query and fragment dropped, percent-decoded, trailing slash and trailing .html removed.
+function reducedRedirectPath(destination, origin) {
+  let url;
+  try { url = new URL(destination, `${origin}/`); }
+  catch { return null; }
+  if (url.origin !== origin) return null;
+  let pathname = url.pathname;
+  try { pathname = decodeURIComponent(pathname); }
+  catch { /* the path the URL parser produced stands */ }
+  if (pathname.length > 1) pathname = pathname.replace(/\/+$/, "");
+  if (pathname.endsWith(".html")) pathname = pathname.slice(0, -5);
+  if (pathname.length > 1) pathname = pathname.replace(/\/+$/, "");
+  return pathname || "/";
+}
+function redirectEndpoints(text, origin) {
+  const rows = [];
+  for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (trimmed === "" || trimmed.startsWith("#")) continue;
+    const parts = trimmed.split(/\s+/);
+    if (parts.length < 2) continue;
+    rows.push({ source: parts[0], destination: reducedRedirectPath(parts[1], origin) });
+  }
+  return rows;
+}
+function parsedInstants(list) {
+  if (!Array.isArray(list)) return null;
+  const out = [];
+  for (const value of list) {
+    if (typeof value !== "string") return null;
+    const at = Date.parse(value);
+    if (!Number.isFinite(at)) return null;
+    out.push(at);
+  }
+  return out;
+}
+// carried and notCarried are a partition of the instants check itself reads off the articles.
+function assessScheduleNote(note, recordedBuild, after) {
+  const expected = [...new Set(after.map((item) => item.at))];
+  const problems = [];
+  if (!note || typeof note !== "object" || Array.isArray(note)) {
+    problems.push(".astro/kit-schedule.json is missing");
+    return { problems, excusesAbsence: false, carriedCount: 0 };
+  }
+  if (note.buildTime !== recordedBuild) problems.push(".astro/kit-schedule.json buildTime is not the build record's string");
+  const carried = parsedInstants(note.carried);
+  const notCarried = parsedInstants(note.notCarried);
+  if (!carried || !notCarried) {
+    problems.push(".astro/kit-schedule.json carried and notCarried are not lists of instants");
+    return { problems, excusesAbsence: false, carriedCount: 0 };
+  }
+  const duplicates = (list, name) => {
+    const seen = new Set();
+    for (const at of list) {
+      if (seen.has(at)) problems.push(`.astro/kit-schedule.json ${name} lists ${instantText(at)} more than once`);
+      seen.add(at);
+    }
+  };
+  duplicates(carried, "carried");
+  duplicates(notCarried, "notCarried");
+  const carriedSet = new Set(carried);
+  const notSet = new Set(notCarried);
+  for (const at of carriedSet) {
+    if (notSet.has(at)) problems.push(`.astro/kit-schedule.json lists ${instantText(at)} in both carried and notCarried`);
+  }
+  const expectedSet = new Set(expected);
+  for (const at of expected) {
+    if (!carriedSet.has(at) && !notSet.has(at)) problems.push(`.astro/kit-schedule.json omits ${instantText(at)}, which an article schedules after the build instant`);
+  }
+  for (const at of carriedSet) {
+    if (!expectedSet.has(at)) problems.push(`.astro/kit-schedule.json carried lists ${instantText(at)}, which no article schedules after the build instant`);
+  }
+  for (const at of notSet) {
+    if (!expectedSet.has(at)) problems.push(`.astro/kit-schedule.json notCarried lists ${instantText(at)}, which no article schedules after the build instant`);
+  }
+  const excusesAbsence = problems.length === 0 && carried.length === 0 && expected.every((at) => notSet.has(at)) && notSet.size === expectedSet.size;
+  return { problems, excusesAbsence, carriedCount: carried.length };
 }
 const SCHEDULE_TYPES = new Set(["text/html; charset=utf-8", "application/xml", "text/plain; charset=utf-8", "text/css; charset=utf-8", "application/javascript", "application/json"]);
 function sha256(bytes) {
@@ -1953,10 +2091,11 @@ function checkDistFunction(scheduled, builtAt) {
   const note = readScheduleNote();
   let recordedBuild = null;
   try { recordedBuild = JSON.parse(fs.readFileSync(path.join(site, ".astro", "kit-build.json"), "utf8")).buildTime; } catch { recordedBuild = null; }
-  if (after.length && !present) {
-    const notCarriedAt = new Set(Array.isArray(note?.notCarried) ? note.notCarried.map((value) => Date.parse(value)).filter((value) => Number.isFinite(value)) : []);
-    const excused = Boolean(note && note.buildTime === recordedBuild && after.every((item) => notCarriedAt.has(item.at)));
-    if (!excused) fail("dist-function/ is absent while an article is scheduled after the build instant");
+  if (after.length) {
+    const scheduleNote = assessScheduleNote(note, recordedBuild, after);
+    for (const problem of scheduleNote.problems) fail(problem);
+    if (!present && scheduleNote.carriedCount > 0) fail(".astro/kit-schedule.json carried is not empty while dist-function/ is absent");
+    if (!present && !scheduleNote.excusesAbsence) fail("dist-function/ is absent while an article is scheduled after the build instant");
   }
   if (!after.length && present) fail("dist-function/ is present while no article is scheduled after the build instant");
   if (!present) return;
@@ -2019,6 +2158,7 @@ function checkDistFunction(scheduled, builtAt) {
     else routesDoc = routes;
   }
   let parsed = null;
+  let versionAts = null;
   const carriedHtml = [];
   if (!scheduleBytes) fail("schedule.bin does not parse as the contract says");
   else {
@@ -2031,6 +2171,7 @@ function checkDistFunction(scheduled, builtAt) {
       if (!head || head.v !== 1 || head.kitVersion !== "0.5.0" || typeof head.buildTime !== "string" || !head.paths || typeof head.paths !== "object" || Array.isArray(head.paths)) throw new Error("head");
       if (record && head.buildTime !== record.buildTime) throw new Error("buildTime");
       if (record && shape && record.paths !== Object.keys(head.paths).length) throw new Error("paths");
+      const ats = new Set();
       for (const [route, entry] of Object.entries(head.paths)) {
         if (!route.startsWith("/") || !entry || typeof entry.page !== "boolean" || !Array.isArray(entry.list) || entry.list.length === 0) throw new Error(route);
         let previous = -Infinity;
@@ -2039,10 +2180,12 @@ function checkDistFunction(scheduled, builtAt) {
           const raw = gunzipSync(blobs.subarray(version.off, version.off + version.len));
           if (raw.length !== version.size || sha256(raw).slice(0, 32) !== version.etag) throw new Error(route);
           if (version.type === "text/html; charset=utf-8") carriedHtml.push({ route, at: version.at, html: raw.toString("utf8") });
+          ats.add(version.at);
           previous = version.at;
         }
       }
       parsed = head;
+      versionAts = ats;
     } catch { fail("schedule.bin does not parse as the contract says"); }
   }
   if (parsed && record && Array.isArray(record.carried)) {
@@ -2052,6 +2195,15 @@ function checkDistFunction(scheduled, builtAt) {
       const route = `/articles/${item.id}`;
       const entry = parsed.paths[route];
       if (!entry || entry.list[0].at !== item.at) fail(`${path.relative(site, item.file)} is scheduled after the build instant and carried, and has no ${route} entry whose first version is at its instant`);
+    }
+    if (versionAts) {
+      const seen = new Set();
+      for (const value of record.carried) {
+        const at = Date.parse(value);
+        if (!Number.isFinite(at) || seen.has(at)) continue;
+        seen.add(at);
+        if (!versionAts.has(at)) fail(`schedule.bin has no version at ${instantText(at)}, which function.json carries`);
+      }
     }
   }
   if (parsed) {
@@ -2092,12 +2244,20 @@ if (kit.collections.articles !== false) {
   }
   const instantListed = (key, at) => Array.isArray(fnRecord?.[key]) && fnRecord[key].some((value) => Date.parse(value) === at);
   const belowFunction = KNOWN_VERSIONS.indexOf(kit.kitVersion) < KNOWN_VERSIONS.indexOf("0.5.0");
+  let stylesheetJudge = null;
+  if (scheduled.some((item) => item.at > nowAt)) stylesheetJudge = await loadStylesheetJudge(site);
   for (const item of scheduled) {
     const shown = path.relative(site, item.file);
     if (item.at > nowAt) {
       tooOld("a future pubDate", `${shown}, dated ${instantText(item.at)} and not a draft,`);
-      for (const token of stylesheetTokens(fs.readFileSync(item.file, "utf8"))) {
-        fail(`${shown}: ${token} would publish the text in the stylesheet before the article goes live; move the styling to src/custom/custom.css or drop it until the article is live`);
+      const extension = path.extname(item.file).replace(/^\./, "") || "md";
+      const body = fs.readFileSync(item.file, "utf8");
+      let tokens = stylesheetJudge ? stylesheetJudge.tokens(body, extension) : null;
+      const asked = Array.isArray(tokens);
+      if (!asked) tokens = arbitrarySyntaxTokens(body);
+      for (const token of tokens) {
+        const unasked = asked ? "" : " The check could not ask Tailwind.";
+        fail(`${shown}: ${token} would publish the text in the stylesheet before the article goes live; move the styling to src/custom/custom.css or drop it until the article is live.${unasked}`);
       }
       const note = item.dateOnly ? "; a date alone goes live at 00:00 UTC, which is the evening before in the Americas, so give a time and offset, such as 2026-10-09T09:00:00-06:00, for an exact moment" : "";
       if (kit.kitVersion === "0.5.0" && instantListed("carried", item.at)) console.log(`scheduled: ${shown} goes live ${instantText(item.at)} through the kit Function`);
@@ -2112,7 +2272,10 @@ if (kit.collections.articles !== false) {
     console.log(`check --built: build instant ${instantText(builtAt.at)}, from ${builtAt.from}`);
     const dist = path.join(site, "dist");
     const read = (name) => { try { return fs.readFileSync(path.join(dist, name), "utf8"); } catch { return ""; } };
-    const feeds = [["rss.xml", read("rss.xml")], ["llms.txt", read("llms.txt")], ["_redirects", read("_redirects")]];
+    const feeds = [["rss.xml", read("rss.xml")], ["llms.txt", read("llms.txt")]];
+    let redirectOrigin = null;
+    try { redirectOrigin = new URL(kit.siteUrl).origin; } catch { redirectOrigin = null; }
+    const redirectRows = redirectOrigin ? redirectEndpoints(read("_redirects"), redirectOrigin) : [];
     try { for (const name of fs.readdirSync(dist).filter((n) => /^sitemap.*\.xml$/.test(n))) feeds.push([name, read(name)]); } catch { /* listed above */ }
     const pageUrl = (file) => {
       const rel = path.relative(dist, file).split(path.sep).join("/").replace(/\.html$/, "");
@@ -2139,6 +2302,12 @@ if (kit.collections.articles !== false) {
       }
       const listed = new RegExp(`(?:${escape(kit.siteUrl)}|(?<=^|[\\s(<\\[\\]"':]))${escape(route)}(?![\\p{L}\\p{N}_\\-./~%])`, "mu");
       for (const [name, text] of feeds) if (listed.test(text)) fail(`dist/${name} lists ${route}, which ${shown} schedules for ${instantText(item.at)}, after this build's instant`);
+      for (const row of redirectRows) {
+        if (row.source === route || row.destination === route) {
+          fail(`dist/_redirects lists ${route}, which ${shown} schedules for ${instantText(item.at)}, after this build's instant`);
+          break;
+        }
+      }
     }
     checkDistFunction(scheduled, builtAt);
   }

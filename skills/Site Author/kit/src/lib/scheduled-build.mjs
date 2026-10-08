@@ -149,13 +149,14 @@ function redirectRows(site) {
   return rows;
 }
 // Pages: a * splat matches any remainder, including slashes, and a :name placeholder matches one segment.
+// The name begins with a letter, so :_legacy is a literal colon.
 function redirectSourceMatches(source, name) {
   let pattern = '^';
   for (let i = 0; i < source.length; i++) {
     const c = source[i];
     if (c === '*') { pattern += '.*'; continue; }
     if (c === ':') {
-      const ident = /^[A-Za-z_][A-Za-z0-9_]*/.exec(source.slice(i + 1));
+      const ident = /^[A-Za-z][A-Za-z0-9_]*/.exec(source.slice(i + 1));
       if (ident) { pattern += '[^/]+'; i += ident[0].length; continue; }
     }
     pattern += /[.*+?^${}()|[\]\\]/.test(c) ? `\\${c}` : c;
