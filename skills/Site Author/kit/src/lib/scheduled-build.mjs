@@ -13,6 +13,15 @@ import { gzipSync } from 'node:zlib';
 export const STATE_ENV = 'KIT_STATE_BUILD';
 export const isStateBuild = () => process.env[STATE_ENV] === '1';
 
+// The sitemap filter reads the folder this build writes. A state build's out dir is not dist/.
+export function hiddenBuiltFile(page, fromUrl) {
+  const pathname = decodeURIComponent(new URL(page).pathname).replace(/\/+$/, '');
+  const leaf = `${pathname === '' ? '/index' : pathname}.html`;
+  const out = isStateBuild() && process.env.KIT_STATE_OUT ? process.env.KIT_STATE_OUT : '';
+  if (out) return path.join(out, leaf.slice(1));
+  return fileURLToPath(new URL(`./dist${leaf}`, fromUrl));
+}
+
 const BUDGET = 1572864;
 const KIT_VERSION = '0.5.0';
 const TYPES = {
@@ -139,6 +148,20 @@ function redirectRows(site) {
   }
   return rows;
 }
+// Pages: a * splat matches any remainder, including slashes, and a :name placeholder matches one segment.
+function redirectSourceMatches(source, name) {
+  let pattern = '^';
+  for (let i = 0; i < source.length; i++) {
+    const c = source[i];
+    if (c === '*') { pattern += '.*'; continue; }
+    if (c === ':') {
+      const ident = /^[A-Za-z_][A-Za-z0-9_]*/.exec(source.slice(i + 1));
+      if (ident) { pattern += '[^/]+'; i += ident[0].length; continue; }
+    }
+    pattern += /[.*+?^${}()|[\]\\]/.test(c) ? `\\${c}` : c;
+  }
+  return new RegExp(`${pattern}$`).test(name);
+}
 function recordedBuildTime(site) {
   try {
     const record = JSON.parse(readFileSync(path.join(site, '.astro', 'kit-build.json'), 'utf8'));
@@ -207,6 +230,7 @@ export function scheduledBuild({ root }) {
         if (isStateBuild()) return;
         rmSync(fnDir, { recursive: true, force: true });
         rmSync(statesDir, { recursive: true, force: true });
+        rmSync(path.join(site, '.astro', 'kit-schedule.json'), { force: true });
       },
       'astro:build:done': ({ dir }) => {
         if (isStateBuild()) return;
@@ -230,10 +254,8 @@ export function scheduledBuild({ root }) {
         const clash = (key, entry) => {
           const names = [key];
           if (entry.page && entry.isNew && key !== '/') names.push(`${key}.html`, `${key}/`);
-          for (const name of names) {
-            const row = redirects.find((item) => item.source === name);
-            if (row) throw new Error(`kit schedule: ${key} is a carried path and the source of a row in public/_redirects (${row.line})`);
-          }
+          const row = redirects.find((item) => names.some((name) => redirectSourceMatches(item.source, name)));
+          if (row) throw new Error(`kit schedule: ${key} is a carried path and the source of a row in public/_redirects (${row.line})`);
         };
         try {
           for (const [n, at] of order.entries()) {
@@ -241,7 +263,7 @@ export function scheduledBuild({ root }) {
             const out = path.join(statesDir, String(n));
             const result = spawnSync(process.execPath, [astroBin, 'build', '--outDir', out], {
               cwd: site,
-              env: { ...process.env, KIT_BUILD_TIME: iso(at), [STATE_ENV]: '1' },
+              env: { ...process.env, KIT_BUILD_TIME: iso(at), [STATE_ENV]: '1', KIT_STATE_OUT: out },
               encoding: 'utf8',
               maxBuffer: 16 * 1024 * 1024,
             });
@@ -298,6 +320,9 @@ export function scheduledBuild({ root }) {
         } finally {
           if (!process.env.KIT_KEEP_STATES) rmSync(statesDir, { recursive: true, force: true });
         }
+        const noteDir = path.join(site, '.astro');
+        mkdirSync(noteDir, { recursive: true });
+        writeFileSync(path.join(noteDir, 'kit-schedule.json'), `${JSON.stringify({ buildTime, carried: carried.map(iso), notCarried: notCarried.map(iso) })}\n`);
         if (carried.length === 0) { summary(carried, notCarried, 0, 0); return; }
         const bin = buildBin(versions, blobs, buildTime);
         const routes = routeRules(versions);

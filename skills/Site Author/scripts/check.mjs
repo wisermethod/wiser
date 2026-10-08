@@ -1703,6 +1703,72 @@ function copiedFromPublic(dist, file) {
   const pub = path.join(site, "public", rel);
   try { return fs.existsSync(pub) && fs.statSync(pub).isFile(); } catch { return false; }
 }
+// The rules for a kit-built page. file is the dist path, or null when the text is a version schedule.bin carries; shown names it in each failure.
+function checkKitHtml(shown, html, file, dist) {
+  const cause = 'An email address or web address written as a link\'s visible text is turned into a second link inside the first by the Markdown and MDX compilers. Write it as a Markdown link, [support@example.com](mailto:support@example.com), or in MDX as an expression, {"support@example.com"}.';
+  const where = file ? path.relative(site, file) : shown;
+  for (const hit of nestedAnchors(html)) {
+    fail(`${where}:${hit.line} ${hit.inner} inside ${hit.outer}. ${cause}`);
+  }
+  if (file && copiedFromPublic(dist, file)) return;
+  const facts = builtPageFacts(html);
+  if (!facts.title) fail(`${shown}: missing a non-empty <title>`);
+  if (!facts.description) fail(`${shown}: missing a meta name="description"`);
+  if (!facts.canonical) fail(`${shown}: missing a link rel="canonical"`);
+  if (!facts.ogTitle) fail(`${shown}: missing og:title`);
+  if (!facts.ogUrl) fail(`${shown}: missing og:url`);
+  if (!facts.jsonLd) fail(`${shown}: missing a script type="application/ld+json"`);
+  if (facts.h1 !== 1) fail(`${shown}: expected exactly one <h1>, found ${facts.h1}`);
+  // Every @id a page's structured data points to is a node that page carries; a declared person is on every page, and the profile page is a ProfilePage about them.
+  const nodes = new Set();
+  const refs = [];
+  let parsed = true;
+  const types = [];
+  const live = html.replace(/<!--[\s\S]*?-->/g, "").replace(/<template\b[\s\S]*?<\/template\s*>/gi, "");
+  for (const m of live.matchAll(/<script\b[^>]*type\s*=\s*["']?application\/ld\+json["']?[^>]*>([\s\S]*?)<\/script\s*>/gi)) {
+    let data;
+    try { data = JSON.parse(m[1]); } catch { parsed = false; continue; }
+    const walk = (v) => {
+      if (Array.isArray(v)) { v.forEach(walk); return; }
+      if (v === null || typeof v !== "object") return;
+      const keys = Object.keys(v);
+      if (typeof v["@id"] === "string") { if (keys.length === 1) refs.push(v["@id"]); else nodes.add(v["@id"]); }
+      if (v["@type"]) types.push({ type: v["@type"], id: v["@id"], main: v.mainEntity?.["@id"] });
+      for (const key of keys) if (key !== "@id") walk(v[key]);
+    };
+    walk(data);
+  }
+  if (!parsed) fail(`${shown}: its JSON-LD does not parse`);
+  for (const ref of refs) if (!nodes.has(ref)) fail(`${shown}: its JSON-LD points to ${ref}, a node the page does not carry`);
+  if (isObject(kit.person)) {
+    const route = file ? null : shown.slice(0, shown.lastIndexOf(" at "));
+    const notFound = file ? file.endsWith(`${path.sep}404.html`) : route === "/404";
+    if (!notFound) {
+      const personId = `${kit.siteUrl}/#person`;
+      if (!types.some((t) => t.type === "Person" && t.id === personId)) fail(`${shown}: kit.json declares a person, and the page carries no Person ${personId}`);
+      const profileId = typeof kit.person.page === "string" ? kit.person.page : "index";
+      const isProfile = file ? file === path.join(dist, `${profileId}.html`) : route === (profileId === "index" ? "/" : `/${profileId}`);
+      if (isProfile && !types.some((t) => t.type === "ProfilePage" && t.main === personId)) fail(`${shown}: the profile page carries no ProfilePage whose mainEntity is ${personId}`);
+    }
+  }
+  for (const finding of accessibilityFindings(html)) fail(`${shown}: ${finding}`);
+  // A header or navigation landmark with nothing in it is a blank strip that a screen reader still announces.
+  const liveMarkup = html.replace(/<!--[\s\S]*?-->/g, "").replace(/<template\b[\s\S]*?<\/template\s*>/gi, "");
+  if (/<nav\b[^>]*>\s*<\/nav\s*>/i.test(liveMarkup)) fail(`${shown}: an empty <nav>, a navigation landmark with no links`);
+  if (/<header\b[^>]*>\s*<\/header\s*>/i.test(liveMarkup)) fail(`${shown}: an empty <header>`);
+  // A built page loads scripts and stylesheets from this site only, whatever wrote the tag.
+  for (const tag of html.match(/<(?:script|link)\b[^>]*>/gi) ?? []) {
+    const isLink = /^<link/i.test(tag);
+    if (isLink && !/\brel\s*=\s*["']?(?:stylesheet|preload|modulepreload)\b/i.test(tag)) continue;
+    const attr = (isLink ? /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i : /\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i).exec(tag);
+    const value = attr && (attr[1] ?? attr[2] ?? attr[3]);
+    if (value && /^(?:[a-z][a-z0-9+.-]*:)?\/\//i.test(value.trim())) {
+      let origin = null;
+      try { origin = new URL(value.trim(), kit.siteUrl).origin; } catch { origin = null; }
+      if (origin !== kit.siteUrl) fail(`${shown}: loads ${isLink ? "a stylesheet" : "a script"} from another site, ${value}`);
+    }
+  }
+}
 let builtPages = 0;
 if (built) {
   const dist = path.join(site, "dist");
@@ -1757,67 +1823,7 @@ if (built) {
       if (st.isFile() && st.mtimeMs > oldest && (!newest || st.mtimeMs > newest.mtimeMs)) newest = { file, mtimeMs: st.mtimeMs };
     }
     if (newest) fail(`${path.relative(site, newest.file)} is newer than the built HTML: run npm run build in site/ and then check --built`);
-    const cause = 'An email address or web address written as a link\'s visible text is turned into a second link inside the first by the Markdown and MDX compilers. Write it as a Markdown link, [support@example.com](mailto:support@example.com), or in MDX as an expression, {"support@example.com"}.';
-    for (const page of pages) {
-      const html = fs.readFileSync(page.file, "utf8");
-      for (const hit of nestedAnchors(html)) {
-        fail(`${path.relative(site, page.file)}:${hit.line} ${hit.inner} inside ${hit.outer}. ${cause}`);
-      }
-      if (copiedFromPublic(dist, page.file)) continue;
-      const facts = builtPageFacts(html);
-      const shown = relToSite(page.file);
-      if (!facts.title) fail(`${shown}: missing a non-empty <title>`);
-      if (!facts.description) fail(`${shown}: missing a meta name="description"`);
-      if (!facts.canonical) fail(`${shown}: missing a link rel="canonical"`);
-      if (!facts.ogTitle) fail(`${shown}: missing og:title`);
-      if (!facts.ogUrl) fail(`${shown}: missing og:url`);
-      if (!facts.jsonLd) fail(`${shown}: missing a script type="application/ld+json"`);
-      if (facts.h1 !== 1) fail(`${shown}: expected exactly one <h1>, found ${facts.h1}`);
-      // Every @id a page's structured data points to is a node that page carries; a declared person is on every page, and the profile page is a ProfilePage about them.
-      const nodes = new Set();
-      const refs = [];
-      let parsed = true;
-      const types = [];
-      const live = html.replace(/<!--[\s\S]*?-->/g, "").replace(/<template\b[\s\S]*?<\/template\s*>/gi, "");
-      for (const m of live.matchAll(/<script\b[^>]*type\s*=\s*["']?application\/ld\+json["']?[^>]*>([\s\S]*?)<\/script\s*>/gi)) {
-        let data;
-        try { data = JSON.parse(m[1]); } catch { parsed = false; continue; }
-        const walk = (v) => {
-          if (Array.isArray(v)) { v.forEach(walk); return; }
-          if (v === null || typeof v !== "object") return;
-          const keys = Object.keys(v);
-          if (typeof v["@id"] === "string") { if (keys.length === 1) refs.push(v["@id"]); else nodes.add(v["@id"]); }
-          if (v["@type"]) types.push({ type: v["@type"], id: v["@id"], main: v.mainEntity?.["@id"] });
-          for (const key of keys) if (key !== "@id") walk(v[key]);
-        };
-        walk(data);
-      }
-      if (!parsed) fail(`${shown}: its JSON-LD does not parse`);
-      for (const ref of refs) if (!nodes.has(ref)) fail(`${shown}: its JSON-LD points to ${ref}, a node the page does not carry`);
-      if (isObject(kit.person) && !page.file.endsWith(`${path.sep}404.html`)) {
-        const personId = `${kit.siteUrl}/#person`;
-        if (!types.some((t) => t.type === "Person" && t.id === personId)) fail(`${shown}: kit.json declares a person, and the page carries no Person ${personId}`);
-        const profile = path.join(dist, `${typeof kit.person.page === "string" ? kit.person.page : "index"}.html`);
-        if (page.file === profile && !types.some((t) => t.type === "ProfilePage" && t.main === personId)) fail(`${shown}: the profile page carries no ProfilePage whose mainEntity is ${personId}`);
-      }
-      for (const finding of accessibilityFindings(html)) fail(`${shown}: ${finding}`);
-      // A header or navigation landmark with nothing in it is a blank strip that a screen reader still announces.
-      const liveMarkup = html.replace(/<!--[\s\S]*?-->/g, "").replace(/<template\b[\s\S]*?<\/template\s*>/gi, "");
-      if (/<nav\b[^>]*>\s*<\/nav\s*>/i.test(liveMarkup)) fail(`${shown}: an empty <nav>, a navigation landmark with no links`);
-      if (/<header\b[^>]*>\s*<\/header\s*>/i.test(liveMarkup)) fail(`${shown}: an empty <header>`);
-      // A built page loads scripts and stylesheets from this site only, whatever wrote the tag.
-      for (const tag of html.match(/<(?:script|link)\b[^>]*>/gi) ?? []) {
-        const isLink = /^<link/i.test(tag);
-        if (isLink && !/\brel\s*=\s*["']?(?:stylesheet|preload|modulepreload)\b/i.test(tag)) continue;
-        const attr = (isLink ? /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i : /\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i).exec(tag);
-        const value = attr && (attr[1] ?? attr[2] ?? attr[3]);
-        if (value && /^(?:[a-z][a-z0-9+.-]*:)?\/\//i.test(value.trim())) {
-          let origin = null;
-          try { origin = new URL(value.trim(), kit.siteUrl).origin; } catch { origin = null; }
-          if (origin !== kit.siteUrl) fail(`${shown}: loads ${isLink ? "a stylesheet" : "a script"} from another site, ${value}`);
-        }
-      }
-    }
+    for (const page of pages) checkKitHtml(relToSite(page.file), fs.readFileSync(page.file, "utf8"), page.file, dist);
   }
   for (const name of ["_worker.js", "_worker.bundle", "_routes.json"]) {
     let held = null;
@@ -1893,6 +1899,44 @@ function distInstant() {
   if (envInstant !== null) return { at: envInstant, from: "KIT_BUILD_TIME" };
   return { at: oldest, from: "the time of the oldest built page, since the build recorded none" };
 }
+function readScheduleNote() {
+  try {
+    const note = JSON.parse(fs.readFileSync(path.join(site, ".astro", "kit-schedule.json"), "utf8"));
+    if (!note || typeof note !== "object" || Array.isArray(note)) return null;
+    return note;
+  } catch { return null; }
+}
+function sameInstantList(left, right) {
+  return Array.isArray(left) && Array.isArray(right) && left.length === right.length && left.every((value, index) => value === right[index]);
+}
+function distHasPage(route) {
+  const file = route === "/" ? path.join(site, "dist", "index.html") : path.join(site, "dist", `${route.replace(/^\//, "")}.html`);
+  try { return fs.existsSync(file) && fs.statSync(file).isFile(); } catch { return false; }
+}
+// Pages: a * matches any remainder, including slashes. An exclude that matches wins over an include.
+function pagesRuleMatches(rule, name) {
+  if (typeof rule !== "string" || !rule.includes("*")) return rule === name;
+  const body = rule.split("*").map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*");
+  return new RegExp(`^${body}$`).test(name);
+}
+function carriedRoutesFinding(routes, name) {
+  if (routes.exclude.some((rule) => pagesRuleMatches(rule, name))) return `_routes.json excludes ${name}, which schedule.bin carries`;
+  if (!routes.include.some((rule) => pagesRuleMatches(rule, name))) return `_routes.json does not include ${name}, which schedule.bin carries`;
+  return null;
+}
+// A Tailwind arbitrary value or arbitrary property. The brackets hold no whitespace, and a quote or a url function is inside them.
+function stylesheetTokens(text) {
+  const hits = [];
+  const seen = new Set();
+  const keep = (token) => {
+    if (seen.has(token) || !/['"]|url\(/.test(token)) return;
+    seen.add(token);
+    hits.push(token);
+  };
+  for (const match of text.matchAll(/[A-Za-z0-9:-]+-\[[^\]\s]*\]/g)) keep(match[0]);
+  for (const match of text.matchAll(/(?<![A-Za-z0-9:]-)\[[A-Za-z-][A-Za-z0-9-]*:[^\]\s]*\]/g)) keep(match[0]);
+  return hits;
+}
 const SCHEDULE_TYPES = new Set(["text/html; charset=utf-8", "application/xml", "text/plain; charset=utf-8", "text/css; charset=utf-8", "application/javascript", "application/json"]);
 function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
@@ -1906,7 +1950,14 @@ function checkDistFunction(scheduled, builtAt) {
   if (fnStat && fnStat.isSymbolicLink()) { fail("dist-function/ is a link"); return; }
   if (fnStat && !fnStat.isDirectory()) { fail("dist-function/ is present and is not a directory"); return; }
   const present = Boolean(fnStat && fnStat.isDirectory());
-  if (after.length && !present) fail("dist-function/ is absent while an article is scheduled after the build instant");
+  const note = readScheduleNote();
+  let recordedBuild = null;
+  try { recordedBuild = JSON.parse(fs.readFileSync(path.join(site, ".astro", "kit-build.json"), "utf8")).buildTime; } catch { recordedBuild = null; }
+  if (after.length && !present) {
+    const notCarriedAt = new Set(Array.isArray(note?.notCarried) ? note.notCarried.map((value) => Date.parse(value)).filter((value) => Number.isFinite(value)) : []);
+    const excused = Boolean(note && note.buildTime === recordedBuild && after.every((item) => notCarriedAt.has(item.at)));
+    if (!excused) fail("dist-function/ is absent while an article is scheduled after the build instant");
+  }
   if (!after.length && present) fail("dist-function/ is present while no article is scheduled after the build instant");
   if (!present) return;
   const allowed = ["_worker.js", "_routes.json", "schedule.bin", "function.json"];
@@ -1941,6 +1992,7 @@ function checkDistFunction(scheduled, builtAt) {
   let recorded = null;
   try { recorded = JSON.parse(fs.readFileSync(path.join(site, ".astro", "kit-build.json"), "utf8")).buildTime; } catch { recorded = null; }
   if (!record || record.buildTime !== recorded) fail("function.json buildTime is not the build record's string");
+  if (record && Array.isArray(record.carried) && Array.isArray(record.notCarried) && (!note || !sameInstantList(note.carried, record.carried) || !sameInstantList(note.notCarried, record.notCarried))) fail(".astro/kit-schedule.json carried and notCarried are not function.json's");
   if (workerBytes && (!record || record.worker !== sha256(workerBytes))) fail("function.json worker is not the sha256 of dist-function/_worker.js");
   if (routesBytes && (!record || record.routes !== sha256(routesBytes))) fail("function.json routes is not the sha256 of dist-function/_routes.json");
   if (scheduleBytes && (!record || record.schedule !== sha256(scheduleBytes))) fail("function.json schedule is not the sha256 of dist-function/schedule.bin");
@@ -1949,6 +2001,7 @@ function checkDistFunction(scheduled, builtAt) {
   if (workerBytes && srcBytes && !workerBytes.equals(srcBytes)) fail("dist-function/_worker.js differs from src/function/_worker.js");
   const stated = statedFunctionSha();
   if (workerBytes && stated && sha256(workerBytes) !== stated) fail("dist-function/_worker.js sha256 is not the sha256 site/KIT.md states");
+  let routesDoc = null;
   if (!routesBytes) fail("_routes.json breaks the contract");
   else {
     const text = routesBytes.toString("utf8");
@@ -1963,8 +2016,10 @@ function checkDistFunction(scheduled, builtAt) {
       && rules.every((rule) => typeof rule === "string" && rule.startsWith("/") && rule.length <= 100 && rule.length > 1 || rule === "/")
       && sorted(routes.include) && sorted(routes.exclude));
     if (!routesOk) fail("_routes.json breaks the contract");
+    else routesDoc = routes;
   }
   let parsed = null;
+  const carriedHtml = [];
   if (!scheduleBytes) fail("schedule.bin does not parse as the contract says");
   else {
     try {
@@ -1983,6 +2038,7 @@ function checkDistFunction(scheduled, builtAt) {
           if (!version || !Number.isSafeInteger(version.at) || version.at <= previous || !Number.isSafeInteger(version.off) || !Number.isSafeInteger(version.len) || !Number.isSafeInteger(version.size) || version.off < 0 || version.len < 0 || version.size < 0 || version.off + version.len > blobs.length || !/^[0-9a-f]{32}$/.test(version.etag) || !SCHEDULE_TYPES.has(version.type)) throw new Error(route);
           const raw = gunzipSync(blobs.subarray(version.off, version.off + version.len));
           if (raw.length !== version.size || sha256(raw).slice(0, 32) !== version.etag) throw new Error(route);
+          if (version.type === "text/html; charset=utf-8") carriedHtml.push({ route, at: version.at, html: raw.toString("utf8") });
           previous = version.at;
         }
       }
@@ -1996,6 +2052,20 @@ function checkDistFunction(scheduled, builtAt) {
       const route = `/articles/${item.id}`;
       const entry = parsed.paths[route];
       if (!entry || entry.list[0].at !== item.at) fail(`${path.relative(site, item.file)} is scheduled after the build instant and carried, and has no ${route} entry whose first version is at its instant`);
+    }
+  }
+  if (parsed) {
+    const dist = path.join(site, "dist");
+    for (const item of carriedHtml) checkKitHtml(`${item.route} at ${instantText(item.at)}`, item.html, null, dist);
+    if (routesDoc) {
+      for (const [route, entry] of Object.entries(parsed.paths)) {
+        const names = [route];
+        if (entry.page && route !== "/" && !distHasPage(route)) names.push(`${route}.html`, `${route}/`);
+        for (const name of names) {
+          const finding = carriedRoutesFinding(routesDoc, name);
+          if (finding) fail(finding);
+        }
+      }
     }
   }
 }
@@ -2013,6 +2083,12 @@ if (kit.collections.articles !== false) {
   let fnRecord = null;
   if (kit.kitVersion === "0.5.0") {
     try { fnRecord = JSON.parse(fs.readFileSync(path.join(site, "dist-function", "function.json"), "utf8")); } catch { fnRecord = null; }
+    if (!fnRecord) {
+      const note = readScheduleNote();
+      let recorded = null;
+      try { recorded = JSON.parse(fs.readFileSync(path.join(site, ".astro", "kit-build.json"), "utf8")).buildTime; } catch { recorded = null; }
+      if (note && note.buildTime === recorded) fnRecord = note;
+    }
   }
   const instantListed = (key, at) => Array.isArray(fnRecord?.[key]) && fnRecord[key].some((value) => Date.parse(value) === at);
   const belowFunction = KNOWN_VERSIONS.indexOf(kit.kitVersion) < KNOWN_VERSIONS.indexOf("0.5.0");
@@ -2020,6 +2096,9 @@ if (kit.collections.articles !== false) {
     const shown = path.relative(site, item.file);
     if (item.at > nowAt) {
       tooOld("a future pubDate", `${shown}, dated ${instantText(item.at)} and not a draft,`);
+      for (const token of stylesheetTokens(fs.readFileSync(item.file, "utf8"))) {
+        fail(`${shown}: ${token} would publish the text in the stylesheet before the article goes live; move the styling to src/custom/custom.css or drop it until the article is live`);
+      }
       const note = item.dateOnly ? "; a date alone goes live at 00:00 UTC, which is the evening before in the Americas, so give a time and offset, such as 2026-10-09T09:00:00-06:00, for an exact moment" : "";
       if (kit.kitVersion === "0.5.0" && instantListed("carried", item.at)) console.log(`scheduled: ${shown} goes live ${instantText(item.at)} through the kit Function`);
       else if (kit.kitVersion === "0.5.0" && instantListed("notCarried", item.at)) console.log(`scheduled: ${shown} goes live ${instantText(item.at)}, not carried (over the size budget): it goes live at the first build and deploy after that instant`);
@@ -2033,7 +2112,7 @@ if (kit.collections.articles !== false) {
     console.log(`check --built: build instant ${instantText(builtAt.at)}, from ${builtAt.from}`);
     const dist = path.join(site, "dist");
     const read = (name) => { try { return fs.readFileSync(path.join(dist, name), "utf8"); } catch { return ""; } };
-    const feeds = [["rss.xml", read("rss.xml")], ["llms.txt", read("llms.txt")]];
+    const feeds = [["rss.xml", read("rss.xml")], ["llms.txt", read("llms.txt")], ["_redirects", read("_redirects")]];
     try { for (const name of fs.readdirSync(dist).filter((n) => /^sitemap.*\.xml$/.test(n))) feeds.push([name, read(name)]); } catch { /* listed above */ }
     const pageUrl = (file) => {
       const rel = path.relative(dist, file).split(path.sep).join("/").replace(/\.html$/, "");

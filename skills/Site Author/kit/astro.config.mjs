@@ -6,7 +6,7 @@ import sitemap from '@astrojs/sitemap';
 import pagefind from 'astro-pagefind';
 import tailwindcss from '@tailwindcss/vite';
 import { BUILD_TIME_SHAPE } from './src/lib/schedule.mjs';
-import { isStateBuild, scheduledBuild } from './src/lib/scheduled-build.mjs';
+import { hiddenBuiltFile, isStateBuild, scheduledBuild } from './src/lib/scheduled-build.mjs';
 
 const kit = JSON.parse(readFileSync(new URL('./kit.json', import.meta.url), 'utf8'));
 const site = new URL(kit.siteUrl);
@@ -54,8 +54,7 @@ function anyHiddenPage() {
 }
 const hidesPages = anyHiddenPage();
 function builtPageHidden(page) {
-  const pathname = decodeURIComponent(new URL(page).pathname).replace(/\/+$/, '');
-  const file = fileURLToPath(new URL(`./dist${pathname === '' ? '/index' : pathname}.html`, import.meta.url));
+  const file = hiddenBuiltFile(page, import.meta.url);
   try { return readFileSync(file, 'utf8').includes(HIDDEN_META); } catch { return false; }
 }
 const sitemapFilter = (page) => (articlesOn || !page.endsWith('/rss.xml')) && !(hidesPages && builtPageHidden(page));
