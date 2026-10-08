@@ -6,6 +6,7 @@ import sitemap from '@astrojs/sitemap';
 import pagefind from 'astro-pagefind';
 import tailwindcss from '@tailwindcss/vite';
 import { BUILD_TIME_SHAPE } from './src/lib/schedule.mjs';
+import { isStateBuild, scheduledBuild } from './src/lib/scheduled-build.mjs';
 
 const kit = JSON.parse(readFileSync(new URL('./kit.json', import.meta.url), 'utf8'));
 const site = new URL(kit.siteUrl);
@@ -87,9 +88,10 @@ export default defineConfig({
   integrations: [
     mdx(),
     articlesOn && !hidesPages ? sitemap() : sitemap({ filter: sitemapFilter }),
-    pagefind(),
+    ...(isStateBuild() ? [] : [pagefind()]),
     dropRssWhenArticlesOff(),
-    recordBuildInstant(),
+    ...(isStateBuild() ? [] : [recordBuildInstant()]),
+    scheduledBuild({ root: new URL('./', import.meta.url) }),
   ],
   vite: { plugins: [tailwindcss()] },
 });

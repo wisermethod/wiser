@@ -27,7 +27,7 @@ npm run dev
 
 Stand-up is not done until `npm run build` has run in `site/` and `check --built` walks `KIT.md` (steps 1 to 5, and the built HTML) and the preview serves the SEO slots (`KIT.md` step 6). Fetch the canonical article URL `/articles/hello`, never `/articles/hello/`, when articles are on. The kit is `trailingSlash: 'never'`; a slashed article URL 404s and is not a missing page.
 
-Never connect the envelope or owning root to a host. Host payload is `site/` or `site/dist/` only. Personal, client, and org roots carry `memory/` (a client root also carries `sources/`). A Pages or GitHub integration of the parent would commit those.
+Never connect the envelope or owning root to a host. Host payload is `site/` or `site/dist/` only. `site/dist-function/` is build output beside `site/dist/`, written when an article is scheduled, and it is not uploaded by itself. Personal, client, and org roots carry `memory/` (a client root also carries `sources/`). A Pages or GitHub integration of the parent would commit those.
 
 Never `git init`. A site with no git is complete. A host skill may use an existing isolated repository containing only the kit payload; a build subdirectory does not isolate an envelope or owning-root repository.
 

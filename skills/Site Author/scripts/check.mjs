@@ -2,14 +2,16 @@
 // Walk KIT.md check steps 1 to 5. Step 6's served-HTML fetch is a later fetch.
 // --built, before or after the envelope, also reads site/dist/ for nested anchors and a stale build.
 // Not a Wiser tool. Fail closed.
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { gunzipSync } from "node:zlib";
 
 import { currentKit, versionLine } from "./envelope.mjs";
 console.log(versionLine());
 
-const CHECK_VERSION = "0.4.3";
-const KNOWN_VERSIONS = ["0.1.0", "0.2.0", "0.2.1", "0.2.2", "0.3.0", "0.4.0", "0.4.1", "0.4.2", "0.4.3"];
+const CHECK_VERSION = "0.5.0";
+const KNOWN_VERSIONS = ["0.1.0", "0.2.0", "0.2.1", "0.2.2", "0.3.0", "0.4.0", "0.4.1", "0.4.2", "0.4.3", "0.5.0"];
 // feature, version introduced. A later release adds a row.
 const introduced = [
   { feature: "layout", version: "0.2.0" },
@@ -78,6 +80,29 @@ try {
 if (!KNOWN_VERSIONS.includes(kit.kitVersion)) {
   const shown = typeof kit.kitVersion === "string" && kit.kitVersion !== "" ? kit.kitVersion : "missing";
   fail(`kitVersion ${shown} is not one of ${KNOWN_VERSIONS.join(", ")}: run Upgrade`);
+}
+function statedFunctionSha() {
+  try {
+    const stated = /The kit Function, `src\/function\/_worker\.js`, has sha256 `([0-9a-f]{64})`/.exec(fs.readFileSync(kitMd, "utf8"));
+    return stated ? stated[1] : null;
+  } catch { return null; }
+}
+if (KNOWN_VERSIONS.includes(kit.kitVersion)) {
+  const functionDir = path.join(site, "src", "function");
+  let functionPresent = false;
+  try { functionPresent = fs.existsSync(functionDir); } catch { functionPresent = false; }
+  if (kit.kitVersion === "0.5.0") {
+    const workerFile = path.join(functionDir, "_worker.js");
+    let workerStat = null;
+    try { workerStat = fs.lstatSync(workerFile); } catch { workerStat = null; }
+    if (!workerStat || !workerStat.isFile()) fail("src/function/_worker.js is missing: kit 0.5.0 carries the kit Function; run Upgrade");
+    else {
+      const actual = createHash("sha256").update(fs.readFileSync(workerFile)).digest("hex");
+      const stated = statedFunctionSha();
+      if (!stated) fail("site/KIT.md does not state the kit Function sha256");
+      else if (actual !== stated) fail(`src/function/_worker.js sha256 ${actual} is not the sha256 site/KIT.md states (${stated})`);
+    }
+  } else if (functionPresent) fail("src/function/ is kit code from 0.5.0: run Upgrade");
 }
 function tooOld(feature, where) {
   const row = introduced.find((item) => item.feature === feature);
@@ -1794,9 +1819,17 @@ if (built) {
       }
     }
   }
+  for (const name of ["_worker.js", "_worker.bundle", "_routes.json"]) {
+    let held = null;
+    try { held = fs.lstatSync(path.join(dist, name)); } catch { held = null; }
+    if (held) fail(`dist/ holds ${name}`);
+  }
+  let functionsHeld = null;
+  try { functionsHeld = fs.lstatSync(path.join(dist, "functions")); } catch { functionsHeld = null; }
+  if (functionsHeld) fail("dist/ holds a functions folder");
 }
 
-// Scheduled articles. A published article whose pubDate is after the build instant has no route until a build at or after that instant.
+// Scheduled articles. A published article whose pubDate is after the build instant has no route in dist/ until a build at or after that instant. On kit 0.5.0 the kit Function serves the later version at the instant when dist-function/ carries it.
 function articleIdOf(file, top) {
   if (slugOf(file, top) !== null) return slugOf(file, top);
   const root = path.join(site, "src/content/articles");
@@ -1860,6 +1893,112 @@ function distInstant() {
   if (envInstant !== null) return { at: envInstant, from: "KIT_BUILD_TIME" };
   return { at: oldest, from: "the time of the oldest built page, since the build recorded none" };
 }
+const SCHEDULE_TYPES = new Set(["text/html; charset=utf-8", "application/xml", "text/plain; charset=utf-8", "text/css; charset=utf-8", "application/javascript", "application/json"]);
+function sha256(bytes) {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+function checkDistFunction(scheduled, builtAt) {
+  if (!built || kit.kitVersion !== "0.5.0" || !builtAt) return;
+  const fnDir = path.join(site, "dist-function");
+  let fnStat = null;
+  try { fnStat = fs.lstatSync(fnDir); } catch { fnStat = null; }
+  const after = scheduled.filter((item) => item.at > builtAt.at);
+  if (fnStat && fnStat.isSymbolicLink()) { fail("dist-function/ is a link"); return; }
+  if (fnStat && !fnStat.isDirectory()) { fail("dist-function/ is present and is not a directory"); return; }
+  const present = Boolean(fnStat && fnStat.isDirectory());
+  if (after.length && !present) fail("dist-function/ is absent while an article is scheduled after the build instant");
+  if (!after.length && present) fail("dist-function/ is present while no article is scheduled after the build instant");
+  if (!present) return;
+  const allowed = ["_worker.js", "_routes.json", "schedule.bin", "function.json"];
+  let names = [];
+  try { names = fs.readdirSync(fnDir); } catch { fail("dist-function/ cannot be read"); return; }
+  for (const name of names) {
+    let st = null;
+    try { st = fs.lstatSync(path.join(fnDir, name)); } catch { fail(`dist-function/${name} cannot be read`); continue; }
+    if (st.isSymbolicLink()) { fail(`dist-function/${name} is a link`); continue; }
+    if (st.isDirectory()) { fail(`dist-function/${name} is a folder`); continue; }
+    if (!allowed.includes(name)) fail(`dist-function/${name} is not one of _worker.js, _routes.json, schedule.bin and function.json`);
+  }
+  for (const name of allowed) if (!names.includes(name)) fail(`dist-function/${name} is missing`);
+  const readBytes = (name) => { try { return fs.readFileSync(path.join(fnDir, name)); } catch { return null; } };
+  const workerBytes = readBytes("_worker.js");
+  const routesBytes = readBytes("_routes.json");
+  const scheduleBytes = readBytes("schedule.bin");
+  const functionBytes = readBytes("function.json");
+  let record = null;
+  try { record = JSON.parse(String(functionBytes)); } catch { record = null; }
+  const shapeKeys = ["kitVersion", "buildTime", "worker", "routes", "schedule", "carried", "notCarried", "paths"];
+  const hex64 = (value) => typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
+  const isoList = (value) => Array.isArray(value) && value.every((item) => typeof item === "string" && Number.isFinite(Date.parse(item)));
+  const shape = Boolean(record && typeof record === "object" && !Array.isArray(record) && functionBytes
+    && functionBytes.toString("utf8") === `${JSON.stringify(record, null, 2)}\n`
+    && shapeKeys.every((key, index) => Object.keys(record)[index] === key) && Object.keys(record).length === shapeKeys.length
+    && record.kitVersion === "0.5.0" && typeof record.buildTime === "string"
+    && hex64(record.worker) && hex64(record.routes) && hex64(record.schedule)
+    && isoList(record.carried) && isoList(record.notCarried)
+    && Number.isInteger(record.paths) && record.paths >= 0);
+  if (!shape) fail("function.json is not the contract's shape");
+  let recorded = null;
+  try { recorded = JSON.parse(fs.readFileSync(path.join(site, ".astro", "kit-build.json"), "utf8")).buildTime; } catch { recorded = null; }
+  if (!record || record.buildTime !== recorded) fail("function.json buildTime is not the build record's string");
+  if (workerBytes && (!record || record.worker !== sha256(workerBytes))) fail("function.json worker is not the sha256 of dist-function/_worker.js");
+  if (routesBytes && (!record || record.routes !== sha256(routesBytes))) fail("function.json routes is not the sha256 of dist-function/_routes.json");
+  if (scheduleBytes && (!record || record.schedule !== sha256(scheduleBytes))) fail("function.json schedule is not the sha256 of dist-function/schedule.bin");
+  let srcBytes = null;
+  try { srcBytes = fs.readFileSync(path.join(site, "src", "function", "_worker.js")); } catch { srcBytes = null; }
+  if (workerBytes && srcBytes && !workerBytes.equals(srcBytes)) fail("dist-function/_worker.js differs from src/function/_worker.js");
+  const stated = statedFunctionSha();
+  if (workerBytes && stated && sha256(workerBytes) !== stated) fail("dist-function/_worker.js sha256 is not the sha256 site/KIT.md states");
+  if (!routesBytes) fail("_routes.json breaks the contract");
+  else {
+    const text = routesBytes.toString("utf8");
+    let routes = null;
+    try { routes = JSON.parse(text); } catch { routes = null; }
+    const rules = routes && Array.isArray(routes.include) && Array.isArray(routes.exclude) ? routes.include.concat(routes.exclude) : null;
+    const sorted = (list) => list.every((rule, index) => index === 0 || list[index - 1] <= rule);
+    const routesOk = Boolean(text.endsWith("\n") && routes && !Array.isArray(routes) && routes.version === 1 && rules
+      && Object.keys(routes).join(",") === "version,include,exclude"
+      && text === `${JSON.stringify({ version: 1, include: routes.include, exclude: routes.exclude })}\n`
+      && routes.include.length > 0 && rules.length <= 100
+      && rules.every((rule) => typeof rule === "string" && rule.startsWith("/") && rule.length <= 100 && rule.length > 1 || rule === "/")
+      && sorted(routes.include) && sorted(routes.exclude));
+    if (!routesOk) fail("_routes.json breaks the contract");
+  }
+  let parsed = null;
+  if (!scheduleBytes) fail("schedule.bin does not parse as the contract says");
+  else {
+    try {
+      if (scheduleBytes.length < 8 || scheduleBytes.subarray(0, 4).toString("utf8") !== "WKS1") throw new Error("magic");
+      const length = scheduleBytes.readUInt32BE(4);
+      if (8 + length > scheduleBytes.length) throw new Error("length");
+      const head = JSON.parse(scheduleBytes.subarray(8, 8 + length).toString("utf8"));
+      const blobs = scheduleBytes.subarray(8 + length);
+      if (!head || head.v !== 1 || head.kitVersion !== "0.5.0" || typeof head.buildTime !== "string" || !head.paths || typeof head.paths !== "object" || Array.isArray(head.paths)) throw new Error("head");
+      if (record && head.buildTime !== record.buildTime) throw new Error("buildTime");
+      if (record && shape && record.paths !== Object.keys(head.paths).length) throw new Error("paths");
+      for (const [route, entry] of Object.entries(head.paths)) {
+        if (!route.startsWith("/") || !entry || typeof entry.page !== "boolean" || !Array.isArray(entry.list) || entry.list.length === 0) throw new Error(route);
+        let previous = -Infinity;
+        for (const version of entry.list) {
+          if (!version || !Number.isSafeInteger(version.at) || version.at <= previous || !Number.isSafeInteger(version.off) || !Number.isSafeInteger(version.len) || !Number.isSafeInteger(version.size) || version.off < 0 || version.len < 0 || version.size < 0 || version.off + version.len > blobs.length || !/^[0-9a-f]{32}$/.test(version.etag) || !SCHEDULE_TYPES.has(version.type)) throw new Error(route);
+          const raw = gunzipSync(blobs.subarray(version.off, version.off + version.len));
+          if (raw.length !== version.size || sha256(raw).slice(0, 32) !== version.etag) throw new Error(route);
+          previous = version.at;
+        }
+      }
+      parsed = head;
+    } catch { fail("schedule.bin does not parse as the contract says"); }
+  }
+  if (parsed && record && Array.isArray(record.carried)) {
+    const carriedAt = new Set(record.carried.map((value) => Date.parse(value)).filter((value) => Number.isFinite(value)));
+    for (const item of after) {
+      if (!carriedAt.has(item.at)) continue;
+      const route = `/articles/${item.id}`;
+      const entry = parsed.paths[route];
+      if (!entry || entry.list[0].at !== item.at) fail(`${path.relative(site, item.file)} is scheduled after the build instant and carried, and has no ${route} entry whose first version is at its instant`);
+    }
+  }
+}
 if (kit.collections.articles !== false) {
   const scheduled = [];
   walkMd(path.join(site, "src/content/articles"), (file) => {
@@ -1871,14 +2010,23 @@ if (kit.collections.articles !== false) {
   });
   const nowAt = envInstant ?? Date.now();
   const builtAt = distInstant();
+  let fnRecord = null;
+  if (kit.kitVersion === "0.5.0") {
+    try { fnRecord = JSON.parse(fs.readFileSync(path.join(site, "dist-function", "function.json"), "utf8")); } catch { fnRecord = null; }
+  }
+  const instantListed = (key, at) => Array.isArray(fnRecord?.[key]) && fnRecord[key].some((value) => Date.parse(value) === at);
+  const belowFunction = KNOWN_VERSIONS.indexOf(kit.kitVersion) < KNOWN_VERSIONS.indexOf("0.5.0");
   for (const item of scheduled) {
     const shown = path.relative(site, item.file);
     if (item.at > nowAt) {
       tooOld("a future pubDate", `${shown}, dated ${instantText(item.at)} and not a draft,`);
       const note = item.dateOnly ? "; a date alone goes live at 00:00 UTC, which is the evening before in the Americas, so give a time and offset, such as 2026-10-09T09:00:00-06:00, for an exact moment" : "";
-      console.log(`scheduled: ${shown} goes live ${instantText(item.at)}${note}`);
+      if (kit.kitVersion === "0.5.0" && instantListed("carried", item.at)) console.log(`scheduled: ${shown} goes live ${instantText(item.at)} through the kit Function`);
+      else if (kit.kitVersion === "0.5.0" && instantListed("notCarried", item.at)) console.log(`scheduled: ${shown} goes live ${instantText(item.at)}, not carried (over the size budget): it goes live at the first build and deploy after that instant`);
+      else console.log(`scheduled: ${shown} goes live ${instantText(item.at)}${note}${belowFunction ? ". Upgrade to 0.5.0 and it goes live at its instant on Cloudflare Pages" : ""}`);
     } else if (builtAt && item.at > builtAt.at) {
-      console.log(`due: ${shown} went live ${instantText(item.at)}, after dist/ was built (${instantText(builtAt.at)}): rebuild, run check --built and Webmaster Job 3, and deploy`);
+      if (kit.kitVersion === "0.5.0" && instantListed("carried", item.at)) console.log(`live: ${shown} went live ${instantText(item.at)} through the kit Function; a rebuild and deploy adds it to the site's search`);
+      else console.log(`due: ${shown} went live ${instantText(item.at)}, after dist/ was built (${instantText(builtAt.at)}): rebuild, run check --built and Webmaster Job 3, and deploy`);
     }
   }
   if (built && builtAt) {
@@ -1913,8 +2061,10 @@ if (kit.collections.articles !== false) {
       const listed = new RegExp(`(?:${escape(kit.siteUrl)}|(?<=^|[\\s(<\\[\\]"':]))${escape(route)}(?![\\p{L}\\p{N}_\\-./~%])`, "mu");
       for (const [name, text] of feeds) if (listed.test(text)) fail(`dist/${name} lists ${route}, which ${shown} schedules for ${instantText(item.at)}, after this build's instant`);
     }
+    checkDistFunction(scheduled, builtAt);
   }
 }
+if (built && kit.collections && kit.collections.articles === false) checkDistFunction([], distInstant());
 
 if (failures.length) {
   console.error(`check FAIL ${site}`);

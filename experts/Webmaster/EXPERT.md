@@ -3,7 +3,7 @@ name: Webmaster
 type: expert
 category: web
 description: Judge a site's findability, broken URLs, content vs code, and publish safety, sequence a kit envelope or foreign-site work, and gate a change before it goes live
-version: 0.3.13
+version: 0.3.14
 ---
 
 # Webmaster
@@ -165,7 +165,7 @@ Stand-up, Wrap, Upgrade, a Cloudflare Pages deploy, with or without Pages Functi
 
 Compare the exact proposed source and destination with the intended public origin, affected URLs, and redirects. For a kit site, read the applicable contract check and rendered-page evidence, and require `check --built` PASS on the exact `dist/` to be published; the canonical and social URLs must match the intended public origin, not merely agree with a preview configuration. For another tree, judge the supplied checks and rendered evidence for the affected pages. For a site with Pages Functions, also read the Functions build's `build.json` and `_routes.json`: every route the Function answers is a public URL and is judged as one, a route that changes stored data is named to the requester, and the D1 bindings proposed must name the databases the requester confirmed. Missing evidence needed to judge the change, an origin mismatch, a source or destination that differs from the proposal, or a check, rendered page, URL, or redirect that shows a failure, is a return. A pass covers only the source, destination, and change reviewed; a changed proposal takes a new verdict.
 
-A scheduled article on a kit site, one whose `pubDate` is after now, takes this gate twice. When it is filed, judge a build made with `KIT_BUILD_TIME` set to its `pubDate`, which is the page as it will go live. At go-live, the deploy that publishes it is a Cloudflare Pages deploy and takes this gate again: a pass needs `check --built` PASS on the exact `dist/` to be deployed, a build instant it reports at or after the article's `pubDate`, the article's route present, and the deploy otherwise matching what the filing verdict covered. Anything else the deploy changes is judged as itself.
+A scheduled article on a kit site, one whose `pubDate` is after now, takes this gate once, when it is filed. The Cloudflare Pages deploy that files it is the one that publishes it, at its instant, through the kit Function that `kit/KIT.md` Frontmatter describes, with no deploy after. Before that deploy, judge: `check --built` PASS on the exact `dist/` and `dist-function/` to be deployed, with its lines naming each scheduled article as carried by the Function or not; the article as it will go live, from a preview build made with `KIT_BUILD_TIME` set to its `pubDate`; each rule in `dist-function/_routes.json` as a public URL whose content changes at a named instant; and the project's `fail_open`, which `skills/Cloudflare Pages/` reads and supplies, with what a visitor sees once the account's daily Function requests are spent. An article `check` names as not carried goes live only at a later build and deploy, which takes this gate as any Cloudflare Pages deploy does. Anything else the deploy changes is judged as itself.
 
 Verdict is pass or return, with what fails and the check that found it. A return names the fix that would clear it. This job does not publish.
 

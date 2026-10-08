@@ -2,12 +2,12 @@
 name: Cloudflare Pages
 type: skill
 category: web
-description: List and get a Cloudflare Pages project, list its deployments, create a project, add or remove a domain, delete a project, deploy the kit site/dist/ payload or a foreign site's build output with its Pages Functions, and create, migrate, query, bind and delete the D1 database such a site uses, with confirmation on every write
-version: 0.5.0
+description: List and get a Cloudflare Pages project, list its deployments, create a project, add or remove a domain, delete a project, deploy the kit site/dist/ payload, carrying the kit's Function from site/dist-function/ when an article is scheduled, or a foreign site's build output with its Pages Functions, and create, migrate, query, bind and delete the D1 database such a site uses, with confirmation on every write
+version: 0.6.0
 gaps:
   - bindings other than D1 on a Pages project, such as KV, R2, environment variables and secrets
   - removing a D1 binding from a Pages project
-  - a site whose Functions are one advanced-mode _worker.js file
+  - a foreign site whose Functions are one advanced-mode _worker.js file rather than a functions/ folder
   - a foreign static site with no Pages Functions
 ---
 
@@ -17,7 +17,7 @@ gaps:
 
 Use when the job is a Cloudflare Pages project or taking a site live on Pages: list or get the project, list its deployments, create a project, add or remove a domain, delete a project, deploy a kit site's payload, deploy a site another engine built together with its Pages Functions, or create, migrate, query, bind and delete the D1 database such a site uses.
 
-Not for Vercel, Workers, R2, rulesets, or hostname DNS. A request to "point this domain at the new site" sequences `experts/IT Expert/`, which owns `skills/Zone Publisher/`. Never call `cloudflare.dns.*` or `cloudflare.zones.*`. Never connect an envelope or owning root to a host or run `git init`. Two payloads are accepted and nothing else: a kit site's `site/dist/`, through the kit deploy; and a foreign site's build output with the Functions build `tools/pages-functions/` made from its `functions/` folder, through the Functions deploy. The envelope, the owning root, an unbuilt `site/` folder, a project root, and a kit site sent through the Functions deploy are refused. D1 work here is the database a Pages site uses; a database nothing on Pages uses is not this skill's job.
+Not for Vercel, Workers, R2, rulesets, or hostname DNS. A request to "point this domain at the new site" sequences `experts/IT Expert/`, which owns `skills/Zone Publisher/`. Never call `cloudflare.dns.*` or `cloudflare.zones.*`. Never connect an envelope or owning root to a host or run `git init`. Two payloads are accepted and nothing else: a kit site's `site/dist/`, through the kit deploy; and a foreign site's build output with the Functions build `tools/pages-functions/` made from its `functions/` folder, through the Functions deploy. A kit payload may carry the kit's Function, which the deploy reads from `site/dist-function/` beside `dist/` and which exists only when an article is scheduled. Nothing else of a kit payload may be server code. The envelope, the owning root, an unbuilt `site/` folder, a project root, and a kit site sent through the Functions deploy are refused. D1 work here is the database a Pages site uses; a database nothing on Pages uses is not this skill's job.
 
 ## Objective
 
@@ -79,6 +79,8 @@ Return only what the selected read supplies, scoped to the account and project o
 
 A kit deploy, or a create or add-domain that is part of one: resolve `<site>` to the inner `site/` kit folder and its `site/dist/` payload before any write. The envelope has `site/kit.json`; only domain-folder `kit.json` is old shape and needs Site Author Wrap before this hand-off. Load the owning chain per the constitution's Workspace Model; its yield here is the declared site path. An envelope, owning root, foreign tree, or any payload other than that kit's `site/dist/` stops the hand-off. Sequence `skills/Site Author/` Check with the envelope folder when its contract evidence is missing, stale, or not shown to still match this envelope and this payload; a failing check returns to the requester for repair.
 
+Does `site/dist-function/` exist beside that `dist/`? No: the deploy publishes the build-time view. Yes: the payload carries the kit's Function, which exists only because an article is scheduled. Before that deploy, tell the requester in plain words that the scheduled article appears at its instant with no further step. Read the project's `fail_open` through `cloudflare.pages.get_project` and say what a visitor sees past the free plan's daily limit. Pages Functions requests count toward the Workers Free plan's 100,000 a day, shared by every Worker and Function on the account, and the count resets at midnight UTC. In fail-open mode, the default, visitors then get the build-time view. In fail-closed mode they get Cloudflare's 1027 error page on the routed paths. Webmaster Job 3 is the one gate, at filing.
+
 A Functions deploy, or a create, add-domain or bind that is part of one: before any write, in this order.
 1. The build output exists and is the directory the requester's own build wrote, not the project root. This skill does not run a foreign site's build.
 2. Run `tools/pages-functions/` `build` with the site's `functions/` folder, the build output as `--assets`, and as `--out` a new empty directory outside both, in a working location the owning root's `AGENTS.md` permits. A tool that stops for consent is asking a question, per the constitution's Behavioral Core.
@@ -91,9 +93,9 @@ Hand `<site>` (payload plus enclosing envelope, or the foreign build output, Fun
 
 **4. Confirm the gateway stop.** After the pass, where Step 3 required one, require the requester's confirmation of that exact action and input. `confirm: true` comes from the requester's approval of the gateway's `needs_confirmation` stop, never this skill's own initiative, and is sent as gateway confirmation, not an extra action input. Every write is `confirmation: always`: every call requires its own confirmation. A changed source, destination, project, binding, database, or payload returns to Step 3 for a new Job 3 verdict before confirmation when that step applied. `needs_confirmation` waits for that approval and never triggers a self-confirmed retry.
 
-**5. Run the confirmed call, then report evidence.** Execute only the confirmed call. For a kit deploy, `dir` is the absolute path of the kit `site/dist/`; for a Functions deploy, `dir` is the build output and `functions_build` the tool's `--out`. Report the returned deployment id, url, and environment where present, plus `dir`, `files`, `uploaded`, `already_present`, `manifest`, and `skipped`, and for a Functions deploy its `functions` routes. Show the requester anything in `skipped`. For a bind, report `replaced` and any `collateral_changes`, which name settings that changed besides the binding and are shown to the requester as they are. For a migration, report `applied` or `already_applied`. A failure or uncertain response stops rather than retrying a potentially accepted publish or write. After a deploy, use deployment-list for the same account and project; report the matching deployment's returned status and URL if supplied. A missing match or unreadable result remains unverified. After a Functions deploy, request each route the Function answers with GET on the deployment's URL and report what came back; a route that writes data is exercised only on the requester's go. An accepted deploy is not proof that the custom domain resolves, and a 200 from a Function is not proof its binding reached it.
+**5. Run the confirmed call, then report evidence.** Execute only the confirmed call. For a kit deploy, `dir` is the absolute path of the kit `site/dist/`; for a Functions deploy, `dir` is the build output and `functions_build` the tool's `--out`. Report the returned deployment id, url, and environment where present, plus `dir`, `files`, `uploaded`, `already_present`, `manifest`, and `skipped`, and for a Functions deploy its `functions` routes. For a kit deploy, report `function` as well. Null means the build-time view is what is live. Otherwise name the kit version, the fingerprint, the schedule's size, the route-rule counts, and `carried` and `not_carried`, which say what goes live when. Show the requester anything in `skipped`. For a bind, report `replaced` and any `collateral_changes`, which name settings that changed besides the binding and are shown to the requester as they are. For a migration, report `applied` or `already_applied`. A failure or uncertain response stops rather than retrying a potentially accepted publish or write. After a deploy, use deployment-list for the same account and project; report the matching deployment's returned status and URL if supplied. A missing match or unreadable result remains unverified. After a Functions deploy, request each route the Function answers with GET on the deployment's URL and report what came back; a route that writes data is exercised only on the requester's go. An accepted deploy is not proof that the custom domain resolves, and a 200 from a Function is not proof its binding reached it.
 
-Wrangler is the fallback human route when the gateway path cannot run, not the primary. The sequence is in `SETUP.md`. Do not run it from this skill. DNS follows Context's hand-off.
+Wrangler is the fallback human route when the gateway path cannot run, not the primary. The sequence is in `SETUP.md`. A Wrangler deploy of `dist/` carries no Function, so the build-time view stays until a rebuild and deploy after each date. Do not run it from this skill. DNS follows Context's hand-off.
 
 ## Pitfalls
 
@@ -113,6 +115,7 @@ Wrangler is the fallback human route when the gateway path cannot run, not the p
 
 - A read returns the requested scoped data, including an honest empty list, with no publish gate or write.
 - A publish names the exact payload, Functions build where there is one, project and bindings, carries Webmaster Job 3's pass, and the requester's confirmation of the gateway stop for that call.
+- A kit deploy reports `function`. When the payload carried the kit's Function, that report says what goes live when.
 - A database change names the database and the SQL the requester saw before confirming.
 - The result names the returned deployment evidence, or the precise verification shortfall. No DNS success is inferred, and no binding is inferred from a 200.
 - A removal names the project, domain or database the requester saw and confirmed; nothing else was removed.

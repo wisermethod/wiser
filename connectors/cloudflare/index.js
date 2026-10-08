@@ -4,6 +4,7 @@ import {
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, extname, isAbsolute, join, normalize, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // Copied from the vercel connector's path screen. A module may not import
 // another connector (standards/script-contract.md, Connector modules), which
@@ -1071,6 +1072,312 @@ function collateralChanges(env, before, after, binding) {
   return names;
 }
 
+// The kit Function is code, so _worker.js is admitted only when its sha256 is
+// listed beside this module. _routes.json and schedule.bin are the site's own
+// and carry no code: they are screened by shape, and can only send more or
+// fewer requests to that Function. Read once per deploy; a missing or
+// malformed list fails closed for every kit Function deploy.
+const KIT_FUNCTION_FILES = ['_worker.js', '_routes.json', 'schedule.bin', 'function.json'];
+const FUNCTION_RECORD_KEYS = new Set(['kitVersion', 'buildTime', 'worker', 'routes', 'schedule', 'carried', 'notCarried', 'paths']);
+const SHA256_HEX = /^[0-9a-f]{64}$/;
+
+function sha256Hex(bytes) {
+  return createHash('sha256').update(bytes).digest('hex');
+}
+
+function loadKitFingerprints() {
+  const path = fileURLToPath(new URL('./kit-function.json', import.meta.url));
+  let bytes;
+  try {
+    bytes = readFileSync(path);
+  } catch {
+    return { error: invalid('dir', 'kit-function.json is missing; refusing the kit Function') };
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+  } catch {
+    return { error: invalid('dir', 'kit-function.json is malformed; refusing the kit Function') };
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || Object.keys(parsed).length !== 1
+    || !Array.isArray(parsed.fingerprints) || parsed.fingerprints.length === 0) {
+    return { error: invalid('dir', 'kit-function.json is malformed; refusing the kit Function') };
+  }
+  const seen = new Set();
+  for (const entry of parsed.fingerprints) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      return { error: invalid('dir', 'kit-function.json is malformed; refusing the kit Function') };
+    }
+    const keys = Object.keys(entry);
+    if (keys.length !== 2 || !Object.prototype.hasOwnProperty.call(entry, 'kitVersion') || !Object.prototype.hasOwnProperty.call(entry, 'sha256')
+      || typeof entry.kitVersion !== 'string' || entry.kitVersion.length === 0
+      || typeof entry.sha256 !== 'string' || !SHA256_HEX.test(entry.sha256) || seen.has(entry.sha256)) {
+      return { error: invalid('dir', 'kit-function.json is malformed; refusing the kit Function') };
+    }
+    seen.add(entry.sha256);
+  }
+  return { fingerprints: parsed.fingerprints };
+}
+
+function parseFunctionRecord(bytes) {
+  let parsed;
+  try {
+    parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+  } catch {
+    return { error: 'function.json is not JSON' };
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { error: 'function.json is not an object' };
+  const keys = Object.keys(parsed);
+  if (keys.length !== FUNCTION_RECORD_KEYS.size || keys.some((key) => !FUNCTION_RECORD_KEYS.has(key))) {
+    return { error: 'function.json is not the kit record' };
+  }
+  if (typeof parsed.kitVersion !== 'string' || parsed.kitVersion.length === 0) return { error: 'function.json kitVersion is missing' };
+  if (typeof parsed.buildTime !== 'string') return { error: 'function.json buildTime is missing' };
+  for (const name of ['worker', 'routes', 'schedule']) {
+    if (typeof parsed[name] !== 'string' || !SHA256_HEX.test(parsed[name])) return { error: `function.json ${name} is not a sha256` };
+  }
+  if (!Array.isArray(parsed.carried) || !Array.isArray(parsed.notCarried)) return { error: 'function.json carried is not an array' };
+  if (typeof parsed.paths !== 'number' || !Number.isInteger(parsed.paths) || parsed.paths < 0) {
+    return { error: 'function.json paths is not a count' };
+  }
+  return { record: parsed };
+}
+
+function screenKitRoutes(bytes) {
+  let parsed;
+  try {
+    parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+  } catch {
+    return { error: '_routes.json is not JSON' };
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { error: '_routes.json is not an object' };
+  for (const key of Object.keys(parsed)) {
+    if (key !== 'version' && key !== 'include' && key !== 'exclude') return { error: `_routes.json has an unexpected key: ${key}` };
+  }
+  const routes = parseRoutes(bytes);
+  if (routes.error) return routes;
+  for (const rule of [...routes.include, ...routes.exclude]) {
+    if (codePoints(rule) > 100) return { error: '_routes.json rule is longer than 100 characters' };
+  }
+  return routes;
+}
+
+function screenSchedule(bytes) {
+  if (bytes.length < 4 || bytes.subarray(0, 4).toString('latin1') !== 'WKS1') {
+    return { error: 'schedule.bin does not start with WKS1' };
+  }
+  if (bytes.length < 8) return { error: 'schedule.bin header does not parse' };
+  const length = bytes.readUInt32BE(4);
+  if (length > bytes.length - 8) return { error: 'schedule.bin header does not parse' };
+  let head;
+  try {
+    head = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(8, 8 + length)));
+  } catch {
+    return { error: 'schedule.bin header does not parse' };
+  }
+  // The header's other fields, and every byte after it, are data. They are not interpreted.
+  if (!head || typeof head !== 'object' || Array.isArray(head) || head.v !== 1) {
+    return { error: 'schedule.bin header v is not 1' };
+  }
+  return { ok: true };
+}
+
+function kitWorkerBundle(worker, schedule) {
+  const metadata = Buffer.from('{"main_module":"_worker.js"}', 'utf8');
+  const bodies = [metadata, worker, schedule];
+  let boundary;
+  do {
+    boundary = `wiser-${randomUUID()}`;
+  } while (bodies.some((body) => body.includes(boundary)));
+  const raw = Buffer.concat([
+    Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="metadata"\r\n\r\n`, 'utf8'),
+    metadata,
+    Buffer.from('\r\n', 'utf8'),
+    Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="_worker.js"; filename="_worker.js"\r\nContent-Type: application/javascript+module\r\n\r\n`, 'utf8'),
+    worker,
+    Buffer.from('\r\n', 'utf8'),
+    Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="schedule.bin"; filename="schedule.bin"\r\nContent-Type: application/octet-stream\r\n\r\n`, 'utf8'),
+    schedule,
+    Buffer.from('\r\n', 'utf8'),
+    Buffer.from(`--${boundary}--\r\n`, 'utf8'),
+  ]);
+  // The bytes sent are the canonical bundle parseBundle writes, so the part
+  // headers are the ones that parser accepts and no other shape can reach Cloudflare.
+  const parsed = parseBundle(raw);
+  if (parsed.error) return { error: parsed.error };
+  if (parsed.canonical.length > BUNDLE_MAX_BYTES) return { error: 'bundle over 2 MiB' };
+  return { canonical: parsed.canonical };
+}
+
+function readKitVersion(site, refused) {
+  const full = join(site, 'kit.json');
+  let linked;
+  try {
+    linked = lstatSync(full);
+  } catch {
+    return { error: invalid('dir', 'kit.json missing') };
+  }
+  if (linked.isSymbolicLink() || !linked.isFile()) return { error: invalid('dir', 'kit.json missing') };
+  const resolved = canonicalize(full);
+  if (!resolved || resolved !== resolve(full)) return { error: invalid('dir', 'kit.json missing') };
+  const screened = screenFile(resolved, refused, site);
+  if (screened.refused) return { error: invalid('dir', `kit.json ${screened.refused}`) };
+  const bytes = readScreened(screened.resolved, screened.id);
+  if (!bytes) return { error: invalid('dir', 'kit.json unreadable') };
+  let parsed;
+  try {
+    parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+  } catch {
+    return { error: invalid('dir', 'kit.json unreadable') };
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || typeof parsed.kitVersion !== 'string') {
+    return { error: invalid('dir', 'kitVersion mismatch') };
+  }
+  return { kitVersion: parsed.kitVersion };
+}
+
+function readBuildRecord(site, refused) {
+  const astro = join(site, '.astro');
+  let astroStat;
+  try {
+    astroStat = lstatSync(astro);
+  } catch {
+    return { error: invalid('dir', 'missing build record') };
+  }
+  if (astroStat.isSymbolicLink() || !astroStat.isDirectory()) return { error: invalid('dir', 'kit build record unreadable') };
+  const full = join(astro, 'kit-build.json');
+  let linked;
+  try {
+    linked = lstatSync(full);
+  } catch {
+    return { error: invalid('dir', 'missing build record') };
+  }
+  if (linked.isSymbolicLink() || !linked.isFile()) return { error: invalid('dir', 'kit build record unreadable') };
+  const resolved = canonicalize(full);
+  if (!resolved || resolved !== resolve(full) || resolved !== join(site, '.astro', 'kit-build.json')) {
+    return { error: invalid('dir', 'kit build record unreadable') };
+  }
+  const screened = screenFile(resolved, refused, site);
+  if (screened.refused) return { error: invalid('dir', 'kit build record unreadable') };
+  const bytes = readScreened(screened.resolved, screened.id);
+  if (!bytes) return { error: invalid('dir', 'kit build record unreadable') };
+  let parsed;
+  try {
+    parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+  } catch {
+    return { error: invalid('dir', 'kit build record unreadable') };
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || typeof parsed.buildTime !== 'string') {
+    return { error: invalid('dir', 'kit build record unreadable') };
+  }
+  return { buildTime: parsed.buildTime };
+}
+
+function readKitFunctionFile(root, name, refused) {
+  const full = join(root, name);
+  const resolved = canonicalize(full);
+  if (!resolved || resolved !== resolve(full)) return { error: invalid('dir', `symbolic link: ${name}`) };
+  const screened = screenFile(resolved, refused, root);
+  if (screened.refused) return { error: invalid('dir', `${screened.refused}: ${name}`) };
+  const bytes = readScreened(screened.resolved, screened.id);
+  if (!bytes) return { error: invalid('dir', `unreadable: ${name}`) };
+  return { name, resolved: screened.resolved, id: screened.id, bytes };
+}
+
+// site is the canonical parent of the dist screenDeployDir accepted. Absent
+// means this deploy is the static one. Anything other than the four regular
+// files refuses before a byte is trusted.
+function readKitFunction(site, refused) {
+  const lexical = join(site, 'dist-function');
+  let linked;
+  try {
+    linked = lstatSync(lexical);
+  } catch (err) {
+    if (err && err.code === 'ENOENT') return { absent: true };
+    return { error: invalid('dir', 'dist-function unreadable') };
+  }
+  if (linked.isSymbolicLink()) return { error: invalid('dir', 'dist-function is a symbolic link') };
+  if (!linked.isDirectory()) return { error: invalid('dir', 'dist-function is not a directory') };
+  const resolved = canonicalize(lexical);
+  if (!resolved || resolved !== lexical) return { error: invalid('dir', 'dist-function is a symbolic link') };
+  let entries;
+  try {
+    entries = readdirSync(resolved, { withFileTypes: true });
+  } catch {
+    return { error: invalid('dir', 'dist-function unreadable') };
+  }
+  const present = new Set();
+  for (const entry of entries) {
+    const full = join(resolved, entry.name);
+    let st;
+    try {
+      st = lstatSync(full);
+    } catch {
+      return { error: invalid('dir', `unreadable: ${entry.name}`) };
+    }
+    if (st.isSymbolicLink()) return { error: invalid('dir', `symbolic link: ${entry.name}`) };
+    if (!st.isFile()) return { error: invalid('dir', `not a regular file: ${entry.name}`) };
+    if (!KIT_FUNCTION_FILES.includes(entry.name) || present.has(entry.name)) {
+      return { error: invalid('dir', `unexpected entry: ${entry.name}`) };
+    }
+    present.add(entry.name);
+  }
+  for (const name of KIT_FUNCTION_FILES) {
+    if (!present.has(name)) return { error: invalid('dir', `missing ${name}`) };
+  }
+  const files = [];
+  for (const name of KIT_FUNCTION_FILES) {
+    const read = readKitFunctionFile(resolved, name, refused);
+    if (read.error) return read;
+    files.push(read);
+  }
+  const byName = Object.fromEntries(files.map((file) => [file.name, file]));
+  const list = loadKitFingerprints();
+  if (list.error) return list;
+  const workerSha = sha256Hex(byName['_worker.js'].bytes);
+  const routesSha = sha256Hex(byName['_routes.json'].bytes);
+  const scheduleSha = sha256Hex(byName['schedule.bin'].bytes);
+  const match = list.fingerprints.find((entry) => entry.sha256 === workerSha);
+  if (!match) return { error: invalid('dir', 'unlisted fingerprint') };
+  const parsed = parseFunctionRecord(byName['function.json'].bytes);
+  if (parsed.error) return { error: invalid('dir', parsed.error) };
+  const meta = parsed.record;
+  if (meta.worker !== workerSha || meta.routes !== routesSha || meta.schedule !== scheduleSha) {
+    const which = meta.worker !== workerSha ? 'worker' : meta.routes !== routesSha ? 'routes' : 'schedule';
+    return { error: invalid('dir', `function.json hash mismatch: ${which}`) };
+  }
+  const kit = readKitVersion(site, refused);
+  if (kit.error) return kit;
+  if (meta.kitVersion !== match.kitVersion || kit.kitVersion !== match.kitVersion) {
+    return { error: invalid('dir', 'kitVersion mismatch') };
+  }
+  const build = readBuildRecord(site, refused);
+  if (build.error) return build;
+  if (build.buildTime !== meta.buildTime) return { error: invalid('dir', 'buildTime mismatch') };
+  const routes = screenKitRoutes(byName['_routes.json'].bytes);
+  if (routes.error) return { error: invalid('dir', routes.error) };
+  const schedule = screenSchedule(byName['schedule.bin'].bytes);
+  if (schedule.error) return { error: invalid('dir', schedule.error) };
+  const bundle = kitWorkerBundle(byName['_worker.js'].bytes, byName['schedule.bin'].bytes);
+  if (bundle.error) return { error: invalid('dir', bundle.error) };
+  return {
+    payload: {
+      files,
+      routesBytes: byName['_routes.json'].bytes,
+      bundle: bundle.canonical,
+      carried: meta.carried,
+      report: {
+        kit_version: meta.kitVersion,
+        worker_sha256: workerSha,
+        schedule_bytes: byName['schedule.bin'].bytes.length,
+        routes: { include: routes.include.length, exclude: routes.exclude.length },
+        carried: meta.carried,
+        not_carried: meta.notCarried,
+      },
+    },
+  };
+}
+
 export const modules = {
   dns: {
     async list_records(input, ctx) {
@@ -1312,6 +1619,42 @@ export const modules = {
       // hashes yet, and a refusal sends nothing.
       const oversize = oversizeAssetError(walked.assets);
       if (oversize) return oversize;
+      // site/dist-function/ is the sibling of the dist this screen accepted.
+      // Absent, the deploy is the static one and function is null.
+      const fn = readKitFunction(dirname(root.resolved), refused);
+      if (fn.error) return fn.error;
+      const manifest = manifestFor(walked.assets);
+      let prepared = null;
+      if (fn.payload) {
+        const extra = [
+          {
+            name: '_worker.bundle',
+            filename: '_worker.bundle',
+            contentType: 'application/octet-stream',
+            value: fn.payload.bundle,
+          },
+          {
+            name: '_routes.json',
+            filename: '_routes.json',
+            contentType: 'application/octet-stream',
+            value: fn.payload.routesBytes,
+          },
+        ];
+        const form = buildMultipart(deploymentParts(manifest, walked.headers, walked.redirects, extra));
+        const encoded = base64Length(form.body.length);
+        if (encoded > MAX_UPLOAD_BYTES) {
+          const pages = fn.payload.carried.length;
+          return {
+            status: 'invalid_arguments',
+            field: 'dir',
+            reason: `deployment request over the 3 MiB limit; the kit Function carries ${pages} scheduled instants`,
+            bytes: encoded,
+            scheduled_instants: pages,
+            fallback: 'Deploy with Wrangler: wrangler pages deploy',
+          };
+        }
+        prepared = form;
+      }
       const tokenEndpoint = accountPath(input.account_id, input.project_name, 'upload-token');
       const tokenData = await proxyData(ctx, { endpoint: tokenEndpoint, method: 'GET' });
       const jwt = readJwt(tokenData);
@@ -1324,8 +1667,15 @@ export const modules = {
       if (changed) return changed;
       const upserted = await assetCall(ctx, jwt, '/pages/assets/upsert-hashes', { hashes: sent.allHashes });
       if (!envelopeOk(upserted)) return vendorError('/pages/assets/upsert-hashes', 'POST');
-      const manifest = manifestFor(walked.assets);
-      const form = buildMultipart(deploymentParts(manifest, walked.headers, walked.redirects));
+      // The four Function files are re-read immediately before the deployment
+      // request. A change stops the deploy, and no byte of them is an asset.
+      if (fn.payload) {
+        for (const file of fn.payload.files) {
+          const now = readScreened(file.resolved, file.id);
+          if (!now || !now.equals(file.bytes)) return invalid('dir', `file changed during deploy: ${file.name}`);
+        }
+      }
+      const form = prepared || buildMultipart(deploymentParts(manifest, walked.headers, walked.redirects));
       const deploymentsEndpoint = accountPath(input.account_id, input.project_name, 'deployments');
       const posted = await postDeployment(ctx, deploymentsEndpoint, form);
       if (posted.error) return posted.error;
@@ -1337,6 +1687,7 @@ export const modules = {
         already_present: sent.alreadyPresent,
         manifest: Object.keys(manifest),
         skipped: walked.skipped,
+        function: fn.payload ? fn.payload.report : null,
       }, jwt);
     },
     async bind_d1(input, ctx) {

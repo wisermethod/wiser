@@ -31,7 +31,7 @@ Content jobs may change `site/src/content/**`, `site/public/images/**` and `site
 
 `site/src/custom/**` is site code: written only by Site Author's File site code job, after `experts/Creative Director/` has passed a header, footer, stylesheet or component that `skills/Component Design/` or `skills/Marketing Page Design/` produced, and never by a content job. Upgrade keeps that folder byte-identical.
 
-Content jobs may not change `site/src/custom/**`, `site/src/components/**`, `site/src/layouts/**`, `site/src/pages/**`, `site/astro.config.mjs`, `site/package.json`, `site/package-lock.json`, `site/src/styles/**`, `site/public/fonts/**`, `site/.github/**`, `site/KIT.md`, or any key of `site/kit.json` other than `nav`, `footer`, `siteName`, `layout`, `blog`, `person` and `collections.articles`. The one exception is `site/src/styles/tokens.css` and `site/public/fonts/**` when `skills/Designer/` has already gated that token update. Any other write under `site/src/styles/**`, and any write under `site/public/fonts/**` outside that token update: refuse it. Load `site/KIT.md` for collection schemas, required frontmatter, and SEO mechanics.
+Content jobs may not change `site/src/custom/**`, `site/src/components/**`, `site/src/layouts/**`, `site/src/pages/**`, `site/src/function/**`, `site/astro.config.mjs`, `site/package.json`, `site/package-lock.json`, `site/src/styles/**`, `site/public/fonts/**`, `site/.github/**`, `site/KIT.md`, or any key of `site/kit.json` other than `nav`, `footer`, `siteName`, `layout`, `blog`, `person` and `collections.articles`. `site/src/function/` is kit code. The one exception is `site/src/styles/tokens.css` and `site/public/fonts/**` when `skills/Designer/` has already gated that token update. Any other write under `site/src/styles/**`, and any write under `site/public/fonts/**` outside that token update: refuse it. Load `site/KIT.md` for collection schemas, required frontmatter, and SEO mechanics.
 
 ## Check and preview
 
@@ -39,4 +39,4 @@ Invoke Site Author Check on this envelope; it walks `site/` against `site/KIT.md
 
 ## Publish boundary
 
-Host payload is `site/` or `site/dist/`. Never connect this envelope or the owning root to a host. Envelope `memory/` never rides to a host. Site Author does not publish or run `git init`; the host skill takes the kit folder, and Webmaster Job 3 gates publish.
+Host payload is `site/` or `site/dist/`. `site/dist-function/` is build output beside `site/dist/`, written when an article is scheduled, and it is not uploaded by itself. Never connect this envelope or the owning root to a host. Envelope `memory/` never rides to a host. Site Author does not publish or run `git init`; the host skill takes the kit folder, and Webmaster Job 3 gates publish.

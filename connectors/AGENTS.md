@@ -78,7 +78,7 @@ guide's `## Revoking` section carries the same working through, from `connectors
 
 | Connector | Description |
 |-----------|-------------|
-| `cloudflare/CONNECTOR.md` | Reaches Cloudflare DNS, the account's zones, D1 databases, Pages projects, domains, production deploys including Pages Functions, and rulesets, with every removal and every production deploy confirmed |
+| `cloudflare/CONNECTOR.md` | Reaches Cloudflare DNS, the account's zones, D1 databases, Pages projects, domains, production deploys including a kit site's fingerprinted Pages Function and a foreign site's Pages Functions, and rulesets, with every removal and every production deploy confirmed |
 | `github/CONNECTOR.md` | Reaches one GitHub account's repositories and issues to read them, list them, and open an issue, and reports the authenticated account |
 | `vercel/CONNECTOR.md` | Reads projects and deployments and creates a deployment, uploading its files by reference, only with confirmation on every call |
 | `stripe/CONNECTOR.md` | Reads customers and charges through one billing grant |

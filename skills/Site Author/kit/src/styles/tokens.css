@@ -58,6 +58,12 @@
   .skip-link:focus { top: 1rem; background: var(--color-paper); padding: 0.5rem; }
 }
 
+/* The kit Function, the scheduled build and their output are not page markup. */
+@source not "../function";
+@source not "../lib/scheduled-build.mjs";
+@source not "../../.kit-states";
+@source not "../../dist-function";
+
 /* @tailwindcss/typography sets its prose colours and size in the utilities layer, which outranks base, so the kit's prose rules live there too. */
 @layer utilities {
   main.prose {
