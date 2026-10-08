@@ -12,8 +12,7 @@ Make an API token (not a Global API Key). Permissions are fixed when you make it
 |--------|-------------|
 | `dns` | Zone / DNS / Edit on the named zone or zones |
 | `zones` | Zone / Zone / Read, or an account-wide list of zones. `create` and `delete` need Edit |
-| `pages` | Account / Cloudflare Pages / Read for list and get. Edit for `create_project`, `add_domain`, `remove_domain`, `delete_project`, `deploy`, `bind_d1`, and `deploy_with_functions`. A Read-only token returns 403 on those seven |
-| `d1` | Account / D1 / Read for `list_databases`, `get_database`, and `query`. Account / D1 / Edit for `create_database`, `execute`, `apply_migration`, and `delete_database`. Cloudflare's API reference calls Edit "D1 Write". A Read-only token returns 403 on those four |
+| `pages` | Account / Cloudflare Pages / Read for list and get. Edit for `create_project`, `add_domain`, `remove_domain`, `delete_project`, `deploy`, `bind_d1`, and `deploy_with_functions`. A Read-only token returns 403 on those seven. The D1 actions ride this same grant: Account / D1 / Read for `d1_list_databases`, `d1_get_database`, and `d1_query`, and Account / D1 / Edit for `d1_create_database`, `d1_execute`, `d1_apply_migration`, and `d1_delete_database` (Cloudflare's API reference calls Edit "D1 Write"). A token without the D1 permission returns 403 on those seven and nothing else |
 | `rulesets` | Zone / Zone WAF or the rulesets permission for the zones you mean |
 
 One wider token can serve several modules. You still connect each module separately and paste that same token on each hosted page. **Extra permissions on one grant do not unlock another**: a token connected as `dns` does not serve `zones`, and `pages` needs Account / Cloudflare Pages in its own right. A 403 on a Pages call from a token that works for DNS is that, and not an outage.
@@ -28,7 +27,7 @@ Use the **Cloudflare Api Key** blueprint. Do not make **Cloudflare** (email plus
 
 ## Through the gateway
 
-1. Name the module: "Connect Cloudflare DNS", "Connect Cloudflare zones", "Connect Cloudflare Pages", "Connect Cloudflare D1", or "Connect Cloudflare rulesets".
+1. Name the module: "Connect Cloudflare DNS", "Connect Cloudflare zones", "Connect Cloudflare Pages", or "Connect Cloudflare rulesets". The D1 actions ride the Pages connection and take no connect of their own.
 2. The skill runs `start_connect` with `service=cloudflare` and that module.
 3. Open the link. The page asks for the API token only. Paste it there.
 4. `connect_status`. On `ACTIVE`, that module's actions run.
@@ -41,7 +40,7 @@ A credential file or token in chat is not a route. Use the API-token-only hosted
 
 - **zone id**: zone Overview, right-hand column, or `cloudflare.zones.list`.
 - **account id**: `cloudflare.zones.list_accounts`, then Pages and D1 calls take it as `account_id`.
-- **database id**: `cloudflare.d1.list_databases`, then D1 calls take it as `database_id`.
+- **database id**: `cloudflare.pages.d1_list_databases`, then D1 calls take it as `database_id`.
 
 ## Revoking
 

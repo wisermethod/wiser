@@ -102,7 +102,7 @@ function envelope(result) {
 
 async function d1Calls(action, input, onProxy) {
   const calls = [];
-  const result = await modules.d1[action](input, {
+  const result = await modules.pages[`d1_${action}`](input, {
     async proxy(req) {
       calls.push(req);
       if (onProxy) return onProxy(req, calls);
@@ -112,48 +112,50 @@ async function d1Calls(action, input, onProxy) {
   return { result, calls };
 }
 
-test('d1 actions need the d1 grant and pages actions do not accept it', async () => {
+test('d1 actions ride the pages grant: needs_connect without it, and no d1 grant exists', async () => {
   const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS] });
   const reads = [
-    ['cloudflare.d1.list_databases', { account_id: ACCOUNT }],
-    ['cloudflare.d1.get_database', { account_id: ACCOUNT, database_id: DATABASE }],
-    ['cloudflare.d1.query', { account_id: ACCOUNT, database_id: DATABASE, sql: 'SELECT 1' }],
+    ['cloudflare.pages.d1_list_databases', { account_id: ACCOUNT }],
+    ['cloudflare.pages.d1_get_database', { account_id: ACCOUNT, database_id: DATABASE }],
+    ['cloudflare.pages.d1_query', { account_id: ACCOUNT, database_id: DATABASE, sql: 'SELECT 1' }],
   ];
   for (const [action, input] of reads) {
     const denied = await gw.execute({ action, input });
     assert.equal(denied.status, 'needs_connect', action);
-    assert.equal(denied.module, 'd1', action);
-  }
-  await putActive(store, fake, { service: 'cloudflare', module: 'd1' });
-  for (const action of ['cloudflare.pages.bind_d1', 'cloudflare.pages.deploy_with_functions']) {
-    const denied = await gw.execute({
-      action,
-      input: action.endsWith('bind_d1')
-        ? { account_id: ACCOUNT, project_name: PROJECT, binding: 'DB', database_id: DATABASE }
-        : { account_id: ACCOUNT, project_name: PROJECT, dir: '/tmp/site', functions_build: '/tmp/build' },
-    });
-    assert.equal(denied.status, 'needs_connect', action);
     assert.equal(denied.module, 'pages', action);
   }
+  // A dns grant does not unlock them.
+  await putActive(store, fake, { service: 'cloudflare', module: 'dns' });
+  const stillDenied = await gw.execute({ action: reads[0][0], input: reads[0][1] });
+  assert.equal(stillDenied.status, 'needs_connect');
+  assert.equal(stillDenied.module, 'pages');
+  // There is no separate d1 module to connect.
+  const noModule = await gw.execute({ action: 'cloudflare.d1.list_databases', input: { account_id: ACCOUNT } });
+  assert.notEqual(noModule.status, 'ok');
+  assert.equal(noModule.result, undefined);
+  await putActive(store, fake, { service: 'cloudflare', module: 'pages' });
+  fake.auth.proxy = async () => envelope([]);
+  const listed = await gw.execute({ action: reads[0][0], input: reads[0][1] });
+  assert.equal(listed.success, true);
 });
 
 test('d1 schema refusals happen at the gateway after the grant', async () => {
-  const { gw } = await granted('d1');
+  const { gw } = await granted('pages');
   const base = { account_id: ACCOUNT, database_id: DATABASE, sql: 'SELECT 1' };
-  const undeclared = await gw.execute({ action: 'cloudflare.d1.query', input: { ...base, extra: 1 } });
+  const undeclared = await gw.execute({ action: 'cloudflare.pages.d1_query', input: { ...base, extra: 1 } });
   assert.equal(undeclared.status, 'invalid_arguments');
   assert.equal(undeclared.field, 'extra');
   assert.equal(undeclared.reason, undefined);
-  const badAccount = await gw.execute({ action: 'cloudflare.d1.get_database', input: { account_id: 'acct-1', database_id: DATABASE } });
+  const badAccount = await gw.execute({ action: 'cloudflare.pages.d1_get_database', input: { account_id: 'acct-1', database_id: DATABASE } });
   assert.equal(badAccount.status, 'invalid_arguments');
   assert.equal(badAccount.field, 'account_id');
-  const badDatabase = await gw.execute({ action: 'cloudflare.d1.get_database', input: { account_id: ACCOUNT, database_id: 'not-a-uuid' } });
+  const badDatabase = await gw.execute({ action: 'cloudflare.pages.d1_get_database', input: { account_id: ACCOUNT, database_id: 'not-a-uuid' } });
   assert.equal(badDatabase.status, 'invalid_arguments');
   assert.equal(badDatabase.field, 'database_id');
 });
 
 test('d1 reads return the envelope and writes confirm', async () => {
-  const { gw, fake } = await granted('d1');
+  const { gw, fake } = await granted('pages');
   const calls = [];
   fake.auth.proxy = async (request) => {
     calls.push(request);
@@ -165,21 +167,21 @@ test('d1 reads return the envelope and writes confirm', async () => {
     return envelope({ uuid: DATABASE, name: request.body && request.body.name });
   };
   const listed = await gw.execute({
-    action: 'cloudflare.d1.list_databases',
+    action: 'cloudflare.pages.d1_list_databases',
     input: { account_id: ACCOUNT, name: 'widget', page: 2, per_page: 10 },
   });
   assert.equal(listed.success, true);
   assert.equal(calls[0].method, 'GET');
   assert.equal(calls[0].endpoint, `/accounts/${ACCOUNT}/d1/database?name=widget&page=2&per_page=10`);
-  const got = await gw.execute({ action: 'cloudflare.d1.get_database', input: { account_id: ACCOUNT, database_id: DATABASE } });
+  const got = await gw.execute({ action: 'cloudflare.pages.d1_get_database', input: { account_id: ACCOUNT, database_id: DATABASE } });
   assert.equal(got.result.uuid, DATABASE);
-  const create = { action: 'cloudflare.d1.create_database', input: { account_id: ACCOUNT, name: 'widget', primary_location_hint: 'weur' } };
+  const create = { action: 'cloudflare.pages.d1_create_database', input: { account_id: ACCOUNT, name: 'widget', primary_location_hint: 'weur' } };
   assert.equal((await gw.execute(create)).status, 'needs_confirmation');
   const created = await confirmCall(gw, create);
   assert.equal(created.result.name, 'widget');
   const post = calls.find((item) => item.method === 'POST' && item.endpoint.endsWith('/d1/database'));
   assert.deepEqual(post.body, { name: 'widget', primary_location_hint: 'weur' });
-  const remove = { action: 'cloudflare.d1.delete_database', input: { account_id: ACCOUNT, database_id: DATABASE } };
+  const remove = { action: 'cloudflare.pages.d1_delete_database', input: { account_id: ACCOUNT, database_id: DATABASE } };
   assert.equal((await gw.execute(remove)).status, 'needs_confirmation');
   const removed = await confirmCall(gw, remove);
   assert.equal(removed.success, true);
@@ -211,7 +213,7 @@ test('d1 query accepts a single SELECT and refuses everything else before a call
     const { result, calls } = await d1Calls('query', { ...input, sql });
     assert.equal(result.status, 'invalid_arguments', sql);
     assert.equal(result.field, 'sql', sql);
-    assert.equal(result.reason, 'not a single SELECT statement; use cloudflare.d1.execute', sql);
+    assert.equal(result.reason, 'not a single SELECT statement; use cloudflare.pages.d1_execute', sql);
     assert.equal(calls.length, 0, sql);
   }
   const accepted = `SELECT ${'😀'.repeat(100000 - 'SELECT '.length)}`;
@@ -238,19 +240,19 @@ test('d1 query accepts a single SELECT and refuses everything else before a call
 });
 
 test('d1 execute confirms, posts the sql, and enforces length', async () => {
-  const { gw, fake } = await granted('d1');
+  const { gw, fake } = await granted('pages');
   const calls = [];
   fake.auth.proxy = async (request) => {
     calls.push(request);
     return envelope([{ results: [], success: true, meta: {} }]);
   };
-  const call = { action: 'cloudflare.d1.execute', input: { account_id: ACCOUNT, database_id: DATABASE, sql: 'INSERT INTO t VALUES (1)' } };
+  const call = { action: 'cloudflare.pages.d1_execute', input: { account_id: ACCOUNT, database_id: DATABASE, sql: 'INSERT INTO t VALUES (1)' } };
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
   assert.equal(calls.length, 0);
   const ran = await confirmCall(gw, call);
   assert.equal(ran.success, true);
   assert.equal(calls.at(-1).body.sql, 'INSERT INTO t VALUES (1)');
-  const long = await modules.d1.execute(
+  const long = await modules.pages.d1_execute(
     { account_id: ACCOUNT, database_id: DATABASE, sql: 'a'.repeat(100001) },
     { proxy() { throw new Error('called'); } },
   );
@@ -348,7 +350,7 @@ test('apply_migration refuses a bad file before any call', async () => {
     writeFileSync(join(root, 'big.sql'), Buffer.alloc(1048577, 0x41));
     for (const [file, reason] of cases) {
       let calls = 0;
-      const result = await modules.d1.apply_migration(
+      const result = await modules.pages.d1_apply_migration(
         { account_id: ACCOUNT, database_id: DATABASE, file },
         { proxy() { calls += 1; throw new Error('called'); } },
       );
@@ -357,8 +359,8 @@ test('apply_migration refuses a bad file before any call', async () => {
       assert.equal(result.field, 'file', file);
       assert.equal(result.reason, reason, file);
     }
-    const { gw } = await granted('d1');
-    const pending = await gw.execute({ action: 'cloudflare.d1.apply_migration', input: { account_id: ACCOUNT, database_id: DATABASE, file: sql } });
+    const { gw } = await granted('pages');
+    const pending = await gw.execute({ action: 'cloudflare.pages.d1_apply_migration', input: { account_id: ACCOUNT, database_id: DATABASE, file: sql } });
     assert.equal(pending.status, 'needs_confirmation');
   } finally {
     cleanup(holder);

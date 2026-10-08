@@ -39,7 +39,7 @@ A release operator who distinguishes the intended account, the selected project,
 |------|--------------|
 | `SETUP.md` | Before any grant or live-host question |
 | `connectors/cloudflare/CONNECTOR.md` | Before selecting a gateway action |
-| `connectors/cloudflare/auth.md` | With SETUP for the `pages` and `d1` grants |
+| `connectors/cloudflare/auth.md` | With SETUP for the `pages` grant |
 | `tools/pages-functions/TOOL.md` | Before building a foreign site's Functions |
 | `experts/Webmaster/EXPERT.md` | Before a publish, for Job 3 |
 
@@ -63,15 +63,15 @@ Quote filesystem paths containing spaces, including this skill's directory.
 | Deploy a kit site | `cloudflare.pages.deploy` | `{ account_id, project_name, dir }` | always |
 | Deploy a site with Functions | `cloudflare.pages.deploy_with_functions` | `{ account_id, project_name, dir, functions_build }` | always |
 | Bind a D1 database | `cloudflare.pages.bind_d1` | `{ account_id, project_name, binding, database_id, environments? }` | always |
-| List databases | `cloudflare.d1.list_databases` | `{ account_id, name? }` | none |
-| Get database | `cloudflare.d1.get_database` | `{ account_id, database_id }` | none |
-| Read query | `cloudflare.d1.query` | `{ account_id, database_id, sql, params? }` | none |
-| Create database | `cloudflare.d1.create_database` | `{ account_id, name, primary_location_hint? }` | always |
-| Apply a migration | `cloudflare.d1.apply_migration` | `{ account_id, database_id, file }` | always |
-| Write query | `cloudflare.d1.execute` | `{ account_id, database_id, sql, params? }` | always |
-| Delete database | `cloudflare.d1.delete_database` | `{ account_id, database_id }` | always |
+| List databases | `cloudflare.pages.d1_list_databases` | `{ account_id, name? }` | none |
+| Get database | `cloudflare.pages.d1_get_database` | `{ account_id, database_id }` | none |
+| Read query | `cloudflare.pages.d1_query` | `{ account_id, database_id, sql, params? }` | none |
+| Create database | `cloudflare.pages.d1_create_database` | `{ account_id, name, primary_location_hint? }` | always |
+| Apply a migration | `cloudflare.pages.d1_apply_migration` | `{ account_id, database_id, file }` | always |
+| Write query | `cloudflare.pages.d1_execute` | `{ account_id, database_id, sql, params? }` | always |
+| Delete database | `cloudflare.pages.d1_delete_database` | `{ account_id, database_id }` | always |
 
-The Pages actions take the `cloudflare` / `pages` grant; Pages writes need Account / Cloudflare Pages / Edit. The D1 actions take the `cloudflare` / `d1` grant, a separate connect; its writes need Account / D1 / Edit. A Read-only token returns 403 on every write. `cloudflare.d1.query` runs one statement opening with `SELECT` and refuses anything else; a statement that could write is `cloudflare.d1.execute`. `apply_migration` and both deploys read files on this machine and run on the local gateway only; on the Wiser endpoint they answer `local_only`, and `skills/Set Up Connectors/` attaches the local gateway. Under the constitution's Behavioral Core, `needs_connect` stops this skill with no yield; `skills/Connect Account/` is the next human turn, using `connectors/cloudflare/auth.md`. Do not continue toward a write on a missing grant or invent a reading. Other unavailable actions follow that same heading, with the missing reading labeled per `standards/conventions.md` Evidence Labels.
+Every action here takes the `cloudflare` / `pages` grant, the D1 actions included. Pages writes need Account / Cloudflare Pages / Edit on its token; the D1 actions need Account / D1 / Read on that same token, and Edit for a write. A Read-only token returns 403 on every write, and a token without the D1 permission returns 403 on the D1 actions alone. `cloudflare.pages.d1_query` runs one statement opening with `SELECT` and refuses anything else; a statement that could write is `cloudflare.pages.d1_execute`. `d1_apply_migration` and both deploys read files on this machine and run on the local gateway only; on the Wiser endpoint they answer `local_only`, and `skills/Set Up Connectors/` attaches the local gateway. Under the constitution's Behavioral Core, `needs_connect` stops this skill with no yield; `skills/Connect Account/` is the next human turn, using `connectors/cloudflare/auth.md`. Do not continue toward a write on a missing grant or invent a reading. Other unavailable actions follow that same heading, with the missing reading labeled per `standards/conventions.md` Evidence Labels.
 
 Return only what the selected read supplies, scoped to the account and project or database. An empty `result` is an empty listing. A failed get is not a project or a database, and a project listing is not proof of a deployment. List, get, deployment-list and a read query are not a publish and take no Job 3 gate.
 

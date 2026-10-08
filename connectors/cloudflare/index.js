@@ -596,7 +596,7 @@ function sqlLengthError(sql) {
 
 // D1 splits multi-statement SQL on `;` server-side without regard to string
 // literals, so `SELECT ';DROP TABLE x'` would run a DROP if `;` were allowed.
-// The published pattern on d1.query's sql, applied here as well: after leading
+// The published pattern on pages.d1_query's sql, applied here as well: after leading
 // whitespace, SELECT and a character that is not a letter, digit, underscore or
 // semicolon, then no semicolon but one optional trailing one.
 const READ_SQL = /^\s*[Ss][Ee][Ll][Ee][Cc][Tt][^A-Za-z0-9_;][^;]*(?:;\s*)?$/;
@@ -1423,10 +1423,7 @@ export const modules = {
         },
       }, jwt);
     },
-  },
-
-  d1: {
-    async list_databases(input, ctx) {
+    async d1_list_databases(input, ctx) {
       if (!accountIdOk(input && input.account_id)) return invalid('account_id');
       const page = checkInt(input && input.page, 'page', 1);
       if (page) return page;
@@ -1437,7 +1434,7 @@ export const modules = {
         method: 'GET',
       });
     },
-    async get_database(input, ctx) {
+    async d1_get_database(input, ctx) {
       if (!accountIdOk(input && input.account_id)) return invalid('account_id');
       if (!databaseIdOk(input && input.database_id)) return invalid('database_id');
       return proxyEnvelope(ctx, {
@@ -1445,7 +1442,7 @@ export const modules = {
         method: 'GET',
       });
     },
-    async create_database(input, ctx) {
+    async d1_create_database(input, ctx) {
       if (!accountIdOk(input && input.account_id)) return invalid('account_id');
       if (!requiredString(input && input.name)) return invalid('name');
       if (input.primary_location_hint != null && !LOCATION_HINTS.has(input.primary_location_hint)) {
@@ -1459,7 +1456,7 @@ export const modules = {
         body,
       });
     },
-    async query(input, ctx) {
+    async d1_query(input, ctx) {
       if (!accountIdOk(input && input.account_id)) return invalid('account_id');
       if (!databaseIdOk(input && input.database_id)) return invalid('database_id');
       const length = sqlLengthError(input && input.sql);
@@ -1467,7 +1464,7 @@ export const modules = {
       const params = checkParams(input && input.params);
       if (params) return params;
       if (!singleSelect(input.sql)) {
-        return invalid('sql', 'not a single SELECT statement; use cloudflare.d1.execute');
+        return invalid('sql', 'not a single SELECT statement; use cloudflare.pages.d1_execute');
       }
       return proxyEnvelope(ctx, {
         endpoint: d1QueryPath(input.account_id, input.database_id),
@@ -1475,7 +1472,7 @@ export const modules = {
         body: queryBody(input.sql, input.params),
       });
     },
-    async execute(input, ctx) {
+    async d1_execute(input, ctx) {
       if (!accountIdOk(input && input.account_id)) return invalid('account_id');
       if (!databaseIdOk(input && input.database_id)) return invalid('database_id');
       const length = sqlLengthError(input && input.sql);
@@ -1488,7 +1485,7 @@ export const modules = {
         body: queryBody(input.sql, input.params),
       });
     },
-    async apply_migration(input, ctx) {
+    async d1_apply_migration(input, ctx) {
       if (!accountIdOk(input && input.account_id)) return invalid('account_id');
       if (!databaseIdOk(input && input.database_id)) return invalid('database_id');
       const refused = refusedSet();
@@ -1538,7 +1535,7 @@ export const modules = {
         rows_written: rowsWritten,
       };
     },
-    async delete_database(input, ctx) {
+    async d1_delete_database(input, ctx) {
       if (!accountIdOk(input && input.account_id)) return invalid('account_id');
       if (!databaseIdOk(input && input.database_id)) return invalid('database_id');
       return proxyEnvelope(ctx, {
@@ -1547,6 +1544,7 @@ export const modules = {
       });
     },
   },
+
 
   rulesets: {
     // grant ACTIVE 2026-09-08; create not run. get with an invented id was

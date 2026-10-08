@@ -429,20 +429,8 @@
             "required": ["account_id", "project_name", "dir", "functions_build"],
             "additionalProperties": false
           }
-        }
-      },
-      "unwrap_token": false,
-      "fallback": "none"
-    },
-    "d1": {
-      "auth": {
-        "provider": "catalog",
-        "toolkit": "CLOUDFLARE_API_KEY",
-        "scheme": "API_KEY",
-        "privilege": "write"
-      },
-      "actions": {
-        "list_databases": {
+        },
+        "d1_list_databases": {
           "description": "List D1 databases in an account. name filters by database name. page, when given, is an integer of 1 or more. per_page, when given, is an integer from 1 to 10000.",
           "risk": "low",
           "confirmation": "none",
@@ -459,7 +447,7 @@
             "additionalProperties": false
           }
         },
-        "get_database": {
+        "d1_get_database": {
           "description": "Get one D1 database.",
           "risk": "low",
           "confirmation": "none",
@@ -477,7 +465,7 @@
             "additionalProperties": false
           }
         },
-        "create_database": {
+        "d1_create_database": {
           "description": "Create a D1 database. name is required. primary_location_hint, when given, is one of wnam, enam, weur, eeur, apac, oc.",
           "risk": "medium",
           "confirmation": "always",
@@ -496,8 +484,8 @@
             "additionalProperties": false
           }
         },
-        "query": {
-          "description": "Run one read-only D1 query and return the vendor envelope. After leading whitespace, sql must open with SELECT followed by a character that is not a letter, digit, underscore or semicolon, and it may contain no semicolon except an optional one as the last non-whitespace character; the published pattern is that rule. D1 splits statements on semicolons with no regard for string literals, so the semicolon rule is absolute. sql is at most 100000 code points. params, when given, is an array of at most 100 strings. A statement that is not that single SELECT is refused; use cloudflare.d1.execute.",
+        "d1_query": {
+          "description": "Run one read-only D1 query and return the vendor envelope. After leading whitespace, sql must open with SELECT followed by a character that is not a letter, digit, underscore or semicolon, and it may contain no semicolon except an optional one as the last non-whitespace character; the published pattern is that rule. D1 splits statements on semicolons with no regard for string literals, so the semicolon rule is absolute. sql is at most 100000 code points. params, when given, is an array of at most 100 strings. A statement that is not that single SELECT is refused; use cloudflare.pages.d1_execute.",
           "risk": "low",
           "confirmation": "none",
           "execution": { "prefer": "proxy" },
@@ -525,7 +513,7 @@
             "additionalProperties": false
           }
         },
-        "execute": {
+        "d1_execute": {
           "description": "Run D1 SQL that is not limited to a single SELECT and return the vendor envelope. sql is at most 100000 code points. params, when given, is an array of at most 100 strings. D1 splits statements on semicolons with no regard for string literals.",
           "risk": "high",
           "confirmation": "always",
@@ -549,7 +537,7 @@
             "additionalProperties": false
           }
         },
-        "apply_migration": {
+        "d1_apply_migration": {
           "description": "Read one local .sql file and apply it on the local gateway only. Records a Wrangler-compatible d1_migrations row under the file's basename. A name already recorded is reported already_applied and nothing else runs. D1 splits on semicolons, so a semicolon inside a string literal or a trigger body is split too. Whether a failed statement rolls back earlier ones is D1's and is not promised. A file over 1 MiB (1048576 bytes) is refused; apply it with Wrangler: wrangler d1 migrations apply. The path must be absolute, must not contain a symbolic link, and must not be a credential file.",
           "risk": "high",
           "confirmation": "always",
@@ -568,7 +556,7 @@
             "additionalProperties": false
           }
         },
-        "delete_database": {
+        "d1_delete_database": {
           "description": "Delete a D1 database and the data in it.",
           "risk": "destructive",
           "confirmation": "always",

@@ -45,9 +45,9 @@
  * - **`cloudflare pages.deploy` requires `dir` to be a kit `site/dist` directory beside a
  *   `site/kit.json`.** Filesystem state again, of the same class, so its baseline row and its
  *   fixture are permanent for the same reason. Added 2026-09-24 with the action.
- * - **`cloudflare d1.apply_migration` `file` and `cloudflare pages.deploy_with_functions` `dir`
+ * - **`cloudflare pages.d1_apply_migration` `file` and `cloudflare pages.deploy_with_functions` `dir`
  *   are filesystem-state rows of the same permanent class**, added 2026-10-07 with their actions.
- *   `apply_migration` needs a real `.sql` file. `deploy_with_functions` needs a static directory
+ *   `d1_apply_migration` needs a real `.sql` file. `deploy_with_functions` needs a static directory
  *   and a functions build directory holding a valid minimal bundle. No schema can publish that.
  *
  * And one that changed shape when the validator moved into the gateway, stated because a
@@ -164,7 +164,7 @@ const FIXTURES = {
   // Resolved at call time, because FIXTURE_FILE is created per run rather than at import.
   'vercel:deployments.upload_file': () => ({ path: FIXTURE_FILE }),
   'cloudflare:pages.deploy': () => ({ dir: FIXTURE_DIST }),
-  'cloudflare:d1.apply_migration': () => ({ file: FIXTURE_MIGRATION }),
+  'cloudflare:pages.d1_apply_migration': () => ({ file: FIXTURE_MIGRATION }),
   'cloudflare:pages.deploy_with_functions': () => ({ dir: FIXTURE_STATIC, functions_build: FIXTURE_FUNCTIONS_BUILD }),
 };
 
