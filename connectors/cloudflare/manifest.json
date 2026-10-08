@@ -380,6 +380,211 @@
             "required": ["account_id", "project_name", "dir"],
             "additionalProperties": false
           }
+        },
+        "bind_d1": {
+          "description": "Bind one D1 database onto a Pages project under one binding name. This can overwrite a binding of the same name. environments names production, preview, or both, and defaults to both when omitted. Duplicates are refused. The patch contains only the named environments and only that binding. collateral_changes lists the names of other settings the patch changed, never their values.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "project_name": {
+                "type": "string",
+                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,56}[a-z0-9])?$"
+              },
+              "binding": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$" },
+              "database_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "environments": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 2,
+                "items": { "type": "string", "enum": ["production", "preview"] }
+              }
+            },
+            "required": ["account_id", "project_name", "binding", "database_id"],
+            "additionalProperties": false
+          }
+        },
+        "deploy_with_functions": {
+          "description": "Deploy static build output that is not a kit site, plus a Pages Functions bundle, to production by Direct Upload. Runs on the local gateway only. dir is an absolute directory that is not the home directory, not the credential directory, and not the filesystem root, and its root must not contain functions, _worker.js, _worker.bundle, functions-filepath-routing-config.json, package.json, wrangler.toml, wrangler.json, or wrangler.jsonc, in any letter case. functions_build is a separate absolute directory, not inside dir and not containing dir, whose entries are the regular files _worker.bundle, _routes.json, and functions-filepath-routing-config.json, plus an optional build.json. The bundle is at most 2 MiB and must parse as multipart with one metadata part, a main_module part, and bindings either absent or an empty array. Bindings come from the project through cloudflare.pages.bind_d1, not from the bundle. _routes.json is version 1, include is a non-empty array of strings, exclude is an array of strings, together at most 100 rules, and every rule starts with /. The deployment request is refused when its base64 length exceeds 3 MiB. A file that changes between screening and creation stops the deploy. The static walk applies the same screens as pages.deploy and lists every skip.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "project_name": {
+                "type": "string",
+                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,56}[a-z0-9])?$"
+              },
+              "dir": { "type": "string", "minLength": 1 },
+              "functions_build": { "type": "string", "minLength": 1 }
+            },
+            "required": ["account_id", "project_name", "dir", "functions_build"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    },
+    "d1": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "CLOUDFLARE_API_KEY",
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "actions": {
+        "list_databases": {
+          "description": "List D1 databases in an account. name filters by database name. page, when given, is an integer of 1 or more. per_page, when given, is an integer from 1 to 10000.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "name": { "type": "string" },
+              "page": { "type": "integer", "minimum": 1 },
+              "per_page": { "type": "integer", "minimum": 1, "maximum": 10000 }
+            },
+            "required": ["account_id"],
+            "additionalProperties": false
+          }
+        },
+        "get_database": {
+          "description": "Get one D1 database.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "database_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              }
+            },
+            "required": ["account_id", "database_id"],
+            "additionalProperties": false
+          }
+        },
+        "create_database": {
+          "description": "Create a D1 database. name is required. primary_location_hint, when given, is one of wnam, enam, weur, eeur, apac, oc.",
+          "risk": "medium",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "name": { "type": "string", "minLength": 1 },
+              "primary_location_hint": {
+                "type": "string",
+                "enum": ["wnam", "enam", "weur", "eeur", "apac", "oc"]
+              }
+            },
+            "required": ["account_id", "name"],
+            "additionalProperties": false
+          }
+        },
+        "query": {
+          "description": "Run one read-only D1 query and return the vendor envelope. After leading whitespace, sql must open with SELECT followed by a character that is not a letter, digit, underscore or semicolon, and it may contain no semicolon except an optional one as the last non-whitespace character; the published pattern is that rule. D1 splits statements on semicolons with no regard for string literals, so the semicolon rule is absolute. sql is at most 100000 code points. params, when given, is an array of at most 100 strings. A statement that is not that single SELECT is refused; use cloudflare.d1.execute.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "database_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "sql": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100000,
+                "pattern": "^\\s*[Ss][Ee][Ll][Ee][Cc][Tt][^A-Za-z0-9_;][^;]*(?:;\\s*)?$"
+              },
+              "params": {
+                "type": "array",
+                "maxItems": 100,
+                "items": { "type": "string" }
+              }
+            },
+            "required": ["account_id", "database_id", "sql"],
+            "additionalProperties": false
+          }
+        },
+        "execute": {
+          "description": "Run D1 SQL that is not limited to a single SELECT and return the vendor envelope. sql is at most 100000 code points. params, when given, is an array of at most 100 strings. D1 splits statements on semicolons with no regard for string literals.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "database_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "sql": { "type": "string", "minLength": 1, "maxLength": 100000 },
+              "params": {
+                "type": "array",
+                "maxItems": 100,
+                "items": { "type": "string" }
+              }
+            },
+            "required": ["account_id", "database_id", "sql"],
+            "additionalProperties": false
+          }
+        },
+        "apply_migration": {
+          "description": "Read one local .sql file and apply it on the local gateway only. Records a Wrangler-compatible d1_migrations row under the file's basename. A name already recorded is reported already_applied and nothing else runs. D1 splits on semicolons, so a semicolon inside a string literal or a trigger body is split too. Whether a failed statement rolls back earlier ones is D1's and is not promised. A file over 1 MiB (1048576 bytes) is refused; apply it with Wrangler: wrangler d1 migrations apply. The path must be absolute, must not contain a symbolic link, and must not be a credential file.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "database_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "file": { "type": "string", "minLength": 1 }
+            },
+            "required": ["account_id", "database_id", "file"],
+            "additionalProperties": false
+          }
+        },
+        "delete_database": {
+          "description": "Delete a D1 database and the data in it.",
+          "risk": "destructive",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "database_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              }
+            },
+            "required": ["account_id", "database_id"],
+            "additionalProperties": false
+          }
         }
       },
       "unwrap_token": false,

@@ -1,0 +1,17 @@
+{
+  "name": "pages-functions",
+  "version": "0.1.0",
+  "description": "Compiles a site's functions folder into the three files Cloudflare Pages takes",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node scripts/pages-functions.js help",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "wrangler": "4.136.3"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

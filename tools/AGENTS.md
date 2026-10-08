@@ -15,8 +15,8 @@ The one list; a tool's pages point here.
 | What | Where | Which tools |
 |------|-------|-------------|
 | Plugin consent marker | `.wiser-consent` at the plugin root | every tool that installs |
-| Node packages | `node_modules/` in the tool's directory | the 8 tools whose `package.json` declares a dependency |
-| npm's cache and logs | npm's configured cache, `~/.npm` by default, outside this plugin | the same 8, and the shared browser runtime |
+| Node packages | `node_modules/` in the tool's directory | the 9 tools whose `package.json` declares a dependency; `pages-functions` is about 210 MB of them, Wrangler and its `workerd` runtime |
+| npm's cache and logs | npm's configured cache, `~/.npm` by default, outside this plugin | the same 9, and the shared browser runtime |
 | Python packages | `.venv/` in the tool's directory; pip's cache is switched off | `Transcribe Audio`, `knowledge-memory` graph commands |
 | Playwright and its Chromium build | once, into `tools/lib/browser-runtime/` and Playwright's cache (`PLAYWRIGHT_BROWSERS_PATH` if set to a path; inside `tools/lib/browser-runtime/node_modules/` if set to `0`; otherwise `~/Library/Caches/ms-playwright` on macOS, `~/.cache/ms-playwright` on Linux, `%LOCALAPPDATA%\ms-playwright` on Windows) | the three browser tools |
 | Compatibility shims, compiled on a Linux host missing an X library | `tools/lib/browser-runtime/node_modules/.wiser-lib`; Linux only, untested there | the three browser tools |
@@ -30,6 +30,7 @@ The one list; a tool's pages point here.
 | A knowledge store: databased SQLite or one native graph `graph.lbdb` file per dataset, at caller-named `--store` | exactly the path the caller passes as `--store`, by convention `memory/knowledge/store/` in the owning root; wiki writes no store | `knowledge-memory` |
 | A classifier trial's per-run state: a trial gateway home per run, whose key file is a symbolic link to the person's key file or three empty lines, a copied synthetic root, an empty secrets directory, and a tree exported from a commit | one directory in the platform's temporary directory, `wiser-classifier-trial-<random>`, removed at the end of the run and after a stop unless `--keep-temp` | `tools/lib/classifier/trial.mjs` `run` |
 | A classifier trial's records: spec, plan, runs, blind packets, scores, verdict, safety record | the caller-named `--work` directory in the owning root; a ceiling file at the caller-named `--ceiling-file` | `tools/lib/classifier/trial.mjs` |
+| Wrangler's own working files while it compiles: a log, `.wrangler/tmp`, and its preferences under a stand-in home directory | one directory in the platform's temporary directory, `wiser-pages-functions-<random>`, removed when the run ends, including on failure | `pages-functions` |
 | A knowledge set's own records: corpus, wiki or extraction, review items, reports | inside the set directory the caller passes as `--set`, at `corpus/`, `wiki/`, `extraction/`, `review/`, and `reports/` as the backend uses them | `knowledge-memory` |
 
 `copy-check` writes nothing and installs nothing: Node built-ins cover it, and every command prints one JSON object.
@@ -101,6 +102,12 @@ The gateway's writes (connection store, audit log, empty project-key template) a
 | `reference-check/TOOL.md` | Return a JSON scan of path-shaped and family-name references under --root, or take and restore an approved structural snapshot |
 
 <!-- /generated:index -->
+
+### Web
+
+| Tool | Description |
+|------|-------------|
+| `pages-functions/TOOL.md` | The three files Cloudflare Pages takes for a site's functions folder, compiled offline |
 
 ## Structural recovery writes
 

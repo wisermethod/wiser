@@ -1,14 +1,16 @@
 # Cloudflare Pages setup
 
-Load `connectors/cloudflare/auth.md` ([auth guide](../../connectors/cloudflare/auth.md)) for the separate `cloudflare` / `pages` grant and its Pages permissions. `needs_connect` ends the skill run; `skills/Connect Account/` is the next human turn. The requester supplies `account_id`; this skill does not use the auth guide's account-discovery action.
+Load `connectors/cloudflare/auth.md` ([auth guide](../../connectors/cloudflare/auth.md)) for the separate `cloudflare` / `pages` and `cloudflare` / `d1` grants and their permissions. `needs_connect` ends the skill run; `skills/Connect Account/` is the next human turn. The requester supplies `account_id`; this skill does not use the auth guide's account-discovery action.
 
-Reads need Account / Cloudflare Pages / Read. Every write (`create_project`, `add_domain`, `remove_domain`, `delete_project`, `deploy`) needs Edit on that same permission. A Read-only token returns 403 on them.
+Pages reads need Account / Cloudflare Pages / Read. Every Pages write (`create_project`, `add_domain`, `remove_domain`, `delete_project`, `deploy`, `deploy_with_functions`, `bind_d1`) needs Edit on that same permission. D1 reads (`list_databases`, `get_database`, `query`) need Account / D1 / Read; D1 writes (`create_database`, `apply_migration`, `execute`, `delete_database`) need Account / D1 / Edit. A Read-only token returns 403 on the writes. The `d1` grant is its own connect, even when one token carries both permissions.
 
-The primary publish path is the gateway. `cloudflare.pages.deploy` takes `dir` as the absolute path of the kit `site/dist/` (`sites/<domain>/site/dist/`, or `work/<slug>/sites/<domain>/site/dist/`). The connector refuses any other directory: the folder must be named `dist`, its parent must be named `site`, and that parent must contain a regular file `kit.json`. It deploys static kit output only. A tree with `_worker.js` or a `functions/` directory at the root of `dist` is refused. Deploy, and a create or add-domain that is part of that publish, run only after Webmaster Job 3 passes and the requester confirms the gateway's `needs_confirmation` stop. Every write confirms on every call.
+The primary publish path is the gateway. `cloudflare.pages.deploy` takes `dir` as the absolute path of the kit `site/dist/` (`sites/<domain>/site/dist/`, or `work/<slug>/sites/<domain>/site/dist/`). The connector refuses any other directory for it: the folder must be named `dist`, its parent must be named `site`, and that parent must contain a regular file `kit.json`. It deploys static kit output only. A tree with `_worker.js` or a `functions/` directory at the root of `dist` is refused.
+
+A foreign site with Pages Functions goes through `cloudflare.pages.deploy_with_functions`, with `dir` the absolute path of its build output and `functions_build` the absolute path of the directory `tools/pages-functions/` wrote from its `functions/` folder. The tool runs Wrangler's own compiler on this machine with no Cloudflare sign-in; its first run asks to install about 210 MB. Bindings are set on the project with `cloudflare.pages.bind_d1`, never carried in the build. Both deploys, and a create, add-domain or bind that is part of that publish, run only after Webmaster Job 3 passes and the requester confirms the gateway's `needs_confirmation` stop. Every write confirms on every call. `apply_migration` and both deploys read files on this machine, so they run on the local gateway; the Wiser endpoint answers them `local_only`.
 
 `cloudflare.pages.add_domain` registers the hostname on the project. It does not create the DNS CNAME. The domain stays pending until that record exists. The record is Zone Publisher's job (`experts/IT Expert/`), which needs the `dns` grant (Zone / DNS / Edit). This skill does not call DNS.
 
-Wrangler is the fallback human route when the gateway path cannot run, not the primary. After Webmaster Job 3 passes the proposed publish, did the human confirm that Wrangler's account, project, and publish target match the reviewed destination? Yes: they upload only the kit `site/dist/`. No, or they have not said: do not treat the upload as ready to run. A changed source or destination returns to Job 3 before upload. Typical human sequence, with the owning root and project placeholders replaced and paths quoted:
+Wrangler is the fallback human route when the gateway path cannot run, not the primary: for a file too large for the gateway's upload requests, a Functions deployment over its request limit, a migration file over 1 MiB, or a gateway that cannot be attached. After Webmaster Job 3 passes the proposed publish, did the human confirm that Wrangler's account, project, and publish target match the reviewed destination? Yes: they upload only the reviewed payload. No, or they have not said: do not treat the upload as ready to run. A changed source or destination returns to Job 3 before upload. Typical human sequence for a kit site, with the owning root and project placeholders replaced and paths quoted:
 
 ```sh
 cd "<owning-root>/sites/<domain>/site/"
@@ -16,6 +18,10 @@ npm run build
 npx wrangler pages deploy dist --project-name <project>
 ```
 
-Stop if the build fails. For a work-scoped site, change the `cd` destination to `<owning-root>/work/<slug>/sites/<domain>/site/`. Run neither command from the envelope or owning root. The build's `dist` is the `site/dist/` upload payload; envelope `memory/` is outside it. Supply the upload result to the skill so it can compare with the project's deployment listing.
+Stop if the build fails. For a work-scoped site, change the `cd` destination to `<owning-root>/work/<slug>/sites/<domain>/site/`. Run neither command from the envelope or owning root. The build's `dist` is the `site/dist/` upload payload; envelope `memory/` is outside it.
+
+For a foreign site with Functions, the human runs Wrangler from that site's own root, where its `functions/` folder and Wrangler configuration sit: `npx wrangler d1 migrations apply <database> --remote` for its schema, then `npx wrangler pages deploy <build output> --project-name <project>`. Wrangler signs in on its own, which is the step the gateway route exists to avoid.
+
+Supply the upload result to the skill so it can compare with the project's deployment listing.
 
 Never connect an envelope or owning root to a host. Never configure a Pages or GitHub integration of the parent, including one that names the site as its build subdirectory. Never `git init`; this upload does not require a site repository.

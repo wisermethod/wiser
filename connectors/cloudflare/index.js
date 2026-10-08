@@ -3,7 +3,7 @@ import {
   closeSync, constants as fsConstants, fstatSync, lstatSync, openSync, readFileSync, readdirSync, realpathSync, statSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, dirname, extname, join, resolve, sep } from 'node:path';
+import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
 
 // Copied from the vercel connector's path screen. A module may not import
 // another connector (standards/script-contract.md, Connector modules), which
@@ -245,7 +245,7 @@ function readScreened(resolved, id) {
   }
 }
 
-function walkPages(root, refused) {
+function walkPages(root, refused, kitRule = true) {
   const assets = [];
   const skipped = [];
   let headers = null;
@@ -266,10 +266,10 @@ function walkPages(root, refused) {
     for (const entry of entries) {
       const full = join(dir, entry.name);
       const logical = relativeName(root, full);
-      if (atRoot && entry.name === '_worker.js') {
+      if (kitRule && atRoot && entry.name === '_worker.js') {
         return { error: invalid('dir', 'static kit output only') };
       }
-      if (atRoot && entry.name === 'functions' && (entry.isDirectory() || isDirectoryPath(full))) {
+      if (kitRule && atRoot && entry.name === 'functions' && (entry.isDirectory() || isDirectoryPath(full))) {
         return { error: invalid('dir', 'static kit output only') };
       }
       if (entry.name === 'node_modules') {
@@ -524,6 +524,442 @@ async function proxyData(ctx, req) {
   return res;
 }
 
+async function proxyEnvelope(ctx, req) {
+  const data = await proxyData(ctx, req);
+  if (!envelopeOk(data)) return vendorError(req.endpoint, req.method);
+  return data;
+}
+
+const ACCOUNT_ID = /^[0-9a-f]{32}$/;
+const DATABASE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const BINDING_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
+const SQL_MAX_CODE_POINTS = 100000;
+const PARAMS_MAX = 100;
+const MIGRATION_MAX_BYTES = 1048576;
+const BUNDLE_MAX_BYTES = 2 * 1024 * 1024;
+const LOCATION_HINTS = new Set(['wnam', 'enam', 'weur', 'eeur', 'apac', 'oc']);
+
+// Wrangler's getCreateMigrationsTableQuery for table d1_migrations, two tabs
+// before each column, from wrangler 4.136.3.
+const MIGRATION_TABLE_SQL = 'CREATE TABLE IF NOT EXISTS "d1_migrations"(\n\t\tid         INTEGER PRIMARY KEY AUTOINCREMENT,\n\t\tname       TEXT UNIQUE,\n\t\tapplied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL\n);';
+
+const BUILD_OUTPUT_NAMES = [
+  'functions',
+  '_worker.js',
+  '_worker.bundle',
+  'functions-filepath-routing-config.json',
+  'package.json',
+  'wrangler.toml',
+  'wrangler.json',
+  'wrangler.jsonc',
+];
+const REQUIRED_BUILD_FILES = ['_worker.bundle', '_routes.json', 'functions-filepath-routing-config.json'];
+
+function codePoints(value) {
+  return typeof value === 'string' ? [...value].length : 0;
+}
+
+function checkInt(value, field, minimum, maximum) {
+  if (value == null) return null;
+  if (typeof value !== 'number' || !Number.isInteger(value)) return invalid(field);
+  if (value < minimum || (maximum !== undefined && value > maximum)) return invalid(field);
+  return null;
+}
+
+function accountIdOk(value) {
+  return typeof value === 'string' && ACCOUNT_ID.test(value);
+}
+
+function databaseIdOk(value) {
+  return typeof value === 'string' && DATABASE_ID.test(value);
+}
+
+function d1QueryPath(accountId, databaseId) {
+  return `/accounts/${encodeURIComponent(accountId)}/d1/database/${encodeURIComponent(databaseId)}/query`;
+}
+
+function checkParams(params) {
+  if (params == null) return null;
+  if (!Array.isArray(params)) return invalid('params');
+  if (params.length > PARAMS_MAX) return invalid('params', 'more than 100 params');
+  for (const item of params) {
+    if (typeof item !== 'string') return invalid('params');
+  }
+  return null;
+}
+
+function sqlLengthError(sql) {
+  if (typeof sql !== 'string') return invalid('sql');
+  if (codePoints(sql) > SQL_MAX_CODE_POINTS) return invalid('sql', 'sql longer than 100000 code points');
+  return null;
+}
+
+// D1 splits multi-statement SQL on `;` server-side without regard to string
+// literals, so `SELECT ';DROP TABLE x'` would run a DROP if `;` were allowed.
+// The published pattern on d1.query's sql, applied here as well: after leading
+// whitespace, SELECT and a character that is not a letter, digit, underscore or
+// semicolon, then no semicolon but one optional trailing one.
+const READ_SQL = /^\s*[Ss][Ee][Ll][Ee][Cc][Tt][^A-Za-z0-9_;][^;]*(?:;\s*)?$/;
+
+function singleSelect(sql) {
+  return READ_SQL.test(sql);
+}
+
+function queryBody(sql, params) {
+  const body = { sql };
+  if (params != null) body.params = params;
+  return body;
+}
+
+function asObject(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : null;
+}
+
+function screenMigrationFile(file, refused) {
+  if (typeof file !== 'string' || codePoints(file) < 1) return { error: invalid('file') };
+  if (!isAbsolute(file)) return { error: invalid('file', 'path must be absolute') };
+  const lexical = resolve(file);
+  const resolved = canonicalize(file);
+  if (!resolved) return { error: invalid('file', 'unresolvable') };
+  if (resolved !== lexical) return { error: invalid('file', 'symbolic link in path') };
+  if (extname(resolved).toLowerCase() !== '.sql') return { error: invalid('file', 'extension must be .sql') };
+  const screened = screenFile(resolved, refused);
+  if (screened.refused) {
+    const reason = screened.refused === 'not a regular file' ? 'not a regular file' : screened.refused;
+    return { error: invalid('file', reason) };
+  }
+  if (screened.size > MIGRATION_MAX_BYTES) {
+    return {
+      error: {
+        status: 'invalid_arguments',
+        field: 'file',
+        reason: 'file over 1 MiB (1048576 bytes)',
+        fallback: 'Apply it with Wrangler: wrangler d1 migrations apply',
+      },
+    };
+  }
+  const bytes = readScreened(screened.resolved, screened.id);
+  if (!bytes) return { error: invalid('file', 'unreadable') };
+  let text;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return { error: invalid('file', 'invalid UTF-8') };
+  }
+  if (text.trim() === '') return { error: invalid('file', 'empty file') };
+  return { resolved: screened.resolved, text, name: basename(screened.resolved) };
+}
+
+function migrationResultRows(data, endpoint) {
+  if (!envelopeOk(data) || !Array.isArray(data.result)) return { error: vendorError(endpoint, 'POST') };
+  return { rows: data.result };
+}
+
+function screenAbsoluteDir(input, field, refused) {
+  if (typeof input !== 'string' || codePoints(input) < 1) return { error: invalid(field) };
+  if (!isAbsolute(input)) return { error: invalid(field, 'path must be absolute') };
+  const lexical = resolve(input);
+  const resolved = canonicalize(input);
+  if (!resolved) return { error: invalid(field, 'unresolvable') };
+  if (resolved !== lexical) return { error: invalid(field, 'symbolic link in path') };
+  let stats;
+  try {
+    stats = statSync(resolved);
+  } catch {
+    return { error: invalid(field, 'not found') };
+  }
+  if (!stats.isDirectory()) return { error: invalid(field, 'not a directory') };
+  if (dirname(resolved) === resolved) return { error: invalid(field, 'filesystem root') };
+  const id = `${stats.dev}:${stats.ino}`;
+  if (refused.ids.has(id)) return { error: invalid(field, 'credential directory') };
+  if (refused.dir && (isInside(resolved, refused.dir) || isInside(refused.dir, resolved))) {
+    return { error: invalid(field, 'credential directory') };
+  }
+  if (refused.home && resolved === refused.home) return { error: invalid(field, 'home directory') };
+  return { resolved };
+}
+
+function screenNotBuildOutput(root) {
+  let names;
+  try {
+    // Case-insensitive, because a case-insensitive filesystem serves Functions/ as functions/.
+    names = new Set(readdirSync(root).map((name) => name.toLowerCase()));
+  } catch {
+    return invalid('dir', 'unreadable');
+  }
+  for (const name of BUILD_OUTPUT_NAMES) {
+    if (names.has(name)) return invalid('dir', `not build output: ${name}`);
+  }
+  return null;
+}
+
+function oversizeAssetError(assets) {
+  const oversize = assets.filter((asset) => 2 + asset.entryBytes > MAX_UPLOAD_BYTES);
+  if (oversize.length === 0) return null;
+  const files = oversize.map((asset) => asset.rel);
+  return {
+    status: 'invalid_arguments',
+    field: 'dir',
+    reason: `file over the 3 MiB upload request limit: ${files[0]}`,
+    files,
+    fallback: 'Deploy with Wrangler, per skills/Cloudflare Pages/SETUP.md',
+  };
+}
+
+async function uploadMissingAssets(ctx, jwt, assets) {
+  const byHash = new Map();
+  for (const asset of assets) {
+    if (!byHash.has(asset.hash)) byHash.set(asset.hash, asset);
+  }
+  const allHashes = [...byHash.keys()];
+  const checked = await assetCall(ctx, jwt, '/pages/assets/check-missing', { hashes: allHashes });
+  const missing = readMissing(checked);
+  if (!missing) return { error: vendorError('/pages/assets/check-missing', 'POST') };
+  const missingSet = new Set(missing.filter((hash) => byHash.has(hash)));
+  let uploaded = 0;
+  let alreadyPresent = 0;
+  for (const asset of assets) {
+    if (missingSet.has(asset.hash)) uploaded += 1;
+    else alreadyPresent += 1;
+  }
+  const toUpload = [...missingSet].map((hash) => byHash.get(hash));
+  const buckets = bucketize(toUpload);
+  let batchesSent = 0;
+  for (const bucket of buckets) {
+    const payload = [];
+    for (const asset of bucket) {
+      const bytes = readScreened(asset.resolved, asset.id);
+      if (!bytes || assetHash(bytes, asset.extension) !== asset.hash) {
+        return { error: invalid('dir', `file changed during deploy: ${asset.rel}`) };
+      }
+      payload.push({
+        key: asset.hash,
+        value: bytes.toString('base64'),
+        metadata: { contentType: asset.contentType },
+        base64: true,
+      });
+    }
+    const bodyBytes = Buffer.byteLength(JSON.stringify(payload));
+    let up;
+    try {
+      up = await assetCall(ctx, jwt, '/pages/assets/upload', payload);
+    } catch (err) {
+      // ctx.proxy throws a gateway StatusSignal. This module may not import
+      // the gateway, so the signal is recognized by its shape. status stays
+      // vendor_error: the gateway's closed STATUS set is the only one
+      // isStatusObject accepts, and a new string would be read as success.
+      // The upload JWT is not copied onto this result.
+      if (err && typeof err === 'object' && err.object && err.object.status === 'vendor_error' && err.object.http_status === 413) {
+        return {
+          error: {
+            status: 'vendor_error',
+            http_status: 413,
+            endpoint: '/pages/assets/upload',
+            method: 'POST',
+            reason: 'request too large',
+            batch: { files: bucket.length, bytes: bodyBytes },
+            limit_bytes: MAX_UPLOAD_BYTES,
+            batches_sent: batchesSent,
+            batches: buckets.length,
+          },
+        };
+      }
+      throw err;
+    }
+    if (!envelopeOk(up)) return { error: vendorError('/pages/assets/upload', 'POST') };
+    batchesSent += 1;
+  }
+  return { uploaded, alreadyPresent, allHashes };
+}
+
+function rereadDeployFiles(assets, headers, redirects) {
+  for (const asset of assets) {
+    const bytes = readScreened(asset.resolved, asset.id);
+    if (!bytes || assetHash(bytes, asset.extension) !== asset.hash) {
+      return invalid('dir', `file changed during deploy: ${asset.rel}`);
+    }
+  }
+  for (const [name, kept] of [['_headers', headers], ['_redirects', redirects]]) {
+    if (!kept) continue;
+    const now = readScreened(kept.resolved, kept.id);
+    if (!now || !now.equals(kept.bytes)) return invalid('dir', `file changed during deploy: ${name}`);
+  }
+  return null;
+}
+
+function manifestFor(assets) {
+  const manifest = {};
+  for (const asset of assets) manifest[`/${asset.rel}`] = asset.hash;
+  return manifest;
+}
+
+function deploymentParts(manifest, headers, redirects, extra = []) {
+  const parts = [{
+    name: 'manifest',
+    contentType: 'application/json',
+    value: Buffer.from(JSON.stringify(manifest), 'utf8'),
+  }];
+  if (headers) {
+    parts.push({
+      name: '_headers',
+      filename: '_headers',
+      contentType: 'text/plain',
+      value: headers.bytes,
+    });
+  }
+  if (redirects) {
+    parts.push({
+      name: '_redirects',
+      filename: '_redirects',
+      contentType: 'text/plain',
+      value: redirects.bytes,
+    });
+  }
+  for (const part of extra) parts.push(part);
+  return parts;
+}
+
+async function postDeployment(ctx, endpoint, form) {
+  const deploymentData = await proxyData(ctx, {
+    endpoint,
+    method: 'POST',
+    binary_body: {
+      base64: form.body.toString('base64'),
+      content_type: `multipart/form-data; boundary=${form.boundary}`,
+    },
+  });
+  if (!envelopeOk(deploymentData) || !deploymentData.result || typeof deploymentData.result !== 'object') {
+    return { error: vendorError(endpoint, 'POST') };
+  }
+  return { deployment: deploymentData.result };
+}
+
+function base64Length(bytes) {
+  return 4 * Math.ceil(bytes / 3);
+}
+
+function parseBundle(bytes) {
+  if (bytes.length > BUNDLE_MAX_BYTES) return { error: 'bundle over 2 MiB' };
+  const raw = bytes.toString('latin1');
+  const firstCrlf = raw.indexOf('\r\n');
+  if (firstCrlf < 3 || !raw.startsWith('--')) return { error: 'bundle is not multipart' };
+  const boundary = raw.slice(2, firstCrlf);
+  if (boundary.length === 0) return { error: 'bundle is not multipart' };
+  if (!raw.startsWith(`--${boundary}\r\n`)) return { error: 'bundle is not multipart' };
+  const pieces = raw.slice(boundary.length + 4).split(`\r\n--${boundary}`);
+  if (pieces.length < 2) return { error: 'bundle is not multipart' };
+  const closing = pieces[pieces.length - 1];
+  if (!/^--(?:\r\n)?$/.test(closing)) return { error: 'bundle is not multipart' };
+  const parts = [];
+  for (const piece of pieces.slice(0, -1)) {
+    const part = piece.startsWith('\r\n') ? piece.slice(2) : piece;
+    const splitAt = part.indexOf('\r\n\r\n');
+    if (splitAt < 0) return { error: 'bundle part has no header' };
+    const head = part.slice(0, splitAt);
+    const body = part.slice(splitAt + 4);
+    const name = /(?:^|\r\n)Content-Disposition:[^\r\n]*\bname="([^"]*)"/i.exec(head)?.[1];
+    if (!name) return { error: 'bundle part has no name' };
+    parts.push({ name, body });
+  }
+  const metadataParts = parts.filter((part) => part.name === 'metadata');
+  if (metadataParts.length !== 1) return { error: 'bundle has no metadata part' };
+  let metadata;
+  try {
+    metadata = JSON.parse(metadataParts[0].body.trim());
+  } catch {
+    return { error: 'bundle metadata is not JSON' };
+  }
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return { error: 'bundle metadata is not an object' };
+  }
+  if (typeof metadata.main_module !== 'string' || metadata.main_module.length === 0) {
+    return { error: 'bundle metadata has no main_module' };
+  }
+  if (Object.prototype.hasOwnProperty.call(metadata, 'bindings') && !(Array.isArray(metadata.bindings) && metadata.bindings.length === 0)) {
+    return { error: 'bundle carries bindings; bindings go on the project through cloudflare.pages.bind_d1' };
+  }
+  const named = parts.some((part) => part.name !== 'metadata' && part.name === metadata.main_module);
+  if (!named) return { error: `bundle has no part named ${metadata.main_module}` };
+  return { main_module: metadata.main_module };
+}
+
+function parseRoutes(bytes) {
+  let parsed;
+  try {
+    parsed = JSON.parse(bytes.toString('utf8'));
+  } catch {
+    return { error: '_routes.json is not JSON' };
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { error: '_routes.json is not an object' };
+  if (parsed.version !== 1) return { error: '_routes.json version is not 1' };
+  if (!Array.isArray(parsed.include) || parsed.include.length === 0 || !parsed.include.every((item) => typeof item === 'string')) {
+    return { error: '_routes.json include must be a non-empty array of strings' };
+  }
+  const exclude = parsed.exclude == null ? [] : parsed.exclude;
+  if (!Array.isArray(exclude) || !exclude.every((item) => typeof item === 'string')) {
+    return { error: '_routes.json exclude must be an array of strings' };
+  }
+  if (parsed.include.length + exclude.length > 100) return { error: '_routes.json has more than 100 rules' };
+  for (const rule of [...parsed.include, ...exclude]) {
+    if (!rule.startsWith('/')) return { error: '_routes.json rule does not start with /' };
+  }
+  return { include: parsed.include, exclude };
+}
+
+function parseRoutingConfig(bytes) {
+  let parsed;
+  try {
+    parsed = JSON.parse(bytes.toString('utf8'));
+  } catch {
+    return { error: 'functions-filepath-routing-config.json is not JSON' };
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || !Array.isArray(parsed.routes)) {
+    return { error: 'functions-filepath-routing-config.json has no routes array' };
+  }
+  return { ok: true };
+}
+
+function readBuildEntry(root, name, refused) {
+  const full = join(root, name);
+  let linked;
+  try {
+    linked = lstatSync(full);
+  } catch {
+    return { error: invalid('functions_build', `missing ${name}`) };
+  }
+  if (linked.isSymbolicLink()) return { error: invalid('functions_build', `symbolic link: ${name}`) };
+  if (!linked.isFile()) return { error: invalid('functions_build', `not a regular file: ${name}`) };
+  const resolved = canonicalize(full);
+  if (!resolved || resolved !== resolve(full)) return { error: invalid('functions_build', `symbolic link: ${name}`) };
+  const screened = screenFile(resolved, refused, root);
+  if (screened.refused) return { error: invalid('functions_build', `${screened.refused}: ${name}`) };
+  const bytes = readScreened(screened.resolved, screened.id);
+  if (!bytes) return { error: invalid('functions_build', `unreadable: ${name}`) };
+  return { name, resolved: screened.resolved, id: screened.id, bytes };
+}
+
+function collateralChanges(env, before, after, binding) {
+  const names = [];
+  const left = asObject(before) || {};
+  const right = asObject(after) || {};
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  for (const key of keys) {
+    if (key === 'd1_databases') continue;
+    if (JSON.stringify(left[key]) !== JSON.stringify(right[key])) names.push(`${env}.${key}`);
+  }
+  const leftBindings = asObject(left.d1_databases) || {};
+  const rightBindings = asObject(right.d1_databases) || {};
+  const bindingNames = new Set([...Object.keys(leftBindings), ...Object.keys(rightBindings)]);
+  for (const key of bindingNames) {
+    if (key === binding) continue;
+    if (JSON.stringify(leftBindings[key]) !== JSON.stringify(rightBindings[key])) {
+      names.push(`${env}.d1_databases.${key}`);
+    }
+  }
+  names.sort();
+  return names;
+}
+
 export const modules = {
   dns: {
     async list_records(input, ctx) {
@@ -763,143 +1199,352 @@ export const modules = {
       // sent. Every walked asset is checked, not only those later reported missing,
       // and this runs before the upload-token call: nothing is known about missing
       // hashes yet, and a refusal sends nothing.
-      const oversize = walked.assets.filter((asset) => 2 + asset.entryBytes > MAX_UPLOAD_BYTES);
-      if (oversize.length > 0) {
-        const files = oversize.map((asset) => asset.rel);
-        return {
-          status: 'invalid_arguments',
-          field: 'dir',
-          reason: `file over the 3 MiB upload request limit: ${files[0]}`,
-          files,
-          fallback: 'Deploy with Wrangler, per skills/Cloudflare Pages/SETUP.md',
-        };
-      }
+      const oversize = oversizeAssetError(walked.assets);
+      if (oversize) return oversize;
       const tokenEndpoint = accountPath(input.account_id, input.project_name, 'upload-token');
       const tokenData = await proxyData(ctx, { endpoint: tokenEndpoint, method: 'GET' });
       const jwt = readJwt(tokenData);
       if (!jwt) return vendorError(tokenEndpoint, 'GET');
-      const byHash = new Map();
-      for (const asset of walked.assets) {
-        if (!byHash.has(asset.hash)) byHash.set(asset.hash, asset);
-      }
-      const allHashes = [...byHash.keys()];
-      const checked = await assetCall(ctx, jwt, '/pages/assets/check-missing', { hashes: allHashes });
-      const missing = readMissing(checked);
-      if (!missing) return vendorError('/pages/assets/check-missing', 'POST');
-      // Only hashes this deploy asked about are uploaded; anything else in the
-      // answer is ignored rather than trusted.
-      const missingSet = new Set(missing.filter((hash) => byHash.has(hash)));
-      let uploaded = 0;
-      let alreadyPresent = 0;
-      for (const asset of walked.assets) {
-        if (missingSet.has(asset.hash)) uploaded += 1;
-        else alreadyPresent += 1;
-      }
-      const toUpload = [...missingSet].map((hash) => byHash.get(hash));
-      const buckets = bucketize(toUpload);
-      let batchesSent = 0;
-      for (const bucket of buckets) {
-        const payload = [];
-        for (const asset of bucket) {
-          const bytes = readScreened(asset.resolved, asset.id);
-          if (!bytes || assetHash(bytes, asset.extension) !== asset.hash) {
-            return invalid('dir', `file changed during deploy: ${asset.rel}`);
-          }
-          payload.push({
-            key: asset.hash,
-            value: bytes.toString('base64'),
-            metadata: { contentType: asset.contentType },
-            base64: true,
-          });
-        }
-        const bodyBytes = Buffer.byteLength(JSON.stringify(payload));
-        let up;
-        try {
-          up = await assetCall(ctx, jwt, '/pages/assets/upload', payload);
-        } catch (err) {
-          // ctx.proxy throws a gateway StatusSignal. This module may not import
-          // the gateway, so the signal is recognized by its shape. status stays
-          // vendor_error: the gateway's closed STATUS set is the only one
-          // isStatusObject accepts, and a new string would be read as success.
-          // The upload JWT is not copied onto this result.
-          if (err && typeof err === 'object' && err.object && err.object.status === 'vendor_error' && err.object.http_status === 413) {
-            return {
-              status: 'vendor_error',
-              http_status: 413,
-              endpoint: '/pages/assets/upload',
-              method: 'POST',
-              reason: 'request too large',
-              batch: { files: bucket.length, bytes: bodyBytes },
-              limit_bytes: MAX_UPLOAD_BYTES,
-              batches_sent: batchesSent,
-              batches: buckets.length,
-            };
-          }
-          throw err;
-        }
-        if (!envelopeOk(up)) return vendorError('/pages/assets/upload', 'POST');
-        batchesSent += 1;
-      }
+      const sent = await uploadMissingAssets(ctx, jwt, walked.assets);
+      if (sent.error) return sent.error;
       // Every file, uploaded or already present, is read again and must still be
       // what was hashed, so the manifest describes the tree as it stands now.
-      for (const asset of walked.assets) {
-        const bytes = readScreened(asset.resolved, asset.id);
-        if (!bytes || assetHash(bytes, asset.extension) !== asset.hash) {
-          return invalid('dir', `file changed during deploy: ${asset.rel}`);
+      const changed = rereadDeployFiles(walked.assets, walked.headers, walked.redirects);
+      if (changed) return changed;
+      const upserted = await assetCall(ctx, jwt, '/pages/assets/upsert-hashes', { hashes: sent.allHashes });
+      if (!envelopeOk(upserted)) return vendorError('/pages/assets/upsert-hashes', 'POST');
+      const manifest = manifestFor(walked.assets);
+      const form = buildMultipart(deploymentParts(manifest, walked.headers, walked.redirects));
+      const deploymentsEndpoint = accountPath(input.account_id, input.project_name, 'deployments');
+      const posted = await postDeployment(ctx, deploymentsEndpoint, form);
+      if (posted.error) return posted.error;
+      return redact({
+        deployment: posted.deployment,
+        dir: root.resolved,
+        files: walked.assets.length,
+        uploaded: sent.uploaded,
+        already_present: sent.alreadyPresent,
+        manifest: Object.keys(manifest),
+        skipped: walked.skipped,
+      }, jwt);
+    },
+    async bind_d1(input, ctx) {
+      if (!accountIdOk(input && input.account_id)) return invalid('account_id');
+      if (!projectNameOk(input && input.project_name)) return invalid('project_name');
+      if (typeof (input && input.binding) !== 'string' || !BINDING_NAME.test(input.binding)) return invalid('binding');
+      if (!databaseIdOk(input && input.database_id)) return invalid('database_id');
+      let environments = input && input.environments;
+      if (environments == null) environments = ['production', 'preview'];
+      else {
+        if (!Array.isArray(environments) || environments.length < 1 || environments.length > 2) return invalid('environments');
+        if (new Set(environments).size !== environments.length) return invalid('environments', 'duplicate environment');
+        for (const env of environments) {
+          if (env !== 'production' && env !== 'preview') return invalid('environments');
         }
       }
-      for (const [name, kept] of [['_headers', walked.headers], ['_redirects', walked.redirects]]) {
-        if (!kept) continue;
-        const now = readScreened(kept.resolved, kept.id);
-        if (!now || !now.equals(kept.bytes)) return invalid('dir', `file changed during deploy: ${name}`);
+      const endpoint = accountPath(input.account_id, input.project_name);
+      const project = await proxyData(ctx, { endpoint, method: 'GET' });
+      const configs = project && project.result && project.result.deployment_configs;
+      if (!envelopeOk(project) || !asObject(configs)) return vendorError(endpoint, 'GET');
+      const replaced = {};
+      const deployment_configs = {};
+      for (const env of environments) {
+        const before = configs[env];
+        const beforeObject = asObject(before);
+        const current = beforeObject && asObject(beforeObject.d1_databases);
+        const id = current && current[input.binding] ? current[input.binding].id : null;
+        replaced[env] = id ?? null;
+        deployment_configs[env] = { d1_databases: { [input.binding]: { id: input.database_id } } };
       }
-      const upserted = await assetCall(ctx, jwt, '/pages/assets/upsert-hashes', { hashes: allHashes });
-      if (!envelopeOk(upserted)) return vendorError('/pages/assets/upsert-hashes', 'POST');
-      const manifest = {};
-      for (const asset of walked.assets) manifest[`/${asset.rel}`] = asset.hash;
-      const parts = [{
-        name: 'manifest',
-        contentType: 'application/json',
-        value: Buffer.from(JSON.stringify(manifest), 'utf8'),
-      }];
-      if (walked.headers) {
-        parts.push({
-          name: '_headers',
-          filename: '_headers',
-          contentType: 'text/plain',
-          value: walked.headers.bytes,
-        });
-      }
-      if (walked.redirects) {
-        parts.push({
-          name: '_redirects',
-          filename: '_redirects',
-          contentType: 'text/plain',
-          value: walked.redirects.bytes,
-        });
-      }
-      const form = buildMultipart(parts);
-      const deploymentsEndpoint = accountPath(input.account_id, input.project_name, 'deployments');
-      const deploymentData = await proxyData(ctx, {
-        endpoint: deploymentsEndpoint,
-        method: 'POST',
-        binary_body: {
-          base64: form.body.toString('base64'),
-          content_type: `multipart/form-data; boundary=${form.boundary}`,
-        },
+      const patched = await proxyData(ctx, {
+        endpoint,
+        method: 'PATCH',
+        body: { deployment_configs },
       });
-      if (!envelopeOk(deploymentData) || !deploymentData.result || typeof deploymentData.result !== 'object') {
-        return vendorError(deploymentsEndpoint, 'POST');
+      const afterConfigs = patched && patched.result && patched.result.deployment_configs;
+      if (!envelopeOk(patched) || !asObject(afterConfigs)) {
+        return { status: 'vendor_error', endpoint, method: 'PATCH', reason: 'binding not applied', environments: [...environments] };
       }
+      const missing = [];
+      for (const env of environments) {
+        const afterEnv = asObject(afterConfigs[env]);
+        const bindings = afterEnv && asObject(afterEnv.d1_databases);
+        const applied = bindings && bindings[input.binding];
+        if (!applied || applied.id !== input.database_id) missing.push(env);
+      }
+      if (missing.length > 0) {
+        return { status: 'vendor_error', endpoint, method: 'PATCH', reason: 'binding not applied', environments: missing };
+      }
+      const fail_open = {};
+      const compatibility_date = {};
+      const collateral_changes = [];
+      for (const env of environments) {
+        const afterEnv = asObject(afterConfigs[env]) || {};
+        fail_open[env] = afterEnv.fail_open ?? null;
+        compatibility_date[env] = afterEnv.compatibility_date ?? null;
+        collateral_changes.push(...collateralChanges(env, configs[env], afterEnv, input.binding));
+      }
+      collateral_changes.sort();
+      return {
+        project_name: input.project_name,
+        binding: input.binding,
+        database_id: input.database_id,
+        environments: [...environments],
+        replaced,
+        fail_open,
+        compatibility_date,
+        collateral_changes,
+      };
+    },
+    async deploy_with_functions(input, ctx) {
+      if (!accountIdOk(input && input.account_id)) return invalid('account_id');
+      if (!projectNameOk(input && input.project_name)) return invalid('project_name');
+      if (!requiredString(input && input.dir)) return invalid('dir');
+      if (!requiredString(input && input.functions_build)) return invalid('functions_build');
+      const refused = refusedSet();
+      const root = screenAbsoluteDir(input.dir, 'dir', refused);
+      if (root.error) return root.error;
+      const blocked = screenNotBuildOutput(root.resolved);
+      if (blocked) return blocked;
+      const buildRoot = screenAbsoluteDir(input.functions_build, 'functions_build', refused);
+      if (buildRoot.error) return buildRoot.error;
+      if (isInside(buildRoot.resolved, root.resolved) || isInside(root.resolved, buildRoot.resolved)) {
+        return invalid('functions_build', 'functions_build overlaps dir');
+      }
+      let buildEntries;
+      try {
+        buildEntries = readdirSync(buildRoot.resolved, { withFileTypes: true });
+      } catch {
+        return invalid('functions_build', 'unreadable');
+      }
+      const allowed = new Set([...REQUIRED_BUILD_FILES, 'build.json']);
+      for (const entry of buildEntries) {
+        if (!allowed.has(entry.name)) return invalid('functions_build', `unexpected entry: ${entry.name}`);
+        const full = join(buildRoot.resolved, entry.name);
+        if (entry.isSymbolicLink()) return invalid('functions_build', `symbolic link: ${entry.name}`);
+        let st;
+        try {
+          st = lstatSync(full);
+        } catch {
+          return invalid('functions_build', `not a regular file: ${entry.name}`);
+        }
+        if (!st.isFile()) return invalid('functions_build', `not a regular file: ${entry.name}`);
+      }
+      const present = new Set(buildEntries.map((entry) => entry.name));
+      for (const name of REQUIRED_BUILD_FILES) {
+        if (!present.has(name)) return invalid('functions_build', `missing ${name}`);
+      }
+      const kept = {};
+      for (const name of [...REQUIRED_BUILD_FILES, ...(present.has('build.json') ? ['build.json'] : [])]) {
+        const read = readBuildEntry(buildRoot.resolved, name, refused);
+        if (read.error) return read.error;
+        kept[name] = read;
+      }
+      const bundle = parseBundle(kept['_worker.bundle'].bytes);
+      if (bundle.error) return invalid('functions_build', bundle.error);
+      const routes = parseRoutes(kept['_routes.json'].bytes);
+      if (routes.error) return invalid('functions_build', routes.error);
+      const routing = parseRoutingConfig(kept['functions-filepath-routing-config.json'].bytes);
+      if (routing.error) return invalid('functions_build', routing.error);
+      let buildProvenance = null;
+      if (kept['build.json']) {
+        try {
+          buildProvenance = JSON.parse(kept['build.json'].bytes.toString('utf8'));
+        } catch {
+          return invalid('functions_build', 'build.json is not JSON');
+        }
+        if (!buildProvenance || typeof buildProvenance !== 'object' || Array.isArray(buildProvenance)) {
+          return invalid('functions_build', 'build.json is not an object');
+        }
+      }
+      const walked = walkPages(root.resolved, refused, false);
+      if (walked.error) return walked.error;
+      const oversize = oversizeAssetError(walked.assets);
+      if (oversize) return oversize;
+      const manifest = manifestFor(walked.assets);
+      const extra = ['functions-filepath-routing-config.json', '_worker.bundle', '_routes.json'].map((name) => ({
+        name,
+        filename: name,
+        contentType: 'application/octet-stream',
+        value: kept[name].bytes,
+      }));
+      const form = buildMultipart(deploymentParts(manifest, walked.headers, walked.redirects, extra));
+      const encoded = base64Length(form.body.length);
+      if (encoded > MAX_UPLOAD_BYTES) {
+        return {
+          status: 'invalid_arguments',
+          field: 'functions_build',
+          reason: 'deployment request over the 3 MiB limit',
+          bytes: encoded,
+          fallback: 'Deploy with Wrangler: wrangler pages deploy',
+        };
+      }
+      let jwt = null;
+      let uploaded = 0;
+      let alreadyPresent = 0;
+      let allHashes = [];
+      if (walked.assets.length > 0) {
+        const tokenEndpoint = accountPath(input.account_id, input.project_name, 'upload-token');
+        const tokenData = await proxyData(ctx, { endpoint: tokenEndpoint, method: 'GET' });
+        jwt = readJwt(tokenData);
+        if (!jwt) return vendorError(tokenEndpoint, 'GET');
+        const sent = await uploadMissingAssets(ctx, jwt, walked.assets);
+        if (sent.error) return sent.error;
+        uploaded = sent.uploaded;
+        alreadyPresent = sent.alreadyPresent;
+        allHashes = sent.allHashes;
+      }
+      const changed = rereadDeployFiles(walked.assets, walked.headers, walked.redirects);
+      if (changed) return changed;
+      for (const name of REQUIRED_BUILD_FILES) {
+        const now = readScreened(kept[name].resolved, kept[name].id);
+        if (!now || !now.equals(kept[name].bytes)) return invalid('functions_build', `file changed during deploy: ${name}`);
+      }
+      if (walked.assets.length > 0) {
+        const upserted = await assetCall(ctx, jwt, '/pages/assets/upsert-hashes', { hashes: allHashes });
+        if (!envelopeOk(upserted)) return vendorError('/pages/assets/upsert-hashes', 'POST');
+      }
+      const deploymentsEndpoint = accountPath(input.account_id, input.project_name, 'deployments');
+      const posted = await postDeployment(ctx, deploymentsEndpoint, form);
+      if (posted.error) return posted.error;
       return redact({
-        deployment: deploymentData.result,
+        deployment: posted.deployment,
         dir: root.resolved,
         files: walked.assets.length,
         uploaded,
         already_present: alreadyPresent,
         manifest: Object.keys(manifest),
         skipped: walked.skipped,
+        functions: {
+          main_module: bundle.main_module,
+          bundle_bytes: kept['_worker.bundle'].bytes.length,
+          routes: { include: routes.include, exclude: routes.exclude },
+          build: buildProvenance,
+        },
       }, jwt);
+    },
+  },
+
+  d1: {
+    async list_databases(input, ctx) {
+      if (!accountIdOk(input && input.account_id)) return invalid('account_id');
+      const page = checkInt(input && input.page, 'page', 1);
+      if (page) return page;
+      const perPage = checkInt(input && input.per_page, 'per_page', 1, 10000);
+      if (perPage) return perPage;
+      return proxyEnvelope(ctx, {
+        endpoint: withQuery(`/accounts/${encodeURIComponent(input.account_id)}/d1/database`, input, ['name', 'page', 'per_page']),
+        method: 'GET',
+      });
+    },
+    async get_database(input, ctx) {
+      if (!accountIdOk(input && input.account_id)) return invalid('account_id');
+      if (!databaseIdOk(input && input.database_id)) return invalid('database_id');
+      return proxyEnvelope(ctx, {
+        endpoint: `/accounts/${encodeURIComponent(input.account_id)}/d1/database/${encodeURIComponent(input.database_id)}`,
+        method: 'GET',
+      });
+    },
+    async create_database(input, ctx) {
+      if (!accountIdOk(input && input.account_id)) return invalid('account_id');
+      if (!requiredString(input && input.name)) return invalid('name');
+      if (input.primary_location_hint != null && !LOCATION_HINTS.has(input.primary_location_hint)) {
+        return invalid('primary_location_hint');
+      }
+      const body = { name: input.name };
+      if (input.primary_location_hint != null) body.primary_location_hint = input.primary_location_hint;
+      return proxyEnvelope(ctx, {
+        endpoint: `/accounts/${encodeURIComponent(input.account_id)}/d1/database`,
+        method: 'POST',
+        body,
+      });
+    },
+    async query(input, ctx) {
+      if (!accountIdOk(input && input.account_id)) return invalid('account_id');
+      if (!databaseIdOk(input && input.database_id)) return invalid('database_id');
+      const length = sqlLengthError(input && input.sql);
+      if (length) return length;
+      const params = checkParams(input && input.params);
+      if (params) return params;
+      if (!singleSelect(input.sql)) {
+        return invalid('sql', 'not a single SELECT statement; use cloudflare.d1.execute');
+      }
+      return proxyEnvelope(ctx, {
+        endpoint: d1QueryPath(input.account_id, input.database_id),
+        method: 'POST',
+        body: queryBody(input.sql, input.params),
+      });
+    },
+    async execute(input, ctx) {
+      if (!accountIdOk(input && input.account_id)) return invalid('account_id');
+      if (!databaseIdOk(input && input.database_id)) return invalid('database_id');
+      const length = sqlLengthError(input && input.sql);
+      if (length) return length;
+      const params = checkParams(input && input.params);
+      if (params) return params;
+      return proxyEnvelope(ctx, {
+        endpoint: d1QueryPath(input.account_id, input.database_id),
+        method: 'POST',
+        body: queryBody(input.sql, input.params),
+      });
+    },
+    async apply_migration(input, ctx) {
+      if (!accountIdOk(input && input.account_id)) return invalid('account_id');
+      if (!databaseIdOk(input && input.database_id)) return invalid('database_id');
+      const refused = refusedSet();
+      const file = screenMigrationFile(input && input.file, refused);
+      if (file.error) return file.error;
+      const endpoint = d1QueryPath(input.account_id, input.database_id);
+      const created = await proxyData(ctx, {
+        endpoint,
+        method: 'POST',
+        body: { sql: MIGRATION_TABLE_SQL },
+      });
+      const createdRows = migrationResultRows(created, endpoint);
+      if (createdRows.error) return createdRows.error;
+      const listed = await proxyData(ctx, {
+        endpoint,
+        method: 'POST',
+        body: { sql: 'SELECT name FROM "d1_migrations" WHERE name = ?', params: [file.name] },
+      });
+      const listedRows = migrationResultRows(listed, endpoint);
+      if (listedRows.error) return listedRows.error;
+      const first = listedRows.rows[0];
+      if (first && Array.isArray(first.results) && first.results.length > 0) {
+        return { already_applied: true, name: file.name, database_id: input.database_id };
+      }
+      const appliedSql = `${file.text}\nINSERT INTO "d1_migrations" (name)\nvalues ('${file.name.replace(/'/g, "''")}');`;
+      const applied = await proxyData(ctx, {
+        endpoint,
+        method: 'POST',
+        body: { sql: appliedSql },
+      });
+      const appliedRows = migrationResultRows(applied, endpoint);
+      if (appliedRows.error) return appliedRows.error;
+      let rowsWritten = 0;
+      for (let index = 0; index < appliedRows.rows.length; index += 1) {
+        const row = appliedRows.rows[index];
+        if (row && row.success === false) {
+          return { status: 'vendor_error', endpoint, method: 'POST', reason: 'statement failed', statement_index: index };
+        }
+        const written = row && row.meta && row.meta.rows_written;
+        if (typeof written === 'number' && Number.isFinite(written)) rowsWritten += written;
+      }
+      return {
+        applied: true,
+        name: file.name,
+        database_id: input.database_id,
+        statements: appliedRows.rows.length,
+        rows_written: rowsWritten,
+      };
+    },
+    async delete_database(input, ctx) {
+      if (!accountIdOk(input && input.account_id)) return invalid('account_id');
+      if (!databaseIdOk(input && input.database_id)) return invalid('database_id');
+      return proxyEnvelope(ctx, {
+        endpoint: `/accounts/${encodeURIComponent(input.account_id)}/d1/database/${encodeURIComponent(input.database_id)}`,
+        method: 'DELETE',
+      });
     },
   },
 

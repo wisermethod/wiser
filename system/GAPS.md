@@ -6,7 +6,7 @@ A gap is a capability this root does not provide that a primitive's own body nam
 
 **This file carries capability gaps only.** What the operator plans to build is a separate record and is not a user's business, so nothing about future work appears here. **A gap names the capability that is missing, never where that capability went.**
 
-Counted 2026-10-07: 37 gaps across 23 primitives. Bullet count: `/usr/bin/grep -E '^- ' wiser/system/GAPS.md | wc -l` returns 37, and the same count derived from the primitives' own `gaps:` frontmatter returns 37. One was added on 2026-10-07: Site Author's unattended deploy at a scheduled article's go-live instant, since a deploy always takes a person's approval. One was removed on 2026-10-06 because the capability shipped: Profile Page's Person and ProfilePage structured data on a kit site, now the site kit's `person` declaration (kit 0.4.0). Verify each bullet against its primitive's frontmatter in both directions.
+Counted 2026-10-07: 41 gaps across 24 primitives. Bullet count: `/usr/bin/grep -E '^- ' wiser/system/GAPS.md | wc -l` returns 41, and the same count derived from the primitives' own `gaps:` frontmatter returns 41. Four were added on 2026-10-07 with Cloudflare Pages 0.5.0, which deploys a foreign site with Pages Functions and binds its D1 database and declares what that path still leaves out: other bindings, removing a D1 binding, an advanced-mode `_worker.js` site, and a foreign static site with no Functions. One was added on 2026-10-07: Site Author's unattended deploy at a scheduled article's go-live instant, since a deploy always takes a person's approval. One was removed on 2026-10-06 because the capability shipped: Profile Page's Person and ProfilePage structured data on a kit site, now the site kit's `person` declaration (kit 0.4.0). Verify each bullet against its primitive's frontmatter in both directions.
 
 Seven were removed on 2026-09-20 because the capability had shipped and the declaration outlived it: `page-speed readings` on Conversion Advisor and Webmaster, now `google-apis.insights.run`; `keyword research` and `keyword and backlink data source` on Webmaster and `keyword research` on SEO Assets, now `connectors/dataforseo/`; and `automated site crawling` on Webmaster and SEO Assets, now `tools/site-crawl/`. Each primitive's body said the same thing and was corrected with it, which is the half that changes behaviour: an expert that declares a reading absent declines to fetch one it can get.
 
@@ -40,6 +40,13 @@ Seven were removed on 2026-09-20 because the capability had shipped and the decl
 ### Knowledge Curation
 
 - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
+
+### Cloudflare Pages
+
+- bindings other than D1 on a Pages project, such as KV, R2, environment variables and secrets
+- removing a D1 binding from a Pages project
+- a site whose Functions are one advanced-mode _worker.js file
+- a foreign static site with no Pages Functions
 
 ### Content Author
 

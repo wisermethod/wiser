@@ -45,6 +45,10 @@
  * - **`cloudflare pages.deploy` requires `dir` to be a kit `site/dist` directory beside a
  *   `site/kit.json`.** Filesystem state again, of the same class, so its baseline row and its
  *   fixture are permanent for the same reason. Added 2026-09-24 with the action.
+ * - **`cloudflare d1.apply_migration` `file` and `cloudflare pages.deploy_with_functions` `dir`
+ *   are filesystem-state rows of the same permanent class**, added 2026-10-07 with their actions.
+ *   `apply_migration` needs a real `.sql` file. `deploy_with_functions` needs a static directory
+ *   and a functions build directory holding a valid minimal bundle. No schema can publish that.
  *
  * And one that changed shape when the validator moved into the gateway, stated because a
  * reader could otherwise take direction B for more than it is. **For a constraint the gateway
@@ -55,7 +59,7 @@
  * carries a validator. What direction B still measures against the module alone is the
  * constraints the gateway leaves to it: `maxLength`, `minimum`, `maximum` and `maxItems`.
  */
-import { readFileSync, readdirSync, existsSync, writeFileSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, writeFileSync, mkdtempSync, mkdirSync, realpathSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { chdir, cwd } from 'node:process';
 import { tmpdir } from 'node:os';
@@ -112,6 +116,11 @@ const PATTERN_OK = {
   '^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$': 'web-1',
   '^/[^\\u0000\\r\\n]*$': '/a',
   '^[A-Za-z0-9@._:][A-Za-z0-9@._:-]{0,119}\\.(service|timer|socket|target|path|mount)$': 'app.service',
+  // cloudflare d1 and pages binding ids, and d1.query's single-SELECT rule.
+  '^[0-9a-f]{32}$': '0123456789abcdef0123456789abcdef',
+  '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$': '01234567-89ab-cdef-0123-456789abcdef',
+  '^[A-Za-z_][A-Za-z0-9_]{0,63}$': 'DB',
+  '^\\s*[Ss][Ee][Ll][Ee][Cc][Tt][^A-Za-z0-9_;][^;]*(?:;\\s*)?$': 'SELECT 1',
 };
 const PATTERN_ADVERSARIAL = {
   // The tightened pattern excludes exactly the two relative segments
@@ -138,6 +147,9 @@ const VIOLATION_CANDIDATES = [' ', '/', '!', '', 'a/b', '\u0000', 'ZZ ZZ', '../.
  */
 let FIXTURE_FILE = '';
 let FIXTURE_DIST = '';
+let FIXTURE_MIGRATION = '';
+let FIXTURE_STATIC = '';
+let FIXTURE_FUNCTIONS_BUILD = '';
 
 /**
  * Field overrides that give an action a baseline its module accepts.
@@ -152,6 +164,8 @@ const FIXTURES = {
   // Resolved at call time, because FIXTURE_FILE is created per run rather than at import.
   'vercel:deployments.upload_file': () => ({ path: FIXTURE_FILE }),
   'cloudflare:pages.deploy': () => ({ dir: FIXTURE_DIST }),
+  'cloudflare:d1.apply_migration': () => ({ file: FIXTURE_MIGRATION }),
+  'cloudflare:pages.deploy_with_functions': () => ({ dir: FIXTURE_STATIC, functions_build: FIXTURE_FUNCTIONS_BUILD }),
 };
 
 function sampleString(s) {
@@ -407,6 +421,24 @@ export async function collectDivergences() {
   mkdirSync(FIXTURE_DIST, { recursive: true });
   writeFileSync(join(scratch, 'site', 'kit.json'), '{}\n');
   writeFileSync(join(FIXTURE_DIST, 'index.html'), '<!doctype html>\n');
+  // New filesystem fixtures use the real spelling. On macOS the temp directory's
+  // spelling contains a symbolic link, and these two actions refuse that.
+  const realScratch = realpathSync(scratch);
+  FIXTURE_MIGRATION = join(realScratch, 'migration.sql');
+  writeFileSync(FIXTURE_MIGRATION, 'SELECT 1;\n');
+  FIXTURE_STATIC = join(realScratch, 'static-site');
+  mkdirSync(FIXTURE_STATIC);
+  writeFileSync(join(FIXTURE_STATIC, 'index.html'), '<!doctype html>\n');
+  FIXTURE_FUNCTIONS_BUILD = join(realScratch, 'functions-build');
+  mkdirSync(FIXTURE_FUNCTIONS_BUILD);
+  const bundleBoundary = 'WiserBoundary';
+  writeFileSync(join(FIXTURE_FUNCTIONS_BUILD, '_worker.bundle'), [
+    `--${bundleBoundary}\r\nContent-Disposition: form-data; name="metadata"\r\n\r\n${JSON.stringify({ main_module: 'worker.js' })}\r\n`,
+    `--${bundleBoundary}\r\nContent-Disposition: form-data; name="worker.js"\r\n\r\nexport default {}\r\n`,
+    `--${bundleBoundary}--\r\n`,
+  ].join(''));
+  writeFileSync(join(FIXTURE_FUNCTIONS_BUILD, '_routes.json'), `${JSON.stringify({ version: 1, include: ['/api/*'], exclude: [] })}\n`);
+  writeFileSync(join(FIXTURE_FUNCTIONS_BUILD, 'functions-filepath-routing-config.json'), `${JSON.stringify({ routes: [] })}\n`);
   chdir(scratch);
   try {
     return await collect();
