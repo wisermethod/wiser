@@ -434,11 +434,12 @@ export async function collectDivergences() {
   const bundleBoundary = 'WiserBoundary';
   writeFileSync(join(FIXTURE_FUNCTIONS_BUILD, '_worker.bundle'), [
     `--${bundleBoundary}\r\nContent-Disposition: form-data; name="metadata"\r\n\r\n${JSON.stringify({ main_module: 'worker.js' })}\r\n`,
-    `--${bundleBoundary}\r\nContent-Disposition: form-data; name="worker.js"\r\n\r\nexport default {}\r\n`,
+    `--${bundleBoundary}\r\nContent-Disposition: form-data; name="worker.js"; filename="worker.js"\r\nContent-Type: application/javascript+module\r\n\r\nexport default {}\r\n`,
     `--${bundleBoundary}--\r\n`,
   ].join(''));
   writeFileSync(join(FIXTURE_FUNCTIONS_BUILD, '_routes.json'), `${JSON.stringify({ version: 1, include: ['/api/*'], exclude: [] })}\n`);
   writeFileSync(join(FIXTURE_FUNCTIONS_BUILD, 'functions-filepath-routing-config.json'), `${JSON.stringify({ routes: [] })}\n`);
+  writeFileSync(join(FIXTURE_FUNCTIONS_BUILD, 'build.json'), `${JSON.stringify({ assets: FIXTURE_STATIC, functions: join(realScratch, 'functions-src') })}\n`);
   chdir(scratch);
   try {
     return await collect();

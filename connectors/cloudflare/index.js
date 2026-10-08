@@ -272,6 +272,14 @@ function walkPages(root, refused, kitRule = true) {
       if (kitRule && atRoot && entry.name === 'functions' && (entry.isDirectory() || isDirectoryPath(full))) {
         return { error: invalid('dir', 'static kit output only') };
       }
+      if (!kitRule) {
+        const lower = entry.name.toLowerCase();
+        if (FOREIGN_REFUSED.has(lower)) return { error: invalid('dir', `not build output: ${logical}`) };
+        if (!atRoot && FOREIGN_SKIPPED.has(lower)) {
+          skipped.push({ file: logical, reason: 'source file' });
+          continue;
+        }
+      }
       if (entry.name === 'node_modules') {
         skipped.push({ file: logical, reason: 'skipped name' });
         continue;
@@ -553,7 +561,19 @@ const BUILD_OUTPUT_NAMES = [
   'wrangler.json',
   'wrangler.jsonc',
 ];
-const REQUIRED_BUILD_FILES = ['_worker.bundle', '_routes.json', 'functions-filepath-routing-config.json'];
+const REQUIRED_BUILD_FILES = ['_worker.bundle', '_routes.json', 'functions-filepath-routing-config.json', 'build.json'];
+// Anywhere below dir, case-insensitive: these are server code and stop the deploy.
+const FOREIGN_REFUSED = new Set(['_worker.js', '_worker.bundle', 'functions-filepath-routing-config.json']);
+// Below dir's root, case-insensitive: source files, skipped and listed.
+const FOREIGN_SKIPPED = new Set(['package.json', 'package-lock.json', 'wrangler.toml', 'wrangler.json', 'wrangler.jsonc']);
+
+// A path whose spelling holds `.` or `..` or an empty segment is refused rather
+// than normalized: `/tmp/../x` normalizes to `/x`, while the filesystem follows
+// the /tmp link first, so the approved spelling and the file read would differ.
+function notNormalForm(input) {
+  const trimmed = input.length > 1 && input.endsWith(sep) ? input.slice(0, -1) : input;
+  return trimmed.split(sep).slice(1).some((segment) => segment === '' || segment === '.' || segment === '..');
+}
 
 function codePoints(value) {
   return typeof value === 'string' ? [...value].length : 0;
@@ -618,6 +638,7 @@ function asObject(value) {
 function screenMigrationFile(file, refused) {
   if (typeof file !== 'string' || codePoints(file) < 1) return { error: invalid('file') };
   if (!isAbsolute(file)) return { error: invalid('file', 'path must be absolute') };
+  if (notNormalForm(file)) return { error: invalid('file', 'path is not in normal form') };
   const lexical = resolve(file);
   const resolved = canonicalize(file);
   if (!resolved) return { error: invalid('file', 'unresolvable') };
@@ -658,6 +679,7 @@ function migrationResultRows(data, endpoint) {
 function screenAbsoluteDir(input, field, refused) {
   if (typeof input !== 'string' || codePoints(input) < 1) return { error: invalid(field) };
   if (!isAbsolute(input)) return { error: invalid(field, 'path must be absolute') };
+  if (notNormalForm(input)) return { error: invalid(field, 'path is not in normal form') };
   const lexical = resolve(input);
   const resolved = canonicalize(input);
   if (!resolved) return { error: invalid(field, 'unresolvable') };
@@ -838,6 +860,35 @@ function base64Length(bytes) {
   return 4 * Math.ceil(bytes / 3);
 }
 
+// The bundle Cloudflare receives is rebuilt here from what was screened, so a
+// part whose headers two parsers could read differently never reaches it. Each
+// part may carry only Content-Disposition and Content-Type, each once; the
+// disposition is form-data with name and an optional filename, each once and
+// quoted; part names are unique. Accepted module content types are the ones
+// Wrangler writes for a module.
+const BUNDLE_MODULE_TYPES = new Set([
+  'application/javascript+module',
+  'application/javascript',
+  'text/javascript',
+  'application/wasm',
+  'application/octet-stream',
+  'text/plain',
+  'application/json',
+  'application/source-map',
+]);
+
+function parseDisposition(value) {
+  const match = /^form-data((?:\s*;\s*[A-Za-z]+="[^"\\\r\n]*")*)\s*$/i.exec(value);
+  if (!match) return null;
+  const params = {};
+  for (const param of match[1].matchAll(/;\s*([A-Za-z]+)="([^"\\\r\n]*)"/g)) {
+    const key = param[1].toLowerCase();
+    if ((key !== 'name' && key !== 'filename') || Object.prototype.hasOwnProperty.call(params, key)) return null;
+    params[key] = param[2];
+  }
+  return params.name ? params : null;
+}
+
 function parseBundle(bytes) {
   if (bytes.length > BUNDLE_MAX_BYTES) return { error: 'bundle over 2 MiB' };
   const raw = bytes.toString('latin1');
@@ -851,21 +902,39 @@ function parseBundle(bytes) {
   const closing = pieces[pieces.length - 1];
   if (!/^--(?:\r\n)?$/.test(closing)) return { error: 'bundle is not multipart' };
   const parts = [];
+  const names = new Set();
   for (const piece of pieces.slice(0, -1)) {
     const part = piece.startsWith('\r\n') ? piece.slice(2) : piece;
     const splitAt = part.indexOf('\r\n\r\n');
     if (splitAt < 0) return { error: 'bundle part has no header' };
-    const head = part.slice(0, splitAt);
-    const body = part.slice(splitAt + 4);
-    const name = /(?:^|\r\n)Content-Disposition:[^\r\n]*\bname="([^"]*)"/i.exec(head)?.[1];
-    if (!name) return { error: 'bundle part has no name' };
-    parts.push({ name, body });
+    const headers = {};
+    for (const line of part.slice(0, splitAt).split('\r\n')) {
+      const colon = line.indexOf(':');
+      if (colon < 1) return { error: 'bundle part has a malformed header' };
+      const key = line.slice(0, colon).trim().toLowerCase();
+      if (key !== 'content-disposition' && key !== 'content-type') return { error: `bundle part has an unexpected header: ${key}` };
+      if (Object.prototype.hasOwnProperty.call(headers, key)) return { error: `bundle part repeats ${key}` };
+      headers[key] = line.slice(colon + 1).trim();
+    }
+    const disposition = headers['content-disposition'] ? parseDisposition(headers['content-disposition']) : null;
+    if (!disposition) return { error: 'bundle part has an ambiguous or missing name' };
+    if (names.has(disposition.name)) return { error: `bundle has two parts named ${disposition.name}` };
+    names.add(disposition.name);
+    parts.push({
+      name: disposition.name,
+      filename: disposition.filename,
+      contentType: headers['content-type'],
+      body: Buffer.from(part.slice(splitAt + 4), 'latin1'),
+    });
   }
-  const metadataParts = parts.filter((part) => part.name === 'metadata');
-  if (metadataParts.length !== 1) return { error: 'bundle has no metadata part' };
+  const metadataPart = parts.find((part) => part.name === 'metadata');
+  if (!metadataPart) return { error: 'bundle has no metadata part' };
+  if (metadataPart.filename !== undefined || (metadataPart.contentType !== undefined && metadataPart.contentType !== 'application/json')) {
+    return { error: 'bundle metadata part is not plain JSON' };
+  }
   let metadata;
   try {
-    metadata = JSON.parse(metadataParts[0].body.trim());
+    metadata = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(metadataPart.body).trim());
   } catch {
     return { error: 'bundle metadata is not JSON' };
   }
@@ -878,9 +947,29 @@ function parseBundle(bytes) {
   if (Object.prototype.hasOwnProperty.call(metadata, 'bindings') && !(Array.isArray(metadata.bindings) && metadata.bindings.length === 0)) {
     return { error: 'bundle carries bindings; bindings go on the project through cloudflare.pages.bind_d1' };
   }
-  const named = parts.some((part) => part.name !== 'metadata' && part.name === metadata.main_module);
-  if (!named) return { error: `bundle has no part named ${metadata.main_module}` };
-  return { main_module: metadata.main_module };
+  const modulesParts = parts.filter((part) => part.name !== 'metadata');
+  for (const part of modulesParts) {
+    if (part.filename !== undefined && part.filename !== part.name) return { error: `bundle part ${part.name} names another file` };
+    if (!BUNDLE_MODULE_TYPES.has(part.contentType)) return { error: `bundle part ${part.name} has an unexpected content type` };
+  }
+  if (!modulesParts.some((part) => part.name === metadata.main_module)) {
+    return { error: `bundle has no part named ${metadata.main_module}` };
+  }
+  // The canonical bundle: the screened metadata, serialized again, then each
+  // module part with headers written here.
+  const value = [Buffer.from(JSON.stringify(metadata), 'utf8'), ...modulesParts.map((part) => part.body)];
+  let canonicalBoundary;
+  do {
+    canonicalBoundary = `wiser-${randomUUID()}`;
+  } while (value.some((chunk) => chunk.includes(canonicalBoundary)));
+  const chunks = [Buffer.from(`--${canonicalBoundary}\r\nContent-Disposition: form-data; name="metadata"\r\n\r\n`, 'utf8'), value[0], Buffer.from('\r\n', 'utf8')];
+  for (const part of modulesParts) {
+    chunks.push(Buffer.from(`--${canonicalBoundary}\r\nContent-Disposition: form-data; name="${part.name}"; filename="${part.name}"\r\nContent-Type: ${part.contentType}\r\n\r\n`, 'latin1'));
+    chunks.push(part.body);
+    chunks.push(Buffer.from('\r\n', 'utf8'));
+  }
+  chunks.push(Buffer.from(`--${canonicalBoundary}--\r\n`, 'utf8'));
+  return { main_module: metadata.main_module, canonical: Buffer.concat(chunks) };
 }
 
 function parseRoutes(bytes) {
@@ -1278,11 +1367,16 @@ export const modules = {
       const fail_open = {};
       const compatibility_date = {};
       const collateral_changes = [];
-      for (const env of environments) {
+      // Both environments are compared, so a PATCH that changed one it was not
+      // sent for is reported; the requested binding is exempt only where it was set.
+      for (const env of ['production', 'preview']) {
         const afterEnv = asObject(afterConfigs[env]) || {};
-        fail_open[env] = afterEnv.fail_open ?? null;
-        compatibility_date[env] = afterEnv.compatibility_date ?? null;
-        collateral_changes.push(...collateralChanges(env, configs[env], afterEnv, input.binding));
+        const named = environments.includes(env);
+        if (named) {
+          fail_open[env] = afterEnv.fail_open ?? null;
+          compatibility_date[env] = afterEnv.compatibility_date ?? null;
+        }
+        collateral_changes.push(...collateralChanges(env, configs[env], afterEnv, named ? input.binding : null));
       }
       collateral_changes.sort();
       return {
@@ -1304,6 +1398,15 @@ export const modules = {
       const refused = refusedSet();
       const root = screenAbsoluteDir(input.dir, 'dir', refused);
       if (root.error) return root.error;
+      // A kit payload goes through pages.deploy, whose screens and gate are the
+      // kit's; this action never carries a Function onto a kit site.
+      let kitMarker = null;
+      try {
+        kitMarker = lstatSync(join(dirname(root.resolved), 'kit.json'));
+      } catch { /* none */ }
+      if (kitMarker || (basename(root.resolved) === 'dist' && basename(dirname(root.resolved)) === 'site')) {
+        return invalid('dir', 'kit payload: use cloudflare.pages.deploy');
+      }
       const blocked = screenNotBuildOutput(root.resolved);
       if (blocked) return blocked;
       const buildRoot = screenAbsoluteDir(input.functions_build, 'functions_build', refused);
@@ -1317,7 +1420,7 @@ export const modules = {
       } catch {
         return invalid('functions_build', 'unreadable');
       }
-      const allowed = new Set([...REQUIRED_BUILD_FILES, 'build.json']);
+      const allowed = new Set(REQUIRED_BUILD_FILES);
       for (const entry of buildEntries) {
         if (!allowed.has(entry.name)) return invalid('functions_build', `unexpected entry: ${entry.name}`);
         const full = join(buildRoot.resolved, entry.name);
@@ -1335,7 +1438,7 @@ export const modules = {
         if (!present.has(name)) return invalid('functions_build', `missing ${name}`);
       }
       const kept = {};
-      for (const name of [...REQUIRED_BUILD_FILES, ...(present.has('build.json') ? ['build.json'] : [])]) {
+      for (const name of REQUIRED_BUILD_FILES) {
         const read = readBuildEntry(buildRoot.resolved, name, refused);
         if (read.error) return read.error;
         kept[name] = read;
@@ -1346,16 +1449,26 @@ export const modules = {
       if (routes.error) return invalid('functions_build', routes.error);
       const routing = parseRoutingConfig(kept['functions-filepath-routing-config.json'].bytes);
       if (routing.error) return invalid('functions_build', routing.error);
-      let buildProvenance = null;
-      if (kept['build.json']) {
-        try {
-          buildProvenance = JSON.parse(kept['build.json'].bytes.toString('utf8'));
-        } catch {
-          return invalid('functions_build', 'build.json is not JSON');
-        }
-        if (!buildProvenance || typeof buildProvenance !== 'object' || Array.isArray(buildProvenance)) {
-          return invalid('functions_build', 'build.json is not an object');
-        }
+      let buildProvenance;
+      try {
+        buildProvenance = JSON.parse(kept['build.json'].bytes.toString('utf8'));
+      } catch {
+        return invalid('functions_build', 'build.json is not JSON');
+      }
+      if (!buildProvenance || typeof buildProvenance !== 'object' || Array.isArray(buildProvenance)) {
+        return invalid('functions_build', 'build.json is not an object');
+      }
+      // The build names the static directory it was made for and the functions
+      // source it was made from. It must be this dir, and the source must not be
+      // published with it.
+      if (buildProvenance.assets !== root.resolved) {
+        return invalid('functions_build', 'build.json assets is not dir');
+      }
+      if (typeof buildProvenance.functions !== 'string' || !isAbsolute(buildProvenance.functions)) {
+        return invalid('functions_build', 'build.json names no functions source');
+      }
+      if (isInside(buildProvenance.functions, root.resolved) || isInside(root.resolved, buildProvenance.functions)) {
+        return invalid('functions_build', 'functions source overlaps dir');
       }
       const walked = walkPages(root.resolved, refused, false);
       if (walked.error) return walked.error;
@@ -1366,7 +1479,7 @@ export const modules = {
         name,
         filename: name,
         contentType: 'application/octet-stream',
-        value: kept[name].bytes,
+        value: name === '_worker.bundle' ? bundle.canonical : kept[name].bytes,
       }));
       const form = buildMultipart(deploymentParts(manifest, walked.headers, walked.redirects, extra));
       const encoded = base64Length(form.body.length);
@@ -1417,7 +1530,7 @@ export const modules = {
         skipped: walked.skipped,
         functions: {
           main_module: bundle.main_module,
-          bundle_bytes: kept['_worker.bundle'].bytes.length,
+          bundle_bytes: bundle.canonical.length,
           routes: { include: routes.include, exclude: routes.exclude },
           build: buildProvenance,
         },
@@ -1499,6 +1612,9 @@ export const modules = {
       });
       const createdRows = migrationResultRows(created, endpoint);
       if (createdRows.error) return createdRows.error;
+      if (createdRows.rows.length === 0 || createdRows.rows.some((row) => !row || row.success === false)) {
+        return { status: 'vendor_error', endpoint, method: 'POST', reason: 'migration table not created' };
+      }
       const listed = await proxyData(ctx, {
         endpoint,
         method: 'POST',
@@ -1507,7 +1623,10 @@ export const modules = {
       const listedRows = migrationResultRows(listed, endpoint);
       if (listedRows.error) return listedRows.error;
       const first = listedRows.rows[0];
-      if (first && Array.isArray(first.results) && first.results.length > 0) {
+      if (listedRows.rows.length !== 1 || !first || first.success === false || !Array.isArray(first.results)) {
+        return { status: 'vendor_error', endpoint, method: 'POST', reason: 'migration history unreadable' };
+      }
+      if (first.results.length > 0) {
         return { already_applied: true, name: file.name, database_id: input.database_id };
       }
       const appliedSql = `${file.text}\nINSERT INTO "d1_migrations" (name)\nvalues ('${file.name.replace(/'/g, "''")}');`;

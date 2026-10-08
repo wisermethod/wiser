@@ -77,9 +77,9 @@ In `--out`:
 | `functions-filepath-routing-config.json` | Wrangler's routing config |
 | `build.json` | Provenance: tool name and version, Wrangler version, the canonical `--functions` and `--assets` paths, a sorted list of `{ path, sha256 }` for every regular file under `--functions` (skipping `node_modules` and hidden names), and `built_at` in UTC |
 
-`cloudflare.pages.deploy_with_functions` reads the first three and returns `build.json` as provenance. It does not upload `build.json`.
+`cloudflare.pages.deploy_with_functions` sends the first three and requires `build.json`: its `assets` must be the directory being deployed and its `functions` must sit outside it. The deploy returns `build.json` as provenance and never uploads it.
 
-The compiler runs in a fresh directory under the system temp directory, prefix `wiser-pages-functions-`. That directory is removed when the run ends, including when the build fails. An install writes `node_modules/` in this tool directory and, once, `.wiser-consent` at the plugin root.
+The compiler runs in a fresh directory under the system temp directory, prefix `wiser-pages-functions-`. That directory is removed when the run ends, including when the build fails. A run killed from outside before it ends can leave it behind; it holds Wrangler's log, its working files, its update check's cache and the compiled output, never a credential, and the system clears its temporary directory. Wrangler is given no route to the network: metrics are off, and the npm registry it would check for a newer version is a closed port on this machine, on its error path as well as its success path. An install writes `node_modules/` in this tool directory and, once, `.wiser-consent` at the plugin root.
 
 ## Dependencies
 

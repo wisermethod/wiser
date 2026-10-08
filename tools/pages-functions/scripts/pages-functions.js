@@ -192,12 +192,19 @@ function wranglerEnv(tmp) {
   const home = join(tmp, 'home');
   const xdg = join(tmp, 'xdg');
   const logs = join(tmp, 'logs');
+  const temp = join(tmp, 'tmp');
   mkdirSync(home);
   mkdirSync(xdg);
   mkdirSync(logs);
+  mkdirSync(temp);
   // WRANGLER_HIDE_BANNER=true skips the banner, which is the success-path caller
-  // of the npm update check. update-check itself has no off switch.
+  // of the npm update check. update-check has no off switch, and Wrangler's
+  // error path calls it too, so its registry is pointed at a closed loopback
+  // port: the check fails at once and nothing reaches the network. Wrangler's
+  // bundled rc reads npm_<key> from the environment, so the key is npm_registry,
+  // not npm's own npm_config_registry. The stand-in HOME holds no .npmrc.
   const env = {
+    npm_registry: 'http://127.0.0.1:9/',
     PATH: process.env.PATH || '',
     HOME: home,
     XDG_CONFIG_HOME: xdg,
@@ -207,8 +214,12 @@ function wranglerEnv(tmp) {
     WRANGLER_HIDE_BANNER: 'true',
     NO_COLOR: '1',
     CI: '1',
+    // Wrangler's update check caches under the temporary directory, so the
+    // child's temporary directory is one inside this run's, removed with it.
+    TMPDIR: temp,
+    TMP: temp,
+    TEMP: temp,
   };
-  if (process.env.TMPDIR) env.TMPDIR = process.env.TMPDIR;
   return env;
 }
 

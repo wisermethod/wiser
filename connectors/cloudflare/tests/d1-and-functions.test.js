@@ -5,7 +5,7 @@ import {
   mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { modules } from '../index.js';
 
@@ -47,7 +47,7 @@ function bundleBytes({ bindings, metadata = true, main = 'worker.js' } = {}) {
   if (metadata) {
     parts.push(`--${boundary}\r\nContent-Disposition: form-data; name="metadata"\r\n\r\n${JSON.stringify(meta)}\r\n`);
   }
-  parts.push(`--${boundary}\r\nContent-Disposition: form-data; name="${main}"\r\n\r\nexport default {}\r\n`);
+  parts.push(`--${boundary}\r\nContent-Disposition: form-data; name="${main}"; filename="${main}"\r\nContent-Type: application/javascript+module\r\n\r\nexport default {}\r\n`);
   parts.push(`--${boundary}--\r\n`);
   return Buffer.from(parts.join(''), 'utf8');
 }
@@ -56,8 +56,15 @@ function routesJson(overrides = {}) {
   return `${JSON.stringify({ version: 1, include: ['/api/*'], exclude: [], ...overrides })}\n`;
 }
 
-function writeBuild(dir, { bundle, routes, routing, extra, linkName } = {}) {
+function writeBuild(dir, { bundle, routes, routing, extra, linkName, assets, functions, build } = {}) {
   mkdirSync(dir, { recursive: true });
+  const provenance = build !== undefined ? build : {
+    tool: 'pages-functions',
+    assets: assets || join(dirname(dir), 'static'),
+    functions: functions || join(dirname(dir), 'functions-src'),
+    sources: [],
+  };
+  if (provenance !== null) writeFileSync(join(dir, 'build.json'), typeof provenance === 'string' ? provenance : `${JSON.stringify(provenance)}\n`);
   writeFileSync(join(dir, '_worker.bundle'), bundle || bundleBytes());
   if (linkName) {
     const real = join(dir, '..', 'linked-routes.json');
@@ -499,15 +506,20 @@ test('deploy_with_functions sends the three build files and skips screened names
     for (const banned of ['_worker.bundle', '_routes.json', 'functions-filepath-routing-config.json']) {
       assert.equal(Object.hasOwn(manifest, `/${banned}`), false);
     }
-    assert.equal(form.parts.find((part) => part.name === '_worker.bundle').value, bundle.toString('latin1'));
+    // The bundle is sent as rebuilt from what was screened: the same metadata and
+    // module, under the connector's own boundary and headers.
+    const sent = form.parts.find((part) => part.name === '_worker.bundle').value;
+    assert.match(sent, /^--wiser-[0-9a-f-]+\r\nContent-Disposition: form-data; name="metadata"\r\n\r\n\{"main_module":"worker\.js"\}\r\n/);
+    assert.match(sent, /Content-Disposition: form-data; name="worker\.js"; filename="worker\.js"\r\nContent-Type: application\/javascript\+module\r\n\r\nexport default \{\}\r\n/);
+    assert.equal(sent === bundle.toString('latin1'), false);
     assert.equal(form.parts.find((part) => part.name === '_routes.json').value, routes.toString('latin1'));
     assert.equal(form.parts.find((part) => part.name === 'functions-filepath-routing-config.json').value, routing.toString('latin1'));
     const uploads = calls.filter((item) => item.endpoint === '/pages/assets/upload');
     assert.equal(uploads.length, 0);
     assert.equal(result.functions.main_module, 'worker.js');
-    assert.equal(result.functions.bundle_bytes, bundle.length);
+    assert.equal(result.functions.bundle_bytes, Buffer.byteLength(sent, 'latin1'));
     assert.deepEqual(result.functions.routes, { include: ['/api/*'], exclude: [] });
-    assert.equal(result.functions.build, null);
+    assert.equal(result.functions.build.assets, tree.dir);
     assert.equal(result.files, 1);
     assert.ok(result.skipped.some((item) => item.file === '.hidden' && item.reason === 'hidden'));
     assert.ok(result.skipped.some((item) => item.file === '.env' && item.reason === 'hidden'));
@@ -683,4 +695,182 @@ test('deploy_with_functions stops when a build file changes and pages.deploy sti
   } finally {
     cleanup(kit);
   }
+});
+
+// Adversarial review round 1, 2026-10-07: one case per supported finding.
+
+test('review 1: a bundle whose part headers two parsers could read differently is refused', async () => {
+  const { gw, fake } = await granted('pages');
+  const calls = [];
+  fake.auth.proxy = deployProxy(calls);
+  const B = 'Spoof';
+  const evil = JSON.stringify({ main_module: 'worker.js', bindings: [{ type: 'plain_text', name: 'EVIL', text: 'x' }] });
+  const clean = JSON.stringify({ main_module: 'worker.js' });
+  const mod = `--${B}\r\nContent-Disposition: form-data; name="worker.js"; filename="worker.js"\r\nContent-Type: application/javascript+module\r\n\r\nexport default {}\r\n`;
+  const cases = [
+    [`--${B}\r\nContent-Disposition: form-data; name="metadata"; x-name="decoy"\r\n\r\n${evil}\r\n--${B}\r\nContent-Disposition: form-data; name="metadata"\r\n\r\n${clean}\r\n${mod}--${B}--\r\n`, 'bundle part has an ambiguous or missing name'],
+    [`--${B}\r\nContent-Disposition: form-data; name="metadata"\r\n\r\n${clean}\r\n--${B}\r\nContent-Disposition: form-data; name="metadata"\r\n\r\n${evil}\r\n${mod}--${B}--\r\n`, 'bundle has two parts named metadata'],
+    [`--${B}\r\nContent-Disposition: form-data; name="metadata"; name="other"\r\n\r\n${clean}\r\n${mod}--${B}--\r\n`, 'bundle part has an ambiguous or missing name'],
+    [`--${B}\r\nContent-Disposition: form-data; name="metadata"\r\nContent-Disposition: form-data; name="x"\r\n\r\n${clean}\r\n${mod}--${B}--\r\n`, 'bundle part repeats content-disposition'],
+    [`--${B}\r\nContent-Disposition: form-data; name="metadata"\r\nX-Extra: 1\r\n\r\n${clean}\r\n${mod}--${B}--\r\n`, 'bundle part has an unexpected header: x-extra'],
+    [`--${B}\r\nContent-Disposition: form-data; name="metadata"\r\n\r\n${clean}\r\n--${B}\r\nContent-Disposition: form-data; name="worker.js"\r\nContent-Type: text/html\r\n\r\nx\r\n--${B}--\r\n`, 'bundle part worker.js has an unexpected content type'],
+  ];
+  for (const [bundle, reason] of cases) {
+    const tree = staticAndBuild();
+    writeFileSync(join(tree.build, '_worker.bundle'), bundle);
+    try {
+      calls.length = 0;
+      const result = await confirmCall(gw, {
+        action: 'cloudflare.pages.deploy_with_functions',
+        input: { account_id: ACCOUNT, project_name: PROJECT, dir: tree.dir, functions_build: tree.build },
+      });
+      assert.equal(result.status, 'invalid_arguments', reason);
+      assert.equal(result.reason, reason);
+      assert.equal(calls.length, 0, reason);
+    } finally {
+      cleanup(tree.root);
+    }
+  }
+});
+
+test('review 2: a path spelled with . or .. or an empty segment is refused, not normalized', async () => {
+  const { gw, fake } = await granted('pages');
+  fake.auth.proxy = deployProxy([]);
+  const tree = staticAndBuild();
+  try {
+    for (const dir of [`${tree.root}/static/../static`, `${tree.root}/./static`, `${tree.root}//static`]) {
+      const result = await confirmCall(gw, {
+        action: 'cloudflare.pages.deploy_with_functions',
+        input: { account_id: ACCOUNT, project_name: PROJECT, dir, functions_build: tree.build },
+      });
+      assert.equal(result.reason, 'path is not in normal form', dir);
+    }
+    const trailing = await confirmCall(gw, {
+      action: 'cloudflare.pages.deploy_with_functions',
+      input: { account_id: ACCOUNT, project_name: PROJECT, dir: `${tree.dir}/`, functions_build: tree.build },
+    });
+    assert.notEqual(trailing.reason, 'path is not in normal form');
+    const sql = join(tree.root, 'm.sql');
+    writeFileSync(sql, 'CREATE TABLE t(x);\n');
+    const { result, calls } = await d1Calls('apply_migration', { account_id: ACCOUNT, database_id: DATABASE, file: `${tree.root}/static/../m.sql` });
+    assert.equal(result.reason, 'path is not in normal form');
+    assert.equal(calls.length, 0);
+  } finally {
+    cleanup(tree.root);
+  }
+});
+
+test('review 3: kit payloads, nested server files and a mismatched build.json are refused; nested source files are skipped', async () => {
+  const { gw, fake } = await granted('pages');
+  const calls = [];
+  fake.auth.proxy = deployProxy(calls);
+  const deploy = (dir, build) => confirmCall(gw, {
+    action: 'cloudflare.pages.deploy_with_functions',
+    input: { account_id: ACCOUNT, project_name: PROJECT, dir, functions_build: build },
+  });
+  // A kit payload: site/dist beside site/kit.json.
+  const kitRoot = scratch();
+  try {
+    const dist = join(kitRoot, 'site', 'dist');
+    mkdirSync(dist, { recursive: true });
+    writeFileSync(join(kitRoot, 'site', 'kit.json'), '{}\n');
+    writeFileSync(join(dist, 'index.html'), 'x\n');
+    const build = join(kitRoot, 'build');
+    writeBuild(build, { assets: dist });
+    assert.equal((await deploy(dist, build)).reason, 'kit payload: use cloudflare.pages.deploy');
+  } finally {
+    cleanup(kitRoot);
+  }
+  // Nested server files stop the deploy, in any case.
+  for (const name of ['_worker.bundle', '_Worker.js', 'functions-filepath-routing-config.json']) {
+    const tree = staticAndBuild();
+    try {
+      mkdirSync(join(tree.dir, 'public'));
+      writeFileSync(join(tree.dir, 'public', name), 'x\n');
+      const result = await deploy(tree.dir, tree.build);
+      assert.equal(result.reason, `not build output: public/${name}`, name);
+    } finally {
+      cleanup(tree.root);
+    }
+  }
+  // build.json must name this dir, and a functions source outside it.
+  {
+    const tree = staticAndBuild();
+    try {
+      writeBuild(tree.build, { assets: join(tree.root, 'elsewhere') });
+      assert.equal((await deploy(tree.dir, tree.build)).reason, 'build.json assets is not dir');
+      rmSync(tree.build, { recursive: true, force: true });
+      writeBuild(tree.build, { functions: join(tree.dir, 'fn') });
+      assert.equal((await deploy(tree.dir, tree.build)).reason, 'functions source overlaps dir');
+      rmSync(tree.build, { recursive: true, force: true });
+      writeBuild(tree.build, { build: null });
+      assert.equal((await deploy(tree.dir, tree.build)).reason, 'missing build.json');
+    } finally {
+      cleanup(tree.root);
+    }
+  }
+  // Nested source files are skipped and listed; the deploy goes ahead.
+  {
+    const tree = staticAndBuild();
+    try {
+      mkdirSync(join(tree.dir, 'demo'));
+      writeFileSync(join(tree.dir, 'demo', 'package.json'), '{}\n');
+      writeFileSync(join(tree.dir, 'demo', 'Wrangler.toml'), 'x\n');
+      calls.length = 0;
+      const result = await deploy(tree.dir, tree.build);
+      assert.equal(result.deployment.id, 'dep-fn');
+      assert.ok(result.skipped.some((item) => item.file === 'demo/package.json' && item.reason === 'source file'));
+      assert.ok(result.skipped.some((item) => item.file === 'demo/Wrangler.toml' && item.reason === 'source file'));
+      assert.equal(result.manifest.some((path) => path.startsWith('/demo/')), false);
+    } finally {
+      cleanup(tree.root);
+    }
+  }
+});
+
+test('review 4: a failed migration table or history statement stops before the migration runs', async () => {
+  const root = scratch();
+  try {
+    const file = join(root, '0001_x.sql');
+    writeFileSync(file, 'CREATE TABLE x(id INTEGER);\n');
+    const input = { account_id: ACCOUNT, database_id: DATABASE, file };
+    const tableFails = await d1Calls('apply_migration', input, () => envelope([{ success: false, results: [] }]));
+    assert.equal(tableFails.result.reason, 'migration table not created');
+    assert.equal(tableFails.calls.length, 1);
+    const historyFails = await d1Calls('apply_migration', input, (req, calls) => (calls.length === 1
+      ? envelope([{ success: true, results: [] }])
+      : envelope([{ success: false, error: 'lookup failed' }])));
+    assert.equal(historyFails.result.reason, 'migration history unreadable');
+    assert.equal(historyFails.calls.length, 2);
+    const historyShapeless = await d1Calls('apply_migration', input, (req, calls) => (calls.length === 1
+      ? envelope([{ success: true, results: [] }])
+      : envelope([{ success: true }])));
+    assert.equal(historyShapeless.result.reason, 'migration history unreadable');
+    assert.equal(historyShapeless.calls.length, 2);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test('review 5: a change to an environment the bind did not name is reported', async () => {
+  const { gw, fake } = await granted('pages');
+  fake.auth.proxy = async (request) => {
+    if (request.method === 'GET') {
+      return envelope({ deployment_configs: {
+        production: { fail_open: true, d1_databases: {} },
+        preview: { env_vars: { SECRET: { type: 'secret_text' } }, d1_databases: { OTHER: { id: DATABASE } } },
+      } });
+    }
+    return envelope({ deployment_configs: {
+      production: { fail_open: true, d1_databases: { DB: { id: DATABASE } } },
+      preview: {},
+    } });
+  };
+  const result = await confirmCall(gw, {
+    action: 'cloudflare.pages.bind_d1',
+    input: { account_id: ACCOUNT, project_name: PROJECT, binding: 'DB', database_id: DATABASE, environments: ['production'] },
+  });
+  assert.deepEqual(result.collateral_changes, ['preview.d1_databases.OTHER', 'preview.env_vars']);
+  assert.equal(JSON.stringify(result).includes('secret_text'), false);
+  assert.deepEqual(Object.keys(result.fail_open), ['production']);
 });
