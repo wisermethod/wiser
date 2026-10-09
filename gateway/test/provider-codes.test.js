@@ -76,3 +76,29 @@ test('ctx.proxy throws a signal that carries the codes to the module', async (t)
     return true;
   });
 });
+
+test('projectProviderCodes filters a vendor_error a module built itself, and leaves other results alone', async () => {
+  const { projectProviderCodes } = await import('../src/errors.js');
+  assert.deepEqual(
+    projectProviderCodes({ status: 'vendor_error', http_status: 403, provider_codes: ['secret text', 9999, { a: 1 }, ...Array.from({ length: 20 }, (_, i) => i)], reason: 'own' }),
+    { status: 'vendor_error', http_status: 403, provider_codes: [9999, 0, 1, 2, 3, 4, 5, 6, 7, 8], reason: 'own' },
+  );
+  assert.deepEqual(projectProviderCodes({ status: 'vendor_error', provider_codes: ['only text'] }), { status: 'vendor_error' });
+  const ok = { success: true, provider_codes: ['not a vendor error'] };
+  assert.equal(projectProviderCodes(ok), ok);
+});
+
+test('execute filters provider_codes on a vendor_error the module returned itself', async () => {
+  const { createTestGateway, putActive } = await import('./fake-provider.js');
+  const env = await createTestGateway();
+  await putActive(env.store, env.fake, { service: 'cloudflare', module: 'zones' });
+  const { modules } = await import('../../connectors/cloudflare/index.js');
+  const original = modules.zones.get;
+  modules.zones.get = async () => ({ status: 'vendor_error', http_status: 500, provider_codes: ['leak', 7] });
+  try {
+    const out = await env.gw.execute({ action: 'cloudflare.zones.get', input: { zone_id: '0123456789abcdef0123456789abcdef' } });
+    assert.deepEqual(out.provider_codes, [7]);
+  } finally {
+    modules.zones.get = original;
+  }
+});

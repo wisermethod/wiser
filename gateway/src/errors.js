@@ -98,12 +98,36 @@ export function vendorErrorFrom(res) {
     endpoint: res.error?.endpoint ?? null,
     method: res.error?.method ?? null,
   };
-  const raw = res.error?.provider_codes;
-  if (Array.isArray(raw)) {
-    const codes = raw.filter((code) => Number.isSafeInteger(code)).slice(0, 10);
-    if (codes.length > 0) out.provider_codes = codes;
-  }
+  const codes = filterProviderCodes(res.error?.provider_codes);
+  if (codes) out.provider_codes = codes;
   return statusObject(STATUS.VENDOR_ERROR, out);
+}
+
+/**
+ * Safe integers only, at most ten, or null when none remain.
+ * @param {unknown} raw
+ * @returns {number[] | null}
+ */
+export function filterProviderCodes(raw) {
+  if (!Array.isArray(raw)) return null;
+  const codes = raw.filter((code) => Number.isSafeInteger(code)).slice(0, 10);
+  return codes.length > 0 ? codes : null;
+}
+
+/**
+ * The same filter on a `vendor_error` a module or adapter built itself and
+ * returned as a status object, which does not pass through `vendorErrorFrom`.
+ * Any other field such an object carries is the module's own and is left as it is.
+ * @param {unknown} result
+ */
+export function projectProviderCodes(result) {
+  if (!result || typeof result !== 'object' || result.status !== STATUS.VENDOR_ERROR) return result;
+  if (!Object.hasOwn(result, 'provider_codes')) return result;
+  const out = { ...result };
+  const codes = filterProviderCodes(result.provider_codes);
+  if (codes) out.provider_codes = codes;
+  else delete out.provider_codes;
+  return out;
 }
 
 /**

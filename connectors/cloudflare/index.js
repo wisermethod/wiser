@@ -1502,11 +1502,14 @@ function vendorSignal(err, httpStatus) {
 // as provider_codes on a vendor_error.
 const ACCESS_NOT_ENABLED = 9999;
 
+// Only an unambiguous answer counts: HTTP 403 whose codes are 9999 and nothing else.
+// A 403 that mixes 9999 with another code is not read as Access being off.
 function accessNotEnabled(err) {
   const signal = err && typeof err === 'object' ? err.object : null;
   return Boolean(
     signal && signal.status === 'vendor_error' && signal.http_status === 403
-    && Array.isArray(signal.provider_codes) && signal.provider_codes.includes(ACCESS_NOT_ENABLED),
+    && Array.isArray(signal.provider_codes) && signal.provider_codes.length > 0
+    && signal.provider_codes.every((code) => code === ACCESS_NOT_ENABLED),
   );
 }
 
@@ -2033,7 +2036,9 @@ export const modules = {
           // the gateway passes that code as provider_codes. Access not enabled is a
           // reading: no Access application exists, so none applies to any hostname.
           // Any other refusal, a plain 403 included, is thrown unchanged.
-          if (accessNotEnabled(err)) {
+          // Only before any page was read: a refusal after applications were read
+          // contradicts them, so it propagates rather than erasing what was read.
+          if (page === 1 && all.length === 0 && accessNotEnabled(err)) {
             return {
               success: true,
               access_enabled: false,

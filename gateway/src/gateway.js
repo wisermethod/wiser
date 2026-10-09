@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { isAncestorPid, rescanRefusal, verify } from '../../hooks/lib/binding.mjs';
 import { isRefused } from '../../hooks/lib/presence.mjs';
 import { buildContext } from './context.js';
-import { STATUS, StatusSignal, classifierAuditStatus, isStatusObject, sanitizeError, statusObject, vendorErrorFrom } from './errors.js';
+import { STATUS, StatusSignal, classifierAuditStatus, isStatusObject, projectProviderCodes, sanitizeError, statusObject, vendorErrorFrom } from './errors.js';
 import { composeSummary, containsUnsafeCodePoint, discloseInput } from './disclosure.js';
 import { validateInput } from './input-schema.js';
 import { evaluate } from './policy.js';
@@ -1166,6 +1166,7 @@ export class ConnectionGateway {
       // and unmapped statuses preserve both the original error and the ACTIVE row.
       const classifyExecuteResult = async (result) => {
         if (!isStatusObject(result) && result?.error?.code === 'vendor_error') result = vendorErrorFrom(result);
+        result = projectProviderCodes(result);
         if (authForRun?.provider === 'local-file' || result?.status !== STATUS.VENDOR_ERROR ||
             ![401, 403].includes(result.http_status) || typeof provider?.status !== 'function') {
           return result;
