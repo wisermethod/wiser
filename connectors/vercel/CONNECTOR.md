@@ -2,13 +2,13 @@
 name: vercel
 type: connector
 category: development
-description: Reads projects and deployments and creates a deployment, uploading its files by reference, only with confirmation on every call
-version: 0.3.0
+description: Reads projects, their domains and deployments, removes a project domain, and creates a deployment, uploading its files by reference, with confirmation on every write
+version: 0.4.0
 ---
 
 # Vercel
 
-Reads projects and deployments and creates a deployment, uploading its files by reference, only with confirmation on every call.
+Reads projects, their domains and deployments, removes a project domain, and creates a deployment, uploading its files by reference, with confirmation on every write.
 
 ## Status
 
@@ -16,6 +16,8 @@ Shipped 2026-09-08, and both modules were proved live the same day. Catalog list
 `create` **has run**: a deployment succeeded live on 2026-09-14, READY and PROMOTED.
 Upload by reference added 2026-09-17, and it closes a blocking gap rather than a convenience. Until it existed there was no compliant way to deploy an ordinary site through this plugin at all: `skills/Vercel Deploy/` routes every deployment through the gateway, the only payload form was an inline `files` array, and a 962,496-byte site is 1,283,376 base64 characters in a single call. The platform CLI is not a fallback, because `skills/Vercel Deploy/SETUP.md` forbids connecting an envelope or owning root to the platform, which `vercel deploy` does by writing a project link into the tree. The inline-only limit closed the only door rather than narrowing it.
 Verified 2026-09-17 against a real 38-file, 962,496-byte site: all 38 files uploaded by reference, and the resulting create body was 3,824 bytes against roughly 1,283,328 inline. See `auth.md`.
+
+On 2026-10-09 at `4128c59`, `projects.list_domains` ran live and, in one provider call, returned three domains: `www.effectivesc.org` redirecting to `effectivesc.org` with status 308, `effectivesc.org` with no redirect, and `effectivesc-zeta.vercel.app`. `projects.remove_domain` has not run live. A fake-provider test covers it.
 
 
 ## Reaching it
@@ -25,6 +27,8 @@ Through the gateway by action id. Input fields are declared in `manifest.json`.
 ```
 vercel.projects.list         { team_id?, limit?, slug? }
 vercel.projects.get          { id_or_name, team_id?, slug? }
+vercel.projects.list_domains { id_or_name, team_id? }                                        confirmation: none
+vercel.projects.remove_domain { id_or_name, domain, team_id? }                               confirmation: always
 vercel.deployments.list      { project_id?, team_id?, limit?, slug? }
 vercel.deployments.upload_file  { path, name?, team_id?, slug? }                     confirmation: always
 vercel.deployments.create    { name, dir? | files? | git_source?, project?,
@@ -32,7 +36,11 @@ vercel.deployments.create    { name, dir? | files? | git_source?, project?,
                                team_id?, slug? }                                     confirmation: always
 ```
 
-Projects and deployments are separate grants, both write-capable. The three reads use the catalog; `upload_file` and `create` reach the platform directly. `team_id` or `slug` selects the team. Inputs use the manifest names, remapped to platform field casing.
+Projects and deployments are separate grants, both write-capable. `projects.list`, `projects.get` and `deployments.list` use the catalog. `projects.list_domains`, `projects.remove_domain`, `upload_file` and `create` reach the platform directly. `team_id` or `slug` selects the team where the action accepts it. `list_domains` and `remove_domain` accept `team_id` and not `slug`. Inputs use the manifest names, remapped to platform field casing.
+
+### Project domains
+
+`list_domains` is `confirmation: none`. `remove_domain` is `confirmation: always`. `id_or_name` is 1 to 100 letters, digits, dots, underscores or hyphens. `domain` is a dotted hostname. `team_id`, when given, is sent as `teamId`. `remove_domain` sends no body. It removes the domain from the project and does not change the DNS record. When one domain redirects to another, remove the domain that redirects first. This action does not clear that redirect, and the platform can refuse to remove a domain while another domain on the project still redirects to it.
 
 ### Giving `create` its files
 
@@ -81,7 +89,7 @@ This connector holds no credential. Each grant lives with the gateway's provider
 
 | Module | Privilege | Actions |
 |--------|-----------|---------|
-| `projects` | write | `list`, `get` |
+| `projects` | write | `list`, `get`, `list_domains`, `remove_domain` |
 | `deployments` | write | `list`, `upload_file`, `create` |
 
 Each module has its own grant. Privilege describes the grant, not just these actions.
@@ -92,6 +100,7 @@ Each module has its own grant. Privilege describes the grant, not just these act
 |--------|--------|--------------|
 | `deployments.upload_file` | Sends a local file to the platform's file store | always |
 | `deployments.create` | Reads the named source, uploads it, and publishes a deployment | always |
+| `projects.remove_domain` | Removes the domain from the project. The DNS record is not changed | always |
 
 `upload_file` does not publish anything, and it still requires confirmation on every call, because it sends local bytes to an outside service. A confirmed `create` uploads its own files under that one confirmation; it does not ask once per file.
 

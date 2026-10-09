@@ -2,19 +2,21 @@
 name: cloudflare
 type: connector
 category: development
-description: Reaches Cloudflare DNS, the account's zones, D1 databases, Pages projects, domains, production deploys including a kit site's fingerprinted Pages Function and a foreign site's Pages Functions, and rulesets, with every removal and every production deploy confirmed
-version: 0.7.0
+description: Reaches Cloudflare DNS, zones and their settings, the zone's configuration reads, D1 databases, Pages projects, domains and custom-domain status, production deploys including a kit site's fingerprinted Pages Function and a foreign site's Pages Functions, rulesets, redirect rules and Bulk Redirects, with every removal, setting change, redirect write and production deploy confirmed
+version: 0.8.0
 ---
 
 # Cloudflare
 
-DNS on a named zone, every zone the token can see, D1 databases, Pages projects, and rulesets. Zone Publisher is the DNS consumer. Listing every domain is `cloudflare.zones.list`, not DNS.
+DNS on a named zone, every zone the token can see, the settings on a zone, the zone's configuration reads, D1 databases, Pages projects and custom-domain status, redirect rules, Bulk Redirects, and rulesets. Zone Publisher is the DNS consumer. Listing every domain is `cloudflare.zones.list`, not DNS.
 
-Not for Workers scripts, R2, KV, cache, encryption mode, or mail routing. Those wait on later modules.
+Not for Workers scripts, R2, KV, cache purging, or mail routing, and not for writes to Workers routes, Access, certificates, Page Rules, or non-redirect phases. The SSL mode is one of the five settings `zones.update_setting` changes.
 
 ## Status
 
 Shipped 2026-09-08. Four modules, each its own grant on toolkit `CLOUDFLARE_API_KEY` (API token, not Global API Key plus email). Verified live: `dns.get_record`, `list_records`, `create_record`, `update_record`, `export_zone` and `batch` all returned; record calls return `{ success, result, errors, messages }`, with `result` an object for one record and an array plus `result_info` for a list, and export returns `{ zone_file }`. Import JSON returned HTTP 400. Multipart via `binary_body` confirmed live. Import and batch return data only, never proxy headers. `pages.list_projects` returned `{ success, result, errors, messages, result_info }` with an empty `result` on every account reached at the time; `get_project` has since run live (below), and `list_deployments` has not been exercised here. `rulesets.create` and `rulesets.get` were not run, and `rulesets.get`'s live envelope is UNVERIFIED. Fake-provider tests cover the rest, including `pages.create_project`, `pages.add_domain`, and `pages.deploy`. Verified live 2026-09-24: `pages.create_project` created a throwaway project and `pages.get_project` read it back with the same name, id, subdomain and production branch, both returning `{ success, result, errors, messages }`. Verified live 2026-09-24 and 2026-09-25: `pages.add_domain` attached `wisermind.ai` and `wisermemory.com`, and `pages.deploy` ran five times across two projects, each returning ok, with `wisermemory.com` serving the uploaded files. That settles the asset route: the upload token rides the proxy as an `Authorization` header parameter on `/pages/assets/check-missing`, `/pages/assets/upload` and `/pages/assets/upsert-hashes`, and Pages accepts the sha256-derived keys. `pages.remove_domain` and `pages.delete_project` are covered by fake-provider tests; `delete_project` ran live 2026-09-26 on the throwaway project, and `remove_domain` has not run live. See [gateway/SETUP.md](../../gateway/SETUP.md). On 2026-10-07 a live deploy whose first upload request carried 4.94 MiB of base64 came back 413 through the provider's proxy, while requests of 2.08 MiB had uploaded and served since 2026-10-03; the proxy's documentation states no request-size limit. Since 0.5.1 each upload request is capped at 3 MiB of serialized body, a file whose upload entry alone exceeds that is refused before any call, and a 413 on the upload reports `reason: request too large` with the batch size. Verified live 2026-10-07 at 0.5.1: a 72-file deploy sent three upload requests of about 2.07, 2.88 and 1.84 MiB, each was accepted, the deployment succeeded, and the site served the uploaded files. The `pages.d1_*` actions, `pages.bind_d1` and `pages.deploy_with_functions` are covered by fake-provider tests. Verified live 2026-10-07 at 0.6.0 on a throwaway Pages project and D1 database: `pages.d1_create_database`, `d1_get_database` and `d1_list_databases` returned `{ success, result, errors, messages }`, the list with `result_info`; `d1_apply_migration` applied a one-table migration as two statements and recorded it in `d1_migrations`, and a second run returned `already_applied` with nothing run; `d1_query` read that record back, and a `SELECT` carrying a second statement was refused before any call; `d1_execute` created a table; `pages.bind_d1` bound the database as `DB` on both environments and then a second name on production alone, and the project read back held both, so the project PATCH merges rather than replaces; `pages.deploy_with_functions` deployed one static page with a Functions bundle from `tools/pages-functions/`, and on the deployment's `pages.dev` address the Function answered POST with 1 and then 2 and GET with 2, the count `d1_query` then read from the database, while the build files and the Function's source were not served. The first bind reported `env_vars` changing from null to empty on both environments, a rewrite of an empty setting that is no longer reported as a collateral change. `pages.delete_project` and `pages.d1_delete_database` then removed the project and the database, each returning `{ success, result, errors, messages }` with a null `result`, and neither appeared in the account's listings afterwards. The kit Function carried by `pages.deploy` from `site/dist-function/` (0.7.0) is covered by fake-provider tests. Verified live 2026-10-08 at 0.7.0 (`wiser` `e250120`) on a throwaway Pages project, `wiser-kitfn-livetest-20261008`, holding a kit site with one article due about 17 minutes after the deploy and one a month out: `pages.create_project` returned the project with `fail_open` true on production and preview; `pages.deploy` uploaded 39 files, skipped none, and returned `function` naming kit 0.5.0, the listed fingerprint, a 20,862-byte schedule, 23 route rules and both instants carried, and Pages accepted the deployment's Worker bundle with its binary module. Before the due instant, every surface on the production and deployment addresses showed the build-time view: both scheduled routes and their `.html` and trailing-slash spellings answered 404, and neither article was on the listing page, a tag page, a related list, RSS, the sitemap, `llms.txt` or the search index; `_worker.js`, `schedule.bin`, `function.json`, `_routes.json` and the `.astro` records answered 404 at every spelling tried. Eight seconds after the instant, with no rebuild and no redeploy, the due article answered 200, its two spellings answered 308 to it, and it was on the listing page, both tag pages, the related lists of both older articles, RSS, the sitemap and `llms.txt`, and not in the search index, by design; the month-out article stayed hidden. The live RSS response carried the ETag of the version `schedule.bin` holds, answered 304 to it and 200 to another; HEAD answered 200 and POST 405. Cloudflare sends no ETag on HTML, from the Function or from the static files alike. `pages.delete_project` then removed the project on the operator's go, returning `{ success, result, errors, messages }` with a null `result`, and the account's listing no longer held it.
+
+On 2026-10-09 the new reads ran live at `4128c59`, 21 provider calls across two runs (20, then 1), and no write ran. `zones.get_settings` returned 56 settings. `zones.get_setting` returned `ssl` as `full` and `security_header` with HSTS off. `zones.list_workers_routes` and `rulesets.list_page_rules` returned empty lists. `pages.list_domains` returned `effectivesc.org` at status `pending`, verification `CNAME record not set`, validation `pending` by http, and `pages.get_domain` on that name returned the same. `pages.get_domain` on the project's own `effectivesc.pages.dev` name returned `vendor_error` 404: that name is not a custom domain. `vercel.projects.list_domains` returned three domains: `www.effectivesc.org` redirecting to the apex with status 308, the apex, and `effectivesc-zeta.vercel.app`. These answered 403: `zones.get_bot_management`, `zones.list_certificate_packs`, `zones.list_access_apps`, `rulesets.list` on the zone and on the account, `rulesets.get_phase_entrypoint` for `http_request_dynamic_redirect`, `http_config_settings` and `http_request_transform` on the zone and for `http_request_redirect` on the account, and `rulesets.list_lists`, `rulesets.list_list_items` and `rulesets.get_bulk_operation`. After the token connected for these modules was edited at Cloudflare to add the permissions `auth.md` now names, with no reconnect, the same reads ran again at `4128c59` and each one that had answered 403 returned, except `zones.list_access_apps`: Cloudflare answers that one 403 with code 9999, Access is not enabled on the account, which the gateway cannot tell from a missing permission (Troubleshooting). That run read the zone's `http_request_dynamic_redirect` entrypoint with one rule, no entrypoint in the other eight phases, no account `http_request_redirect` entrypoint and no lists. Verified live the same day on throwaway targets (a pending zone that serves no traffic, a throwaway list, Pages project and Vercel project), each restored or removed and read back: `zones.update_setting` changed and restored all five settings, `applied` true each time; `rulesets.put_phase_entrypoint` created an absent entrypoint with the PUT itself, on a zone and on the account, so the POST fallback did not run; `expected_version` null over an existing entrypoint, and a wrong version, were refused after the read and before any write; `add_rule` with `position`, `update_rule`, `reorder_rule` (which kept the rule's definition), a replace-all PUT with the matching version, and `remove_rule` each read back as intended; `rulesets.delete`, moved to the proxy after its catalog tool answered 400, removed both test entrypoints and answers with an empty body, reported as success (`4cf3c6e`); `create_list`, `add_list_items` (whose array body read back intact), `get_bulk_operation` (completed), `remove_list_items` and `delete_list`; `pages.add_domain`, `list_domains`, `get_domain`, `retry_domain_validation` and `remove_domain`, where `get_project` right after `add_domain` did not yet list the new name; and `vercel.projects.list_domains` and `remove_domain`. A read seconds after a write answered 503 or 504 three times (a list's items, and a new Pages domain twice) and succeeded when read again.
 
 
 ## Reaching it
@@ -36,6 +38,13 @@ cloudflare.zones.get             { zone_id }
 cloudflare.zones.list_accounts   { name?, page? }
 cloudflare.zones.create          { name, account_id?, type? }                 confirmation: once
 cloudflare.zones.delete          { zone_id }                                  confirmation: always
+cloudflare.zones.get_settings    { zone_id }                                  confirmation: none
+cloudflare.zones.get_setting     { zone_id, setting_id }                      confirmation: none
+cloudflare.zones.update_setting  { zone_id, setting_id, value }               confirmation: always
+cloudflare.zones.get_bot_management { zone_id }                               confirmation: none
+cloudflare.zones.list_certificate_packs { zone_id }                           confirmation: none
+cloudflare.zones.list_workers_routes { zone_id }                              confirmation: none
+cloudflare.zones.list_access_apps { account_id, hostname? }                   confirmation: none
 
 cloudflare.pages.list_projects   { account_id }
 cloudflare.pages.get_project     { account_id, project_name }
@@ -55,30 +64,68 @@ cloudflare.pages.d1_create_database { account_id, name, primary_location_hint? }
 cloudflare.pages.d1_execute      { account_id, database_id, sql, params? }  confirmation: always
 cloudflare.pages.d1_apply_migration { account_id, database_id, file }  confirmation: always
 cloudflare.pages.d1_delete_database { account_id, database_id }  confirmation: always
+cloudflare.pages.list_domains    { account_id, project_name }                 confirmation: none
+cloudflare.pages.get_domain      { account_id, project_name, domain }         confirmation: none
+cloudflare.pages.retry_domain_validation { account_id, project_name, domain } confirmation: always
 
 cloudflare.rulesets.create       { accounts_or_zones, account_or_zone_id, kind, name, phase }
 cloudflare.rulesets.get          { accounts_or_zones, ruleset_id }
-cloudflare.rulesets.delete       { accounts_or_zones, account_or_zone_id, ruleset_id }
-cloudflare.rulesets.add_rule     { accounts_or_zones, ruleset_id, rule }
-cloudflare.rulesets.remove_rule  { accounts_or_zones, account_or_zone_id, ruleset_id, rule_id }
+cloudflare.rulesets.delete       { accounts_or_zones, account_or_zone_id, ruleset_id }  confirmation: always, proxy
+cloudflare.rulesets.list         { accounts_or_zones, account_or_zone_id }     confirmation: none
+cloudflare.rulesets.get_phase_entrypoint { accounts_or_zones, account_or_zone_id, phase }  confirmation: none
+cloudflare.rulesets.list_page_rules { zone_id }                                confirmation: none
+cloudflare.rulesets.list_lists   { account_id }                                confirmation: none
+cloudflare.rulesets.list_list_items { account_id, list_id }                    confirmation: none
+cloudflare.rulesets.get_bulk_operation { account_id, operation_id }            confirmation: none
+cloudflare.rulesets.put_phase_entrypoint { accounts_or_zones, account_or_zone_id, phase, rules, expected_version, description? }  confirmation: always
+cloudflare.rulesets.add_rule     { accounts_or_zones, ruleset_id, rule, zone_id | account_id, position? }  confirmation: always, proxy
+cloudflare.rulesets.update_rule  { accounts_or_zones, account_or_zone_id, ruleset_id, rule_id, rule }  confirmation: always
+cloudflare.rulesets.reorder_rule { accounts_or_zones, account_or_zone_id, ruleset_id, rule_id, position }  confirmation: always
+cloudflare.rulesets.remove_rule  { accounts_or_zones, account_or_zone_id, ruleset_id, rule_id }  confirmation: always, proxy
+cloudflare.rulesets.create_list  { account_id, name, description? }            confirmation: always
+cloudflare.rulesets.add_list_items { account_id, list_id, items }              confirmation: always
+cloudflare.rulesets.remove_list_items { account_id, list_id, item_ids }        confirmation: always
+cloudflare.rulesets.delete_list  { account_id, list_id }                       confirmation: always
 ```
 
 `pages.deploy` takes the same input as before. When `site/dist-function/` exists beside `dir`, that deploy also carries the kit's Function; the action's input does not change.
 
+The zone settings, the zone configuration reads, the Pages domain actions, `rulesets.delete`, and the ruleset actions below it run on the proxy. `rulesets.create` and `rulesets.get` stay on the catalog. `add_rule` and `remove_rule` run on the proxy, and `add_rule` is `confirmation: always`.
+
+### How settings, redirects and lists behave
+
+`zones.update_setting` changes one of `ssl`, `always_use_https`, `security_header`, `min_tls_version` and `automatic_https_rewrites`. Any other `setting_id` is `invalid_arguments`. `ssl` is `off`, `flexible`, `full` or `strict`. `always_use_https` and `automatic_https_rewrites` are `on` or `off`. `min_tls_version` is `1.0`, `1.1`, `1.2` or `1.3`. `security_header` is an object whose only key is `strict_transport_security`, and that object's only keys are `enabled`, `max_age`, `include_subdomains`, `preload` and `nosniff`. `enabled`, `include_subdomains`, `preload` and `nosniff` are booleans. `max_age` is an integer from 0 to 31536000. A value that belongs to a different setting is refused on `value`. The action reads the setting, PATCHes `{ value }`, and reads it again. A failed first read does not PATCH. A refused PATCH returns `vendor_error`. On success the result carries `setting_id`, `before` (the value read first), `after` (the value read second) and `applied`. `applied` is whether `after` deep-equals the value sent; for `security_header` it compares `after.strict_transport_security` to the `strict_transport_security` value that was sent. When the PATCH is accepted and the second read throws, or comes back with `success: false`, or is not an envelope, `success` stays true, `after` and `applied` are null, and `reason` is `read after write failed`.
+
+`rulesets.get_phase_entrypoint` reads one of `http_request_dynamic_redirect`, `http_request_redirect`, `http_config_settings`, `http_request_transform`, `http_request_late_transform`, `http_response_headers_transform`, `http_request_origin`, `http_request_cache_settings` and `http_request_firewall_custom`. Any other phase is `invalid_arguments`. It returns `exists: false`, with `success: true`, `result: null`, and the phase, scope and id it asked about, when that read is a 404. A 403, or any other error, is not turned into that answer. An entrypoint that exists comes back as the vendor envelope plus `exists: true`.
+
+`rulesets.put_phase_entrypoint` accepts only `http_request_dynamic_redirect` on a zone and `http_request_redirect` on an account. `rules` is from 1 to 100 rules, and every `action` must be `redirect`. It reads the entrypoint first. `expected_version: null` is accepted only when none exists; when one exists the refusal is `invalid_arguments` on `expected_version`, `reason: entrypoint exists`, with `current_version` and `rule_count`. Any other `expected_version` that is not the version just read, including a string when none exists, is `reason: version mismatch` and `current_version`, which is null when none exists. `current_version` is also null when an entrypoint exists and carries no version, and then neither null nor a string matches, so the call is refused. A missing `expected_version`, an empty string, or anything other than null or a non-empty string is `invalid_arguments` on that field and carries no `reason`. The PUT body is `{ rules }`, plus `description` when one was given, so the array replaces every rule in the phase. That check uses the first read. A change made between the read and the PUT is not caught. When the PUT answers 404 and the read found no entrypoint, the action POSTs `/{accounts|zones}/{id}/rulesets` with `name` `default`, `kind` `zone` on a zone and `kind` `root` on an account, the phase, the same rules, and `description` when one was given. A successful PUT reports `created_with: put`. A successful POST reports `created_with: post`. Any other failure returns `vendor_error` and carries no `created_with`. Cloudflare's PUT created an absent entrypoint in both live runs on 2026-10-09, so the POST branch is a fallback that has not been needed.
+
+`rulesets.delete` runs on the proxy. `accounts_or_zones` is `zones` or `accounts`. `account_or_zone_id` is 32 hex characters. `ruleset_id` is 1 to 64 letters, digits, underscores or hyphens. A value outside that is `invalid_arguments` and no call is made. The call is a DELETE with no body. An empty answer, or any answer that is not an object whose `success` is `false`, comes back `{ success: true, errors: [], messages: [], result: null, deleted }`, and `deleted` is the ruleset id. An answer whose `success` is `false` is `vendor_error`. A refusal from the proxy is thrown.
+
+`add_rule`, `update_rule` and `put_phase_entrypoint` accept only `action: redirect`. A different action is `invalid_arguments` on `rule`, or on `rules` for the entrypoint. `update_rule` sends the whole rule and does not send `position`. `reorder_rule` sends `{ position }` only, so it sends no action. `position`, where an action takes one, is an object with exactly one of `before`, `after` or `index`. `before` and `after` are strings and may be empty. `index` is an integer of 1 or more. On `add_rule`, `zones` requires `zone_id` and refuses `account_id` (the `reason` is `zones`); `accounts` requires `account_id` and refuses `zone_id` (the `reason` is `accounts`). A `position` on `add_rule` is sent with the rule.
+
+`rulesets.add_list_items` and `rulesets.remove_list_items` return `operation_id` and `operation`, which is one read of that bulk operation, or null when that read is not a successful envelope with a result. A `vendor_error` from the write itself is returned as that error, and so is a write that comes back with no `operation_id`. Then there is no `operation_id` in the result. Neither call waits until the operation finishes. `rulesets.get_bulk_operation` is the poll, and it returns the vendor envelope. An item is exactly `{ redirect: { source_url, target_url } }`, with optional `status_code` of 301, 302, 307 or 308 and optional booleans `preserve_query_string`, `include_subdomains`, `subpath_matching` and `preserve_path_suffix`. From 1 to 1000 items, posted as the array. `remove_list_items` sends a DELETE whose body is `{ items: [{ id }] }`, for 1 to 1000 ids. `create_list` always sends `kind: redirect`.
+
+`zones.list_access_apps` reads every page of the account's applications, 1000 at a time, while `result_info.total_pages` says another page remains, and stops after the first page when `total_pages` is absent. It filters after the read. `hostname` is not sent to Cloudflare. The host it compares is the text before the first slash, lowercased, with trailing dots removed, taken from `domain`, from each `self_hosted_domains` entry, and from each destination `uri`. An exact host matches. A wildcard is matched generously, apex included: `*.suffix` matches `suffix` itself and every hostname that ends in `.suffix`, at any depth. `filtered_by` is the hostname that was asked for, or null when none was. The returned `result_info` describes that filtered list as one page, not Cloudflare's own pages.
+
+`rulesets.list` and `rulesets.list_list_items` follow `result_info.cursors.after`, 50 to a page, until the cursor is absent, empty, or one already seen, and return every row in one envelope. `result_info.count` and `total_count` are the number of rows returned.
+
+`pages.retry_domain_validation` is a PATCH with no body. `pages.get_domain` on the project's own `pages.dev` name comes back `vendor_error` with HTTP 404, because that name is not a custom domain. `pages.list_domains` returns the custom ones.
+
 ## Credentials
 
-This connector holds none. Each module is its own connect. The vendor secret is an API token on the provider's hosted page. A DNS-only token will list nothing on `zones` and 403 on Pages. A token that lists every zone is a different grant, not a wider `dns` row.
+This connector holds none. Each module is its own connect. The vendor secret is an API token on the provider's hosted page. A DNS-only token will list nothing on `zones` and 403 on Pages. A token that lists every zone is a different grant, not a wider `dns` row. A 403 on any of the new zone, ruleset or Pages domain reads or writes means the token connected for that module lacks the permission `auth.md` names, with one exception, `zones.list_access_apps`, under Troubleshooting. Edit that same token at Cloudflare and add the permission. Editing keeps the token's value, so nothing is reconnected. Rolling the token is what changes the value.
 
 ## Modules
 
 | Module | Privilege | What it is for |
 |--------|-----------|----------------|
 | `dns` | write | Records in a named zone |
-| `zones` | write | Every zone the token can see, plus accounts |
-| `pages` | write | Pages projects, domains, production deploys of kit output, including the kit's Function when a scheduled article carried one, production deploys with Pages Functions, and the D1 databases a Pages site uses: list, get, create, a read-only query, confirmed writes and migrations, binding, and removal |
-| `rulesets` | write | Rulesets |
+| `zones` | write | Every zone the token can see, plus accounts, zone settings (five of them can be changed), and reads of bot management, certificate packs, Workers routes and Access applications |
+| `pages` | write | Pages projects, domains and custom-domain status, production deploys of kit output, including the kit's Function when a scheduled article carried one, production deploys with Pages Functions, and the D1 databases a Pages site uses: list, get, create, a read-only query, confirmed writes and migrations, binding, removal, and a confirmed validation retry |
+| `rulesets` | write | Rulesets, Page Rules, reads of the phases named under Reaching it, redirect writes on the two redirect phases, and Bulk Redirect lists |
 
-Workers scripts, R2, KV, cache, encryption mode, and mail routing are later modules, never extra permissions on these four.
+Workers scripts, R2, KV, cache purging, and mail routing are later modules, never extra permissions on these four. A read of a Workers route, an Access application, a certificate pack, a Page Rule or a non-redirect phase does not write it.
 
 ## Destructive Actions
 
@@ -88,10 +135,21 @@ Workers scripts, R2, KV, cache, encryption mode, and mail routing are later modu
 | `dns.batch` | Mixed deletes and writes | No |
 | `dns.import_zone` | Bulk create from BIND | No |
 | `zones.delete` | Deletes the zone | No |
-| `rulesets.delete` / `remove_rule` | Removes the ruleset or rule | No |
+| `zones.update_setting` | Changes one of `ssl`, `always_use_https`, `security_header`, `min_tls_version`, `automatic_https_rewrites`, and returns the value it read first | A later `update_setting` with that `before` puts the value back. This action does not undo one |
+| `rulesets.delete` | Removes the ruleset. An empty answer is success, and `deleted` is the ruleset id | No |
+| `rulesets.put_phase_entrypoint` | Replaces every rule in the redirect phase | A later call with the previous rules can replace them. This action does not undo one |
+| `rulesets.add_rule` | Adds one redirect rule | `rulesets.remove_rule` removes it |
+| `rulesets.update_rule` | Replaces the whole rule | A later `update_rule` with the previous rule puts it back. This action does not keep the old one |
+| `rulesets.reorder_rule` | Moves a rule to `position` | A later `reorder_rule` can put it back. This action does not remember where the rule was |
+| `rulesets.remove_rule` | Removes the rule | Only by adding it again |
+| `rulesets.create_list` | Creates an account list whose kind is redirect | `rulesets.delete_list` removes it |
+| `rulesets.add_list_items` | Adds redirect items, as one bulk operation | `rulesets.remove_list_items` removes them once their ids are known |
+| `rulesets.remove_list_items` | Removes the named items from a list | Only by adding them again |
+| `rulesets.delete_list` | Deletes the list | No |
 | `pages.deploy` | Replaces what production serves. When the kit payload carries the kit's Function, a scheduled article appears at its instant with no further deploy | A later deploy can replace it. A later deploy of the same `dist/` without `site/dist-function/` serves the build-time view. This action does not undo one |
 | `pages.create_project` | Creates a Pages project | `pages.delete_project` removes it |
 | `pages.add_domain` | Attaches a domain to a project and does not create the DNS record | `pages.remove_domain` detaches it |
+| `pages.retry_domain_validation` | Asks Pages to validate a custom domain again. PATCH with no body | No |
 | `pages.remove_domain` | Detaches a custom domain; the hostname stops serving the project, and the DNS record stays | Only by adding it again |
 | `pages.delete_project` | Deletes the project and every deployment in it | No |
 | `pages.d1_create_database` | Creates a D1 database | `pages.d1_delete_database` removes it |
@@ -101,7 +159,7 @@ Workers scripts, R2, KV, cache, encryption mode, and mail routing are later modu
 | `pages.bind_d1` | Sets or overwrites one D1 binding on the named environments | Bind a different database, or remove the binding in the dashboard |
 | `pages.deploy_with_functions` | Replaces what production serves, including its Pages Functions | A later deploy can replace it; this action does not undo one |
 
-Each is gated `always`. The Pages writes are `always` rather than `once` because the gateway remembers a `once` approval by action id for the life of the process, not by input, so after one approved domain a second, different domain would run unasked.
+Each is gated `always`. The Pages writes, and `rulesets.add_rule`, are `always` rather than `once` because the gateway remembers a `once` approval by action id for the life of the process, not by input, so after one approved domain a second, different domain would run unasked, and after one approved rule a second, different rule would too.
 
 `pages.delete_project` reads the project first and refuses while any domain other than its own `pages.dev` subdomain (the read's `subdomain`) is attached, another `*.pages.dev` name included, or when the read carries no domain list, so a project serving a real hostname takes two confirmed calls to remove: `remove_domain`, then `delete_project`. That check is best effort: a domain someone attaches between the read and the delete is not caught. `remove_domain` and `delete_project` take a Cloudflare project name and, for `remove_domain`, a dotted hostname, published as patterns, because both values land in a DELETE path where `.` or `..` would address something else. Cloudflare may refuse to delete a project with many deployments.
 
@@ -128,6 +186,18 @@ The connector neither sets nor changes `fail_open`. `pages.get_project` returns 
 **`needs_connect` on `zones` while `dns` is ACTIVE** That is the design. Connect `cloudflare` / `zones` as its own turn.
 
 **`vendor_error` 403 on `zones.list`** The token cannot list zones. Make a token with Zone / Zone / Read (or the account-wide list), connect `zones` with that token. Do not paste it into chat.
+
+**`vendor_error` 403 on a zone configuration read, or on any new ruleset or Pages domain read or write** The token connected for that module lacks the permission `auth.md` names for the action. A zone configuration read is `get_settings`, `get_setting`, `get_bot_management`, `list_certificate_packs`, `list_workers_routes` or `list_access_apps`. Edit that same token at Cloudflare and add the permission. Editing keeps the token's value, so nothing is reconnected. Rolling the token is what changes the value.
+
+**`vendor_error` 403 on `zones.list_access_apps` after the permission was added** Cloudflare also answers 403 when Cloudflare Access is not enabled on the account (its code 9999, `access.api.error.not_enabled`), and the gateway passes the status without the code. With Account / Access: Apps and Policies / Read on the token, that 403 means the account has no Access, so no Access application applies to any hostname. The person who runs the account can confirm it in the Zero Trust dashboard.
+
+**`vendor_error` 503 or 504 on a read seconds after a write** A list's items read right after `add_list_items`, and a new Pages domain read right after `add_domain`, each answered this once on 2026-10-09 and returned on a second read seconds later. Read again before calling it a failure; do not repeat the write.
+
+**`vendor_error` 404 from `pages.get_domain` on the project's own `pages.dev` name** That name is not a custom domain. `pages.list_domains` shows the custom ones. Read one of those.
+
+**`expected_version` from `rulesets.put_phase_entrypoint`** `null` when an entrypoint already exists is `invalid_arguments` with `reason: entrypoint exists`, `current_version` and `rule_count`. A string that is not the version just read, or a string when none exists, is `reason: version mismatch` and `current_version` (null when none exists). Send `result.version` from `get_phase_entrypoint`, or `null` only when `exists` is false.
+
+**`invalid_arguments` on a rule whose action is not `redirect`** `add_rule` and `update_rule` refuse that rule, and `put_phase_entrypoint` refuses the rules array. The field is `rule` or `rules`. Send `action: redirect`.
 
 **`list_records` empty while `export_zone` has a file** Use `export_zone` or `list_records` through this build's proxy path, not an older catalog mapping.
 

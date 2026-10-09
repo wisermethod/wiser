@@ -15,7 +15,7 @@ Create a Vercel API token limited to the intended account or team. **One bluepri
 
 ## Per-module notes
 
-- `projects`: separate connect, write privilege.
+- `projects`: separate connect, write privilege. `list_domains` and `remove_domain` use this grant. `remove_domain` confirms every call and does not change the DNS record. When one domain redirects to another, remove the domain that redirects first. `CONNECTOR.md` says what the call sends.
 - `deployments`: separate connect, write privilege.
 
 ## The route this connector does not use
