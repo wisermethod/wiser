@@ -84,7 +84,8 @@ test('manifest declares the new actions with confirmation, risk, and proxy', () 
   }
   assert.equal(manifest.modules.rulesets.actions.create.execution.prefer, 'catalog');
   assert.equal(manifest.modules.rulesets.actions.get.execution.prefer, 'catalog');
-  assert.equal(manifest.modules.rulesets.actions.delete.execution.prefer, 'catalog');
+  // delete moved to the proxy 2026-10-09 after the catalog tool answered 400 live.
+  assert.equal(manifest.modules.rulesets.actions.delete.execution.prefer, 'proxy');
 });
 
 test('zone reads send the catalog paths and refuse a bad zone id', async () => {
@@ -704,5 +705,25 @@ test('redirect lists create, replace items, and delete through the proxy', async
     item_ids: Array.from({ length: 1001 }, () => 'item_1'),
   }, ctx), 'item_ids');
   refused(await modules.rulesets.delete_list({ account_id: 'nope', list_id: LIST }, ctx), 'account_id');
+  assert.equal(calls.length, 0);
+});
+
+test('rulesets.delete removes a ruleset through the proxy and refuses bad ids first', async () => {
+  const deleted = recording(async (req) => {
+    assert.equal(req.method, 'DELETE');
+    assert.equal(req.endpoint, `/zones/${ZONE}/rulesets/${RS}`);
+    assert.equal(Object.hasOwn(req, 'body'), false);
+    return envelope(null);
+  });
+  const gone = await modules.rulesets.delete({ accounts_or_zones: 'zones', account_or_zone_id: ZONE, ruleset_id: RS }, deleted.ctx);
+  assert.equal(gone.success, true);
+  assert.equal(deleted.calls.length, 1);
+  assert.equal(manifest.modules.rulesets.actions.delete.execution.prefer, 'proxy');
+  assert.equal(manifest.modules.rulesets.actions.delete.confirmation, 'always');
+
+  const { calls, ctx } = recording(async () => { throw new Error('called'); });
+  refused(await modules.rulesets.delete({ accounts_or_zones: 'zones', account_or_zone_id: ZONE, ruleset_id: '../x' }, ctx), 'ruleset_id');
+  refused(await modules.rulesets.delete({ accounts_or_zones: 'both', account_or_zone_id: ZONE, ruleset_id: RS }, ctx), 'accounts_or_zones');
+  refused(await modules.rulesets.delete({ accounts_or_zones: 'accounts', account_or_zone_id: 'nothex', ruleset_id: RS }, ctx), 'account_or_zone_id');
   assert.equal(calls.length, 0);
 });

@@ -2450,7 +2450,18 @@ export const modules = {
     // catalog HTTP 400; live envelope UNVERIFIED.
     create: viaCatalog,
     get: viaCatalog,
-    delete: viaCatalog,
+    // Moved from the catalog 2026-10-09: the catalog tool answered 400 live, and a
+    // first redirect entrypoint created by put_phase_entrypoint has no other way back.
+    async delete(input, ctx) {
+      const scope = scopeOf(input);
+      if (scope.error) return scope.error;
+      const ruleset = segmentOk(input && input.ruleset_id, 'ruleset_id');
+      if (ruleset) return ruleset;
+      return proxyEnvelope(ctx, {
+        endpoint: `/${scope.scope}/${encodeURIComponent(scope.id)}/rulesets/${encodeURIComponent(input.ruleset_id)}`,
+        method: 'DELETE',
+      });
+    },
     async list(input, ctx) {
       const scope = scopeOf(input);
       if (scope.error) return scope.error;

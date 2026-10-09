@@ -789,16 +789,16 @@
           }
         },
         "delete": {
-          "description": "Delete a ruleset",
+          "description": "Delete a ruleset, such as a redirect phase entrypoint left empty. Managed rulesets cannot be deleted.",
           "risk": "destructive",
           "confirmation": "always",
-          "execution": { "prefer": "catalog" },
+          "execution": { "prefer": "proxy" },
           "input": {
             "type": "object",
             "properties": {
-              "accounts_or_zones": { "type": "string" },
-              "account_or_zone_id": { "type": "string" },
-              "ruleset_id": { "type": "string" }
+              "accounts_or_zones": { "type": "string", "enum": ["zones", "accounts"] },
+              "account_or_zone_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "ruleset_id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" }
             },
             "required": ["accounts_or_zones", "account_or_zone_id", "ruleset_id"],
             "additionalProperties": false
