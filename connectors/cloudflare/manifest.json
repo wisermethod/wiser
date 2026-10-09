@@ -233,6 +233,119 @@
             "required": ["zone_id"],
             "additionalProperties": false
           }
+        },
+        "get_settings": {
+          "description": "Read every setting on a zone. zone_id is 32 lowercase hex.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "zone_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" }
+            },
+            "required": ["zone_id"],
+            "additionalProperties": false
+          }
+        },
+        "get_setting": {
+          "description": "Read one zone setting. setting_id is 1 to 64 characters of lowercase letters, digits, and underscores.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "zone_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "setting_id": { "type": "string", "pattern": "^[a-z0-9_]{1,64}$" }
+            },
+            "required": ["zone_id", "setting_id"],
+            "additionalProperties": false
+          }
+        },
+        "update_setting": {
+          "description": "Change one of ssl, always_use_https, security_header, min_tls_version, or automatic_https_rewrites. Reads the setting, PATCHes { value }, and reads it again. Returns setting_id, before, after, and applied. ssl is off, flexible, full, or strict. always_use_https and automatic_https_rewrites are on or off. min_tls_version is 1.0, 1.1, 1.2, or 1.3. security_header is an object whose only key is strict_transport_security, itself an object whose only keys are enabled, max_age, include_subdomains, preload, and nosniff. enabled, include_subdomains, preload, and nosniff are booleans. max_age is an integer from 0 to 31536000. applied is whether after deep-equals the requested value; for security_header it compares after.strict_transport_security to the requested object key by key. When the PATCH is accepted and the second read throws or returns success false, after and applied are null and reason is read after write failed.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "zone_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "setting_id": {
+                "type": "string",
+                "enum": ["ssl", "always_use_https", "security_header", "min_tls_version", "automatic_https_rewrites"]
+              },
+              "value": {
+                "anyOf": [
+                  { "enum": ["off", "flexible", "full", "strict", "on", "1.0", "1.1", "1.2", "1.3"] },
+                  { "type": "object" }
+                ]
+              }
+            },
+            "required": ["zone_id", "setting_id", "value"],
+            "additionalProperties": false
+          }
+        },
+        "get_bot_management": {
+          "description": "Read bot management for a zone.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "zone_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" }
+            },
+            "required": ["zone_id"],
+            "additionalProperties": false
+          }
+        },
+        "list_certificate_packs": {
+          "description": "List certificate packs for a zone, including every status.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "zone_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" }
+            },
+            "required": ["zone_id"],
+            "additionalProperties": false
+          }
+        },
+        "list_workers_routes": {
+          "description": "List Workers routes on a zone.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "zone_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" }
+            },
+            "required": ["zone_id"],
+            "additionalProperties": false
+          }
+        },
+        "list_access_apps": {
+          "description": "List Access applications for an account, following page while result_info.total_pages says there are more, at 1000 per page. hostname, when given, keeps applications whose domain, any self_hosted_domains entry, or any destinations uri has a host part equal to that hostname or a wildcard *.x that covers it. The host part is the text before the first slash, lowercased, without a trailing dot. Returns filtered_by as the hostname, or null when no hostname was given.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "hostname": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$"
+              }
+            },
+            "required": ["account_id"],
+            "additionalProperties": false
+          }
         }
       },
       "unwrap_token": false,
@@ -573,6 +686,59 @@
             "required": ["account_id", "database_id"],
             "additionalProperties": false
           }
+        },
+        "list_domains": {
+          "description": "List custom domains on a Pages project.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "project_name": { "type": "string", "pattern": "^[a-z0-9](?:[a-z0-9-]{0,56}[a-z0-9])?$" }
+            },
+            "required": ["account_id", "project_name"],
+            "additionalProperties": false
+          }
+        },
+        "get_domain": {
+          "description": "Read one Pages custom domain, including its activation status.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "project_name": { "type": "string", "pattern": "^[a-z0-9](?:[a-z0-9-]{0,56}[a-z0-9])?$" },
+              "domain": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$"
+              }
+            },
+            "required": ["account_id", "project_name", "domain"],
+            "additionalProperties": false
+          }
+        },
+        "retry_domain_validation": {
+          "description": "Ask Pages to validate a custom domain again. PATCH with no body.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "project_name": { "type": "string", "pattern": "^[a-z0-9](?:[a-z0-9-]{0,56}[a-z0-9])?$" },
+              "domain": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$"
+              }
+            },
+            "required": ["account_id", "project_name", "domain"],
+            "additionalProperties": false
+          }
         }
       },
       "unwrap_token": false,
@@ -638,38 +804,361 @@
             "additionalProperties": false
           }
         },
-        "add_rule": {
-          "description": "Add a rule to a ruleset",
-          "risk": "high",
-          "confirmation": "once",
-          "execution": { "prefer": "catalog" },
+        "list": {
+          "description": "List rulesets on an account or a zone, following result_info.cursors.after until it is absent, and return every row in one envelope.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
           "input": {
             "type": "object",
             "properties": {
-              "accounts_or_zones": { "type": "string" },
-              "ruleset_id": { "type": "string" },
-              "rule": { "type": "object" },
-              "account_id": { "type": "string" },
-              "zone_id": { "type": "string" }
+              "accounts_or_zones": { "type": "string", "enum": ["zones", "accounts"] },
+              "account_or_zone_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" }
+            },
+            "required": ["accounts_or_zones", "account_or_zone_id"],
+            "additionalProperties": false
+          }
+        },
+        "get_phase_entrypoint": {
+          "description": "Read the entrypoint ruleset for a phase. A 404 is exists false with result null, not an error. Any other thrown error propagates. phase is one of http_request_dynamic_redirect, http_request_redirect, http_config_settings, http_request_transform, http_request_late_transform, http_response_headers_transform, http_request_origin, http_request_cache_settings, http_request_firewall_custom.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "accounts_or_zones": { "type": "string", "enum": ["zones", "accounts"] },
+              "account_or_zone_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "phase": {
+                "type": "string",
+                "enum": [
+                  "http_request_dynamic_redirect",
+                  "http_request_redirect",
+                  "http_config_settings",
+                  "http_request_transform",
+                  "http_request_late_transform",
+                  "http_response_headers_transform",
+                  "http_request_origin",
+                  "http_request_cache_settings",
+                  "http_request_firewall_custom"
+                ]
+              }
+            },
+            "required": ["accounts_or_zones", "account_or_zone_id", "phase"],
+            "additionalProperties": false
+          }
+        },
+        "list_page_rules": {
+          "description": "List Page Rules on a zone.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "zone_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" }
+            },
+            "required": ["zone_id"],
+            "additionalProperties": false
+          }
+        },
+        "list_lists": {
+          "description": "List account filter lists.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" }
+            },
+            "required": ["account_id"],
+            "additionalProperties": false
+          }
+        },
+        "list_list_items": {
+          "description": "List every item in an account filter list, following result_info.cursors.after until it is absent, and return every row in one envelope.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "list_id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" }
+            },
+            "required": ["account_id", "list_id"],
+            "additionalProperties": false
+          }
+        },
+        "get_bulk_operation": {
+          "description": "Read one bulk list operation.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "operation_id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" }
+            },
+            "required": ["account_id", "operation_id"],
+            "additionalProperties": false
+          }
+        },
+        "put_phase_entrypoint": {
+          "description": "Replace the entrypoint rules for a redirect phase. phase must be http_request_dynamic_redirect when accounts_or_zones is zones, or http_request_redirect when it is accounts. rules is a non-empty array of at most 100 objects, and each rule action must be redirect. expected_version is required: null only when no entrypoint exists, or the current version string. A null expected_version when an entrypoint exists is refused with reason entrypoint exists, current_version, and rule_count. A string that is absent or different is refused with reason version mismatch and current_version. Otherwise PUT { rules, description }. If that PUT throws a 404 and the entrypoint was absent, POST a ruleset named default with kind zone or root. Returns the envelope plus created_with put or post.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "accounts_or_zones": { "type": "string", "enum": ["zones", "accounts"] },
+              "account_or_zone_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "phase": {
+                "type": "string",
+                "enum": [
+                  "http_request_dynamic_redirect",
+                  "http_request_redirect",
+                  "http_config_settings",
+                  "http_request_transform",
+                  "http_request_late_transform",
+                  "http_response_headers_transform",
+                  "http_request_origin",
+                  "http_request_cache_settings",
+                  "http_request_firewall_custom"
+                ]
+              },
+              "rules": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 100,
+                "items": {
+                  "type": "object",
+                  "required": ["action"],
+                  "properties": {
+                    "action": { "type": "string", "enum": ["redirect"] }
+                  }
+                }
+              },
+              "expected_version": {},
+              "description": { "type": "string" }
+            },
+            "required": ["accounts_or_zones", "account_or_zone_id", "phase", "rules", "expected_version"],
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "required": ["accounts_or_zones", "phase"],
+                "properties": {
+                  "accounts_or_zones": { "enum": ["zones"] },
+                  "phase": { "enum": ["http_request_dynamic_redirect"] }
+                }
+              },
+              {
+                "required": ["accounts_or_zones", "phase"],
+                "properties": {
+                  "accounts_or_zones": { "enum": ["accounts"] },
+                  "phase": { "enum": ["http_request_redirect"] }
+                }
+              }
+            ]
+          }
+        },
+        "add_rule": {
+          "description": "Add a redirect rule to a ruleset. The rule action must be redirect. zones requires zone_id and refuses account_id. accounts requires account_id and refuses zone_id. position, when given, is an object with exactly one of before, after, or index. before and after are strings and may be empty. index is an integer of 1 or more.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "accounts_or_zones": { "type": "string", "enum": ["zones", "accounts"] },
+              "ruleset_id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
+              "rule": {
+                "type": "object",
+                "required": ["action"],
+                "properties": {
+                  "action": { "type": "string", "enum": ["redirect"] }
+                }
+              },
+              "account_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "zone_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "position": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "before": { "type": "string" },
+                  "after": { "type": "string" },
+                  "index": { "type": "integer", "minimum": 1 }
+                }
+              }
             },
             "required": ["accounts_or_zones", "ruleset_id", "rule"],
+            "additionalProperties": false,
+            "oneOf": [
+              { "required": ["zone_id"] },
+              { "required": ["account_id"] }
+            ]
+          }
+        },
+        "update_rule": {
+          "description": "Replace a redirect rule. The PATCH body is the whole rule and does not add a position. The rule action must be redirect.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "accounts_or_zones": { "type": "string", "enum": ["zones", "accounts"] },
+              "account_or_zone_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "ruleset_id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
+              "rule_id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
+              "rule": {
+                "type": "object",
+                "required": ["action"],
+                "properties": {
+                  "action": { "type": "string", "enum": ["redirect"] }
+                }
+              }
+            },
+            "required": ["accounts_or_zones", "account_or_zone_id", "ruleset_id", "rule_id", "rule"],
+            "additionalProperties": false
+          }
+        },
+        "reorder_rule": {
+          "description": "Move a rule. The PATCH body is { position } only. position has exactly one of before, after, or index. before and after are strings and may be empty. index is an integer of 1 or more.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "accounts_or_zones": { "type": "string", "enum": ["zones", "accounts"] },
+              "account_or_zone_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "ruleset_id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
+              "rule_id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
+              "position": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "before": { "type": "string" },
+                  "after": { "type": "string" },
+                  "index": { "type": "integer", "minimum": 1 }
+                }
+              }
+            },
+            "required": ["accounts_or_zones", "account_or_zone_id", "ruleset_id", "rule_id", "position"],
             "additionalProperties": false
           }
         },
         "remove_rule": {
-          "description": "Remove a rule from a ruleset",
+          "description": "Remove a rule from a ruleset.",
           "risk": "destructive",
           "confirmation": "always",
-          "execution": { "prefer": "catalog" },
+          "execution": { "prefer": "proxy" },
           "input": {
             "type": "object",
             "properties": {
-              "accounts_or_zones": { "type": "string" },
-              "account_or_zone_id": { "type": "string" },
-              "ruleset_id": { "type": "string" },
-              "rule_id": { "type": "string" }
+              "accounts_or_zones": { "type": "string", "enum": ["zones", "accounts"] },
+              "account_or_zone_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "ruleset_id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
+              "rule_id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" }
             },
             "required": ["accounts_or_zones", "account_or_zone_id", "ruleset_id", "rule_id"],
+            "additionalProperties": false
+          }
+        },
+        "create_list": {
+          "description": "Create an account redirect list. kind is always redirect. name is 1 to 50 characters of lowercase letters, digits, and underscores. description, when given, is at most 500 characters.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "name": { "type": "string", "pattern": "^[a-z0-9_]{1,50}$" },
+              "description": { "type": "string", "maxLength": 500 }
+            },
+            "required": ["account_id", "name"],
+            "additionalProperties": false
+          }
+        },
+        "add_list_items": {
+          "description": "Add redirect items to a list. The POST body is the items array itself. Each item is exactly { redirect: { source_url, target_url, status_code, preserve_query_string, include_subdomains, subpath_matching, preserve_path_suffix } } with source_url and target_url required non-empty strings and the flags optional. status_code, when given, is 301, 302, 307, or 308. From 1 to 1000 items. Returns operation_id and one read of that bulk operation, or null when that read has no result.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "list_id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
+              "items": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1000,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["redirect"],
+                  "properties": {
+                    "redirect": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["source_url", "target_url"],
+                      "properties": {
+                        "source_url": { "type": "string", "minLength": 1 },
+                        "target_url": { "type": "string", "minLength": 1 },
+                        "status_code": { "type": "integer", "enum": [301, 302, 307, 308] },
+                        "preserve_query_string": { "type": "boolean" },
+                        "include_subdomains": { "type": "boolean" },
+                        "subpath_matching": { "type": "boolean" },
+                        "preserve_path_suffix": { "type": "boolean" }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "required": ["account_id", "list_id", "items"],
+            "additionalProperties": false
+          }
+        },
+        "remove_list_items": {
+          "description": "Remove items from a list. DELETE body is { items: [{ id }, ...] }. item_ids is 1 to 1000 ids of 1 to 64 letters, digits, underscores, or hyphens. Returns operation_id and one read of that bulk operation, or null when that read has no result.",
+          "risk": "destructive",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "list_id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
+              "item_ids": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1000,
+                "items": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" }
+              }
+            },
+            "required": ["account_id", "list_id", "item_ids"],
+            "additionalProperties": false
+          }
+        },
+        "delete_list": {
+          "description": "Delete an account filter list.",
+          "risk": "destructive",
+          "confirmation": "always",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "list_id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" }
+            },
+            "required": ["account_id", "list_id"],
             "additionalProperties": false
           }
         }

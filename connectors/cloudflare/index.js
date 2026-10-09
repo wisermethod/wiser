@@ -1378,6 +1378,295 @@ function readKitFunction(site, refused) {
   };
 }
 
+const ID_SEGMENT = /^[A-Za-z0-9_-]{1,64}$/;
+const SETTING_KEY = /^[a-z0-9_]{1,64}$/;
+const LIST_NAME = /^[a-z0-9_]{1,50}$/;
+const UPDATE_SETTINGS = ['ssl', 'always_use_https', 'security_header', 'min_tls_version', 'automatic_https_rewrites'];
+const SSL_VALUES = new Set(['off', 'flexible', 'full', 'strict']);
+const ON_OFF = new Set(['on', 'off']);
+const TLS_VERSIONS = new Set(['1.0', '1.1', '1.2', '1.3']);
+const HSTS_KEYS = ['enabled', 'max_age', 'include_subdomains', 'preload', 'nosniff'];
+const PHASES = new Set([
+  'http_request_dynamic_redirect',
+  'http_request_redirect',
+  'http_config_settings',
+  'http_request_transform',
+  'http_request_late_transform',
+  'http_response_headers_transform',
+  'http_request_origin',
+  'http_request_cache_settings',
+  'http_request_firewall_custom',
+]);
+const REDIRECT_FLAGS = ['preserve_query_string', 'include_subdomains', 'subpath_matching', 'preserve_path_suffix'];
+const REDIRECT_STATUS = new Set([301, 302, 307, 308]);
+
+function segmentOk(value, field) {
+  if (typeof value !== 'string' || !ID_SEGMENT.test(value)) return invalid(field);
+  return null;
+}
+
+function scopeOf(input) {
+  if (!input || (input.accounts_or_zones !== 'accounts' && input.accounts_or_zones !== 'zones')) {
+    return { error: invalid('accounts_or_zones') };
+  }
+  if (!accountIdOk(input.account_or_zone_id)) return { error: invalid('account_or_zone_id') };
+  return { scope: input.accounts_or_zones, id: input.account_or_zone_id };
+}
+
+function phaseKnown(phase) {
+  return typeof phase === 'string' && PHASES.has(phase);
+}
+
+// Writes are limited to the zone dynamic-redirect phase and the account bulk-redirect phase.
+function redirectPhaseOk(scope, phase) {
+  return (scope === 'zones' && phase === 'http_request_dynamic_redirect')
+    || (scope === 'accounts' && phase === 'http_request_redirect');
+}
+
+function sameKeys(value, keys) {
+  const row = asObject(value);
+  if (!row) return false;
+  const got = Object.keys(row);
+  return got.length === keys.length && keys.every((key) => Object.hasOwn(row, key));
+}
+
+function deepEqual(a, b) {
+  if (a === b) return true;
+  if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return false;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i += 1) if (!deepEqual(a[i], b[i])) return false;
+    return true;
+  }
+  const keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  for (const key of keys) {
+    if (!Object.hasOwn(b, key) || !deepEqual(a[key], b[key])) return false;
+  }
+  return true;
+}
+
+function checkSettingValue(settingId, value) {
+  if (settingId === 'ssl') return SSL_VALUES.has(value) ? null : invalid('value');
+  if (settingId === 'always_use_https' || settingId === 'automatic_https_rewrites') {
+    return ON_OFF.has(value) ? null : invalid('value');
+  }
+  if (settingId === 'min_tls_version') return TLS_VERSIONS.has(value) ? null : invalid('value');
+  if (settingId !== 'security_header') return invalid('setting_id');
+  if (!sameKeys(value, ['strict_transport_security'])) return invalid('value');
+  const header = value.strict_transport_security;
+  if (!sameKeys(header, HSTS_KEYS)) return invalid('value');
+  if (typeof header.enabled !== 'boolean') return invalid('value');
+  if (typeof header.include_subdomains !== 'boolean') return invalid('value');
+  if (typeof header.preload !== 'boolean') return invalid('value');
+  if (typeof header.nosniff !== 'boolean') return invalid('value');
+  if (typeof header.max_age !== 'number' || !Number.isInteger(header.max_age)) return invalid('value');
+  if (header.max_age < 0 || header.max_age > 31536000) return invalid('value');
+  return null;
+}
+
+function settingApplied(settingId, requested, after) {
+  if (settingId === 'security_header') {
+    const got = asObject(after);
+    return Boolean(got) && deepEqual(got.strict_transport_security, requested.strict_transport_security);
+  }
+  return deepEqual(after, requested);
+}
+
+function vendorSignal(err, httpStatus) {
+  return Boolean(
+    err && typeof err === 'object' && err.object && err.object.status === 'vendor_error'
+    && err.object.http_status === httpStatus,
+  );
+}
+
+function hostPart(value) {
+  if (typeof value !== 'string' || value.length === 0) return '';
+  const slash = value.indexOf('/');
+  return (slash === -1 ? value : value.slice(0, slash)).toLowerCase().replace(/\.+$/, '');
+}
+
+function hostCovers(candidate, hostname) {
+  const host = hostPart(candidate);
+  if (!host || !hostname) return false;
+  if (host === hostname) return true;
+  if (!host.startsWith('*.')) return false;
+  const suffix = host.slice(2);
+  if (!suffix) return false;
+  return hostname === suffix || hostname.endsWith(`.${suffix}`);
+}
+
+function appMatchesHost(app, hostname) {
+  const row = asObject(app);
+  if (!row) return false;
+  if (hostCovers(row.domain, hostname)) return true;
+  if (Array.isArray(row.self_hosted_domains) && row.self_hosted_domains.some((item) => hostCovers(item, hostname))) {
+    return true;
+  }
+  if (Array.isArray(row.destinations)) {
+    for (const item of row.destinations) {
+      const destination = asObject(item);
+      if (destination && hostCovers(destination.uri, hostname)) return true;
+    }
+  }
+  return false;
+}
+
+function checkRules(rules) {
+  if (!Array.isArray(rules) || rules.length < 1 || rules.length > 100) return invalid('rules');
+  for (const rule of rules) {
+    if (!asObject(rule) || rule.action !== 'redirect') return invalid('rules');
+  }
+  return null;
+}
+
+function checkRedirectRule(rule) {
+  if (!asObject(rule) || rule.action !== 'redirect') return invalid('rule');
+  return null;
+}
+
+function checkPosition(position) {
+  const row = asObject(position);
+  if (!row) return invalid('position');
+  const keys = Object.keys(row);
+  if (keys.length !== 1) return invalid('position');
+  const key = keys[0];
+  if (key === 'before' || key === 'after') {
+    if (typeof row[key] !== 'string') return invalid('position');
+    return null;
+  }
+  if (key === 'index') {
+    if (typeof row.index !== 'number' || !Number.isInteger(row.index) || row.index < 1) return invalid('position');
+    return null;
+  }
+  return invalid('position');
+}
+
+function checkExpectedVersion(input) {
+  if (!input || !Object.hasOwn(input, 'expected_version')) return invalid('expected_version');
+  const version = input.expected_version;
+  if (version === null) return null;
+  if (typeof version === 'string' && version.length > 0) return null;
+  return invalid('expected_version');
+}
+
+function optionalText(input, field, maxCodePoints) {
+  if (!input || !Object.hasOwn(input, field) || input[field] == null) return { text: undefined };
+  if (typeof input[field] !== 'string') return { error: invalid(field) };
+  if (maxCodePoints !== undefined && codePoints(input[field]) > maxCodePoints) return { error: invalid(field) };
+  return { text: input[field] };
+}
+
+function checkListItem(item) {
+  if (!sameKeys(item, ['redirect'])) return invalid('items');
+  const redirect = asObject(item.redirect);
+  if (!redirect) return invalid('items');
+  if (typeof redirect.source_url !== 'string' || redirect.source_url.length === 0) return invalid('items');
+  if (typeof redirect.target_url !== 'string' || redirect.target_url.length === 0) return invalid('items');
+  for (const key of Object.keys(redirect)) {
+    if (key === 'source_url' || key === 'target_url') continue;
+    if (key === 'status_code') {
+      if (!REDIRECT_STATUS.has(redirect.status_code)) return invalid('items');
+      continue;
+    }
+    if (!REDIRECT_FLAGS.includes(key) || typeof redirect[key] !== 'boolean') return invalid('items');
+  }
+  return null;
+}
+
+function ruleCollectionPath(scope, id, rulesetId, ruleId) {
+  const base = `/${scope}/${encodeURIComponent(id)}/rulesets/${encodeURIComponent(rulesetId)}/rules`;
+  return ruleId ? `${base}/${encodeURIComponent(ruleId)}` : base;
+}
+
+function entrypointPath(scope, id, phase) {
+  return `/${scope}/${encodeURIComponent(id)}/rulesets/phases/${encodeURIComponent(phase)}/entrypoint`;
+}
+
+function listsPath(accountId, listId, rest) {
+  const base = `/accounts/${encodeURIComponent(accountId)}/rules/lists`;
+  if (!listId) return base;
+  return `${base}/${encodeURIComponent(listId)}${rest ? `/${rest}` : ''}`;
+}
+
+function addRuleOwner(input) {
+  if (!input || (input.accounts_or_zones !== 'zones' && input.accounts_or_zones !== 'accounts')) {
+    return { error: invalid('accounts_or_zones') };
+  }
+  if (input.accounts_or_zones === 'zones') {
+    if (input.account_id != null) return { error: invalid('account_id', 'zones') };
+    if (!accountIdOk(input.zone_id)) return { error: invalid('zone_id') };
+    return { id: input.zone_id };
+  }
+  if (input.zone_id != null) return { error: invalid('zone_id', 'accounts') };
+  if (!accountIdOk(input.account_id)) return { error: invalid('account_id') };
+  return { id: input.account_id };
+}
+
+async function cursorAll(ctx, path) {
+  const all = [];
+  let cursor;
+  const seen = new Set();
+  for (;;) {
+    const endpoint = withQuery(path, cursor ? { cursor, per_page: 50 } : { per_page: 50 }, cursor ? ['cursor', 'per_page'] : ['per_page']);
+    const page = await proxyData(ctx, { endpoint, method: 'GET' });
+    if (!envelopeOk(page) || !Array.isArray(page.result)) return vendorError(endpoint, 'GET');
+    all.push(...page.result);
+    const after = page.result_info && page.result_info.cursors && page.result_info.cursors.after;
+    if (typeof after !== 'string' || after.length === 0 || seen.has(after)) break;
+    seen.add(after);
+    cursor = after;
+  }
+  return {
+    success: true,
+    errors: [],
+    messages: [],
+    result: all,
+    result_info: { count: all.length, total_count: all.length },
+  };
+}
+
+async function readEntrypoint(ctx, endpoint) {
+  try {
+    const data = await proxyData(ctx, { endpoint, method: 'GET' });
+    if (!envelopeOk(data)) return { error: vendorError(endpoint, 'GET') };
+    return { exists: true, data };
+  } catch (err) {
+    if (vendorSignal(err, 404)) return { exists: false };
+    throw err;
+  }
+}
+
+function entrypointVersion(data) {
+  const result = asObject(data && data.result);
+  return {
+    version: result && Object.hasOwn(result, 'version') ? result.version : null,
+    ruleCount: result && Array.isArray(result.rules) ? result.rules.length : 0,
+  };
+}
+
+async function finishBulk(ctx, accountId, posted, endpoint, method) {
+  if (posted && posted.status === 'vendor_error') return posted;
+  const operationId = posted && posted.result && posted.result.operation_id;
+  if (typeof operationId !== 'string' || operationId.length === 0) return vendorError(endpoint, method);
+  const opEndpoint = `${listsPath(accountId)}/bulk_operations/${encodeURIComponent(operationId)}`;
+  const data = await proxyData(ctx, { endpoint: opEndpoint, method: 'GET' });
+  const operation = envelopeOk(data) && data.result != null ? data.result : null;
+  return { success: true, operation_id: operationId, operation };
+}
+
+function pagesDomainEndpoint(input, domain) {
+  const tail = domain ? `domains/${encodeURIComponent(input.domain)}` : 'domains';
+  return accountPath(input.account_id, input.project_name, tail);
+}
+
+function checkPagesRead(input, withDomain) {
+  if (!accountIdOk(input && input.account_id)) return invalid('account_id');
+  if (!projectNameOk(input && input.project_name)) return invalid('project_name');
+  if (withDomain && (typeof (input && input.domain) !== 'string' || !HOSTNAME.test(input.domain))) return invalid('domain');
+  return null;
+}
+
 export const modules = {
   dns: {
     async list_records(input, ctx) {
@@ -1519,6 +1808,91 @@ export const modules = {
     },
     async delete(input, ctx) {
       return ctx.catalog('cloudflare.zones.delete', input);
+    },
+    async get_settings(input, ctx) {
+      if (!accountIdOk(input && input.zone_id)) return invalid('zone_id');
+      return proxyEnvelope(ctx, { endpoint: `/zones/${encodeURIComponent(input.zone_id)}/settings`, method: 'GET' });
+    },
+    async get_setting(input, ctx) {
+      if (!accountIdOk(input && input.zone_id)) return invalid('zone_id');
+      if (typeof (input && input.setting_id) !== 'string' || !SETTING_KEY.test(input.setting_id)) return invalid('setting_id');
+      return proxyEnvelope(ctx, {
+        endpoint: `/zones/${encodeURIComponent(input.zone_id)}/settings/${encodeURIComponent(input.setting_id)}`,
+        method: 'GET',
+      });
+    },
+    async update_setting(input, ctx) {
+      if (!accountIdOk(input && input.zone_id)) return invalid('zone_id');
+      const settingId = input && input.setting_id;
+      if (!UPDATE_SETTINGS.includes(settingId)) return invalid('setting_id');
+      const bad = checkSettingValue(settingId, input.value);
+      if (bad) return bad;
+      const endpoint = `/zones/${encodeURIComponent(input.zone_id)}/settings/${encodeURIComponent(settingId)}`;
+      const beforeData = await proxyEnvelope(ctx, { endpoint, method: 'GET' });
+      if (beforeData && beforeData.status === 'vendor_error') return beforeData;
+      const beforeRow = asObject(beforeData.result);
+      if (!beforeRow || !Object.hasOwn(beforeRow, 'value')) return vendorError(endpoint, 'GET');
+      const before = beforeRow.value;
+      const patched = await proxyEnvelope(ctx, { endpoint, method: 'PATCH', body: { value: input.value } });
+      if (patched && patched.status === 'vendor_error') return patched;
+      let afterData;
+      try {
+        afterData = await proxyData(ctx, { endpoint, method: 'GET' });
+      } catch {
+        return { success: true, setting_id: settingId, before, after: null, applied: null, reason: 'read after write failed' };
+      }
+      if (!envelopeOk(afterData)) {
+        return { success: true, setting_id: settingId, before, after: null, applied: null, reason: 'read after write failed' };
+      }
+      const afterRow = asObject(afterData.result);
+      const after = afterRow && Object.hasOwn(afterRow, 'value') ? afterRow.value : undefined;
+      return { success: true, setting_id: settingId, before, after, applied: settingApplied(settingId, input.value, after) };
+    },
+    async get_bot_management(input, ctx) {
+      if (!accountIdOk(input && input.zone_id)) return invalid('zone_id');
+      return proxyEnvelope(ctx, { endpoint: `/zones/${encodeURIComponent(input.zone_id)}/bot_management`, method: 'GET' });
+    },
+    async list_certificate_packs(input, ctx) {
+      if (!accountIdOk(input && input.zone_id)) return invalid('zone_id');
+      return proxyEnvelope(ctx, {
+        endpoint: withQuery(`/zones/${encodeURIComponent(input.zone_id)}/ssl/certificate_packs`, { status: 'all' }, ['status']),
+        method: 'GET',
+      });
+    },
+    async list_workers_routes(input, ctx) {
+      if (!accountIdOk(input && input.zone_id)) return invalid('zone_id');
+      return proxyEnvelope(ctx, { endpoint: `/zones/${encodeURIComponent(input.zone_id)}/workers/routes`, method: 'GET' });
+    },
+    async list_access_apps(input, ctx) {
+      if (!accountIdOk(input && input.account_id)) return invalid('account_id');
+      let hostname = null;
+      if (input && Object.hasOwn(input, 'hostname') && input.hostname != null) {
+        if (typeof input.hostname !== 'string' || !HOSTNAME.test(input.hostname)) return invalid('hostname');
+        hostname = hostPart(input.hostname);
+      }
+      const all = [];
+      let page = 1;
+      for (;;) {
+        const endpoint = withQuery(
+          `/accounts/${encodeURIComponent(input.account_id)}/access/apps`,
+          { per_page: 1000, page },
+          ['per_page', 'page'],
+        );
+        const data = await proxyData(ctx, { endpoint, method: 'GET' });
+        if (!envelopeOk(data) || !Array.isArray(data.result)) return vendorError(endpoint, 'GET');
+        all.push(...data.result);
+        const total = data.result_info && data.result_info.total_pages;
+        if (!Number.isFinite(total) || page >= total) break;
+        page += 1;
+      }
+      const needle = hostname;
+      const result = needle ? all.filter((app) => appMatchesHost(app, needle)) : all;
+      return {
+        success: true,
+        result,
+        result_info: { count: result.length, total_count: result.length, page: 1, per_page: 1000, total_pages: 1 },
+        filtered_by: input && input.hostname != null ? input.hostname : null,
+      };
     },
   },
 
@@ -2053,6 +2427,21 @@ export const modules = {
         method: 'DELETE',
       });
     },
+    async list_domains(input, ctx) {
+      const bad = checkPagesRead(input, false);
+      if (bad) return bad;
+      return proxyEnvelope(ctx, { endpoint: pagesDomainEndpoint(input, false), method: 'GET' });
+    },
+    async get_domain(input, ctx) {
+      const bad = checkPagesRead(input, true);
+      if (bad) return bad;
+      return proxyEnvelope(ctx, { endpoint: pagesDomainEndpoint(input, true), method: 'GET' });
+    },
+    async retry_domain_validation(input, ctx) {
+      const bad = checkPagesRead(input, true);
+      if (bad) return bad;
+      return proxyEnvelope(ctx, { endpoint: pagesDomainEndpoint(input, true), method: 'PATCH' });
+    },
   },
 
 
@@ -2062,7 +2451,211 @@ export const modules = {
     create: viaCatalog,
     get: viaCatalog,
     delete: viaCatalog,
-    add_rule: viaCatalog,
-    remove_rule: viaCatalog,
+    async list(input, ctx) {
+      const scope = scopeOf(input);
+      if (scope.error) return scope.error;
+      return cursorAll(ctx, `/${scope.scope}/${encodeURIComponent(scope.id)}/rulesets`);
+    },
+    async get_phase_entrypoint(input, ctx) {
+      const scope = scopeOf(input);
+      if (scope.error) return scope.error;
+      if (!phaseKnown(input.phase)) return invalid('phase');
+      const endpoint = entrypointPath(scope.scope, scope.id, input.phase);
+      const read = await readEntrypoint(ctx, endpoint);
+      if (read.error) return read.error;
+      if (!read.exists) {
+        return {
+          success: true,
+          exists: false,
+          phase: input.phase,
+          accounts_or_zones: scope.scope,
+          account_or_zone_id: scope.id,
+          result: null,
+        };
+      }
+      return { ...read.data, exists: true };
+    },
+    async list_page_rules(input, ctx) {
+      if (!accountIdOk(input && input.zone_id)) return invalid('zone_id');
+      return proxyEnvelope(ctx, { endpoint: `/zones/${encodeURIComponent(input.zone_id)}/pagerules`, method: 'GET' });
+    },
+    async list_lists(input, ctx) {
+      if (!accountIdOk(input && input.account_id)) return invalid('account_id');
+      return proxyEnvelope(ctx, { endpoint: listsPath(input.account_id), method: 'GET' });
+    },
+    async list_list_items(input, ctx) {
+      if (!accountIdOk(input && input.account_id)) return invalid('account_id');
+      const id = segmentOk(input && input.list_id, 'list_id');
+      if (id) return id;
+      return cursorAll(ctx, listsPath(input.account_id, input.list_id, 'items'));
+    },
+    async get_bulk_operation(input, ctx) {
+      if (!accountIdOk(input && input.account_id)) return invalid('account_id');
+      const id = segmentOk(input && input.operation_id, 'operation_id');
+      if (id) return id;
+      return proxyEnvelope(ctx, {
+        endpoint: `${listsPath(input.account_id)}/bulk_operations/${encodeURIComponent(input.operation_id)}`,
+        method: 'GET',
+      });
+    },
+    async put_phase_entrypoint(input, ctx) {
+      const scope = scopeOf(input);
+      if (scope.error) return scope.error;
+      if (!phaseKnown(input && input.phase) || !redirectPhaseOk(scope.scope, input.phase)) return invalid('phase');
+      const rules = checkRules(input && input.rules);
+      if (rules) return rules;
+      const version = checkExpectedVersion(input);
+      if (version) return version;
+      const description = optionalText(input, 'description');
+      if (description.error) return description.error;
+      const endpoint = entrypointPath(scope.scope, scope.id, input.phase);
+      const read = await readEntrypoint(ctx, endpoint);
+      if (read.error) return read.error;
+      const current = read.exists ? entrypointVersion(read.data) : { version: null, ruleCount: 0 };
+      if (input.expected_version === null) {
+        if (read.exists) {
+          return {
+            status: 'invalid_arguments',
+            field: 'expected_version',
+            reason: 'entrypoint exists',
+            current_version: current.version,
+            rule_count: current.ruleCount,
+          };
+        }
+      } else if (!read.exists || current.version !== input.expected_version) {
+        return {
+          status: 'invalid_arguments',
+          field: 'expected_version',
+          reason: 'version mismatch',
+          current_version: read.exists ? current.version : null,
+        };
+      }
+      const body = { rules: input.rules };
+      if (description.text !== undefined) body.description = description.text;
+      try {
+        const written = await proxyData(ctx, { endpoint, method: 'PUT', body });
+        if (!envelopeOk(written)) return vendorError(endpoint, 'PUT');
+        return { ...written, created_with: 'put' };
+      } catch (err) {
+        if (!(vendorSignal(err, 404) && !read.exists)) throw err;
+      }
+      const postEndpoint = `/${scope.scope}/${encodeURIComponent(scope.id)}/rulesets`;
+      const postBody = {
+        name: 'default',
+        kind: scope.scope === 'zones' ? 'zone' : 'root',
+        phase: input.phase,
+        rules: input.rules,
+      };
+      if (description.text !== undefined) postBody.description = description.text;
+      const created = await proxyEnvelope(ctx, { endpoint: postEndpoint, method: 'POST', body: postBody });
+      if (created && created.status === 'vendor_error') return created;
+      return { ...created, created_with: 'post' };
+    },
+    async add_rule(input, ctx) {
+      const owner = addRuleOwner(input);
+      if (owner.error) return owner.error;
+      const id = segmentOk(input && input.ruleset_id, 'ruleset_id');
+      if (id) return id;
+      const rule = checkRedirectRule(input && input.rule);
+      if (rule) return rule;
+      if (input && Object.hasOwn(input, 'position')) {
+        const position = checkPosition(input.position);
+        if (position) return position;
+      }
+      const body = input && Object.hasOwn(input, 'position') ? { ...input.rule, position: input.position } : input.rule;
+      return proxyEnvelope(ctx, {
+        endpoint: ruleCollectionPath(input.accounts_or_zones, owner.id, input.ruleset_id),
+        method: 'POST',
+        body,
+      });
+    },
+    async update_rule(input, ctx) {
+      const scope = scopeOf(input);
+      if (scope.error) return scope.error;
+      const ruleset = segmentOk(input && input.ruleset_id, 'ruleset_id');
+      if (ruleset) return ruleset;
+      const ruleId = segmentOk(input && input.rule_id, 'rule_id');
+      if (ruleId) return ruleId;
+      const rule = checkRedirectRule(input && input.rule);
+      if (rule) return rule;
+      return proxyEnvelope(ctx, {
+        endpoint: ruleCollectionPath(scope.scope, scope.id, input.ruleset_id, input.rule_id),
+        method: 'PATCH',
+        body: input.rule,
+      });
+    },
+    async reorder_rule(input, ctx) {
+      const scope = scopeOf(input);
+      if (scope.error) return scope.error;
+      const ruleset = segmentOk(input && input.ruleset_id, 'ruleset_id');
+      if (ruleset) return ruleset;
+      const ruleId = segmentOk(input && input.rule_id, 'rule_id');
+      if (ruleId) return ruleId;
+      const position = checkPosition(input && input.position);
+      if (position) return position;
+      return proxyEnvelope(ctx, {
+        endpoint: ruleCollectionPath(scope.scope, scope.id, input.ruleset_id, input.rule_id),
+        method: 'PATCH',
+        body: { position: input.position },
+      });
+    },
+    async remove_rule(input, ctx) {
+      const scope = scopeOf(input);
+      if (scope.error) return scope.error;
+      const ruleset = segmentOk(input && input.ruleset_id, 'ruleset_id');
+      if (ruleset) return ruleset;
+      const ruleId = segmentOk(input && input.rule_id, 'rule_id');
+      if (ruleId) return ruleId;
+      return proxyEnvelope(ctx, {
+        endpoint: ruleCollectionPath(scope.scope, scope.id, input.ruleset_id, input.rule_id),
+        method: 'DELETE',
+      });
+    },
+    async create_list(input, ctx) {
+      if (!accountIdOk(input && input.account_id)) return invalid('account_id');
+      if (typeof (input && input.name) !== 'string' || !LIST_NAME.test(input.name)) return invalid('name');
+      const description = optionalText(input, 'description', 500);
+      if (description.error) return description.error;
+      const body = { name: input.name, kind: 'redirect' };
+      if (description.text !== undefined) body.description = description.text;
+      return proxyEnvelope(ctx, { endpoint: listsPath(input.account_id), method: 'POST', body });
+    },
+    async add_list_items(input, ctx) {
+      if (!accountIdOk(input && input.account_id)) return invalid('account_id');
+      const id = segmentOk(input && input.list_id, 'list_id');
+      if (id) return id;
+      if (!input || !Array.isArray(input.items) || input.items.length < 1 || input.items.length > 1000) return invalid('items');
+      for (const item of input.items) {
+        const bad = checkListItem(item);
+        if (bad) return bad;
+      }
+      const endpoint = listsPath(input.account_id, input.list_id, 'items');
+      const posted = await proxyEnvelope(ctx, { endpoint, method: 'POST', body: input.items });
+      return finishBulk(ctx, input.account_id, posted, endpoint, 'POST');
+    },
+    async remove_list_items(input, ctx) {
+      if (!accountIdOk(input && input.account_id)) return invalid('account_id');
+      const id = segmentOk(input && input.list_id, 'list_id');
+      if (id) return id;
+      if (!input || !Array.isArray(input.item_ids) || input.item_ids.length < 1 || input.item_ids.length > 1000) {
+        return invalid('item_ids');
+      }
+      for (const itemId of input.item_ids) {
+        if (typeof itemId !== 'string' || !ID_SEGMENT.test(itemId)) return invalid('item_ids');
+      }
+      const endpoint = listsPath(input.account_id, input.list_id, 'items');
+      const posted = await proxyEnvelope(ctx, {
+        endpoint,
+        method: 'DELETE',
+        body: { items: input.item_ids.map((itemId) => ({ id: itemId })) },
+      });
+      return finishBulk(ctx, input.account_id, posted, endpoint, 'DELETE');
+    },
+    async delete_list(input, ctx) {
+      if (!accountIdOk(input && input.account_id)) return invalid('account_id');
+      const id = segmentOk(input && input.list_id, 'list_id');
+      if (id) return id;
+      return proxyEnvelope(ctx, { endpoint: listsPath(input.account_id, input.list_id), method: 'DELETE' });
+    },
   },
 };

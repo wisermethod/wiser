@@ -228,6 +228,26 @@ function validName(name) {
     && !name.split('/').includes('..');
 }
 
+const VERCEL_ID = /^[A-Za-z0-9._-]{1,100}$/;
+const HOSTNAME = /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$/;
+
+function invalid(field) {
+  return { status: 'invalid_arguments', field };
+}
+
+function checkProject(input, withDomain) {
+  if (!input || typeof input.id_or_name !== 'string' || !VERCEL_ID.test(input.id_or_name)) return invalid('id_or_name');
+  if (Object.hasOwn(input, 'team_id') && input.team_id != null && typeof input.team_id !== 'string') return invalid('team_id');
+  if (withDomain && (typeof input.domain !== 'string' || !HOSTNAME.test(input.domain))) return invalid('domain');
+  return null;
+}
+
+async function proxyData(ctx, req) {
+  const res = await ctx.proxy(req);
+  if (res && typeof res === 'object' && Object.hasOwn(res, 'data')) return res.data;
+  return res;
+}
+
 function query(input, extra = {}) {
   const qs = new URLSearchParams();
   if (input.team_id) qs.set('teamId', String(input.team_id));
@@ -290,6 +310,22 @@ export const modules = {
   'projects': {
     list: viaCatalog,
     get: viaCatalog,
+    async list_domains(input, ctx) {
+      const bad = checkProject(input, false);
+      if (bad) return bad;
+      return proxyData(ctx, {
+        endpoint: `/v9/projects/${encodeURIComponent(input.id_or_name)}/domains${query(input)}`,
+        method: 'GET',
+      });
+    },
+    async remove_domain(input, ctx) {
+      const bad = checkProject(input, true);
+      if (bad) return bad;
+      return proxyData(ctx, {
+        endpoint: `/v9/projects/${encodeURIComponent(input.id_or_name)}/domains/${encodeURIComponent(input.domain)}${query(input)}`,
+        method: 'DELETE',
+      });
+    },
   },
   'deployments': {
     list: viaCatalog,
