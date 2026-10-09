@@ -1092,3 +1092,11 @@ test('list_access_apps does not read Access as off from a mixed code or a later 
   await assert.rejects(modules.zones.list_access_apps({ account_id: ACCOUNT, hostname: 'example.com' }, later.ctx));
   assert.equal(later.calls.length, 2);
 });
+
+test('list_access_apps treats an empty first page followed by a 9999 refusal as a failure', async () => {
+  const later = recording(async (req, n) => {
+    if (n === 1) return { data: { success: true, result: [], result_info: { total_pages: 2 } } };
+    throw { object: { status: 'vendor_error', http_status: 403, endpoint: req.endpoint, method: 'GET', provider_codes: [9999] } };
+  });
+  await assert.rejects(modules.zones.list_access_apps({ account_id: ACCOUNT }, later.ctx));
+});

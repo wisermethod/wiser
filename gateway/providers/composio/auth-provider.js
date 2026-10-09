@@ -114,7 +114,9 @@ const MAX_PROVIDER_CODES = 10;
 
 /**
  * The vendor's own numeric error codes from a refused proxy answer, and nothing
- * else from its body: `errors[].code` where it is a safe integer, at most ten.
+ * else from its body: the distinct `errors[].code` values that are safe integers,
+ * at most ten. Every entry is scanned and duplicates are dropped, so repeats of one
+ * code cannot push a different code past the limit and hide it.
  * Cloudflare answers a disabled product and a missing permission with the same
  * HTTP 403 and tells them apart only by this code (9999 against 10000), so the
  * code is the one part of the body a caller needs. Messages, ids and every other
@@ -126,9 +128,10 @@ export function providerCodes(payload) {
   const errors = payload && typeof payload === 'object' && Array.isArray(payload.errors) ? payload.errors : [];
   const codes = [];
   for (const entry of errors) {
-    if (codes.length >= MAX_PROVIDER_CODES) break;
     const code = entry && typeof entry === 'object' ? entry.code : undefined;
-    if (Number.isSafeInteger(code)) codes.push(code);
+    if (!Number.isSafeInteger(code) || codes.includes(code)) continue;
+    if (codes.length >= MAX_PROVIDER_CODES) break;
+    codes.push(code);
   }
   return codes;
 }

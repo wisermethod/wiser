@@ -104,13 +104,13 @@ export function vendorErrorFrom(res) {
 }
 
 /**
- * Safe integers only, at most ten, or null when none remain.
+ * Distinct safe integers only, at most ten, or null when none remain.
  * @param {unknown} raw
  * @returns {number[] | null}
  */
 export function filterProviderCodes(raw) {
   if (!Array.isArray(raw)) return null;
-  const codes = raw.filter((code) => Number.isSafeInteger(code)).slice(0, 10);
+  const codes = [...new Set(raw.filter((code) => Number.isSafeInteger(code)))].slice(0, 10);
   return codes.length > 0 ? codes : null;
 }
 

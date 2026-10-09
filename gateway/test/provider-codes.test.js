@@ -102,3 +102,19 @@ test('execute filters provider_codes on a vendor_error the module returned itsel
     modules.zones.get = original;
   }
 });
+
+test('repeats of one code cannot hide a different code past the limit', () => {
+  const errors = [...Array.from({ length: 10 }, () => ({ code: 9999 })), { code: 10000 }];
+  assert.deepEqual(providerCodes({ errors }), [9999, 10000]);
+  assert.deepEqual(
+    vendorErrorFrom({ status: 403, error: { provider_codes: [9999, 9999, 9999, 10000] } }).provider_codes,
+    [9999, 10000],
+  );
+});
+
+test('a first-party adapter vendor_error passes the same filter', async () => {
+  const { projectProviderCodes } = await import('../src/errors.js');
+  const gatewaySource = (await import('node:fs')).readFileSync(new URL('../src/gateway.js', import.meta.url), 'utf8');
+  assert.match(gatewaySource, /if \(isStatusObject\(result\)\) return projectProviderCodes\(result\);/);
+  assert.deepEqual(projectProviderCodes({ status: 'vendor_error', provider_codes: ['x', 5] }).provider_codes, [5]);
+});

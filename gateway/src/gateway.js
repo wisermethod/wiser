@@ -1328,7 +1328,7 @@ export class ConnectionGateway {
       }
       stampVersionFacts(line, raw, key);
       const result = projectFirstPartyResult(raw);
-      if (isStatusObject(result)) return result;
+      if (isStatusObject(result)) return projectProviderCodes(result);
       if (result.error && result.error.code === 'vendor_error') return vendorErrorFrom(result);
       // An adapter status is not re-parsed as a success answer. A
       // below_threshold that names `p` still has to name a probability: a
