@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.09.3, October 9, 2026
+
+- A program in your working folder can now hold programs of its own as well as projects, as deep as the work needs. A podcast program can keep guest sourcing, post-production and advertising as ongoing areas, each holding its own episodes and campaigns. Each folder says in its own AGENTS.md whether it has an end, which makes it a project, or not, which makes it a program; a project still holds no program. Moving a folder to a different parent still goes through a Housekeeping plan you approve, and a folder that turns out to have an end, or not, where it already sits only needs its own AGENTS.md changed. (614d9a2, 56904fd, 02e36b3)
+- A working folder that does not nest programs is asked for nothing new, and update root leaves it as it is. Once a folder holds a program inside a program, update root proposes refreshing its programs/AGENTS.md so that file says so. (56904fd, 02e36b3)
+
 ## v2026.10.09.2, October 9, 2026
 
 - On a Cloudflare account that has never turned on Cloudflare Access, Zone Publisher now records that as a reading, no Access application applies, instead of an unreadable refusal it had to ask you about. (0ab978c, c8cf283, f6abe78)
