@@ -1,6 +1,6 @@
 ---
 standard: user-root
-version: 0.7.0
+version: 0.8.0
 description: One declared user-root tree and the clauses used to score its layout
 ---
 
@@ -21,7 +21,7 @@ The table states, per integer, what a root must carry to reach it, which primiti
 | Contract | What a root must carry | Who brings it there | Required or advisory |
 |---|---|---|---|
 | 1 | No record. This standard declared 2 in its first commit and no commit in this repository introduces `layout: 1`. Nothing is reconstructed here | - | - |
-| 2 | The C3 declared directories, their routers, and the C2 to C11 clauses as this standard now states them, less the `memory/knowledge/` router cell that row 3 owns. Those clauses are otherwise unchanged since 2026-09-10, so an installed copy carrying no git history scores this row from the text in front of it | `skills/Onboard Root/` at instantiation, `skills/Housekeeping/` afterwards | required |
+| 2 | The C3 declared directories, their routers, and the C2 to C11 clauses as this standard now states them, less the `memory/knowledge/` router cell that row 3 owns. Those clauses are otherwise unchanged since 2026-09-10, except that C4 came to permit nested programs on 2026-10-09 and requires nothing more of a root by it, so an installed copy carrying no git history scores this row from the text in front of it | `skills/Onboard Root/` at instantiation, `skills/Housekeeping/` afterwards | required |
 | 3 | C12 Set registration and the C3 `memory/knowledge/` router cell, both of which entered this standard on 2026-09-15 without moving the integer and therefore bound no root by number; and the stamp read as this contract rather than as the tree alone | `skills/Housekeeping/` for the router cell, which is a tree change; the Sets row per C12, which Housekeeping names and hands off, is written by `skills/Knowledge Set Onboarding/` and updated by `skills/Knowledge Curation/`, and is owed only where C12 scores the root anything: a root with **neither a set nor a row** takes C12's vacuous case, owes those two nothing, and is not held short of this contract by a certification for work that does not exist. A set without a row, or a row naming no set directory, is C12's absent or misfiled and is still owed | required |
 
 ## C2 One tree
@@ -52,9 +52,15 @@ A directory not in this table is not a root home. Plays file with their work, pe
 
 Work has an end. A program does not.
 
-A slug with a written completion condition files at `work/<slug>/`, or under its program at `programs/<slug>/<project>/`. A standing concern with no completion condition files at `programs/<slug>/`. Unsure is work.
+A slug with a written completion condition is a project. It files at `work/<slug>/`, or inside the program it serves. A standing concern with no completion condition is a program. It files at `programs/<slug>/`, or inside the program it serves. Unsure is a project.
 
-Each slug's `AGENTS.md` states that completion condition or standing concern. An unresolved work condition is recorded as awaiting its owner, not invented. Moving a slug between work and programs is a Housekeeping plan gated by System Expert. The work and programs routers project this clause.
+A slug's kind is read from its own `AGENTS.md`, never from how deep it sits, so the test is the same at every level and nesting has no depth limit. Inside a program, a folder whose `AGENTS.md` states a completion condition is a project, one that states a standing concern is a program, and any other folder is a part of that program. A project holds no program: every folder inside a project is a part of it and ends with it, and one that would outlive the project files as a project or program of its own.
+
+Each slug's `AGENTS.md` states its own completion condition or standing concern, not that of the program holding it, and a slug that holds folders names them per `standards/conventions.md` Root Layout. An unresolved work condition is recorded as awaiting its owner, not invented.
+
+Moving a slug to another parent, between `work/` and `programs/` or into, out of, or between programs, is a Housekeeping plan gated by System Expert. A slug inside a program that changes kind where it stands moves nothing: its own `AGENTS.md` changes and no plan is needed, provided no program is left inside a project. A program that would be is moved out first, by that plan. The work and programs routers project this clause.
+
+**Nesting adds no C1 contract row, and that is decided rather than missing.** It permits a shape and requires none: a root holding no nested program carries everything it carried before, and a programs router written before nesting was allowed contradicts nothing and is not drift. Do not add a row for it, and do not propose rewriting such a router to make a root current.
 
 ## C5 Inbox versus sources
 
