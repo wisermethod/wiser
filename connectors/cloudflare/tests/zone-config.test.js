@@ -713,11 +713,18 @@ test('rulesets.delete removes a ruleset through the proxy and refuses bad ids fi
     assert.equal(req.method, 'DELETE');
     assert.equal(req.endpoint, `/zones/${ZONE}/rulesets/${RS}`);
     assert.equal(Object.hasOwn(req, 'body'), false);
-    return envelope(null);
+    return { status: 204, data: { successful: true, data: null } };
   });
   const gone = await modules.rulesets.delete({ accounts_or_zones: 'zones', account_or_zone_id: ZONE, ruleset_id: RS }, deleted.ctx);
   assert.equal(gone.success, true);
+  assert.equal(gone.deleted, RS);
   assert.equal(deleted.calls.length, 1);
+  const enveloped = recording(async () => envelope(null));
+  assert.equal((await modules.rulesets.delete({ accounts_or_zones: 'zones', account_or_zone_id: ZONE, ruleset_id: RS }, enveloped.ctx)).success, true);
+  const refusedEnvelope = recording(async () => ({ data: { success: false, errors: [{ code: 1 }], result: null } }));
+  assert.equal((await modules.rulesets.delete({ accounts_or_zones: 'zones', account_or_zone_id: ZONE, ruleset_id: RS }, refusedEnvelope.ctx)).status, 'vendor_error');
+  const threw = recording(async () => { throw { object: { status: 'vendor_error', http_status: 404, endpoint: '/x', method: 'DELETE' } }; });
+  await assert.rejects(modules.rulesets.delete({ accounts_or_zones: 'zones', account_or_zone_id: ZONE, ruleset_id: RS }, threw.ctx));
   assert.equal(manifest.modules.rulesets.actions.delete.execution.prefer, 'proxy');
   assert.equal(manifest.modules.rulesets.actions.delete.confirmation, 'always');
 

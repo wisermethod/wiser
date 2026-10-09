@@ -2457,10 +2457,13 @@ export const modules = {
       if (scope.error) return scope.error;
       const ruleset = segmentOk(input && input.ruleset_id, 'ruleset_id');
       if (ruleset) return ruleset;
-      return proxyEnvelope(ctx, {
-        endpoint: `/${scope.scope}/${encodeURIComponent(scope.id)}/rulesets/${encodeURIComponent(input.ruleset_id)}`,
-        method: 'DELETE',
-      });
+      const endpoint = `/${scope.scope}/${encodeURIComponent(scope.id)}/rulesets/${encodeURIComponent(input.ruleset_id)}`;
+      // Cloudflare answers this DELETE with an empty body (live 2026-10-09), so there is
+      // no envelope to check. A refusal of 400 or more already threw from ctx.proxy; an
+      // answer that does carry an envelope saying success false is still a failure.
+      const data = await proxyData(ctx, { endpoint, method: 'DELETE' });
+      if (data && typeof data === 'object' && data.success === false) return vendorError(endpoint, 'DELETE');
+      return { success: true, errors: [], messages: [], result: null, deleted: input.ruleset_id };
     },
     async list(input, ctx) {
       const scope = scopeOf(input);
