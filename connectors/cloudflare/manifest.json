@@ -264,7 +264,7 @@
           }
         },
         "update_setting": {
-          "description": "Change one of ssl, always_use_https, security_header, min_tls_version, or automatic_https_rewrites. Reads the setting, PATCHes { value }, and reads it again. Returns setting_id, before, after, and applied. ssl is off, flexible, full, or strict. always_use_https and automatic_https_rewrites are on or off. min_tls_version is 1.0, 1.1, 1.2, or 1.3. security_header is an object whose only key is strict_transport_security, itself an object whose only keys are enabled, max_age, include_subdomains, preload, and nosniff. enabled, include_subdomains, preload, and nosniff are booleans. max_age is an integer from 0 to 31536000. applied is whether after deep-equals the requested value; for security_header it compares after.strict_transport_security to the requested object key by key. When the PATCH is accepted and the second read throws or returns success false, after and applied are null and reason is read after write failed.",
+          "description": "Change one of ssl, always_use_https, security_header, min_tls_version, or automatic_https_rewrites. Reads the setting, PATCHes it, and reads it again. Returns setting_id, before, after, and applied. For ssl, always_use_https, min_tls_version and automatic_https_rewrites, give value: ssl is off, flexible, full, or strict; always_use_https and automatic_https_rewrites are on or off; min_tls_version is 1.0, 1.1, 1.2, or 1.3. For security_header (HSTS), give strict_transport_security instead, an object whose only keys are enabled, max_age, include_subdomains, preload, and nosniff; max_age is an integer from 0 to 31536000 and the rest are booleans; it is sent as { strict_transport_security }. Giving both, or the one the setting does not take, is refused. applied is whether after equals what was sent; for security_header it compares after.strict_transport_security key by key. When the PATCH is accepted and the second read throws or returns success false, after and applied are null and reason is read after write failed.",
           "risk": "high",
           "confirmation": "always",
           "execution": { "prefer": "proxy" },
@@ -277,13 +277,29 @@
                 "enum": ["ssl", "always_use_https", "security_header", "min_tls_version", "automatic_https_rewrites"]
               },
               "value": {
-                "anyOf": [
-                  { "enum": ["off", "flexible", "full", "strict", "on", "1.0", "1.1", "1.2", "1.3"] },
-                  { "type": "object" }
-                ]
+                "type": "string",
+                "enum": ["off", "flexible", "full", "strict", "on", "1.0", "1.1", "1.2", "1.3"]
+              },
+              "strict_transport_security": {
+                "type": "object",
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "max_age": { "type": "integer", "minimum": 0, "maximum": 31536000 },
+                  "include_subdomains": { "type": "boolean" },
+                  "preload": { "type": "boolean" },
+                  "nosniff": { "type": "boolean" }
+                },
+                "required": ["enabled", "max_age", "include_subdomains", "preload", "nosniff"],
+                "additionalProperties": false
               }
             },
-            "required": ["zone_id", "setting_id", "value"],
+            "required": ["zone_id", "setting_id"],
+            "oneOf": [
+              { "required": ["setting_id", "value"], "properties": { "setting_id": { "enum": ["ssl"] }, "value": { "enum": ["off", "flexible", "full", "strict"] } } },
+              { "required": ["setting_id", "value"], "properties": { "setting_id": { "enum": ["always_use_https", "automatic_https_rewrites"] }, "value": { "enum": ["on", "off"] } } },
+              { "required": ["setting_id", "value"], "properties": { "setting_id": { "enum": ["min_tls_version"] }, "value": { "enum": ["1.0", "1.1", "1.2", "1.3"] } } },
+              { "required": ["setting_id", "strict_transport_security"], "properties": { "setting_id": { "enum": ["security_header"] } } }
+            ],
             "additionalProperties": false
           }
         },
@@ -789,7 +805,7 @@
           }
         },
         "delete": {
-          "description": "Delete an empty redirect ruleset, and nothing more. Reads the ruleset first. Refuses unless phase is http_request_dynamic_redirect on zones or http_request_redirect on accounts (invalid_arguments, field ruleset_id, reason not a redirect ruleset, with the phase read). Refuses unless rules is empty or absent (field ruleset_id, reason ruleset not empty, with rule_count). A read that throws propagates and nothing is deleted. A read with success false or no result is vendor_error and nothing is deleted.",
+          "description": "Delete an empty redirect ruleset, and nothing more. Reads the ruleset first. Refuses unless phase is http_request_dynamic_redirect on zones or http_request_redirect on accounts (invalid_arguments, field ruleset_id, reason not a redirect ruleset, with the phase read). Refuses unless rules is empty or absent (field ruleset_id, reason ruleset not empty, with rule_count). A read that throws propagates and nothing is deleted. A read with success false or no result is vendor_error and nothing is deleted. The empty check is best effort: it uses the read just before the DELETE, and a rule someone else adds in between is deleted with the ruleset.",
           "risk": "destructive",
           "confirmation": "always",
           "execution": { "prefer": "proxy" },
@@ -922,7 +938,7 @@
           }
         },
         "put_phase_entrypoint": {
-          "description": "Replace the entrypoint rules for a redirect phase. phase must be http_request_dynamic_redirect when accounts_or_zones is zones, or http_request_redirect when it is accounts. rules is a non-empty array of at most 100 objects, and each rule action must be redirect. A rule object that has a position key is refused on field rules. expected_version is required: null only when no entrypoint exists, or the current version string. A null expected_version when an entrypoint exists is refused with reason entrypoint exists, current_version, and rule_count. A string that is absent or different is refused with reason version mismatch and current_version. The expected_version check is best effort: it compares against the read taken just before the PUT, a write by anyone else in between is overwritten, and the guard does not make the replace atomic. Otherwise PUT { rules, description }. If that PUT throws a 404 and the entrypoint was absent, POST a ruleset named default with kind zone or root. Returns the envelope plus created_with put or post.",
+          "description": "Replace the entrypoint rules for a redirect phase. phase must be http_request_dynamic_redirect when accounts_or_zones is zones, or http_request_redirect when it is accounts. rules is a non-empty array of at most 100 objects, and each rule action must be redirect. A rule object that has a position key is refused on field rules. expected_version is required: the string none only when no entrypoint exists, or the current version string. none when an entrypoint exists is refused with reason entrypoint exists, current_version, and rule_count. A version that is absent or different is refused with reason version mismatch and current_version. The expected_version check is best effort: it compares against the read taken just before the PUT, a write by anyone else in between is overwritten, and the guard does not make the replace atomic. Otherwise PUT { rules, description }. If that PUT throws a 404 and the entrypoint was absent, POST a ruleset named default with kind zone or root. Returns the envelope plus created_with put or post.",
           "risk": "high",
           "confirmation": "always",
           "execution": { "prefer": "proxy" },
@@ -957,7 +973,7 @@
                   }
                 }
               },
-              "expected_version": {},
+              "expected_version": { "type": "string", "pattern": "^(none|[0-9]{1,20})$" },
               "description": { "type": "string" }
             },
             "required": ["accounts_or_zones", "account_or_zone_id", "phase", "rules", "expected_version"],

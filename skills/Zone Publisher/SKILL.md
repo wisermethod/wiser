@@ -118,17 +118,17 @@ Before anything would be written, the gate: hand everything from step 4 wrapped 
 | Overwrite a record whole, so it loses fields the file no longer names | `cloudflare.dns.batch` with `puts` |
 | Remove a record | `cloudflare.dns.delete_record` with `{ zone_id, record_id }` |
 | Land a set together, where every removal must precede every creation | `cloudflare.dns.batch` with `{ zone_id, deletes?, patches?, puts?, posts? }` |
-| First redirect rule on a zone with no entrypoint | `cloudflare.rulesets.put_phase_entrypoint` on the zone, phase `http_request_dynamic_redirect`, with `expected_version: null` |
+| First redirect rule on a zone with no entrypoint | `cloudflare.rulesets.put_phase_entrypoint` on the zone, phase `http_request_dynamic_redirect`, with `expected_version: none` |
 | Add a rule to an existing entrypoint | `cloudflare.rulesets.add_rule` with `position` |
 | Change a rule | `cloudflare.rulesets.update_rule` with the whole rule |
 | Move a rule | `cloudflare.rulesets.reorder_rule` |
 | Remove a rule | `cloudflare.rulesets.remove_rule` |
 | Replace the whole redirect set | `cloudflare.rulesets.put_phase_entrypoint` with `expected_version` from the pull. A version mismatch refusal sends the run back to step 2 |
 | Create a Bulk Redirect list and its items | `cloudflare.rulesets.create_list`, then `cloudflare.rulesets.add_list_items`, then `cloudflare.rulesets.get_bulk_operation` until it reports completed or failed |
-| Enable that list | `cloudflare.rulesets.put_phase_entrypoint` on `accounts`, phase `http_request_redirect`, with `expected_version: null` where none exists, or `cloudflare.rulesets.add_rule` where that entrypoint exists |
+| Enable that list | `cloudflare.rulesets.put_phase_entrypoint` on `accounts`, phase `http_request_redirect`, with `expected_version: none` where none exists, or `cloudflare.rulesets.add_rule` where that entrypoint exists |
 | Remove Bulk Redirect items, the enabling rule, or the list | `cloudflare.rulesets.remove_list_items`, `cloudflare.rulesets.remove_rule`, `cloudflare.rulesets.delete_list` |
-| Remove a redirect entrypoint this run created, once its last rule is removed, so the zone or account is back to having none | `cloudflare.rulesets.delete`, which refuses a ruleset that still holds rules or is not a redirect phase |
-| Change one of the five settings | `cloudflare.zones.update_setting` with `setting_id` one of `ssl`, `always_use_https`, `security_header`, `min_tls_version`, `automatic_https_rewrites`. `applied: false` or `applied: null` is a mismatch for step 7 |
+| Remove a redirect entrypoint this run created, once its last rule is removed, so the zone or account is back to having none | `cloudflare.rulesets.delete`, which refuses a ruleset that still holds rules or is not a redirect phase, as read just before; call it straight after removing the last rule, since a rule added by someone else in between is deleted with it |
+| Change one of the five settings | `cloudflare.zones.update_setting` with `setting_id` one of `ssl`, `always_use_https`, `min_tls_version`, `automatic_https_rewrites` and its `value`, or `security_header` and its `strict_transport_security` object. `applied: false` or `applied: null` is a mismatch for step 7 |
 
 `cloudflare.dns.import_zone` with `{ zone_id, zone_file, proxied? }` is not the publish path for a zone that already exists. It creates from a file, expresses no removals, takes proxy status as one flag across every record it reads unless a record carries its own `cf-proxied` tag in the file, which overrides the flag for that record, and its merge behavior against existing records is undocumented. Reach for it to stand a new zone up, and read the zone first even then.
 

@@ -125,6 +125,7 @@ const PATTERN_OK = {
   '^[a-z0-9_]{1,64}$': 'ssl',
   '^[A-Za-z0-9_-]{1,64}$': 'rule_1',
   '^[a-z0-9_]{1,50}$': 'wiser_list',
+  '^(none|[0-9]{1,20})$': 'none',
   // vercel project ids. The first character is a letter, digit, underscore or
   // hyphen, so `.` and `..` are not ids.
   '^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}$': 'effectivesc',

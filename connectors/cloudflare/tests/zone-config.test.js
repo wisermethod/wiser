@@ -140,10 +140,11 @@ test('update_setting reads before, patches, reads after, and reports applied', a
 test('update_setting compares a security header key by key and keeps a failed reread from looking like a failed write', async () => {
   const value = { strict_transport_security: hsts };
   const before = { strict_transport_security: { ...hsts, enabled: false } };
+  // HSTS is given as its own typed field and sent to Cloudflare as { value: { strict_transport_security } }.
   const after = { strict_transport_security: { ...hsts }, modified_on: '2026-10-09' };
   let gets = 0;
   const ok = await modules.zones.update_setting(
-    { zone_id: ZONE, setting_id: 'security_header', value },
+    { zone_id: ZONE, setting_id: 'security_header', strict_transport_security: hsts },
     recording(async (req) => {
       if (req.method === 'GET') {
         gets += 1;
@@ -158,7 +159,7 @@ test('update_setting compares a security header key by key and keeps a failed re
   assert.equal(ok.applied, true);
 
   const extra = await modules.zones.update_setting(
-    { zone_id: ZONE, setting_id: 'security_header', value },
+    { zone_id: ZONE, setting_id: 'security_header', strict_transport_security: hsts },
     recording(async () => envelope({
       id: 'security_header',
       value: { strict_transport_security: { ...hsts, preload: true } },
@@ -218,15 +219,25 @@ test('update_setting refuses each setting value before any call', async () => {
     ['always_use_https', 'full', 'value'],
     ['automatic_https_rewrites', 'yes', 'value'],
     ['min_tls_version', '1.4', 'value'],
-    ['security_header', { strict_transport_security: { ...hsts, extra: true } }, 'value'],
-    ['security_header', { strict_transport_security: { ...hsts, max_age: 31536001 } }, 'value'],
-    ['security_header', { strict_transport_security: { ...hsts, enabled: 'true' } }, 'value'],
-    ['security_header', { enabled: true }, 'value'],
     ['ssl', { strict_transport_security: hsts }, 'value'],
   ];
   for (const [setting_id, value, field] of bad) {
     refused(await modules.zones.update_setting({ zone_id: ZONE, setting_id, value }, ctx), field);
   }
+  const badHsts = [
+    { ...hsts, extra: true },
+    { ...hsts, max_age: 31536001 },
+    { ...hsts, enabled: 'true' },
+    { enabled: true },
+  ];
+  for (const strict_transport_security of badHsts) {
+    refused(await modules.zones.update_setting({ zone_id: ZONE, setting_id: 'security_header', strict_transport_security }, ctx), 'strict_transport_security');
+  }
+  // Each setting takes exactly one of the two fields.
+  refused(await modules.zones.update_setting({ zone_id: ZONE, setting_id: 'security_header', value: 'on' }, ctx), 'value');
+  refused(await modules.zones.update_setting({ zone_id: ZONE, setting_id: 'security_header' }, ctx), 'strict_transport_security');
+  refused(await modules.zones.update_setting({ zone_id: ZONE, setting_id: 'ssl', value: 'full', strict_transport_security: hsts }, ctx), 'strict_transport_security');
+  refused(await modules.zones.update_setting({ zone_id: ZONE, setting_id: 'ssl' }, ctx), 'value');
   refused(await modules.zones.update_setting({ zone_id: 'not-hex', setting_id: 'ssl', value: 'off' }, ctx), 'zone_id');
   assert.equal(calls.length, 0);
   const accepted = ['flexible', 'full', 'strict', 'off'];
@@ -473,7 +484,7 @@ test('get_phase_entrypoint reads every published phase and put stays on the two 
       account_or_zone_id: ZONE,
       phase,
       rules: [rule],
-      expected_version: null,
+      expected_version: 'none',
     }, ctx), 'phase');
   }
   assert.equal(manifest.modules.rulesets.actions.put_phase_entrypoint.input.properties.phase.enum.includes('http_ratelimit'), false);
@@ -496,13 +507,19 @@ test('put_phase_entrypoint refuses on version and falls back to POST when PUT 40
     assert.deepEqual(req.body, { rules: [rule], description: 'www' });
     return envelope(created);
   });
-  const fresh = await modules.rulesets.put_phase_entrypoint({ ...input, expected_version: null }, none.ctx);
+  const fresh = await modules.rulesets.put_phase_entrypoint({ ...input, expected_version: 'none' }, none.ctx);
   assert.equal(fresh.created_with, 'put');
   assert.equal(fresh.result.id, 'ep');
   assert.deepEqual(none.calls.map((call) => call.method), ['GET', 'PUT']);
 
+  const { calls: noCalls, ctx: noCtx } = recording(async () => { throw new Error('called'); });
+  for (const bad of [null, '', 'abc', '3.1', 3]) {
+    refused(await modules.rulesets.put_phase_entrypoint({ ...input, expected_version: bad }, noCtx), 'expected_version');
+  }
+  assert.equal(noCalls.length, 0);
+
   const exists = recording(async () => envelope({ version: '3', rules: [{}, {}, {}] }));
-  const blocked = await modules.rulesets.put_phase_entrypoint({ ...input, expected_version: null }, exists.ctx);
+  const blocked = await modules.rulesets.put_phase_entrypoint({ ...input, expected_version: 'none' }, exists.ctx);
   assert.deepEqual(blocked, {
     status: 'invalid_arguments',
     field: 'expected_version',
@@ -546,7 +563,7 @@ test('put_phase_entrypoint refuses on version and falls back to POST when PUT 40
     });
     return envelope({ id: 'new' });
   });
-  const posted = await modules.rulesets.put_phase_entrypoint({ ...input, expected_version: null }, fallback.ctx);
+  const posted = await modules.rulesets.put_phase_entrypoint({ ...input, expected_version: 'none' }, fallback.ctx);
   assert.equal(posted.created_with, 'post');
   assert.deepEqual(fallback.calls.map((call) => call.method), ['GET', 'PUT', 'POST']);
 
@@ -564,7 +581,7 @@ test('put_phase_entrypoint refuses on version and falls back to POST when PUT 40
     account_or_zone_id: ACCOUNT,
     phase: 'http_request_redirect',
     rules: [rule],
-    expected_version: null,
+    expected_version: 'none',
   }, accountFallback.ctx);
   assert.equal(accountPosted.created_with, 'post');
 
@@ -579,19 +596,19 @@ test('put_phase_entrypoint refuses on version and falls back to POST when PUT 40
   assert.deepEqual(stillThere.calls.map((call) => call.method), ['GET', 'PUT']);
 
   const { calls, ctx } = recording(async () => { throw new Error('called'); });
-  refused(await modules.rulesets.put_phase_entrypoint({ ...input, phase: 'http_request_redirect', expected_version: null }, ctx), 'phase');
+  refused(await modules.rulesets.put_phase_entrypoint({ ...input, phase: 'http_request_redirect', expected_version: 'none' }, ctx), 'phase');
   refused(await modules.rulesets.put_phase_entrypoint({
     ...input,
     accounts_or_zones: 'accounts',
     account_or_zone_id: ACCOUNT,
     phase: 'http_request_dynamic_redirect',
-    expected_version: null,
+    expected_version: 'none',
   }, ctx), 'phase');
-  refused(await modules.rulesets.put_phase_entrypoint({ ...input, phase: 'http_request_firewall_custom', expected_version: null }, ctx), 'phase');
-  refused(await modules.rulesets.put_phase_entrypoint({ ...input, rules: [], expected_version: null }, ctx), 'rules');
-  refused(await modules.rulesets.put_phase_entrypoint({ ...input, rules: Array.from({ length: 101 }, () => rule), expected_version: null }, ctx), 'rules');
-  refused(await modules.rulesets.put_phase_entrypoint({ ...input, rules: [{ action: 'block' }], expected_version: null }, ctx), 'rules');
-  refused(await modules.rulesets.put_phase_entrypoint({ ...input, rules: ['redirect'], expected_version: null }, ctx), 'rules');
+  refused(await modules.rulesets.put_phase_entrypoint({ ...input, phase: 'http_request_firewall_custom', expected_version: 'none' }, ctx), 'phase');
+  refused(await modules.rulesets.put_phase_entrypoint({ ...input, rules: [], expected_version: 'none' }, ctx), 'rules');
+  refused(await modules.rulesets.put_phase_entrypoint({ ...input, rules: Array.from({ length: 101 }, () => rule), expected_version: 'none' }, ctx), 'rules');
+  refused(await modules.rulesets.put_phase_entrypoint({ ...input, rules: [{ action: 'block' }], expected_version: 'none' }, ctx), 'rules');
+  refused(await modules.rulesets.put_phase_entrypoint({ ...input, rules: ['redirect'], expected_version: 'none' }, ctx), 'rules');
   const { expected_version, ...without } = input;
   refused(await modules.rulesets.put_phase_entrypoint(without, ctx), 'expected_version');
   refused(await modules.rulesets.put_phase_entrypoint({ ...input, expected_version: '' }, ctx), 'expected_version');
@@ -723,7 +740,7 @@ test('rule writes go through the proxy and refuse a non-redirect or a bad positi
     account_or_zone_id: ZONE,
     phase: 'http_request_dynamic_redirect',
     rules: [{ action: 'redirect', position: { index: 1 } }],
-    expected_version: null,
+    expected_version: 'none',
   }, ctx), 'rules');
   assert.equal(calls.length, 0);
 });
@@ -1015,4 +1032,23 @@ test('rulesets.delete removes a ruleset through the proxy and refuses bad ids fi
   refused(await modules.rulesets.delete({ accounts_or_zones: 'both', account_or_zone_id: ZONE, ruleset_id: RS }, ctx), 'accounts_or_zones');
   refused(await modules.rulesets.delete({ accounts_or_zones: 'accounts', account_or_zone_id: 'nothex', ruleset_id: RS }, ctx), 'account_or_zone_id');
   assert.equal(calls.length, 0);
+});
+
+test('list_access_apps keeps partial and multi-label wildcard hosts that could match', async () => {
+  const apps = [
+    { id: 'partial', destinations: [{ type: 'public', uri: '*test.example.com' }] },
+    { id: 'multi', domain: '*.*.example.com' },
+    { id: 'apex', domain: '*.example.com' },
+    { id: 'other', domain: '*foo.example.org' },
+    { id: 'literal-dot', domain: 'alphatestxexample.com' },
+  ];
+  const read = async (hostname) => {
+    const { ctx } = recording(async () => ({ data: { success: true, result: apps, result_info: { total_pages: 1 } } }));
+    const out = await modules.zones.list_access_apps({ account_id: ACCOUNT, hostname }, ctx);
+    return out.result.map((app) => app.id);
+  };
+  assert.deepEqual(await read('alphatest.example.com'), ['partial', 'apex']);
+  assert.deepEqual(await read('a.b.example.com'), ['multi', 'apex']);
+  assert.deepEqual(await read('example.com'), ['apex']);
+  assert.deepEqual(await read('alphatest.example.org'), []);
 });

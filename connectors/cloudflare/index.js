@@ -1503,14 +1503,18 @@ function hostPart(value) {
   return (slash === -1 ? value : value.slice(0, slash)).toLowerCase().replace(/\.+$/, '');
 }
 
+// Generous on purpose: an application that might apply must not be filtered out.
+// Cloudflare Access also accepts a partial wildcard such as `*test.example.com` and
+// more than one wildcard label, so any `*` is read as matching any run of
+// characters, dots included, and `*.suffix` also covers `suffix` itself.
 function hostCovers(candidate, hostname) {
   const host = hostPart(candidate);
   if (!host || !hostname) return false;
   if (host === hostname) return true;
-  if (!host.startsWith('*.')) return false;
-  const suffix = host.slice(2);
-  if (!suffix) return false;
-  return hostname === suffix || hostname.endsWith(`.${suffix}`);
+  if (!host.includes('*')) return false;
+  if (host.startsWith('*.') && hostname === host.slice(2)) return true;
+  const pattern = host.split('*').map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('.*');
+  return new RegExp(`^${pattern}$`).test(hostname);
 }
 
 function appMatchesHost(app, hostname) {
@@ -1572,11 +1576,15 @@ function checkPosition(position) {
   return invalid('position');
 }
 
+// expected_version is a string so the gateway can show it at the confirmation stop:
+// a field with no single declared type is withheld there and the call never runs.
+// `none` means no entrypoint may exist; otherwise it is the version the caller read.
+const EXPECTED_VERSION = /^(none|[0-9]{1,20})$/;
+
 function checkExpectedVersion(input) {
   if (!input || !Object.hasOwn(input, 'expected_version')) return invalid('expected_version');
   const version = input.expected_version;
-  if (version === null) return null;
-  if (typeof version === 'string' && version.length > 0) return null;
+  if (typeof version === 'string' && EXPECTED_VERSION.test(version)) return null;
   return invalid('expected_version');
 }
 
@@ -1936,15 +1944,29 @@ export const modules = {
       if (!accountIdOk(input && input.zone_id)) return invalid('zone_id');
       const settingId = input && input.setting_id;
       if (!UPDATE_SETTINGS.includes(settingId)) return invalid('setting_id');
-      const bad = checkSettingValue(settingId, input.value);
-      if (bad) return bad;
+      // Two typed fields, so the gateway can show either at the confirmation stop:
+      // value for the four string settings, strict_transport_security for HSTS.
+      const hasValue = Object.hasOwn(input, 'value') && input.value !== undefined;
+      const hasHsts = Object.hasOwn(input, 'strict_transport_security') && input.strict_transport_security !== undefined;
+      let requested;
+      if (settingId === 'security_header') {
+        if (hasValue) return invalid('value', 'security_header takes strict_transport_security');
+        if (!hasHsts) return invalid('strict_transport_security');
+        requested = { strict_transport_security: input.strict_transport_security };
+      } else {
+        if (hasHsts) return invalid('strict_transport_security', `${settingId} takes value`);
+        if (!hasValue || typeof input.value !== 'string') return invalid('value');
+        requested = input.value;
+      }
+      const bad = checkSettingValue(settingId, requested);
+      if (bad) return bad.field === 'value' && settingId === 'security_header' ? invalid('strict_transport_security') : bad;
       const endpoint = `/zones/${encodeURIComponent(input.zone_id)}/settings/${encodeURIComponent(settingId)}`;
       const beforeData = await proxyEnvelope(ctx, { endpoint, method: 'GET' });
       if (beforeData && beforeData.status === 'vendor_error') return beforeData;
       const beforeRow = asObject(beforeData.result);
       if (!beforeRow || !Object.hasOwn(beforeRow, 'value')) return vendorError(endpoint, 'GET');
       const before = beforeRow.value;
-      const patched = await proxyEnvelope(ctx, { endpoint, method: 'PATCH', body: { value: input.value } });
+      const patched = await proxyEnvelope(ctx, { endpoint, method: 'PATCH', body: { value: requested } });
       if (patched && patched.status === 'vendor_error') return patched;
       let afterData;
       try {
@@ -1957,7 +1979,7 @@ export const modules = {
       }
       const afterRow = asObject(afterData.result);
       const after = afterRow && Object.hasOwn(afterRow, 'value') ? afterRow.value : undefined;
-      return { success: true, setting_id: settingId, before, after, applied: settingApplied(settingId, input.value, after) };
+      return { success: true, setting_id: settingId, before, after, applied: settingApplied(settingId, requested, after) };
     },
     async get_bot_management(input, ctx) {
       if (!accountIdOk(input && input.zone_id)) return invalid('zone_id');
@@ -2662,7 +2684,7 @@ export const modules = {
       const read = await readEntrypoint(ctx, endpoint);
       if (read.error) return read.error;
       const current = read.exists ? entrypointVersion(read.data) : { version: null, ruleCount: 0 };
-      if (input.expected_version === null) {
+      if (input.expected_version === 'none') {
         if (read.exists) {
           return {
             status: 'invalid_arguments',
