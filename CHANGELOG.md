@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.09.2, October 9, 2026
+
+- On a Cloudflare account that has never turned on Cloudflare Access, Zone Publisher now records that as a reading, no Access application applies, instead of an unreadable refusal it had to ask you about. (0ab978c, c8cf283, f6abe78)
+- When a service refuses a request, Wiser now passes along the service's own numeric error codes, and nothing else from its answer, so a refusal can be told apart from another with the same status; the connection troubleshooting skill reports them. (0ab978c, c8cf283, f6abe78)
+
 ## v2026.10.09, October 9, 2026
 
 - Zone Publisher now reads a Cloudflare zone's settings and rules every time it pulls the zone, and keeps them in the archive with the records: the SSL mode, Always Use HTTPS, HSTS, Bot Fight Mode, the certificates, Workers routes, Page Rules, Access applications, every rule entrypoint, and, when a record is about to be proxied or a redirect changes, the account's redirect lists. A record is not proxied while a rule that could apply to it is still unread, and a rule it could not read is reported as not read, never as empty. (4128c59, 819b941)
