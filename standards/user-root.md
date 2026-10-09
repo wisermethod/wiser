@@ -54,11 +54,11 @@ Work has an end. A program does not.
 
 A project has a written completion condition, or one recorded as awaiting its owner. A program has a standing concern and no completion condition. A project files at `work/<slug>/` or inside the program it serves; a program files at `programs/<slug>/` or inside the program it serves. Filing new work, unsure is a project.
 
-What a folder under `work/` or `programs/` is, is decided in this order, at every depth; nesting has no depth limit.
+What a folder under `work/` or `programs/` is, is decided in this order, at every depth; nesting has no depth limit. The homes C3 declares there, `work/onboarding/` and `work/zArchive/`, and any `zArchive/` per `standards/conventions.md` Archives are not subject folders and take no step.
 
 1. Every folder inside a project is a part of it and ends with it; a part may carry a milestone of its own. A folder inside a project that states a standing concern, or that would outlive the project, is misfiled there and files on its own.
 2. Any other folder directly under `work/` or `programs/`, or inside a program, is a project or a program by its own `AGENTS.md`, never by how deep it sits. One that states both a completion condition and a standing concern is the kind its text says governs; where the text does not say, ask its owner. One directly under `work/` or `programs/` that states neither scores absent, its kind awaiting its owner.
-3. A folder inside a program that states neither is a part of that program, unless the program names it as a project or a program, in which case its own declaration scores absent.
+3. A folder inside a program that states neither is a part of that program, unless the program names it as a project or a program, in which case its own declaration scores absent. A folder inside one whose kind is still awaiting its owner takes no step and no row of its own until that kind is settled.
 
 Each project and program states its own completion condition or standing concern in its own `AGENTS.md`, not that of the program holding it, and names the folders it holds per `standards/conventions.md` Root Layout. An unresolved work condition is recorded as awaiting its owner, not invented.
 
