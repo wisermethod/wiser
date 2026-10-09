@@ -48,7 +48,7 @@ Where a write is forbidden outright, the top level of any root and a composed sh
 
 ## Root Layout
 
-User-root layout is governed by `standards/user-root.md`. Its C4 distinguishes completion-bounded projects from standing programs and says what a program may hold. Beneath a directory that takes subject folders, name each folder for its subject, never the root's own name. A file and its drafts sit together in that subject folder.
+User-root layout is governed by `standards/user-root.md`. Its C4 says what a project and a program are and what each may hold. Beneath a directory that takes subject folders, name each folder for its subject, never the root's own name. A file and its drafts sit together in that subject folder.
 
 A subject folder that holds folders of its own, or has outgrown a quick scan, carries its own AGENTS.md naming what it holds and where its parts sit. The constitution's chain reaches it with no further declaration.
 
