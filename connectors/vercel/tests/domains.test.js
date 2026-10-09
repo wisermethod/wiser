@@ -32,6 +32,8 @@ test('manifest declares project domain actions', () => {
   assert.equal(remove.execution.prefer, 'proxy');
   assert.equal(list.input.additionalProperties, false);
   assert.equal(remove.input.additionalProperties, false);
+  assert.equal(list.input.properties.id_or_name.pattern, '^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}$');
+  assert.equal(remove.input.properties.id_or_name.pattern, '^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}$');
 });
 
 test('list_domains and remove_domain proxy to the project domain routes', async () => {
@@ -45,6 +47,12 @@ test('list_domains and remove_domain proxy to the project domain routes', async 
   const bare = recording(async () => ({ data: { domains: [] } }));
   await modules.projects.list_domains({ id_or_name: 'effectivesc' }, bare.ctx);
   assert.equal(bare.calls[0].endpoint, '/v9/projects/effectivesc/domains');
+
+  const dotted = recording(async (req) => {
+    assert.equal(req.endpoint, '/v9/projects/my.project/domains');
+    return { data: { domains: [] } };
+  });
+  await modules.projects.list_domains({ id_or_name: 'my.project' }, dotted.ctx);
 
   const removed = recording(async () => ({ data: { name: 'www.example.com' } }));
   const gone = await modules.projects.remove_domain({
@@ -62,6 +70,12 @@ test('list_domains and remove_domain proxy to the project domain routes', async 
   refused(await modules.projects.list_domains({ id_or_name: 'a/b' }, ctx), 'id_or_name');
   refused(await modules.projects.list_domains({ id_or_name: '' }, ctx), 'id_or_name');
   refused(await modules.projects.list_domains({ id_or_name: 'a'.repeat(101) }, ctx), 'id_or_name');
+  refused(await modules.projects.list_domains({ id_or_name: '.' }, ctx), 'id_or_name');
+  refused(await modules.projects.list_domains({ id_or_name: '..' }, ctx), 'id_or_name');
+  refused(await modules.projects.list_domains({ id_or_name: '.hidden' }, ctx), 'id_or_name');
+  refused(await modules.projects.remove_domain({ id_or_name: '.', domain: 'www.example.com' }, ctx), 'id_or_name');
+  refused(await modules.projects.remove_domain({ id_or_name: '..', domain: 'www.example.com' }, ctx), 'id_or_name');
+  refused(await modules.projects.remove_domain({ id_or_name: '.hidden', domain: 'www.example.com' }, ctx), 'id_or_name');
   refused(await modules.projects.list_domains({ id_or_name: 'effectivesc', team_id: 12 }, ctx), 'team_id');
   refused(await modules.projects.remove_domain({ id_or_name: 'effectivesc', domain: 'localhost' }, ctx), 'domain');
   refused(await modules.projects.remove_domain({ id_or_name: 'effectivesc', domain: '..' }, ctx), 'domain');

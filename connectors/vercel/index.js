@@ -228,7 +228,8 @@ function validName(name) {
     && !name.split('/').includes('..');
 }
 
-const VERCEL_ID = /^[A-Za-z0-9._-]{1,100}$/;
+// The first character is not a dot, so `.` and `..` cannot leave the project path.
+const VERCEL_ID = /^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}$/;
 const HOSTNAME = /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$/;
 
 function invalid(field) {

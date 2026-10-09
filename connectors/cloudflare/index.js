@@ -1386,16 +1386,33 @@ const SSL_VALUES = new Set(['off', 'flexible', 'full', 'strict']);
 const ON_OFF = new Set(['on', 'off']);
 const TLS_VERSIONS = new Set(['1.0', '1.1', '1.2', '1.3']);
 const HSTS_KEYS = ['enabled', 'max_age', 'include_subdomains', 'preload', 'nosniff'];
-const PHASES = new Set([
-  'http_request_dynamic_redirect',
-  'http_request_redirect',
+// Every phase Cloudflare's rulesets reference names. get_phase_entrypoint reads
+// the whole set. Writes stay on the two redirect phases.
+const READ_PHASES = new Set([
+  'ddos_l4',
+  'ddos_l7',
   'http_config_settings',
-  'http_request_transform',
-  'http_request_late_transform',
-  'http_response_headers_transform',
-  'http_request_origin',
+  'http_custom_errors',
+  'http_log_custom_fields',
+  'http_ratelimit',
   'http_request_cache_settings',
+  'http_request_dynamic_redirect',
   'http_request_firewall_custom',
+  'http_request_firewall_managed',
+  'http_request_late_transform',
+  'http_request_origin',
+  'http_request_redirect',
+  'http_request_sanitize',
+  'http_request_sbfm',
+  'http_request_transform',
+  'http_response_cache_settings',
+  'http_response_compression',
+  'http_response_firewall_managed',
+  'http_response_headers_transform',
+  'magic_transit',
+  'magic_transit_ids_managed',
+  'magic_transit_managed',
+  'magic_transit_ratelimit',
 ]);
 const REDIRECT_FLAGS = ['preserve_query_string', 'include_subdomains', 'subpath_matching', 'preserve_path_suffix'];
 const REDIRECT_STATUS = new Set([301, 302, 307, 308]);
@@ -1414,7 +1431,7 @@ function scopeOf(input) {
 }
 
 function phaseKnown(phase) {
-  return typeof phase === 'string' && PHASES.has(phase);
+  return typeof phase === 'string' && READ_PHASES.has(phase);
 }
 
 // Writes are limited to the zone dynamic-redirect phase and the account bulk-redirect phase.
@@ -1512,16 +1529,29 @@ function appMatchesHost(app, hostname) {
   return false;
 }
 
+// A destination with no uri (a worker, or all_workers) cannot be matched to a
+// hostname from the application alone. A non-object entry has no uri either.
+function destinationWithoutUri(entry) {
+  const destination = asObject(entry);
+  if (!destination) return true;
+  return typeof destination.uri !== 'string' || destination.uri.length === 0;
+}
+
+function appHasUnresolvedDestination(app) {
+  const row = asObject(app);
+  return Boolean(row && Array.isArray(row.destinations) && row.destinations.some(destinationWithoutUri));
+}
+
 function checkRules(rules) {
   if (!Array.isArray(rules) || rules.length < 1 || rules.length > 100) return invalid('rules');
   for (const rule of rules) {
-    if (!asObject(rule) || rule.action !== 'redirect') return invalid('rules');
+    if (!asObject(rule) || rule.action !== 'redirect' || Object.hasOwn(rule, 'position')) return invalid('rules');
   }
   return null;
 }
 
 function checkRedirectRule(rule) {
-  if (!asObject(rule) || rule.action !== 'redirect') return invalid('rule');
+  if (!asObject(rule) || rule.action !== 'redirect' || Object.hasOwn(rule, 'position')) return invalid('rule');
   return null;
 }
 
@@ -1577,6 +1607,54 @@ function checkListItem(item) {
 function ruleCollectionPath(scope, id, rulesetId, ruleId) {
   const base = `/${scope}/${encodeURIComponent(id)}/rulesets/${encodeURIComponent(rulesetId)}/rules`;
   return ruleId ? `${base}/${encodeURIComponent(ruleId)}` : base;
+}
+
+function rulesetPath(scope, id, rulesetId) {
+  return `/${scope}/${encodeURIComponent(id)}/rulesets/${encodeURIComponent(rulesetId)}`;
+}
+
+// The ruleset the write would change. A throw from the proxy propagates, so the
+// write never runs. success: false, or an envelope with no ruleset object, is a
+// vendor_error and the write does not run either.
+async function readTargetRuleset(ctx, scope, id, rulesetId) {
+  const endpoint = rulesetPath(scope, id, rulesetId);
+  const data = await proxyData(ctx, { endpoint, method: 'GET' });
+  if (!envelopeOk(data) || !asObject(data.result)) return { error: vendorError(endpoint, 'GET') };
+  return { ruleset: data.result };
+}
+
+function redirectPhaseRefusal(ruleset, scope) {
+  const expected = scope === 'zones' ? 'http_request_dynamic_redirect' : 'http_request_redirect';
+  if (ruleset.phase === expected) return null;
+  return {
+    status: 'invalid_arguments',
+    field: 'ruleset_id',
+    reason: 'not a redirect ruleset',
+    phase: ruleset.phase,
+  };
+}
+
+function ruleMembershipRefusal(ruleset, ruleId) {
+  const rules = Array.isArray(ruleset.rules) ? ruleset.rules : [];
+  const found = rules.some((item) => {
+    const row = asObject(item);
+    return row != null && row.id === ruleId;
+  });
+  if (found) return null;
+  return { status: 'invalid_arguments', field: 'rule_id', reason: 'rule not in ruleset' };
+}
+
+// delete exists to remove a redirect entrypoint left empty. Absent rules, null
+// rules, and an empty array are empty. Anything else is refused.
+function emptyRulesetRefusal(ruleset) {
+  if (!Object.hasOwn(ruleset, 'rules') || ruleset.rules == null) return null;
+  if (Array.isArray(ruleset.rules) && ruleset.rules.length === 0) return null;
+  return {
+    status: 'invalid_arguments',
+    field: 'ruleset_id',
+    reason: 'ruleset not empty',
+    rule_count: Array.isArray(ruleset.rules) ? ruleset.rules.length : null,
+  };
 }
 
 function entrypointPath(scope, id, phase) {
@@ -1645,12 +1723,45 @@ function entrypointVersion(data) {
   };
 }
 
+// A thrown status read is the gateway's StatusSignal: an Error whose .object is
+// { status: 'vendor_error', http_status, endpoint, method }. Copy http_status
+// when the throw has that shape. Anything else is still a failed read, reported
+// with http_status null. The accepted operation_id is kept either way.
+function operationReadFromThrow(err) {
+  const object = err && typeof err === 'object' ? err.object : null;
+  const shaped = Boolean(
+    object && typeof object === 'object' && !Array.isArray(object) && object.status === 'vendor_error',
+  );
+  const http_status = shaped && Object.hasOwn(object, 'http_status') && object.http_status != null
+    ? object.http_status
+    : null;
+  return { status: 'vendor_error', http_status };
+}
+
 async function finishBulk(ctx, accountId, posted, endpoint, method) {
   if (posted && posted.status === 'vendor_error') return posted;
   const operationId = posted && posted.result && posted.result.operation_id;
   if (typeof operationId !== 'string' || operationId.length === 0) return vendorError(endpoint, method);
   const opEndpoint = `${listsPath(accountId)}/bulk_operations/${encodeURIComponent(operationId)}`;
-  const data = await proxyData(ctx, { endpoint: opEndpoint, method: 'GET' });
+  let data;
+  try {
+    data = await proxyData(ctx, { endpoint: opEndpoint, method: 'GET' });
+  } catch (err) {
+    return {
+      success: true,
+      operation_id: operationId,
+      operation: null,
+      operation_read: operationReadFromThrow(err),
+    };
+  }
+  if (data && typeof data === 'object' && !Array.isArray(data) && data.success === false) {
+    return {
+      success: true,
+      operation_id: operationId,
+      operation: null,
+      operation_read: { status: 'vendor_error', http_status: null },
+    };
+  }
   const operation = envelopeOk(data) && data.result != null ? data.result : null;
   return { success: true, operation_id: operationId, operation };
 }
@@ -1886,10 +1997,27 @@ export const modules = {
         page += 1;
       }
       const needle = hostname;
-      const result = needle ? all.filter((app) => appMatchesHost(app, needle)) : all;
+      const unresolved = [];
+      let result = all;
+      if (needle) {
+        result = [];
+        for (const app of all) {
+          const matched = appMatchesHost(app, needle);
+          const open = appHasUnresolvedDestination(app);
+          if (!matched && !open) continue;
+          result.push(app);
+          // A host match decides the application applies. unresolved lists only
+          // the ids kept because a destination has no uri.
+          if (open && !matched) {
+            const row = asObject(app);
+            unresolved.push(row ? row.id : null);
+          }
+        }
+      }
       return {
         success: true,
         result,
+        unresolved,
         result_info: { count: result.length, total_count: result.length, page: 1, per_page: 1000, total_pages: 1 },
         filtered_by: input && input.hostname != null ? input.hostname : null,
       };
@@ -2452,12 +2580,20 @@ export const modules = {
     get: viaCatalog,
     // Moved from the catalog 2026-10-09: the catalog tool answered 400 live, and a
     // first redirect entrypoint created by put_phase_entrypoint has no other way back.
+    // The read must show that redirect phase and no rules. This action removes an
+    // empty redirect entrypoint and nothing more.
     async delete(input, ctx) {
       const scope = scopeOf(input);
       if (scope.error) return scope.error;
       const ruleset = segmentOk(input && input.ruleset_id, 'ruleset_id');
       if (ruleset) return ruleset;
-      const endpoint = `/${scope.scope}/${encodeURIComponent(scope.id)}/rulesets/${encodeURIComponent(input.ruleset_id)}`;
+      const read = await readTargetRuleset(ctx, scope.scope, scope.id, input.ruleset_id);
+      if (read.error) return read.error;
+      const phase = redirectPhaseRefusal(read.ruleset, scope.scope);
+      if (phase) return phase;
+      const filled = emptyRulesetRefusal(read.ruleset);
+      if (filled) return filled;
+      const endpoint = rulesetPath(scope.scope, scope.id, input.ruleset_id);
       // Cloudflare answers this DELETE with an empty body (live 2026-10-09), so there is
       // no envelope to check. A refusal of 400 or more already threw from ctx.proxy; an
       // answer that does carry an envelope saying success false is still a failure.
@@ -2576,6 +2712,10 @@ export const modules = {
         const position = checkPosition(input.position);
         if (position) return position;
       }
+      const read = await readTargetRuleset(ctx, input.accounts_or_zones, owner.id, input.ruleset_id);
+      if (read.error) return read.error;
+      const phase = redirectPhaseRefusal(read.ruleset, input.accounts_or_zones);
+      if (phase) return phase;
       const body = input && Object.hasOwn(input, 'position') ? { ...input.rule, position: input.position } : input.rule;
       return proxyEnvelope(ctx, {
         endpoint: ruleCollectionPath(input.accounts_or_zones, owner.id, input.ruleset_id),
@@ -2592,6 +2732,12 @@ export const modules = {
       if (ruleId) return ruleId;
       const rule = checkRedirectRule(input && input.rule);
       if (rule) return rule;
+      const read = await readTargetRuleset(ctx, scope.scope, scope.id, input.ruleset_id);
+      if (read.error) return read.error;
+      const phase = redirectPhaseRefusal(read.ruleset, scope.scope);
+      if (phase) return phase;
+      const missing = ruleMembershipRefusal(read.ruleset, input.rule_id);
+      if (missing) return missing;
       return proxyEnvelope(ctx, {
         endpoint: ruleCollectionPath(scope.scope, scope.id, input.ruleset_id, input.rule_id),
         method: 'PATCH',
@@ -2607,6 +2753,12 @@ export const modules = {
       if (ruleId) return ruleId;
       const position = checkPosition(input && input.position);
       if (position) return position;
+      const read = await readTargetRuleset(ctx, scope.scope, scope.id, input.ruleset_id);
+      if (read.error) return read.error;
+      const phase = redirectPhaseRefusal(read.ruleset, scope.scope);
+      if (phase) return phase;
+      const missing = ruleMembershipRefusal(read.ruleset, input.rule_id);
+      if (missing) return missing;
       return proxyEnvelope(ctx, {
         endpoint: ruleCollectionPath(scope.scope, scope.id, input.ruleset_id, input.rule_id),
         method: 'PATCH',
@@ -2620,6 +2772,12 @@ export const modules = {
       if (ruleset) return ruleset;
       const ruleId = segmentOk(input && input.rule_id, 'rule_id');
       if (ruleId) return ruleId;
+      const read = await readTargetRuleset(ctx, scope.scope, scope.id, input.ruleset_id);
+      if (read.error) return read.error;
+      const phase = redirectPhaseRefusal(read.ruleset, scope.scope);
+      if (phase) return phase;
+      const missing = ruleMembershipRefusal(read.ruleset, input.rule_id);
+      if (missing) return missing;
       return proxyEnvelope(ctx, {
         endpoint: ruleCollectionPath(scope.scope, scope.id, input.ruleset_id, input.rule_id),
         method: 'DELETE',

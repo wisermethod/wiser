@@ -61,14 +61,14 @@
           }
         },
         "list_domains": {
-          "description": "List domains on a Vercel project. id_or_name is 1 to 100 letters, digits, dots, underscores, or hyphens. team_id, when given, is sent as the teamId query.",
+          "description": "List domains on a Vercel project. id_or_name is 1 to 100 characters. The first is a letter, digit, underscore or hyphen, and the rest may also include dots. team_id, when given, is sent as the teamId query.",
           "risk": "low",
           "confirmation": "none",
           "execution": { "prefer": "proxy" },
           "input": {
             "type": "object",
             "properties": {
-              "id_or_name": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,100}$" },
+              "id_or_name": { "type": "string", "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}$" },
               "team_id": { "type": "string" }
             },
             "required": ["id_or_name"],
@@ -76,14 +76,14 @@
           }
         },
         "remove_domain": {
-          "description": "Remove a domain from a Vercel project. Sends no body. domain is a hostname. team_id, when given, is sent as the teamId query.",
+          "description": "Remove a domain from a Vercel project. Sends no body. id_or_name is 1 to 100 characters. The first is a letter, digit, underscore or hyphen, and the rest may also include dots. domain is a hostname. team_id, when given, is sent as the teamId query.",
           "risk": "destructive",
           "confirmation": "always",
           "execution": { "prefer": "proxy" },
           "input": {
             "type": "object",
             "properties": {
-              "id_or_name": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,100}$" },
+              "id_or_name": { "type": "string", "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}$" },
               "domain": {
                 "type": "string",
                 "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$"

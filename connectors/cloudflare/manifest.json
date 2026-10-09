@@ -789,7 +789,7 @@
           }
         },
         "delete": {
-          "description": "Delete a ruleset, such as a redirect phase entrypoint left empty. Managed rulesets cannot be deleted.",
+          "description": "Delete an empty redirect ruleset, and nothing more. Reads the ruleset first. Refuses unless phase is http_request_dynamic_redirect on zones or http_request_redirect on accounts (invalid_arguments, field ruleset_id, reason not a redirect ruleset, with the phase read). Refuses unless rules is empty or absent (field ruleset_id, reason ruleset not empty, with rule_count). A read that throws propagates and nothing is deleted. A read with success false or no result is vendor_error and nothing is deleted.",
           "risk": "destructive",
           "confirmation": "always",
           "execution": { "prefer": "proxy" },
@@ -820,7 +820,7 @@
           }
         },
         "get_phase_entrypoint": {
-          "description": "Read the entrypoint ruleset for a phase. A 404 is exists false with result null, not an error. Any other thrown error propagates. phase is one of http_request_dynamic_redirect, http_request_redirect, http_config_settings, http_request_transform, http_request_late_transform, http_response_headers_transform, http_request_origin, http_request_cache_settings, http_request_firewall_custom.",
+          "description": "Read the entrypoint ruleset for any phase in the enum, which is Cloudflare's ruleset phase list. A 404 is exists false with result null, not an error. Any other thrown error propagates. A phase outside the enum is invalid_arguments. Writing a phase stays on put_phase_entrypoint, which accepts only the two redirect phases.",
           "risk": "low",
           "confirmation": "none",
           "execution": { "prefer": "proxy" },
@@ -832,15 +832,30 @@
               "phase": {
                 "type": "string",
                 "enum": [
-                  "http_request_dynamic_redirect",
-                  "http_request_redirect",
+                  "ddos_l4",
+                  "ddos_l7",
                   "http_config_settings",
-                  "http_request_transform",
-                  "http_request_late_transform",
-                  "http_response_headers_transform",
-                  "http_request_origin",
+                  "http_custom_errors",
+                  "http_log_custom_fields",
+                  "http_ratelimit",
                   "http_request_cache_settings",
-                  "http_request_firewall_custom"
+                  "http_request_dynamic_redirect",
+                  "http_request_firewall_custom",
+                  "http_request_firewall_managed",
+                  "http_request_late_transform",
+                  "http_request_origin",
+                  "http_request_redirect",
+                  "http_request_sanitize",
+                  "http_request_sbfm",
+                  "http_request_transform",
+                  "http_response_cache_settings",
+                  "http_response_compression",
+                  "http_response_firewall_managed",
+                  "http_response_headers_transform",
+                  "magic_transit",
+                  "magic_transit_ids_managed",
+                  "magic_transit_managed",
+                  "magic_transit_ratelimit"
                 ]
               }
             },
@@ -907,7 +922,7 @@
           }
         },
         "put_phase_entrypoint": {
-          "description": "Replace the entrypoint rules for a redirect phase. phase must be http_request_dynamic_redirect when accounts_or_zones is zones, or http_request_redirect when it is accounts. rules is a non-empty array of at most 100 objects, and each rule action must be redirect. expected_version is required: null only when no entrypoint exists, or the current version string. A null expected_version when an entrypoint exists is refused with reason entrypoint exists, current_version, and rule_count. A string that is absent or different is refused with reason version mismatch and current_version. Otherwise PUT { rules, description }. If that PUT throws a 404 and the entrypoint was absent, POST a ruleset named default with kind zone or root. Returns the envelope plus created_with put or post.",
+          "description": "Replace the entrypoint rules for a redirect phase. phase must be http_request_dynamic_redirect when accounts_or_zones is zones, or http_request_redirect when it is accounts. rules is a non-empty array of at most 100 objects, and each rule action must be redirect. A rule object that has a position key is refused on field rules. expected_version is required: null only when no entrypoint exists, or the current version string. A null expected_version when an entrypoint exists is refused with reason entrypoint exists, current_version, and rule_count. A string that is absent or different is refused with reason version mismatch and current_version. The expected_version check is best effort: it compares against the read taken just before the PUT, a write by anyone else in between is overwritten, and the guard does not make the replace atomic. Otherwise PUT { rules, description }. If that PUT throws a 404 and the entrypoint was absent, POST a ruleset named default with kind zone or root. Returns the envelope plus created_with put or post.",
           "risk": "high",
           "confirmation": "always",
           "execution": { "prefer": "proxy" },
@@ -966,7 +981,7 @@
           }
         },
         "add_rule": {
-          "description": "Add a redirect rule to a ruleset. The rule action must be redirect. zones requires zone_id and refuses account_id. accounts requires account_id and refuses zone_id. position, when given, is an object with exactly one of before, after, or index. before and after are strings and may be empty. index is an integer of 1 or more.",
+          "description": "Add a redirect rule to a ruleset. The rule action must be redirect. A position key on the rule object is refused on field rule. zones requires zone_id and refuses account_id. accounts requires account_id and refuses zone_id. position, when given, is an object with exactly one of before, after, or index. before and after are strings and may be empty. index is an integer of 1 or more. Reads the ruleset first and refuses unless its phase is http_request_dynamic_redirect on zones or http_request_redirect on accounts (invalid_arguments, field ruleset_id, reason not a redirect ruleset, with the phase read). A read that throws propagates. A read with success false or no result is vendor_error and nothing is written.",
           "risk": "high",
           "confirmation": "always",
           "execution": { "prefer": "proxy" },
@@ -1003,7 +1018,7 @@
           }
         },
         "update_rule": {
-          "description": "Replace a redirect rule. The PATCH body is the whole rule and does not add a position. The rule action must be redirect.",
+          "description": "Replace a redirect rule. Reads the ruleset first and refuses unless its phase is http_request_dynamic_redirect on zones or http_request_redirect on accounts (field ruleset_id, reason not a redirect ruleset, with the phase read), and unless rule_id is one of rules[].id (field rule_id, reason rule not in ruleset). A read that throws propagates. A read with success false or no result is vendor_error and nothing is written. The PATCH body is the rule. A position key on the rule is refused on field rule. The rule action must be redirect.",
           "risk": "high",
           "confirmation": "always",
           "execution": { "prefer": "proxy" },
@@ -1027,7 +1042,7 @@
           }
         },
         "reorder_rule": {
-          "description": "Move a rule. The PATCH body is { position } only. position has exactly one of before, after, or index. before and after are strings and may be empty. index is an integer of 1 or more.",
+          "description": "Move a rule inside a redirect ruleset. Reads the ruleset first and refuses unless its phase is http_request_dynamic_redirect on zones or http_request_redirect on accounts (field ruleset_id, reason not a redirect ruleset, with the phase read), and unless rule_id is one of rules[].id (field rule_id, reason rule not in ruleset). A read that throws propagates. A read with success false or no result is vendor_error and nothing is written. The PATCH body is { position } only. position has exactly one of before, after, or index. before and after are strings and may be empty. index is an integer of 1 or more.",
           "risk": "high",
           "confirmation": "always",
           "execution": { "prefer": "proxy" },
@@ -1053,7 +1068,7 @@
           }
         },
         "remove_rule": {
-          "description": "Remove a rule from a ruleset.",
+          "description": "Remove a rule from a redirect ruleset. Reads the ruleset first and refuses unless its phase is http_request_dynamic_redirect on zones or http_request_redirect on accounts (field ruleset_id, reason not a redirect ruleset, with the phase read), and unless rule_id is one of rules[].id (field rule_id, reason rule not in ruleset). A read that throws propagates. A read with success false or no result is vendor_error and nothing is deleted.",
           "risk": "destructive",
           "confirmation": "always",
           "execution": { "prefer": "proxy" },
@@ -1086,7 +1101,7 @@
           }
         },
         "add_list_items": {
-          "description": "Add redirect items to a list. The POST body is the items array itself. Each item is exactly { redirect: { source_url, target_url, status_code, preserve_query_string, include_subdomains, subpath_matching, preserve_path_suffix } } with source_url and target_url required non-empty strings and the flags optional. status_code, when given, is 301, 302, 307, or 308. From 1 to 1000 items. Returns operation_id and one read of that bulk operation, or null when that read has no result.",
+          "description": "Add redirect items to a list. The POST body is the items array itself. Each item is exactly { redirect: { source_url, target_url, status_code, preserve_query_string, include_subdomains, subpath_matching, preserve_path_suffix } } with source_url and target_url required non-empty strings and the flags optional. status_code, when given, is 301, 302, 307, or 308. From 1 to 1000 items. Returns operation_id and one read of that bulk operation. A thrown status read, or an envelope with success false, keeps operation_id, sets operation to null, and sets operation_read to vendor_error. http_status is copied from the thrown signal, and is null otherwise. A successful envelope with no result sets operation to null.",
           "risk": "high",
           "confirmation": "always",
           "execution": { "prefer": "proxy" },
@@ -1127,7 +1142,7 @@
           }
         },
         "remove_list_items": {
-          "description": "Remove items from a list. DELETE body is { items: [{ id }, ...] }. item_ids is 1 to 1000 ids of 1 to 64 letters, digits, underscores, or hyphens. Returns operation_id and one read of that bulk operation, or null when that read has no result.",
+          "description": "Remove items from a list. DELETE body is { items: [{ id }, ...] }. item_ids is 1 to 1000 ids of 1 to 64 letters, digits, underscores, or hyphens. Returns operation_id and one read of that bulk operation. A thrown status read, or an envelope with success false, keeps operation_id, sets operation to null, and sets operation_read to vendor_error. http_status is copied from the thrown signal, and is null otherwise. A successful envelope with no result sets operation to null.",
           "risk": "destructive",
           "confirmation": "always",
           "execution": { "prefer": "proxy" },

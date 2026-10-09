@@ -17,7 +17,7 @@ Shipped 2026-09-08, and both modules were proved live the same day. Catalog list
 Upload by reference added 2026-09-17, and it closes a blocking gap rather than a convenience. Until it existed there was no compliant way to deploy an ordinary site through this plugin at all: `skills/Vercel Deploy/` routes every deployment through the gateway, the only payload form was an inline `files` array, and a 962,496-byte site is 1,283,376 base64 characters in a single call. The platform CLI is not a fallback, because `skills/Vercel Deploy/SETUP.md` forbids connecting an envelope or owning root to the platform, which `vercel deploy` does by writing a project link into the tree. The inline-only limit closed the only door rather than narrowing it.
 Verified 2026-09-17 against a real 38-file, 962,496-byte site: all 38 files uploaded by reference, and the resulting create body was 3,824 bytes against roughly 1,283,328 inline. See `auth.md`.
 
-On 2026-10-09 at `4128c59`, `projects.list_domains` ran live and, in one provider call, returned three domains: `www.effectivesc.org` redirecting to `effectivesc.org` with status 308, `effectivesc.org` with no redirect, and `effectivesc-zeta.vercel.app`. `projects.remove_domain` has not run live. A fake-provider test covers it.
+On 2026-10-09 at `4128c59`, `projects.list_domains` ran live and, in one provider call, returned three domains: `www.effectivesc.org` redirecting to `effectivesc.org` with status 308, `effectivesc.org` with no redirect, and `effectivesc-zeta.vercel.app`. On 2026-10-09, `projects.remove_domain` ran live on a throwaway project at `4cf3c6e`: the domain was removed and a re-list showed only the project's `vercel.app` name. After that live run, `id_or_name` was changed so the first character must be a letter, digit, underscore or hyphen. `.`, `..` and a name such as `.hidden` are refused before any call. That refusal was added after the live run and is not live-verified.
 
 
 ## Reaching it
@@ -40,7 +40,7 @@ Projects and deployments are separate grants, both write-capable. `projects.list
 
 ### Project domains
 
-`list_domains` is `confirmation: none`. `remove_domain` is `confirmation: always`. `id_or_name` is 1 to 100 letters, digits, dots, underscores or hyphens. `domain` is a dotted hostname. `team_id`, when given, is sent as `teamId`. `remove_domain` sends no body. It removes the domain from the project and does not change the DNS record. When one domain redirects to another, remove the domain that redirects first. This action does not clear that redirect, and the platform can refuse to remove a domain while another domain on the project still redirects to it.
+`list_domains` is `confirmation: none`. `remove_domain` is `confirmation: always`. `id_or_name` is 1 to 100 characters. The first is a letter, digit, underscore or hyphen, and the rest may also include dots. `.`, `..` and a name that starts with a dot are refused before any call. `domain` is a dotted hostname. `team_id`, when given, is sent as `teamId`. `remove_domain` sends no body. It removes the domain from the project and does not change the DNS record. When one domain redirects to another, remove the domain that redirects first. This action does not clear that redirect, and the platform can refuse to remove a domain while another domain on the project still redirects to it.
 
 ### Giving `create` its files
 

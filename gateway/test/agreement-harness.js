@@ -121,11 +121,13 @@ const PATTERN_OK = {
   '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$': '01234567-89ab-cdef-0123-456789abcdef',
   '^[A-Za-z_][A-Za-z0-9_]{0,63}$': 'DB',
   '^\\s*[Ss][Ee][Ll][Ee][Cc][Tt][^A-Za-z0-9_;][^;]*(?:;\\s*)?$': 'SELECT 1',
-  // cloudflare zone settings, ruleset path ids, redirect list names, and vercel project ids.
+  // cloudflare zone settings, ruleset path ids, and redirect list names.
   '^[a-z0-9_]{1,64}$': 'ssl',
   '^[A-Za-z0-9_-]{1,64}$': 'rule_1',
   '^[a-z0-9_]{1,50}$': 'wiser_list',
-  '^[A-Za-z0-9._-]{1,100}$': 'effectivesc',
+  // vercel project ids. The first character is a letter, digit, underscore or
+  // hyphen, so `.` and `..` are not ids.
+  '^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}$': 'effectivesc',
 };
 const PATTERN_ADVERSARIAL = {
   // The tightened pattern excludes exactly the two relative segments

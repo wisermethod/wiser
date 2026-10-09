@@ -261,6 +261,7 @@ test('list_access_apps follows pages and filters by host', async () => {
   });
   const listed = await modules.zones.list_access_apps({ account_id: ACCOUNT }, pages.ctx);
   assert.deepEqual(listed.result.map((row) => row.id), ['a', 'b']);
+  assert.deepEqual(listed.unresolved, []);
   assert.equal(listed.filtered_by, null);
   assert.equal(listed.success, true);
   assert.equal(pages.calls[0].endpoint, `/accounts/${ACCOUNT}/access/apps?per_page=1000&page=1`);
@@ -278,6 +279,7 @@ test('list_access_apps follows pages and filters by host', async () => {
     recording(async () => envelope(apps, { result_info: { total_pages: 1 } })).ctx,
   );
   assert.deepEqual(filtered.result.map((row) => row.id), ['domain', 'self', 'dest', 'wild']);
+  assert.deepEqual(filtered.unresolved, []);
   assert.equal(filtered.filtered_by, 'www.example.com');
 
   const { calls, ctx } = recording(async () => { throw new Error('called'); });
@@ -285,6 +287,25 @@ test('list_access_apps follows pages and filters by host', async () => {
   refused(await modules.zones.list_access_apps({ account_id: ACCOUNT, hostname: '*.example.com' }, ctx), 'hostname');
   refused(await modules.zones.list_access_apps({ account_id: ACCOUNT, hostname: 'localhost' }, ctx), 'hostname');
   assert.equal(calls.length, 0);
+});
+
+test('list_access_apps keeps a destination that has no uri', async () => {
+  const apps = [
+    { id: 'worker', domain: 'other.example', destinations: [{ type: 'worker' }] },
+    { id: 'all', destinations: [{ type: 'all_workers' }] },
+    { id: 'blank', destinations: [{ uri: '' }] },
+    { id: 'none', destinations: [{}] },
+    { id: 'both', domain: 'www.example.com', destinations: [{ type: 'worker' }] },
+    { id: 'uri', destinations: [{ uri: 'www.example.com/x' }] },
+    { id: 'miss', domain: 'nope.example', destinations: [{ uri: 'no.example' }] },
+    { id: 'empty', destinations: [] },
+  ];
+  const filtered = await modules.zones.list_access_apps(
+    { account_id: ACCOUNT, hostname: 'www.example.com' },
+    recording(async () => envelope(apps, { result_info: { total_pages: 1 } })).ctx,
+  );
+  assert.deepEqual(filtered.result.map((row) => row.id), ['worker', 'all', 'blank', 'none', 'both', 'uri']);
+  assert.deepEqual(filtered.unresolved, ['worker', 'all', 'blank', 'none']);
 });
 
 test('ruleset list and list items follow two cursor pages', async () => {
@@ -400,6 +421,62 @@ test('get_phase_entrypoint treats 404 as absent and rethrows anything else', asy
   refused(await modules.rulesets.get_phase_entrypoint({ accounts_or_zones: 'zones', account_or_zone_id: 'zz', phase: 'http_request_redirect' }, ctx), 'account_or_zone_id');
   refused(await modules.rulesets.get_phase_entrypoint({ accounts_or_zones: 'zones', account_or_zone_id: ZONE, phase: 'http_request_other' }, ctx), 'phase');
   refused(await modules.rulesets.list({ accounts_or_zones: 'both', account_or_zone_id: ZONE }, ctx), 'accounts_or_zones');
+  assert.equal(calls.length, 0);
+});
+
+const READ_PHASES = [
+  'ddos_l4',
+  'ddos_l7',
+  'http_config_settings',
+  'http_custom_errors',
+  'http_log_custom_fields',
+  'http_ratelimit',
+  'http_request_cache_settings',
+  'http_request_dynamic_redirect',
+  'http_request_firewall_custom',
+  'http_request_firewall_managed',
+  'http_request_late_transform',
+  'http_request_origin',
+  'http_request_redirect',
+  'http_request_sanitize',
+  'http_request_sbfm',
+  'http_request_transform',
+  'http_response_cache_settings',
+  'http_response_compression',
+  'http_response_firewall_managed',
+  'http_response_headers_transform',
+  'magic_transit',
+  'magic_transit_ids_managed',
+  'magic_transit_managed',
+  'magic_transit_ratelimit',
+];
+
+test('get_phase_entrypoint reads every published phase and put stays on the two redirects', async () => {
+  assert.deepEqual(manifest.modules.rulesets.actions.get_phase_entrypoint.input.properties.phase.enum, READ_PHASES);
+  for (const phase of READ_PHASES) {
+    const read = recording(async (req) => {
+      assert.equal(req.method, 'GET');
+      assert.equal(req.endpoint, `/zones/${ZONE}/rulesets/phases/${phase}/entrypoint`);
+      return envelope({ id: 'ep', phase });
+    });
+    const found = await modules.rulesets.get_phase_entrypoint(
+      { accounts_or_zones: 'zones', account_or_zone_id: ZONE, phase },
+      read.ctx,
+    );
+    assert.equal(found.exists, true, phase);
+    assert.equal(found.result.phase, phase);
+  }
+  const { calls, ctx } = recording(async () => { throw new Error('called'); });
+  for (const phase of ['http_ratelimit', 'http_request_firewall_managed', 'ddos_l7']) {
+    refused(await modules.rulesets.put_phase_entrypoint({
+      accounts_or_zones: 'zones',
+      account_or_zone_id: ZONE,
+      phase,
+      rules: [rule],
+      expected_version: null,
+    }, ctx), 'phase');
+  }
+  assert.equal(manifest.modules.rulesets.actions.put_phase_entrypoint.input.properties.phase.enum.includes('http_ratelimit'), false);
   assert.equal(calls.length, 0);
 });
 
@@ -523,8 +600,18 @@ test('put_phase_entrypoint refuses on version and falls back to POST when PUT 40
   assert.equal(expected_version, undefined);
 });
 
+function redirectRuleset(phase, rules) {
+  const result = { id: RS, phase };
+  if (rules !== undefined) result.rules = rules;
+  return envelope(result);
+}
+
 test('rule writes go through the proxy and refuse a non-redirect or a bad position', async () => {
   const added = recording(async (req) => {
+    if (req.method === 'GET') {
+      assert.equal(req.endpoint, `/zones/${ZONE}/rulesets/${RS}`);
+      return redirectRuleset('http_request_dynamic_redirect', []);
+    }
     assert.equal(req.method, 'POST');
     assert.equal(req.endpoint, `/zones/${ZONE}/rulesets/${RS}/rules`);
     assert.deepEqual(req.body, { ...rule, position: { index: 1 } });
@@ -538,8 +625,10 @@ test('rule writes go through the proxy and refuse a non-redirect or a bad positi
     position: { index: 1 },
   }, added.ctx);
   assert.equal(add.result.id, RULE);
+  assert.deepEqual(added.calls.map((call) => call.method), ['GET', 'POST']);
 
   const emptyBefore = recording(async (req) => {
+    if (req.method === 'GET') return redirectRuleset('http_request_redirect', []);
     assert.deepEqual(req.body.position, { before: '' });
     return envelope({ id: RULE });
   });
@@ -550,9 +639,12 @@ test('rule writes go through the proxy and refuse a non-redirect or a bad positi
     rule,
     position: { before: '' },
   }, emptyBefore.ctx);
-  assert.equal(emptyBefore.calls[0].endpoint, `/accounts/${ACCOUNT}/rulesets/${RS}/rules`);
+  assert.equal(emptyBefore.calls[0].method, 'GET');
+  assert.equal(emptyBefore.calls[0].endpoint, `/accounts/${ACCOUNT}/rulesets/${RS}`);
+  assert.equal(emptyBefore.calls[1].endpoint, `/accounts/${ACCOUNT}/rulesets/${RS}/rules`);
 
   const updated = recording(async (req) => {
+    if (req.method === 'GET') return redirectRuleset('http_request_dynamic_redirect', [{ id: RULE }]);
     assert.equal(req.method, 'PATCH');
     assert.equal(req.endpoint, `/zones/${ZONE}/rulesets/${RS}/rules/${RULE}`);
     assert.deepEqual(req.body, rule);
@@ -566,8 +658,10 @@ test('rule writes go through the proxy and refuse a non-redirect or a bad positi
     rule_id: RULE,
     rule,
   }, updated.ctx);
+  assert.deepEqual(updated.calls.map((call) => call.method), ['GET', 'PATCH']);
 
   const moved = recording(async (req) => {
+    if (req.method === 'GET') return redirectRuleset('http_request_dynamic_redirect', [{ id: RULE }]);
     assert.deepEqual(req.body, { position: { after: '' } });
     assert.equal(Object.keys(req.body).join(), 'position');
     return envelope({ id: RULE });
@@ -579,8 +673,10 @@ test('rule writes go through the proxy and refuse a non-redirect or a bad positi
     rule_id: RULE,
     position: { after: '' },
   }, moved.ctx);
+  assert.deepEqual(moved.calls.map((call) => call.method), ['GET', 'PATCH']);
 
   const removed = recording(async (req) => {
+    if (req.method === 'GET') return redirectRuleset('http_request_redirect', [{ id: RULE, action: 'redirect' }]);
     assert.equal(req.method, 'DELETE');
     assert.equal(req.endpoint, `/accounts/${ACCOUNT}/rulesets/${RS}/rules/${RULE}`);
     assert.equal(Object.hasOwn(req, 'body'), false);
@@ -593,6 +689,7 @@ test('rule writes go through the proxy and refuse a non-redirect or a bad positi
     rule_id: RULE,
   }, removed.ctx);
   assert.equal(gone.success, true);
+  assert.deepEqual(removed.calls.map((call) => call.method), ['GET', 'DELETE']);
 
   const { calls, ctx } = recording(async () => { throw new Error('called'); });
   refused(await modules.rulesets.add_rule({ accounts_or_zones: 'zones', ruleset_id: RS, zone_id: ZONE, rule: { action: 'block' } }, ctx), 'rule');
@@ -613,7 +710,122 @@ test('rule writes go through the proxy and refuse a non-redirect or a bad positi
       accounts_or_zones: 'zones', account_or_zone_id: ZONE, ruleset_id: RS, rule_id: RULE, position,
     }, ctx), 'position');
   }
+  refused(await modules.rulesets.add_rule({
+    accounts_or_zones: 'zones', ruleset_id: RS, zone_id: ZONE,
+    rule: { action: 'redirect', expression: 'true', position: { index: 1 } },
+  }, ctx), 'rule');
+  refused(await modules.rulesets.update_rule({
+    accounts_or_zones: 'zones', account_or_zone_id: ZONE, ruleset_id: RS, rule_id: RULE,
+    rule: { action: 'redirect', position: { before: 'x' } },
+  }, ctx), 'rule');
+  refused(await modules.rulesets.put_phase_entrypoint({
+    accounts_or_zones: 'zones',
+    account_or_zone_id: ZONE,
+    phase: 'http_request_dynamic_redirect',
+    rules: [{ action: 'redirect', position: { index: 1 } }],
+    expected_version: null,
+  }, ctx), 'rules');
   assert.equal(calls.length, 0);
+});
+
+test('rule writes refuse a ruleset outside the two redirect phases', async () => {
+  const zoneRule = {
+    accounts_or_zones: 'zones',
+    account_or_zone_id: ZONE,
+    ruleset_id: RS,
+    rule_id: RULE,
+  };
+  const waf = recording(async (req) => {
+    assert.equal(req.method, 'GET');
+    assert.equal(req.endpoint, `/zones/${ZONE}/rulesets/${RS}`);
+    return redirectRuleset('http_request_firewall_managed', [{ id: RULE }]);
+  });
+  const removed = await modules.rulesets.remove_rule(zoneRule, waf.ctx);
+  assert.deepEqual(removed, {
+    status: 'invalid_arguments',
+    field: 'ruleset_id',
+    reason: 'not a redirect ruleset',
+    phase: 'http_request_firewall_managed',
+  });
+  assert.deepEqual(waf.calls.map((call) => call.method), ['GET']);
+
+  const wrongScope = await modules.rulesets.add_rule({
+    accounts_or_zones: 'zones',
+    ruleset_id: RS,
+    zone_id: ZONE,
+    rule,
+  }, recording(async () => redirectRuleset('http_request_redirect', [])).ctx);
+  assert.equal(wrongScope.reason, 'not a redirect ruleset');
+  assert.equal(wrongScope.phase, 'http_request_redirect');
+  assert.equal(wrongScope.field, 'ruleset_id');
+
+  const accountWrong = await modules.rulesets.reorder_rule({
+    ...zoneRule,
+    accounts_or_zones: 'accounts',
+    account_or_zone_id: ACCOUNT,
+    position: { index: 1 },
+  }, recording(async (req) => {
+    assert.equal(req.method, 'GET');
+    return redirectRuleset('http_request_dynamic_redirect', [{ id: RULE }]);
+  }).ctx);
+  assert.equal(accountWrong.reason, 'not a redirect ruleset');
+  assert.equal(accountWrong.phase, 'http_request_dynamic_redirect');
+
+  const absentRule = await modules.rulesets.update_rule({
+    ...zoneRule,
+    rule,
+  }, recording(async () => redirectRuleset('http_request_dynamic_redirect', [{ id: 'other' }])).ctx);
+  assert.deepEqual(absentRule, { status: 'invalid_arguments', field: 'rule_id', reason: 'rule not in ruleset' });
+
+  const movedMissing = await modules.rulesets.reorder_rule({
+    ...zoneRule,
+    position: { index: 1 },
+  }, recording(async () => redirectRuleset('http_request_dynamic_redirect', [])).ctx);
+  assert.equal(movedMissing.reason, 'rule not in ruleset');
+  assert.equal(movedMissing.field, 'rule_id');
+
+  const removedMissing = await modules.rulesets.remove_rule(
+    zoneRule,
+    recording(async () => redirectRuleset('http_request_dynamic_redirect')).ctx,
+  );
+  assert.equal(removedMissing.reason, 'rule not in ruleset');
+
+  const populated = recording(async (req) => {
+    assert.equal(req.method, 'GET');
+    return redirectRuleset('http_request_dynamic_redirect', [{ id: 'a' }, { id: 'b' }]);
+  });
+  const blockedDelete = await modules.rulesets.delete({
+    accounts_or_zones: 'zones', account_or_zone_id: ZONE, ruleset_id: RS,
+  }, populated.ctx);
+  assert.deepEqual(blockedDelete, {
+    status: 'invalid_arguments',
+    field: 'ruleset_id',
+    reason: 'ruleset not empty',
+    rule_count: 2,
+  });
+  assert.deepEqual(populated.calls.map((call) => call.method), ['GET']);
+
+  const falseRead = recording(async () => ({ data: { success: false, errors: [{ code: 1 }], result: null } }));
+  const falseAdd = await modules.rulesets.add_rule({
+    accounts_or_zones: 'zones', ruleset_id: RS, zone_id: ZONE, rule,
+  }, falseRead.ctx);
+  assert.equal(falseAdd.status, 'vendor_error');
+  assert.deepEqual(falseRead.calls.map((call) => call.method), ['GET']);
+
+  const noResult = recording(async () => ({ data: { success: true, errors: [], messages: [] } }));
+  const noUpdate = await modules.rulesets.update_rule({
+    ...zoneRule, rule,
+  }, noResult.ctx);
+  assert.equal(noUpdate.status, 'vendor_error');
+  assert.equal(noResult.calls.length, 1);
+
+  const boom = vendorSignal(403, `/zones/${ZONE}/rulesets/${RS}`, 'GET');
+  const throwing = recording(async () => { throw boom; });
+  await assert.rejects(
+    () => modules.rulesets.remove_rule(zoneRule, throwing.ctx),
+    (err) => err === boom,
+  );
+  assert.deepEqual(throwing.calls.map((call) => call.method), ['GET']);
 });
 
 test('redirect lists create, replace items, and delete through the proxy', async () => {
@@ -662,7 +874,12 @@ test('redirect lists create, replace items, and delete through the proxy', async
     list_id: LIST,
     item_ids: ['item_1', 'item_2'],
   }, removed.ctx);
-  assert.deepEqual(removal, { success: true, operation_id: 'op_2', operation: null });
+  assert.deepEqual(removal, {
+    success: true,
+    operation_id: 'op_2',
+    operation: null,
+    operation_read: { status: 'vendor_error', http_status: null },
+  });
 
   const deleted = recording(async (req) => {
     assert.equal(req.method, 'DELETE');
@@ -708,8 +925,56 @@ test('redirect lists create, replace items, and delete through the proxy', async
   assert.equal(calls.length, 0);
 });
 
+test('an accepted bulk write keeps its operation id when the status read throws', async () => {
+  const items = [{ redirect: { source_url: 'https://a.example', target_url: 'https://b.example' } }];
+  const thrown = recording(async (req) => {
+    if (req.method === 'POST') return envelope({ operation_id: OP });
+    throw vendorSignal(504, req.endpoint, 'GET');
+  });
+  const added = await modules.rulesets.add_list_items({ account_id: ACCOUNT, list_id: LIST, items }, thrown.ctx);
+  assert.deepEqual(added, {
+    success: true,
+    operation_id: OP,
+    operation: null,
+    operation_read: { status: 'vendor_error', http_status: 504 },
+  });
+  assert.deepEqual(thrown.calls.map((call) => call.method), ['POST', 'GET']);
+
+  const plain = recording(async (req) => {
+    if (req.method === 'DELETE') return envelope({ operation_id: 'op_9' });
+    throw new Error('boom');
+  });
+  const removed = await modules.rulesets.remove_list_items({
+    account_id: ACCOUNT,
+    list_id: LIST,
+    item_ids: ['item_1'],
+  }, plain.ctx);
+  assert.deepEqual(removed, {
+    success: true,
+    operation_id: 'op_9',
+    operation: null,
+    operation_read: { status: 'vendor_error', http_status: null },
+  });
+  assert.deepEqual(plain.calls.map((call) => call.method), ['DELETE', 'GET']);
+
+  const forbidden = recording(async (req) => {
+    if (req.method === 'POST') return envelope({ operation_id: 'op_3' });
+    const err = new Error('vendor_error');
+    err.object = { status: 'vendor_error', http_status: 403, endpoint: req.endpoint, method: 'GET' };
+    throw err;
+  });
+  const again = await modules.rulesets.add_list_items({ account_id: ACCOUNT, list_id: LIST, items }, forbidden.ctx);
+  assert.equal(again.operation_id, 'op_3');
+  assert.equal(again.operation, null);
+  assert.deepEqual(again.operation_read, { status: 'vendor_error', http_status: 403 });
+});
+
 test('rulesets.delete removes a ruleset through the proxy and refuses bad ids first', async () => {
   const deleted = recording(async (req) => {
+    if (req.method === 'GET') {
+      assert.equal(req.endpoint, `/zones/${ZONE}/rulesets/${RS}`);
+      return redirectRuleset('http_request_dynamic_redirect', []);
+    }
     assert.equal(req.method, 'DELETE');
     assert.equal(req.endpoint, `/zones/${ZONE}/rulesets/${RS}`);
     assert.equal(Object.hasOwn(req, 'body'), false);
@@ -718,13 +983,30 @@ test('rulesets.delete removes a ruleset through the proxy and refuses bad ids fi
   const gone = await modules.rulesets.delete({ accounts_or_zones: 'zones', account_or_zone_id: ZONE, ruleset_id: RS }, deleted.ctx);
   assert.equal(gone.success, true);
   assert.equal(gone.deleted, RS);
-  assert.equal(deleted.calls.length, 1);
-  const enveloped = recording(async () => envelope(null));
+  assert.deepEqual(deleted.calls.map((call) => call.method), ['GET', 'DELETE']);
+  const enveloped = recording(async (req) => {
+    if (req.method === 'GET') return redirectRuleset('http_request_dynamic_redirect');
+    return envelope(null);
+  });
   assert.equal((await modules.rulesets.delete({ accounts_or_zones: 'zones', account_or_zone_id: ZONE, ruleset_id: RS }, enveloped.ctx)).success, true);
+  assert.deepEqual(enveloped.calls.map((call) => call.method), ['GET', 'DELETE']);
+  const accountEmpty = recording(async (req) => {
+    if (req.method === 'GET') {
+      assert.equal(req.endpoint, `/accounts/${ACCOUNT}/rulesets/${RS}`);
+      return redirectRuleset('http_request_redirect', []);
+    }
+    assert.equal(req.method, 'DELETE');
+    return { status: 204, data: null };
+  });
+  assert.equal((await modules.rulesets.delete({
+    accounts_or_zones: 'accounts', account_or_zone_id: ACCOUNT, ruleset_id: RS,
+  }, accountEmpty.ctx)).success, true);
   const refusedEnvelope = recording(async () => ({ data: { success: false, errors: [{ code: 1 }], result: null } }));
   assert.equal((await modules.rulesets.delete({ accounts_or_zones: 'zones', account_or_zone_id: ZONE, ruleset_id: RS }, refusedEnvelope.ctx)).status, 'vendor_error');
-  const threw = recording(async () => { throw { object: { status: 'vendor_error', http_status: 404, endpoint: '/x', method: 'DELETE' } }; });
+  assert.deepEqual(refusedEnvelope.calls.map((call) => call.method), ['GET']);
+  const threw = recording(async () => { throw { object: { status: 'vendor_error', http_status: 404, endpoint: '/x', method: 'GET' } }; });
   await assert.rejects(modules.rulesets.delete({ accounts_or_zones: 'zones', account_or_zone_id: ZONE, ruleset_id: RS }, threw.ctx));
+  assert.deepEqual(threw.calls.map((call) => call.method), ['GET']);
   assert.equal(manifest.modules.rulesets.actions.delete.execution.prefer, 'proxy');
   assert.equal(manifest.modules.rulesets.actions.delete.confirmation, 'always');
 
