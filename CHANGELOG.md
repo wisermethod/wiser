@@ -4,6 +4,14 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.09, October 9, 2026
+
+- Zone Publisher now reads a Cloudflare zone's settings and rules every time it pulls the zone, and keeps them in the archive with the records: the SSL mode, Always Use HTTPS, HSTS, Bot Fight Mode, the certificates, Workers routes, Page Rules, Access applications, every rule entrypoint, and, when a record is about to be proxied or a redirect changes, the account's redirect lists. A record is not proxied while a rule that could apply to it is still unread, and a rule it could not read is reported as not read, never as empty. (4128c59, 819b941)
+- Zone Publisher can now publish redirects, a `www` to apex 301 or a `pages.dev` address sent to a custom domain, as Cloudflare Single Redirects and Bulk Redirects, and change the SSL mode, Always Use HTTPS, HSTS, the minimum TLS version and Automatic HTTPS Rewrites. Each goes through the same review by IT Expert, approval by name, and re-read from Cloudflare that a DNS change does. (0c0616c, 4128c59, 819b941, 9c0fb6e)
+- Cloudflare Pages now reads whether a custom domain is active, with Cloudflare's own reason when it is not, for example "CNAME record not set", and can retry its validation. (0c0616c, 4128c59)
+- Vercel Deploy can list a project's domains and remove one, removing a domain that redirects to another before the one it points at. (0c0616c, 4128c59, 819b941)
+- All of this uses the Cloudflare and Vercel connections you already have. Where Cloudflare answers that a permission is missing, add that permission to the same token at Cloudflare (My Profile, API Tokens, Edit); the token keeps its value, so nothing is reconnected. The Cloudflare connector's guide lists the permission each action needs. (97c73b4, 21a25c2)
+
 ## v2026.10.08.2, October 8, 2026
 
 - Webmaster's review before publishing now says exactly which record it reads for a site with server code: a site kit site's scheduled-article record, or another site's own build record, so the review of a scheduled article no longer has to work that out. (829a121)
