@@ -43,7 +43,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 
 | Skill | Description | Owner |
 |-------|-------------|-------|
-| `Zone Publisher/SKILL.md` | Bring one Cloudflare zone's live DNS into a reviewable zone file, apply the intended record changes, and publish them back with every removal approved by name and every published record re-read from the platform. | IT Expert |
+| `Zone Publisher/SKILL.md` | Bring one Cloudflare zone's DNS records, its Single Redirect rules, the Bulk Redirects whose sources are this zone's names or a moved Pages project's pages.dev name, and its SSL mode, Always Use HTTPS, HSTS, minimum TLS version and Automatic HTTPS Rewrites into a reviewable state, publish the approved changes with every removal approved by name, and re-read every published part from the platform | IT Expert |
 
 ### Knowledge
 
@@ -106,8 +106,8 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 | Skill | Description | Owner |
 |-------|-------------|-------|
 | `Site Author/SKILL.md` | Stand up, content-edit, file site code, check, wrap, and upgrade a kit site envelope in sites/, in a folder named for its domain, or in the sites/ of a work folder when the site dies with that work, with the kit in site/, in an owning root that declares sites/ | Webmaster |
-| `Cloudflare Pages/SKILL.md` | List and get a Cloudflare Pages project, list its deployments, create a project, add or remove a domain, delete a project, deploy the kit site/dist/ payload, carrying the kit's Function from site/dist-function/ when an article is scheduled, or a foreign site's build output with its Pages Functions, and create, migrate, query, bind and delete the D1 database such a site uses, with confirmation on every write | Webmaster |
-| `Vercel Deploy/SKILL.md` | List and get a Vercel project, list deployments, and create a deployment from the isolated site/ payload, uploaded by reference, with confirmation always | Webmaster |
+| `Cloudflare Pages/SKILL.md` | List and get a Cloudflare Pages project, list its deployments, create a project, add or remove a domain, read a custom domain's activation and retry its validation, delete a project, deploy the kit site/dist/ payload, carrying the kit's Function from site/dist-function/ when an article is scheduled, or a foreign site's build output with its Pages Functions, and create, migrate, query, bind and delete the D1 database such a site uses, with confirmation on every write | Webmaster |
+| `Vercel Deploy/SKILL.md` | List and get a Vercel project, list its domains and deployments, remove a domain, and create a deployment from the isolated site/ payload, uploaded by reference, with confirmation always | Webmaster |
 
 ### Writing
 
