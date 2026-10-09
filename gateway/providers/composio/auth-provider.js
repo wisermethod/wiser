@@ -104,8 +104,33 @@ export function createAuthConfigBody(toolkit, scheme) {
   };
 }
 
-function vendorError(endpoint, method, status) {
-  return { status, error: { code: 'vendor_error', endpoint, method } };
+function vendorError(endpoint, method, status, codes) {
+  const error = { code: 'vendor_error', endpoint, method };
+  if (Array.isArray(codes) && codes.length > 0) error.provider_codes = codes;
+  return { status, error };
+}
+
+const MAX_PROVIDER_CODES = 10;
+
+/**
+ * The vendor's own numeric error codes from a refused proxy answer, and nothing
+ * else from its body: `errors[].code` where it is a safe integer, at most ten.
+ * Cloudflare answers a disabled product and a missing permission with the same
+ * HTTP 403 and tells them apart only by this code (9999 against 10000), so the
+ * code is the one part of the body a caller needs. Messages, ids and every other
+ * field stay here, as `vendorErrorFrom` requires.
+ * @param {unknown} payload
+ * @returns {number[]}
+ */
+export function providerCodes(payload) {
+  const errors = payload && typeof payload === 'object' && Array.isArray(payload.errors) ? payload.errors : [];
+  const codes = [];
+  for (const entry of errors) {
+    if (codes.length >= MAX_PROVIDER_CODES) break;
+    const code = entry && typeof entry === 'object' ? entry.code : undefined;
+    if (Number.isSafeInteger(code)) codes.push(code);
+  }
+  return codes;
 }
 
 /**
@@ -424,6 +449,7 @@ export function createAuthProvider({ envPath } = {}) {
           endpoint || '/tools/execute/proxy',
           method || 'POST',
           Number.isFinite(inner) && inner >= 400 ? inner : 400,
+          providerCodes(payload),
         );
       }
       return {

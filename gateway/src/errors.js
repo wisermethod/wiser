@@ -85,14 +85,25 @@ export function sanitizeError(err) {
 
 /**
  * Map a provider/proxy failure into the agent-facing status. Never include `data`.
- * @param {{ status?: number, error?: { code?: string, endpoint?: string, method?: string } }} res
+ * The one thing from a vendor's body that may pass is `provider_codes`: the
+ * vendor's own numeric error codes, as an adapter extracted them, filtered here
+ * again to safe integers and at most ten, and omitted when there are none. A
+ * code is a number from a published table, so it carries no credential and no
+ * content, and it is what tells two refusals with one HTTP status apart.
+ * @param {{ status?: number, error?: { code?: string, endpoint?: string, method?: string, provider_codes?: unknown } }} res
  */
 export function vendorErrorFrom(res) {
-  return statusObject(STATUS.VENDOR_ERROR, {
+  const out = {
     http_status: res.status ?? null,
     endpoint: res.error?.endpoint ?? null,
     method: res.error?.method ?? null,
-  });
+  };
+  const raw = res.error?.provider_codes;
+  if (Array.isArray(raw)) {
+    const codes = raw.filter((code) => Number.isSafeInteger(code)).slice(0, 10);
+    if (codes.length > 0) out.provider_codes = codes;
+  }
+  return statusObject(STATUS.VENDOR_ERROR, out);
 }
 
 /**

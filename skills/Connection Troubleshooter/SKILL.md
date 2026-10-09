@@ -3,7 +3,7 @@ name: Connection Troubleshooter
 type: skill
 category: system
 description: Name one next step for a gateway status object or audit line, from the Wiser endpoint or the local gateway, covering needs_provider, needs_connect, expired, denied, needs_connector, vendor_error, needs_subscription, the endpoint's daily limit, and a teardown that did not finish
-version: 0.5.1
+version: 0.5.2
 ---
 
 # Connection Troubleshooter
@@ -59,7 +59,7 @@ enumerates gateway answers does not list it and the file that diagnoses what peo
 | `denied` | Policy forbids this role, harness, or privilege | Name the rule: use a different role only where policy permits, or leave it denied. Do not work around policy or change the role yourself |
 | `needs_connector` | Nothing resolves the id, or no manifest declares it | Name the gap. Do not approximate. Connector Advisor is a later route only if the person then asks to build one |
 | `needs_subscription` | No classifier is loaded, or the `WISER_CLASSIFIER_KEY` line is empty | A caller in this session follows that caller's own step, per the constitution's `## Classifier`, and where that caller writes none, say so and stop. A person who wants a classifier attached, with no caller waiting, gets the answer's `setup` text when it is present, and otherwise the next step `gateway/SETUP.md` section 5 names for this status. Otherwise stop, having named the meaning. Do not start a grant, do not name a gap, and do not ask for a key in chat |
-| `vendor_error` | Vendor or provider refused | Report `http_status` and `endpoint` only, never the body. Do not retry blindly or reconnect an existing grant to make a test pass. A frozen custom-toolkit conflict is a `vendor_error`, not a delete. If a sanitized 401 remains after the toolkit and header contract were checked, the one next step is Connector Advisor with that evidence of a suspected header-injection mismatch; do not silently switch to local-file |
+| `vendor_error` | Vendor or provider refused | Report `http_status`, `endpoint` and any `provider_codes`, the vendor's own numeric error codes, which are all the gateway passes from its body; never the body. Do not retry blindly or reconnect an existing grant to make a test pass. A frozen custom-toolkit conflict is a `vendor_error`, not a delete. If a sanitized 401 remains after the toolkit and header contract were checked, the one next step is Connector Advisor with that evidence of a suspected header-injection mismatch; do not silently switch to local-file |
 
 ## Pitfalls
 

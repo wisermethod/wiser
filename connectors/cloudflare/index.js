@@ -1497,6 +1497,19 @@ function vendorSignal(err, httpStatus) {
   );
 }
 
+// Cloudflare's code for "Access is not enabled" on an account (seen live
+// 2026-10-09, on the account and the zone paths alike), carried by the gateway
+// as provider_codes on a vendor_error.
+const ACCESS_NOT_ENABLED = 9999;
+
+function accessNotEnabled(err) {
+  const signal = err && typeof err === 'object' ? err.object : null;
+  return Boolean(
+    signal && signal.status === 'vendor_error' && signal.http_status === 403
+    && Array.isArray(signal.provider_codes) && signal.provider_codes.includes(ACCESS_NOT_ENABLED),
+  );
+}
+
 function hostPart(value) {
   if (typeof value !== 'string' || value.length === 0) return '';
   const slash = value.indexOf('/');
@@ -2011,7 +2024,27 @@ export const modules = {
           { per_page: 1000, page },
           ['per_page', 'page'],
         );
-        const data = await proxyData(ctx, { endpoint, method: 'GET' });
+        let data;
+        try {
+          data = await proxyData(ctx, { endpoint, method: 'GET' });
+        } catch (err) {
+          // Cloudflare answers 403 both for a missing permission and for an account
+          // that never enabled Access; only its error code 9999 tells them apart, and
+          // the gateway passes that code as provider_codes. Access not enabled is a
+          // reading: no Access application exists, so none applies to any hostname.
+          // Any other refusal, a plain 403 included, is thrown unchanged.
+          if (accessNotEnabled(err)) {
+            return {
+              success: true,
+              access_enabled: false,
+              result: [],
+              result_info: { count: 0, total_count: 0, page: 1, per_page: 1000, total_pages: 1 },
+              filtered_by: input && input.hostname != null ? input.hostname : null,
+              unresolved: [],
+            };
+          }
+          throw err;
+        }
         if (!envelopeOk(data) || !Array.isArray(data.result)) return vendorError(endpoint, 'GET');
         all.push(...data.result);
         const total = data.result_info && data.result_info.total_pages;
@@ -2038,6 +2071,7 @@ export const modules = {
       }
       return {
         success: true,
+        access_enabled: true,
         result,
         unresolved,
         result_info: { count: result.length, total_count: result.length, page: 1, per_page: 1000, total_pages: 1 },

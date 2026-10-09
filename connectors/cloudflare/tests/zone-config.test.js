@@ -1052,3 +1052,31 @@ test('list_access_apps keeps partial and multi-label wildcard hosts that could m
   assert.deepEqual(await read('example.com'), ['apex']);
   assert.deepEqual(await read('alphatest.example.org'), []);
 });
+
+test('list_access_apps reads Access not enabled (403 with provider code 9999) as access_enabled false', async () => {
+  const notEnabled = recording(async (req) => {
+    throw { object: { status: 'vendor_error', http_status: 403, endpoint: req.endpoint, method: 'GET', provider_codes: [9999] } };
+  });
+  const off = await modules.zones.list_access_apps({ account_id: ACCOUNT, hostname: 'example.com' }, notEnabled.ctx);
+  assert.equal(off.success, true);
+  assert.equal(off.access_enabled, false);
+  assert.deepEqual(off.result, []);
+  assert.deepEqual(off.unresolved, []);
+  assert.equal(off.filtered_by, 'example.com');
+  assert.equal(notEnabled.calls.length, 1);
+
+  // A plain 403, a 403 with another code, and 9999 on another status stay vendor errors.
+  for (const object of [
+    { status: 'vendor_error', http_status: 403, endpoint: '/x', method: 'GET' },
+    { status: 'vendor_error', http_status: 403, endpoint: '/x', method: 'GET', provider_codes: [10000] },
+    { status: 'vendor_error', http_status: 400, endpoint: '/x', method: 'GET', provider_codes: [9999] },
+    { status: 'vendor_error', http_status: 403, endpoint: '/x', method: 'GET', provider_codes: '9999' },
+  ]) {
+    const refused403 = recording(async () => { throw { object }; });
+    await assert.rejects(modules.zones.list_access_apps({ account_id: ACCOUNT }, refused403.ctx), (err) => err.object === object);
+  }
+
+  const enabled = recording(async () => ({ data: { success: true, result: [], result_info: { total_pages: 1 } } }));
+  const on = await modules.zones.list_access_apps({ account_id: ACCOUNT }, enabled.ctx);
+  assert.equal(on.access_enabled, true);
+});
