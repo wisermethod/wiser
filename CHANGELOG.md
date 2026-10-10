@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.10.3, October 10, 2026
+
+- Wiser can now make changes in your Google account, and asks you to approve each one before it runs. In Drive it can create a Google Doc, Sheet, Slides file or folder, upload text, Markdown, HTML, CSV or an Office file and turn it into a Doc, Sheet or Slides, rename a file, and move one to a folder. It can create a Google Doc and edit it, inserting and replacing text, setting headings, and making bulleted or numbered lists. It can write values to a spreadsheet and add rows to one, save a Gmail draft, which it never sends, and create and update Calendar events. Nothing is deleted or moved to the trash. (e222e3c, bb2a7a0, 810e04f)
+- Guests on a Calendar event are emailed only when you ask. Google may still send some emails on its own, and says a guest outside Google Calendar may not receive an event added without emailing them. (bb2a7a0)
+- These use the Google connections you already have, so nothing is reconnected. Each of them could already make changes, and the Google connector's guide now says so and lists what each one allows. (e222e3c)
+
 ## v2026.10.10.2, October 10, 2026
 
 - Before a site that replaces another goes live, Webmaster now checks that every address the old site served, images and files as well as pages, is kept or redirected, and that you have said what may be retired. (e480406, bb06092)
