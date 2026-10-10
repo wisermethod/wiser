@@ -526,7 +526,7 @@
           }
         },
         "move_file": {
-          "description": "Moves a Drive file by reading its parents and then adding the destination folder while removing every parent that read returned, including a parent that appears only because it changed between the two calls.",
+          "description": "Moves a Drive file into folder_id by reading the file's parents, then adding the folder and removing the parents that read returned. These are two calls, so a parent added between them stays.",
           "risk": "high",
           "confirmation": "always",
           "execution": {
