@@ -2,7 +2,8 @@ const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypt
 const {within,sensitive,canonical,inspect}=require('./tree.cjs');
 const own=fs.realpathSync(__dirname);
 const HELP='Usage: node snapshot.cjs help | --help\n  take --root <dir> --snapshot <new-disjoint-dir> --changes <json-file>\n  verify|g3|restore --root <dir> --snapshot <dir>\nChanges JSON: {"paths":["relative/file.md","new/directory"]}. List all changed, removed and created paths, including ancestors.\nNode built-ins only; no install, configuration, network or stdin. See snapshot.md for the write contract.\n';
-const hash=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+// Hashed in 1 MiB reads, so a file over Node's 2 GiB single-read limit still hashes.
+const hash=p=>{const h=crypto.createHash('sha256'),fd=fs.openSync(p,'r'),b=Buffer.allocUnsafe(1<<20);try{let n;while((n=fs.readSync(fd,b,0,b.length,null))>0)h.update(b.subarray(0,n));}finally{fs.closeSync(fd);}return h.digest('hex');};
 const stable=x=>JSON.stringify(x);
 function safePath(p){const q=canonical(p);if(q.split(path.sep).some(sensitive)||within(q,own))throw Error('Refused credential or tool path; choose a working path outside the tool');return q;}
 function relative(p){return typeof p==='string'&&p!==''&&!path.isAbsolute(p)&&p.split(/[\\/]/).every(x=>x!==''&&x!=='.'&&x!=='..'&&x!=='.git'&&!sensitive(x));}

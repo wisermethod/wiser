@@ -507,6 +507,10 @@ const actions = {
     }
 
     const waiting = page.waitForEvent('download', { timeout });
+    // If the click throws, nothing awaits this wait any more, and its later
+    // timeout would be an unhandled rejection that ends the host. Mark it
+    // handled here; awaiting it below still throws.
+    waiting.catch(() => {});
     await page.click(selector, { timeout: 5000 });
     const download = await waiting;
     const target = writeTarget(join(outputDir, download.suggestedFilename()));

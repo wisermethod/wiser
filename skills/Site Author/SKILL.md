@@ -3,7 +3,7 @@ name: Site Author
 type: skill
 category: web
 description: Stand up, content-edit, file site code, check, wrap, and upgrade a kit site envelope in sites/, in a folder named for its domain, or in the sites/ of a work folder when the site dies with that work, with the kit in site/, in an owning root that declares sites/
-version: 0.8.0
+version: 0.8.1
 memory:
   - about
   - design
@@ -19,7 +19,7 @@ gaps:
 
 # Site Author
 
-This is Site Author 0.8.0, and it ships site kit 0.5.0 in `kit/`. Stand up, `check` and Upgrade each print both versions as their first line, so a run says which copy it came from before it does anything.
+This is Site Author 0.8.1, and it ships site kit 0.5.0 in `kit/`. Stand up, `check` and Upgrade each print both versions as their first line, so a run says which copy it came from before it does anything.
 
 **Which copy to trust.** A workspace that composes the `wiser` root can hold two copies of this skill: that root's own, and the plugin copy the app loaded. Where both are present and they differ, compare the `version` in each copy's `SKILL.md` and the `kitVersion` in each copy's `kit/kit.json` before relying on either. Use the newer copy's instructions, scripts and kit, and tell the requester the other copy is stale and what each version is. Never run a stale copy's Stand up or Upgrade, because it writes its older kit into the site, and never answer what the kit can do from a stale copy.
 

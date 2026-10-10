@@ -3,7 +3,7 @@ name: reference-check
 type: tool
 category: system
 description: Return a JSON scan of path-shaped and family-name references under --root, or take and restore an approved structural snapshot
-version: 0.1.2
+version: 0.1.3
 ---
 
 # reference-check

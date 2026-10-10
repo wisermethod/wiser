@@ -1,6 +1,6 @@
 ---
 standard: conventions
-version: 0.3.1
+version: 0.3.2
 description: The cross-cutting conventions every file and agent in a Wiser workspace follows: formatting, dates, portable names, working files, root layout, archives, sourcing, and evidence labels
 ---
 
@@ -44,7 +44,7 @@ A name that already violates these rules: report it; do not rename on sight, nam
 
 Intermediate outputs (drafts, scratch analysis, generated data, logs) go to the active work directory in the owning root; the root's AGENTS.md declares which directories those are, and Root Layout below governs where a file sits inside one. Quick captures with no home yet go to that root's `inbox/`.
 
-Where a write is forbidden outright, the top level of any root and a composed shared root in use, the constitution's Irreversibles states the rule and the one exception to it. If no declared work directory fits, ask; do not invent one. A root missing its declared `inbox/` or archive directory gets it created there; creating a declared home is not inventing a location.
+Where a write is forbidden outright, the top level of any root and a composed shared root in use, the constitution's Irreversibles states the rule and its exceptions. If no declared work directory fits, ask; do not invent one. A root missing its declared `inbox/` or archive directory gets it created there; creating a declared home is not inventing a location.
 
 ## Root Layout
 
