@@ -246,7 +246,40 @@ function readScreened(resolved, id) {
   }
 }
 
-function walkPages(root, refused, kitRule = true, sourceHashes = null, staticSite = false) {
+// Names only, and never through a link. One budget for the whole deploy_static
+// walk: past it, the skipped directory that was being screened is refused.
+const SKIPPED_DIR_SCREEN_CAP = 20000;
+
+function screenSkippedTree(dir, logical, budget) {
+  const stack = [{ dir, rel: logical }];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    let entries;
+    try {
+      entries = readdirSync(current.dir, { withFileTypes: true });
+    } catch {
+      // A directory that cannot be read cannot be shown to hold no marker.
+      return invalid('dir', `working folder: ${current.rel} could not be screened`);
+    }
+    for (const entry of entries) {
+      budget.count += 1;
+      if (budget.count > SKIPPED_DIR_SCREEN_CAP) {
+        return invalid('dir', `working folder: ${logical} too large to screen`);
+      }
+      const rel = `${current.rel}/${entry.name}`;
+      if (isStaticWalkMarker(entry.name)) return invalid('dir', `working folder: ${rel}`);
+      if (entry.isSymbolicLink()) continue;
+      if (entry.isDirectory()) stack.push({ dir: join(current.dir, entry.name), rel });
+    }
+  }
+  return null;
+}
+
+function resolvedPathHasWalkMarker(root, resolved) {
+  return relativeName(root, resolved).split('/').some((segment) => isStaticWalkMarker(segment));
+}
+
+export function walkPages(root, refused, kitRule = true, sourceHashes = null, staticSite = false) {
   const assets = [];
   const skipped = [];
   let headers = null;
@@ -254,6 +287,7 @@ function walkPages(root, refused, kitRule = true, sourceHashes = null, staticSit
   const names = new Set();
   const stack = [root];
   const walked = new Set([identity(root)].filter(Boolean));
+  const screenBudget = { count: 0 };
   while (stack.length > 0) {
     const dir = stack.pop();
     const atRoot = dir === root;
@@ -264,6 +298,9 @@ function walkPages(root, refused, kitRule = true, sourceHashes = null, staticSit
       skipped.push({ file: relativeName(root, dir), reason: 'unreadable' });
       continue;
     }
+    // Scans run after this directory's own entries, so a link is refused as the
+    // link before a sibling hidden directory is screened.
+    const deferredScans = [];
     for (const entry of entries) {
       const full = join(dir, entry.name);
       const logical = relativeName(root, full);
@@ -285,15 +322,19 @@ function walkPages(root, refused, kitRule = true, sourceHashes = null, staticSit
         }
       }
       if (entry.name === 'node_modules') {
+        if (staticSite && entry.isDirectory()) deferredScans.push({ full, logical });
         skipped.push({ file: logical, reason: 'skipped name' });
         continue;
       }
-      // deploy_static only, and only below the root. This stands before the hidden
-      // skip so .git and .env refuse instead of being listed as hidden.
-      if (staticSite && !atRoot && isStaticWalkMarker(entry.name)) {
+      // deploy_static only. At the root these are the root markers, so a marker
+      // that appears after screenStaticRoot is still refused. Below the root they
+      // are the walk markers. This stands before the hidden skip so .git and .env
+      // refuse instead of being listed as hidden.
+      if (staticSite && (atRoot ? isRootWorkingMarker(entry, root) : isStaticWalkMarker(entry.name))) {
         return { error: invalid('dir', `working folder: ${logical}`) };
       }
       if (entry.name.startsWith('.') && entry.name !== '.well-known') {
+        if (staticSite && entry.isDirectory()) deferredScans.push({ full, logical });
         skipped.push({ file: logical, reason: 'hidden' });
         continue;
       }
@@ -326,6 +367,12 @@ function walkPages(root, refused, kitRule = true, sourceHashes = null, staticSit
         walked.add(dirId);
         stack.push(resolved);
         continue;
+      }
+      // The link's own name was already screened. The resolved path is the
+      // file that would be published, and any walk-marker segment of it refuses
+      // as the link.
+      if (staticSite && resolvedPathHasWalkMarker(root, resolved)) {
+        return { error: invalid('dir', `working folder: ${logical}`) };
       }
       const top = !logical.includes('/');
       if (top && entry.name === '_routes.json') {
@@ -391,6 +438,10 @@ function walkPages(root, refused, kitRule = true, sourceHashes = null, staticSit
         entryBytes,
         contentType,
       });
+    }
+    for (const scan of deferredScans) {
+      const screened = screenSkippedTree(scan.full, scan.logical, screenBudget);
+      if (screened) return { error: screened };
     }
   }
   assets.sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0));
@@ -786,8 +837,11 @@ function kitPayloadError(resolved) {
 // A declared root holds AGENTS.md as a regular file, not a link, whose text
 // opens with a YAML frontmatter block inside the first 64 KiB: a first line
 // ---, a later line ---, and a line between them matching root: or type:.
+// A leading UTF-8 BOM is ignored. The key may have leading spaces or tabs.
+// An opening --- with no closer inside the scan, when the file is longer than
+// the scan, is unreadable rather than treated as not a root.
 const DECLARED_ROOT_SCAN = 64 * 1024;
-const DECLARED_ROOT_KEY = /^(root|type)\s*:/;
+const DECLARED_ROOT_KEY = /^[ \t]*(root|type)[ \t]*:/;
 
 function readAgentsHead(dir) {
   const full = join(dir, 'AGENTS.md');
@@ -825,28 +879,31 @@ function readAgentsHead(dir) {
 }
 
 function frontmatterDeclaresRoot(text, truncated) {
-  let body = text;
+  let body = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
   if (truncated && !body.endsWith('\n')) {
     const cut = body.lastIndexOf('\n');
-    if (cut < 0) return false;
+    if (cut < 0) return { declared: false };
     body = body.slice(0, cut + 1);
   }
   const lines = body.split('\n');
-  if ((lines[0] || '').replace(/\r$/, '') !== '---') return false;
+  if ((lines[0] || '').replace(/\r$/, '') !== '---') return { declared: false };
   let keyed = false;
   for (let i = 1; i < lines.length; i += 1) {
     const line = lines[i].replace(/\r$/, '');
-    if (line === '---') return keyed;
+    if (line === '---') return { declared: keyed };
     if (DECLARED_ROOT_KEY.test(line)) keyed = true;
   }
-  return false;
+  if (truncated) return { error: invalid('dir', 'working folder: unreadable AGENTS.md') };
+  return { declared: false };
 }
 
 function declaredRootAt(dir) {
   const head = readAgentsHead(dir);
   if (head.error) return head;
   if (head.absent) return { declared: false };
-  return { declared: frontmatterDeclaresRoot(head.text, head.truncated) };
+  const front = frontmatterDeclaresRoot(head.text, head.truncated);
+  if (front.error) return front;
+  return { declared: front.declared };
 }
 
 // dir itself, then its parent. Higher ancestors are not examined, so a build
@@ -1972,6 +2029,33 @@ function redactSecrets(value, secrets) {
   return out;
 }
 
+// One place for every pages action that is not a d1_ action. A non-empty
+// string under a key named web_analytics_token becomes [redacted], at any
+// depth. null and an empty string stay. The caller's own d1 rows are not
+// passed through here.
+function redactWebAnalyticsTokens(value) {
+  if (Array.isArray(value)) return value.map((item) => redactWebAnalyticsTokens(item));
+  if (!value || typeof value !== 'object') return value;
+  const out = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (key === 'web_analytics_token' && typeof item === 'string' && item.length > 0) out[key] = '[redacted]';
+    else out[key] = redactWebAnalyticsTokens(item);
+  }
+  return out;
+}
+
+function sealPagesModule(actions) {
+  const sealed = {};
+  for (const [name, action] of Object.entries(actions)) {
+    if (name.startsWith('d1_') || typeof action !== 'function') {
+      sealed[name] = action;
+      continue;
+    }
+    sealed[name] = async (input, ctx) => redactWebAnalyticsTokens(await action(input, ctx));
+  }
+  return sealed;
+}
+
 function analyticsSecrets(row) {
   const item = asObject(row) || {};
   const secrets = [];
@@ -2039,22 +2123,29 @@ function rumSiteEndpoint(accountId, siteTag) {
   return `${rumCollectionEndpoint(accountId)}/${encodeURIComponent(siteTag)}`;
 }
 
+const RUM_PAGE_SIZE = 100;
+const PROJECTS_PAGE_SIZE = 10;
+const RESULT_PAGE_CAP = 50;
+
 function rumListEndpoint(accountId, page) {
-  return `${rumCollectionEndpoint(accountId)}/list?page=${page}&per_page=100`;
+  return `${rumCollectionEndpoint(accountId)}/list?page=${page}&per_page=${RUM_PAGE_SIZE}`;
 }
 
 function pagesProjectsEndpoint(accountId, page) {
-  return `/accounts/${encodeURIComponent(accountId)}/pages/projects?page=${page}&per_page=10`;
+  return `/accounts/${encodeURIComponent(accountId)}/pages/projects?page=${page}&per_page=${PROJECTS_PAGE_SIZE}`;
 }
 
-// Follow result_info.total_pages while it is a number past the page just read,
-// and stop after 50 pages. With no numeric total_pages, the first page is the
-// last. catchErrors turns a thrown proxy failure into vendor_error; list lets
-// it propagate.
-async function readResultPages(ctx, endpointFor, catchErrors) {
+// A listing is complete when result_info.total_pages is a finite number and
+// every page up to it was read, or, when total_pages is absent, when the first
+// page returned fewer rows than the per_page that was asked for. Stopping at
+// the cap, or a full page with no total, is incomplete. catchErrors turns a
+// thrown proxy failure into vendor_error; list lets it propagate.
+async function readResultPages(ctx, endpointFor, catchErrors, perPage) {
   const items = [];
-  for (let page = 1; page <= 50; page += 1) {
-    const endpoint = endpointFor(page);
+  let endpoint = endpointFor(1);
+  let complete = false;
+  for (let page = 1; page <= RESULT_PAGE_CAP; page += 1) {
+    endpoint = endpointFor(page);
     let data;
     try {
       data = await proxyData(ctx, { endpoint, method: 'GET' });
@@ -2066,9 +2157,16 @@ async function readResultPages(ctx, endpointFor, catchErrors) {
     items.push(...data.result);
     const info = asObject(data.result_info);
     const total = info && info.total_pages;
-    if (typeof total !== 'number' || !(total > page)) break;
+    if (typeof total !== 'number' || !Number.isFinite(total)) {
+      complete = page === 1 && data.result.length < perPage;
+      break;
+    }
+    if (!(total > page)) {
+      complete = page >= total;
+      break;
+    }
   }
-  return { items };
+  return { items, complete, endpoint };
 }
 
 function optionalSiteTag(input) {
@@ -2089,6 +2187,111 @@ function pagesUsingAnalyticsSite(items, siteTag) {
     if (typeof row.name === 'string') projects.push(row.name);
   }
   return inUse ? projects : null;
+}
+
+function thrownHttpStatus(err) {
+  const signal = err && typeof err === 'object' ? err.object : null;
+  return signal && Number.isInteger(signal.http_status) ? signal.http_status : null;
+}
+
+function analyticsApplied(build, tag, token) {
+  return Boolean(build && build.web_analytics_tag === tag && build.web_analytics_token === token);
+}
+
+function analyticsSuccess(projectName, tag, action, host, before, collateral) {
+  return {
+    project_name: projectName,
+    site_tag: tag,
+    action,
+    host,
+    before_site_tag: before,
+    applies_from: 'next deployment',
+    collateral_changes: collateral,
+  };
+}
+
+function analyticsNotApplied(endpoint, collateral, createdSiteTag, httpStatus) {
+  const failure = {
+    status: 'vendor_error',
+    endpoint,
+    method: 'PATCH',
+    reason: 'analytics not applied',
+    collateral_changes: collateral,
+  };
+  if (httpStatus !== undefined) failure.http_status = httpStatus;
+  if (createdSiteTag) failure.created_site_tag = createdSiteTag;
+  return failure;
+}
+
+function analyticsOutcomeUnknown(endpoint, httpStatus, createdSiteTag) {
+  const failure = {
+    status: 'vendor_error',
+    endpoint,
+    method: 'PATCH',
+    reason: 'analytics outcome unknown',
+    http_status: httpStatus,
+  };
+  if (createdSiteTag) failure.created_site_tag = createdSiteTag;
+  return failure;
+}
+
+async function readAnalyticsSite(ctx, accountId, siteTag) {
+  const siteEndpoint = rumSiteEndpoint(accountId, siteTag);
+  let site;
+  try {
+    site = await proxyData(ctx, { endpoint: siteEndpoint, method: 'GET' });
+  } catch (err) {
+    if (vendorSignal(err, 404)) return { error: invalid('site_tag', 'no such Web Analytics site') };
+    throw err;
+  }
+  const row = asObject(site && site.result);
+  if (!envelopeOk(site) || !row || row.site_tag !== siteTag || typeof row.site_token !== 'string' || row.site_token.length === 0) {
+    return { error: vendorError(siteEndpoint, 'GET') };
+  }
+  return {
+    token: row.site_token,
+    host: typeof row.host === 'string' ? row.host : null,
+    secrets: analyticsSecrets(row),
+  };
+}
+
+async function readProjectAgain(ctx, endpoint) {
+  try {
+    const again = await proxyData(ctx, { endpoint, method: 'GET' });
+    if (!envelopeOk(again) || !asObject(again.result)) return { failed: true };
+    return { result: again.result };
+  } catch {
+    return { failed: true };
+  }
+}
+
+// A thrown PATCH is not an answer. Read the project once more and report what
+// that read shows: both values sent, neither as sent, or the read itself failed.
+async function patchWebAnalytics(ctx, endpoint, projectResult, fields, secrets) {
+  const { tag, token, host, action, before, createdSiteTag, projectName } = fields;
+  const finish = (value) => redactSecrets(value, secrets);
+  const body = { build_config: { web_analytics_tag: tag, web_analytics_token: token } };
+  let patched;
+  try {
+    patched = await proxyData(ctx, { endpoint, method: 'PATCH', body });
+  } catch (err) {
+    const httpStatus = thrownHttpStatus(err);
+    const again = await readProjectAgain(ctx, endpoint);
+    if (again.failed) return finish(analyticsOutcomeUnknown(endpoint, httpStatus, createdSiteTag));
+    const againBuild = asObject(again.result.build_config);
+    const collateral = analyticsCollateral(projectResult, again.result);
+    if (analyticsApplied(againBuild, tag, token)) {
+      return finish(analyticsSuccess(projectName, tag, action, host, before, collateral));
+    }
+    return finish(analyticsNotApplied(endpoint, collateral, createdSiteTag, httpStatus));
+  }
+  const after = asObject(patched && patched.result);
+  const afterBuild = after && asObject(after.build_config);
+  const collateral = analyticsCollateral(projectResult, after || {});
+  if (!envelopeOk(patched) || !analyticsApplied(afterBuild, tag, token)) {
+    return finish(analyticsNotApplied(endpoint, collateral, createdSiteTag));
+  }
+  return finish(analyticsSuccess(projectName, tag, action, host, before, collateral));
 }
 
 function pagesDomainEndpoint(input, domain) {
@@ -2386,7 +2589,7 @@ export const modules = {
     },
   },
 
-  pages: {
+  pages: sealPagesModule({
     // confirmed proxy execute 2026-09-08; { success, result, errors, messages, result_info }.
     // Live result was an empty array on every account the zones grant listed.
     async list_projects(input, ctx) {
@@ -2834,8 +3037,11 @@ export const modules = {
     },
     async list_web_analytics_sites(input, ctx) {
       if (!accountIdOk(input && input.account_id)) return invalid('account_id');
-      const read = await readResultPages(ctx, (page) => rumListEndpoint(input.account_id, page), false);
+      const read = await readResultPages(ctx, (page) => rumListEndpoint(input.account_id, page), false, RUM_PAGE_SIZE);
       if (read.error) return read.error;
+      if (!read.complete) {
+        return { status: 'vendor_error', endpoint: read.endpoint, method: 'GET', reason: 'site listing incomplete' };
+      }
       const result = read.items.map(analyticsSiteView);
       return {
         success: true,
@@ -2854,20 +3060,22 @@ export const modules = {
       const project = await proxyData(ctx, { endpoint, method: 'GET' });
       if (!envelopeOk(project) || !asObject(project.result)) return vendorError(endpoint, 'GET');
       const beforeBuild = asObject(project.result.build_config);
-      const current = beforeBuild && beforeBuild.web_analytics_tag;
-      const before = typeof current === 'string' && current.length > 0 ? current : null;
-      if (before) {
+      const currentTag = beforeBuild && beforeBuild.web_analytics_tag;
+      const currentToken = beforeBuild && beforeBuild.web_analytics_token;
+      const before = typeof currentTag === 'string' && currentTag.length > 0 ? currentTag : null;
+      const hasToken = typeof currentToken === 'string' && currentToken.length > 0;
+      if (before && hasToken) {
         if (chosen.tag == null || chosen.tag === before) {
-          return {
-            project_name: input.project_name,
-            site_tag: before,
-            action: 'already_on',
-            host: null,
-            before_site_tag: before,
-            applies_from: 'next deployment',
-            collateral_changes: [],
-          };
+          return analyticsSuccess(input.project_name, before, 'already_on', null, before, []);
         }
+        return {
+          status: 'invalid_arguments',
+          field: 'site_tag',
+          reason: 'project already sends to another Web Analytics site',
+          current_site_tag: before,
+        };
+      }
+      if (before && chosen.tag != null && chosen.tag !== before) {
         return {
           status: 'invalid_arguments',
           field: 'site_tag',
@@ -2881,24 +3089,22 @@ export const modules = {
       let host;
       let action;
       let createdSiteTag = null;
-      if (chosen.tag) {
-        const siteEndpoint = rumSiteEndpoint(input.account_id, chosen.tag);
-        let site;
-        try {
-          site = await proxyData(ctx, { endpoint: siteEndpoint, method: 'GET' });
-        } catch (err) {
-          if (vendorSignal(err, 404)) return invalid('site_tag', 'no such Web Analytics site');
-          throw err;
-        }
-        const row = asObject(site && site.result);
-        if (!envelopeOk(site) || !row || row.site_tag !== chosen.tag || typeof row.site_token !== 'string' || row.site_token.length === 0) {
-          return vendorError(siteEndpoint, 'GET');
-        }
+      if (before && !hasToken) {
+        const site = await readAnalyticsSite(ctx, input.account_id, before);
+        if (site.error) return site.error;
+        tag = before;
+        token = site.token;
+        host = site.host;
+        action = 'repaired';
+        secrets.push(...site.secrets);
+      } else if (chosen.tag) {
+        const site = await readAnalyticsSite(ctx, input.account_id, chosen.tag);
+        if (site.error) return site.error;
         tag = chosen.tag;
-        token = row.site_token;
-        host = typeof row.host === 'string' ? row.host : null;
+        token = site.token;
+        host = site.host;
         action = 'attached';
-        secrets.push(...analyticsSecrets(row));
+        secrets.push(...site.secrets);
       } else {
         const subdomain = project.result.subdomain;
         if (typeof subdomain !== 'string' || !subdomain.endsWith('.pages.dev')) return vendorError(endpoint, 'GET');
@@ -2920,53 +3126,9 @@ export const modules = {
         createdSiteTag = row.site_tag;
         secrets.push(...analyticsSecrets(row));
       }
-      let patched;
-      try {
-        patched = await proxyData(ctx, {
-          endpoint,
-          method: 'PATCH',
-          body: { build_config: { web_analytics_tag: tag, web_analytics_token: token } },
-        });
-      } catch (err) {
-        // A site this call created must not be lost when the PATCH is refused:
-        // the caller needs its tag to remove it.
-        if (!createdSiteTag) throw err;
-        const signal = err && typeof err === 'object' ? err.object : null;
-        return redactSecrets({
-          status: 'vendor_error',
-          endpoint,
-          method: 'PATCH',
-          http_status: signal && Number.isInteger(signal.http_status) ? signal.http_status : null,
-          reason: 'analytics not applied',
-          collateral_changes: [],
-          created_site_tag: createdSiteTag,
-        }, secrets);
-      }
-      const after = asObject(patched && patched.result);
-      const afterBuild = after && asObject(after.build_config);
-      const collateral = analyticsCollateral(project.result, after || {});
-      const applied = Boolean(envelopeOk(patched) && afterBuild && afterBuild.web_analytics_tag === tag);
-      const finish = (value) => redactSecrets(value, secrets);
-      if (!applied) {
-        const failure = {
-          status: 'vendor_error',
-          endpoint,
-          method: 'PATCH',
-          reason: 'analytics not applied',
-          collateral_changes: collateral,
-        };
-        if (createdSiteTag) failure.created_site_tag = createdSiteTag;
-        return finish(failure);
-      }
-      return finish({
-        project_name: input.project_name,
-        site_tag: tag,
-        action,
-        host,
-        before_site_tag: before,
-        applies_from: 'next deployment',
-        collateral_changes: collateral,
-      });
+      return patchWebAnalytics(ctx, endpoint, project.result, {
+        tag, token, host, action, before, createdSiteTag, projectName: input.project_name,
+      }, secrets);
     },
     async delete_web_analytics_site(input, ctx) {
       if (!accountIdOk(input && input.account_id)) return invalid('account_id');
@@ -2981,8 +3143,16 @@ export const modules = {
       }
       if (!envelopeOk(site) || !asObject(site.result)) return vendorError(endpoint, 'GET');
       const viewed = analyticsSiteView(site.result);
-      const listed = await readResultPages(ctx, (page) => pagesProjectsEndpoint(input.account_id, page), true);
+      const listed = await readResultPages(ctx, (page) => pagesProjectsEndpoint(input.account_id, page), true, PROJECTS_PAGE_SIZE);
       if (listed.error) return listed.error;
+      if (!listed.complete || listed.items.some((item) => !asObject(item))) {
+        return {
+          status: 'vendor_error',
+          endpoint: listed.endpoint,
+          method: 'GET',
+          reason: 'project listing incomplete',
+        };
+      }
       const projects = pagesUsingAnalyticsSite(listed.items, input.site_tag);
       if (projects) {
         return { status: 'invalid_arguments', field: 'site_tag', reason: 'in use by a Pages project', projects };
@@ -3137,7 +3307,7 @@ export const modules = {
       if (bad) return bad;
       return proxyEnvelope(ctx, { endpoint: pagesDomainEndpoint(input, true), method: 'PATCH' });
     },
-  },
+  }),
 
 
   rulesets: {

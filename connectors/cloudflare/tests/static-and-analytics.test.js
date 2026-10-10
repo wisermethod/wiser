@@ -6,7 +6,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { modules } from '../index.js';
+import { modules, walkPages } from '../index.js';
 
 import { existsSync as __exists } from 'node:fs';
 import { dirname as __dirname_, join as __join } from 'node:path';
@@ -659,7 +659,7 @@ test('enable_web_analytics redacts a token echoed in the site host', async () =>
   }, (req) => {
     if (req.method === 'GET' && req.endpoint.includes('/pages/projects/')) return project();
     if (req.method === 'GET' && req.endpoint.includes('/rum/site_info/')) return siteInfo({ host: TOKEN });
-    if (req.method === 'PATCH') return envelope({ build_config: { web_analytics_tag: SITE } });
+    if (req.method === 'PATCH') return envelope({ build_config: { web_analytics_tag: SITE, web_analytics_token: TOKEN } });
     throw new Error(`${req.method} ${req.endpoint}`);
   });
   assert.equal(result.action, 'attached');
@@ -690,7 +690,7 @@ test('enable_web_analytics creates a site for the pages.dev host', async () => {
 test('enable_web_analytics reports already_on for the same tag and for no tag, and writes nothing', async () => {
   const handler = (req) => {
     if (req.method !== 'GET') throw new Error(`write ${req.method}`);
-    return project({ web_analytics_tag: SITE });
+    return project({ web_analytics_tag: SITE, web_analytics_token: TOKEN });
   };
   const same = await analytics('enable_web_analytics', {
     account_id: ACCOUNT, project_name: PROJECT, site_tag: SITE,
@@ -706,6 +706,8 @@ test('enable_web_analytics reports already_on for the same tag and for no tag, a
   assert.equal(omitted.calls.length, 1);
   assert.equal(omitted.result.action, 'already_on');
   assert.equal(omitted.calls[0].method, 'GET');
+  assert.equal(JSON.stringify(same.result).includes(TOKEN), false);
+  assert.equal(JSON.stringify(omitted.result).includes(TOKEN), false);
 });
 
 test('enable_web_analytics refuses a different site when analytics is already on', async () => {
@@ -713,7 +715,7 @@ test('enable_web_analytics refuses a different site when analytics is already on
     account_id: ACCOUNT, project_name: PROJECT, site_tag: OTHER,
   }, (req) => {
     if (req.method !== 'GET') throw new Error(`write ${req.method}`);
-    return project({ web_analytics_tag: SITE });
+    return project({ web_analytics_tag: SITE, web_analytics_token: TOKEN });
   });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].method, 'GET');
@@ -721,6 +723,7 @@ test('enable_web_analytics refuses a different site when analytics is already on
   assert.equal(result.field, 'site_tag');
   assert.equal(result.reason, 'project already sends to another Web Analytics site');
   assert.equal(result.current_site_tag, SITE);
+  assert.equal(JSON.stringify(result).includes(TOKEN), false);
 });
 
 test('enable_web_analytics refuses a missing site and does not patch', async () => {
@@ -768,7 +771,7 @@ test('enable_web_analytics reports analytics not applied, and names a site it cr
   assert.equal(created.calls.some((req) => req.method === 'DELETE'), false);
 });
 
-test('enable_web_analytics names a site it created when the PATCH is refused, and rethrows on attach', async () => {
+test('enable_web_analytics re-reads after a thrown PATCH and reports analytics not applied when the tag and token are absent', async () => {
   const refusePatch = (req) => {
     const err = new Error('refused');
     err.object = { status: 'vendor_error', http_status: 403, endpoint: req.endpoint, method: 'PATCH' };
@@ -786,14 +789,22 @@ test('enable_web_analytics names a site it created when the PATCH is refused, an
   assert.equal(created.result.http_status, 403);
   assert.equal(created.result.reason, 'analytics not applied');
   assert.equal(created.result.created_site_tag, SITE);
+  assert.equal(created.calls.filter((req) => req.method === 'GET').length, 2);
   assert.equal(JSON.stringify(created.result).includes(TOKEN), false);
-  await assert.rejects(analytics('enable_web_analytics', {
+  const attached = await analytics('enable_web_analytics', {
     account_id: ACCOUNT, project_name: PROJECT, site_tag: SITE,
   }, (req) => {
     if (req.method === 'GET' && req.endpoint.includes('/pages/projects/')) return project();
     if (req.method === 'GET') return siteInfo();
     return refusePatch(req);
-  }), /refused/);
+  });
+  assert.equal(attached.result.status, 'vendor_error');
+  assert.equal(attached.result.method, 'PATCH');
+  assert.equal(attached.result.http_status, 403);
+  assert.equal(attached.result.reason, 'analytics not applied');
+  assert.equal(Object.hasOwn(attached.result, 'created_site_tag'), false);
+  assert.equal(attached.calls.filter((req) => req.method === 'GET' && req.endpoint.includes('/pages/projects/')).length, 2);
+  assert.equal(JSON.stringify(attached.result).includes(TOKEN), false);
 });
 
 test('enable_web_analytics reports a changed build_command as collateral', async () => {
@@ -957,4 +968,456 @@ test('web analytics confirmation matches the manifest', async () => {
   assert.notEqual(listed.status, 'needs_confirmation');
   assert.equal(listed.success, true);
   assert.equal(calls.length, 1);
+});
+
+const PLANTED = 'PLANTED_WEB_ANALYTICS_TOKEN_9f3c';
+const KEPT_TAG = 'analytics-tag-kept';
+const DATABASE = '01234567-89ab-cdef-0123-456789abcdef';
+
+function proxyReturning(data) {
+  return { async proxy() { return { data }; } };
+}
+
+test('get_project redacts a nested web_analytics_token and keeps the tag, null, and empty string', async () => {
+  const result = await modules.pages.get_project({
+    account_id: ACCOUNT, project_name: PROJECT,
+  }, proxyReturning({
+    success: true,
+    result: {
+      build_config: { web_analytics_tag: KEPT_TAG, web_analytics_token: PLANTED },
+      latest_deployment: { build_config: { web_analytics_token: PLANTED, web_analytics_tag: KEPT_TAG } },
+      empty_token: { web_analytics_token: '' },
+      null_token: { web_analytics_token: null },
+    },
+  }));
+  assert.equal(JSON.stringify(result).includes(PLANTED), false);
+  assert.equal(result.result.build_config.web_analytics_token, '[redacted]');
+  assert.equal(result.result.build_config.web_analytics_tag, KEPT_TAG);
+  assert.equal(result.result.latest_deployment.build_config.web_analytics_token, '[redacted]');
+  assert.equal(result.result.latest_deployment.build_config.web_analytics_tag, KEPT_TAG);
+  assert.equal(result.result.empty_token.web_analytics_token, '');
+  assert.equal(result.result.null_token.web_analytics_token, null);
+});
+
+test('list_projects redacts a nested web_analytics_token and keeps the tag', async () => {
+  const result = await modules.pages.list_projects({ account_id: ACCOUNT }, proxyReturning({
+    success: true,
+    result: [{ build_config: { web_analytics_tag: KEPT_TAG, web_analytics_token: PLANTED } }],
+  }));
+  assert.equal(JSON.stringify(result).includes(PLANTED), false);
+  assert.equal(result.result[0].build_config.web_analytics_token, '[redacted]');
+  assert.equal(result.result[0].build_config.web_analytics_tag, KEPT_TAG);
+});
+
+test('deploy_static redacts a web_analytics_token on the deployment and keeps the tag', async () => {
+  const root = scratch();
+  try {
+    const dir = site(root, 'out');
+    const { result } = await deploy(dir, (req) => {
+      if (req.method === 'GET' && String(req.endpoint).endsWith('/upload-token')) return envelope({ jwt: JWT });
+      if (req.endpoint === '/pages/assets/check-missing') return envelope(req.body.hashes);
+      if (req.endpoint === '/pages/assets/upload' || req.endpoint === '/pages/assets/upsert-hashes') return envelope(null);
+      if (req.method === 'POST' && String(req.endpoint).endsWith('/deployments')) {
+        return envelope({
+          id: 'dep-static',
+          build_config: { web_analytics_tag: KEPT_TAG, web_analytics_token: PLANTED },
+          stages: [{ build_config: { web_analytics_token: PLANTED, web_analytics_tag: KEPT_TAG } }],
+        });
+      }
+      return envelope({});
+    });
+    assert.equal(JSON.stringify(result).includes(PLANTED), false);
+    assert.equal(result.deployment.build_config.web_analytics_token, '[redacted]');
+    assert.equal(result.deployment.build_config.web_analytics_tag, KEPT_TAG);
+    assert.equal(result.deployment.stages[0].build_config.web_analytics_token, '[redacted]');
+    assert.equal(result.deployment.stages[0].build_config.web_analytics_tag, KEPT_TAG);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test('d1_query returns a web_analytics_token column unchanged', async () => {
+  const result = await modules.pages.d1_query({
+    account_id: ACCOUNT, database_id: DATABASE, sql: 'SELECT 1',
+  }, proxyReturning({
+    success: true,
+    result: [{ results: [{ web_analytics_token: PLANTED }] }],
+  }));
+  assert.equal(result.result[0].results[0].web_analytics_token, PLANTED);
+});
+
+function projectPage(page, total, rows) {
+  return envelope(rows, { result_info: { total_pages: total, page } });
+}
+
+test('delete_web_analytics_site refuses an incomplete 51-page project listing and does not delete', async () => {
+  const { result, calls } = await analytics('delete_web_analytics_site', {
+    account_id: ACCOUNT, site_tag: SITE,
+  }, (req) => {
+    if (req.method === 'DELETE') throw new Error('deleted');
+    if (req.endpoint.includes('/rum/site_info/')) return envelope({ site_tag: SITE, host: 'www.example.com' });
+    const page = Number(new URL(req.endpoint, 'https://api.cloudflare.com').searchParams.get('page'));
+    if (page === 51) {
+      return projectPage(51, 51, [{ name: 'live-site', build_config: { web_analytics_tag: SITE } }]);
+    }
+    return projectPage(page, 51, [{ name: `p-${page}`, build_config: {} }]);
+  });
+  assert.equal(result.status, 'vendor_error');
+  assert.equal(result.reason, 'project listing incomplete');
+  assert.equal(calls.some((req) => req.method === 'DELETE'), false);
+  assert.equal(calls.some((req) => req.endpoint.includes('page=51')), false);
+});
+
+test('delete_web_analytics_site refuses a full project page with no total_pages and does not delete', async () => {
+  const { result, calls } = await analytics('delete_web_analytics_site', {
+    account_id: ACCOUNT, site_tag: SITE,
+  }, (req) => {
+    if (req.method === 'DELETE') throw new Error('deleted');
+    if (req.endpoint.includes('/rum/site_info/')) return envelope({ site_tag: SITE, host: 'www.example.com' });
+    return envelope(Array.from({ length: 10 }, (_, i) => ({ name: `p-${i}`, build_config: {} })));
+  });
+  assert.equal(result.status, 'vendor_error');
+  assert.equal(result.reason, 'project listing incomplete');
+  assert.equal(calls.some((req) => req.method === 'DELETE'), false);
+  assert.equal(calls.filter((req) => req.endpoint.includes('/pages/projects')).length, 1);
+});
+
+test('delete_web_analytics_site refuses a non-object project row and does not delete', async () => {
+  const { result, calls } = await analytics('delete_web_analytics_site', {
+    account_id: ACCOUNT, site_tag: SITE,
+  }, (req) => {
+    if (req.method === 'DELETE') throw new Error('deleted');
+    if (req.endpoint.includes('/rum/site_info/')) return envelope({ site_tag: SITE, host: 'www.example.com' });
+    return envelope([null], { result_info: { total_pages: 1 } });
+  });
+  assert.equal(result.status, 'vendor_error');
+  assert.equal(result.reason, 'project listing incomplete');
+  assert.equal(calls.some((req) => req.method === 'DELETE'), false);
+});
+
+test('delete_web_analytics_site treats a short project page with no total_pages as complete', async () => {
+  const { result, calls } = await analytics('delete_web_analytics_site', {
+    account_id: ACCOUNT, site_tag: SITE,
+  }, (req) => {
+    if (req.method === 'DELETE') return envelope({ site_tag: SITE });
+    if (req.endpoint.includes('/rum/site_info/')) return envelope({ site_tag: SITE, host: 'www.example.com' });
+    return envelope([{ name: 'other', build_config: {} }]);
+  });
+  assert.equal(result.success, true);
+  assert.equal(result.deleted, SITE);
+  assert.equal(calls.filter((req) => req.method === 'DELETE').length, 1);
+});
+
+test('list_web_analytics_sites refuses an incomplete site listing', async () => {
+  const { result, calls } = await analytics('list_web_analytics_sites', { account_id: ACCOUNT }, () => (
+    envelope(Array.from({ length: 100 }, (_, i) => ({ site_tag: SITE, host: `h${i}.example.com`, site_token: TOKEN })))
+  ));
+  assert.equal(calls.length, 1);
+  assert.equal(result.status, 'vendor_error');
+  assert.equal(result.reason, 'site listing incomplete');
+  assert.equal(Object.hasOwn(result, 'result'), false);
+  assert.equal(JSON.stringify(result).includes(TOKEN), false);
+});
+
+refuse('a link whose resolved path contains a walk marker', 'working folder: public.txt', (root) => {
+  const dir = site(root, 'out');
+  mkdirSync(join(dir, '.notes'));
+  writeFileSync(join(dir, '.notes', 'AGENTS.md'), '# do not publish\n');
+  symlinkSync(join(dir, '.notes', 'AGENTS.md'), join(dir, 'public.txt'));
+  return dir;
+});
+
+refuse('a walk marker inside a hidden directory', 'working folder: .sources/.git', (root) => {
+  const dir = site(root, 'out');
+  mkdirSync(join(dir, '.sources', '.git'), { recursive: true });
+  writeFileSync(join(dir, '.sources', '.git', 'config'), 'x\n');
+  return dir;
+});
+
+refuse('a walk marker inside node_modules', 'working folder: node_modules/.git', (root) => {
+  const dir = site(root, 'out');
+  mkdirSync(join(dir, 'node_modules', '.git'), { recursive: true });
+  writeFileSync(join(dir, 'node_modules', '.git', 'config'), 'x\n');
+  return dir;
+});
+
+test('deploy_static still skips a hidden directory that holds no walk marker', async () => {
+  const root = scratch();
+  try {
+    const dir = site(root, 'out');
+    mkdirSync(join(dir, '.sources'));
+    writeFileSync(join(dir, '.sources', 'note.txt'), 'nope\n');
+    const { result, calls } = await deploy(dir);
+    assert.equal(result.deployment.id, 'dep-static');
+    assert.deepEqual(result.manifest, ['/index.html']);
+    assert.ok(result.skipped.some((item) => item.file === '.sources' && item.reason === 'hidden'));
+    assert.equal(calls.some((req) => String(req.endpoint).endsWith('/deployments')), true);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test('deploy_static still skips a node_modules directory that holds no walk marker', async () => {
+  const root = scratch();
+  try {
+    const dir = site(root, 'out');
+    mkdirSync(join(dir, 'node_modules'));
+    writeFileSync(join(dir, 'node_modules', 'left.js'), 'nope\n');
+    const { result } = await deploy(dir);
+    assert.equal(result.deployment.id, 'dep-static');
+    assert.deepEqual(result.manifest, ['/index.html']);
+    assert.ok(result.skipped.some((item) => item.file === 'node_modules' && item.reason === 'skipped name'));
+  } finally {
+    cleanup(root);
+  }
+});
+
+test('deploy_static refuses a hidden directory too large to screen', async () => {
+  const root = scratch();
+  try {
+    const dir = site(root, 'out');
+    const hidden = join(dir, '.big');
+    mkdirSync(hidden);
+    for (let i = 0; i < 20001; i += 1) writeFileSync(join(hidden, `f${i}`), 'x');
+    const { result, calls } = await deploy(dir);
+    assert.equal(calls.length, 0);
+    assert.equal(result.status, 'invalid_arguments');
+    assert.equal(result.field, 'dir');
+    assert.equal(result.reason, 'working folder: .big too large to screen');
+  } finally {
+    cleanup(root);
+  }
+});
+
+test('deploy_static refuses a skipped hidden directory it cannot read', async (t) => {
+  if (process.getuid && process.getuid() === 0) {
+    t.skip('root reads a directory whatever its mode');
+    return;
+  }
+  const root = scratch();
+  const locked = join(root, 'out', '.cache', 'locked');
+  try {
+    const dir = site(root, 'out');
+    mkdirSync(locked, { recursive: true });
+    writeFileSync(join(locked, 'AGENTS.md'), '# hidden\n');
+    chmodSync(locked, 0o000);
+    const { result, calls } = await deploy(dir);
+    assert.equal(calls.length, 0);
+    assert.equal(result.status, 'invalid_arguments');
+    assert.equal(result.reason, 'working folder: .cache/locked could not be screened');
+  } finally {
+    chmodSync(locked, 0o700);
+    cleanup(root);
+  }
+});
+
+test('the deploy_static walk refuses a root marker screenStaticRoot would already have refused', () => {
+  const root = scratch();
+  try {
+    const dir = site(root, 'out');
+    mkdirSync(join(dir, 'memory'));
+    writeFileSync(join(dir, 'memory', 'note.txt'), 'secret\n');
+    const walked = walkPages(dir, { ids: new Set(), dir: null, home: null }, false, null, true);
+    assert.equal(walked.error.status, 'invalid_arguments');
+    assert.equal(walked.error.field, 'dir');
+    assert.equal(walked.error.reason, 'working folder: memory');
+  } finally {
+    cleanup(root);
+  }
+});
+
+refuse('a declared root whose AGENTS.md starts with a UTF-8 BOM', 'working folder: dir is a declared root', (root) => {
+  const dir = site(root, 'out');
+  writeFileSync(join(dir, 'AGENTS.md'), Buffer.concat([
+    Buffer.from([0xef, 0xbb, 0xbf]),
+    Buffer.from('---\ntype: client\n---\n'),
+  ]));
+  return dir;
+});
+
+refuse('a parent AGENTS.md whose frontmatter key is indented', 'working folder: dir is at the top level of a declared root', (root) => {
+  const dir = site(root, 'parent', 'out');
+  writeFileSync(join(root, 'parent', 'AGENTS.md'), '---\n  type: client\n---\n');
+  return dir;
+});
+
+refuse('a parent AGENTS.md whose frontmatter uses CRLF line ends', 'working folder: dir is at the top level of a declared root', (root) => {
+  const dir = site(root, 'parent', 'out');
+  writeFileSync(join(root, 'parent', 'AGENTS.md'), '---\r\ntype: client\r\n---\r\n');
+  return dir;
+});
+
+refuse('an unclosed AGENTS.md frontmatter longer than 64 KiB', 'working folder: unreadable AGENTS.md', (root) => {
+  const dir = site(root, 'parent', 'out');
+  writeFileSync(join(root, 'parent', 'AGENTS.md'), `---\n${'x'.repeat(70 * 1024)}\n`);
+  return dir;
+});
+
+test('enable_web_analytics repairs a project that has a tag and no token', async () => {
+  const repaired = await analytics('enable_web_analytics', {
+    account_id: ACCOUNT, project_name: PROJECT,
+  }, (req) => {
+    if (req.method === 'GET' && req.endpoint.includes('/pages/projects/')) {
+      return project({ web_analytics_tag: SITE, web_analytics_token: '' });
+    }
+    if (req.method === 'GET') return siteInfo();
+    if (req.method === 'PATCH') {
+      assert.deepEqual(req.body, { build_config: { web_analytics_tag: SITE, web_analytics_token: TOKEN } });
+      return envelope({ build_config: { web_analytics_tag: SITE, web_analytics_token: TOKEN } });
+    }
+    throw new Error(`${req.method} ${req.endpoint}`);
+  });
+  assert.deepEqual(repaired.calls.map((req) => req.method), ['GET', 'GET', 'PATCH']);
+  assert.equal(repaired.result.action, 'repaired');
+  assert.equal(repaired.result.site_tag, SITE);
+  assert.equal(repaired.result.before_site_tag, SITE);
+  assert.equal(repaired.result.host, 'www.example.com');
+  assert.equal(JSON.stringify(repaired.result).includes(TOKEN), false);
+  const same = await analytics('enable_web_analytics', {
+    account_id: ACCOUNT, project_name: PROJECT, site_tag: SITE,
+  }, (req) => {
+    if (req.method === 'GET' && req.endpoint.includes('/pages/projects/')) return project({ web_analytics_tag: SITE });
+    if (req.method === 'GET') return siteInfo();
+    if (req.method === 'PATCH') return envelope({ build_config: { web_analytics_tag: SITE, web_analytics_token: TOKEN } });
+    throw new Error(`${req.method} ${req.endpoint}`);
+  });
+  assert.equal(same.result.action, 'repaired');
+  assert.equal(same.calls.map((req) => req.method).includes('POST'), false);
+});
+
+test('enable_web_analytics refuses a different site when the project has a tag and no token', async () => {
+  const { result, calls } = await analytics('enable_web_analytics', {
+    account_id: ACCOUNT, project_name: PROJECT, site_tag: OTHER,
+  }, (req) => {
+    if (req.method !== 'GET') throw new Error(`write ${req.method}`);
+    return project({ web_analytics_tag: SITE });
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(result.status, 'invalid_arguments');
+  assert.equal(result.reason, 'project already sends to another Web Analytics site');
+  assert.equal(result.current_site_tag, SITE);
+});
+
+test('enable_web_analytics does not treat a patch as applied unless the token matches', async () => {
+  const { result, calls } = await analytics('enable_web_analytics', {
+    account_id: ACCOUNT, project_name: PROJECT, site_tag: SITE,
+  }, (req) => {
+    if (req.method === 'GET' && req.endpoint.includes('/pages/projects/')) return project();
+    if (req.method === 'GET') return siteInfo();
+    return envelope({ build_config: { web_analytics_tag: SITE, web_analytics_token: 'other-token' } });
+  });
+  assert.equal(result.status, 'vendor_error');
+  assert.equal(result.reason, 'analytics not applied');
+  assert.equal(Object.hasOwn(result, 'created_site_tag'), false);
+  assert.equal(calls.some((req) => req.method === 'PATCH'), true);
+  assert.equal(JSON.stringify(result).includes(TOKEN), false);
+  assert.equal(JSON.stringify(result).includes('other-token'), false);
+});
+
+function patchThrow(req) {
+  const err = new Error('refused');
+  err.object = { status: 'vendor_error', http_status: 403, endpoint: req.endpoint, method: 'PATCH' };
+  throw err;
+}
+
+test('enable_web_analytics reports success when a re-read shows the tag and token after a thrown PATCH', async () => {
+  let projectReads = 0;
+  const attached = await analytics('enable_web_analytics', {
+    account_id: ACCOUNT, project_name: PROJECT, site_tag: SITE,
+  }, (req) => {
+    if (req.method === 'GET' && req.endpoint.includes('/pages/projects/')) {
+      projectReads += 1;
+      if (projectReads === 1) return project({ build_command: 'astro build' });
+      return project({
+        web_analytics_tag: SITE,
+        web_analytics_token: TOKEN,
+        build_command: 'next build',
+      });
+    }
+    if (req.method === 'GET') return siteInfo();
+    return patchThrow(req);
+  });
+  assert.equal(projectReads, 2);
+  assert.equal(attached.result.action, 'attached');
+  assert.equal(attached.result.site_tag, SITE);
+  assert.equal(attached.result.before_site_tag, null);
+  assert.deepEqual(attached.result.collateral_changes, ['build_config.build_command']);
+  assert.equal(Object.hasOwn(attached.result, 'created_site_tag'), false);
+  assert.equal(JSON.stringify(attached.result).includes(TOKEN), false);
+  assert.equal(JSON.stringify(attached.result).includes('next build'), false);
+
+  let createdReads = 0;
+  const created = await analytics('enable_web_analytics', {
+    account_id: ACCOUNT, project_name: PROJECT,
+  }, (req) => {
+    if (req.method === 'GET') {
+      createdReads += 1;
+      if (createdReads === 1) return project({ build_command: 'astro build' });
+      return project({
+        web_analytics_tag: SITE,
+        web_analytics_token: TOKEN,
+        build_command: 'next build',
+      });
+    }
+    if (req.method === 'POST') return siteInfo();
+    return patchThrow(req);
+  });
+  assert.equal(createdReads, 2);
+  assert.equal(created.result.action, 'created');
+  assert.equal(created.result.site_tag, SITE);
+  assert.equal(created.result.host, 'wiser-site.pages.dev');
+  assert.deepEqual(created.result.collateral_changes, ['build_config.build_command']);
+  assert.equal(Object.hasOwn(created.result, 'created_site_tag'), false);
+  assert.equal(JSON.stringify(created.result).includes(TOKEN), false);
+});
+
+test('enable_web_analytics reports analytics outcome unknown when the re-read fails', async () => {
+  const projectEndpoint = `/accounts/${ACCOUNT}/pages/projects/${PROJECT}`;
+  let projectReads = 0;
+  const attached = await analytics('enable_web_analytics', {
+    account_id: ACCOUNT, project_name: PROJECT, site_tag: SITE,
+  }, (req) => {
+    if (req.method === 'GET' && req.endpoint.includes('/pages/projects/')) {
+      projectReads += 1;
+      if (projectReads === 1) return project();
+      const err = new Error('reread failed');
+      err.object = { status: 'vendor_error', http_status: 500, endpoint: req.endpoint, method: 'GET' };
+      throw err;
+    }
+    if (req.method === 'GET') return siteInfo();
+    return patchThrow(req);
+  });
+  assert.deepEqual(attached.result, {
+    status: 'vendor_error',
+    endpoint: projectEndpoint,
+    method: 'PATCH',
+    reason: 'analytics outcome unknown',
+    http_status: 403,
+  });
+  assert.equal(JSON.stringify(attached.result).includes(TOKEN), false);
+  assert.equal(JSON.stringify(attached.result).includes('not sending'), false);
+
+  let createdReads = 0;
+  const created = await analytics('enable_web_analytics', {
+    account_id: ACCOUNT, project_name: PROJECT,
+  }, (req) => {
+    if (req.method === 'GET') {
+      createdReads += 1;
+      if (createdReads === 1) return project();
+      return { status: 200, data: { success: false, result: null, errors: [], messages: [] }, headers: {} };
+    }
+    if (req.method === 'POST') return siteInfo();
+    return patchThrow(req);
+  });
+  assert.equal(createdReads, 2);
+  assert.deepEqual(created.result, {
+    status: 'vendor_error',
+    endpoint: projectEndpoint,
+    method: 'PATCH',
+    reason: 'analytics outcome unknown',
+    http_status: 403,
+    created_site_tag: SITE,
+  });
+  assert.equal(JSON.stringify(created.result).includes(TOKEN), false);
+  assert.equal(Object.hasOwn(created.result, 'collateral_changes'), false);
 });
