@@ -130,11 +130,19 @@ function decodeWrapped(text) {
 
 // RFC 2047 decoding for the UTF-8 B form: whitespace between adjacent encoded-words is not
 // part of the text. A value with no encoded-word is the text itself.
+// Each word is decoded alone, with strict base64 and fatal UTF-8, because RFC 2047 forbids a
+// character split across two words; joining bytes first would hide exactly that.
+const STRICT_UTF8 = new TextDecoder('utf-8', { fatal: true });
 function decodeSubject(value) {
   if (!value.includes('=?')) return value;
   const words = [...value.matchAll(/=\?UTF-8\?B\?([^?]*)\?=/g)];
   assert.equal(value.replace(/=\?UTF-8\?B\?[^?]*\?=/g, '').trim(), '', 'only encoded-words and whitespace');
-  return Buffer.concat(words.map((m) => Buffer.from(m[1], 'base64'))).toString('utf8');
+  return words.map((m) => {
+    assert.match(m[1], /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/, 'strict base64');
+    const bytes = Buffer.from(m[1], 'base64');
+    assert.equal(bytes.toString('base64'), m[1], 'canonical base64');
+    return STRICT_UTF8.decode(bytes);
+  }).join('');
 }
 
 function assertDraft(raw, { to, cc, bcc, subject, body, html }) {
@@ -145,7 +153,11 @@ function assertDraft(raw, { to, cc, bcc, subject, body, html }) {
   // Judged by the RFCs rather than by the module's own formula: every physical line within
   // RFC 5322's 998 characters, every encoded-word within RFC 2047's 75, and the unfolded
   // headers decoding back to exactly what was asked for.
-  for (const line of headerText.split('\r\n')) assert.ok(line.length <= 998, `header line of ${line.length}`);
+  for (const line of headerText.split('\r\n')) {
+    // RFC 5322 and RFC 6532 count octets; RFC 2047 caps a line holding an encoded-word at 76.
+    assert.ok(Buffer.byteLength(line, 'utf8') <= 998, `header line of ${Buffer.byteLength(line, 'utf8')} bytes`);
+    if (line.includes('=?')) assert.ok(line.length <= 76, `encoded-word line of ${line.length}`);
+  }
   for (const word of headerText.match(/=\?[^?]+\?[BbQq]\?[^?]*\?=/g) ?? []) assert.ok(word.length <= 75, `encoded-word of ${word.length}`);
   const headers = headerText.replace(/\r\n(?=[ \t])/g, '').split('\r\n');
   assert.equal(headers[0], `To: ${to.join(', ')}`);
@@ -470,7 +482,7 @@ test('gmail.create_draft saves a raw RFC 5322 message and does not send it', asy
 
   // A subject past one line, ASCII or not, is folded into encoded-words that each stay
   // within RFC 2047's limit and cut no character in half.
-  for (const subject of ['é'.repeat(24), 'x'.repeat(998), 'Résumé '.repeat(40).trim(), '😀'.repeat(30)]) {
+  for (const subject of ['é'.repeat(24), 'x'.repeat(998), 'Résumé '.repeat(40).trim(), '😀'.repeat(30), '=?UTF-8?B?SGVsbG8=?=', 'a'.repeat(69)]) {
     const long = { to: Array.from({ length: 50 }, (_, i) => `person${i}@example.com`), subject, body: 'Draft' };
     const at = requests.length;
     await confirmed(gw, requests, 'google.gmail.create_draft', long);
@@ -713,6 +725,21 @@ test('module rules refuse before any proxy call', async () => {
     [gmail, 'google.gmail.create_draft', {
       to: ['person @example.com'], subject: 'Hello', body: 'Draft',
     }, 'to'],
+    [gmail, 'google.gmail.create_draft', {
+      to: [`${'😀'.repeat(64)}@a`], subject: 'Hello', body: 'Draft',
+    }, 'to'],
+    [gmail, 'google.gmail.create_draft', {
+      to: ['person@example.com'], subject: '\ud800', body: 'Draft',
+    }, 'subject'],
+    [gmail, 'google.gmail.create_draft', {
+      to: ['person@example.com'], subject: 'Hello', body: 'Draft \udc00 end',
+    }, 'body'],
+    [docs, 'google.docs.edit', {
+      document_id: 'doc-example', operations: [{ op: 'insert_text', text: 'x\ud83d' }],
+    }, 'operations'],
+    [sheets, 'google.sheets.update_values', {
+      spreadsheet_id: 'sheet-example', range: RANGE, values: [['\udfff']],
+    }, 'values'],
     [calendar, 'google.calendar.create_event', {
       calendar_id: 'primary', summary: 'Example', start: '2026-09-20', end: '2026-09-21', attendees: ['nobody'],
     }, 'attendees'],

@@ -506,10 +506,15 @@ async function write_values(input, ctx, append) {
   });
 }
 
+// RFC 5321 bounds a path at 256 octets, so an address of 254 bytes in UTF-8 is the most a
+// mailbox can be; a character count alone admits four times that in emoji.
+const ADDRESS_BYTES = 254;
+
 function readAddresses(value, field, min, max) {
   if (!Array.isArray(value) || value.length < min || value.length > max) return invalidArguments(field);
   for (const item of value) {
-    if (typeof item !== 'string' || codePoints(item) > 320 || !ADDRESS.test(item)) return invalidArguments(field);
+    if (typeof item !== 'string' || codePoints(item) > ADDRESS_BYTES || !ADDRESS.test(item)) return invalidArguments(field);
+    if (Buffer.byteLength(item, 'utf8') > ADDRESS_BYTES) return invalidArguments(field);
   }
   return null;
 }
@@ -521,23 +526,27 @@ function wrapBase64(buf) {
   return lines.join('\r\n');
 }
 
-// RFC 2047 caps an encoded-word at 75 characters: `=?UTF-8?B?` and `?=` leave 63, so each
-// word carries at most 45 bytes (60 base64 characters), cut on a character boundary. Words
-// go on folded lines, so no header line passes RFC 5322's 78-character recommendation by
-// much, nor its 998-character limit at all.
+// RFC 2047 caps an encoded-word at 75 characters and any line holding one at 76. A word of
+// n bytes is 12 + 4 * ceil(n / 3) characters, so 45 bytes make 72, which fits a continuation
+// line after its one space, and the first word, after `Subject: `, takes 39 bytes, making
+// 64 and a line of 73. Each word is cut on a character boundary, so every word is valid UTF-8
+// alone, as RFC 2047 requires.
 const SUBJECT_PREFIX = 'Subject: ';
+const FIRST_WORD_BYTES = 39;
 const WORD_BYTES = 45;
 
 function subjectHeader(value) {
   const ascii = [...value].every((ch) => ch.codePointAt(0) >= 32 && ch.codePointAt(0) < 127);
-  if (ascii && SUBJECT_PREFIX.length + value.length <= 78) return `${SUBJECT_PREFIX}${value}`;
+  // Plain text that looks like an encoded-word would be decoded by a reader into other text.
+  if (ascii && !value.includes('=?') && SUBJECT_PREFIX.length + value.length <= 78) return `${SUBJECT_PREFIX}${value}`;
   if (value.length === 0) return SUBJECT_PREFIX.trimEnd();
   const words = [];
   let chunk = [];
   let bytes = 0;
   for (const ch of value) {
     const size = Buffer.byteLength(ch, 'utf8');
-    if (bytes + size > WORD_BYTES && chunk.length) {
+    const limit = words.length === 0 ? FIRST_WORD_BYTES : WORD_BYTES;
+    if (bytes + size > limit && chunk.length) {
       words.push(chunk.join(''));
       chunk = [];
       bytes = 0;
@@ -807,6 +816,27 @@ async function update_event(input, ctx) {
   });
 }
 
+// A lone surrogate is a JavaScript string that is not Unicode: UTF-8 encoding replaces it
+// with U+FFFD, so what Google saved would differ from what the person approved. Every write
+// refuses one, anywhere in its input, naming the top-level field that holds it.
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+
+function holdsLoneSurrogate(value, depth = 0) {
+  if (typeof value === 'string') return LONE_SURROGATE.test(value);
+  if (depth > 32 || !value || typeof value !== 'object') return false;
+  return Object.values(value).some((item) => holdsLoneSurrogate(item, depth + 1));
+}
+
+function wellFormed(action) {
+  return (input, ctx) => {
+    if (input && typeof input === 'object' && !Array.isArray(input)) {
+      const field = Object.keys(input).find((key) => holdsLoneSurrogate(input[key]));
+      if (field !== undefined) return invalidArguments(field);
+    }
+    return action(input, ctx);
+  };
+}
+
 export const modules = {
   'search-console': {
     query: searchConsole,
@@ -823,21 +853,21 @@ export const modules = {
   'drive': {
     find_file: catalogWith({ page_size: 'pageSize', page_token: 'pageToken' }),
     get_file: catalogWith({ file_id: 'fileId' }),
-    create_file,
-    upload_file,
-    rename_file,
-    move_file,
+    create_file: wellFormed(create_file),
+    upload_file: wellFormed(upload_file),
+    rename_file: wellFormed(rename_file),
+    move_file: wellFormed(move_file),
   },
   'calendar': {
     list_events: catalogWith({ calendar_id: 'calendarId', time_min: 'timeMin', time_max: 'timeMax', max_results: 'maxResults', page_token: 'pageToken' }),
     get_event: catalogWith({ calendar_id: 'calendarId', event_id: 'eventId' }),
-    create_event,
-    update_event,
+    create_event: wellFormed(create_event),
+    update_event: wellFormed(update_event),
   },
   'gmail': {
     list_messages: viaCatalog,
     get_message: viaCatalog,
-    create_draft,
+    create_draft: wellFormed(create_draft),
   },
   'sheets': {
     search: viaCatalog,
@@ -846,8 +876,8 @@ export const modules = {
       value_render_option: 'valueRenderOption',
       date_time_render_option: 'dateTimeRenderOption',
     }),
-    update_values: (input, ctx) => write_values(input, ctx, false),
-    append_values: (input, ctx) => write_values(input, ctx, true),
+    update_values: wellFormed((input, ctx) => write_values(input, ctx, false)),
+    append_values: wellFormed((input, ctx) => write_values(input, ctx, true)),
   },
   'docs': {
     search: viaCatalog,
@@ -855,8 +885,8 @@ export const modules = {
       document_id: 'id',
       include_tabs_content: 'includeTabsContent',
     }),
-    create: create_document,
-    edit: edit_document,
+    create: wellFormed(create_document),
+    edit: wellFormed(edit_document),
   },
   'slides': {
     get: catalogWith({
