@@ -64,7 +64,7 @@ Autonomous guardrails. Stop and notify a human when:
 
 Authority is the gate: anything under Needs human input pauses in both modes. Mode governs the rest, checkpoints and decision discussion. A guardrail stop sets Status to Paused and records the blocker. Mode is declared in the header and may change mid-execution; log the change as a decision.
 
-**Run in a loop.** A Playbook a standing goal runs unattended, one iteration after another, states three things a single session can leave implicit: what one iteration is, the rule that derives the next action (the first unticked task whose gate is open, for example), and the conditions that stop the run. Progress then carries that rule rather than a next-action sentence, which goes stale on the first tick. A restated entry point is not what such a run lacks.
+**Run in a loop.** A Playbook a standing goal runs unattended, one iteration after another, states three things a single session can leave implicit: what one iteration is, the rule that derives the next action (the first unticked task whose gate is open, for example), and the conditions that stop the run. Progress still names the one next action, the one that rule gives now, and carries the rule beside it, so an iteration that finds the sentence stale re-derives it rather than following it. A restated entry point is not what such a run lacks.
 
 ## Living Document
 
