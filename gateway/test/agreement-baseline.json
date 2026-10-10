@@ -1,10 +1,11 @@
 {
-  "note": "Known manifest-to-module divergences. This file may only shrink. The two filesystem-state rows for pages.d1_apply_migration and pages.deploy_with_functions were added 2026-10-07 with those actions, the same permanent class as pages.deploy. See test/agreement.test.js.",
-  "measured": "2026-10-07",
-  "count": 4,
+  "note": "Known manifest-to-module divergences. This file may only shrink. The two filesystem-state rows for pages.d1_apply_migration and pages.deploy_with_functions were added 2026-10-07 with those actions, and the row for pages.deploy_static on 2026-10-10 with that action, the same permanent class as pages.deploy. See test/agreement.test.js.",
+  "measured": "2026-10-10",
+  "count": 5,
   "divergences": [
     "A cloudflare pages.d1_apply_migration file",
     "A cloudflare pages.deploy dir",
+    "A cloudflare pages.deploy_static dir",
     "A cloudflare pages.deploy_with_functions dir",
     "A vercel deployments.upload_file path"
   ]

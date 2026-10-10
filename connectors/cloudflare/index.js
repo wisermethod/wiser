@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import {
-  closeSync, constants as fsConstants, fstatSync, lstatSync, openSync, readFileSync, readdirSync, realpathSync, statSync,
+  closeSync, constants as fsConstants, fstatSync, lstatSync, openSync, readFileSync, readSync, readdirSync, realpathSync, statSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, extname, isAbsolute, join, normalize, resolve, sep } from 'node:path';
@@ -246,7 +246,7 @@ function readScreened(resolved, id) {
   }
 }
 
-function walkPages(root, refused, kitRule = true, sourceHashes = null) {
+function walkPages(root, refused, kitRule = true, sourceHashes = null, staticSite = false) {
   const assets = [];
   const skipped = [];
   let headers = null;
@@ -275,6 +275,9 @@ function walkPages(root, refused, kitRule = true, sourceHashes = null) {
       }
       if (!kitRule) {
         const lower = entry.name.toLowerCase();
+        if (staticSite && isServerCode(entry, full)) {
+          return { error: invalid('dir', serverCodeReason(logical)) };
+        }
         if (FOREIGN_REFUSED.has(lower)) return { error: invalid('dir', `not build output: ${logical}`) };
         if (!atRoot && FOREIGN_SKIPPED.has(lower)) {
           skipped.push({ file: logical, reason: 'source file' });
@@ -284,6 +287,11 @@ function walkPages(root, refused, kitRule = true, sourceHashes = null) {
       if (entry.name === 'node_modules') {
         skipped.push({ file: logical, reason: 'skipped name' });
         continue;
+      }
+      // deploy_static only, and only below the root. This stands before the hidden
+      // skip so .git and .env refuse instead of being listed as hidden.
+      if (staticSite && !atRoot && isStaticWalkMarker(entry.name)) {
+        return { error: invalid('dir', `working folder: ${logical}`) };
       }
       if (entry.name.startsWith('.') && entry.name !== '.well-known') {
         skipped.push({ file: logical, reason: 'hidden' });
@@ -571,6 +579,36 @@ const FOREIGN_REFUSED = new Set(['_worker.js', '_worker.bundle', 'functions-file
 // Below dir's root, case-insensitive: source files, skipped and listed.
 const FOREIGN_SKIPPED = new Set(['package.json', 'package-lock.json', 'wrangler.toml', 'wrangler.json', 'wrangler.jsonc']);
 
+function serverCodeReason(logical) {
+  return `server code: ${logical}; use cloudflare.pages.deploy_with_functions`;
+}
+
+// A file of those three names, or a directory named functions. A directory that
+// merely wears a file's name is not server code; screenNotBuildOutput still
+// refuses that name at the root of a static deploy.
+function isServerCode(entry, full) {
+  const lower = entry.name.toLowerCase();
+  const directory = entry.isDirectory() || isDirectoryPath(full);
+  if (lower === 'functions' && directory) return true;
+  return FOREIGN_REFUSED.has(lower) && !directory;
+}
+
+// zArchive is the archive folder standards/conventions.md puts beside a file
+// being replaced, so build output never holds one; the site kit moves one out
+// of public/ for that reason. Its presence means a working folder.
+function isStaticWalkMarker(name) {
+  const lower = name.toLowerCase();
+  return lower === 'agents.md' || lower === 'claude.md' || lower === '.git' || lower === '.env' || lower.startsWith('.env.')
+    || lower === 'zarchive';
+}
+
+function isRootWorkingMarker(entry, root) {
+  if (isStaticWalkMarker(entry.name)) return true;
+  if (entry.name.toLowerCase() !== 'memory') return false;
+  const full = join(root, entry.name);
+  return entry.isDirectory() || isDirectoryPath(full);
+}
+
 // A path whose spelling holds `.` or `..` or an empty segment is refused rather
 // than normalized: `/tmp/../x` normalizes to `/x`, while the filesystem follows
 // the /tmp link first, so the approved spelling and the file read would differ.
@@ -720,6 +758,142 @@ function screenNotBuildOutput(root) {
     if (names.has(name)) return invalid('dir', `not build output: ${name}`);
   }
   return null;
+}
+
+// The same predicate deploy_with_functions applies: a parent kit.json of any
+// type, a directory inside some ancestor's dist when that ancestor holds a
+// regular kit.json, or a directory named dist whose parent is named site.
+function kitPayloadError(resolved) {
+  let kitMarker = null;
+  try {
+    kitMarker = lstatSync(join(dirname(resolved), 'kit.json'));
+  } catch { /* none */ }
+  let insideKit = false;
+  for (let above = dirname(resolved); ; above = dirname(above)) {
+    let marker = null;
+    try {
+      marker = lstatSync(join(above, 'kit.json'));
+    } catch { /* none */ }
+    if (marker && marker.isFile() && isInside(resolved, join(above, 'dist'))) insideKit = true;
+    if (dirname(above) === above) break;
+  }
+  if (kitMarker || insideKit || (basename(resolved) === 'dist' && basename(dirname(resolved)) === 'site')) {
+    return invalid('dir', 'kit payload: use cloudflare.pages.deploy');
+  }
+  return null;
+}
+
+// A declared root holds AGENTS.md as a regular file, not a link, whose text
+// opens with a YAML frontmatter block inside the first 64 KiB: a first line
+// ---, a later line ---, and a line between them matching root: or type:.
+const DECLARED_ROOT_SCAN = 64 * 1024;
+const DECLARED_ROOT_KEY = /^(root|type)\s*:/;
+
+function readAgentsHead(dir) {
+  const full = join(dir, 'AGENTS.md');
+  let linked;
+  try {
+    linked = lstatSync(full);
+  } catch (err) {
+    if (err && err.code === 'ENOENT') return { absent: true };
+    return { error: invalid('dir', 'working folder: unreadable AGENTS.md') };
+  }
+  if (linked.isSymbolicLink()) return { absent: true };
+  if (!linked.isFile()) return { error: invalid('dir', 'working folder: unreadable AGENTS.md') };
+  let fd;
+  try {
+    fd = openSync(full, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW || 0));
+  } catch {
+    return { error: invalid('dir', 'working folder: unreadable AGENTS.md') };
+  }
+  try {
+    const size = fstatSync(fd).size;
+    const length = Math.min(size, DECLARED_ROOT_SCAN);
+    const buf = Buffer.alloc(length);
+    let offset = 0;
+    while (offset < length) {
+      const n = readSync(fd, buf, offset, length - offset, null);
+      if (n <= 0) break;
+      offset += n;
+    }
+    return { text: buf.subarray(0, offset).toString('utf8'), truncated: size > DECLARED_ROOT_SCAN };
+  } catch {
+    return { error: invalid('dir', 'working folder: unreadable AGENTS.md') };
+  } finally {
+    closeSync(fd);
+  }
+}
+
+function frontmatterDeclaresRoot(text, truncated) {
+  let body = text;
+  if (truncated && !body.endsWith('\n')) {
+    const cut = body.lastIndexOf('\n');
+    if (cut < 0) return false;
+    body = body.slice(0, cut + 1);
+  }
+  const lines = body.split('\n');
+  if ((lines[0] || '').replace(/\r$/, '') !== '---') return false;
+  let keyed = false;
+  for (let i = 1; i < lines.length; i += 1) {
+    const line = lines[i].replace(/\r$/, '');
+    if (line === '---') return keyed;
+    if (DECLARED_ROOT_KEY.test(line)) keyed = true;
+  }
+  return false;
+}
+
+function declaredRootAt(dir) {
+  const head = readAgentsHead(dir);
+  if (head.error) return head;
+  if (head.absent) return { declared: false };
+  return { declared: frontmatterDeclaresRoot(head.text, head.truncated) };
+}
+
+// dir itself, then its parent. Higher ancestors are not examined, so a build
+// output deeper inside a root is accepted.
+function screenDeclaredRoots(resolved) {
+  const self = declaredRootAt(resolved);
+  if (self.error) return self.error;
+  if (self.declared) return invalid('dir', 'working folder: dir is a declared root');
+  const parent = dirname(resolved);
+  if (parent === resolved) return null;
+  const above = declaredRootAt(parent);
+  if (above.error) return above.error;
+  if (above.declared) return invalid('dir', 'working folder: dir is at the top level of a declared root');
+  return null;
+}
+
+function rootMarkerError(entries, root) {
+  for (const entry of entries) {
+    if (!isRootWorkingMarker(entry, root)) continue;
+    return invalid('dir', `working folder: ${entry.name}`);
+  }
+  return null;
+}
+
+function serverCodeAt(entries, root) {
+  for (const entry of entries) {
+    const full = join(root, entry.name);
+    if (!isServerCode(entry, full)) continue;
+    return invalid('dir', serverCodeReason(entry.name));
+  }
+  return null;
+}
+
+// Markers, then server code, then the build-output names screenNotBuildOutput
+// still owns. A root _worker.js is server code, not "not build output".
+function screenStaticRoot(root) {
+  let entries;
+  try {
+    entries = readdirSync(root, { withFileTypes: true });
+  } catch {
+    return invalid('dir', 'unreadable');
+  }
+  const marker = rootMarkerError(entries, root);
+  if (marker) return marker;
+  const server = serverCodeAt(entries, root);
+  if (server) return server;
+  return screenNotBuildOutput(root);
 }
 
 function oversizeAssetError(assets) {
@@ -1790,6 +1964,133 @@ async function finishBulk(ctx, accountId, posted, endpoint, method) {
   return { success: true, operation_id: operationId, operation };
 }
 
+function redactSecrets(value, secrets) {
+  let out = value;
+  for (const secret of secrets) {
+    if (typeof secret === 'string' && secret.length > 0) out = redact(out, secret);
+  }
+  return out;
+}
+
+function analyticsSecrets(row) {
+  const item = asObject(row) || {};
+  const secrets = [];
+  if (typeof item.site_token === 'string') secrets.push(item.site_token);
+  if (typeof item.web_analytics_token === 'string') secrets.push(item.web_analytics_token);
+  if (typeof item.snippet === 'string') secrets.push(item.snippet);
+  return secrets;
+}
+
+// Cloudflare's schema puts rules on the site; ruleset.rules is read as well in
+// case an answer nests them there.
+function ruleHosts(...lists) {
+  const rules = lists.filter(Array.isArray).flat();
+  const seen = new Set();
+  const hosts = [];
+  for (const rule of rules) {
+    const row = asObject(rule);
+    if (!row || typeof row.host !== 'string' || seen.has(row.host)) continue;
+    seen.add(row.host);
+    hosts.push(row.host);
+  }
+  return hosts;
+}
+
+function analyticsSiteView(item) {
+  const row = asObject(item) || {};
+  const ruleset = asObject(row.ruleset);
+  const zoneFromRuleset = ruleset && ruleset.zone_tag != null ? ruleset.zone_tag : null;
+  return {
+    site_tag: row.site_tag == null ? null : row.site_tag,
+    host: typeof row.host === 'string' ? row.host : null,
+    auto_install: row.auto_install == null ? null : row.auto_install,
+    enabled: ruleset && ruleset.enabled != null ? ruleset.enabled : null,
+    zone_tag: zoneFromRuleset != null ? zoneFromRuleset : (row.zone_tag == null ? null : row.zone_tag),
+    zone_name: ruleset && ruleset.zone_name != null ? ruleset.zone_name : null,
+    rule_hosts: ruleHosts(row.rules, ruleset && ruleset.rules),
+    created: row.created == null ? null : row.created,
+  };
+}
+
+// build_config keys other than the two analytics keys, plus deployment_configs
+// when the whole value differs. deepEqual is the module's deep comparison.
+// Names only.
+function analyticsCollateral(beforeResult, afterResult) {
+  const before = asObject(beforeResult) || {};
+  const after = asObject(afterResult) || {};
+  const names = [];
+  const beforeBuild = asObject(before.build_config) || {};
+  const afterBuild = asObject(after.build_config) || {};
+  const keys = new Set([...Object.keys(beforeBuild), ...Object.keys(afterBuild)]);
+  for (const key of keys) {
+    if (key === 'web_analytics_tag' || key === 'web_analytics_token') continue;
+    if (!deepEqual(beforeBuild[key], afterBuild[key])) names.push(`build_config.${key}`);
+  }
+  if (!deepEqual(before.deployment_configs, after.deployment_configs)) names.push('deployment_configs');
+  names.sort();
+  return names;
+}
+
+function rumCollectionEndpoint(accountId) {
+  return `/accounts/${encodeURIComponent(accountId)}/rum/site_info`;
+}
+
+function rumSiteEndpoint(accountId, siteTag) {
+  return `${rumCollectionEndpoint(accountId)}/${encodeURIComponent(siteTag)}`;
+}
+
+function rumListEndpoint(accountId, page) {
+  return `${rumCollectionEndpoint(accountId)}/list?page=${page}&per_page=100`;
+}
+
+function pagesProjectsEndpoint(accountId, page) {
+  return `/accounts/${encodeURIComponent(accountId)}/pages/projects?page=${page}&per_page=10`;
+}
+
+// Follow result_info.total_pages while it is a number past the page just read,
+// and stop after 50 pages. With no numeric total_pages, the first page is the
+// last. catchErrors turns a thrown proxy failure into vendor_error; list lets
+// it propagate.
+async function readResultPages(ctx, endpointFor, catchErrors) {
+  const items = [];
+  for (let page = 1; page <= 50; page += 1) {
+    const endpoint = endpointFor(page);
+    let data;
+    try {
+      data = await proxyData(ctx, { endpoint, method: 'GET' });
+    } catch (err) {
+      if (!catchErrors) throw err;
+      return { error: vendorError(endpoint, 'GET') };
+    }
+    if (!envelopeOk(data) || !Array.isArray(data.result)) return { error: vendorError(endpoint, 'GET') };
+    items.push(...data.result);
+    const info = asObject(data.result_info);
+    const total = info && info.total_pages;
+    if (typeof total !== 'number' || !(total > page)) break;
+  }
+  return { items };
+}
+
+function optionalSiteTag(input) {
+  if (!input || !Object.hasOwn(input, 'site_tag')) return { tag: null };
+  if (typeof input.site_tag !== 'string' || !ACCOUNT_ID.test(input.site_tag)) return { error: invalid('site_tag') };
+  return { tag: input.site_tag };
+}
+
+function pagesUsingAnalyticsSite(items, siteTag) {
+  const projects = [];
+  let inUse = false;
+  for (const item of items) {
+    const row = asObject(item);
+    if (!row) continue;
+    const build = asObject(row.build_config);
+    if (!build || build.web_analytics_tag !== siteTag) continue;
+    inUse = true;
+    if (typeof row.name === 'string') projects.push(row.name);
+  }
+  return inUse ? projects : null;
+}
+
 function pagesDomainEndpoint(input, domain) {
   const tail = domain ? `domains/${encodeURIComponent(input.domain)}` : 'domains';
   return accountPath(input.account_id, input.project_name, tail);
@@ -2337,22 +2638,8 @@ export const modules = {
       if (root.error) return root.error;
       // A kit payload goes through pages.deploy, whose screens and gate are the
       // kit's; this action never carries a Function onto a kit site.
-      let kitMarker = null;
-      try {
-        kitMarker = lstatSync(join(dirname(root.resolved), 'kit.json'));
-      } catch { /* none */ }
-      let insideKit = false;
-      for (let above = dirname(root.resolved); ; above = dirname(above)) {
-        let marker = null;
-        try {
-          marker = lstatSync(join(above, 'kit.json'));
-        } catch { /* none */ }
-        if (marker && marker.isFile() && isInside(root.resolved, join(above, 'dist'))) insideKit = true;
-        if (dirname(above) === above) break;
-      }
-      if (kitMarker || insideKit || (basename(root.resolved) === 'dist' && basename(dirname(root.resolved)) === 'site')) {
-        return invalid('dir', 'kit payload: use cloudflare.pages.deploy');
-      }
+      const kit = kitPayloadError(root.resolved);
+      if (kit) return kit;
       const blocked = screenNotBuildOutput(root.resolved);
       if (blocked) return blocked;
       const buildRoot = screenAbsoluteDir(input.functions_build, 'functions_build', refused);
@@ -2489,6 +2776,225 @@ export const modules = {
           build: buildProvenance,
         },
       }, jwt);
+    },
+    async deploy_static(input, ctx) {
+      if (!accountIdOk(input && input.account_id)) return invalid('account_id');
+      if (!projectNameOk(input && input.project_name)) return invalid('project_name');
+      if (!requiredString(input && input.dir)) return invalid('dir');
+      const refused = refusedSet();
+      const root = screenAbsoluteDir(input.dir, 'dir', refused);
+      if (root.error) return root.error;
+      const kit = kitPayloadError(root.resolved);
+      if (kit) return kit;
+      const declared = screenDeclaredRoots(root.resolved);
+      if (declared) return declared;
+      const blocked = screenStaticRoot(root.resolved);
+      if (blocked) return blocked;
+      const walked = walkPages(root.resolved, refused, false, null, true);
+      if (walked.error) return walked.error;
+      if (walked.assets.length === 0) {
+        return { status: 'invalid_arguments', field: 'dir', reason: 'no uploadable files', skipped: walked.skipped };
+      }
+      const oversize = oversizeAssetError(walked.assets);
+      if (oversize) return oversize;
+      const manifest = manifestFor(walked.assets);
+      const form = buildMultipart(deploymentParts(manifest, walked.headers, walked.redirects));
+      const encoded = base64Length(form.body.length);
+      if (encoded > MAX_UPLOAD_BYTES) {
+        return {
+          status: 'invalid_arguments',
+          field: 'dir',
+          reason: 'deployment request over the 3 MiB limit',
+          bytes: encoded,
+          fallback: 'Deploy with Wrangler: wrangler pages deploy',
+        };
+      }
+      const tokenEndpoint = accountPath(input.account_id, input.project_name, 'upload-token');
+      const tokenData = await proxyData(ctx, { endpoint: tokenEndpoint, method: 'GET' });
+      const jwt = readJwt(tokenData);
+      if (!jwt) return vendorError(tokenEndpoint, 'GET');
+      const sent = await uploadMissingAssets(ctx, jwt, walked.assets);
+      if (sent.error) return sent.error;
+      const changed = rereadDeployFiles(walked.assets, walked.headers, walked.redirects);
+      if (changed) return changed;
+      const upserted = await assetCall(ctx, jwt, '/pages/assets/upsert-hashes', { hashes: sent.allHashes });
+      if (!envelopeOk(upserted)) return vendorError('/pages/assets/upsert-hashes', 'POST');
+      const deploymentsEndpoint = accountPath(input.account_id, input.project_name, 'deployments');
+      const posted = await postDeployment(ctx, deploymentsEndpoint, form);
+      if (posted.error) return posted.error;
+      return redact({
+        deployment: posted.deployment,
+        dir: root.resolved,
+        files: walked.assets.length,
+        uploaded: sent.uploaded,
+        already_present: sent.alreadyPresent,
+        manifest: Object.keys(manifest),
+        skipped: walked.skipped,
+      }, jwt);
+    },
+    async list_web_analytics_sites(input, ctx) {
+      if (!accountIdOk(input && input.account_id)) return invalid('account_id');
+      const read = await readResultPages(ctx, (page) => rumListEndpoint(input.account_id, page), false);
+      if (read.error) return read.error;
+      const result = read.items.map(analyticsSiteView);
+      return {
+        success: true,
+        errors: [],
+        messages: [],
+        result,
+        result_info: { count: result.length, total_count: result.length },
+      };
+    },
+    async enable_web_analytics(input, ctx) {
+      if (!accountIdOk(input && input.account_id)) return invalid('account_id');
+      if (!projectNameOk(input && input.project_name)) return invalid('project_name');
+      const chosen = optionalSiteTag(input);
+      if (chosen.error) return chosen.error;
+      const endpoint = accountPath(input.account_id, input.project_name);
+      const project = await proxyData(ctx, { endpoint, method: 'GET' });
+      if (!envelopeOk(project) || !asObject(project.result)) return vendorError(endpoint, 'GET');
+      const beforeBuild = asObject(project.result.build_config);
+      const current = beforeBuild && beforeBuild.web_analytics_tag;
+      const before = typeof current === 'string' && current.length > 0 ? current : null;
+      if (before) {
+        if (chosen.tag == null || chosen.tag === before) {
+          return {
+            project_name: input.project_name,
+            site_tag: before,
+            action: 'already_on',
+            host: null,
+            before_site_tag: before,
+            applies_from: 'next deployment',
+            collateral_changes: [],
+          };
+        }
+        return {
+          status: 'invalid_arguments',
+          field: 'site_tag',
+          reason: 'project already sends to another Web Analytics site',
+          current_site_tag: before,
+        };
+      }
+      const secrets = [];
+      let tag;
+      let token;
+      let host;
+      let action;
+      let createdSiteTag = null;
+      if (chosen.tag) {
+        const siteEndpoint = rumSiteEndpoint(input.account_id, chosen.tag);
+        let site;
+        try {
+          site = await proxyData(ctx, { endpoint: siteEndpoint, method: 'GET' });
+        } catch (err) {
+          if (vendorSignal(err, 404)) return invalid('site_tag', 'no such Web Analytics site');
+          throw err;
+        }
+        const row = asObject(site && site.result);
+        if (!envelopeOk(site) || !row || row.site_tag !== chosen.tag || typeof row.site_token !== 'string' || row.site_token.length === 0) {
+          return vendorError(siteEndpoint, 'GET');
+        }
+        tag = chosen.tag;
+        token = row.site_token;
+        host = typeof row.host === 'string' ? row.host : null;
+        action = 'attached';
+        secrets.push(...analyticsSecrets(row));
+      } else {
+        const subdomain = project.result.subdomain;
+        if (typeof subdomain !== 'string' || !subdomain.endsWith('.pages.dev')) return vendorError(endpoint, 'GET');
+        const createEndpoint = rumCollectionEndpoint(input.account_id);
+        const created = await proxyData(ctx, {
+          endpoint: createEndpoint,
+          method: 'POST',
+          body: { host: subdomain, auto_install: false },
+        });
+        const row = asObject(created && created.result);
+        if (!envelopeOk(created) || !row || typeof row.site_tag !== 'string' || row.site_tag.length === 0
+          || typeof row.site_token !== 'string' || row.site_token.length === 0) {
+          return vendorError(createEndpoint, 'POST');
+        }
+        tag = row.site_tag;
+        token = row.site_token;
+        host = subdomain;
+        action = 'created';
+        createdSiteTag = row.site_tag;
+        secrets.push(...analyticsSecrets(row));
+      }
+      let patched;
+      try {
+        patched = await proxyData(ctx, {
+          endpoint,
+          method: 'PATCH',
+          body: { build_config: { web_analytics_tag: tag, web_analytics_token: token } },
+        });
+      } catch (err) {
+        // A site this call created must not be lost when the PATCH is refused:
+        // the caller needs its tag to remove it.
+        if (!createdSiteTag) throw err;
+        const signal = err && typeof err === 'object' ? err.object : null;
+        return redactSecrets({
+          status: 'vendor_error',
+          endpoint,
+          method: 'PATCH',
+          http_status: signal && Number.isInteger(signal.http_status) ? signal.http_status : null,
+          reason: 'analytics not applied',
+          collateral_changes: [],
+          created_site_tag: createdSiteTag,
+        }, secrets);
+      }
+      const after = asObject(patched && patched.result);
+      const afterBuild = after && asObject(after.build_config);
+      const collateral = analyticsCollateral(project.result, after || {});
+      const applied = Boolean(envelopeOk(patched) && afterBuild && afterBuild.web_analytics_tag === tag);
+      const finish = (value) => redactSecrets(value, secrets);
+      if (!applied) {
+        const failure = {
+          status: 'vendor_error',
+          endpoint,
+          method: 'PATCH',
+          reason: 'analytics not applied',
+          collateral_changes: collateral,
+        };
+        if (createdSiteTag) failure.created_site_tag = createdSiteTag;
+        return finish(failure);
+      }
+      return finish({
+        project_name: input.project_name,
+        site_tag: tag,
+        action,
+        host,
+        before_site_tag: before,
+        applies_from: 'next deployment',
+        collateral_changes: collateral,
+      });
+    },
+    async delete_web_analytics_site(input, ctx) {
+      if (!accountIdOk(input && input.account_id)) return invalid('account_id');
+      if (!accountIdOk(input && input.site_tag)) return invalid('site_tag');
+      const endpoint = rumSiteEndpoint(input.account_id, input.site_tag);
+      let site;
+      try {
+        site = await proxyData(ctx, { endpoint, method: 'GET' });
+      } catch (err) {
+        if (vendorSignal(err, 404)) return invalid('site_tag', 'no such Web Analytics site');
+        throw err;
+      }
+      if (!envelopeOk(site) || !asObject(site.result)) return vendorError(endpoint, 'GET');
+      const viewed = analyticsSiteView(site.result);
+      const listed = await readResultPages(ctx, (page) => pagesProjectsEndpoint(input.account_id, page), true);
+      if (listed.error) return listed.error;
+      const projects = pagesUsingAnalyticsSite(listed.items, input.site_tag);
+      if (projects) {
+        return { status: 'invalid_arguments', field: 'site_tag', reason: 'in use by a Pages project', projects };
+      }
+      const removed = await proxyData(ctx, { endpoint, method: 'DELETE' });
+      if (!envelopeOk(removed)) return vendorError(endpoint, 'DELETE');
+      return redactSecrets({
+        success: true,
+        deleted: input.site_tag,
+        host: viewed.host,
+        zone_name: viewed.zone_name,
+      }, analyticsSecrets(site.result));
     },
     async d1_list_databases(input, ctx) {
       if (!accountIdOk(input && input.account_id)) return invalid('account_id');

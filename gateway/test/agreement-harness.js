@@ -49,6 +49,9 @@
  *   are filesystem-state rows of the same permanent class**, added 2026-10-07 with their actions.
  *   `d1_apply_migration` needs a real `.sql` file. `deploy_with_functions` needs a static directory
  *   and a functions build directory holding a valid minimal bundle. No schema can publish that.
+ * - **`cloudflare pages.deploy_static` `dir` is a filesystem-state row of the same permanent class**,
+ *   added 2026-10-10 with the action. It needs a real static directory that is no kit payload, no
+ *   declared root and no working folder, and it reuses the `deploy_with_functions` static fixture.
  *
  * And one that changed shape when the validator moved into the gateway, stated because a
  * reader could otherwise take direction B for more than it is. **For a constraint the gateway
@@ -195,6 +198,7 @@ const FIXTURES = {
   'cloudflare:pages.deploy': () => ({ dir: FIXTURE_DIST }),
   'cloudflare:pages.d1_apply_migration': () => ({ file: FIXTURE_MIGRATION }),
   'cloudflare:pages.deploy_with_functions': () => ({ dir: FIXTURE_STATIC, functions_build: FIXTURE_FUNCTIONS_BUILD }),
+  'cloudflare:pages.deploy_static': () => ({ dir: FIXTURE_STATIC }),
 };
 
 function sampleString(s) {
