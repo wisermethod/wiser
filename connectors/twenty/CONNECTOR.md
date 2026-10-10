@@ -3,7 +3,7 @@ name: twenty
 type: connector
 category: crm
 description: Reads and creates records, objects, fields and select options in one Twenty workspace, confirming every write
-version: 0.1.1
+version: 0.1.2
 ---
 
 # Twenty
@@ -60,7 +60,7 @@ twenty.metadata.add_field_options    { fieldId, options }             confirmati
 
 `twenty.metadata.create_field` sends `createOneField`. `type` is `TEXT`, `NUMBER`, `BOOLEAN`, `DATE`, `DATE_TIME`, `SELECT` or `MULTI_SELECT`. `options` is required for `SELECT` and `MULTI_SELECT` and refused for every other type. Each list is 1 to 50 items. A label is 1 to 63 code points and contains no comma. A `value` matches `^(?!.*__)[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$`, is at most 63 characters, and is unique within the list. `color` is one of `red`, `ruby`, `crimson`, `tomato`, `orange`, `amber`, `yellow`, `lime`, `grass`, `green`, `jade`, `mint`, `turquoise`, `cyan`, `sky`, `blue`, `iris`, `violet`, `purple`, `plum`, `pink`, `bronze`, `gold`, `brown`, `gray`. The module sets `position` from the order.
 
-`twenty.metadata.add_field_options` reads the field with `field(id:)`, then appends, positions continuing above the highest existing one. It reads and then writes the whole list, and Twenty has no conditional update, so no one else may change that field's options while it runs: an option added by another caller in between is lost. It refuses a type other than `SELECT` or `MULTI_SELECT`, a `value` or a label already on the field, and a combined list that would pass 100 options. Those three are read from the field, so the schema cannot state them. It then sends the existing options unchanged and in order, followed by the new ones, with positions continuing from the number of options already there. It does not remove, rename or reorder an option.
+`twenty.metadata.add_field_options` reads the field with `field(id:)`, then appends, positions continuing above the highest existing one. It reads and then writes the whole list, and Twenty has no conditional update, so no one else may change that field's options while it runs: an option added by another caller in between is lost. It refuses a type other than `SELECT` or `MULTI_SELECT`, a `value` or a label already on the field, and a combined list that would pass 100 options. Those three are read from the field, so the schema cannot state them. It then sends the existing options unchanged and in order, followed by the new ones. It does not remove, rename or reorder an option.
 
 A label Twenty counts in UTF-16 units can pass the code-point bound here and still be refused by Twenty. A label in emoji is the case.
 
