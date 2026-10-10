@@ -487,6 +487,8 @@ function valueOption(input) {
 async function write_values(input, ctx, append) {
   const range = stringBound(input.range, 'range', 500, 1);
   if (range) return range;
+  // encodeURIComponent leaves `.` and `..` as they are, and a URL parser resolves them.
+  if (input.range === '.' || input.range === '..') return invalidArguments('range');
   const values = readValues(input.values);
   if (values) return values;
   const option = valueOption(input);
@@ -519,16 +521,44 @@ function wrapBase64(buf) {
   return lines.join('\r\n');
 }
 
-function encodeSubject(value) {
-  if ([...value].every((ch) => ch.codePointAt(0) < 128)) return value;
-  return `=?UTF-8?B?${Buffer.from(value, 'utf8').toString('base64')}?=`;
+// RFC 2047 caps an encoded-word at 75 characters: `=?UTF-8?B?` and `?=` leave 63, so each
+// word carries at most 45 bytes (60 base64 characters), cut on a character boundary. Words
+// go on folded lines, so no header line passes RFC 5322's 78-character recommendation by
+// much, nor its 998-character limit at all.
+const SUBJECT_PREFIX = 'Subject: ';
+const WORD_BYTES = 45;
+
+function subjectHeader(value) {
+  const ascii = [...value].every((ch) => ch.codePointAt(0) >= 32 && ch.codePointAt(0) < 127);
+  if (ascii && SUBJECT_PREFIX.length + value.length <= 78) return `${SUBJECT_PREFIX}${value}`;
+  if (value.length === 0) return SUBJECT_PREFIX.trimEnd();
+  const words = [];
+  let chunk = [];
+  let bytes = 0;
+  for (const ch of value) {
+    const size = Buffer.byteLength(ch, 'utf8');
+    if (bytes + size > WORD_BYTES && chunk.length) {
+      words.push(chunk.join(''));
+      chunk = [];
+      bytes = 0;
+    }
+    chunk.push(ch);
+    bytes += size;
+  }
+  if (chunk.length) words.push(chunk.join(''));
+  const encoded = words.map((word) => `=?UTF-8?B?${Buffer.from(word, 'utf8').toString('base64')}?=`);
+  return `${SUBJECT_PREFIX}${encoded.join('\r\n ')}`;
+}
+
+function addressHeader(name, list) {
+  return `${name}: ${list.join(',\r\n ')}`;
 }
 
 function draftRaw(input) {
-  const headers = [`To: ${input.to.join(', ')}`];
-  if (Array.isArray(input.cc) && input.cc.length) headers.push(`Cc: ${input.cc.join(', ')}`);
-  if (Array.isArray(input.bcc) && input.bcc.length) headers.push(`Bcc: ${input.bcc.join(', ')}`);
-  headers.push(`Subject: ${encodeSubject(input.subject)}`);
+  const headers = [addressHeader('To', input.to)];
+  if (Array.isArray(input.cc) && input.cc.length) headers.push(addressHeader('Cc', input.cc));
+  if (Array.isArray(input.bcc) && input.bcc.length) headers.push(addressHeader('Bcc', input.bcc));
+  headers.push(subjectHeader(input.subject));
   headers.push('MIME-Version: 1.0');
   let body;
   if (Object.hasOwn(input, 'body_html')) {
@@ -624,6 +654,9 @@ function parseWhen(value) {
 }
 
 function validZone(value) {
+  // Google wants an IANA name. Newer Intl also accepts a bare offset such as `+01:00`,
+  // which Google does not, so a value that does not start with a letter is refused first.
+  if (!/^[A-Za-z]/.test(value)) return false;
   try {
     Intl.DateTimeFormat('en-US', { timeZone: value });
     return true;
@@ -754,6 +787,14 @@ async function update_event(input, ctx) {
     const one = readOneWhen(input.end, 'end', zone.timeZone);
     if (one.error) return one.error;
     span.end = one.value;
+  }
+  // Calendar merges a patch into the event's nested start and end, so moving an all-day
+  // event to a time, or back, has to clear the representation it leaves.
+  for (const key of ['start', 'end']) {
+    if (!span[key]) continue;
+    span[key] = Object.hasOwn(span[key], 'date')
+      ? { ...span[key], dateTime: null, timeZone: null }
+      : { ...span[key], date: null };
   }
   const updates = sendUpdates(input);
   if (isStatusObject(updates)) return updates;

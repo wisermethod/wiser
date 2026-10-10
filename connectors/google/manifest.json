@@ -620,7 +620,7 @@
           }
         },
         "create_event": {
-          "description": "Creates a calendar event and emails guests only when notify_guests is true. start and end are each a YYYY-MM-DD date or an RFC 3339 date-time; given together they must be the same kind, and an all-day end is exclusive. A date-time with no offset needs an IANA time_zone, and time_zone is accepted only with start or end. Google, not this connector, refuses an end that is not after start. notify_guests defaults to false and is sent as sendUpdates all or none, and calendar_id refuses a dot, a double dot and any slash.",
+          "description": "Creates a calendar event, asking Google to email guests only when notify_guests is true. start and end are each a YYYY-MM-DD date or an RFC 3339 date-time; given together they must be the same kind, and an all-day end is exclusive. A date-time with no offset needs an IANA time_zone such as America/Denver, never a bare offset, and time_zone is accepted only with start or end. Google, not this connector, refuses an end that is not after start. notify_guests defaults to false and is sent as sendUpdates all or none; none asks Google not to email guests, which Google does not fully promise, and Google warns that guests outside Google Calendar may then not receive the event. calendar_id refuses a dot, a double dot and any slash.",
           "risk": "medium",
           "confirmation": "always",
           "execution": {
@@ -684,7 +684,7 @@
           }
         },
         "update_event": {
-          "description": "Patches only the given fields of a calendar event, and replaces the attendee list when attendees is sent. At least one of summary, description, location, start, end and attendees is required. start and end are each a YYYY-MM-DD date or an RFC 3339 date-time; given together they must be the same kind, and an all-day end is exclusive. A date-time with no offset needs an IANA time_zone, and time_zone is accepted only with start or end. Google, not this connector, refuses an end that is not after start. notify_guests defaults to false and is sent as sendUpdates all or none, and calendar_id refuses a dot, a double dot and any slash.",
+          "description": "Patches only the given fields of a calendar event, replaces the attendee list when attendees is sent, and clears the date or date-time a changed start or end leaves behind. At least one of summary, description, location, start, end and attendees is required. start and end are each a YYYY-MM-DD date or an RFC 3339 date-time; given together they must be the same kind, and an all-day end is exclusive. A date-time with no offset needs an IANA time_zone such as America/Denver, never a bare offset, and time_zone is accepted only with start or end. Google, not this connector, refuses an end that is not after start. notify_guests defaults to false and is sent as sendUpdates all or none; none asks Google not to email guests, which Google does not fully promise, and Google warns that guests outside Google Calendar may then not receive the event. calendar_id refuses a dot, a double dot and any slash.",
           "risk": "high",
           "confirmation": "always",
           "execution": {
@@ -865,7 +865,7 @@
           }
         },
         "create_draft": {
-          "description": "Saves a message in Gmail Drafts and does not send it. An address is at most 320 characters with exactly one @, text on both sides and no whitespace, a carriage return, line feed or NUL in the subject is refused, a non-ASCII subject is encoded as RFC 2047 UTF-8, both bodies are base64 wrapped at 76 characters, raw is base64url without padding, and body_html sends multipart/alternative.",
+          "description": "Saves a message in Gmail Drafts and does not send it. An address is at most 320 characters with exactly one @, text on both sides and no whitespace, a carriage return, line feed or NUL in the subject is refused, a subject that is not plain ASCII or does not fit one header line is sent as RFC 2047 UTF-8 encoded-words on folded lines, each address goes on its own folded line, both bodies are base64 wrapped at 76 characters, raw is base64url without padding, and body_html sends multipart/alternative.",
           "risk": "medium",
           "confirmation": "always",
           "execution": {
@@ -1021,7 +1021,7 @@
           }
         },
         "update_values": {
-          "description": "Overwrites one spreadsheet range. value_input_option defaults to RAW, so text that begins with an equals sign is stored as text unless the caller asks for USER_ENTERED, and each cell must be a string of at most 5000 characters, a number, or a boolean, in 1 to 500 rows of 1 to 50 cells.",
+          "description": "Overwrites one spreadsheet range. value_input_option defaults to RAW, so text that begins with an equals sign is stored as text unless the caller asks for USER_ENTERED, and each cell must be a string of at most 5000 characters, a number, or a boolean, in 1 to 500 rows of 1 to 50 cells, and a range of . or .. is refused.",
           "risk": "high",
           "confirmation": "always",
           "execution": {
@@ -1080,7 +1080,7 @@
           }
         },
         "append_values": {
-          "description": "Inserts rows at the end of a spreadsheet table with insertDataOption INSERT_ROWS and does not overwrite cells below the table. value_input_option defaults to RAW, so text that begins with an equals sign is stored as text unless the caller asks for USER_ENTERED, and each cell must be a string of at most 5000 characters, a number, or a boolean, in 1 to 500 rows of 1 to 50 cells.",
+          "description": "Inserts rows at the end of a spreadsheet table with insertDataOption INSERT_ROWS and does not overwrite cells below the table. value_input_option defaults to RAW, so text that begins with an equals sign is stored as text unless the caller asks for USER_ENTERED, and each cell must be a string of at most 5000 characters, a number, or a boolean, in 1 to 500 rows of 1 to 50 cells, and a range of . or .. is refused.",
           "risk": "medium",
           "confirmation": "always",
           "execution": {
@@ -1223,7 +1223,7 @@
           }
         },
         "edit": {
-          "description": "Applies one ordered all-or-nothing batch of insert, replace, paragraph style, and list operations to a Google Doc. insert_text without an index writes at the end of the body, end_index must be greater than start_index, match_case defaults to true, bulleted maps to BULLET_DISC_CIRCLE_SQUARE and numbered to NUMBERED_DECIMAL_ALPHA_ROMAN, and required_revision_id is sent as writeControl.requiredRevisionId so an edit against a stale revision is refused.",
+          "description": "Applies one ordered all-or-nothing batch of insert, replace, paragraph style, and list operations to a Google Doc. insert_text without an index writes at the end of the body, end_index must be greater than start_index, match_case defaults to true, bulleted maps to BULLET_DISC_CIRCLE_SQUARE and numbered to NUMBERED_DECIMAL_ALPHA_ROMAN, and required_revision_id is sent as writeControl.requiredRevisionId so an edit against a stale revision is refused. In a document with tabs, replace_text changes every tab and the indexed operations act on the first tab.",
           "risk": "high",
           "confirmation": "always",
           "execution": {

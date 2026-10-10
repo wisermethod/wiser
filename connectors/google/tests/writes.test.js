@@ -128,12 +128,26 @@ function decodeWrapped(text) {
   return Buffer.from(text.replace(/\r\n/g, ''), 'base64').toString('utf8');
 }
 
+// RFC 2047 decoding for the UTF-8 B form: whitespace between adjacent encoded-words is not
+// part of the text. A value with no encoded-word is the text itself.
+function decodeSubject(value) {
+  if (!value.includes('=?')) return value;
+  const words = [...value.matchAll(/=\?UTF-8\?B\?([^?]*)\?=/g)];
+  assert.equal(value.replace(/=\?UTF-8\?B\?[^?]*\?=/g, '').trim(), '', 'only encoded-words and whitespace');
+  return Buffer.concat(words.map((m) => Buffer.from(m[1], 'base64'))).toString('utf8');
+}
+
 function assertDraft(raw, { to, cc, bcc, subject, body, html }) {
   const message = decodeRaw(raw);
   assert.equal(message.replace(/\r\n/g, '').includes('\n'), false);
   const [headerText, ...rest] = message.split('\r\n\r\n');
   const payload = rest.join('\r\n\r\n');
-  const headers = headerText.split('\r\n');
+  // Judged by the RFCs rather than by the module's own formula: every physical line within
+  // RFC 5322's 998 characters, every encoded-word within RFC 2047's 75, and the unfolded
+  // headers decoding back to exactly what was asked for.
+  for (const line of headerText.split('\r\n')) assert.ok(line.length <= 998, `header line of ${line.length}`);
+  for (const word of headerText.match(/=\?[^?]+\?[BbQq]\?[^?]*\?=/g) ?? []) assert.ok(word.length <= 75, `encoded-word of ${word.length}`);
+  const headers = headerText.replace(/\r\n(?=[ \t])/g, '').split('\r\n');
   assert.equal(headers[0], `To: ${to.join(', ')}`);
   let index = 1;
   if (cc) {
@@ -144,10 +158,8 @@ function assertDraft(raw, { to, cc, bcc, subject, body, html }) {
     assert.equal(headers[index], `Bcc: ${bcc.join(', ')}`);
     index += 1;
   }
-  const encoded = [...subject].every((ch) => ch.codePointAt(0) < 128)
-    ? subject
-    : `=?UTF-8?B?${Buffer.from(subject, 'utf8').toString('base64')}?=`;
-  assert.equal(headers[index], `Subject: ${encoded}`);
+  assert.equal(headers[index].startsWith('Subject:'), true);
+  assert.equal(decodeSubject(headers[index].slice('Subject:'.length).replace(/^ /, '')), subject);
   assert.equal(headers[index + 1], 'MIME-Version: 1.0');
   if (!html) {
     assert.equal(headers[index + 2], 'Content-Type: text/plain; charset=UTF-8');
@@ -273,6 +285,23 @@ test('drive.upload_file sends multipart metadata and media, and converts unless 
   const kept = multipartParts(requests.at(-1).binary_body);
   assert.deepEqual(JSON.parse(kept[0].body), { name: 'Plain', mimeType: 'text/plain' });
   assert.equal(kept[1].body, 'as-is');
+});
+
+test('drive.upload_file carries bytes that are not UTF-8 unchanged', async () => {
+  const { gw, requests } = await harness('drive');
+  // Every byte value, so a step that decoded the media as text would change it.
+  const bytes = Buffer.from(Array.from({ length: 512 }, (_, i) => i % 256));
+  await confirmed(gw, requests, 'google.drive.upload_file', {
+    name: 'Binary', source_type: WORD, content_base64: bytes.toString('base64'), convert: false,
+  });
+  const sent = Buffer.from(requests[0].binary_body.base64, 'base64');
+  const boundary = requests[0].binary_body.content_type.split('boundary=')[1];
+  const head = Buffer.from(`\r\n--${boundary}\r\nContent-Type: ${WORD}\r\n\r\n`);
+  const tail = Buffer.from(`\r\n--${boundary}--\r\n`);
+  const start = sent.indexOf(head) + head.length;
+  assert.ok(start > head.length);
+  assert.equal(sent.subarray(sent.length - tail.length).equals(tail), true);
+  assert.equal(sent.subarray(start, sent.length - tail.length).equals(bytes), true);
 });
 
 test('drive.rename_file patches only the name', async () => {
@@ -438,9 +467,18 @@ test('gmail.create_draft saves a raw RFC 5322 message and does not send it', asy
     decodeRaw(requests[1].body.message.raw).includes('Subject: =?UTF-8?B?Q2Fmw6k=?='),
     true,
   );
+
+  // A subject past one line, ASCII or not, is folded into encoded-words that each stay
+  // within RFC 2047's limit and cut no character in half.
+  for (const subject of ['é'.repeat(24), 'x'.repeat(998), 'Résumé '.repeat(40).trim(), '😀'.repeat(30)]) {
+    const long = { to: Array.from({ length: 50 }, (_, i) => `person${i}@example.com`), subject, body: 'Draft' };
+    const at = requests.length;
+    await confirmed(gw, requests, 'google.gmail.create_draft', long);
+    assertDraft(requests[at].body.message.raw, long);
+  }
 });
 
-test('calendar.create_event parses dates and date-times and emails guests only when asked', async () => {
+test('calendar.create_event parses dates and date-times and sends sendUpdates all only when notify_guests is true', async () => {
   const { gw, requests } = await harness('calendar');
   await confirmed(gw, requests, 'google.calendar.create_event', {
     calendar_id: 'primary',
@@ -513,9 +551,19 @@ test('calendar.update_event patches only the fields given', async () => {
     notify_guests: false,
   });
   assert.deepEqual(requests[1].body, {
-    start: { date: '2026-09-20' },
-    end: { date: '2026-09-22' },
+    start: { date: '2026-09-20', dateTime: null, timeZone: null },
+    end: { date: '2026-09-22', dateTime: null, timeZone: null },
     attendees: [{ email: 'person@example.com' }, { email: 'other@example.com' }],
+  });
+
+  // From all-day to a time: the patch clears the date it leaves, which Calendar would
+  // otherwise merge back in beside the new time.
+  await confirmed(gw, requests, 'google.calendar.update_event', {
+    calendar_id: 'primary', event_id: 'event-example', start: '2026-10-11T10:00:00Z', end: '2026-10-11T11:00:00Z',
+  });
+  assert.deepEqual(requests[2].body, {
+    start: { dateTime: '2026-10-11T10:00:00Z', date: null },
+    end: { dateTime: '2026-10-11T11:00:00Z', date: null },
   });
 });
 
@@ -647,6 +695,15 @@ test('module rules refuse before any proxy call', async () => {
     [calendar, 'google.calendar.update_event', {
       calendar_id: 'primary', event_id: 'event-example', time_zone: 'America/New_York',
     }, 'time_zone'],
+    [calendar, 'google.calendar.create_event', {
+      calendar_id: 'primary', summary: 'Example', start: '2026-09-20T12:00:00', end: '2026-09-20T13:00:00', time_zone: '+01:00',
+    }, 'time_zone'],
+    [sheets, 'google.sheets.update_values', {
+      spreadsheet_id: 'sheet-example', range: '..', values: [['a']],
+    }, 'range'],
+    [sheets, 'google.sheets.append_values', {
+      spreadsheet_id: 'sheet-example', range: '.', values: [['a']],
+    }, 'range'],
     [calendar, 'google.calendar.create_event', {
       calendar_id: 'primary', summary: 'Example', start: '20 September 2026', end: '2026-09-21',
     }, 'start'],
