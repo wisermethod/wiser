@@ -15,14 +15,20 @@ Use a Google account allowed to access the relevant sites, analytics properties,
 
 ## Per-module notes
 
-- `search-console`: separate connect, read privilege. **Inspection uses the same grant as everything else on this module**, so a refusal on `inspect` after a grant that is still ACTIVE is not a grant problem and reconnecting cannot fix it. `skills/Connect Account/` refuses to reconnect an ACTIVE grant for exactly this reason. Take it to `skills/Connection Troubleshooter/`, which owns the reading: the usual cause is that URL inspection needs the property's own verified access at Google, which `query` does not.
-- `analytics`: separate connect, read privilege.
-- `drive`: separate connect, write privilege.
-- `calendar`: separate connect, write privilege.
-- `gmail`: separate connect, read privilege.
-- `sheets`: separate connect, read privilege.
-- `docs`: separate connect, read privilege.
-- `slides`: separate connect, read privilege.
+**Every module's grant can write**, whatever its actions do. The provider's sign-in for each Google toolkit asks for the scopes listed below, and they are the whole grant. Privilege describes the grant, so all eight modules are write privilege. Five of them ship write actions, each confirmed every time; the other three ship only reads.
+
+**The write actions need no new connect.** Connecting a module again asks Google for the same scopes, so it changes nothing. If a write answers `vendor_error` with HTTP 403 on a file or calendar you can edit in Google, that module's consent may be older than its scopes. Reconnect that module alone through `skills/Connect Account/`, asking to rotate it, because that skill does not reconnect an ACTIVE grant otherwise.
+
+Each scope below is `https://www.googleapis.com/auth/<name>` unless it is written out in full.
+
+- `search-console`: separate connect, write privilege: `webmasters`, which can add properties and submit sitemaps, plus `webmasters.readonly`. This connector only reads. **Inspection uses the same grant as everything else on this module**, so a refusal on `inspect` after a grant that is still ACTIVE is not a grant problem and reconnecting cannot fix it. `skills/Connect Account/` refuses to reconnect an ACTIVE grant for exactly this reason. Take it to `skills/Connection Troubleshooter/`, which owns the reading: the usual cause is that URL inspection needs the property's own verified access at Google, which `query` does not.
+- `analytics`: separate connect, write privilege: `analytics`, which can edit, plus `analytics.readonly`. This connector only reads.
+- `drive`: separate connect, write privilege: `drive`, full access to every file in the account. This connector reads, creates, uploads, renames and moves, and never deletes or trashes.
+- `calendar`: separate connect, write privilege: `calendar` and `calendar.events`. This connector reads, creates and updates events, and never deletes one.
+- `gmail`: separate connect, write privilege: `https://mail.google.com/`, which can read, send and permanently delete all mail, plus read-only profile and contacts scopes. This connector reads and saves drafts, and never sends or deletes. **No Google scope enforces never send**: saving a draft needs a scope that can also send, so what keeps a draft unsent is that this connector ships no send action.
+- `sheets`: separate connect, write privilege: `spreadsheets` and `drive`. This connector reads, writes and appends values.
+- `docs`: separate connect, write privilege: `documents` and `drive`. This connector reads, creates and edits documents.
+- `slides`: separate connect, write privilege: `presentations` and `drive`. This connector only reads.
 
 ## The route this connector does not use
 

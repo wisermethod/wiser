@@ -129,6 +129,11 @@ const PATTERN_OK = {
   // vercel project ids. The first character is a letter, digit, underscore or
   // hyphen, so `.` and `..` are not ids.
   '^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}$': 'effectivesc',
+  // google: an email address in a draft or an event, header text with no line break or
+  // NUL, and a calendar date or RFC 3339 date-time.
+  '^[^\\s@\\u0000]+@[^\\s@\\u0000]+$': 'person@example.com',
+  '^[^\\r\\n\\u0000]*$': 'Hello',
+  '^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})?)?$': '2026-09-20',
 };
 const PATTERN_ADVERSARIAL = {
   // The tightened pattern excludes exactly the two relative segments
