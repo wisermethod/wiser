@@ -120,6 +120,7 @@ const TOOLKITS = {
   tinyfish: 'CUSTOM_TINYFISH',
   courtlistener: 'CUSTOM_COURTLISTENER',
   vm: 'CUSTOM_VM',
+  twenty: 'CUSTOM_TWENTY',
   'google-apis': 'CUSTOM_GOOGLE_APIS',
   'google-cloud': 'GOOGLEBIGQUERY',
   dataforseo: 'DATAFORSEO',

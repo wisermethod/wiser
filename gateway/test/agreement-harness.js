@@ -114,6 +114,16 @@ const PATTERN_OK = {
   '^([\\u0000-\\u0020]*[Hh][Tt][Tt][Pp][Ss]?://|\\s*[Ss][Cc]-[Dd][Oo][Mm][Aa][Ii][Nn]:)': 'https://example.com/x',
   // vm: mapped-host identifier, absolute path, systemd unit name.
   '^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$': 'web-1',
+  // twenty: API names, option labels and values, icons, and REST cursors.
+  // The two API-name patterns are one language. namePlural uses the second
+  // spelling so its exemplar is not nameSingular's, and equal names stay a
+  // module refusal the sampler can still get past.
+  '^[a-z][a-zA-Z0-9]{0,62}$': 'person',
+  '^[a-z](?:[a-zA-Z0-9]{0,62})$': 'people',
+  '^[^,]+$': 'Label',
+  '^(?!.*__)[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$': 'NEW',
+  '^Icon[A-Za-z0-9]{1,60}$': 'IconFlask',
+  '^[A-Za-z0-9+/=_-]{1,512}$': 'abc',
   '^/[^\\u0000\\r\\n]*$': '/a',
   '^[A-Za-z0-9@._:][A-Za-z0-9@._:-]{0,119}\\.(service|timer|socket|target|path|mount)$': 'app.service',
   // cloudflare d1 and pages binding ids, and d1.query's single-SELECT rule.
