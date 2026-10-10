@@ -1,19 +1,21 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
-const {within,sensitive,canonical,inspect}=require('./tree.cjs');
+const {within,sensitive,designTokens,canonical,inspect}=require('./tree.cjs');
 const own=fs.realpathSync(__dirname);
 const HELP='Usage: node snapshot.cjs help | --help\n  take --root <dir> --snapshot <new-disjoint-dir> --changes <json-file>\n  verify|g3|restore --root <dir> --snapshot <dir>\nChanges JSON: {"paths":["relative/file.md","new/directory"]}. List all changed, removed and created paths, including ancestors.\nNode built-ins only; no install, configuration, network or stdin. See snapshot.md for the write contract.\n';
 // Hashed in 1 MiB reads, so a file over Node's 2 GiB single-read limit still hashes.
 const hash=p=>{const h=crypto.createHash('sha256'),fd=fs.openSync(p,'r'),b=Buffer.allocUnsafe(1<<20);try{let n;while((n=fs.readSync(fd,b,0,b.length,null))>0)h.update(b.subarray(0,n));}finally{fs.closeSync(fd);}return h.digest('hex');};
 const stable=x=>JSON.stringify(x);
 function safePath(p){const q=canonical(p);if(q.split(path.sep).some(sensitive)||within(q,own))throw Error('Refused credential or tool path; choose a working path outside the tool');return q;}
-function relative(p){return typeof p==='string'&&p!==''&&!path.isAbsolute(p)&&p.split(/[\\/]/).every(x=>x!==''&&x!=='.'&&x!=='..'&&x!=='.git'&&!sensitive(x));}
+function relative(p,file=false){if(typeof p!=='string'||p===''||path.isAbsolute(p))return false;const xs=p.split(/[\\/]/);return xs.every((x,i)=>x!==''&&x!=='.'&&x!=='..'&&x!=='.git'&&(!sensitive(x)||(file&&i===xs.length-1&&designTokens(x))));}
+// A change-set path may end in a design-token stylesheet only where nothing but a regular file, or nothing yet, stands there.
+function fileOrAbsent(root,rel){if(typeof rel!=='string'||path.isAbsolute(rel))return false;const st=fs.lstatSync(path.join(root,rel),{throwIfNoEntry:false});return !st||st.isFile();}
 function inventory(root,declarations=true){
  const t=inspect(root,{declarations});
  return {files:t.files.map(f=>({path:f.rel,size:fs.statSync(f.p).size,mode:fs.statSync(f.p).mode&511,sha256:hash(f.p)})),dirs:t.dirs,skipped:t.skipped.sort((a,b)=>a.path.localeCompare(b.path))};
 }
 function assertPaths(root,paths){
  for(const rel of paths){
-  if(!relative(rel))throw Error('Unsafe change-set path; use exact relative non-credential paths');
+  if(!relative(rel,fileOrAbsent(root,rel)))throw Error('Unsafe change-set path; use exact relative non-credential paths');
   const p=canonical(path.join(root,rel));
   if(within(p,own)||!within(p,root)||p!==path.join(root,rel))throw Error('Change-set path crosses a link; resolve the plan before work');
   const st=fs.lstatSync(p,{throwIfNoEntry:false});
@@ -25,7 +27,7 @@ function validateSnapshot(root,snap){
  if(!fs.lstatSync(mf,{throwIfNoEntry:false})?.isFile()||fs.statSync(mf).nlink!==1)throw Error('Unsafe snapshot manifest; use the original snapshot');
  const m=JSON.parse(fs.readFileSync(mf,'utf8'));
  if(m.version!==1||m.root!==root||!Array.isArray(m.paths)||!Array.isArray(m.files)||!Array.isArray(m.dirs)||!Array.isArray(m.skipped))throw Error('Snapshot schema or root mismatch; use the matching snapshot');
- if(!m.files.every(f=>relative(f.path)&&/^[a-f0-9]{64}$/.test(f.sha256)&&Number.isInteger(f.mode))||!m.dirs.every(relative))throw Error('Unsafe snapshot manifest entries; do not restore');
+ if(!m.files.every(f=>relative(f.path,true)&&/^[a-f0-9]{64}$/.test(f.sha256)&&Number.isInteger(f.mode))||!m.dirs.every(relative))throw Error('Unsafe snapshot manifest entries; do not restore');
  if(new Set(m.files.map(f=>f.path)).size!==m.files.length||new Set(m.dirs).size!==m.dirs.length)throw Error('Duplicate snapshot entry; do not restore');
  assertPaths(root,m.paths);
  const copies=path.join(snap,'copies');

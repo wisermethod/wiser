@@ -3,7 +3,7 @@ const fs=require('node:fs'),path=require('node:path');
 const HELP='Usage: node check.cjs help | --help | scan --root <dir>\nNode built-ins only. No install, configuration, writes, network, or stdin.\n';
 const own=fs.realpathSync(__dirname);
 const within=(p,b)=>p===b||p.startsWith(b+path.sep);
-const sensitive=n=>/^\.env(?:\.|$)/i.test(n)||/^(secrets?|credentials?)(?:\.|$)/i.test(n)||/api[-_]?key|password|private[-_]?key/i.test(n)||(/token/i.test(n)&&!/^tokens\.(?:css|scss|sass|less)$/i.test(n));
+const sensitive=n=>/^\.env(?:\.|$)/i.test(n)||/^(secrets?|credentials?)(?:\.|$)/i.test(n)||/api[-_]?key|token|password|private[-_]?key/i.test(n);
 function main(){
  const args=process.argv.slice(2);
  if(args.length===1&&['help','--help'].includes(args[0])){process.stdout.write(HELP);return;}

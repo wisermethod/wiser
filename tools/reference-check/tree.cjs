@@ -1,7 +1,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const within = (p, b) => p === b || p.startsWith(b + path.sep);
-const sensitive = n => /^\.env(?:\.|$)/i.test(n) || /^(secrets?|credentials?)(?:\.|$)/i.test(n) || /api[-_]?key|password|private[-_]?key/i.test(n)||(/token/i.test(n)&&!/^tokens\.(?:css|scss|sass|less)$/i.test(n));
+// A site kit's design-token stylesheet. Exempt from the name screen as a regular file only; a directory of that name is still screened.
+const designTokens = n => /^tokens\.(?:css|scss|sass|less)$/i.test(n);
+const sensitive = n => /^\.env(?:\.|$)/i.test(n) || /^(secrets?|credentials?)(?:\.|$)/i.test(n) || /api[-_]?key|token|password|private[-_]?key/i.test(n);
 const inode = p => { const s = fs.statSync(p); return s.dev + ':' + s.ino; };
 function canonical(p) {
  const abs = path.resolve(p);
@@ -18,7 +20,7 @@ function inspect(root, {textOnly = false, declarations = true} = {}) {
    const p = path.join(d,e.name), rel = path.relative(root,p).split(path.sep).join('/');
    if(e.isSymbolicLink()) { if(!hidden) skipped.push({path:rel,reason:'symbolic-link'}); continue; }
    if(e.name === '.git') { if(!hidden) skipped.push({path:rel,reason:'repository-history'}); continue; }
-   const secret = hidden || sensitive(e.name);
+   const secret = hidden || (sensitive(e.name) && !(e.isFile() && designTokens(e.name)));
    if(secret && !hidden) skipped.push({path:rel+(e.isDirectory()?'/':''),reason:'credential-path'});
    if(e.isDirectory()) { if(!secret) dirs.push(rel); walk(p,secret); }
    else if(e.isFile()) { if(secret) deny.add(inode(p)); else files.push({p,rel}); }
@@ -49,4 +51,4 @@ function inspect(root, {textOnly = false, declarations = true} = {}) {
  });
  return {files:safe,dirs,skipped,deny};
 }
-module.exports={within,sensitive,inode,canonical,inspect};
+module.exports={within,sensitive,designTokens,inode,canonical,inspect};
