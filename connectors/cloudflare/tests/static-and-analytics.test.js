@@ -526,8 +526,14 @@ async function analytics(action, input, handler) {
   return { result, calls };
 }
 
+// Cloudflare's project read carries both analytics keys, null when off.
 function project(build = {}, extra = {}) {
-  return envelope({ name: PROJECT, subdomain: 'wiser-site.pages.dev', build_config: build, ...extra });
+  return envelope({
+    name: PROJECT,
+    subdomain: 'wiser-site.pages.dev',
+    build_config: { web_analytics_tag: null, web_analytics_token: null, ...build },
+    ...extra,
+  });
 }
 
 function siteInfo(overrides = {}) {
@@ -1420,4 +1426,164 @@ test('enable_web_analytics reports analytics outcome unknown when the re-read fa
   });
   assert.equal(JSON.stringify(created.result).includes(TOKEN), false);
   assert.equal(Object.hasOwn(created.result, 'collateral_changes'), false);
+});
+
+// Review round 2 (run 20261010-141513-adversarial_reviewer-codex).
+
+test('delete_web_analytics_site refuses a listing whose total_pages is not a number', async () => {
+  const { result, calls } = await analytics('delete_web_analytics_site', {
+    account_id: ACCOUNT, site_tag: SITE,
+  }, (req) => {
+    if (req.method === 'DELETE') throw new Error('deleted');
+    if (req.endpoint.includes('/rum/site_info/')) return envelope({ site_tag: SITE, host: 'www.example.com' });
+    const page = Number(new URL(req.endpoint, 'https://api.cloudflare.com').searchParams.get('page'));
+    if (page === 1) return projectPage(1, '2', [{ name: 'quiet', build_config: { web_analytics_tag: null } }]);
+    return projectPage(2, '2', [{ name: 'live', build_config: { web_analytics_tag: SITE } }]);
+  });
+  assert.equal(result.status, 'vendor_error');
+  assert.equal(result.reason, 'project listing incomplete');
+  assert.equal(calls.some((req) => req.method === 'DELETE'), false);
+});
+
+test('delete_web_analytics_site refuses a project row whose build_config is not an object', async () => {
+  const { result, calls } = await analytics('delete_web_analytics_site', {
+    account_id: ACCOUNT, site_tag: SITE,
+  }, (req) => {
+    if (req.method === 'DELETE') throw new Error('deleted');
+    if (req.endpoint.includes('/rum/site_info/')) return envelope({ site_tag: SITE, host: 'www.example.com' });
+    return projectPage(1, 1, [{ name: 'live', build_config: 'unreadable' }]);
+  });
+  assert.equal(result.status, 'vendor_error');
+  assert.equal(result.reason, 'project listing incomplete');
+  assert.equal(calls.some((req) => req.method === 'DELETE'), false);
+});
+
+refuse('a marker inside a key-shaped directory', 'working folder: private.key/AGENTS.md', (root) => {
+  const dir = site(root, 'out');
+  writeFileSync(join(dir, 'client-data.csv'), 'a,b\n');
+  mkdirSync(join(dir, 'private.key'));
+  writeFileSync(join(dir, 'private.key', 'AGENTS.md'), '# notes\n');
+  return dir;
+});
+
+test('deploy_static refuses an ordinary directory it cannot read', async (t) => {
+  if (process.getuid && process.getuid() === 0) {
+    t.skip('root reads a directory whatever its mode');
+    return;
+  }
+  const root = scratch();
+  const locked = join(root, 'out', 'client');
+  try {
+    const dir = site(root, 'out');
+    writeFileSync(join(dir, 'client-data.csv'), 'a,b\n');
+    mkdirSync(locked);
+    writeFileSync(join(locked, 'AGENTS.md'), '# notes\n');
+    chmodSync(locked, 0o000);
+    const { result, calls } = await deploy(dir);
+    assert.equal(calls.length, 0);
+    assert.equal(result.status, 'invalid_arguments');
+    assert.equal(result.reason, 'working folder: client could not be screened');
+  } finally {
+    chmodSync(locked, 0o700);
+    cleanup(root);
+  }
+});
+
+refuse('a link whose target is server code in a hidden directory', 'server code: public.js; use cloudflare.pages.deploy_with_functions', (root) => {
+  const dir = site(root, 'out');
+  mkdirSync(join(dir, '.sources'));
+  writeFileSync(join(dir, '.sources', 'worker-source.js'), 'export default {}\n');
+  mkdirSync(join(dir, '.sources', 'functions'));
+  writeFileSync(join(dir, '.sources', 'functions', 'api.js'), 'export function onRequest() {}\n');
+  symlinkSync(join(dir, '.sources', 'functions', 'api.js'), join(dir, 'public.js'));
+  return dir;
+});
+
+refuse('a server-code file inside a hidden directory', 'server code: .sources/_worker.js; use cloudflare.pages.deploy_with_functions', (root) => {
+  const dir = site(root, 'out');
+  mkdirSync(join(dir, '.sources'));
+  writeFileSync(join(dir, '.sources', '_worker.js'), 'export default {}\n');
+  return dir;
+});
+
+test('deploy_static still skips node_modules that holds a functions directory', async () => {
+  const root = scratch();
+  try {
+    const dir = site(root, 'out');
+    mkdirSync(join(dir, 'node_modules', 'pkg', 'functions'), { recursive: true });
+    writeFileSync(join(dir, 'node_modules', 'pkg', 'functions', 'a.js'), 'x\n');
+    const { result } = await deploy(dir);
+    assert.equal(result.status, undefined);
+    assert.ok(result.skipped.some((item) => item.file === 'node_modules' && item.reason === 'skipped name'));
+  } finally {
+    cleanup(root);
+  }
+});
+
+test('enable_web_analytics reports analytics outcome unknown when the re-read does not show the setting', async () => {
+  let reads = 0;
+  const { result } = await analytics('enable_web_analytics', {
+    account_id: ACCOUNT, project_name: PROJECT,
+  }, (req) => {
+    if (req.method === 'GET') {
+      reads += 1;
+      return reads === 1 ? project() : envelope({});
+    }
+    if (req.method === 'POST') return siteInfo();
+    return patchThrow(req);
+  });
+  assert.equal(result.status, 'vendor_error');
+  assert.equal(result.reason, 'analytics outcome unknown');
+  assert.equal(result.created_site_tag, SITE);
+  assert.equal(JSON.stringify(result).includes(TOKEN), false);
+});
+
+test('enable_web_analytics re-reads after an answer that does not show the setting', async () => {
+  let reads = 0;
+  const { result, calls } = await analytics('enable_web_analytics', {
+    account_id: ACCOUNT, project_name: PROJECT, site_tag: SITE,
+  }, (req) => {
+    if (req.method === 'GET' && req.endpoint.includes('/pages/projects/')) {
+      reads += 1;
+      return reads === 1 ? project() : project({ web_analytics_tag: SITE, web_analytics_token: TOKEN });
+    }
+    if (req.method === 'GET') return siteInfo();
+    return envelope({});
+  });
+  assert.equal(result.action, 'attached');
+  assert.equal(reads, 2);
+  assert.equal(calls.filter((req) => req.method === 'PATCH').length, 1);
+  assert.equal(JSON.stringify(result).includes(TOKEN), false);
+});
+
+test('enable_web_analytics takes success false on the PATCH as not applied, with no re-read', async () => {
+  let reads = 0;
+  const { result } = await analytics('enable_web_analytics', {
+    account_id: ACCOUNT, project_name: PROJECT,
+  }, (req) => {
+    if (req.method === 'GET') {
+      reads += 1;
+      return project();
+    }
+    if (req.method === 'POST') return siteInfo();
+    return { status: 200, data: { success: false, errors: [{ code: 8000000 }], messages: [], result: null }, headers: {} };
+  });
+  assert.equal(result.reason, 'analytics not applied');
+  assert.equal(result.created_site_tag, SITE);
+  assert.equal(reads, 1);
+});
+
+test('enable_web_analytics names a site whose create answer carries no token', async () => {
+  const { result, calls } = await analytics('enable_web_analytics', {
+    account_id: ACCOUNT, project_name: PROJECT,
+  }, (req) => {
+    if (req.method === 'GET') return project();
+    if (req.method === 'POST') return envelope({ site_tag: SITE, site_token: '', snippet: SNIPPET });
+    throw new Error('patched');
+  });
+  assert.equal(result.status, 'vendor_error');
+  assert.equal(result.method, 'POST');
+  assert.equal(result.created_site_tag, SITE);
+  assert.equal(calls.some((req) => req.method === 'PATCH'), false);
+  assert.equal(JSON.stringify(result).includes(SNIPPET), false);
 });

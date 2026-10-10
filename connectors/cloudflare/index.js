@@ -268,6 +268,9 @@ function screenSkippedTree(dir, logical, budget) {
       }
       const rel = `${current.rel}/${entry.name}`;
       if (isStaticWalkMarker(entry.name)) return invalid('dir', `working folder: ${rel}`);
+      // Server-code files only: a functions directory inside a skipped tree is
+      // common in node_modules and is never published from there.
+      if (!entry.isDirectory() && FOREIGN_REFUSED.has(entry.name.toLowerCase())) return invalid('dir', serverCodeReason(rel));
       if (entry.isSymbolicLink()) continue;
       if (entry.isDirectory()) stack.push({ dir: join(current.dir, entry.name), rel });
     }
@@ -277,6 +280,14 @@ function screenSkippedTree(dir, logical, budget) {
 
 function resolvedPathHasWalkMarker(root, resolved) {
   return relativeName(root, resolved).split('/').some((segment) => isStaticWalkMarker(segment));
+}
+
+// A link's target that is server code, or sits under a functions directory,
+// is server code published under the link's name.
+function resolvedPathIsServerCode(root, resolved) {
+  const segments = relativeName(root, resolved).split('/');
+  const last = segments[segments.length - 1].toLowerCase();
+  return FOREIGN_REFUSED.has(last) || segments.slice(0, -1).some((segment) => segment.toLowerCase() === 'functions');
 }
 
 export function walkPages(root, refused, kitRule = true, sourceHashes = null, staticSite = false) {
@@ -295,6 +306,8 @@ export function walkPages(root, refused, kitRule = true, sourceHashes = null, st
     try {
       entries = readdirSync(dir, { withFileTypes: true });
     } catch {
+      // deploy_static cannot show an unreadable directory holds no marker.
+      if (staticSite) return { error: invalid('dir', `working folder: ${relativeName(root, dir)} could not be screened`) };
       skipped.push({ file: relativeName(root, dir), reason: 'unreadable' });
       continue;
     }
@@ -339,6 +352,7 @@ export function walkPages(root, refused, kitRule = true, sourceHashes = null, st
         continue;
       }
       if (KEY_NAME.test(entry.name)) {
+        if (staticSite && entry.isDirectory()) deferredScans.push({ full, logical });
         skipped.push({ file: logical, reason: 'credential' });
         continue;
       }
@@ -373,6 +387,9 @@ export function walkPages(root, refused, kitRule = true, sourceHashes = null, st
       // as the link.
       if (staticSite && resolvedPathHasWalkMarker(root, resolved)) {
         return { error: invalid('dir', `working folder: ${logical}`) };
+      }
+      if (staticSite && resolvedPathIsServerCode(root, resolved)) {
+        return { error: invalid('dir', serverCodeReason(logical)) };
       }
       const top = !logical.includes('/');
       if (top && entry.name === '_routes.json') {
@@ -2156,11 +2173,14 @@ async function readResultPages(ctx, endpointFor, catchErrors, perPage) {
     if (!envelopeOk(data) || !Array.isArray(data.result)) return { error: vendorError(endpoint, 'GET') };
     items.push(...data.result);
     const info = asObject(data.result_info);
-    const total = info && info.total_pages;
-    if (typeof total !== 'number' || !Number.isFinite(total)) {
+    const total = info ? info.total_pages : undefined;
+    if (total === undefined || total === null) {
       complete = page === 1 && data.result.length < perPage;
       break;
     }
+    // A total that is present but not a whole number cannot show the listing
+    // is complete.
+    if (typeof total !== 'number' || !Number.isInteger(total) || total < 0) break;
     if (!(total > page)) {
       complete = page >= total;
       break;
@@ -2255,11 +2275,15 @@ async function readAnalyticsSite(ctx, accountId, siteTag) {
   };
 }
 
+// A re-read counts only when it shows the project's build_config with its
+// web_analytics_tag key; anything less cannot say whether the PATCH applied.
 async function readProjectAgain(ctx, endpoint) {
   try {
     const again = await proxyData(ctx, { endpoint, method: 'GET' });
-    if (!envelopeOk(again) || !asObject(again.result)) return { failed: true };
-    return { result: again.result };
+    const result = envelopeOk(again) ? asObject(again.result) : null;
+    const build = result ? asObject(result.build_config) : null;
+    if (!build || !Object.hasOwn(build, 'web_analytics_tag')) return { failed: true };
+    return { result };
   } catch {
     return { failed: true };
   }
@@ -2271,11 +2295,7 @@ async function patchWebAnalytics(ctx, endpoint, projectResult, fields, secrets) 
   const { tag, token, host, action, before, createdSiteTag, projectName } = fields;
   const finish = (value) => redactSecrets(value, secrets);
   const body = { build_config: { web_analytics_tag: tag, web_analytics_token: token } };
-  let patched;
-  try {
-    patched = await proxyData(ctx, { endpoint, method: 'PATCH', body });
-  } catch (err) {
-    const httpStatus = thrownHttpStatus(err);
+  const settle = async (httpStatus) => {
     const again = await readProjectAgain(ctx, endpoint);
     if (again.failed) return finish(analyticsOutcomeUnknown(endpoint, httpStatus, createdSiteTag));
     const againBuild = asObject(again.result.build_config);
@@ -2284,14 +2304,25 @@ async function patchWebAnalytics(ctx, endpoint, projectResult, fields, secrets) 
       return finish(analyticsSuccess(projectName, tag, action, host, before, collateral));
     }
     return finish(analyticsNotApplied(endpoint, collateral, createdSiteTag, httpStatus));
+  };
+  let patched;
+  try {
+    patched = await proxyData(ctx, { endpoint, method: 'PATCH', body });
+  } catch (err) {
+    return settle(thrownHttpStatus(err));
   }
-  const after = asObject(patched && patched.result);
+  // An envelope that says success: false is Cloudflare's refusal, and nothing
+  // was written. An answer that confirms both values is success. Any other
+  // answer does not say what happened, so the project is read again.
+  if (patched && typeof patched === 'object' && !Array.isArray(patched) && patched.success === false) {
+    return finish(analyticsNotApplied(endpoint, [], createdSiteTag));
+  }
+  const after = envelopeOk(patched) ? asObject(patched.result) : null;
   const afterBuild = after && asObject(after.build_config);
-  const collateral = analyticsCollateral(projectResult, after || {});
-  if (!envelopeOk(patched) || !analyticsApplied(afterBuild, tag, token)) {
-    return finish(analyticsNotApplied(endpoint, collateral, createdSiteTag));
+  if (analyticsApplied(afterBuild, tag, token)) {
+    return finish(analyticsSuccess(projectName, tag, action, host, before, analyticsCollateral(projectResult, after)));
   }
-  return finish(analyticsSuccess(projectName, tag, action, host, before, collateral));
+  return settle(undefined);
 }
 
 function pagesDomainEndpoint(input, domain) {
@@ -3117,7 +3148,12 @@ export const modules = {
         const row = asObject(created && created.result);
         if (!envelopeOk(created) || !row || typeof row.site_tag !== 'string' || row.site_tag.length === 0
           || typeof row.site_token !== 'string' || row.site_token.length === 0) {
-          return vendorError(createEndpoint, 'POST');
+          const failed = vendorError(createEndpoint, 'POST');
+          // A site Cloudflare reports creating is named, so the caller can remove it.
+          if (envelopeOk(created) && row && typeof row.site_tag === 'string' && row.site_tag.length > 0) {
+            failed.created_site_tag = row.site_tag;
+          }
+          return redactSecrets(failed, analyticsSecrets(row));
         }
         tag = row.site_tag;
         token = row.site_token;
@@ -3145,7 +3181,7 @@ export const modules = {
       const viewed = analyticsSiteView(site.result);
       const listed = await readResultPages(ctx, (page) => pagesProjectsEndpoint(input.account_id, page), true, PROJECTS_PAGE_SIZE);
       if (listed.error) return listed.error;
-      if (!listed.complete || listed.items.some((item) => !asObject(item))) {
+      if (!listed.complete || listed.items.some((item) => !asObject(item) || !asObject(item.build_config))) {
         return {
           status: 'vendor_error',
           endpoint: listed.endpoint,
