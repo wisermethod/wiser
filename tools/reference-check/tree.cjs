@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const within = (p, b) => p === b || p.startsWith(b + path.sep);
-const sensitive = n => /^\.env(?:\.|$)/i.test(n) || /^(secrets?|credentials?)(?:\.|$)/i.test(n) || /api[-_]?key|password|private[-_]?key/i.test(n)||(/token/i.test(n)&&!/\.(?:css|scss|sass|less)$/i.test(n));
+const sensitive = n => /^\.env(?:\.|$)/i.test(n) || /^(secrets?|credentials?)(?:\.|$)/i.test(n) || /api[-_]?key|password|private[-_]?key/i.test(n)||(/token/i.test(n)&&!/^tokens\.(?:css|scss|sass|less)$/i.test(n));
 const inode = p => { const s = fs.statSync(p); return s.dev + ':' + s.ino; };
 function canonical(p) {
  const abs = path.resolve(p);
