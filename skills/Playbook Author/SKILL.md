@@ -3,10 +3,9 @@ name: Playbook Author
 type: skill
 category: authoring
 description: Create, instantiate, resume, review, hand off at a session's end, or close out a WISER Playbook for work that spans sessions
-version: 0.1.8
+version: 0.1.9
 gaps:
   - the trade-offs beside a recommendation at a session stop, so an open decision is put with one course and its reason rather than with the alternatives weighed
-  - a starting prompt delivered without being asked for, so a cold resume is assembled by hand wherever the wrap up is declined
 ---
 
 # Playbook Author
@@ -72,8 +71,8 @@ Runs when a session working a Playbook ends.
 
 1. Say briefly, in plain language, what this session finished and what is left, each checked against disk.
 2. Where a Playbook names an open decision, say what you would do and why, and leave the choice.
-3. Reconcile every Playbook this session worked, per the session-end protocol in `standards/playbook.md` — after those answers where they come, and otherwise on the verified state, naming the open decision as a gate. Hand Off reconciles; Close Out finishes, and is its own job.
-4. Ask whether to wrap up. On yes, for each repository this session wrote: commit the changes this run made, by path, leaving and naming a path that also carries another session's uncommitted work; report the whole unpushed range; recheck whatever step 3 wrote that the commit has changed; and hand over, per Playbook, a prompt a fresh context can be given verbatim, holding its path, its one next action, and every gate still open. The push is the operator's.
+3. Reconcile every Playbook this session worked, per the session-end protocol in `standards/playbook.md` — after those answers where they come, and otherwise on the verified state, naming the open decision as a gate, with the recommendation beside it. Hand Off reconciles; Close Out finishes, and is its own job.
+4. Ask whether to wrap up. On yes, for each repository this session wrote: commit the changes this run made, by path, leaving and naming a path that also carries another session's uncommitted work; report the whole unpushed range; recheck whatever step 3 wrote that the commit has changed; and hand over, per Playbook, one line: `Resume the Playbook at <absolute path>`. The push is the operator's.
 
 The named ask **wrap up** runs all four steps with step 4's answer already given. Where the session worked no Playbook, it says so, then commits and reports the range.
 
@@ -92,7 +91,7 @@ The named ask **wrap up** runs all four steps with step 4's answer already given
 - **The riskiest piece was picked for looking hard.** Re-derive it per Risk First in `standards/playbook.md`, then re-sequence Solve to build it first.
 - **A Template master is about to be executed, ticked, Completed, or archived.** Stop. Copy it to an instance and work the instance; the master changes only by deliberate learning promotion.
 - **The standards pointer is missing, or the standards are listed only under Key files.** Restore it to the Context line the Structure names, as a path that opens, then continue. Key files remain the Witness targets.
-- **A session is ending with the document behind the work.** Run the session-end protocol in `standards/playbook.md` now; write only what you can attest to, and mark the rest unverified. **Hand Off above is what reports it to the person**, and what remains absent is narrower: the trade-offs beside its recommendation, and a starting prompt wherever the wrap up is declined. The reconciliation and Resume requirements above still bind.
+- **A session is ending with the document behind the work.** Run the session-end protocol in `standards/playbook.md` now; write only what you can attest to, and mark the rest unverified. **Hand Off above is what reports it to the person**, and what remains absent is narrower: the trade-offs beside its recommendation. The reconciliation and Resume requirements above still bind.
 
 ## Success
 

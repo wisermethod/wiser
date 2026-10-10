@@ -1,6 +1,6 @@
 ---
 standard: playbook
-version: 0.2.2
+version: 0.2.3
 description: The Playbook format; the WISER method for multi-session execution with decision tracking and learning capture
 ---
 
@@ -81,7 +81,7 @@ The document is updated as the work happens, never reconstructed afterward.
 
 **Session-end protocol.** A session ends by reconciling the document against disk, never by asserting it is current. Reconcile what a later reader will act on: each checkbox against the artifact it claims, each count and version against the file that carries it, each statement about what is committed, pushed, tagged, released, or deployed against the repository and the destination themselves, and Progress against the last thing that actually happened. A claim that cannot be checked against something on disk is rewritten until it can be. A session working a Playbook ends through `skills/Playbook Author/` Hand Off, which owns the steps.
 
-Progress then names the current canon, one specific next action, and every gate still open, named as open rather than left out. A gate nobody names is a gate nobody closes.
+Progress then names the current canon, one specific next action, and every gate still open, each with its recommendation, named as open rather than left out. A resume starts from this document's path alone, so nothing it needs is kept outside it. A gate nobody names is a gate nobody closes.
 
 A stale line is not documentation debt. Every later session reads this document as instruction and acts on it, so a wrong line is paid for twice, once believing it and once undoing it. Where the document and disk disagree, disk is right, the document is corrected, and the drift is recorded as a learning, because drift repeats.
 
@@ -199,6 +199,7 @@ Dates, naming charset, and archiving follow `standards/conventions.md`.
 **Last worked:** YYYY-MM-DD
 **Current Canon:** [Canon]
 **Next action:** [Specific next step]
+**Open gates:** [each gate still open, with its recommendation]
 
 | Canon | Items | Done | Status |
 |-------|-------|------|--------|
