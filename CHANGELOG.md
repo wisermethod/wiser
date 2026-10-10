@@ -7,6 +7,7 @@ Changes before September 27, 2026 are in the commit history only.
 ## v2026.10.10, October 10, 2026
 
 - When you approve a site deploy that carries a scheduled article whose time has already passed, Cloudflare Pages now tells you the article goes live the moment the deploy lands, not at its scheduled time. (7f33120)
+- When you run a site deploy through the Wiser connection in your app, which cannot read files on your computer, the connection troubleshooting skill now explains that and points you to the local gateway, instead of having no next step. (14cdb11)
 - When an action was added to your local gateway after it started, the connection troubleshooting skill now tells you a new session will pick it up, instead of reporting a missing connector. (7f33120, 4c4f6c1, e8cad48)
 - Wiser may now add a line to your working folder's `.stignore` or `.gitignore`, the files that keep sync and version control out of the wrong places. Nothing else at the top of a folder is written. (7f33120, 4c4f6c1)
 - The snapshot Wiser takes before it reorganizes a folder now works when the folder holds files over 2 GB, and it includes a site's `tokens.css` instead of setting it aside as a password file. (7f33120, 4c4f6c1, e8cad48)
