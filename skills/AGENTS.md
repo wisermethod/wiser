@@ -98,7 +98,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 | `Scope Plugin Bench/SKILL.md` | Decide what experts, skills, tools and connectors a named domain plugin should hold in its first slice, and hand Playbook Author the source material to plan it | System Expert |
 | `Set Up Connectors/SKILL.md` | Lead this app to the Wiser endpoint and its sign-in, or on request attach the local gateway in a command-line harness with its project key, naming the one step the state in front of it needs | Connector Advisor |
 | `Connect Account/SKILL.md` | Connect one service module, asked by name or in plain words such as connect GitHub, in its own human turn through start_connect then connect_status, on the Wiser endpoint or the local gateway, never taking a key in the conversation | Connector Advisor |
-| `Connection Troubleshooter/SKILL.md` | Name one next step for a gateway status object or audit line, from the Wiser endpoint or the local gateway, covering needs_provider, needs_connect, expired, denied, needs_connector, vendor_error, needs_subscription, the endpoint's daily limit, and a teardown that did not finish | Connector Advisor |
+| `Connection Troubleshooter/SKILL.md` | Name one next step for a gateway status object or audit line, from the Wiser endpoint or the local gateway, covering needs_provider, needs_connect, expired, denied, needs_connector, local_only, vendor_error, needs_subscription, the endpoint's daily limit, and a teardown that did not finish | Connector Advisor |
 | `Connector Author/SKILL.md` | Build a connector from an approved Connector Advisor plan, with its manifest, module, auth guide, tests, and gateway loading instructions | Connector Advisor |
 
 ### Web
