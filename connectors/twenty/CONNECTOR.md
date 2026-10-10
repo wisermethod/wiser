@@ -3,7 +3,7 @@ name: twenty
 type: connector
 category: crm
 description: Reads and creates records, objects, fields and select options in one Twenty workspace, confirming every write
-version: 0.1.2
+version: 0.1.3
 ---
 
 # Twenty
@@ -22,7 +22,7 @@ Twenty has three kinds of email.
 - Email to contacts comes from each person's own connected mailbox.
 - Branded email comes from an organisation's verified emailing domain.
 
-This connector sends none of them. It holds a workspace API key and calls no endpoint that sends. No mailbox is named.
+This connector sends none of them. It holds a workspace API key and calls no endpoint that sends. No mailbox is named. It cannot create a workflow, a campaign or a message either: `twenty.records.create` refuses Twenty's own system objects by name.
 
 A record `twenty.records.create` creates can start the workspace's own workflows. A workflow the workspace already holds may send from a member's connected mailbox. This connector cannot see that workflow and cannot stop it. Creating a record stops for confirmation every time.
 
@@ -53,6 +53,8 @@ twenty.metadata.add_field_options    { fieldId, options }             confirmati
 `twenty.records.workspace` and `twenty.metadata.workspace` read `currentWorkspace` on `POST /metadata` and return its `id`, `subdomain` and `displayName`: the workspace the bound key belongs to. Each module can be bound to its own account, so read both before writing, and stop when either names a workspace other than the one intended.
 
 `twenty.records.create` sends `POST /graphql`. The mutation name is `object` with its first letter upper-cased, and the field values travel only as GraphQL variables. It returns the new record's `id`. `data` holds at most 100 values, and each key is an API name.
+
+`object` may be `person`, `company`, `opportunity`, `note`, `noteTarget`, `task`, `taskTarget` or a custom object. Every other standard object of Twenty `v2.45.6` is refused by name before any call, and its pattern publishes the list: `agentChatThread`, `agentChatThreadTarget`, `agentMessage`, `agentMessagePart`, `agentTurn`, `agentTurnEvaluation`, `attachment`, `blocklist`, `calendarChannelEventAssociation`, `calendarEvent`, `calendarEventParticipant`, `calendarEventTarget`, `callRecording`, `campaignDelivery`, `dashboard`, `message`, `messageCampaign`, `messageChannelMessageAssociation`, `messageChannelMessageAssociationMessageFolder`, `messageList`, `messageListMember`, `messageParticipant`, `messageSuppression`, `messageThread`, `messageThreadTarget`, `recordShare`, `shortLink`, `timelineActivity`, `workflow`, `workflowAutomatedTrigger`, `workflowRun`, `workflowVersion` and `workspaceMember`. A created workflow, campaign or message could send email, and the rest are the workspace's own machinery. A standard object a later Twenty version adds is not on the list until this connector names it.
 
 `twenty.metadata.list_objects` sends `POST /metadata` for the workspace's objects and their fields. It takes an empty object. It asks for 200 objects and 200 fields per object. A workspace past either is refused as `vendor_error` with `code` `RESULT_INCOMPLETE`, never returned in part.
 
@@ -98,7 +100,8 @@ None of these actions deletes a record, deactivates an object or a field, or rem
 - Relation fields and every field type outside the seven.
 - Batch and import endpoints.
 - Files and attachments.
-- Workflows, webhooks and API keys.
+- Twenty's own system objects, named under `twenty.records.create`: workflows, campaigns, messages, calendar events, attachments, workspace members and the rest.
+- Webhooks and API keys.
 - Workspace settings, the custom domain among them.
 - Invitations.
 - Workspace creation.
@@ -112,7 +115,7 @@ None of these actions deletes a record, deactivates an object or a field, or rem
 
 `denied`: on the local gateway, the shipped default policy denies privilege `admin` for the runtime role. These modules declare `admin`. Until `policy.json` in the gateway home allows service `twenty` at privilege `admin`, no request is sent. On the Wiser endpoint the policy is the service's.
 
-`invalid_arguments`: the named field is missing, the wrong type, or outside a published bound. `nameSingular` and `namePlural` must differ. `options` is refused on a non-select type, required on a select type, and each `value` in one list must be unique. `add_field_options` also refuses a non-select field, a value or label already on that field, and a list that would pass 100 options.
+`invalid_arguments`: the named field is missing, the wrong type, or outside a published bound. On `twenty.records.create`, `object` is also refused when it names one of Twenty's system objects. `nameSingular` and `namePlural` must differ. `options` is refused on a non-select type, required on a select type, and each `value` in one list must be unique. `add_field_options` also refuses a non-select field, a value or label already on that field, and a list that would pass 100 options.
 
 `vendor_error`: the gateway's provider or the transport failed, or Twenty answered a GraphQL call with HTTP 200 and an `errors` array. The status and the endpoint are the safe fields. When the first error's `extensions.code` matches `^[A-Z_]{1,64}$`, the failure also carries that `code`. It never carries the message or the body. A REST failure keeps the gateway's own failure status.
 

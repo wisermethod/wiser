@@ -120,6 +120,9 @@ const PATTERN_OK = {
   // module refusal the sampler can still get past.
   '^[a-z][a-zA-Z0-9]{0,62}$': 'person',
   '^[a-z](?:[a-zA-Z0-9]{0,62})$': 'people',
+  // records.create's object: the API-name language less Twenty's own system objects,
+  // refused by name.
+  '^(?!(?:agentChatThread|agentChatThreadTarget|agentMessage|agentMessagePart|agentTurn|agentTurnEvaluation|attachment|blocklist|calendarChannelEventAssociation|calendarEvent|calendarEventParticipant|calendarEventTarget|callRecording|campaignDelivery|dashboard|message|messageCampaign|messageChannelMessageAssociation|messageChannelMessageAssociationMessageFolder|messageList|messageListMember|messageParticipant|messageSuppression|messageThread|messageThreadTarget|recordShare|shortLink|timelineActivity|workflow|workflowAutomatedTrigger|workflowRun|workflowVersion|workspaceMember)$)[a-z][a-zA-Z0-9]{0,62}$': 'person',
   '^[^,]+$': 'Label',
   '^(?!.*__)[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$': 'NEW',
   '^Icon[A-Za-z0-9]{1,60}$': 'IconFlask',
@@ -155,6 +158,9 @@ const PATTERN_ADVERSARIAL = {
   '^[^\\s/]+$': ['.', '..', '\u001b'],
   '\\S': ['  x  ', '\u0000x'],
   '^[0-9]+$': ['0000000000000000000000'],
+  // Names that extend or pluralise a refused one are not refused: the lookahead is anchored
+  // at both ends, so a refusal that matched by prefix would show up here.
+  '^(?!(?:agentChatThread|agentChatThreadTarget|agentMessage|agentMessagePart|agentTurn|agentTurnEvaluation|attachment|blocklist|calendarChannelEventAssociation|calendarEvent|calendarEventParticipant|calendarEventTarget|callRecording|campaignDelivery|dashboard|message|messageCampaign|messageChannelMessageAssociation|messageChannelMessageAssociationMessageFolder|messageList|messageListMember|messageParticipant|messageSuppression|messageThread|messageThreadTarget|recordShare|shortLink|timelineActivity|workflow|workflowAutomatedTrigger|workflowRun|workflowVersion|workspaceMember)$)[a-z][a-zA-Z0-9]{0,62}$': ['workflows', 'messageX', 'calendarEventTargets'],
 };
 const VIOLATION_CANDIDATES = [' ', '/', '!', '', 'a/b', '\u0000', 'ZZ ZZ', '../..'];
 

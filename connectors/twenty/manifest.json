@@ -64,7 +64,7 @@
           }
         },
         "create": {
-          "description": "Create one record. object is the singular API name and matches ^[a-z][a-zA-Z0-9]{0,62}$. data holds at most 100 field values, and each of its keys matches that same pattern. The values travel only as GraphQL variables. Returns the new record's id. A record this action creates can start the workspace's own workflows, and such a workflow may send email. This action sends none.",
+          "description": "Create one record. object is the singular API name and matches ^[a-z][a-zA-Z0-9]{0,62}$. It may not be one of Twenty's own system objects, which are refused by name: workflows and their versions, triggers and runs, campaigns and their deliveries, messages, message lists and suppressions, calendar events, agent records, attachments, the blocklist, workspace members, dashboards, record shares, short links, timeline activities and call recordings. person, company, opportunity, note, noteTarget, task, taskTarget and custom objects are admitted. data holds at most 100 field values, and each of its keys matches that same pattern. The values travel only as GraphQL variables. Returns the new record's id. A record this action creates can start the workspace's own workflows, and such a workflow may send email. This action sends none.",
           "risk": "medium",
           "confirmation": "always",
           "execution": {
@@ -75,7 +75,7 @@
             "properties": {
               "object": {
                 "type": "string",
-                "pattern": "^[a-z][a-zA-Z0-9]{0,62}$"
+                "pattern": "^(?!(?:agentChatThread|agentChatThreadTarget|agentMessage|agentMessagePart|agentTurn|agentTurnEvaluation|attachment|blocklist|calendarChannelEventAssociation|calendarEvent|calendarEventParticipant|calendarEventTarget|callRecording|campaignDelivery|dashboard|message|messageCampaign|messageChannelMessageAssociation|messageChannelMessageAssociationMessageFolder|messageList|messageListMember|messageParticipant|messageSuppression|messageThread|messageThreadTarget|recordShare|shortLink|timelineActivity|workflow|workflowAutomatedTrigger|workflowRun|workflowVersion|workspaceMember)$)[a-z][a-zA-Z0-9]{0,62}$"
               },
               "data": {
                 "type": "object",

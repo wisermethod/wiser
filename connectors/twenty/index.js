@@ -45,6 +45,22 @@ const COLORS = new Set([
   'pink', 'bronze', 'gold', 'brown', 'gray',
 ]);
 
+// Twenty's own standard objects at v2.45.6 (6007ad5a, STANDARD_OBJECT_UNIVERSAL_IDENTIFIERS),
+// every one but the CRM's seven: person, company, opportunity, note, noteTarget, task and
+// taskTarget. records.create refuses each by name, before any call. A created workflow,
+// campaign or message could send email, and the rest are the workspace's own machinery.
+// Every other name is admitted, custom objects among them.
+const SYSTEM_OBJECTS = new Set([
+  'agentChatThread', 'agentChatThreadTarget', 'agentMessage', 'agentMessagePart', 'agentTurn',
+  'agentTurnEvaluation', 'attachment', 'blocklist', 'calendarChannelEventAssociation',
+  'calendarEvent', 'calendarEventParticipant', 'calendarEventTarget', 'callRecording',
+  'campaignDelivery', 'dashboard', 'message', 'messageCampaign',
+  'messageChannelMessageAssociation', 'messageChannelMessageAssociationMessageFolder',
+  'messageList', 'messageListMember', 'messageParticipant', 'messageSuppression', 'messageThread',
+  'messageThreadTarget', 'recordShare', 'shortLink', 'timelineActivity', 'workflow',
+  'workflowAutomatedTrigger', 'workflowRun', 'workflowVersion', 'workspaceMember',
+]);
+
 const GRAPHQL = '/graphql';
 const METADATA = '/metadata';
 
@@ -273,6 +289,7 @@ export const modules = {
     async create(input, ctx) {
       const bad = unknownField(input, ['object', 'data']) || checkApiName(input.object, 'object');
       if (bad) return bad;
+      if (SYSTEM_OBJECTS.has(input.object)) return invalid('object');
       if (!input.data || typeof input.data !== 'object' || Array.isArray(input.data)) return invalid('data');
       const keys = Object.keys(input.data);
       if (keys.length > 100) return invalid('data');

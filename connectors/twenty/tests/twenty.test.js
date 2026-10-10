@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { confirmCall, createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
+import { modules } from '../index.js';
 
 // The shipped default denies privilege admin. These tests allow twenty so the
 // action, not the policy, is what they measure. The deny test uses the default.
@@ -198,6 +199,55 @@ test('records.create stops for confirmation and then sends createPerson variable
   assert.equal(query.includes('PersonCreateInput'), true);
   assert.equal(query.includes('Invented Name'), false);
   assert.deepEqual(variables, { data: { name: 'Invented Name' } });
+});
+
+// Twenty's own standard objects at v2.45.6 other than the CRM's seven, read from
+// STANDARD_OBJECT_UNIVERSAL_IDENTIFIERS at 6007ad5a. A created workflow, campaign or
+// message could send email, so records.create refuses every one of them by name.
+const SYSTEM_OBJECTS = [
+  'agentChatThread', 'agentChatThreadTarget', 'agentMessage', 'agentMessagePart', 'agentTurn',
+  'agentTurnEvaluation', 'attachment', 'blocklist', 'calendarChannelEventAssociation',
+  'calendarEvent', 'calendarEventParticipant', 'calendarEventTarget', 'callRecording',
+  'campaignDelivery', 'dashboard', 'message', 'messageCampaign',
+  'messageChannelMessageAssociation', 'messageChannelMessageAssociationMessageFolder',
+  'messageList', 'messageListMember', 'messageParticipant', 'messageSuppression', 'messageThread',
+  'messageThreadTarget', 'recordShare', 'shortLink', 'timelineActivity', 'workflow',
+  'workflowAutomatedTrigger', 'workflowRun', 'workflowVersion', 'workspaceMember',
+];
+
+test('records.create refuses each system object at the gateway and in the module, sending nothing', async () => {
+  const fixture = await connected(allowTwenty);
+  fixture.fake.auth.proxy = async () => {
+    throw new Error('a system object reached the install');
+  };
+  const ctx = {
+    proxy: async () => {
+      throw new Error('a system object reached the module transport');
+    },
+  };
+  for (const object of SYSTEM_OBJECTS) {
+    const refused = await fixture.gw.execute({ action: 'twenty.records.create', input: { object, data: {} } });
+    assert.equal(refused.status, 'invalid_arguments', object);
+    assert.deepEqual(await modules.records.create({ object, data: {} }, ctx), { status: 'invalid_arguments', field: 'object' }, object);
+  }
+  const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
+  const pattern = manifest.modules.records.actions.create.input.properties.object.pattern;
+  const named = /^\^\(\?!\(\?:([A-Za-z|]+)\)\$\)\[a-z\]\[a-zA-Z0-9\]\{0,62\}\$$/.exec(pattern);
+  assert.ok(named, pattern);
+  assert.deepEqual(named[1].split('|'), SYSTEM_OBJECTS);
+});
+
+test('records.create admits the CRM\'s seven objects, a custom object and names extending a refused one', async () => {
+  const fixture = await connected(allowTwenty);
+  for (const object of ['person', 'company', 'opportunity', 'note', 'noteTarget', 'task', 'taskTarget', 'invention', 'workflowNote']) {
+    const name = object[0].toUpperCase() + object.slice(1);
+    fixture.calls.length = 0;
+    fixture.reply({ data: { [`create${name}`]: { id: 'rec-new' } } });
+    const result = await confirmCall(fixture.gw, { action: 'twenty.records.create', input: { object, data: {} }, confirm: true });
+    assert.deepEqual(result, { id: 'rec-new' }, object);
+    assert.equal(fixture.calls.length, 1, object);
+    assert.equal(fixture.calls[0].body.query.includes(`create${name}(`), true, object);
+  }
 });
 
 test('a GraphQL errors answer fails with the code and not the message', async () => {
