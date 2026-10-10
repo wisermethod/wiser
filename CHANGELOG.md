@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.10.4, October 10, 2026
+
+- Turning a Markdown file into a Google Doc keeps its headings, bold text and bulleted lists, and the Google connector's guide now says so, so uploading Markdown is the quickest way to a formatted Doc. (a1bf5d2)
+- When you approve moving a Drive file, the approval now says plainly that the file goes into the folder you named and leaves the folders it was in. (a1bf5d2)
+
 ## v2026.10.10.3, October 10, 2026
 
 - Wiser can now make changes in your Google account, and asks you to approve each one before it runs. In Drive it can create a Google Doc, Sheet, Slides file or folder, upload text, Markdown, HTML, CSV or an Office file and turn it into a Doc, Sheet or Slides, rename a file, and move one to a folder. It can create a Google Doc and edit it, inserting and replacing text, setting headings, and making bulleted or numbered lists. It can write values to a spreadsheet and add rows to one, save a Gmail draft, which it never sends, and create and update Calendar events. Nothing is deleted or moved to the trash. (e222e3c, bb2a7a0, 810e04f)
