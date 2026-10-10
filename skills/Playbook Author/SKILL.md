@@ -71,8 +71,8 @@ Runs when a session working a Playbook ends.
 
 1. Say briefly, in plain language, what this session finished and what is left, each checked against disk.
 2. Where a Playbook names an open decision, say what you would do and why, and leave the choice.
-3. Reconcile every Playbook this session worked, per the session-end protocol in `standards/playbook.md` — after those answers where they come, and otherwise on the verified state, naming the open decision as a gate, with the recommendation beside it. Hand Off reconciles; Close Out finishes, and is its own job.
-4. Ask whether to wrap up. On yes, for each repository this session wrote: commit the changes this run made, by path, leaving and naming a path that also carries another session's uncommitted work; report the whole unpushed range; recheck whatever step 3 wrote that the commit has changed; and hand over, per Playbook, one line: `Resume the Playbook at <absolute path>`. The push is the operator's.
+3. Reconcile every Playbook this session worked, per the session-end protocol in `standards/playbook.md` — after those answers where they come, and otherwise on the verified state, naming the open decision as a gate, with the recommendation beside it. Then hand over, per Playbook, one line, `Resume the Playbook at <absolute path>`, whether or not the wrap up follows. A Playbook this session cannot write gets instead the reconciliation it still needs, every open gate included, for whoever can write it. Hand Off reconciles; Close Out finishes, and is its own job.
+4. Ask whether to wrap up. On yes, for each repository this session wrote: commit the changes this run made, by path, leaving and naming a path that also carries another session's uncommitted work; report the whole unpushed range; and recheck whatever step 3 wrote that the commit has changed. The push is the operator's.
 
 The named ask **wrap up** runs all four steps with step 4's answer already given. Where the session worked no Playbook, it says so, then commits and reports the range.
 
