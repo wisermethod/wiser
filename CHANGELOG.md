@@ -12,6 +12,7 @@ Changes before September 27, 2026 are in the commit history only.
 - Browser Control now checks whose browser is on a port before using it, and no longer suggests closing a browser another session started. (e480406)
 - The virtual machine connector's troubleshooting now explains a refusal that never reaches your machine, and how to find its cause without running anything that changes the machine. (e480406, bb06092)
 - A Playbook that runs on its own, one step after another, now states what one step is, how the next one is chosen, and when the run stops. (e480406, bb06092)
+- When a session working a Playbook ends, it now hands you one line, the Playbook's path, whether or not you let it commit, and the Playbook itself holds the next step and every open decision with a recommendation. Pasting that line into a new session is enough to resume. (a8b26a7, 1e7053c)
 
 ## v2026.10.10, October 10, 2026
 
