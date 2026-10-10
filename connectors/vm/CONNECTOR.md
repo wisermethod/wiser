@@ -3,7 +3,7 @@ name: vm
 type: connector
 category: development
 description: Reads health, facts and mapped host identifiers, runs a root command, reads and writes one file, and controls a systemd unit, with every command, write and unit change confirmed
-version: 0.1.2
+version: 0.1.3
 ---
 
 # Virtual machines
@@ -86,7 +86,7 @@ A grant is per module. All four modules use one toolkit. How to connect is `auth
 
 `invalid_arguments`: the named field is missing, the wrong type, or outside a published bound. The first `argv` element must be nonempty. A path must be absolute, within 4096 code points, and free of a NUL, a carriage return, a line feed and a lone surrogate. Write content must be within 60000 code points, and the encoded JSON body must be within 262144 bytes.
 
-`vendor_error`: the gateway's provider or the transport failed. The status and the endpoint are the safe fields. A router `outcome` is not this stop.
+`vendor_error`: the gateway's provider or the transport failed. The status and the endpoint are the safe fields. A router `outcome` is not this stop. Script text that passed before can come back `vendor_error`, HTTP 400 at `/exec`, when it carries a directory glob such as `conf/*/forwarding`: something ahead of the router refuses it, and the router's journal shows nothing, so the machine never ran it. Bisect the script over the connector before suspecting the machine, and write such a glob as `conf/[!.]*/forwarding` (seen from 2026-10-06).
 
 `uncertain`, from the Wiser endpoint: the provider call outlasted the endpoint's 20 seconds, or failed, or could not be recorded, and it was not retried. Its `action` names the call in doubt, which can be an earlier one than the call just made. It does not establish whether the router ran the command. Read it as a `vendor_error`: re-read the state the call would have changed before repeating anything, and never repeat a command, a write or a unit change blind.
 

@@ -3,7 +3,7 @@ name: Content Author
 type: skill
 category: authoring
 description: Write or review prose content for human readers in the owning root's bound voice
-version: 0.7.0
+version: 0.7.1
 memory:
   - voice
   - about
@@ -66,8 +66,8 @@ Two rules govern what a loaded type file can do. Where its format rule collides 
 
 ### Writing
 
-1. **Frame.** Name the root that owns the output, the target reader and what that reader already believes, the format and length, and the one claim the piece has to land. Any of the four unknown: ask before drafting. Then check grounding reach: when the piece must state facts about the owner and neither the bound `about` nor `<source_material>` can supply them, ask now rather than discovering the gap mid-draft.
-2. **Layer.** Order the sections so each one's model rests on the models already built. Name each section's model for yourself; that naming is planning, not text the reader sees. At each transition, ask whether the reader would see why this follows from that. Where they would not, the bridge is written in, not assumed.
+1. **Frame.** Name the root that owns the output, the target reader and what that reader already believes, the format and length, and the one claim the piece has to land. Any of the four unknown: ask before drafting. A piece a customer or member meets on the way to something, a page, a sign-up step, a welcome email, also names the moment in their journey it serves; where nobody has mapped that journey, map it with the owner first, because a piece written for no particular moment can pass every gate and still be rejected. Then check grounding reach: when the piece must state facts about the owner and neither the bound `about` nor `<source_material>` can supply them, ask now rather than discovering the gap mid-draft.
+2. **Layer.** Order the sections so each one's model rests on the models already built. Name each section's model for yourself; that naming is planning, not text the reader sees. At each transition, ask whether the reader would see why this follows from that. Where they would not, the bridge is written in, not assumed. A list the reader weighs is ordered by what matters most to that reader, never by the order it was built or found.
 3. **Ground.** Per claim, not per section, find the thing a reader could point at: any referent the Point-At Test names (`experts/Ghost Writer/EXPERT.md`). That test is the gate this step exists to clear. Quotes and facts about people carry their source and register per `standards/conventions.md`. What the source material does not contain is not invented: ask for it when the requester can be asked this run; if it is still not supplied, an unsourceable person-fact does not enter the piece at all, and any other claim is marked hypothetical when the piece still needs it, or is dropped.
 4. **Draft in voice.** The bound `voice` governs tone, vocabulary, structure, and prohibitions. Open on the claim rather than on context; close on an action or a reframe rather than a summary. Consecutive sentences connect: if two cannot be joined by "because", "which means", or "but" without adding a fact the source does not contain, they are stacked rather than argued, so cut the one that can go without losing the claim, or rewrite until the connection is real. This skill's defaults, the opening and closing moves, the connection test, and the craft tells Identity cites, all yield to the bound voice's traits. The formatting, date, and naming rules in `standards/conventions.md` never yield; a voice mandating what they forbid is not honored, and the conflict is noted for the voice's owner.
 5. **Cut.** Apply the threshold test in `standards/instruction-quality.md`. Cutting is not shortening: bridges and grounding detail carry weight and stay. Then walk the layering once more, because a cut can remove the model a later section was resting on.

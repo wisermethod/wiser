@@ -3,7 +3,7 @@ name: Browser Control
 type: tool
 category: automation
 description: Drives a persistent Chromium session to read, navigate, and act on pages that need a real browser, answering every command with the page state that followed
-version: 0.7.3
+version: 0.7.4
 ---
 
 # Browser Control
@@ -47,6 +47,7 @@ Anything else, see Troubleshooting.
 
 A page is not a function call. It redraws, it redirects, it shows a consent banner over the thing you meant to click, and it answers a click with a different page than the one you predicted. Every command here therefore returns the page state after the action, so that checking costs one read instead of one round trip.
 
+- **Know whose session you are driving.** Other sessions on this machine may each run a host. Run `session status --port [n]` on the exact port you will use, start your own there with `session start` on a line of its own, never piped, so its exit code is the start's, and pass that `--port` to every command.
 - **Snapshot before acting.** Read the page before the first action and after anything that could change it. `--format interactive` numbers what can be clicked or typed into; act by index rather than by a selector guessed from a screenshot.
 - **One action, then one check.** Never chain actions on the strength of what the page looked like two steps ago. A stale index is the single most common failure, and a fresh snapshot costs less than an action aimed at the wrong element.
 - **Verify against the page, not the exit code.** `check` exits 0 whenever the assertion ran; whether it held is the `passed` field. A caller that reads only the exit code will report a failed assertion as a pass.
@@ -215,7 +216,7 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 |---------|-------|-----|
 | `Chromium cannot launch` / `chromiumLaunch:false` | Binary missing, launch blocked, or OS library gap | Follow the `remediation` line from `npm run check:chromium` |
 | `no browser host answering on port [n]` | No session, or it was started on another port | `session status`, then `session start --profile [dir]` |
-| `a browser host is already running on port [n]` | A session from earlier work | `session stop`, or pass a different `--port` |
+| `a browser host is already running on port [n]` | A session from earlier work, possibly another session's | Pass a different `--port`. `session stop` only a host you started |
 | `session [start\|restart] needs --profile` | No location was resolved | Resolve a work directory in the owning root; do not guess one. `restart` resolves it before it stops anything, so a refusal leaves the running session standing |
 | `already exists and this tool never overwrites a file` | The artifact path is taken | Name a path that does not exist yet |
 | `needs --confirm` | A destructive command was run without opting in | Re-run with `--confirm` once the effect is intended |
