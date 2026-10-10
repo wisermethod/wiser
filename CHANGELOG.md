@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.10.5, October 10, 2026
+
+- Wiser can now work in a Twenty CRM workspace on an install you run yourself. It lists and counts records, reads the workspace's objects and fields, and creates records, objects, fields and new choices on a select field, asking you to approve each change before it runs. It never deletes, renames or removes anything there. (c1dc62f, bb77c27, 4ec4e86)
+- It sends no email. It will not create workflows, campaigns, messages or Twenty's other built-in system records, and a record it creates can still start a workflow your workspace already has, which its guide explains. (c1dc62f, 7be4bb4)
+- You connect it with an API key from the workspace's own settings, typed only on the connect page. On the Wiser service it becomes available in a later service update. (c1dc62f)
+
 ## v2026.10.10.4, October 10, 2026
 
 - Turning a Markdown file into a Google Doc keeps its headings, bold text and bulleted lists, and the Google connector's guide now says so, so uploading Markdown is the quickest way to a formatted Doc. (a1bf5d2)
