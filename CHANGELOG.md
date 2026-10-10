@@ -4,6 +4,15 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.10, October 10, 2026
+
+- When you approve a site deploy that carries a scheduled article whose time has already passed, Cloudflare Pages now tells you the article goes live the moment the deploy lands, not at its scheduled time. (7f33120)
+- When an action was added to your local gateway after it started, the connection troubleshooting skill now tells you a new session will pick it up, instead of reporting a missing connector. (7f33120, 4c4f6c1, e8cad48)
+- Wiser may now add a line to your working folder's `.stignore` or `.gitignore`, the files that keep sync and version control out of the wrong places. Nothing else at the top of a folder is written. (7f33120, 4c4f6c1)
+- The snapshot Wiser takes before it reorganizes a folder now works when the folder holds files over 2 GB, and it includes a site's `tokens.css` instead of setting it aside as a password file. (7f33120, 4c4f6c1, e8cad48)
+- Browser Control no longer closes its browser when a download click finds nothing to click. (7f33120)
+- The site kit's guide now says correctly that a site carries an Organization record only when its published about page states the organization's facts. (7f33120, 4c4f6c1)
+
 ## v2026.10.09.3, October 9, 2026
 
 - A program in your working folder can now hold programs of its own as well as projects, as deep as the work needs. A podcast program can keep guest sourcing, post-production and advertising as ongoing areas, each holding its own episodes and campaigns. Each folder says in its own AGENTS.md whether it has an end, which makes it a project, or not, which makes it a program; a project still holds no program. Moving a folder to a different parent still goes through a Housekeeping plan you approve, and a folder that turns out to have an end, or not, where it already sits only needs its own AGENTS.md changed. (614d9a2, 56904fd, 02e36b3)
