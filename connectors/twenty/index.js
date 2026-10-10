@@ -51,9 +51,11 @@ const METADATA = '/metadata';
 const OBJECTS_QUERY = [
   'query {',
   '  objects(paging: { first: 200 }, filter: {}) {',
+  '    pageInfo { hasNextPage }',
   '    edges { node {',
   '      id nameSingular namePlural labelSingular labelPlural isCustom isActive',
   '      fields(paging: { first: 200 }, filter: {}) {',
+  '        pageInfo { hasNextPage }',
   '        edges { node { id name label type isCustom isActive options } }',
   '      }',
   '    } }',
@@ -161,9 +163,16 @@ function createdId(payload, key) {
   return { id };
 }
 
+const INCOMPLETE = 'RESULT_INCOMPLETE';
+
+function hasMore(connection) {
+  return Boolean(connection && typeof connection === 'object' && connection.pageInfo && connection.pageInfo.hasNextPage === true);
+}
+
 function projectFields(fields) {
   const edges = fields && typeof fields === 'object' ? fields.edges : undefined;
   if (!Array.isArray(edges)) return null;
+  if (hasMore(fields)) return INCOMPLETE;
   const out = [];
   for (const edge of edges) {
     const node = edge && typeof edge === 'object' ? edge.node : undefined;
@@ -184,12 +193,13 @@ function projectFields(fields) {
 function projectObjects(payload) {
   const edges = payload && payload.objects && typeof payload.objects === 'object' ? payload.objects.edges : undefined;
   if (!Array.isArray(edges)) return null;
+  if (hasMore(payload.objects)) return INCOMPLETE;
   const objects = [];
   for (const edge of edges) {
     const node = edge && typeof edge === 'object' ? edge.node : undefined;
     if (!node || typeof node !== 'object' || Array.isArray(node)) return null;
     const fields = projectFields(node.fields);
-    if (!fields) return null;
+    if (!fields || fields === INCOMPLETE) return fields;
     objects.push({
       id: node.id,
       nameSingular: node.nameSingular,
@@ -288,6 +298,7 @@ export const modules = {
       const result = await graphql(ctx, METADATA, OBJECTS_QUERY, {});
       if (result.status === 'vendor_error') return result;
       const projected = projectObjects(result.payload);
+      if (projected === INCOMPLETE) return vendorError(METADATA, result.httpStatus, 'POST', INCOMPLETE);
       if (!projected) return vendorError(METADATA, result.httpStatus, 'POST');
       return projected;
     },
@@ -374,9 +385,16 @@ export const modules = {
       else existing = field.options;
       const values = new Set();
       const labels = new Set();
+      let top = -1;
       for (const option of existing) {
         if (!option || typeof option !== 'object' || Array.isArray(option)) {
           return vendorError(METADATA, read.httpStatus, 'POST');
+        }
+        if (option.position !== undefined && option.position !== null) {
+          if (typeof option.position !== 'number' || !Number.isFinite(option.position)) {
+            return vendorError(METADATA, read.httpStatus, 'POST');
+          }
+          if (option.position > top) top = option.position;
         }
         if (typeof option.value === 'string') values.add(option.value);
         if (typeof option.label === 'string') labels.add(option.label);
@@ -385,13 +403,15 @@ export const modules = {
         if (values.has(item.value) || labels.has(item.label)) return invalid('options');
       }
       if (existing.length + input.options.length > 100) return invalid('options');
+      // New options continue above the highest existing position, which need not be the count.
+      const base = Math.max(Math.floor(top) + 1, existing.length);
       const options = existing.map(plainCopy);
       input.options.forEach((item, index) => {
         options.push({
           label: item.label,
           value: item.value,
           color: item.color,
-          position: existing.length + index,
+          position: base + index,
         });
       });
       const updated = await graphql(ctx, METADATA, UPDATE_FIELD_QUERY, {

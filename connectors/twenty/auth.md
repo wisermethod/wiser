@@ -25,7 +25,7 @@ In the Twenty workspace, open Settings and make a workspace API key. The role a 
 
 This toolkit is not one the provider ships. The origin is different for every installer, so the gateway does not register a row for it. On the local gateway you create slug `TWENTY`, and you keep a single auth config on it.
 
-One workspace per gateway at a time. A key belongs to one workspace, so a second workspace is reached by connecting again. Connecting again replaces which key the module uses. It does not revoke the key it replaced, so revoke that key in the first workspace's settings when you are done with it. Both modules sit on this one toolkit, so after the first is connected the second may adopt that account. Adoption is skipped when the toolkit has more than one ACTIVE account, and then you connect each module by name.
+Work in one workspace at a time; the gateway does not enforce it. A key belongs to one workspace, and each module holds its own binding, so a second workspace is reached by connecting **both** modules again, then reading each module's `workspace` action before any write. Connecting again replaces which key a module uses. It does not revoke the key it replaced, so revoke that key in the first workspace's settings when you are done with it. Both modules sit on this one toolkit, so after the first is connected the second may adopt that account. Adoption is skipped when the toolkit has more than one ACTIVE account, and then you connect each module by name.
 
 ## Through the gateway
 

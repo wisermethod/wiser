@@ -669,3 +669,61 @@ test('workspace fails on an answer with no usable id', async () => {
   const result = await fixture.gw.execute({ action: 'twenty.metadata.workspace', input: {} });
   assert.equal(result.status, 'vendor_error');
 });
+
+test('add_field_options continues above the highest existing position, not the count', async () => {
+  const fixture = await connected(allowTwenty);
+  const existing = [
+    { id: 'opt-a', label: 'New', value: 'NEW', color: 'gray', position: 10 },
+    { id: 'opt-b', label: 'Won', value: 'WON', color: 'green', position: 20 },
+  ];
+  scriptField(fixture, { id: FIELD_ID, type: 'SELECT', options: existing });
+  const result = await confirmCall(fixture.gw, {
+    action: 'twenty.metadata.add_field_options',
+    input: { fieldId: FIELD_ID, options: [option('Later', 'LATER', 'lime'), option('Lost', 'LOST', 'red')] },
+    confirm: true,
+  });
+  assert.deepEqual(result, { id: FIELD_ID });
+  const sent = fixture.calls[1].body.variables.input.update.options;
+  assert.deepEqual(sent.slice(0, 2), existing);
+  assert.deepEqual(sent.slice(2).map((o) => o.position), [21, 22]);
+});
+
+test('add_field_options fails on an existing option whose position is not a number', async () => {
+  const fixture = await connected(allowTwenty);
+  scriptField(fixture, { id: FIELD_ID, type: 'SELECT', options: [{ id: 'opt-a', label: 'New', value: 'NEW', color: 'gray', position: 'first' }] });
+  const result = await confirmCall(fixture.gw, {
+    action: 'twenty.metadata.add_field_options',
+    input: { fieldId: FIELD_ID, options: [option('Later', 'LATER')] },
+    confirm: true,
+  });
+  assert.equal(result.status, 'vendor_error');
+  assert.equal(fixture.calls.length, 1);
+});
+
+test('list_objects refuses a partial inventory as RESULT_INCOMPLETE', async () => {
+  for (const [objectsMore, fieldsMore] of [[true, false], [false, true]]) {
+    const fixture = await connected(allowTwenty);
+    fixture.reply({ data: { objects: {
+      pageInfo: { hasNextPage: objectsMore },
+      edges: [{ node: {
+        id: 'obj-1', nameSingular: 'person', namePlural: 'people', labelSingular: 'Person', labelPlural: 'People', isCustom: false, isActive: true,
+        fields: { pageInfo: { hasNextPage: fieldsMore }, edges: [{ node: { id: 'fld-1', name: 'name', label: 'Name', type: 'FULL_NAME', isCustom: false, isActive: true, options: null } }] },
+      } }],
+    } } });
+    const result = await fixture.gw.execute({ action: 'twenty.metadata.list_objects', input: {} });
+    assert.equal(result.status, 'vendor_error');
+    assert.equal(result.code, 'RESULT_INCOMPLETE');
+    assert.match(fixture.calls[0].body.query, /pageInfo \{ hasNextPage \}/);
+  }
+});
+
+test('create_field refuses options on a non-select type after confirmation, sending nothing', async () => {
+  const fixture = await connected(allowTwenty);
+  const result = await confirmCall(fixture.gw, {
+    action: 'twenty.metadata.create_field',
+    input: { objectMetadataId: FIELD_ID, name: 'note', label: 'Note', type: 'TEXT', options: [option('A', 'A')] },
+    confirm: true,
+  });
+  assert.equal(result.status, 'invalid_arguments');
+  assert.equal(fixture.calls.length, 0);
+});

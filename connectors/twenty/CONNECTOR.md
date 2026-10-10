@@ -3,7 +3,7 @@ name: twenty
 type: connector
 category: crm
 description: Reads and creates records, objects, fields and select options in one Twenty workspace, confirming every write
-version: 0.1.0
+version: 0.1.1
 ---
 
 # Twenty
@@ -28,7 +28,7 @@ A record `twenty.records.create` creates can start the workspace's own workflows
 
 ## One workspace
 
-One gateway holds one workspace at a time. A key belongs to one workspace. Connecting again reaches a second workspace and rebinds the record. It does not revoke the key it replaced. Revoke that key in the first workspace's settings. Both modules use one toolkit, so after the first is connected the second may adopt that account. Adoption is skipped when the toolkit has more than one ACTIVE account, and then each module is connected by name. `auth.md` says how.
+Work in one workspace at a time. This is an operating rule, not something the gateway enforces. A key belongs to one workspace, and each module is bound to its own account, so reconnecting one module to a second workspace leaves the other on the first. To move to another workspace, connect **both** modules again, then read `twenty.records.workspace` and `twenty.metadata.workspace` and write nothing until both name the workspace you intend. Connecting again does not revoke the key it replaced; revoke that key in the first workspace's settings. Both modules use one toolkit, so after the first is connected the second may adopt that account. Adoption is skipped when the toolkit has more than one ACTIVE account, and then each module is connected by name. `auth.md` says how.
 
 ## Reaching it
 
@@ -54,13 +54,13 @@ twenty.metadata.add_field_options    { fieldId, options }             confirmati
 
 `twenty.records.create` sends `POST /graphql`. The mutation name is `object` with its first letter upper-cased, and the field values travel only as GraphQL variables. It returns the new record's `id`. `data` holds at most 100 values, and each key is an API name.
 
-`twenty.metadata.list_objects` sends `POST /metadata` for the workspace's objects and their fields. It takes an empty object.
+`twenty.metadata.list_objects` sends `POST /metadata` for the workspace's objects and their fields. It takes an empty object. It asks for 200 objects and 200 fields per object. A workspace past either is refused as `vendor_error` with `code` `RESULT_INCOMPLETE`, never returned in part.
 
 `twenty.metadata.create_object` sends `createOneObject`. `nameSingular` and `namePlural` must differ. `namePlural` publishes the same API-name language as `^[a-z](?:[a-zA-Z0-9]{0,62})$`, so the two fields are not given one exemplar. Labels are 1 to 63 code points. `icon`, when present, matches `^Icon[A-Za-z0-9]{1,60}$`. `description`, when present, is at most 500 code points.
 
 `twenty.metadata.create_field` sends `createOneField`. `type` is `TEXT`, `NUMBER`, `BOOLEAN`, `DATE`, `DATE_TIME`, `SELECT` or `MULTI_SELECT`. `options` is required for `SELECT` and `MULTI_SELECT` and refused for every other type. Each list is 1 to 50 items. A label is 1 to 63 code points and contains no comma. A `value` matches `^(?!.*__)[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$`, is at most 63 characters, and is unique within the list. `color` is one of `red`, `ruby`, `crimson`, `tomato`, `orange`, `amber`, `yellow`, `lime`, `grass`, `green`, `jade`, `mint`, `turquoise`, `cyan`, `sky`, `blue`, `iris`, `violet`, `purple`, `plum`, `pink`, `bronze`, `gold`, `brown`, `gray`. The module sets `position` from the order.
 
-`twenty.metadata.add_field_options` reads the field with `field(id:)`, then appends. It refuses a type other than `SELECT` or `MULTI_SELECT`, a `value` or a label already on the field, and a combined list that would pass 100 options. Those three are read from the field, so the schema cannot state them. It then sends the existing options unchanged and in order, followed by the new ones, with positions continuing from the number of options already there. It does not remove, rename or reorder an option.
+`twenty.metadata.add_field_options` reads the field with `field(id:)`, then appends, positions continuing above the highest existing one. It reads and then writes the whole list, and Twenty has no conditional update, so no one else may change that field's options while it runs: an option added by another caller in between is lost. It refuses a type other than `SELECT` or `MULTI_SELECT`, a `value` or a label already on the field, and a combined list that would pass 100 options. Those three are read from the field, so the schema cannot state them. It then sends the existing options unchanged and in order, followed by the new ones, with positions continuing from the number of options already there. It does not remove, rename or reorder an option.
 
 A label Twenty counts in UTF-16 units can pass the code-point bound here and still be refused by Twenty. A label in emoji is the case.
 

@@ -119,7 +119,7 @@
       },
       "actions": {
         "list_objects": {
-          "description": "List the workspace's objects and their fields. Takes an empty object. Each object includes id, nameSingular, namePlural, labelSingular, labelPlural, isCustom and isActive, and each field includes id, name, label, type, isCustom, isActive and options.",
+          "description": "List the workspace's objects and their fields. Takes an empty object. Each object includes id, nameSingular, namePlural, labelSingular, labelPlural, isCustom and isActive, and each field includes id, name, label, type, isCustom, isActive and options. A workspace with more than 200 objects, or an object with more than 200 fields, is refused as vendor_error with code RESULT_INCOMPLETE rather than returned in part.",
           "risk": "low",
           "confirmation": "none",
           "execution": {
@@ -319,7 +319,12 @@
                 },
                 "required": [
                   "type"
-                ]
+                ],
+                "not": {
+                  "required": [
+                    "options"
+                  ]
+                }
               },
               {
                 "properties": {
@@ -339,7 +344,7 @@
           }
         },
         "add_field_options": {
-          "description": "Append options to one SELECT or MULTI_SELECT field. fieldId is a lowercase UUID. options is 1 to 50 new items of the same shape as create_field, and each value is unique within that list. The module reads the field first. It refuses a type other than SELECT or MULTI_SELECT, a value or a label already on the field, and a combined list that would pass 100 options. It then sends the existing options unchanged and in order, followed by the new ones, with positions continuing. It does not remove, rename or reorder an option. A label counted in emoji can pass this check and still be refused by Twenty, which counts UTF-16 units.",
+          "description": "Append options to one SELECT or MULTI_SELECT field. fieldId is a lowercase UUID. options is 1 to 50 new items of the same shape as create_field, and each value is unique within that list. The module reads the field first. It refuses a type other than SELECT or MULTI_SELECT, a value or a label already on the field, and a combined list that would pass 100 options. It then sends the existing options unchanged and in order, followed by the new ones, with positions continuing above the highest existing position. It does not remove, rename or reorder an option. A label counted in emoji can pass this check and still be refused by Twenty, which counts UTF-16 units. It reads and then writes the whole list, and Twenty offers no conditional update, so no one else may change this field's options while it runs: an option another caller adds in between is lost.",
           "risk": "medium",
           "confirmation": "always",
           "execution": {
