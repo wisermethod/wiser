@@ -4,6 +4,14 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.10.6, October 10, 2026
+
+- Cloudflare Pages can now publish an ordinary static site, a folder of built pages with no site kit and no Pages Functions, such as a one-page dashboard, through your Cloudflare connection instead of Wrangler and a hand-made token. It asks you to approve each deploy. (ea8d04f, 7c07ee6, bef62af, 62dad05)
+- That deploy refuses a working folder rather than publishing it: your root itself or a folder at its top level, or a folder holding agent instructions, a git repository, archives, a memory folder or an environment file. It also refuses a site with server code and points you to the deploy that carries Pages Functions. (ea8d04f, bef62af, 62dad05)
+- Cloudflare Pages can now switch on Cloudflare Web Analytics for a Pages project, and list or delete your account's Web Analytics sites. When a site already covers the domain, it attaches that site so its history continues; otherwise it creates one. The analytics script appears on your pages from the next deploy, and Webmaster reviews the switch before it runs, as it does a deploy. (ea8d04f, 7c07ee6, bef62af, 62dad05, bc89947)
+- Deleting a Pages project that has Web Analytics on also deletes the Web Analytics site it sends to, with its history, even a site it only attached. Cloudflare Pages now tells you which site goes before such a delete, and before attaching a site whose history matters. (bc89947)
+- Web Analytics needs one more permission on the Cloudflare token you connected for Pages: Account Settings, Read to list and attach a site, and Edit to create or delete one. Edit also lets the token change or delete your whole Cloudflare account, so the guide says to add it only for that step and remove it afterwards. Edit the same token at Cloudflare; nothing is reconnected. (7c07ee6)
+
 ## v2026.10.10.5, October 10, 2026
 
 - Wiser can now work in a Twenty CRM workspace on an install you run yourself. It lists and counts records, reads the workspace's objects and fields, and creates records, objects, fields and new choices on a select field, asking you to approve each change before it runs. It never deletes, renames or removes anything there. (c1dc62f, bb77c27, 4ec4e86)
