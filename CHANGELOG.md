@@ -4,6 +4,15 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.10.2, October 10, 2026
+
+- Before a site that replaces another goes live, Webmaster now checks that every address the old site served, images and files as well as pages, is kept or redirected, and that you have said what may be retired. (e480406, bb06092)
+- Content Author now asks which moment in your reader's journey a page or email serves before drafting it, and puts a list in the order that matters to your reader. (e480406)
+- When a new action fits a service you have already connected, Connector Advisor now plans it onto that connection, so you are not asked to connect the same account twice. (e480406, bb06092)
+- Browser Control now checks whose browser is on a port before using it, and no longer suggests closing a browser another session started. (e480406)
+- The virtual machine connector's troubleshooting now explains a refusal that never reaches your machine, and how to find its cause without running anything that changes the machine. (e480406, bb06092)
+- A Playbook that runs on its own, one step after another, now states what one step is, how the next one is chosen, and when the run stops. (e480406, bb06092)
+
 ## v2026.10.10, October 10, 2026
 
 - When you approve a site deploy that carries a scheduled article whose time has already passed, Cloudflare Pages now tells you the article goes live the moment the deploy lands, not at its scheduled time. (7f33120)
