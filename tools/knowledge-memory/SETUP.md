@@ -8,6 +8,15 @@ Read `tools/knowledge-memory/references/backends.md` for the memory-option contr
 
 **Pro.** Read `experts/Knowledge Expert/graph.md`. Graph ingest and recall execute locally with LadybugDB. On `retrieval: embedding`, ingest also cuts the corpus into searchable passages, which roughly doubles the store, and a recall is two tool calls with one model call between them; `references/backends.md` Mapping carries what that costs per question and is where the option is chosen. `check` reports graph package presence; `check --install` installs the pinned engine and embedding runtime into this tool's `.venv` under Script Contract consent and completes. `--install` also works on the graph command that needs the packages. Missing engine is `missing-engine: ladybug`; missing ONNX or tokenizer files is `missing-weights`, even with `--install`. The tool only reads weights already in the person-scoped `models/` folder; it never downloads them. Python presence and missing-runtime handling follow `standards/script-contract.md` System dependencies.
 
+The Pro model files are the full-precision ONNX export of `sentence-transformers/all-MiniLM-L6-v2`, from that model's page on Hugging Face, saved as `all-MiniLM-L6-v2.onnx`, with that page's `tokenizer.json` beside it. They were taken at the page's revision `1110a243fdf4706b3f48f1d95db1a4f5529b4d41`, where the export is listed as `onnx/model.onnx`, and the recall figures in `references/backends.md` were measured with them. The page also lists optimized and quantized exports of the same model. Each of them loads and returns plausible results, so a wrong pick fails silently, and none of them is the default. Check the two files against this table:
+
+| File | Bytes | SHA-256 |
+|------|-------|---------|
+| `all-MiniLM-L6-v2.onnx` | 90405214 | `6fd5d72fe4589f189f8ebc006442dbb529bb7ce38f8082112682524616046452` |
+| `tokenizer.json` | 466247 | `be50c3628f2bf5bb5e3a7f17b1f74611b2561a3a27eeab05e5aa30f411572037` |
+
+Run `shasum -a 256 all-MiniLM-L6-v2.onnx tokenizer.json` inside the `models/` folder `tools/AGENTS.md` names for each platform, or `sha256sum` where `shasum` is absent, and compare each line with the table. A recipe's `embedding_file` may name another ONNX file in that folder. Nothing else was measured, and the tool reads any file the way it reads this one: attention-mask mean pooling, no query or passage prefix, and the folder's `tokenizer.json`. A model built for anything else returns plausible but weaker results, with no error.
+
 **Enterprise.** Read `experts/Knowledge Expert/hosted.md`. Hosted lookup, ingest and export are unspecified; stop before reading a source or creating a compiled layer.
 
 ## First set

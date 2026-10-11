@@ -3,7 +3,7 @@ name: knowledge-memory
 type: tool
 category: knowledge
 description: Lints local knowledge wikis, builds and queries a dataset-scoped databased store (SQLite FTS5), and ingests and recalls a local LadybugDB graph, all from session-extracted knowledge with located provenance
-version: 0.6.2
+version: 0.6.3
 gaps:
   - temporal filtering of recall by a date, so an as-of question is answered from the facts the set dates rather than filtered by the engine
   - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
@@ -92,7 +92,7 @@ Success prints one JSON object and exits 0; help prints usage. Failures print on
 | `--decided must sit under review/decided/.` | Record the human decision and file the item there |
 | `decision block incomplete:` | Have the reviewer supply the missing field |
 | `missing-engine: ladybug` | Read the consent report and authorise packages with `--install`, or repair the named engine in the tool venv |
-| `missing-weights` | Supply the local model and tokenizer files in the person-scoped models folder; the tool never fetches them |
+| `missing-weights` | Supply the local model and tokenizer files in the person-scoped models folder; the tool never fetches them. `SETUP.md` Pro names which files to take and how to check them |
 | `refused-import: cognee` | Remove the refused import; no engine retry |
 | `this command is databased-only; backend: graph is not supported.` | Use graph ingest or recall; no graph promotion or replay command exists |
 | `provenance-shape-mismatch` | Rebuild the set by re-ingesting its sources into a new store. Fires against a store built before a node kept every source its located quotes came from, on ingest and on the passage retrieval paths; MATCH and a store with no passages read neither new column and keep working |

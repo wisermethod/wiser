@@ -2,7 +2,7 @@
 
 Engine documentation and skill contract for ask-time Pro / `backend: graph`.
 
-**Version:** 0.5.1, 2026-09-15
+**Version:** 0.5.2, 2026-10-11
 **Status:** specified and executable for query, embed and ingest
 
 ## Scope and availability
@@ -49,7 +49,7 @@ An item from a store holding passages also carries `part`, one of `passage`, `id
 
 **The composer is not deprived by it**, because the composer's call is the selection, not the ranked call: `--select` attaches the ideas of the passages actually chosen, scoped to them, which is the same `attach` the ranked path uses.
 
-Weights placement follows the constitution's `AGENTS.md` Writes and the person-scoped model-weights row in `tools/AGENTS.md`. A knowledge-set recipe names a file inside that `models/` folder. The default ONNX file is `all-MiniLM-L6-v2.onnx`, with `tokenizer.json` beside it. Optional recipe `embedding_file` is a basename only, with no separators or `..`. The engine does not supply or download embedding weights.
+Weights placement follows the constitution's `AGENTS.md` Writes and the person-scoped model-weights row in `tools/AGENTS.md`. A knowledge-set recipe names a file inside that `models/` folder. The default ONNX file is `all-MiniLM-L6-v2.onnx`, the full-precision ONNX export of `sentence-transformers/all-MiniLM-L6-v2`, with that model's `tokenizer.json` beside it; `tools/knowledge-memory/SETUP.md` Pro names the revision, and the size and checksum of each file. Optional recipe `embedding_file` is a basename only, with no separators or `..`. The engine does not supply or download embedding weights.
 
 ## Verbs and failures
 
