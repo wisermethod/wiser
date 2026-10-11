@@ -70,6 +70,20 @@ FAKE = textwrap.dedent("""\
             Path(pidfile).write_text(str(pid))
         time.sleep(30)
         raise SystemExit(0)
+    if mode in ("background", "background-fail"):
+        pid = os.fork()
+        if pid == 0:
+            signal.signal(signal.SIGTERM, signal.SIG_IGN)
+            signal.signal(signal.SIGHUP, signal.SIG_IGN)
+            signal.signal(signal.SIGINT, signal.SIG_IGN)
+            time.sleep(30)
+            os._exit(0)
+        pidfile = os.environ.get("PIDFILE")
+        if pidfile:
+            Path(pidfile).write_text(str(pid))
+        sys.stdout.write(json.dumps({"result": "did the work", "stopReason": "end_turn"}) + "\\n")
+        sys.stdout.flush()
+        raise SystemExit(0 if mode == "background" else 2)
     if mode == "badjson":
         sys.stdout.write("not json\\n")
         raise SystemExit(0)
@@ -110,6 +124,44 @@ FAKE = textwrap.dedent("""\
         raise SystemExit(0)
     sys.stdout.write(json.dumps({"result": "did the work", "stopReason": "end_turn"}) + "\\n")
 """)
+
+
+def live_group_members(pgid):
+    """Process ids in pgid that are not zombies."""
+    result = subprocess.run(
+        ["ps", "-ax", "-o", "pid=,pgid=,stat="], capture_output=True, text=True)
+    found = []
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if len(parts) < 3 or parts[1] != str(pgid):
+            continue
+        if parts[2].startswith("Z"):
+            continue
+        found.append(int(parts[0]))
+    return found
+
+
+def child_pids(pid):
+    result = subprocess.run(
+        ["ps", "-ax", "-o", "pid=,ppid="], capture_output=True, text=True)
+    found = []
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and parts[1] == str(pid):
+            found.append(int(parts[0]))
+    return found
+
+
+def assert_pid_dead(case, pid):
+    state = subprocess.run(
+        ["ps", "-p", str(pid), "-o", "stat="], capture_output=True, text=True)
+    text = state.stdout.strip()
+    if text and not text.startswith("Z"):
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        case.fail("process {} was still running ({})".format(pid, text))
 
 
 def write_fake(directory):
@@ -414,12 +466,129 @@ class PathTests(ToolCase):
         self.assertEqual(resolved, os.path.realpath(str(marker)))
         self.assertEqual(os.path.dirname(resolved), os.path.realpath(str(nested)))
         self.assertNotEqual(os.path.realpath(os.path.dirname(os.path.normpath(spelled))), os.path.dirname(resolved))
+        relative = self.root / "relative-link"
+        relative.symlink_to(os.path.join("nested", "real"))
+        relative_spelled = str(relative / ".." / "marker.txt")
+        self.assertEqual(engine.canonical("sample", relative_spelled), os.path.realpath(str(marker)))
+        through_dir = self.root / "through-dir"
+        through_dir.symlink_to(os.path.join("nested", "real", "..", "marker.txt"))
+        self.assertEqual(engine.canonical("sample", str(through_dir)), os.path.realpath(str(marker)))
 
     def test_broken_symlink_is_refused(self):
         broken = self.root / "broken"
         broken.symlink_to(self.root / "no-such")
         with self.assertRaises(engine.RunnerError):
             engine.canonical("sample", str(broken / "file"))
+
+    def test_symlink_target_traversal_is_refused_for_each_flag(self):
+        base = self.root / "tree"
+        real = base / "realdir"
+        real.mkdir(parents=True)
+        brief = base / "brief.md"
+        brief.write_text("secret brief", encoding="utf-8")
+        regular = base / "regular-file"
+        regular.write_text("x", encoding="utf-8")
+        link_missing = base / "link-missing"
+        link_missing.symlink_to(os.path.join("missing", "..", "brief.md"))
+        link_file = base / "link-file"
+        link_file.symlink_to(os.path.join("regular-file", "..", "brief.md"))
+        link_root_missing = base / "link-root-missing"
+        link_root_missing.symlink_to(os.path.join("missing", "..", "realdir"))
+        link_root_file = base / "link-root-file"
+        link_root_file.symlink_to(os.path.join("regular-file", "..", "realdir"))
+        with self.assertRaises(OSError):
+            open(link_missing, "rb").read()
+        with self.assertRaises(engine.RunnerError) as caught:
+            engine.canonical("--task-file", str(link_missing))
+        self.assertIn("does not exist", str(caught.exception))
+        plain = base / "plain-link"
+        plain.symlink_to(brief)
+        self.assertEqual(engine.canonical("--task-file", str(plain)), os.path.realpath(str(brief)))
+        spells = (
+            ("--task-file", str(link_missing), "does not exist"),
+            ("--task-file", str(link_file), "not a directory"),
+            ("--context", str(link_missing), "does not exist"),
+            ("--context", str(link_file), "not a directory"),
+            ("--root", str(link_root_missing), "does not exist"),
+            ("--root", str(link_root_file), "not a directory"),
+        )
+        fresh = self.root / "link-runs"
+        for flag, raw, needle in spells:
+            if fresh.exists():
+                shutil.rmtree(fresh)
+            fresh.mkdir()
+            argv = ["run", "--role", "builder", "--cli", "claude", "--model", "m",
+                    "--runs", str(fresh), "--task", "go"]
+            if flag == "--root":
+                argv.extend(["--root", raw])
+            elif flag == "--task-file":
+                argv.extend(["--root", str(self.work), "--task-file", raw])
+                argv = [item for item in argv if item != "--task" and item != "go"]
+            else:
+                argv.extend(["--root", str(self.work), "--context", raw])
+            result = self.invoke(argv)
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertEqual(result.stdout, "")
+            self.assertIn(needle, result.stderr)
+            self.assertIn(flag, result.stderr)
+            self.assertNotIn("secret brief", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+            self.assertEqual(list(fresh.iterdir()), [], flag)
+
+    def test_trailing_slash_or_dot_requires_a_directory(self):
+        brief = self.work / "brief.md"
+        brief.write_text("secret brief", encoding="utf-8")
+        for spelling in (str(brief) + os.sep, os.path.join(str(brief), ".")):
+            for label in ("--task-file", "--context", "--root"):
+                with self.assertRaises(engine.RunnerError) as caught:
+                    engine.canonical(label, spelling)
+                self.assertIn("requires a directory", str(caught.exception))
+        directory = self.work
+        for spelling in (str(directory) + os.sep, os.path.join(str(directory), ".")):
+            self.assertEqual(
+                engine.canonical("--root", spelling), os.path.realpath(str(directory)))
+        link = self.root / "dir-link"
+        link.symlink_to(directory)
+        self.assertEqual(
+            engine.canonical("--root", str(link) + os.sep), os.path.realpath(str(directory)))
+        file_link = self.root / "file-link"
+        file_link.symlink_to(brief)
+        with self.assertRaises(engine.RunnerError) as caught:
+            engine.canonical("--task-file", str(file_link) + os.sep)
+        self.assertIn("requires a directory", str(caught.exception))
+        fresh = self.root / "slash-runs"
+        spells = (
+            ("--task-file", str(brief) + os.sep),
+            ("--task-file", os.path.join(str(brief), ".")),
+            ("--context", str(brief) + os.sep),
+            ("--context", os.path.join(str(brief), ".")),
+            ("--root", str(brief) + os.sep),
+            ("--root", os.path.join(str(brief), ".")),
+        )
+        for flag, raw in spells:
+            if fresh.exists():
+                shutil.rmtree(fresh)
+            fresh.mkdir()
+            argv = ["run", "--role", "builder", "--cli", "claude", "--model", "m",
+                    "--runs", str(fresh), "--task", "go"]
+            if flag == "--root":
+                argv.extend(["--root", raw])
+            elif flag == "--task-file":
+                argv.extend(["--root", str(self.work), "--task-file", raw])
+                argv = [item for item in argv if item != "--task" and item != "go"]
+            else:
+                argv.extend(["--root", str(self.work), "--context", raw])
+            result = self.invoke(argv)
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("requires a directory", result.stderr)
+            self.assertIn(flag, result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+            self.assertEqual(list(fresh.iterdir()), [], flag)
+        kept = self.invoke(self.args(
+            cli="claude", roots=[str(self.work) + os.sep], extra=["--dry-run"]))
+        self.assertEqual(kept.returncode, 0, kept.stderr)
+        self.assertIn(os.path.realpath(str(self.work)), json.loads(kept.stdout)["roots"])
 
     def test_runs_inside_the_tool_is_refused(self):
         link = self.root / "tool-link"
@@ -1264,6 +1433,178 @@ class RunTests(ToolCase):
         values = " ".join("" if value is None else str(value) for value in command["env"].values())
         self.assertNotIn("builder-model", values)
         self.assertNotIn("m", command["env"].values())
+
+    def _assert_group_stopped(self, pgid, pidfile=None):
+        members = live_group_members(pgid)
+        if members:
+            for member in members:
+                try:
+                    os.kill(member, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            self.fail("process group {} still had live members {}".format(pgid, members))
+        if pidfile is not None and pidfile.is_file():
+            assert_pid_dead(self, int(pidfile.read_text(encoding="utf-8")))
+
+    def _background_exit(self, mode, name):
+        pidfile = self.root / (name + ".pid")
+        result = self.invoke(
+            self.args(cli="claude", extra=["--run-name", name, "--timeout", "60"]),
+            FAKE_MODE=mode, PIDFILE=str(pidfile))
+        return result, pidfile
+
+    def test_completed_run_stops_a_background_child_that_ignores_sigterm(self):
+        result, pidfile = self._background_exit("background", "bg-ok")
+        try:
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stderr, "")
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["state"], "completed")
+            self.assertEqual(payload["report"], "did the work")
+            self.assertTrue(payload["delegate_started"])
+            stored = json.loads((self.runs / "bg-ok" / "status.json").read_text(encoding="utf-8"))
+            self.assertEqual(stored["state"], "completed")
+            self._assert_group_stopped(stored["pgid"], pidfile)
+        finally:
+            if pidfile.is_file():
+                try:
+                    os.kill(int(pidfile.read_text(encoding="utf-8")), signal.SIGKILL)
+                except (ProcessLookupError, ValueError, OSError):
+                    pass
+
+    def test_failed_run_stops_a_background_child_that_ignores_sigterm(self):
+        result, pidfile = self._background_exit("background-fail", "bg-fail")
+        try:
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("failed", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+            stored = json.loads((self.runs / "bg-fail" / "status.json").read_text(encoding="utf-8"))
+            self.assertEqual(stored["state"], "failed")
+            self.assertEqual(stored["exit_code"], 2)
+            self._assert_group_stopped(stored["pgid"], pidfile)
+        finally:
+            if pidfile.is_file():
+                try:
+                    os.kill(int(pidfile.read_text(encoding="utf-8")), signal.SIGKILL)
+                except (ProcessLookupError, ValueError, OSError):
+                    pass
+
+    def _hook_driver(self, source):
+        driver = self.root / "spawn-hook.py"
+        driver.write_text(
+            "import os, signal, sys\n"
+            "sys.dont_write_bytecode = True\n"
+            "sys.path.insert(0, os.environ['HOOK_SCRIPTS'])\n"
+            "import engine\n"
+            + source +
+            "engine.after_spawn = hook\n"
+            "raise SystemExit(engine.main(sys.argv[1:]))\n",
+            encoding="utf-8")
+        return driver
+
+    def test_signal_between_spawn_and_publication_stops_the_group(self):
+        cases = ((signal.SIGTERM, "SIGTERM", "win-term"),
+                 (signal.SIGINT, "SIGINT", "win-int"),
+                 (signal.SIGHUP, "SIGHUP", "win-hup"))
+        for _sig, signame, name in cases:
+            pidfile = self.root / (name + ".pid")
+            driver = self._hook_driver(
+                "def hook(ctx):\n"
+                "    os.kill(os.getpid(), signal.{})\n".format(signame))
+            env = self.env(FAKE_MODE="ignoreterm", PIDFILE=str(pidfile))
+            env["HOOK_SCRIPTS"] = str(TOOL / "scripts")
+            result = subprocess.run(
+                [sys.executable, str(driver)] + self.args(
+                    cli="claude", extra=["--run-name", name, "--timeout", "30"]),
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
+                env=env, timeout=30)
+            try:
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertIn("interrupted", result.stderr)
+                self.assertNotIn("Traceback", result.stderr)
+                status = self.runs / name / "status.json"
+                final = json.loads(status.read_text(encoding="utf-8"))
+                self.assertEqual(final["state"], "interrupted", signame)
+                self.assertTrue(final["delegate_started"])
+                self.assertIsInstance(final["pgid"], int)
+                self.assertIsInstance(final["pid"], int)
+                self._assert_group_stopped(final["pgid"], pidfile)
+            finally:
+                if pidfile.is_file():
+                    try:
+                        os.kill(int(pidfile.read_text(encoding="utf-8")), signal.SIGKILL)
+                    except (ProcessLookupError, ValueError, OSError):
+                        pass
+
+    def test_sigkill_before_publication_leaves_no_live_vendor(self):
+        driver = self._hook_driver(
+            "def hook(ctx):\n"
+            "    os.kill(os.getpid(), signal.SIGSTOP)\n")
+        env = self.env(FAKE_MODE="sleep")
+        env["HOOK_SCRIPTS"] = str(TOOL / "scripts")
+        proc = subprocess.Popen(
+            [sys.executable, str(driver)] + self.args(
+                cli="claude", extra=["--run-name", "sigkill", "--timeout", "30"]),
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env,
+            start_new_session=True)
+        children = []
+        try:
+            deadline = time.time() + 15
+            while time.time() < deadline:
+                if proc.poll() is not None:
+                    err = proc.stderr.read().decode("utf-8", "replace")
+                    self.fail("runner exited before publication ({}) {}".format(proc.returncode, err))
+                state = subprocess.run(
+                    ["ps", "-p", str(proc.pid), "-o", "stat="],
+                    capture_output=True, text=True)
+                if state.stdout.strip().startswith("T"):
+                    break
+                time.sleep(0.05)
+            else:
+                self.fail("runner did not stop between spawn and publication")
+            children = child_pids(proc.pid)
+            self.assertTrue(children, "the handshake child was not alive in the window")
+            os.kill(proc.pid, signal.SIGKILL)
+            proc.wait(timeout=5)
+            run_dir = self.runs / "sigkill"
+            self.assertTrue((run_dir / "prompt.md").is_file())
+            self.assertFalse((run_dir / "status.json").exists())
+            deadline = time.time() + 5
+            while time.time() < deadline:
+                if not running_pids(children):
+                    break
+                time.sleep(0.05)
+            else:
+                self.fail("a vendor was still alive after the runner was killed")
+        finally:
+            if proc.poll() is None:
+                try:
+                    os.kill(proc.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            try:
+                proc.communicate(timeout=5)
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+            for child in children:
+                try:
+                    os.kill(child, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+
+
+def running_pids(pids):
+    """Pids that are still running and are not zombies."""
+    alive = []
+    for pid in pids:
+        state = subprocess.run(
+            ["ps", "-p", str(pid), "-o", "stat="], capture_output=True, text=True)
+        text = state.stdout.strip()
+        if text and not text.startswith("Z"):
+            alive.append(pid)
+    return alive
 
 
 if __name__ == "__main__":

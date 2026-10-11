@@ -166,37 +166,86 @@ def utc_now():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def canonical(label, raw):
-    """Resolve the deepest existing ancestor before collapsing '..'.
+def _spelling_requires_directory(raw):
+    """True when a trailing slash or a trailing '/.' names a directory."""
+    if not isinstance(raw, str) or raw == "":
+        return False
+    if raw.endswith(os.sep):
+        return True
+    trimmed = raw
+    while len(trimmed) > 1 and trimmed.endswith(os.sep):
+        trimmed = trimmed[:-1]
+    return os.path.basename(trimmed) == "."
 
-    normpath would remove a symlink's '..' before the filesystem is asked,
-    and would name a different file from the path the caller spelled.
-    """
-    if not isinstance(raw, str) or not os.path.isabs(raw):
-        shown = raw if isinstance(raw, str) else type(raw).__name__
-        fail('{} must be an absolute path; got "{}", which would resolve against whatever directory the caller happened to be in. Pass an absolute path.'.format(label, shown))
+
+def _split_parts(raw):
     parts = []
     for part in raw.split(os.sep):
         if part == "" or part == ".":
             continue
         parts.append(part)
-    resolved = os.sep
+    return parts
+
+
+def _refuse_parent(label, resolved, pending):
+    """'..' after a missing component, or after anything that is not a directory."""
+    if pending:
+        fail("{} cannot be canonicalized: '..' follows '{}', which does not exist. Pass a path whose existing components are directories.".format(label, pending[-1]))
+    if not os.path.isdir(resolved):
+        fail("{} cannot be canonicalized: '..' follows '{}', which is not a directory. Pass a path the filesystem can traverse.".format(label, resolved))
+
+
+def _refuse_directory_spelling(label, shown):
+    fail("{} cannot be canonicalized: a trailing '/' or '/.' requires a directory ({}). Pass a directory.".format(label, shown))
+
+
+def _join_pending(resolved, pending):
+    if not pending:
+        return resolved
+    return os.path.join(resolved, *pending)
+
+
+def _walk_parts(label, parts, resolved, seen):
+    """Walk components. A symlink target is walked with the same rules.
+
+    `..` after a missing component, or after a component that is not a
+    directory, is refused here, including when it sits inside a link target.
+    A missing tail with no `..` after it is returned as pending.
+    """
     pending = []
     for part in parts:
         if part == "..":
-            # A missing component, or one that exists and is not a directory,
-            # cannot be traversed. Collapsing it would name a different path.
-            if pending:
-                fail("{} cannot be canonicalized: '..' follows '{}', which does not exist. Pass a path whose existing components are directories.".format(label, pending[-1]))
-            if not os.path.isdir(resolved):
-                fail("{} cannot be canonicalized: '..' follows '{}', which is not a directory. Pass a path the filesystem can traverse.".format(label, resolved))
+            _refuse_parent(label, resolved, pending)
             parent = os.path.dirname(resolved)
             resolved = parent if parent else os.sep
             continue
         if pending:
             pending.append(part)
             continue
-        candidate = os.path.join(os.sep, part) if resolved == os.sep else os.path.join(resolved, part)
+        candidate = os.path.join(resolved, part) if resolved != os.sep else os.path.join(os.sep, part)
+        try:
+            is_link = os.path.islink(candidate)
+        except OSError as error:
+            fail("{} could not be resolved to a real path at {} ({}). Confirm every folder on the way is readable.".format(label, candidate, error.strerror))
+        if is_link:
+            if candidate in seen:
+                fail("{} could not be resolved to a real path ({} does not exist). Fix the symbolic link.".format(label, candidate))
+            seen.add(candidate)
+            try:
+                try:
+                    target = os.readlink(candidate)
+                except OSError as error:
+                    fail("{} could not be resolved to a real path at {} ({}). Fix the symbolic links on the way.".format(label, candidate, error.strerror))
+                base = os.sep if os.path.isabs(target) else resolved
+                next_resolved, next_pending = _walk_parts(label, _split_parts(target), base, seen)
+                if _spelling_requires_directory(target) and (next_pending or not os.path.isdir(next_resolved)):
+                    _refuse_directory_spelling(label, candidate)
+                if next_pending or not os.path.exists(next_resolved):
+                    fail("{} could not be resolved to a real path ({} does not exist). Fix the symbolic link.".format(label, candidate))
+                resolved = next_resolved
+            finally:
+                seen.discard(candidate)
+            continue
         try:
             found = os.path.lexists(candidate)
         except OSError as error:
@@ -204,16 +253,26 @@ def canonical(label, raw):
         if not found:
             pending.append(part)
             continue
-        try:
-            real = os.path.realpath(candidate)
-        except OSError as error:
-            fail("{} could not be resolved to a real path at {} ({}). Fix the symbolic links on the way.".format(label, candidate, error.strerror))
-        if not os.path.exists(real):
-            fail("{} could not be resolved to a real path ({} does not exist). Fix the symbolic link.".format(label, candidate))
-        resolved = real
-    if pending:
-        return os.path.join(resolved, *pending)
-    return resolved
+        resolved = candidate
+    return resolved, pending
+
+
+def canonical(label, raw):
+    """Resolve the deepest existing ancestor before collapsing '..'.
+
+    normpath would remove a symlink's '..' before the filesystem is asked,
+    and would name a different file from the path the caller spelled.
+    A link target is walked with the same component rules, so a target of
+    missing/../x or file/../x is refused rather than collapsed.
+    """
+    if not isinstance(raw, str) or not os.path.isabs(raw):
+        shown = raw if isinstance(raw, str) else type(raw).__name__
+        fail('{} must be an absolute path; got "{}", which would resolve against whatever directory the caller happened to be in. Pass an absolute path.'.format(label, shown))
+    requires_directory = _spelling_requires_directory(raw)
+    resolved, pending = _walk_parts(label, _split_parts(raw), os.sep, set())
+    if requires_directory and (pending or not os.path.isdir(resolved)):
+        _refuse_directory_spelling(label, _join_pending(resolved, pending))
+    return _join_pending(resolved, pending)
 
 
 def stat_id(path):
@@ -961,11 +1020,42 @@ def _wait_for_group(process, pgid, seconds):
         time.sleep(0.1)
 
 
+_CATCHABLE = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)
+
+# A test assigns a callable(ctx). It runs after the child exists and before
+# status.json is published, while the catchable signals are blocked.
+after_spawn = None
+
+# The child reads one byte on the inherited descriptor, then execs the vendor.
+# End of file means the runner died first: exit without starting the vendor.
+# Signals are unblocked here so a later stop can reach this process, and so
+# the vendor does not inherit the mask the runner held across the spawn.
+_VENDOR_GATE = """\
+import os, signal, sys
+signal.pthread_sigmask(signal.SIG_UNBLOCK, [signal.SIGINT, signal.SIGTERM, signal.SIGHUP])
+fd = int(sys.argv[1])
+while True:
+    try:
+        got = os.read(fd, 1)
+        break
+    except InterruptedError:
+        continue
+    except OSError:
+        raise SystemExit(1)
+if not got:
+    raise SystemExit(0)
+os.close(fd)
+try:
+    os.execv(sys.argv[2], sys.argv[2:])
+except OSError:
+    raise SystemExit(1)
+"""
+
 _termination_requested = False
 
 
 def _on_catchable_termination(signum, frame):
-    """SIGINT already raises KeyboardInterrupt. SIGTERM and SIGHUP join it."""
+    """SIGINT, SIGTERM, and SIGHUP take one path. A second signal does not cut the cleanup short."""
     global _termination_requested
     if _termination_requested:
         return
@@ -974,8 +1064,62 @@ def _on_catchable_termination(signum, frame):
 
 
 def install_termination_handlers():
-    for sig in (signal.SIGTERM, signal.SIGHUP):
+    for sig in _CATCHABLE:
         signal.signal(sig, _on_catchable_termination)
+
+
+def _block_catchable():
+    return signal.pthread_sigmask(signal.SIG_BLOCK, _CATCHABLE)
+
+
+def _restore_catchable(previous):
+    if previous is None:
+        return None
+    signal.pthread_sigmask(signal.SIG_SETMASK, previous)
+    return None
+
+
+def _close_fd(fd):
+    if fd is None:
+        return
+    try:
+        os.close(fd)
+    except OSError:
+        pass
+
+
+def _release_vendor(fd):
+    """Let the child exec the vendor. Closing without a byte makes it exit."""
+    try:
+        os.write(fd, b"\0")
+    except OSError:
+        pass
+    finally:
+        _close_fd(fd)
+
+
+def _spawn_vendor(argv, stdout, stderr, cwd, env):
+    """Start argv behind the handshake. Returns (process, release_fd)."""
+    read_fd, write_fd = os.pipe()
+    try:
+        command = [sys.executable, "-c", _VENDOR_GATE, str(read_fd)]
+        command.extend(argv)
+        process = subprocess.Popen(
+            command,
+            stdin=subprocess.PIPE,
+            stdout=stdout,
+            stderr=stderr,
+            cwd=cwd,
+            env=env,
+            start_new_session=True,
+            pass_fds=(read_fd,),
+        )
+    except Exception:
+        _close_fd(read_fd)
+        _close_fd(write_fd)
+        raise
+    _close_fd(read_fd)
+    return process, write_fd
 
 
 def stop_process(process):
@@ -1124,17 +1268,29 @@ def interpret(ctx, state, exit_code):
     return report, state
 
 
+def _halt(process):
+    """Stop the vendor group when a process exists, whether or not status.json was published."""
+    if process is None:
+        return
+    stop_process(process)
+    _finish_pipes(process)
+
+
 def launch(ctx):
     stdout_path = os.path.join(ctx["run_dir"], "stdout.log")
     stderr_path = os.path.join(ctx["run_dir"], "stderr.log")
     process = None
     started_clock = None
+    release_fd = None
+    blocked = None
     try:
         with open(stdout_path, "wb") as out, open(stderr_path, "wb") as err:
+            # Hold SIGINT, SIGTERM, and SIGHUP until the start record is published,
+            # then deliver whatever arrived so the started path stops the group.
+            blocked = _block_catchable()
             try:
-                process = subprocess.Popen(
-                    ctx["argv"], stdin=subprocess.PIPE, stdout=out, stderr=err,
-                    cwd=ctx["cwd"], env=ctx["env"], start_new_session=True)
+                process, release_fd = _spawn_vendor(
+                    ctx["argv"], out, err, ctx["cwd"], ctx["env"])
             except OSError as error:
                 shutil.rmtree(ctx["run_dir"], ignore_errors=True)
                 fail("could not start '{}' ({}). Presence check: {} --version.".format(ctx["cli"], error.strerror, ctx["cli"]))
@@ -1145,34 +1301,46 @@ def launch(ctx):
             except OSError:
                 ctx["pgid"] = process.pid
             ctx["started_at"] = utc_now()
+            hook = after_spawn
+            if hook is not None:
+                hook(ctx)
             ctx["started"] = True
             started_clock = time.monotonic()
             try:
                 write_started(ctx)
             except OSError as error:
-                stop_process(process)
+                _halt(process)
                 sys.stderr.write("Error: delegate state error. The run folder is {}. status.json could not be written ({}).\n".format(
                     ctx["run_dir"], error.strerror or error))
                 return 1
+            _release_vendor(release_fd)
+            release_fd = None
+            blocked = _restore_catchable(blocked)
             try:
                 process.communicate(input=ctx["stdin"], timeout=ctx["timeout"])
                 code = process.returncode
                 state = "completed" if code == 0 else "failed"
             except subprocess.TimeoutExpired:
-                stop_process(process)
-                _finish_pipes(process)
                 code = process.returncode
                 state = "timeout"
+            # Every exit, including a clean one, stops the group before the final state is written.
+            _halt(process)
         seconds = round(time.monotonic() - started_clock, 1)
         report, state = interpret(ctx, state, code)
         return settle(ctx, state, code, seconds, report)
     except KeyboardInterrupt:
-        if ctx.get("started") and process is not None:
-            stop_process(process)
-            _finish_pipes(process)
+        _close_fd(release_fd)
+        release_fd = None
+        _halt(process)
+        if ctx.get("started"):
             seconds = round(time.monotonic() - started_clock, 1) if started_clock is not None else None
-            return settle(ctx, "interrupted", process.returncode, seconds, None)
+            code = process.returncode if process is not None else None
+            return settle(ctx, "interrupted", code, seconds, None)
         raise
+    finally:
+        _close_fd(release_fd)
+        if blocked is not None:
+            _restore_catchable(blocked)
 
 
 def require_identity(args):
@@ -1338,21 +1506,22 @@ def run_command(args):
             return 0
         return launch(ctx)
     except KeyboardInterrupt:
+        # A process can exist before the start record does. Stop it either way.
+        _halt(ctx.get("process"))
         if ctx.get("started"):
-            stop_process(ctx.get("process"))
-            _finish_pipes(ctx.get("process"))
             return settle(ctx, "interrupted", None, None, None)
         remove_run_dir(ctx)
         sys.stderr.write("Error: interrupted before the delegate started.\n")
         return 1
     except RunnerError:
+        if ctx.get("process") is not None and not ctx.get("started"):
+            _halt(ctx.get("process"))
         if not ctx.get("started"):
             remove_run_dir(ctx)
         raise
     except Exception as error:
+        _halt(ctx.get("process"))
         if ctx.get("started"):
-            stop_process(ctx.get("process"))
-            _finish_pipes(ctx.get("process"))
             return settle(ctx, "error", None, None, "The runner failed after the delegate started.")
         remove_run_dir(ctx)
         sys.stderr.write("Error: the runner failed before the delegate started ({}). No run folder was kept.\n".format(type(error).__name__))
