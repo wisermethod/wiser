@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.11, October 11, 2026
+
+- The knowledge-memory setup guide now names the embedding model file the Pro memory option reads: the full-precision ONNX export of all-MiniLM-L6-v2 from Hugging Face, saved as all-MiniLM-L6-v2.onnx, with that page's tokenizer.json beside it. It gives each file's size and SHA-256 and the command that checks them on a Mac, on Linux or in Windows PowerShell, because the page's optimized and quantized versions can load and return plausible results without being that file. (9641651, 81d9867)
+- Where either checksum differs, the guide says to stop and replace that file before Pro work runs on it. Wiser still never downloads model files itself. (81d9867)
+
 ## v2026.10.10.6, October 10, 2026
 
 - Cloudflare Pages can now publish an ordinary static site, a folder of built pages with no site kit and no Pages Functions, such as a one-page dashboard, through your Cloudflare connection instead of Wrangler and a hand-made token. It asks you to approve each deploy. (ea8d04f, 7c07ee6, bef62af, 62dad05)
