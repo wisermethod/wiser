@@ -1536,7 +1536,39 @@ export class ConnectionGateway {
       }
 
       const provider = this.providerFor(target.auth);
-      const record = stored;
+      let record = stored;
+      if (!provider || typeof provider.status !== 'function') {
+        line.provider_account_id = record?.provider_account_id ?? null;
+        line.path = 'connector';
+        return this.needsProviderResult();
+      }
+
+      // A catalog account is asked for by id. With none, the catalog adapter
+      // requests `/connected_accounts/`. That URL answers 200 with a listing,
+      // and a listing has no account status, so it arrives here as
+      // vendor_error. Measured live on 2026-09-19 for dataforseo and for bing,
+      // each with no row. execute does not ask that URL. It refreshes from
+      // the account list first and, when that still leaves no account id,
+      // answers needs_connect. The same refresh here. The account endpoint
+      // is called only once an id exists. local-file status reads a file.
+      // An orphan already carries an id, and that path is unchanged.
+      const storedId = record?.provider_account_id;
+      const hasAccount = typeof storedId === 'string' && storedId.length > 0;
+      if (!orphaned && target.auth.provider !== 'local-file' && !hasAccount) {
+        await this.hydrateFromProvider();
+        record = this.store.getConnection({ service, module });
+        const refreshed = record?.provider_account_id;
+        if (typeof refreshed !== 'string' || refreshed.length === 0) {
+          line.provider_account_id = null;
+          line.path = 'connector';
+          return statusObject(STATUS.NEEDS_CONNECT, {
+            service,
+            module,
+            privilege: found.auth.privilege,
+          });
+        }
+      }
+
       line.provider_account_id = record?.provider_account_id ?? null;
       line.path = 'connector';
 
@@ -1546,9 +1578,6 @@ export class ConnectionGateway {
         file: found?.auth?.file,
         variables: found?.auth?.variables,
       };
-      if (!provider || typeof provider.status !== 'function') {
-        return this.needsProviderResult();
-      }
       const raw = await provider.status(statusArgs);
       if (raw && typeof raw === 'object' && raw.error) {
         // A transport or provider failure is not a grant status. The record is left as
