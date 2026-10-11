@@ -32,6 +32,7 @@ The one list; a tool's pages point here.
 | A classifier trial's records: spec, plan, runs, blind packets, scores, verdict, safety record | the caller-named `--work` directory in the owning root; a ceiling file at the caller-named `--ceiling-file` | `tools/lib/classifier/trial.mjs` |
 | Wrangler's own working files while it compiles: a log, `.wrangler/tmp`, its preferences under a stand-in home directory, and its update check's cache under a stand-in temporary directory | one directory in the platform's temporary directory, `wiser-pages-functions-<random>`, removed when the run ends, including on failure | `pages-functions` |
 | A knowledge set's own records: corpus, wiki or extraction, review items, reports | inside the set directory the caller passes as `--set`, at `corpus/`, `wiki/`, `extraction/`, `review/`, and `reports/` as the backend uses them | `knowledge-memory` |
+| A delegate's run record: the prompt, the vendor's two output streams, the parsed report, and `status.json` (`started` with the vendor's process and group ids, then the final state) | one folder under the caller-named `--runs`, which may not sit inside this plugin; a refusal before the vendor starts writes none | `Subagent Runner` |
 
 `copy-check` writes nothing and installs nothing: Node built-ins cover it, and every command prints one JSON object.
 
@@ -44,6 +45,7 @@ The gateway's writes (connection store, audit log, empty project-key template) a
 | Tool | Description |
 |------|-------------|
 | `Browser Control/TOOL.md` | Drives a persistent Chromium session to read, navigate, and act on pages that need a real browser, answering every command with the page state that followed |
+| `Subagent Runner/TOOL.md` | Run one builder or reviewer through a vendor command-line tool named by flags, or survey the boundary that run would use |
 
 ### Data
 

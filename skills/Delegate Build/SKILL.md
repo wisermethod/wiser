@@ -3,7 +3,7 @@ name: Delegate Build
 type: skill
 category: system
 description: Delegated build work and its independent review, with only verified findings folded back
-version: 0.1.0
+version: 0.1.1
 ---
 
 # Delegate Build
@@ -101,7 +101,7 @@ A commit made in step 1 leaves that diff empty, so the paths in the task are wha
 
 2. Did the delegate start? Through `tools/Subagent Runner/`, its run folder's status record says, by whether it records the vendor process's start (its process id and start time). The tool refused before starting, exiting with no run folder, or its record shows a final state with no start recorded: Stop a wait whose run never started; it did not start, so go to step 5. The record shows the start: it started; go to step 3 while it runs. Through another means: it started once the means reports it running; go to step 3. You cannot tell: treat it as started.
 
-3. A delegate composing one long reply writes nothing meanwhile. Is it still running? Its status record still reads started, or its process is alive: keep waiting, and do not stop it for minutes of silence. You cannot see whether it is alive: wait past the longest sibling run before treating it as stalled, or, with no sibling run to compare, until the timeout the brief or the means set. Then treat it as stalled: stop it, and go to step 4 as a run that did not complete. It has a final state: go to step 4.
+3. A delegate composing one long reply writes nothing meanwhile. Is it still running? Its status record still reads started after the command that ran `tools/Subagent Runner/` has returned: the tool ended without its last write, and the delegate may still be running; stop the process group the record names, by the recovery that tool's documentation states, and go to step 4 as a run that did not complete. Its status record still reads started, or its process is alive: keep waiting, and do not stop it for minutes of silence. You cannot see whether it is alive: wait past the longest sibling run before treating it as stalled, or, with no sibling run to compare, until the timeout the brief or the means set. Then treat it as stalled: stop it, and go to step 4 as a run that did not complete. It has a final state: go to step 4.
 
 4. Save the delegate's raw reply to disk before parsing it. An empty reply and a refusal both look like a fault in the model, and the saved reply is what tells them apart. Where the tool wrote a run folder, that folder is the saved reply: keep the prompt, the logs, the report and the status.
 
