@@ -4,6 +4,14 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.11.4, October 11, 2026
+
+- Scope Plugin Bench now also looks for earlier research in the folder that will own the plan, and leaves out what tools installed for themselves. When the plan will be kept in the build workspace itself, the hand-off names that workspace's own files; a proposal or hand-off bound for any other folder still names none of them. (9ed11e1)
+- When Scope Plugin Bench sends a candidate to System Expert and it belongs in the domain plugin, System Expert now returns its type, family, name check and owning expert as well as its home, reading that plugin's folder without sequencing any work in it. (9ed11e1, b124c6d)
+- Delegate Build first uses the delegation method your folder or your standing instructions name, with the vendor, model and effort they name, and turns to another method only where they allow one, including when that method fails to start. Case folders for a blind evaluation go in the session's own scratch folder. (9ed11e1, b124c6d)
+- Playbook Author reads what a cited system does from that system's own schema, code or capture before a plan states it, and restates a changed objective in one paragraph. Where sessions run in a sequence across Playbooks, a session ends with the prompt for the next one, after any wrap-up question; where no plan states the order, or two disagree, it names the order as an open question in each Playbook instead of guessing. (9ed11e1, b124c6d, b44d198)
+- A script's state check may return more than three answers where three are not enough, and a fresh gateway started to prove a call live takes its own harness label, as an instrument gateway does. (9ed11e1)
+
 ## v2026.10.11.3, October 11, 2026
 
 - The knowledge-memory setup guide no longer says the recall figures in its backends reference were measured with the named model files, since no record shows which file those runs loaded. The files and their checksums are unchanged. (e09b740)
