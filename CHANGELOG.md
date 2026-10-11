@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.11.3, October 11, 2026
+
+- The knowledge-memory setup guide no longer says the recall figures in its backends reference were measured with the named model files, since no record shows which file those runs loaded. The files and their checksums are unchanged. (e09b740)
+
 ## v2026.10.11.2, October 11, 2026
 
 - Three new skills carry a change to your own software, a plugin or a working folder from build to release. Prove Change tests a change against the commit that holds it, shows each check can fail, and says what passed, what failed, what could not be checked and what stays unverified. Delegate Build hands a build to a builder in another session and its review to a fresh one, and keeps only the findings it has checked. Commit and Release commits only the files you name and checks what landed, and pushes, tags and confirms a release only when you asked for it, following the release rules of the repository it is releasing. System Expert now decides which of them a change needs and in what order. (fbb6fb1, 4d644d5, fe81315, 7f717c6)
