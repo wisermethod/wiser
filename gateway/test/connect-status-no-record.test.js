@@ -374,12 +374,14 @@ async function listingFailure(t, route, row) {
 function assertListingError(result, call, httpStatus) {
   assert.equal(accountList(call), true);
   assert.equal(call.method, 'GET');
+  // The path alone: the query carries the user id and any cursor the provider sent.
   assert.deepEqual(result, {
     status: 'vendor_error',
     http_status: httpStatus,
-    endpoint: `/connected_accounts${call.search}`,
+    endpoint: '/connected_accounts',
     method: 'GET',
   });
+  assert.equal(JSON.stringify(result).includes(USER), false);
 }
 
 function assertNoAccountRead(calls) {
@@ -474,6 +476,24 @@ test('connect_status with a listing that fails on a later page does not keep the
   assertNoAccountRead(calls);
   assert.equal(store.getConnection({ service: 'dataforseo', module: 'research' }), null);
   assert.equal(store.getConnection({ service: 'bing', module: 'webmaster' }), null);
+});
+
+test('connect_status with a listing that fails after a provider cursor does not reflect the cursor', async (t) => {
+  const cursor = 'sentinel-cursor-7f3a';
+  const { result, calls, store } = await listingFailure(t, (url) => {
+    if (!accountList({ pathname: url.pathname, search: url.search })) return null;
+    if (url.searchParams.get('cursor') === null) {
+      return { status: 200, body: { items: [], next_cursor: cursor } };
+    }
+    if (url.searchParams.get('cursor') === cursor) return { status: 503, body: {} };
+    return null;
+  }, null);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].search.includes(cursor), true);
+  assertListingError(result, calls[1], 503);
+  assert.equal(JSON.stringify(result).includes('sentinel-cursor'), false);
+  assertNoAccountRead(calls);
+  assert.equal(store.getConnection({ service: 'dataforseo', module: 'research' }), null);
 });
 
 test('execute still answers needs_connect when the account listing fails', async (t) => {
