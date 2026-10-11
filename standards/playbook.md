@@ -1,6 +1,6 @@
 ---
 standard: playbook
-version: 0.2.3
+version: 0.2.4
 description: The Playbook format; the WISER method for multi-session execution with decision tracking and learning capture
 ---
 
@@ -29,6 +29,10 @@ Status is never Complete until Final Check passes.
 
 Interrogate drives Solve. This ordering is the load-bearing idea of the method: the riskiest piece is the assumption whose failure would invalidate the plan, not the task that looks hardest. Build it before anything that depends on it, so a wrong plan fails in the first session rather than the last. Each risk carries a status (Active, Mitigated, Realized, Retired), a concrete countermeasure, and notes updated as work proceeds. A mitigation that names no action is not a mitigation. Skimpy risk work is the top failure mode: a Playbook with generic risks and hedged mitigations reads complete, sequences the work wrong, and finds out late. Risks keep their detail even when the rest of the document is compressed.
 
+## Questions
+
+Put each question where its answer is used, in the running session at the task that first uses it, in units the owner can judge, with a recommended default. Upfront questions do not block the start, and the one gate is the authorization to proceed.
+
 ## Required Sections
 
 Every Playbook carries a Header (created and updated dates, Type, Collaboration, Status, Method), Context with the standards pointer and Key files, Preconditions, Authority, the five canons, Final Check, Decision Log, Learnings, Resume Instructions, Progress, and Success Criteria. The Structure section below shows what each holds. A section with nothing in it says "None" rather than disappearing.
@@ -42,6 +46,8 @@ Expand holds milestones; each groups a few tasks, typically 3 to 5, toward one v
 Every task is atomic (one action, not two joined by "and" or "then"), verifiable (a done-state checkable on disk or by a run, not by opinion), right-sized (completable inside its session), and independent of its siblings where possible. Warning signs: vague verbs (handle, address, improve); no observable done state; a milestone holding one or two tasks, which is a task; a task that is really a project.
 
 Evidence is recorded inline. When a task or checkpoint completes, write the outcome and the absolute date at the checkbox or checkpoint itself: what was run, what passed, what was observed. Evidence is disk state, a run's output, or a named human attestation with its date; work that leaves no disk trace records who confirmed it.
+
+Write acceptance against what must happen, before the run. Map Success Criteria to milestones in two columns and name each criterion's closing task before the first write.
 
 ## Type
 
@@ -62,6 +68,8 @@ Autonomous guardrails. Stop and notify a human when:
 - Solve disproves the approach (this stops both modes; pivot, descope, or abandon is a human decision)
 - A high-severity risk emerges (one that could invalidate the plan), or a risk realizes with impact beyond what its mitigation contains
 
+An unattended run, before it stops, lists every unticked box with the rule that blocks it, does each one no rule stops, and has a reviewer test the list. The reviewer works in a context that did not produce the list.
+
 Authority is the gate: anything under Needs human input pauses in both modes. Mode governs the rest, checkpoints and decision discussion. A guardrail stop sets Status to Paused and records the blocker. Mode is declared in the header and may change mid-execution; log the change as a decision.
 
 **Run in a loop.** A Playbook a standing goal runs unattended, one iteration after another, states three things a single session can leave implicit: what one iteration is, the rule that derives the next action (the first unticked task whose gate is open, for example), and the conditions that stop the run. Progress still names the one next action, the one that rule gives now, and carries the rule beside it, so an iteration that finds the sentence stale re-derives it rather than following it. A restated entry point is not what such a run lacks.
@@ -74,6 +82,9 @@ The document is updated as the work happens, never reconstructed afterward.
 - Update Status at canon transitions, and the updated date after any change
 - Move risk statuses as they change; add newly surfaced risks
 - Log each decision immediately with its rationale and the alternatives evaluated; a decision recorded later loses its alternatives
+- A Decision Log row stays; it records what was believed
+- After adding an in-flight question, grep the plan for the behaviour it governs, make every downstream item conditional on both answers, and re-read the Success Criteria against each
+- When a rule is decided, write down which withheld acceptance items it amends, before the next run
 - Record a learning whenever an assumption is validated or invalidated
 - On a scope change: log it, update Scope and risks, then re-evaluate whether the riskiest piece changed
 - On a task failure: log it in Learnings and attempt one recovery if a clear fix exists. On a second failure, stop. Collaborative discusses; Autonomous documents the blocker and stops
@@ -193,7 +204,7 @@ Dates, naming charset, and archiving follow `standards/conventions.md`.
 4. Check Progress for the current canon and next action
 5. Verify checkboxes against actual disk state; correct drift
 6. Continue from the documented next action
-7. End the session through `skills/Playbook Author/` Hand Off, which owns the steps; the ask "wrap up" enters it at step 4
+7. End the session through `skills/Playbook Author/` Hand Off, which owns the steps; the ask "wrap up" runs all of them with the wrap-up question already answered
 
 ## Progress
 **Last worked:** YYYY-MM-DD
