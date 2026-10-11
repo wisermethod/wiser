@@ -132,7 +132,7 @@ The pending approvals live on the gateway instance as `pendingConfirmations`, in
 
 Connectors load once, when the process starts. A long-running gateway serves connectors stale: check `describe_action` on that process, then prove live with a fresh `gateway/server.js` over stdio, newline-delimited JSON-RPC, `initialize`, then `tools/call` with `execute`, and exit the client after the reply. An edited connector or a new action is not visible on the process that loaded the old tree, and the new action answers `needs_connector` there.
 
-Give an instrument gateway a distinct `--harness`, so the classifier presence file a session is using survives. That file is named for the `--harness` label, per Everything the gateway writes. A reused label replaces the file.
+Give that fresh gateway, and any instrument gateway, a distinct `--harness`, so the classifier presence file a session is using survives. That file is named for the `--harness` label, per Everything the gateway writes. A reused label replaces the file.
 
 A fresh gateway home is not an empty account: the default key file's provider syncs live grants. Run an instrument gateway that allows `execute` with `--provider local-file` and `--secrets` set to an empty directory, prove that a connector `execute` answers `needs_connect` first, and stop on any connector `execute` that returns `ok`.
 

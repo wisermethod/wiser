@@ -3,7 +3,7 @@ name: Scope Plugin Bench
 type: skill
 category: system
 description: Decide what experts, skills, tools and connectors a named domain plugin should hold in its first slice, and hand Playbook Author the source material to plan it
-version: 0.1.3
+version: 0.1.4
 ---
 
 # Scope Plugin Bench
@@ -39,7 +39,7 @@ A refusal writes nothing: no primitive, no Playbook, no tree, no file inside the
 | Copying a `wiser` primitive into the domain plugin | Refuse. Referencing it is the pattern; the constitution's Precedence and routing is the rule |
 | A request that already names a specific primitive | Refuse and route, state (c). Do not open research |
 | Writing under the plugin being scoped, or under `wiser` in use | Refuse. The constitution's Writes and Irreversibles are the authority |
-| Naming a build-workspace path in this skill, in the proposal, or in the hand-off | Refuse. The reader of an installed plugin has never seen that directory |
+| Naming a build-workspace path in this skill, or in a proposal or hand-off bound for any root but that build workspace | Refuse. The reader of an installed plugin, or of another root, has never seen that directory. A package bound for the build workspace itself names that workspace's own paths as its Key files, per step 2 |
 
 ## Three input states
 
@@ -102,9 +102,9 @@ Then classify the request against Three input states. State (c) ends the run at 
 
 ### 2. Inventory what the workspace already holds
 
-Direct `skills/Internal Research/` by name. Hand it `<scan_request>` whose topic is the domain the plugin's constitution says it is for, and whose scope is named rather than left open: the plugin being scoped, `wiser`, and any composed user root. Take the inventory it returns.
+Direct `skills/Internal Research/` by name. Hand it `<scan_request>` whose topic is the domain the plugin's constitution says it is for, and whose scope is named rather than left open: the plugin being scoped, `wiser`, any composed user root, and the root that will own the plan where the request or the workspace already names it, since research saved for this work lands there; in each, excluding what tools install for themselves. Take the inventory it returns.
 
-A composed workspace can hold directories whose paths may not appear in anything this skill yields. Where a returned card's path names a build-workspace directory, or you cannot tell, say that hits were found and omitted because they cannot be named in this package, and carry the finding without the path. Do not copy the path, and do not silently drop the card as though the inventory found nothing there.
+A composed workspace can hold directories whose paths may not appear in anything this skill yields. Which root is this package bound for? The build workspace itself, because that workspace will own the plan: a card's path inside it is named, as a Key file of the hand-off. Any other root, or you cannot tell: where a returned card's path names a build-workspace directory, or you cannot tell whether it does, say that hits were found and omitted because they cannot be named in this package, and carry the finding without the path. Do not copy the path, and do not silently drop the card as though the inventory found nothing there.
 
 This skill does not scan. An empty result is a finding, not a reason to skip the step: state (b) is proved here, not assumed. Coverage is enough for a first slice only when the material the inventory found, read where it sits, supports a failure this domain's work meets and a lens that would catch it; a reading you cannot tell about is not enough.
 
@@ -231,6 +231,6 @@ State (c) does not produce this package from a research run. It produces the ref
 - Every named candidate passed through `experts/System Expert/` Job 2, and the hand-off matches those verdicts.
 - The yield is the hand-off package above. No primitive was authored, no Playbook was written, no tree was produced or adopted, nothing was written under the plugin being scoped or under `wiser` in use.
 - `skills/Internal Research/`, `skills/Deep Research/`, `experts/System Expert/` Job 2, and `skills/Playbook Author/` Create were directed by name and none of their internals was restated.
-- No build-workspace path appears in this file, in the proposal, or in the hand-off.
+- No build-workspace path appears in this file, or in a proposal or hand-off bound for any root but that build workspace.
 
-Do not author a primitive. Do not write the Playbook. Do not produce the tree. Do not name a build-workspace path.
+Do not author a primitive. Do not write the Playbook. Do not produce the tree. Do not name a build-workspace path in anything bound for another root.

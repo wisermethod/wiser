@@ -3,7 +3,7 @@ name: Delegate Build
 type: skill
 category: system
 description: Delegated build work and its independent review, with only verified findings folded back
-version: 0.1.1
+version: 0.1.2
 ---
 
 # Delegate Build
@@ -44,9 +44,9 @@ The jobs then run in order: Choose the means, Brief, Run, Verify, Review, Hand o
 
 ## Choose the means
 
-Which means can this session observe? Take the first that holds.
+Which means can this session observe? Decide it for each role on its own: the builder, and each reviewer.
 
-Decide it for each role on its own: the builder, and each reviewer.
+Does the owning root, or a standing instruction this session runs under, name a delegation means for this role? Yes: that means comes first. Delegate this role through it, with the vendor, model and effort it names for that role. Where it cannot run here, or its run never starts, take a means below only where that root or instruction allows another; otherwise name what is missing and do not start this role's run. No: take the first of the means below that holds. You cannot tell: ask, and do not delegate.
 
 - `tools/Subagent Runner/` is installed, a shell can run it, and the vendor command-line tool this role's vendor needs is installed and signed in, and the tool's `survey` reports no refusal for this role, vendor and access. A sign-in counts as observed only when the vendor tool reports one, or when a run in this session already used it. Any other sign-in is absent, and this bullet does not hold for this role. Delegate this role through that tool, to that vendor's model, passing the role's vendor, model and effort as the owning root names them for that role; where the owning root names none, ask. A run leaves a folder holding the prompt, the logs, the report and its status record.
 - That tool is not installed, the shell, the tools or the sign-ins are absent, or the tool refuses this role, vendor and access, and this harness provides sub-agents. That means did not run and produced nothing, per the constitution's Behavioral Core. Delegate through the harness's own sub-agents. The next means does not depend on the tool.
@@ -55,7 +55,7 @@ Decide it for each role on its own: the builder, and each reviewer.
 
 The request requires a particular vendor or a model other than this session's, and the means chosen for a role cannot meet it: name what is missing, such as that vendor's sign-in, and do not start that role's run on another means.
 
-Do not assemble a vendor command in place of `tools/Subagent Runner/`. When that path is absent, the branch above is the step.
+Do not assemble a vendor command in place of `tools/Subagent Runner/`, or of a means the owning root names. When that path is absent, the branch above is the step.
 
 ## Brief
 
@@ -67,7 +67,7 @@ The commit goes through the owning root's mechanism, by `skills/Commit and Relea
 
 2. Is the delegate's work a blind evaluation, measured against cases, keys or expected answers that are withheld from it? Yes: apply the next paragraph. No, including a build checked by the repository's own tests, which the builder may read and run: skip this step. You cannot tell: ask.
 
-Build the artifact under test and commit it before any case or any key exists. A builder is isolated only by order, and a case or a key that already exists is something it can read. Nothing reachable from a delegate may reveal what is being measured: build the case roots outside the repository, and have the builder refuse a root inside the directory that holds the measurement. A delegate's write boundary does not limit its reads, so an instruction to behave is not the control.
+Build the artifact under test and commit it before any case or any key exists. A builder is isolated only by order, and a case or a key that already exists is something it can read. Nothing reachable from a delegate may reveal what is being measured: build the case roots outside the repository, in this session's own scratch directory, and have the builder refuse a root inside the directory that holds the measurement. A delegate's write boundary does not limit its reads, so an instruction to behave is not the control.
 
 3. Is the delegate a judging run of a blind evaluation, scoring work against withheld material? Yes: apply the next paragraph, and put that rule in the brief before the run. No, including an ordinary review, which may read the files it reviews: go on. You cannot tell: ask, and do not start the delegate.
 

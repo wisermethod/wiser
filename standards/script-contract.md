@@ -1,6 +1,6 @@
 ---
 standard: script-contract
-version: 0.7.3
+version: 0.7.4
 description: The rules every script a tool ships follows, and the clauses that bind a connector module; users read tools/RUNNING.md
 ---
 
@@ -32,7 +32,7 @@ The typed file lists them too. Help is where this clause binds, because it ships
 
 **Output and errors.** Work that succeeds prints one JSON object to stdout and exits 0. `help` and `--help` print usage text to stdout and exit 0. Failure prints to stderr only, leaves stdout empty, and exits 1. A failure message names the cause and the fix; when the cause came from an external service it names the status and the endpoint called, never the raw provider message, which can carry a credential. A successful object must not imply an input the process discarded: input dropped, first-wins among duplicates, or otherwise not applied is either refused before success or named in the object itself.
 
-**State.** A state probe tells complete from merely present: widen a boolean to a tri-state rather than AND it with another condition at the call sites. Does a boolean have to be combined with another condition at the call site to tell two states apart? Yes: it is under-answering, so widen it, such as absent, complete and incomplete, and test each arm with one fixture of its own. No: the boolean already separates the states, and the call site uses it alone.
+**State.** A state probe tells complete from merely present: widen a boolean to a tri-state or richer result rather than AND it with another condition at the call sites. Does a boolean have to be combined with another condition at the call site to tell two states apart? Yes: it is under-answering, so widen it, such as absent, complete and incomplete, and test each arm with one fixture of its own. No: the boolean already separates the states, and the call site uses it alone.
 
 **Unchanged.** A re-run that reports `unchanged` checks that what it vouches for is complete and usable, and refuses when that is in doubt. Does this run report `unchanged`? Yes: make that check, and refuse rather than report success over a missing or unusable part. It reports a change, or it is not a re-run: this check does not apply.
 
