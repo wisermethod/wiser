@@ -182,18 +182,20 @@ const LISTING_MAX_PAGES = 100;
 /**
  * Reject the listing. The message is the whole text a caller is given.
  * When the refusal followed a request, `listingRequest` names that request
- * and nothing from its body, so a caller can report which request failed.
+ * by its path alone and nothing from its body, so a caller can report which
+ * request failed. The query is dropped: it carries the user id and, after the
+ * first page, a cursor the provider sent.
  * @param {{ status?: number, endpoint?: string, method?: string } | undefined} requestResult
  */
 function failListing(requestResult) {
   const err = new Error(LISTING_FAILED);
-  if (
-    requestResult && typeof requestResult === 'object'
-    && typeof requestResult.endpoint === 'string' && requestResult.endpoint.length > 0
-  ) {
+  const path = requestResult && typeof requestResult === 'object' && typeof requestResult.endpoint === 'string'
+    ? requestResult.endpoint.split('?')[0]
+    : '';
+  if (path.length > 0) {
     err.listingRequest = {
       status: Object.hasOwn(requestResult, 'status') ? requestResult.status : null,
-      endpoint: requestResult.endpoint,
+      endpoint: path,
       method: typeof requestResult.method === 'string' ? requestResult.method : null,
     };
   }
