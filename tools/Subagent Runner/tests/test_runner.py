@@ -1525,6 +1525,7 @@ class RunTests(ToolCase):
                 self.assertIn("interrupted", result.stderr)
                 self.assertNotIn("Traceback", result.stderr)
                 status = self.runs / name / "status.json"
+                self.assertTrue(status.is_file(), "{}: no status.json, so the start was never recorded".format(signame))
                 final = json.loads(status.read_text(encoding="utf-8"))
                 self.assertEqual(final["state"], "interrupted", signame)
                 self.assertTrue(final["delegate_started"])
