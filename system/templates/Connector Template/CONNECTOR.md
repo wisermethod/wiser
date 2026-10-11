@@ -3,7 +3,7 @@ name: {{SERVICE}}
 type: connector
 category: {{CATEGORY}}
 description: The directory a new connector is copied from, with one read action and one confirmed write action wired through the gateway and every placeholder named
-version: 0.3.0
+version: 0.3.1
 ---
 
 # {{SERVICE_TITLE}}
@@ -21,7 +21,7 @@ Every one is substituted before the directory lands, and a search of the finishe
 | `{{MODULE}}` | The first module; a resource domain, not the whole API |
 | `{{TOOLKIT}}` | The provider's name for this platform, which appears in `manifest.json` under `auth.toolkit` and nowhere else |
 | `{{SCHEME}}` | `OAUTH2`, `API_KEY`, `BEARER` or `BASIC`, in the platform's own terms |
-| `{{PRIVILEGE}}` | `read`, `write` or `admin`, the most this module's grant can do at the vendor, not the risk of the actions currently listed |
+| `{{PRIVILEGE}}` | `read`, `write` or `admin`, the most this module's grant can do at the vendor, not the risk of the actions currently listed. A manifest's `privilege` is read in Witness from the auth config's scopes, never inferred from the actions the connector ships |
 | `{{CATEGORY}}` | Frontmatter category; lowercase letters and hyphens; reuse one the family already has |
 | `{{AUTH_PROVIDER}}` | `catalog` or `local-file`, never an adapter name |
 

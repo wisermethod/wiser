@@ -127,3 +127,23 @@ The pending approvals live on the gateway instance as `pendingConfirmations`, in
 ## Roles and policy
 
 `--role` selects `runtime` or `readonly`; `policy.default.json` decides what each may do, and `~/.wiser/gateway/policy.json` replaces those rules if present. Any other value, including `setup`, is refused. The one row a multi-user deployment flips is `startConnect` for `runtime`: on a laptop the person talking is the person connecting, and the shipped default allows it.
+
+## Proving a call live
+
+Connectors load once, when the process starts. A long-running gateway serves connectors stale: check `describe_action` on that process, then prove live with a fresh `gateway/server.js` over stdio, newline-delimited JSON-RPC, `initialize`, then `tools/call` with `execute`, and exit the client after the reply. An edited connector or a new action is not visible on the process that loaded the old tree, and the new action answers `needs_connector` there.
+
+Give an instrument gateway a distinct `--harness`, so the classifier presence file a session is using survives. That file is named for the `--harness` label, per Everything the gateway writes. A reused label replaces the file.
+
+A fresh gateway home is not an empty account: the default key file's provider syncs live grants. Run an instrument gateway that allows `execute` with `--provider local-file` and `--secrets` set to an empty directory, prove that a connector `execute` answers `needs_connect` first, and stop on any connector `execute` that returns `ok`.
+
+Read the gateway policy before a local live proof; where it routes a service to the hosted endpoint, prove through that endpoint after the approved deploy, and never around it with a scratch `--home`. The policy is the one Roles and policy names. A denial is the proof's result.
+
+## What a host keeps
+
+Measured on 2026-10-10, Claude Code cuts MCP server instructions at 4,096 characters and marks the cut `[truncated]`, Grok cuts them at about 2,000 characters and flattens them to one line, ChatGPT cuts them at 512 characters, and Codex, claude.ai and Cowork pass none to the model, while each host acts on whatever it does receive. A tool answer is not one channel: ChatGPT shows its model only `structuredContent` where an answer has one, and drops the text items beside it.
+
+Before relying on server instructions or on a tool answer, ask that host's model to quote what it received, word for word, and score nothing until that quote is in hand; keep server instructions under the smallest host cap, and put tool-answer text where each host shows it.
+
+Measured on 2026-10-10, ChatGPT reuses one MCP connection from its install across every new chat, so text sent only when a connection opens reaches it once, at install, and a settings change reaches it only after the app's Refresh tools is pressed or the server is added again; where a host reuses its connection, deliver per call. An app created on 2026-09-26 was still opening every reply with that day's test marker on 2026-10-10, until refreshed.
+
+In a live test, refresh each app after a settings change, and confirm that refresh by a fresh opening request in the service's log.
