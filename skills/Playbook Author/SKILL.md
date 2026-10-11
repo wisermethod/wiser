@@ -3,20 +3,18 @@ name: Playbook Author
 type: skill
 category: authoring
 description: Create, instantiate, resume, review, hand off at a session's end, or close out a WISER Playbook for work that spans sessions
-version: 0.1.9
-gaps:
-  - the trade-offs beside a recommendation at a session stop, so an open decision is put with one course and its reason rather than with the alternatives weighed
+version: 0.1.10
 ---
 
 # Playbook Author
 
 ## Context
 
-Use to create, instantiate, resume, review, hand off, or close out a Playbook. Hand Off runs when a session working a Playbook ends, and the named ask **wrap up** enters it at step 4. Not for work that finishes in one session: execute that directly, and route it to Play Author only when it will recur with different inputs; `standards/playbook.md` states the test that separates the two, so apply it before anything else. Not for prose deliverables; that is Content Author. A Playbook that changes a root, a new root included, is judged first by `experts/System Expert/`, before this skill plans it; a Playbook for a user's own work is not, and this skill's Review job is the document's own gate.
+Use to create, instantiate, resume, review, hand off, or close out a Playbook. Hand Off runs when a session working a Playbook ends, and the named ask **wrap up** runs it whole with the wrap-up question already answered. Not for work that finishes in one session: execute that directly, and route it to Play Author only when it will recur with different inputs; `standards/playbook.md` states the test that separates the two, so apply it before anything else. Not for prose deliverables; that is Content Author. A Playbook that changes a root, a new root included, is judged first by `experts/System Expert/`, before this skill plans it; a Playbook for a user's own work is not, and this skill's Review job is the document's own gate.
 
 ## Objective
 
-Leave the Playbook in the state its job defines: created or instantiated to the Success condition in `standards/playbook.md`; resumed with reconciliation done and one attested next action; reviewed per the Review Process; closed out with Final Check evidence and the end state its Type requires; or handed off with the session's state said, any open decision put with a recommendation, the document reconciled, and the wrap up offered.
+Leave the Playbook in the state its job defines: created or instantiated to the Success condition in `standards/playbook.md`; resumed with reconciliation done and one attested next action; reviewed per the Review Process; closed out with Final Check evidence, the end state its Type requires, and each lesson a later session on different work would act on written to its home or named in the inbox; or handed off with the session's state said, any open decision put with a recommendation and each option's cost, the document reconciled, those lessons captured the same way, and the wrap up offered.
 
 The format, the WISER method, Type semantics, execution modes, naming, and storage all live in `standards/playbook.md`. Load it before doing anything below; this skill adds only workflow.
 
@@ -41,14 +39,15 @@ Decide the job before running any section.
 
 ## Create
 
-1. Fix ownership and placement. Name the root that owns the work per the constitution's Workspace Model, asking when no root fits or more than one does; then place and name the file per `standards/playbook.md`, stating the path and asking only for a correction.
+1. After a reframe, restate the objective in the owner's words and get a yes before planning, then rebuild the plan rather than amend the first design. Fix ownership and placement. Name the root that owns the work per the constitution's Workspace Model, asking when no root fits or more than one does; then place and name the file per `standards/playbook.md`, stating the path and asking only for a correction.
 2. Choose Type. One-time is the default. Choose Template only when the requester has said this same process will run again with different inputs.
 3. Do the Witness audit for real before drafting anything downstream. Write the Standards pointer in Context per `standards/playbook.md`, as a path that opens, distinct from Key files. Read the Key files and record what you found. If a file cannot be read, say which and stop.
-4. Interrogate before designing the plan. Fill the risk table, then derive the riskiest piece from it, then let that choice set Solve. Drafting Expand first produces a plausible sequence built on nothing.
+4. Interrogate before designing the plan. Fill the risk table, then derive the riskiest piece from it, then let that choice set Solve. Follow the call the new code will make before treating a function as its constraint or riskiest piece. Drafting Expand first produces a plausible sequence built on nothing.
 5. Confirm the execution mode once risks are on the table, not before; choose by the Execution Mode section of `standards/playbook.md`.
-6. Ask the user only what cannot be read from the request, the Key files, or a source the plan already names, each question carrying a recommended default.
-7. Decompose Expand into milestones and tasks against the tests in `standards/playbook.md`.
-8. Verify before delivering: read the draft cold three times, from three different execution states (nothing started, mid-Expand, Solve just failed). Each read must yield one specific next action with no questions asked. If one does not, fix the section that broke, then reread.
+6. Ask the user only what cannot be read from the request, the Key files, or a source the plan already names, each question carrying a recommended default. Apply Questions in `standards/playbook.md` for where each question is put, what may block the start, and what the one gate is.
+7. Before any task is written, settle preconditions, acceptance, and what a release must still do. Never put a licence check on user-supplied material into a Playbook Precondition; search the Playbook before adding one, and if one is needed, gate only the repository's own dependencies. Accept a caller-side change on the invocation being made, not the capability being present, naming every primitive that issues the call. A full pass proves shippability only if shippability was named: ask what happens if the run passes and the result is unusable, and add a "runs unpatched" or other explicit clause. A release reaches no one by itself: plan each distribution step as a task of the build, or name each as open at handoff. Write the acceptance and the milestone map per Milestones and Tasks in `standards/playbook.md`.
+8. Decompose Expand into milestones and tasks against the tests in `standards/playbook.md`. A plan growing past its objective is a signal to stop and ask.
+9. Verify before delivering: read the draft cold three times, from three different execution states (nothing started, mid-Expand, Solve just failed). Each read must yield one specific next action with no questions asked. If one does not, fix the section that broke, then reread.
 
 ## Instantiate
 
@@ -56,25 +55,40 @@ Copy the master to a dated instance per the Type section of `standards/playbook.
 
 ## Resume
 
-1. Reconcile before doing any work, in the order the Resume discipline in `standards/playbook.md` fixes. Later items get corrected to match earlier ones, never the reverse. If the standards pointer is missing, write it before any other edit.
+1. Reconcile before doing any work, in the order the Resume discipline in `standards/playbook.md` fixes. Later items get corrected to match earlier ones, never the reverse. If the standards pointer is missing, write it before any other edit. A ledger row can be older than its Playbook: derive state from the Playbook, its checklist count, Progress and Next action, and from git, whether the work is merged, what is unpushed, and whether the artifact is present, using the row only to find the file. Progress and Open gates are a snapshot, not a lock: before acting on a next action, check for a live sibling session. One may have moved past them and left no trace until it next writes, so look for a process still running this work, a session the harness still holds open, and a gate or evidence file newer than this document.
 2. If Status is not Paused, go to the next step. If it is, read the recorded blocker. Where the disk shows it already resolved, record what shows it and continue. Otherwise, where the Playbook names an action that removes it and this session is authorised to take that action, run step 3's staleness check first: a stale plan follows step 3 and the action waits; a plan that still holds is taken, confirmed on disk, recorded, and the run continues. Where no such action exists, or the action ran and the disk still shows the blocker, escalate it, leave Status Paused, and do not resume past it.
-3. Judge staleness before executing anything: re-read the Key files and compare disk against the Witness findings. On divergence, re-run Witness on the affected part and record a learning. If the divergence changes which assumption would invalidate the plan, re-enter Interrogate and re-pick the riskiest piece before touching Expand: set Status to the re-entered canon, mark invalidated checkpoints and dependent task evidence with the date and a learning, and point Progress at the first action of that canon. Otherwise continue from the next action in Progress.
+3. Judge staleness before executing anything: re-read the Key files and compare disk against the Witness findings. On divergence, re-run Witness on the affected part and record a learning. An in-flight question, or a rule just decided, follows Living Document in `standards/playbook.md`. If the divergence changes which assumption would invalidate the plan, re-enter Interrogate and re-pick the riskiest piece before touching Expand: set Status to the re-entered canon, mark invalidated checkpoints and dependent task evidence with the date and a learning, and point Progress at the first action of that canon. Otherwise continue from the next action in Progress.
 4. If the document contradicts disk in a way you cannot adjudicate, stop and ask; do not pick a winner and proceed.
 
 ## Review
 
-Follow the Review Process in `standards/instruction-quality.md`. The stress test for a Playbook is a cold read from a mid-execution state, asking one question: what is the next action? A document that cannot answer has already failed. Audit against the sections of `standards/playbook.md` that own the criteria: Required Sections (the standards pointer among them), Risk First, Milestones and Tasks, Living Document with its session-end protocol, and Success. Deliver findings; do not rewrite the document.
+Follow the Review Process in `standards/instruction-quality.md`. The stress test for a Playbook is a cold read from a mid-execution state, asking one question: what is the next action? A document that cannot answer has already failed. Audit against the sections of `standards/playbook.md` that own the criteria: Required Sections (the standards pointer among them), Questions, Risk First, Milestones and Tasks, Execution Mode, Living Document with its session-end protocol, and Success. Deliver findings; do not rewrite the document.
 
 ## Hand Off
 
 Runs when a session working a Playbook ends.
 
-1. Say briefly, in plain language, what this session finished and what is left, each checked against disk.
-2. Where a Playbook names an open decision, say what you would do and why, and leave the choice.
-3. Reconcile every Playbook this session worked, per the session-end protocol in `standards/playbook.md` — after those answers where they come, and otherwise on the verified state, naming the open decision as a gate, with the recommendation beside it. Then hand over, per Playbook, one line, `Resume the Playbook at <absolute path>`, whether or not the wrap up follows. A Playbook this session cannot write gets instead the reconciliation it still needs, every open gate included, for whoever can write it. Hand Off reconciles; Close Out finishes, and is its own job.
-4. Ask whether to wrap up. On yes, for each repository this session wrote: commit the changes this run made, by path, leaving and naming a path that also carries another session's uncommitted work; report the whole unpushed range; and recheck whatever step 3 wrote that the commit has changed. The push is the operator's.
+1. Where this session was an unattended run, before treating the run as stopped, follow Execution Mode in `standards/playbook.md` for what an unattended run does before it stops. Say briefly, in plain language, what this session finished and what is left, each checked against disk. Tell the owner when no outcome row covers a pass that is unusable.
+2. Where a Playbook names an open decision, say what you would do and why, put each option's cost beside that recommendation, and leave the choice. At a stop-and-tell checkpoint, report the measurement, what it blocks and each option's cost, declaratively, in this report and in Progress and Next action, then run steps 3 and 4 and end the turn after them, without step 5 unless the wrap up was asked, with no options menu and no clarifying questions, and let the decision arrive in the owner's next message. A review question to the owner asks whether a finding is real, the repair wanted and worth its cost, never whether text reads correctly. Treat pushback as the reading; translate an inherited item into the owner's words rather than relaying it.
+3. Reconcile every Playbook this session worked, per the session-end protocol in `standards/playbook.md` — after those answers where they come, and otherwise on the verified state, naming the open decision as a gate, with the recommendation and each option's cost beside it. Then hand over, per Playbook, one line, `Resume the Playbook at <absolute path>`, whether or not the wrap up follows. A handoff prompt cites the path, adds a line only for a fact the files lack, fixes the document if they lack one, and leaves a one-line note where the long prompt would have gone. A Playbook this session cannot write gets instead the reconciliation it still needs, every open gate included, for whoever can write it. Where a distribution step was not planned as a task of the build, name it open at this handoff, per Create. Hand Off reconciles; Close Out finishes, and is its own job.
+4. Capture lessons, then route the inbox. Do both in this step, before the commit, and never in a separate pass.
 
-The named ask **wrap up** runs all four steps with step 4's answer already given. Where the session worked no Playbook, it says so, then commits and reports the range.
+Would a later session on different work act on a lesson this session learned? No: leave it where this run recorded it. Yes: where does it belong, and can this session write that place?
+
+- The work it concerns is a part this session can edit. Write the lesson there: a skill's step, an expert's pitfall, a tool's documentation, or a standard.
+- It is a fact about the owning root. Write it into that root's own files.
+- Which part is arguable. Put the lesson in the owning root's inbox, the `inbox/` shelf of `standards/user-root.md` C5 or the inbox that root's `AGENTS.md` names, and name its candidate homes.
+- The part cannot be edited, such as an installed plugin. Write a local note in that inbox holding the suggested change and its forwarding status: not sent, sent (with where), or not needed. It goes upstream by the plugin's issue route where a connector for it is attached, or by the support address the plugin names.
+
+Must the lesson fire every time? Yes, and its home is one this session can write: make it a check or a script rather than text, and do not leave the prose as a second copy. Yes, and it cannot write that home: say so in the suggested change. No: the text in its home is the lesson.
+
+A lesson moved out of a file is removed from that file, so it has one home.
+
+Does an inbox item now have a home this session can write? Yes: move it there and take it out of the inbox. Its home is one this session cannot write, such as an installed plugin: keep the note and its forwarding status in the inbox until an installed update carries the change or its status reads not needed, then take it out. No home yet: leave it, and keep its candidate homes named.
+
+5. Ask whether to wrap up. On yes, for each repository this session wrote, commit the changes this run made through `skills/Commit and Release/`, handing it the repository, the paths this run changed, and the message. Leave and name a path that also carries another session's uncommitted work. Report the whole unpushed range, and recheck whatever step 3 or step 4 wrote that the commit has changed. Hand it a commit, not a push and not a release. The push is the requester's.
+
+The named ask **wrap up** runs all five steps with step 5's answer already given. A Resume Instructions line that says the ask enters at a numbered step was written for an earlier numbering: the ask still runs all five steps, the lesson capture included. Where the session worked no Playbook, it says so, runs step 4, then commits and reports the range.
 
 ## Close Out
 
@@ -83,6 +97,7 @@ The named ask **wrap up** runs all four steps with step 4's answer already given
 3. Name the artifacts this work's completion affects. Update an artifact this session owns and can write; otherwise hand the list to whoever owns it. Where you cannot name the owner, ask who owns it, and do not update it.
 4. Archive per `standards/conventions.md`.
 5. Decide promotion. A Template instance is not promoted; the master already exists. Write a learning back to the master only when the next instance would run it unchanged whoever the inputs are. A learning that names this run's dates, inputs, or results stays behind, and so does one you cannot tell about. A One-time Playbook is promoted by the reset in `standards/playbook.md`, the undated master a new file beside the archived run with its header declaring Template, only when the requester has said this process will run again. Where they have said it will not, do not promote. Where you cannot tell, ask, and do not promote while the answer is open.
+6. Run Hand Off step 4, the lesson capture and the inbox routing. This is not the promotion in step 5: a learning about this run stays under that step, and this step routes a lesson a later session on different work would act on. A lesson already in its one home is not written again.
 
 ## Pitfalls
 
@@ -91,12 +106,12 @@ The named ask **wrap up** runs all four steps with step 4's answer already given
 - **The riskiest piece was picked for looking hard.** Re-derive it per Risk First in `standards/playbook.md`, then re-sequence Solve to build it first.
 - **A Template master is about to be executed, ticked, Completed, or archived.** Stop. Copy it to an instance and work the instance; the master changes only by deliberate learning promotion.
 - **The standards pointer is missing, or the standards are listed only under Key files.** Restore it to the Context line the Structure names, as a path that opens, then continue. Key files remain the Witness targets.
-- **A session is ending with the document behind the work.** Run the session-end protocol in `standards/playbook.md` now; write only what you can attest to, and mark the rest unverified. **Hand Off above is what reports it to the person**, and what remains absent is narrower: the trade-offs beside its recommendation. The reconciliation and Resume requirements above still bind.
+- **A session is ending with the document behind the work.** Run the session-end protocol in `standards/playbook.md` now; write only what you can attest to, and mark the rest unverified. **Hand Off above is what reports it to the person**, and a stop puts each option's cost beside the recommendation. The reconciliation and Resume requirements above still bind.
 
 ## Success
 
 - The file sits at the path its owning root declares, named per `standards/playbook.md`; a created or instantiated document meets that standard's Success condition.
 - A resume left reconciliation done and Progress naming one attested next action, or Status Paused with its blocker recorded.
 - A review delivered the stress test and ranked findings per the Review Process, and did not rewrite the document.
-- A close-out left Final Check evidence recorded, Status Complete, the archive copy in place, and any promotion producing an undated master beside it.
-- A hand-off left the document reconciled, every open decision put with a recommendation the requester still chooses from, and the wrap up offered rather than taken.
+- A close-out left Final Check evidence recorded, Status Complete, the archive copy in place, any promotion producing an undated master beside it, and the lesson capture done.
+- A hand-off left the document reconciled, every open decision put with a recommendation and each option's cost, the requester still choosing, the lesson capture done, and the wrap up offered rather than taken.

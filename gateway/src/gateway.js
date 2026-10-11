@@ -466,6 +466,26 @@ function activeAccountIdsByToolkit(accounts) {
 }
 
 /**
+ * A rejected account listing, as a provider error for the request that failed.
+ * `listingRequest` is the adapter's `{ status, endpoint, method }` and nothing
+ * from the body. A rejection that names no request is still not a missing grant.
+ * @param {unknown} err
+ */
+function listingProviderError(err) {
+  const named = err && typeof err === 'object' && !Array.isArray(err) ? err.listingRequest : null;
+  const request = named && typeof named === 'object' && !Array.isArray(named) ? named : null;
+  const endpoint = request && typeof request.endpoint === 'string' && request.endpoint.length > 0
+    ? request.endpoint
+    : null;
+  const method = request && typeof request.method === 'string' ? request.method : null;
+  const httpStatus = request && Object.hasOwn(request, 'status') ? request.status : null;
+  return vendorErrorFrom({
+    status: httpStatus,
+    error: { code: 'vendor_error', endpoint, method },
+  });
+}
+
+/**
  * Connection gateway: resolve, policy, execute, connect.
  */
 export class ConnectionGateway {
@@ -749,8 +769,11 @@ export class ConnectionGateway {
     let accounts;
     try {
       accounts = await list.call(this.authProvider, { userId: this.resolveUserId() });
-    } catch {
-      return;
+    } catch (err) {
+      // Returned, not swallowed, so connect_status can tell a failed list from
+      // an empty one. execute and list_connections ignore this value. They still
+      // write nothing, which is what they already did.
+      return { failed: true, error: err };
     }
     if (!Array.isArray(accounts) || accounts.length === 0) return;
 
@@ -1536,7 +1559,52 @@ export class ConnectionGateway {
       }
 
       const provider = this.providerFor(target.auth);
-      const record = stored;
+      let record = stored;
+      if (!provider || typeof provider.status !== 'function') {
+        line.provider_account_id = record?.provider_account_id ?? null;
+        line.path = 'connector';
+        return this.needsProviderResult();
+      }
+
+      // A catalog account is asked for by id. With none, the catalog adapter
+      // requests `/connected_accounts/`. That URL answers 200 with a listing,
+      // and a listing has no account status, so it arrives here as
+      // vendor_error. Measured live on 2026-09-19 for dataforseo and for bing,
+      // each with no row. execute does not ask that URL. It refreshes from
+      // the account list first and, when that still leaves no account id,
+      // answers needs_connect. The same refresh here. The account endpoint
+      // is called only once an id exists. local-file status reads a file.
+      // An orphan already carries an id, and that path is unchanged.
+      //
+      // A list that could not be read is not an empty list. listAccounts
+      // rejects on an HTTP error, a malformed body, or a transport error, and
+      // hydrateFromProvider used to catch that and return, so this branch
+      // answered needs_connect when the provider was never read. The answer
+      // is the provider error for that listing request, and the row is left
+      // as it was. execute still ignores the rejection and answers
+      // needs_connect. That path is not this one.
+      const storedId = record?.provider_account_id;
+      const hasAccount = typeof storedId === 'string' && storedId.length > 0;
+      if (!orphaned && target.auth.provider !== 'local-file' && !hasAccount) {
+        const listed = await this.hydrateFromProvider();
+        if (listed && listed.failed) {
+          line.provider_account_id = record?.provider_account_id ?? null;
+          line.path = 'connector';
+          return listingProviderError(listed.error);
+        }
+        record = this.store.getConnection({ service, module });
+        const refreshed = record?.provider_account_id;
+        if (typeof refreshed !== 'string' || refreshed.length === 0) {
+          line.provider_account_id = null;
+          line.path = 'connector';
+          return statusObject(STATUS.NEEDS_CONNECT, {
+            service,
+            module,
+            privilege: found.auth.privilege,
+          });
+        }
+      }
+
       line.provider_account_id = record?.provider_account_id ?? null;
       line.path = 'connector';
 
@@ -1546,9 +1614,6 @@ export class ConnectionGateway {
         file: found?.auth?.file,
         variables: found?.auth?.variables,
       };
-      if (!provider || typeof provider.status !== 'function') {
-        return this.needsProviderResult();
-      }
       const raw = await provider.status(statusArgs);
       if (raw && typeof raw === 'object' && raw.error) {
         // A transport or provider failure is not a grant status. The record is left as

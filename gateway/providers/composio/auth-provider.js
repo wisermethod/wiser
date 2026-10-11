@@ -179,8 +179,27 @@ const LISTING_FAILED = 'could not list connected accounts';
 const LISTING_PAGE_SIZE = 100;
 const LISTING_MAX_PAGES = 100;
 
-function failListing() {
-  throw new Error(LISTING_FAILED);
+/**
+ * Reject the listing. The message is the whole text a caller is given.
+ * When the refusal followed a request, `listingRequest` names that request
+ * by its path alone and nothing from its body, so a caller can report which
+ * request failed. The query is dropped: it carries the user id and, after the
+ * first page, a cursor the provider sent.
+ * @param {{ status?: number, endpoint?: string, method?: string } | undefined} requestResult
+ */
+function failListing(requestResult) {
+  const err = new Error(LISTING_FAILED);
+  const path = requestResult && typeof requestResult === 'object' && typeof requestResult.endpoint === 'string'
+    ? requestResult.endpoint.split('?')[0]
+    : '';
+  if (path.length > 0) {
+    err.listingRequest = {
+      status: Object.hasOwn(requestResult, 'status') ? requestResult.status : null,
+      endpoint: path,
+      method: typeof requestResult.method === 'string' ? requestResult.method : null,
+    };
+  }
+  throw err;
 }
 
 /**
@@ -233,15 +252,16 @@ function listingParams(userId, statuses, cursor, accountType) {
  * Null means the listing ended. A cursor that is not a string is not a page
  * boundary we can follow, and stopping there would hide every later account.
  * @param {object} data
+ * @param {{ status?: number, endpoint?: string, method?: string } | undefined} requestResult
  * @returns {string | null}
  */
-function nextCursor(data) {
+function nextCursor(data, requestResult) {
   if (!data || typeof data !== 'object' || Array.isArray(data) || !Object.hasOwn(data, 'next_cursor')) {
     return null;
   }
   const next = data.next_cursor;
   if (next == null || next === '') return null;
-  if (typeof next !== 'string') failListing();
+  if (typeof next !== 'string') failListing(requestResult);
   return next;
 }
 
@@ -252,14 +272,15 @@ function nextCursor(data) {
  * this listing can trust.
  * @param {object} data
  * @param {string} key
+ * @param {{ status?: number, endpoint?: string, method?: string } | undefined} requestResult
  * @returns {number | null}
  */
-function pageCount(data, key) {
+function pageCount(data, key, requestResult) {
   if (!data || typeof data !== 'object' || Array.isArray(data) || !Object.hasOwn(data, key)) {
     return null;
   }
   const value = data[key];
-  if (typeof value !== 'number' || !Number.isFinite(value)) failListing();
+  if (typeof value !== 'number' || !Number.isFinite(value)) failListing(requestResult);
   return value;
 }
 
@@ -310,8 +331,10 @@ export function createAuthProvider({ envPath } = {}) {
      * number, a cursor that ended while total_pages is above the pages read
      * or current_page is below total_pages, or a listing that does not end
      * within LISTING_MAX_PAGES rejects instead of returning the pages already
-     * read. `states` omitted asks for ACTIVE only and drops anything else the
-     * provider sends. `states: 'all'` sends no status filter, sends
+     * read. A rejection that followed a request names it on `listingRequest`
+     * and carries nothing from the body. `states` omitted asks for ACTIVE only
+     * and drops anything else the provider sends. `states: 'all'` sends no
+     * status filter, sends
      * account_type=ALL so PRIVATE and SHARED both come back, and keeps each
      * account.
      */
@@ -326,34 +349,36 @@ export function createAuthProvider({ envPath } = {}) {
       const followed = new Set();
       const out = [];
       let cursor = '';
+      let pageResult = null;
       for (let page = 0; page < LISTING_MAX_PAGES; page += 1) {
         const params = listingParams(userId, statuses, cursor, accountType);
         const res = await request(apiKey, 'GET', `/connected_accounts?${params}`);
-        if (!res.ok || res.malformed) failListing();
+        pageResult = res;
+        if (!res.ok || res.malformed) failListing(res);
         const items = res.data && typeof res.data === 'object' ? res.data.items : undefined;
-        if (!Array.isArray(items)) failListing();
+        if (!Array.isArray(items)) failListing(res);
         for (const item of items) {
           // A broken item is a broken page. Skipping it would return a partial list.
-          if (!item || typeof item !== 'object' || Array.isArray(item)) failListing();
-          if (typeof item.id !== 'string' || item.id.length === 0) failListing();
+          if (!item || typeof item !== 'object' || Array.isArray(item)) failListing(res);
+          if (typeof item.id !== 'string' || item.id.length === 0) failListing(res);
           const status = listedStatus(item.status, keepAll);
           if (status === null) continue;
           out.push({ id: item.id, toolkit: accountToolkit(item), status });
         }
         // Checked on every page, including one whose cursor continues.
         const pagesRead = page + 1;
-        const current = pageCount(res.data, 'current_page');
-        const total = pageCount(res.data, 'total_pages');
-        const next = nextCursor(res.data);
+        const current = pageCount(res.data, 'current_page', res);
+        const total = pageCount(res.data, 'total_pages', res);
+        const next = nextCursor(res.data, res);
         if (next === null) {
-          if (endedListingWithheld(current, total, pagesRead)) failListing();
+          if (endedListingWithheld(current, total, pagesRead)) failListing(res);
           return out;
         }
-        if (followed.has(next)) failListing();
+        if (followed.has(next)) failListing(res);
         followed.add(next);
         cursor = next;
       }
-      failListing();
+      failListing(pageResult);
     },
     async initiate({ userId, toolkit, scheme, callbackUrl }) {
       if (!apiKey) return { status: 0, error: { code: 'vendor_error', endpoint: '/auth_configs', method: 'GET' } };

@@ -93,8 +93,11 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 | Skill | Description | Owner |
 |-------|-------------|-------|
 | `Classifier Trial/SKILL.md` | Test whether the classifier improves one use case or one primitive, by paired runs with it on and off on a synthetic root scored blind, and return a verdict with its runs, cost and noise that releases nothing | System Expert |
+| `Commit and Release/SKILL.md` | Named paths committed with what landed verified, and a release pushed, tagged and confirmed where it is served, or an explicit incomplete result | System Expert |
+| `Delegate Build/SKILL.md` | Delegated build work and its independent review, with only verified findings folded back | System Expert |
 | `Housekeeping/SKILL.md` | Propose a clause-cited layout plan and apply its approved transaction with verified recovery, serving as the layout engine callable any time to bring a declared root up to current layout specs | System Expert |
 | `Onboard Plugin Root/SKILL.md` | Create a domain plugin beside wiser or adopt a placeholder repository into declared plugin layout, producing its constitution, families and catalog, scored clause by clause, and closed by writing every boundary still owed to a person into the root itself | System Expert |
+| `Prove Change/SKILL.md` | A recorded proof of a change: checks run against its committed text, every control shown able to fail, and a verdict naming the commit it tested and saying what passed, what failed, what could not be checked, and what stays unverified | System Expert |
 | `Scope Plugin Bench/SKILL.md` | Decide what experts, skills, tools and connectors a named domain plugin should hold in its first slice, and hand Playbook Author the source material to plan it | System Expert |
 | `Set Up Connectors/SKILL.md` | Lead this app to the Wiser endpoint and its sign-in, or on request attach the local gateway in a command-line harness with its project key, naming the one step the state in front of it needs | Connector Advisor |
 | `Connect Account/SKILL.md` | Connect one service module, asked by name or in plain words such as connect GitHub, in its own human turn through start_connect then connect_status, on the Wiser endpoint or the local gateway, never taking a key in the conversation | Connector Advisor |

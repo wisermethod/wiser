@@ -261,7 +261,7 @@ test('control: a harness named in index.js is reported', () => {
 /** Adversarial review finding 10, plus the portable forms that must stay quiet. */
 test('control: the machine-path detector fires on a machine path and not on a portable one', () => {
   const home = `/${'Users'}/someone/secrets.env`;
-  const volume = `/${'Volumes'}/DISK/WISER Plugins/wiser`;
+  const volume = `/${'Volumes'}/DISK/Projects/plugin`;
   for (const s of [home, volume, `bound at ${home}`, `see (${volume})`, `path=${home}`, `<${volume}>`, `[link](${home})`]) {
     assert.ok(MACHINE_PATH.test(s), `fires on ${s}`);
   }

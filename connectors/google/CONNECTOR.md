@@ -3,7 +3,7 @@ name: google
 type: connector
 category: analytics
 description: Reads search performance, URL index state, sitemap details, analytics reports, Drive files, Calendar events, Gmail messages, spreadsheet values, documents, and presentations through eight separate grants, and creates, uploads, renames and moves Drive files, creates and edits documents, writes spreadsheet values, saves Gmail drafts, and creates and updates events, confirming every write
-version: 0.7.0
+version: 0.7.1
 ---
 
 # Google
@@ -110,7 +110,7 @@ Nothing here deletes or trashes anything. Nothing sends mail except Google's gue
 
 `invalid_arguments`: the named field broke a rule in `## Writes` or in the manifest; nothing was sent.
 
-`vendor_error`: inspect the safe status and endpoint, then check access, input, and quota at the platform. Do not paste a raw vendor error body into chat. A 403 on a write to a file you can edit is the grant case `auth.md` describes.
+`vendor_error`: inspect the safe status and endpoint, then check access, input, and quota at the platform. Do not paste a raw vendor error body into chat. A 403 on a write to a file you can edit is the grant case `auth.md` describes. Google checks scopes before lookup: a 404 means reach and scope, and a 403 means a missing scope. A 404 on a write aimed at an id that does not exist is that reach, not a missing grant.
 
 ## Reference
 

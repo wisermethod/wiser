@@ -1,6 +1,6 @@
 ---
 standard: instruction-quality
-version: 0.2.1
+version: 0.2.2
 description: How instructions are written in and around Wiser; the sole home of the Elegance definition
 ---
 
@@ -58,7 +58,7 @@ Every effective instruction file follows this structure. Not every file needs ev
 
 **Identity:** a lens, not decoration. "Reviewer focused on maintainability" judges differently than "reviewer focused on performance."
 
-**Steps:** every step requiring judgment carries the decision, the criteria, and what to do for each outcome. **Write the decision as the question and its outcomes**, so the question is answerable on the material in front of the reader and every outcome it admits has a step: "Which date does this source carry? Its own, stated in the text: use it. None stated, but the file it came in has one: use the file's. Neither: ask." The question enumerates the states the reader can actually observe, so every branch is reachable and none of them needs evidence the reader was not given. not "Handle dates appropriately." A decision whose outcomes are not enumerated is not a decision a reader can execute, and one whose question cannot be answered from the material is a judgment the step has not made.
+**Steps:** every step requiring judgment carries the decision, the criteria, and what to do for each outcome. **Write the decision as the question and its outcomes**, so the question is answerable on the material in front of the reader and every outcome it admits has a step: "Which date does this source carry? Its own, stated in the text: use it. None stated, but the file it came in has one: use the file's. Neither: ask." The question enumerates the states the reader can actually observe, so every branch is reachable and none of them needs evidence the reader was not given. not "Handle dates appropriately." A decision whose outcomes are not enumerated is not a decision a reader can execute, and one whose question cannot be answered from the material is a judgment the step has not made. Rewriting a binding or guard rule, and writing a waiver that cites a case, follow Review Process.
 
 **Pitfalls:** each with a specific response, not a warning. Always include the clarification pitfall: if the request is ambiguous, ask before proceeding.
 
@@ -81,6 +81,10 @@ Show structure, not content. Positive examples cause mimicry; patterns cause und
 Triage first: a file with an identifiable objective and localized issues is salvageable and gets this review; one with no clear objective or fundamental incoherence is not, and review stops there. The rewrite is a separate write job for the skill that owns the type, with the old text as source material; a review never rebuilds the file itself.
 
 Reviews begin with a stress test: run one realistic request through the instruction end to end, and when instruction files reference each other, through the whole chain, checking that terms, handoffs, and boundaries stay consistent across the files with no gap and no overlap. Describe at least one scenario where the instruction produces wrong or inconsistent output. Finding none means the file is excellent or the scenario was too easy; try a harder one before concluding. A finding without a failure scenario is cosmetic; deprioritize or drop it.
+
+**Rewriting a binding or guard rule.** Rewrite a binding or guard rule from a clause-by-clause obligation map built before opening the file, never from memory; a clause proves load-bearing only when a fixture reaches it. Hand the reviewer the map and the fixtures. A shorter wording is not a reason to drop a clause the map still lists: a clause no fixture reaches stays until a fixture reaches it or the map records that it binds nothing.
+
+**A waiver that cites a case.** A waiver that cites a case is as narrow as its own words: write its condition in full, enumerate every case the cited clause distinguishes, and check the waiver against each. A case the clause distinguishes and the waiver's own words do not name is not waived.
 
 **Audit every Steps decision for the closed form**: the question stated, its outcomes enumerated, and a step for each. A decision written as an instruction to use judgment, with no question and no outcomes, is a finding. Each finding names where it lives, what is wrong, the failure scenario, and the minimal fix. Audit in the Rank order Elegance defines; Boundaries live in Context's negative and Inputs, failure modes in Pitfalls. With the requester in the loop, present observations one at a time with options (accept, alternate fix, drop) and a recommendation, and after five accepted changes offer: continue, re-assess, or stop. Without one, deliver the findings ranked; the gate and the integration belong to whoever owns the file. Verify each accepted fix by re-running the stress test.
 
