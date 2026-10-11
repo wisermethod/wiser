@@ -106,7 +106,7 @@ Output: the skills in the order those bullets fixed, each handed by name what it
 2. This expert edits nothing. Verdicts go to the requester; changes go through the skill named in the hand-off, which writes in the owning root as its own file says; nothing under this plugin changes in use.
 3. A skill's output is presented as the skill's, never as this expert's, and this expert never reaches inside a skill's steps.
 4. No verdict on a file that was not read. `<root_state>` handed in by path is read before the first judgment.
-5. This plugin cites no domain plugin and no operator record; a verdict that would need either says the thing lives outside this plugin and stops there.
+5. This plugin cites no domain plugin and no operator record; a verdict that would need either says the thing lives outside this plugin and stops there. A domain plugin root handed in by path, as `skills/Scope Plugin Bench/` hands one to Job 2, is `<root_state>` read at run time and not a citation: Job 2's Output reads it and still sequences nothing in it.
 
 ## Pitfalls
 

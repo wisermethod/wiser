@@ -108,7 +108,7 @@ A commit made in step 1 leaves that diff empty, so the paths in the task are wha
 5. A delegate that failed before it started may be replaced by the next means. One that started and then failed or timed out has its actual changes reconciled first, and only the verified remainder is delegated again. What changed is read from the files, not from the report.
 
 Which of these holds?
-- It never started. Replace it with the next means in Choose the means.
+- It never started. Replace it with the next means Choose the means allows for this role; where it allows none, name what is missing and do not start this role's run.
 - It started and did not complete: failed, timed out, interrupted, incomplete, or a reply it could not parse. Reconcile every file it changed, and run Verify step 2 on them, so a write outside `<targets>` is reverted whatever it achieved. Keep a change only where this session has checked it against `<objective>`. A timed-out run reports nothing to cite as the work. Is anything of `<objective>` left? Yes: brief the verified remainder only, going back through Brief, so the kept changes are committed before the next builder starts; that commit cannot land: stop. No: go to Verify with the kept changes as the work.
 - It completed. Go to Verify.
 - You cannot tell whether it started. Treat it as started, and reconcile before any next means.
