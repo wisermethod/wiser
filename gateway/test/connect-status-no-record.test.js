@@ -23,6 +23,12 @@ import { createFakeProviders } from './fake-provider.js';
  * that uses only the fake passes on the code that failed live. The cases
  * below drive the shipped catalog adapter. `fetch` is replaced and any URL
  * the fixture does not name throws, so the run does not reach the network.
+ *
+ * A listing that fails is not an empty listing. An HTTP error, a body that
+ * is not JSON, and a transport error each answer `vendor_error` for the
+ * listing request that failed. The account endpoint is not called, and the
+ * stored row is the row from before the call. `execute` on the same failure
+ * still answers `needs_connect`.
  */
 
 const USER = 'wiser-01234567-89ab-cdef-0123-456789abcdef';
@@ -110,6 +116,10 @@ function mount(t, route, overrides = {}) {
     calls.push({ pathname: parsed.pathname, search: parsed.search, method });
     const answered = route(parsed);
     if (!answered) throw new Error(`unrouted ${method} ${parsed.pathname}${parsed.search}`);
+    if (answered.transport) throw new Error('sentinel-transport');
+    if (typeof answered.text === 'string') {
+      return { status: answered.status, text: async () => answered.text };
+    }
     return jsonResponse(answered.status, answered.body);
   });
   const ran = { count: 0 };
@@ -324,4 +334,162 @@ test('a local-file module with no record still reads the credential file', async
   assert.equal(result.status, 'needs_connect');
   assert.equal(result.provider_status, 'INACTIVE');
   assert.equal(statusCalls, 1);
+});
+
+function isAccountRead(call) {
+  return /\/connected_accounts\/[^/]+$/.test(call.pathname);
+}
+
+/**
+ * @param {import('../src/store.js').JsonFileStore} store
+ * @param {string} service
+ * @param {string} module
+ * @param {string | null} id
+ */
+function putBlankId(store, service, module, id) {
+  store.putConnection({
+    service,
+    module,
+    privilege: 'write',
+    provider: 'catalog',
+    provider_account_id: id,
+    scopes: [],
+    status: 'INITIATED',
+  });
+}
+
+/**
+ * @param {import('node:test').TestContext} t
+ * @param {(url: URL) => { status?: number, body?: object, text?: string, transport?: boolean } | null} route
+ * @param {{ service: string, module: string, id: string | null } | null} row
+ */
+async function listingFailure(t, route, row) {
+  const { gw, store, calls, ran } = mount(t, route);
+  if (row) putBlankId(store, row.service, row.module, row.id);
+  const before = structuredClone(store.getConnection({ service: 'dataforseo', module: 'research' }));
+  const result = await gw.connectStatus({ service: 'dataforseo', module: 'research' });
+  return { result, calls, store, ran, before };
+}
+
+function assertListingError(result, call, httpStatus) {
+  assert.equal(accountList(call), true);
+  assert.equal(call.method, 'GET');
+  assert.deepEqual(result, {
+    status: 'vendor_error',
+    http_status: httpStatus,
+    endpoint: `/connected_accounts${call.search}`,
+    method: 'GET',
+  });
+}
+
+function assertNoAccountRead(calls) {
+  assert.equal(calls.some((call) => emptyAccountEndpoint(call.pathname)), false);
+  assert.equal(calls.some(isAccountRead), false);
+}
+
+test('connect_status with an HTTP 500 account listing answers a provider error naming that request', async (t) => {
+  const { result, calls, store, before } = await listingFailure(t, (url) => {
+    if (accountList({ pathname: url.pathname, search: url.search })) {
+      return { status: 500, body: { leak: 'sentinel-http-500' } };
+    }
+    return null;
+  }, null);
+  assert.equal(calls.length, 1);
+  assertListingError(result, calls[0], 500);
+  assert.equal(JSON.stringify(result).includes('sentinel-http-500'), false);
+  assertNoAccountRead(calls);
+  assert.equal(before, null);
+  assert.equal(store.getConnection({ service: 'dataforseo', module: 'research' }), null);
+  assert.equal(store.getConnection({ service: 'bing', module: 'webmaster' }), null);
+});
+
+test('connect_status with an HTTP 503 account listing answers a provider error naming that request and leaves a blank id', async (t) => {
+  const row = { service: 'dataforseo', module: 'research', id: null };
+  const { result, calls, store, before } = await listingFailure(t, (url) => {
+    if (accountList({ pathname: url.pathname, search: url.search })) {
+      return { status: 503, body: { leak: 'sentinel-http-503' } };
+    }
+    return null;
+  }, row);
+  assert.equal(calls.length, 1);
+  assertListingError(result, calls[0], 503);
+  assert.equal(JSON.stringify(result).includes('sentinel-http-503'), false);
+  assertNoAccountRead(calls);
+  assert.equal(before.provider_account_id, null);
+  assert.equal(before.status, 'INITIATED');
+  assert.deepEqual(store.getConnection({ service: 'dataforseo', module: 'research' }), before);
+});
+
+test('connect_status with a malformed account listing answers a provider error naming that request and leaves an empty id', async (t) => {
+  const row = { service: 'dataforseo', module: 'research', id: '' };
+  const { result, calls, store, before } = await listingFailure(t, (url) => {
+    if (accountList({ pathname: url.pathname, search: url.search })) {
+      return { status: 200, text: 'sentinel-not-json' };
+    }
+    return null;
+  }, row);
+  assert.equal(calls.length, 1);
+  assertListingError(result, calls[0], 200);
+  assert.equal(JSON.stringify(result).includes('sentinel-not-json'), false);
+  assertNoAccountRead(calls);
+  assert.equal(before.provider_account_id, '');
+  assert.deepEqual(store.getConnection({ service: 'dataforseo', module: 'research' }), before);
+});
+
+test('connect_status with a transport failure on the account listing answers a provider error naming that request', async (t) => {
+  const { result, calls, store, before } = await listingFailure(t, (url) => {
+    if (accountList({ pathname: url.pathname, search: url.search })) return { transport: true };
+    return null;
+  }, null);
+  assert.equal(calls.length, 1);
+  assertListingError(result, calls[0], 0);
+  assert.equal(JSON.stringify(result).includes('sentinel-transport'), false);
+  assertNoAccountRead(calls);
+  assert.equal(before, null);
+  assert.equal(store.getConnection({ service: 'dataforseo', module: 'research' }), null);
+});
+
+test('connect_status with a listing that fails on a later page does not keep the earlier page', async (t) => {
+  const { result, calls, store } = await listingFailure(t, (url) => {
+    if (!accountList({ pathname: url.pathname, search: url.search })) return null;
+    if (url.searchParams.get('cursor') === null) {
+      return {
+        status: 200,
+        body: {
+          items: [{ id: 'ca_dataforseo', toolkit: { slug: 'DATAFORSEO' }, status: 'ACTIVE' }],
+          next_cursor: 'page-2',
+        },
+      };
+    }
+    if (url.searchParams.get('cursor') === 'page-2') {
+      return { status: 500, body: { leak: 'sentinel-page-2' } };
+    }
+    return null;
+  }, null);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].search.includes('cursor=page-2'), true);
+  assertListingError(result, calls[1], 500);
+  assert.equal(JSON.stringify(result).includes('sentinel-page-2'), false);
+  assert.equal(JSON.stringify(result).includes('ca_dataforseo'), false);
+  assertNoAccountRead(calls);
+  assert.equal(store.getConnection({ service: 'dataforseo', module: 'research' }), null);
+  assert.equal(store.getConnection({ service: 'bing', module: 'webmaster' }), null);
+});
+
+test('execute still answers needs_connect when the account listing fails', async (t) => {
+  const { gw, store, calls, ran } = mount(t, (url) => {
+    if (accountList({ pathname: url.pathname, search: url.search })) {
+      return { status: 500, body: { leak: 'sentinel-execute' } };
+    }
+    return null;
+  });
+  const executed = await gw.execute({ action: 'dataforseo.research.ping', input: {} });
+  assert.equal(executed.status, 'needs_connect');
+  assert.equal(executed.service, 'dataforseo');
+  assert.equal(executed.module, 'research');
+  assert.equal(ran.count, 0);
+  assert.equal(calls.some(accountList), true);
+  assertNoAccountRead(calls);
+  assert.equal(JSON.stringify(executed).includes('sentinel-execute'), false);
+  assert.equal(store.getConnection({ service: 'dataforseo', module: 'research' }), null);
 });
