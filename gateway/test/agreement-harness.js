@@ -322,7 +322,7 @@ function branchSatisfied(branch, instance) {
   return true;
 }
 
-function schemaViolation(schema, instance) {
+export function schemaViolation(schema, instance) {
   const unmodelled = unmodelledKeyword(schema);
   if (unmodelled) return `unmodelled:${unmodelled}`;
   for (const r of schema.required ?? []) {
@@ -341,7 +341,7 @@ function schemaViolation(schema, instance) {
   }
   for (const [name, value] of Object.entries(instance)) {
     const d = schema.properties?.[name];
-    if (!d) continue;
+    if (d === undefined || d === null) continue;
     const bad = propertyViolation(name, d, value);
     if (bad) return bad;
   }
@@ -354,6 +354,12 @@ function schemaViolation(schema, instance) {
  */
 function propertyViolation(name, d, value) {
   {
+    // A boolean subschema: `false` forbids the property whatever its value, null
+    // included, and `true` allows anything. `cloudflare zones.update_setting` uses
+    // `false` in each `oneOf` branch for the value fields that branch does not take;
+    // read as no constraint, a mixed call scored valid here while the schema and the
+    // module both refuse it (adversarial review round 2, 2026-10-12).
+    if (d === false) return `forbidden:${name}`;
     if (!d || typeof d !== 'object') return null;
     if (d.type === 'string' && typeof value !== 'string') return `type:${name}`;
     if (d.type === 'integer' && !Number.isInteger(value)) return `type:${name}`;
