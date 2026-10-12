@@ -43,7 +43,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 
 | Skill | Description | Owner |
 |-------|-------------|-------|
-| `Zone Publisher/SKILL.md` | Bring one Cloudflare zone's DNS records, its Single Redirect rules, the Bulk Redirects whose sources are this zone's names or a moved Pages project's pages.dev name, and its SSL mode, Always Use HTTPS, HSTS, minimum TLS version and Automatic HTTPS Rewrites into a reviewable state, publish the approved changes with every removal approved by name, and re-read every published part from the platform | IT Expert |
+| `Zone Publisher/SKILL.md` | Bring one Cloudflare zone's DNS records, its Single Redirect rules, the Bulk Redirects whose sources are this zone's names or a moved Pages project's pages.dev name, and its SSL mode, Always Use HTTPS, HSTS, minimum TLS version, Automatic HTTPS Rewrites, Email Obfuscation and Browser Cache TTL into a reviewable state, publish the approved changes with every removal approved by name, and re-read every published part from the platform | IT Expert |
 
 ### Knowledge
 
