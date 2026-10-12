@@ -77,7 +77,7 @@ Give every judging run its material inline, forbid commands, count its `exec` en
 
 Does the brief name an interface to a cited system, its fields, inputs or outputs? Yes: take each field's meaning from that system's own definition, read and cited in the brief, never from a summary of its names. No: go on.
 
-Will the work apply a rule that third-party code it drives also implements? Yes: the brief takes that rule from its own authority, a statute or a specification, or from that code's observed answers, and never points the delegate at that code's source to learn it. A delegate that writes the rule runs clean-room, in a session whose roots hold no copy of that code. No: go on. You cannot tell: ask, and do not start the delegate.
+Will the work apply a rule that third-party code it drives also implements? No: go on. You cannot tell: ask, and do not start the delegate. Yes: the brief takes that rule from its own authority, a statute or a specification, or from that code's observed answers, and never points the delegate at that code's source to learn it. A delegate that writes the rule runs clean-room: a fresh context, a working copy that holds none of that code, with stubs where the work calls it, and a brief that carries the interface definitions the previous paragraph requires but none of that code, and forbids reading, searching for or installing it anywhere, and any network. Does the run record the reads it made? Yes: check them for that code before calling the work clean-room; a read of it means the work is not. No: say that the isolation rests on the brief and the working copy alone.
 
 5. Is the task a review? No: apply the next paragraph. Yes: `<review>` names the shape of the reply. Do not replace that shape. You cannot tell: ask.
 
