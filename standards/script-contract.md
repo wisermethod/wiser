@@ -1,6 +1,6 @@
 ---
 standard: script-contract
-version: 0.7.4
+version: 0.7.5
 description: The rules every script a tool ships follows, and the clauses that bind a connector module; users read tools/RUNNING.md
 ---
 
@@ -31,6 +31,8 @@ The typed file lists them too. Help is where this clause binds, because it ships
 **Configuration.** Every command needing configuration or credentials takes `--env [path]`, passed as an absolute path. The agent resolves it from the workspace's Provides binding (the constitution's Workspace Model, which also owns the unbound default). Scripts never search for a configuration file and never fall back to a default location. Parse the bound file directly: its values never enter the process environment, a log, or the output (the constitution's Irreversibles). When `--env` is absent or names a file that does not exist, the script says which and tells the agent to resolve the binding instead of guessing a path.
 
 **Output and errors.** Work that succeeds prints one JSON object to stdout and exits 0. `help` and `--help` print usage text to stdout and exit 0. Failure prints to stderr only, leaves stdout empty, and exits 1. A failure message names the cause and the fix; when the cause came from an external service it names the status and the endpoint called, never the raw provider message, which can carry a credential. A successful object must not imply an input the process discarded: input dropped, first-wins among duplicates, or otherwise not applied is either refused before success or named in the object itself.
+
+**Defaults an engine fills.** Where a script returns a figure that an engine it drives computes from facts about a case, such as a tax, a quote or a score, and that engine fills any fact it is not given with a default of its own, no such default reaches the figure. Every fact the script sends is required of the caller, a zero included, and an engine's report that it defaulted one of them is a refusal, not a success. Does the engine also compute a case from a fact the script does not collect? Yes: for each such case the script takes the caller's attestation that the case does not apply, one boolean per case from a closed set its help names, and refuses before the engine starts when one is missing or true. No: the required facts are enough. Listing defaults beside the figure satisfies neither, because the figure was still computed on them.
 
 **State.** A state probe tells complete from merely present: widen a boolean to a tri-state or richer result rather than AND it with another condition at the call sites. Does a boolean have to be combined with another condition at the call site to tell two states apart? Yes: it is under-answering, so widen it, such as absent, complete and incomplete, and test each arm with one fixture of its own. No: the boolean already separates the states, and the call site uses it alone.
 
