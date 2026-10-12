@@ -103,8 +103,6 @@ test('update_setting manifest pairs each of the seven settings with the one fiel
     'email_obfuscation',
     'browser_cache_ttl',
   ]);
-  assert.ok(input.properties.setting_id.enum.includes('email_obfuscation'));
-  assert.ok(input.properties.setting_id.enum.includes('browser_cache_ttl'));
   assert.deepEqual(input.required, ['zone_id', 'setting_id']);
   assert.equal(input.additionalProperties, false);
   const fieldFor = {
@@ -121,6 +119,12 @@ test('update_setting manifest pairs each of the seven settings with the one fiel
     assert.equal(branches.length, 1, setting);
     const fields = branches[0].required.filter((name) => name !== 'setting_id');
     assert.deepEqual(fields, [fieldFor[setting]], setting);
+    // The branch forbids the two value fields it does not take, so the published
+    // schema refuses a mixed call the module refuses, rather than accepting it.
+    for (const other of ['value', 'strict_transport_security', 'browser_cache_ttl']) {
+      if (other === fieldFor[setting]) assert.notEqual(branches[0].properties[other], false, `${setting} ${other}`);
+      else assert.equal(branches[0].properties[other], false, `${setting} ${other}`);
+    }
   }
   const onOff = input.oneOf.find((branch) => (branch.properties?.setting_id?.enum ?? []).includes('email_obfuscation'));
   assert.deepEqual(onOff.properties.setting_id.enum, ['always_use_https', 'automatic_https_rewrites', 'email_obfuscation']);

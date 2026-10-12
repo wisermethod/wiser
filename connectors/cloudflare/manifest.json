@@ -296,11 +296,11 @@
             },
             "required": ["zone_id", "setting_id"],
             "oneOf": [
-              { "required": ["setting_id", "value"], "properties": { "setting_id": { "enum": ["ssl"] }, "value": { "enum": ["off", "flexible", "full", "strict"] } } },
-              { "required": ["setting_id", "value"], "properties": { "setting_id": { "enum": ["always_use_https", "automatic_https_rewrites", "email_obfuscation"] }, "value": { "enum": ["on", "off"] } } },
-              { "required": ["setting_id", "value"], "properties": { "setting_id": { "enum": ["min_tls_version"] }, "value": { "enum": ["1.0", "1.1", "1.2", "1.3"] } } },
-              { "required": ["setting_id", "strict_transport_security"], "properties": { "setting_id": { "enum": ["security_header"] } } },
-              { "required": ["setting_id", "browser_cache_ttl"], "properties": { "setting_id": { "enum": ["browser_cache_ttl"] } } }
+              { "required": ["setting_id", "value"], "properties": { "setting_id": { "enum": ["ssl"] }, "value": { "enum": ["off", "flexible", "full", "strict"] }, "strict_transport_security": false, "browser_cache_ttl": false } },
+              { "required": ["setting_id", "value"], "properties": { "setting_id": { "enum": ["always_use_https", "automatic_https_rewrites", "email_obfuscation"] }, "value": { "enum": ["on", "off"] }, "strict_transport_security": false, "browser_cache_ttl": false } },
+              { "required": ["setting_id", "value"], "properties": { "setting_id": { "enum": ["min_tls_version"] }, "value": { "enum": ["1.0", "1.1", "1.2", "1.3"] }, "strict_transport_security": false, "browser_cache_ttl": false } },
+              { "required": ["setting_id", "strict_transport_security"], "properties": { "setting_id": { "enum": ["security_header"] }, "value": false, "browser_cache_ttl": false } },
+              { "required": ["setting_id", "browser_cache_ttl"], "properties": { "setting_id": { "enum": ["browser_cache_ttl"] }, "value": false, "strict_transport_security": false } }
             ],
             "additionalProperties": false
           }
