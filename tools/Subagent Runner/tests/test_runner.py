@@ -1076,10 +1076,9 @@ class RunTests(ToolCase):
 
     def test_missing_vendor_names_the_presence_check(self):
         env = self.env()
-        # The interpreter's own directory can contain the vendor tool. Use an empty directory of this test's own.
-        empty = self.root / "empty-path"
-        empty.mkdir()
-        env["PATH"] = str(empty)
+        # The interpreter's own directory can contain the vendor tool, and a directory name can contain the
+        # path separator. An empty PATH names no directory at all; Python is invoked by its full path.
+        env["PATH"] = ""
         result = subprocess.run(
             [sys.executable, str(SCRIPT)] + self.args(extra=["--dry-run"]),
             capture_output=True, text=True, encoding="utf-8", env=env)
