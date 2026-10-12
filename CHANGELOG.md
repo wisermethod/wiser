@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.12.4, October 12, 2026
+
+- Content Author can write one piece in another folder's voice: your folder names that folder in one of its own files, or you name it when you ask, and Content Author reads that folder's declaration, confirms a voice is bound there, and writes in it. A skill that calls Content Author passes the choice along with where it was made, and never makes one itself. Ghost Writer judges the piece against that same voice and names the file it used. If the voice cannot be found or read, nothing is written, rather than falling back to your folder's own voice, and a signature or a sender's name is never taken as a choice of voice. Your folder's other files, what the piece may say about you and where it is filed, stay your folder's. (df4041e)
+
 ## v2026.10.12.3, October 12, 2026
 
 - A Play is now listed in the AGENTS.md of the folder that holds it, or of the nearest folder above it that has one, by its path and what it produces, and that listing is how a session finds the Play. The listing is added when a Play is written or next revised, so an older Play without one leaves your folder up to date. The glossary no longer says nothing routes to a Play. (adff00a)
