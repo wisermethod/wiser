@@ -3,7 +3,7 @@ name: SEO Assets
 type: skill
 category: seo
 description: Produce the ready-to-use artifacts a site's decided search changes need, each built from evidence pulled for it, held to its own standards, and written into an envelope's site/ kit tree or handed over for someone else to deploy
-version: 0.12.6
+version: 0.13.0
 memory:
   - voice
   - about
@@ -59,7 +59,7 @@ The constraints under each, where losing one costs something on a live site:
 
 **Redirect map.** Permanent unless the requester names a reason for a temporary one. The old address is the exact path served, and the target is the one live page that covers what the old address covered: a blanket redirect to the homepage turns every inbound link into nothing. Chains are collapsed to their endpoint and loops are named. An address with no equivalent is listed with none and said to have none.
 
-**Content brief.** Settle the intent before writing the brief; one written over an ambiguous query produces a page that satisfies neither reading. Format and length are calibrated from the pages actually ranking for the query, never from a word-count rule; where no source in Evidence returns them, that reading is taken by hand and carries `Estimated: manual review`. Separate what every ranking page covers from what none of them does, since the second is the only reason the new page wins.
+**Content brief.** Settle the intent before writing the brief; one written over an ambiguous query produces a page that satisfies neither reading. Format and length are calibrated from the pages actually ranking for the query, read through the SERP row in Evidence, never from a word-count rule; only where that route is missing in this harness, as the ledger in `experts/Webmaster/seo-readings.md` says, and never where the route is unconnected, whose next step is the connection turn, or where a stated spend limit or a declined gateway stop ruled it out, is the reading taken by hand, and it carries `Estimated: manual review`. Separate what every ranking page covers from what none of them does, since the second is the only reason the new page wins.
 
 **Competitive documents.** The change list between two snapshots is computed by `tools/sitemap/` `diff` and never read off sitemap markup by eye, at any size: where the tool is present it is always used, and where it is absent the change list is not produced by eye instead: say the comparison cannot run and what it would have shown. A change list that arrives already made, from a source that had no such tool, is evidence rather than production and carries `Estimated: manual review`. Gaps are classified and reported; which to pursue, and in what order, arrives as a finding. A roadmap schedules an order it was given and never creates one.
 
@@ -79,15 +79,23 @@ The constraints under each, where losing one costs something on a live site:
 | One page's head, headings, links, directives, and markup | `tools/seo-page-analyzer/` |
 | What a site publishes, and what changed since last time | `tools/sitemap/` `fetch`, then `tools/sitemap/` `diff` |
 | A page that builds itself in the browser, or sits behind a sign-in | `tools/Browser Control/` |
+| Keyword demand, intent and difficulty | `dataforseo.research.*` |
+| SERP for a brief's query | `dataforseo.research.serp` |
+| Crawl inventory for a redirect map's old addresses | `tools/site-crawl/` |
+| Lab and field performance where a status snapshot reports speed | `google-apis.insights.run` |
+| Index state for a plan file's entries | `google.search-console.inspect` |
+| Bing state for a status snapshot | `bing.webmaster.*` |
 
-All six account reads use the gateway's `execute` tool and are `confirmation: none`. They return catalog objects, not files; this skill saves them for the tools below. Analytics `date_ranges` entries use `{ startDate, endDate }`; metrics and dimensions use `{ name }`. Keyword research comes from `connectors/dataforseo/` and site crawling from `tools/site-crawl/`; these account reads supply neither and are not the route to them.
+Costs, billed calls and readiness are `experts/Webmaster/seo-readings.md`'s.
+
+All seven account reads use the gateway's `execute` tool and are `confirmation: none`. They return catalog objects, not files; this skill saves them for the tools below. Analytics `date_ranges` entries use `{ startDate, endDate }`; metrics and dimensions use `{ name }`. Keyword research comes from `connectors/dataforseo/` and site crawling from `tools/site-crawl/`; these account reads supply neither and are not the route to them. DataForSEO reads are billed, follow `experts/Webmaster/seo-readings.md` Paid calls, and their cost travels with the artifact's evidence.
 
 What each hand-off needs to be right:
 
 - A saved search-console query response is a JSON file holding a `rows` array, and that file is what the tools read. Rows grouped by query feed `seo-data` `keywords`'s `--queries`, rows grouped by query and page feed `--query-pages`, and each refuses the other's rows, so the grouping decides which flag it can serve. Run `node scripts/seo-data.js previous-window --start <d> --end <d>` before comparing a trend: it prints the earlier window the comparison assumes, and that window's rows go to `keywords` as `--previous-queries`.
 - `seo-data` `audit` reads one bundle assembled by this skill. Its search sections take the `rows` array out of each saved response, its sitemap section takes the `sitemap` array a search-console sitemaps reading holds, and its analytics sections take the reports as the platform returned them, headers included and not flattened. The bundle is refused whole if a section is missing, so a period with no analytics data produces no audit dataset.
 - `seo-page-analyzer` opens no connection: it reads HTML from a file and needs `--page-url` to tell the page's own links from links off it. A static page's markup is retrieved however the host retrieves a page; a page that builds itself in JavaScript, or one behind a sign-in, comes through `Browser Control`, whose snapshot returns the markup in its `content` field, which is what gets written out rather than the object around it.
-- `Browser Control` reads no credential and takes no `--env`. It keeps sign-ins in the profile directory `--profile` names, resolved in the owning root per `standards/conventions.md` and never guessed, and a sign-in, a second factor, or a challenge is handed to the person at the window rather than driven.
+- `Browser Control` reads no credential and takes no `--env`. It keeps sign-ins in the profile directory `--profile` names, resolved in the owning root per `standards/conventions.md` and never guessed, and a sign-in, a second factor, or a challenge is handed to the person at the window rather than driven. A vendor that blocks the automated browser is read in the person's own, per `experts/Webmaster/ahrefs-browser.md`.
 - Search Console rows arrive two to three days late, stop at sixteen months, and are a top slice with rare queries withheld, so a total summed from them describes the rows and never the property. Any artifact quoting one says which.
 
 ## Steps
@@ -110,7 +118,7 @@ Take each reading from its row in Evidence, into files in the owning root's work
 
 Under the constitution's Behavioral Core, `needs_connect` stops the affected reading; `skills/Connect Account/` is the next human turn for that grant. This run degrades: label the missing reading per `standards/conventions.md` and continue with the available evidence. Availability is what a call actually returns; it is never inferred from a credential file, which is never opened.
 
-An artifact whose central reading is missing is a different case: say which artifact cannot be built and why, rather than producing a thinner version of it that reads as complete.
+An artifact whose central reading is missing is a different case: say which artifact cannot be built and why, rather than producing a thinner version of it that reads as complete. A billed read ruled out by the requester's limit, or a gateway stop the person declined, leaves the artifact whose central reading it was unbuilt, under that rule.
 
 ### Step 3: Produce each artifact
 
@@ -163,3 +171,4 @@ The deployment is the requester's. Where one change has both a file and a platfo
 - On a kit site, deployable artifacts used the supported paths (`site/src/content/` frontmatter, `site/src/content/llms.txt`) and layout-owned slots were not duplicated. Plans, briefs, reports, and snapshots used Step 4's envelope/work homes. A custom `llms.txt` was verified against the built or served response, or returned with its unresolved route conflict rather than declared ready. On a foreign site, every file sits in the owning root's work directory under the site's subject folder, and nothing was written into that site. Anything replaced was archived per `standards/conventions.md`. Nothing was written into this plugin root.
 - Each artifact was handed over with where it goes, what must be true first, and how to confirm it landed, and nothing was live-published, submitted, or indexed by this run.
 - `experts/Webmaster/` returned a verdict on each finished artifact against the finding it was built to close, or against its row in the artifacts table where its own evidence settled the scope, before hand-over, or the requester declined the review.
+- Each billed read's cost is stated with the artifact, and no stated limit was passed.
