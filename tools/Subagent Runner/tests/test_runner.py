@@ -1076,12 +1076,16 @@ class RunTests(ToolCase):
 
     def test_missing_vendor_names_the_presence_check(self):
         env = self.env()
-        env["PATH"] = os.path.dirname(sys.executable)
+        # The interpreter's own directory can contain the vendor tool. Use an empty directory of this test's own.
+        empty = self.root / "empty-path"
+        empty.mkdir()
+        env["PATH"] = str(empty)
         result = subprocess.run(
             [sys.executable, str(SCRIPT)] + self.args(extra=["--dry-run"]),
             capture_output=True, text=True, encoding="utf-8", env=env)
         self.assertEqual(result.returncode, 1)
         self.assertEqual(result.stdout, "")
+        self.assertIn("'codex' is not on PATH", result.stderr)
         self.assertIn("codex --version", result.stderr)
 
     def test_missing_git_names_its_check_and_writes_nothing(self):
