@@ -4,6 +4,14 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.12, October 12, 2026
+
+- When a plan depends on a third-party package, Playbook Author now reads what the package does from the version the build will install, its shipped code and the answers it gives when run, and names that version beside each claim. Another version's notes, the package's README or a research summary only point the way, and a claim that the package lacks something is checked against the whole of that version. (493391a)
+- Scope Plugin Bench now asks once whether you have done this work by hand in a folder the workspace does not include. If you name one, it reads only that folder's shape, its folder names, routers and headings, never its records, and turns what it shows into made-up example cases: each goes into the first slice where that slice needs it, or is put off with the condition that brings it forward. No fact from that folder reaches the proposal. (493391a, 9d8bb03)
+- Delegate Build takes the meaning of each field a brief names from the cited system's own definition, not from a summary of its names. Where the work applies a rule that third-party code it drives also implements, the brief takes the rule from its own source, a law or a specification, or from that code's answers, and never sends the builder to that code to learn it. A builder writing such a rule works from a fresh start, with no copy of that code, told not to look for it, install it or go online, and its recorded reads are checked where the run keeps them. (493391a, 9d8bb03)
+- When a review stops after a round that found a serious problem outside every earlier fix, Delegate Build now says that fix went unreviewed and names the check that proves it instead; a further review round runs only if you allow it. (493391a)
+- Before Prove Change records the value it expects a system to produce, it reads that output's own rule to see everything the output covers, and works out the expected value for all of it from the specification. (493391a)
+
 ## v2026.10.11.4, October 11, 2026
 
 - Scope Plugin Bench now also looks for earlier research in the folder that will own the plan, and leaves out what tools installed for themselves. When the plan will be kept in the build workspace itself, the hand-off names that workspace's own files; a proposal or hand-off bound for any other folder still names none of them. (9ed11e1)
