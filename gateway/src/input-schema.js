@@ -25,12 +25,14 @@
  *
  * It does not read `maxLength`, `minimum`, `maximum`, `oneOf`, `anyOf` or `if`/`then`, and
  * it does not recurse into object properties. A module that enforces one of those keeps
- * enforcing it itself. That is this validator's reach, not the gateway's: for a call that
- * needs an approval, `src/disclosure.js` `violatedKeyword` also checks `maxLength`,
- * `minimum`, `maximum` and `multipleOf`, and `src/gateway.js` `approvalDisclosure` refuses
- * a value that fails before any stop is recorded. `gateway/test/agreement.test.js` is what holds the two sides
+ * enforcing it itself. `gateway/test/agreement.test.js` is what holds the two sides
  * together: it fails when a module enforces a rule its schema does not publish, and when a
  * schema publishes a rule nothing applies.
+ *
+ * That is this validator's reach, not the whole gateway's. For a call that needs an
+ * approval, `src/disclosure.js` `violatedKeyword` also checks a string's `maxLength` and a
+ * number's `minimum`, `maximum` and `multipleOf`, and `src/gateway.js` `approvalDisclosure`
+ * refuses a value that fails before any stop is recorded.
  *
  * ## Two corrections to the copied text, both measured
  *
