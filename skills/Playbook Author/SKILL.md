@@ -3,7 +3,7 @@ name: Playbook Author
 type: skill
 category: authoring
 description: Create, instantiate, resume, review, hand off at a session's end, or close out a WISER Playbook for work that spans sessions
-version: 0.1.11
+version: 0.1.12
 ---
 
 # Playbook Author
@@ -41,7 +41,7 @@ Decide the job before running any section.
 
 1. After a reframe, restate the objective in the owner's words in one paragraph and get a yes before planning, then rebuild the plan rather than amend the first design. Fix ownership and placement. Name the root that owns the work per the constitution's Workspace Model, asking when no root fits or more than one does; then place and name the file per `standards/playbook.md`, stating the path and asking only for a correction.
 2. Choose Type. One-time is the default. Choose Template only when the requester has said this same process will run again with different inputs.
-3. Do the Witness audit for real before drafting anything downstream. Write the Standards pointer in Context per `standards/playbook.md`, as a path that opens, distinct from Key files. Read the Key files and record what you found. Read a claim about what a cited system does from that system's own record, its schema, code or capture, before Witness states it; a summary of it is a pointer, not the source. If a file cannot be read, say which and stop.
+3. Do the Witness audit for real before drafting anything downstream. Write the Standards pointer in Context per `standards/playbook.md`, as a path that opens, distinct from Key files. Read the Key files and record what you found. Read a claim about what a cited system does from that system's own record, its schema, code or capture, before Witness states it; a summary of it is a pointer, not the source. Is that system a third-party package the build will install? Yes: read its behaviour from the version the build will install, that version's shipped code and the answers it gives when run, and name that version beside each claim; another version's capture, the package's README and a research summary are pointers, never the source. A claim that the package lacks something is checked against the whole of that version, not one record of it. No: go on. You cannot tell which version the build will install: ask, and state no claim about the package until the version is named. If a file cannot be read, say which and stop.
 4. Interrogate before designing the plan. Fill the risk table, then derive the riskiest piece from it, then let that choice set Solve. Follow the call the new code will make before treating a function as its constraint or riskiest piece. Drafting Expand first produces a plausible sequence built on nothing.
 5. Confirm the execution mode once risks are on the table, not before; choose by the Execution Mode section of `standards/playbook.md`.
 6. Ask the user only what cannot be read from the request, the Key files, or a source the plan already names, each question carrying a recommended default. Apply Questions in `standards/playbook.md` for where each question is put, what may block the start, and what the one gate is.

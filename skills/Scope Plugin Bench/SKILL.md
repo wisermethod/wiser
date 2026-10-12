@@ -3,7 +3,7 @@ name: Scope Plugin Bench
 type: skill
 category: system
 description: Decide what experts, skills, tools and connectors a named domain plugin should hold in its first slice, and hand Playbook Author the source material to plan it
-version: 0.1.4
+version: 0.1.5
 ---
 
 # Scope Plugin Bench
@@ -103,6 +103,8 @@ Then classify the request against Three input states. State (c) ends the run at 
 ### 2. Inventory what the workspace already holds
 
 Direct `skills/Internal Research/` by name. Hand it `<scan_request>` whose topic is the domain the plugin's constitution says it is for, and whose scope is named rather than left open: the plugin being scoped, `wiser`, any composed user root, and the root that will own the plan where the request or the workspace already names it, since research saved for this work lands there; in each, excluding what tools install for themselves. Take the inventory it returns.
+
+Has the owner done this domain's work by hand in a root this workspace does not compose? Ask once, before the slice is proposed. Yes, and they name the root: read only its shape, never its records: its directory names, the routers that describe those directories, and the section headings of its files. Carry what that shape holds and the inventory misses to step 4 as scenarios the slice must meet, each written as a synthetic case, and let no fact from that root enter the inventory, a proposal or the hand-off. No: go on. They cannot say: go on, and name the question as open in the proposal.
 
 A composed workspace can hold directories whose paths may not appear in anything this skill yields. Which root is this package bound for? The build workspace itself, because that workspace will own the plan: a card's path inside it is named, as a Key file of the hand-off. Any other root, or you cannot tell: where a returned card's path names a build-workspace directory, or you cannot tell whether it does, say that hits were found and omitted because they cannot be named in this package, and carry the finding without the path. Do not copy the path, and do not silently drop the card as though the inventory found nothing there.
 

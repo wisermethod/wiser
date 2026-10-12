@@ -3,7 +3,7 @@ name: Prove Change
 type: skill
 category: system
 description: "A recorded proof of a change: checks run against its committed text, every control shown able to fail, and a verdict naming the commit it tested and saying what passed, what failed, what could not be checked, and what stays unverified"
-version: 0.1.3
+version: 0.1.4
 ---
 
 # Prove Change
@@ -47,7 +47,7 @@ No row fits: Prove a change alone carries the claim. You cannot tell which evide
 
 ## Prove a change
 
-1. What must this run prove? `<acceptance>` states it: prove that. When the plan names a riskiest piece, prove that piece before anything that depends on it, per Risk First in `standards/playbook.md`. `<acceptance>` states nothing the run could fail: ask, and do not run. Does the work show that the acceptance must change, because it names a case it did not foresee? Write the amended acceptance beside the original, with the reason, before scoring anything, and score against what was written before the run; never replace the original after the run.
+1. What must this run prove? `<acceptance>` states it: prove that. When the plan names a riskiest piece, prove that piece before anything that depends on it, per Risk First in `standards/playbook.md`. `<acceptance>` states nothing the run could fail: ask, and do not run. Does the work show that the acceptance must change, because it names a case it did not foresee? Write the amended acceptance beside the original, with the reason, before scoring anything, and score against what was written before the run; never replace the original after the run. Does the acceptance register an expected value for a system's output? Yes: before registering it, read the rule that produces that output, its own title and scope, in the system's source, and derive the expected value for the whole of what that rule computes, not only the part the case is about; the derivation comes from the specification, per step 6, not from the source's formula. Its source cannot be read: take the rule's scope from the system's own published specification, and record that the expected value rests on it. No: go on.
 
 2. Is another session writing `<target>`? No: prove against `<target>`. Yes, and the proof can run without changing `<target>`: prove in the plan's own evidence directory, leave `<target>` untouched until that writer stops, and do not start the rest of the planned change on `<target>`; that placement is an Execution Model, per `standards/playbook.md`. Yes, and the proof needs `<target>` itself changed: wait for that writer to stop, or work only in paths the plan assigns to this work alone. You cannot tell: ask, and do not write `<target>`.
 

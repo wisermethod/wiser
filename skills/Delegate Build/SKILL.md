@@ -3,7 +3,7 @@ name: Delegate Build
 type: skill
 category: system
 description: Delegated build work and its independent review, with only verified findings folded back
-version: 0.1.2
+version: 0.1.3
 ---
 
 # Delegate Build
@@ -74,6 +74,10 @@ Build the artifact under test and commit it before any case or any key exists. A
 Give every judging run its material inline, forbid commands, count its `exec` entries, and re-run any run that recorded one. Where the log records no such entries because it records no reads, the count cannot show isolation, and the run is not cited as isolated.
 
 4. Write the brief. It names every file the delegate must read or change by absolute path, states `<objective>`, states `<targets>`, and states the acceptance. It names where the delegate writes any evidence or record the work asks for, inside `<targets>`, and says that the delegate does not edit the plan: this session, which owns the plan, reads that evidence and updates the plan. It authorizes no deploy, no external message, and no write outside `<targets>`. It tells a builder to read the relevant files first, run the checks the work needs, fix what it breaks, leave folder layout as it stands, and not print, copy, or commit the contents of a `.env` file or of anything under a root named memory.
+
+Does the brief name an interface to a cited system, its fields, inputs or outputs? Yes: take each field's meaning from that system's own definition, read and cited in the brief, never from a summary of its names. No: go on.
+
+Will the work apply a rule that third-party code it drives also implements? Yes: the brief takes that rule from its own authority, a statute or a specification, or from that code's observed answers, and never points the delegate at that code's source to learn it. A delegate that writes the rule runs clean-room, in a session whose roots hold no copy of that code. No: go on. You cannot tell: ask, and do not start the delegate.
 
 5. Is the task a review? No: apply the next paragraph. Yes: `<review>` names the shape of the reply. Do not replace that shape. You cannot tell: ask.
 
@@ -168,6 +172,8 @@ Which result did that read give?
 How many review rounds have finished? Two or more: stop, even if a fix is material. One or none, and a material fix landed: apply the next paragraph, then stop. One or none, and no material fix landed: stop. You cannot tell: stop.
 
 A second review round attacks the first round's fixes: brief it with each fix and ask for the input that defeats it. Re-review only a material fix, and stop after two rounds.
+
+Did the review stop after a round with a material finding outside every earlier fix? Yes: that finding's fix stands unreviewed. Name it in the handoff as unreviewed, with the check that proves it instead, by `skills/Prove Change/`; a further round scoped to that fix runs only where the owner grants it. No: go on.
 
 ## Hand off
 
