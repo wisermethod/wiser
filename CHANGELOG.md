@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.12.8, October 12, 2026
+
+- Webmaster's SEO audit reads the PDFs its crawl finds as a reading of their own: each one's status, whether it is blocked from search, its size, and whether it earns impressions in Search Console, with an index check on any PDF that earns impressions or is blocked. Where the crawl found no PDFs, that reading is marked as not applying to the site. The crawl lists a PDF without reading it, so a finding about a PDF's title or text names the file that was read, and one that would need text nobody read is not made. (e84e76d)
+
 ## v2026.10.12.7, October 12, 2026
 
 - Whether a piece of work needs a Playbook now has one answer, the test in the Playbook standard: work you can finish in one session is done directly, even when it changes this plugin. System Expert, Playbook Author, Prove Change and the plugin's own rules point to that test instead of giving answers of their own. (4afa098)
