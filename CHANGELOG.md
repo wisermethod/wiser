@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.12.2, October 12, 2026
+
+- Scope Plugin Bench still reads the shape of a folder where you did this work by hand first, and can now read files in it too, but only after naming which ones and why and getting your yes. What it finds still becomes made-up example cases, and no fact from that folder reaches the proposal. This replaces the earlier rule that it read the folder's shape and never its records. (afb0a81)
+- A tool that returns a figure an engine calculates from facts about your case, such as a tax, keeps the engine's own guesses out of that figure: it asks for every fact it sends, a zero included, refuses when the engine says it filled one in, and has you confirm each case it does not cover, rather than listing the engine's assumptions beside the answer. (afb0a81)
+
 ## v2026.10.12, October 12, 2026
 
 - When a plan depends on a third-party package, Playbook Author now reads what the package does from the version the build will install, its shipped code and the answers it gives when run, and names that version beside each claim. Another version's notes, the package's README or a research summary only point the way, and a claim that the package lacks something is checked against the whole of that version. (493391a)
