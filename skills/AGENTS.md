@@ -10,7 +10,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 |-------|-------------|-------|
 | `Build Concepts/SKILL.md` | Develop one tested core insight from source material or a bare direction, with the angles, specifics, and boundaries a piece can be drafted from | Ghost Writer |
 | `Categorize Content/SKILL.md` | Reduce source material to a minimal set of themes, each an action a practitioner can take and the insight that makes that action non-obvious | Ghost Writer |
-| `Content Author/SKILL.md` | Write or review prose content for human readers in the owning root's bound voice | Ghost Writer |
+| `Content Author/SKILL.md` | Write or review prose content for human readers in the owning root's bound voice, or in another root's bound voice its caller selects for one piece | Ghost Writer |
 | `Play Author/SKILL.md` | Write or review Plays, primitive instruction bodies, and library components | System Expert |
 | `Playbook Author/SKILL.md` | Create, instantiate, resume, review, hand off at a session's end, or close out a WISER Playbook for work that spans sessions | System Expert |
 
