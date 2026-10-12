@@ -3,7 +3,7 @@ name: Playbook Author
 type: skill
 category: authoring
 description: Create, instantiate, resume, review, hand off at a session's end, or close out a WISER Playbook for work that spans sessions
-version: 0.2.0
+version: 0.2.1
 ---
 
 # Playbook Author
@@ -45,7 +45,7 @@ Decide the job before running any section.
 4. Interrogate before designing the plan. Fill the risk table, then derive the riskiest piece from it, then let that choice set Solve. Follow the call the new code will make before treating a function as its constraint or riskiest piece. Drafting Expand first produces a plausible sequence built on nothing.
 5. Confirm the execution mode once risks are on the table, not before; choose by the Execution Mode section of `standards/playbook.md`.
 6. Ask the user only what cannot be read from the request, the Key files, or a source the plan already names, each question carrying a recommended default. Name to the owner, in one line, a rule whose cost falls on files nobody outside reads, with that cost, and leave its scope theirs. Apply Questions in `standards/playbook.md` for where each question is put, what may block the start, and what the one gate is.
-7. Before any task is written, settle preconditions, acceptance, and what a release must still do. Never put a licence check on user-supplied material into a Playbook Precondition; search the Playbook before adding one, and if one is needed, gate only the repository's own dependencies. Accept a caller-side change on the invocation being made, not the capability being present, naming every primitive that issues the call. A full pass proves shippability only if shippability was named: ask what happens if the run passes and the result is unusable, and add a "runs unpatched" or other explicit clause. A release reaches no one by itself: plan each distribution step as a task of the build, or name each as open at handoff. Write the acceptance and the milestone map per Milestones and Tasks in `standards/playbook.md`.
+7. Before any task is written, settle preconditions, acceptance, and what a release must still do. Never put a licence check on user-supplied material into a Playbook Precondition; search the Playbook before adding one, and if one is needed, gate only the repository's own dependencies. Accept a caller-side change on the invocation being made, not the capability being present, naming every primitive that issues the call. A full pass proves shippability only if shippability was named: ask what happens if the run passes and the result is unusable, and add a "runs unpatched" or other explicit clause. A release reaches no one by itself: plan each distribution step as a task of the build, or name each as open at handoff. A live run that must clean up after itself proves its cleanup action before any task depends on it, and names who runs it; a deletion the host's permission check may refuse, such as a click through a browser extension, is planned as the owner's action with the page left open for it, and never routed around. Write the acceptance and the milestone map per Milestones and Tasks in `standards/playbook.md`.
 8. Decompose Expand into milestones and tasks against the tests in `standards/playbook.md`. A plan growing past its objective is a signal to stop and ask.
 9. Verify before delivering: read the draft cold three times, from three different execution states (nothing started, mid-Expand, Solve just failed). Each read must yield one specific next action with no questions asked. If one does not, fix the section that broke, then reread.
 
