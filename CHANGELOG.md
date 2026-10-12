@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.12.5, October 12, 2026
+
+- Zone Publisher can change two more Cloudflare zone settings: Email Obfuscation, on or off, and Browser Cache TTL, any whole number of seconds from 0 to one year, where 0 leaves your server's own caching headers in place. Each is read before and after the change, as the other five settings are, and stops for your yes first. Before a change to either, Zone Publisher also reads the Configuration Rules or Cache Rules that can set it for part of the zone. IT Expert, which checks the plan before anything is written, now weighs what each one reaches: Email Obfuscation changes the addresses in the HTML your pages serve, with the exceptions Cloudflare lists, and a longer browser cache stays in visitors' browsers after you lower it again, where a purge at Cloudflare does not reach. (4cd8d9c, 685f0ad, fa4ccfd, 036ab4c)
+
 ## v2026.10.12.4, October 12, 2026
 
 - Content Author can write one piece in another folder's voice: your folder names that folder in one of its own files, or you name it when you ask, and Content Author reads that folder's declaration, confirms a voice is bound there, and writes in it. A skill that calls Content Author passes the choice along with where it was made, and never makes one itself. Ghost Writer judges the piece against that same voice and names the file it used. If the voice cannot be found or read, nothing is written, rather than falling back to your folder's own voice, and a signature or a sender's name is never taken as a choice of voice. Your folder's other files, what the piece may say about you and where it is filed, stay your folder's. (df4041e)
