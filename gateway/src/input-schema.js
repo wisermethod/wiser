@@ -29,10 +29,12 @@
  * together: it fails when a module enforces a rule its schema does not publish, and when a
  * schema publishes a rule nothing applies.
  *
- * That is this validator's reach, not the whole gateway's. For a call that needs an
- * approval, `src/disclosure.js` `violatedKeyword` also checks a string's `maxLength` and a
- * number's `minimum`, `maximum` and `multipleOf`, and `src/gateway.js` `approvalDisclosure`
- * refuses a value that fails before any stop is recorded.
+ * What this validator reads is not the whole of what the gateway enforces. For a call that
+ * needs an approval, `src/disclosure.js` `violatedKeyword` checks a string's `maxLength`
+ * and a number's `minimum`, `maximum` and `multipleOf`, which this validator does not
+ * read, and `src/gateway.js` `approvalDisclosure` refuses a value that fails before any
+ * stop is recorded. A `confirmation: 'once'` action already confirmed needs no approval,
+ * so nothing here checks those bounds on its later calls.
  *
  * ## Two corrections to the copied text, both measured
  *
