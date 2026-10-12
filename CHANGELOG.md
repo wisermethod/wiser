@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.12.3, October 12, 2026
+
+- A Play is now listed in the AGENTS.md of the folder that holds it, or of the nearest folder above it that has one, by its path and what it produces, and that listing is how a session finds the Play. The listing is added when a Play is written or next revised, so an older Play without one leaves your folder up to date. The glossary no longer says nothing routes to a Play. (adff00a)
+
 ## v2026.10.12.2, October 12, 2026
 
 - Scope Plugin Bench still reads the shape of a folder where you did this work by hand first, and can now read files in it too, but only after naming which ones and why and getting your yes. What it finds still becomes made-up example cases, and no fact from that folder reaches the proposal. This replaces the earlier rule that it read the folder's shape and never its records. (afb0a81)
