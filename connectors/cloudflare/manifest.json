@@ -264,7 +264,7 @@
           }
         },
         "update_setting": {
-          "description": "Change one of ssl, always_use_https, security_header, min_tls_version, or automatic_https_rewrites. Reads the setting, PATCHes it, and reads it again. Returns setting_id, before, after, and applied. For ssl, always_use_https, min_tls_version and automatic_https_rewrites, give value: ssl is off, flexible, full, or strict; always_use_https and automatic_https_rewrites are on or off; min_tls_version is 1.0, 1.1, 1.2, or 1.3. For security_header (HSTS), give strict_transport_security instead, an object whose only keys are enabled, max_age, include_subdomains, preload, and nosniff; max_age is an integer from 0 to 31536000 and the rest are booleans; it is sent as { strict_transport_security }. Giving both, or the one the setting does not take, is refused. applied is whether after equals what was sent; for security_header it compares after.strict_transport_security key by key. When the PATCH is accepted and the second read throws or returns success false, after and applied are null and reason is read after write failed.",
+          "description": "Change one of ssl, always_use_https, security_header, min_tls_version, automatic_https_rewrites, email_obfuscation, or browser_cache_ttl. Reads the setting, PATCHes it, and reads it again. Returns setting_id, before, after, and applied. For ssl, always_use_https, min_tls_version, automatic_https_rewrites and email_obfuscation, give value: ssl is off, flexible, full, or strict; always_use_https, automatic_https_rewrites and email_obfuscation are on or off; min_tls_version is 1.0, 1.1, 1.2, or 1.3. For security_header (HSTS), give strict_transport_security instead, an object whose only keys are enabled, max_age, include_subdomains, preload, and nosniff; max_age is an integer from 0 to 31536000 and the rest are booleans; it is sent as { strict_transport_security }. For browser_cache_ttl, give browser_cache_ttl instead, an integer number of seconds from 0 to 31536000, 0 meaning Respect Existing Headers, sent as the value. Giving more than one of value, strict_transport_security and browser_cache_ttl, or one the setting does not take, is refused. applied is whether after equals what was sent; for security_header it compares after.strict_transport_security key by key. When the PATCH is accepted and the second read throws or returns success false, after and applied are null and reason is read after write failed.",
           "risk": "high",
           "confirmation": "always",
           "execution": { "prefer": "proxy" },
@@ -274,7 +274,7 @@
               "zone_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
               "setting_id": {
                 "type": "string",
-                "enum": ["ssl", "always_use_https", "security_header", "min_tls_version", "automatic_https_rewrites"]
+                "enum": ["ssl", "always_use_https", "security_header", "min_tls_version", "automatic_https_rewrites", "email_obfuscation", "browser_cache_ttl"]
               },
               "value": {
                 "type": "string",
@@ -291,14 +291,16 @@
                 },
                 "required": ["enabled", "max_age", "include_subdomains", "preload", "nosniff"],
                 "additionalProperties": false
-              }
+              },
+              "browser_cache_ttl": { "type": "integer", "minimum": 0, "maximum": 31536000 }
             },
             "required": ["zone_id", "setting_id"],
             "oneOf": [
               { "required": ["setting_id", "value"], "properties": { "setting_id": { "enum": ["ssl"] }, "value": { "enum": ["off", "flexible", "full", "strict"] } } },
-              { "required": ["setting_id", "value"], "properties": { "setting_id": { "enum": ["always_use_https", "automatic_https_rewrites"] }, "value": { "enum": ["on", "off"] } } },
+              { "required": ["setting_id", "value"], "properties": { "setting_id": { "enum": ["always_use_https", "automatic_https_rewrites", "email_obfuscation"] }, "value": { "enum": ["on", "off"] } } },
               { "required": ["setting_id", "value"], "properties": { "setting_id": { "enum": ["min_tls_version"] }, "value": { "enum": ["1.0", "1.1", "1.2", "1.3"] } } },
-              { "required": ["setting_id", "strict_transport_security"], "properties": { "setting_id": { "enum": ["security_header"] } } }
+              { "required": ["setting_id", "strict_transport_security"], "properties": { "setting_id": { "enum": ["security_header"] } } },
+              { "required": ["setting_id", "browser_cache_ttl"], "properties": { "setting_id": { "enum": ["browser_cache_ttl"] } } }
             ],
             "additionalProperties": false
           }

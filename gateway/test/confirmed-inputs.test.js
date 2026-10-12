@@ -17,6 +17,7 @@ const DISCLOSABLE = new Set(['string', 'integer', 'number', 'boolean', 'array', 
 test('every field of every confirmed connector action declares one disclosable type', async () => {
   const { connectors } = await createTestGateway();
   const offenders = [];
+  const seen = new Set();
   let checked = 0;
   for (const connector of connectors.values ? connectors.values() : Object.values(connectors)) {
     const modules = connector.manifest ? connector.manifest.modules : connector.modules;
@@ -25,8 +26,10 @@ test('every field of every confirmed connector action declares one disclosable t
         if ((action.confirmation || 'none') === 'none') continue;
         for (const [field, declaration] of Object.entries(action.input?.properties || {})) {
           checked += 1;
+          const id = `${connector.manifest?.service ?? connector.service}.${moduleName}.${actionName} ${field}`;
+          seen.add(id);
           if (typeof declaration.type !== 'string' || !DISCLOSABLE.has(declaration.type)) {
-            offenders.push(`${connector.manifest?.service ?? connector.service}.${moduleName}.${actionName} ${field}`);
+            offenders.push(id);
           }
         }
       }
@@ -34,6 +37,7 @@ test('every field of every confirmed connector action declares one disclosable t
   }
   assert.ok(checked > 100, `control: only ${checked} confirmed fields were checked`);
   assert.deepEqual(offenders, []);
+  assert.equal(seen.has('cloudflare.zones.update_setting browser_cache_ttl'), true);
 });
 
 const ZONE = '0123456789abcdef0123456789abcdef';
@@ -50,7 +54,7 @@ async function gatewayWith(module, responder) {
   return { ...env, calls };
 }
 
-test('zones.update_setting reaches its stop and runs once confirmed, for a string setting and for HSTS', async () => {
+test('zones.update_setting reaches its stop and runs once confirmed, for a string setting, for HSTS, for email obfuscation and for browser cache ttl', async () => {
   let value = 'full';
   const { gw, calls } = await gatewayWith('zones', (req) => {
     if (req.method === 'PATCH') { value = req.body.value; return envelope({ id: 'ssl', value }); }
@@ -77,6 +81,35 @@ test('zones.update_setting reaches its stop and runs once confirmed, for a strin
   const hstsDone = await second.gw.execute({ ...hstsCall, confirm: true });
   assert.equal(hstsDone.applied, true, JSON.stringify(hstsDone));
   assert.deepEqual(second.calls[1].body, { value: { strict_transport_security: hsts } });
+
+  let obfuscated = 'on';
+  const email = await gatewayWith('zones', (req) => {
+    if (req.method === 'PATCH') { obfuscated = req.body.value; }
+    return envelope({ id: 'email_obfuscation', value: obfuscated });
+  });
+  const emailCall = { action: 'cloudflare.zones.update_setting', input: { zone_id: ZONE, setting_id: 'email_obfuscation', value: 'off' } };
+  const emailStop = await email.gw.execute(emailCall);
+  assert.equal(emailStop.status, 'needs_confirmation', JSON.stringify(emailStop));
+  assert.equal(email.calls.length, 0);
+  assert.ok(emailStop.input_values.some((field) => field.name === 'value' && field.value === '"off"'));
+  const emailDone = await email.gw.execute({ ...emailCall, confirm: true });
+  assert.equal(emailDone.applied, true, JSON.stringify(emailDone));
+  assert.deepEqual(email.calls[1].body, { value: 'off' });
+
+  let ttl = 14400;
+  const cache = await gatewayWith('zones', (req) => {
+    if (req.method === 'PATCH') { ttl = req.body.value; }
+    return envelope({ id: 'browser_cache_ttl', value: ttl });
+  });
+  const ttlCall = { action: 'cloudflare.zones.update_setting', input: { zone_id: ZONE, setting_id: 'browser_cache_ttl', browser_cache_ttl: 3600 } };
+  const ttlStop = await cache.gw.execute(ttlCall);
+  assert.equal(ttlStop.status, 'needs_confirmation', JSON.stringify(ttlStop));
+  assert.equal(cache.calls.length, 0);
+  assert.ok(ttlStop.input_values.some((field) => field.name === 'browser_cache_ttl' && field.value === '3600'));
+  const ttlDone = await cache.gw.execute({ ...ttlCall, confirm: true });
+  assert.equal(ttlDone.applied, true, JSON.stringify(ttlDone));
+  assert.equal(typeof cache.calls[1].body.value, 'number');
+  assert.deepEqual(cache.calls[1].body, { value: 3600 });
 });
 
 test('rulesets.put_phase_entrypoint reaches its stop and runs once confirmed, creating and replacing', async () => {

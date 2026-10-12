@@ -88,6 +88,45 @@ test('manifest declares the new actions with confirmation, risk, and proxy', () 
   assert.equal(manifest.modules.rulesets.actions.delete.execution.prefer, 'proxy');
 });
 
+test('update_setting manifest pairs each of the seven settings with the one field it takes', () => {
+  const input = manifest.modules.zones.actions.update_setting.input;
+  const ttl = input.properties.browser_cache_ttl;
+  assert.equal(ttl.type, 'integer');
+  assert.equal(ttl.minimum, 0);
+  assert.equal(ttl.maximum, 31536000);
+  assert.deepEqual(input.properties.setting_id.enum, [
+    'ssl',
+    'always_use_https',
+    'security_header',
+    'min_tls_version',
+    'automatic_https_rewrites',
+    'email_obfuscation',
+    'browser_cache_ttl',
+  ]);
+  assert.ok(input.properties.setting_id.enum.includes('email_obfuscation'));
+  assert.ok(input.properties.setting_id.enum.includes('browser_cache_ttl'));
+  assert.deepEqual(input.required, ['zone_id', 'setting_id']);
+  assert.equal(input.additionalProperties, false);
+  const fieldFor = {
+    ssl: 'value',
+    always_use_https: 'value',
+    security_header: 'strict_transport_security',
+    min_tls_version: 'value',
+    automatic_https_rewrites: 'value',
+    email_obfuscation: 'value',
+    browser_cache_ttl: 'browser_cache_ttl',
+  };
+  for (const setting of input.properties.setting_id.enum) {
+    const branches = input.oneOf.filter((branch) => (branch.properties?.setting_id?.enum ?? []).includes(setting));
+    assert.equal(branches.length, 1, setting);
+    const fields = branches[0].required.filter((name) => name !== 'setting_id');
+    assert.deepEqual(fields, [fieldFor[setting]], setting);
+  }
+  const onOff = input.oneOf.find((branch) => (branch.properties?.setting_id?.enum ?? []).includes('email_obfuscation'));
+  assert.deepEqual(onOff.properties.setting_id.enum, ['always_use_https', 'automatic_https_rewrites', 'email_obfuscation']);
+  assert.deepEqual(onOff.properties.value.enum, ['on', 'off']);
+});
+
 test('zone reads send the catalog paths and refuse a bad zone id', async () => {
   const cases = [
     ['get_settings', { zone_id: ZONE }, 'GET', `/zones/${ZONE}/settings`, undefined],
@@ -260,6 +299,100 @@ test('update_setting refuses each setting value before any call', async () => {
     recording(async () => envelope({ id: 'min_tls_version', value: '1.2' })).ctx,
   );
   assert.equal(tls.applied, true);
+});
+
+test('update_setting applies email_obfuscation on and off', async () => {
+  for (const value of ['on', 'off']) {
+    let gets = 0;
+    const before = value === 'on' ? 'off' : 'on';
+    const { calls, ctx } = recording(async (req) => {
+      if (req.method === 'GET') {
+        gets += 1;
+        return envelope({ id: 'email_obfuscation', value: gets === 1 ? before : value });
+      }
+      assert.deepEqual(req.body, { value });
+      return envelope({ id: 'email_obfuscation', value });
+    });
+    const result = await modules.zones.update_setting({ zone_id: ZONE, setting_id: 'email_obfuscation', value }, ctx);
+    assert.deepEqual(result, { success: true, setting_id: 'email_obfuscation', before, after: value, applied: true });
+    assert.deepEqual(calls.map((call) => call.method), ['GET', 'PATCH', 'GET']);
+    assert.equal(calls[1].endpoint, `/zones/${ZONE}/settings/email_obfuscation`);
+  }
+});
+
+test('update_setting applies browser_cache_ttl as an integer, including 0 and the maximum', async () => {
+  for (const seconds of [0, 7, 31536000]) {
+    let gets = 0;
+    const before = seconds === 0 ? 14400 : 0;
+    const { calls, ctx } = recording(async (req) => {
+      if (req.method === 'GET') {
+        gets += 1;
+        return envelope({ id: 'browser_cache_ttl', value: gets === 1 ? before : seconds });
+      }
+      assert.equal(typeof req.body.value, 'number');
+      assert.deepEqual(req.body, { value: seconds });
+      return envelope({ id: 'browser_cache_ttl', value: seconds });
+    });
+    const result = await modules.zones.update_setting(
+      { zone_id: ZONE, setting_id: 'browser_cache_ttl', browser_cache_ttl: seconds },
+      ctx,
+    );
+    assert.deepEqual(result, { success: true, setting_id: 'browser_cache_ttl', before, after: seconds, applied: true });
+    assert.deepEqual(calls.map((call) => call.method), ['GET', 'PATCH', 'GET']);
+  }
+
+  const mismatched = await modules.zones.update_setting(
+    { zone_id: ZONE, setting_id: 'browser_cache_ttl', browser_cache_ttl: 7 },
+    recording(async (req) => envelope({ id: 'browser_cache_ttl', value: req.method === 'PATCH' ? 7 : 8 })).ctx,
+  );
+  assert.equal(mismatched.before, 8);
+  assert.equal(mismatched.after, 8);
+  assert.equal(mismatched.applied, false);
+});
+
+test('update_setting refuses a bad browser_cache_ttl or email_obfuscation before any call', async () => {
+  const { calls, ctx } = recording(async () => { throw new Error('called'); });
+  for (const browser_cache_ttl of [-1, 31536001, 3600.5, '3600', true, null]) {
+    refused(
+      await modules.zones.update_setting({ zone_id: ZONE, setting_id: 'browser_cache_ttl', browser_cache_ttl }, ctx),
+      'browser_cache_ttl',
+    );
+  }
+  refused(await modules.zones.update_setting({ zone_id: ZONE, setting_id: 'browser_cache_ttl' }, ctx), 'browser_cache_ttl');
+  refused(
+    await modules.zones.update_setting({ zone_id: ZONE, setting_id: 'browser_cache_ttl', browser_cache_ttl: 3600, value: 'on' }, ctx),
+    'value',
+  );
+  refused(
+    await modules.zones.update_setting({
+      zone_id: ZONE,
+      setting_id: 'browser_cache_ttl',
+      browser_cache_ttl: 3600,
+      strict_transport_security: hsts,
+    }, ctx),
+    'strict_transport_security',
+  );
+  const others = [
+    ['ssl', { value: 'full' }],
+    ['always_use_https', { value: 'on' }],
+    ['security_header', { strict_transport_security: hsts }],
+    ['min_tls_version', { value: '1.2' }],
+    ['automatic_https_rewrites', { value: 'off' }],
+    ['email_obfuscation', { value: 'on' }],
+  ];
+  for (const [setting_id, fields] of others) {
+    refused(
+      await modules.zones.update_setting({ zone_id: ZONE, setting_id, browser_cache_ttl: 3600, ...fields }, ctx),
+      'browser_cache_ttl',
+    );
+  }
+  refused(await modules.zones.update_setting({ zone_id: ZONE, setting_id: 'email_obfuscation', value: 'true' }, ctx), 'value');
+  refused(await modules.zones.update_setting({ zone_id: ZONE, setting_id: 'email_obfuscation' }, ctx), 'value');
+  refused(
+    await modules.zones.update_setting({ zone_id: ZONE, setting_id: 'email_obfuscation', value: 'off', browser_cache_ttl: 3600 }, ctx),
+    'browser_cache_ttl',
+  );
+  assert.equal(calls.length, 0);
 });
 
 test('list_access_apps follows pages and filters by host', async () => {

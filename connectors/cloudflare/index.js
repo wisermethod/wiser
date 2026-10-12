@@ -1629,7 +1629,7 @@ function readKitFunction(site, refused) {
 const ID_SEGMENT = /^[A-Za-z0-9_-]{1,64}$/;
 const SETTING_KEY = /^[a-z0-9_]{1,64}$/;
 const LIST_NAME = /^[a-z0-9_]{1,50}$/;
-const UPDATE_SETTINGS = ['ssl', 'always_use_https', 'security_header', 'min_tls_version', 'automatic_https_rewrites'];
+const UPDATE_SETTINGS = ['ssl', 'always_use_https', 'security_header', 'min_tls_version', 'automatic_https_rewrites', 'email_obfuscation', 'browser_cache_ttl'];
 const SSL_VALUES = new Set(['off', 'flexible', 'full', 'strict']);
 const ON_OFF = new Set(['on', 'off']);
 const TLS_VERSIONS = new Set(['1.0', '1.1', '1.2', '1.3']);
@@ -1713,10 +1713,15 @@ function deepEqual(a, b) {
 
 function checkSettingValue(settingId, value) {
   if (settingId === 'ssl') return SSL_VALUES.has(value) ? null : invalid('value');
-  if (settingId === 'always_use_https' || settingId === 'automatic_https_rewrites') {
+  if (settingId === 'always_use_https' || settingId === 'automatic_https_rewrites' || settingId === 'email_obfuscation') {
     return ON_OFF.has(value) ? null : invalid('value');
   }
   if (settingId === 'min_tls_version') return TLS_VERSIONS.has(value) ? null : invalid('value');
+  if (settingId === 'browser_cache_ttl') {
+    if (typeof value !== 'number' || !Number.isInteger(value)) return invalid('browser_cache_ttl');
+    if (value < 0 || value > 31536000) return invalid('browser_cache_ttl');
+    return null;
+  }
   if (settingId !== 'security_header') return invalid('setting_id');
   if (!sameKeys(value, ['strict_transport_security'])) return invalid('value');
   const header = value.strict_transport_security;
@@ -2495,17 +2500,26 @@ export const modules = {
       if (!accountIdOk(input && input.zone_id)) return invalid('zone_id');
       const settingId = input && input.setting_id;
       if (!UPDATE_SETTINGS.includes(settingId)) return invalid('setting_id');
-      // Two typed fields, so the gateway can show either at the confirmation stop:
-      // value for the four string settings, strict_transport_security for HSTS.
+      // Three typed fields, so the gateway can show any of them at the confirmation stop:
+      // value for the five string settings, strict_transport_security for HSTS,
+      // browser_cache_ttl for the cache TTL.
       const hasValue = Object.hasOwn(input, 'value') && input.value !== undefined;
       const hasHsts = Object.hasOwn(input, 'strict_transport_security') && input.strict_transport_security !== undefined;
+      const hasTtl = Object.hasOwn(input, 'browser_cache_ttl') && input.browser_cache_ttl !== undefined;
       let requested;
       if (settingId === 'security_header') {
         if (hasValue) return invalid('value', 'security_header takes strict_transport_security');
+        if (hasTtl) return invalid('browser_cache_ttl', 'security_header takes strict_transport_security');
         if (!hasHsts) return invalid('strict_transport_security');
         requested = { strict_transport_security: input.strict_transport_security };
+      } else if (settingId === 'browser_cache_ttl') {
+        if (hasValue) return invalid('value', 'browser_cache_ttl takes browser_cache_ttl');
+        if (hasHsts) return invalid('strict_transport_security', 'browser_cache_ttl takes browser_cache_ttl');
+        if (!hasTtl) return invalid('browser_cache_ttl');
+        requested = input.browser_cache_ttl;
       } else {
         if (hasHsts) return invalid('strict_transport_security', `${settingId} takes value`);
+        if (hasTtl) return invalid('browser_cache_ttl', `${settingId} takes value`);
         if (!hasValue || typeof input.value !== 'string') return invalid('value');
         requested = input.value;
       }
