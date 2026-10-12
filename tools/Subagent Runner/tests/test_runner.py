@@ -1085,7 +1085,7 @@ class RunTests(ToolCase):
             capture_output=True, text=True, encoding="utf-8", env=env)
         self.assertEqual(result.returncode, 1)
         self.assertEqual(result.stdout, "")
-        self.assertIn("'codex' is not on PATH", result.stderr)
+        self.assertRegex(result.stderr, r"'?codex'? is not on PATH")
         self.assertIn("codex --version", result.stderr)
 
     def test_missing_git_names_its_check_and_writes_nothing(self):
