@@ -6,14 +6,22 @@ the plugin root:
     cp system/hooks/pre-commit .git/hooks/pre-commit
     chmod +x .git/hooks/pre-commit
 
-The check scans the staged set only. It refuses operator build-workspace
-paths so a reader who installs this plugin is not sent to a directory that
-does not ship. It accepts the user-root homonym declared by
-`standards/user-root.md` C3 and C8.
+The check scans the staged set, except the typed-file gate, which reads the
+working tree, as the hook says where it runs it. It refuses operator build-workspace
+paths, the lanes directory among them, so a reader who installs this plugin
+is not sent to a directory that does not ship. It accepts the user-root
+homonym declared by `standards/user-root.md` C3 and C8.
+
+The hook finds its gates beside its own directory, in `system/gates/`, so the
+same copy checks another plugin's staged set when it is run from that
+repository's root. A copy in a clone's `.git/hooks/` has no gates beside it
+and uses that clone's own `system/gates/`. Where neither holds a gate a check
+needs, the commit is refused.
 
 The pattern-definition line in `pre-commit` is a narrow disposition for the
-expressions the check itself must contain. A planted operator citation on
-any other line of that same file still fails.
+expressions the check itself must contain, in this hook's own file only. A
+planted operator citation on any other line of that file, or that same line
+in any other file, still fails.
 
 ## The typed-file check
 

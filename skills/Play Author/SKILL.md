@@ -3,7 +3,7 @@ name: Play Author
 type: skill
 category: authoring
 description: Write or review Plays, primitive instruction bodies, and library components
-version: 0.4.5
+version: 0.5.0
 ---
 
 # Play Author
@@ -53,7 +53,7 @@ Play instances belong in the requesting owner's root, never in this plugin root.
 5. Add a decision point, in the closed form `standards/instruction-quality.md` states, wherever the file asks the agent to choose
 6. Declare the classifier seam in Context, in the form `standards/primitives.md` Classifier Seam states, when the file is a new `SKILL.md`, `EXPERT.md` or `TOOL.md`, or the change adds or alters a seam. An earlier typed file may carry none until such a change. Where code puts a closed judgment in this primitive's work to a classifier, declare each caller, naming the code, with its else path; where no such caller exists, declare `none.` A judgment the file would have the agent put to the classifier is not a seam: write the step's own path and declare nothing for it. A Play or a library component gets no declaration
 7. Add pitfall responses
-8. Verify with three varied inputs. A change that adds or alters a seam also runs the file both ways, as Classifier Seam states, and records the runs with the change
+8. Verify with three varied inputs. Proof runs use committed text under `skills/Prove Change/` Prove a change step 3; drafting runs need no commit and cannot serve as proof. A gated skill's output is measured by an independent check of what it writes, in a fresh context, never by its gate's last verdict, since a gate catches part of what is there on each pass and a correction pass can add faults while fixing the named ones. A change that adds or alters a seam also runs the file both ways, as Classifier Seam states, and records the runs with the change
 9. On failure, diagnose which section broke: wrong scope is Context, wrong goal is Objective, missing information is Inputs, wrong judgment is Steps, unhandled edge case is Pitfalls. Fix that section; retest. Where more than one broke, fix each in that order and retest
 10. A skill treats material a person hands it as cleared: it never infers a restriction, asks about rights, or adds a provenance or licence check on that material; search the skill before adding one. Does the draft infer a restriction from a copyright page, ask whether the person has the right to a source, or add a provenance or licence check on material a person handed the skill? Search the skill before adding any of those. One of them is on that material: it does not belong in the file. It gates a third-party dependency's own LICENSE, which is the root's to read: it stays, and it never extends to the person's material. None of these: leave the draft as it is
 

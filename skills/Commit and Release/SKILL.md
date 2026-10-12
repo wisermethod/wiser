@@ -3,7 +3,7 @@ name: Commit and Release
 type: skill
 category: system
 description: Named paths committed with what landed verified, and a release pushed, tagged and confirmed where it is served, or an explicit incomplete result
-version: 0.1.0
+version: 0.2.0
 ---
 
 # Commit and Release
@@ -55,7 +55,7 @@ A change touching two repositories is two commits, one through each repository's
 
 4. Would a named path put a secret's contents into the commit? Yes: drop it, per the constitution's Irreversibles. No: keep it. You cannot tell: ask, and do not commit it.
 
-5. Run a commit-time identity sweep before committing, or sweep the message on its own, and check which cause produced a FAILED line. Which sweep does the owning root name? One that sweeps files: run it on the named paths before the commit, and run it on the message too where it can take one. One that sweeps only a message: sweep the message on its own. None: say that no identity sweep was named, invent none, and go on. Did the sweep come back clean, with its control firing? Yes: go on. A FAILED line: what produced it? A hit in a named path or in the message: do not commit. The sweep's own control, or an error while it ran: the sweep proved nothing; repair it and run it again, and do not commit on that line. You cannot tell: ask, and do not commit. A clean reading taken after the commit has emptied the files the sweep reads is not a pass.
+5. Which commit-time identity sweep does the owning root name? One that sweeps files: run it on the named paths before the commit, and run it on the message too where it can take one. One that sweeps only a message: sweep the message on its own. None: say that no identity sweep was named, invent none, and go on. Did the sweep come back clean, with its control firing? Yes: go on. A FAILED line: what produced it? A hit in a named path or in the message: do not commit. The sweep's own control, or an error while it ran: the sweep proved nothing; repair it and run it again, and do not commit on that line. You cannot tell: ask, and do not commit. A clean reading taken after the commit has emptied the files the sweep reads is not a pass.
 
 6. Does the change depart from the primitive that owns the rule it touches? Yes: Record any departure from the owning primitive in the commit. No: record no departure.
 
@@ -100,7 +100,7 @@ A change touching two repositories is two commits, one through each repository's
 
 ## Release
 
-1. Is this release authorized in the request? Yes: go on. No, or you cannot tell: ask, and do not release.
+1. Is this release authorized in the request? Yes: go on. No, or you cannot tell: ask, and do not release. Does the release need a merge onto the destination's `main`? No: go on. Yes: read that `main` again immediately before the merge, not when the release was planned, and ask whether the merge can fast-forward from it. It can: go on. It cannot: test the merge commit before anything goes on it. The read or the test fails: stop, and do not release.
 
 2. Which commit is the release? The one the push will send. Named: that commit. Not named: ask. Does it hold the whole change the release is for? A Commit result listed withheld paths, or you cannot tell: ask, and do not release a commit that does not hold the change.
 

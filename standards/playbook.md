@@ -1,6 +1,6 @@
 ---
 standard: playbook
-version: 0.2.4
+version: 0.3.0
 description: The Playbook format; the WISER method for multi-session execution with decision tracking and learning capture
 ---
 
@@ -27,11 +27,11 @@ Status is never Complete until Final Check passes.
 
 ## Risk First
 
-Interrogate drives Solve. This ordering is the load-bearing idea of the method: the riskiest piece is the assumption whose failure would invalidate the plan, not the task that looks hardest. Build it before anything that depends on it, so a wrong plan fails in the first session rather than the last. Each risk carries a status (Active, Mitigated, Realized, Retired), a concrete countermeasure, and notes updated as work proceeds. A mitigation that names no action is not a mitigation. Skimpy risk work is the top failure mode: a Playbook with generic risks and hedged mitigations reads complete, sequences the work wrong, and finds out late. Risks keep their detail even when the rest of the document is compressed.
+Interrogate drives Solve. This ordering is the load-bearing idea of the method: the riskiest piece is the assumption whose failure would invalidate the plan, not the task that looks hardest. Build it before anything that depends on it, so a wrong plan fails in the first session rather than the last. Each risk carries a status (Active, Mitigated, Realized, Retired), a concrete countermeasure, and notes updated as work proceeds. A mitigation that names no action is not a mitigation. Risks keep their detail even when the rest of the document is compressed.
 
 ## Questions
 
-Put each question where its answer is used, in the running session at the task that first uses it, in units the owner can judge, with a recommended default. Upfront questions do not block the start, and the one gate is the authorization to proceed.
+Put each question where its answer is used, in the running session at the task that first uses it, in units the owner can judge, with a recommended default. Upfront questions do not block the start, and the one gate is the authorization to proceed. A surprising measurement is raised as a question, never absorbed.
 
 ## Required Sections
 
@@ -70,7 +70,7 @@ Autonomous guardrails. Stop and notify a human when:
 
 An unattended run, before it stops, lists every unticked box with the rule that blocks it, does each one no rule stops, and has a reviewer test the list. The reviewer works in a context that did not produce the list.
 
-Authority is the gate: anything under Needs human input pauses in both modes. Mode governs the rest, checkpoints and decision discussion. A guardrail stop sets Status to Paused and records the blocker. Mode is declared in the header and may change mid-execution; log the change as a decision.
+Authority is the gate: anything under Needs human input pauses in both modes, and is asked before the action rather than left to a stop the action may raise, which another build can remove. Where a plan requires a person's approval for a billable call, ask before the first call, after reading the action's current `confirmation` with the gateway's `describe_action`. A guardrail stop sets Status to Paused and records the blocker. Mode is declared in the header and may change mid-execution; log the change as a decision.
 
 **Run in a loop.** A Playbook a standing goal runs unattended, one iteration after another, states three things a single session can leave implicit: what one iteration is, the rule that derives the next action (the first unticked task whose gate is open, for example), and the conditions that stop the run. Progress still names the one next action, the one that rule gives now, and carries the rule beside it, so an iteration that finds the sentence stale re-derives it rather than following it. A restated entry point is not what such a run lacks.
 
@@ -87,14 +87,16 @@ The document is updated as the work happens, never reconstructed afterward.
 - When a rule is decided, write down which withheld acceptance items it amends, before the next run
 - Record a learning whenever an assumption is validated or invalidated
 - On a scope change: log it, update Scope and risks, then re-evaluate whether the riskiest piece changed
-- On a task failure: log it in Learnings and attempt one recovery if a clear fix exists. On a second failure, stop. Collaborative discusses; Autonomous documents the blocker and stops
+- A gap found mid-run goes to the owner as an authorization decision, never a quietly added task or a ticked criterion, above all for a public file
+- A count is re-derived from what it counts whenever it is used, by re-measuring its rule rather than carrying the number, this document's own bookkeeping and a number put to the owner included
+- On a task failure: log it in Learnings and attempt one recovery if a clear fix exists. On a second failure, stop. Collaborative discusses; Autonomous documents the blocker and stops. A checkpoint whose plan names what its failure gets, such as restoring what moved, pausing, and leaving the next course to the owner, gets that response, in an unattended run told to go as far as it can too: before any recovery after a checkpoint, read its own failure clause, run the response it names, and put any other recovery to the owner as one of the options
 - On a release, a version stamp, a tag, or a deployment: reconcile this document in the same change. Shipping is when the document is most likely to be wrong and most certain to be trusted
 
 **Session-end protocol.** A session ends by reconciling the document against disk, never by asserting it is current. Reconcile what a later reader will act on: each checkbox against the artifact it claims, each count and version against the file that carries it, each statement about what is committed, pushed, tagged, released, or deployed against the repository and the destination themselves, and Progress against the last thing that actually happened. A claim that cannot be checked against something on disk is rewritten until it can be. A session working a Playbook ends through `skills/Playbook Author/` Hand Off, which owns the steps.
 
-Progress then names the current canon, one specific next action, and every gate still open, each with its recommendation, named as open rather than left out. A resume starts from this document's path alone, so nothing it needs lives only in a conversation. A gate nobody names is a gate nobody closes.
+Progress then names the current canon, one specific next action, and every gate still open, each with its recommendation, named as open rather than left out. A resume starts from this document's path alone, so nothing it needs lives only in a conversation.
 
-A stale line is not documentation debt. Every later session reads this document as instruction and acts on it, so a wrong line is paid for twice, once believing it and once undoing it. Where the document and disk disagree, disk is right, the document is corrected, and the drift is recorded as a learning, because drift repeats.
+Where the document and disk disagree, disk is right, the document is corrected, and the drift is recorded as a learning.
 
 **Resume discipline.** On resume, before continuing any work, reconcile in one order: disk first, then inline task evidence, then Progress and Status, then checkpoint lines; later items are corrected to match earlier ones. A decision found undocumented is logged on discovery and marked recovered; drift that reveals something records a learning.
 

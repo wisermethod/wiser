@@ -1,6 +1,6 @@
 ---
 standard: instruction-quality
-version: 0.2.2
+version: 0.3.0
 description: How instructions are written in and around Wiser; the sole home of the Elegance definition
 ---
 
@@ -60,6 +60,8 @@ Every effective instruction file follows this structure. Not every file needs ev
 
 **Steps:** every step requiring judgment carries the decision, the criteria, and what to do for each outcome. **Write the decision as the question and its outcomes**, so the question is answerable on the material in front of the reader and every outcome it admits has a step: "Which date does this source carry? Its own, stated in the text: use it. None stated, but the file it came in has one: use the file's. Neither: ask." The question enumerates the states the reader can actually observe, so every branch is reachable and none of them needs evidence the reader was not given. not "Handle dates appropriately." A decision whose outcomes are not enumerated is not a decision a reader can execute, and one whose question cannot be answered from the material is a judgment the step has not made. Rewriting a binding or guard rule, and writing a waiver that cites a case, follow Review Process.
 
+**A gate with a fixed number of correction passes:** a step that gates its own output that way says what a residue after the last pass gets. Is every held finding small and local, and cured solely by removing or narrowing the text it names, without widening a claim, adding an unsupported one, or losing an obligation? Yes: make those changes and deliver without another gate. No: the gate's own outcome for running out of passes stands. This governs a step's gate on its own output, not a review of an instruction file, whose fixes Review Process governs.
+
 **Pitfalls:** each with a specific response, not a warning. Always include the clarification pitfall: if the request is ambiguous, ask before proceeding.
 
 **Success:** observable. "All tests pass, no new linter errors," not "works well."
@@ -82,7 +84,7 @@ Triage first: a file with an identifiable objective and localized issues is salv
 
 Reviews begin with a stress test: run one realistic request through the instruction end to end, and when instruction files reference each other, through the whole chain, checking that terms, handoffs, and boundaries stay consistent across the files with no gap and no overlap. Describe at least one scenario where the instruction produces wrong or inconsistent output. Finding none means the file is excellent or the scenario was too easy; try a harder one before concluding. A finding without a failure scenario is cosmetic; deprioritize or drop it.
 
-**Rewriting a binding or guard rule.** Rewrite a binding or guard rule from a clause-by-clause obligation map built before opening the file, never from memory; a clause proves load-bearing only when a fixture reaches it. Hand the reviewer the map and the fixtures. A shorter wording is not a reason to drop a clause the map still lists: a clause no fixture reaches stays until a fixture reaches it or the map records that it binds nothing.
+**Rewriting a binding or guard rule.** Rewrite a binding or guard rule from a clause-by-clause obligation map built before opening the file, never from memory; a clause proves load-bearing only when a fixture reaches it. Hand the reviewer the map and the fixtures. A shorter wording is not a reason to drop a clause the map still lists: a clause no fixture reaches stays until a fixture reaches it or the map records that it binds nothing. Map a trimmed prohibition by its scope, what it forbids and by what means, not by its subject, since a trim that drops the manner widens it; the reviewer also reads the diff for changes the map does not list.
 
 **A waiver that cites a case.** A waiver that cites a case is as narrow as its own words: write its condition in full, enumerate every case the cited clause distinguishes, and check the waiver against each. A case the clause distinguishes and the waiver's own words do not name is not waived.
 

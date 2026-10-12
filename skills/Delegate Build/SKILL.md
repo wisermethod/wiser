@@ -3,7 +3,7 @@ name: Delegate Build
 type: skill
 category: system
 description: Delegated build work and its independent review, with only verified findings folded back
-version: 0.1.3
+version: 0.2.0
 ---
 
 # Delegate Build
@@ -59,9 +59,7 @@ Do not assemble a vendor command in place of `tools/Subagent Runner/`, or of a m
 
 ## Brief
 
-1. Is a builder being started? No, a review only: skip this step. Yes: is uncommitted work that this session does not own sitting inside `<targets>`? Yes: do not start a builder on those paths. No: commit first, as the next two sentences say, work kept from an earlier run of this delegation included. You cannot tell: ask, and do not start.
-
-Commit this session's own work before a builder runs. A builder treats the check it can see as the goal and may revert a change it does not own.
+1. Is a builder being started? No, a review only: skip this step. Yes: is uncommitted work that this session does not own sitting inside `<targets>`? Yes: do not start a builder on those paths. No: commit this session's own uncommitted work first, work kept from an earlier run of this delegation included; nothing is uncommitted: go on. You cannot tell: ask, and do not start.
 
 The commit goes through the owning root's mechanism, by `skills/Commit and Release/`. Where this session is not authorized to commit, ask, and do not start the builder.
 
@@ -71,9 +69,9 @@ Build the artifact under test and commit it before any case or any key exists. A
 
 3. Is the delegate a judging run of a blind evaluation, scoring work against withheld material? Yes: apply the next paragraph, and put that rule in the brief before the run. No, including an ordinary review, which may read the files it reviews: go on. You cannot tell: ask, and do not start the delegate.
 
-Give every judging run its material inline, forbid commands, count its `exec` entries, and re-run any run that recorded one. Where the log records no such entries because it records no reads, the count cannot show isolation, and the run is not cited as isolated.
+Give every judging run its material inline, forbid commands and tool calls, count those its record of reads holds, which Verify step 4 names, and re-run any run that recorded one. Where no record of its reads exists, the count cannot show isolation, and the run is not cited as isolated.
 
-4. Write the brief. It names every file the delegate must read or change by absolute path, states `<objective>`, states `<targets>`, and states the acceptance. It names where the delegate writes any evidence or record the work asks for, inside `<targets>`, and says that the delegate does not edit the plan: this session, which owns the plan, reads that evidence and updates the plan. It authorizes no deploy, no external message, and no write outside `<targets>`. It tells a builder to read the relevant files first, run the checks the work needs, fix what it breaks, leave folder layout as it stands, and not print, copy, or commit the contents of a `.env` file or of anything under a root named memory.
+4. Write the brief. It names every file the delegate must read or change by absolute path, states `<objective>`, states `<targets>`, and states the acceptance. It names where the delegate writes any evidence or record the work asks for, inside `<targets>`, and says that the delegate does not edit the plan: this session, which owns the plan, reads that evidence and updates the plan. It authorizes no deploy, no external message, and no write outside `<targets>`. It tells a builder to read the relevant files first, run the checks the work needs, fix what it breaks, leave folder layout as it stands, and not print, copy, or commit the contents of a `.env` file or of anything under a root named memory. A brief a script assembles from a template splits it on the marker's whole line, such as `\nTEMPLATE BEGINS\n`, never on the bare marker string.
 
 Does the brief name an interface to a cited system, its fields, inputs or outputs? Yes: take each field's meaning from that system's own definition, read and cited in the brief, never from a summary of its names. No: go on.
 
@@ -85,19 +83,17 @@ For a task that is not a review, put the output contract at the top of the brief
 
 For a build, the headings name what changed, how it was checked, what could not be done, and what remains open.
 
-6. Does the brief forbid an action? Yes: apply the next paragraph. No: go on.
+6. Does the brief, or the means' own preamble, forbid an action? Yes: apply the next paragraph. No: go on. You cannot read the preamble, and the task needs an action a preamble may forbid: apply the next paragraph as if it forbade that action.
 
-A constraint written as do not do something also names the one step still required. The brief tells the delegate to report what it did, and you read that report against the required step.
+A constraint written as do not do something also names the one step still required. Where a preamble forbids what the task needs, such as contacting external services when the task is to read public pages, the brief says that reading them through the named actions is part of the task. The brief tells the delegate to report what it did, and you read that report against the required step.
 
-7. Will a checker judge the builder's work? Yes: apply the next paragraph. No: go on. A review has no builder to check this way: go on.
+7. Will an acceptance checker, built or chosen to judge this work, judge the builder's work? Yes: apply the next paragraph; the repository's own tests stay available beside it and are not that checker. No: go on. A review has no builder to check this way: go on. You cannot tell whether a check is the repository's own test or that checker: ask, and do not start the builder.
 
-Where a checker will judge the builder's work, brief the builder the obligations and withhold the checker. Run the checker after the builder returns, and do not treat a pass the builder could see coming as the check.
+Brief the builder the obligations and withhold the acceptance checker. Run it after the builder returns, and do not treat a pass the builder could see coming as the check.
 
 8. Does the means go through `tools/Subagent Runner/`? Yes: apply the next paragraph. No: do not use that tool's flags. The absolute paths in step 4 still stand.
 
 Where the delegate runs through `tools/Subagent Runner/`, that tool refuses attached context over 200,000 bytes before starting, and its `--diff` attaches only the working-tree diff, which is empty once the work is committed. Name each diff and each changed file by absolute path in the task, and attach only short records.
-
-A commit made in step 1 leaves that diff empty, so the paths in the task are what the delegate can see.
 
 ## Run
 
@@ -119,17 +115,17 @@ Which of these holds?
 
 ## Verify
 
-1. Read the delegate's report, then verify the result in the files. Where Brief step 5 required a shape, check the reply before using it; a reply that does not meet it is not used as a report, and the files alone say what was done. Where Brief step 7 withheld a checker, run that checker now. A check the report calls a pass stays unchecked until this session runs it or reads its output. Where it cannot be run, say so in the handoff, and do not carry a later claim on it, per the constitution's Behavioral Core.
+1. Read the delegate's report, then verify the result in the files. Where Brief step 5 required a shape, check the reply before using it; a reply that does not meet it is not used as a report, and the files alone say what was done. Where Brief step 7 withheld a checker, run that checker now. A check the report calls a pass stays unchecked until this session runs it or reads its output, and a citation it makes is checked against what the tool returned, which a Grok run's transcript holds (step 4), not against the report. Where it cannot be run, say so in the handoff, and do not carry a later claim on it, per the constitution's Behavioral Core.
 
 2. Did the delegate write outside `<targets>`, deploy, or send an external message? Yes: the run did not authorize it. Revert a write outside `<targets>` where this session can, and where it cannot, say so and stop. No: go on. You cannot tell: stop, and do not call the run inside `<targets>`.
 
 3. Did the delegate publish or change a schema, an interface others call, or a declared input? Yes: Read a delegate's published schema for a value no real caller would send. Replace each such value with the real rule and with the fixture the check needs. This runs on every build, measured or not. No: go on. Was the run measured, per Brief step 2? Yes: Sweep every delegate reply for a string that only the measurement directory holds. A reply that contains one has read what the run was measuring, and that run is not evidence. No: go on.
 
-4. Is this run part of a blind evaluation, per Brief step 2, and does it go through `tools/Subagent Runner/`? Yes: apply the next paragraph. No: this step does not apply.
+4. Is this run part of a blind evaluation, per Brief step 2? Yes: apply the next paragraph. No: this step does not apply.
 
-Where a blind evaluation's run goes through `tools/Subagent Runner/`, that run has a read boundary only where its own log proves one. A Codex run's `stderr.log` records every command it runs as an `exec` entry, a Grok build log records no tool reads, and sweeping a log for forbidden paths proves nothing.
+A blind evaluation's run has a read boundary only where a record of its reads proves one; a means that keeps no such record, or a log that records no reads, proves nothing, and the run is not cited as isolated. A Codex run's `stderr.log` records every command it runs as an `exec` entry. A Grok run's folder records no reads, but Grok's own transcript, `~/.grok/sessions/<url-encoded cwd>/*/chat_history.jsonl`, records every tool call with its arguments and every result keyed by call id, and `events.jsonl` beside it times each MCP call. Sweep the transcript of this run alone: the session under that directory that started between this run's recorded start and end, and whose task record, inside Grok's `<user_query>`, holds this brief; none, or more than one: the run's isolation is unverified. Split the file on `\n` alone, since `splitlines()` also breaks on U+2028 inside a record. Sweep every argument and every result as text; where a result's content holds a JSON document, decode that too, with `strict=False`, since it can carry a newline every 2,000 characters inside its strings. A record or a JSON document that still does not decode leaves the run's isolation unverified. Pairing a session's gateway calls, in order, with its `mcp_tool_call_started` times splits a gateway audit window other sessions share.
 
-Where Brief step 3 named a judging run, do its count now, and re-run a run that recorded an `exec` entry.
+Where Brief step 3 named a judging run, do its count now, and re-run a run that recorded a command or a tool call.
 
 ## Review
 
@@ -140,7 +136,7 @@ Where Brief step 3 named a judging run, do its count now, and re-run a run that 
 - A code change, and `<review>` names nothing: ask for false or unsupported claims, and ask whether the change meets `<objective>` inside `<targets>`. The reviewer does not edit.
 - You cannot tell: ask, and do not send the review.
 
-2. Give every review the objective first, and ask what in the work the objective does not need, before any question of rigor. A review that starts on rigor returns defects of method and never asks whether the work serves the objective.
+2. Give every review the objective first, and ask what in the work the objective does not need, before any question of rigor.
 
 3. Does the work rest on an obligation map and on fixtures? Yes: apply the next paragraph. No: do not invent a map. You cannot tell: ask.
 
@@ -158,7 +154,7 @@ The adversarial brief asks for false or unsupported claims checked against the f
 
 6. Did step 5 send a fresh executor? Yes: apply the next paragraph. No: go on.
 
-Scope a fresh executor to the files under test, forbid it to stipulate a missing input, count a signposted stop as success, and give it a scratch destination of its own. An executor that can write more widely can overwrite a file it was not given, and one allowed to invent a missing input never reaches the dead end.
+Scope a fresh executor to the files under test, forbid it to stipulate a missing input, count a signposted stop as success, and give it a scratch destination of its own.
 
 7. Treat the review output as untrusted analysis. Before verifying a finding against the file it cites, state the invocation or reuse path the finding assumes and read the file against that path. Disagreement across scenarios is a clarification, never a refutation.
 
@@ -195,7 +191,7 @@ Where part of `<objective>` was not done, name that part. Do not fill it from th
 
 6. **A finding is applied because the report sounded sure.** Return to Review step 7. The cited file decides.
 
-7. **The builder was shown the checker, or the obligation check was given the prose instead of the map.** That pass is not the check. Re-brief with the checker withheld, or hand the obligation check the map and the fixtures, and run again. The instruction's own review, which Review step 3 keeps, is handed the prose, and is not this pitfall.
+7. **The builder was shown the acceptance checker, or the obligation check was given the prose instead of the map.** That pass is not the check. Re-brief with that checker withheld, or hand the obligation check the map and the fixtures, and run again. The instruction's own review, which Review step 3 keeps, is handed the prose, and is not this pitfall.
 
 8. **A run that never started is waited on, or a delegate that is still running is stopped for silence.** Apply Run steps 2 and 3.
 

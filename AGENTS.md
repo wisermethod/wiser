@@ -82,7 +82,7 @@ Guard rails, binding for any shared artifact:
 
 **Nothing is ever written under this root during a session that uses it**, nor to the top level of any root, apart from adding to the owning root's `.stignore` or `.gitignore`, the sync and repository machinery `standards/conventions.md` Names lets a root carry. Authoring this root is separate work, and Working under this root says how it is planned. Output lands in the working folder, in the directories that folder's own `AGENTS.md` declares. The one exception under this root is what a tool installs for itself, per that tool's own contract, and some of that lands outside this root. **The complete list for tools is in `tools/AGENTS.md`; the gateway's is in `gateway/AGENTS.md`.** Neither is restated here, because a write inventory kept in two places goes stale in one of them, as the summary that used to stand in this sentence did, naming the Linux compatibility shims as a write outside this root after they had been moved inside the tool that builds them.
 
-**Nothing is deleted or overwritten without naming what is being lost first.** Where a root's own `AGENTS.md` declares an archive home, a file is archived there before it is replaced; where none is declared, including in this root, the Archives rule of `standards/conventions.md` says where it goes instead.
+**Nothing is deleted or overwritten without naming what is being lost first.** Read the target, decide, then write, as separate commands: a check whose result arrives after the irreversible step is decoration, and a destructive step is never chained with other work. Copy with `cp -n`, or test `[ -e "$dest" ]` first and stop where it exists. Where a root's own `AGENTS.md` declares an archive home, a file is archived there before it is replaced; where none is declared, including in this root, the Archives rule of `standards/conventions.md` says where it goes instead.
 
 ## Precedence and routing
 
@@ -139,7 +139,7 @@ Stated here so a reader is not left hunting for it. This root ships skills, expe
 
 ## Working under this root
 
-Work that changes this root is planned as a Playbook, per `standards/playbook.md`.
+Whether work that changes this root takes a Playbook is the test in `standards/playbook.md` Context.
 
 A change a member would notice is recorded in `CHANGELOG.md` in the release that ships it, and that release is tagged. `CHANGELOG.md` says what an entry holds and how a tag is named.
 

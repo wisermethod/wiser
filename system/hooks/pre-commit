@@ -39,9 +39,14 @@
 #
 # A clone does not enable this file. Copy the tracked copy in system/hooks/
 # to .git/hooks/pre-commit once per clone.
+#
+# The gates sit beside this hook's own directory, in ../gates, so this one copy
+# checks any plugin's staged set when run from that repository's root. A copy
+# in a clone's .git/hooks/ has no gates beside it and uses the clone's own
+# system/gates/. Neither holds a gate a check needs: the commit is refused.
 
 GREP=/usr/bin/grep
-PATTERN='zBuilds/playbooks/gates/|zBuilds/registry\.md|zBuilds/templates/|wiser-builds|/Volumes'
+PATTERN='zBuilds/playbooks/gates/|zBuilds/registry\.md|zBuilds/templates/|zBuilds/repos/|wiser-builds|/Volumes'
 
 staged=$(git -c core.quotePath=false diff --cached --name-only --diff-filter=ACMR)
 # The seam check also sees a type change (T), including a regular file
@@ -51,13 +56,49 @@ staged=$(git -c core.quotePath=false diff --cached --name-only --diff-filter=ACM
 seam_staged=$(git -c core.quotePath=false diff --cached --name-only --diff-filter=ACMRT)
 [ -n "$staged" ] || [ -n "$seam_staged" ] || exit 0
 
+# Both paths physical, so one repository spelled two ways compares equal.
+ROOT=$(git rev-parse --show-toplevel) && ROOT=$(cd "$ROOT" && pwd -P) || {
+  echo "pre-commit: could not name this repository's root. That is a failure" >&2
+  echo "to measure and not a pass." >&2
+  exit 1
+}
+# This hook's own file, through any symlink to it, so the gates are found
+# beside the file and not beside the link.
+case $0 in */*) HOOK_FILE=$0 ;; *) HOOK_FILE=./$0 ;; esac
+hops=0
+while [ -L "$HOOK_FILE" ]; do
+  link=$(readlink "$HOOK_FILE") && [ -n "$link" ] && [ "$hops" -lt 40 ] || {
+    echo "pre-commit: could not follow the link to this hook's own file, so its" >&2
+    echo "gates cannot be found. That is a failure to measure and not a pass." >&2
+    exit 1
+  }
+  case $link in /*) HOOK_FILE=$link ;; *) HOOK_FILE=${HOOK_FILE%/*}/$link ;; esac
+  hops=$((hops + 1))
+done
+HOOK_DIR=$(cd "${HOOK_FILE%/*}" && pwd -P) || {
+  echo "pre-commit: could not name this hook's own directory. That is a failure" >&2
+  echo "to measure and not a pass." >&2
+  exit 1
+}
+
+# The path of a gate: beside this hook where it is there, else the committing
+# repository's own system/gates/.
+gate_path() {
+  if [ -e "$HOOK_DIR/../gates/$1" ]; then
+    printf '%s\n' "$(cd "$HOOK_DIR/../gates" && pwd -P)/$1"
+  else
+    printf '%s\n' "$ROOT/system/gates/$1"
+  fi
+}
+
 printf '%s\n' "$staged" | while IFS= read -r f; do
   [ -n "$f" ] || continue
   git show ":$f" 2>/dev/null | $GREP -nE -- "$PATTERN" | while IFS= read -r hit; do
-    # Narrow disposition for this check's own pattern-definition line.
-    # Do not exempt the whole file, other lines, or a directory.
+    # Narrow disposition for this check's own pattern-definition line, in
+    # this hook's own file. Do not exempt the whole file, other lines, another
+    # file, or a directory.
     rest=${hit#*:}
-    if [ "$rest" = "PATTERN='$PATTERN'" ]; then continue; fi
+    if [ "$f" = system/hooks/pre-commit ] && [ "$rest" = "PATTERN='$PATTERN'" ]; then continue; fi
     printf '  %s:%s\n' "$f" "$hit"
   done
 done > /tmp/.wiser-precommit-hits.$$
@@ -77,8 +118,7 @@ rm -f /tmp/.wiser-precommit-hits.$$
 # Every flag a tool's help declares is named in its typed file,
 # per standards/script-contract.md. Only when the staged set touches tools/.
 if printf '%s\n' "$staged" | $GREP -q '^tools/'; then
-  ROOT=$(git rev-parse --show-toplevel)
-  GATE="$ROOT/system/gates/typed-file-flags.sh"
+  GATE=$(gate_path typed-file-flags.sh)
   if [ ! -x "$GATE" ]; then
     echo "pre-commit: $GATE is missing or not executable, so the typed-file" >&2
     echo "check could not run. That is a failure to measure and not a pass." >&2
@@ -99,20 +139,47 @@ fi
 # wrong-case detector. On an unborn branch HEAD does not resolve, and the
 # base is the empty tree. Reads the index, so what is checked is what lands.
 if printf '%s\n' "$seam_staged" | $GREP -q -i -E '^(skills|experts|tools)/'; then
-  ROOT=$(git rev-parse --show-toplevel)
-  SEAM="$ROOT/system/gates/classifier-seam.sh"
+  SEAM=$(gate_path classifier-seam.sh)
   if [ ! -f "$SEAM" ]; then
     echo "pre-commit: $SEAM is missing, so the classifier seam check could not" >&2
     echo "run. That is a failure to measure and not a pass." >&2
     exit 1
   fi
-  # The gate that runs must be the gate that is staged: an unstaged edit to it
-  # would check the commit with a gate the commit does not carry.
-  if ! git diff --quiet -- system/gates/classifier-seam.sh; then
-    echo "pre-commit: system/gates/classifier-seam.sh has unstaged changes, so the" >&2
-    echo "gate on disk is not the gate being committed. Stage or discard them first." >&2
-    exit 1
+  # The gate that runs must be a gate its own repository holds. In the
+  # committing repository, that is the gate being committed: an unstaged edit
+  # would check the commit with a gate the commit does not carry, so ask as
+  # git presents the repository to this hook, index included. In another
+  # repository, it is the gate that repository has committed: tracked, and no
+  # edit, staged or not. Ask it without the GIT_DIR, GIT_WORK_TREE and
+  # GIT_INDEX_FILE git exports to a hook, which would point the question at
+  # the committing repository.
+  SEAM_TOP=$( (unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY
+               cd "${SEAM%/*}" && top=$(git rev-parse --show-toplevel) && cd "$top" && pwd -P) 2>/dev/null ) || SEAM_TOP=
+  if [ "$SEAM_TOP" = "$ROOT" ]; then
+    git diff --quiet -- "${SEAM#"$ROOT"/}"
+    seam_rc=$?
+    seam_why="has unstaged changes, so the gate on disk is not the gate being committed. Stage or discard them first."
+  elif [ -n "$SEAM_TOP" ]; then
+    ( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY
+      cd "$SEAM_TOP" || exit 2
+      rel=${SEAM#"$SEAM_TOP"/}
+      git ls-files --error-unmatch -- "$rel" >/dev/null 2>&1 || exit 1
+      git diff --quiet HEAD -- "$rel" )
+    seam_rc=$?
+    seam_why="is not the gate its own repository has committed: it is untracked there, or carries an edit, staged or not. Commit or discard it there first."
+  else
+    seam_rc=2
   fi
+  case $seam_rc in
+    0) ;;
+    1)
+      echo "pre-commit: $SEAM $seam_why" >&2
+      exit 1 ;;
+    *)
+      echo "pre-commit: could not tell whether $SEAM is the gate its repository" >&2
+      echo "holds. That is a failure to measure and not a pass." >&2
+      exit 1 ;;
+  esac
   if git rev-parse --verify --quiet HEAD >/dev/null 2>&1; then
     SEAM_BASE=HEAD
   else
