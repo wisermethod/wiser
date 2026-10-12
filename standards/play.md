@@ -1,6 +1,6 @@
 ---
 standard: play
-version: 0.2.0
+version: 0.3.0
 description: The Play format; what a Play is, its frontmatter, where it lives, and when it is done
 ---
 
@@ -44,6 +44,7 @@ All four fields are required; the one optional field, `memory`, lists the abstra
 - Play instances live in the owning root, never in this plugin root. This root ships the format and the authoring skill (`skills/Play Author/`), not Play instances.
 - Default home, if the owning root's AGENTS.md is silent: `work/<slug>/<name>.play.md`, per `standards/user-root.md` C3.
 - A root's AGENTS.md may declare a different home. A client root places each Play in the `work/<subject>/` folder of the work it produces, named `<does-this-thing>.play.md`.
+- The AGENTS.md that governs the Play's folder, the folder's own or the nearest ancestor's, lists the Play, by its path relative to that AGENTS.md, with what it produces. That row is how a session finds the Play; no index in this plugin lists it. The row is owed when a Play is written or revised, so an earlier Play without one puts no root out of layout.
 - One Play is one file. A Play that has grown to need supporting instruction files is no longer standing alone. If other clients would need the same capability, make it a Skill in this root. If only this client needs it, keep the supporting files in that subject folder; do not create a client `skills/` overlay to hold a Play that got long.
 - Naming characters, casing, and dates follow `standards/conventions.md`.
 
@@ -53,4 +54,4 @@ A Play is done when all of the following hold:
 
 - It passes the three-varied-inputs verification defined in `standards/instruction-quality.md`.
 - Its frontmatter is complete and its `description` matches what the Play actually produces.
-- It sits where the owning root's AGENTS.md places it.
+- It sits where the owning root's AGENTS.md places it, and the AGENTS.md that governs its folder lists it, per Placement and Naming.
