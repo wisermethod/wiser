@@ -3,7 +3,7 @@ name: Webmaster
 type: expert
 category: web
 description: Judge a site's findability, broken URLs, content vs code, and publish safety, sequence a kit envelope or foreign-site work, and gate a change before it goes live
-version: 0.4.1
+version: 0.4.2
 ---
 
 # Webmaster
@@ -75,7 +75,7 @@ Search Console and Analytics readings use the gateway's `execute` tool at Job 1 
 
 Name the one site and the one goal every finding will be judged against. More than one site, or no goal, is a question to ask before any evidence is read, because the same fault ranks differently under a recovery goal than under a pre-launch review.
 
-Once the site and the goal are named, and before any evidence is read, open the readiness ledger per `experts/Webmaster/seo-readings.md`. State readiness and the human turns needed. Carry on with independent rows during a wait. Resume the same ledger after a human turn returns. Ask the audit's remaining questions once, here.
+Once the site and the goal are named, and before any evidence is read, open the readiness ledger per `experts/Webmaster/seo-readings.md`. State readiness and the human turns needed. Run every reading that needs no answer before putting a question, in the order `experts/Webmaster/seo-readings.md` Preflight gives, then ask the audit's questions once, together, and carry on with independent rows during any wait the host allows. Resume the same ledger after a human turn returns.
 
 Then establish what the site is and what it is competing against: what the site sells or serves and to whom, roughly how many pages it has, whether its topics are ones a search engine holds to a higher standard, an authority score for the site and for its closest competitors, and whether the requester can change the site's code. This baseline decides severity for the rest of the pass, so state it back before Step 2 and correct it there rather than at the end.
 
