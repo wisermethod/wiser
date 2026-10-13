@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.13.4, October 13, 2026
+
+- The virtual machines connector's guide, the setup guide's list of answers and Connection Troubleshooter now give the Wiser endpoint's limit for a command on your own machine as 65 seconds, which it has been since October 8, not 20, so a longer read such as a security audit fits. Every other call through the endpoint still has 20 seconds. The connector's guide adds that the app you use may stop waiting sooner, by its own limit. (63df57d)
+
 ## v2026.10.13.3, October 13, 2026
 
 - A new skill, Bio Sketch, writes or brings up to date one sketch of one named person you want something from, ahead of a meeting, a pitch or another ask: who they are, whether their role is current, their standing, their dated public record, routes to reach them, and an assessment against what you want. Their role, standing and each route carry their own source and date, and what it could not find or refresh is listed as an open gap. Research Expert reviews the draft before the file is written. Your root, or another plugin, can add sections of its own through an extension file. It signs in to nothing, so a contacts database or a professional network behind a sign-in reaches it only as records you supply. (07cf920)
