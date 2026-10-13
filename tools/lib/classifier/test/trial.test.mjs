@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { defaultGatewayHome, wiserUserConfigDir } from '../../../../gateway/src/paths.js';
-import { COST_TABLE, EMPTY_ENV, SCORING_PROMPT, seededOrder } from '../trial.mjs';
+import { COST_TABLE, EMPTY_ENV, SCORING_PROMPT, seededOrder, parseStream, typedCandidates } from '../trial.mjs';
 
 const trialPath = fileURLToPath(new URL('../trial.mjs', import.meta.url));
 const pluginRoot = fileURLToPath(new URL('../../../..', import.meta.url));
@@ -16,6 +16,7 @@ const hostPath = fileURLToPath(new URL('./fixtures/trial/host.mjs', import.meta.
 const FAKE_KEY = 'wk_7f3a9c2e1b84d056';
 const ASK_READ = 'Write the alpha note.';
 const ASK_BASH = 'Write the beta note.';
+const ASK_SKILL = 'Write the gamma note.';
 const ASK_NONE = 'Answer none of the candidates.';
 
 chmodSync(hostPath, 0o755);
@@ -87,6 +88,8 @@ function syntheticTree(dir) {
   mkdirSync(join(dir, 'skills', 'Alpha'), { recursive: true });
   writeFileSync(join(dir, 'skills', 'AGENTS.md'), '# Skills\n');
   writeFileSync(join(dir, 'skills', 'Alpha', 'SKILL.md'), '---\nname: Alpha\ntype: skill\n---\n\n# Alpha\n');
+  mkdirSync(join(dir, 'skills', 'Gamma Delta'), { recursive: true });
+  writeFileSync(join(dir, 'skills', 'Gamma Delta', 'SKILL.md'), '---\nname: Gamma Delta\ntype: skill\n---\n\n# Gamma Delta\n');
   mkdirSync(join(dir, 'experts', 'Beta'), { recursive: true });
   writeFileSync(join(dir, 'experts', 'Beta', 'EXPERT.md'), '---\nname: Beta\ntype: expert\n---\n\n# Beta\n');
   const template = join(dir, 'system', 'templates', 'User Root Template');
@@ -95,6 +98,7 @@ function syntheticTree(dir) {
   writeFileSync(join(dir, 'trial-open.json'), `${JSON.stringify({
     [ASK_READ]: { expect: 'skills/Alpha/SKILL.md', via: 'read' },
     [ASK_BASH]: { expect: 'experts/Beta/EXPERT.md', via: 'bash' },
+    [ASK_SKILL]: { expect: 'skills/Gamma Delta/SKILL.md', via: 'skill' },
     [ASK_NONE]: { expect: 'none', via: 'read' },
   })}\n`);
   return dir;
@@ -146,6 +150,83 @@ function captures(dir) {
   if (!existsSync(dir)) return [];
   return readdirSync(dir).filter((name) => name.startsWith('capture-')).map((name) => JSON.parse(readFileSync(join(dir, name), 'utf8')));
 }
+
+const alphaPath = 'skills/Alpha/SKILL.md';
+const betaPath = 'experts/Beta/EXPERT.md';
+const gammaPath = 'skills/Gamma Delta/SKILL.md';
+const alphaText = '---\nname: Alpha\ntype: skill\n---\n# Alpha';
+const betaText = '---\nname: Beta\ntype: expert\n---\n# Beta';
+const gammaText = '---\nname: Gamma Delta\ntype: skill\n---\n# Gamma Delta';
+const callEvent = (id, name, input) => ({
+  type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', id, name, input }] },
+});
+const resultEvent = (id, content, is_error = false) => ({
+  type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: id, content, is_error }] },
+});
+const baseEvent = (name, array = false) => {
+  const text = `Base directory for this skill: /fixture/tree/skills/${name}\n\nSkill instructions follow.`;
+  return { type: 'user', message: { role: 'user', content: array ? [{ type: 'text', text }] : text } };
+};
+const skillCall = callEvent('s1', 'Skill', { skill: 'wiser:Gamma-Delta' });
+const skillResult = resultEvent('s1', [{ type: 'text', text: 'Launching skill: wiser:Gamma-Delta' }]);
+const readCall = callEvent('r1', 'Read', { file_path: `/fixture/tree/${alphaPath}` });
+const parseFixtures = [
+  { id: '01', name: 'successful Skill tool', events: [skillCall, skillResult], opened: [gammaPath] },
+  { id: '02', name: 'failed Skill tool', events: [skillCall, resultEvent('s1', gammaText, true)], opened: [], failed: [gammaPath] },
+  { id: '03', name: 'successful Read', events: [readCall, resultEvent('r1', alphaText)], opened: [alphaPath] },
+  { id: '04', name: 'failed Read', events: [readCall, resultEvent('r1', [{ type: 'text', text: 'File could not be read.' }], true)], opened: [], failed: [alphaPath] },
+  { id: '05', name: 'duplicate pair and Skill base message', events: [skillCall, skillResult, skillCall, skillResult, baseEvent('Gamma Delta', true)], opened: [gammaPath] },
+  { id: '06', name: 'reference Read quoting frontmatter', events: [callEvent('r1', 'Read', { file_path: '/fixture/tree/skills/Alpha/references/guide.md' }), resultEvent('r1', [{ type: 'text', text: betaText }])], opened: [] },
+  { id: '07', name: 'Bash quoting whole expert', events: [callEvent('b1', 'Bash', { command: `cat /fixture/tree/${betaPath}` }), resultEvent('b1', betaText)], opened: [] },
+  { id: '08', name: 'wrong Skill then right Read', events: [callEvent('s1', 'Skill', { skill: 'Alpha' }), resultEvent('s1', 'Launching skill: Alpha'), callEvent('r1', 'Read', { file_path: `/fixture/tree/${betaPath}` }), resultEvent('r1', betaText)], opened: [alphaPath, betaPath] },
+  { id: '09', name: 'none with no load', events: [{ type: 'user', message: { role: 'user', content: 'Answer none of the candidates.' } }], opened: [] },
+  { id: '10', name: 'none with wrong Skill load', events: [callEvent('s1', 'Skill', { skill: 'Alpha' }), resultEvent('s1', 'Launching skill: Alpha')], opened: [alphaPath] },
+  { id: '11', name: 'unmatched Skill name', events: [callEvent('s1', 'Skill', { skill: 'other:Unknown-Thing' }), resultEvent('s1', 'Launching skill: other:Unknown-Thing')], opened: ['skill:Unknown-Thing'] },
+  { id: '12', name: 'Skill without paired result', events: [skillCall], opened: [] },
+  { id: '13', name: 'base directory string alone', events: [baseEvent('Gamma Delta')], opened: [gammaPath] },
+  { id: '14', name: 'base directory text item alone', events: [baseEvent('Alpha', true)], opened: [alphaPath] },
+  { id: '15', name: 'case-insensitive hyphenated Skill', events: [callEvent('s1', 'Skill', { skill: 'wiser:gAmMa-dElTa' }), skillResult], opened: [gammaPath] },
+  { id: '16', name: 'result positions determine load order', events: [callEvent('s1', 'Skill', { skill: 'Alpha' }), callEvent('r1', 'Read', { file_path: `/fixture/tree/${betaPath}` }), resultEvent('r1', betaText), resultEvent('s1', 'Launching skill: Alpha')], opened: [betaPath, alphaPath] },
+  { id: '17', name: 'failed results deduplicate calls and preserve retry order', events: [skillCall, resultEvent('s1', gammaText, true), skillCall, resultEvent('s1', gammaText, true), readCall, resultEvent('r1', alphaText, true), callEvent('s2', 'Skill', { skill: 'wiser:Gamma-Delta' }), resultEvent('s2', 'Unavailable', true)], opened: [], failed: [gammaPath, alphaPath, gammaPath] },
+  { id: '18', name: 'unmatched base directory', events: [baseEvent('Unknown Thing')], opened: ['skill:Unknown Thing'] },
+];
+
+function parseFixture(fixture) {
+  const dir = mkdtempSync(join(tmpdir(), 'wiser-trial-parse-'));
+  try {
+    const tree = syntheticTree(join(dir, 'tree'));
+    return parseStream(fixture.events.map((event) => JSON.stringify(event)).join('\n'), typedCandidates(tree));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+for (const fixture of parseFixtures) {
+  test(`parseStream fixture ${fixture.id}: ${fixture.name} (opened)`, () => {
+    const parsed = parseFixture(fixture);
+    assert.deepEqual(parsed.opened, fixture.opened);
+    assert.equal(parsed.opened[0] || null, fixture.opened[0] || null, 'first load');
+  });
+  if (fixture.failed) {
+    test(`parseStream fixture ${fixture.id}: ${fixture.name} (failed)`, () => {
+      assert.deepEqual(parseFixture(fixture).failed, fixture.failed);
+    });
+  }
+}
+
+test('parseStream retains result, session and route while skipping malformed lines', () => {
+  const result = { type: 'result', session_id: 'session-result', result: 'Done.' };
+  const stream = [
+    'not JSON', 'null', '{', JSON.stringify({ type: 'system', session_id: 'session-init' }),
+    JSON.stringify({ type: 'system', subtype: 'hook_response', hook_event: 'UserPromptSubmit', stdout: '' }),
+    JSON.stringify(readCall), JSON.stringify(resultEvent('r1', alphaText)), JSON.stringify(result),
+  ].join('\n');
+  const parsed = parseStream(stream, [{ rel: alphaPath, nameLine: 'name: Alpha', typeLine: 'type: skill' }]);
+  assert.deepEqual(parsed.result, result);
+  assert.equal(parsed.sessionId, 'session-result');
+  assert.deepEqual(parsed.route, { observed: true, answer: 'none', p: null });
+  assert.deepEqual(parsed.opened, [alphaPath]);
+});
 
 test('the cost table is the brief', () => {
   assert.deepEqual(COST_TABLE, {
@@ -348,12 +429,14 @@ test('run refuses without --go only when a ceiling the person set is passed', ()
   assert.equal(existsSync(join(box.work, 'runs')), false);
 });
 
-test('the arm switch, seeded order, opened files, and blind packets', () => {
+test('the arm switch, seeded order, opened files, and blind packets', async (t) => {
   const box = world();
   const beforeKey = readFileSync(box.key);
   const tree = syntheticTree(join(box.parent, 'tree'));
   const classifier = classifierAt(join(box.parent, 'classifier'));
-  writeSpec(box.work, validSpec(tree, classifier));
+  const spec = validSpec(tree, classifier);
+  spec.cases.push({ id: 'skill', ask: ASK_SKILL, expect: 'skills/Gamma Delta/SKILL.md', rubric: [{ id: 'S1', text: 'The note is written.' }], none: false });
+  writeSpec(box.work, spec);
   const captureDir = join(box.parent, 'captures');
   mkdirSync(captureDir);
   const plan = jsonOut(runCli(['plan', '--work', box.work], box.home));
@@ -421,33 +504,51 @@ test('the arm switch, seeded order, opened files, and blind packets', () => {
     assert.equal(meta.valid, true, JSON.stringify(meta.invalid_reasons));
     assert.equal(meta.usd, 0.2);
     const arm = meta.arm;
-    if (arm === 'C' && meta.case === 'read') {
-      assert.deepEqual(meta.opened, ['skills/Alpha/SKILL.md']);
-      assert.equal(meta.first_opened, 'skills/Alpha/SKILL.md');
-      assert.equal(meta.reached, true);
-      assert.equal(meta.classifier_calls, 2);
-      assert.equal(meta.first_party.length, 2);
-      assert.equal(meta.binding_in_trial_home, true);
-    }
-    if (arm === 'C' && meta.case === 'bash') {
-      assert.deepEqual(meta.opened, ['experts/Beta/EXPERT.md']);
-      assert.equal(meta.reached, true);
-    }
-    if (arm === 'E' && meta.case === 'read') {
-      assert.deepEqual(meta.opened, []);
-      assert.equal(meta.reached, false);
-      assert.equal(meta.classifier_calls, 0);
-    }
-    if (meta.case === 'none') {
-      assert.deepEqual(meta.opened, []);
-      assert.equal(meta.reached, true);
-    }
     const rootAgents = readFileSync(join(run.temp_dir, 'roots', id, 'AGENTS.md'), 'utf8');
     assert.match(rootAgents, /^root: trial$/m);
     assert.match(rootAgents, /^type: personal$/m);
     assert.match(rootAgents, /^classifier_refusal: no$/m);
     assert.equal(readFileSync(join(run.temp_dir, 'roots', id, 'inbox', 'note.txt'), 'utf8'), 'hello from root files');
   }
+
+  const metas = plan.order.map((id) => JSON.parse(readFileSync(join(box.work, 'runs', id, 'meta.json'), 'utf8')));
+  await t.test('Read end-to-end remains opened and reached', () => {
+    for (const meta of metas.filter((row) => row.case === 'read')) {
+      const on = meta.arm === 'C';
+      assert.deepEqual(meta.opened, on ? ['skills/Alpha/SKILL.md'] : []);
+      assert.equal(meta.first_opened, on ? 'skills/Alpha/SKILL.md' : null);
+      assert.equal(meta.reached, on);
+      assert.equal(meta.classifier_calls, on ? 2 : 0);
+      if (on) {
+        assert.equal(meta.first_party.length, 2);
+        assert.equal(meta.binding_in_trial_home, true);
+      }
+    }
+  });
+  await t.test('Bash end-to-end quotes are not loads', () => {
+    for (const meta of metas.filter((row) => row.case === 'bash')) {
+      assert.deepEqual(meta.opened, []);
+      assert.equal(meta.first_opened, null);
+      assert.equal(meta.reached, false);
+    }
+  });
+  await t.test('Skill end-to-end opens once and reaches', () => {
+    for (const meta of metas.filter((row) => row.case === 'skill')) {
+      const on = meta.arm === 'C';
+      assert.deepEqual(meta.opened, on ? ['skills/Gamma Delta/SKILL.md'] : []);
+      assert.equal(meta.first_opened, on ? 'skills/Gamma Delta/SKILL.md' : null);
+      assert.equal(meta.reached, on);
+    }
+  });
+  await t.test('none end-to-end remains empty and reached', () => {
+    for (const meta of metas.filter((row) => row.case === 'none')) {
+      assert.deepEqual(meta.opened, []);
+      assert.equal(meta.reached, true);
+    }
+  });
+  await t.test('failed_loads is recorded in every run', () => {
+    for (const meta of metas) assert.deepEqual(meta.failed_loads, []);
+  });
 
   const readMap = () => JSON.parse(readFileSync(join(box.work, 'blind', 'map.json'), 'utf8'));
   const printed = runCli(['blind', '--work', box.work, '--seed', '7'], box.home);

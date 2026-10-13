@@ -162,7 +162,7 @@ if (plugin) {
     const table = JSON.parse(readFileSync(join(plugin, 'trial-open.json'), 'utf8'));
     const row = table[prompt];
     if (row && typeof row.expect === 'string') expectLine = row.expect;
-    if (row && row.via === 'bash') via = 'bash';
+    if (row && ['bash', 'skill'].includes(row.via)) via = row.via;
   } catch { /* no table: open nothing */ }
 }
 const events = [{ type: 'system', subtype: 'init', session_id: sessionId }];
@@ -181,13 +181,20 @@ if (link && expectLine && expectLine !== 'none' && plugin) {
   const file = join(plugin, expectLine);
   let text = '';
   try { text = readFileSync(file, 'utf8'); } catch { text = ''; }
-  const tool = via === 'bash'
+  const skillName = expectLine.split('/')[1].replaceAll(' ', '-');
+  const tool = via === 'skill'
+    ? { type: 'tool_use', id: 't1', name: 'Skill', input: { skill: `wiser:${skillName}` } }
+    : via === 'bash'
     ? { type: 'tool_use', id: 't1', name: 'Bash', input: { command: `cat ${JSON.stringify(file)}` } }
     : { type: 'tool_use', id: 't1', name: 'Read', input: { file_path: file } };
   events.push({ type: 'assistant', message: { role: 'assistant', content: [tool] } });
   events.push({
     type: 'user',
-    message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', content: text }] },
+    message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', content: via === 'skill' ? `Launching skill: wiser:${skillName}` : text, is_error: false }] },
+  });
+  if (via === 'skill') events.push({
+    type: 'user',
+    message: { role: 'user', content: `Base directory for this skill: ${dirname(file)}\n\n${text}` },
   });
 }
 events.push({

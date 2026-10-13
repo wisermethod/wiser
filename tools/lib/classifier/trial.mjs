@@ -318,27 +318,6 @@ function screenPath(label, raw, opts = {}) {
 }
 
 /**
- * @param {string} value
- * @returns {Record<string, string>}
- */
-function parseFrontmatter(text) {
-  const out = {};
-  if (typeof text !== 'string' || !text.startsWith('---')) return out;
-  const nl = text.indexOf('\n');
-  if (nl < 0) return out;
-  const rest = text.slice(nl + 1);
-  const end = rest.search(/\r?\n---\s*(?:\r?\n|$)/);
-  if (end < 0) return out;
-  for (const raw of rest.slice(0, end).split('\n')) {
-    const line = raw.replace(/\r$/, '');
-    const match = line.match(/^([A-Za-z0-9_]+):\s*(.*)$/);
-    if (!match) continue;
-    out[match[1]] = match[2].trim();
-  }
-  return out;
-}
-
-/**
  * @param {string} text
  * @param {Record<string, string>} updates
  * @returns {string}
@@ -919,66 +898,17 @@ function exportCommit(repo, commit, dest) {
 }
 
 /**
- * @param {string} text
- * @returns {string}
- */
-function contentToText(content) {
-  if (typeof content === 'string') return content;
-  if (Array.isArray(content)) return content.map(contentToText).join('\n');
-  if (content && typeof content === 'object') {
-    if (typeof content.text === 'string') return content.text;
-    if (content.content != null) return contentToText(content.content);
-  }
-  return '';
-}
-
-/**
- * @param {object} event
- * @returns {string[]}
- */
-function toolResultTexts(event) {
-  const texts = [];
-  const visit = (node, parentTool) => {
-    if (!node || typeof node !== 'object') return;
-    if (Array.isArray(node)) {
-      for (const item of node) visit(item, parentTool);
-      return;
-    }
-    if (node.type === 'tool_result') {
-      texts.push(contentToText(node.content != null ? node.content : node.text));
-      return;
-    }
-    for (const value of Object.values(node)) visit(value, parentTool);
-  };
-  visit(event, false);
-  return texts;
-}
-
-/**
+ * Directory names, rather than frontmatter names, identify loaded primitives.
  * @param {string} tree
- * @returns {{ rel: string, nameLine: string, typeLine: string }[]}
+ * @returns {{ rel: string }[]}
  */
 function typedCandidates(tree) {
   const out = [];
-  for (const family of [['skills', 'SKILL.md', 'skill'], ['experts', 'EXPERT.md', 'expert']]) {
-    const [dirName, fileName, typeName] = family;
-    const dir = join(tree, dirName);
-    if (!existsSync(dir)) continue;
-    let names = [];
-    try { names = readdirSync(dir); } catch { continue; }
-    for (const name of names) {
-      const file = join(dir, name, fileName);
-      if (!existsSync(file)) continue;
-      let text = '';
-      try { text = readFileSync(file, 'utf8'); } catch { continue; }
-      const fm = parseFrontmatter(text);
-      const fmName = fm.name || name;
-      const fmType = fm.type || typeName;
-      out.push({
-        rel: `${dirName}/${name}/${fileName}`,
-        nameLine: `name: ${fmName}`,
-        typeLine: `type: ${fmType}`,
-      });
+  for (const [dirName, fileName] of [['skills', 'SKILL.md'], ['experts', 'EXPERT.md']]) {
+    let entries;
+    try { entries = readdirSync(join(tree, dirName), { withFileTypes: true }); } catch { continue; }
+    for (const entry of entries) {
+      if (entry.isDirectory()) out.push({ rel: `${dirName}/${entry.name}/${fileName}` });
     }
   }
   out.sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0));
@@ -986,14 +916,30 @@ function typedCandidates(tree) {
 }
 
 /**
+ * Count only successful Skill calls, skill base-directory messages, and Reads
+ * of typed files. A paired result determines a call's load position.
  * @param {string} stdout
- * @param {{ rel: string, nameLine: string, typeLine: string }[]} candidates
+ * @param {{ rel: string }[]} candidates
  */
 function parseStream(stdout, candidates) {
   let result = null;
   let sessionId = null;
   const opened = [];
+  const failed = [];
   const seen = new Set();
+  const calls = new Map();
+  const completed = new Set();
+  const skillNames = new Map();
+  for (const candidate of candidates) {
+    const match = /^skills\/([^/]+)\/SKILL\.md$/.exec(candidate.rel);
+    if (match) skillNames.set(match[1].replaceAll(' ', '-').toLowerCase(), candidate.rel);
+  }
+  const skillPath = (name) => skillNames.get(name.replaceAll(' ', '-').toLowerCase()) || `skill:${name}`;
+  const open = (primitive) => {
+    if (seen.has(primitive)) return;
+    seen.add(primitive);
+    opened.push(primitive);
+  };
   for (const line of String(stdout || '').split('\n')) {
     if (!line.trim()) continue;
     let event;
@@ -1005,17 +951,33 @@ function parseStream(stdout, candidates) {
       result = event;
       if (typeof event.session_id === 'string' && event.session_id) sessionId = event.session_id;
     }
-    for (const text of toolResultTexts(event)) {
-      for (const candidate of candidates) {
-        if (seen.has(candidate.rel)) continue;
-        if (text.includes(candidate.nameLine) && text.includes(candidate.typeLine)) {
-          seen.add(candidate.rel);
-          opened.push(candidate.rel);
+    const content = event && event.message && event.message.content;
+    const items = Array.isArray(content) ? content : typeof content === 'string' ? [{ type: 'text', text: content }] : [];
+    for (const item of items) {
+      if (!item || typeof item !== 'object') continue;
+      if (event.type === 'assistant' && item.type === 'tool_use' && typeof item.id === 'string') {
+        let primitive = null;
+        if (item.name === 'Skill' && typeof item.input?.skill === 'string') {
+          primitive = skillPath(item.input.skill.replace(/^.*:/, ''));
+        } else if (item.name === 'Read' && typeof item.input?.file_path === 'string') {
+          const match = /(?:^|\/)(skills\/[^/]+\/SKILL\.md|experts\/[^/]+\/EXPERT\.md)$/.exec(item.input.file_path);
+          if (match) primitive = match[1];
         }
+        if (primitive && !calls.has(item.id)) calls.set(item.id, primitive);
+      }
+      if (event.type !== 'user') continue;
+      if (item.type === 'tool_result' && calls.has(item.tool_use_id) && !completed.has(item.tool_use_id)) {
+        completed.add(item.tool_use_id);
+        const primitive = calls.get(item.tool_use_id);
+        if (item.is_error === true) failed.push(primitive);
+        else open(primitive);
+      } else if (item.type === 'text' && typeof item.text === 'string') {
+        const match = /^Base directory for this skill:[ \t]*[^\r\n]*\/skills\/([^/\r\n]+)[ \t]*(?:\r?\n|$)/.exec(item.text);
+        if (match) open(skillPath(match[1].trim()));
       }
     }
   }
-  return { result, sessionId, opened, route: routeReply(stdout) };
+  return { result, sessionId, opened, route: routeReply(stdout), failed };
 }
 
 /**
@@ -1522,6 +1484,7 @@ async function commandRun(spec, plan, flags, work, keyFile) {
           wall_ms: wall,
           turns: result && Number.isFinite(result.num_turns) ? result.num_turns : null,
           opened,
+          failed_loads: parsedStream.failed,
           first_opened: opened[0] || null,
           reached,
           route_answer: parsedStream.route.answer,
@@ -2347,4 +2310,4 @@ if (invokedDirectly()) {
   main().then((code) => { process.exit(code); });
 }
 
-export { main, EMPTY_ENV };
+export { main, EMPTY_ENV, parseStream, typedCandidates };
