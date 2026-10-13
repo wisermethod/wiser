@@ -3,7 +3,7 @@ name: vm
 type: connector
 category: development
 description: Reads health, facts and mapped host identifiers, runs a root command, reads and writes one file, and controls a systemd unit, with every command, write and unit change confirmed
-version: 0.1.3
+version: 0.1.4
 ---
 
 # Virtual machines
@@ -47,7 +47,7 @@ vm.units.service          { machine, verb, unit }    confirmation: always
 
 Every action returns the router's JSON, read from `outcome`. `ok`, `remote_failure`, `timeout`, `busy`, `path_refused`, `unknown_machine`, `truncated`, `oversize` and `quote_refused` are results. An outer provider or transport failure stays `vendor_error`.
 
-**Through the Wiser endpoint, each provider call has 20 seconds.** Every `vm` action is one such call, which carries the request to the router and waits for its answer, so a command that has not answered within 20 seconds, transit included, comes back as `status` `uncertain` with no `outcome`, and the endpoint does not retry it. That is shorter than the time a router allows a command. **The command may still run to completion on the host.** Keep a command's own runtime well inside 20 seconds there, and start longer work as a unit systemd runs, reading its state in later calls. The local gateway has no such bound of its own.
+**Through the Wiser endpoint, a `vm` action has 65 seconds.** Every `vm` action is one provider call, which carries the request to the router and waits for its answer, so a command that has not answered within 65 seconds, transit included, comes back as `status` `uncertain` with no `outcome`, and the endpoint does not retry it. A router that allows a command more time does not extend that bound. The endpoint's other provider calls, the bookkeeping around that one and every other connector's, keep 20 seconds. The app a person uses can stop waiting sooner, by its own limit on a tool call, and the endpoint cannot lift that limit. **The command may still run to completion on the host.** Keep a command's own runtime well inside that bound there, and start longer work as a unit systemd runs, reading its state in later calls. The local gateway has no such bound of its own.
 
 ## Credentials
 
@@ -88,7 +88,7 @@ A grant is per module. All four modules use one toolkit. How to connect is `auth
 
 `vendor_error`: the gateway's provider or the transport failed. The status and the endpoint are the safe fields. A router `outcome` is not this stop. Script text that passed before can come back `vendor_error`, HTTP 400 at `/exec`, when it carries a directory glob such as `conf/*/forwarding`: something ahead of the router refuses it, and the router's journal shows nothing, so the machine never ran it. Find the trigger with harmless scripts of the same shape, the glob inside an `echo` or an `ls`, never by replaying parts of a script that changes the machine, and write such a glob as `conf/[!.]*/forwarding` (seen from 2026-10-06).
 
-`uncertain`, from the Wiser endpoint: the provider call outlasted the endpoint's 20 seconds, or failed, or could not be recorded, and it was not retried. Its `action` names the call in doubt, which can be an earlier one than the call just made. It does not establish whether the router ran the command. Read it as a `vendor_error`: re-read the state the call would have changed before repeating anything, and never repeat a command, a write or a unit change blind.
+`uncertain`, from the Wiser endpoint: the provider call outlasted the endpoint's bound, 65 seconds for the call carrying a `vm` action and 20 for the calls around it, or failed, or could not be recorded, and it was not retried. Its `action` names the call in doubt, which can be an earlier one than the call just made. It does not establish whether the router ran the command. Read it as a `vendor_error`: re-read the state the call would have changed before repeating anything, and never repeat a command, a write or a unit change blind.
 
 A router `outcome` of `unknown_machine`, `busy`, `timeout`, `path_refused`, `oversize`, `quote_refused`, `truncated` or `remote_failure` is the router's answer. Read it and decide the next step from that outcome. Do not retry a write or a unit change blindly: a `timeout` does not mean the change was undone.
 

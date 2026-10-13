@@ -40,7 +40,7 @@ Repeat for each module. All four use the one toolkit, so the second and later ma
 
 **On the local gateway**, the shipped default policy denies privilege `admin` for the runtime role. Each of these modules declares `admin`. Until `policy.json` in the gateway home allows service `vm` at privilege `admin`, an action answers `denied` and no request is sent. **On the Wiser endpoint** the policy is the service's, and you change nothing.
 
-Through the endpoint each provider call has 20 seconds; `CONNECTOR.md` says what that means for a long command.
+Through the endpoint a `vm` action has 65 seconds, and the calls around it 20; `CONNECTOR.md` says what that means for a long command.
 
 ## The route this connector does not use
 
