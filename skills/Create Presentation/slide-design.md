@@ -134,6 +134,10 @@ All slide content is fully visible on navigation. When the presenter clicks forw
 
 Slide-to-slide transitions (fade, slide, convex) are fine; these control how one slide replaces another, not how content appears within a slide. The default transition is `slide`.
 
+### An Explainer Slide, Opt-in Only
+
+A slide whose picture moves to show how something works or what happened, made by `skills/Animated Explainer/` on the user's request, is the one other within-slide motion. Its own rules govern its motion: it plays only while its slide is current, and its finished picture is what the PDF and the PNG export show. Never add one the user did not ask for.
+
 ### Fragment Animations, Opt-in Only
 
 reveal.js `class="fragment"` makes elements appear one click at a time within a slide, so every fragment adds a click before the audience sees the next slide. Five fragments on one slide means five clicks before advancing.

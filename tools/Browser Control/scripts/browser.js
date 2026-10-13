@@ -80,6 +80,8 @@ Acting:
   tabs list|new|switch|close       new takes --url; switch and close take --index
   dialog accept|dismiss|prompt|off|status
   emulate set|reset      set takes --device | --viewport WxH | --geolocation lat,long
+                         | --reduced-motion reduce|no-preference; reset restores
+                         the default viewport and the user's own motion setting
   wait                   --selector s [--hidden] | --text t | --time [ms] | --network
   execute                --code "[javascript]"
   screenshot             --output [absolute file] [--selector s] [--fullpage]
@@ -232,7 +234,7 @@ const VALUE_FLAGS = new Set([
   '--selector', '--index', '--text', '--coords', '--button', '--count',
   '--delay', '--key', '--to', '--by', '--max', '--from', '--delta',
   '--value', '--label', '--name', '--src', '--device', '--viewport',
-  '--geolocation', '--time', '--code', '--assert', '--expect', '--pattern',
+  '--geolocation', '--reduced-motion', '--time', '--code', '--assert', '--expect', '--pattern',
   '--output', '--output-dir', '--file', '--domain', '--expires', '--path'
 ]);
 const BARE_FLAGS = new Set([
@@ -271,6 +273,12 @@ for (let i = 0; i < rest.length; i++) {
 }
 
 const install = flags.has('--install');
+
+// --reduced-motion belongs to emulate set alone. Anywhere else it would be stored and never read, so a caller
+// would believe it applied when it did not.
+if (flags.has('--reduced-motion') && !(command === 'emulate' && sub === 'set')) {
+  fail('Error: --reduced-motion belongs to "emulate set" and is refused here.');
+}
 
 function flag(name) {
   const value = flags.get(name);
@@ -1321,10 +1329,14 @@ switch (command) {
       action: 'set',
       device: flag('--device'),
       viewport: flag('--viewport'),
-      geolocation: flag('--geolocation')
+      geolocation: flag('--geolocation'),
+      reducedMotion: flag('--reduced-motion')
     };
-    if (!params.device && !params.viewport && !params.geolocation) {
-      fail('Error: emulate set needs at least one of --device, --viewport WxH, or --geolocation lat,long. Locale, timezone, and touch are fixed when the context is created and cannot be changed on a live session.');
+    if (!params.device && !params.viewport && !params.geolocation && !params.reducedMotion) {
+      fail('Error: emulate set needs at least one of --device, --viewport WxH, --geolocation lat,long, or --reduced-motion reduce|no-preference. Locale, timezone, and touch are fixed when the context is created and cannot be changed on a live session.');
+    }
+    if (params.reducedMotion && !['reduce', 'no-preference'].includes(params.reducedMotion)) {
+      fail(`Error: --reduced-motion takes reduce or no-preference, not "${params.reducedMotion}".`);
     }
     await send('emulate', params);
     break;

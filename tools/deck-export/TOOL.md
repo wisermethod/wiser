@@ -3,7 +3,7 @@ name: deck-export
 type: tool
 category: documents
 description: Writes a new reveal.js deck project on disk, from a brand template or as a self-contained starter, and renders a finished deck to a PDF or to one PNG per slide
-version: 0.2.3
+version: 0.2.4
 ---
 
 # deck-export
@@ -81,7 +81,7 @@ Both render commands load the deck from disk through a `file://` address, so rel
 
 Size comes from the deck. After the deck initializes, its own reveal.js configuration supplies the slide width and height, and the export is made at that size, so a 4:3 deck exports 4:3 without being told. Pass `--width` and `--height` when the request names a pixel size. Otherwise omit them, including when the deck's configuration is a percentage; the tool uses its own fallback. Do not invent a size. The reported `width` and `height` are what the export was made at, which is the pair worth reading back.
 
-`pdf` writes one file: reveal.js's own print layout, one page per slide, backgrounds included, at the deck's pixel size. `png` writes one image per slide into the directory named, `slide-001.png` upward in presentation order, vertical slide stacks included, at `--scale` times the deck's size (2 by default, so a 1920 by 1080 deck yields 3840 by 2160 images). Files already in that directory are left alone unless a new image takes the same name; the output names every file written.
+`pdf` writes one file: reveal.js's own print layout, one page per slide, backgrounds included, at the deck's pixel size. `png` opens the deck with `?export=png`, turns every slide transition off for the capture, the deck's own and any slide's, so each image is its slide at rest, and writes one image per slide into the directory named, `slide-001.png` upward in presentation order, vertical slide stacks included, at `--scale` times the deck's size (2 by default, so a 1920 by 1080 deck yields 3840 by 2160 images). Files already in that directory are left alone unless a new image takes the same name; the output names every file written. The query is the deck's signal that it is being exported: reveal.js ignores it, and a slide whose own script honours it, such as an animated explainer, holds its finished picture in the image instead of a frame of its motion.
 
 ## Usage
 

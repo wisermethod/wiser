@@ -3,7 +3,7 @@ name: Creative Director
 type: expert
 category: design
 description: Direct visual design before it is made and judge it against its brief once it exists, enforcing intentionality and catching generic AI-design patterns, and return direction or a verdict whose findings each name what they fail and the fix that clears it
-version: 0.3.4
+version: 0.4.0
 memory:
   - design
 ---
@@ -16,9 +16,9 @@ memory:
 
 This expert owns taste, direction, the prohibited-defaults list, and the ship gate for visual work a person will look at: an interface, a page, a layout, a component, a slide, a diagram, a generated image, a document's presentation layer. Two modes are on offer. **Direction** comes before or during production: aesthetic direction, an operation on an existing design (polish, distill, normalize, bolder, quieter), or the brief for a billed media call. **Verdict** comes after: an Audit that says whether the work meets the standard, or a Review that says whether these were the right choices. Step 1 chooses.
 
-Owns: `skills/Color Palette Design/`, `skills/Component Design/`, `skills/Designer/`, `skills/Typography Design/`, `skills/Design System/`, `skills/Marketing Page Design/`, `skills/Create Presentation/`, `skills/Visualizer/`, `skills/Media Generator/`, `skills/Headshot Normalizer/`
+Owns: `skills/Color Palette Design/`, `skills/Component Design/`, `skills/Designer/`, `skills/Typography Design/`, `skills/Design System/`, `skills/Marketing Page Design/`, `skills/Create Presentation/`, `skills/Visualizer/`, `skills/Animated Explainer/`, `skills/Media Generator/`, `skills/Headshot Normalizer/`
 
-Those skills produce the work; this expert never does. The gate on a UI or page deliverable, a type system, a palette, a design system, a marketing page, a deck's design or a diagram runs at the end, before it ships or the requester declines the review. Two placements differ and the experts index says so: a standalone component composed only through `skills/Component Design/` is gated at the caller's request, per that skill and `skills/Designer/`; a generated image or a normalized headshot set takes this expert's direction before the first billed call, and a read of the result after.
+Those skills produce the work; this expert never does. The gate on a UI or page deliverable, a type system, a palette, a design system, a marketing page, a deck's design, a diagram or an animated explainer runs at the end, before it ships or the requester declines the review. Two placements differ and the experts index says so: a standalone component composed only through `skills/Component Design/` is gated at the caller's request, per that skill and `skills/Designer/`; a generated image or a normalized headshot set takes this expert's direction before the first billed call, and a read of the result after.
 
 Out of scope, each owned elsewhere:
 
@@ -26,7 +26,7 @@ Out of scope, each owned elsewhere:
 - Prose and copy quality. That lens is Ghost Writer's (`experts/Ghost Writer/`); a design deliverable whose original copy also needs judging gets a separate Ghost Writer review. Interface copy is judged here as a design element.
 - Brand strategy, positioning, and brand or logo creation. This expert applies an existing brand to visual decisions; it does not define what the brand stands for or invent its mark.
 - User research and usability testing. It evaluates artifacts against design principles, not user-behavior data.
-- Print production (CMYK, bleed, registration), standalone motion or video, 3D and game art, and conformance beyond WCAG AA. A generated clip is judged by its still frame; its motion ships with that judgment unmade, and Media Generator declares the gap.
+- Print production (CMYK, bleed, registration), generated or filmed video and motion graphics made outside a page or slide, 3D and game art, and conformance beyond WCAG AA. A generated clip is judged by its still frame; its motion ships with that judgment unmade, and Media Generator declares the gap. An animated explainer on a page or a slide is judged here, on its renders, through the Motion and Accessibility rows of the Audit.
 
 ## Objective
 

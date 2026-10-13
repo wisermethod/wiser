@@ -1,0 +1,86 @@
+/* Animated Explainer, once starter 0.1.0.
+ *
+ * The rules outside the motion block are the finished figure, and they are what shows with no script,
+ * under reduced motion, in print and in a deck's PDF. Every rule that hides or moves anything sits inside
+ * the motion block at the end, which applies only on a screen whose user has not asked for reduced motion.
+ *
+ * Every rule is scoped under .ax-once and is the engine's, kept as it is, so including once.css more than
+ * once is harmless. A figure takes its own colours, sizes and timings by setting the custom properties below
+ * on its own class beside .ax-once, never by editing these rules.
+ */
+
+/* Engine: the root, its colours and timings, and a reset against the host page's own rules. */
+.ax-once {
+  --ax-ground: #ffffff;
+  --ax-ink: #1f1f1f;
+  --ax-muted: #4d4d4d;
+  --ax-font: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --ax-count: 800ms;
+  --ax-draw: 500ms;
+  --ax-rule-delay: 200ms;
+  --ax-enter: 400ms;
+  --ax-ease-out: cubic-bezier(0.25, 1, 0.5, 1);
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ax-ink);
+  font: normal 400 16px/1.4 var(--ax-font);
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-align: left;
+  text-transform: none;
+  container-type: inline-size;
+}
+.ax-once, .ax-once *, .ax-once *::before, .ax-once *::after { box-sizing: border-box; }
+
+/* Engine: the figure is the number with its rule; the count, while it runs, sits exactly over the number,
+   which keeps its width so nothing beside it moves. */
+.ax-once .ax-figure {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  margin: 0;
+  padding: 0 0 0.5rem;
+  color: var(--ax-ink);
+  font: normal 800 clamp(2.5rem, 9cqw, 3.5rem)/1 var(--ax-font);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: normal;
+  white-space: nowrap;
+}
+.ax-once .ax-num { position: relative; display: inline-block; }
+.ax-once .ax-count { position: absolute; left: 0; top: 0; display: block; white-space: nowrap; }
+.ax-once .ax-rule {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  display: block;
+  width: 100%;
+  height: 3px;
+  margin: 0;
+  background: var(--ax-ink);
+  border-radius: 2px;
+  transform-origin: left center;
+}
+.ax-once .ax-caption {
+  display: block;
+  max-width: 100%;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  color: var(--ax-muted);
+  font: normal 400 max(12px, 1rem)/1.45 var(--ax-font);
+  letter-spacing: normal;
+}
+
+/* The motion block: hidden until it plays, never shown at zero; then the count runs and the rule draws. */
+@media screen and (prefers-reduced-motion: no-preference) {
+  .ax-once.ax-armed:not(.ax-go) .ax-num { opacity: 0; }
+  .ax-once.ax-armed:not(.ax-go) .ax-rule { transform: scaleX(0); }
+  .ax-once.ax-counting .ax-num { opacity: 0; }
+  .ax-once.ax-go:not(.ax-countable) .ax-num { transition: opacity var(--ax-enter) var(--ax-ease-out); }
+  .ax-once.ax-go .ax-rule { transition: transform var(--ax-draw) var(--ax-ease-out) var(--ax-rule-delay); }
+}

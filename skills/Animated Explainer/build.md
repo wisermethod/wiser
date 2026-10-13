@@ -1,0 +1,98 @@
+# Build
+
+This file is the one home of how a piece is built so that its finished picture shows whatever happens. `skills/Animated Explainer/SKILL.md` reads it at Steps 4 and 5. `## The contract` holds for every piece; the rest is how the two starters keep it. A starter is an engine, not a look: copy it, replace its picture and its words entirely, and keep its engine rules and its script as they are. The class names the engine reads (`ax-loop`, `ax-once`, `ax-stage`, `ax-wires`, `ax-fly`, `ax-btn`, and the rest the starter's header lists) are never renamed. A piece is named by its own class beside the root, as `ax-demo` is in the loop starter.
+
+## The contract
+
+Every piece keeps these, whether it runs on a starter's engine or on its own script.
+
+- The base CSS is the finished picture. Every rule that hides, dims or moves anything sits inside one `@media screen and (prefers-reduced-motion: no-preference)` block, the piece's own hidden states included, after the engine rules. With that done, no script, reduced motion at load or switched on later, print, a reveal.js `?print-pdf` view, and an address carrying `?export` all show the finished picture.
+- The script only arms what that block animates. Falling back to the still, it cancels every running animation, because in Chrome a transition already running keeps going after its rule stops applying.
+- The still matches the picture at the end of the motion, every connection drawn.
+- Every visible word is in the markup: the labels, the text description beside the `aria-hidden` picture, the control's names, any caption. The script writes no word, apart from a count's intermediate digits.
+- A loop has a pause control, stops off-screen and on a hidden tab, and resumes where it stopped. On a slide, the piece plays only while its slide is current.
+- It loads nothing from another origin, and its rules are scoped under its own class, so two pieces on one page never restyle each other.
+
+The engines keep every line of this, proved in Chromium. A piece on its own script proves each line on its renders.
+
+## The picture
+
+The picture is inline SVG, or HTML elements, drawn for the subject. It sits on the stage, which keeps a fixed aspect: the starter sets that aspect in its own demo geometry, so set `aspect-ratio` on the stage under the piece's class, or the stage collapses and the engine draws nothing. Every element on it is placed in the stage's width units (`cqw`) or in its SVG's own units, so it holds at every width. Which layouts does the piece have? One aspect: one picture. A page that narrows below what that aspect can carry: a second layout shown by its own container query, as the starter's `ax-wide` and `ax-narrow` overlays are.
+
+Motion is transform and opacity, per Performance in `skills/Component Design/motion-design.md`. A drawn shape turns on by the class `on` the timeline gives it, and its moving rules sit in the motion block. Ids inside the picture, a gradient, a clip path or a `<use>` target, are global to the page: prefix each with the piece's name, and where one component may sit twice on a page, add a suffix it takes as a prop. A once piece's drawing moves on the root's classes: hidden inside the motion block under `.ax-armed:not(.ax-go)`, entering under `.ax-go`.
+
+Colours are custom properties set on the piece's class: the engine's own (the loop's `--ax-ground`, `--ax-ink`, `--ax-muted`, `--ax-box`, `--ax-line` and `--ax-focus`; the once's `--ax-ground`, `--ax-ink` and `--ax-muted`) and any the picture adds. Their values come from the bound `design`, or the destination's tokens, as `SKILL.md` Inputs says. The starters' greys are placeholders and never ship. The loop's cover, which hides the stage at each wrap, is `--ax-ground`: set it to the picture's own backdrop colour, or the stage blinks to another at every cycle. On a site, keep the piece's properties apart from the site's palette names, so a palette change elsewhere cannot recolour the piece unseen. On a deck, set them from the deck's `:root` brand properties with `var()`, so a change to the deck's look reaches the slide, as `skills/Create Presentation/` makes every look change.
+
+On a page, no word renders under 12px at any width from 320 to 1440; the stage's width units make that a real risk at 320, so write label sizes as `max(12px, <n>cqw)`, as the starter does. On a slide, no word renders under 16px in the slide's own pixels, the floor in `skills/Create Presentation/slide-design.md` Typography.
+
+## The timeline
+
+`data-len` on the root is the cycle in seconds. `data-at` and `data-off` on an element are when it turns on and off, as the class `on`: present from `data-at` until `data-off`. With no `data-off`, it stays on. Every line and every flight carries a `data-at`: one with none shows in the still and stays hidden for the whole loop.
+
+A cover hides the stage for the cycle's first 0.3 s and lifts over `--ax-fade` after it, and it comes down again over `--ax-fade` from 0.6 s before the cycle ends. While it is up it resets everything beneath it. `--ax-fade` is at most 0.6 s; longer, the engine keeps the still and warns in the console.
+
+What must a viewer never lose while the loop runs? The conclusion, a total or a heading, is a direct child of the stage marked `data-keep`, with no `data-at` and no `data-off`. It sits above the cover, shows throughout every cycle, and is never reset. The engine makes it `position: relative` only where the piece gives it no position of its own; do not set it to `position: static`.
+
+The hold is the stretch after the last moment and before the closing fade, where the whole picture stands finished. The still must match the hold. The last moment is the latest `data-at` or `data-off`, counted as at least 0.3 s. Does `data-len` leave room? It must be at least the last moment plus 0.9 s, which the engine enforces: shorter, or no number, and it keeps the still and warns in the console. It must also be at least the last moment plus the length of the motion that moment starts plus 0.6 s, which the engine does not check: shorter, and the closing fade starts before that motion ends, so the hold never stands finished and does not match the still. Lengthen the cycle until both hold.
+
+Durations and curves are Duration Scale and Easing Curves in `skills/Component Design/motion-design.md`, named through the starters' custom properties: the loop's `--ax-draw`, `--ax-enter`, `--ax-fade`, `--ax-travel` and `--ax-ease-out`, the once's `--ax-count`, `--ax-draw`, `--ax-rule-delay`, `--ax-enter` and `--ax-ease-out`, and any the picture adds. Each is a plain CSS time, in `ms` or `s`; a `calc()` the scripts cannot read falls back to the default. Beats overlap and stagger as `SKILL.md` Step 3 says. No overshoot, no bounce.
+
+## Loop
+
+A process, a cycle or a relationship seen whole is a loop, from `starters/loop/`. It starts when a quarter of its stage is in view or, on a slide, when the slide is current and every fragment holding it is shown. It waits off-screen, on a hidden tab, and while paused, and the time it was away is not added to its clock.
+
+Its pause control is required (WCAG 2.2.2): a loop runs for longer than five seconds whatever its cycle. Its two names are the markup's `data-pause` and `data-play`. A pause inside either of the cover's fades moves to the hold and pauses there with the cover clear; a pause anywhere else keeps its frame; a resume never replays a motion already finished. Do not remove the control. The engine shows it only while it can animate.
+
+One engine serves every `.ax-loop` on a page, each on its own clock, and including `loop.js` or `loop.css` twice is harmless. `window.AxLoop.scan()` starts a piece added after load. Known limit: paused mid-draw, then resized across the layout switch, the layout that appears shows its lines complete until play resumes.
+
+## Once
+
+One figure or one outcome that lands is a once piece, from `starters/once/`. With motion wanted, it stays hidden until a quarter of it is in view, or until its slide is current, then plays once and holds. A figure already a quarter in view when the script arms it, off a slide, keeps the finished figure and never plays: where the figure will sit in the first screen, Step 6's message and a placement note say it shows its finished figure there and counts only lower on the page. Several on one page take turns in document order.
+
+`.ax-num` holds one quantity the engine can read, with words or symbols around it; it counts in the markup's own format, which the once starter's header sets out, and ends on the markup's own text. A year, a code, or anything that is not a quantity: `data-count="off"`. A second number, a range, a negative or an ambiguous separator such as `1.250,5`: the engine fades it in instead of counting. `window.AxOnce.scan()` starts a figure added after load.
+
+## Measuring and drawing
+
+Lines (`path[data-from][data-to]`) and flights (`.ax-fly`) are optional: use them where something travels or connects. They are measured between anchors, as fractions of each element's box: `data-fx`, `data-fy`, `data-tx`, `data-ty`. An anchor is an HTML element laid out inside the stage, which the engine reads from layout, so its own entrance transform changes nothing. An SVG shape is read from its on-screen box instead, so it anchors only while neither it nor any group around it carries a transform, its entrance included; anchor to an HTML element where the drawing moves. Leave measuring to the engine: never add a measurement with `getBoundingClientRect`, whose box counts padding, an entrance transform and a slide's scale. The stage carries no padding and no border; space around the picture goes on the frame or the page.
+
+A line's default path in the markup is its finished shape, in its overlay's units, so the still shows it. Does every line have a default path computed with the engine's curve? No, or one was drawn by hand: open the piece with its script once, call `window.AxLoop.wirePath(a, b, head)` with `a` and `b` as `{x, y}` points and `head` a length, all in the overlay's units, and write the returned path into its `d`. `data-head` is a percent of the stage's width. Lines draw with `pathLength="1"` and a dash of 1.
+
+Where the subject is a structure of steps, parts or causes, the geometry table in Step 2 of `skills/Visualizer/SKILL.md` helps choose its arrangement, and that skill's Step 5 is the home of where labels sit. This skill does not run Visualizer, whose output is a standalone file or Mermaid.
+
+## The accessibility floor
+
+Every piece meets this floor in every destination. Each line is checkable on the renders or in the markup.
+
+- Without JavaScript, under reduced motion at load or switched on later, and in print or PDF, the finished picture shows.
+- A loop has a pause control (WCAG 2.2.2), stops off-screen and on a hidden tab, and resumes where it stopped.
+- A once piece plays once and holds, hidden rather than shown at zero until it plays.
+- The picture is `aria-hidden`, with the text description beside it. A once piece's number and caption are the text.
+- No word renders under 12px on a page from 320 to 1440 wide, or under 16px on a slide in its own pixels.
+- Every control meets criteria 4 and 5 of `skills/Component Design/SKILL.md`, and is reached and worked by keyboard.
+- Nothing flashes more than three times a second (WCAG 2.3.1).
+- Contrast meets Contrast Requirements in `skills/Color Palette Design/SKILL.md`, and colour is never the only carrier of meaning.
+
+## Renders
+
+Step 5 captures through `tools/Browser Control/`, at 1440 and 390 wide, and at 320 for the text floor:
+
+- Mid-motion, and the hold or the held figure.
+- With no JavaScript, from a copy of the page with its script tags removed. A deck needs reveal.js's script to show any slide, so a deck slide's render with no JavaScript is its `section` alone on a plain page that loads the deck's stylesheet, with no script; how the deck itself looks with no script is the deck's matter, per `destinations.md` `## A deck slide`.
+- Under reduced motion, with that tool's `emulate set --reduced-motion reduce`, twice: set before the page loads, and switched on after it has started moving, when nothing may still be moving. The setting stays on the tab until `emulate reset`, which also resets the window's size, so set the width again after it.
+- A loop paused mid-motion. A once piece waiting and playing, where it loads below the fold.
+- A deck slide playing, and the deck exported through `tools/deck-export/`: its `pdf` opens the deck on `?print-pdf` and its `png` with the export query, so both show the finished picture.
+
+Every address is cache-busted with a fresh query string of your own naming, since a capture from a cached build has misled a gate before; `export` and `print-pdf` are the names that hold the still. Every capture is a new file. Check each line by looking along it, since a short line missing from the still barely moves a whole-picture comparison. Save the captures in the record folder, with a profile directory per run in the owning root's work area, per Session State in `tools/Browser Control/TOOL.md`.
+
+## Pitfalls
+
+- **The starter's look shipped.** Grey boxes and arrows with new labels. Replace the whole picture, per `SKILL.md` Step 3.
+- **Lines cut short.** A fixed dash length. Use `pathLength="1"` and a dash of 1.
+- **A flight or a line off its target.** A measurement of the on-screen box, or padding or a border on the stage. Leave measuring to the engine and keep the stage bare.
+- **The still missing a connection.** A line with no default path. Write it per Measuring and drawing.
+- **Two pieces on one page restyling each other, or one's gradient appearing in the other.** Rules not scoped under the piece's class, or an id not prefixed. Scope the rules and prefix the ids, per The picture.
+- **A capture that shows an old build.** The browser cached it. Bust the address.
+- **Motion still running after reduced motion was switched on.** A hiding rule moved out of the motion block, or the engine's cancel removed. Put both back.
+- **A figure that counts a year, or reads `1.250,5` as a decimal.** Mark it `data-count="off"`, or write the number unambiguously.
+- **A loop that never moves and warns in the console.** `data-len` leaves no room after the last moment. Lengthen it.
+- **Browsers other than Chromium.** The starters were proved in Chromium only. Render in Chromium, and where the readers' browsers are not known or include Safari or Firefox, the delivery names the Chromium-only proof; this is not a question to stop on.

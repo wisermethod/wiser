@@ -721,10 +721,11 @@ const actions = {
     return { tracing: false, file: target };
   },
 
-  async emulate({ action, device, viewport, geolocation }) {
+  async emulate({ action, device, viewport, geolocation, reducedMotion }) {
     if (action === 'reset') {
       await page.setViewportSize({ width: 1280, height: 800 });
-      return { ...(await pageInfo()), viewport: { width: 1280, height: 800 } };
+      await page.emulateMedia({ reducedMotion: null });
+      return { ...(await pageInfo()), viewport: { width: 1280, height: 800 }, reducedMotion: 'default' };
     }
 
     const applied = {};
@@ -752,6 +753,13 @@ const actions = {
       await context.grantPermissions(['geolocation']);
       await context.setGeolocation({ latitude, longitude });
       applied.geolocation = { latitude, longitude };
+    }
+
+    // The page's prefers-reduced-motion media feature, on this tab, until reset or set again.
+    if (reducedMotion) {
+      if (!['reduce', 'no-preference'].includes(reducedMotion)) throw new Error('reduced-motion must read reduce or no-preference');
+      await page.emulateMedia({ reducedMotion });
+      applied.reducedMotion = reducedMotion;
     }
 
     return { ...(await pageInfo()), emulated: applied };

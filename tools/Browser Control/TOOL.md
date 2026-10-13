@@ -3,7 +3,7 @@ name: Browser Control
 type: tool
 category: automation
 description: Drives a persistent Chromium session to read, navigate, and act on pages that need a real browser, answering every command with the page state that followed
-version: 0.7.4
+version: 0.8.0
 ---
 
 # Browser Control
@@ -98,7 +98,7 @@ One entry script, one command per line, subcommands where a command has modes.
 | `check` | Assert element state; the verdict is `passed` |
 | `console start\|stop` | Capture page console output |
 | `network start\|stop\|block\|unblock` | Capture requests, or abort ones matching `--pattern` |
-| `emulate set\|reset` | Viewport, device viewport, or geolocation |
+| `emulate set\|reset` | Viewport, device viewport, geolocation, or reduced motion |
 | `execute` | Run `--code` in the page and return its value |
 | `screenshot` | Write a PNG to `--output` |
 | `download` | Save `--url` to `--output`, or click `--selector` into `--output-dir` |
@@ -132,7 +132,7 @@ Per-command options. Each belongs to the one command named and is refused elsewh
 | `select option` | `--value`, `--label` | Choose the option by its value attribute or by its visible text; `--index` picks by position | None; one of the three is required |
 | `frame switch` | `--src`, `--name` | Choose the iframe by a substring of its `src` or by its `name`; `--index` picks by position | None; one of the three is required |
 | `mouse drag` | `--from` | The selector the drag starts at; `--to` is where it ends | None; both required |
-| `emulate set` | `--device`, `--viewport`, `--geolocation` | Emulate a named device, a `WxH` viewport, or a `lat,long` position | None; one of the three is required |
+| `emulate set` | `--device`, `--viewport`, `--geolocation`, `--reduced-motion` | Emulate a named device, a `WxH` viewport, a `lat,long` position, or the `prefers-reduced-motion` setting, `reduce` or `no-preference`, on the current tab. `emulate reset` restores the default viewport and the person's own motion setting | None; one of the four is required |
 
 `type` replaces by default, and this is the one thing to get right.
 

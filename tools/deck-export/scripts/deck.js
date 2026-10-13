@@ -1042,7 +1042,22 @@ async function renderPng(browser) {
     viewport: { width: askedWidth ?? 1920, height: askedHeight ?? 1080 },
     deviceScaleFactor: scale
   });
-  const { page, size } = await openDeck(context, '');
+  // The export query tells a deck it is being captured, so a slide whose animation honours it, such as an
+  // explainer, holds its finished picture rather than whatever frame the settle happens to land on. reveal.js
+  // reads query parameters into its configuration and ignores one it does not know.
+  const { page, size } = await openDeck(context, '?export=png');
+  // Each image is its slide at rest: with the deck's own transition left on, a slide arriving by the default
+  // 'slide' transition is captured part-way across the frame. This changes the page in the browser only.
+  await page.evaluate(() => {
+    Reveal.configure({ transition: 'none', backgroundTransition: 'none' });
+    // A slide's own transition attributes outrank the deck's configuration, so they go too.
+    document.querySelectorAll('[data-transition], [data-transition-speed], [data-background-transition]').forEach((el) => {
+      el.removeAttribute('data-transition');
+      el.removeAttribute('data-transition-speed');
+      el.removeAttribute('data-background-transition');
+    });
+  });
+  await page.addStyleTag({ content: '.reveal .slides section, .reveal .backgrounds .slide-background { transition: none !important; }' });
   await page.waitForTimeout(DECK_SETTLE_MS);
 
   // Every slide, vertical stacks included, in the order an audience sees them.
