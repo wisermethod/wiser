@@ -4,6 +4,13 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.13.5, October 13, 2026
+
+- A new skill, Animated Explainer, makes one picture that moves to show how something works or what happened, for a section of a site built with the plugin's site kit, for any other site as three files to place, or for one slide of a deck. It draws the subject itself, its objects, places and people, in your site's or deck's colours, rather than labelled boxes. Every fact, count and order it shows is the one your sources give, and anything illustrative is put to you and labelled on the piece. With no JavaScript, with reduced motion, in print, and in a deck's PDF or PNG, the finished picture shows. The Creative Director reviews it, it stops once for your approval of the picture and its words, and it changes nothing outside its own section or slide. (61eddec)
+- Designer, Visualizer, Component Design, Marketing Page Design and Create Presentation send a request for a moving explainer to it. Create Presentation places its slide in your deck, and Site Author files it into a kit site once the Creative Director's review has passed or you have accepted what it left open. (61eddec)
+- Browser Control can emulate reduced motion with `emulate set --reduced-motion`, and deck-export's PNG shows a moving slide's finished picture. (61eddec)
+- Designer's declared gap now names authored motion graphics made outside a page or slide, such as a title sequence, instead of all video; a generated clip is Media Generator's. (61eddec)
+
 ## v2026.10.13.4, October 13, 2026
 
 - The virtual machines connector's guide, the setup guide's list of answers and Connection Troubleshooter now give the Wiser endpoint's limit for a command on your own machine as 65 seconds, which it has been since October 8, not 20, so a longer read such as a security audit fits. Every other call through the endpoint still has 20 seconds. The connector's guide adds that the app you use may stop waiting sooner, by its own limit. (63df57d)
