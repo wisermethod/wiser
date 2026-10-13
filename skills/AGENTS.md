@@ -79,8 +79,10 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 |-------|-------------|-------|
 | `Deep Research/SKILL.md` | Run Deep Research on a question end to end, decomposing it into angles, directing each to the research skill that gathers it, and interpreting what comes back into a report where every finding carries its sources, a calibrated confidence level, and the contradictions it did not resolve | Research Expert |
 | `External Research/SKILL.md` | Gather and credibility-tag sources on a question, surfacing contradictions, returning an evidence package to a calling expert or skill or a verified, confidence-rated brief to a user asking directly | Research Expert |
+| `Generate Ideas/SKILL.md` | Return idea cards on a topic for a research hypothesis, a business, product, or strategy idea, a content angle, or a general idea, each with a prior-work label and its bounds or a not-checked statement, ranked as a first sort the member finishes | Research Expert |
 | `Internal Research/SKILL.md` | Scan the workspace for files on a topic and return a structural inventory of what exists, judging none of it | Research Expert |
 | `Knowledge Map/SKILL.md` | Analyze a workspace's existing files and produce a Knowledge Map that groups their ideas by topic, each traced to its source file and section | Research Expert |
+| `Prior Art Check/SKILL.md` | Check one idea against existing work and return one label, prior work found, partial, or none found within stated bounds, with the nearest work cited, a facet-by-facet comparison, and exactly what was searched | Research Expert |
 
 ### SEO
 

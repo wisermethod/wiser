@@ -1,6 +1,6 @@
 ---
 standard: conventions
-version: 0.3.2
+version: 0.4.2
 description: The cross-cutting conventions every file and agent in a Wiser workspace follows: formatting, dates, portable names, working files, root layout, archives, sourcing, and evidence labels
 ---
 
@@ -104,3 +104,13 @@ An unlabeled figure asserts it was measured: taken from its source by the proces
 **Nothing rises unchecked.** No claim is marked `Verified` without the check having run, and no confirming source is named that the check did not return.
 
 **Labels travel.** Like the hedges above, a label moves with its figure between files and between periods; a figure carried forward without its label and its date becomes a measurement nobody took.
+
+**Prior-work labels.** A check of whether an idea already exists states one of these, with its bounds: what was searched, what was read, and what was left. They are not a fifth evidence label: they label one kind of claim, that an idea already exists or that none was found, and travel inside that claim, while the four labels above still label the figures and readings in it. Where a file says the standard's four labels and no others, it means the four above. The facets are the idea's purpose, its mechanism, its setting and audience, and how its success is judged, and a facet matches on substance rather than wording. A facet the read text does not show is neither a match nor a difference.
+
+| Label | Meaning |
+|-------|---------|
+| `Prior work: found` | a work the check read matches on each of purpose and mechanism the idea states, and differs on no facet the idea states. A setting or audience of the same kind, wider, the same or a part, counts as a match on that facet. The cited work is the earliest such work by its own date; where no read text states an own date, the first such work the check's package returned |
+| `Prior work: partial, differs in <the facet or facets>` | no work meets `Prior work: found`, and a work the check read matches on purpose or on mechanism and differs on at least one facet the idea states. The label names every facet that differs for the one work cited, the closest such work: the one that matches on more of purpose and mechanism, and among those the one that differs on the fewest facets the idea states |
+| `Prior work: none found in <the bounds>` | neither label above applies, and coverage was complete: every query sent was run, no cap dropped a query or a source type in scope, the counter-evidence the search requires is complete, no unread source stands, at least one work was read and scored, and every read work differs on each of purpose and mechanism the idea states |
+
+A check that could not complete its coverage, or that read no work at all, and read no matching work is `Not available: <reason>`, as above. Absence from a bounded search is not proof an idea is new, so `Prior work: none found` never travels without its bounds.
