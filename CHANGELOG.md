@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.13.3, October 13, 2026
+
+- A new skill, Bio Sketch, writes or brings up to date one sketch of one named person you want something from, ahead of a meeting, a pitch or another ask: who they are, whether their role is current, their standing, their dated public record, routes to reach them, and an assessment against what you want. Their role, standing and each route carry their own source and date, and what it could not find or refresh is listed as an open gap. Research Expert reviews the draft before the file is written. Your root, or another plugin, can add sections of its own through an extension file. It signs in to nothing, so a contacts database or a professional network behind a sign-in reaches it only as records you supply. (07cf920)
+- Research Expert sends research on one named person you want something from to Bio Sketch, unless you ask for another output, such as one fact or a sourced report. (07cf920, 9a26119)
+
 ## v2026.10.13.2, October 13, 2026
 
 - Classifier Trial now counts a skill the host opens through its own skill loader, which it used to record as nothing opened. A routing trial's verdict gains a line of its own for whether each case reached the primitive it should. A load counts only when it succeeded and came from the plugin under trial. (13fdef6, 1127e11, 923ba27, 0e41f96)
