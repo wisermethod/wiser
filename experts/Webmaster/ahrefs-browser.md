@@ -2,7 +2,7 @@
 
 The reports an audit takes from Ahrefs Site Explorer, how each is recorded, and what the person does. Navigation is described by what the page shows, not by fixed selectors: Ahrefs changes its interface, and an interactive snapshot before every action is the rule.
 
-**Version:** 0.1.0, 2026-10-12
+**Version:** 0.2.0, 2026-10-13
 
 ## Before anything
 
@@ -17,6 +17,7 @@ The reports an audit takes from Ahrefs Site Explorer, how each is recorded, and 
 |--------|----------------------|--------|
 | Overview | Domain Rating, referring domains, backlinks, organic keywords, organic traffic estimate | Each figure as displayed, abbreviated where the page abbreviates ("1.2K" stays "1.2K", labeled as displayed); the date on the page; that every figure is Ahrefs' own index |
 | Referring domains | The referring domain list with DR, links, first seen, for the site and, if the competitor set is confirmed and the plan entitles it, each competitor | Export where the vendor's export control is available and the plan permits; otherwise the visible table with its filters, sort, row limit and timestamp |
+| Backlinks | The links themselves, with "Group similar" on, and each link's route: straight to the site, or to another domain that redirects into it | Same; the routes on the rows read are counted by `tools/data/`, and a domain redirecting into the site is named with the links it carries in. A page of the list is not the population, so the split is stated for the rows read and never for the whole profile |
 | Anchors | The anchor text distribution | Same; the branded and exact-match shares are computed from the export by `tools/data/`, never by eye. A visible table supports a share or total only when the table shows the population and every row of it is read; otherwise the shares come from `dataforseo.backlinks.anchors` per `experts/Webmaster/seo-readings.md`, or the figure is `Not available: export plan restricted` |
 | Broken backlinks | Inbound links pointing at URLs that now error, grouped by target | Same; this feeds the fastest recoverable value item |
 | Organic keywords | What the site ranks for, with position, volume, and URL | Same; this is Ahrefs' estimate and is labeled so beside Search Console's own rows |
@@ -32,7 +33,7 @@ Every row taken from Ahrefs carries: the report, the target, the filters and sor
 
 ## Observed navigation
 
-Observed 2026-10-12 on a free-plan account, in the person's own browser through the host's extension. What that account's reports returned does not ship with this guide. If the page no longer matches a row, trust the page and record what it shows.
+Observed 2026-10-12, and the Backlinks row 2026-10-13, on a free-plan account, in the person's own browser through the host's extension. What that account's reports returned does not ship with this guide. If the page no longer matches a row, trust the page and record what it shows.
 
 | Step | What the page showed | Control used |
 |------|----------------------|--------------|
@@ -41,4 +42,5 @@ Observed 2026-10-12 on a free-plan account, in the person's own browser through 
 | Unverified target | "Domain not verified", with "Verify ownership" and "See pricing" | None; recorded `plan restricted` |
 | Overview | Title "Overview: <domain>/". Blocks "AI responses", "Backlink profile", "Search", "Traffic analytics". Filters "Monthly volume", "All locations", "Best links: Off", "Changes: Don't show" | Left navigation "Overview" |
 | Referring domains | Left navigation group "Backlink profile", link "Referring domains". Table header "`<count>` domains" with tabs "All", "New", "Lost"; filters "All", "Dofollow", "Nofollow", "UGC", "Best links: Off", "DR", "Domain traffic", "Links to target", a "Word or phrase" search, "Add filter", "Presets"; "Show history: Don't show"; sorted by "DR" descending; "`<page size>` results per page", `<page count>` pages. Some rows carry a "SPAM" tag | Left navigation "Referring domains" |
+| Backlinks | Observed 2026-10-13. Left navigation group "Backlink profile", link "Backlinks". Header "`<count>` groups of links" with "Group similar"; tabs "All", "New", "Lost"; sorted by traffic descending; `<page size>` per page. A row whose link reaches the site through a redirect shows the redirecting URL, then "301", then the site's URL | Left navigation "Backlinks" |
 | Export | Button "Export" above the table, beside "API". On the free plan it opens "Upgrade to unlock export: Export your data to CSV or Google Sheets for advanced analysis" | Opened, then closed with Escape; nothing downloaded |
