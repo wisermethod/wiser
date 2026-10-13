@@ -627,6 +627,10 @@ function historyUsd(model, work) {
   return found;
 }
 
+function isNoneCase(item) {
+  return item.none === true || item.expect === 'none';
+}
+
 /**
  * @param {unknown} spec
  * @param {string} tree
@@ -660,6 +664,14 @@ function validateSpec(spec, tree) {
         throw fail(`${where} rubric item has no id.`);
       }
     }
+    if (spec.kind === 'routing') {
+      if (typeof item.expect !== 'string' || !/^(?:none|skills\/[^/]+\/SKILL\.md|experts\/[^/]+\/EXPERT\.md)$/.test(item.expect)) {
+        throw fail(`${where} needs expect set to none, skills/<Name>/SKILL.md, or experts/<Name>/EXPERT.md.`);
+      }
+      if ((item.expect === 'none' && item.none !== true) || (item.none === true && item.expect !== 'none')) {
+        throw fail(`${where} must pair expect: none with none: true, and none: true with expect: none.`);
+      }
+    }
     if (item.none === true) {
       const ids = item.rubric.map((rub) => rub.id);
       if (typeof item.none_item !== 'string' || !ids.includes(item.none_item)) {
@@ -667,7 +679,7 @@ function validateSpec(spec, tree) {
       }
     }
   });
-  if (!spec.cases.some((item) => item.none === true)) {
+  if (!spec.cases.some((item) => spec.kind === 'routing' ? isNoneCase(item) : item.none === true)) {
     throw fail('spec needs at least one case with "none": true.');
   }
   if (!Number.isInteger(spec.repeats) || spec.repeats < 3) {
@@ -920,8 +932,9 @@ function typedCandidates(tree) {
  * of typed files. A paired result determines a call's load position.
  * @param {string} stdout
  * @param {{ rel: string }[]} candidates
+ * @param {{ plugin?: string }} options
  */
-function parseStream(stdout, candidates) {
+function parseStream(stdout, candidates, { plugin } = {}) {
   let result = null;
   let sessionId = null;
   const opened = [];
@@ -958,7 +971,11 @@ function parseStream(stdout, candidates) {
       if (event.type === 'assistant' && item.type === 'tool_use' && typeof item.id === 'string') {
         let primitive = null;
         if (item.name === 'Skill' && typeof item.input?.skill === 'string') {
-          primitive = skillPath(item.input.skill.replace(/^.*:/, ''));
+          const name = item.input.skill;
+          const colon = name.lastIndexOf(':');
+          const foreign = typeof plugin === 'string' && plugin.length > 0 && colon >= 0
+            && name.slice(0, colon).toLowerCase() !== plugin.toLowerCase();
+          primitive = foreign ? `skill:${name}` : skillPath(name.replace(/^.*:/, ''));
         } else if (item.name === 'Read' && typeof item.input?.file_path === 'string') {
           const match = /(?:^|\/)(skills\/[^/]+\/SKILL\.md|experts\/[^/]+\/EXPERT\.md)$/.exec(item.input.file_path);
           if (match) primitive = match[1];
@@ -972,7 +989,7 @@ function parseStream(stdout, candidates) {
         if (item.is_error === true) failed.push(primitive);
         else open(primitive);
       } else if (item.type === 'text' && typeof item.text === 'string') {
-        const match = /^Base directory for this skill:[ \t]*[^\r\n]*\/skills\/([^/\r\n]+)[ \t]*(?:\r?\n|$)/.exec(item.text);
+        const match = /^Base directory for this skill:[ \t]*[^\r\n]*\/skills\/([^/\r\n]+)\/?[ \t]*(?:\r?\n|$)/.exec(item.text);
         if (match) open(skillPath(match[1].trim()));
       }
     }
@@ -1305,6 +1322,11 @@ async function commandRun(spec, plan, flags, work, keyFile) {
     const watch = watchPresence(realGateway);
 
 
+    let plugin;
+    try {
+      const manifest = JSON.parse(readFileSync(join(tree, '.claude-plugin', 'plugin.json'), 'utf8'));
+      if (typeof manifest?.name === 'string' && manifest.name.length > 0) plugin = manifest.name;
+    } catch { /* an absent or unreadable manifest keeps recorded-stream matching */ }
     const candidates = typedCandidates(tree);
     const model = typeof spec.model === 'string' ? spec.model : '';
     const effort = typeof spec.effort === 'string' && spec.effort.length > 0 ? spec.effort : null;
@@ -1424,7 +1446,7 @@ async function commandRun(spec, plan, flags, work, keyFile) {
         const run = await runHost(argv, { cwd: root, env: childEnv(), deadlineS });
         if (interrupted) throw fail(`interrupted by ${interrupted} during ${id}; the host was stopped.`);
         const wall = Date.now() - started;
-        const parsedStream = parseStream(run.stdout, candidates);
+        const parsedStream = parseStream(run.stdout, candidates, { plugin });
         const result = parsedStream.result;
         const reasons = [];
         if (run.error) reasons.push(`spawn: ${run.error}`);
@@ -2140,13 +2162,13 @@ function writeReport(work) {
         const rows = ordered.filter((meta) => meta.arm === arm && meta.case === item.id);
         reached[arm][item.id] = rows.filter((meta) => meta.reached === true).length;
         reachedFirst[arm][item.id] = rows.filter((meta) => (
-          item.none === true || item.expect === 'none'
+          isNoneCase(item)
             ? Array.isArray(meta.opened) && meta.opened.length === 0
             : meta.first_opened === item.expect
         )).length;
       }
       const cRuns = ordered.filter((meta) => meta.arm === 'C' && meta.case === item.id);
-      if (item.none === true || item.expect === 'none') {
+      if (isNoneCase(item)) {
         cases[item.id] = {
           kind: 'none',
           c_opened: cRuns.map((meta) => meta.opened ?? null),
@@ -2184,7 +2206,7 @@ function writeReport(work) {
   let lineBPass = true;
   const routing = spec.kind === 'routing';
   for (const item of spec.cases || []) {
-    if (item.none !== true) continue;
+    if (!(routing ? isNoneCase(item) : item.none === true)) continue;
     const cRuns = ordered.filter((meta) => meta.arm === 'C' && meta.case === item.id);
     if (routing) {
       const answers = cRuns.map((meta) => (typeof meta.route_answer === 'string' ? meta.route_answer : null));
@@ -2201,7 +2223,7 @@ function writeReport(work) {
     if (!pass) lineBPass = false;
     lineBCases.push({ id: item.id, none_item: item.none_item, scores, pass });
   }
-  if (!(spec.cases || []).some((item) => item.none === true)) lineBPass = false;
+  if (!(spec.cases || []).some((item) => routing ? isNoneCase(item) : item.none === true)) lineBPass = false;
   const lineB = {
     pass: lineBPass,
     cases: lineBCases,
@@ -2248,11 +2270,13 @@ function writeReport(work) {
       const ePerRepeat = perRepeatMedians(eRuns, pick);
       const cMedian = medianOf(cPerRepeat);
       const eMedian = medianOf(ePerRepeat);
+      const missing = [...cRuns, ...eRuns].filter((meta) => !Number.isFinite(pick(meta))).map((meta) => meta.id);
       return {
         c_median: cMedian,
         e_median: eMedian,
         ratio: cMedian != null && eMedian != null ? cMedian / eMedian : null,
-        pass: cMedian != null && eMedian != null && cMedian <= 1.25 * eMedian + 1e-12,
+        missing,
+        pass: missing.length === 0 && cMedian != null && eMedian != null && cMedian <= 1.25 * eMedian + 1e-12,
       };
     }
     const pooled = scope(cRows, eRows);
@@ -2271,7 +2295,7 @@ function writeReport(work) {
       offenders.push(...caseOffenders);
       fallbackCases[item.id] = {
         e_case_median: eCaseMedian,
-        pass: eCaseMedian != null && cRuns.some((meta) => Number.isFinite(pick(meta))) && caseOffenders.length === 0,
+        pass: cases[item.id].missing.length === 0 && eCaseMedian != null && cRuns.some((meta) => Number.isFinite(pick(meta))) && caseOffenders.length === 0,
       };
     }
     const fallback = { pass: Object.values(fallbackCases).every((item) => item.pass), cases: fallbackCases, offenders };
@@ -2281,6 +2305,7 @@ function writeReport(work) {
       e_median: pooled.e_median,
       e_range: ePer.length ? [Math.min(...ePer), Math.max(...ePer)] : [null, null],
       c_range: cPer.length ? [Math.min(...cPer), Math.max(...cPer)] : [null, null],
+      missing: ordered.filter((meta) => !Number.isFinite(pick(meta))).map((meta) => meta.id),
       rule: 'bound',
       bound: 1.25,
       fallback_factor: 2,

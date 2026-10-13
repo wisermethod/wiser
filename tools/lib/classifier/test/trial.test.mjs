@@ -83,6 +83,8 @@ function classifierAt(dir) {
 }
 
 function syntheticTree(dir) {
+  mkdirSync(join(dir, '.claude-plugin'), { recursive: true });
+  writeFileSync(join(dir, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'wiser' }));
   mkdirSync(join(dir, 'gateway'), { recursive: true });
   cpSync(stubPath, join(dir, 'gateway', 'server.js'));
   mkdirSync(join(dir, 'skills', 'Alpha'), { recursive: true });
@@ -189,13 +191,21 @@ const parseFixtures = [
   { id: '16', name: 'result positions determine load order', events: [callEvent('s1', 'Skill', { skill: 'Alpha' }), callEvent('r1', 'Read', { file_path: `/fixture/tree/${betaPath}` }), resultEvent('r1', betaText), resultEvent('s1', 'Launching skill: Alpha')], opened: [betaPath, alphaPath] },
   { id: '17', name: 'failed results deduplicate calls and preserve retry order', events: [skillCall, resultEvent('s1', gammaText, true), skillCall, resultEvent('s1', gammaText, true), readCall, resultEvent('r1', alphaText, true), callEvent('s2', 'Skill', { skill: 'wiser:Gamma-Delta' }), resultEvent('s2', 'Unavailable', true)], opened: [], failed: [gammaPath, alphaPath, gammaPath] },
   { id: '18', name: 'unmatched base directory', events: [baseEvent('Unknown Thing')], opened: ['skill:Unknown Thing'] },
+  { id: '19', name: 'foreign Skill namespace', events: [callEvent('s1', 'Skill', { skill: 'other:Gamma-Delta' }), skillResult], options: { plugin: 'wiser' }, opened: ['skill:other:Gamma-Delta'] },
+  { id: '20', name: 'tree Skill namespace', events: [skillCall, skillResult], options: { plugin: 'wiser' }, opened: [gammaPath] },
+  { id: '21', name: 'bare Skill with tree plugin', events: [callEvent('s1', 'Skill', { skill: 'Gamma-Delta' }), skillResult], options: { plugin: 'wiser' }, opened: [gammaPath] },
+  { id: '22', name: 'foreign Skill without plugin keeps legacy matching', events: [callEvent('s1', 'Skill', { skill: 'other:Gamma-Delta' }), skillResult], opened: [gammaPath] },
+  { id: '23', name: 'tree namespace comparison ignores case', events: [callEvent('s1', 'Skill', { skill: 'WiSeR:Gamma-Delta' }), skillResult], options: { plugin: 'wiser' }, opened: [gammaPath] },
+  { id: '24', name: 'trailing-slash base directory string', events: [baseEvent('Gamma Delta/')], opened: [gammaPath] },
+  { id: '25', name: 'trailing-slash base directory text item', events: [baseEvent('Gamma Delta/', true)], opened: [gammaPath] },
+  { id: '26', name: 'Skill then Read of the same primitive opens once', events: [skillCall, skillResult, callEvent('r1', 'Read', { file_path: `/fixture/tree/${gammaPath}` }), resultEvent('r1', gammaText)], options: { plugin: 'wiser' }, opened: [gammaPath] },
 ];
 
 function parseFixture(fixture) {
   const dir = mkdtempSync(join(tmpdir(), 'wiser-trial-parse-'));
   try {
     const tree = syntheticTree(join(dir, 'tree'));
-    return parseStream(fixture.events.map((event) => JSON.stringify(event)).join('\n'), typedCandidates(tree));
+    return parseStream(fixture.events.map((event) => JSON.stringify(event)).join('\n'), typedCandidates(tree), fixture.options);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -318,6 +328,47 @@ test('plan refuses each invalid spec and a work path inside the plugin or the ke
   assert.equal(insideKey.stdout, '');
   assert.match(insideKey.stderr, /inside/);
   assert.equal(secretHits(box.work).length, 0);
+});
+
+for (const [name, change] of [
+  ['fixture 18 mismatched none flag', (item) => { item.expect = 'none'; item.none = false; }],
+  ['missing expect', (item) => { delete item.expect; }],
+  ['invalid expect path', (item) => { item.expect = 'experts/Alpha/SKILL.md'; }],
+  ['none flag with positive expect', (item) => { item.none = true; item.none_item = 'S1'; }],
+  ['none expect without none flag', (item) => { item.expect = 'none'; delete item.none; }],
+]) {
+  test(`plan refuses routing case with ${name} by name`, () => {
+    const box = world();
+    try {
+      const spec = validSpec(syntheticTree(join(box.parent, 'tree')), classifierAt(join(box.parent, 'classifier')));
+      change(spec.cases[0]);
+      writeSpec(box.work, spec);
+      const run = runCli(['plan', '--work', box.work], box.home);
+      assert.equal(run.status, 1, run.stderr);
+      assert.equal(run.stdout, '');
+      assert.match(run.stderr, /case read/);
+      assert.match(run.stderr, /expect/);
+      assert.equal(existsSync(join(box.work, 'plan.json')), false);
+    } finally {
+      rmSync(box.home, { recursive: true, force: true });
+      rmSync(box.parent, { recursive: true, force: true });
+    }
+  });
+}
+
+test('plan still accepts a seam case without expect', () => {
+  const box = world();
+  try {
+    const spec = validSpec(syntheticTree(join(box.parent, 'tree')), classifierAt(join(box.parent, 'classifier')), {
+      kind: 'seam', seam_action: 'wiser.decide.batch',
+    });
+    for (const item of spec.cases) delete item.expect;
+    writeSpec(box.work, spec);
+    assert.equal(jsonOut(runCli(['plan', '--work', box.work], box.home)).host_runs, 18);
+  } finally {
+    rmSync(box.home, { recursive: true, force: true });
+    rmSync(box.parent, { recursive: true, force: true });
+  }
 });
 
 test('plan figures, history, and needs_go', () => {
@@ -579,6 +630,28 @@ test('the arm switch, seeded order, opened files, and blind packets', async (t) 
   assert.equal(secretHits(run.temp_dir).length, 0);
   assert.equal(secretHits(captureDir).length, 0);
   rmSync(run.temp_dir, { recursive: true, force: true });
+});
+
+test('run passes the tree plugin name to Skill parsing', () => {
+  const box = world();
+  try {
+    const tree = syntheticTree(join(box.parent, 'tree'));
+    writeFileSync(join(tree, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'other' }));
+    const spec = validSpec(tree, classifierAt(join(box.parent, 'classifier')));
+    spec.cases = [spec.cases[2], { id: 'skill', ask: ASK_SKILL, expect: gammaPath, rubric: [{ id: 'S1', text: 'The note is written.' }], none: false }];
+    writeSpec(box.work, spec);
+    const plan = jsonOut(runCli(['plan', '--work', box.work], box.home));
+    jsonOut(runCli(['run', '--work', box.work], box.home, { WISER_TRIAL_HOST: hostPath }));
+    for (const id of plan.order.filter((id) => id.startsWith('skill-C-'))) {
+      const meta = JSON.parse(readFileSync(join(box.work, 'runs', id, 'meta.json'), 'utf8'));
+      // The foreign call retains its namespace; the later base message still matches by path.
+      assert.deepEqual(meta.opened, ['skill:wiser:Gamma-Delta', gammaPath]);
+      assert.equal(meta.first_opened, 'skill:wiser:Gamma-Delta');
+    }
+  } finally {
+    rmSync(box.home, { recursive: true, force: true });
+    rmSync(box.parent, { recursive: true, force: true });
+  }
 });
 
 test('a non-needs_connect lock proof stops before any host run', () => {
@@ -1192,11 +1265,36 @@ for (const arm of ['C', 'E']) {
       });
       for (const metric of ['d', 'e']) {
         const line = verdict.lines[metric];
-        assert.equal(line.pooled.pass, !whole);
+        assert.equal(line.pooled.pass, false);
         assert.equal(line.cases.c1.pass, false);
         assert.equal(line.fallback.cases.c1.pass, false);
         assert.equal(line.pass, false);
       }
+    });
+  }
+}
+
+for (const metric of ['d', 'e']) {
+  for (const arm of ['C', 'E']) {
+    test(`report single missing ${metric} measurement in ${arm} fails every affected bound`, () => {
+      const id = `c1-${arm}-1`;
+      const verdict = reportFixture((_spec, metas) => {
+        setMetric(metas, metric, 1);
+        metas.find((meta) => meta.id === id)[metric === 'd' ? 'wall_ms' : 'usd'] = null;
+      });
+      const line = verdict.lines[metric];
+      assert.deepEqual(line.missing, [id]);
+      assert.deepEqual(line.pooled.missing, [id]);
+      assert.deepEqual(line.cases.c1.missing, [id]);
+      assert.equal(line.pooled.pass, false);
+      assert.equal(line.cases.c1.pass, false);
+      assert.equal(line.fallback.cases.c1.pass, false);
+      assert.equal(line.fallback.pass, false);
+      assert.equal(line.cases.n1.pass, true);
+      assert.equal(line.fallback.cases.n1.pass, true);
+      assert.equal(line.pass, false);
+      assert.equal(verdict.seam_passes, false);
+      assert.equal(verdict.lines[metric === 'd' ? 'e' : 'd'].pass, true);
     });
   }
 }
@@ -1209,6 +1307,25 @@ test('report fixture 18: expect none alone is a none reach case', () => {
   assert.equal(verdict.lines.f.cases.c1.kind, 'none');
   assert.equal(verdict.lines.f.pass, true);
   assert.equal(verdict.reached_first.C.c1, 3);
+  assert.equal(verdict.lines.b.pass, false);
+  assert.equal(verdict.lines.b.cases.find((item) => item.id === 'c1').pass, false);
+  assert.equal(verdict.seam_passes, false);
+});
+
+test('report expect none alone satisfies the at least one none case check', () => {
+  const verdict = reportFixture((spec, metas) => {
+    spec.cases = [spec.cases[1]];
+    spec.cases[0].expect = 'none';
+    metas.splice(0, metas.length, ...metas.filter((meta) => meta.case === 'c1'));
+    for (const meta of metas) {
+      setFirst(meta, null);
+      meta.route_answer = 'none';
+    }
+  });
+  assert.equal(verdict.lines.b.pass, true);
+  assert.deepEqual(verdict.lines.b.cases, [{ id: 'c1', classifier_answers: ['none', 'none', 'none'], pass: true }]);
+  assert.equal(verdict.lines.f.pass, true);
+  assert.equal(verdict.seam_passes, true);
 });
 
 test('report fixture 19: no cases cannot pass reach', () => {
