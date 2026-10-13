@@ -653,10 +653,13 @@ function validateSpec(spec, tree) {
   if (!Array.isArray(spec.cases) || spec.cases.length === 0) {
     throw fail('spec has no cases. Add at least one case with id, ask, and rubric.');
   }
+  const caseIds = new Set();
   spec.cases.forEach((item, index) => {
     const where = item && typeof item.id === 'string' && item.id ? `case ${item.id}` : `case ${index + 1}`;
     if (!item || typeof item !== 'object' || Array.isArray(item)) throw fail(`${where} is not an object.`);
     if (typeof item.id !== 'string' || item.id.length === 0) throw fail(`${where} has no id.`);
+    if (caseIds.has(item.id)) throw fail(`duplicate case id ${item.id}.`);
+    caseIds.add(item.id);
     if (typeof item.ask !== 'string' || item.ask.length === 0) throw fail(`${where} has no ask.`);
     if (!Array.isArray(item.rubric) || item.rubric.length === 0) throw fail(`${where} has no rubric.`);
     for (const rub of item.rubric) {
@@ -932,9 +935,9 @@ function typedCandidates(tree) {
  * of typed files. A paired result determines a call's load position.
  * @param {string} stdout
  * @param {{ rel: string }[]} candidates
- * @param {{ plugin?: string }} options
+ * @param {{ plugin?: string, root?: string }} options
  */
-function parseStream(stdout, candidates, { plugin } = {}) {
+function parseStream(stdout, candidates, { plugin, root } = {}) {
   let result = null;
   let sessionId = null;
   const opened = [];
@@ -943,11 +946,24 @@ function parseStream(stdout, candidates, { plugin } = {}) {
   const calls = new Map();
   const completed = new Set();
   const skillNames = new Map();
+  const exactSkillNames = new Map();
   for (const candidate of candidates) {
     const match = /^skills\/([^/]+)\/SKILL\.md$/.exec(candidate.rel);
-    if (match) skillNames.set(match[1].replaceAll(' ', '-').toLowerCase(), candidate.rel);
+    if (match) {
+      exactSkillNames.set(match[1].toLowerCase(), candidate.rel);
+      const key = match[1].replaceAll(' ', '-').toLowerCase();
+      skillNames.set(key, skillNames.has(key) ? null : candidate.rel);
+    }
   }
   const skillPath = (name) => skillNames.get(name.replaceAll(' ', '-').toLowerCase()) || `skill:${name}`;
+  const baseSkillPath = (name) => exactSkillNames.get(name.toLowerCase()) || skillPath(name);
+  const pathString = (path) => path.replace(/\/$/, '').replace(/^\/private\/(?=(?:var|tmp)\/)/, '/');
+  const roots = new Set();
+  if (typeof root === 'string' && root.length > 0) {
+    roots.add(pathString(root));
+    try { roots.add(pathString(realpathSync(root))); } catch { /* a recorded root may be gone */ }
+  }
+  const fromTree = (path, rel) => [...roots].some((base) => pathString(path) === `${base}/${rel}`);
   const open = (primitive) => {
     if (seen.has(primitive)) return;
     seen.add(primitive);
@@ -978,7 +994,8 @@ function parseStream(stdout, candidates, { plugin } = {}) {
           primitive = foreign ? `skill:${name}` : skillPath(name.replace(/^.*:/, ''));
         } else if (item.name === 'Read' && typeof item.input?.file_path === 'string') {
           const match = /(?:^|\/)(skills\/[^/]+\/SKILL\.md|experts\/[^/]+\/EXPERT\.md)$/.exec(item.input.file_path);
-          if (match) primitive = match[1];
+          if (match) primitive = roots.size === 0 || fromTree(item.input.file_path, match[1])
+            ? match[1] : `read:${item.input.file_path}`;
         }
         if (primitive && !calls.has(item.id)) calls.set(item.id, primitive);
       }
@@ -989,8 +1006,13 @@ function parseStream(stdout, candidates, { plugin } = {}) {
         if (item.is_error === true) failed.push(primitive);
         else open(primitive);
       } else if (item.type === 'text' && typeof item.text === 'string') {
-        const match = /^Base directory for this skill:[ \t]*[^\r\n]*\/skills\/([^/\r\n]+)\/?[ \t]*(?:\r?\n|$)/.exec(item.text);
-        if (match) open(skillPath(match[1].trim()));
+        const match = /^Base directory for this skill:[ \t]*([^\r\n]*\/skills\/([^/\r\n]+)\/?)[ \t]*(?:\r?\n|$)/.exec(item.text);
+        if (match) {
+          const path = match[1].trim();
+          const name = match[2].trim();
+          open(roots.size === 0 || fromTree(path, `skills/${name}`)
+            ? baseSkillPath(name) : `skill:${path}`);
+        }
       }
     }
   }
@@ -1446,7 +1468,7 @@ async function commandRun(spec, plan, flags, work, keyFile) {
         const run = await runHost(argv, { cwd: root, env: childEnv(), deadlineS });
         if (interrupted) throw fail(`interrupted by ${interrupted} during ${id}; the host was stopped.`);
         const wall = Date.now() - started;
-        const parsedStream = parseStream(run.stdout, candidates, { plugin });
+        const parsedStream = parseStream(run.stdout, candidates, { plugin, root: tree });
         const result = parsedStream.result;
         const reasons = [];
         if (run.error) reasons.push(`spawn: ${run.error}`);
@@ -1455,8 +1477,9 @@ async function commandRun(spec, plan, flags, work, keyFile) {
         else if (result.subtype !== 'success') reasons.push(`subtype ${result.subtype == null ? 'missing' : result.subtype}`);
         let valid = reasons.length === 0;
         let usd = 0;
+        const usdMeasured = typeof result?.total_cost_usd === 'number' && Number.isFinite(result.total_cost_usd);
         if (!result) usd = p90;
-        else if (typeof result.total_cost_usd === 'number' && Number.isFinite(result.total_cost_usd)) usd = result.total_cost_usd;
+        else if (usdMeasured) usd = result.total_cost_usd;
         const audit = auditLines(trialHome);
         const firstParty = audit
           .filter((line) => typeof line.action === 'string' && line.action.startsWith('wiser.'))
@@ -1503,6 +1526,7 @@ async function commandRun(spec, plan, flags, work, keyFile) {
           valid,
           invalid_reasons: reasons,
           usd,
+          usd_measured: usdMeasured,
           wall_ms: wall,
           turns: result && Number.isFinite(result.num_turns) ? result.num_turns : null,
           opened,
@@ -2245,6 +2269,7 @@ function writeReport(work) {
   }
   const lineC = { pass: lineCPass && (spec.cases || []).length > 0, cases: lineCCases };
   const costOf = (meta) => {
+    if (meta.usd_measured === false) return null;
     if (typeof meta.usd !== 'number' || !Number.isFinite(meta.usd)) return null;
     const calls = Number.isFinite(meta.classifier_calls) ? meta.classifier_calls : 0;
     return meta.usd + calls * rate;

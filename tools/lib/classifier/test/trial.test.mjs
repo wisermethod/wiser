@@ -1,6 +1,6 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
@@ -238,6 +238,77 @@ test('parseStream retains result, session and route while skipping malformed lin
   assert.deepEqual(parsed.opened, [alphaPath]);
 });
 
+const parseEvents = (events, candidates, options) => parseStream(
+  events.map((event) => JSON.stringify(event)).join('\n'), candidates.map((rel) => ({ rel })), options,
+);
+const readEvents = (path, failed = false) => [callEvent('r1', 'Read', { file_path: path }), resultEvent('r1', 'Loaded.', failed)];
+const directoryEvent = (path) => ({ type: 'user', message: { content: `Base directory for this skill: ${path}\n` } });
+
+for (const [name, events, root, opened, failed = []] of [
+  ['tree Read', readEvents(`/trial/tree/${alphaPath}`), '/trial/tree', [alphaPath]],
+  ['foreign Read', readEvents(`/trial/root/sources/other/${alphaPath}`), '/trial/tree', [`read:/trial/root/sources/other/${alphaPath}`]],
+  ['tree expert Read', readEvents(`/trial/tree/${betaPath}`), '/trial/tree', [betaPath]],
+  ['foreign expert Read', readEvents(`/elsewhere/${betaPath}`), '/trial/tree', [`read:/elsewhere/${betaPath}`]],
+  ['failed tree Read', readEvents(`/trial/tree/${alphaPath}`, true), '/trial/tree', [], [alphaPath]],
+  ['failed foreign Read', readEvents(`/elsewhere/${alphaPath}`, true), '/trial/tree', [], [`read:/elsewhere/${alphaPath}`]],
+  ['tree base directory with trailing slash', [directoryEvent('/trial/tree/skills/Alpha/')], '/trial/tree', [alphaPath]],
+  ['foreign base directory', [directoryEvent('/elsewhere/skills/Alpha')], '/trial/tree', ['skill:/elsewhere/skills/Alpha']],
+  ['root with trailing slash', readEvents(`/trial/tree/${alphaPath}`), '/trial/tree/', [alphaPath]],
+  ['legacy foreign Read without root', readEvents(`/trial/root/sources/other/${alphaPath}`), undefined, [alphaPath]],
+  ['legacy foreign Read with empty root', readEvents(`/elsewhere/${alphaPath}`), '', [alphaPath]],
+  ...['var', 'tmp'].flatMap((dir) => [
+    [`private ${dir} Read`, readEvents(`/private/${dir}/x/${alphaPath}`), `/${dir}/x`, [alphaPath]],
+    [`private ${dir} root`, readEvents(`/${dir}/x/${alphaPath}`), `/private/${dir}/x`, [alphaPath]],
+    [`private ${dir} base directory`, [directoryEvent(`/private/${dir}/x/skills/Alpha/`)], `/${dir}/x`, [alphaPath]],
+  ]),
+]) {
+  test(`R2 parse provenance: ${name}`, () => {
+    const parsed = parseEvents(events, [alphaPath, betaPath], { root });
+    assert.deepEqual(parsed.opened, opened);
+    assert.deepEqual(parsed.failed, failed);
+  });
+}
+
+test('R2 parse provenance: realpath root and root as given', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'wiser-trial-alias-'));
+  try {
+    const tree = join(dir, 'tree');
+    mkdirSync(tree);
+    const alias = join(dir, 'alias');
+    symlinkSync(tree, alias);
+    for (const path of [alias, realpathSync(tree)]) {
+      assert.deepEqual(parseEvents(readEvents(`${path}/${alphaPath}`), [alphaPath], { root: alias }).opened, [alphaPath]);
+      assert.deepEqual(parseEvents([directoryEvent(`${path}/skills/Alpha/`)], [alphaPath], { root: alias }).opened, [alphaPath]);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+for (const name of ['Alpha Beta', 'Alpha-Beta']) {
+  test(`R2 exact base directory: ${name}`, () => {
+    const candidates = ['skills/Alpha Beta/SKILL.md', 'skills/Alpha-Beta/SKILL.md'];
+    for (const printed of [name, name.toLowerCase()]) {
+      assert.deepEqual(parseEvents([directoryEvent(`/trial/tree/skills/${printed}`)], candidates).opened, [`skills/${name}/SKILL.md`]);
+    }
+  });
+}
+
+test('R2 colliding Skill name is not guessed', () => {
+  const candidates = ['skills/Alpha Beta/SKILL.md', 'skills/Alpha-Beta/SKILL.md'];
+  const events = [callEvent('s1', 'Skill', { skill: 'wiser:Alpha-Beta' }), resultEvent('s1', 'Launching skill.')];
+  assert.deepEqual(parseEvents(events, candidates, { plugin: 'wiser' }).opened, ['skill:Alpha-Beta']);
+  assert.deepEqual(parseEvents([events[0], resultEvent('s1', 'Unavailable.', true)], candidates, { plugin: 'wiser' }).failed, ['skill:Alpha-Beta']);
+});
+
+test('R2 unambiguous Skill and base directory keep normalized matching', () => {
+  for (const name of ['Gamma Delta', 'Gamma-Delta', 'gAmMa-dElTa']) {
+    const events = [callEvent('s1', 'Skill', { skill: `wiser:${name}` }), resultEvent('s1', 'Launching skill.')];
+    assert.deepEqual(parseEvents(events, [gammaPath], { plugin: 'wiser' }).opened, [gammaPath]);
+    assert.deepEqual(parseEvents([directoryEvent(`/trial/tree/skills/${name}`)], [gammaPath]).opened, [gammaPath]);
+  }
+});
+
 test('the cost table is the brief', () => {
   assert.deepEqual(COST_TABLE, {
     host: {
@@ -348,6 +419,28 @@ for (const [name, change] of [
       assert.equal(run.stdout, '');
       assert.match(run.stderr, /case read/);
       assert.match(run.stderr, /expect/);
+      assert.equal(existsSync(join(box.work, 'plan.json')), false);
+    } finally {
+      rmSync(box.home, { recursive: true, force: true });
+      rmSync(box.parent, { recursive: true, force: true });
+    }
+  });
+}
+
+for (const kind of ['routing', 'seam']) {
+  test(`R2 plan rejects duplicate case id p in ${kind}`, () => {
+    const box = world();
+    try {
+      const spec = validSpec(syntheticTree(join(box.parent, 'tree')), classifierAt(join(box.parent, 'classifier')), {
+        kind, seam_action: 'wiser.decide.batch',
+      });
+      spec.cases[0].id = 'p';
+      spec.cases[1].id = 'p';
+      writeSpec(box.work, spec);
+      const run = runCli(['plan', '--work', box.work], box.home);
+      assert.equal(run.status, 1, run.stderr);
+      assert.equal(run.stdout, '');
+      assert.match(run.stderr, /duplicate case id p/);
       assert.equal(existsSync(join(box.work, 'plan.json')), false);
     } finally {
       rmSync(box.home, { recursive: true, force: true });
@@ -630,6 +723,56 @@ test('the arm switch, seeded order, opened files, and blind packets', async (t) 
   assert.equal(secretHits(run.temp_dir).length, 0);
   assert.equal(secretHits(captureDir).length, 0);
   rmSync(run.temp_dir, { recursive: true, force: true });
+});
+
+test('R2 missing host cost is recorded and fails the routing cost bound', () => {
+  const box = world();
+  try {
+    const tree = syntheticTree(join(box.parent, 'tree'));
+    const spec = validSpec(tree, classifierAt(join(box.parent, 'classifier')));
+    spec.cases[0].ask += ' OMIT_WITH_COST';
+    const tablePath = join(tree, 'trial-open.json');
+    const table = JSON.parse(readFileSync(tablePath, 'utf8'));
+    table[spec.cases[0].ask] = table[ASK_READ];
+    writeFileSync(tablePath, JSON.stringify(table));
+    writeSpec(box.work, spec);
+    // Generate a marked fixture beside this trial; the shipped fake host stays unchanged.
+    const fakeHost = join(box.parent, 'host.mjs');
+    const source = readFileSync(hostPath, 'utf8')
+      .replace("'../../../../../../gateway/src/paths.js'", JSON.stringify(pathToFileURL(join(pluginRoot, 'gateway', 'src', 'paths.js')).href))
+      .replace("events.push({\n  type: 'result',", `if (link && prompt.includes('OMIT_WITH_COST')) events.push(
+        ${JSON.stringify(callEvent('foreign-r1', 'Read', { file_path: `/elsewhere/${alphaPath}` }))},
+        ${JSON.stringify(resultEvent('foreign-r1', 'Loaded.'))},
+      );\nevents.push({\n  type: 'result',`)
+      .replace('for (const event of events) process.stdout.write', "if (link && prompt.includes('OMIT_WITH_COST')) delete events.at(-1).total_cost_usd;\nfor (const event of events) process.stdout.write");
+    writeFileSync(fakeHost, source, { mode: 0o755 });
+    const plan = jsonOut(runCli(['plan', '--work', box.work], box.home));
+    jsonOut(runCli(['run', '--work', box.work], box.home, { WISER_TRIAL_HOST: fakeHost }));
+    const missing = plan.order.filter((id) => /^read-C-/.test(id));
+    for (const id of plan.order) {
+      const meta = JSON.parse(readFileSync(join(box.work, 'runs', id, 'meta.json'), 'utf8'));
+      assert.equal(meta.usd_measured, !missing.includes(id), id);
+      assert.equal(meta.usd, missing.includes(id) ? 0 : 0.2, id);
+      if (missing.includes(id)) {
+        assert.deepEqual(meta.opened, [alphaPath, `read:/elsewhere/${alphaPath}`]);
+        assert.equal(meta.reached, true);
+      }
+    }
+    jsonOut(runCli(['blind', '--work', box.work], box.home));
+    jsonOut(runCli(['score', '--work', box.work], box.home, { WISER_TRIAL_HOST: fakeHost }));
+    const line = jsonOut(runCli(['report', '--work', box.work], box.home)).lines.e;
+    assert.equal(line.pass, false);
+    assert.deepEqual(line.missing, missing);
+    assert.deepEqual(line.pooled.missing, missing);
+    assert.deepEqual(line.cases.read.missing, missing);
+    assert.equal(line.pooled.pass, false);
+    assert.equal(line.cases.read.pass, false);
+    assert.equal(line.fallback.cases.read.pass, false);
+    assert.equal(line.cases.none.pass, true);
+  } finally {
+    rmSync(box.home, { recursive: true, force: true });
+    rmSync(box.parent, { recursive: true, force: true });
+  }
 });
 
 test('run passes the tree plugin name to Skill parsing', () => {
@@ -1068,6 +1211,17 @@ function setFirst(meta, path) {
   meta.opened = path === null ? [] : [path];
 }
 
+test('R2 recorded host cost without usd_measured remains measured', () => {
+  const verdict = reportFixture((_spec, metas) => {
+    setMetric(metas, 'e', 1);
+    for (const meta of metas) delete meta.usd_measured;
+  });
+  assert.equal(verdict.lines.e.pass, true);
+  assert.deepEqual(verdict.lines.e.missing, []);
+  assert.equal(verdict.lines.e.c_median, 1);
+  assert.equal(verdict.lines.e.e_median, 1);
+});
+
 function positiveReach(c, e, mutate = () => {}) {
   return reportFixture((spec, metas) => {
     for (const meta of metas.filter((row) => row.case === 'c1')) {
@@ -1222,6 +1376,20 @@ for (const [id, factor, pass] of [['15a', 1, false], ['15b', 0.5, true]]) {
     assert.equal(verdict.lines.d.pass, pass);
     assert.equal(verdict.lines.d.c_median, factor);
     assert.equal(verdict.lines.d.e_low, 1);
+    assert.equal(verdict.seam_passes, pass);
+  });
+}
+
+for (const [id, factor, pass] of [['15a', 1, false], ['15b', 0.5, true]]) {
+  test(`R2 report fixture ${id}: a tool seam uses the cost range test at ${factor} times`, () => {
+    const verdict = reportFixture((spec, metas) => {
+      toolSeam(spec, metas);
+      setMetric(metas, 'e', factor);
+    });
+    assert.equal(verdict.lines.e.rule, 'range');
+    assert.equal(verdict.lines.e.pass, pass);
+    assert.equal(verdict.lines.e.c_median, factor);
+    assert.equal(verdict.lines.e.e_low, 1);
     assert.equal(verdict.seam_passes, pass);
   });
 }
