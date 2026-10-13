@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.13.2, October 13, 2026
+
+- Classifier Trial now counts a skill the host opens through its own skill loader, which it used to record as nothing opened. A routing trial's verdict gains a line of its own for whether each case reached the primitive it should. A load counts only when it succeeded and came from the plugin under trial. (13fdef6, 1127e11, 923ba27, 0e41f96)
+- For people adding a classifier seam: a routing seam's time and cost no longer have to beat the fastest repeat without the classifier. They pass when they are at most a quarter above the median without it, over all cases and in each case, and no run takes more than twice its case's median without it. A run with no measured time or cost fails. Every other seam keeps the old test. (2313af6, 923ba27, 0e41f96)
+
 ## v2026.10.13, October 13, 2026
 
 - A new skill, Generate Ideas, gives you ideas on a topic as cards: research hypotheses, business, product or strategy ideas, content angles, or general ideas. It first asks whether you want a deep run or a general one. A deep run maps the topic's field and the fields around it, stops once so you can keep, add or remove those neighbouring fields, generates ideas several ways, and checks up to ten of them against published work, each card saying what the check found and how far it looked. A general run takes one quick look at the topic and gives ideas without checking them, and says so on every card. Either way the ideas come as a first sort for you to finish, and no idea is called new except through what a check found. (2892328)
