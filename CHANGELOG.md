@@ -4,6 +4,13 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.13, October 13, 2026
+
+- A new skill, Generate Ideas, gives you ideas on a topic as cards: research hypotheses, business, product or strategy ideas, content angles, or general ideas. It first asks whether you want a deep run or a general one. A deep run maps the topic's field and the fields around it, stops once so you can keep, add or remove those neighbouring fields, generates ideas several ways, and checks up to ten of them against published work, each card saying what the check found and how far it looked. A general run takes one quick look at the topic and gives ideas without checking them, and says so on every card. Either way the ideas come as a first sort for you to finish, and no idea is called new except through what a check found. (2892328)
+- A new skill, Prior Art Check, answers "has anyone already done this?" for one idea of yours. It searches for existing work, compares the nearest work it can read on what the idea is for, how it works, where and for whom, and how success is judged, and gives one answer: prior work found, partial overlap naming what differs, or none found within the bounds it states, with the work cited and exactly what was searched and left unread. It does not search patents, and finds academic work through web search's paper results only; every result says both. (2892328)
+- Research Expert reviews idea cards and prior-art results, sends back a claim that an idea already exists, or does not, when it comes without the bounds of the search behind it, and sends you to Generate Ideas for ideas on a topic and to Prior Art Check to find out whether an idea of yours has been done. (2892328)
+- External Research no longer leaves a source unread because it came back from a different form of the same address, such as a paper served from the site's numeric address; a source counts as redirected only when the page read is a different page from the one asked for. (2892328)
+
 ## v2026.10.12.9, October 12, 2026
 
 - Playbook Author plans a live run that has to clean up after itself so the cleanup is tried once early, on something the run does not need, instead of first at the end. A deletion your host may refuse, such as a click through a browser extension, is planned as your own click, for that early try and at the end, even when your go is already on record. (8184ad2, 3775714, 2161f48)
