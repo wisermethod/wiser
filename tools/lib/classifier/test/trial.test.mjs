@@ -777,8 +777,8 @@ test('score parses a fenced block, retries once, and records unparsed', () => {
 
 function buildReport(dir, mutate) {
   const cases = [
-    { id: 'n1', none: true, none_item: 'R1', rubric: [{ id: 'R1', text: 'None.' }, { id: 'R2', text: 'Short.' }] },
-    { id: 'c1', none: false, rubric: [{ id: 'R1', text: 'None.' }, { id: 'R2', text: 'Short.' }] },
+    { id: 'n1', expect: 'none', none: true, none_item: 'R1', rubric: [{ id: 'R1', text: 'None.' }, { id: 'R2', text: 'Short.' }] },
+    { id: 'c1', expect: 'skills/X/SKILL.md', none: false, rubric: [{ id: 'R1', text: 'None.' }, { id: 'R2', text: 'Short.' }] },
   ];
   const spec = {
     kind: 'routing',
@@ -803,6 +803,8 @@ function buildReport(dir, mutate) {
           wall_ms: arm === 'C' ? 1000 : 3000,
           classifier_calls: arm === 'C' ? 1 : 0,
           reached: arm === 'C' && item.id === 'c1',
+          opened: arm === 'C' && item.id === 'c1' ? [item.expect] : [],
+          first_opened: arm === 'C' && item.id === 'c1' ? item.expect : null,
           route_answer: arm === 'C' && item.id === 'c1' ? 'skills/X/SKILL.md' : 'none',
           scores,
         });
@@ -972,6 +974,249 @@ test('report pass lines, overlap, and the noise note', () => {
   assert.equal(apart.overlap, false);
   assert.equal(apart.noise_note, null);
   assert.equal(apart.seam_passes, true, JSON.stringify(apart.lines));
+});
+
+
+function reportFixture(mutate = () => {}) {
+  const box = world();
+  try {
+    buildReport(box.work, mutate);
+    const run = runCli(['report', '--work', box.work], box.home);
+    assert.equal(run.status, 0, run.stderr);
+    return JSON.parse(run.stdout);
+  } finally {
+    rmSync(box.home, { recursive: true, force: true });
+    rmSync(box.parent, { recursive: true, force: true });
+  }
+}
+
+function setFirst(meta, path) {
+  meta.first_opened = path;
+  meta.opened = path === null ? [] : [path];
+}
+
+function positiveReach(c, e, mutate = () => {}) {
+  return reportFixture((spec, metas) => {
+    for (const meta of metas.filter((row) => row.case === 'c1')) {
+      setFirst(meta, meta.repeat <= (meta.arm === 'C' ? c : e) ? spec.cases[1].expect : 'experts/Other/EXPERT.md');
+    }
+    mutate(spec, metas);
+  });
+}
+
+test('report fixture 01: positive reach 3 of 3 against 0 of 3', () => {
+  const verdict = positiveReach(3, 0);
+  assert.deepEqual(verdict.lines.f.cases.c1, { kind: 'positive', c_first: 3, e_first: 0, c_runs: 3, pass: true });
+  assert.equal(verdict.lines.f.pass, true);
+  assert.equal(verdict.seam_passes, true);
+  assert.deepEqual(verdict.reached_first, { C: { n1: 3, c1: 3 }, E: { n1: 3, c1: 0 } });
+});
+
+test('report fixture 02: positive reach 1 of 3 misses the majority', () => {
+  const verdict = positiveReach(1, 0);
+  assert.equal(verdict.lines.f.cases.c1.c_first, 1);
+  assert.equal(verdict.lines.f.pass, false);
+  assert.equal(verdict.seam_passes, false);
+  for (const line of ['a', 'b', 'c', 'd', 'e']) assert.equal(verdict.lines[line].pass, true);
+});
+
+test('report fixture 03: positive reach 2 of 3 loses to 3 of 3', () => {
+  const verdict = positiveReach(2, 3);
+  assert.equal(verdict.lines.f.cases.c1.c_first, 2);
+  assert.equal(verdict.lines.f.cases.c1.e_first, 3);
+  assert.equal(verdict.lines.f.pass, false);
+  assert.equal(verdict.seam_passes, false);
+});
+
+test('report fixture 04: opening the right primitive second misses', () => {
+  const verdict = positiveReach(1, 0, (spec, metas) => {
+    for (const meta of metas.filter((row) => row.case === 'c1' && row.arm === 'C' && row.repeat > 1)) {
+      meta.opened.push(spec.cases[1].expect);
+      meta.reached = true;
+    }
+  });
+  assert.equal(verdict.reached.C.c1, 3);
+  assert.equal(verdict.reached_first.C.c1, 1);
+  assert.equal(verdict.lines.f.pass, false);
+  assert.equal(verdict.seam_passes, false);
+});
+
+for (const opened of [true, false]) {
+  test(`report fixture 05${opened ? 'a' : 'b'}: none case ${opened ? 'opens a primitive' : 'opens nothing'}`, () => {
+    const verdict = reportFixture((_spec, metas) => {
+      if (opened) setFirst(metas.find((meta) => meta.id === 'n1-C-1'), 'skills/Other/SKILL.md');
+    });
+    assert.deepEqual(verdict.lines.f.cases.n1, {
+      kind: 'none', c_opened: [opened ? ['skills/Other/SKILL.md'] : [], [], []], pass: !opened,
+    });
+    assert.equal(verdict.reached_first.C.n1, opened ? 2 : 3);
+    assert.equal(verdict.lines.f.pass, !opened);
+    assert.equal(verdict.seam_passes, !opened);
+  });
+}
+
+function toolSeam(spec, metas) {
+  spec.kind = 'seam';
+  spec.seam_action = 'wiser.decide.batch';
+  for (const meta of metas) setFirst(meta, 'experts/Other/EXPERT.md');
+}
+
+test('report fixture 06a: a tool seam carries null reach', () => {
+  const verdict = reportFixture(toolSeam);
+  assert.equal(verdict.lines.f, null);
+  assert.equal(verdict.reached_first, null);
+  assert.equal(verdict.lines.d.rule, 'range');
+  assert.equal(verdict.lines.e.rule, 'range');
+});
+
+test('report fixture 06b: a tool seam verdict is independent of reach', () => {
+  const verdict = reportFixture(toolSeam);
+  assert.equal(verdict.seam_passes, true);
+  for (const line of ['a', 'b', 'c', 'd', 'e']) assert.equal(verdict.lines[line].pass, true);
+});
+
+test('report fixture 07: stale reached true cannot replace first-opened reach', () => {
+  const verdict = positiveReach(0, 0, (_spec, metas) => {
+    for (const meta of metas) meta.reached = true;
+  });
+  assert.equal(verdict.reached.C.c1, 3);
+  assert.equal(verdict.reached_first.C.c1, 0);
+  assert.equal(verdict.lines.f.pass, false);
+  assert.equal(verdict.seam_passes, false);
+});
+
+function setMetric(metas, metric, cValue, eValue = 1) {
+  for (const meta of metas) {
+    meta.classifier_calls = 0;
+    meta[metric === 'd' ? 'wall_ms' : 'usd'] = (meta.arm === 'C' ? cValue : eValue) * (metric === 'd' ? 1000 : 1);
+  }
+}
+
+for (const [id, metric, factor, pass] of [
+  ['08', 'd', 1, true], ['09', 'd', 1.2, true], ['10', 'd', 1.3, false],
+  ['13a', 'e', 1, true], ['13b', 'e', 1.3, false],
+  ['14a', 'd', 1.25, true], ['14b', 'e', 1.25, true],
+]) {
+  test(`report fixture ${id}: ${metric === 'd' ? 'wall time' : 'cost'} at ${factor} times`, () => {
+    const verdict = reportFixture((_spec, metas) => setMetric(metas, metric, factor));
+    assert.equal(verdict.lines[metric].pass, pass);
+    assert.equal(verdict.seam_passes, pass);
+  });
+}
+
+for (const [id, metric] of [['11', 'd'], ['13d', 'e']]) {
+  test(`report fixture ${id}: ${metric} rejects a slower case despite a pooled pass`, () => {
+    const verdict = reportFixture((_spec, metas) => {
+      setMetric(metas, metric, 1);
+      for (const meta of metas.filter((row) => row.case === 'c1' && row.arm === 'C')) {
+        meta[metric === 'd' ? 'wall_ms' : 'usd'] *= 1.4;
+      }
+    });
+    const line = verdict.lines[metric];
+    assert.equal(line.pooled.pass, true);
+    assert.ok(Math.abs(line.pooled.ratio - 1.2) < 1e-12);
+    assert.equal(line.cases.c1.pass, false);
+    assert.equal(line.cases.c1.ratio, 1.4);
+    assert.equal(line.cases.n1.pass, true);
+    assert.equal(line.fallback.pass, true);
+    assert.equal(line.pass, false);
+  });
+}
+
+for (const [id, metric, factor] of [['12', 'd', 2.01], ['13c', 'e', 2.01], ['14c', 'd', 2], ['14d', 'e', 2]]) {
+  test(`report fixture ${id}: ${metric} fallback run at ${factor} times`, () => {
+    const verdict = reportFixture((_spec, metas) => {
+      setMetric(metas, metric, 1);
+      metas.find((meta) => meta.id === 'c1-C-1')[metric === 'd' ? 'wall_ms' : 'usd'] *= factor;
+    });
+    const line = verdict.lines[metric];
+    assert.equal(line.pooled.pass, true);
+    assert.equal(line.cases.c1.pass, true);
+    assert.equal(line.fallback.cases.c1.e_case_median, 1);
+    assert.deepEqual(line.fallback.offenders, factor > 2 ? [{ id: 'c1-C-1', value: factor, limit: 2 }] : []);
+    assert.equal(line.fallback.pass, factor <= 2);
+    assert.equal(line.pass, factor <= 2);
+    assert.equal(verdict.seam_passes, factor <= 2);
+  });
+}
+
+for (const [id, factor, pass] of [['15a', 1, false], ['15b', 0.5, true]]) {
+  test(`report fixture ${id}: a tool seam uses the wall-time range test at ${factor} times`, () => {
+    const verdict = reportFixture((spec, metas) => {
+      toolSeam(spec, metas);
+      setMetric(metas, 'd', factor);
+    });
+    assert.equal(verdict.lines.d.pass, pass);
+    assert.equal(verdict.lines.d.c_median, factor);
+    assert.equal(verdict.lines.d.e_low, 1);
+    assert.equal(verdict.seam_passes, pass);
+  });
+}
+
+test('report fixture 16: bound figures use per-repeat medians and include classifier cost', () => {
+  const verdict = reportFixture((spec, metas) => {
+    spec.classifier_usd_per_call = 0.25;
+    for (const meta of metas) {
+      const value = (meta.case === 'n1' ? [1, 2, 10] : [1, 10, 2])[meta.repeat - 1];
+      meta.wall_ms = value * 1000;
+      meta.classifier_calls = meta.arm === 'C' ? 2 : 0;
+      meta.usd = value - meta.classifier_calls * spec.classifier_usd_per_call;
+    }
+  });
+  for (const metric of ['d', 'e']) {
+    const line = verdict.lines[metric];
+    assert.equal(line.rule, 'bound');
+    assert.equal(line.bound, 1.25);
+    assert.equal(line.fallback_factor, 2);
+    assert.deepEqual(line.c_per_repeat, [1, 6, 6]);
+    assert.deepEqual(line.e_per_repeat, [1, 6, 6]);
+    assert.equal(line.c_median, 6);
+    assert.equal(line.e_median, 6);
+    assert.deepEqual(line.c_range, [1, 6]);
+    assert.deepEqual(line.e_range, [1, 6]);
+    assert.equal(line.pooled.ratio, 1);
+    assert.equal(line.cases.c1.e_median, 2);
+    assert.equal(line.fallback.cases.c1.e_case_median, 2);
+  }
+  assert.equal(verdict.lines.e.classifier_usd_per_call, 0.25);
+});
+
+for (const arm of ['C', 'E']) {
+  for (const whole of [false, true]) {
+    test(`report fixture 17: missing finite ${arm} values ${whole ? 'pooled' : 'on one case'} fail both bounds`, () => {
+      const verdict = reportFixture((_spec, metas) => {
+        for (const meta of metas.filter((row) => row.arm === arm && (whole || row.case === 'c1'))) {
+          meta.wall_ms = null;
+          meta.usd = null;
+        }
+      });
+      for (const metric of ['d', 'e']) {
+        const line = verdict.lines[metric];
+        assert.equal(line.pooled.pass, !whole);
+        assert.equal(line.cases.c1.pass, false);
+        assert.equal(line.fallback.cases.c1.pass, false);
+        assert.equal(line.pass, false);
+      }
+    });
+  }
+}
+
+test('report fixture 18: expect none alone is a none reach case', () => {
+  const verdict = reportFixture((spec, metas) => {
+    spec.cases[1].expect = 'none';
+    for (const meta of metas.filter((row) => row.case === 'c1')) setFirst(meta, null);
+  });
+  assert.equal(verdict.lines.f.cases.c1.kind, 'none');
+  assert.equal(verdict.lines.f.pass, true);
+  assert.equal(verdict.reached_first.C.c1, 3);
+});
+
+test('report fixture 19: no cases cannot pass reach', () => {
+  const verdict = reportFixture((spec, metas) => {
+    spec.cases = [];
+    metas.length = 0;
+  });
+  assert.deepEqual(verdict.lines.f, { pass: false, cases: {} });
 });
 
 test('another session is attributed, a short-lived one included; a trial process stops the run', { timeout: 180000 }, () => {

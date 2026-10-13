@@ -2129,14 +2129,42 @@ function writeReport(work) {
     classifierPicks[item.id] = ordered.filter((meta) => meta.arm === 'C' && meta.case === item.id).map((meta) => meta.route_answer ?? null);
   }
   let reached = null;
+  let reachedFirst = null;
+  let lineF = null;
   if (spec.kind === 'routing') {
     reached = { C: {}, E: {} };
+    reachedFirst = { C: {}, E: {} };
+    const cases = {};
     for (const item of spec.cases || []) {
       for (const arm of ['C', 'E']) {
         const rows = ordered.filter((meta) => meta.arm === arm && meta.case === item.id);
         reached[arm][item.id] = rows.filter((meta) => meta.reached === true).length;
+        reachedFirst[arm][item.id] = rows.filter((meta) => (
+          item.none === true || item.expect === 'none'
+            ? Array.isArray(meta.opened) && meta.opened.length === 0
+            : meta.first_opened === item.expect
+        )).length;
+      }
+      const cRuns = ordered.filter((meta) => meta.arm === 'C' && meta.case === item.id);
+      if (item.none === true || item.expect === 'none') {
+        cases[item.id] = {
+          kind: 'none',
+          c_opened: cRuns.map((meta) => meta.opened ?? null),
+          pass: cRuns.every((meta) => Array.isArray(meta.opened) && meta.opened.length === 0),
+        };
+      } else {
+        const cFirst = reachedFirst.C[item.id];
+        const eFirst = reachedFirst.E[item.id];
+        cases[item.id] = {
+          kind: 'positive',
+          c_first: cFirst,
+          e_first: eFirst,
+          c_runs: cRuns.length,
+          pass: cFirst > cRuns.length / 2 && cFirst >= eFirst,
+        };
       }
     }
+    lineF = { pass: Object.keys(cases).length > 0 && Object.values(cases).every((item) => item.pass), cases };
   }
   const items = (spec.cases || []).map((item) => (Array.isArray(item.rubric) ? item.rubric.length : 0));
   const itemsPerRun = items.length ? items.reduce((a, b) => a + b, 0) / items.length : 0;
@@ -2207,17 +2235,63 @@ function writeReport(work) {
     const ePer = perRepeatMedians(eRows, pick);
     const cMed = medianOf(cPer);
     const eLow = ePer.length ? Math.min(...ePer) : null;
-    return {
+    const figures = {
       pass: cMed != null && eLow != null && cMed < eLow,
       c_median: cMed,
       e_low: eLow,
       c_per_repeat: cPer,
       e_per_repeat: ePer,
     };
+    if (!routing) return { ...figures, rule: 'range' };
+    function scope(cRuns, eRuns) {
+      const cPerRepeat = perRepeatMedians(cRuns, pick);
+      const ePerRepeat = perRepeatMedians(eRuns, pick);
+      const cMedian = medianOf(cPerRepeat);
+      const eMedian = medianOf(ePerRepeat);
+      return {
+        c_median: cMedian,
+        e_median: eMedian,
+        ratio: cMedian != null && eMedian != null ? cMedian / eMedian : null,
+        pass: cMedian != null && eMedian != null && cMedian <= 1.25 * eMedian + 1e-12,
+      };
+    }
+    const pooled = scope(cRows, eRows);
+    const cases = {};
+    const fallbackCases = {};
+    const offenders = [];
+    for (const item of spec.cases || []) {
+      const cRuns = cRows.filter((meta) => meta.case === item.id);
+      const eRuns = eRows.filter((meta) => meta.case === item.id);
+      cases[item.id] = scope(cRuns, eRuns);
+      const eValues = eRuns.map(pick).filter((value) => Number.isFinite(value));
+      const eCaseMedian = medianOf(eValues);
+      const limit = eCaseMedian == null ? null : 2 * eCaseMedian;
+      const caseOffenders = cRuns.filter((meta) => limit != null && pick(meta) > limit)
+        .map((meta) => ({ id: meta.id, value: pick(meta), limit }));
+      offenders.push(...caseOffenders);
+      fallbackCases[item.id] = {
+        e_case_median: eCaseMedian,
+        pass: eCaseMedian != null && cRuns.some((meta) => Number.isFinite(pick(meta))) && caseOffenders.length === 0,
+      };
+    }
+    const fallback = { pass: Object.values(fallbackCases).every((item) => item.pass), cases: fallbackCases, offenders };
+    return {
+      ...figures,
+      pass: pooled.pass && Object.values(cases).every((item) => item.pass) && fallback.pass,
+      e_median: pooled.e_median,
+      e_range: ePer.length ? [Math.min(...ePer), Math.max(...ePer)] : [null, null],
+      c_range: cPer.length ? [Math.min(...cPer), Math.max(...cPer)] : [null, null],
+      rule: 'bound',
+      bound: 1.25,
+      fallback_factor: 2,
+      pooled,
+      cases,
+      fallback,
+    };
   }
   const lineD = lineDE(wallOf);
   const lineE = { ...lineDE(costOf), classifier_usd_per_call: rate };
-  const seamPasses = lineA.pass && lineB.pass && lineC.pass && lineD.pass && lineE.pass;
+  const seamPasses = lineA.pass && lineB.pass && lineC.pass && lineD.pass && lineE.pass && (!routing || lineF.pass);
   const cScores = arms.C.scores;
   const eScores = arms.E.scores;
   const overlap = cScores.length > 0 && eScores.length > 0
@@ -2238,7 +2312,7 @@ function writeReport(work) {
     arms,
     reached,
     classifier_picks: classifierPicks,
-    lines: { a: lineA, b: lineB, c: lineC, d: lineD, e: lineE },
+    lines: { a: lineA, b: lineB, c: lineC, d: lineD, e: lineE, f: lineF },
     seam_passes: seamPasses,
     overlap,
     noise_note: overlap ? `no difference detected at n = ${repeats}` : null,
@@ -2248,6 +2322,7 @@ function writeReport(work) {
       usd_worst: plan.usd_worst ?? null,
     },
     actual: { host_usd: hostUsd, judge_usd: judgeUsd, classifier_usd: classifierUsd, usd: hostUsd + judgeUsd + classifierUsd },
+    reached_first: reachedFirst,
   };
   writeFileSync(join(work, 'verdict.json'), `${JSON.stringify(verdict, null, 2)}\n`);
   return verdict;
