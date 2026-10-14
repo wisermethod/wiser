@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.14.2, October 14, 2026
+
+- When a session that worked a Playbook ends, each Playbook's resume line appears once, at the end of the session's last message, after the commit report. It no longer appears when the session stops mid-work to tell you a result only you can decide on, nor in the message that asks whether to wrap up. Where the session hands you a prompt for the next session, the prompt takes the place of its Playbook's line instead of repeating the path, and every other Playbook keeps its own line. If you decline the wrap up and go on working, the line waits for the session's real end. (3b2bfee, 00b1b2c, 4098e66)
+
 ## v2026.10.14, October 14, 2026
 
 - Webmaster's SEO audit bounds its paid research: a reading that needs a whole list, such as a site's anchors, is paged at most ten times unless a limit you stated covers more; a spending limit you state is checked against each call's worst case before the call; a call whose outcome could not be confirmed is not sent again by the audit; a cost that did not come back is shown as unknown and the total as "at least"; and once DataForSEO refuses a call for lack of balance, no further paid call is sent and the top-up is the next step. A rate limit is told apart from an empty balance. (293b4e8, c1b0918, 47b8120)
