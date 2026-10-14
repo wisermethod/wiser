@@ -2,7 +2,7 @@
 
 The one home of which route acquires which reading, what each route needs before it answers, what it costs, and what its absence does to an audit.
 
-**Version:** 0.4.1, 2026-10-13
+**Version:** 0.4.2, 2026-10-13
 
 ## What it is and who cites it
 
@@ -10,7 +10,7 @@ The one home of which route acquires which reading, what each route needs before
 
 ## Preflight
 
-Before any evidence is read, open the readiness ledger below and fill `discoverable` and `grant` for every required row from live calls made now: `search_actions` per service, `list_connections` once, `help` for each tool, and which browser the host can drive, per `experts/Webmaster/ahrefs-browser.md`. A row's state from an earlier session is not evidence. A row whose discovery call has not answered is `not attempted: discovery not run`, never assumed present or absent. A connection seen absent in `list_connections` with no `execute` answer is recorded as observed there, `grant: none`, and its `next_step` is the Connect Account turn, taken only if no other verified route serves the reading. Then state, before the first read, which rows are ready, which need a human turn, and which readings will be labeled if that turn is declined. A reading that needs only a default, such as the crawl's bound, has that default stated here and runs; it does not wait for an answer. The default Search Console and Analytics window is the latest 28 complete days, and the previous window the 28 days before it. The money pages are the pages the requester names, else the five landing pages with the most goal conversions in the Analytics rows, else the five with the most clicks in the Search Console rows; the rule is stated here and the pages named once those rows are read.
+Before any evidence is read, open the readiness ledger below and fill `discoverable` and `grant` for every required row from live calls made now: `search_actions` per service this map routes through the gateway, which Ahrefs is not, its only route being the person's browser, `list_connections` once, `help` for each tool, and which browser the host can drive, per `experts/Webmaster/ahrefs-browser.md`. A row's state from an earlier session is not evidence. A row whose discovery call has not answered is `not attempted: discovery not run`, never assumed present or absent. A connection seen absent in `list_connections` with no `execute` answer is recorded as observed there, `grant: none`, and its `next_step` is the Connect Account turn, taken only if no other verified route serves the reading. Then state, before the first read, which rows are ready, which need a human turn, and which readings will be labeled if that turn is declined. A reading that needs only a default, such as the crawl's bound, has that default stated here and runs; it does not wait for an answer. The default Search Console and Analytics window is the latest 28 complete days, and the previous window the 28 days before it. The money pages are the pages the requester names, else the five landing pages with the most goal conversions in the Analytics rows, else the five with the most clicks in the Search Console rows; the rule is stated here and the pages named once those rows are read.
 
 The order, whether or not the host holds the turn until a question is answered:
 
