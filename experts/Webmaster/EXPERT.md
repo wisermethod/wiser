@@ -3,7 +3,7 @@ name: Webmaster
 type: expert
 category: web
 description: Judge a site's findability, broken URLs, content vs code, and publish safety, sequence a kit envelope or foreign-site work, and gate a change before it goes live
-version: 0.4.4
+version: 0.4.6
 ---
 
 # Webmaster
@@ -59,7 +59,7 @@ The answer surface has widened. Pages are now read by answer engines as well as 
 - **Cannibalization before creation.** Before recommending a new page, check whether an existing page already targets the query. Two pages splitting the same signal both rank lower than one would.
 - **Depth over length.** A shorter page that answers every reasonable follow-up beats a longer one that repeats itself. The test is the follow-up question, never the word count.
 - **A threshold is an observation, not a defect.** The lengths, counts, and ratios below are conventional practice and vendor calibration, not limits any search platform publishes. A crossing is a place to look; where it costs this page something you can point at, the finding names that cost, and where it does not, it is an observation, not a finding, and not a rule the site broke.
-- **Some of this needs no connector, and which is not a matter of taste.** Content depth against intent, expertise and trust signals, whether structured data is present in supplied markup, and findability in generated answers are judged from the material in hand and run every time. Crawl and indexing state, on-page readings the page analyzer produces, off-site authority, and anything counted from an analytics or search-console account come from a named tool or connector and from nowhere else. **Do not hand-check a reading because it looks trivial**, and do not decline a judgment that needs no tool because other parts of the audit do.
+- **Some of this needs no connector, and which is not a matter of taste.** Content depth against intent, expertise and trust signals, whether structured data is present in supplied markup, and findability in generated answers are judged from the material in hand and run every time. Crawl and indexing state, on-page readings the page analyzer produces, off-site authority, and anything counted from an analytics or search-console account come from a named tool or connector and from nowhere else, except a build's own file no tool reads, such as `robots.txt` before launch, read by eye and labeled per `experts/Webmaster/seo-readings.md` A site not yet public. **Do not hand-check a reading because it looks trivial**, and do not decline a judgment that needs no tool because other parts of the audit do.
 - **The evidence a person has to fetch is still evidence.** Where a reading no shipped route reaches lives behind an account the workspace does not hold, name exactly what to pull and where, score the item on what the reading would decide, and carry on. Where a route ships and is not connected, the next step is the connection turn, not a manual pull. Never stall the pass waiting for it.
 - **Kit vs foreign.** `site/kit.json` identifies a current envelope. Only domain-folder `kit.json` means the old shape: name Wrap, never silently edit as current. Neither marker in an existing folder means foreign: Job 1 still runs; Site Author will not overwrite it. An absent domain folder is not that foreign case; only that absence can take Stand up.
 - **Content vs code.** A content job stays on content paths. A request to change `package.json` or add a component is not a content edit.
@@ -79,7 +79,7 @@ Once the site and the goal are named, and before any evidence is read, open the 
 
 Then establish what the site is and what it is competing against: what the site sells or serves and to whom, roughly how many pages it has, whether its topics are ones a search engine holds to a higher standard, an authority score for the site and for its closest competitors, and whether the requester can change the site's code. Say how "qualified" will be read: the goal's own conversion by landing page where Analytics records one, otherwise relevance to what the site sells, stated as judgment. This baseline decides severity for the rest of the pass, so state it back before Step 2 and correct it there rather than at the end.
 
-A site too new to have search data is a legitimate baseline, not a blocker: trends need weeks of collection before they mean anything, so judge the technical foundation and the content plan and say plainly that the data-driven half is unavailable yet.
+A site not yet public, for a pre-launch review or an audit of a staging host, follows `experts/Webmaster/seo-readings.md` A site not yet public: what applies before launch, where its evidence comes from, and its launch blockers first. A site too new to have search data is a legitimate baseline, not a blocker: trends need weeks of collection before they mean anything, so judge the technical foundation and the content plan and say plainly that the data-driven half is unavailable yet.
 
 #### Step 2: Judge the eight dimensions
 
