@@ -2,7 +2,7 @@
 
 The one home of which route acquires which reading, what each route needs before it answers, what it costs, and what its absence does to an audit.
 
-**Version:** 0.3.0, 2026-10-13
+**Version:** 0.3.1, 2026-10-13
 
 ## What it is and who cites it
 
@@ -27,7 +27,7 @@ A stop lasts 15 minutes. A confirm sent after it lapsed is answered with a fresh
 |---------|-------|-------------------------|------|-------------------------|
 | Search Console queries, pages, countries, devices, for one window, and again for the previous window | `google.search-console.query` with `dimensions`, `row_limit`, `start_row`, `dimension_filter_groups`, `search_type`, `data_state` | `google` / `search-console` grant ACTIVE; a named public property | none | On-page and content judgments about what already ranks; cannibalization; measurement. A total summed from a top slice describes the rows and not the property |
 | Submitted sitemaps and one sitemap's detail | `google.search-console.sitemaps`, `google.search-console.get_sitemap` | same grant | none | Sitemap coverage; the submitted count is not index coverage |
-| Google's stored index state for one URL | `google.search-console.inspect` | same grant; one call per URL, so the money pages, not the site | none | Indexed versus crawled for the pages that matter. Query rows do not say whether a page is indexed. A 403 after an ACTIVE grant is one reconnect and then a label. On a bare host, `inspect` can return NEUTRAL with coverage "Page with redirect" while the page is indexed under its `www` canonical: follow `googleCanonical` before concluding anything about indexing |
+| Google's stored index state for one URL | `google.search-console.inspect` | same grant; one call per URL, so the money pages, not the site | none | Indexed versus crawled for the pages that matter. Query rows do not say whether a page is indexed. A 403 `vendor_error` while the grant reads ACTIVE and `query` on the same property returns rows is the connected account's permission on that property, not the grant: the row is `failed` with the status, its next step is the person checking that account's access to the property in Search Console, and the grant is not reconnected to make the call pass, per `skills/Connection Troubleshooter/`. On a bare host, `inspect` can return NEUTRAL with coverage "Page with redirect" while the page is indexed under its `www` canonical: follow `googleCanonical` before concluding anything about indexing |
 | Manual actions and security issues, one ledger row each | Search Console's Manual actions and Security issues pages in the person's own browser, driven by the host's extension where it has one; no gateway action reads them. Where a window's daily impressions fell to zero, the Crawl stats page on the same route is read too, as its own row | a browser signed in to an account that holds the property | none | Whether anything stops Google serving the site. With a browser available this reading is never `missing action`. Without one, the person opens the pages and pastes or describes what they show, recorded as the person's report; with neither, the row is `not attempted: no browser` |
 | Keyword demand around seed terms, with intent and difficulty | `dataforseo.research.keyword_ideas`, `related_keywords`, `search_intent`, `keyword_difficulty`, `search_volume` | `dataforseo` / `research` grant ACTIVE; market as `location_code` and `language_code` from `dataforseo.research.locations` | per `connectors/dataforseo/CONNECTOR.md`. `dataforseo.research.search_volume` is one of the two actions Paid calls says the gateway still stops | Keyword items, doors-not-walls, content briefs; the report says demand was not measured |
 | What ranks for the head terms | `dataforseo.research.serp` | same grant; market; device | per `connectors/dataforseo/CONNECTOR.md` | Intent alignment against what actually ranks; format calibration |
@@ -56,6 +56,8 @@ The two actions the gateway still stops, `dataforseo.research.search_volume` and
 A limit the requester states, "no paid research" or a ceiling, binds the run. A reading it rules out is `not attempted: spend declined` and labels the sections it feeds.
 
 Pagination is planned, not open-ended. A billed endpoint is paged only as far as the reading needs.
+
+A balance refusal, a `vendor_error` 402 or a task status in the 40201 class per `connectors/dataforseo/CONNECTOR.md`, is account-wide. Its row is `out of quota`; the billed DataForSEO rows not yet read are `not attempted: out of quota`, pointing at that row, and are not called; the next step for all of them is the top-up.
 
 Every billed call's `cost`, read from the vendor's response, goes in its ledger row, and the report states the run's total spend and the calls behind it. A task `status_code` other than 20000 is data and may have been charged. What a call costs is cited from `connectors/dataforseo/CONNECTOR.md`.
 
