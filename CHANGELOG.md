@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.14.3, October 14, 2026
+
+- Webmaster's SEO audit handles a site that is not public yet: a pre-launch review, an audit of a staging host, or a rebuild about to replace a live site. It confirms which case it is from what you say, never from an error code alone, and asks what it needs about the hosts with its first question. For a new site, Search Console, Analytics, Bing, Ahrefs and the site's own rankings are marked as not applicable before launch, so you are not sent to connect accounts that cannot exist yet and they do not keep the audit partial; keyword and search-result research still runs. (c00296a)
+- Where no tool can reach the site, behind a staging login or only as a build on your machine, the evidence comes from the build's own files: each page's HTML, the sitemap, `robots.txt` and the redirects and headers files, with a kit site's own check, and pages you open in your browser. The crawl, tracking and speed readings are left open and read on the launch address once it serves. (c00296a)
+- Launch blockers come first: a `noindex` on a page meant to be found, a `robots.txt` that blocks every crawler, and canonical, social or sitemap addresses still naming the staging host. A setting that only the staging host adds is checked at launch rather than reported as a blocker, and a staging host open to search engines is flagged now. For a rebuild, the live site is read as usual and every live address with no page or redirect in the new build is listed before launch. (c00296a)
+
 ## v2026.10.14.2, October 14, 2026
 
 - When a session that worked a Playbook ends, each Playbook's resume line appears once, at the end of the session's last message, after the commit report. It no longer appears when the session stops mid-work to tell you a result only you can decide on, nor in the message that asks whether to wrap up. Where the session hands you a prompt for the next session, the prompt takes the place of its Playbook's line instead of repeating the path, and every other Playbook keeps its own line. If you decline the wrap up and go on working, the line waits for the session's real end. (3b2bfee, 00b1b2c, 4098e66)
