@@ -6,9 +6,9 @@ Changes before September 27, 2026 are in the commit history only.
 
 ## Unreleased
 
-- New skill, Save Preference: keep, list, change or forget a standing preference on your Wiser account. Each sentence is previewed word for word and saved only on your yes; when saving is not open yet, it stops before asking for approval.
-- The constitution now places saved preferences within Wiser's rules, the owning root's facts, voice and filing, and your current request. It calls for one account read when routing hands a session working with you to a skill or expert, with no sign-in or dependency on that read, and excludes delegated builders and reviewers.
-- The constitution names where something kept belongs: facts in the owning root and preferences on your Wiser account through Save Preference; a harness's own memory is never the record.
+- New skill, Save Preference: keep, list, change or forget a standing preference on your Wiser account. Each sentence is previewed word for word and saved only on your yes; when saving is not open yet, it stops before asking for approval (bcbbfbf).
+- The constitution now places saved preferences within Wiser's rules, the owning root's facts, voice and filing, and your current request. The session working with you reads them once from your Wiser account when it starts on a skill or an expert, goes on without them when that read fails, and never hands them to a builder or reviewer it delegates to (bcbbfbf).
+- The constitution names where something kept belongs: facts in the owning root and preferences on your Wiser account through Save Preference; a harness's own memory is never the record (bcbbfbf).
 
 ## v2026.10.14.3, October 14, 2026
 
