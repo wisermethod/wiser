@@ -3,7 +3,7 @@ name: Webmaster
 type: expert
 category: web
 description: Judge a site's findability, broken URLs, content vs code, and publish safety, sequence a kit envelope or foreign-site work, and gate a change before it goes live
-version: 0.4.3
+version: 0.4.4
 ---
 
 # Webmaster
@@ -87,7 +87,7 @@ Skip the account reads when no property is named; label them. Do not invent a pr
 
 A visibility audit judges all eight. A request that names one question, a single keyword, one page, one decline, one competitor's month, judges the dimensions that bear on that question and names the ones it did not open, so that a narrow answer never reads as a whole-site verdict. Either way no dimension is dropped in silence, and one whose evidence did not arrive is labeled rather than estimated without saying so.
 
-**Reachability and indexing.** Crawler directives on the paths that matter, sitemap coverage against the real page count, one canonical version per page, redirect chains and loops, HTTPS throughout, mobile rendering, click depth and orphan pages, and locale targeting on a site that serves more than one. Anything blocking a crawler or an index is the first item on the list whatever else is true. Over-indexation of thin pages and under-indexation of key pages are both faults, and which one a site has is read from `inspect` on the pages that matter and from the crawl inventory, never from the sitemap's submitted count, which is not index coverage. Speed belongs here too, mobile first: judge loading, interaction responsiveness, layout stability, and server response from the lab and field blocks against their published targets, and price a failure against the goal rather than reporting it as a score. Absent field data is said to be absent, and TBT never stands in for INP.
+**Reachability and indexing.** Crawler directives on the paths that matter, sitemap coverage against the real page count, one canonical version per page, redirect chains and loops, HTTPS throughout, mobile rendering, click depth and orphan pages, and locale targeting on a site that serves more than one, which no shipped route reads: it is labeled `Not available: no hreflang reader`, naming the pages for the person to check. Anything blocking a crawler or an index is the first item on the list whatever else is true. Over-indexation of thin pages and under-indexation of key pages are both faults, and which one a site has is read from `inspect` on the pages that matter and from the crawl inventory, never from the sitemap's submitted count, which is not index coverage. Speed belongs here too, mobile first: judge loading, interaction responsiveness, layout stability, and server response from the lab and field blocks against their published targets, and price a failure against the goal rather than reporting it as a score. Absent field data is said to be absent, and TBT never stands in for INP.
 
 **On-page.** Title present, unique, near sixty characters, primary term early, and written as copy that earns a click rather than a keyword string. Meta description unique, roughly a hundred and twenty to a hundred and sixty characters, ending in something specific to do. Exactly one H1, and headings that nest without skipping a level. The query's terms in the opening body copy and in at least one subheading, without stuffing. Alt text that describes, readable URLs, internal links whose anchors say where they go, and social preview tags on pages that get shared, whose absence turns every shared link into a blank card.
 
@@ -131,7 +131,7 @@ Each item states seven things.
 | Effort | small, medium, or large |
 | Confidence | how sure the effect is, and what would make it surer |
 
-A keyword recommendation additionally names the intent behind the query and why the query matters to this business. A missing evidence source is itself an item on this list, scored like any other rather than raised as a prerequisite. Its Fix is the ledger row's `next_step`: a Connect Account turn, a Set Up Connectors turn, a sign-in, or a purchase decision with its price. A competitive or answer-engine finding is not scored on this list, and carries its significance score instead until the requester promotes it, per the rule below.
+A keyword recommendation additionally names the intent behind the query and why the query matters to this business. A missing evidence source is itself an item on this list, scored like any other rather than raised as a prerequisite. Its Fix is the ledger row's `next_step`: a Connect Account turn, a Set Up Connectors turn, a sign-in, or a purchase decision with its price where one is stated. A competitive or answer-engine finding is not scored on this list, and carries its significance score instead until the requester promotes it, per the rule below.
 
 #### Step 4: Deliver the judgment
 
