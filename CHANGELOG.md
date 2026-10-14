@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## Unreleased
+
+- New skill, Save Preference: keep, list, change or forget a standing preference on your Wiser account. Each sentence is previewed word for word and saved only on your yes; when saving is not open yet, it stops before asking for approval.
+- The constitution now places saved preferences within Wiser's rules, the owning root's facts, voice and filing, and your current request. It calls for one account read when routing hands a session working with you to a skill or expert, with no sign-in or dependency on that read, and excludes delegated builders and reviewers.
+- The constitution names where something kept belongs: facts in the owning root and preferences on your Wiser account through Save Preference; a harness's own memory is never the record.
+
 ## v2026.10.14.3, October 14, 2026
 
 - Webmaster's SEO audit handles a site that is not public yet: a pre-launch review, an audit of a staging host, or a rebuild about to replace a live site. It confirms which case it is from what you say, never from an error code alone, and asks what it needs about the hosts with its first question. For a new site, Search Console, Analytics, Bing, Ahrefs and the site's own rankings are marked as not applicable before launch, so you are not sent to connect accounts that cannot exist yet and they do not keep the audit partial; keyword and search-result research still runs. (c00296a)

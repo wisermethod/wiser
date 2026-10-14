@@ -140,6 +140,8 @@ Read the gateway policy before a local live proof; where it routes a service to 
 
 ## What a host keeps
 
+The endpoint delivers the person's saved preferences to Claude Code and Grok in its instructions at connect; to claude.ai and Cowork, which share one registered client, in the first Wiser tool answer after each opening request; and to ChatGPT and Codex in every Wiser tool answer, as measured on 2026-10-10 and 2026-10-14. Receiving the list is not applying it.
+
 Measured on 2026-10-10, Claude Code cuts MCP server instructions at 4,096 characters and marks the cut `[truncated]`, Grok cuts them at about 2,000 characters and flattens them to one line, ChatGPT cuts them at 512 characters, and Codex, claude.ai and Cowork pass none to the model, while each host acts on whatever it does receive. A tool answer is not one channel: ChatGPT shows its model only `structuredContent` where an answer has one, and drops the text items beside it.
 
 Before relying on server instructions or on a tool answer, ask that host's model to quote what it received, word for word, and score nothing until that quote is in hand; keep server instructions under the smallest host cap, and put tool-answer text where each host shows it.

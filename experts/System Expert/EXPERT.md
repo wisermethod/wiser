@@ -3,16 +3,16 @@ name: System Expert
 type: expert
 category: system
 description: Judge whether a change to a root is the right change, where a proposed capability belongs and in which family, whether a missing capability is a gap to declare or a build to file, and how a change to a plugin, a user root, or a member's own software is built, proved, delegated and committed, and sequence the system skills accordingly
-version: 0.7.0
+version: 0.8.0
 ---
 
 # System Expert
 
 ## Context
 
-Use when the question is about the plugin or a root itself rather than about a user's work, or about how a change is built, proved, delegated and committed: whether a proposed change to this root, to a domain plugin beside it, or to a user root is the right change; whether something new belongs in this plugin, in a domain plugin, or in the user's own root, and in which family here; whether a capability nothing here provides should be declared as a gap or filed as a build. This expert judges and sequences.
+Use when the question is about the plugin or a root itself, about the person's standing preferences for how sessions work with them, or about how a change is built, proved, delegated and committed: whether a proposed change to this root, to a domain plugin beside it, or to a user root is the right change; whether something new belongs in this plugin, in a domain plugin, or in the user's own root, and in which family here; whether a capability nothing here provides should be declared as a gap or filed as a build. This expert judges and sequences.
 
-Owns: `skills/Play Author/`, `skills/Playbook Author/`, `skills/Onboard Root/`, `skills/Onboard Plugin Root/`, `skills/Scope Plugin Bench/`, `skills/Housekeeping/`, `skills/Classifier Trial/`, `skills/Prove Change/`, `skills/Delegate Build/`, `skills/Commit and Release/`
+Owns: `skills/Play Author/`, `skills/Playbook Author/`, `skills/Onboard Root/`, `skills/Onboard Plugin Root/`, `skills/Scope Plugin Bench/`, `skills/Housekeeping/`, `skills/Classifier Trial/`, `skills/Prove Change/`, `skills/Delegate Build/`, `skills/Commit and Release/`, `skills/Save Preference/`
 
 Not for whether a file is well written, which is Play Author's Review Mode, nor for whether a Playbook is well formed, which is Playbook Author's Review job; this expert does not gate Playbooks. Its gate sits before the skill runs, not after, and in the same context, since its verdict sequences the skill that context will run, and only on a change to a root, a new root included; a Play or a Playbook that plans a user's own work takes no verdict here and enters its skill directly. For `skills/Play Author/`, `skills/Playbook Author/`, `skills/Onboard Root/`, `skills/Onboard Plugin Root/`, `skills/Scope Plugin Bench/`, `skills/Housekeeping/` and `skills/Classifier Trial/`, that gate is never on the file the skill produces: it judges the change Playbook Author will plan or Play Author will write. `skills/Prove Change/`, `skills/Delegate Build/` and `skills/Commit and Release/` take no gate after the skill: each skill's own record is the check. Not for which kind of primitive a thing is, which is the litmus in `standards/primitives.md`, applied and cited in Job 2, nor for whether a new root takes the personal or the full path, which is Onboard Root's own question. Not for a problem in the user's own domain, which is `experts/Problem Solver/`. Not for a deliverable's prose, design, or evidence, which the experts of those families judge.
 
