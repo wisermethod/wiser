@@ -52,6 +52,7 @@ An assistant who notices a lasting preference, says it back in one plain sentenc
    - `saving: "closed"`: stop before asking for approval. Say "Saving preferences is not open yet", show the safe drafted sentence, and save nothing.
    - `error: "too_long"` or `error: "multiline"`: redraft it as one shorter line, check it at step 3, and preview again.
    - `error: "empty"`: ask what the person wants kept.
+   - `error: "invisible"`: the sentence carries a character the person cannot see, which the answer names; redraft it without that character, check it at step 3, and preview again.
    - `error: "full"`: call `mode: "list"`, show the saved sentences, and ask which one to retire, or whether to leave this unsaved. One selected: preview again with its id as `replaces`. Leave it, or no answer: stop without saving.
    - `error: "not_found"`: list again and resolve the replacement before a new preview; never choose a different target silently.
    - Another error, an unavailable tool, no answer or a malformed result: the matching Stop below.
@@ -69,7 +70,7 @@ An assistant who notices a lasting preference, says it back in one plain sentenc
 - **No endpoint or `preferences` tool, a local gateway, or a sign-in prompt.** Say this needs the app connected to the person's Wiser account, and offer setting up that connection as the next step, which `skills/Set Up Connectors/` does; stop, and never start sign-in here.
 - **`error: "invalid_token"` or `error: "changed"` on save.** Preview again, resolving a missing or changed replacement against a fresh list, and ask again. The earlier yes does not carry forward.
 - **Any other refusal.** A refusal to a preview, or a save refused before writing (`not_confirmed`): say in plain words which part did not complete and that nothing changed; show a safe drafted sentence if held, and stop.
-- **A malformed answer to a save or a removal.** It may have landed: the next Stop, as for no answer. Never claim the requested change happened.
+- **A malformed answer, or `error: "failed"`, to a save or a removal.** It may have landed: the next Stop, as for no answer. Never claim the requested change happened.
 - **No answer to a write, a timeout or a dropped connection.** Say the save or removal could not be confirmed. Call `mode: "list"`: the exact saved sentence present confirms a save and returns to step 7; the removed id absent confirms it is gone, and the session stops applying that sentence. Otherwise, report what the list shows; if the list also fails, leave the outcome unconfirmed. Never retry a write blind. A read that returns nothing stops without a result.
 
 ## Pitfalls
