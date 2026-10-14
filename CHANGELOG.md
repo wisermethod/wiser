@@ -4,6 +4,13 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.13.6, October 13, 2026
+
+- Webmaster's SEO audit runs every reading that needs no answer from you before it asks anything, the readings in your own browser last among them, then asks its questions together, once. Each DataForSEO report that stops for your yes is shown with its inputs and price and takes its own yes or no. A stop that lapsed before your answer is shown to you again rather than confirmed on your earlier yes. (e3dcc8a, 7233ed3, 368639b)
+- The audit reads Search Console's Manual actions and Security issues pages in your own browser, one line each, and its Crawl stats page where daily impressions fell to zero. Without a browser, what you report from those pages is recorded as yours. (e3dcc8a, 7233ed3)
+- A competitor list your folder already keeps is put to you as a proposal beside DataForSEO's, and no call reads those domains until you confirm them for this audit, since a business rival may never meet your site in search. A set you name in the request is confirmed. (e3dcc8a, 7233ed3)
+- The Ahrefs guide adds the Backlinks report, with each link's route to your site, straight or through a domain that redirects into it, counted for the rows read and never for the whole profile. (e3dcc8a, 7233ed3)
+
 ## v2026.10.13.5, October 13, 2026
 
 - A new skill, Animated Explainer, makes one picture that moves to show how something works or what happened, for a section of a site built with the plugin's site kit, for any other site as three files to place, or for one slide of a deck. It draws the subject itself, its objects, places and people, in your site's or deck's colours, rather than labelled boxes. Every fact, count and order it shows is the one your sources give, and anything illustrative is put to you and labelled on the piece. With no JavaScript, with reduced motion, in print, and in a deck's PDF or PNG, the finished picture shows. The Creative Director reviews it, it stops once for your approval of the picture and its words, and it changes nothing outside its own section or slide. (61eddec)
