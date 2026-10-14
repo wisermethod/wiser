@@ -2,14 +2,14 @@
 
 The reports an audit takes from Ahrefs Site Explorer, how each is recorded, and what the person does. Navigation is described by what the page shows, not by fixed selectors: Ahrefs changes its interface, and an interactive snapshot before every action is the rule.
 
-**Version:** 0.2.0, 2026-10-13
+**Version:** 0.2.1, 2026-10-13
 
 ## Before anything
 
 - Ahrefs is read in the person's own signed-in browser, driven by the host's browser extension where it has one; otherwise the person opens the reports and pastes or exports them. `tools/Browser Control/` is not this route: observed 2026-10-12, `app.ahrefs.com` answers the browser it launches with a bot check a person cannot clear there, while the person's own browser reached the signed-in app with no challenge. Where the extension can drive more than one browser, the person picks which before the first navigation; where it drives one, say which and go on.
 - Navigate to Site Explorer. A sign-in, a second factor, or a challenge page is the person's: say what is blocking and wait. Never type a credential, never read a stored one, never snapshot a sign-in form into evidence.
 - Confirm the plan's entitlement on the report itself: a report the plan does not include shows the vendor's upgrade notice, and that is `plan restricted` in the ledger with the report named, not a failure.
-- The free plan reads only verified domains, and exports nothing. Observed 2026-10-12: a target the account has not verified shows "Domain not verified" with "You can only check verified domains and their subdomains on a free plan", and Export on a report opens "Upgrade to unlock export". So on a free account the site's own backlink profile is readable when the site is verified in Ahrefs, and a competitor's is not. Competitor link evidence then comes from `dataforseo.backlinks.referring_domains` and `dataforseo.backlinks.anchors` under `experts/Webmaster/seo-readings.md` Paid calls. Where the requester has ruled out paid research, or declines the stop on `dataforseo.backlinks.summary`, the competitor link section is `plan restricted` for Ahrefs and `not attempted: spend declined` for DataForSEO. The dashboard's project list names the verified domains.
+- The free plan reads only verified domains, and exports nothing. Observed 2026-10-12: a target the account has not verified shows "Domain not verified" with "You can only check verified domains and their subdomains on a free plan", and Export on a report opens "Upgrade to unlock export". So on a free account the site's own backlink profile is readable when the site is verified in Ahrefs, and a competitor's is not. Competitor link evidence then comes from `dataforseo.backlinks.referring_domains` and `dataforseo.backlinks.anchors` under `experts/Webmaster/seo-readings.md` Paid calls. Where the requester rules out paid research or the person declines a stop, the competitor rows are labeled as `experts/Webmaster/seo-readings.md` says. The dashboard's project list names the verified domains.
 
 ## The reports
 

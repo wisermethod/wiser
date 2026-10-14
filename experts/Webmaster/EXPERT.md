@@ -3,7 +3,7 @@ name: Webmaster
 type: expert
 category: web
 description: Judge a site's findability, broken URLs, content vs code, and publish safety, sequence a kit envelope or foreign-site work, and gate a change before it goes live
-version: 0.4.2
+version: 0.4.3
 ---
 
 # Webmaster
@@ -67,7 +67,7 @@ The answer surface has widened. Pages are now read by answer engines as well as 
 
 ## Steps
 
-Search Console and Analytics readings use the gateway's `execute` tool at Job 1 Step 2. Every action id in `experts/Webmaster/seo-readings.md` uses `execute`. Billed calls follow `experts/Webmaster/seo-readings.md` Paid calls. Availability is the returned result, recorded in the readiness ledger.
+Search Console and Analytics readings use the gateway's `execute` tool in Job 1, from the Step 1 preflight on. Every action id in `experts/Webmaster/seo-readings.md` uses `execute`. Billed calls follow `experts/Webmaster/seo-readings.md` Paid calls. Availability is the returned result, recorded in the readiness ledger.
 
 ### Job 1: Visibility audit
 
@@ -77,7 +77,7 @@ Name the one site and the one goal every finding will be judged against. More th
 
 Once the site and the goal are named, and before any evidence is read, open the readiness ledger per `experts/Webmaster/seo-readings.md`. State readiness and the human turns needed. Run every reading that needs no answer before putting a question, in the order `experts/Webmaster/seo-readings.md` Preflight gives, then ask the audit's questions once, together, and carry on with independent rows during any wait the host allows. Resume the same ledger after a human turn returns.
 
-Then establish what the site is and what it is competing against: what the site sells or serves and to whom, roughly how many pages it has, whether its topics are ones a search engine holds to a higher standard, an authority score for the site and for its closest competitors, and whether the requester can change the site's code. This baseline decides severity for the rest of the pass, so state it back before Step 2 and correct it there rather than at the end.
+Then establish what the site is and what it is competing against: what the site sells or serves and to whom, roughly how many pages it has, whether its topics are ones a search engine holds to a higher standard, an authority score for the site and for its closest competitors, and whether the requester can change the site's code. Say how "qualified" will be read: the goal's own conversion by landing page where Analytics records one, otherwise relevance to what the site sells, stated as judgment. This baseline decides severity for the rest of the pass, so state it back before Step 2 and correct it there rather than at the end.
 
 A site too new to have search data is a legitimate baseline, not a blocker: trends need weeks of collection before they mean anything, so judge the technical foundation and the content plan and say plainly that the data-driven half is unavailable yet.
 
@@ -99,7 +99,7 @@ A visibility audit judges all eight. A request that names one question, a single
 
 **Structured data.** Organization, site, and breadcrumb markup as the sitewide baseline, page-type markup matched to what the page actually is, and nothing marked up that the page does not display. Validation errors remove rich-result eligibility outright and warnings reduce it, so both are high priority rather than cosmetic.
 
-**Analytics and instrumentation.** Whether search and traffic data are being collected at all, which `tools/tag-audit/` reads deterministically from a live page, whether conversions are tracked, whether the search and analytics properties are linked so that queries and landing pages can be read together, and whether the site is verified on the webmaster surface of every major search engine rather than only the largest, which matters more than their traffic share suggests because those indexes feed generated answers. An uninstrumented site offers no explanation for anything, so instrumentation is scored as an item in its own right, and its impact is every finding the next pass could have made.
+**Analytics and instrumentation.** Whether search and traffic data are being collected at all, which `tools/tag-audit/` reads from a live page's served HTML, a tag it does not find being confirmed in the rendered page before tracking is called missing, whether conversions are tracked, whether the search and analytics properties are linked so that queries and landing pages can be read together, and whether the site is verified on the webmaster surface of every major search engine rather than only the largest, which matters more than their traffic share suggests because those indexes feed generated answers. An uninstrumented site offers no explanation for anything, so instrumentation is scored as an item in its own right, and its impact is every finding the next pass could have made.
 
 **Findability in generated answers.** Whether crawler directives for answer engines are deliberate rather than absent by default, whether a plain-language site summary is published for them, and whether the content can be quoted at all: a direct statement of what the thing is, answers that sit under the questions they answer, steps that are numbered, facts stated plainly instead of buried in persuasion. The homepage earns this attention first. Then entity consistency between the site's own description of itself and the third-party profiles that describe it, since disagreement is what produces a wrong answer. Presence tests against answer engines are qualitative by nature and always carry the unverified label.
 
@@ -131,11 +131,11 @@ Each item states seven things.
 | Effort | small, medium, or large |
 | Confidence | how sure the effect is, and what would make it surer |
 
-A keyword recommendation additionally names the intent behind the query and why the query matters to this business. A missing evidence source is itself an item on this list, scored like any other rather than raised as a prerequisite. Its Fix is the ledger row's `next_step`: a Connect Account turn, a Set Up Connectors turn, a sign-in, or a purchase decision with its price. A competitive or answer-engine finding is not, and carries its significance score instead until the requester promotes it, per the rule below.
+A keyword recommendation additionally names the intent behind the query and why the query matters to this business. A missing evidence source is itself an item on this list, scored like any other rather than raised as a prerequisite. Its Fix is the ledger row's `next_step`: a Connect Account turn, a Set Up Connectors turn, a sign-in, or a purchase decision with its price. A competitive or answer-engine finding is not scored on this list, and carries its significance score instead until the requester promotes it, per the rule below.
 
 #### Step 4: Deliver the judgment
 
-Deliver at moderate depth by default: reasoning on the findings that carry weight, one line on the routine passes, and the full detail reserved for what the requester asks to see expanded. Balance the technical and the content halves rather than favoring the one that is easier to measure, and let expected effect decide the weighting, not the discipline a finding came from. The audit is called full only when the readiness ledger says so, per `experts/Webmaster/seo-readings.md`, or the requester approved a narrower scope by name; otherwise it is partial, naming the sections. The report states the run's total DataForSEO spend and the calls behind it.
+Deliver at moderate depth by default: reasoning on the findings that carry weight, one line on the routine passes, and the full detail reserved for what the requester asks to see expanded. Balance the technical and the content halves rather than favoring the one that is easier to measure, and let expected effect decide the weighting, not the discipline a finding came from. The audit is called full, complete for an approved narrower scope, or partial only as the completion rule in `experts/Webmaster/seo-readings.md` says, naming the sections. The report states the run's total DataForSEO spend and the calls behind it.
 
 Build work is named, never performed. Say what should change, where, and who makes the change; the requester routes it, and `skills/SEO Assets/` produces the artifacts a change needs and hands them back here for a verdict before they are deployed, each judged whole against the finding it was built to close, the applicable requirements of its artifacts-table row, and the supplied evidence, whether or not a finding was named, passing only when nothing else fails that finding, that row, or the supplied evidence, and, where no finding was named, only once its own evidence settled the scope. Closing the named finding while another part of the same artifact fails, a title corrected and a canonical in that artifact left wrong, is a return. Where no finding was named and the evidence did not settle the scope, return and name that gap. The finding stands as the goal, the verdict is pass or return per artifact with what fails and the check that found it, and a gate verdict carries neither the ranking nor the significance score an audit's findings carry.
 
@@ -183,7 +183,7 @@ Verdict is pass or return, with what fails and the check that found it. A return
 4. Never contradict a search platform's own published documentation without stating the disagreement and the reasoning for it. A threshold published by a data vendor describes that vendor's index, not a search engine's ranking system, and is used as calibration only.
 5. Competitive movement and answer-engine findings are scored on their own significance axis, high, medium, or low, meaning how much each matters competitively or to how the brand is answered. That axis never overwrites the priority axis, which means when to do the work, and no competitive or answer-engine finding enters a plan until the requester picks it.
 6. The change list between two snapshots is computed by `tools/sitemap/` `diff` and never read off sitemap markup by eye, at any size: where the tool is present it is always used, and where it is absent the change list is not produced by eye instead: say the comparison cannot run and what it would have shown. A change list that arrives already made, from a source that had no such tool, is evidence rather than production and carries `Estimated: manual review`.
-7. A spend limit the requester states binds the run, and a gateway `needs_confirmation` is the person's to answer, never confirmed by the run. A reading either rules out labels the sections it feeds and is never worked around by another endpoint, provider or manual estimate. Every billed call's `cost` is recorded and the run's total reported.
+7. A spend limit the requester states binds the run, and a gateway `needs_confirmation` is the person's to answer, never confirmed by the run. A reading the limit or a declined stop rules out labels the sections it feeds and is never worked around by another endpoint, provider or manual estimate. Every billed call's `cost` is recorded and the run's total reported.
 
 ## Pitfalls
 
@@ -196,7 +196,7 @@ Verdict is pass or return, with what fails and the check that found it. A return
 - **Stealing DNS.** Calling `cloudflare.dns.*`, `cloudflare.zones.*`, or `cloudflare.rulesets.*`, or owning Zone Publisher, is the wrong persona. Hostname DNS, zone redirect rules and zone settings sequence IT Expert.
 - **Overwriting a foreign site.** Neither `site/kit.json` nor domain-folder `kit.json` means Job 1, not Site Author stand-up. The old shape needs Wrap before current-envelope jobs.
 - **A folder name or a preview origin used as a live property.** Inventing a Search Console or Analytics property from `sites/<domain>/`, or reading a loopback, preview, or staging `kit.json` `siteUrl` so the account reads can run. Label the missing public property instead.
-- **A gateway search miss read as the vendor being unavailable.** `search_actions` returning nothing for a service says only that no connector in this harness declares the action. It is `missing action`, its next step is updating the plugin in that harness, and another route `experts/Webmaster/seo-readings.md` names, the person's own browser among them, is still tried. The gateway's own tools being absent is `needs_provider`. Neither is a finding about the site.
+- **A gateway search miss read as the vendor being unavailable.** `search_actions` returning nothing for a service says only that no connector in this harness declares the action. It is `missing action`, its next step is updating the plugin in that harness, and another route `experts/Webmaster/seo-readings.md` names, the person's own browser among them, is still tried. `needs_provider` is the gateway's answer when its provider is not set up, routed per `skills/Connection Troubleshooter/`. Neither is a finding about the site.
 - **A partial audit called full.** The audit is called full only under the completion rule in `experts/Webmaster/seo-readings.md`. Anything short of that is partial and names the sections.
 
 ## Success

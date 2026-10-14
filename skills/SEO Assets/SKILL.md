@@ -3,7 +3,7 @@ name: SEO Assets
 type: skill
 category: seo
 description: Produce the ready-to-use artifacts a site's decided search changes need, each built from evidence pulled for it, held to its own standards, and written into an envelope's site/ kit tree or handed over for someone else to deploy
-version: 0.13.0
+version: 0.13.1
 memory:
   - voice
   - about
@@ -81,7 +81,7 @@ The constraints under each, where losing one costs something on a live site:
 | A page that builds itself in the browser, or sits behind a sign-in | `tools/Browser Control/` |
 | Keyword demand, intent and difficulty | `dataforseo.research.*` |
 | SERP for a brief's query | `dataforseo.research.serp` |
-| Crawl inventory for a redirect map's old addresses | `tools/site-crawl/` |
+| Crawl inventory for a redirect map's old addresses | `tools/site-crawl/`, with the Search Console `page` rows and a `tools/sitemap/` snapshot for addresses no live page links to |
 | Lab and field performance where a status snapshot reports speed | `google-apis.insights.run` |
 | Index state for a plan file's entries | `google.search-console.inspect` |
 | Bing state for a status snapshot | `bing.webmaster.*` |
