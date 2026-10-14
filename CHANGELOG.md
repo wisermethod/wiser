@@ -4,6 +4,15 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.14, October 14, 2026
+
+- Webmaster's SEO audit bounds its paid research: a reading that needs a whole list, such as a site's anchors, is paged at most ten times unless a limit you stated covers more; a spending limit you state is checked against each call's worst case before the call; a call whose outcome could not be confirmed is not sent again by the audit; a cost that did not come back is shown as unknown and the total as "at least"; and once DataForSEO refuses a call for lack of balance, no further paid call is sent and the top-up is the next step. A rate limit is told apart from an empty balance. (293b4e8, c1b0918, 47b8120)
+- The audit is called full only when every reading it needs returned in full, returned no data for the window, or does not apply to the site; a narrower scope you approve by name is reported as complete for that scope, never as full; and declining a question is not approving a narrower scope. A crawl stopped by its page or depth limit, or one whose home page carries no links, leaves the audit partial. Clarity is offered only when you want it and never counted. (c1b0918, 47b8120)
+- Next steps are the ones that help. A URL inspection refused while the same property's search data reads is checked first for a URL outside the property, then for the account's access to it, and the connection is not redone; a gateway that is not set up, the Wiser endpoint's daily limit, and any other status follow Connection Troubleshooter. (293b4e8, c1b0918, 47b8120)
+- The crawl starts from the address your site actually serves and is re-run from it when the start redirects to another host. A tracking tag missing from a page's served HTML is checked in the rendered page before the audit says tracking is missing. (c1b0918, 47b8120)
+- Paid DataForSEO search volume is a supplement rather than a required reading, since keyword research already returns volume, so a declined stop there no longer leaves an audit partial. Every DataForSEO and Ahrefs figure is labeled as its vendor's estimate, and every comparison of your site with its competitors uses one provider's figures for all of them. (c1b0918)
+- Preflight names the default date windows, how the money pages are chosen, where seed terms come from, and asks which property to use when your account holds more than one. Language and country targeting, which no route reads, is labeled as not read. (c1b0918, 47b8120, 6203e3f)
+
 ## v2026.10.13.6, October 13, 2026
 
 - Webmaster's SEO audit runs every reading that needs no answer from you before it asks anything, the readings in your own browser last among them, then asks its questions together, once. Each DataForSEO report that stops for your yes is shown with its inputs and price and takes its own yes or no. A stop that lapsed before your answer is shown to you again rather than confirmed on your earlier yes. (e3dcc8a, 7233ed3, 368639b)
