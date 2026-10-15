@@ -1,5 +1,5 @@
-import { lstatSync, readFileSync, statSync } from 'node:fs';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { readFileSync, realpathSync, statSync } from 'node:fs';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 
 const FAMILIES = [
   { family: 'skill', index: ['skills', 'AGENTS.md'], dir: 'skills', typed: 'SKILL.md' },
@@ -115,7 +115,7 @@ function declaresNoClassifierSeam(body) {
  * Index rows from the three family AGENTS.md files. `body` is the primitive's
  * full text. A row whose file sits outside its family is skipped, as is a
  * regular file declaring none by the seam gate's rule, reached through no
- * symlink. A typed file that is missing, not a regular file, or unreadable
+ * symlink below `root`. A typed file that is missing, not a regular file, or unreadable
  * throws, as it did before the exclusion, so the hook routes nothing for that
  * ask rather than routing without that primitive.
  * @param {string} root
@@ -123,6 +123,7 @@ function declaresNoClassifierSeam(body) {
  */
 export function buildRoster(root) {
   const rows = [];
+  const rootReal = realpathSync(root);
   for (const family of FAMILIES) {
     const indexPath = join(root, ...family.index);
     const text = readFileSync(indexPath, 'utf8');
@@ -140,10 +141,10 @@ export function buildRoster(root) {
       // Checked before reading, so a FIFO or a directory is never opened.
       if (!statSync(file).isFile()) throw new Error(`typed file is not a regular file: ${name}`);
       const body = readFileSync(file, 'utf8');
-      // Only a file the seam gate itself sees may leave the roster: not a
-      // symlink, and not inside a symlinked primitive directory.
-      const seenByGate = lstatSync(file).isFile() && !lstatSync(dirname(file)).isSymbolicLink();
-      if (seenByGate && declaresNoClassifierSeam(body)) continue;
+      // Only a file reached through no symlink below the root may leave the
+      // roster: the gate reads a symlink as a link, never as the file.
+      const direct = realpathSync(file) === join(rootReal, relative(root, file));
+      if (direct && declaresNoClassifierSeam(body)) continue;
       // The classifier registers a primitive by its bare name, the directory,
       // and answers with that name; the index cell carries the typed file too.
       rows.push({ family: family.family, name: name.slice(0, -suffix.length), description, body });

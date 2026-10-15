@@ -290,6 +290,11 @@ test('roster throws on a typed file it cannot read, as before the exclusion, so 
   mkdirSync(join(directory, 'skills', 'Directory', 'SKILL.md'), { recursive: true });
   assert.throws(() => buildRoster(directory));
 
+  const broken = rosterHome([['Broken', 'a broken symlink where the file should be']]);
+  mkdirSync(join(broken, 'skills', 'Broken'));
+  symlinkSync(join(broken, 'nowhere.md'), join(broken, 'skills', 'Broken', 'SKILL.md'));
+  assert.throws(() => buildRoster(broken));
+
   const fifo = rosterHome([['Fifo', 'a FIFO where the file should be']]);
   mkdirSync(join(fifo, 'skills', 'Fifo'));
   const made = spawnSync('mkfifo', [join(fifo, 'skills', 'Fifo', 'SKILL.md')]);
@@ -322,6 +327,22 @@ test('roster keeps offered what the seam gate cannot see or reads as doubtful', 
     { family: 'skill', name: 'Symlink', description: 'a typed-file symlink, which the gate refuses', body: none },
     { family: 'skill', name: 'LinkedDir', description: 'a symlinked primitive directory, which the gate lists as one path', body: none },
     { family: 'skill', name: 'Nul', description: 'a NUL byte, at which the gate ends a line', body: nul },
+  ]);
+
+  // A symlinked family directory: the file below it is a regular file, but the
+  // gate reads the family directory as a link and never sees it.
+  const linked = tempHome();
+  for (const [, dir] of rosterFamilies) {
+    if (dir === 'skills') continue;
+    mkdirSync(join(linked, dir));
+    writeFileSync(join(linked, dir, 'AGENTS.md'), '');
+  }
+  mkdirSync(join(linked, 'real-skills', 'Clean'), { recursive: true });
+  writeFileSync(join(linked, 'real-skills', 'Clean', 'SKILL.md'), none);
+  writeFileSync(join(linked, 'real-skills', 'AGENTS.md'), '| `Clean/SKILL.md` | a clean none below a symlinked family directory |');
+  symlinkSync(join(linked, 'real-skills'), join(linked, 'skills'));
+  assert.deepEqual(buildRoster(linked), [
+    { family: 'skill', name: 'Clean', description: 'a clean none below a symlinked family directory', body: none },
   ]);
 });
 
