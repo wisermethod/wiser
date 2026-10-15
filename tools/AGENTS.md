@@ -34,7 +34,7 @@ The one list; a tool's pages point here.
 | A knowledge set's own records: corpus, wiki or extraction, review items, reports | inside the set directory the caller passes as `--set`, at `corpus/`, `wiki/`, `extraction/`, `review/`, and `reports/` as the backend uses them | `knowledge-memory` |
 | A delegate's run record: the prompt, the vendor's two output streams, the parsed report, and `status.json` (`started` with the vendor's process and group ids, then the final state) | one folder under the caller-named `--runs`, which may not sit inside this plugin; a refusal before the vendor starts writes none | `Subagent Runner` |
 
-`copy-check` writes nothing and installs nothing: Node built-ins cover it, and every command prints one JSON object.
+`copy-check` writes nothing and installs nothing: Node built-ins cover it, and every command prints one JSON object. `voice-lexicon` writes nothing but the `--output` file it is given, and installs nothing: Node built-ins cover it too.
 
 The gateway's writes (connection store, audit log, empty project-key template) are listed in `gateway/AGENTS.md` and are not restated here.
 
@@ -60,6 +60,7 @@ The gateway's writes (connection store, audit log, empty project-key template) a
 | `copy-check/TOOL.md` | Count and match page copy against a ledger, a fact map, patterns, and a corpus, and return one JSON object |
 | `deck-export/TOOL.md` | Writes a new reveal.js deck project on disk, from a brand template or as a self-contained starter, and renders a finished deck to a PDF or to one PNG per slide |
 | `keynote-render/TOOL.md` | Builds and edits native Keynote decks from JSON or markdown SSOT, with zArchive safety before every in-place mutation |
+| `voice-lexicon/TOOL.md` | Find the style markers that recur across a person's writing samples, each with its count and sample ids, and check a draft against them for avoided terms and overused, contradicted or missing markers, as one JSON object |
 
 ### Knowledge
 
