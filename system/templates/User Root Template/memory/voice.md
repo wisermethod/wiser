@@ -29,7 +29,7 @@ Labels and registers are `standards/conventions.md`'s, written in place and neve
 
 ## Vocabulary
 
-*Words and phrases they reach for, words they avoid, and how technical the language runs.*
+*The markers `tools/voice-lexicon/` found and the person confirmed, each with its count and evidence ids: a signature word or phrase as `"in practice": 9 uses in E1, E3, E4`, a variant with the form it is chosen over, a punctuation habit with its rate against the usual rate and whether that is more or less often; words they say they reach for and words they avoid, with who said so; and how technical the language runs.*
 
 ## Structural Habits
 
