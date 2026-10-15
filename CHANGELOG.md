@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## Unreleased
+
+- Writing Wiser produces is laid out to be read: one idea per paragraph, paragraphs of 150 words or fewer in a file or page and 80 in a reply or email, a blank line between blocks, a heading at least every 400 words in a piece over 600, lists of short items, and a page's text column 45 to 75 characters wide. The rules sit in the conventions every file follows, set per destination: reply, file, email, page and slide.
+- Content Author lays out each paragraph as it drafts it, then runs the layout count before review. Ghost Writer's gate checks layout as a ninth craft tell: the countable rules are counted, not read for, and a hit is fixed whatever the voice, like the dash rule; the rest are judged.
+- copy-check 0.2.0 adds `layout`, which counts paragraphs, list items and sections over their word ceilings and blocks with no blank line between them, for a file, page, reply or email, with a control that proves the count ran.
+
 ## v2026.10.15, October 15, 2026
 
 - The classifier no longer suggests Commit and Release, Delegate Build or Prove Change, whose files declare no classifier seam. (5e2f2cc, e152a37, f8d001d)

@@ -182,7 +182,7 @@ function unitFrom(chars, kind) {
   };
 }
 
-function lineEnds(text) {
+export function lineEnds(text) {
   const lines = [];
   let offset = 0;
   const parts = text.split('\n');
@@ -193,11 +193,11 @@ function lineEnds(text) {
   return lines;
 }
 
-function rawOf(line) {
+export function rawOf(line) {
   return line.text.endsWith('\r') ? line.text.slice(0, -1) : line.text;
 }
 
-function fenceOpen(raw) {
+export function fenceOpen(raw) {
   const match = /^( {0,3})(`{3,}|~{3,})(.*)$/.exec(raw);
   if (!match) return null;
   const mark = match[2];
@@ -206,12 +206,12 @@ function fenceOpen(raw) {
   return { char: mark[0], length: mark.length };
 }
 
-function fenceClose(raw, open) {
+export function fenceClose(raw, open) {
   const match = new RegExp(`^ {0,3}${open.char}{${open.length},}\\s*$`).exec(raw);
   return Boolean(match);
 }
 
-function headingOf(raw) {
+export function headingOf(raw) {
   const match = /^( {0,3})(#{1,6})\s+(\S.*)$/.exec(raw);
   if (!match) return null;
   const content = match[3].replace(/\s+#+\s*$/, '');
@@ -220,17 +220,17 @@ function headingOf(raw) {
   return { content, contentAt: match[1].length + match[2].length + spaces, lead };
 }
 
-function listOf(raw) {
+export function listOf(raw) {
   const match = /^(\s*)([-+*]|\d+[.)])\s+(.*)$/.exec(raw);
   if (!match) return null;
   return { indent: match[1].length, content: match[3], contentAt: match[1].length + match[2].length + raw.slice(match[1].length + match[2].length).match(/^\s*/)[0].length };
 }
 
-function isThematic(raw) {
+export function isThematic(raw) {
   return /^( {0,3})([-*_])\2{2,}\s*$/.test(raw);
 }
 
-function isBlank(raw) {
+export function isBlank(raw) {
   return raw.trim() === '';
 }
 

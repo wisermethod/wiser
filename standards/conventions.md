@@ -1,6 +1,6 @@
 ---
 standard: conventions
-version: 0.4.2
+version: 0.5.0
 description: The cross-cutting conventions every file and agent in a Wiser workspace follows: formatting, dates, portable names, working files, root layout, archives, sourcing, and evidence labels
 ---
 
@@ -21,6 +21,27 @@ Applies both to prose written in a response and to the files you author.
 - **No em dashes and no en dashes in a piece the Ghost Writer gate reads**: a comma, a semicolon, or a period in place of one, and "to" for a range. `experts/Ghost Writer/` owns this rule. Its Context bounds the population, exclusions and all, and its Craft section states the rule with its reader cost and its carve-outs. **This clause deliberately does not restate that boundary**, because one population written down twice is one population that drifts.
 
 **The dash rule is scoped, and the scope is the decision**, taken 2026-09-21 by the operator. It was written here as a house style for every file in every root, and what it bound in practice was the documents that gate never reads: Playbooks, build ledgers, AGENTS.md files, standards including this one, gate records, logs, commit messages, and the instruction files whose review is the Review Process in `instruction-quality.md`. **Those are free of it**, and a session spending a sweep on one of them is spending it on a rule that was never for that file. Ghost Writer's Context had already drawn that line for what it reviews; the rule now sits on the same line instead of a wider one of its own.
+
+### Readable layout
+
+Binds a piece the Ghost Writer gate reads and a reply written to a person in conversation. The files the dash rule leaves free are free of this too, for the same reason. A reader scans before reading (Nielsen, *How Users Read on the Web*, NN/g: 79% of test users scanned and 16% read word by word), so the layout shows the structure before a word is read. The bound `voice` governs the sentences; this governs the blocks they sit in, and a voice does not lift it. A content-type file may set a tighter limit for its format, never a looser one.
+
+- **One idea per paragraph**, named in its first sentence. A second idea starts a new paragraph.
+- **Paragraph ceiling**: 150 words in a file or page, 80 in a reply or an email. Words inside a quotation reproduced as written are not counted. The 150 follows the federal plain-language guide (digital.gov, *Clear and short*: no more than 150 words, never more than 250).
+- **A blank line between blocks**: every paragraph, heading, list, table, and code block is separated from the next by one blank line.
+- **Headings when the piece needs a map**: a file or page over 600 words carries a heading at least every 400 words of body. A heading names what its section says, the informative words first (Pernice, *F-Shaped Pattern of Reading on the Web*, NN/g). A reply or an email under that length carries none.
+- **List or prose**: a list for three or more parallel items the reader will scan, compare, or follow in order, numbered when the order matters. Prose when each point rests on the one before it. A list item stays at 40 words or fewer; one that needs more is a paragraph.
+- **Lead with the point**: the first two paragraphs carry what the reader most needs.
+
+| Destination | Layout |
+|-------------|--------|
+| Reply in conversation | Paragraphs of 80 words or fewer. Headings only for three or more distinct parts. A list for steps and options |
+| Markdown file | The rules above as written |
+| Email | Paragraphs of 80 words or fewer, a blank line between them. The ask in the first two lines. No markdown headings unless the mail client renders them, and no hard line wraps |
+| HTML page | The text column is 45 to 75 characters wide, set as a `max-width` in `ch` with 66 the target and 80 the limit (WCAG 2.2 SC 1.4.8; Bringhurst's 45 to 75). Line height at least 1.5, paragraph spacing larger than line spacing, left-aligned and never justified |
+| Slide | One idea per slide, its headline the conclusion. Body text of 30 words or fewer; a slide that needs a paragraph is two slides or a speaker note |
+
+**Counted and judged.** The paragraph, list item, and section ceilings and the blank line between blocks are counted by `tools/copy-check/` `layout` on markdown copy, for a file, a page, a reply, or an email. One idea per paragraph, what a heading names, list or prose, leading with the point, a page's column and spacing, and a slide's body are judged. `experts/Ghost Writer/` Craft owns how each is found at the gate and what a hit costs.
 
 ## Dates
 

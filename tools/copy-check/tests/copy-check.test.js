@@ -94,13 +94,14 @@ describe('help', () => {
     assert.match(result.stdout, /--patterns/);
     assert.match(result.stdout, /--corpus/);
     assert.match(result.stdout, /--n/);
+    assert.match(result.stdout, /--destination/);
     assert.match(result.stdout, /--help/);
     assert.match(result.stdout, /--env/);
     assert.match(result.stdout, /--install/);
     assert.equal(existsSync(join(ROOT, 'node_modules')), false);
   });
 
-  for (const command of ['facts', 'prohibited', 'overlap', 'dashes']) {
+  for (const command of ['facts', 'prohibited', 'overlap', 'dashes', 'layout']) {
     it(`${command} --help exits 0`, () => {
       const result = run([command, '--help']);
       assert.equal(result.status, 0, result.stderr);
@@ -470,6 +471,153 @@ describe('dashes', () => {
       assert.equal(body.counted, 1);
       assert.equal(body.hits[0].context, 'text');
     });
+  });
+});
+
+function words(count, word = 'word') {
+  return Array.from({ length: count }, () => word).join(' ');
+}
+
+describe('layout', () => {
+  it('passes on short blocks with blank lines between them, and the control fires', () => {
+    const copy = '# A heading\n\nA short paragraph.\n\n- one item\n- two items\n\nClosing paragraph.\n';
+    withDir({ 'copy.md': copy }, (dir) => {
+      const body = ok(['layout', '--copy', join(dir, 'copy.md')]);
+      assert.equal(body.command, 'layout');
+      assert.equal(body.pass, true);
+      assert.equal(body.counted, 0);
+      assert.equal(body.destination, 'file');
+      assert.equal(body.control.fired, true);
+      assert.equal(body.control.planted, 'one paragraph of 151 words');
+      assert.equal(body.paragraphs.length, 0);
+    });
+  });
+
+  it('counts a paragraph over the ceiling for its destination, at its line', () => {
+    const copy = `Intro line.\n\n${words(151)}.\n\n${words(100)}.\n`;
+    withDir({ 'copy.md': copy }, (dir) => {
+      const file = ok(['layout', '--copy', join(dir, 'copy.md')]);
+      assert.equal(file.pass, false);
+      assert.equal(file.paragraphs.length, 1);
+      assert.equal(file.paragraphs[0].line, 3);
+      assert.equal(file.paragraphs[0].words, 151);
+      const reply = ok(['layout', '--copy', join(dir, 'copy.md'), '--destination', 'reply']);
+      assert.equal(reply.paragraphs.length, 2);
+      assert.equal(reply.limits.paragraphWords, 80);
+      const email = ok(['layout', '--copy', join(dir, 'copy.md'), '--destination', 'email']);
+      assert.equal(email.paragraphs.length, 2);
+    });
+  });
+
+  it('leaves the words inside a quotation out of the paragraph count', () => {
+    const copy = `He said "${words(100, 'quoted')}" and then ${words(60)}.\n`;
+    withDir({ 'copy.md': copy }, (dir) => {
+      const body = ok(['layout', '--copy', join(dir, 'copy.md')]);
+      assert.equal(body.paragraphs.length, 0);
+      assert.equal(body.pass, true);
+    });
+    withDir({ 'copy.md': `He said ${words(100, 'unquoted')} and then ${words(60)}.\n` }, (dir) => {
+      const body = ok(['layout', '--copy', join(dir, 'copy.md')]);
+      assert.equal(body.paragraphs.length, 1);
+    });
+  });
+
+  it('counts a list item over 40 words', () => {
+    const copy = `- ${words(41)}\n- ${words(40)}\n`;
+    withDir({ 'copy.md': copy }, (dir) => {
+      const body = ok(['layout', '--copy', join(dir, 'copy.md')]);
+      assert.equal(body.listItems.length, 1);
+      assert.equal(body.listItems[0].line, 1);
+      assert.equal(body.listItems[0].words, 41);
+    });
+  });
+
+  it('counts a section over 400 words only in a file or page over 600 words', () => {
+    const paragraphs = Array.from({ length: 5 }, () => `${words(90)}.`).join('\n\n');
+    const copy = `# Long\n\n${paragraphs}\n\n# Short\n\n${words(100)}.\n\n${words(100)}.\n`;
+    withDir({ 'copy.md': copy }, (dir) => {
+      const file = ok(['layout', '--copy', join(dir, 'copy.md')]);
+      assert.equal(file.bodyWords, 650);
+      assert.equal(file.sectionsCounted, true);
+      assert.equal(file.sections.length, 1);
+      assert.equal(file.sections[0].section, 'Long');
+      assert.equal(file.sections[0].words, 450);
+      const page = ok(['layout', '--copy', join(dir, 'copy.md'), '--destination', 'page']);
+      assert.equal(page.sections.length, 1);
+      const email = ok(['layout', '--copy', join(dir, 'copy.md'), '--destination', 'email']);
+      assert.equal(email.sectionsCounted, false);
+      assert.equal(email.sections.length, 0);
+    });
+    const short = `# Only\n\n${Array.from({ length: 5 }, () => `${words(90)}.`).join('\n\n')}\n`;
+    withDir({ 'copy.md': short }, (dir) => {
+      const body = ok(['layout', '--copy', join(dir, 'copy.md')]);
+      assert.equal(body.bodyWords, 450);
+      assert.equal(body.sectionsCounted, false);
+      assert.equal(body.sections.length, 0);
+    });
+  });
+
+  it('counts two blocks with no blank line between them', () => {
+    const copy = [
+      '# Title',
+      'Text under the heading.',
+      '',
+      'A paragraph.',
+      '- a list right after it',
+      'a continuation of that item',
+      '',
+      '## One',
+      '## Two',
+      '',
+      '| a | b |',
+      '|---|---|',
+      '| 1 | 2 |',
+      'Text after the table.',
+      '',
+      'Before a fence.',
+      '```',
+      'code',
+      '```',
+      'After the fence.',
+      ''
+    ].join('\n');
+    withDir({ 'copy.md': copy }, (dir) => {
+      const body = ok(['layout', '--copy', join(dir, 'copy.md')]);
+      assert.deepEqual(body.spacing, [
+        { line: 2, before: 'heading', after: 'paragraph' },
+        { line: 5, before: 'paragraph', after: 'list' },
+        { line: 9, before: 'heading', after: 'heading' },
+        { line: 14, before: 'table', after: 'paragraph' },
+        { line: 17, before: 'paragraph', after: 'fence' },
+        { line: 20, before: 'fence', after: 'paragraph' }
+      ]);
+      assert.equal(body.counted, 6);
+      assert.equal(body.pass, false);
+    });
+  });
+
+  it('reads frontmatter as no block and a multi-line paragraph as one', () => {
+    const copy = '---\ntitle: A title\n---\n# Heading\n\nLine one of a paragraph\nline two of it.\n';
+    withDir({ 'copy.md': copy }, (dir) => {
+      const body = ok(['layout', '--copy', join(dir, 'copy.md')]);
+      assert.equal(body.spacing.length, 0);
+      assert.equal(body.pass, true);
+    });
+  });
+
+  it('exits 1 when the control cannot fire, as when the copy ends inside an unclosed fence', () => {
+    withDir({ 'copy.md': 'Text.\n\n```\nunclosed code\n' }, (dir) => {
+      refused(['layout', '--copy', join(dir, 'copy.md')], /layout control did not fire/);
+    });
+  });
+
+  it('refuses an unknown destination, a slide included, and an unknown flag', () => {
+    withDir({ 'copy.md': 'Text.\n' }, (dir) => {
+      refused(['layout', '--copy', join(dir, 'copy.md'), '--destination', 'slide'], /--destination must be one of file, page, reply, email/);
+      refused(['layout', '--copy', join(dir, 'copy.md'), '--destination'], /--destination needs a value/);
+      refused(['layout', '--copy', join(dir, 'copy.md'), '--max', '10'], /unknown option "--max"/);
+    });
+    refused(['layout'], /--copy is required/);
   });
 });
 
