@@ -4,13 +4,13 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
-## Unreleased
+## v2026.10.15, October 15, 2026
 
-- The classifier no longer suggests Commit and Release, Delegate Build or Prove Change, whose files declare no classifier seam.
-- When a Claude Code session starts, Wiser reminds it that your standing preferences are kept on your Wiser account, not in Claude Code's own memory, and Save Preference decides whether to offer keeping a new one.
-- New skill, Save Preference: keep, list, change or forget a standing preference on your Wiser account. Each sentence is previewed word for word and saved only on your yes; when saving is not open yet, it stops before asking for approval. It refuses a preference that would drop or put off a check before or after a step, give consent in advance, or change one of Wiser's own rules, such as deleting files without asking first (bcbbfbf).
-- Wiser reads your saved preferences from your Wiser account when it starts work for you, follows them within its own rules, your folder's facts and voice, and what you ask in the moment, goes on without them when it cannot read them, and never passes them to a helper it hands work to (bcbbfbf, 55d80cf, and this change).
-- What Wiser keeps goes where a later session will find it: facts in your folder, preferences on your Wiser account through Save Preference, never in an app's own memory (bcbbfbf).
+- The classifier no longer suggests Commit and Release, Delegate Build or Prove Change, whose files declare no classifier seam. (5e2f2cc, e152a37, f8d001d)
+- When a Claude Code session starts, Wiser reminds it that your standing preferences are kept on your Wiser account, not in Claude Code's own memory, and Save Preference decides whether to offer keeping a new one. (e8fa63f, 3ca9c5f)
+- New skill, Save Preference: keep, list, change or forget a standing preference on your Wiser account. Each sentence is previewed word for word, with a line telling you it is kept on your Wiser account and sent to the AI apps you use with Wiser, and saved only on your yes; when saving is not open yet, it stops before asking for approval. It refuses a preference that would drop or put off a check before or after a step, give consent in advance, or change one of Wiser's own rules, such as deleting files without asking first. (bcbbfbf, 078b009, e152a37, f8d001d, 5d3200e)
+- Wiser reads your saved preferences from your Wiser account when it starts work for you, follows them within its own rules, your folder's facts and voice, and what you ask in the moment, goes on without them when it cannot read them, and never passes them to a helper it hands work to. (bcbbfbf, 55d80cf, ba7f7ec)
+- What Wiser keeps goes where a later session will find it: facts in your folder, preferences on your Wiser account through Save Preference, never in an app's own memory. (bcbbfbf)
 
 ## v2026.10.14.3, October 14, 2026
 
