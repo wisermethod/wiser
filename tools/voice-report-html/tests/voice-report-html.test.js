@@ -1,0 +1,215 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, writeFileSync, existsSync, symlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const TOOL = join(HERE, '..');
+const SCRIPT = join(TOOL, 'scripts', 'voice-report-html.js');
+const FIX = join(HERE, 'fixtures');
+
+function run(...args) {
+  const result = spawnSync(process.execPath, [SCRIPT, ...args], { encoding: 'utf8' });
+  return { code: result.status, out: result.stdout, err: result.stderr };
+}
+
+function scratch() {
+  return mkdtempSync(join(tmpdir(), 'voice-report-html-test-'));
+}
+
+function extract(name) {
+  const root = join(FIX, name);
+  const r = run('extract', '--voice', join(root, 'memory', 'voice.md'), '--root', root);
+  assert.equal(r.code, 0, r.err);
+  return JSON.parse(r.out);
+}
+
+function renderData(data, extra = []) {
+  const dir = scratch();
+  const dataPath = join(dir, 'data.json');
+  writeFileSync(dataPath, JSON.stringify(data));
+  const out = join(dir, '2026-10-15 voice report.html');
+  const r = run('render', '--data', dataPath, '--output', out, '--date', '2026-10-15', ...extra);
+  return { ...r, out, dir, dataPath, html: existsSync(out) ? readFileSync(out, 'utf8') : null };
+}
+
+const TRAIT = 'Emails and posts use I, you and contractions; the published narrative drops all three and carries figures with sources (E1, E2, E3, E4).';
+
+test('help works with nothing configured, and beside --help', () => {
+  for (const args of [['help'], ['--help'], [], ['help', '--help']]) {
+    const r = run(...args);
+    assert.equal(r.code, 0);
+    assert.match(r.out, /voice-report-html 0\.1\.0/);
+    assert.equal(r.err, '');
+  }
+});
+
+test('unknown flags, commands, --install and repeated flags are refused by name', () => {
+  assert.match(run('render', '--bogus', 'x').err, /unknown flag --bogus/);
+  assert.match(run('publish').err, /unknown command "publish"/);
+  assert.match(run('extract', '--install').err, /--install is refused/);
+  assert.match(run('extract', '--voice', '/a', '--voice', '/b', '--root', '/c').err, /--voice is given twice/);
+  assert.match(run('render', '--data').err, /--data needs a value/);
+  assert.match(run('help', '--nope').err, /unknown argument/);
+  for (const r of [run('render', '--bogus', 'x'), run('publish')]) {
+    assert.equal(r.code, 1);
+    assert.equal(r.out, '');
+  }
+});
+
+test('relative paths are refused', () => {
+  assert.match(run('extract', '--voice', 'memory/voice.md', '--root', FIX).err, /must be an absolute path/);
+});
+
+test('extract reads a built voice and its confirmed profile', () => {
+  const data = extract('complete-root');
+  assert.equal(data.state, 'built');
+  assert.equal(data.subject, 'Marisol Vey');
+  assert.equal(data.rootType, 'personal');
+  assert.equal(data.authority.confirmed, '2026-10-15 [V3]');
+  assert.equal(data.profile.state, 'read');
+  assert.equal(data.profile.path, 'work/onboarding/2026-10-15 profile confirmed.json');
+  assert.equal(data.profile.chunks, 6);
+  assert.deepEqual(data.features.hedges, { low: 2, median: 3.5, high: 4, q1: null, q3: null, decision: 'polish', polish: 'high', measured: { low: 2, high: 9 } });
+  assert.equal(data.features.sentence_mean.decision, 'keep');
+  assert.equal(data.features.boosters.decision, null);
+  assert.equal(data.sections.routing.rows.length, 2);
+  assert.equal(data.sections.tone.state, 'answered');
+  assert.equal(data.markers.length, 3);
+  assert.deepEqual(data.rated, []);
+  assert.equal(data.voice.sha256.length, 64);
+});
+
+test('an old-format voice gets no measured values and keeps its Not available labels', () => {
+  const data = extract('old-format-root');
+  assert.equal(data.state, 'built');
+  assert.equal(data.profile.state, 'absent');
+  assert.deepEqual(data.features, {});
+  assert.deepEqual(data.markers, []);
+  const labels = data.notAvailable.map((n) => n.section);
+  assert.ok(labels.includes('Prohibitions'));
+  assert.ok(labels.includes('voice-confirmation-date'));
+  const r = renderData(data);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.html, /not yet confirmed/);
+  assert.match(r.html, /names no confirmed profile/);
+  assert.equal((r.html.match(/class="mark"/g) || []).length, 1, 'only the key glyph carries a measured marker');
+});
+
+test('a stub voice and a labelled stub are unbuilt, and render refuses them', () => {
+  for (const name of ['stub-root', 'labelled-stub-root']) {
+    const data = extract(name);
+    assert.equal(data.state, 'unbuilt', name);
+    const r = renderData(data);
+    assert.equal(r.code, 1);
+    assert.match(r.err, /has not been built/);
+    assert.equal(r.html, null);
+  }
+});
+
+test('a voice-profile line naming a missing file is reported, not guessed', () => {
+  const data = extract('missing-profile-root');
+  assert.equal(data.profile.state, 'missing-file');
+  assert.deepEqual(data.features, {});
+  const r = renderData(data);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.html, /which is not there/);
+});
+
+test('a voice-profile line outside the owning root is refused', () => {
+  const root = join(FIX, 'outside-profile-root');
+  const r = run('extract', '--voice', join(root, 'memory', 'voice.md'), '--root', root);
+  assert.equal(r.code, 1);
+  assert.match(r.err, /outside the owning root/);
+});
+
+test('a profile feature with a key voice-lexicon does not define is refused by name', () => {
+  const root = join(FIX, 'bad-profile-root');
+  const r = run('extract', '--voice', join(root, 'memory', 'voice.md'), '--root', root);
+  assert.equal(r.code, 1);
+  assert.match(r.err, /unknown key "target"/);
+});
+
+test('--voice outside --root is refused', () => {
+  const r = run('extract', '--voice', join(FIX, 'complete-root', 'memory', 'voice.md'), '--root', join(FIX, 'stub-root'));
+  assert.match(r.err, /not inside --root/);
+});
+
+test('the page is static, escapes voice.md text, and shows current setting and measured band', () => {
+  const data = extract('escape-root');
+  const r = renderData(data);
+  assert.equal(r.code, 0, r.err);
+  assert.doesNotMatch(r.html, /<script/i);
+  assert.match(r.html, /&lt;script&gt;alert\(1\)&lt;\/script&gt; &amp; &quot;quoted&quot; &lt;b&gt;bold&lt;\/b&gt;/);
+  assert.doesNotMatch(r.html, /https?:\/\//, 'no external request');
+  const full = renderData(extract('complete-root'));
+  assert.match(full.html, /set to 2 to 4; measured 2 to 9 per 1,000 words/);
+  assert.match(full.html, /class="measured"/);
+  assert.match(full.html, /polish: less of this than the samples show/);
+  assert.match(full.html, /keep: as the samples show/);
+  assert.match(full.html, /Semicolons/);
+});
+
+test('rated dials need a trait line copied from voice.md and the evidence it cites', () => {
+  const base = extract('complete-root');
+  const ok = renderData({ ...base, rated: [{ key: 'involved', step: 2, trait: TRAIT, evidence: ['E1', 'E3'] }] });
+  assert.equal(ok.code, 0, ok.err);
+  assert.match(ok.html, /class="open" cx="25.00%"/);
+  assert.match(ok.html, /class="sidenote"/);
+
+  const cases = [
+    [{ key: 'involved', step: 2, trait: 'Writes warmly and with energy in every piece.', evidence: ['E1'] }, /not in voice.md as extracted/],
+    [{ key: 'involved', step: 2, trait: TRAIT, evidence: ['E9'] }, /does not cite/],
+    [{ key: 'involved', step: 2, trait: TRAIT, evidence: [] }, /cites no evidence/],
+    [{ key: 'involved', step: 6, trait: TRAIT, evidence: ['E1'] }, /whole number from 1 to 5/],
+    [{ key: 'warmth', step: 2, trait: TRAIT, evidence: ['E1'] }, /is not one of/],
+    [{ key: 'involved', step: 2, trait: TRAIT, evidence: ['E1'], note: 'x' }, /unknown key "note"/]
+  ];
+  for (const [entry, pattern] of cases) {
+    const r = renderData({ ...base, rated: [entry] });
+    assert.equal(r.code, 1, JSON.stringify(entry));
+    assert.match(r.err, pattern);
+    assert.equal(r.html, null);
+  }
+  const twice = renderData({ ...base, rated: [{ key: 'involved', step: 2, trait: TRAIT, evidence: ['E1'] }, { key: 'involved', step: 3, trait: TRAIT, evidence: ['E1'] }] });
+  assert.match(twice.err, /appears twice/);
+});
+
+test('render never overwrites, and never writes inside the tool directory or through a link', () => {
+  const data = extract('complete-root');
+  const first = renderData(data);
+  assert.equal(first.code, 0, first.err);
+  const again = run('render', '--data', first.dataPath, '--output', first.out);
+  assert.equal(again.code, 1);
+  assert.match(again.err, /never overwrites/);
+
+  const inside = run('render', '--data', first.dataPath, '--output', join(TOOL, 'page.html'));
+  assert.match(inside.err, /inside the voice-report-html tool directory/);
+  assert.equal(existsSync(join(TOOL, 'page.html')), false);
+
+  const link = join(first.dir, 'link.html');
+  symlinkSync(join(first.dir, 'elsewhere.html'), link);
+  assert.match(run('render', '--data', first.dataPath, '--output', link).err, /symbolic link/);
+
+  assert.match(run('render', '--data', first.dataPath, '--output', join(first.dir, 'no-such-folder', 'a.html')).err, /folder that does not exist/);
+  assert.match(run('render', '--data', first.dataPath, '--output', join(first.dir, 'b.html'), '--date', '15/10/2026').err, /--date must be YYYY-MM-DD/);
+});
+
+test('extract --output writes the data file and refuses an existing one', () => {
+  const dir = scratch();
+  const root = join(FIX, 'complete-root');
+  const out = join(dir, 'data.json');
+  const r = run('extract', '--voice', join(root, 'memory', 'voice.md'), '--root', root, '--output', out);
+  assert.equal(r.code, 0, r.err);
+  assert.deepEqual(JSON.parse(r.out), { written: out.replace(/^\/var\//, '/private/var/'), state: 'built', profile: 'read' });
+  assert.equal(JSON.parse(readFileSync(out, 'utf8')).state, 'built');
+  assert.match(run('extract', '--voice', join(root, 'memory', 'voice.md'), '--root', root, '--output', out).err, /never overwrites/);
+});
+
+test('importing the script runs nothing', async () => {
+  const module = await import(SCRIPT);
+  assert.equal(typeof module.main, 'function');
+});

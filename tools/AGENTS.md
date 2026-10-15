@@ -36,6 +36,8 @@ The one list; a tool's pages point here.
 
 `copy-check` writes nothing and installs nothing: Node built-ins cover it, and every command prints one JSON object. `voice-lexicon` writes nothing but the `--output` file it is given, and installs nothing: Node built-ins cover it too.
 
+`voice-report-html` writes nothing but the `--output` file it is given, never over an existing file, and installs nothing: Node built-ins cover it.
+
 The gateway's writes (connection store, audit log, empty project-key template) are listed in `gateway/AGENTS.md` and are not restated here.
 
 <!-- generated:index -->
@@ -61,6 +63,7 @@ The gateway's writes (connection store, audit log, empty project-key template) a
 | `deck-export/TOOL.md` | Writes a new reveal.js deck project on disk, from a brand template or as a self-contained starter, and renders a finished deck to a PDF or to one PNG per slide |
 | `keynote-render/TOOL.md` | Builds and edits native Keynote decks from JSON or markdown SSOT, with zArchive safety before every in-place mutation |
 | `voice-lexicon/TOOL.md` | Find the style markers that recur across a person's writing samples, each with its count and sample ids, and the rhythm and stance ranges they keep, and check a draft against them for avoided terms, contradicted markers and the dose of signature markers and sayings, with rhythm and stance outside those ranges and missing markers as advice, as one JSON object |
+| `voice-report-html/TOOL.md` | Read a root's bound voice.md and the confirmed voice-lexicon profile it names into one data object, and render that object as one static HTML page with dials for register, stance and rhythm |
 
 ### Knowledge
 

@@ -1,0 +1,91 @@
+/* voice-report-html page styles. Static: the page carries no script and
+   loads nothing from the network. Light and dark follow the reader's
+   system setting. */
+:root {
+  --bg: #fffff8; --ink: #111111; --ink-2: #4a4a44; --ink-3: #6b6b63;
+  --rule: #c9c8bd; --band: #d9d6c3; --mark: #8a1c1c; --na: #9a998f;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #151513; --ink: #e9e7dc; --ink-2: #bdbbb0; --ink-3: #9d9b91;
+    --rule: #4a4943; --band: #45433b; --mark: #e0796b; --na: #7d7c74;
+  }
+}
+* { box-sizing: border-box; }
+html { font-size: 17px; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: "et-book", Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  line-height: 1.5; font-size: 1.12rem; counter-reset: sidenote-counter;
+}
+article { width: 87.5%; max-width: 1400px; margin: 0 auto; padding: 3rem 0 4rem 12.5%; }
+article > header > *, article > section > *, .lede p { width: 55%; }
+h1 { font-weight: 400; font-size: 2.4rem; line-height: 1.1; margin: 0 0 .4rem; }
+h2 { font-weight: 400; font-style: italic; font-size: 1.35rem; margin: 1.8rem 0 .5rem; }
+p { margin: .4rem 0 .8rem; }
+code { font-size: .82em; }
+.meta { color: var(--ink-2); font-size: 1rem; }
+.foot { margin-top: 2rem; }
+.lede p { font-size: 1.3rem; line-height: 1.45; }
+.na { color: var(--ink-3); font-style: italic; }
+.src { color: var(--ink-3); }
+
+/* Sidenotes, after Tufte CSS (Liepmann) */
+.sidenote { float: right; clear: right; margin-right: -60%; width: 50%; margin-top: 0;
+  font-size: .9rem; line-height: 1.35; color: var(--ink-2); position: relative; }
+.sidenote-number { counter-increment: sidenote-counter; }
+.sidenote-number:after { content: counter(sidenote-counter); font-size: .8rem; position: relative; top: -.5rem; left: .1rem; }
+.sidenote:before { content: counter(sidenote-counter) " "; font-size: .8rem; position: relative; top: -.4rem; }
+input.margin-toggle { display: none; }
+
+/* Dials: one aligned block, one row per dial */
+.dials { margin: 1.4rem 0 .4rem; }
+.dial-group { font-variant: small-caps; letter-spacing: .05em; font-size: .95rem; color: var(--ink-3); margin: 1.1rem 0 .25rem; }
+.dial-group:first-child { margin-top: 0; }
+.dial { padding: .2rem 0 .35rem; }
+.dial-row { display: flex; align-items: center; gap: .9rem; }
+.dial-name { flex: 0 0 11rem; font-size: 1.05rem; line-height: 1.25; }
+.dial-reading, .decision { display: block; font-size: .88rem; color: var(--ink-2); line-height: 1.25; }
+.decision { color: var(--ink-3); font-style: italic; }
+.dial-scale { flex: 1 1 auto; min-width: 0; }
+.dial.na .dial-name, .dial.na .dial-reading { color: var(--ink-3); }
+.dial svg { display: block; width: 100%; height: 22px; overflow: visible; }
+.dial-ends { display: flex; justify-content: space-between; font-size: .88rem; color: var(--ink-3); font-style: italic; line-height: 1.1; }
+.axis, .tick { stroke: var(--rule); stroke-width: 1; }
+.band { fill: var(--band); }
+.measured { fill: none; stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 3 2; }
+.mark { fill: var(--mark); }
+.open { fill: var(--bg); stroke: var(--mark); stroke-width: 1.6; }
+.na-line { stroke: var(--na); stroke-width: 1; stroke-dasharray: 2 4; }
+.key { font-size: .92rem; color: var(--ink-3); margin-top: .6rem; }
+.key svg { display: inline-block; width: 14px; height: 12px; vertical-align: -1px; margin: 0 .3rem 0 .8rem; overflow: visible; }
+.key svg:first-child { margin-left: 0; }
+
+/* Below the dials */
+.secondary { font-size: 1.02rem; }
+table { border-collapse: collapse; font-size: .98rem; }
+th { font-weight: 400; font-variant: small-caps; letter-spacing: .04em; text-align: left; color: var(--ink-2);
+  border-bottom: 1px solid var(--rule); padding: .3rem .8rem .3rem 0; }
+td { padding: .45rem .8rem .45rem 0; vertical-align: top; border-bottom: 1px solid var(--band); }
+ul.plain { list-style: none; padding: 0; margin: .3rem 0 1rem; }
+ul.plain li { margin: 0 0 .5rem; padding-left: 1.1rem; text-indent: -1.1rem; }
+ul.plain li:before { content: "· "; color: var(--ink-3); }
+ul.never li:before { content: "✕ "; color: var(--mark); }
+
+@media (max-width: 1200px) {
+  .dial-row { flex-wrap: wrap; gap: 0 .6rem; }
+  .dial-name { flex: 1 1 100%; }
+  .dial-reading, .decision { display: inline; margin-left: .5rem; }
+  .dial-scale { flex: 1 1 100%; }
+}
+@media (max-width: 760px) {
+  html { font-size: 16px; }
+  article { width: 100%; padding: 1.5rem 16px 3rem; }
+  article > header > *, article > section > *, .lede p { width: 100%; }
+  h1 { font-size: 2rem; }
+  .sidenote-number { cursor: pointer; text-decoration: underline dotted; }
+  .sidenote { display: none; }
+  .margin-toggle:checked + .sidenote { display: block; float: none; width: auto; margin: .5rem 0 .8rem 1rem; }
+  table { font-size: .92rem; }
+}

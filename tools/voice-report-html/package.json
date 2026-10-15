@@ -1,0 +1,14 @@
+{
+  "name": "voice-report-html",
+  "version": "0.1.0",
+  "description": "One static HTML page showing a root's bound voice, from its voice.md and the confirmed voice-lexicon profile that file names",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node scripts/voice-report-html.js help",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
