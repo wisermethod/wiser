@@ -19,7 +19,9 @@ import {
   fenceClose,
   fenceOpen,
   headingOf,
+  interruptsParagraph,
   isBlank,
+  isBlockquote,
   isDelimiterRow,
   isThematic,
   lineEnds,
@@ -130,6 +132,7 @@ Options:
                          file and page: paragraphs over 150 words, sections over 400 words in a piece over 600.
                          reply and email: paragraphs over 80 words; sections are not counted.
                          Every destination: list items over 40 words, and blocks with no blank line between them.
+                         A post is a reply; a document or transcript summary is a file; a speech or slide is not counted.
   --help, -h             Print this message
 
 No command takes --env. This tool installs nothing, and --install is refused by name like any other unknown flag.`
@@ -717,10 +720,25 @@ function parseDestination(raw) {
   return raw;
 }
 
+/**
+ * Visible text with blockquote markers removed, so a marker is never a word.
+ * The block reading has already joined its lines, so every run of > opening a
+ * word is taken as a marker; a lone > in prose goes uncounted with it.
+ */
+function withoutMarkers(text) {
+  return text.replace(/(^|\s)>+/g, '$1');
+}
+
 /** Words in a block, the characters inside a quotation left out. */
 function wordsOutsideQuotation(block, ranges) {
   const text = block.chars.map((item) => (contextAt(item.at, ranges) === 'quotation' ? ' ' : item.c)).join('');
-  return wordCount(text);
+  return wordCount(withoutMarkers(text));
+}
+
+function startsBlockquote(parsed, block) {
+  const at = block.chars[0].at;
+  const lineStart = parsed.text.lastIndexOf('\n', at - 1) + 1;
+  return isBlockquote(parsed.text.slice(lineStart, at + 1));
 }
 
 function blockStart(parsed, block) {
@@ -782,8 +800,9 @@ function spacingHits(text) {
     let kind = 'paragraph';
     if (headingOf(raw)) kind = 'heading';
     else if (isThematic(raw)) kind = 'rule';
-    else if (listOf(raw)) kind = 'list';
-    else if (previous === 'list') kind = 'list';
+    else if (isBlockquote(raw)) kind = 'quote';
+    else if (listOf(raw) && (previous !== 'paragraph' || interruptsParagraph(raw))) kind = 'list';
+    else if (previous === 'list' || previous === 'quote') kind = previous;
     meet(kind, line);
     index += 1;
   }
@@ -795,16 +814,20 @@ function evaluateLayout(parsed, destination) {
   const ranges = parsed.exemptions;
   const paragraphs = [];
   const listItems = [];
+  const blockquotes = [];
   const sectionWords = new Map();
   let bodyWords = 0;
   for (const block of parsed.blocks) {
     if (block.kind === 'frontmatter' || block.kind === 'heading') continue;
-    const words = wordCount(block.chars.map((item) => item.c).join(''));
+    const words = wordCount(withoutMarkers(block.chars.map((item) => item.c).join('')));
     bodyWords += words;
     const entry = sectionWords.get(block.sectionIndex) || { section: block.section, start: block, words: 0 };
     entry.words += words;
     sectionWords.set(block.sectionIndex, entry);
-    if (block.kind === 'paragraph') {
+    if (block.kind === 'paragraph' && startsBlockquote(parsed, block)) {
+      const at = blockStart(parsed, block);
+      blockquotes.push({ line: at.line, words });
+    } else if (block.kind === 'paragraph') {
       const counted = wordsOutsideQuotation(block, ranges);
       if (counted > limits.paragraphWords) {
         const at = blockStart(parsed, block);
@@ -839,7 +862,8 @@ function evaluateLayout(parsed, destination) {
     paragraphs,
     listItems,
     sections,
-    spacing
+    spacing,
+    blockquotes
   };
 }
 
@@ -943,10 +967,13 @@ function runLayout(values) {
   const copyText = readUtf8(copyPath, '--copy');
   const result = evaluateLayout(parseDocument(copyText), destination);
   const words = DESTINATIONS[destination].paragraphWords + 1;
-  const plant = `Planted${' word'.repeat(words - 1)}.`;
+  const itemWords = DESTINATIONS[destination].listItemWords + 1;
+  const plant = `Planted${' word'.repeat(words - 1)}.\n\nPlanted lead line.\n- Planted${' item'.repeat(itemWords - 1)}`;
   const control = evaluateLayout(parseDocument(`${copyText}\n\n${plant}\n`), destination);
   if (control.paragraphs.length !== result.paragraphs.length + 1) controlFailure('layout');
-  return { ...result, control: { planted: `one paragraph of ${words} words`, fired: true } };
+  if (control.listItems.length !== result.listItems.length + 1) controlFailure('layout');
+  if (control.spacing.length !== result.spacing.length + 1) controlFailure('layout');
+  return { ...result, control: { planted: `one paragraph of ${words} words, one list item of ${itemWords} words, one list with no blank line before it`, fired: true } };
 }
 
 export function runCopyCheck(argv) {

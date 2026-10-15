@@ -488,7 +488,7 @@ describe('layout', () => {
       assert.equal(body.counted, 0);
       assert.equal(body.destination, 'file');
       assert.equal(body.control.fired, true);
-      assert.equal(body.control.planted, 'one paragraph of 151 words');
+      assert.equal(body.control.planted, 'one paragraph of 151 words, one list item of 41 words, one list with no blank line before it');
       assert.equal(body.paragraphs.length, 0);
     });
   });
@@ -602,6 +602,37 @@ describe('layout', () => {
       const body = ok(['layout', '--copy', join(dir, 'copy.md')]);
       assert.equal(body.spacing.length, 0);
       assert.equal(body.pass, true);
+    });
+  });
+
+  it('leaves a blockquote out of the paragraph ceiling, its markers never words, and counts it in the section', () => {
+    const quoted = Array.from({ length: 8 }, () => `> ${words(20, 'quoted')}`).join('\n');
+    withDir({ 'copy.md': `Intro line.\n\n${quoted}\n` }, (dir) => {
+      const body = ok(['layout', '--copy', join(dir, 'copy.md')]);
+      assert.equal(body.paragraphs.length, 0);
+      assert.deepEqual(body.blockquotes, [{ line: 3, words: 160 }]);
+      assert.equal(body.bodyWords, 162);
+      assert.equal(body.pass, true);
+    });
+    withDir({ 'copy.md': `Intro line.\n\n${words(160)}.\n` }, (dir) => {
+      const body = ok(['layout', '--copy', join(dir, 'copy.md')]);
+      assert.equal(body.paragraphs.length, 1);
+    });
+    withDir({ 'copy.md': 'A paragraph.\n> A quote right after it.\n' }, (dir) => {
+      const body = ok(['layout', '--copy', join(dir, 'copy.md')]);
+      assert.deepEqual(body.spacing, [{ line: 2, before: 'paragraph', after: 'quote' }]);
+    });
+  });
+
+  it('reads a hard-wrapped line opening on a year as the same paragraph, and a list at 1 as a list', () => {
+    withDir({ 'copy.md': 'The survey ran in\n2026. It covered three teams.\n' }, (dir) => {
+      const body = ok(['layout', '--copy', join(dir, 'copy.md')]);
+      assert.equal(body.spacing.length, 0);
+      assert.equal(body.units, 2);
+    });
+    withDir({ 'copy.md': 'Steps follow.\n1. First step\n2. Second step\n' }, (dir) => {
+      const body = ok(['layout', '--copy', join(dir, 'copy.md')]);
+      assert.deepEqual(body.spacing, [{ line: 2, before: 'paragraph', after: 'list' }]);
     });
   });
 

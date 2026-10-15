@@ -24,7 +24,7 @@ Applies both to prose written in a response and to the files you author.
 
 ### Readable layout
 
-Binds a piece the Ghost Writer gate reads and a reply written to a person in conversation. The files the dash rule leaves free are free of this too, for the same reason. A reader scans before reading (Nielsen, *How Users Read on the Web*, NN/g: 79% of test users scanned and 16% read word by word), so the layout shows the structure before a word is read. The bound `voice` governs the sentences; this governs the blocks they sit in, and a voice does not lift it. A content-type file may set a tighter limit for its format, never a looser one.
+Binds a piece the Ghost Writer gate reads and a reply written to a person in conversation. The files the dash rule leaves free are free of this too, for the same reason, and so is a feeder file while it is only a feeder; one handed over as the deliverable is not. A reader scans before reading (Nielsen, *How Users Read on the Web*, NN/g: 79% of test users scanned and 16% read word by word), so the layout shows the structure before a word is read. The bound `voice` governs the sentences; this governs the blocks they sit in. A voice does not lift the counted rules below; the judged ones yield to it as `experts/Ghost Writer/` Precedence says. A content-type file may set a tighter limit for its format, never a looser one.
 
 - **One idea per paragraph**, named in its first sentence. A second idea starts a new paragraph.
 - **Paragraph ceiling**: 150 words in a file or page, 80 in a reply or an email. Words inside a quotation reproduced as written are not counted. The 150 follows the federal plain-language guide (digital.gov, *Clear and short*: no more than 150 words, never more than 250).
@@ -41,7 +41,9 @@ Binds a piece the Ghost Writer gate reads and a reply written to a person in con
 | HTML page | The text column is 45 to 75 characters wide, set as a `max-width` in `ch` with 66 the target and 80 the limit (WCAG 2.2 SC 1.4.8; Bringhurst's 45 to 75). Line height at least 1.5, paragraph spacing larger than line spacing, left-aligned and never justified |
 | Slide | One idea per slide, its headline the conclusion. Body text of 30 words or fewer; a slide that needs a paragraph is two slides or a speaker note |
 
-**Counted and judged.** The paragraph, list item, and section ceilings and the blank line between blocks are counted by `tools/copy-check/` `layout` on markdown copy, for a file, a page, a reply, or an email. One idea per paragraph, what a heading names, list or prose, leading with the point, a page's column and spacing, and a slide's body are judged. `experts/Ghost Writer/` Craft owns how each is found at the gate and what a hit costs.
+A format the table does not name takes the row its reader reads it in: a post or social copy as a reply, a document or a transcript summary as a file. A speech manuscript is laid out for the speaker, so it is judged and not counted.
+
+**Counted and judged.** The paragraph, list item, and section ceilings and the blank line between blocks are counted by `tools/copy-check/` `layout` on markdown copy, for a file, a page, a reply, or an email. One idea per paragraph, what a heading names, list or prose, leading with the point, the destination rows' other rules, and a slide's body are judged. `experts/Ghost Writer/` Craft owns how each is found at the gate and what a hit costs. A page's column width, line height, spacing and alignment are CSS, judged where the page's design is reviewed, not by Ghost Writer.
 
 ## Dates
 

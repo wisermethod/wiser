@@ -86,7 +86,7 @@ One JSON object on stdout. Nothing is written. Anything else, see Troubleshootin
 | Option | Effect | Default |
 |--------|--------|---------|
 | `--copy <file>` | Markdown copy. Absolute path | None; required |
-| `--destination <name>` | `file`, `page`, `reply`, or `email`, which sets the ceilings in `## layout` below. Anything else is refused, `slide` included, because a slide is judged rather than counted | `file` |
+| `--destination <name>` | `file`, `page`, `reply`, or `email`, which sets the ceilings in `## layout` below. Anything else is refused, `slide` included, because a slide is judged rather than counted. A format the conventions' table does not name takes the row its reader reads it in: a post as `reply`, a document or a transcript summary as `file`; a speech manuscript is judged and not counted | `file` |
 | `--help`, `-h` | Print this command's usage and exit | Off |
 
 No command takes `--env`. This tool installs nothing, and `--install` is refused by name like any other unknown flag. An unknown flag is refused by name before any file is read, including when it sits beside `help`. A repeated flag is refused. A flag that needs a value, given none or given a value that starts with `-`, is refused. An argument that belongs to no flag is refused. An unknown command is refused by name.
@@ -105,7 +105,7 @@ The reading records one block for each frontmatter value, heading, list item, ta
 
 A fenced code block, three or more backticks or three or more tildes, indented by at most three spaces, is skipped. `skippedFences` names how many blocks were skipped and how many characters they held. A fence belongs to no block, so a quote inside a code sample is not paired. A dash inside a fence is still counted, and its context is `text`. A dash inside a frontmatter value is counted, and it is exempt only when it sits inside a quotation in that value.
 
-Each ATX heading is one block and one unit. Each list item is one block and one unit, continuation lines joined to it, and a blank line ends the list; a list item is not split into sentences. Each table cell, header and body, is one block and one unit; an empty cell is not a unit. The delimiter row is not a unit. Cells may contain an escaped pipe, written `\|`.
+Each ATX heading is one block and one unit. Each list item is one block and one unit, continuation lines joined to it, and a blank line ends the list; a list item is not split into sentences. A list opens inside a paragraph only on a bullet or an ordered marker starting at 1, as CommonMark reads it, so a hard-wrapped line opening on `2026.` continues its paragraph. Each table cell, header and body, is one block and one unit; an empty cell is not a unit. The delimiter row is not a unit. Cells may contain an escaped pipe, written `\|`.
 
 A paragraph is one block. It is split into sentence units at `.`, `?`, or `!` followed by whitespace and then an uppercase letter, a digit, a straight or curly quotation mark, or an opening bracket `(`, `[`, or `{`, or at the end of the paragraph. The split is made after links and emphasis have been reduced, so a URL does not become a sentence break. The last remainder of a paragraph is a unit even when it has no terminal punctuation. Known limit: an abbreviation such as `e.g.` or `Dr.` followed by a capital letter splits a sentence. Reference-style links are left as written. A match is sought inside one unit, never across two. Quotation pairing uses the paragraph block, so a quotation can cross a sentence boundary inside that paragraph and cannot cross into another block.
 
@@ -186,13 +186,13 @@ Counts what the Readable layout rules in `standards/conventions.md` Formatting m
 | `file`, `page` | 150 words | 40 words | 400 words, counted only when the body is over 600 words |
 | `reply`, `email` | 80 words | 40 words | Not counted |
 
-A word is a run of non-space characters in a block's visible copy. A paragraph or list item over its ceiling is a hit, its words inside a quotation left out of the count. A section is the body blocks under one heading, or before the first one, and its words include quotations. The body is every block but frontmatter values and headings.
+A word is a run of non-space characters in a block's visible copy, a run of `>` opening a word excepted, since a blockquote marker is not a word. A paragraph or list item over its ceiling is a hit, its words inside a quotation left out of the count. A blockquote, a paragraph whose first line opens with `>`, is a quotation reproduced as written: it is never a paragraph hit, and it is listed in `blockquotes` for the caller, who alone can tell a source's words from the author's own set in a blockquote. A section is the body blocks under one heading, or before the first one, and its words include quotations and blockquotes. The body is every block but frontmatter values and headings.
 
-A spacing hit is two blocks with no blank line between them, read from the raw lines because the block reading drops the blank lines this asks about: a heading, a table, a fence, or a thematic break meeting any non-blank line; a paragraph meeting a list; and a heading meeting a heading. A line after a list item that starts no block of its own continues that item, as markdown reads it, and is not a hit. The lines of one paragraph, one table, or one list are one block. Frontmatter is not read for spacing.
+A spacing hit is two blocks with no blank line between them, read from the raw lines because the block reading drops the blank lines this asks about: a heading, a table, a fence, or a thematic break meeting any non-blank line; a paragraph meeting a list or a blockquote; and a heading meeting a heading. A line after a list item or a blockquote line that starts no block of its own continues it, as markdown reads it, and is not a hit. A paragraph introducing a list on the next line, and a heading directly above its text, render fine and are still hits: the rule asks for the blank line. The lines of one paragraph, one table, or one list are one block. Frontmatter is not read for spacing.
 
 `counted` is the sum of the four lists. `pass` is true only when `counted` is zero.
 
-The control appends, after a blank line, one paragraph of one word more than the destination's paragraph ceiling to an in-memory copy, and confirms `paragraphs` grew by one. `control.planted` names that paragraph's word count. The plant is not in the reported lists. Copy ending inside an unclosed fence takes the plant into the fence, so the control does not fire and the run exits 1.
+The control appends to an in-memory copy, after a blank line, one paragraph of one word more than the destination's paragraph ceiling, then a lead line with a list item of one word more than the list-item ceiling directly under it, and confirms `paragraphs`, `listItems` and `spacing` each grew by one. `control.planted` names all three. The plant is not in the reported lists. Copy ending inside an unclosed fence takes the plant into the fence, so the control does not fire and the run exits 1.
 
 ## Script Contract
 
@@ -267,7 +267,8 @@ Every object carries:
 | `paragraphs` | `{ line, column, words, opening }` for each paragraph over the ceiling. `opening` is its first eight words |
 | `listItems` | `{ line, column, words, opening }` for each list item over the ceiling |
 | `sections` | `{ section, line, words }` for each section over the ceiling. `line` is its first body block's |
-| `spacing` | `{ line, before, after }` for each pair with no blank line between. `line` is the second block's first line; `before` and `after` are `heading`, `paragraph`, `list`, `table`, `fence`, or `rule` |
+| `spacing` | `{ line, before, after }` for each pair with no blank line between. `line` is the second block's first line; `before` and `after` are `heading`, `paragraph`, `list`, `quote`, `table`, `fence`, or `rule` |
+| `blockquotes` | `{ line, words }` for each blockquote. Not a hit; listed for the caller to judge |
 
 ## Troubleshooting
 

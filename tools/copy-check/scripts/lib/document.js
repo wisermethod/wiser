@@ -226,6 +226,21 @@ export function listOf(raw) {
   return { indent: match[1].length, content: match[3], contentAt: match[1].length + match[2].length + raw.slice(match[1].length + match[2].length).match(/^\s*/)[0].length };
 }
 
+/**
+ * A list marker that can interrupt a paragraph, as CommonMark reads it: a
+ * bullet, or an ordered marker starting at 1. A hard-wrapped line opening on
+ * "2026." continues the paragraph.
+ */
+export function interruptsParagraph(raw) {
+  const match = /^\s*([-+*]|\d+[.)])\s+\S/.exec(raw);
+  if (!match) return false;
+  return !/^\d/.test(match[1]) || /^1[.)]$/.test(match[1]);
+}
+
+export function isBlockquote(raw) {
+  return /^ {0,3}>/.test(raw);
+}
+
 export function isThematic(raw) {
   return /^( {0,3})([-*_])\2{2,}\s*$/.test(raw);
 }
@@ -509,7 +524,7 @@ export function parseDocument(fileText) {
     while (index < lines.length) {
       const currentLine = lines[index];
       const currentRaw = rawOf(currentLine);
-      if (index !== paraStart && (isBlank(currentRaw) || headingOf(currentRaw) || listOf(currentRaw) || fenceOpen(currentRaw) || isThematic(currentRaw))) break;
+      if (index !== paraStart && (isBlank(currentRaw) || headingOf(currentRaw) || interruptsParagraph(currentRaw) || fenceOpen(currentRaw) || isThematic(currentRaw))) break;
       if (index !== paraStart && splitRow(currentRaw) && index + 1 < lines.length && isDelimiterRow(rawOf(lines[index + 1]))) break;
       if (chars.length > 0) chars.push({ c: '\n', at: lines[index - 1].start + lines[index - 1].text.length });
       pushUnits(chars, currentRaw, currentLine.start);
