@@ -2,8 +2,8 @@
 name: voice-report-html
 type: tool
 category: documents
-description: Read a root's bound voice.md and the confirmed voice-lexicon profile it names into one data object, and render that object as one static HTML page with dials for register, stance and rhythm
-version: 0.1.0
+description: Read a root's bound voice.md and the confirmed voice-lexicon profile it names into one data object, render that object as one static HTML page with dials for register, stance and rhythm, and say whether an existing page still shows the voice as set now
+version: 0.2.0
 ---
 
 # voice-report-html
@@ -19,7 +19,7 @@ Use it when a person asks to see their voice. `skills/Voice Report/` is its call
 
 Do not use it to decide what a voice is, to measure writing, or to place a rated dial. Measuring is `tools/voice-lexicon/`, and building the voice is `skills/Build Voice/`. A rated dial's position is the caller's judgment; this tool only checks that the judgment quotes a trait line `voice.md` carries and the evidence ids that line cites.
 
-**The page reflects the current setting.** For a range feature the person answered keep or polish on, the solid band is the range the voice is set to. A polished feature also shows the band as measured, as a dashed outline, so a habit the person chose to drop is never shown as their voice. The page records the sha256 of the files it read and the date `voice.md` was saved. It does not update itself, so a changed voice needs a new page.
+**The page reflects the current setting.** For a range feature the person answered keep or polish on, the solid band is the range the voice is set to. A polished feature also shows the band as measured, as a dashed outline, so a habit the person chose to drop is never shown as their voice. The page records the sha256 of the files it read and the date `voice.md` was saved. It does not update itself. `fresh` says whether it still shows the voice as set now, so a caller reuses an unchanged page and rebuilds a stale one.
 
 Classifier seam: none.
 
@@ -42,7 +42,13 @@ Between the two commands, the caller may add rated dials to the data file's `rat
 { "key": "involved", "step": 2, "trait": "Emails and posts use I, you and contractions; the published narrative drops all three and carries figures with sources (E1, E2, E3, E4).", "evidence": ["E1", "E2"] }
 ```
 
-The run over `tests/fixtures/complete-root` with that one rated dial printed:
+Later, before building again, the caller asks whether the page is still current:
+
+```bash
+node scripts/voice-report-html.js fresh --page "/path/to/root/work/onboarding/2026-10-15 voice report.html" --voice "/path/to/root/memory/voice.md" --root /path/to/root
+```
+
+The render run over `tests/fixtures/complete-root` with that one rated dial printed:
 
 ```json
 {"written":"/path/to/root/work/onboarding/2026-10-15 voice report.html","rated":1,"measured":9,"profile":"read"}
@@ -55,6 +61,7 @@ The run over `tests/fixtures/complete-root` with that one rated dial printed:
 | `node scripts/voice-report-html.js help` | Print usage and exit | No |
 | `node scripts/voice-report-html.js extract --voice <file> --root <dir> [--output <file>]` | Read `voice.md` and the profile it names into one data object | Only the `--output` file, when one is given |
 | `node scripts/voice-report-html.js render --data <file> --output <file> [--date YYYY-MM-DD]` | Validate a data object, rated dials included, and write the page | The `--output` file |
+| `node scripts/voice-report-html.js fresh --page <file> --voice <file> --root <dir>` | Say whether a page still shows the voice as set now | No |
 
 `extract` options:
 
@@ -73,6 +80,23 @@ The run over `tests/fixtures/complete-root` with that one rated dial printed:
 | `--output <file>` | The page to write. Absolute path, held to the destination rules below | None; required |
 | `--date <YYYY-MM-DD>` | The generation date printed on the page | Today, local time |
 | `--help`, `-h` | Print usage and exit | Off |
+
+`fresh` options:
+
+| Option | Effect | Default |
+|--------|--------|---------|
+| `--page <file>` | A page `render` wrote. Absolute path | None; required |
+| `--voice <file>` | The file the owning root binds as `voice` now. Absolute path, inside `--root` | None; required |
+| `--root <dir>` | The owning root's folder | None; required |
+| `--help`, `-h` | Print usage and exit | Off |
+
+`fresh` is true only when all of the following hold:
+- the page's recorded voice path is the bound file's path from the root;
+- the bound file's sha256 is the one the page recorded;
+- the voice names the same profile path the page read (a trailing anchor removed);
+- that profile is still there, with the sha256 the page recorded.
+
+Otherwise `fresh` is false, and `changed` says, in words, each difference found. A page made before 0.2.0 records no fingerprints and is never fresh.
 
 No command takes `--env`. This tool installs nothing, and `--install` is refused by name. The following are refused before any file is read:
 - an unknown flag or an unknown command, named;
@@ -145,7 +169,7 @@ A rated dial is one of `involved` (involved to informational), `explicit` (situa
   - Punctuation: any punctuation band the profile carries.
 - **How a counted dial is drawn:** the dot is the median, the solid band is the range the voice is set to, and a polished feature adds its measured band as a dashed outline and the side polished away. A dial with nothing behind it is a dotted line reading `not known` or `not rated`. A group in which no dial has anything behind it is one line naming its dials and why, and the key is left out when no dial is drawn.
 - **Below the dials:** the routing table, the kept markers, then Tone, Vocabulary, Structural Habits, Audience and Prohibitions as written, and every Not available label.
-- **Footer:** the sha256 of each file read.
+- **Footer:** a short fingerprint of each file read. The full sha256 of each, and the paths read, sit in `voice-report:` meta tags in the page head, which `fresh` reads.
 
 The page carries no script and no external request. All text from the files is escaped, and inline code is kept. Light and dark follow the reader's system setting, and the layout holds at phone width.
 
@@ -165,6 +189,7 @@ One JSON object on stdout, exit 0. A refusal prints to stderr, leaves stdout emp
 - `extract` without `--output` prints the data object.
 - `extract` with `--output` prints `{ "written", "state", "profile" }`.
 - `render` prints `{ "written", "rated", "measured", "profile" }`, where `measured` is the number of range features drawn.
+- `fresh` prints `{ "fresh", "changed" }`; `changed` is `[]` when `fresh` is true.
 
 ## Troubleshooting
 
@@ -186,6 +211,7 @@ One JSON object on stdout, exit 0. A refusal prints to stderr, leaves stdout emp
 
 - `help`, and `--help` beside any command, exits 0 with nothing installed and names every flag.
 - `extract` exits 0 with one data object whose every value is copied from `voice.md`, the profile it names, or the root's `AGENTS.md`, and whose `features` is empty when no profile was read.
+- `fresh` exits 0 and is true only when the page's recorded files are the bound files, unchanged.
 - `render` writes one static page only for a built voice, only with rated dials that quote a trait line and its cited evidence, and never over an existing file.
 - A bad path, destination, profile or data file, an unknown flag, or `--install` exits 1 with stdout empty, and the message names the cause and the fix.
 - Nothing is written but the `--output` file, and nothing is installed.

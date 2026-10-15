@@ -2,8 +2,8 @@
 name: Voice Report
 type: skill
 category: onboarding
-description: Show one user root's bound voice, as it is set now, on one static HTML page saved in that root's work/onboarding/, with dials for register, stance and rhythm and the voice's own lines beside them
-version: 0.1.0
+description: Show one user root's bound voice, as it is set now, on one static HTML page saved in that root's work/onboarding/ and opened for the person, with dials for register, stance and rhythm and the voice's own lines beside them
+version: 0.2.0
 memory:
   - voice
 ---
@@ -22,7 +22,7 @@ Classifier seam: routing, where `hooks/route.mjs` may open this skill for an ask
 
 ## Objective
 
-`work/onboarding/YYYY-MM-DD voice report.html` in the owning root, with `YYYY-MM-DD voice report.json` beside it. The page shows the voice as its files set it at the time of the run:
+`work/onboarding/YYYY-MM-DD voice report.html` in the owning root, with `YYYY-MM-DD voice report.json` beside it, opened for the person who asked. Today's page is reused when the voice has not changed since it was made. The page shows the voice as its files set it at the time of the run:
 - every measured value comes from the confirmed profile `voice.md` names;
 - every rated position quotes the trait line it rests on;
 - nothing is shown that those files do not support.
@@ -40,7 +40,11 @@ The other way this ends is no page and the reason, with the route to Build Voice
 
 **1. Resolve the root and its folder.** Name the owning root per the Workspace Model, and read its `AGENTS.md` for where onboarding records go. `standards/user-root.md` C10 places them in `work/onboarding/`, and the root's own `AGENTS.md` may localize that. Create that folder where the root declares it and it is missing; creating a declared home is not inventing one (`standards/conventions.md` Working Files). Today's date names both files.
 
-**2. Extract.** Run `tools/voice-report-html/` `extract` with `--voice` the bound file, `--root` the owning root, and `--output` the `.json` path. Is today's `.json` or `.html` already there? Yes: archive each one first (step 5's rule), then extract.
+**2. Reuse or extract.** Is today's `.html` already there? Yes: run `tools/voice-report-html/` `fresh` with `--page` that file, `--voice` the bound file and `--root` the owning root.
+- `fresh` is true: the page still shows the voice as set now. Skip to step 6 with that page and the `.json` beside it, and build nothing.
+- `fresh` is false: archive today's `.html` and `.json` first (step 5's rule), then extract. Say in step 6 what `changed` named.
+
+No page from today, or a stale one now archived: run `extract` with `--voice` the bound file, `--root` the owning root, and `--output` the `.json` path. A `.json` from today with no page beside it is archived the same way first.
 
 Read `state` and `profile`:
 - `state` is `unbuilt`: stop. Say the voice has not been built, and offer `skills/Build Voice/`. No page is made, and the `.json` stays as the record of what was read.
@@ -69,8 +73,13 @@ Where the Routing Table gives registers that differ on a dimension, rate the reg
 
 **5. Never overwrite.** An earlier page or data file at today's name is copied to a `zArchive/` beside it under the archive name `standards/conventions.md` Archives sets, for example `zArchive/26-10-15 V1 - 2026-10-15 voice report.html`. The copy uses `cp -n`, and the copy is confirmed on disk before the original is removed, each as its own command (the constitution's Irreversibles). The tool refuses an existing `--output` in any case.
 
-**6. Report.** For a page, give:
-- its path;
+**6. Open and report.** Open the page for the person straight away, in whatever way the host allows:
+- a browser or preview pane the host shows beside the conversation;
+- a file preview;
+- the system's default opener (`open` on macOS, `xdg-open` on Linux, `start` on Windows) where the host runs commands on the person's own machine.
+
+Where the host can do none of these, give the page's path as a clickable link. Then, beside it, give:
+- its path, and whether it was reused because nothing changed or built now, with what changed;
 - whether the voice is confirmed: `voice-confirmation-date:` holding a date means confirmed on that date, and its bracketed anchor is Build Voice's verification record; a Not available label there means not confirmed;
 - how many measured dials (punctuation included) and rated dials it shows, and which read not known or not rated, and why;
 - every Not available label the page lists;
@@ -79,7 +88,7 @@ Where the Routing Table gives registers that differ on a dimension, rate the reg
 
 For an unbuilt voice, say only that the voice has not been built, where the `.json` record is, and offer `skills/Build Voice/`.
 
-Offer to open the page. Its footer records the files it read and their sha256, so a later voice change is visible. The page does not update itself, so say that a changed voice needs a new report.
+The page does not update itself. Asking again after the voice changes builds a new one, because step 2 finds today's page stale.
 
 ## Pitfalls
 
@@ -91,6 +100,8 @@ Offer to open the page. Its footer records the files it read and their sha256, s
 ## Success
 
 - The page and its data sit in the owning root's onboarding folder under today's date, or no page exists and the report says why, with the route to Build Voice.
+- Today's page was reused only when `fresh` said it still shows the voice as set now, and rebuilt otherwise.
+- The page was opened for the person in a way the host allows, or its path given as a clickable link where none was.
 - An earlier file at the same name was archived per `standards/conventions.md` Archives, never overwritten.
 - Every measured dial was drawn from the confirmed profile `voice.md` names, with polished features showing measured and set ranges.
 - Every rated dial quotes a Tone, Vocabulary or Structural Habits item, or a Routing Table Register cell, exactly; cites only ids that line cites; and sits at the step the scale and its step rule give.

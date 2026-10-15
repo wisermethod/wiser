@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 import { canonical, fail, screenDestination, screenSource, writeDestination } from './lib/paths.js';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.2.0';
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_CSS = join(SCRIPT_DIR, '..', 'template', 'report.css');
 const HELP_HINT = 'Run "node scripts/voice-report-html.js help" for usage.';
@@ -53,7 +53,8 @@ const PROMPT_LINE = /^\*[^*\s].*\*$/;
 
 const COMMANDS = {
   extract: { flags: ['--voice', '--root', '--output'], required: ['--voice', '--root'] },
-  render: { flags: ['--data', '--output', '--date'], required: ['--data', '--output'] }
+  render: { flags: ['--data', '--output', '--date'], required: ['--data', '--output'] },
+  fresh: { flags: ['--page', '--voice', '--root'], required: ['--page', '--voice', '--root'] }
 };
 
 export const USAGE = `voice-report-html ${VERSION}: one static HTML page showing a root's bound voice.
@@ -62,10 +63,13 @@ Usage:
   node scripts/voice-report-html.js help
   node scripts/voice-report-html.js extract --voice <file> --root <dir> [--output <file>]
   node scripts/voice-report-html.js render --data <file> --output <file> [--date YYYY-MM-DD]
+  node scripts/voice-report-html.js fresh --page <file> --voice <file> --root <dir>
 
 extract  Read the bound voice.md and the confirmed profile its voice-profile: line
          names, and print (or write to --output) one data object.
 render   Validate a data object, rated dials included, and write the page to --output.
+fresh    Say whether a page still shows the voice as it is set now: the voice.md and
+         profile it read are the same files, unchanged. Writes nothing.
 
 Every path is absolute. --output never overwrites: an existing file is refused.
 Nothing is written but the --output file. No command takes --env, and this tool
@@ -670,6 +674,10 @@ export function renderPage(data, generated, css) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="voice-report-html ${esc(VERSION)}">
+<meta name="voice-report:voice" content="${esc(data.voice.path)}">
+<meta name="voice-report:voice-sha256" content="${esc(data.voice.sha256)}">
+<meta name="voice-report:profile" content="${esc(profile.state === 'read' ? profile.path : '')}">
+<meta name="voice-report:profile-sha256" content="${esc(profile.state === 'read' ? profile.sha256 : '')}">
 <title>Voice of ${esc(subject)}</title>
 <style>
 ${css}
@@ -707,9 +715,55 @@ export function render(options) {
   };
 }
 
+function metaValue(html, name) {
+  const match = new RegExp(`<meta name="voice-report:${name}" content="([^"]*)">`).exec(html);
+  if (!match) return null;
+  return match[1].replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+}
+
+/**
+ * Whether a page still shows the voice as set now. It compares the fingerprints
+ * the page recorded with the files on disk, by re-reading what extract would read.
+ */
+export function fresh(options) {
+  const root = screenDirectory('--root', options['--root']);
+  const voicePath = screenSource('--voice', options['--voice']);
+  if (!inside(root, voicePath)) fail(`Error: --voice ${voicePath} is not inside --root ${root}. Pass the file the owning root's Provides block binds as voice.`);
+  const pagePath = screenSource('--page', options['--page']);
+  const page = readText('--page', pagePath, DATA_CAP).text;
+  const changed = [];
+  const recorded = {
+    voice: metaValue(page, 'voice'),
+    voiceSha: metaValue(page, 'voice-sha256'),
+    profile: metaValue(page, 'profile'),
+    profileSha: metaValue(page, 'profile-sha256')
+  };
+  if (recorded.voiceSha === null) {
+    return { fresh: false, changed: ['the page records no fingerprints; it was made by an earlier version of this tool'] };
+  }
+  const voice = readText('--voice', voicePath, VOICE_CAP);
+  const voiceRel = relative(root, voicePath).split(sep).join('/');
+  if (recorded.voice !== voiceRel) changed.push(`the page read ${recorded.voice}, and the bound voice is ${voiceRel}`);
+  if (recorded.voiceSha !== voice.sha256) changed.push(`${voiceRel} has changed since the page was made`);
+  const now = parseVoice(voice.text).profile || '';
+  if ((recorded.profile || '') !== now) {
+    changed.push(now ? `the voice now names the profile ${now}` : 'the voice no longer names a profile');
+  } else if (now) {
+    const candidate = canonical('voice-profile', resolve(root, now));
+    let sha = null;
+    if (inside(root, candidate)) {
+      try { if (statSync(candidate).isFile()) sha = readText('voice-profile', candidate, PROFILE_CAP).sha256; } catch { sha = null; }
+    }
+    if (sha === null) changed.push(`the profile ${now} is no longer there`);
+    else if (sha !== recorded.profileSha) changed.push(`the profile ${now} has changed since the page was made`);
+  }
+  return { fresh: changed.length === 0, changed };
+}
+
 export function runVoiceReport(argv) {
   const parsed = parseArgs(argv);
   if (parsed.command === 'help') return USAGE;
   if (parsed.command === 'extract') return extract(parsed.options);
+  if (parsed.command === 'fresh') return fresh(parsed.options);
   return render(parsed.options);
 }

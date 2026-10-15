@@ -73,7 +73,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 |-------|-------------|-------|
 | `Build Voice/SKILL.md` | Build or rebuild one user root's voice.md from real writing evidence, routed to the voice register that root's own outputs need | Ghost Writer |
 | `Onboard Root/SKILL.md` | Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types | System Expert |
-| `Voice Report/SKILL.md` | Show one user root's bound voice, as it is set now, on one static HTML page saved in that root's work/onboarding/, with dials for register, stance and rhythm and the voice's own lines beside them | Ghost Writer |
+| `Voice Report/SKILL.md` | Show one user root's bound voice, as it is set now, on one static HTML page saved in that root's work/onboarding/ and opened for the person, with dials for register, stance and rhythm and the voice's own lines beside them | Ghost Writer |
 
 ### Research
 

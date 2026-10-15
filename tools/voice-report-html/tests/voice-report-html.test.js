@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync, existsSync, symlinkSync } from 'node:fs';
+import { appendFileSync, cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -42,7 +42,7 @@ test('help works with nothing configured, and beside --help', () => {
   for (const args of [['help'], ['--help'], [], ['help', '--help']]) {
     const r = run(...args);
     assert.equal(r.code, 0);
-    assert.match(r.out, /voice-report-html 0\.1\.0/);
+    assert.match(r.out, /voice-report-html 0\.2\.0/);
     assert.equal(r.err, '');
   }
 });
@@ -234,6 +234,45 @@ test('extract --output writes the data file and refuses an existing one', () => 
   assert.deepEqual(JSON.parse(r.out), { written: out.replace(/^\/var\//, '/private/var/'), state: 'built', profile: 'read' });
   assert.equal(JSON.parse(readFileSync(out, 'utf8')).state, 'built');
   assert.match(run('extract', '--voice', join(root, 'memory', 'voice.md'), '--root', root, '--output', out).err, /never overwrites/);
+});
+
+test('fresh says whether a page still shows the voice as set now', () => {
+  const root = join(scratch(), 'root');
+  cpSync(join(FIX, 'complete-root'), root, { recursive: true });
+  const voice = join(root, 'memory', 'voice.md');
+  const profile = join(root, 'work', 'onboarding', '2026-10-15 profile confirmed.json');
+  const data = join(root, 'work', 'onboarding', '2026-10-15 voice report.json');
+  const page = join(root, 'work', 'onboarding', '2026-10-15 voice report.html');
+  assert.equal(run('extract', '--voice', voice, '--root', root, '--output', data).code, 0);
+  assert.equal(run('render', '--data', data, '--output', page).code, 0);
+  const check = () => {
+    const r = run('fresh', '--page', page, '--voice', voice, '--root', root);
+    assert.equal(r.code, 0, r.err);
+    return JSON.parse(r.out);
+  };
+  assert.deepEqual(check(), { fresh: true, changed: [] });
+
+  const voiceText = readFileSync(voice, 'utf8');
+  appendFileSync(voice, '\n- A new trait (E1).\n');
+  assert.equal(check().fresh, false);
+  assert.match(check().changed[0], /memory\/voice.md has changed/);
+  writeFileSync(voice, voiceText);
+  assert.equal(check().fresh, true, 'the same bytes again are the same voice');
+
+  const profileText = readFileSync(profile, 'utf8');
+  writeFileSync(profile, profileText.replace('"median": 3.5', '"median": 3.6'));
+  assert.match(check().changed.join(' '), /profile .* has changed/);
+  rmSync(profile);
+  assert.match(check().changed.join(' '), /is no longer there/);
+  writeFileSync(profile, profileText);
+  assert.equal(check().fresh, true);
+
+  const old = join(root, 'work', 'onboarding', 'old.html');
+  writeFileSync(old, '<!doctype html><title>x</title>');
+  const r = JSON.parse(run('fresh', '--page', old, '--voice', voice, '--root', root).out);
+  assert.equal(r.fresh, false);
+  assert.match(r.changed[0], /records no fingerprints/);
+  assert.match(run('fresh', '--page', old, '--voice', voice).err, /fresh needs --root/);
 });
 
 test('importing the script runs nothing', async () => {
