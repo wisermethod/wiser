@@ -9,7 +9,7 @@ import { runHook } from './lib/run.mjs';
  * It reminds the session where a person's standing preferences are kept; it
  * enforces nothing, and Claude Code's own memory stays the person's setting.
  */
-export const PREFERENCES_REMINDER = 'Wiser keeps this person\'s standing preferences, how they want sessions to work with them in any work, on their Wiser account, so every app they use with Wiser gets them. When they state one, such as how sessions should work from now on, load Wiser\'s Save Preference skill to offer keeping it there, rather than keeping it only in Claude Code\'s own memory.';
+export const PREFERENCES_REMINDER = 'Wiser keeps a person\'s standing preferences, how they want sessions to work with them in any work, on their Wiser account, not in Claude Code\'s own memory. When the person\'s own turn states one, follow Wiser\'s Save Preference skill on whether and when to offer keeping it there; where Wiser is not connected or saving is not open, that skill says so.';
 
 /**
  * SessionStart. Prints the reminder as context for the model, whatever the

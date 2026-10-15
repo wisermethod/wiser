@@ -406,22 +406,28 @@ test('hooks.json registers SessionStart and the route hook', () => {
   assert.equal(doc.hooks.UserPromptSubmit[0].hooks[0].command, 'node "${CLAUDE_PLUGIN_ROOT}/hooks/route.mjs"');
   assert.equal(doc.hooks.UserPromptSubmit[0].hooks[0].timeout, 5);
 });
-test('the preferences hook prints its reminder as session context for every source, with no gateway home', () => {
+test('the preferences hook prints exactly its reminder as session context, writes nothing, and prints nothing on empty input', () => {
   const home = tempHome();
-  const script = join(pluginRoot, 'hooks', 'preferences.mjs');
-  for (const source of ['startup', 'resume', 'clear', 'compact']) {
-    const run = spawnSync(process.execPath, [script], {
-      input: JSON.stringify({ hook_event_name: 'SessionStart', source, session_id: 's', cwd: home }),
-      env: { ...process.env, HOME: home },
-      encoding: 'utf8',
-    });
-    assert.equal(run.status, 0, source);
-    const out = JSON.parse(run.stdout.trim());
-    assert.equal(out.hookSpecificOutput.hookEventName, 'SessionStart', source);
-    assert.match(out.hookSpecificOutput.additionalContext, /Save Preference/, source);
-    assert.match(out.hookSpecificOutput.additionalContext, /Claude Code's own memory/, source);
-  }
+  const doc = JSON.parse(readFileSync(join(pluginRoot, 'hooks', 'hooks.json'), 'utf8'));
+  const command = doc.hooks.SessionStart[2].hooks[0].command;
+  const script = join(pluginRoot, command.match(/\$\{CLAUDE_PLUGIN_ROOT\}\/(\S+?)"/)[1]);
+  assert.ok(existsSync(script), 'the registered file exists');
+  // The text is pinned here on purpose: a change to what every Claude Code
+  // session is told changes this test too.
+  const expected = 'Wiser keeps a person\'s standing preferences, how they want sessions to work with them in any work, on their Wiser account, not in Claude Code\'s own memory. When the person\'s own turn states one, follow Wiser\'s Save Preference skill on whether and when to offer keeping it there; where Wiser is not connected or saving is not open, that skill says so.';
+  const run = spawnSync(process.execPath, [script], {
+    input: JSON.stringify({ hook_event_name: 'SessionStart', source: 'startup', session_id: 's', cwd: home }),
+    env: { ...process.env, HOME: home },
+    encoding: 'utf8',
+  });
+  assert.equal(run.status, 0);
+  assert.deepEqual(JSON.parse(run.stdout.trim()), {
+    hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: expected },
+  });
   assert.deepEqual(readdirSync(home), [], 'the hook writes nothing');
+  const empty = spawnSync(process.execPath, [script], { input: '', env: { ...process.env, HOME: home }, encoding: 'utf8' });
+  assert.equal(empty.status, 0);
+  assert.equal(empty.stdout, '');
 });
 
 test('the route hook prints nothing when the classifier is absent', () => {
