@@ -604,7 +604,7 @@ export function renderPage(data, generated, css) {
   let h = '';
   h += '<header>';
   h += `<h1>The voice of ${esc(subject)}</h1>`;
-  h += `<p class="meta">${esc(data.rootType ? `${data.rootType} voice` : 'voice')} · ${confirmed}</p>`;
+  h += `<p class="meta">${confirmed}</p>`;
   h += `<p class="meta">This page shows the voice as it is set now: <code>${esc(data.voice.path)}</code> as saved ${esc(data.voice.modified)}. ${profileNote}.</p>`;
   h += '</header>';
 
