@@ -3,7 +3,7 @@ name: Save Preference
 type: skill
 category: system
 description: Keep, list, change or forget a person's standing preferences for how sessions work with them on their Wiser account, with each saved sentence shown word for word and kept only on their yes
-version: 0.1.0
+version: 0.2.0
 ---
 
 # Save Preference
@@ -25,7 +25,7 @@ Say every outcome to the person in plain words. Never show them a tool's mode, f
 
 System Expert owns this skill with no expert gate after it; the person's yes is the gate.
 
-Classifier seam: routing, where `hooks/route.mjs` may open this skill for an ask. Else: the routing table, read as `AGENTS.md` states.
+Classifier seam: none.
 
 ## Objective
 

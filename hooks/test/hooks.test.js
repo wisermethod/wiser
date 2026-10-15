@@ -146,6 +146,188 @@ test('roster rows come from the three family indexes', () => {
   assert.ok(rows.some((row) => row.family === 'tool' && row.name.length > 0 && !row.name.includes('/')));
 });
 
+// Take the program and the four controls from the gate itself, without
+// maintaining another copy of either. Only tests run awk; the hook never does.
+function seamGate(home) {
+  const source = readFileSync(join(pluginRoot, 'system', 'gates', 'classifier-seam.sh'), 'utf8');
+  const program = source.match(/^cat > "\$W\/check\.awk" <<'AWK'\n([\s\S]*?)\nAWK$/m);
+  assert.ok(program, 'the seam gate must expose its check.awk program');
+  const checker = join(home, 'check.awk');
+  writeFileSync(checker, `${program[1]}\n`);
+  const controls = [...source.matchAll(/^ctl "(P1|P2|N1|N2) [^"]*" (skill|expert|tool) (\w+) (clean|dirty) <<'MD'\n([\s\S]*?)\nMD$/gm)]
+    .map((match) => ({ name: match[1], kind: match[2], form: match[3], clean: match[4] === 'clean', text: `${match[5]}\n` }));
+  assert.deepEqual(controls.map((control) => control.name), ['P1', 'P2', 'N1', 'N2']);
+  return {
+    controls,
+    check(file, kind) {
+      const result = spawnSync(existsSync('/usr/bin/awk') ? '/usr/bin/awk' : 'awk', [
+        '-v', `kind=${kind}`, '-f', checker, file,
+      ], { encoding: 'utf8', env: { ...process.env, LC_ALL: 'C' } });
+      assert.equal(result.status, 0, result.stderr || String(result.error));
+      assert.match(result.stdout, /^FORM (none|seam|missing|nocontext)\n/);
+      return result.stdout;
+    },
+  };
+}
+
+const rosterFamilies = [
+  ['skill', 'skills', 'SKILL.md'],
+  ['expert', 'experts', 'EXPERT.md'],
+  ['tool', 'tools', 'TOOL.md'],
+];
+
+test('roster excludes only the seam gate\'s clean none, sharing P1, P2, N1 and N2 verbatim', async (t) => {
+  const home = tempHome();
+  const gate = seamGate(home);
+  const none = 'Classifier seam: none.';
+  const context = (text) => `# Fixture\n## Context\n${text}\n## Steps\n`;
+  const cases = [
+    ...gate.controls.map((control) => ({ ...control, omit: control.form === 'none' && control.clean })),
+    ...[
+      ['CRLF none', context(none).replace(/\n/g, '\r\n'), true],
+      ['no final newline', `## Context\n${none}`, true],
+      ['expert none', context(none), true, 'expert'],
+      ['tool none', context(none), true, 'tool'],
+      ['no Context', none],
+      ['doubled declaration', context(`${none}\n${none}`)],
+      ['none followed by a seam', context(`${none}\nClassifier seam: routing by \`hooks/route.mjs\`. Else: table.`)],
+      ['missing period', context('Classifier seam: none')],
+      ['CRLF missing period', context('Classifier seam: none').replace(/\n/g, '\r\n')],
+      ['two spaces', context('Classifier seam:  none.')],
+      ['space and tab', context('Classifier seam: \tnone.')],
+      ['tab after colon', context('Classifier seam:\tnone.')],
+      ['capital None', context('Classifier seam: None.')],
+      ['lowercase keyword', context('classifier seam: none.')],
+      ['trailing space', context(`${none} `)],
+      ['trailing tab', context(`${none}\t`)],
+      ['leading space', context(` ${none}`)],
+      ['leading tab', context(`\t${none}`)],
+      ['four-space indentation', context(`    ${none}`)],
+      ['HTML comment', context(`<!-- ${none} -->`)],
+      ['multiline HTML comment', context(`<!--\n${none}\n-->`)],
+      ['comment before declaration', context(`<!-- note -->${none}`)],
+      ['comment after declaration', context(`${none} <!-- note -->`)],
+      ['keyword joined across comment bodies', context(`${none}\n<!-- Classifier--><!--seam: -->`)],
+      ['hidden keyword after clean none', context(`${none}\n<!-- ${none} -->`)],
+      ['backtick fence', context(`\`\`\`md\n${none}\n\`\`\``)],
+      ['tilde fence', context(`~~~md\n${none}\n~~~`)],
+      ['three-space fence', context(`   ~~~\n${none}\n   ~~~`)],
+      ['shorter close is not a close', context(`\`\`\`\`\n\`\`\`\n${none}\n\`\`\`\``)],
+      ['different fence character', context(`~~~\n\`\`\`\n${none}\n~~~`)],
+      ['text after closing fence', context(`~~~\n~~~ text\n${none}\n~~~`)],
+      ['keyword on fence opener', context(`~~~ ${none}\n~~~`)],
+      ['keyword on fence closer', context(`~~~\n~~~ ${none}\n~~~`)],
+      ['inline backticks', context(`\`${none}\``)],
+      ['before Context', `${none}\n${context('Use this fixture.')}`],
+      ['after Context', `${context('Use this fixture.')}\n${none}\n`],
+      ['keyword on heading', `## Context ${none}\n`],
+      ['keyword on later heading', context(`${none}\n## ${none}`)],
+      ['two keywords in a line', context(`${none} ${none}`)],
+      ['indented Context', ` ## Context\n${none}\n`],
+      ['setext Context', `Context\n-------\n${none}\n`],
+      ['fenced Context', `~~~\n## Context\n~~~\n${none}\n`],
+      ['commented Context', `<!--\n## Context\n-->\n${none}\n`],
+      ['Context trailing comment', `## Context <!-- note -->\n${none}\n`, true],
+      ['keyword on Context comment', `## Context <!-- ${none} -->\n${none}\n`],
+      ['Context closing hashes and blanks', `## Context ### \t\n${none}\n`, true],
+      ['subheading stays in Context', context(`### Detail\n${none}`), true],
+      ['longer fence close', context(`~~~\ntext\n~~~~ \t\n${none}`), true],
+      ['backtick span is not a fence', context(`\`\`\`text\`\`\`\n${none}`), true],
+      ['fence info does not open a comment', context(`~~~ <!--\ntext\n~~~\n${none}`), true],
+      ['commented fence does not open a fence', context(`<!--\n~~~\n-->\n${none}`), true],
+      ['commented heading does not end Context', context(`<!--\n## Steps\n-->\n${none}`), true],
+      ['four-space fence is not a fence', context(`    ~~~\n${none}`), true],
+      ['unclosed fence after none has no gate error', context(`${none}\n~~~\ntext`), true],
+      ['later keyword outside Context', `${context(none)}\n${none}\n`],
+    ].map(([name, text, omit = false, kind = 'skill']) => ({ name, text, omit, kind })),
+  ];
+  const expected = [];
+  for (const [family, dir, typed] of rosterFamilies) {
+    mkdirSync(join(home, dir));
+    const index = ['| Primitive | Description |', '|-----------|-------------|'];
+    for (const fixture of cases.filter((item) => item.kind === family)) {
+      const name = fixture.name;
+      const description = `Fixture ${name}`;
+      const file = join(home, dir, name, typed);
+      mkdirSync(dirname(file));
+      writeFileSync(file, fixture.text);
+      index.push(`| \`${name}/${typed}\` | ${description} |`);
+      await t.test(name, () => {
+        const verdict = gate.check(file, family);
+        if (fixture.form) {
+          assert.equal(verdict.split('\n')[0], `FORM ${fixture.form}`);
+          assert.equal(!verdict.includes('\nERR '), fixture.clean);
+        }
+        assert.equal(verdict === 'FORM none\n', fixture.omit, verdict);
+      });
+      if (!fixture.omit) expected.push({ family, name, description, body: fixture.text });
+    }
+    writeFileSync(join(home, dir, 'AGENTS.md'), `${index.join('\n')}\n`);
+  }
+  // Full row equality checks order and every byte of the retained bodies,
+  // including the malformed CRLF file, rather than checking names alone.
+  const rows = buildRoster(home);
+  assert.equal(rows.length, expected.length);
+  for (const [i, row] of rows.entries()) assert.deepEqual(row, expected[i]);
+});
+
+test('roster keeps unreadable files and symlinks offered', () => {
+  const home = tempHome();
+  for (const [, dir] of rosterFamilies) {
+    mkdirSync(join(home, dir));
+    writeFileSync(join(home, dir, 'AGENTS.md'), '');
+  }
+  const skill = join(home, 'skills');
+  for (const name of ['Missing', 'Directory', 'Symlink']) mkdirSync(join(skill, name));
+  mkdirSync(join(skill, 'Directory', 'SKILL.md'));
+  const text = '## Context\nClassifier seam: none.\n';
+  writeFileSync(join(home, 'target.md'), text);
+  symlinkSync(join(home, 'target.md'), join(skill, 'Symlink', 'SKILL.md'));
+  writeFileSync(join(skill, 'AGENTS.md'), [
+    '| `Missing/SKILL.md` | missing file |',
+    '| `Directory/SKILL.md` | unreadable file |',
+    '| `Symlink/SKILL.md` | gate refuses a typed-file symlink |',
+  ].join('\n'));
+  assert.deepEqual(buildRoster(home), [
+    { family: 'skill', name: 'Missing', description: 'missing file', body: '' },
+    { family: 'skill', name: 'Directory', description: 'unreadable file', body: '' },
+    { family: 'skill', name: 'Symlink', description: 'gate refuses a typed-file symlink', body: text },
+  ]);
+});
+
+test('the tree excludes ten primitives on their own clean none declarations', () => {
+  const gate = seamGate(tempHome());
+  const omitted = [];
+  const expected = [];
+  for (const [family, dir, typed] of rosterFamilies) {
+    const index = readFileSync(join(pluginRoot, dir, 'AGENTS.md'), 'utf8');
+    for (const line of index.split('\n')) {
+      const row = line.match(/^\| `([^`]+)\/([^`/]+)` \| ([^|]+) \|/);
+      if (!row || row[2] !== typed) continue;
+      const name = row[1];
+      const file = join(pluginRoot, dir, name, typed);
+      const body = readFileSync(file, 'utf8');
+      if (gate.check(file, family) === 'FORM none\n') omitted.push(`${dir}/${name}/${typed}`);
+      else expected.push({ family, name, description: row[3].trim(), body });
+    }
+  }
+  assert.deepEqual(omitted, [
+    'skills/Commit and Release/SKILL.md',
+    'skills/Delegate Build/SKILL.md',
+    'skills/Prove Change/SKILL.md',
+    'skills/Save Preference/SKILL.md',
+    'tools/Browser Control/TOOL.md',
+    'tools/Subagent Runner/TOOL.md',
+    'tools/data/TOOL.md',
+    'tools/copy-check/TOOL.md',
+    'tools/knowledge-memory/TOOL.md',
+    'tools/pages-functions/TOOL.md',
+  ]);
+  const rows = buildRoster(pluginRoot);
+  assert.equal(rows.length, expected.length);
+  for (const [i, row] of rows.entries()) assert.deepEqual(row, expected[i]);
+});
+
 test('hooks.json registers SessionStart and the route hook', () => {
   const doc = JSON.parse(readFileSync(join(pluginRoot, 'hooks', 'hooks.json'), 'utf8'));
   assert.equal(typeof doc.description, 'string');

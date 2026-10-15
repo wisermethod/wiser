@@ -1,6 +1,6 @@
 ---
 standard: primitives
-version: 0.13.0
+version: 0.14.0
 description: The four typed primitives, how they invoke and sequence one another, the frontmatter every typed file carries, and the classifier seam a new typed file declares, and any file whose seam changes
 ---
 
@@ -46,13 +46,13 @@ Classifier seam: none.
 Classifier seam: <each seam, naming in backticks the code that makes the call>. Else: <the path that settles each one without a classifier>.
 ```
 
-It is read the way `experts/AGENTS.md` reads an `Owns:` line. It starts at the left margin, is never wrapped, and sits under a `## Context` heading at column 0, outside any code block or comment. It ends with a period, and the seam form names its else path once, after `Else: `. A file carries one such line. The keyword anywhere else in the file, or in a Context line that is not the declaration, is an error. The declaration is a line in the body and not a key, for two reasons: Frontmatter admits no key beyond those it lists, and nothing reads the line at run time. An author, a reviewer and a gate read it, and no host decides from it whether to call.
+It is read the way `experts/AGENTS.md` reads an `Owns:` line. It starts at the left margin, is never wrapped, and sits under a `## Context` heading at column 0, outside any code block or comment. It ends with a period, and the seam form names its else path once, after `Else: `. A file carries one such line. The keyword anywhere else in the file, or in a Context line that is not the declaration, is an error. The declaration is a line in the body and not a key because Frontmatter admits no key beyond those it lists. An author, a reviewer and a gate read it. At run time the route hook's roster, `hooks/lib/roster.mjs`, reads it by the checker rule in `system/gates/classifier-seam.sh`, only to leave out a primitive whose file declares none with no error, and decides nothing else from it. A missing declaration, a seam, a malformed declaration or an unreadable file stays offered as before; a doubtful read never leaves a primitive out.
 
 **The call is made by code, never chosen by the model.** A seam is a call made by the route hook before the model starts, by a tool's own script under Invocation, or by the gateway. A judgment that would reach the classifier only if the model chose to ask is not a seam and is not declared. What that allows each type:
 
 - **A tool's seam** is the closed judgment its script puts to the classifier under Invocation, the one its `TOOL.md` names. Its else path is the path that settles the judgment when no classifier answers.
 - **A skill's or an expert's seam is never one of its own steps, decisions or Success lines**, which Invocation keeps its own. It is one of two things:
-  - **Routing**, where an index that `hooks/` reads lists the primitive, so the route hook can open it for an ask. Its else path is the routing table, read as the constitution states.
+  - **Routing**, where an index that `hooks/` reads lists the primitive, so the route hook can open it for an ask unless its Context declares none, as read above. An indexed skill or expert is routed unless it opts out that way. Its else path is the routing table, read as the constitution states.
   - **A judgment inside a tool or a gateway action that one of its steps runs.** Its else path is what that step does when the tool or action settles without the classifier.
 
   A primitive with more than one seam names each, and its one `Else: ` gives each else path in the same order.
@@ -67,7 +67,7 @@ It is read the way `experts/AGENTS.md` reads an `Owns:` line. It starts at the l
 - **It reaches.** A primitive is opened when the session's record shows its load succeeded, through the harness's skill tool or a read of its `SKILL.md` or `EXPERT.md`; text that quotes the file opens nothing, and neither does a load that failed. Which opened first is read by when the record shows each success. On each case whose right answer is a primitive, the with arm opens that primitive first in a majority of its runs, and in no fewer runs than the without arm does; a run that opens another primitive first misses, even where it opens the right one later. On each case whose right answer is none of the candidates, no with-arm run opens a skill or an expert.
 - **Its time and cost are bounded.** Both arms' wall time and cost are reported as figures beside the verdict. For wall time and for cost separately, the seam fails when the with arm's median of per-repeat medians is more than 1.25 times the without arm's; when, on any one case, the median of the with arm's runs is more than 1.25 times the median of the without arm's; or when any with-arm run is more than twice the median of the without arm's runs on its case. A run with no measured wall time or cost fails the bound.
 
-A seam that fails is not shipped. The primitive ships without it, declaring the seams that remain, and its else path is what runs. The runs belong to the change, as Done places a verification, and are recorded where that change records it. The typed file carries the declaration and never the runs.
+A seam that fails is not shipped. The primitive ships without it, declaring the seams that remain, and its else path is what runs. Where none remain, it declares none; the route hook's roster exclusion above is how it ships without a routing seam. The runs belong to the change, as Done places a verification, and are recorded where that change records it. The typed file carries the declaration and never the runs.
 
 ## Connector Bodies
 
