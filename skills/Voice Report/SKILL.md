@@ -78,8 +78,8 @@ Where the Routing Table gives registers that differ on a dimension, rate the reg
 - a file preview;
 - the system's default opener (`open` on macOS, `xdg-open` on Linux, `start` on Windows) where the host runs commands on the person's own machine.
 
-Where the host can do none of these, give the page's path as a clickable link. Then, beside it, give:
-- its path, and whether it was reused because nothing changed or built now, with what changed;
+Where the host can do none of these, give the page's path as a clickable link. Then, beside it, give the following, read from the `.json` beside the page when it was reused:
+- whether it was reused because nothing changed, or built now, with what changed;
 - whether the voice is confirmed: `voice-confirmation-date:` holding a date means confirmed on that date, and its bracketed anchor is Build Voice's verification record; a Not available label there means not confirmed;
 - how many measured dials (punctuation included) and rated dials it shows, and which read not known or not rated, and why;
 - every Not available label the page lists;
