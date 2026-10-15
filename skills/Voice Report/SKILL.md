@@ -3,7 +3,7 @@ name: Voice Report
 type: skill
 category: onboarding
 description: Show one user root's bound voice, as it is set now, in the conversation as dials for register, stance and rhythm, with the full page saved in that root's work/onboarding/ and the voice's own lines beside the dials
-version: 0.3.0
+version: 0.4.0
 memory:
   - voice
 ---
@@ -53,7 +53,7 @@ Read `state` and `profile`:
 
 **3. Rate the register dials.** For each of `involved`, `explicit`, `abstract` and `formality`, read the Tone, Vocabulary and Structural Habits items in the `.json`, and the Register cell of each Routing Table row. Does a line state a move that places this voice on that dimension? Yes: add a `rated` entry using the scale below, with the line copied exactly into `trait`. No: add nothing, and the dial reads not rated. A guess is never a rating.
 
-For `evidence`, cite the ids of the samples that show the move in the register you are rating. These come only from the ids that line cites, and a range such as `E1 to E5` cites every id inside it. One line may back two dials when it states a move on each.
+For `evidence`, cite the ids of the samples that show the move in the register you are rating. These come only from the ids that line cites, and a range such as `E1 to E5` cites every id inside it. For a Register cell, the line is its whole Routing Table row, so the ids in its Why cell count. One line may back two dials when it states a move on each.
 
 | Key | Step 1 | Step 5 |
 |-----|--------|--------|
@@ -82,7 +82,10 @@ Where the host can do none of these, give the page's path as a clickable link.
 
 In both cases, put the Identity section as written above the dials, in your reply text. After the dials and the link, give the following, read from the `.json`:
 - whether it was reused because nothing changed, or built now, with what changed;
-- whether the voice is confirmed: `voice-confirmation-date:` holding a date means confirmed on that date, and its bracketed anchor is Build Voice's verification record; a Not available label there means not confirmed;
+- where the voice stands, read from `onboarding`, the voice key's state line in the root's `AGENTS.md`:
+  - a line that is not `complete` is said as written, with what it waits on and who owns it, and `voice-confirmation-date:` is then the last confirmation, never the voice's current standing;
+  - a line that is `complete`, or no line: `voice-confirmation-date:` holding a date means confirmed on that date, and its bracketed anchor is Build Voice's verification record; a Not available label there means not confirmed;
+- each rated dial whose trait `voice.md` or that state line names as not yet confirmed, said to rest on an unconfirmed trait;
 - how many measured dials (punctuation included) and rated dials it shows, and which read not known or not rated, and why;
 - every Not available label the page lists;
 - the register step 3 rated, where registers differ;
@@ -109,3 +112,4 @@ The page does not update itself. Asking again after the voice changes builds a n
 - Every rated dial quotes a Tone, Vocabulary or Structural Habits item, or a Routing Table Register cell, exactly; cites only ids that line cites; and sits at the step the scale and its step rule give.
 - No sentence on the page is absent from `voice.md`, the profile, or the tool's fixed labels.
 - The report names the dials that read not known or not rated, and why.
+- The report never calls the voice confirmed while the root's state line leaves the voice key provisional or blocked, and names any rated dial that rests on an unconfirmed trait.

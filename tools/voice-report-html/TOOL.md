@@ -2,15 +2,16 @@
 name: voice-report-html
 type: tool
 category: documents
-description: Read a root's bound voice.md and the confirmed voice-lexicon profile it names into one data object, render that object as one static HTML page with dials for register, stance and rhythm or as a fragment of those dials for a host that draws HTML in the conversation, and say whether an existing page still shows the voice as set now
-version: 0.3.0
+description: Read a root's bound voice.md, the confirmed voice-lexicon profile it names, and the voice key's state line in the root's AGENTS.md into one data object, render that object as one static HTML page with dials for register, stance and rhythm or as a fragment of those dials for a host that draws HTML in the conversation, and say whether an existing page still shows the voice as set now
+version: 0.4.0
 ---
 
 # voice-report-html
 
-One static page that shows a voice as it is set now. It copies; it does not judge. Every value on the page comes from one of three places:
+One static page that shows a voice as it is set now. It copies; it does not judge. Every value on the page comes from one of four places:
 - the bound `voice.md`;
 - the confirmed profile copy that file names on its `voice-profile:` line;
+- the voice key's state line under `## Onboarding` in the owning root's `AGENTS.md`, which says whether the voice is complete, provisional or blocked;
 - a rated position the caller supplies, together with the trait line from `voice.md` that it rests on.
 
 ## Context
@@ -102,9 +103,10 @@ The render run over `tests/fixtures/complete-root` with that one rated dial prin
 - the page's recorded voice path is the bound file's path from the root;
 - the bound file's sha256 is the one the page recorded;
 - the voice names the same profile path the page read (a trailing anchor removed);
-- that profile is still there, with the sha256 the page recorded.
+- that profile is still there, with the sha256 the page recorded;
+- the voice key's state line in the root's `AGENTS.md` reads as the page recorded it, or is still absent.
 
-Otherwise `fresh` is false, and `changed` says, in words, each difference found. A page made before 0.2.0 records no fingerprints and is never fresh.
+Otherwise `fresh` is false, and `changed` says, in words, each difference found. A page made before 0.2.0 records no fingerprints, and one made before 0.4.0 records no state line; neither is ever fresh.
 
 No command takes `--env`. This tool installs nothing, and `--install` is refused by name. The following are refused before any file is read:
 - an unknown flag or an unknown command, named;
@@ -140,6 +142,8 @@ From the profile, only the keys `tools/voice-lexicon/` defines:
 - **`ranges.chunks`, `ranges.chunk_words`, and `ranges.features`:** the eight range features and the eleven punctuation keys. Each feature holds `low`, `median`, `high`, `q1`, `q3`, `decision`, `polish` and `measured`.
 - **Refusals by name:** a feature outside those names, a key outside those, a non-numeric `low`, `median` or `high`, a `decision` other than `keep` or `polish`, a `polish` other than `high` or `low`, and a `measured` that is not `{ low, high }` numbers.
 
+From the owning root's own `AGENTS.md`, only the voice key's state line under `## Onboarding`, as `skills/Onboard Root/` writes it: `- voice: provisional (…; owner: …)`. The line is kept as written. Its state is its first word where that is `complete`, `provisional` or `blocked`, `unrecognized` where it is anything else, and `absent` where the file, the heading or the line is not there. This line, not `voice-confirmation-date:`, says where the voice stands now: a key reopened after it was confirmed is provisional again here.
+
 A voice is `built` when at least one known section is answered; otherwise it is `unbuilt`.
 
 ## Data object
@@ -150,6 +154,7 @@ A voice is `built` when at least one known section is answered; otherwise it is 
 | `subject` | From the title line; `null` when absent |
 | `voice` | `path` from the root, `sha256`, and `modified` (the date the file was last saved) |
 | `authority` | `name`, `basis`, `confirmed`, `fallbackSignoff`, each as written or `null` |
+| `onboarding` | `path` (`AGENTS.md`), `state` (`complete`, `provisional`, `blocked`, `unrecognized` or `absent`), and `line`, the state line after `voice:` as written or `null`. `render` and `inline` refuse a data object without it |
 | `profile` | `path`, `state` (`read`, `absent`: no `voice-profile:` line, or `missing-file`), `sha256`, `words`, `samples`, `chunks`, `chunkWords` |
 | `features` | Per range feature: `low`, `median`, `high`, `q1`, `q3`, `decision`, `polish`, `measured`. Empty when the profile was not read |
 | `markers` | The kept markers, as listed above |
@@ -163,12 +168,12 @@ A voice is `built` when at least one known section is answered; otherwise it is 
 A rated dial is one of `involved` (involved to informational), `explicit` (situation-dependent to explicit reference), `abstract` (concrete to abstract style), or `formality` (contextual to formal). Each entry holds exactly `key`, `step`, `trait` and `evidence`. `render` refuses an entry in any of these cases:
 - its `step` is not a whole number from 1 to 5;
 - its `trait`, whitespace aside, is not part of one item in `sections` or of one Routing Table row's Register cell;
-- `evidence` is empty, or an id in it is not of the form `E1`, or is not cited by that same item. A range written `E1 to E5`, `E1-E5` or with an en dash cites every id inside it;
+- `evidence` is empty, or an id in it is not of the form `E1`, or no item holding the trait cites every id in it. For a Register cell, every cell of its row counts as citing, because Build Voice gives each row a reason and the ids often sit there. A range written `E1 to E5`, `E1-E5` or with an en dash cites every id inside it;
 - its key appears twice.
 
 ## The page
 
-- **Header:** name, whether and when the voice was confirmed and by whom, and which files and dates the page reflects.
+- **Header:** name; where the voice stands, and when it was confirmed and by whom; and which files and dates the page reflects. A state line that is not `complete` is shown as written, `voice: provisional (…)`, and the confirmation date then follows as `last confirmed`.
 - **Lead:** the Identity section, copied.
 - **One aligned block of dials:**
   - Register: the four rated dials, each an open dot on a five-step scale, with the trait line as a sidenote.
@@ -187,7 +192,7 @@ The page carries no script and no external request. All text from the files is e
 
 What it holds:
 - a hidden heading for screen readers;
-- a one-line header: name, and whether and when it was confirmed;
+- a one-line header: name, and where the voice stands, worded as the page's header words it;
 - the same dials as the page, drawn by the same code with the same marks, and their styles taken from `template/report.css`, each quoted trait line shown under its rated dial;
 - the key.
 
@@ -238,7 +243,8 @@ One JSON object on stdout, exit 0. A refusal prints to stderr, leaves stdout emp
 - `help`, and `--help` beside any command, exits 0 with nothing installed and names every flag.
 - `extract` exits 0 with one data object whose every value is copied from `voice.md` or the profile it names, and whose `features` is empty when no profile was read.
 - `inline` exits 0 with one fragment only for a built voice whose data `render` would accept, and writes nothing.
-- `fresh` exits 0 and is true only when the page's recorded files are the bound files, unchanged.
+- `fresh` exits 0 and is true only when the page's recorded files are the bound files, unchanged, and the voice state line reads as it did.
+- The page never calls a voice confirmed while the root's state line leaves the voice key open.
 - `render` writes one static page only for a built voice, only with rated dials that quote a trait line and its cited evidence, and never over an existing file.
 - A bad path, destination, profile or data file, an unknown flag, or `--install` exits 1 with stdout empty, and the message names the cause and the fix.
 - Nothing is written but the `--output` file, and nothing is installed.

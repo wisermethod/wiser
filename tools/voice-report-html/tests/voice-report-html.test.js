@@ -22,6 +22,8 @@ function scratch() {
 
 const PROFILE = join('work', 'onboarding', '2026-10-15 profile confirmed.json');
 const PROFILE_LINE = `voice-profile: ${PROFILE.split('\\').join('/')}`;
+const ONBOARDING = (line) => `\n## Onboarding\n\nOnboarded 2026-10-15 on the personal path of \`skills/Onboard Root/\`.\n\n- about: complete\n- design: provisional (every heading labeled; owner: Marisol Vey; waits on her design guide)\n- voice: ${line}\n`;
+const REOPENED = 'provisional (rebuilt 2026-10-15 to add a trait; owner: Marisol Vey; waits on her confirming a sample written from `memory/voice.md`)';
 
 // Each variant is one base root with one change, written to a temp folder on first use.
 const VARIANTS = {
@@ -38,7 +40,12 @@ const VARIANTS = {
   'missing-profile-root': ['complete-root', (root) => dropProfile(root) || edit(root, 'memory/voice.md', (t) => t.replace('2026-10-15 profile confirmed.json', '2026-10-15 profile gone.json'))],
   'outside-profile-root': ['complete-root', (root) => dropProfile(root) || edit(root, 'memory/voice.md', (t) => t.replace(PROFILE_LINE, `voice-profile: ../complete-root/${PROFILE}`))],
   'labelled-stub-root': ['stub-root', (root) => edit(root, 'memory/voice.md', (t) => t.split('\n')
-    .map((line) => (line.startsWith('*') && line.endsWith('*') ? '[Not available: no writing supplied; Build Voice runs when writing is]' : line)).join('\n'))]
+    .map((line) => (line.startsWith('*') && line.endsWith('*') ? '[Not available: no writing supplied; Build Voice runs when writing is]' : line)).join('\n'))],
+  'provisional-root': ['complete-root', (root) => appendFileSync(join(root, 'AGENTS.md'), ONBOARDING(REOPENED))],
+  'complete-state-root': ['complete-root', (root) => appendFileSync(join(root, 'AGENTS.md'), ONBOARDING('complete'))],
+  'why-cell-root': ['complete-root', (root) => edit(root, 'memory/voice.md', (t) => t.replace(
+    '| Grant narrative section | E3: no contractions, "we" for the applicant, figures with sources | Read by a panel scoring against criteria |',
+    '| Grant narrative section | No contractions, "we" for the applicant, figures with sources | Read by a panel scoring against criteria (E3, E4) |'))]
 };
 const built = new Map();
 
@@ -91,7 +98,7 @@ test('help works with nothing configured, and beside --help', () => {
   for (const args of [['help'], ['--help'], [], ['help', '--help']]) {
     const r = run(...args);
     assert.equal(r.code, 0);
-    assert.match(r.out, /voice-report-html 0\.3\.0/);
+    assert.match(r.out, /voice-report-html 0\.4\.0/);
     assert.equal(r.err, '');
   }
 });
@@ -254,6 +261,47 @@ test('a Routing Table register cell can be quoted, and an evidence range covers 
   assert.match(outside.err, /does not cite/);
 });
 
+test('a Register cell rests on the ids its whole row cites, Why cell included', () => {
+  const base = extract('why-cell-root');
+  const trait = 'No contractions, "we" for the applicant, figures with sources';
+  const ok = renderData({ ...base, rated: [{ key: 'formality', step: 4, trait, evidence: ['E3', 'E4'] }] });
+  assert.equal(ok.code, 0, ok.err);
+  const outside = renderData({ ...base, rated: [{ key: 'formality', step: 4, trait, evidence: ['E5'] }] });
+  assert.equal(outside.code, 1);
+  assert.match(outside.err, /cites E5, which the quoted trait line does not cite anywhere in its Routing Table row/);
+});
+
+test('the voice key state line is read only under Onboarding, and only for voice', async () => {
+  const { parseOnboarding } = await import(join(TOOL, 'scripts', 'voice-report-core.js'));
+  assert.deepEqual(parseOnboarding('## Onboarding\n\n- design: provisional (x)\n- `voice`: blocked (no file; owner: A)\n'), { state: 'blocked', line: 'blocked (no file; owner: A)' });
+  assert.deepEqual(parseOnboarding('## Provides\n\n- voice: memory/voice.md\n'), { state: 'absent', line: null });
+  assert.equal(parseOnboarding('## Onboarding\n\n- voice: rebuilt, waiting on a sample\n').state, 'unrecognized');
+  assert.equal(parseOnboarding('## Onboarding\n\n- voice: complete\n\n## Later\n\n- voice: provisional (x)\n').state, 'complete');
+  assert.deepEqual(extract('complete-root').onboarding, { path: 'AGENTS.md', state: 'absent', line: null });
+});
+
+test('a voice the state line leaves provisional is never shown as confirmed', () => {
+  const data = extract('provisional-root');
+  assert.deepEqual(data.onboarding, { path: 'AGENTS.md', state: 'provisional', line: REOPENED });
+  const r = renderData(data);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.html, /<p class="meta">voice: provisional \(rebuilt 2026-10-15 to add a trait; owner: Marisol Vey; waits on her confirming a sample written from <code>memory\/voice.md<\/code>\); last confirmed 2026-10-15 by Marisol Vey<\/p>/);
+  assert.doesNotMatch(r.html, /<p class="meta">confirmed/);
+  assert.match(r.html, /with the voice state line in <code>AGENTS.md<\/code>/);
+  const f = JSON.parse(run('inline', '--data', writeData(data)).out).fragment;
+  assert.match(f, /<p class="who">Marisol Vey · voice: provisional \(rebuilt 2026-10-15/);
+  assert.match(f, /; last confirmed 2026-10-15<\/p>/);
+
+  const done = renderData(extract('complete-state-root'));
+  assert.equal(done.code, 0, done.err);
+  assert.match(done.html, /<p class="meta">confirmed 2026-10-15 by Marisol Vey<\/p>/);
+
+  const { onboarding, ...older } = data;
+  const refused = renderData(older);
+  assert.equal(refused.code, 1);
+  assert.match(refused.err, /has no onboarding object/);
+});
+
 test('render never overwrites, and never writes inside the tool directory or through a link', () => {
   const data = extract('complete-root');
   const first = renderData(data);
@@ -315,6 +363,19 @@ test('fresh says whether a page still shows the voice as set now', () => {
   assert.match(check().changed.join(' '), /is no longer there/);
   writeFileSync(profile, profileText);
   assert.equal(check().fresh, true);
+
+  const agents = join(root, 'AGENTS.md');
+  const agentsText = readFileSync(agents, 'utf8');
+  appendFileSync(agents, ONBOARDING('provisional (reopened; owner: Marisol Vey)'));
+  assert.deepEqual(check(), { fresh: false, changed: ['the voice state line in AGENTS.md now reads "voice: provisional (reopened; owner: Marisol Vey)"'] });
+  writeFileSync(agents, agentsText);
+  assert.equal(check().fresh, true);
+
+  const before = join(root, 'work', 'onboarding', 'before-0.4.0.html');
+  writeFileSync(before, readFileSync(page, 'utf8').replace(/<meta name="voice-report:onboarding"[^>]*>\n/, ''));
+  const unrecorded = JSON.parse(run('fresh', '--page', before, '--voice', voice, '--root', root).out);
+  assert.equal(unrecorded.fresh, false);
+  assert.match(unrecorded.changed[0], /records no voice state line/);
 
   const old = join(root, 'work', 'onboarding', 'old.html');
   writeFileSync(old, '<!doctype html><title>x</title>');
