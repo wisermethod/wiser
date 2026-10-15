@@ -39,6 +39,8 @@ Working answer, confirmed by Marisol Vey on 2026-10-15.
 - Every action has a named doer; no passive outside the narrative's method paragraph (E1, E2, E3, E5).
 - Hedging: 2 to 9 per 1,000 words measured; polished away on the high side, set to 2 to 4 (E1 to E5; Marisol Vey chose to polish, 2026-10-15).
 
+- Writes <img src=x onerror=alert(2)> & "quoted" asides in every email (E1, E2).
+
 ## Vocabulary
 
 - "the ask": 7 uses in E1, E2, E5.

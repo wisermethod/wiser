@@ -293,6 +293,8 @@ test('inline prints a chat fragment of the dials, and writes nothing', () => {
   const f = out.fragment;
   assert.doesNotMatch(f, /<script|<html|<head|<body|<!doctype|<!--|https?:\/\//i);
   assert.match(f, /^<style>/);
+  assert.match(f, /@media \(prefers-color-scheme:dark\)\{\.vr\{--vi:var\(--text-primary,#e9e7dc\)/, 'dark fallbacks for a host without colour variables');
+  assert.doesNotMatch(f.replace(/--v\w+:var\([^)]*\)/g, ''), /#[0-9a-f]{3,6}/i, 'every colour goes through a variable');
   assert.match(f, /<h2 class="sr">Voice dials for Marisol Vey/);
   assert.match(f, /placed for: Email to a client&#39;s director/);
   assert.match(f, /cx="25.00%"/);
@@ -300,8 +302,11 @@ test('inline prints a chat fragment of the dials, and writes nothing', () => {
   assert.match(f, /Reference<span class="r">not rated<\/span>/);
   assert.deepEqual(readdirSync(dir), ['data.json']);
 
-  const esc = JSON.parse(run('inline', '--data', writeData(extract('escape-root'))).out).fragment;
-  assert.doesNotMatch(esc, /<script>alert/);
+  const escData = extract('escape-root');
+  escData.rated = [{ key: 'formality', step: 3, trait: 'Writes <img src=x onerror=alert(2)> & "quoted" asides in every email (E1, E2).', evidence: ['E1'] }];
+  const esc = JSON.parse(run('inline', '--data', writeData(escData)).out).fragment;
+  assert.doesNotMatch(esc, /<img|<script>alert/);
+  assert.match(esc, /Writes &lt;img src=x onerror=alert\(2\)&gt; &amp; &quot;quoted&quot; asides/);
 
   const old = JSON.parse(run('inline', '--data', writeData(extract('old-format-root'))).out).fragment;
   assert.match(old, /not known; nothing measured/);
