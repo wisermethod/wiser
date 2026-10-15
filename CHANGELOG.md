@@ -7,6 +7,7 @@ Changes before September 27, 2026 are in the commit history only.
 ## Unreleased
 
 - The classifier no longer suggests Commit and Release, Delegate Build or Prove Change, whose files declare no classifier seam.
+- When a Claude Code session starts, Wiser reminds it that your standing preferences live on your Wiser account, so a new one is offered there rather than kept only in Claude Code's own memory.
 - New skill, Save Preference: keep, list, change or forget a standing preference on your Wiser account. Each sentence is previewed word for word and saved only on your yes; when saving is not open yet, it stops before asking for approval. It refuses a preference that would drop or put off a check before or after a step, give consent in advance, or change one of Wiser's own rules, such as deleting files without asking first (bcbbfbf).
 - Wiser reads your saved preferences from your Wiser account when it starts work for you, follows them within its own rules, your folder's facts and voice, and what you ask in the moment, goes on without them when it cannot read them, and never passes them to a helper it hands work to (bcbbfbf, 55d80cf, and this change).
 - What Wiser keeps goes where a later session will find it: facts in your folder, preferences on your Wiser account through Save Preference, never in an app's own memory (bcbbfbf).

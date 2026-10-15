@@ -1,5 +1,5 @@
 {
-  "description": "Three hooks, whose contract is hooks/AGENTS.md: session and route serve the classifier and send nothing when none is attached; notice shows Wiser's current notice when a session starts, or nothing, and WISER_DISABLE_NOTICES=1 turns it off.",
+  "description": "Four hooks, whose contract is hooks/AGENTS.md: session and route serve the classifier and send nothing when none is attached; notice shows Wiser's current notice when a session starts, or nothing, and WISER_DISABLE_NOTICES=1 turns it off; preferences reminds the session where the person's standing preferences are kept.",
   "hooks": {
     "SessionStart": [
       {
@@ -17,6 +17,15 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/notice.mjs\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/preferences.mjs\"",
             "timeout": 5
           }
         ]

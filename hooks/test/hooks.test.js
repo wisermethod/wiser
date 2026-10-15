@@ -384,10 +384,15 @@ test('hooks.json registers SessionStart and the route hook', () => {
   assert.equal(typeof doc.description, 'string');
   assert.equal(
     doc.description,
-    'Three hooks, whose contract is hooks/AGENTS.md: session and route serve the classifier and send nothing when none is attached; notice shows Wiser\'s current notice when a session starts, or nothing, and WISER_DISABLE_NOTICES=1 turns it off.',
+    'Four hooks, whose contract is hooks/AGENTS.md: session and route serve the classifier and send nothing when none is attached; notice shows Wiser\'s current notice when a session starts, or nothing, and WISER_DISABLE_NOTICES=1 turns it off; preferences reminds the session where the person\'s standing preferences are kept.',
   );
   assert.deepEqual(Object.keys(doc.hooks).sort(), ['SessionStart', 'UserPromptSubmit']);
-  assert.equal(doc.hooks.SessionStart.length, 2);
+  assert.equal(doc.hooks.SessionStart.length, 3);
+  assert.equal(doc.hooks.SessionStart[2].matcher, undefined);
+  assert.equal(doc.hooks.SessionStart[2].hooks.length, 1);
+  assert.equal(doc.hooks.SessionStart[2].hooks[0].type, 'command');
+  assert.equal(doc.hooks.SessionStart[2].hooks[0].command, 'node "${CLAUDE_PLUGIN_ROOT}/hooks/preferences.mjs"');
+  assert.equal(doc.hooks.SessionStart[2].hooks[0].timeout, 5);
   assert.equal(doc.hooks.SessionStart[0].matcher, undefined);
   assert.equal(doc.hooks.SessionStart[0].hooks.length, 1);
   assert.equal(doc.hooks.SessionStart[0].hooks[0].command, 'node "${CLAUDE_PLUGIN_ROOT}/hooks/session.mjs"');
@@ -401,6 +406,24 @@ test('hooks.json registers SessionStart and the route hook', () => {
   assert.equal(doc.hooks.UserPromptSubmit[0].hooks[0].command, 'node "${CLAUDE_PLUGIN_ROOT}/hooks/route.mjs"');
   assert.equal(doc.hooks.UserPromptSubmit[0].hooks[0].timeout, 5);
 });
+test('the preferences hook prints its reminder as session context for every source, with no gateway home', () => {
+  const home = tempHome();
+  const script = join(pluginRoot, 'hooks', 'preferences.mjs');
+  for (const source of ['startup', 'resume', 'clear', 'compact']) {
+    const run = spawnSync(process.execPath, [script], {
+      input: JSON.stringify({ hook_event_name: 'SessionStart', source, session_id: 's', cwd: home }),
+      env: { ...process.env, HOME: home },
+      encoding: 'utf8',
+    });
+    assert.equal(run.status, 0, source);
+    const out = JSON.parse(run.stdout.trim());
+    assert.equal(out.hookSpecificOutput.hookEventName, 'SessionStart', source);
+    assert.match(out.hookSpecificOutput.additionalContext, /Save Preference/, source);
+    assert.match(out.hookSpecificOutput.additionalContext, /Claude Code's own memory/, source);
+  }
+  assert.deepEqual(readdirSync(home), [], 'the hook writes nothing');
+});
+
 test('the route hook prints nothing when the classifier is absent', () => {
   const home = tempHome();
   const cwd = join(home, 'work');
