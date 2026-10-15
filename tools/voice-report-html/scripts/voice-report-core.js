@@ -478,7 +478,7 @@ const PUNCTUATION_NAMES = {
   initial_but: 'Sentences opening on But', initial_so: 'Sentences opening on So'
 };
 const RATED = [
-  ['involved', 'Involved or informational', 'personal', 'informational'],
+  ['involved', 'Personal or informational', 'personal', 'informational'],
   ['explicit', 'Reference', 'leaves it to the reader', 'names everything'],
   ['abstract', 'Abstract style', 'named doer', 'doer left out'],
   ['formality', 'Formality', 'everyday', 'formal']
@@ -536,7 +536,7 @@ function ratedDial(spec, entry, index) {
   for (let s = 0; s < 5; s += 1) svg += `<line class="tick" x1="${(s * 25).toFixed(2)}%" x2="${(s * 25).toFixed(2)}%" y1="8" y2="14"${s === 4 ? ' transform="translate(-0.5,0)"' : ''}/>`;
   svg += `<circle class="open" cx="${((entry.step - 1) * 25).toFixed(2)}%" cy="11" r="4.5"/>`;
   const id = `sn-${index}`;
-  const aria = `${label}: step ${entry.step} of 5 toward ${right}, placed by a line in the voice`;
+  const aria = `${label}: step ${entry.step} of 5, from ${left} to ${right}, placed by a line in the voice`;
   return `<div class="dial"><div class="dial-row"><span class="dial-name">${esc(label)}<label for="${id}" class="margin-toggle sidenote-number"></label></span>`
     + `<div class="dial-scale"><svg role="img" aria-label="${esc(aria)}">${svg}</svg><div class="dial-ends"><span>${esc(left)}</span><span>${esc(right)}</span></div></div></div>`
     + `<input type="checkbox" id="${id}" class="margin-toggle"><span class="sidenote">${inline(entry.trait)} <span class="src">(${esc(entry.evidence.join(', '))})</span></span></div>`;
@@ -625,7 +625,7 @@ export function renderPage(data, generated, css) {
     + '<svg viewBox="-6 -6 12 12" aria-hidden="true"><circle class="open" r="4.5"/></svg>placed by a line in your voice'
     + '<svg viewBox="0 0 14 10" aria-hidden="true"><rect class="band" width="14" height="10"/></svg>the range the voice is set to'
     + '<svg viewBox="0 0 14 10" aria-hidden="true"><rect class="measured" x="0.5" y="0.5" width="13" height="9"/></svg>measured before polishing'
-    + ' · dotted: not known</p>';
+    + `${RATED.some((spec) => !rated.has(spec[0])) && rated.size || [...COUNTED.stance, ...COUNTED.rhythm].some((spec) => !features[spec[0]]) && Object.keys(features).length ? ' · dotted: not known' : ''}</p>`;
   h += '</section>';
 
   h += '<section class="secondary">';
