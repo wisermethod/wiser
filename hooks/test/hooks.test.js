@@ -271,27 +271,57 @@ test('roster excludes only the seam gate\'s clean none, sharing P1, P2, N1 and N
   for (const [i, row] of rows.entries()) assert.deepEqual(row, expected[i]);
 });
 
-test('roster keeps unreadable files and symlinks offered', () => {
+function rosterHome(rows) {
   const home = tempHome();
   for (const [, dir] of rosterFamilies) {
     mkdirSync(join(home, dir));
     writeFileSync(join(home, dir, 'AGENTS.md'), '');
   }
+  writeFileSync(join(home, 'skills', 'AGENTS.md'), rows.map(([name, description]) => `| \`${name}/SKILL.md\` | ${description} |`).join('\n'));
+  return home;
+}
+
+test('roster throws on a typed file it cannot read, as before the exclusion, so nothing is routed without it', () => {
+  const missing = rosterHome([['Missing', 'missing file']]);
+  mkdirSync(join(missing, 'skills', 'Missing'));
+  assert.throws(() => buildRoster(missing));
+
+  const directory = rosterHome([['Directory', 'a directory where the file should be']]);
+  mkdirSync(join(directory, 'skills', 'Directory', 'SKILL.md'), { recursive: true });
+  assert.throws(() => buildRoster(directory));
+
+  const fifo = rosterHome([['Fifo', 'a FIFO where the file should be']]);
+  mkdirSync(join(fifo, 'skills', 'Fifo'));
+  const made = spawnSync('mkfifo', [join(fifo, 'skills', 'Fifo', 'SKILL.md')]);
+  assert.equal(made.status, 0, 'mkfifo is needed for this case');
+  // A read would block past the hook's timer; the regular-file check comes first.
+  assert.throws(() => buildRoster(fifo), /not a regular file/);
+});
+
+test('roster keeps offered what the seam gate cannot see or reads as doubtful', () => {
+  const none = '## Context\nClassifier seam: none.\n';
+  const home = rosterHome([
+    ['Symlink', 'a typed-file symlink, which the gate refuses'],
+    ['LinkedDir', 'a symlinked primitive directory, which the gate lists as one path'],
+    ['Nul', 'a NUL byte, at which the gate ends a line'],
+    ['Clean', 'a clean none, which leaves'],
+  ]);
   const skill = join(home, 'skills');
-  for (const name of ['Missing', 'Directory', 'Symlink']) mkdirSync(join(skill, name));
-  mkdirSync(join(skill, 'Directory', 'SKILL.md'));
-  const text = '## Context\nClassifier seam: none.\n';
-  writeFileSync(join(home, 'target.md'), text);
+  mkdirSync(join(skill, 'Symlink'));
+  writeFileSync(join(home, 'target.md'), none);
   symlinkSync(join(home, 'target.md'), join(skill, 'Symlink', 'SKILL.md'));
-  writeFileSync(join(skill, 'AGENTS.md'), [
-    '| `Missing/SKILL.md` | missing file |',
-    '| `Directory/SKILL.md` | unreadable file |',
-    '| `Symlink/SKILL.md` | gate refuses a typed-file symlink |',
-  ].join('\n'));
+  mkdirSync(join(home, 'elsewhere'));
+  writeFileSync(join(home, 'elsewhere', 'SKILL.md'), none);
+  symlinkSync(join(home, 'elsewhere'), join(skill, 'LinkedDir'));
+  const nul = '## Context\n```\0`\nClassifier seam: none.\n';
+  mkdirSync(join(skill, 'Nul'));
+  writeFileSync(join(skill, 'Nul', 'SKILL.md'), nul);
+  mkdirSync(join(skill, 'Clean'));
+  writeFileSync(join(skill, 'Clean', 'SKILL.md'), none);
   assert.deepEqual(buildRoster(home), [
-    { family: 'skill', name: 'Missing', description: 'missing file', body: '' },
-    { family: 'skill', name: 'Directory', description: 'unreadable file', body: '' },
-    { family: 'skill', name: 'Symlink', description: 'gate refuses a typed-file symlink', body: text },
+    { family: 'skill', name: 'Symlink', description: 'a typed-file symlink, which the gate refuses', body: none },
+    { family: 'skill', name: 'LinkedDir', description: 'a symlinked primitive directory, which the gate lists as one path', body: none },
+    { family: 'skill', name: 'Nul', description: 'a NUL byte, at which the gate ends a line', body: nul },
   ]);
 });
 

@@ -1,5 +1,5 @@
-import { lstatSync, readFileSync } from 'node:fs';
-import { isAbsolute, join, relative, resolve } from 'node:path';
+import { lstatSync, readFileSync, statSync } from 'node:fs';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 
 const FAMILIES = [
   { family: 'skill', index: ['skills', 'AGENTS.md'], dir: 'skills', typed: 'SKILL.md' },
@@ -35,6 +35,9 @@ function inside(parent, child) {
  * @returns {boolean}
  */
 function declaresNoClassifierSeam(body) {
+  // The gate's awk ends a line at a NUL byte and this reader would not, so a
+  // file carrying one is a doubtful read and stays offered.
+  if (body.includes('\0')) return false;
   const keywords = (text) => (text.match(/classifier seam:/gi) || []).length;
   const trim = (text) => text.replace(/^[ \t]+|[ \t]+$/g, '');
   const runLength = (text, char) => {
@@ -110,8 +113,11 @@ function declaresNoClassifierSeam(body) {
 
 /**
  * Index rows from the three family AGENTS.md files. `body` is the primitive's
- * full text, or empty when unreadable. A row whose file sits outside its family
- * is skipped, as is a regular file declaring none by the seam gate's rule.
+ * full text. A row whose file sits outside its family is skipped, as is a
+ * regular file declaring none by the seam gate's rule, reached through no
+ * symlink. A typed file that is missing, not a regular file, or unreadable
+ * throws, as it did before the exclusion, so the hook routes nothing for that
+ * ask rather than routing without that primitive.
  * @param {string} root
  * @returns {{ family: string, name: string, description: string, body: string }[]}
  */
@@ -131,15 +137,13 @@ export function buildRoster(root) {
       const description = cells[1];
       const file = resolve(base, name);
       if (!inside(base, file)) continue;
-      let body = '';
-      let regular = false;
-      try {
-        regular = lstatSync(file).isFile();
-        body = readFileSync(file, 'utf8');
-      } catch {
-        // An unreadable file is no basis for excluding its index row.
-      }
-      if (regular && declaresNoClassifierSeam(body)) continue;
+      // Checked before reading, so a FIFO or a directory is never opened.
+      if (!statSync(file).isFile()) throw new Error(`typed file is not a regular file: ${name}`);
+      const body = readFileSync(file, 'utf8');
+      // Only a file the seam gate itself sees may leave the roster: not a
+      // symlink, and not inside a symlinked primitive directory.
+      const seenByGate = lstatSync(file).isFile() && !lstatSync(dirname(file)).isSymbolicLink();
+      if (seenByGate && declaresNoClassifierSeam(body)) continue;
       // The classifier registers a primitive by its bare name, the directory,
       // and answers with that name; the index cell carries the typed file too.
       rows.push({ family: family.family, name: name.slice(0, -suffix.length), description, body });
