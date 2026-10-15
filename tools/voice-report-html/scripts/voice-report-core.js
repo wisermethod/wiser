@@ -219,7 +219,8 @@ export function parseVoice(text) {
       const key = /^([a-z-]+):\s*(.*?)\s*$/.exec(line);
       if (key && Object.hasOwn(KEY_LINES, key[1])) {
         const value = key[2] === '' ? null : key[2];
-        if (key[1] === 'voice-profile') profile = value;
+        // A key line holding a digit carries a verification anchor on the full path, such as ' [V7]'.
+        if (key[1] === 'voice-profile') profile = value === null ? null : (value.replace(/\s*\[V\d+\]\s*$/, '') || null);
         else authority[KEY_LINES[key[1]]] = value;
       }
       continue;

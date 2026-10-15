@@ -83,6 +83,13 @@ test('extract reads a built voice and its confirmed profile', () => {
   assert.equal(data.voice.sha256.length, 64);
 });
 
+test('a verification anchor after the voice-profile path is not part of the path', () => {
+  const data = extract('anchored-profile-root');
+  assert.equal(data.profile.state, 'read');
+  assert.equal(data.profile.path, 'work/onboarding/2026-10-15 profile confirmed.json');
+  assert.equal(data.features.hedges.decision, 'polish');
+});
+
 test('an old-format voice gets no measured values and keeps its Not available labels', () => {
   const data = extract('old-format-root');
   assert.equal(data.state, 'built');

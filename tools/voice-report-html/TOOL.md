@@ -80,7 +80,7 @@ No command takes `--env`. This tool installs nothing, and `--install` is refused
 - a flag given no value, an empty or all-space value, or a value starting with `-`;
 - an argument that belongs to no flag.
 
-**Paths.** Every path is absolute. A path is canonicalized by walking up to the deepest folder that exists, resolving it, and rejoining the missing part below. Sources must be regular files. The `voice-profile:` line is read as a path from the owning root, and it is refused when it is absolute or resolves outside the root.
+**Paths.** Every path is absolute. A path is canonicalized by walking up to the deepest folder that exists, resolving it, and rejoining the missing part below. Sources must be regular files. The `voice-profile:` line is read as a path from the owning root, a trailing verification anchor such as ` [V7]` removed first, and it is refused when it is absolute or resolves outside the root.
 
 **Destination rules.** `--output` is refused in each of these cases:
 - it resolves inside this tool's directory (compared by path, and by device and inode on every ancestor);
