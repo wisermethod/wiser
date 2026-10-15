@@ -15,7 +15,7 @@ An extended argument: an essay, a guide, a framework piece, 2,000 words and up, 
 - **Explicit transitions.** At this length the dependency between two sections is never obvious by proximity, so every one of them is signposted in the text. The reader should not have to ask why this section is here now.
 - **Ground terms before using them.** The format has the room to define a term the first time it appears and then use it freely. A term used before it is grounded costs the reader the rest of the section, and they do not scroll back.
 - **No hard-coded numbering.** Headers carry the structure. Numbered parts fix an order the piece then cannot change without a rewrite, and they invite the reader to treat sections as a list rather than an argument.
-- **Weight follows importance.** Do not distribute length evenly across sections because the outline looks tidier that way. Where the argument concentrates, the words concentrate.
+- **Weight follows importance.** Do not distribute length evenly across sections because the outline looks tidier that way. Where the argument concentrates, the words concentrate, and a sub-section heading divides them, because no section runs past 400 words of body (`standards/conventions.md` Readable layout).
 - **Close on a reframe.** Return to the opening claim and show it differently now that the body has established what it establishes. The reader should see the thesis changed, not repeated.
 
 ## Failure modes

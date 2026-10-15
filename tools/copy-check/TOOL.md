@@ -2,8 +2,8 @@
 name: copy-check
 type: tool
 category: documents
-description: Count and match page copy against a ledger, a fact map, patterns, and a corpus, and return one JSON object
-version: 0.1.0
+description: Count and match page copy against a ledger, a fact map, patterns, and a corpus, count its layout against the Readable layout ceilings, and return one JSON object
+version: 0.2.0
 ---
 
 # copy-check
@@ -12,7 +12,7 @@ One JSON object that counts and matches. It judges nothing: a caller decides whi
 
 ## Context
 
-Use it when a draft has to be checked, mechanically, against a claims ledger, a fact map, a list of prohibited phrases, a published corpus, or the two dash characters. Each subcommand reads the files it is given and reports what matched.
+Use it when a draft has to be checked, mechanically, against a claims ledger, a fact map, a list of prohibited phrases, a published corpus, the two dash characters, or the Readable layout ceilings in `standards/conventions.md`. Each subcommand reads the files it is given and reports what matched.
 
 Do not use it to decide whether a claim is true, whether a match is allowed, or whether a page should ship. It does not know what a Use code means. It does not know which overlaps are a person's name, title, a book's full title, or a co-author credit. A `pass` of false is a count, not a verdict, and a `pass` of true is an empty count, not an approval.
 
@@ -31,6 +31,7 @@ node scripts/copy-check.js facts --copy /path/to/copy.md --ledger /path/to/ledge
 node scripts/copy-check.js prohibited --copy /path/to/copy.md --patterns /path/to/patterns.json
 node scripts/copy-check.js overlap --copy /path/to/copy.md --corpus /path/to/corpus --n 5
 node scripts/copy-check.js dashes --copy /path/to/copy.md
+node scripts/copy-check.js layout --copy /path/to/copy.md --destination email
 ```
 
 One JSON object on stdout. Nothing is written. Anything else, see Troubleshooting.
@@ -44,6 +45,7 @@ One JSON object on stdout. Nothing is written. Anything else, see Troubleshootin
 | `node scripts/copy-check.js prohibited --copy <file> --patterns <file>` | Report every pattern match | No |
 | `node scripts/copy-check.js overlap --copy <file> --corpus <dir> [--n <words>]` | Report shared word sequences | No |
 | `node scripts/copy-check.js dashes --copy <file>` | Count U+2014 and U+2013 by code point | No |
+| `node scripts/copy-check.js layout --copy <file> [--destination <name>]` | Count paragraphs, list items and sections over their word ceilings, and blocks with no blank line between them | No |
 
 `facts` options:
 
@@ -79,6 +81,14 @@ One JSON object on stdout. Nothing is written. Anything else, see Troubleshootin
 | `--copy <file>` | Markdown copy. Absolute path | None; required |
 | `--help`, `-h` | Print this command's usage and exit | Off |
 
+`layout` options:
+
+| Option | Effect | Default |
+|--------|--------|---------|
+| `--copy <file>` | Markdown copy. Absolute path | None; required |
+| `--destination <name>` | `file`, `page`, `reply`, or `email`, which sets the ceilings in `## layout` below. Anything else is refused, `slide` included, because a slide is judged rather than counted. A format the conventions' table does not name takes the row its reader reads it in: a post as `reply`, a document or a transcript summary as `file`; a speech manuscript is judged and not counted | `file` |
+| `--help`, `-h` | Print this command's usage and exit | Off |
+
 No command takes `--env`. This tool installs nothing, and `--install` is refused by name like any other unknown flag. An unknown flag is refused by name before any file is read, including when it sits beside `help`. A repeated flag is refused. A flag that needs a value, given none or given a value that starts with `-`, is refused. An argument that belongs to no flag is refused. An unknown command is refused by name.
 
 Every path is absolute. A relative path is refused, because it would resolve against whatever directory the caller happened to be in. The path is canonicalized by walking to the deepest existing ancestor, resolving that ancestor, and rejoining the missing tail. A path that cannot be canonicalized is refused and is never compared as spelled. The resolved path is the one opened. `--copy`, `--ledger`, `--fact-map`, and `--patterns` must be files. `--corpus` must be a directory. A missing path, or the wrong kind, is refused by name. There is no credential file to refuse, because no command takes `--env`, and there is no destination to refuse, because nothing is written. A source that happens to sit inside this tool directory is read; the tool still writes nothing there.
@@ -95,7 +105,7 @@ The reading records one block for each frontmatter value, heading, list item, ta
 
 A fenced code block, three or more backticks or three or more tildes, indented by at most three spaces, is skipped. `skippedFences` names how many blocks were skipped and how many characters they held. A fence belongs to no block, so a quote inside a code sample is not paired. A dash inside a fence is still counted, and its context is `text`. A dash inside a frontmatter value is counted, and it is exempt only when it sits inside a quotation in that value.
 
-Each ATX heading is one block and one unit. Each list item is one block and one unit, continuation lines joined to it, and a blank line ends the list; a list item is not split into sentences. Each table cell, header and body, is one block and one unit; an empty cell is not a unit. The delimiter row is not a unit. Cells may contain an escaped pipe, written `\|`.
+Each ATX heading is one block and one unit. Each list item is one block and one unit, continuation lines joined to it, and a blank line ends the list; a list item is not split into sentences. A list opens inside a paragraph only on a bullet or an ordered marker starting at 1, as CommonMark reads it, so a hard-wrapped line opening on `2026.` continues its paragraph. Each table cell, header and body, is one block and one unit; an empty cell is not a unit. The delimiter row is not a unit. Cells may contain an escaped pipe, written `\|`.
 
 A paragraph is one block. It is split into sentence units at `.`, `?`, or `!` followed by whitespace and then an uppercase letter, a digit, a straight or curly quotation mark, or an opening bracket `(`, `[`, or `{`, or at the end of the paragraph. The split is made after links and emphasis have been reduced, so a URL does not become a sentence break. The last remainder of a paragraph is a unit even when it has no terminal punctuation. Known limit: an abbreviation such as `e.g.` or `Dr.` followed by a capital letter splits a sentence. Reference-style links are left as written. A match is sought inside one unit, never across two. Quotation pairing uses the paragraph block, so a quotation can cross a sentence boundary inside that paragraph and cannot cross into another block.
 
@@ -105,9 +115,9 @@ A fact-map sentence of four words or more matches as a prefix of a unit. A sente
 
 ## Exemptions
 
-One exemption, the quotation, applied only where a subcommand says so. A quotation is a matching pair of straight double quotes, or of U+201C then U+201D, both inside the same block. Pairing never crosses from one block to another, so a stray inch mark cannot reach across a heading, a list item, a table cell, a fence, or a blank line. An opener with no closer in its block is not a quotation. Link text, an image's alt text included, is reported with the context `title` and is not exempt: a link may hold a title reproduced as written or new prose, and only the caller can tell which, so the tool counts it and names its context. Italics are not exempt either. A position inside a quotation and a link is reported as `quotation`. Fence interiors are not paired, as the reading section says; a dash inside a fence stays `text`. `dashes` uses these block quotations: a dash inside a quotation is exempt, and every other dash is counted, a dash in a fence and a dash in a frontmatter value included.
+One exemption, the quotation, applied only where a subcommand says so. A quotation is a matching pair of straight double quotes, or of U+201C then U+201D, both inside the same block. Pairing never crosses from one block to another, so a stray inch mark cannot reach across a heading, a list item, a table cell, a fence, or a blank line. An opener with no closer in its block is not a quotation. Link text, an image's alt text included, is reported with the context `title` and is not exempt: a link may hold a title reproduced as written or new prose, and only the caller can tell which, so the tool counts it and names its context. Italics are not exempt either. A position inside a quotation and a link is reported as `quotation`. Fence interiors are not paired, as the reading section says; a dash inside a fence stays `text`. `dashes` and `layout` use these block quotations: a dash inside a quotation is exempt, and every other dash is counted, a dash in a fence and a dash in a frontmatter value included.
 
-`prohibited` does not apply it: a prohibited phrase inside a quotation still appears on the page, so it is reported with its context and it counts. `overlap` applies it on the copy side only, and reports how many words that exclusion removed. `dashes` applies it, and reports exempt occurrences separately from counted ones. `facts` does not apply it.
+`prohibited` does not apply it: a prohibited phrase inside a quotation still appears on the page, so it is reported with its context and it counts. `overlap` applies it on the copy side only, and reports how many words that exclusion removed. `dashes` applies it, and reports exempt occurrences separately from counted ones. `layout` applies it to the paragraph and list-item ceilings only: a quotation's words are not counted toward them, and they are counted toward a section. `facts` does not apply it.
 
 ## Ledger format
 
@@ -167,6 +177,23 @@ Counts U+2014 and U+2013 by code point, never by a typed glyph. Each hit carries
 
 The control appends one U+2014, outside any quotation or title, to an in-memory copy and confirms `counted` rose by one. `control.planted` is `U+2014`. The plant is not in the reported `hits`.
 
+## layout
+
+Counts what the Readable layout rules in `standards/conventions.md` Formatting make countable. Whether a paragraph holds one idea, whether a heading names its section, whether a list should be prose, and a page's line width are judged by the gate that reads the piece, never by this command.
+
+| Destination | Paragraph ceiling | List item ceiling | Section ceiling |
+|-------------|-------------------|-------------------|-----------------|
+| `file`, `page` | 150 words | 40 words | 400 words, counted only when the body is over 600 words |
+| `reply`, `email` | 80 words | 40 words | Not counted |
+
+A word is a run of non-space characters in a block's visible copy, a run of `>` opening a word excepted, since a blockquote marker is not a word. A paragraph or list item over its ceiling is a hit, its words inside a quotation left out of the count. A blockquote, a paragraph whose first line opens with `>`, is a quotation reproduced as written: it is never a paragraph hit, and it is listed in `blockquotes` for the caller, who alone can tell a source's words from the author's own set in a blockquote. A section is the body blocks under one heading, or before the first one, and its words include quotations and blockquotes. The body is every block but frontmatter values and headings.
+
+A spacing hit is two blocks with no blank line between them, read from the raw lines because the block reading drops the blank lines this asks about: a heading, a table, a fence, or a thematic break meeting any non-blank line; a paragraph meeting a list or a blockquote; and a heading meeting a heading. A line after a list item or a blockquote line that starts no block of its own continues it, as markdown reads it, and is not a hit. A paragraph introducing a list on the next line, and a heading directly above its text, render fine and are still hits: the rule asks for the blank line. The lines of one paragraph, one table, or one list are one block. Frontmatter is not read for spacing.
+
+`counted` is the sum of the four lists. `pass` is true only when `counted` is zero.
+
+The control appends to an in-memory copy, after a blank line, one paragraph of one word more than the destination's paragraph ceiling, then a lead line with a list item of one word more than the list-item ceiling directly under it, and confirms `paragraphs`, `listItems` and `spacing` each grew by one. `control.planted` names all three. The plant is not in the reported lists. Copy ending inside an unclosed fence takes the plant into the fence, so the control does not fire and the run exits 1.
+
 ## Script Contract
 
 Every script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. Node built-ins cover the whole tool, so the contract's dependency-install, `--env`, and system-dependency clauses have nothing to bind here and the tool carries no Dependencies section. No command checks for a package or runs an install. No command takes `--env`, and `--install` is refused by name. Nothing is written, anywhere. The sections above state what each command does; the contract states how the script behaves getting there.
@@ -179,7 +206,7 @@ Every object carries:
 
 | Field | Carries |
 |-------|---------|
-| `command` | `facts`, `prohibited`, `overlap`, or `dashes` |
+| `command` | `facts`, `prohibited`, `overlap`, `dashes`, or `layout` |
 | `pass` | True only on the empty count that command defines |
 | `units` | How many copy units were read |
 | `characters` | Code points read, after a leading U+FEFF is removed |
@@ -228,6 +255,21 @@ Every object carries:
 | `charactersScanned` | Code points scanned. Same population as `characters` |
 | `hits` | `{ line, column, character, context, excerpt }` for every hit, counted and exempt |
 
+`layout` also carries:
+
+| Field | Carries |
+|-------|---------|
+| `destination` | The destination used |
+| `limits` | `{ paragraphWords, listItemWords, sectionWords, sectionsFrom }`. The last two are null for `reply` and `email` |
+| `bodyWords` | Words in every block but frontmatter values and headings |
+| `sectionsCounted` | True when the section ceiling applied to this copy |
+| `counted` | Hits across the four lists |
+| `paragraphs` | `{ line, column, words, opening }` for each paragraph over the ceiling. `opening` is its first eight words |
+| `listItems` | `{ line, column, words, opening }` for each list item over the ceiling |
+| `sections` | `{ section, line, words }` for each section over the ceiling. `line` is its first body block's |
+| `spacing` | `{ line, before, after }` for each pair with no blank line between. `line` is the second block's first line; `before` and `after` are `heading`, `paragraph`, `list`, `quote`, `table`, `fence`, or `rule` |
+| `blockquotes` | `{ line, words }` for each blockquote. Not a hit; listed for the caller to judge |
+
 ## Troubleshooting
 
 | What you see | What to do |
@@ -239,6 +281,7 @@ Every object carries:
 | `no map table`, `malformed`, or `second map table` | One table, header exactly `#`, `Sentence`, `Rows`, `Note` |
 | `sentence ... is empty` | A fact-map sentence is the opening words of a unit, at least four, or the whole of a shorter unit |
 | `has no readable .md or .txt file` | Put at least one readable UTF-8 `.md` or `.txt` file under `--corpus` |
+| `--destination must be one of` | Pass `file`, `page`, `reply`, or `email`. A slide is judged at review, not counted |
 | `--n must be a whole number` | Pass a whole number from 3 to 12 as the next argument, not `--n=5` |
 | `control did not fire` | The check could not show that a zero was a real zero, so it reported nothing. The message names the subcommand |
 | `pass` is false and the process exited 0 | That is a successful run. Read the lists. Exit 1 means the run could not check |

@@ -57,7 +57,7 @@ The gateway's writes (connection store, audit log, empty project-key template) a
 
 | Tool | Description |
 |------|-------------|
-| `copy-check/TOOL.md` | Count and match page copy against a ledger, a fact map, patterns, and a corpus, and return one JSON object |
+| `copy-check/TOOL.md` | Count and match page copy against a ledger, a fact map, patterns, and a corpus, count its layout against the Readable layout ceilings, and return one JSON object |
 | `deck-export/TOOL.md` | Writes a new reveal.js deck project on disk, from a brand template or as a self-contained starter, and renders a finished deck to a PDF or to one PNG per slide |
 | `keynote-render/TOOL.md` | Builds and edits native Keynote decks from JSON or markdown SSOT, with zArchive safety before every in-place mutation |
 

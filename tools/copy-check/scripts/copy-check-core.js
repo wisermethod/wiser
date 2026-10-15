@@ -16,11 +16,21 @@ import {
   collapseWhitespace,
   codePoints,
   contextAt,
+  fenceClose,
+  fenceOpen,
+  headingOf,
+  interruptsParagraph,
+  isBlank,
+  isBlockquote,
   isDelimiterRow,
+  isThematic,
+  lineEnds,
+  listOf,
   matchKey,
   parseDocument,
   positionAt,
   prefixMatch,
+  rawOf,
   splitRow,
   tokens,
   windows,
@@ -39,12 +49,14 @@ Usage:
   node scripts/copy-check.js prohibited --copy <file> --patterns <file>
   node scripts/copy-check.js overlap --copy <file> --corpus <dir> [--n <words>]
   node scripts/copy-check.js dashes --copy <file>
+  node scripts/copy-check.js layout --copy <file> [--destination <name>]
 
 Commands:
   facts        Map each copy unit to the fact map and the ledger
   prohibited   Report every pattern match, including inside a quotation or a title
   overlap      Report shared word sequences between the copy and a corpus
   dashes       Count U+2014 and U+2013 by code point
+  layout       Count paragraphs, list items and sections over their word ceilings, and blocks with no blank line between them
   help         Print this message
 
 Options:
@@ -55,6 +67,7 @@ Options:
   --patterns <file>    Patterns JSON. Absolute path. prohibited.
   --corpus <dir>       Directory of .md and .txt files. Absolute path. overlap.
   --n <words>          Sequence length for overlap. Whole number, 3 to 12. Default 5.
+  --destination <name> Where the copy is read, for layout: file, page, reply, or email. Default file.
   --help, -h           Print this message
 
 No command takes --env. This tool installs nothing, and --install is refused by name like any other unknown flag.
@@ -107,6 +120,21 @@ Options:
   --copy <file>        Markdown copy. Absolute path. Required.
   --help, -h           Print this message
 
+No command takes --env. This tool installs nothing, and --install is refused by name like any other unknown flag.`,
+  layout: `copy-check layout: count what the Readable layout rules in standards/conventions.md make countable. It judges nothing.
+
+Usage:
+  node scripts/copy-check.js layout --copy <file> [--destination <name>]
+
+Options:
+  --copy <file>          Markdown copy. Absolute path. Required.
+  --destination <name>   file, page, reply, or email. Default file.
+                         file and page: paragraphs over 150 words, sections over 400 words in a piece over 600.
+                         reply and email: paragraphs over 80 words; sections are not counted.
+                         Every destination: list items over 40 words, and blocks with no blank line between them.
+                         A post is a reply; a document or transcript summary is a file; a speech or slide is not counted.
+  --help, -h             Print this message
+
 No command takes --env. This tool installs nothing, and --install is refused by name like any other unknown flag.`
 };
 
@@ -114,7 +142,15 @@ const VALUE_FLAGS = {
   facts: ['--copy', '--ledger', '--fact-map', '--allow'],
   prohibited: ['--copy', '--patterns'],
   overlap: ['--copy', '--corpus', '--n'],
-  dashes: ['--copy']
+  dashes: ['--copy'],
+  layout: ['--copy', '--destination']
+};
+
+const DESTINATIONS = {
+  file: { paragraphWords: 150, listItemWords: 40, sectionWords: 400, sectionsFrom: 600 },
+  page: { paragraphWords: 150, listItemWords: 40, sectionWords: 400, sectionsFrom: 600 },
+  reply: { paragraphWords: 80, listItemWords: 40, sectionWords: null, sectionsFrom: null },
+  email: { paragraphWords: 80, listItemWords: 40, sectionWords: null, sectionsFrom: null }
 };
 
 function scan(argv, bare, valueFlags) {
@@ -676,6 +712,161 @@ function evaluateDashes(parsed) {
   };
 }
 
+function parseDestination(raw) {
+  if (raw === undefined) return 'file';
+  if (!Object.hasOwn(DESTINATIONS, raw)) {
+    fail(`Error: --destination must be one of ${Object.keys(DESTINATIONS).join(', ')}; got "${raw}". A slide is judged, not counted.`);
+  }
+  return raw;
+}
+
+/**
+ * Visible text with blockquote markers removed, so a marker is never a word.
+ * The block reading has already joined its lines, so every run of > opening a
+ * word is taken as a marker; a lone > in prose goes uncounted with it.
+ */
+function withoutMarkers(text) {
+  return text.replace(/(^|\s)>+/g, '$1');
+}
+
+/** Words in a block, the characters inside a quotation left out. */
+function wordsOutsideQuotation(block, ranges) {
+  const text = block.chars.map((item) => (contextAt(item.at, ranges) === 'quotation' ? ' ' : item.c)).join('');
+  return wordCount(withoutMarkers(text));
+}
+
+function startsBlockquote(parsed, block) {
+  const at = block.chars[0].at;
+  const lineStart = parsed.text.lastIndexOf('\n', at - 1) + 1;
+  return isBlockquote(parsed.text.slice(lineStart, at + 1));
+}
+
+function blockStart(parsed, block) {
+  return positionAt(parsed.text, block.chars[0].at);
+}
+
+function openingWords(block) {
+  return collapseWhitespace(block.chars.map((item) => item.c).join('')).split(' ').slice(0, 8).join(' ');
+}
+
+/**
+ * Two blocks with no blank line between them. Read from the raw lines, since
+ * the block reading drops the blank lines it is asked about. A line after a
+ * list item that starts no block of its own continues that item, as markdown
+ * reads it, and is not a hit.
+ */
+function spacingHits(text) {
+  const lines = lineEnds(text);
+  let index = 0;
+  if (lines.length > 0 && rawOf(lines[0]) === '---') {
+    for (let cursor = 1; cursor < lines.length; cursor += 1) {
+      if (rawOf(lines[cursor]) === '---') {
+        index = cursor + 1;
+        break;
+      }
+    }
+  }
+  const hits = [];
+  let previous = null;
+  function meet(kind, line) {
+    if (previous && (kind !== previous || kind === 'heading' || kind === 'table' || kind === 'fence')) {
+      hits.push({ line: line.number, before: previous, after: kind });
+    }
+    previous = kind;
+  }
+  while (index < lines.length) {
+    const line = lines[index];
+    const raw = rawOf(line);
+    if (isBlank(raw)) {
+      previous = null;
+      index += 1;
+      continue;
+    }
+    const open = fenceOpen(raw);
+    if (open) {
+      meet('fence', line);
+      let end = index + 1;
+      while (end < lines.length && !fenceClose(rawOf(lines[end]), open)) end += 1;
+      index = end < lines.length ? end + 1 : lines.length;
+      continue;
+    }
+    if (index + 1 < lines.length && splitRow(raw) && isDelimiterRow(rawOf(lines[index + 1]))) {
+      meet('table', line);
+      let cursor = index + 2;
+      while (cursor < lines.length && splitRow(rawOf(lines[cursor])) && !fenceOpen(rawOf(lines[cursor]))) cursor += 1;
+      index = cursor;
+      continue;
+    }
+    let kind = 'paragraph';
+    if (headingOf(raw)) kind = 'heading';
+    else if (isThematic(raw)) kind = 'rule';
+    else if (isBlockquote(raw)) kind = 'quote';
+    else if (listOf(raw) && (previous !== 'paragraph' || interruptsParagraph(raw))) kind = 'list';
+    else if (previous === 'list' || previous === 'quote') kind = previous;
+    meet(kind, line);
+    index += 1;
+  }
+  return hits;
+}
+
+function evaluateLayout(parsed, destination) {
+  const limits = DESTINATIONS[destination];
+  const ranges = parsed.exemptions;
+  const paragraphs = [];
+  const listItems = [];
+  const blockquotes = [];
+  const sectionWords = new Map();
+  let bodyWords = 0;
+  for (const block of parsed.blocks) {
+    if (block.kind === 'frontmatter' || block.kind === 'heading') continue;
+    const words = wordCount(withoutMarkers(block.chars.map((item) => item.c).join('')));
+    bodyWords += words;
+    const entry = sectionWords.get(block.sectionIndex) || { section: block.section, start: block, words: 0 };
+    entry.words += words;
+    sectionWords.set(block.sectionIndex, entry);
+    if (block.kind === 'paragraph' && startsBlockquote(parsed, block)) {
+      const at = blockStart(parsed, block);
+      blockquotes.push({ line: at.line, words });
+    } else if (block.kind === 'paragraph') {
+      const counted = wordsOutsideQuotation(block, ranges);
+      if (counted > limits.paragraphWords) {
+        const at = blockStart(parsed, block);
+        paragraphs.push({ line: at.line, column: at.column, words: counted, opening: openingWords(block) });
+      }
+    } else if (block.kind === 'list') {
+      const counted = wordsOutsideQuotation(block, ranges);
+      if (counted > limits.listItemWords) {
+        const at = blockStart(parsed, block);
+        listItems.push({ line: at.line, column: at.column, words: counted, opening: openingWords(block) });
+      }
+    }
+  }
+  const sections = [];
+  const sectionsCounted = limits.sectionWords !== null && bodyWords > limits.sectionsFrom;
+  if (sectionsCounted) {
+    for (const entry of sectionWords.values()) {
+      if (entry.words > limits.sectionWords) {
+        sections.push({ section: entry.section, line: blockStart(parsed, entry.start).line, words: entry.words });
+      }
+    }
+  }
+  const spacing = spacingHits(parsed.text);
+  const counted = paragraphs.length + listItems.length + sections.length + spacing.length;
+  return {
+    ...baseFields('layout', parsed, counted === 0),
+    destination,
+    limits,
+    bodyWords,
+    sectionsCounted,
+    counted,
+    paragraphs,
+    listItems,
+    sections,
+    spacing,
+    blockquotes
+  };
+}
+
 function controlFailure(command) {
   fail(`Error: ${command} control did not fire. A zero that cannot be shown to be a real zero is not reported.`);
 }
@@ -770,6 +961,21 @@ function runDashes(values) {
   return { ...result, control: { planted: 'U+2014', fired: true } };
 }
 
+function runLayout(values) {
+  const copyPath = screenSource('--copy', requireFlag(values, '--copy'), 'file');
+  const destination = parseDestination(values['--destination']);
+  const copyText = readUtf8(copyPath, '--copy');
+  const result = evaluateLayout(parseDocument(copyText), destination);
+  const words = DESTINATIONS[destination].paragraphWords + 1;
+  const itemWords = DESTINATIONS[destination].listItemWords + 1;
+  const plant = `Planted${' word'.repeat(words - 1)}.\n\nPlanted lead line.\n- Planted${' item'.repeat(itemWords - 1)}`;
+  const control = evaluateLayout(parseDocument(`${copyText}\n\n${plant}\n`), destination);
+  if (control.paragraphs.length !== result.paragraphs.length + 1) controlFailure('layout');
+  if (control.listItems.length !== result.listItems.length + 1) controlFailure('layout');
+  if (control.spacing.length !== result.spacing.length + 1) controlFailure('layout');
+  return { ...result, control: { planted: `one paragraph of ${words} words, one list item of ${itemWords} words, one list with no blank line before it`, fired: true } };
+}
+
 export function runCopyCheck(argv) {
   const args = parseArgs(argv);
   if (args.help === 'all') return USAGE;
@@ -778,6 +984,7 @@ export function runCopyCheck(argv) {
   if (args.command === 'prohibited') return runProhibited(args.values);
   if (args.command === 'overlap') return runOverlap(args.values);
   if (args.command === 'dashes') return runDashes(args.values);
+  if (args.command === 'layout') return runLayout(args.values);
   fail(`Error: unknown command "${args.command}". Run "node scripts/copy-check.js help" for usage.`);
 }
 

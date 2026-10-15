@@ -182,7 +182,7 @@ function unitFrom(chars, kind) {
   };
 }
 
-function lineEnds(text) {
+export function lineEnds(text) {
   const lines = [];
   let offset = 0;
   const parts = text.split('\n');
@@ -193,11 +193,11 @@ function lineEnds(text) {
   return lines;
 }
 
-function rawOf(line) {
+export function rawOf(line) {
   return line.text.endsWith('\r') ? line.text.slice(0, -1) : line.text;
 }
 
-function fenceOpen(raw) {
+export function fenceOpen(raw) {
   const match = /^( {0,3})(`{3,}|~{3,})(.*)$/.exec(raw);
   if (!match) return null;
   const mark = match[2];
@@ -206,12 +206,12 @@ function fenceOpen(raw) {
   return { char: mark[0], length: mark.length };
 }
 
-function fenceClose(raw, open) {
+export function fenceClose(raw, open) {
   const match = new RegExp(`^ {0,3}${open.char}{${open.length},}\\s*$`).exec(raw);
   return Boolean(match);
 }
 
-function headingOf(raw) {
+export function headingOf(raw) {
   const match = /^( {0,3})(#{1,6})\s+(\S.*)$/.exec(raw);
   if (!match) return null;
   const content = match[3].replace(/\s+#+\s*$/, '');
@@ -220,17 +220,32 @@ function headingOf(raw) {
   return { content, contentAt: match[1].length + match[2].length + spaces, lead };
 }
 
-function listOf(raw) {
+export function listOf(raw) {
   const match = /^(\s*)([-+*]|\d+[.)])\s+(.*)$/.exec(raw);
   if (!match) return null;
   return { indent: match[1].length, content: match[3], contentAt: match[1].length + match[2].length + raw.slice(match[1].length + match[2].length).match(/^\s*/)[0].length };
 }
 
-function isThematic(raw) {
+/**
+ * A list marker that can interrupt a paragraph, as CommonMark reads it: a
+ * bullet, or an ordered marker starting at 1. A hard-wrapped line opening on
+ * "2026." continues the paragraph.
+ */
+export function interruptsParagraph(raw) {
+  const match = /^\s*([-+*]|\d+[.)])\s+\S/.exec(raw);
+  if (!match) return false;
+  return !/^\d/.test(match[1]) || /^1[.)]$/.test(match[1]);
+}
+
+export function isBlockquote(raw) {
+  return /^ {0,3}>/.test(raw);
+}
+
+export function isThematic(raw) {
   return /^( {0,3})([-*_])\2{2,}\s*$/.test(raw);
 }
 
-function isBlank(raw) {
+export function isBlank(raw) {
   return raw.trim() === '';
 }
 
@@ -509,7 +524,7 @@ export function parseDocument(fileText) {
     while (index < lines.length) {
       const currentLine = lines[index];
       const currentRaw = rawOf(currentLine);
-      if (index !== paraStart && (isBlank(currentRaw) || headingOf(currentRaw) || listOf(currentRaw) || fenceOpen(currentRaw) || isThematic(currentRaw))) break;
+      if (index !== paraStart && (isBlank(currentRaw) || headingOf(currentRaw) || interruptsParagraph(currentRaw) || fenceOpen(currentRaw) || isThematic(currentRaw))) break;
       if (index !== paraStart && splitRow(currentRaw) && index + 1 < lines.length && isDelimiterRow(rawOf(lines[index + 1]))) break;
       if (chars.length > 0) chars.push({ c: '\n', at: lines[index - 1].start + lines[index - 1].text.length });
       pushUnits(chars, currentRaw, currentLine.start);

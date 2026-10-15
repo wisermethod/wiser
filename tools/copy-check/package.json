@@ -1,7 +1,7 @@
 {
   "name": "copy-check",
-  "version": "0.1.0",
-  "description": "Count matches in page copy against a ledger, a fact map, patterns, and a corpus, and return one JSON object",
+  "version": "0.2.0",
+  "description": "Count matches in page copy against a ledger, a fact map, patterns, and a corpus, count its layout, and return one JSON object",
   "private": true,
   "type": "module",
   "scripts": {
