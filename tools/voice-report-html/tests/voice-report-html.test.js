@@ -178,6 +178,16 @@ test('rated dials need a trait line copied from voice.md and the evidence it cit
   assert.match(twice.err, /appears twice/);
 });
 
+test('a Routing Table register cell can be quoted, and an evidence range covers the ids inside it', () => {
+  const base = extract('complete-root');
+  const cell = renderData({ ...base, rated: [{ key: 'formality', step: 2, trait: 'E1 and E2: answer first, contractions, bare next step', evidence: ['E1', 'E2'] }] });
+  assert.equal(cell.code, 0, cell.err);
+  const range = renderData({ ...base, rated: [{ key: 'involved', step: 3, trait: 'Hedging: 2 to 9 per 1,000 words measured; polished away on the high side, set to 2 to 4 (E1 to E5; Marisol Vey chose to polish, 2026-10-15).', evidence: ['E3'] }] });
+  assert.equal(range.code, 0, range.err);
+  const outside = renderData({ ...base, rated: [{ key: 'involved', step: 3, trait: 'Hedging: 2 to 9 per 1,000 words measured; polished away on the high side, set to 2 to 4 (E1 to E5; Marisol Vey chose to polish, 2026-10-15).', evidence: ['E6'] }] });
+  assert.match(outside.err, /does not cite/);
+});
+
 test('render never overwrites, and never writes inside the tool directory or through a link', () => {
   const data = extract('complete-root');
   const first = renderData(data);

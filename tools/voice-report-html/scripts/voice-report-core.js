@@ -389,6 +389,18 @@ function normal(text) {
   return String(text).replace(/\s+/g, ' ').trim();
 }
 
+/** Evidence ids a line cites: each E<n>, and every id inside a range written E1 to E5, E1-E5 or E1–E5. */
+export function citedIds(text) {
+  const ids = new Set();
+  for (const match of text.matchAll(/\bE(\d+)\s*(?:to|-|\u2013)\s*E(\d+)\b/g)) {
+    const from = Number(match[1]);
+    const to = Number(match[2]);
+    if (to >= from && to - from <= 200) for (let n = from; n <= to; n += 1) ids.add(`E${n}`);
+  }
+  for (const match of text.matchAll(/\bE(\d+)\b/g)) ids.add(`E${Number(match[1])}`);
+  return ids;
+}
+
 export function validateData(data, shown) {
   if (!data || typeof data !== 'object' || data.tool !== 'voice-report-html') {
     fail(`Error: ${shown} is not a data object this tool's extract wrote. Run extract first.`);
@@ -404,6 +416,11 @@ export function validateData(data, shown) {
   const sectionItems = [];
   for (const [key, section] of Object.entries(data.sections)) {
     for (const item of section.items || []) sectionItems.push({ section: key, text: normal(item) });
+  }
+  // A Routing Table row's Register cell is a trait line too: it states the
+  // register an output takes, often with the evidence ids it rests on.
+  for (const row of (data.sections.routing && data.sections.routing.rows) || []) {
+    if (typeof row[1] === 'string' && row[1].trim()) sectionItems.push({ section: 'routing', text: normal(row[1]) });
   }
   for (const entry of data.rated) {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) fail(`Error: a rated entry in ${shown} is not an object.`);
@@ -421,7 +438,7 @@ export function validateData(data, shown) {
     if (!Array.isArray(entry.evidence) || entry.evidence.length === 0) fail(`Error: rated dial "${entry.key}" in ${shown} cites no evidence id.`);
     for (const id of entry.evidence) {
       if (typeof id !== 'string' || !/^E\d+$/.test(id)) fail(`Error: rated dial "${entry.key}" cites "${id}", which is not an evidence id such as E1.`);
-      if (!new RegExp(`\\b${id}\\b`).test(home.text)) fail(`Error: rated dial "${entry.key}" cites ${id}, which the quoted trait line does not cite.`);
+      if (!citedIds(home.text).has(id)) fail(`Error: rated dial "${entry.key}" cites ${id}, which the quoted trait line does not cite.`);
     }
   }
 }

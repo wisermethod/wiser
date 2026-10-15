@@ -39,7 +39,7 @@ node scripts/voice-report-html.js render --data "/path/to/root/work/onboarding/2
 Between the two commands, the caller may add rated dials to the data file's `rated` array:
 
 ```json
-{ "key": "involved", "step": 2, "trait": "Emails and posts use I, you and contractions; the published narrative drops all three and carries figures with sources (E1, E2, E3, E4).", "evidence": ["E1", "E3"] }
+{ "key": "involved", "step": 2, "trait": "Emails and posts use I, you and contractions; the published narrative drops all three and carries figures with sources (E1, E2, E3, E4).", "evidence": ["E1", "E2"] }
 ```
 
 The run over `tests/fixtures/complete-root` with that one rated dial printed:
@@ -130,8 +130,8 @@ A voice is `built` when at least one known section is answered; otherwise it is 
 
 A rated dial is one of `involved` (involved to informational), `explicit` (situation-dependent to explicit reference), `abstract` (concrete to abstract style), or `formality` (contextual to formal). Each entry holds exactly `key`, `step`, `trait` and `evidence`. `render` refuses an entry in any of these cases:
 - its `step` is not a whole number from 1 to 5;
-- its `trait`, whitespace aside, is not part of one item in `sections`;
-- `evidence` is empty, or an id in it is not of the form `E1`, or is not cited by that same item;
+- its `trait`, whitespace aside, is not part of one item in `sections` or of one Routing Table row's Register cell;
+- `evidence` is empty, or an id in it is not of the form `E1`, or is not cited by that same item. A range written `E1 to E5`, `E1-E5` or with an en dash cites every id inside it;
 - its key appears twice.
 
 ## The page

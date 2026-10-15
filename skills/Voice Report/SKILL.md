@@ -47,7 +47,9 @@ Read `state` and `profile`:
 - `profile` is `absent`: the voice predates the confirmed profile, so the measured dials will read not known. Say so in the report, and offer a rebuild with the current `skills/Build Voice/` as the way to fill them.
 - `profile` is `missing-file`: `voice.md` names a profile that is not there. Say which path, and offer Build Voice. Never search for another profile to stand in.
 
-**3. Rate the register dials.** For each of `involved`, `explicit`, `abstract` and `formality`, read the Tone, Vocabulary and Structural Habits items in the `.json`. Does an item state a move that places this voice on that dimension? Yes: add a `rated` entry using the scale below, with the item copied exactly into `trait` and only the evidence ids that item cites in `evidence`. No: add nothing, and the dial reads not rated. A guess is never a rating.
+**3. Rate the register dials.** For each of `involved`, `explicit`, `abstract` and `formality`, read the Tone, Vocabulary and Structural Habits items in the `.json`, and the Register cell of each Routing Table row. Does a line state a move that places this voice on that dimension? Yes: add a `rated` entry using the scale below, with the line copied exactly into `trait`. No: add nothing, and the dial reads not rated. A guess is never a rating.
+
+For `evidence`, cite the ids of the samples that show the move in the register you are rating. These come only from the ids that line cites, and a range such as `E1 to E5` cites every id inside it. One line may back two dials when it states a move on each.
 
 | Key | Step 1 | Step 5 |
 |-----|--------|--------|
@@ -56,17 +58,26 @@ Read `state` and `profile`:
 | `abstract` | Every action has a named doer, in the active voice | Passives and nominalizations, with the doer left out |
 | `formality` | Contractions, fragments, everyday words | Full sentences, no contractions, titles and set terms |
 
-Steps 2 to 4 sit between. Where the Routing Table gives registers that differ on a dimension, rate the register its first row governs, because that row is the output the root produces most. Say so in step 6.
+How to choose the step:
+- **Step 1 or 5:** the line states that end's description, all of it or as its whole point.
+- **Step 2 or 4:** it states some of that end's features and none of the other end's.
+- **Step 3:** it states features of both ends, or a balance between them.
+
+Where the Routing Table gives registers that differ on a dimension, rate the register its first row governs, because that row is the output the root produces most. A line that names its outputs ("emails and posts", "the published narrative") tells you which register it describes. Say which register you rated in step 6.
 
 **4. Render.** Run `render` with `--data` the `.json` and `--output` the `.html`. A refusal names the entry and the reason. Fix the entry, or remove it so the dial reads not rated, then run again. Never edit any other field of the `.json`: a changed voice is a new extract.
 
 **5. Never overwrite.** An earlier page or data file at today's name is copied to a `zArchive/` beside it under the archive name `standards/conventions.md` Archives sets, for example `zArchive/26-10-15 V1 - 2026-10-15 voice report.html`. The copy uses `cp -n`, and the copy is confirmed on disk before the original is removed, each as its own command (the constitution's Irreversibles). The tool refuses an existing `--output` in any case.
 
-**6. Report.** Give:
-- the page's path;
-- whether the voice is confirmed;
-- how many measured and rated dials it shows, and which read not known or not rated, and why;
-- the register step 3 rated, where registers differ.
+**6. Report.** For a page, give:
+- its path;
+- whether the voice is confirmed: `voice-confirmation-date:` holding a date means confirmed on that date, and its bracketed anchor is Build Voice's verification record; a Not available label there means not confirmed;
+- how many measured dials (punctuation included) and rated dials it shows, and which read not known or not rated, and why;
+- every Not available label the page lists;
+- the register step 3 rated, where registers differ;
+- the Build Voice offer step 2 called for, where it did.
+
+For an unbuilt voice, say only that the voice has not been built, where the `.json` record is, and offer `skills/Build Voice/`.
 
 Offer to open the page. Its footer records the files it read and their sha256, so a later voice change is visible. The page does not update itself, so say that a changed voice needs a new report.
 
@@ -82,6 +93,6 @@ Offer to open the page. Its footer records the files it read and their sha256, s
 - The page and its data sit in the owning root's onboarding folder under today's date, or no page exists and the report says why, with the route to Build Voice.
 - An earlier file at the same name was archived per `standards/conventions.md` Archives, never overwritten.
 - Every measured dial was drawn from the confirmed profile `voice.md` names, with polished features showing measured and set ranges.
-- Every rated dial quotes a Tone, Vocabulary or Structural Habits item exactly, cites only that item's evidence ids, and sits at the step the scale gives.
+- Every rated dial quotes a Tone, Vocabulary or Structural Habits item, or a Routing Table Register cell, exactly; cites only ids that line cites; and sits at the step the scale and its step rule give.
 - No sentence on the page is absent from `voice.md`, the profile, or the tool's fixed labels.
 - The report names the dials that read not known or not rated, and why.
