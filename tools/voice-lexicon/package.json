@@ -1,7 +1,7 @@
 {
   "name": "voice-lexicon",
-  "version": "0.1.0",
-  "description": "Find the style markers that recur across a person's writing samples, and check a draft against them, as one JSON object",
+  "version": "0.2.0",
+  "description": "Find the style markers and the rhythm and stance ranges a person's writing samples keep, and check a draft against them, as one JSON object",
   "private": true,
   "type": "module",
   "scripts": {

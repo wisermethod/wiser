@@ -60,7 +60,7 @@ The gateway's writes (connection store, audit log, empty project-key template) a
 | `copy-check/TOOL.md` | Count and match page copy against a ledger, a fact map, patterns, and a corpus, and return one JSON object |
 | `deck-export/TOOL.md` | Writes a new reveal.js deck project on disk, from a brand template or as a self-contained starter, and renders a finished deck to a PDF or to one PNG per slide |
 | `keynote-render/TOOL.md` | Builds and edits native Keynote decks from JSON or markdown SSOT, with zArchive safety before every in-place mutation |
-| `voice-lexicon/TOOL.md` | Find the style markers that recur across a person's writing samples, each with its count and sample ids, and check a draft against them for avoided terms and overused, contradicted or missing markers, as one JSON object |
+| `voice-lexicon/TOOL.md` | Find the style markers that recur across a person's writing samples, each with its count and sample ids, and the rhythm and stance ranges they keep, and check a draft against them for avoided terms, contradicted markers and the dose of signature markers and sayings, with rhythm and stance outside those ranges and missing markers as advice, as one JSON object |
 
 ### Knowledge
 

@@ -30,8 +30,8 @@ Usage:
   node scripts/voice-lexicon.js check --draft <file> --profile <file> [--avoid <file>]
 
 Commands:
-  profile      Report the markers that recur across the samples: signature words and phrases, variant choices, punctuation habits, altered sayings
-  check        Report avoided terms, overused and contradicted markers, and whether any marker is missing from a draft
+  profile      Report the markers that recur across the samples: signature words and phrases, variant choices, punctuation habits, altered sayings; and the ranges of rhythm and stance the samples keep over 500-word chunks
+  check        Report a draft's avoided terms, contradicted markers and dose of signature markers and sayings; and, as advice, rhythm and stance outside the profile's ranges and whether any marker is missing
   help         Print this message
 
 Options for profile:
@@ -48,10 +48,10 @@ Options for check:
 
 No command takes --env. This tool installs nothing, and --install is refused by name. An option given an empty value is refused. Input over 2,000,000 words or 20 MB is refused.
 
-A command that runs prints one JSON object to stdout and exits 0; check exits 0 whether or not pass is true. A refusal or an unknown flag prints to stderr, leaves stdout empty, and exits 1.`;
+A command that runs prints one JSON object to stdout and exits 0; check exits 0 whether or not pass is true. pass reads avoided terms, contradicted markers and the dose; ranges and missing are advice and never set it. A refusal or an unknown flag prints to stderr, leaves stdout empty, and exits 1.`;
 
 const HELP = {
-  profile: `voice-lexicon profile: report the markers that recur across a person's writing samples.
+  profile: `voice-lexicon profile: report the markers that recur across a person's writing samples, and the ranges of rhythm and stance they keep over 500-word chunks.
 
 Usage:
   node scripts/voice-lexicon.js profile --samples <file> [--baseline <file>] [--output <file>]
@@ -63,7 +63,7 @@ Options:
   --help, -h           Print this message
 
 No command takes --env. This tool installs nothing, and --install is refused by name. An option given an empty value is refused. Input over 2,000,000 words or 20 MB is refused.`,
-  check: `voice-lexicon check: check a draft against a profile.
+  check: `voice-lexicon check: check a draft against a profile. pass reads avoided terms, contradicted variants and the dose: signature markers and altered sayings, about one use per 500 words, each marker once below 2,000 words. Rhythm and stance outside the profile's ranges (drafts of 250 words or more) and missing markers (500 words or more) are advice and never set pass.
 
 Usage:
   node scripts/voice-lexicon.js check --draft <file> --profile <file> [--avoid <file>]
@@ -307,8 +307,38 @@ function loadData() {
     if (typeof reference[key] !== 'number' || !(reference[key] > 0)) dataFailure('punctuation-reference.json', `has no positive rate for ${key}`);
   }
 
-  DATA = { common, variants, variantKeys, variantSingles, variantLongest, idioms, reference };
+  const stance = loadStance(readDataJson('stance.json'));
+
+  DATA = { common, variants, variantKeys, variantSingles, variantLongest, idioms, reference, stance };
   return DATA;
+}
+
+const STANCE_KINDS = ['hedges', 'boosters'];
+
+/**
+ * The hedge and booster entries, indexed by first word, longest entry first,
+ * so a scan takes the longest entry of either list that starts at a word.
+ */
+function loadStance(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) dataFailure('stance.json', 'is not an object');
+  const index = new Map();
+  const seen = new Set();
+  for (const kind of STANCE_KINDS) {
+    const list = raw[kind];
+    if (!Array.isArray(list) || list.length === 0) dataFailure('stance.json', `has no ${kind} list`);
+    for (const entry of list) {
+      if (typeof entry !== 'string') dataFailure('stance.json', `holds a ${kind} entry that is not a string`);
+      const tokens = words(normalize(entry));
+      if (tokens.length === 0) dataFailure('stance.json', `holds a ${kind} entry with no words ("${entry}")`);
+      const key = tokens.join(' ');
+      if (seen.has(key)) dataFailure('stance.json', `lists "${key}" more than once`);
+      seen.add(key);
+      if (!index.has(tokens[0])) index.set(tokens[0], []);
+      index.get(tokens[0]).push({ tokens, kind });
+    }
+  }
+  for (const entries of index.values()) entries.sort((left, right) => right.tokens.length - left.tokens.length);
+  return index;
 }
 
 // ---------------------------------------------------------------- text
@@ -385,7 +415,7 @@ function clean(raw) {
   text = text.replace(/\b(?:https?:\/\/|www\.)\S+/gi, (url) => ` ${(/[.,;:!?)\]'"]*$/.exec(url) || [''])[0]}`);
   text = text.replace(/\S+/g, stripEmail);
   const literal = normalize(text);
-  text = text.replace(/\d(?:\w|[.,:/](?=\d))*(?:\s*[–-]\s*\d(?:\w|[.,:/](?=\d))*)?/g, ' ');
+  text = text.replace(/\d(?:\w|[.,:/](?=\d))*(?:\s*[\u2013-]\s*\d(?:\w|[.,:/](?=\d))*)?/g, ' ');
   return { text, literal };
 }
 
@@ -467,6 +497,33 @@ function countMatches(text, pattern) {
   return (text.match(pattern) || []).length;
 }
 
+// A middle part that opens on a subject pronoun or is one of these asides is
+// a clause set off by commas ("The fence, we hope, and the shed"), not an
+// item of a list, so it breaks the run.
+const SUBJECT_PRONOUNS = new Set('i we you they he she it one'.split(' '));
+const ASIDES = new Set([
+  'of course', 'as usual', 'as always', 'frankly', 'in fact', 'to be fair', 'to be honest',
+  'bless her', 'bless him', 'bless them', 'to its credit', 'to their credit', 'to her credit', 'to his credit',
+  'however', 'therefore', 'though', 'moreover', 'meanwhile', 'nonetheless', 'nevertheless',
+  'for example', 'for instance', 'in short', 'in turn', 'in theory', 'in practice', 'in effect', 'in particular',
+  'naturally', 'honestly', 'admittedly', 'apparently', 'perhaps', 'surely', 'indeed', 'say',
+  'alas', 'sadly', 'luckily', 'fortunately', 'unfortunately', 'incidentally', 'after all', 'at least', 'mind you'
+]);
+
+// A contracted subject pronoun opens an aside too ("I'm told", "it's said").
+const CONTRACTED_SUBJECTS = new Set('i we you they he she it'.split(' '));
+
+function opensOnSubject(first) {
+  if (SUBJECT_PRONOUNS.has(first)) return true;
+  const apostrophe = first.indexOf("'");
+  return apostrophe > 0 && CONTRACTED_SUBJECTS.has(first.slice(0, apostrophe));
+}
+
+function isAside(part) {
+  const spoken = normalize(part).trim().replace(/\s+/g, ' ');
+  return opensOnSubject(words(spoken)[0] || '') || ASIDES.has(spoken);
+}
+
 /**
  * A serial comma: ", and" or ", or" closing a run of at least three items,
  * each of one to four words, separated by commas, in one sentence. The first
@@ -483,10 +540,10 @@ function serialCommas(sentence) {
       const size = countWords(text);
       return size >= 1 && size <= 4;
     };
-    const last = closing[1].split(/[;:.!?()—]/)[0];
+    const last = closing[1].split(/[;:.!?()\u2014]/)[0];
     const middle = parts[index - 1];
-    const first = parts[index - 2].split(/[;:()—]/).pop();
-    if (inRange(last) && inRange(middle) && inRange(first)) count += 1;
+    const first = parts[index - 2].split(/[;:()\u2014]/).pop();
+    if (inRange(last) && inRange(middle) && inRange(first) && !isAside(middle)) count += 1;
   }
   return count;
 }
@@ -494,8 +551,8 @@ function serialCommas(sentence) {
 function punctuation(analysed) {
   const { text, sentences } = analysed;
   const counts = {
-    em_dash: countMatches(text, /—/g),
-    en_dash: countMatches(text, /–/g),
+    em_dash: countMatches(text, /\u2014/g),
+    en_dash: countMatches(text, /\u2013/g),
     double_hyphen: countMatches(text, /(?<!-)--(?!-)/g),
     semicolon: countMatches(text, /;/g),
     ellipsis: countMatches(text, /\.{3,}|…/g),
@@ -631,18 +688,74 @@ function subsequenceKeys(tokens, maxLength = tokens.length) {
   return keys;
 }
 
+// Words ending in s that are not the plural of a singular the samples hold.
+const FOLD_EXCEPTIONS = new Set('news goods means series species clothes'.split(' '));
+
+function foldable(token, data) {
+  return !FUNCTION_WORDS.has(token)
+    && (token.match(/\p{L}/gu) || []).length >= 4
+    && !/(?:ss|us|ics)$/.test(token)
+    && !data.variantSingles.has(token)
+    && !FOLD_EXCEPTIONS.has(token);
+}
+
+// "s" dropped is tried before "es" dropped, so "notes" finds "note" before
+// "not" and "uses" finds "use" before "us".
+function singularCandidates(token) {
+  const candidates = [];
+  if (token.endsWith('ies')) candidates.push(`${token.slice(0, -3)}y`);
+  if (token.endsWith('s')) candidates.push(token.slice(0, -1));
+  if (token.endsWith('es')) candidates.push(token.slice(0, -2));
+  return candidates;
+}
+
+/**
+ * Plural folding for class 1: each token that folds, mapped to the first of
+ * its singular candidates that occurs as a token in the samples and is not
+ * a function word.
+ */
+function pluralFolds(analysed, data) {
+  const seen = new Set();
+  for (const sample of analysed) {
+    for (const { tokens } of sample.sentences) for (const token of tokens) seen.add(token);
+  }
+  const folds = new Map();
+  for (const token of seen) {
+    if (!foldable(token, data)) continue;
+    const singular = singularCandidates(token).find((candidate) => seen.has(candidate) && !FUNCTION_WORDS.has(candidate));
+    if (singular) folds.set(token, singular);
+  }
+  return folds;
+}
+
+/** A gram's surface phrases, most frequent first, then alphabetical. */
+function surfaceForms(entry) {
+  const counts = new Map(entry.surfaces || []);
+  let folded = 0;
+  for (const count of counts.values()) folded += count;
+  if (entry.total > folded) counts.set(entry.key, entry.total - folded);
+  return [...counts]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .map(([phrase]) => phrase);
+}
+
 function signatureMarkers(samples, analysed, isCommon, names, data) {
   const n = samples.length;
+  const folds = pluralFolds(analysed, data);
   const grams = new Map();
   const extensions = new Map();
   analysed.forEach((sample, sampleIndex) => {
-    for (const { tokens } of sample.sentences) {
+    for (const sentence of sample.sentences) {
+      const surface = sentence.tokens;
+      const tokens = surface.map((token) => folds.get(token) || token);
       for (let start = 0; start < tokens.length; start += 1) {
+        let folded = false;
         for (let length = 1; length <= 4 && start + length <= tokens.length; length += 1) {
+          if (tokens[start + length - 1] !== surface[start + length - 1]) folded = true;
           const key = tokens.slice(start, start + length).join(' ');
           let entry = grams.get(key);
           if (!entry) {
-            entry = { key, tokens: tokens.slice(start, start + length), perSample: new Array(n).fill(0), total: 0 };
+            entry = { key, tokens: tokens.slice(start, start + length), perSample: new Array(n).fill(0), total: 0, surfaces: null };
             grams.set(key, entry);
             if (length >= 3) {
               const prefix = tokens.slice(start, start + length - 1).join(' ');
@@ -652,14 +765,30 @@ function signatureMarkers(samples, analysed, isCommon, names, data) {
           }
           entry.perSample[sampleIndex] += 1;
           entry.total += 1;
+          if (folded) {
+            const phrase = surface.slice(start, start + length).join(' ');
+            if (!entry.surfaces) entry.surfaces = new Map();
+            entry.surfaces.set(phrase, (entry.surfaces.get(phrase) || 0) + 1);
+          }
         }
       }
     }
   });
 
+  // A folded word is common when any of its surface forms is common, and is
+  // a light or a function word only when every one of them is ("big numbers"
+  // stays a habit phrase although "number" is light).
+  const surfaceCache = new Map();
+  const surfacesOf = (token) => {
+    if (!surfaceCache.has(token)) surfaceCache.set(token, surfaceForms(grams.get(token)));
+    return surfaceCache.get(token);
+  };
+  const commonWord = (token) => surfacesOf(token).some(isCommon);
+  const isFunction = (token) => surfacesOf(token).every((surface) => FUNCTION_WORDS.has(surface));
+  const isLight = (token) => surfacesOf(token).every((surface) => LIGHT_WORDS.has(surface));
   const isName = (token) => names.has(token.replace(/'s$/, ''));
-  const uncommon = (token) => !isCommon(token) && !isName(token);
-  const common = (token) => isCommon(token) && !isName(token);
+  const uncommon = (token) => !commonWord(token) && !isName(token);
+  const common = (token) => commonWord(token) && !isName(token);
   const holdsVariant = (tokens) => subsequenceKeys(variantStream(tokens, data), data.variantLongest)
     .some((key) => data.variantKeys.has(key));
   const outsideCount = (token) => grams.get(token).total;
@@ -670,25 +799,25 @@ function signatureMarkers(samples, analysed, isCommon, names, data) {
     const { tokens, total } = entry;
     const last = tokens.length - 1;
     let verdict = null;
-    if (tokens.every((token) => FUNCTION_WORDS.has(token))) verdict = null;
-    else if (last > 0 && (DETERMINERS.has(tokens[0]) || FUNCTION_WORDS.has(tokens[last]))) verdict = null;
+    if (tokens.every(isFunction)) verdict = null;
+    else if (last > 0 && (DETERMINERS.has(tokens[0]) || isFunction(tokens[last]))) verdict = null;
     else if (holdsVariant(tokens)) verdict = null;
     else if (tokens.some(uncommon)) {
       const rare = tokens.filter(uncommon);
       if (!consistent(entry.perSample, total, 3, n)) verdict = null;
       // Its one uncommon word alone stands for a phrase otherwise made of
       // function words ("brouhaha", never "of the brouhaha").
-      else if (last > 0 && rare.length === 1 && tokens.every((token) => uncommon(token) || FUNCTION_WORDS.has(token))) verdict = null;
+      else if (last > 0 && rare.length === 1 && tokens.every((token) => uncommon(token) || isFunction(token))) verdict = null;
       // (d) Each uncommon word in a phrase never appears outside it.
       else if (last > 0 && rare.some((token) => outsideCount(token) !== total)) verdict = null;
       else verdict = 'uncommon-word';
     } else if (last > 0 && tokens.every(common)
-      && tokens.some((token) => !FUNCTION_WORDS.has(token) && !LIGHT_WORDS.has(token))) {
+      && tokens.some((token) => !isFunction(token) && !isLight(token))) {
       const present = entry.perSample.filter((count) => count > 0).length;
       const spread = present >= Math.min(3, n) && present >= 2 && present * 2 >= n && total >= 4;
       // A two-word habit phrase opening on a function word counts only when
       // its other word never appears outside it ("in practice", not "to build").
-      const opener = tokens.length === 2 && FUNCTION_WORDS.has(tokens[0]) && outsideCount(tokens[1]) !== total;
+      const opener = tokens.length === 2 && isFunction(tokens[0]) && outsideCount(tokens[1]) !== total;
       if (spread && !opener) verdict = 'habit-phrase';
     }
     basis.set(key, verdict);
@@ -725,7 +854,10 @@ function signatureMarkers(samples, analysed, isCommon, names, data) {
   return kept
     .map((entry) => {
       const facts = describe(samples, entry.perSample);
-      return { class: 'signature', marker: entry.key, basis: entry.basis, count: entry.total, ...facts, score: (facts.samples.length / n) * facts.weight * entry.total };
+      const forms = surfaceForms(entry);
+      const marker = { class: 'signature', marker: forms[0], basis: entry.basis, count: entry.total, ...facts };
+      if (forms.length >= 2) marker.forms = forms;
+      return { ...marker, score: (facts.samples.length / n) * facts.weight * entry.total };
     })
     .sort((left, right) => right.score - left.score || right.count - left.count || left.marker.localeCompare(right.marker))
     .slice(0, 15)
@@ -830,6 +962,195 @@ function alteredUses(tokens, idiom) {
     start = end + 1;
   }
   return found;
+}
+
+// ---------------------------------------------------------------- ranges
+
+const CHUNK_WORDS = 500;
+const CHUNK_KEPT = 250;
+const MIN_CHUNKS = 3;
+const QUARTILE_CHUNKS = 8;
+const LONG_SENTENCE = 30;
+
+const RANGE_FEATURES = ['sentence_mean', 'sentence_cv', 'long_sentences', 'first_singular', 'first_plural', 'second_person', 'hedges', 'boosters'];
+const RANGE_NAMES = new Set([...RANGE_FEATURES, ...PUNCTUATION_KEYS]);
+
+const PERSON_FORMS = {
+  first_singular: new Set("i me my mine myself i'm i've i'd i'll".split(' ')),
+  first_plural: new Set("we us our ours ourselves we're we've we'd we'll".split(' ')),
+  second_person: new Set("you your yours yourself yourselves you're you've you'd you'll".split(' '))
+};
+
+function stanceAt(tokens, index, stance) {
+  return (stance.get(tokens[index]) || []).find((entry) => entry.tokens.every((token, offset) => tokens[index + offset] === token));
+}
+
+/**
+ * Hedges and boosters in one scan per sentence: the longest entry of either
+ * list starting at a word is taken, and the words it covers are not matched
+ * again, so "it seems to" counts once.
+ */
+function stanceCounts(sentences, stance) {
+  const counts = { hedges: 0, boosters: 0 };
+  for (const { tokens } of sentences) {
+    let index = 0;
+    while (index < tokens.length) {
+      const entry = stanceAt(tokens, index, stance);
+      if (entry) {
+        counts[entry.kind] += 1;
+        index += entry.tokens.length;
+      } else {
+        index += 1;
+      }
+    }
+  }
+  return counts;
+}
+
+/**
+ * The counts every range feature is computed from. A sentence with no words
+ * is not a sentence of the rhythm.
+ */
+function measure(sentences, data) {
+  const lengths = sentences.map((sentence) => sentence.tokens.length).filter((length) => length > 0);
+  const total = lengths.reduce((sum, length) => sum + length, 0);
+  const mean = lengths.length > 0 ? total / lengths.length : 0;
+  const variance = lengths.length > 0 ? lengths.reduce((sum, length) => sum + (length - mean) ** 2, 0) / lengths.length : 0;
+  const counts = { long_sentences: lengths.filter((length) => length >= LONG_SENTENCE).length, ...stanceCounts(sentences, data.stance) };
+  for (const [feature, forms] of Object.entries(PERSON_FORMS)) {
+    counts[feature] = 0;
+    for (const { tokens } of sentences) for (const token of tokens) if (forms.has(token)) counts[feature] += 1;
+  }
+  const sd = Math.sqrt(variance);
+  return { words: total, sentences: lengths.length, mean, sd, cv: mean > 0 ? sd / mean : 0, counts };
+}
+
+/** Long sentences are per 100 sentences; every other count is per 1,000 words. */
+function perUnit(feature, measured) {
+  return feature === 'long_sentences' ? measured.sentences / 100 : measured.words / 1000;
+}
+
+function featureValue(feature, measured) {
+  if (feature === 'sentence_mean') return measured.mean;
+  if (feature === 'sentence_cv') return measured.cv;
+  const unit = perUnit(feature, measured);
+  return unit > 0 ? measured.counts[feature] / unit : 0;
+}
+
+/**
+ * Each sample's sentences, in order, into chunks that close at 500 words. A
+ * trailing chunk of 250 words or more is kept; chunks never cross samples.
+ */
+function chunkSentences(sentences) {
+  const chunks = [];
+  let current = [];
+  let size = 0;
+  for (const sentence of sentences) {
+    current.push(sentence);
+    size += sentence.tokens.length;
+    if (size >= CHUNK_WORDS) {
+      chunks.push(current);
+      current = [];
+      size = 0;
+    }
+  }
+  if (size >= CHUNK_KEPT) chunks.push(current);
+  return chunks;
+}
+
+/** Linear interpolation at (n - 1) * p of the sorted values. */
+function percentile(sorted, p) {
+  const position = (sorted.length - 1) * p;
+  const below = Math.floor(position);
+  const above = Math.ceil(position);
+  return sorted[below] + (sorted[above] - sorted[below]) * (position - below);
+}
+
+function band(values) {
+  const sorted = [...values].sort((left, right) => left - right);
+  const quartiles = sorted.length >= QUARTILE_CHUNKS;
+  return {
+    low: round(sorted[0]),
+    q1: quartiles ? round(percentile(sorted, 0.25)) : null,
+    median: round(percentile(sorted, 0.5)),
+    q3: quartiles ? round(percentile(sorted, 0.75)) : null,
+    high: round(sorted[sorted.length - 1])
+  };
+}
+
+/**
+ * The band of each feature over the samples' 500-word chunks, and a band for
+ * each punctuation habit the profile reports, as its rate per 1,000 words.
+ */
+function profileRanges(analysed, punctuationKeys, data) {
+  const chunks = analysed.flatMap((sample) => chunkSentences(sample.sentences));
+  if (chunks.length < MIN_CHUNKS) return null;
+  const rows = chunks.map((sentences) => {
+    const measured = measure(sentences, data);
+    const row = {};
+    for (const feature of RANGE_FEATURES) row[feature] = featureValue(feature, measured);
+    if (punctuationKeys.length > 0) {
+      const counts = punctuation({ text: sentences.map((sentence) => sentence.text).join('\n'), sentences });
+      for (const key of punctuationKeys) row[key] = measured.words > 0 ? (counts[key] / measured.words) * 1000 : 0;
+    }
+    return row;
+  });
+  const features = {};
+  for (const key of [...RANGE_FEATURES, ...punctuationKeys]) features[key] = band(rows.map((row) => row[key]));
+  return { chunk_words: CHUNK_WORDS, chunks: chunks.length, features };
+}
+
+/**
+ * A count outside its band beyond Poisson noise: L and H are the band's
+ * rates scaled to the draft. Below needs L - 2 sqrt(L) to be above zero, so a
+ * band near zero is never undershot by a short draft.
+ */
+function countSide(count, low, high, unit) {
+  const lowCount = low * unit;
+  const highCount = high * unit;
+  const floor = lowCount - 2 * Math.sqrt(lowCount);
+  if (floor > 0 && count < floor) return 'below';
+  if (count > highCount + 2 * Math.sqrt(Math.max(highCount, 1))) return 'above';
+  return null;
+}
+
+function measureSide(value, low, high, margin) {
+  if (value < low - margin) return 'below';
+  if (value > high + margin) return 'above';
+  return null;
+}
+
+/**
+ * Advisory: each feature of the draft outside the profile's band, beyond the
+ * noise a draft of this length carries. Punctuation is judged only for a
+ * habit the profile still holds as a marker.
+ */
+function judgeRanges(ranges, markers, draft, data) {
+  const features = ranges.features;
+  const held = new Set(markers.filter((marker) => marker.class === 'punctuation').map((marker) => marker.marker));
+  const punctuationKeys = PUNCTUATION_KEYS.filter((key) => held.has(key) && Object.hasOwn(features, key));
+  const measured = measure(draft.sentences, data);
+  const counts = { ...measured.counts, ...(punctuationKeys.length > 0 ? punctuation(draft) : {}) };
+  const out = [];
+  for (const feature of [...RANGE_FEATURES, ...punctuationKeys]) {
+    if (!Object.hasOwn(features, feature)) continue;
+    const { low, high } = features[feature];
+    let side;
+    let value;
+    if (feature === 'sentence_mean') {
+      value = measured.mean;
+      side = measureSide(value, low, high, (2 * measured.sd) / Math.sqrt(measured.sentences));
+    } else if (feature === 'sentence_cv') {
+      value = measured.cv;
+      side = measureSide(value, low, high, (2 * measured.cv) / Math.sqrt(2 * measured.sentences));
+    } else {
+      const unit = perUnit(feature, measured);
+      value = counts[feature] / unit;
+      side = countSide(counts[feature], low, high, unit);
+    }
+    if (side) out.push({ feature, value: round(value), low, high, side });
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------- profile
@@ -1045,6 +1366,7 @@ function runProfile(values) {
   else if (totalWords < 3000) status = 'thin';
 
   let markers = [];
+  let ranges = null;
   if (status !== 'too-little-text') {
     const isCommon = makeCommonTest(data.common, baseline);
     const names = properNames(analysed);
@@ -1054,6 +1376,8 @@ function runProfile(values) {
       ...punctuationMarkers(samples, analysed, data.reference, totalWords),
       ...idiomMarkers(samples, analysed, data.idioms)
     ];
+    const punctuationKeys = markers.filter((marker) => marker.class === 'punctuation').map((marker) => marker.marker);
+    ranges = profileRanges(analysed, punctuationKeys, data);
   }
 
   const profile = {
@@ -1062,7 +1386,8 @@ function runProfile(values) {
     samples: samples.length,
     registers: new Set(samples.map((sample) => sample.register)).size,
     origins: new Set(samples.map((sample) => sample.origin)).size,
-    markers
+    markers,
+    ranges
   };
 
   if (!outputPath) return profile;
@@ -1085,9 +1410,66 @@ function loadProfile(profilePath) {
     if (!MARKER_CLASSES.has(marker.class)) refuse(`marker ${index} has class ${JSON.stringify(marker.class)}`);
     if (typeof marker.marker !== 'string' || marker.marker.trim() === '') refuse(`marker ${index} has no marker text`);
     if (marker.class === 'signature' && typeof marker.count !== 'number') refuse(`signature marker "${marker.marker}" has no count`);
+    if (marker.class === 'signature' && marker.forms !== undefined
+      && (!Array.isArray(marker.forms) || marker.forms.length === 0 || marker.forms.some((form) => typeof form !== 'string' || form.trim() === ''))) {
+      refuse(`signature marker "${marker.marker}" has forms that are not a non-empty list of phrases`);
+    }
     if (marker.class === 'variant' && (typeof marker.over !== 'string' || marker.over.trim() === '')) refuse(`variant marker "${marker.marker}" has no over form`);
   });
+  checkRanges(profile.ranges, refuse);
   return profile;
+}
+
+// A band's keys: the five profile writes, and the three a confirmed copy adds
+// to a range the person answered (check judges by low and high alone).
+const BAND_KEYS = new Set(['low', 'q1', 'median', 'q3', 'high', 'decision', 'polish', 'measured']);
+
+/** A profile's ranges: absent or null, or features each holding a band of numbers. */
+function checkRanges(ranges, refuse) {
+  if (ranges === undefined || ranges === null) return;
+  if (typeof ranges !== 'object' || Array.isArray(ranges)) refuse('its ranges is not an object');
+  const { features } = ranges;
+  if (!features || typeof features !== 'object' || Array.isArray(features)) refuse('its ranges has no features object');
+  for (const [name, held] of Object.entries(features)) {
+    if (!RANGE_NAMES.has(name)) refuse(`its ranges names the feature "${name}", which is not one of ${[...RANGE_NAMES].join(', ')}`);
+    if (!held || typeof held !== 'object' || Array.isArray(held)) refuse(`its ranges feature "${name}" is not an object of low, q1, median, q3 and high`);
+    for (const key of Object.keys(held)) {
+      if (!BAND_KEYS.has(key)) refuse(`its ranges feature "${name}" has the key "${key}", which is not one of ${[...BAND_KEYS].join(', ')}`);
+    }
+    for (const key of ['low', 'median', 'high']) {
+      if (!Number.isFinite(held[key])) refuse(`its ranges feature "${name}" has no numeric ${key}`);
+    }
+    for (const key of ['q1', 'q3']) {
+      if (held[key] !== null && !Number.isFinite(held[key])) refuse(`its ranges feature "${name}" has a ${key} that is neither a number nor null`);
+    }
+    // Every feature is a rate, a ratio or a mean, never below zero.
+    for (const key of ['low', 'q1', 'median', 'q3', 'high']) {
+      if (held[key] !== null && held[key] < 0) refuse(`its ranges feature "${name}" has a negative ${key} (${held[key]})`);
+    }
+    // Only low against high: a narrowed copy holds a high below its median
+    // and q3 on purpose, so no other order is checked.
+    if (held.low > held.high) refuse(`its ranges feature "${name}" has low ${held.low} above high ${held.high}`);
+    checkDecision(name, held, refuse);
+  }
+}
+
+function checkDecision(name, held, refuse) {
+  if (held.decision !== undefined && held.decision !== 'keep' && held.decision !== 'polish') {
+    refuse(`its ranges feature "${name}" has decision ${JSON.stringify(held.decision)}; it must be "keep" or "polish"`);
+  }
+  if (held.polish !== undefined && held.polish !== 'high' && held.polish !== 'low') {
+    refuse(`its ranges feature "${name}" has polish ${JSON.stringify(held.polish)}; it must be "high" or "low"`);
+  }
+  if (held.measured === undefined) return;
+  const { measured } = held;
+  if (!measured || typeof measured !== 'object' || Array.isArray(measured)) refuse(`its ranges feature "${name}" has a measured that is not an object of low and high`);
+  for (const key of Object.keys(measured)) {
+    if (key !== 'low' && key !== 'high') refuse(`its ranges feature "${name}" has measured key "${key}"; measured holds only low and high`);
+  }
+  for (const key of ['low', 'high']) {
+    if (!Number.isFinite(measured[key])) refuse(`its ranges feature "${name}" has a measured with no numeric ${key}`);
+    if (measured[key] < 0) refuse(`its ranges feature "${name}" has a negative measured ${key} (${measured[key]})`);
+  }
 }
 
 // A term made only of letters, combining marks, apostrophes, hyphens and the
@@ -1114,6 +1496,44 @@ function sumForms(sentences, forms) {
   return forms.reduce((sum, form) => sum + countSequence(sentences, form, 'vtokens'), 0);
 }
 
+const SHORT_WORDS = 250;
+const MISSING_WORDS = 500;
+
+/**
+ * A signature marker's uses are the sum over its forms when the profile
+ * lists them, so a folded plural counts; any other marker, its own words.
+ */
+function markerUses(sentences, marker) {
+  const phrases = marker.class === 'signature' && Array.isArray(marker.forms) ? marker.forms : [marker.marker];
+  const keys = new Set(phrases.map((phrase) => words(normalize(phrase)).join(' ')));
+  let count = 0;
+  for (const key of keys) if (key) count += countSequence(sentences, key.split(' '));
+  return count;
+}
+
+/**
+ * The dose: signature markers and altered sayings together, about one use
+ * per 500 words, and each marker once until the draft reaches 2,000 words.
+ * Identity rests on a marker being there at all; repeats only caricature it.
+ */
+function dosage(draft, markers) {
+  const budget = Math.max(1, Math.floor(draft.words / 500));
+  const cap = Math.max(1, Math.floor(draft.words / 1000));
+  const uses = markers
+    .filter((marker) => marker.class === 'signature' || marker.class === 'idiom')
+    .map((marker) => ({ marker: marker.marker, count: markerUses(draft.sentences, marker) }))
+    .filter((use) => use.count > 0)
+    .sort((left, right) => right.count - left.count || left.marker.localeCompare(right.marker));
+  const used = uses.reduce((sum, use) => sum + use.count, 0);
+  return {
+    budget,
+    used,
+    over: used > budget,
+    uses,
+    repeated: uses.filter((use) => use.count > cap).map((use) => ({ ...use, cap }))
+  };
+}
+
 function runCheck(values) {
   const draftPath = screenSource('--draft', requireFlag(values, '--draft'));
   const profilePath = screenSource('--profile', requireFlag(values, '--profile'));
@@ -1134,8 +1554,9 @@ function runCheck(values) {
     if (count > 0) avoided.push({ term, count });
   }
 
+  const short = draft.words < SHORT_WORDS;
   if (draft.words < 50) {
-    return { status: 'too-little-text', words: draft.words, avoided, overuse: null, contradicted: null, missing: null, pass: false };
+    return { status: 'too-little-text', words: draft.words, short, avoided, dosage: null, contradicted: null, ranges: null, missing: null, pass: false };
   }
 
   const contractionPairs = data.variants.filter((pair) => pair.kind === 'contraction');
@@ -1158,21 +1579,13 @@ function runCheck(values) {
       .map((pair) => (usedSide === 'contraction' ? pair.aTokens : pair.bTokens));
   };
 
-  const overuse = [];
   const contradicted = [];
   let present = 0;
   let eligible = 0;
   for (const marker of profile.markers) {
     if (marker.class === 'signature') {
       eligible += 1;
-      const count = countSequence(draft.sentences, words(normalize(marker.marker)));
-      if (count > 0) present += 1;
-      const profileDensity = profile.words > 0 ? marker.count / profile.words : 0;
-      const density = count / draft.words;
-      // "More than once" needs at least two uses; one use is never overuse.
-      if (count >= 2 && (count * 75 > draft.words || (profileDensity > 0 && density > 3 * profileDensity))) {
-        overuse.push({ marker: marker.marker, count });
-      }
+      if (markerUses(draft.sentences, marker) > 0) present += 1;
     } else if (marker.class === 'variant') {
       eligible += 1;
       const name = normalize(marker.marker);
@@ -1191,16 +1604,21 @@ function runCheck(values) {
       if (usedCount > 0) contradicted.push({ marker: marker.marker, used: marker.over, count: usedCount });
     }
   }
-  const missing = eligible >= 3 && present === 0;
+  // Information only: judged from 500 words, and never read by pass.
+  const missing = draft.words >= MISSING_WORDS ? eligible >= 3 && present === 0 : null;
+  const dose = dosage(draft, profile.markers);
+  const ranges = !short && profile.ranges ? judgeRanges(profile.ranges, profile.markers, draft, data) : null;
 
   return {
     status: 'checked',
     words: draft.words,
+    short,
     avoided,
-    overuse,
+    dosage: dose,
     contradicted,
+    ranges,
     missing,
-    pass: avoided.length === 0 && overuse.length === 0 && contradicted.length === 0 && !missing
+    pass: avoided.length === 0 && contradicted.length === 0 && dose.repeated.length === 0 && !dose.over
   };
 }
 
