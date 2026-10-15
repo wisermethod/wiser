@@ -469,8 +469,8 @@ function inline(text) {
 
 const COUNTED = {
   stance: [
-    ['hedges', 'Hedges', 'rare', 'frequent', 'per 1,000 words', 20],
-    ['boosters', 'Boosters', 'rare', 'frequent', 'per 1,000 words', 15],
+    ['hedges', 'Hedges (maybe, perhaps)', 'rare', 'frequent', 'per 1,000 words', 20],
+    ['boosters', 'Boosters (clearly, certainly)', 'rare', 'frequent', 'per 1,000 words', 15],
     ['first_singular', 'I, me, my', 'rare', 'frequent', 'per 1,000 words', 60],
     ['first_plural', 'We, us, our', 'rare', 'frequent', 'per 1,000 words', 40],
     ['second_person', 'You, your', 'rare', 'frequent', 'per 1,000 words', 50]
@@ -488,8 +488,8 @@ const PUNCTUATION_NAMES = {
 };
 const RATED = [
   ['involved', 'Personal or informational', 'personal', 'informational'],
-  ['explicit', 'Reference', 'leaves it to the reader', 'names everything'],
-  ['abstract', 'Abstract style', 'named doer', 'doer left out'],
+  ['explicit', 'Naming specifics', 'leaves it to the reader', 'names everything'],
+  ['abstract', 'Who does the action', 'named doer', 'doer left out'],
   ['formality', 'Formality', 'everyday', 'formal']
 ];
 
@@ -502,10 +502,31 @@ function pct(v, max) {
   return Math.max(0, Math.min(100, (v / max) * 100)).toFixed(2);
 }
 
+/** The reading and decision note a measured dial carries, on the page and in the fragment alike. */
+function featureReading(name, feature, unit) {
+  const what = (n) => (name === 'sentence_cv' ? `${fmt(n)} (higher means more mixed lengths)` : `${fmt(n)} ${unit}`);
+  let reading = name === 'sentence_mean'
+    ? `${fmt(feature.median)} words on average; averages range ${fmt(feature.low)} to ${fmt(feature.high)} across 500-word stretches`
+    : `${what(feature.median)}; range ${fmt(feature.low)} to ${fmt(feature.high)}`;
+  let note = '';
+  if (feature.decision === 'polish') {
+    const measured = feature.measured ? `${fmt(feature.measured.low)} to ${fmt(feature.measured.high)}` : 'not recorded';
+    reading = `set to ${fmt(feature.low)} to ${fmt(feature.high)}${unit && name !== 'sentence_cv' ? ` ${unit}` : ''}; measured ${measured}`;
+    note = `polish: ${feature.polish === 'high' ? 'less of this than the samples show' : feature.polish === 'low' ? 'more of this than the samples show' : 'side not recorded'}`;
+  } else if (feature.decision === 'keep') {
+    note = 'keep: as the samples show';
+  }
+  return { reading, note };
+}
+
+function scaleMax(feature, defaultMax) {
+  const top = Math.max(feature.high, feature.measured ? feature.measured.high : 0, feature.median);
+  return Math.max(defaultMax, Math.ceil(top * 1.15 * 10) / 10);
+}
+
 function countedDial(name, label, left, right, unit, defaultMax, feature) {
   if (!feature) return dialShell(label, null, left, right, '<line class="na-line" x1="0" x2="100%" y1="11" y2="11"/>', 'not known', true);
-  const top = Math.max(feature.high, feature.measured ? feature.measured.high : 0, feature.median);
-  const max = Math.max(defaultMax, Math.ceil(top * 1.15 * 10) / 10);
+  const max = scaleMax(feature, defaultMax);
   let svg = '';
   if (feature.measured) {
     const a = pct(feature.measured.low, max); const b = pct(feature.measured.high, max);
@@ -516,18 +537,8 @@ function countedDial(name, label, left, right, unit, defaultMax, feature) {
   svg += '<line class="axis" x1="0" x2="100%" y1="11" y2="11"/>';
   svg += '<line class="tick" x1="0.5" x2="0.5" y1="7" y2="15"/><line class="tick" x1="100%" x2="100%" y1="7" y2="15" transform="translate(-0.5,0)"/>';
   svg += `<circle class="mark" cx="${pct(feature.median, max)}%" cy="11" r="5"/>`;
-  const what = (n) => (name === 'sentence_cv' ? `${fmt(n)} (higher means more mixed lengths)` : `${fmt(n)} ${unit}`);
-  let reading = name === 'sentence_mean'
-    ? `${fmt(feature.median)} words on average; averages range ${fmt(feature.low)} to ${fmt(feature.high)} across 500-word stretches`
-    : `${what(feature.median)}; range ${fmt(feature.low)} to ${fmt(feature.high)}`;
-  let note = '';
-  if (feature.decision === 'polish') {
-    const measured = feature.measured ? `${fmt(feature.measured.low)} to ${fmt(feature.measured.high)}` : 'not recorded';
-    reading = `set to ${fmt(feature.low)} to ${fmt(feature.high)}; measured ${measured}${unit ? ` ${unit}` : ''}`;
-    note = `<span class="decision">polish: ${feature.polish === 'high' ? 'less of this than the samples show' : feature.polish === 'low' ? 'more of this than the samples show' : 'side not recorded'}</span>`;
-  } else if (feature.decision === 'keep') {
-    note = '<span class="decision">keep: as the samples show</span>';
-  }
+  const { reading, note: noteText } = featureReading(name, feature, unit);
+  const note = noteText ? `<span class="decision">${esc(noteText)}</span>` : '';
   const aria = `${label}: ${reading}${feature.decision ? `, decision ${feature.decision}` : ''}`;
   return dialShell(label, aria, `${esc(left)}`, `${esc(right)}, scale to ${fmt(max)}`, svg, reading, false, note);
 }
@@ -632,7 +643,7 @@ export function renderPage(data, generated, css) {
   h += '</div>';
   if (rated.size || Object.keys(features).length) h += '<p class="key"><svg viewBox="-6 -6 12 12" aria-hidden="true"><circle class="mark" r="5"/></svg>typical, measured'
     + '<svg viewBox="-6 -6 12 12" aria-hidden="true"><circle class="open" r="4.5"/></svg>placed by a line in your voice'
-    + '<svg viewBox="0 0 14 10" aria-hidden="true"><rect class="band" width="14" height="10"/></svg>the range the voice is set to'
+    + '<svg viewBox="0 0 14 10" aria-hidden="true"><rect class="band" width="14" height="10"/></svg>the range across the samples, or what it is set to where polished'
     + '<svg viewBox="0 0 14 10" aria-hidden="true"><rect class="measured" x="0.5" y="0.5" width="13" height="9"/></svg>measured before polishing'
     + `${RATED.some((spec) => !rated.has(spec[0])) && rated.size || [...COUNTED.stance, ...COUNTED.rhythm].some((spec) => !features[spec[0]]) && Object.keys(features).length ? ' · dotted: not known' : ''}</p>`;
   h += '</section>';
@@ -752,10 +763,10 @@ export function renderFragment(data) {
   const confirmed = isConfirmed
     ? `confirmed ${esc(a.confirmed.replace(/\s*\[[^\]]*\]\s*$/, ''))}`
     : 'not yet confirmed';
-  const counted = [...COUNTED.stance, ...COUNTED.rhythm].filter((spec) => features[spec[0]]).length;
+  const counted = Object.keys(features).length;
   let h = INLINE_CSS + '<div class="vr">';
   h += `<h2 class="sr">Voice dials for ${esc(subject)}: ${rated.size} placed by lines in the voice and ${counted} measured.</h2>`;
-  h += `<p class="who">${esc(subject)} · ${esc(data.rootType ? `${data.rootType} voice` : 'voice')} · ${confirmed}</p>`;
+  h += `<p class="who">${esc(subject)} · ${confirmed}</p>`;
 
   const governing = sections.routing && sections.routing.rows.length && sections.routing.rows[0][0] ? sections.routing.rows[0][0] : null;
   h += `<p class="g">How it reads${rated.size && governing ? `, placed for: ${inline(governing)}` : ''}</p>`;
@@ -771,7 +782,7 @@ export function renderFragment(data) {
       }
       const aria = entry ? `${label}: step ${entry.step} of 5, from ${left} to ${right}` : `${label}: not rated`;
       h += `<div class="d"><span class="n">${esc(label)}${entry ? '' : '<span class="r">not rated</span>'}</span>${inlineScale(svg, esc(left), esc(right), aria)}`;
-      if (entry) h += `<p class="q">“${inline(entry.trait)}”</p>`;
+      if (entry) h += `<p class="q">“${inline(entry.trait)}” (${esc(entry.evidence.join(', '))})</p>`;
       h += '</div>';
     }
   } else {
@@ -793,8 +804,7 @@ export function renderFragment(data) {
         h += `<div class="d"><span class="n">${esc(label)}<span class="r">not known</span></span>${inlineScale('<line class="na" x1="0" x2="100%" y1="10" y2="10"/>', esc(left), esc(right), `${label}: not known`)}</div>`;
         continue;
       }
-      const top = Math.max(f.high, f.measured ? f.measured.high : 0, f.median);
-      const max = Math.max(defaultMax, Math.ceil(top * 1.15 * 10) / 10);
+      const max = scaleMax(f, defaultMax);
       let svg = '';
       if (f.measured) {
         const x1 = pct(f.measured.low, max); const x2 = pct(f.measured.high, max);
@@ -803,15 +813,14 @@ export function renderFragment(data) {
       const b1 = pct(f.low, max); const b2 = pct(f.high, max);
       svg += `<rect class="bd" x="${b1}%" y="5" width="${(b2 - b1).toFixed(2)}%" height="10"/><line class="ax" x1="0" x2="100%" y1="10" y2="10"/>`;
       svg += `<circle class="mk" cx="${pct(f.median, max)}%" cy="10" r="5"/>`;
-      const value = name === 'sentence_cv' ? fmt(f.median) : `${fmt(f.median)} ${unit}`;
-      const reading = f.decision === 'polish'
-        ? `set to ${fmt(f.low)} to ${fmt(f.high)}${f.measured ? `; measured ${fmt(f.measured.low)} to ${fmt(f.measured.high)}` : ''}`
-        : value;
-      h += `<div class="d"><span class="n">${esc(label)}<span class="r">${esc(reading)}</span></span>${inlineScale(svg, esc(left), `${esc(right)}, to ${fmt(max)}`, `${label}: ${reading}`)}</div>`;
+      const { reading, note } = featureReading(name, f, unit);
+      h += `<div class="d"><span class="n">${esc(label)}<span class="r">${esc(reading)}</span>${note ? `<span class="r">${esc(note)}</span>` : ''}</span>${inlineScale(svg, esc(left), `${esc(right)}, scale to ${fmt(max)}`, `${label}: ${reading}${note ? `; ${note}` : ''}`)}</div>`;
     }
   }
   if (rated.size || Object.keys(features).length) {
-    h += '<p class="k">Filled dot: typical, measured. Open dot: placed by the quoted line. Shaded: the range the voice is set to. Dashed: measured before polishing. Dotted: not known.</p>';
+    const anyDotted = (rated.size && rated.size < RATED.length)
+      || (Object.keys(features).length && [...COUNTED.stance, ...COUNTED.rhythm].some((spec) => !features[spec[0]]));
+    h += `<p class="k">Filled dot: typical, measured. Open dot: placed by the quoted line. Shaded: the range across the samples, or what it is set to where polished. Dashed: measured before polishing.${anyDotted ? ' Dotted: not known.' : ''}</p>`;
   }
   return `${h}</div>`;
 }

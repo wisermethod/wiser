@@ -110,7 +110,7 @@ test('an old-format voice gets no measured values and keeps its Not available la
   assert.match(r.html, /not yet confirmed/);
   assert.match(r.html, /names no confirmed profile/);
   assert.match(r.html, /not yet confirmed; confirming authority Dana Whitlow/);
-  assert.match(r.html, /Hedges, Boosters, I, me, my, We, us, our, You, your: not known; nothing measured/);
+  assert.match(r.html, /Hedges \(maybe, perhaps\), Boosters \(clearly, certainly\), I, me, my, We, us, our, You, your: not known; nothing measured/);
   assert.match(r.html, /not rated; no line in the voice places them on these scales/);
   assert.doesNotMatch(r.html, /class="na-line"/);
   assert.doesNotMatch(r.html, /class="key"/);
@@ -164,7 +164,7 @@ test('the page is static, escapes voice.md text, and shows current setting and m
   assert.match(r.html, /&lt;script&gt;alert\(1\)&lt;\/script&gt; &amp; &quot;quoted&quot; &lt;b&gt;bold&lt;\/b&gt;/);
   assert.doesNotMatch(r.html, /https?:\/\//, 'no external request');
   const full = renderData(extract('complete-root'));
-  assert.match(full.html, /set to 2 to 4; measured 2 to 9 per 1,000 words/);
+  assert.match(full.html, /set to 2 to 4 per 1,000 words; measured 2 to 9/);
   assert.match(full.html, /class="measured"/);
   assert.match(full.html, /polish: less of this than the samples show/);
   assert.match(full.html, /keep: as the samples show/);
@@ -298,8 +298,12 @@ test('inline prints a chat fragment of the dials, and writes nothing', () => {
   assert.match(f, /<h2 class="sr">Voice dials for Marisol Vey/);
   assert.match(f, /placed for: Email to a client&#39;s director/);
   assert.match(f, /cx="25.00%"/);
-  assert.match(f, /set to 2 to 4; measured 2 to 9/);
-  assert.match(f, /Reference<span class="r">not rated<\/span>/);
+    assert.match(f, /Naming specifics<span class="r">not rated<\/span>/);
+  assert.match(f, /Voice dials for Marisol Vey: 1 placed by lines in the voice and 9 measured/);
+  assert.match(f, /” \(E1, E2\)<\/p>/);
+  assert.match(f, /set to 2 to 4 per 1,000 words; measured 2 to 9<\/span><span class="r">polish: less of this than the samples show/);
+  assert.match(f, /13\.8 words on average; averages range 11\.2 to 17\.1 across 500-word stretches/);
+  assert.match(f, /Dotted: not known/);
   assert.deepEqual(readdirSync(dir), ['data.json']);
 
   const escData = extract('escape-root');
