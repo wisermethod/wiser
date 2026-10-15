@@ -96,7 +96,12 @@ test('an old-format voice gets no measured values and keeps its Not available la
   assert.equal(r.code, 0, r.err);
   assert.match(r.html, /not yet confirmed/);
   assert.match(r.html, /names no confirmed profile/);
-  assert.equal((r.html.match(/class="mark"/g) || []).length, 1, 'only the key glyph carries a measured marker');
+  assert.match(r.html, /not yet confirmed; confirming authority Dana Whitlow/);
+  assert.match(r.html, /Hedges, Boosters, I, me, my, We, us, our, You, your: not known; nothing measured/);
+  assert.match(r.html, /not rated; no line in the voice places them on these scales/);
+  assert.doesNotMatch(r.html, /class="na-line"/);
+  assert.doesNotMatch(r.html, /class="key"/);
+  assert.equal((r.html.match(/class="mark"/g) || []).length, 0, 'no measured marker, and no key, with nothing measured');
 });
 
 test('a stub voice and a labelled stub are unbuilt, and render refuses them', () => {
@@ -151,6 +156,10 @@ test('the page is static, escapes voice.md text, and shows current setting and m
   assert.match(full.html, /polish: less of this than the samples show/);
   assert.match(full.html, /keep: as the samples show/);
   assert.match(full.html, /Semicolons/);
+  assert.match(full.html, /13\.8 words on average; averages range 11\.2 to 17\.1 across 500-word stretches/);
+  assert.match(full.html, /confirmed 2026-10-15 by Marisol Vey/);
+  assert.doesNotMatch(full.html, /\[V3\]/);
+  assert.match(full.html, /in 6 stretches of 500 words/);
 });
 
 test('rated dials need a trait line copied from voice.md and the evidence it cites', () => {
@@ -159,6 +168,7 @@ test('rated dials need a trait line copied from voice.md and the evidence it cit
   assert.equal(ok.code, 0, ok.err);
   assert.match(ok.html, /class="open" cx="25.00%"/);
   assert.match(ok.html, /class="sidenote"/);
+  assert.match(ok.html, /Placed for: Email to a client&#39;s director/);
 
   const cases = [
     [{ key: 'involved', step: 2, trait: 'Writes warmly and with energy in every piece.', evidence: ['E1'] }, /not in voice.md as extracted/],

@@ -468,8 +468,8 @@ const COUNTED = {
   ],
   rhythm: [
     ['sentence_mean', 'Sentence length', 'short', 'long', 'words', 40],
-    ['sentence_cv', 'Sentence variety', 'even', 'varied', 'spread over mean', 1.2],
-    ['long_sentences', 'Long sentences', 'few', 'many', 'of 30+ words per 100', 40]
+    ['sentence_cv', 'Sentence variety', 'even', 'varied', '', 1.2],
+    ['long_sentences', 'Long sentences', 'few', 'many', 'in every 100 sentences run 30+ words', 40]
   ]
 };
 const PUNCTUATION_NAMES = {
@@ -478,10 +478,10 @@ const PUNCTUATION_NAMES = {
   initial_but: 'Sentences opening on But', initial_so: 'Sentences opening on So'
 };
 const RATED = [
-  ['involved', 'Involved or informational', 'involved', 'informational'],
-  ['explicit', 'Reference', 'situation-dependent', 'explicit'],
-  ['abstract', 'Abstract style', 'concrete, agent named', 'abstract, impersonal'],
-  ['formality', 'Formality', 'contextual', 'formal']
+  ['involved', 'Involved or informational', 'personal', 'informational'],
+  ['explicit', 'Reference', 'leaves it to the reader', 'names everything'],
+  ['abstract', 'Abstract style', 'named doer', 'doer left out'],
+  ['formality', 'Formality', 'everyday', 'formal']
 ];
 
 function fmt(n) {
@@ -507,17 +507,20 @@ function countedDial(name, label, left, right, unit, defaultMax, feature) {
   svg += '<line class="axis" x1="0" x2="100%" y1="11" y2="11"/>';
   svg += '<line class="tick" x1="0.5" x2="0.5" y1="7" y2="15"/><line class="tick" x1="100%" x2="100%" y1="7" y2="15" transform="translate(-0.5,0)"/>';
   svg += `<circle class="mark" cx="${pct(feature.median, max)}%" cy="11" r="5"/>`;
-  let reading = `${fmt(feature.median)} ${unit}; range ${fmt(feature.low)} to ${fmt(feature.high)}`;
+  const what = (n) => (name === 'sentence_cv' ? `${fmt(n)} (higher means more mixed lengths)` : `${fmt(n)} ${unit}`);
+  let reading = name === 'sentence_mean'
+    ? `${fmt(feature.median)} words on average; averages range ${fmt(feature.low)} to ${fmt(feature.high)} across 500-word stretches`
+    : `${what(feature.median)}; range ${fmt(feature.low)} to ${fmt(feature.high)}`;
   let note = '';
   if (feature.decision === 'polish') {
     const measured = feature.measured ? `${fmt(feature.measured.low)} to ${fmt(feature.measured.high)}` : 'not recorded';
-    reading = `set to ${fmt(feature.low)} to ${fmt(feature.high)}; measured ${measured} ${unit}`;
+    reading = `set to ${fmt(feature.low)} to ${fmt(feature.high)}; measured ${measured}${unit ? ` ${unit}` : ''}`;
     note = `<span class="decision">polish: ${feature.polish === 'high' ? 'less of this than the samples show' : feature.polish === 'low' ? 'more of this than the samples show' : 'side not recorded'}</span>`;
   } else if (feature.decision === 'keep') {
     note = '<span class="decision">keep: as the samples show</span>';
   }
   const aria = `${label}: ${reading}${feature.decision ? `, decision ${feature.decision}` : ''}`;
-  return dialShell(label, aria, `${esc(left)}`, `${esc(right)} · ${fmt(max)}`, svg, reading, false, note);
+  return dialShell(label, aria, `${esc(left)}`, `${esc(right)}, scale to ${fmt(max)}`, svg, reading, false, note);
 }
 
 function dialShell(label, aria, left, right, svg, reading, na, note = '') {
@@ -533,8 +536,8 @@ function ratedDial(spec, entry, index) {
   for (let s = 0; s < 5; s += 1) svg += `<line class="tick" x1="${(s * 25).toFixed(2)}%" x2="${(s * 25).toFixed(2)}%" y1="8" y2="14"${s === 4 ? ' transform="translate(-0.5,0)"' : ''}/>`;
   svg += `<circle class="open" cx="${((entry.step - 1) * 25).toFixed(2)}%" cy="11" r="4.5"/>`;
   const id = `sn-${index}`;
-  const aria = `${label}: step ${entry.step} of 5 toward ${right}, rated from a trait line`;
-  return `<div class="dial"><div class="dial-row"><span class="dial-name">${esc(label)}<label for="${id}" class="margin-toggle sidenote-number"></label><span class="dial-reading">rated from a trait line</span></span>`
+  const aria = `${label}: step ${entry.step} of 5 toward ${right}, placed by a line in the voice`;
+  return `<div class="dial"><div class="dial-row"><span class="dial-name">${esc(label)}<label for="${id}" class="margin-toggle sidenote-number"></label></span>`
     + `<div class="dial-scale"><svg role="img" aria-label="${esc(aria)}">${svg}</svg><div class="dial-ends"><span>${esc(left)}</span><span>${esc(right)}</span></div></div></div>`
     + `<input type="checkbox" id="${id}" class="margin-toggle"><span class="sidenote">${inline(entry.trait)} <span class="src">(${esc(entry.evidence.join(', '))})</span></span></div>`;
 }
@@ -553,7 +556,7 @@ function sectionBlock(title, section, cls = '') {
 function markerLine(marker) {
   const where = marker.samples && marker.samples.length ? ` <span class="src">(${esc(marker.samples.join(', '))})</span>` : '';
   if (marker.class === 'variant' && marker.over) return `${esc(marker.marker)} over ${esc(marker.over)}${isNumber(marker.count) ? `, ${fmt(marker.count)} uses` : ''}${where}`;
-  if (marker.class === 'punctuation') return `${esc(marker.marker)}${isNumber(marker.rate) ? `, ${fmt(marker.rate)} per 1,000 words` : ''}${isNumber(marker.reference) ? ` (usual ${fmt(marker.reference)})` : ''}${where}`;
+  if (marker.class === 'punctuation') return `${esc(marker.marker)}${isNumber(marker.rate) ? `, ${fmt(marker.rate)} per 1,000 words overall` : ''}${isNumber(marker.reference) ? ` (usual ${fmt(marker.reference)})` : ''}${where}`;
   if (marker.class === 'idiom') return `“${esc(marker.marker)}”${marker.usual ? `, for “${esc(marker.usual)}”` : ''}${where}`;
   return `“${esc(marker.marker)}”${isNumber(marker.count) ? `, ${fmt(marker.count)} uses` : ''}${where}`;
 }
@@ -561,25 +564,28 @@ function markerLine(marker) {
 export function renderPage(data, generated, css) {
   const subject = data.subject || '[name not set in voice.md]';
   const a = data.authority;
-  const confirmed = a.confirmed && !labelsIn(a.confirmed).length ? `confirmed ${esc(a.confirmed)}` : 'not yet confirmed';
+  const isConfirmed = Boolean(a.confirmed && !labelsIn(a.confirmed).length);
+  const confirmed = isConfirmed
+    ? `confirmed ${esc(a.confirmed.replace(/\s*\[[^\]]*\]\s*$/, ''))}${a.name ? ` by ${esc(a.name)}` : ''}`
+    : `not yet confirmed${a.name ? `; confirming authority ${esc(a.name)}` : ''}`;
   const sections = data.sections;
   const features = data.features || {};
   const profile = data.profile;
 
   let profileNote;
   if (profile.state === 'read') {
-    profileNote = `profile <code>${esc(profile.path)}</code>${isNumber(profile.words) ? `, ${fmt(profile.words)} words` : ''}${isNumber(profile.samples) ? ` from ${fmt(profile.samples)} samples` : ''}${isNumber(profile.chunks) ? ` in ${fmt(profile.chunks)} chunks` : ''}`;
+    profileNote = `Measured from the confirmed profile <code>${esc(profile.path)}</code>${isNumber(profile.words) ? `, ${fmt(profile.words)} words` : ''}${isNumber(profile.samples) ? ` from ${fmt(profile.samples)} samples` : ''}${isNumber(profile.chunks) ? ` in ${fmt(profile.chunks)} stretches of ${fmt(profile.chunkWords || 500)} words` : ''}`;
   } else if (profile.state === 'missing-file') {
-    profileNote = `voice.md names the profile <code>${esc(profile.path)}</code>, which is not there, so no measured dial is shown`;
+    profileNote = `The voice names the profile <code>${esc(profile.path)}</code>, which is not there, so nothing measured is shown`;
   } else {
-    profileNote = 'voice.md names no confirmed profile, so no measured dial is shown';
+    profileNote = 'The voice names no confirmed profile, so nothing measured is shown';
   }
 
   let h = '';
   h += '<header>';
   h += `<h1>The voice of ${esc(subject)}</h1>`;
-  h += `<p class="meta">${esc(data.rootType || 'root type not declared')} root · ${confirmed}${a.name ? ` by ${esc(a.name)}` : ''}</p>`;
-  h += `<p class="meta">This page shows the voice as it is set now: <code>${esc(data.voice.path)}</code> as saved ${esc(data.voice.modified)}, and the ${profileNote}.</p>`;
+  h += `<p class="meta">${esc(data.rootType ? `${data.rootType} voice` : 'voice')} · ${confirmed}</p>`;
+  h += `<p class="meta">This page shows the voice as it is set now: <code>${esc(data.voice.path)}</code> as saved ${esc(data.voice.modified)}. ${profileNote}.</p>`;
   h += '</header>';
 
   const identity = sections.identity;
@@ -590,21 +596,33 @@ export function renderPage(data, generated, css) {
   }
 
   h += '<section><div class="dials">';
-  h += '<div class="dial-group">Register</div>';
   const rated = new Map((data.rated || []).map((entry) => [entry.key, entry]));
-  RATED.forEach((spec, i) => { h += ratedDial(spec, rated.get(spec[0]), i + 1); });
-  h += '<div class="dial-group">Stance</div>';
-  for (const spec of COUNTED.stance) h += countedDial(spec[0], spec[1], spec[2], spec[3], spec[4], spec[5], features[spec[0]]);
-  h += '<div class="dial-group">Rhythm</div>';
-  for (const spec of COUNTED.rhythm) h += countedDial(spec[0], spec[1], spec[2], spec[3], spec[4], spec[5], features[spec[0]]);
+  // A group with nothing behind any of its dials is one line, not a column of empty scales.
+  const empty = (title, names, why) => `<div class="dial-group">${title}</div><p class="na group-na">${esc(names)}: ${esc(why)}</p>`;
+  if (rated.size) {
+    const governing = sections.routing && sections.routing.rows.length && sections.routing.rows[0][0] ? sections.routing.rows[0][0] : null;
+    h += `<div class="dial-group">How it reads</div>${governing ? `<p class="group-for">Placed for: ${inline(governing)}</p>` : ''}`;
+    RATED.forEach((spec, i) => { h += ratedDial(spec, rated.get(spec[0]), i + 1); });
+  } else {
+    h += empty('How it reads', RATED.map((spec) => spec[1]).join(', '), 'not rated; no line in the voice places them on these scales');
+  }
+  for (const [group, title] of [['stance', 'How sure, and who is in it'], ['rhythm', 'Rhythm']]) {
+    const specs = COUNTED[group];
+    if (specs.some((spec) => features[spec[0]])) {
+      h += `<div class="dial-group">${title}</div>`;
+      for (const spec of specs) h += countedDial(spec[0], spec[1], spec[2], spec[3], spec[4], spec[5], features[spec[0]]);
+    } else {
+      h += empty(title, specs.map((spec) => spec[1]).join(', '), 'not known; nothing measured');
+    }
+  }
   const punctuation = PUNCTUATION_FEATURES.filter((name) => features[name]);
   if (punctuation.length) {
     h += '<div class="dial-group">Punctuation</div>';
     for (const name of punctuation) h += countedDial(name, PUNCTUATION_NAMES[name], 'rare', 'frequent', 'per 1,000 words', 20, features[name]);
   }
   h += '</div>';
-  h += '<p class="key"><svg viewBox="-6 -6 12 12" aria-hidden="true"><circle class="mark" r="5"/></svg>typical, measured'
-    + '<svg viewBox="-6 -6 12 12" aria-hidden="true"><circle class="open" r="4.5"/></svg>rated from a trait line'
+  if (rated.size || Object.keys(features).length) h += '<p class="key"><svg viewBox="-6 -6 12 12" aria-hidden="true"><circle class="mark" r="5"/></svg>typical, measured'
+    + '<svg viewBox="-6 -6 12 12" aria-hidden="true"><circle class="open" r="4.5"/></svg>placed by a line in your voice'
     + '<svg viewBox="0 0 14 10" aria-hidden="true"><rect class="band" width="14" height="10"/></svg>the range the voice is set to'
     + '<svg viewBox="0 0 14 10" aria-hidden="true"><rect class="measured" x="0.5" y="0.5" width="13" height="9"/></svg>measured before polishing'
     + ' · dotted: not known</p>';
@@ -623,7 +641,7 @@ export function renderPage(data, generated, css) {
   }
 
   if (data.markers && data.markers.length) {
-    h += '<h2>Markers kept</h2>';
+    h += '<h2>Words and marks you use often</h2>';
     h += `<ul class="plain">${data.markers.map((m) => `<li>${markerLine(m)}</li>`).join('')}</ul>`;
   }
   h += sectionBlock('Tone', sections.tone);
@@ -639,8 +657,8 @@ export function renderPage(data, generated, css) {
     for (const item of data.notAvailable) h += `<li><span class="src">${esc(item.section)}:</span> ${esc(item.label)}</li>`;
     h += '</ul>';
   }
-  h += `<p class="meta foot">Generated ${esc(generated)} by voice-report-html ${esc(VERSION)} from <code>${esc(data.voice.path)}</code> (sha256 ${esc(String(data.voice.sha256).slice(0, 12))})`
-    + `${profile.state === 'read' ? ` and <code>${esc(profile.path)}</code> (sha256 ${esc(String(profile.sha256).slice(0, 12))})` : ''}. `
+  h += `<p class="meta foot">Generated ${esc(generated)} by voice-report-html ${esc(VERSION)} from <code>${esc(data.voice.path)}</code> (file fingerprint ${esc(String(data.voice.sha256).slice(0, 12))})`
+    + `${profile.state === 'read' ? ` and <code>${esc(profile.path)}</code> (file fingerprint ${esc(String(profile.sha256).slice(0, 12))})` : ''}. `
     + 'Run it again after the voice changes; this page does not update itself.</p>';
   if (a.basis) h += `<p class="meta foot">Confirming authority's basis: ${inline(a.basis)}${a.fallbackSignoff ? `. Still needs sign-off from ${inline(a.fallbackSignoff)}.` : ''}</p>`;
   h += '</section>';

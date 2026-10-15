@@ -89,3 +89,5 @@ ul.never li:before { content: "✕ "; color: var(--mark); }
   .margin-toggle:checked + .sidenote { display: block; float: none; width: auto; margin: .5rem 0 .8rem 1rem; }
   table { font-size: .92rem; }
 }
+.group-na { margin: 0 0 .4rem; font-size: .95rem; }
+.group-for { margin: 0 0 .3rem; font-size: .92rem; color: var(--ink-2); font-style: italic; }

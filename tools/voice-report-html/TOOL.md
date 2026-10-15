@@ -143,7 +143,7 @@ A rated dial is one of `involved` (involved to informational), `explicit` (situa
   - Stance: hedges, boosters, I, we, you.
   - Rhythm: sentence length, sentence variety, long sentences.
   - Punctuation: any punctuation band the profile carries.
-- **How a counted dial is drawn:** the dot is the median, the solid band is the range the voice is set to, and a polished feature adds its measured band as a dashed outline and the side polished away. A dial with nothing behind it is a dotted line reading `not known` or `not rated`.
+- **How a counted dial is drawn:** the dot is the median, the solid band is the range the voice is set to, and a polished feature adds its measured band as a dashed outline and the side polished away. A dial with nothing behind it is a dotted line reading `not known` or `not rated`. A group in which no dial has anything behind it is one line naming its dials and why, and the key is left out when no dial is drawn.
 - **Below the dials:** the routing table, the kept markers, then Tone, Vocabulary, Structural Habits, Audience and Prohibitions as written, and every Not available label.
 - **Footer:** the sha256 of each file read.
 
