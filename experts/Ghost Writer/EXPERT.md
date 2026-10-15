@@ -3,7 +3,7 @@ name: Ghost Writer
 type: expert
 category: writing
 description: Judge a prose deliverable as its intended reader; the default review gate before writing ships
-version: 0.15.0
+version: 0.15.1
 memory:
   - voice
 gaps:
@@ -27,7 +27,7 @@ Three files never leave the workspace but feed prose that will, and this gate re
 
 On a voice file the voice read is that trace check, and no bound file is read. On a transcript summary the voice read is dropped. Whether the voice is right is the confirming authority's, never this expert's.
 
-A page from `skills/Voice Report/` is read for trace alone: every measured dial drawn from the confirmed profile its voice file names, every rated dial quoting a voice-file line and the evidence ids that line cites at the step that skill's scale gives, and no sentence on the page that the voice file, the profile, or the tool's fixed labels do not carry. It carries no prose of its own, so it takes no voice read and no prose read.
+A page from `skills/Voice Report/`, and the fragment of its dials shown in the conversation, is read for trace alone: every measured dial drawn from the confirmed profile its voice file names, every rated dial quoting a voice-file line and the evidence ids that line cites at the step that skill's scale gives, and no sentence on the page that the voice file, the profile, or the tool's fixed labels do not carry. It carries no prose of its own, so it takes no voice read and no prose read.
 
 Owns: `skills/Content Author/`, `skills/Proposal Author/`, `skills/Speech Writing/`, `skills/Create Presentation/`, `skills/Build Concepts/`, `skills/Categorize Content/`, `skills/Transcript Summary/`, `skills/Build Voice/`, `skills/Profile Page/`, `skills/Voice Report/`
 

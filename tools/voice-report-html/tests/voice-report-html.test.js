@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync, symlinkSync } from 'node:fs';
+import { appendFileSync, cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync, existsSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -36,13 +36,19 @@ function renderData(data, extra = []) {
   return { ...r, out, dir, dataPath, html: existsSync(out) ? readFileSync(out, 'utf8') : null };
 }
 
+function writeData(data) {
+  const path = join(scratch(), 'data.json');
+  writeFileSync(path, JSON.stringify(data));
+  return path;
+}
+
 const TRAIT = 'Emails and posts use I, you and contractions; the published narrative drops all three and carries figures with sources (E1, E2, E3, E4).';
 
 test('help works with nothing configured, and beside --help', () => {
   for (const args of [['help'], ['--help'], [], ['help', '--help']]) {
     const r = run(...args);
     assert.equal(r.code, 0);
-    assert.match(r.out, /voice-report-html 0\.2\.0/);
+    assert.match(r.out, /voice-report-html 0\.3\.0/);
     assert.equal(r.err, '');
   }
 });
@@ -273,6 +279,38 @@ test('fresh says whether a page still shows the voice as set now', () => {
   assert.equal(r.fresh, false);
   assert.match(r.changed[0], /records no fingerprints/);
   assert.match(run('fresh', '--page', old, '--voice', voice).err, /fresh needs --root/);
+});
+
+test('inline prints a chat fragment of the dials, and writes nothing', () => {
+  const base = extract('complete-root');
+  const dir = scratch();
+  const dataPath = join(dir, 'data.json');
+  writeFileSync(dataPath, JSON.stringify({ ...base, rated: [{ key: 'involved', step: 2, trait: TRAIT, evidence: ['E1', 'E2'] }] }));
+  const r = run('inline', '--data', dataPath);
+  assert.equal(r.code, 0, r.err);
+  const out = JSON.parse(r.out);
+  assert.deepEqual(Object.keys(out), ['fragment', 'rated', 'measured', 'profile']);
+  const f = out.fragment;
+  assert.doesNotMatch(f, /<script|<html|<head|<body|<!doctype|<!--|https?:\/\//i);
+  assert.match(f, /^<style>/);
+  assert.match(f, /<h2 class="sr">Voice dials for Marisol Vey/);
+  assert.match(f, /placed for: Email to a client&#39;s director/);
+  assert.match(f, /cx="25.00%"/);
+  assert.match(f, /set to 2 to 4; measured 2 to 9/);
+  assert.match(f, /Reference<span class="r">not rated<\/span>/);
+  assert.deepEqual(readdirSync(dir), ['data.json']);
+
+  const esc = JSON.parse(run('inline', '--data', writeData(extract('escape-root'))).out).fragment;
+  assert.doesNotMatch(esc, /<script>alert/);
+
+  const old = JSON.parse(run('inline', '--data', writeData(extract('old-format-root'))).out).fragment;
+  assert.match(old, /not known; nothing measured/);
+  assert.doesNotMatch(old, /class="k"/);
+
+  const stub = run('inline', '--data', writeData(extract('stub-root')));
+  assert.equal(stub.code, 1);
+  assert.match(stub.err, /has not been built/);
+  assert.match(run('inline', '--data', dataPath, '--output', join(dir, 'x.html')).err, /unknown flag --output/);
 });
 
 test('importing the script runs nothing', async () => {

@@ -2,8 +2,8 @@
 name: Voice Report
 type: skill
 category: onboarding
-description: Show one user root's bound voice, as it is set now, on one static HTML page saved in that root's work/onboarding/ and opened for the person, with dials for register, stance and rhythm and the voice's own lines beside them
-version: 0.2.0
+description: Show one user root's bound voice, as it is set now, in the conversation as dials for register, stance and rhythm, with the full page saved in that root's work/onboarding/ and the voice's own lines beside the dials
+version: 0.3.0
 memory:
   - voice
 ---
@@ -22,7 +22,7 @@ Classifier seam: routing, where `hooks/route.mjs` may open this skill for an ask
 
 ## Objective
 
-`work/onboarding/YYYY-MM-DD voice report.html` in the owning root, with `YYYY-MM-DD voice report.json` beside it, opened for the person who asked. Today's page is reused when the voice has not changed since it was made. The page shows the voice as its files set it at the time of the run:
+The voice's dials shown in the conversation, and `work/onboarding/YYYY-MM-DD voice report.html` in the owning root with `YYYY-MM-DD voice report.json` beside it. Today's page is reused when the voice has not changed since it was made. The page shows the voice as its files set it at the time of the run:
 - every measured value comes from the confirmed profile `voice.md` names;
 - every rated position quotes the trait line it rests on;
 - nothing is shown that those files do not support.
@@ -73,12 +73,14 @@ Where the Routing Table gives registers that differ on a dimension, rate the reg
 
 **5. Never overwrite.** An earlier page or data file at today's name is copied to a `zArchive/` beside it under the archive name `standards/conventions.md` Archives sets, for example `zArchive/26-10-15 V1 - 2026-10-15 voice report.html`. The copy uses `cp -n`, and the copy is confirmed on disk before the original is removed, each as its own command (the constitution's Irreversibles). The tool refuses an existing `--output` in any case.
 
-**6. Open and report.** Open the page for the person straight away, in whatever way the host allows:
+**6. Show and report.** Does the host draw HTML inside the conversation, through an inline visual or widget tool? Yes: run `inline` with `--data` the `.json`, and pass its `fragment` to that tool unchanged, so the dials appear in the conversation. Then give the page's path as a clickable link to the full page. No: open the page for the person in whatever way the host allows:
 - a browser or preview pane the host shows beside the conversation;
 - a file preview;
-- the system's default opener (`open` on macOS, `xdg-open` on Linux, `start` on Windows) where the host runs commands on the person's own machine.
+- the system's default opener (`open` on macOS, `xdg-open` on Linux, `start` on Windows), where the host runs commands on the person's own machine.
 
-Where the host can do none of these, give the page's path as a clickable link. Then, beside it, give the following, read from the `.json` beside the page when it was reused:
+Where the host can do none of these, give the page's path as a clickable link.
+
+In both cases, put the Identity section as written above the dials, in your reply text. Then, beside it, give the following, read from the `.json`:
 - whether it was reused because nothing changed, or built now, with what changed;
 - whether the voice is confirmed: `voice-confirmation-date:` holding a date means confirmed on that date, and its bracketed anchor is Build Voice's verification record; a Not available label there means not confirmed;
 - how many measured dials (punctuation included) and rated dials it shows, and which read not known or not rated, and why;
@@ -101,7 +103,7 @@ The page does not update itself. Asking again after the voice changes builds a n
 
 - The page and its data sit in the owning root's onboarding folder under today's date, or no page exists and the report says why, with the route to Build Voice.
 - Today's page was reused only when `fresh` said it still shows the voice as set now, and rebuilt otherwise.
-- The page was opened for the person in a way the host allows, or its path given as a clickable link where none was.
+- The dials were shown in the conversation from `inline`'s fragment, unchanged, where the host draws HTML there. Otherwise the page was opened in a way the host allows, or its path given as a clickable link where none was.
 - An earlier file at the same name was archived per `standards/conventions.md` Archives, never overwritten.
 - Every measured dial was drawn from the confirmed profile `voice.md` names, with polished features showing measured and set ranges.
 - Every rated dial quotes a Tone, Vocabulary or Structural Habits item, or a Routing Table Register cell, exactly; cites only ids that line cites; and sits at the step the scale and its step rule give.

@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 import { canonical, fail, screenDestination, screenSource, writeDestination } from './lib/paths.js';
 
-export const VERSION = '0.2.0';
+export const VERSION = '0.3.0';
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_CSS = join(SCRIPT_DIR, '..', 'template', 'report.css');
 const HELP_HINT = 'Run "node scripts/voice-report-html.js help" for usage.';
@@ -54,7 +54,8 @@ const PROMPT_LINE = /^\*[^*\s].*\*$/;
 const COMMANDS = {
   extract: { flags: ['--voice', '--root', '--output'], required: ['--voice', '--root'] },
   render: { flags: ['--data', '--output', '--date'], required: ['--data', '--output'] },
-  fresh: { flags: ['--page', '--voice', '--root'], required: ['--page', '--voice', '--root'] }
+  fresh: { flags: ['--page', '--voice', '--root'], required: ['--page', '--voice', '--root'] },
+  inline: { flags: ['--data'], required: ['--data'] }
 };
 
 export const USAGE = `voice-report-html ${VERSION}: one static HTML page showing a root's bound voice.
@@ -64,12 +65,15 @@ Usage:
   node scripts/voice-report-html.js extract --voice <file> --root <dir> [--output <file>]
   node scripts/voice-report-html.js render --data <file> --output <file> [--date YYYY-MM-DD]
   node scripts/voice-report-html.js fresh --page <file> --voice <file> --root <dir>
+  node scripts/voice-report-html.js inline --data <file>
 
 extract  Read the bound voice.md and the confirmed profile its voice-profile: line
          names, and print (or write to --output) one data object.
 render   Validate a data object, rated dials included, and write the page to --output.
 fresh    Say whether a page still shows the voice as it is set now: the voice.md and
          profile it read are the same files, unchanged. Writes nothing.
+inline   Validate a data object and print the dials as one HTML fragment for a host
+         that draws HTML in the conversation. Writes nothing.
 
 Every path is absolute. --output never overwrites: an existing file is refused.
 Nothing is written but the --output file. No command takes --env, and this tool
@@ -715,6 +719,113 @@ export function render(options) {
   };
 }
 
+// ------------------------------------------------------------------- inline
+
+const INLINE_CSS = `<style>
+.vr{padding:.5rem 0;color:var(--text-primary,#111);font-family:var(--font-sans,system-ui,sans-serif)}
+.vr .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.vr .who{font-size:13px;color:var(--text-secondary,#555);margin:0 0 .75rem}
+.vr .g{font-size:12px;color:var(--text-muted,#777);margin:.9rem 0 .2rem}
+.vr .d{display:grid;grid-template-columns:minmax(0,9.5rem) minmax(0,1fr);gap:0 14px;align-items:center;padding:3px 0}
+.vr .n{font-size:14px;line-height:1.3}.vr .r{display:block;font-size:12px;color:var(--text-secondary,#555)}
+.vr svg{display:block;width:100%;height:20px;overflow:visible}
+.vr .e{display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted,#777)}
+.vr .q{grid-column:2;font-size:12px;color:var(--text-muted,#777);margin:1px 0 4px}
+.vr .ax{stroke:var(--border-strong,#c9c8bd);stroke-width:1}.vr .bd{fill:var(--border-stronger,#d9d6c3)}
+.vr .ms{fill:none;stroke:var(--text-muted,#777);stroke-width:1;stroke-dasharray:3 2}
+.vr .mk{fill:var(--text-accent,#8a1c1c)}.vr .op{fill:var(--surface-2,#fff);stroke:var(--text-accent,#8a1c1c);stroke-width:1.6}
+.vr .na{stroke:var(--text-muted,#999);stroke-width:1;stroke-dasharray:2 4}.vr .k{font-size:12px;color:var(--text-muted,#777);margin:.8rem 0 0}
+@media (max-width:520px){.vr .d{grid-template-columns:minmax(0,1fr)}.vr .q{grid-column:1}}
+</style>`;
+
+function inlineScale(svg, left, right, aria) {
+  return `<div><svg role="img" aria-label="${esc(aria)}">${svg}</svg><div class="e"><span>${left}</span><span>${right}</span></div></div>`;
+}
+
+export function renderFragment(data) {
+  const features = data.features || {};
+  const rated = new Map((data.rated || []).map((entry) => [entry.key, entry]));
+  const sections = data.sections;
+  const a = data.authority;
+  const subject = data.subject || 'this voice';
+  const isConfirmed = Boolean(a.confirmed && !labelsIn(a.confirmed).length);
+  const confirmed = isConfirmed
+    ? `confirmed ${esc(a.confirmed.replace(/\s*\[[^\]]*\]\s*$/, ''))}`
+    : 'not yet confirmed';
+  const counted = [...COUNTED.stance, ...COUNTED.rhythm].filter((spec) => features[spec[0]]).length;
+  let h = INLINE_CSS + '<div class="vr">';
+  h += `<h2 class="sr">Voice dials for ${esc(subject)}: ${rated.size} placed by lines in the voice and ${counted} measured.</h2>`;
+  h += `<p class="who">${esc(subject)} · ${esc(data.rootType ? `${data.rootType} voice` : 'voice')} · ${confirmed}</p>`;
+
+  const governing = sections.routing && sections.routing.rows.length && sections.routing.rows[0][0] ? sections.routing.rows[0][0] : null;
+  h += `<p class="g">How it reads${rated.size && governing ? `, placed for: ${inline(governing)}` : ''}</p>`;
+  if (rated.size) {
+    for (const [key, label, left, right] of RATED) {
+      const entry = rated.get(key);
+      let svg = '<line class="ax" x1="0" x2="100%" y1="10" y2="10"/>';
+      if (entry) {
+        for (let n = 0; n < 5; n += 1) svg += `<line class="ax" x1="${(n * 25).toFixed(2)}%" x2="${(n * 25).toFixed(2)}%" y1="7" y2="13"${n === 4 ? ' transform="translate(-0.5,0)"' : ''}/>`;
+        svg += `<circle class="op" cx="${((entry.step - 1) * 25).toFixed(2)}%" cy="10" r="4.5"/>`;
+      } else {
+        svg = '<line class="na" x1="0" x2="100%" y1="10" y2="10"/>';
+      }
+      const aria = entry ? `${label}: step ${entry.step} of 5, from ${left} to ${right}` : `${label}: not rated`;
+      h += `<div class="d"><span class="n">${esc(label)}${entry ? '' : '<span class="r">not rated</span>'}</span>${inlineScale(svg, esc(left), esc(right), aria)}`;
+      if (entry) h += `<p class="q">“${inline(entry.trait)}”</p>`;
+      h += '</div>';
+    }
+  } else {
+    h += `<p class="r">${esc(RATED.map((spec) => spec[1]).join(', '))}: not rated; no line in the voice places them on these scales</p>`;
+  }
+
+  const groups = [['How sure, and who is in it', COUNTED.stance], ['Rhythm', COUNTED.rhythm],
+    ['Punctuation', PUNCTUATION_FEATURES.filter((name) => features[name]).map((name) => [name, PUNCTUATION_NAMES[name], 'rare', 'frequent', 'per 1,000 words', 20])]];
+  for (const [title, specs] of groups) {
+    if (!specs.length) continue;
+    h += `<p class="g">${title}</p>`;
+    if (!specs.some((spec) => features[spec[0]])) {
+      h += `<p class="r">${esc(specs.map((spec) => spec[1]).join(', '))}: not known; nothing measured</p>`;
+      continue;
+    }
+    for (const [name, label, left, right, unit, defaultMax] of specs) {
+      const f = features[name];
+      if (!f) {
+        h += `<div class="d"><span class="n">${esc(label)}<span class="r">not known</span></span>${inlineScale('<line class="na" x1="0" x2="100%" y1="10" y2="10"/>', esc(left), esc(right), `${label}: not known`)}</div>`;
+        continue;
+      }
+      const top = Math.max(f.high, f.measured ? f.measured.high : 0, f.median);
+      const max = Math.max(defaultMax, Math.ceil(top * 1.15 * 10) / 10);
+      let svg = '';
+      if (f.measured) {
+        const x1 = pct(f.measured.low, max); const x2 = pct(f.measured.high, max);
+        svg += `<rect class="ms" x="${x1}%" y="4" width="${(x2 - x1).toFixed(2)}%" height="12"/>`;
+      }
+      const b1 = pct(f.low, max); const b2 = pct(f.high, max);
+      svg += `<rect class="bd" x="${b1}%" y="5" width="${(b2 - b1).toFixed(2)}%" height="10"/><line class="ax" x1="0" x2="100%" y1="10" y2="10"/>`;
+      svg += `<circle class="mk" cx="${pct(f.median, max)}%" cy="10" r="5"/>`;
+      const value = name === 'sentence_cv' ? fmt(f.median) : `${fmt(f.median)} ${unit}`;
+      const reading = f.decision === 'polish'
+        ? `set to ${fmt(f.low)} to ${fmt(f.high)}${f.measured ? `; measured ${fmt(f.measured.low)} to ${fmt(f.measured.high)}` : ''}`
+        : value;
+      h += `<div class="d"><span class="n">${esc(label)}<span class="r">${esc(reading)}</span></span>${inlineScale(svg, esc(left), `${esc(right)}, to ${fmt(max)}`, `${label}: ${reading}`)}</div>`;
+    }
+  }
+  if (rated.size || Object.keys(features).length) {
+    h += '<p class="k">Filled dot: typical, measured. Open dot: placed by the quoted line. Shaded: the range the voice is set to. Dashed: measured before polishing. Dotted: not known.</p>';
+  }
+  return `${h}</div>`;
+}
+
+export function inlineReport(options) {
+  const dataPath = screenSource('--data', options['--data']);
+  const file = readText('--data', dataPath, DATA_CAP);
+  let data;
+  try { data = JSON.parse(file.text); } catch { fail(`Error: --data ${dataPath} is not valid JSON.`); }
+  validateData(data, dataPath);
+  const fragment = renderFragment(data);
+  return { fragment, rated: data.rated.length, measured: Object.keys(data.features).length, profile: data.profile.state };
+}
+
 function metaValue(html, name) {
   const match = new RegExp(`<meta name="voice-report:${name}" content="([^"]*)">`).exec(html);
   if (!match) return null;
@@ -765,5 +876,6 @@ export function runVoiceReport(argv) {
   if (parsed.command === 'help') return USAGE;
   if (parsed.command === 'extract') return extract(parsed.options);
   if (parsed.command === 'fresh') return fresh(parsed.options);
+  if (parsed.command === 'inline') return inlineReport(parsed.options);
   return render(parsed.options);
 }

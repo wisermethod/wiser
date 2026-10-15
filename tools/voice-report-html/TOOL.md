@@ -2,8 +2,8 @@
 name: voice-report-html
 type: tool
 category: documents
-description: Read a root's bound voice.md and the confirmed voice-lexicon profile it names into one data object, render that object as one static HTML page with dials for register, stance and rhythm, and say whether an existing page still shows the voice as set now
-version: 0.2.0
+description: Read a root's bound voice.md and the confirmed voice-lexicon profile it names into one data object, render that object as one static HTML page with dials for register, stance and rhythm or as a fragment of those dials for a host that draws HTML in the conversation, and say whether an existing page still shows the voice as set now
+version: 0.3.0
 ---
 
 # voice-report-html
@@ -62,6 +62,7 @@ The render run over `tests/fixtures/complete-root` with that one rated dial prin
 | `node scripts/voice-report-html.js extract --voice <file> --root <dir> [--output <file>]` | Read `voice.md` and the profile it names into one data object | Only the `--output` file, when one is given |
 | `node scripts/voice-report-html.js render --data <file> --output <file> [--date YYYY-MM-DD]` | Validate a data object, rated dials included, and write the page | The `--output` file |
 | `node scripts/voice-report-html.js fresh --page <file> --voice <file> --root <dir>` | Say whether a page still shows the voice as set now | No |
+| `node scripts/voice-report-html.js inline --data <file>` | Print the dials as one HTML fragment for the conversation | No |
 
 `extract` options:
 
@@ -88,6 +89,13 @@ The render run over `tests/fixtures/complete-root` with that one rated dial prin
 | `--page <file>` | A page `render` wrote. Absolute path | None; required |
 | `--voice <file>` | The file the owning root binds as `voice` now. Absolute path, inside `--root` | None; required |
 | `--root <dir>` | The owning root's folder | None; required |
+| `--help`, `-h` | Print usage and exit | Off |
+
+`inline` options:
+
+| Option | Effect | Default |
+|--------|--------|---------|
+| `--data <file>` | A data object `extract` wrote, with any rated dials added; validated exactly as `render` validates it. Absolute path | None; required |
 | `--help`, `-h` | Print usage and exit | Off |
 
 `fresh` is true only when all of the following hold:
@@ -173,6 +181,23 @@ A rated dial is one of `involved` (involved to informational), `explicit` (situa
 
 The page carries no script and no external request. All text from the files is escaped, and inline code is kept. Light and dark follow the reader's system setting, and the layout holds at phone width.
 
+## The fragment
+
+`inline` prints `{ "fragment", "rated", "measured", "profile" }`. The fragment is for a host that draws HTML inside the conversation: an inline visual or widget tool. It is one short `<style>` block followed by one `<div>`.
+
+What it holds:
+- a hidden heading for screen readers;
+- a one-line header: name, voice type, and whether and when it was confirmed;
+- the same dials as the page, each quoted trait line shown under its rated dial;
+- the key.
+
+What it leaves out:
+- no page shell, script, comment or external request;
+- no lead paragraph and no lists; those stay on the page;
+- no background; its colours read the host's own variables (`--text-primary`, `--text-secondary`, `--text-muted`, `--text-accent`, `--border-strong`, `--border-stronger`, `--surface-2`, `--font-sans`), each with a fallback, so it follows the host's light or dark mode.
+
+It writes nothing. The caller passes it to the host's renderer unchanged.
+
 ## Limits
 
 - **An old-format `voice.md`**, written before Build Voice recorded `voice-profile:`, shows every measured dial as not known. Rebuilding the voice with the current Build Voice fills them.
@@ -190,6 +215,7 @@ One JSON object on stdout, exit 0. A refusal prints to stderr, leaves stdout emp
 - `extract` with `--output` prints `{ "written", "state", "profile" }`.
 - `render` prints `{ "written", "rated", "measured", "profile" }`, where `measured` is the number of range features drawn.
 - `fresh` prints `{ "fresh", "changed" }`; `changed` is `[]` when `fresh` is true.
+- `inline` prints `{ "fragment", "rated", "measured", "profile" }`.
 
 ## Troubleshooting
 
@@ -211,6 +237,7 @@ One JSON object on stdout, exit 0. A refusal prints to stderr, leaves stdout emp
 
 - `help`, and `--help` beside any command, exits 0 with nothing installed and names every flag.
 - `extract` exits 0 with one data object whose every value is copied from `voice.md`, the profile it names, or the root's `AGENTS.md`, and whose `features` is empty when no profile was read.
+- `inline` exits 0 with one fragment only for a built voice whose data `render` would accept, and writes nothing.
 - `fresh` exits 0 and is true only when the page's recorded files are the bound files, unchanged.
 - `render` writes one static page only for a built voice, only with rated dials that quote a trait line and its cited evidence, and never over an existing file.
 - A bad path, destination, profile or data file, an unknown flag, or `--install` exits 1 with stdout empty, and the message names the cause and the fix.
