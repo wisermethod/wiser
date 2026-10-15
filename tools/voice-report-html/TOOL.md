@@ -69,7 +69,7 @@ The render run over `tests/fixtures/complete-root` with that one rated dial prin
 | Option | Effect | Default |
 |--------|--------|---------|
 | `--voice <file>` | The file the owning root's Provides block binds as `voice`. Absolute path, inside `--root` | None; required |
-| `--root <dir>` | The owning root's folder. Its `AGENTS.md` frontmatter supplies the root type, and the `voice-profile:` path resolves against it | None; required |
+| `--root <dir>` | The owning root's folder. `--voice` must sit inside it, and the `voice-profile:` path resolves against it | None; required |
 | `--output <file>` | Write the data object here and print `{ "written", "state", "profile" }`. Absolute path, held to the destination rules below | The data object goes to stdout |
 | `--help`, `-h` | Print usage and exit | Off |
 
@@ -147,7 +147,7 @@ A voice is `built` when at least one known section is answered; otherwise it is 
 | Field | Carries |
 |-------|---------|
 | `state` | `built` or `unbuilt` |
-| `subject`, `rootType` | From the title line and the root's `AGENTS.md`; `null` when absent |
+| `subject` | From the title line; `null` when absent |
 | `voice` | `path` from the root, `sha256`, and `modified` (the date the file was last saved) |
 | `authority` | `name`, `basis`, `confirmed`, `fallbackSignoff`, each as written or `null` |
 | `profile` | `path`, `state` (`read`, `absent`: no `voice-profile:` line, or `missing-file`), `sha256`, `words`, `samples`, `chunks`, `chunkWords` |
@@ -168,7 +168,7 @@ A rated dial is one of `involved` (involved to informational), `explicit` (situa
 
 ## The page
 
-- **Header:** name, root type, whether and when the voice was confirmed and by whom, and which files and dates the page reflects.
+- **Header:** name, whether and when the voice was confirmed and by whom, and which files and dates the page reflects.
 - **Lead:** the Identity section, copied.
 - **One aligned block of dials:**
   - Register: the four rated dials, each an open dot on a five-step scale, with the trait line as a sidenote.
@@ -187,14 +187,14 @@ The page carries no script and no external request. All text from the files is e
 
 What it holds:
 - a hidden heading for screen readers;
-- a one-line header: name, voice type, and whether and when it was confirmed;
-- the same dials as the page, each quoted trait line shown under its rated dial;
+- a one-line header: name, and whether and when it was confirmed;
+- the same dials as the page, drawn by the same code with the same marks, and their styles taken from `template/report.css`, each quoted trait line shown under its rated dial;
 - the key.
 
 What it leaves out:
 - no page shell, script, comment or external request;
 - no lead paragraph and no lists; those stay on the page;
-- no background; its colours read the host's own variables (`--text-primary`, `--text-secondary`, `--text-muted`, `--text-accent`, `--border-strong`, `--border-stronger`, `--surface-2`, `--font-sans`), each with a fallback, so it follows the host's light or dark mode.
+- no background; its colours read the host's own variables (`--text-primary`, `--text-secondary`, `--text-muted`, `--text-accent`, `--border-strong`, `--border-stronger`, `--surface-2`, `--font-sans`), each with a fallback taken from the page's own light and dark colours in `template/report.css`, so it follows the host's light or dark mode.
 
 It writes nothing. The caller passes it to the host's renderer unchanged.
 
@@ -236,7 +236,7 @@ One JSON object on stdout, exit 0. A refusal prints to stderr, leaves stdout emp
 ## Success
 
 - `help`, and `--help` beside any command, exits 0 with nothing installed and names every flag.
-- `extract` exits 0 with one data object whose every value is copied from `voice.md`, the profile it names, or the root's `AGENTS.md`, and whose `features` is empty when no profile was read.
+- `extract` exits 0 with one data object whose every value is copied from `voice.md` or the profile it names, and whose `features` is empty when no profile was read.
 - `inline` exits 0 with one fragment only for a built voice whose data `render` would accept, and writes nothing.
 - `fresh` exits 0 and is true only when the page's recorded files are the bound files, unchanged.
 - `render` writes one static page only for a built voice, only with rated dials that quote a trait line and its cited evidence, and never over an existing file.

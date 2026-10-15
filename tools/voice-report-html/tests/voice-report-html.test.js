@@ -20,8 +20,51 @@ function scratch() {
   return mkdtempSync(join(tmpdir(), 'voice-report-html-test-'));
 }
 
+const PROFILE = join('work', 'onboarding', '2026-10-15 profile confirmed.json');
+const PROFILE_LINE = `voice-profile: ${PROFILE.split('\\').join('/')}`;
+
+// Each variant is one base root with one change, written to a temp folder on first use.
+const VARIANTS = {
+  'anchored-profile-root': ['complete-root', (root) => edit(root, 'memory/voice.md', (t) => t.replace(PROFILE_LINE, `${PROFILE_LINE} [V7]`))],
+  'bad-profile-root': ['complete-root', (root) => edit(root, PROFILE, (t) => {
+    const profile = JSON.parse(t);
+    profile.ranges.features.hedges.target = 3;
+    return JSON.stringify(profile);
+  })],
+  'escape-root': ['complete-root', (root) => dropProfile(root) || edit(root, 'memory/voice.md', (t) => t
+    .replace('Grant writer for small arts nonprofits;', 'Grant writer <script>alert(1)</script> & "quoted" <b>bold</b>;')
+    .replace(`${PROFILE_LINE}\n`, '')
+    .replace('## Vocabulary\n', '- Writes <img src=x onerror=alert(2)> & "quoted" asides in every email (E1, E2).\n\n## Vocabulary\n'))],
+  'missing-profile-root': ['complete-root', (root) => dropProfile(root) || edit(root, 'memory/voice.md', (t) => t.replace('2026-10-15 profile confirmed.json', '2026-10-15 profile gone.json'))],
+  'outside-profile-root': ['complete-root', (root) => dropProfile(root) || edit(root, 'memory/voice.md', (t) => t.replace(PROFILE_LINE, `voice-profile: ../complete-root/${PROFILE}`))],
+  'labelled-stub-root': ['stub-root', (root) => edit(root, 'memory/voice.md', (t) => t.split('\n')
+    .map((line) => (line.startsWith('*') && line.endsWith('*') ? '[Not available: no writing supplied; Build Voice runs when writing is]' : line)).join('\n'))]
+};
+const built = new Map();
+
+function dropProfile(root) {
+  rmSync(join(root, PROFILE));
+}
+
+function edit(root, file, change) {
+  const path = join(root, file);
+  writeFileSync(path, change(readFileSync(path, 'utf8')));
+}
+
+function fixture(name) {
+  if (!VARIANTS[name]) return join(FIX, name);
+  if (!built.has(name)) {
+    const [base, change] = VARIANTS[name];
+    const root = join(scratch(), name);
+    cpSync(join(FIX, base), root, { recursive: true });
+    change(root);
+    built.set(name, root);
+  }
+  return built.get(name);
+}
+
 function extract(name) {
-  const root = join(FIX, name);
+  const root = fixture(name);
   const r = run('extract', '--voice', join(root, 'memory', 'voice.md'), '--root', root);
   assert.equal(r.code, 0, r.err);
   return JSON.parse(r.out);
@@ -74,7 +117,7 @@ test('extract reads a built voice and its confirmed profile', () => {
   const data = extract('complete-root');
   assert.equal(data.state, 'built');
   assert.equal(data.subject, 'Marisol Vey');
-  assert.equal(data.rootType, 'personal');
+  assert.equal('rootType' in data, false);
   assert.equal(data.authority.confirmed, '2026-10-15 [V3]');
   assert.equal(data.profile.state, 'read');
   assert.equal(data.profile.path, 'work/onboarding/2026-10-15 profile confirmed.json');
@@ -138,14 +181,14 @@ test('a voice-profile line naming a missing file is reported, not guessed', () =
 });
 
 test('a voice-profile line outside the owning root is refused', () => {
-  const root = join(FIX, 'outside-profile-root');
+  const root = fixture('outside-profile-root');
   const r = run('extract', '--voice', join(root, 'memory', 'voice.md'), '--root', root);
   assert.equal(r.code, 1);
   assert.match(r.err, /outside the owning root/);
 });
 
 test('a profile feature with a key voice-lexicon does not define is refused by name', () => {
-  const root = join(FIX, 'bad-profile-root');
+  const root = fixture('bad-profile-root');
   const r = run('extract', '--voice', join(root, 'memory', 'voice.md'), '--root', root);
   assert.equal(r.code, 1);
   assert.match(r.err, /unknown key "target"/);
@@ -293,8 +336,9 @@ test('inline prints a chat fragment of the dials, and writes nothing', () => {
   const f = out.fragment;
   assert.doesNotMatch(f, /<script|<html|<head|<body|<!doctype|<!--|https?:\/\//i);
   assert.match(f, /^<style>/);
-  assert.match(f, /@media \(prefers-color-scheme:dark\)\{\.vr\{--vi:var\(--text-primary,#e9e7dc\)/, 'dark fallbacks for a host without colour variables');
-  assert.doesNotMatch(f.replace(/--v\w+:var\([^)]*\)/g, ''), /#[0-9a-f]{3,6}/i, 'every colour goes through a variable');
+  assert.match(f, /@media \(prefers-color-scheme:dark\)\{\.vr\{--ink:var\(--text-primary,#e9e7dc\)/, 'dark fallbacks, taken from the page stylesheet, for a host without colour variables');
+  assert.match(f, /\.vr \.axis,\.vr \.tick\{stroke:var\(--rule\)/, 'mark styles come from the page stylesheet');
+  assert.doesNotMatch(f.replace(/--[\w-]+:var\([^)]*\)/g, ''), /#[0-9a-f]{3,6}/i, 'every colour goes through a variable');
   assert.match(f, /<h2 class="sr">Voice dials for Marisol Vey/);
   assert.match(f, /placed for: Email to a client&#39;s director/);
   assert.match(f, /cx="25.00%"/);

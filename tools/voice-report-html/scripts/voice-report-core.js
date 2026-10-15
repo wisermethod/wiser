@@ -135,18 +135,6 @@ function inside(root, path) {
   return path === root || path.startsWith(root + sep);
 }
 
-function rootType(root) {
-  try {
-    const text = readFileSync(join(root, 'AGENTS.md'), 'utf8');
-    const front = /^---\n([\s\S]*?)\n---/.exec(text.replace(/\r\n?/g, '\n'));
-    if (!front) return null;
-    const line = /^type:\s*(.+)$/m.exec(front[1]);
-    return line ? line[1].trim().replace(/^"(.*)"$/, '$1') : null;
-  } catch {
-    return null;
-  }
-}
-
 // ---------------------------------------------------------------- voice.md
 
 function labelsIn(text) {
@@ -339,30 +327,50 @@ function today() {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
-export function extract(options) {
-  const root = screenDirectory('--root', options['--root']);
-  const voicePath = screenSource('--voice', options['--voice']);
+/**
+ * The files a report reads, screened and fingerprinted: the bound voice.md and
+ * the profile its voice-profile: line names. extract and fresh both start here.
+ * The profile's state is absent (no line), outside (an absolute path or one
+ * leaving the root), missing-file, or read, with its text when read.
+ */
+function readInputs(rootOption, voiceOption) {
+  const root = screenDirectory('--root', rootOption);
+  const voicePath = screenSource('--voice', voiceOption);
   if (!inside(root, voicePath)) fail(`Error: --voice ${voicePath} is not inside --root ${root}. Pass the file the owning root's Provides block binds as voice.`);
   const voice = readText('--voice', voicePath, VOICE_CAP);
   const parsed = parseVoice(voice.text);
+  const voiceRel = relative(root, voicePath).split(sep).join('/');
+  const profile = { path: parsed.profile, state: 'absent', candidate: null, text: null, sha256: null };
+  if (parsed.profile) {
+    const candidate = isAbsolute(parsed.profile) ? null : canonical('voice-profile', resolve(root, parsed.profile));
+    if (candidate === null || !inside(root, candidate)) {
+      Object.assign(profile, { state: 'outside', candidate });
+    } else {
+      let exists = true;
+      try { exists = statSync(candidate).isFile(); } catch { exists = false; }
+      if (!exists) Object.assign(profile, { state: 'missing-file', candidate });
+      else Object.assign(profile, { state: 'read', candidate, ...readText('voice-profile', candidate, PROFILE_CAP) });
+    }
+  }
+  return { root, voicePath, voiceRel, voice, parsed, profile };
+}
+
+export function extract(options) {
+  const { root, voicePath, voiceRel, voice, parsed, profile: input } = readInputs(options['--root'], options['--voice']);
 
   let profile = { path: parsed.profile, state: 'absent', sha256: null };
   let measures = { words: null, samples: null, chunks: null, chunkWords: null, features: {}, markers: [] };
-  if (parsed.profile) {
-    if (isAbsolute(parsed.profile)) fail(`Error: voice-profile: in ${voicePath} is an absolute path; Build Voice writes it as a path from the owning root.`);
-    const candidate = canonical('voice-profile', resolve(root, parsed.profile));
-    if (!inside(root, candidate)) fail(`Error: voice-profile: in ${voicePath} names ${candidate}, outside the owning root ${root}. Build Voice writes the confirmed copy inside the root.`);
-    let exists = true;
-    try { exists = statSync(candidate).isFile(); } catch { exists = false; }
-    if (!exists) {
-      profile = { path: parsed.profile, state: 'missing-file', sha256: null };
-    } else {
-      const file = readText('voice-profile', candidate, PROFILE_CAP);
-      let object;
-      try { object = JSON.parse(file.text); } catch { fail(`Error: the profile ${candidate} is not valid JSON.`); }
-      measures = readProfile(object, candidate);
-      profile = { path: parsed.profile, state: 'read', sha256: file.sha256 };
-    }
+  if (input.state === 'outside') {
+    if (input.candidate === null) fail(`Error: voice-profile: in ${voicePath} is an absolute path; Build Voice writes it as a path from the owning root.`);
+    fail(`Error: voice-profile: in ${voicePath} names ${input.candidate}, outside the owning root ${root}. Build Voice writes the confirmed copy inside the root.`);
+  }
+  if (input.state === 'missing-file') {
+    profile = { path: parsed.profile, state: 'missing-file', sha256: null };
+  } else if (input.state === 'read') {
+    let object;
+    try { object = JSON.parse(input.text); } catch { fail(`Error: the profile ${input.candidate} is not valid JSON.`); }
+    measures = readProfile(object, input.candidate);
+    profile = { path: parsed.profile, state: 'read', sha256: input.sha256 };
   }
 
   const modified = statSync(voicePath).mtime;
@@ -372,8 +380,7 @@ export function extract(options) {
     extracted: today(),
     state: parsed.built ? 'built' : 'unbuilt',
     subject: parsed.subject,
-    rootType: rootType(root),
-    voice: { path: relative(root, voicePath).split(sep).join('/'), sha256: voice.sha256, modified: modified.toISOString().slice(0, 10) },
+    voice: { path: voiceRel, sha256: voice.sha256, modified: modified.toISOString().slice(0, 10) },
     authority: parsed.authority,
     profile: { ...profile, words: measures.words, samples: measures.samples, chunks: measures.chunks, chunkWords: measures.chunkWords },
     features: measures.features,
@@ -524,9 +531,10 @@ function scaleMax(feature, defaultMax) {
   return Math.max(defaultMax, Math.ceil(top * 1.15 * 10) / 10);
 }
 
-function countedDial(name, label, left, right, unit, defaultMax, feature) {
-  if (!feature) return dialShell(label, null, left, right, '<line class="na-line" x1="0" x2="100%" y1="11" y2="11"/>', 'not known', true);
-  const max = scaleMax(feature, defaultMax);
+// One drawing for each kind of dial, used by the page and the fragment alike.
+const NA_SVG = '<line class="na-line" x1="0" x2="100%" y1="11" y2="11"/>';
+
+function measuredSvg(feature, max) {
   let svg = '';
   if (feature.measured) {
     const a = pct(feature.measured.low, max); const b = pct(feature.measured.high, max);
@@ -536,7 +544,30 @@ function countedDial(name, label, left, right, unit, defaultMax, feature) {
   svg += `<rect class="band" x="${a}%" y="6" width="${(b - a).toFixed(2)}%" height="10"/>`;
   svg += '<line class="axis" x1="0" x2="100%" y1="11" y2="11"/>';
   svg += '<line class="tick" x1="0.5" x2="0.5" y1="7" y2="15"/><line class="tick" x1="100%" x2="100%" y1="7" y2="15" transform="translate(-0.5,0)"/>';
-  svg += `<circle class="mark" cx="${pct(feature.median, max)}%" cy="11" r="5"/>`;
+  return `${svg}<circle class="mark" cx="${pct(feature.median, max)}%" cy="11" r="5"/>`;
+}
+
+function ratedSvg(entry) {
+  let svg = '<line class="axis" x1="0" x2="100%" y1="11" y2="11"/>';
+  for (let s = 0; s < 5; s += 1) svg += `<line class="tick" x1="${(s * 25).toFixed(2)}%" x2="${(s * 25).toFixed(2)}%" y1="8" y2="14"${s === 4 ? ' transform="translate(-0.5,0)"' : ''}/>`;
+  return `${svg}<circle class="open" cx="${((entry.step - 1) * 25).toFixed(2)}%" cy="11" r="4.5"/>`;
+}
+
+/** The facts both headers state: who, whether and when confirmed, and the register the rated dials were placed for. */
+function headerFacts(data) {
+  const a = data.authority;
+  const isConfirmed = Boolean(a.confirmed && !labelsIn(a.confirmed).length);
+  const confirmed = isConfirmed ? `confirmed ${esc(a.confirmed.replace(/\s*\[[^\]]*\]\s*$/, ''))}` : 'not yet confirmed';
+  const by = a.name ? (isConfirmed ? ` by ${esc(a.name)}` : `; confirming authority ${esc(a.name)}`) : '';
+  const rows = data.sections.routing && data.sections.routing.rows;
+  const governing = rows && rows.length && rows[0][0] ? rows[0][0] : null;
+  return { subject: data.subject, confirmed, by, governing };
+}
+
+function countedDial(name, label, left, right, unit, defaultMax, feature) {
+  if (!feature) return dialShell(label, null, left, right, NA_SVG, 'not known', true);
+  const max = scaleMax(feature, defaultMax);
+  const svg = measuredSvg(feature, max);
   const { reading, note: noteText } = featureReading(name, feature, unit);
   const note = noteText ? `<span class="decision">${esc(noteText)}</span>` : '';
   const aria = `${label}: ${reading}${feature.decision ? `, decision ${feature.decision}` : ''}`;
@@ -551,10 +582,8 @@ function dialShell(label, aria, left, right, svg, reading, na, note = '') {
 
 function ratedDial(spec, entry, index) {
   const [, label, left, right] = spec;
-  if (!entry) return dialShell(label, null, esc(left), esc(right), '<line class="na-line" x1="0" x2="100%" y1="11" y2="11"/>', 'not rated', true);
-  let svg = '<line class="axis" x1="0" x2="100%" y1="11" y2="11"/>';
-  for (let s = 0; s < 5; s += 1) svg += `<line class="tick" x1="${(s * 25).toFixed(2)}%" x2="${(s * 25).toFixed(2)}%" y1="8" y2="14"${s === 4 ? ' transform="translate(-0.5,0)"' : ''}/>`;
-  svg += `<circle class="open" cx="${((entry.step - 1) * 25).toFixed(2)}%" cy="11" r="4.5"/>`;
+  if (!entry) return dialShell(label, null, esc(left), esc(right), NA_SVG, 'not rated', true);
+  const svg = ratedSvg(entry);
   const id = `sn-${index}`;
   const aria = `${label}: step ${entry.step} of 5, from ${left} to ${right}, placed by a line in the voice`;
   return `<div class="dial"><div class="dial-row"><span class="dial-name">${esc(label)}<label for="${id}" class="margin-toggle sidenote-number"></label></span>`
@@ -582,12 +611,9 @@ function markerLine(marker) {
 }
 
 export function renderPage(data, generated, css) {
-  const subject = data.subject || '[name not set in voice.md]';
+  const facts = headerFacts(data);
+  const subject = facts.subject || '[name not set in voice.md]';
   const a = data.authority;
-  const isConfirmed = Boolean(a.confirmed && !labelsIn(a.confirmed).length);
-  const confirmed = isConfirmed
-    ? `confirmed ${esc(a.confirmed.replace(/\s*\[[^\]]*\]\s*$/, ''))}${a.name ? ` by ${esc(a.name)}` : ''}`
-    : `not yet confirmed${a.name ? `; confirming authority ${esc(a.name)}` : ''}`;
   const sections = data.sections;
   const features = data.features || {};
   const profile = data.profile;
@@ -604,7 +630,7 @@ export function renderPage(data, generated, css) {
   let h = '';
   h += '<header>';
   h += `<h1>The voice of ${esc(subject)}</h1>`;
-  h += `<p class="meta">${confirmed}</p>`;
+  h += `<p class="meta">${facts.confirmed}${facts.by}</p>`;
   h += `<p class="meta">This page shows the voice as it is set now: <code>${esc(data.voice.path)}</code> as saved ${esc(data.voice.modified)}. ${profileNote}.</p>`;
   h += '</header>';
 
@@ -620,8 +646,7 @@ export function renderPage(data, generated, css) {
   // A group with nothing behind any of its dials is one line, not a column of empty scales.
   const empty = (title, names, why) => `<div class="dial-group">${title}</div><p class="na group-na">${esc(names)}: ${esc(why)}</p>`;
   if (rated.size) {
-    const governing = sections.routing && sections.routing.rows.length && sections.routing.rows[0][0] ? sections.routing.rows[0][0] : null;
-    h += `<div class="dial-group">How it reads</div>${governing ? `<p class="group-for">Placed for: ${inline(governing)}</p>` : ''}`;
+    h += `<div class="dial-group">How it reads</div>${facts.governing ? `<p class="group-for">Placed for: ${inline(facts.governing)}</p>` : ''}`;
     RATED.forEach((spec, i) => { h += ratedDial(spec, rated.get(spec[0]), i + 1); });
   } else {
     h += empty('How it reads', RATED.map((spec) => spec[1]).join(', '), 'not rated; no line in the voice places them on these scales');
@@ -707,12 +732,18 @@ ${h}
 `;
 }
 
-export function render(options) {
-  const dataPath = screenSource('--data', options['--data']);
+/** Read, parse and validate a data object extract wrote; render and inline both start here. */
+function loadData(option) {
+  const dataPath = screenSource('--data', option);
   const file = readText('--data', dataPath, DATA_CAP);
   let data;
   try { data = JSON.parse(file.text); } catch { fail(`Error: --data ${dataPath} is not valid JSON.`); }
   validateData(data, dataPath);
+  return { data, dataPath };
+}
+
+export function render(options) {
+  const { data, dataPath } = loadData(options['--data']);
   let generated = today();
   if (options['--date'] !== undefined) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(options['--date'])) fail(`Error: --date must be YYYY-MM-DD; got "${options['--date']}". ${HELP_HINT}`);
@@ -732,54 +763,63 @@ export function render(options) {
 
 // ------------------------------------------------------------------- inline
 
-const INLINE_CSS = `<style>
-.vr{--vi:var(--text-primary,#111);--v2:var(--text-secondary,#555);--vm:var(--text-muted,#6b6b63);--va:var(--text-accent,#8a1c1c);--vx:var(--border-strong,#c9c8bd);--vb:var(--border-stronger,#d9d6c3);--vs:var(--surface-2,#fff)}
-@media (prefers-color-scheme:dark){.vr{--vi:var(--text-primary,#e9e7dc);--v2:var(--text-secondary,#bdbbb0);--vm:var(--text-muted,#9d9b91);--va:var(--text-accent,#e0796b);--vx:var(--border-strong,#5a5953);--vb:var(--border-stronger,#45433b);--vs:var(--surface-2,#151513)}}
-.vr{padding:.5rem 0;color:var(--vi);font-family:var(--font-sans,system-ui,sans-serif)}
+// The fragment's colours and dial marks come from the page's own stylesheet:
+// its :root tokens become fallbacks behind the host's variables, and its mark
+// rules are scoped under .vr. Only the fragment's layout is its own.
+const HOST_VARIABLES = {
+  ink: '--text-primary', 'ink-2': '--text-secondary', 'ink-3': '--text-muted', na: '--text-muted',
+  mark: '--text-accent', rule: '--border-strong', band: '--border-stronger', bg: '--surface-2'
+};
+const MARK_RULE = /^\.(axis|band|measured|mark|open|na-line)\b[^{]*\{[^}]*\}$/;
+
+function tokens(block) {
+  const out = {};
+  for (const match of block.matchAll(/--([a-z0-9-]+):\s*([^;]+);/g)) out[match[1]] = match[2].trim();
+  return out;
+}
+
+function fragmentCss(css) {
+  const light = tokens(/:root\s*\{([^}]*)\}/.exec(css)[1]);
+  const dark = tokens(/@media \(prefers-color-scheme: dark\)\s*\{\s*:root\s*\{([^}]*)\}/.exec(css)[1]);
+  const vars = (values) => Object.entries(HOST_VARIABLES).map(([name, host]) => `--${name}:var(${host},${values[name]})`).join(';');
+  const marks = css.split('\n').map((line) => line.trim()).filter((line) => MARK_RULE.test(line))
+    .map((line) => line.replace(/^([^{]+)\{\s*(.*?)\s*\}$/, (all, selectors, body) => `${selectors.split(',').map((sel) => `.vr ${sel.trim()}`).join(',')}{${body.replace(/:\s+/g, ':').replace(/;\s+/g, ';')}}`));
+  return `<style>
+.vr{${vars(light)}}
+@media (prefers-color-scheme:dark){.vr{${vars(dark)}}}
+.vr{padding:.5rem 0;color:var(--ink);font-family:var(--font-sans,system-ui,sans-serif)}
 .vr .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.vr .who{font-size:13px;color:var(--v2);margin:0 0 .75rem}.vr .g{font-size:12px;color:var(--vm);margin:.9rem 0 .2rem}
+.vr .who{font-size:13px;color:var(--ink-2);margin:0 0 .75rem}.vr .g{font-size:12px;color:var(--ink-3);margin:.9rem 0 .2rem}
 .vr .d{display:grid;grid-template-columns:minmax(0,9.5rem) minmax(0,1fr);gap:0 14px;align-items:center;padding:3px 0}
-.vr .n{font-size:14px;line-height:1.3}.vr .r{display:block;font-size:12px;color:var(--v2)}
-.vr svg{display:block;width:100%;height:20px;overflow:visible}
-.vr .e{display:flex;justify-content:space-between;font-size:11px;color:var(--vm)}
-.vr .q{grid-column:2;font-size:12px;color:var(--vm);margin:1px 0 4px}
-.vr .ax{stroke:var(--vx);stroke-width:1}.vr .bd{fill:var(--vb)}.vr .ms{fill:none;stroke:var(--vm);stroke-width:1;stroke-dasharray:3 2}
-.vr .mk{fill:var(--va)}.vr .op{fill:var(--vs);stroke:var(--va);stroke-width:1.6}
-.vr .na{stroke:var(--vm);stroke-width:1;stroke-dasharray:2 4}.vr .k{font-size:12px;color:var(--vm);margin:.8rem 0 0}
+.vr .n{font-size:14px;line-height:1.3}.vr .r{display:block;font-size:12px;color:var(--ink-2)}
+.vr svg{display:block;width:100%;height:22px;overflow:visible}
+.vr .e{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-3)}
+.vr .q{grid-column:2;font-size:12px;color:var(--ink-3);margin:1px 0 4px}
+${marks.join('\n')}
+.vr .k{font-size:12px;color:var(--ink-3);margin:.8rem 0 0}
 @media (max-width:520px){.vr .d{grid-template-columns:minmax(0,1fr)}.vr .q{grid-column:1}}
 </style>`;
+}
 
 function inlineScale(svg, left, right, aria) {
   return `<div><svg role="img" aria-label="${esc(aria)}">${svg}</svg><div class="e"><span>${left}</span><span>${right}</span></div></div>`;
 }
 
-export function renderFragment(data) {
+export function renderFragment(data, css) {
   const features = data.features || {};
   const rated = new Map((data.rated || []).map((entry) => [entry.key, entry]));
-  const sections = data.sections;
-  const a = data.authority;
-  const subject = data.subject || 'this voice';
-  const isConfirmed = Boolean(a.confirmed && !labelsIn(a.confirmed).length);
-  const confirmed = isConfirmed
-    ? `confirmed ${esc(a.confirmed.replace(/\s*\[[^\]]*\]\s*$/, ''))}`
-    : 'not yet confirmed';
+  const facts = headerFacts(data);
+  const subject = facts.subject || 'this voice';
   const counted = Object.keys(features).length;
-  let h = INLINE_CSS + '<div class="vr">';
+  let h = fragmentCss(css) + '<div class="vr">';
   h += `<h2 class="sr">Voice dials for ${esc(subject)}: ${rated.size} placed by lines in the voice and ${counted} measured.</h2>`;
-  h += `<p class="who">${esc(subject)} · ${confirmed}</p>`;
+  h += `<p class="who">${esc(subject)} · ${facts.confirmed}</p>`;
 
-  const governing = sections.routing && sections.routing.rows.length && sections.routing.rows[0][0] ? sections.routing.rows[0][0] : null;
-  h += `<p class="g">How it reads${rated.size && governing ? `, placed for: ${inline(governing)}` : ''}</p>`;
+  h += `<p class="g">How it reads${rated.size && facts.governing ? `, placed for: ${inline(facts.governing)}` : ''}</p>`;
   if (rated.size) {
     for (const [key, label, left, right] of RATED) {
       const entry = rated.get(key);
-      let svg = '<line class="ax" x1="0" x2="100%" y1="10" y2="10"/>';
-      if (entry) {
-        for (let n = 0; n < 5; n += 1) svg += `<line class="ax" x1="${(n * 25).toFixed(2)}%" x2="${(n * 25).toFixed(2)}%" y1="7" y2="13"${n === 4 ? ' transform="translate(-0.5,0)"' : ''}/>`;
-        svg += `<circle class="op" cx="${((entry.step - 1) * 25).toFixed(2)}%" cy="10" r="4.5"/>`;
-      } else {
-        svg = '<line class="na" x1="0" x2="100%" y1="10" y2="10"/>';
-      }
+      const svg = entry ? ratedSvg(entry) : NA_SVG;
       const aria = entry ? `${label}: step ${entry.step} of 5, from ${left} to ${right}` : `${label}: not rated`;
       h += `<div class="d"><span class="n">${esc(label)}${entry ? '' : '<span class="r">not rated</span>'}</span>${inlineScale(svg, esc(left), esc(right), aria)}`;
       if (entry) h += `<p class="q">“${inline(entry.trait)}” (${esc(entry.evidence.join(', '))})</p>`;
@@ -801,18 +841,11 @@ export function renderFragment(data) {
     for (const [name, label, left, right, unit, defaultMax] of specs) {
       const f = features[name];
       if (!f) {
-        h += `<div class="d"><span class="n">${esc(label)}<span class="r">not known</span></span>${inlineScale('<line class="na" x1="0" x2="100%" y1="10" y2="10"/>', esc(left), esc(right), `${label}: not known`)}</div>`;
+        h += `<div class="d"><span class="n">${esc(label)}<span class="r">not known</span></span>${inlineScale(NA_SVG, esc(left), esc(right), `${label}: not known`)}</div>`;
         continue;
       }
       const max = scaleMax(f, defaultMax);
-      let svg = '';
-      if (f.measured) {
-        const x1 = pct(f.measured.low, max); const x2 = pct(f.measured.high, max);
-        svg += `<rect class="ms" x="${x1}%" y="4" width="${(x2 - x1).toFixed(2)}%" height="12"/>`;
-      }
-      const b1 = pct(f.low, max); const b2 = pct(f.high, max);
-      svg += `<rect class="bd" x="${b1}%" y="5" width="${(b2 - b1).toFixed(2)}%" height="10"/><line class="ax" x1="0" x2="100%" y1="10" y2="10"/>`;
-      svg += `<circle class="mk" cx="${pct(f.median, max)}%" cy="10" r="5"/>`;
+      const svg = measuredSvg(f, max);
       const { reading, note } = featureReading(name, f, unit);
       h += `<div class="d"><span class="n">${esc(label)}<span class="r">${esc(reading)}</span>${note ? `<span class="r">${esc(note)}</span>` : ''}</span>${inlineScale(svg, esc(left), `${esc(right)}, scale to ${fmt(max)}`, `${label}: ${reading}${note ? `; ${note}` : ''}`)}</div>`;
     }
@@ -826,12 +859,8 @@ export function renderFragment(data) {
 }
 
 export function inlineReport(options) {
-  const dataPath = screenSource('--data', options['--data']);
-  const file = readText('--data', dataPath, DATA_CAP);
-  let data;
-  try { data = JSON.parse(file.text); } catch { fail(`Error: --data ${dataPath} is not valid JSON.`); }
-  validateData(data, dataPath);
-  const fragment = renderFragment(data);
+  const { data } = loadData(options['--data']);
+  const fragment = renderFragment(data, readFileSync(TEMPLATE_CSS, 'utf8'));
   return { fragment, rated: data.rated.length, measured: Object.keys(data.features).length, profile: data.profile.state };
 }
 
@@ -846,9 +875,7 @@ function metaValue(html, name) {
  * the page recorded with the files on disk, by re-reading what extract would read.
  */
 export function fresh(options) {
-  const root = screenDirectory('--root', options['--root']);
-  const voicePath = screenSource('--voice', options['--voice']);
-  if (!inside(root, voicePath)) fail(`Error: --voice ${voicePath} is not inside --root ${root}. Pass the file the owning root's Provides block binds as voice.`);
+  const { voiceRel, voice, profile } = readInputs(options['--root'], options['--voice']);
   const pagePath = screenSource('--page', options['--page']);
   const page = readText('--page', pagePath, DATA_CAP).text;
   const changed = [];
@@ -861,21 +888,14 @@ export function fresh(options) {
   if (recorded.voiceSha === null) {
     return { fresh: false, changed: ['the page records no fingerprints; it was made by an earlier version of this tool'] };
   }
-  const voice = readText('--voice', voicePath, VOICE_CAP);
-  const voiceRel = relative(root, voicePath).split(sep).join('/');
   if (recorded.voice !== voiceRel) changed.push(`the page read ${recorded.voice}, and the bound voice is ${voiceRel}`);
   if (recorded.voiceSha !== voice.sha256) changed.push(`${voiceRel} has changed since the page was made`);
-  const now = parseVoice(voice.text).profile || '';
+  const now = profile.path || '';
   if ((recorded.profile || '') !== now) {
     changed.push(now ? `the voice now names the profile ${now}` : 'the voice no longer names a profile');
   } else if (now) {
-    const candidate = canonical('voice-profile', resolve(root, now));
-    let sha = null;
-    if (inside(root, candidate)) {
-      try { if (statSync(candidate).isFile()) sha = readText('voice-profile', candidate, PROFILE_CAP).sha256; } catch { sha = null; }
-    }
-    if (sha === null) changed.push(`the profile ${now} is no longer there`);
-    else if (sha !== recorded.profileSha) changed.push(`the profile ${now} has changed since the page was made`);
+    if (profile.state !== 'read') changed.push(`the profile ${now} is no longer there`);
+    else if (profile.sha256 !== recorded.profileSha) changed.push(`the profile ${now} has changed since the page was made`);
   }
   return { fresh: changed.length === 0, changed };
 }
