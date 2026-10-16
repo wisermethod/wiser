@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * voice-report-html: one static HTML page showing a root's bound voice, from
- * its voice.md and the confirmed voice-lexicon profile that file names.
- * Node built-ins only.
+ * its voice.md, the confirmed voice-lexicon profile that file names, and the
+ * voice key's state line in the root's AGENTS.md. Node built-ins only.
  *
  * The rules every shipped script follows are stated once, in
  * system/templates/Script Contract.md.

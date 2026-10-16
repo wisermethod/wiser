@@ -8,7 +8,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { readFileSync, statSync } from 'node:fs';
+import { lstatSync, readFileSync, statSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -249,18 +249,22 @@ export function parseVoice(text) {
 // --------------------------------------------------------------- AGENTS.md
 
 const KEY_STATES = ['complete', 'provisional', 'blocked'];
+// A key is open in any state but complete; absent and unreadable say nothing about it.
+const OPEN_STATES = ['provisional', 'blocked', 'unrecognized'];
+const ONBOARDING_STATES = [...KEY_STATES, 'unrecognized', 'absent', 'unreadable'];
 
 /**
  * The voice key's state line under the root's ## Onboarding heading, as
  * skills/Onboard Root/ writes it: `- voice: provisional (...; owner: ...)`.
  * The state is the line's first word where that is complete, provisional or
  * blocked, unrecognized where it is anything else, and absent where the
- * heading or the line is not there. The line is kept as written.
+ * heading or the line is not there. The line is kept as written. A heading
+ * may be indented up to three spaces, as Markdown allows.
  */
 export function parseOnboarding(text) {
   let inSection = false;
   for (const line of text.split('\n')) {
-    const heading = /^##\s+(.+?)\s*$/.exec(line);
+    const heading = /^ {0,3}##\s+(.+?)\s*$/.exec(line);
     if (heading) { inSection = heading[1].toLowerCase() === 'onboarding'; continue; }
     if (!inSection) continue;
     const entry = /^\s*[-*+]\s+`?voice`?:\s*(.+?)\s*$/.exec(line);
@@ -350,10 +354,14 @@ export function readProfile(object, shown) {
 
 // ------------------------------------------------------------------ extract
 
-function today() {
-  const now = new Date();
+/** A date as YYYY-MM-DD in local time, so every date on the page reads on one clock. */
+function localDate(date) {
   const pad = (n) => String(n).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function today() {
+  return localDate(new Date());
 }
 
 /**
@@ -384,11 +392,21 @@ function readInputs(rootOption, voiceOption) {
   }
   // Where the voice key stands is the root's Onboarding state line, not voice.md:
   // a key reopened after its confirmation date is provisional again there.
+  // A file there that cannot be read (not a regular file, a broken link, unreadable,
+  // over the cap, or not UTF-8) leaves the voice's standing unknown: the report still
+  // runs, and the page never calls the voice confirmed on it.
   const agentsPath = join(root, 'AGENTS.md');
   let onboarding = { path: 'AGENTS.md', state: 'absent', line: null };
-  let agentsFile = false;
-  try { agentsFile = statSync(agentsPath).isFile(); } catch { agentsFile = false; }
-  if (agentsFile) onboarding = { path: 'AGENTS.md', ...parseOnboarding(readText('AGENTS.md', agentsPath, VOICE_CAP).text) };
+  let present = false;
+  try { lstatSync(agentsPath); present = true; } catch { present = false; }
+  if (present) {
+    try {
+      if (!statSync(agentsPath).isFile()) throw new Error('not a regular file');
+      onboarding = { path: 'AGENTS.md', ...parseOnboarding(readText('AGENTS.md', agentsPath, VOICE_CAP).text) };
+    } catch {
+      onboarding = { path: 'AGENTS.md', state: 'unreadable', line: null };
+    }
+  }
   return { root, voicePath, voiceRel, voice, parsed, profile, onboarding };
 }
 
@@ -417,7 +435,7 @@ export function extract(options) {
     extracted: today(),
     state: parsed.built ? 'built' : 'unbuilt',
     subject: parsed.subject,
-    voice: { path: voiceRel, sha256: voice.sha256, modified: modified.toISOString().slice(0, 10) },
+    voice: { path: voiceRel, sha256: voice.sha256, modified: localDate(modified) },
     authority: parsed.authority,
     onboarding,
     profile: { ...profile, words: measures.words, samples: measures.samples, chunks: measures.chunks, chunkWords: measures.chunkWords },
@@ -465,6 +483,9 @@ export function validateData(data, shown) {
   for (const key of ['sections', 'features', 'authority', 'onboarding', 'voice', 'profile']) {
     if (!data[key] || typeof data[key] !== 'object') fail(`Error: ${shown} has no ${key} object. Run extract again rather than editing it by hand.`);
   }
+  if (!ONBOARDING_STATES.includes(data.onboarding.state)) {
+    fail(`Error: ${shown} has an onboarding state of ${JSON.stringify(data.onboarding.state)}. Run extract again rather than editing it by hand.`);
+  }
   if (!Array.isArray(data.rated)) fail(`Error: ${shown} has a rated value that is not an array.`);
   const seen = new Set();
   const sectionItems = [];
@@ -472,10 +493,12 @@ export function validateData(data, shown) {
     for (const item of section.items || []) sectionItems.push({ section: key, text: normal(item) });
   }
   // A Routing Table row's Register cell is a trait line too: it states the
-  // register an output takes. The ids it rests on are the ones its row cites,
-  // because Build Voice gives each row a reason and the ids often sit there.
+  // register an output takes. The ids it rests on are the ones its whole row
+  // cites, Why cell included; the cells are joined with their bar, so no range
+  // runs across two cells.
+  const rowItems = [];
   for (const row of (data.sections.routing && data.sections.routing.rows) || []) {
-    if (typeof row[1] === 'string' && row[1].trim()) sectionItems.push({ section: 'routing', text: normal(row[1]), cites: normal(row.join(' ')) });
+    if (typeof row[1] === 'string' && row[1].trim()) rowItems.push({ text: normal(row[1]), cites: normal(row.join(' | ')) });
   }
   for (const entry of data.rated) {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) fail(`Error: a rated entry in ${shown} is not an object.`);
@@ -488,9 +511,12 @@ export function validateData(data, shown) {
     if (!Number.isInteger(entry.step) || entry.step < 1 || entry.step > 5) fail(`Error: rated dial "${entry.key}" in ${shown} has step ${JSON.stringify(entry.step)}; a step is a whole number from 1 to 5.`);
     if (typeof entry.trait !== 'string' || normal(entry.trait).length < 12) fail(`Error: rated dial "${entry.key}" in ${shown} quotes no trait line. A rated dial rests on a trait line copied from voice.md.`);
     const quote = normal(entry.trait);
-    // Every item holding the quote is a candidate home, so a short Register cell
-    // that also appears inside a longer item is still checked against its row.
-    const homes = sectionItems.filter((item) => item.text.includes(quote));
+    // A quote rests on the first section item that holds it, as it always has. A
+    // Register cell that holds it is a home too, so a short cell that also sits
+    // inside a longer item, such as one in Identity, is still checked against its row.
+    const first = sectionItems.find((item) => item.text.includes(quote));
+    const rows = rowItems.filter((item) => item.text.includes(quote));
+    const homes = first ? [first, ...rows] : rows;
     if (!homes.length) fail(`Error: rated dial "${entry.key}" quotes "${quote.slice(0, 80)}", which is not in voice.md as extracted. Copy the trait line exactly.`);
     if (!Array.isArray(entry.evidence) || entry.evidence.length === 0) fail(`Error: rated dial "${entry.key}" in ${shown} cites no evidence id.`);
     for (const id of entry.evidence) {
@@ -498,8 +524,10 @@ export function validateData(data, shown) {
     }
     const cited = homes.map((home) => citedIds(home.cites || home.text));
     if (!cited.some((ids) => entry.evidence.every((id) => ids.has(id)))) {
-      const id = entry.evidence.find((e) => !cited[0].has(e)) || entry.evidence[0];
-      fail(`Error: rated dial "${entry.key}" cites ${id}, which the quoted trait line does not cite${homes[0].section === 'routing' ? ' anywhere in its Routing Table row' : ''}.`);
+      const missing = entry.evidence.find((id) => !cited.some((ids) => ids.has(id)));
+      const where = rows.length ? (first ? ', nor does the Routing Table row of any Register cell holding it' : ' anywhere in its Routing Table row') : '';
+      if (missing) fail(`Error: rated dial "${entry.key}" cites ${missing}, which the quoted trait line does not cite${where}.`);
+      fail(`Error: rated dial "${entry.key}" cites ${entry.evidence.join(', ')}, and no one line holding the quoted trait cites them all. Cite only ids from the line you quote.`);
     }
   }
 }
@@ -510,12 +538,15 @@ function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-/** Escaped text with inline code kept and emphasis markers dropped. */
+/**
+ * Escaped text with inline code kept and emphasis markers dropped. Italics go
+ * first, so a bold span holding an italic title loses both pairs of markers.
+ */
 function inline(text) {
   return esc(text)
     .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/(^|[\s(])\*([^*\s][^*]*)\*(?=[\s).,;:]|$)/g, '$1$2')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/\[Not available:([^\]]*)\]/g, '<span class="na">[Not available:$1]</span>');
 }
 
@@ -600,18 +631,20 @@ function ratedSvg(entry) {
 
 /**
  * The facts both headers state: who, where the voice key stands and when it was
- * confirmed, and the register the rated dials were placed for. A state line that
- * is not complete is shown as written, and the confirmation date is then only the
- * last one, never the voice's current standing.
+ * confirmed, and the register the rated dials were placed for. An open key is
+ * shown by its state line as written, and an unreadable AGENTS.md as not known;
+ * either way the confirmation date is then only the last one. A confirmation
+ * line holding no date, an anchor alone, is not a confirmation.
  */
 function headerFacts(data) {
   const a = data.authority;
   const o = data.onboarding || { state: 'absent', line: null };
   const isConfirmed = Boolean(a.confirmed && !labelsIn(a.confirmed).length);
   const date = isConfirmed ? esc(a.confirmed.replace(/\s*\[[^\]]*\]\s*$/, '')) : null;
-  const open = Boolean(o.line) && o.state !== 'complete';
+  const last = date ? `; last confirmed ${date}` : '; not yet confirmed';
   let confirmed;
-  if (open) confirmed = `voice: ${inline(o.line)}${date ? `; last confirmed ${date}` : '; not yet confirmed'}`;
+  if (OPEN_STATES.includes(o.state)) confirmed = `voice: ${o.line ? inline(o.line) : esc(o.state)}${last}`;
+  else if (o.state === 'unreadable') confirmed = `voice state not known: <code>${esc(o.path)}</code> could not be read${last}`;
   else confirmed = date ? `confirmed ${date}` : 'not yet confirmed';
   const by = a.name ? (date ? ` by ${esc(a.name)}` : `; confirming authority ${esc(a.name)}`) : '';
   const rows = data.sections.routing && data.sections.routing.rows;
@@ -775,6 +808,7 @@ export function renderPage(data, generated, css) {
 <meta name="voice-report:voice-sha256" content="${esc(data.voice.sha256)}">
 <meta name="voice-report:profile" content="${esc(profile.state === 'read' ? profile.path : '')}">
 <meta name="voice-report:profile-sha256" content="${esc(profile.state === 'read' ? profile.sha256 : '')}">
+<meta name="voice-report:onboarding-state" content="${esc(onboarding.state)}">
 <meta name="voice-report:onboarding" content="${esc(onboarding.line || '')}">
 <title>Voice of ${esc(subject)}</title>
 <style>
@@ -942,14 +976,20 @@ export function fresh(options) {
     voiceSha: metaValue(page, 'voice-sha256'),
     profile: metaValue(page, 'profile'),
     profileSha: metaValue(page, 'profile-sha256'),
-    onboarding: metaValue(page, 'onboarding')
+    onboarding: metaValue(page, 'onboarding'),
+    onboardingState: metaValue(page, 'onboarding-state')
   };
   if (recorded.voiceSha === null) {
     return { fresh: false, changed: ['the page records no fingerprints; it was made by an earlier version of this tool'] };
   }
   const line = onboarding.line || '';
-  if (recorded.onboarding === null) changed.push('the page records no voice state line; it was made by an earlier version of this tool');
-  else if (recorded.onboarding !== line) changed.push(line ? `the voice state line in AGENTS.md now reads "voice: ${line}"` : 'AGENTS.md no longer carries a voice state line');
+  if (recorded.onboarding === null || recorded.onboardingState === null) {
+    changed.push('the page records no voice state line; it was made by an earlier version of this tool');
+  } else if (recorded.onboarding !== line) {
+    changed.push(line ? `the voice state line in AGENTS.md now reads "voice: ${line}"` : 'AGENTS.md no longer carries a voice state line');
+  } else if (recorded.onboardingState !== onboarding.state) {
+    changed.push(onboarding.state === 'unreadable' ? 'AGENTS.md can no longer be read' : `the voice state in AGENTS.md is now ${onboarding.state}`);
+  }
   if (recorded.voice !== voiceRel) changed.push(`the page read ${recorded.voice}, and the bound voice is ${voiceRel}`);
   if (recorded.voiceSha !== voice.sha256) changed.push(`${voiceRel} has changed since the page was made`);
   const now = profile.path || '';

@@ -12,11 +12,11 @@ memory:
 
 ## Context
 
-Use when a person asks to see their voice: "show me my voice", "voice report", "what does my voice look like", "visualize my voice". The page is a picture of the bound `voice.md` and the confirmed profile it names, taken now.
+Use when a person asks to see their voice: "show me my voice", "voice report", "what does my voice look like", "visualize my voice". The page is a picture of the bound `voice.md`, the confirmed profile it names, and the voice key's state line in the root's `AGENTS.md`, taken now.
 
 Not for building or changing a voice; that is `skills/Build Voice/`, the only author of `voice.md`. Not for writing in a voice; that is `skills/Content Author/`. Not for measuring writing; that is `tools/voice-lexicon/`. Not for a diagram of other material; that is `skills/Visualizer/`.
 
-The page carries no prose of its own. Its lead is the Identity section as written, and its lists are the voice's own lines. Every other word on it is a fixed label the tool prints. A sentence this skill composed would make the page a prose deliverable for Content Author and its gate.
+The page carries no prose of its own. Its lead is the Identity section as written, and its lists are the voice's own lines. Every other word on it is the voice key's state line from the root's `AGENTS.md`, as written, or a fixed label the tool prints. A sentence this skill composed would make the page a prose deliverable for Content Author and its gate.
 
 Classifier seam: routing, where `hooks/route.mjs` may open this skill for an ask. Else: the routing table, read as `AGENTS.md` states.
 
@@ -53,7 +53,7 @@ Read `state` and `profile`:
 
 **3. Rate the register dials.** For each of `involved`, `explicit`, `abstract` and `formality`, read the Tone, Vocabulary and Structural Habits items in the `.json`, and the Register cell of each Routing Table row. Does a line state a move that places this voice on that dimension? Yes: add a `rated` entry using the scale below, with the line copied exactly into `trait`. No: add nothing, and the dial reads not rated. A guess is never a rating.
 
-For `evidence`, cite the ids of the samples that show the move in the register you are rating. These come only from the ids that line cites, and a range such as `E1 to E5` cites every id inside it. For a Register cell, the line is its whole Routing Table row, so the ids in its Why cell count. One line may back two dials when it states a move on each.
+For `evidence`, cite the ids of the samples that show the move in the register you are rating. These come only from the ids that line cites, and a range such as `E1 to E5` cites every id inside it. For a Register cell, the ids may also come from anywhere in its Routing Table row, its Why cell included; the move and the quote stay the Register cell's own. One line may back two dials when it states a move on each.
 
 | Key | Step 1 | Step 5 |
 |-----|--------|--------|
@@ -83,9 +83,9 @@ Where the host can do none of these, give the page's path as a clickable link.
 In both cases, put the Identity section as written above the dials, in your reply text. After the dials and the link, give the following, read from the `.json`:
 - whether it was reused because nothing changed, or built now, with what changed;
 - where the voice stands, read from `onboarding`, the voice key's state line in the root's `AGENTS.md`:
-  - a line that is not `complete` is said as written, with what it waits on and who owns it, and `voice-confirmation-date:` is then the last confirmation, never the voice's current standing;
-  - a line that is `complete`, or no line: `voice-confirmation-date:` holding a date means confirmed on that date, and its bracketed anchor is Build Voice's verification record; a Not available label there means not confirmed;
-- each rated dial whose trait `voice.md` or that state line names as not yet confirmed, said to rest on an unconfirmed trait;
+  - `provisional`, `blocked` or `unrecognized`: the key is open. Say the line as written, with what it waits on and who owns it where the line names them. `voice-confirmation-date:` is then the last confirmation, or none where it holds no date;
+  - `unreadable`: say the voice's standing is not known because `AGENTS.md` could not be read, and give `voice-confirmation-date:` as the last confirmation, or none;
+  - `complete`, or `absent`: `voice-confirmation-date:` holding a date means confirmed on that date, and its bracketed anchor is Build Voice's verification record; a Not available label there, or no date, means not confirmed;
 - how many measured dials (punctuation included) and rated dials it shows, and which read not known or not rated, and why;
 - every Not available label the page lists;
 - the register step 3 rated, where registers differ;
@@ -109,7 +109,7 @@ The page does not update itself. Asking again after the voice changes builds a n
 - The dials were shown in the conversation from `inline`'s fragment, unchanged, where the host draws HTML there. Otherwise the page was opened in a way the host allows, or its path given as a clickable link where none was.
 - An earlier file at the same name was archived per `standards/conventions.md` Archives, never overwritten.
 - Every measured dial was drawn from the confirmed profile `voice.md` names, with polished features showing measured and set ranges.
-- Every rated dial quotes a Tone, Vocabulary or Structural Habits item, or a Routing Table Register cell, exactly; cites only ids that line cites; and sits at the step the scale and its step rule give.
-- No sentence on the page is absent from `voice.md`, the profile, or the tool's fixed labels.
+- Every rated dial quotes a Tone, Vocabulary or Structural Habits item, or a Routing Table Register cell, exactly; cites only ids that line cites, or, for a Register cell, its row cites; and sits at the step the scale and its step rule give.
+- No sentence on the page is absent from `voice.md`, the profile, the voice key's state line in the root's `AGENTS.md`, or the tool's fixed labels.
 - The report names the dials that read not known or not rated, and why.
-- The report never calls the voice confirmed while the root's state line leaves the voice key provisional or blocked, and names any rated dial that rests on an unconfirmed trait.
+- The report never calls the voice confirmed while the root's state line leaves the voice key open, in any state but `complete`, or while `AGENTS.md` cannot be read.

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync, existsSync, symlinkSync } from 'node:fs';
+import { appendFileSync, cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync, existsSync, symlinkSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,7 +12,11 @@ const SCRIPT = join(TOOL, 'scripts', 'voice-report-html.js');
 const FIX = join(HERE, 'fixtures');
 
 function run(...args) {
-  const result = spawnSync(process.execPath, [SCRIPT, ...args], { encoding: 'utf8' });
+  return runIn({}, ...args);
+}
+
+function runIn(env, ...args) {
+  const result = spawnSync(process.execPath, [SCRIPT, ...args], { encoding: 'utf8', env: { ...process.env, ...env } });
   return { code: result.status, out: result.stdout, err: result.stderr };
 }
 
@@ -24,6 +28,9 @@ const PROFILE = join('work', 'onboarding', '2026-10-15 profile confirmed.json');
 const PROFILE_LINE = `voice-profile: ${PROFILE.split('\\').join('/')}`;
 const ONBOARDING = (line) => `\n## Onboarding\n\nOnboarded 2026-10-15 on the personal path of \`skills/Onboard Root/\`.\n\n- about: complete\n- design: provisional (every heading labeled; owner: Marisol Vey; waits on her design guide)\n- voice: ${line}\n`;
 const REOPENED = 'provisional (rebuilt 2026-10-15 to add a trait; owner: Marisol Vey; waits on her confirming a sample written from `memory/voice.md`)';
+const GRANT_ROW = '| Grant narrative section | E3: no contractions, "we" for the applicant, figures with sources | Read by a panel scoring against criteria |';
+const GRANT_ROW_WHY = '| Grant narrative section | No contractions, "we" for the applicant, figures with sources | Read by a panel scoring against criteria (E3, E4) |';
+const GRANT_CELL = 'No contractions, "we" for the applicant, figures with sources';
 
 // Each variant is one base root with one change, written to a temp folder on first use.
 const VARIANTS = {
@@ -43,9 +50,19 @@ const VARIANTS = {
     .map((line) => (line.startsWith('*') && line.endsWith('*') ? '[Not available: no writing supplied; Build Voice runs when writing is]' : line)).join('\n'))],
   'provisional-root': ['complete-root', (root) => appendFileSync(join(root, 'AGENTS.md'), ONBOARDING(REOPENED))],
   'complete-state-root': ['complete-root', (root) => appendFileSync(join(root, 'AGENTS.md'), ONBOARDING('complete'))],
-  'why-cell-root': ['complete-root', (root) => edit(root, 'memory/voice.md', (t) => t.replace(
-    '| Grant narrative section | E3: no contractions, "we" for the applicant, figures with sources | Read by a panel scoring against criteria |',
-    '| Grant narrative section | No contractions, "we" for the applicant, figures with sources | Read by a panel scoring against criteria (E3, E4) |'))]
+  'why-cell-root': ['complete-root', (root) => edit(root, 'memory/voice.md', (t) => t.replace(GRANT_ROW, GRANT_ROW_WHY))],
+  'shared-cell-root': ['complete-root', (root) => edit(root, 'memory/voice.md', (t) => t.replace(GRANT_ROW, GRANT_ROW_WHY)
+    .replace('## Identity\n\n', '## Identity\n\n- No contractions, "we" for the applicant, figures with sources, in every grant narrative (E1).\n\n'))],
+  'shared-tone-root': ['complete-root', (root) => edit(root, 'memory/voice.md', (t) => t
+    .replace('## Tone\n\n', '## Tone\n\n- Names the funder, the section and the date in a cover letter (E5).\n'))],
+  'range-split-root': ['complete-root', (root) => edit(root, 'memory/voice.md', (t) => t
+    .replace(GRANT_ROW, '| Grant narrative section | No contractions, as in E2 | to E5 readers on the panel, scoring against criteria |'))],
+  'blocked-root': ['complete-root', (root) => appendFileSync(join(root, 'AGENTS.md'), ONBOARDING('blocked (not onboarded)'))],
+  'unrecognized-root': ['complete-root', (root) => appendFileSync(join(root, 'AGENTS.md'), ONBOARDING('rebuilt, waiting on a sample'))],
+  'indented-root': ['complete-root', (root) => appendFileSync(join(root, 'AGENTS.md'), '\n  ## Onboarding\n\n- voice: provisional (rebuilt; owner: Marisol Vey)\n')],
+  'latin1-root': ['complete-root', (root) => appendFileSync(join(root, 'AGENTS.md'), Buffer.from([0x0a, 0x63, 0x61, 0x66, 0xe9, 0x0a]))],
+  'bold-italic-root': ['complete-root', (root) => edit(root, 'memory/voice.md', (t) => t
+    .replace('## Prohibitions\n\n', '## Prohibitions\n\n- **Never call her sole author of *Small Grants, Big Stories*.** The title page names two authors (E2).\n'))]
 };
 const built = new Map();
 
@@ -263,12 +280,34 @@ test('a Routing Table register cell can be quoted, and an evidence range covers 
 
 test('a Register cell rests on the ids its whole row cites, Why cell included', () => {
   const base = extract('why-cell-root');
-  const trait = 'No contractions, "we" for the applicant, figures with sources';
-  const ok = renderData({ ...base, rated: [{ key: 'formality', step: 4, trait, evidence: ['E3', 'E4'] }] });
+  const ok = renderData({ ...base, rated: [{ key: 'formality', step: 4, trait: GRANT_CELL, evidence: ['E3', 'E4'] }] });
   assert.equal(ok.code, 0, ok.err);
-  const outside = renderData({ ...base, rated: [{ key: 'formality', step: 4, trait, evidence: ['E5'] }] });
+  const outside = renderData({ ...base, rated: [{ key: 'formality', step: 4, trait: GRANT_CELL, evidence: ['E5'] }] });
   assert.equal(outside.code, 1);
   assert.match(outside.err, /cites E5, which the quoted trait line does not cite anywhere in its Routing Table row/);
+
+  // No range runs across two cells: "as in E2 | to E5" cites E2 and E5, not E3 or E4.
+  const split = extract('range-split-root');
+  assert.equal(renderData({ ...split, rated: [{ key: 'formality', step: 4, trait: 'No contractions, as in E2', evidence: ['E5'] }] }).code, 0);
+  assert.match(renderData({ ...split, rated: [{ key: 'formality', step: 4, trait: 'No contractions, as in E2', evidence: ['E4'] }] }).err, /cites E4/);
+});
+
+test('a Register cell that also sits in a section item is still checked against its row, and the refusal names the id no line cites', () => {
+  const base = extract('shared-cell-root');
+  const dial = (evidence) => renderData({ ...base, rated: [{ key: 'formality', step: 4, trait: GRANT_CELL, evidence }] });
+  assert.equal(dial(['E3', 'E4']).code, 0, 'the row cites E3 and E4');
+  assert.equal(dial(['E1']).code, 0, 'the Identity item cites E1');
+  assert.match(dial(['E1', 'E3']).err, /no one line holding the quoted trait cites them all/);
+  assert.match(dial(['E4', 'E9']).err, /cites E9, which the quoted trait line does not cite, nor does the Routing Table row/);
+});
+
+test('a quote outside the Routing Table rests on the first item holding it, as before', () => {
+  const base = extract('shared-tone-root');
+  const trait = 'Names the funder, the section and the date';
+  assert.equal(renderData({ ...base, rated: [{ key: 'explicit', step: 4, trait, evidence: ['E5'] }] }).code, 0);
+  const second = renderData({ ...base, rated: [{ key: 'explicit', step: 4, trait, evidence: ['E2'] }] });
+  assert.equal(second.code, 1, 'E2 is cited only by the second Tone item holding the quote');
+  assert.match(second.err, /cites E2, which the quoted trait line does not cite\./);
 });
 
 test('the voice key state line is read only under Onboarding, and only for voice', async () => {
@@ -300,6 +339,46 @@ test('a voice the state line leaves provisional is never shown as confirmed', ()
   const refused = renderData(older);
   assert.equal(refused.code, 1);
   assert.match(refused.err, /has no onboarding object/);
+  assert.match(renderData({ ...data, onboarding: { ...data.onboarding, state: 'confirmed' } }).err, /onboarding state of "confirmed"/);
+});
+
+test('every open state, an indented heading, and an unreadable AGENTS.md keep the page from saying confirmed', () => {
+  const meta = (name) => {
+    const r = renderData(extract(name));
+    assert.equal(r.code, 0, `${name}: ${r.err}`);
+    return /<p class="meta">(.*?)<\/p>/.exec(r.html)[1];
+  };
+  assert.equal(meta('blocked-root'), 'voice: blocked (not onboarded); last confirmed 2026-10-15 by Marisol Vey');
+  assert.equal(meta('unrecognized-root'), 'voice: rebuilt, waiting on a sample; last confirmed 2026-10-15 by Marisol Vey');
+  assert.equal(meta('indented-root'), 'voice: provisional (rebuilt; owner: Marisol Vey); last confirmed 2026-10-15 by Marisol Vey');
+  assert.equal(extract('latin1-root').onboarding.state, 'unreadable');
+  assert.equal(meta('latin1-root'), 'voice state not known: <code>AGENTS.md</code> could not be read; last confirmed 2026-10-15 by Marisol Vey');
+
+  // The header follows the state, not whether a line is present.
+  const bare = renderData({ ...extract('complete-root'), onboarding: { path: 'AGENTS.md', state: 'provisional', line: null } });
+  assert.match(bare.html, /<p class="meta">voice: provisional; last confirmed 2026-10-15 by Marisol Vey<\/p>/);
+});
+
+test('a bold span holding an italic title loses both pairs of markers', () => {
+  const r = renderData(extract('bold-italic-root'));
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.html, /<li>Never call her sole author of Small Grants, Big Stories\. The title page names two authors \(E2\)\.<\/li>/);
+  assert.doesNotMatch(r.html, /\*\*/);
+});
+
+test('the saved date reads on the local clock, as the generated date does', () => {
+  const root = join(scratch(), 'root');
+  cpSync(join(FIX, 'complete-root'), root, { recursive: true });
+  const voice = join(root, 'memory', 'voice.md');
+  const evening = new Date('2026-10-16T00:01:00Z'); // 17:01 on 2026-10-15 in Los Angeles
+  utimesSync(voice, evening, evening);
+  const saved = (TZ) => {
+    const r = runIn({ TZ }, 'extract', '--voice', voice, '--root', root);
+    assert.equal(r.code, 0, r.err);
+    return JSON.parse(r.out).voice.modified;
+  };
+  assert.equal(saved('America/Los_Angeles'), '2026-10-15');
+  assert.equal(saved('UTC'), '2026-10-16');
 });
 
 test('render never overwrites, and never writes inside the tool directory or through a link', () => {
@@ -370,12 +449,19 @@ test('fresh says whether a page still shows the voice as set now', () => {
   assert.deepEqual(check(), { fresh: false, changed: ['the voice state line in AGENTS.md now reads "voice: provisional (reopened; owner: Marisol Vey)"'] });
   writeFileSync(agents, agentsText);
   assert.equal(check().fresh, true);
+  appendFileSync(agents, Buffer.from([0x0a, 0xe9, 0x0a]));
+  assert.deepEqual(check(), { fresh: false, changed: ['AGENTS.md can no longer be read'] });
+  writeFileSync(agents, agentsText);
+  assert.equal(check().fresh, true);
 
-  const before = join(root, 'work', 'onboarding', 'before-0.4.0.html');
-  writeFileSync(before, readFileSync(page, 'utf8').replace(/<meta name="voice-report:onboarding"[^>]*>\n/, ''));
-  const unrecorded = JSON.parse(run('fresh', '--page', before, '--voice', voice, '--root', root).out);
-  assert.equal(unrecorded.fresh, false);
-  assert.match(unrecorded.changed[0], /records no voice state line/);
+  const html = readFileSync(page, 'utf8');
+  for (const tag of ['onboarding', 'onboarding-state']) {
+    const before = join(root, 'work', 'onboarding', `before-0.4.0-${tag}.html`);
+    writeFileSync(before, html.replace(new RegExp(`<meta name="voice-report:${tag}" [^>]*>\\n`), ''));
+    const unrecorded = JSON.parse(run('fresh', '--page', before, '--voice', voice, '--root', root).out);
+    assert.equal(unrecorded.fresh, false, tag);
+    assert.match(unrecorded.changed[0], /records no voice state line/);
+  }
 
   const old = join(root, 'work', 'onboarding', 'old.html');
   writeFileSync(old, '<!doctype html><title>x</title>');
