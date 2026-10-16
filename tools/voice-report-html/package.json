@@ -1,6 +1,6 @@
 {
   "name": "voice-report-html",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "One static HTML page showing a root's bound voice, from its voice.md, the confirmed voice-lexicon profile that file names, and the voice key's state line in the root's AGENTS.md",
   "private": true,
   "type": "module",

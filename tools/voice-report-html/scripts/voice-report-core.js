@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 import { canonical, fail, screenDestination, screenSource, writeDestination } from './lib/paths.js';
 
-export const VERSION = '0.4.0';
+export const VERSION = '0.4.1';
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_CSS = join(SCRIPT_DIR, '..', 'template', 'report.css');
 const HELP_HINT = 'Run "node scripts/voice-report-html.js help" for usage.';
@@ -259,17 +259,20 @@ const ONBOARDING_STATES = [...KEY_STATES, 'unrecognized', 'absent', 'unreadable'
  * The state is the line's first word where that is complete, provisional or
  * blocked, unrecognized where it is anything else, and absent where the
  * heading or the line is not there. The line is kept as written. A heading
- * may be indented up to three spaces, as Markdown allows.
+ * may be indented up to three spaces and carry closing hashes, as Markdown
+ * allows. A line edited by hand is still the voice line: the key in any case,
+ * wrapped in emphasis or code, after a dash, star, plus or number. Trailing
+ * .,;: leave the state word, as Onboard Root's own gate reads it.
  */
 export function parseOnboarding(text) {
   let inSection = false;
   for (const line of text.split('\n')) {
     const heading = /^ {0,3}##\s+(.+?)\s*$/.exec(line);
-    if (heading) { inSection = heading[1].toLowerCase() === 'onboarding'; continue; }
+    if (heading) { inSection = heading[1].replace(/\s+#+$/, '').toLowerCase() === 'onboarding'; continue; }
     if (!inSection) continue;
-    const entry = /^\s*[-*+]\s+`?voice`?:\s*(.+?)\s*$/.exec(line);
+    const entry = /^\s*(?:[-*+]|\d+[.)])\s+[*_`]*voice[*_`]*\s*:[*_`]*\s*(.+?)\s*$/i.exec(line);
     if (entry) {
-      const word = entry[1].replace(/^[*_`]+/, '').split(/[\s(;,.*_`]/)[0].toLowerCase();
+      const word = entry[1].replace(/^[*_`]+/, '').split(/\s/)[0].replace(/[.,;:*_`]+$/, '').toLowerCase();
       return { state: KEY_STATES.includes(word) ? word : 'unrecognized', line: entry[1] };
     }
   }
@@ -539,15 +542,23 @@ function esc(value) {
 }
 
 /**
- * Escaped text with inline code kept and emphasis markers dropped. Italics go
- * first, so a bold span holding an italic title loses both pairs of markers.
+ * Escaped text with inline code kept and emphasis markers dropped, the
+ * innermost first, a bold pair then an italic pair holding no other star, until
+ * none is left, so bold inside italic, italic inside bold, and a span closing on
+ * three stars all lose every marker. A star with a letter or digit on its outer
+ * side, or a space on its inner side, is not emphasis and stays.
  */
+const BOLD_PAIR = /\*\*([^*\s](?:[^*]*[^*\s])?)\*\*/g;
+const ITALIC_PAIR = /(^|[^\p{L}\p{N}])\*([^*\s](?:[^*]*[^*\s])?)\*(?![\p{L}\p{N}])/gu;
+
 function inline(text) {
-  return esc(text)
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/(^|[\s(])\*([^*\s][^*]*)\*(?=[\s).,;:]|$)/g, '$1$2')
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/\[Not available:([^\]]*)\]/g, '<span class="na">[Not available:$1]</span>');
+  let out = esc(text).replace(/`([^`]+)`/g, '<code>$1</code>');
+  for (let pass = 0; pass < 8; pass += 1) {
+    const next = out.replace(BOLD_PAIR, '$1').replace(ITALIC_PAIR, '$1$2');
+    if (next === out) break;
+    out = next;
+  }
+  return out.replace(/\[Not available:([^\]]*)\]/g, '<span class="na">[Not available:$1]</span>');
 }
 
 const COUNTED = {
@@ -639,7 +650,9 @@ function ratedSvg(entry) {
 function headerFacts(data) {
   const a = data.authority;
   const o = data.onboarding || { state: 'absent', line: null };
-  const isConfirmed = Boolean(a.confirmed && !labelsIn(a.confirmed).length);
+  // Only a line holding a YYYY-MM-DD date, the form Build Voice writes, is a
+  // confirmation; an anchor alone or a placeholder such as "pending" is not.
+  const isConfirmed = Boolean(a.confirmed && !labelsIn(a.confirmed).length && /\b\d{4}-\d{2}-\d{2}\b/.test(a.confirmed));
   const date = isConfirmed ? esc(a.confirmed.replace(/\s*\[[^\]]*\]\s*$/, '')) : null;
   const last = date ? `; last confirmed ${date}` : '; not yet confirmed';
   let confirmed;
@@ -983,8 +996,13 @@ export function fresh(options) {
     return { fresh: false, changed: ['the page records no fingerprints; it was made by an earlier version of this tool'] };
   }
   const line = onboarding.line || '';
-  if (recorded.onboarding === null || recorded.onboardingState === null) {
+  if (recorded.onboarding === null) {
     changed.push('the page records no voice state line; it was made by an earlier version of this tool');
+  } else if (recorded.onboardingState === null) {
+    changed.push('the page records no voice state; it was made by an earlier build of this tool');
+  } else if (onboarding.state === 'unreadable' && recorded.onboardingState !== 'unreadable') {
+    // Checked before the line, which an unreadable file never yields.
+    changed.push('AGENTS.md can no longer be read');
   } else if (recorded.onboarding !== line) {
     changed.push(line ? `the voice state line in AGENTS.md now reads "voice: ${line}"` : 'AGENTS.md no longer carries a voice state line');
   } else if (recorded.onboardingState !== onboarding.state) {

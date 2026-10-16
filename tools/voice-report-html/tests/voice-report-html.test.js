@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync, existsSync, symlinkSync, utimesSync } from 'node:fs';
+import { appendFileSync, cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync, existsSync, symlinkSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -31,6 +31,15 @@ const REOPENED = 'provisional (rebuilt 2026-10-15 to add a trait; owner: Marisol
 const GRANT_ROW = '| Grant narrative section | E3: no contractions, "we" for the applicant, figures with sources | Read by a panel scoring against criteria |';
 const GRANT_ROW_WHY = '| Grant narrative section | No contractions, "we" for the applicant, figures with sources | Read by a panel scoring against criteria (E3, E4) |';
 const GRANT_CELL = 'No contractions, "we" for the applicant, figures with sources';
+// Each line as written in voice.md, and as the page shows it.
+const EMPHASIS = [
+  ['**Never call her sole author of *Small Grants, Big Stories*** (E2).', 'Never call her sole author of Small Grants, Big Stories (E2).'],
+  ['**Never misquote *Small Grants, Big Stories*!**', 'Never misquote Small Grants, Big Stories!'],
+  ['**Never call her the author of “*Small Grants, Big Stories*”.**', 'Never call her the author of “Small Grants, Big Stories”.'],
+  ['***Small Grants, Big Stories* is co-written.**', 'Small Grants, Big Stories is co-written.'],
+  ['Opens with *the finding, **never** the context*, in every email (E1).', 'Opens with the finding, never the context, in every email (E1).'],
+  ['Growth of 40%* in 2025*, where 5 * 3 = 15 (E1).', 'Growth of 40%* in 2025*, where 5 * 3 = 15 (E1).']
+];
 
 // Each variant is one base root with one change, written to a temp folder on first use.
 const VARIANTS = {
@@ -62,7 +71,12 @@ const VARIANTS = {
   'indented-root': ['complete-root', (root) => appendFileSync(join(root, 'AGENTS.md'), '\n  ## Onboarding\n\n- voice: provisional (rebuilt; owner: Marisol Vey)\n')],
   'latin1-root': ['complete-root', (root) => appendFileSync(join(root, 'AGENTS.md'), Buffer.from([0x0a, 0x63, 0x61, 0x66, 0xe9, 0x0a]))],
   'bold-italic-root': ['complete-root', (root) => edit(root, 'memory/voice.md', (t) => t
-    .replace('## Prohibitions\n\n', '## Prohibitions\n\n- **Never call her sole author of *Small Grants, Big Stories*.** The title page names two authors (E2).\n'))]
+    .replace('## Prohibitions\n\n', '## Prohibitions\n\n- **Never call her sole author of *Small Grants, Big Stories*.** The title page names two authors (E2).\n'))],
+  'emphasis-root': ['complete-root', (root) => edit(root, 'memory/voice.md', (t) => t
+    .replace('## Prohibitions\n\n', `## Prohibitions\n\n${EMPHASIS.map(([raw]) => `- ${raw}\n`).join('')}`))],
+  'pending-root': ['complete-root', (root) => edit(root, 'memory/voice.md', (t) => t.replace(/^voice-confirmation-date: .*$/m, 'voice-confirmation-date: pending'))],
+  'pending-provisional-root': ['complete-root', (root) => edit(root, 'memory/voice.md', (t) => t.replace(/^voice-confirmation-date: .*$/m, 'voice-confirmation-date: TBD [V3]'))
+    || appendFileSync(join(root, 'AGENTS.md'), ONBOARDING('provisional (owner: Marisol Vey)'))]
 };
 const built = new Map();
 
@@ -115,7 +129,7 @@ test('help works with nothing configured, and beside --help', () => {
   for (const args of [['help'], ['--help'], [], ['help', '--help']]) {
     const r = run(...args);
     assert.equal(r.code, 0);
-    assert.match(r.out, /voice-report-html 0\.4\.0/);
+    assert.match(r.out, /voice-report-html 0\.4\.1/);
     assert.equal(r.err, '');
   }
 });
@@ -366,6 +380,67 @@ test('a bold span holding an italic title loses both pairs of markers', () => {
   assert.doesNotMatch(r.html, /\*\*/);
 });
 
+test('emphasis comes off innermost first, nested either way or closing on three stars, and a star that is not emphasis stays', () => {
+  const r = renderData(extract('emphasis-root'));
+  assert.equal(r.code, 0, r.err);
+  const escHtml = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  for (const [raw, shown] of EMPHASIS) assert.ok(r.html.includes(`<li>${escHtml(shown)}</li>`), `${raw} should read ${shown}`);
+});
+
+test('a confirmation line with no YYYY-MM-DD date is not a confirmation', () => {
+  const meta = (name) => /<p class="meta">(.*?)<\/p>/.exec(renderData(extract(name)).html)[1];
+  assert.equal(meta('pending-root'), 'not yet confirmed; confirming authority Marisol Vey');
+  assert.equal(meta('pending-provisional-root'), 'voice: provisional (owner: Marisol Vey); not yet confirmed; confirming authority Marisol Vey');
+  assert.equal(meta('complete-root'), 'confirmed 2026-10-15 by Marisol Vey');
+});
+
+test('a voice line edited by hand is still read, as Onboard Root\'s gate reads it', async () => {
+  const { parseOnboarding } = await import(join(TOOL, 'scripts', 'voice-report-core.js'));
+  const state = (line, heading = '## Onboarding') => parseOnboarding(`${heading}\n\n${line}\n`).state;
+  assert.equal(state('- **voice:** provisional (rebuilt; owner: M)'), 'provisional');
+  assert.equal(state('- **voice**: provisional (rebuilt; owner: M)'), 'provisional');
+  assert.equal(state('- Voice: provisional (rebuilt; owner: M)'), 'provisional');
+  assert.equal(state('1. voice: blocked (not onboarded)'), 'blocked');
+  assert.equal(state('- voice: complete: confirmed 2026-10-15'), 'complete');
+  assert.equal(state('- voice: complete.'), 'complete');
+  assert.equal(state('- voice: provisional (x)', '## Onboarding ##'), 'provisional');
+  assert.equal(state('- voice-profile: work/onboarding/p.json'), 'absent');
+  assert.deepEqual(parseOnboarding('## Onboarding\n\n- **voice:** provisional (rebuilt; owner: M)\n'), { state: 'provisional', line: 'provisional (rebuilt; owner: M)' });
+});
+
+test('every way AGENTS.md can be unreadable leaves the voice not known, and fresh says it can no longer be read', () => {
+  const root = join(scratch(), 'root');
+  cpSync(join(FIX, 'complete-root'), root, { recursive: true });
+  const voice = join(root, 'memory', 'voice.md');
+  const agents = join(root, 'AGENTS.md');
+  const agentsText = readFileSync(agents, 'utf8');
+  const state = () => {
+    const r = run('extract', '--voice', voice, '--root', root);
+    assert.equal(r.code, 0, r.err);
+    return JSON.parse(r.out).onboarding.state;
+  };
+  const cases = {
+    'a directory': () => { rmSync(agents); mkdirSync(agents); },
+    'a broken link': () => { rmSync(agents, { recursive: true }); symlinkSync(join(root, 'no-such-file.md'), agents); },
+    'a file over the 2 MB cap': () => { rmSync(agents); writeFileSync(agents, `${agentsText}\n${'x'.repeat(2_000_001)}\n`); }
+  };
+  for (const [name, make] of Object.entries(cases)) {
+    make();
+    assert.equal(state(), 'unreadable', name);
+  }
+  rmSync(agents);
+
+  // A page made while the voice line was readable, then AGENTS.md breaks.
+  writeFileSync(agents, `${agentsText}${ONBOARDING('provisional (owner: Marisol Vey)')}`);
+  const data = join(root, 'work', 'onboarding', 'data.json');
+  const page = join(root, 'work', 'onboarding', 'page.html');
+  assert.equal(run('extract', '--voice', voice, '--root', root, '--output', data).code, 0);
+  assert.equal(run('render', '--data', data, '--output', page).code, 0);
+  appendFileSync(agents, Buffer.from([0x0a, 0xe9, 0x0a]));
+  const r = JSON.parse(run('fresh', '--page', page, '--voice', voice, '--root', root).out);
+  assert.deepEqual(r, { fresh: false, changed: ['AGENTS.md can no longer be read'] });
+});
+
 test('the saved date reads on the local clock, as the generated date does', () => {
   const root = join(scratch(), 'root');
   cpSync(join(FIX, 'complete-root'), root, { recursive: true });
@@ -460,7 +535,7 @@ test('fresh says whether a page still shows the voice as set now', () => {
     writeFileSync(before, html.replace(new RegExp(`<meta name="voice-report:${tag}" [^>]*>\\n`), ''));
     const unrecorded = JSON.parse(run('fresh', '--page', before, '--voice', voice, '--root', root).out);
     assert.equal(unrecorded.fresh, false, tag);
-    assert.match(unrecorded.changed[0], /records no voice state line/);
+    assert.match(unrecorded.changed[0], tag === 'onboarding' ? /records no voice state line/ : /records no voice state;/);
   }
 
   const old = join(root, 'work', 'onboarding', 'old.html');

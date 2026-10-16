@@ -3,7 +3,7 @@ name: voice-report-html
 type: tool
 category: documents
 description: Read a root's bound voice.md, the confirmed voice-lexicon profile it names, and the voice key's state line in the root's AGENTS.md into one data object, render that object as one static HTML page with dials for register, stance and rhythm or as a fragment of those dials for a host that draws HTML in the conversation, and say whether an existing page still shows the voice as set now
-version: 0.4.0
+version: 0.4.1
 ---
 
 # voice-report-html
@@ -142,7 +142,7 @@ From the profile, only the keys `tools/voice-lexicon/` defines:
 - **`ranges.chunks`, `ranges.chunk_words`, and `ranges.features`:** the eight range features and the eleven punctuation keys. Each feature holds `low`, `median`, `high`, `q1`, `q3`, `decision`, `polish` and `measured`.
 - **Refusals by name:** a feature outside those names, a key outside those, a non-numeric `low`, `median` or `high`, a `decision` other than `keep` or `polish`, a `polish` other than `high` or `low`, and a `measured` that is not `{ low, high }` numbers.
 
-From the owning root's own `AGENTS.md`, only the voice key's state line under `## Onboarding`, as `skills/Onboard Root/` writes it: `- voice: provisional (…; owner: …)`. The line is kept as written, and the heading may be indented up to three spaces. Its state is its first word where that is `complete`, `provisional` or `blocked`, `unrecognized` where it is anything else, and `absent` where the file, the heading or the line is not there. Where the file is there but cannot be read (not a regular file, a broken link, unreadable, over its cap, or not UTF-8), the state is `unreadable` and extract still runs. The key is **open** in any state but `complete`, `absent` and `unreadable`. This line, not `voice-confirmation-date:`, says where the voice stands now.
+From the owning root's own `AGENTS.md`, only the voice key's state line under `## Onboarding`, as `skills/Onboard Root/` writes it: `- voice: provisional (…; owner: …)`. The line is kept as written. The heading may be indented up to three spaces and carry closing hashes. A line edited by hand still counts: the key in any case, wrapped in emphasis or code, after a dash, star, plus or number. Its state is its first word, with trailing `.,;:` dropped as Onboard Root's own gate drops them, where that is `complete`, `provisional` or `blocked`, `unrecognized` where it is anything else, and `absent` where the file, the heading or the line is not there. Where the file is there but cannot be read (not a regular file, a broken link, unreadable, over its cap, or not UTF-8), the state is `unreadable` and extract still runs. The key is **open** in any state but `complete`, `absent` and `unreadable`. This line, not `voice-confirmation-date:`, says where the voice stands now.
 
 A voice is `built` when at least one known section is answered; otherwise it is `unbuilt`.
 
@@ -173,7 +173,7 @@ A rated dial is one of `involved` (involved to informational), `explicit` (situa
 
 ## The page
 
-- **Header:** name; where the voice stands, and when it was confirmed and by whom; and which files and dates the page reflects. An open key is shown by its state line as written, `voice: provisional (…)`, and an `unreadable` one as `voice state not known: AGENTS.md could not be read`; either way the confirmation date then follows as `last confirmed`, or `not yet confirmed` where there is none. A confirmation line holding no date, such as an anchor alone, reads `not yet confirmed`.
+- **Header:** name; where the voice stands, and when it was confirmed and by whom; and which files and dates the page reflects. An open key is shown by its state line as written, `voice: provisional (…)`, and an `unreadable` one as `voice state not known: AGENTS.md could not be read`; either way the confirmation date then follows as `last confirmed`, or `not yet confirmed` where there is none. A confirmation line holding no `YYYY-MM-DD` date, such as an anchor alone or a placeholder like `pending`, reads `not yet confirmed`.
 - **Lead:** the Identity section, copied.
 - **One aligned block of dials:**
   - Register: the four rated dials, each an open dot on a five-step scale, with the trait line as a sidenote.
@@ -244,7 +244,7 @@ One JSON object on stdout, exit 0. A refusal prints to stderr, leaves stdout emp
 - `extract` exits 0 with one data object whose every value is copied from `voice.md`, the profile it names, or the voice state line in the root's `AGENTS.md`, and whose `features` is empty when no profile was read.
 - `inline` exits 0 with one fragment only for a built voice whose data `render` would accept, and writes nothing.
 - `fresh` exits 0 and is true only when the page's recorded files are the bound files, unchanged, and the voice state line reads as it did.
-- The page never calls a voice confirmed while the root's state line leaves the voice key open, in any state but `complete`, or while `AGENTS.md` cannot be read.
+- The page never calls a voice confirmed while the root's state line leaves the voice key open (`provisional`, `blocked` or `unrecognized`), or while `AGENTS.md` cannot be read.
 - `render` writes one static page only for a built voice, only with rated dials that quote a trait line and its cited evidence, and never over an existing file.
 - A bad path, destination, profile or data file, an unknown flag, or `--install` exits 1 with stdout empty, and the message names the cause and the fix.
 - Nothing is written but the `--output` file, and nothing is installed.
