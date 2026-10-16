@@ -1318,11 +1318,13 @@ describe('0.2.0: T1 profile ranges', () => {
     assert.deepEqual(bandOf(f.second_person), { low: 0, q1: 0, median: 0, q3: 0, high: 0 });
   });
 
-  it('keeps a trailing piece of 250 words or more, drops a shorter one, and needs 3 chunks', () => {
+  it('keeps a trailing piece of 250 words or more, merges a shorter one into the chunk before it, and needs 3 chunks', () => {
+    // 0.2.1 (graph.md Revision 4, the operator's fix after the Prove Change run): a short trailing
+    // piece is merged into its sample's previous chunk, never dropped; 0.2.0 dropped it.
     // A: 76 sentences (760 words) = a chunk of 500 with 2 I-sentences (rate 4) and a kept tail of
-    // 260 with none (rate 0). B: 74 sentences (740 words) = a chunk of 500 with 5 I-sentences
-    // (rate 10) and a dropped tail of 240 holding 9. 1,500 words is thin; chunks 3; values 0, 4, 10.
-    // Had B's tail been kept it would read 37.5; had it been merged, B would read 18.92.
+    // 260 with none (rate 0). B: 74 sentences (740 words) = a chunk of 500 with 5 I-sentences and
+    // a tail of 240 holding 9, merged: one chunk of 740 with 14, rate 18.92. 1,500 words is thin;
+    // chunks 3; values 0, 4, 18.92. Had B's tail been dropped (0.2.0) B would read 10.
     const body = profileTexts({
       A: tenWordText(76, placed([0, 1], I_SENTENCE)),
       B: tenWordText(74, placed([...range(0, 5), ...range(50, 9)], I_SENTENCE))
@@ -1330,7 +1332,7 @@ describe('0.2.0: T1 profile ranges', () => {
     assert.equal(body.status, 'thin');
     assert.equal(body.words, 1500);
     assert.equal(body.ranges.chunks, 3);
-    assert.deepEqual(bandOf(body.ranges.features.first_singular), { low: 0, q1: null, median: 4, q3: null, high: 10 });
+    assert.deepEqual(bandOf(body.ranges.features.first_singular), { low: 0, q1: null, median: 4, q3: null, high: 18.92 });
 
     // Two samples of 740 words (one chunk each) and one of 240 (none): 1,720 words is thin, but
     // 2 chunks give ranges: null.
@@ -2280,5 +2282,78 @@ describe('0.2.0: R2 folding exclusions', () => {
     ]);
     assert.ok(findMarker(body, 'signature', /^orchard$/), 'positive control: orchard is reported');
     assert.equal(allStrings(body).some((s) => /spectacle/.test(s)), false, JSON.stringify(markersOf(body, 'signature')));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 0.2.1 (graph.md Revision 4): a sample's trailing piece under 250 words is merged into its
+// previous chunk, never dropped, so no word of a sample of 250 words or more is left out of
+// the ranges. Found by the Prove Change run on 9532b07: dropping the tail dropped the close,
+// where Dale addresses the reader, and Dale's "you" band (0 to 1.92) sat far under Dale.
+// ---------------------------------------------------------------------------
+
+describe('0.2.1: a short trailing piece is merged into the chunk before it', () => {
+  // 10 words, one second_person form, no hedge, booster or marker.
+  const YOU_SENTENCE = 'You can bring gloves to the shed on Saturday morning.';
+
+  it('counts a close held only in the trailing piece', () => {
+    // Three samples of 74 sentences (740 words): a chunk of 500 with no you-form and a tail of 240
+    // holding 24 you-sentences. Merged, each sample is one chunk of 740 at 24 / 740 x 1000 = 32.43
+    // per 1,000; 0.2.0 dropped every tail and read 0 for all three.
+    const tail = placed(range(50, 24), YOU_SENTENCE);
+    const body = profileTexts({ A: tenWordText(74, tail), B: tenWordText(74, tail), C: tenWordText(74, tail) });
+    assert.equal(body.status, 'thin');
+    assert.equal(body.words, 2220);
+    assert.equal(body.ranges.chunks, 3);
+    assert.deepEqual(bandOf(body.ranges.features.second_person), { low: 32.43, q1: null, median: 32.43, q3: null, high: 32.43 });
+  });
+
+  it('keeps a sample shorter than one chunk as 0.2.0 did: its own chunk from 250 words, none under', () => {
+    // A and B: 740 words each, one merged chunk each with no you-form. C: 30 sentences (300 words),
+    // its own chunk, 30 you-sentences (100 per 1,000). D: 20 sentences (200 words), no chunk, all
+    // you-sentences (it would read 100 too, so the band cannot tell; the chunk count does).
+    const body = profileTexts({
+      A: tenWordText(74),
+      B: tenWordText(74),
+      C: tenWordText(30, placed(range(0, 30), YOU_SENTENCE)),
+      D: tenWordText(20, placed(range(0, 20), YOU_SENTENCE))
+    });
+    assert.equal(body.ranges.chunks, 3);
+    assert.deepEqual(bandOf(body.ranges.features.second_person), { low: 0, q1: null, median: 0, q3: null, high: 100 });
+  });
+
+  it('joins the tail to the chunk just before it, not to the first', () => {
+    // Three samples of 124 sentences (1,240 words): chunk 1 (sentences 0 to 49) holds 5
+    // you-sentences, chunk 2 (50 to 99) none, and the tail (100 to 123, 240 words) 24. Joined to
+    // chunk 2: chunk 1 reads 5 / 500 = 10 and chunk 2 reads 24 / 740 = 32.43, so the band runs 10
+    // to 32.43. Joined to chunk 1 it would read 29 / 740 = 39.19 and chunk 2 would read 0.
+    const text = tenWordText(124, { ...placed(range(0, 5), YOU_SENTENCE), ...placed(range(100, 24), YOU_SENTENCE) });
+    const body = profileTexts({ A: text, B: text, C: text });
+    assert.equal(body.ranges.chunks, 6);
+    const b = body.ranges.features.second_person;
+    assert.equal(b.low, 10);
+    assert.equal(b.high, 32.43);
+  });
+
+  it("Dale's whole-sample rates sit inside Dale's bands", () => {
+    // With no word dropped, a sample's whole rate is a weighted mean of its chunks' rates, so it
+    // lies inside the band. Rates here are counted over the raw file; for Dale's files that equals
+    // the tool's reading, and the 0.5 margin only guards a file where numbers or quotations would
+    // make them differ. 0.2.0's second_person band (0 to 1.92) misses Dale's 8.84 by far more.
+    const body = dale();
+    const forms = {
+      first_singular: ["i", "me", "my", "mine", "myself", "i'm", "i've", "i'd", "i'll"],
+      first_plural: ["we", "us", "our", "ours", "ourselves", "we're", "we've", "we'd", "we'll"],
+      second_person: ["you", "your", "yours", "yourself", "yourselves", "you're", "you've", "you'd", "you'll"]
+    };
+    for (const name of DALE) {
+      const tokens = (text(name).toLowerCase().replace(/’/g, "'").match(WORD) || []);
+      for (const [feature, list] of Object.entries(forms)) {
+        const rate = (tokens.filter((t) => list.includes(t)).length / tokens.length) * 1000;
+        const b = body.ranges.features[feature];
+        assert.ok(rate >= b.low - 0.5 && rate <= b.high + 0.5,
+          `${name} ${feature} ${rate.toFixed(2)} outside band ${b.low} to ${b.high}`);
+      }
+    }
   });
 });

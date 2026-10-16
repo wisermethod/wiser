@@ -1039,7 +1039,10 @@ function featureValue(feature, measured) {
 
 /**
  * Each sample's sentences, in order, into chunks that close at 500 words. A
- * trailing chunk of 250 words or more is kept; chunks never cross samples.
+ * trailing piece of 250 words or more is its own chunk; a shorter one joins the
+ * chunk before it, because a piece's close is where a writer often turns to the
+ * reader, and dropping it misreads them. A sample under 250 words makes no
+ * chunk. Chunks never cross samples.
  */
 function chunkSentences(sentences) {
   const chunks = [];
@@ -1055,6 +1058,7 @@ function chunkSentences(sentences) {
     }
   }
   if (size >= CHUNK_KEPT) chunks.push(current);
+  else if (size > 0 && chunks.length > 0) chunks[chunks.length - 1] = chunks[chunks.length - 1].concat(current);
   return chunks;
 }
 

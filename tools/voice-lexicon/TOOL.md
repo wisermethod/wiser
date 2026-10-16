@@ -3,7 +3,7 @@ name: voice-lexicon
 type: tool
 category: documents
 description: Find the style markers that recur across a person's writing samples, each with its count and sample ids, and the rhythm and stance ranges they keep, and check a draft against them for avoided terms, contradicted markers and the dose of signature markers and sayings, with rhythm and stance outside those ranges and missing markers as advice, as one JSON object
-version: 0.2.0
+version: 0.2.1
 ---
 
 # voice-lexicon
@@ -59,10 +59,10 @@ Run over the three `maren` fixtures in `tests/fixtures/`, listed that way, `prof
     { "class": "idiom", "marker": "you can't eat your cake and have it too", "usual": "you can't have your cake and eat it too", "count": 3, "samples": ["E1", "E2", "E3"], "spread": 1, "weight": 0.75 }
   ],
   "ranges": { "chunk_words": 500, "chunks": 7, "features": {
-    "sentence_mean": { "low": 17.74, "q1": null, "median": 19.23, "q3": null, "high": 20.24 },
-    "first_singular": { "low": 13.86, "q1": null, "median": 25.19, "q3": null, "high": 50.45 },
+    "sentence_mean": { "low": 17.74, "q1": null, "median": 19.11, "q3": null, "high": 20.24 },
+    "first_singular": { "low": 11.59, "q1": null, "median": 27.67, "q3": null, "high": 50.45 },
     "hedges": { "low": 0, "q1": null, "median": 2.97, "q3": null, "high": 3.98 },
-    "semicolon": { "low": 3.88, "q1": null, "median": 11.87, "q3": null, "high": 16 }
+    "semicolon": { "low": 5.81, "q1": null, "median": 11.87, "q3": null, "high": 16 }
   } }
 }
 ```
@@ -220,7 +220,7 @@ A use that matches the usual form or any `also` form is not a marker. One with t
 
 A range is the person's own variation, measured at about a draft's length, so each sample is cut into chunks and every feature is measured per chunk.
 
-**Chunks.** Each sample's sentences, in order, are added to a chunk until it holds at least 500 words, which closes it. A trailing chunk of 250 words or more is kept, and a shorter one is dropped. Chunks never cross samples. `ranges` is `null` when `status` is `too-little-text` or fewer than 3 chunks result.
+**Chunks.** Each sample's sentences, in order, are added to a chunk until it holds at least 500 words, which closes it. A trailing piece of 250 words or more is its own chunk; a shorter one that holds any words joins the chunk before it, so no word of a close, where a writer often turns to the reader, is left out. A sample under 250 words makes no chunk. Chunks never cross samples. `ranges` is `null` when `status` is `too-little-text` or fewer than 3 chunks result.
 
 **Features.** The first three are rhythm, the next five stance:
 
@@ -275,8 +275,9 @@ The function words, light words, pronoun forms, plural-folding exceptions and se
 - **Words the set lacks can appear.** When the samples share a subject, words of that subject outside the common-word set are reported as signature words, and so is any ordinary word the set happens to lack, as `drifted` was in the fixture run above. The tool cannot tell a word of style from a word of subject; the person rejects those at confirmation.
 - **Habit phrases have no general-English baseline.** A habit phrase is judged by how consistently this person uses it, never by how often other writers do, so an everyday pairing that passes the exclusions can still be reported.
 - **Plural folding is regular plurals only.** Only a final `s`, `es` or `ies` folds, so `children` stays apart from `child`, and a plural whose singular never appears in the samples stays as written. Folding can also lift an everyday phrase over the habit bar: neither `year ago` nor `years ago` reached it alone in the run above, and together they did.
-- **Rhythm guards and does not identify.** Two writers can keep the same rhythm: the `maren` and `dale` fixtures' `sentence_mean` bands, 17.74 to 20.24 and 17.07 to 19.74 words, overlap, while their `first_plural` bands, 0 to 31.01 and 41.18 to 53.57 per 1,000 words, do not. A rhythm range says a draft runs flatter, longer or more rambling than the person's own writing, never that someone else wrote it.
+- **Rhythm guards and does not identify.** Two writers can keep the same rhythm: the `maren` and `dale` fixtures' `sentence_mean` bands, 17.74 to 20.24 and 17.98 to 19.62 words, overlap, while their `first_plural` bands, 0 to 26.16 and 40.28 to 50.08 per 1,000 words, do not. A rhythm range says a draft runs flatter, longer or more rambling than the person's own writing, never that someone else wrote it.
 - **Ranges from few chunks are rough.** A band runs from the least chunk value to the greatest, so a band from 3 to 7 chunks has no quartiles and moves with each sample added, and a thin profile can fall short of the 3 chunks ranges need. The noise allowance keeps a draft of a few hundred words from being reported for chance, so a short draft has to stray far before it is. Ranges advise for these reasons and never set `pass`.
+- **Ranges pool every sample, whatever its register.** A band is drawn from the chunks of every sample listed, `governing` and `other` alike, and `register` weights markers only. So a band can describe a register the caller's outputs do not use; the caller reads it knowing which samples it came from.
 - **Stance lists are English and blind to topic.** They match words, not senses: `likely` in a forecast reads as a hedge, and `in fact` reads as a booster wherever it stands.
 - **Punctuation references are estimates**, written for this tool rather than measured from a corpus, so a class 3 marker says the rate is far from a rough norm, not from a measured one.
 - **A habit of never using a mark is not reported.** The consistency rule needs the mark in at least 2 samples, so a rarely used mark can be reported and an absent one cannot.
