@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## Unreleased
+
+- Setting up a personal Wiser folder in an empty folder you already have open, in Cowork, ChatGPT for desktop's Work mode, an editor or a terminal, makes that folder your Wiser folder under its own name, rather than a new folder named after you inside it. Your name goes in your memory files, and Onboard Root's optional check reads it from the first heading of `memory/about.md`.
+
 ## v2026.10.17, October 17, 2026
 
 - You can connect the same service more than once by giving each connection a short name, and Wiser uses the one you name; asked without a name where you only have named ones, it lists them rather than guessing. A named connection covers every part of that service it shares a sign-in with, so one connect is enough. (98e3d8d)

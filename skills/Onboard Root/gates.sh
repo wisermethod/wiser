@@ -498,9 +498,30 @@ _json_esc() {
   }'
 }
 
-# The owner's declared name, lower-cased, for the gates that accept it as a
-# person regardless of its shape. Set here, after kv is defined.
-OWNER_LC=$(kv "$AGENTS" "root" 2>/dev/null | tr 'A-Z' 'a-z')
+# The owner's name as the person gave it. On the personal path it is read from
+# the first heading of memory/about.md, "# About <name>": Onboard Root makes an
+# empty folder the session already has open the root under that folder's own
+# name, so `root:` can name a folder rather than a person. Where that heading
+# is absent or still carries a placeholder, which G18 reports, and on every
+# other path, it is the `root:` declaration. On a root named after its person
+# the two agree.
+about_owner() {
+  [ "$SHORT" = "1" ] && [ -f "$MEM/about.md" ] || return 0
+  ao=$(grep -m1 -E '^# About ' "$MEM/about.md" 2>/dev/null | sed -E 's/^# About //; s/[[:space:]]+$//')
+  case "$ao" in *'['*) ao="" ;; esac
+  printf '%s' "$ao"
+}
+owner_name() {
+  on=$(about_owner)
+  if [ -z "$on" ]; then
+    on=$(kv "$AGENTS" "root" 2>/dev/null)
+  fi
+  printf '%s\n' "$on"
+}
+
+# The owner's name, lower-cased, for the gates that accept it as a person
+# regardless of its shape. Set here, after kv is defined.
+OWNER_LC=$(owner_name | tr 'A-Z' 'a-z')
 
 PASS_N=0; FAIL_N=0; SKIP_N=0
 
@@ -1587,12 +1608,16 @@ build_person_registry() {
       { split($0,f,US); if(f[3]!="" && f[3]!="-") print f[3]; if(f[4]!="" && f[4]!="-") print f[4] }' \
       >> "$TMPD/people.txt"
   fi
-  # On the personal path the only recorded person is the root's owner, whose
-  # name is the root's `root:` declaration and its title line, and every
-  # firsthand fact in the files is what that person said.
+  # On the personal path the only recorded person is the root's owner, and
+  # every firsthand fact in the files is what that person said. Their name is
+  # owner_name's: the heading of memory/about.md, or, where that heading is
+  # absent or a placeholder, the root's `root:` declaration and its title line.
+  # A folder name is not registered as a person while about.md names the owner.
   if [ "$SHORT" = "1" ]; then
-    kv "$AGENTS" "root" >> "$TMPD/people.txt" 2>/dev/null || :
-    grep -m1 -E '^# ' "$AGENTS" 2>/dev/null | sed 's/^# //' >> "$TMPD/people.txt" || :
+    owner_name >> "$TMPD/people.txt" 2>/dev/null || :
+    if [ -z "$(about_owner)" ]; then
+      grep -m1 -E '^# ' "$AGENTS" 2>/dev/null | sed 's/^# //' >> "$TMPD/people.txt" || :
+    fi
   fi
   # Reduce the registry to NAMES. Matching a payload against raw prose let
   # "Marketing Director" pass because that title sits inside a sentence about a
@@ -1640,8 +1665,8 @@ gate_G10() {
           # rows of the must-reach lists and the interview's who-confirms
           # answer. An observer nobody wrote down is not an observer.
           if [ "$SHORT" = "1" ] && [ -n "$OWNER_LC" ] && [ "$(printf '%s' "$payload" | cut -d, -f1 | sed 's/[[:space:]]*$//' | tr 'A-Z' 'a-z')" = "$OWNER_LC" ]; then
-            # The root's owner, by the name the root declares, whatever its
-            # shape: a mononym or a non-Latin name is a person all the same.
+            # The root's owner, by owner_name's name, whatever its shape: a
+            # mononym or a non-Latin name is a person all the same.
             :
           elif printf '%s' "$payload" | tr 'A-Z' 'a-z' | grep -qE "$DOC_GRAMMAR"; then
             add_fail "$r line $ln: (Firsthand: $payload) names a document as the observer"
@@ -1979,7 +2004,7 @@ gate_G14() {
   vab=$(kv "$VOICE" "voice-authority-basis")
   if [ -n "$van" ]; then
     if [ "$SHORT" = "1" ] && [ -n "$OWNER_LC" ] && [ "$(printf '%s' "$van" | tr 'A-Z' 'a-z')" = "$OWNER_LC" ]; then
-      : # the root's owner, by the declared name, whatever its shape
+      : # the root's owner, by owner_name's name, whatever its shape
     elif ! printf '%s' "$van" | grep -qE "$PERSON_GRAMMAR"; then
       add_fail "$(rel "$VOICE"): 'voice-authority-name: $van' does not name a person; a role is not an authority anyone can identify"
     elif printf '%s' "$van" | grep -qE "$NONPERSON_TAIL"; then
@@ -1997,7 +2022,7 @@ gate_G14() {
     # no domain of authority is owed; the basis only has to say more than the
     # name. The first confirmed personal voice failed here for saying exactly
     # that in words the domain list does not contain.
-    owner=$(kv "$AGENTS" "root" 2>/dev/null | tr 'A-Z' 'a-z')
+    owner="$OWNER_LC"
     if [ "$SHORT" = "1" ] && [ -n "$owner" ] && [ "$(printf '%s' "$van" | tr 'A-Z' 'a-z')" = "$owner" ]; then
       lab=$(printf '%s' "$vab" | tr 'A-Z' 'a-z')
       if [ -z "$vab" ] || [ "$lab" = "$owner" ]; then
