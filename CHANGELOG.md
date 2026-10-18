@@ -10,6 +10,9 @@ Changes before September 27, 2026 are in the commit history only.
 - A polish of sentence length names which range it means, the average, how much it varies or the long end, and Build Voice asks when you have not said. If its final review sends your voice file back twice, Build Voice shows you what is still open and asks whether to write the file as it stands or decline the review.
 - Writing in your voice aims to be better than your samples and still recognizably yours. Content Author uses your signature words and sayings sparingly, keeps your spelling and contraction choices every time, and keeps each range you polished within its new bound.
 - Onboard Root now also closes your voice as provisional when your writing is too short to measure, and no longer closes it complete when Build Voice reports it provisional.
+- New skill, Voice Report: ask to see your voice, for example "show me my voice" or "voice report", and get its dials for register, stance and rhythm. The dials appear in the conversation where the app can draw them; otherwise the page opens, or you get a link to it. The full page is saved in your folder's `work/onboarding/`, with a data file beside it.
+- The page shows only your voice file's own lines, the measurements you confirmed, your folder's record of whether the voice is complete or still provisional, and fixed labels. It calls your voice confirmed only where its confirmation line holds a date, reads a voice line edited by hand, in bold or with a trailing colon, for its state, and shows bold and italic text without stray stars.
+- Asking again the same day reuses the page while your voice is unchanged. Once it changes, the old page is archived and a new one is built.
 
 ## v2026.10.17, October 17, 2026
 
