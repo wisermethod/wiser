@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types
-version: 0.38.8
+version: 0.38.9
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -106,7 +106,7 @@ Onboarded <date> on the personal path of `skills/Onboard Root/`. A deliverable t
 - design: provisional (every heading labeled; owner: <the person>; waits on their design guide)
 ```
 
-A key is **complete** when every heading is answered or labeled, at least one is answered, and every claim survived the read-back. It is **provisional** when the file is usable and a named gap remains, with an owner and what it waits on in the same line; a file whose every heading is a label is provisional, not complete, with the person as owner. It is **blocked** when the file is not usable, with the blocker named on the line as `person:`, `credential:` or `capability:` followed by who or what; the form is `blocked (person: <who>; waits on <what>)`. A key that cannot pass its read-back is provisional or blocked, never closed complete. Nothing in the section is ever deleted; a later session updates a line when a key closes.
+A key is **complete** when every heading is answered or labeled, at least one is answered, and every claim survived the read-back. It is **provisional** when the file is usable and a named gap remains, with an owner and what it waits on in the same line; a file whose every heading is a label is provisional, not complete, with the person as owner. It is **blocked** when the file is not usable, with the blocker named on the line as `person:`, `credential:` or `capability:` followed by who or what; the form is `blocked (person: <who>; waits on <what>)`. A key that cannot pass its read-back is provisional or blocked, never closed complete. Nothing in the section is ever deleted; a later session updates a line when a key closes, and for `voice` that is `skills/Build Voice/`, which rewrites the voice line in this grammar at the close of any run this skill did not hand it.
 
 Then tell the person what is in the three files, which keys are provisional, and what closes them. No run record, no close report, no operating file: the state lines are the record.
 
