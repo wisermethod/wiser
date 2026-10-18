@@ -13,7 +13,7 @@ Changes before September 27, 2026 are in the commit history only.
 - New skill, Voice Report: ask to see your voice, for example "show me my voice" or "voice report", and get its dials for register, stance and rhythm. The dials appear in the conversation where the app can draw them; otherwise the page opens, or you get a link to it. The full page is saved in your folder's `work/onboarding/`, with a data file beside it.
 - The page shows only your voice file's own lines, the measurements you confirmed, your folder's record of whether the voice is complete or still provisional, and fixed labels. It calls your voice confirmed only where its confirmation line holds a date, reads a voice line edited by hand, in bold or with a trailing colon, for its state, and shows bold and italic text without stray stars.
 - Asking again the same day reuses the page while your voice is unchanged. Once it changes, the old page is archived and a new one is built.
-- When Build Voice finishes your voice, it offers Voice Report, which shows the voice as dials and saves it as one page. During onboarding the offer comes at the end, once your folder records where your voice stands. The page is made only on your yes.
+- When Build Voice finishes your voice as complete, it offers Voice Report, which shows the voice as dials and saves it as one page. If your folder's record still shows the voice as not complete, Build Voice tells you what that record says instead. During onboarding the offer comes at the end, once your folder records where your voice stands. The page is made only on your yes.
 
 ## v2026.10.17, October 17, 2026
 
