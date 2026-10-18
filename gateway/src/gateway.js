@@ -208,6 +208,9 @@ export function oneShotClassifierIdentity(env = process.env, opts = {}) {
   return { harnessPid, sessionId };
 }
 
+const LABEL_PATTERN = '^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$';
+const LABEL_SCHEMA = { type: 'string', pattern: LABEL_PATTERN, description: 'Optional connection name. Omit to use the unlabelled binding' };
+
 const TOOLS = [
   {
     name: 'execute',
@@ -217,6 +220,7 @@ const TOOLS = [
       properties: {
         action: { type: 'string', description: 'Action id, service.module.action' },
         input: { type: 'object', description: 'Action arguments' },
+        label: LABEL_SCHEMA,
         confirm: { type: 'boolean', description: 'True only after a person approved a needs_confirmation stop for this exact input. The approval is used once. A confirm with no matching stop is answered with a fresh stop' },
       },
       required: ['action'],
@@ -232,6 +236,7 @@ const TOOLS = [
       properties: {
         service: { type: 'string' },
         module: { type: 'string' },
+        label: LABEL_SCHEMA,
       },
       required: ['service', 'module'],
       additionalProperties: false,
@@ -246,6 +251,7 @@ const TOOLS = [
       properties: {
         service: { type: 'string' },
         module: { type: 'string' },
+        label: LABEL_SCHEMA,
       },
       required: ['service', 'module'],
       additionalProperties: false,
@@ -260,6 +266,7 @@ const TOOLS = [
       properties: {
         service: { type: 'string' },
         module: { type: 'string' },
+        label: LABEL_SCHEMA,
         provider_account_id: { type: 'string', description: 'The account the confirmation named. Required with confirm, and refused if the binding has changed since' },
         confirm: { type: 'boolean', description: 'True only after a person approved a needs_confirmation stop for this exact input. The approval is used once. A confirm with no matching stop is answered with a fresh stop' },
       },
@@ -381,6 +388,7 @@ function approvalDisclosure(spec, input) {
 
 const NAME_RE = /^[a-z0-9][a-z0-9-]*$/;
 const ACTION_RE = /^[a-z0-9][a-z0-9-]*\.[a-z0-9][a-z0-9-]*\.[a-z0-9][a-z0-9_.-]*$/;
+const LABEL_RE = new RegExp(LABEL_PATTERN);
 
 function isPlainObject(v) {
   return Boolean(v) && typeof v === 'object' && !Array.isArray(v);
@@ -396,6 +404,9 @@ export function validateArgs(name, args) {
   const bad = (field) => statusObject(STATUS.INVALID_ARGUMENTS, { tool: name, field });
   if (!isPlainObject(args)) return bad('arguments');
   const a = args;
+  if (['execute', 'start_connect', 'connect_status', 'disconnect'].includes(name)
+    && Object.hasOwn(a, 'label')
+    && (typeof a.label !== 'string' || !LABEL_RE.test(a.label))) return bad('label');
   const optString = (k, re) => a[k] === undefined || (typeof a[k] === 'string' && (!re || re.test(a[k])));
   switch (name) {
     case 'execute':
@@ -682,6 +693,38 @@ export class ConnectionGateway {
     return { connector, mod, auth: mod.auth };
   }
 
+  requireLabel(tool, service, module) {
+    const labels = this.store.listConnections()
+      .filter((row) => row.service === service && row.module === module && typeof row.label === 'string')
+      .map((row) => row.label).sort();
+    return labels.length ? statusObject(STATUS.INVALID_ARGUMENTS, { tool, field: 'label', labels }) : null;
+  }
+
+  bindLabelledModules(found, record) {
+    const toolkit = (value) => String(value || '').toUpperCase().replace(/^CUSTOM_/, '');
+    if (!toolkit(found.auth.toolkit)) return;
+    for (const [module, definition] of Object.entries(found.connector.manifest.modules)) {
+      const auth = definition.auth;
+      if (module === record.module || auth.provider !== found.auth.provider
+        || toolkit(auth.toolkit) !== toolkit(found.auth.toolkit)) continue;
+      // One label holds one credential per toolkit, so a sibling on another account moves too.
+      const current = this.store.getConnection({ service: record.service, module, label: record.label });
+      if (isActive(current) && current.provider_account_id === record.provider_account_id) continue;
+      // A sibling mid-reconnect onto a new account is left to finish; a refresh must not undo it.
+      if (current?.status === 'INITIATED' && current.provider_account_id !== record.provider_account_id) continue;
+      this.store.putConnection({
+        service: record.service,
+        module,
+        label: record.label,
+        privilege: auth.privilege,
+        provider: auth.provider,
+        provider_account_id: record.provider_account_id,
+        scopes: [],
+        status: 'ACTIVE',
+      });
+    }
+  }
+
   providerFor(auth) {
     if (auth?.provider === 'local-file') return this.localFileProvider;
     return this.authProvider;
@@ -717,6 +760,7 @@ export class ConnectionGateway {
       action: fields.action ?? null,
       service: fields.service ?? null,
       module: fields.module ?? null,
+      label: fields.label ?? null,
       privilege: fields.privilege ?? null,
       provider_account_id: fields.provider_account_id ?? null,
     };
@@ -778,6 +822,13 @@ export class ConnectionGateway {
     if (!Array.isArray(accounts) || accounts.length === 0) return;
 
     const byToolkit = activeAccountIdsByToolkit(accounts);
+    // A toolkit with a labelled row is named call by call, so adoption never guesses there:
+    // an account a label just let go of would otherwise land on the unlabelled binding.
+    const toolkitKey = (value) => String(value || '').toUpperCase().replace(/^CUSTOM_/, '');
+    const labelledToolkits = new Set(this.store.listConnections()
+      .filter((row) => row.label !== undefined)
+      .map((row) => toolkitKey(this.lookupModule(row.service, row.module)?.auth?.toolkit))
+      .filter(Boolean));
 
     for (const connector of this.connectors) {
       const service = connector.id || connector.service;
@@ -787,6 +838,7 @@ export class ConnectionGateway {
         if (!auth || auth.provider === 'local-file') continue;
         const toolkit = auth.toolkit && String(auth.toolkit).toUpperCase();
         if (!toolkit) continue;
+        if (labelledToolkits.has(toolkitKey(toolkit))) continue;
         const accountId = byToolkit.get(toolkit) || byToolkit.get(toolkit.replace(/^CUSTOM_/, ''));
         if (!accountId) continue;
         // A listing captured before a teardown still carries the revoked account. Writing
@@ -794,6 +846,7 @@ export class ConnectionGateway {
         // checking whether a row exists cannot catch it, because writing missing rows is
         // what hydration is for.
         if (this.revokedAccounts.has(accountId)) continue;
+        if (this.store.listConnections().some((row) => row.label !== undefined && row.provider_account_id === accountId)) continue;
         const existing = this.store.getConnection({ service, module });
         if (isActive(existing) && existing.provider_account_id) continue;
         this.store.putConnection({
@@ -982,8 +1035,9 @@ export class ConnectionGateway {
     return statusObject(STATUS.NEEDS_CONNECTOR, { action: id });
   }
 
-  async execute({ action, input, confirm } = {}) {
-    return this.withAudit('execute', { action: action ?? null }, async (line) => {
+  async execute({ action, input, confirm, label } = {}) {
+    const labelled = label === undefined ? {} : { label };
+    return this.withAudit('execute', { action: action ?? null, label }, async (line) => {
       const parsed = parseActionId(action);
       if (!parsed) {
         line.path = 'none';
@@ -995,6 +1049,9 @@ export class ConnectionGateway {
       const found = this.lookupModule(parsed.service, parsed.module);
       const act = found?.mod?.actions?.[parsed.action];
       const auth = found?.auth;
+      if (label !== undefined && auth?.provider === 'local-file') {
+        return statusObject(STATUS.INVALID_ARGUMENTS, { tool: 'execute', field: 'label' });
+      }
       const firstParty = !act ? firstPartyDef(action) : null;
       const privilege = auth?.privilege ?? firstParty?.privilege;
       const risk = act?.risk ?? firstParty?.risk;
@@ -1043,7 +1100,7 @@ export class ConnectionGateway {
         if (!FIRST_PARTY_ACTIONS[action]) {
           return statusObject(STATUS.NEEDS_CONNECTOR, { action, reason: 'undeclared' });
         }
-        return this.executeFirstParty({ action, input, confirm, parsed, decision, resolved, line });
+        return this.executeFirstParty({ action, input, confirm, label, parsed, decision, resolved, line });
       }
       if (resolved.path === 'none') {
         if (parsed.service === 'wiser') return this.needsSubscriptionResult('missing');
@@ -1058,12 +1115,24 @@ export class ConnectionGateway {
       }
 
       const authForRun = resolved.path === 'connector' ? resolved.auth : auth;
+      let record = this.store.getConnection({ service: parsed.service, module: parsed.module, label });
+      if (label === undefined && !record) {
+        const missing = this.requireLabel('execute', parsed.service, parsed.module);
+        if (missing) return missing;
+      }
+      if (label !== undefined && !isActive(record)) {
+        return statusObject(STATUS.NEEDS_CONNECT, {
+          service: parsed.service,
+          module: parsed.module,
+          privilege: privilege ?? null,
+          label,
+        });
+      }
       if (this.needsProviderCredential(authForRun || { provider: 'catalog' })) {
         return this.needsProviderResult();
       }
 
-      let record = this.store.getConnection({ service: parsed.service, module: parsed.module });
-      if (!isActive(record) && authForRun?.provider !== 'local-file') {
+      if (label === undefined && !isActive(record) && authForRun?.provider !== 'local-file') {
         await this.hydrateFromProvider();
         record = this.store.getConnection({ service: parsed.service, module: parsed.module });
       }
@@ -1073,6 +1142,7 @@ export class ConnectionGateway {
           service: parsed.service,
           module: parsed.module,
           privilege: privilege ?? null,
+          ...labelled,
         });
       }
 
@@ -1113,6 +1183,7 @@ export class ConnectionGateway {
           module: parsed.module,
           privilege: privilege ?? null,
           provider_status: providerStatus,
+          ...labelled,
         });
       };
 
@@ -1133,7 +1204,7 @@ export class ConnectionGateway {
       }
 
       const confirmation = act?.confirmation || 'none';
-      const onceKey = action;
+      const onceKey = label === undefined ? action : canonicalJson([action, label, record.provider_account_id]);
       const needsConfirm =
         decision.effect === 'confirm' ||
         confirmation === 'always' ||
@@ -1152,6 +1223,8 @@ export class ConnectionGateway {
           action,
           approval.inputForKey,
           record.provider_account_id,
+          // A label joins the key only when given, so an unlabelled approval keeps today's key.
+          ...(label === undefined ? [] : [label]),
         ]);
         const matched = confirm === true && this.takePendingConfirmation(confirmKey);
         if (!matched) {
@@ -1171,6 +1244,7 @@ export class ConnectionGateway {
             module: parsed.module,
             risk: risk ?? null,
             confirmation,
+            label: label ?? null,
             input_fields: disclosure.fields,
             undeclared_fields: disclosure.undeclared,
             input_values: inputValueEntries(disclosure.shown),
@@ -1190,6 +1264,7 @@ export class ConnectionGateway {
       const classifyExecuteResult = async (result) => {
         if (!isStatusObject(result) && result?.error?.code === 'vendor_error') result = vendorErrorFrom(result);
         result = projectProviderCodes(result);
+        if (result?.status === STATUS.NEEDS_CONNECT && label !== undefined) result = { ...result, label };
         if (authForRun?.provider === 'local-file' || result?.status !== STATUS.VENDOR_ERROR ||
             ![401, 403].includes(result.http_status) || typeof provider?.status !== 'function') {
           return result;
@@ -1280,7 +1355,7 @@ export class ConnectionGateway {
    * First-party dispatch. Never reads `act` (undefined for a wiser.* id).
    * @param {object} args
    */
-  async executeFirstParty({ action, input, confirm, parsed, decision, resolved, line }) {
+  async executeFirstParty({ action, input, confirm, label, parsed, decision, resolved, line }) {
     const session = this.classifierSession();
     if (!session.ok) return statusObject(STATUS.CLASSIFIER_UNBOUND, { reason: session.reason });
 
@@ -1291,7 +1366,7 @@ export class ConnectionGateway {
     if (invalidField !== null) return statusObject(STATUS.INVALID_ARGUMENTS, { field: invalidField });
 
     const confirmation = def.confirmation || 'none';
-    const onceKey = action;
+    const onceKey = label === undefined ? action : canonicalJson([action, label]);
     const needsConfirm =
       decision.effect === 'confirm' ||
       confirmation === 'always' ||
@@ -1306,6 +1381,7 @@ export class ConnectionGateway {
         action,
         approval.inputForKey,
         null,
+        ...(label === undefined ? [] : [label]),
       ]);
       const matched = confirm === true && this.takePendingConfirmation(confirmKey);
       if (!matched) {
@@ -1325,6 +1401,7 @@ export class ConnectionGateway {
           module: parsed.module,
           risk: def.risk ?? null,
           confirmation,
+          label: label ?? null,
           input_fields: disclosure.fields,
           undeclared_fields: disclosure.undeclared,
           input_values: inputValueEntries(disclosure.shown),
@@ -1351,6 +1428,7 @@ export class ConnectionGateway {
       }
       stampVersionFacts(line, raw, key);
       const result = projectFirstPartyResult(raw);
+      if (result.status === STATUS.NEEDS_CONNECT && label !== undefined) result.label = label;
       if (isStatusObject(result)) return projectProviderCodes(result);
       if (result.error && result.error.code === 'vendor_error') return vendorErrorFrom(result);
       // An adapter status is not re-parsed as a success answer. A
@@ -1372,8 +1450,8 @@ export class ConnectionGateway {
     }
   }
 
-  async startConnect({ service, module } = {}) {
-    return this.withAudit('startConnect', { service, module, action: null }, async (line) => {
+  async startConnect({ service, module, label } = {}) {
+    return this.withAudit('startConnect', { service, module, label, action: null }, async (line) => {
       if (!service || !module) {
         return statusObject(STATUS.NEEDS_CONNECTOR, { action: null, service: service ?? null, module: module ?? null });
       }
@@ -1381,6 +1459,9 @@ export class ConnectionGateway {
       if (!found) {
         line.path = 'none';
         return statusObject(STATUS.NEEDS_CONNECTOR, { service, module });
+      }
+      if (label !== undefined && found.auth.provider === 'local-file') {
+        return statusObject(STATUS.INVALID_ARGUMENTS, { tool: 'start_connect', field: 'label' });
       }
       line.privilege = found.auth.privilege;
       const decision = evaluate(this.policy, {
@@ -1453,6 +1534,7 @@ export class ConnectionGateway {
         id: randomUUID(),
         service,
         module,
+        ...(label === undefined ? {} : { label }),
         privilege: found.auth.privilege,
         provider: found.auth.provider,
         provider_account_id: initiated?.providerAccountId ?? null,
@@ -1469,13 +1551,17 @@ export class ConnectionGateway {
     });
   }
 
-  async connectStatus({ service, module } = {}) {
-    return this.withAudit('connectStatus', { service, module, action: null }, async (line) => {
+  async connectStatus({ service, module, label } = {}) {
+    const labelled = label === undefined ? {} : { label };
+    return this.withAudit('connectStatus', { service, module, label, action: null }, async (line) => {
       if (!service || !module) {
         return statusObject(STATUS.NEEDS_CONNECTOR, { service: service ?? null, module: module ?? null });
       }
       const found = this.lookupModule(service, module);
-      const stored = this.store.getConnection({ service, module });
+      if (label !== undefined && found?.auth?.provider === 'local-file') {
+        return statusObject(STATUS.INVALID_ARGUMENTS, { tool: 'connect_status', field: 'label' });
+      }
+      const stored = this.store.getConnection({ service, module, label });
 
       // **A record can outlive whatever made it, and that is when its status most
       // needs refreshing.** Retiring a connector leaves its row here reading ACTIVE
@@ -1554,6 +1640,10 @@ export class ConnectionGateway {
         });
       }
 
+      if (label !== undefined && !stored?.provider_account_id) {
+        return statusObject(STATUS.NEEDS_CONNECT, { service, module, privilege: target.auth.privilege, label });
+      }
+
       if (this.needsProviderCredential(target.auth)) {
         return this.needsProviderResult();
       }
@@ -1585,14 +1675,14 @@ export class ConnectionGateway {
       // needs_connect. That path is not this one.
       const storedId = record?.provider_account_id;
       const hasAccount = typeof storedId === 'string' && storedId.length > 0;
-      if (!orphaned && target.auth.provider !== 'local-file' && !hasAccount) {
+      if (label === undefined && !orphaned && target.auth.provider !== 'local-file' && !hasAccount) {
         const listed = await this.hydrateFromProvider();
         if (listed && listed.failed) {
           line.provider_account_id = record?.provider_account_id ?? null;
           line.path = 'connector';
           return listingProviderError(listed.error);
         }
-        record = this.store.getConnection({ service, module });
+        record = this.store.getConnection({ service, module, label });
         const refreshed = record?.provider_account_id;
         if (typeof refreshed !== 'string' || refreshed.length === 0) {
           line.provider_account_id = null;
@@ -1601,6 +1691,7 @@ export class ConnectionGateway {
             service,
             module,
             privilege: found.auth.privilege,
+            ...labelled,
           });
         }
       }
@@ -1634,7 +1725,7 @@ export class ConnectionGateway {
             service, module, reason: 'orphaned_status_unreadable',
           });
         }
-        return statusObject(STATUS.NEEDS_CONNECT, { service, module, privilege: found.auth.privilege });
+        return statusObject(STATUS.NEEDS_CONNECT, { service, module, privilege: found.auth.privilege, ...labelled });
       }
 
       if (orphaned) {
@@ -1648,7 +1739,7 @@ export class ConnectionGateway {
         // undeclared service. The store is still shared, and this is the check
         // the declared path already paid for, not a new claim that rebound cannot
         // happen.
-        const current = this.store.getConnection({ service, module });
+        const current = this.store.getConnection({ service, module, label });
         const accountNow = current?.provider_account_id ?? null;
         const accountThen = record.provider_account_id ?? null;
         if (!current) {
@@ -1661,6 +1752,7 @@ export class ConnectionGateway {
           id: record.id,
           service,
           module,
+          ...labelled,
           privilege: record.privilege,
           provider: record.provider,
           provider_account_id: record.provider_account_id,
@@ -1688,20 +1780,21 @@ export class ConnectionGateway {
         // status answer that overtakes a teardown recreates an ACTIVE row for a
         // credential that has just been revoked. Found by adversarial review; it is a
         // defect the new tool created in an old function rather than one it inherited.
-        const current = this.store.getConnection({ service, module });
+        const current = this.store.getConnection({ service, module, label });
         const accountNow = current?.provider_account_id ?? null;
         const accountThen = record?.provider_account_id ?? null;
         if (!current && record) {
-          return statusObject(STATUS.NEEDS_CONNECT, { service, module, privilege: found.auth.privilege, reason: 'removed_while_checking' });
+          return statusObject(STATUS.NEEDS_CONNECT, { service, module, privilege: found.auth.privilege, ...labelled, reason: 'removed_while_checking' });
         }
         if (record && accountNow !== accountThen) {
-          return statusObject(STATUS.NEEDS_CONNECT, { service, module, privilege: found.auth.privilege, reason: 'rebound_while_checking' });
+          return statusObject(STATUS.NEEDS_CONNECT, { service, module, privilege: found.auth.privilege, ...labelled, reason: 'rebound_while_checking' });
         }
         const saved = this.store.putConnection({
           id: record?.id || randomUUID(),
           service,
           module,
           privilege: found.auth.privilege,
+          ...labelled,
           provider: found.auth.provider,
           provider_account_id: record?.provider_account_id ?? statusArgs.providerAccountId,
           scopes: record?.scopes || [],
@@ -1709,6 +1802,7 @@ export class ConnectionGateway {
           created: record?.created || nowIso(),
           updated: nowIso(),
         });
+        if (label !== undefined) this.bindLabelledModules(found, saved);
         return { status: 'connected', connection: saved };
       }
       if (record) {
@@ -1716,7 +1810,7 @@ export class ConnectionGateway {
         // a teardown put the deleted row back, and where a reconnect had landed it
         // overwrote the new binding with the old one. Found by adversarial review after
         // the first fix covered only the ACTIVE path.
-        const current = this.store.getConnection({ service, module });
+        const current = this.store.getConnection({ service, module, label });
         const accountNow = current?.provider_account_id ?? null;
         if (current && accountNow === (record.provider_account_id ?? null)) {
           this.store.putConnection({ ...record, status: mapped });
@@ -1729,6 +1823,7 @@ export class ConnectionGateway {
         service,
         module,
         privilege: found.auth.privilege,
+        ...labelled,
         provider_status: mapped,
       });
     });
@@ -1749,10 +1844,17 @@ export class ConnectionGateway {
    * Confirmation is implemented here rather than inherited. A `confirmation` field is
    * manifest metadata read inside `execute`, and a top-level tool is not on that path.
    */
-  async disconnect({ service, module, provider_account_id: approvedAccount, confirm } = {}) {
-    return this.withAudit('disconnect', { service, module }, async (line) => {
+  async disconnect({ service, module, label, provider_account_id: approvedAccount, confirm } = {}) {
+    return this.withAudit('disconnect', { service, module, label }, async (line) => {
       const found = this.lookupModule(service, module);
-      const stored = this.store.getConnection({ service, module });
+      if (label !== undefined && found?.auth?.provider === 'local-file') {
+        return statusObject(STATUS.INVALID_ARGUMENTS, { tool: 'disconnect', field: 'label' });
+      }
+      const stored = this.store.getConnection({ service, module, label });
+      if (label === undefined && !stored) {
+        const missing = this.requireLabel('disconnect', service, module);
+        if (missing) return missing;
+      }
 
       // **A record can outlive whatever made it, and that is when it most
       // needs taking down.** Retiring a connector leaves its grant live at the provider
@@ -1846,7 +1948,11 @@ export class ConnectionGateway {
       // Every row on this credential, because every one of them ends.
       const boundRows = this.store.listConnections()
         .filter((row) => row.provider_account_id === accountId);
-      const bound = boundRows.map((row) => ({ service: row.service, module: row.module }));
+      const bound = boundRows.map((row) => ({
+        service: row.service,
+        module: row.module,
+        ...(row.label === undefined ? {} : { label: row.label }),
+      }));
 
       // **Every one of them is authorized, not only the one named.** The policy is
       // written per service and module, so an override may deny disconnecting one
@@ -1906,15 +2012,16 @@ export class ConnectionGateway {
       // also escapes. The pending key is the stored account and the modules bound
       // to it, not the caller's copy of the account. The list is sorted so two
       // stores that hold the same rows in a different order are one approval.
-      const boundNames = bound.map((row) => `${row.service}/${row.module}`).sort();
-      const confirmKey = confirmationDigest(['disconnect', service, module, accountId, boundNames]);
+      const boundName = (row) => `${row.service}/${row.module}${row.label === undefined ? '' : `@${row.label}`}`;
+      const boundNames = bound.map(boundName).sort();
+      const confirmKey = confirmationDigest(['disconnect', service, module, accountId, boundNames, ...(label === undefined ? [] : [label])]);
       const confirmationStop = (reason) => {
         this.recordPendingConfirmation(confirmKey);
         const disclosure = discloseInput(
           { input: { properties: { provider_account_id: { type: 'string' } } } },
           { provider_account_id: accountId },
         );
-        const names = bound.map((row) => `${row.service}/${row.module}`).join(', ');
+        const names = bound.map(boundName).join(', ');
         const summary = composeSummary({
           action: 'disconnect',
           service,
@@ -1929,6 +2036,7 @@ export class ConnectionGateway {
           module,
           risk: 'destructive',
           confirmation: 'always',
+          label: label ?? null,
           provider_account_id: accountId,
           modules_ending: bound,
           input_fields: disclosure.fields,
@@ -2111,7 +2219,11 @@ export class ConnectionGateway {
         provider_account_id: accountId,
         steps,
         credential_revoked: everyStepOk ? 'yes' : 'unknown',
-        removed: removed.map((row) => ({ service: row.service, module: row.module })),
+        removed: removed.map((row) => ({
+          service: row.service,
+          module: row.module,
+          ...(row.label === undefined ? {} : { label: row.label }),
+        })),
       };
     });
   }

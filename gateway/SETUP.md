@@ -163,6 +163,8 @@ A `readonly` entry cannot call it at all.
 
 Connecting is its own turn, never a side effect of work, and the same on both routes. Ask for it in plain words: "Connect Cloudflare DNS." On the endpoint the provider and its blueprints are the service's, so you only approve at the vendor. The `Connect Account` skill runs `start_connect`, hands you a link or a file path, waits while you approve at the vendor in your own browser or write the file yourself, and then runs `connect_status` to record the grant. No key is ever typed into the conversation; if a skill asks you for one, that skill is wrong and you should stop.
 
+To connect a service more than once, give each connection a label: a short lower-case name using letters, digits and internal hyphens, up to 32 characters. Pass it to `start_connect` and `connect_status`, and name it on every `execute` or `disconnect` call for that connection. One labelled connect binds the connector's other modules on the same toolkit under that label to the same credential, so one label holds one credential per toolkit. With no label, every call acts on the unlabelled binding; where a module has only labelled bindings, `execute` and `disconnect` with no label are refused with the labels listed, while `start_connect` and `connect_status` with no label still open or check the unlabelled binding. Adoption never fills an unlabelled binding on a toolkit that has a labelled one. Local-file connections do not take labels.
+
 What each vendor asks of you on its side is in that connector's `auth.md`.
 
 ## 5. What the gateway says, and what it means

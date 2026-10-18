@@ -18,6 +18,7 @@ const CREDENTIAL_SHAPE = /^(ghp_|gho_|sk-|xox|Bearer )/;
  * @property {string} id
  * @property {string} service
  * @property {string} module
+ * @property {string} [label]
  * @property {string} privilege
  * @property {string} provider
  * @property {string|null} provider_account_id
@@ -117,6 +118,10 @@ export class JsonFileStore {
     const doc = JSON.parse(raw);
     if (!doc || typeof doc !== 'object') return emptyDoc();
     if (!Array.isArray(doc.connections)) doc.connections = [];
+    // Another writer may spell "no label" as null or ''; both read as the unlabelled binding.
+    for (const row of doc.connections) {
+      if (row && typeof row === 'object' && (row.label === null || row.label === '')) delete row.label;
+    }
     if (!('userId' in doc)) doc.userId = null;
     return doc;
   }
@@ -149,11 +154,12 @@ export class JsonFileStore {
   }
 
   /**
-   * @param {{ service: string, module: string }} key
+   * @param {{ service: string, module: string, label?: string }} key
    * @returns {ConnectionRecord | null}
    */
-  getConnection({ service, module }) {
-    return this.read().connections.find((row) => row.service === service && row.module === module) ?? null;
+  getConnection({ service, module, label }) {
+    if (label === null || label === '') label = undefined;
+    return this.read().connections.find((row) => row.service === service && row.module === module && row.label === label) ?? null;
   }
 
   /**
@@ -165,13 +171,19 @@ export class JsonFileStore {
       throw new Error('connection record is required');
     }
     assertNoSecrets(record, 'connection record');
+    if (record.label === null) record = { ...record, label: undefined };
+    if (record.label !== undefined && (typeof record.label !== 'string' || record.label === '')) {
+      throw new Error('connection label must be a non-empty string');
+    }
     const now = new Date().toISOString();
     const doc = this.read();
-    const existing = doc.connections.find((row) => row.service === record.service && row.module === record.module);
+    const matches = (row) => row.service === record.service && row.module === record.module && row.label === record.label;
+    const existing = doc.connections.find(matches);
     const next = {
       id: existing?.id || record.id || randomUUID(),
       service: record.service,
       module: record.module,
+      ...(record.label === undefined ? {} : { label: record.label }),
       privilege: record.privilege,
       provider: record.provider,
       provider_account_id: record.provider_account_id ?? null,
@@ -181,14 +193,14 @@ export class JsonFileStore {
       updated: now,
     };
     assertNoSecrets(next, 'connection record');
-    doc.connections = doc.connections.filter((row) => !(row.service === next.service && row.module === next.module));
+    doc.connections = doc.connections.filter((row) => !matches(row));
     doc.connections.push(next);
     this.write(doc);
     return next;
   }
 
   /**
-   * Remove connection rows, by service and module or by provider account.
+   * Remove connection rows, by service, module and label or by provider account.
    *
    * One removal with two selectors rather than two removals. **The account selector is
    * what the teardown uses**, because one provider account backs every module of its
@@ -206,17 +218,18 @@ export class JsonFileStore {
    *
    * Returns the rows it removed, so a caller can report what went rather than assert it.
    *
-   * @param {{ service?: string, module?: string, providerAccountId?: string }} key
+   * @param {{ service?: string, module?: string, label?: string, providerAccountId?: string }} key
    * @returns {object[]} the removed rows
    */
-  deleteConnection({ service, module, providerAccountId }) {
+  deleteConnection({ service, module, label, providerAccountId }) {
+    if (label === null || label === '') label = undefined;
     const byAccount = providerAccountId !== undefined && providerAccountId !== null;
     if (!byAccount && (service === undefined || module === undefined)) {
       throw new Error('deleteConnection needs service and module, or providerAccountId');
     }
     const matches = (row) => (byAccount
       ? row.provider_account_id === providerAccountId
-      : row.service === service && row.module === module);
+      : row.service === service && row.module === module && row.label === label);
     const doc = this.read();
     const removed = doc.connections.filter(matches);
     if (removed.length === 0) return [];

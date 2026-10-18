@@ -25,18 +25,18 @@ In the Twenty workspace, open Settings and make a workspace API key. The role a 
 
 This toolkit is not one the provider ships. The origin is different for every installer, so the gateway does not register a row for it. On the local gateway you create slug `TWENTY`, and you keep a single auth config on it.
 
-Work in one workspace at a time; the gateway does not enforce it. A key belongs to one workspace, and each module holds its own binding, so a second workspace is reached by connecting **both** modules again, then reading each module's `workspace` action before any write. Connecting again replaces which key a module uses. It does not revoke the key it replaced, so revoke that key in the first workspace's settings when you are done with it. Both modules sit on this one toolkit, so after the first is connected the second may adopt that account. Adoption is skipped when the toolkit has more than one ACTIVE account, and then you connect each module by name.
+Use labelled connections for several workspaces, as [CONNECTOR.md, Several workspaces](CONNECTOR.md#several-workspaces) requires: name each workspace by its subdomain and check both modules' workspace identity before any write.
 
 ## Through the gateway
 
 The same steps on both routes:
 
-1. Say "Connect Twenty" and name the module: `records` or `metadata`.
-2. The skill runs `start_connect` and hands you a link.
+1. Say "Connect Twenty" and name the module, `records` or `metadata`, and the workspace's subdomain as the label.
+2. The skill passes the label to `start_connect` and hands you a link. One link connects both modules under that label.
 3. Open that link in your own browser. The provider's page asks for one API key: enter the workspace key there and nowhere else. Nothing is typed into the conversation.
-4. The skill runs `connect_status`. On `ACTIVE`, that module's actions can run.
+4. The skill passes the same label to `connect_status`. On `ACTIVE`, both modules' actions can run under that label.
 
-Repeat for the other module. Both use the one toolkit, so the second may adopt the account the first created. A second auth config on that toolkit makes every module on it unconnectable until the extra one is removed.
+For an unlabelled connect, omit the label and repeat for the other module. Both use the one toolkit, so the second may adopt the account the first created. A second auth config on that toolkit makes every module on it unconnectable until the extra one is removed.
 
 **On the local gateway**, the shipped default policy denies privilege `admin` for the runtime role. Both of these modules declare `admin`. Until `policy.json` in the gateway home allows service `twenty` at privilege `admin`, an action answers `denied` and no request is sent. **On the Wiser endpoint** the policy is the service's, and you change nothing.
 
@@ -49,7 +49,7 @@ Local-file is not a route here. This connector does not read a bound file, use a
 **Revoke through the gateway.** `disconnect`, with this service and any of its modules, revokes the credential at the provider and removes every local record of it.
 
 - **It ends every module bound to that credential and not only the one you name.** It stops first and lists them in `modules_ending`. **That list is what you approve**: if anything else is bound to the credential before you answer, nothing is revoked and it stops again with the new list. The answer reports what was actually removed.
-- **If someone wants one of those modules kept, their request cannot be met as asked, and saying so is the answer.** The credential is the unit; there is no way to end part of one. Two routes work. Either agree that both end, or first connect the module they want kept on a credential of its own, `start_connect` for that service and module and then `connect_status`, and only then run `disconnect`, **naming a module still on the old credential**, checking that `modules_ending` no longer lists the one you moved. **Do not approve the teardown hoping it spares one**, and do not take the vendor route instead, which is broader rather than narrower.
+- **If someone wants one of those modules kept, their request cannot be met as asked, and saying so is the answer.** The credential is the unit; there is no way to end part of one. Two routes work. Either agree that both end, or first connect the module they want kept on a credential of its own, `start_connect` for that service and module and then `connect_status`, and only then run `disconnect`, **naming a module still on the old credential**, checking that `modules_ending` no longer lists the one you moved. **A labelled connection moves as one**: connecting again under a label moves every module of its toolkit under that label, so to keep one module out of a labelled connection, connect that module with no label first, then `disconnect` naming the label. **Do not approve the teardown hoping it spares one**, and do not take the vendor route instead, which is broader rather than narrower.
 - **The vendor route below does not reach the same set, and may reach further.** `disconnect` acts on one provider account, and that account is what defines its scope; `modules_ending` reports the local bindings known to it when it asks. Rolling or deleting a credential at the vendor acts on everything that credential authorises, which can include modules bound to a different provider account, other machines, and other people. **`modules_ending` does not describe the vendor route**; before taking it, work out what else uses that credential.
 - **It acts on one credential.** A service connected more than once needs one `disconnect` per credential. **`list_connections` shows what the gateway has recorded and nothing more**: it cannot establish that no credential for this service remains at the provider, because discovery lists only ACTIVE accounts, skips a toolkit holding more than one, and adds nothing when the provider cannot be read. To be sure a service is gone, check at the vendor. Do not read one teardown, or an empty listing, as removing a service entirely.
 - **Revoking is not scoped to this workspace.** The credential lives at the provider, and the store is per person rather than per workspace, so ending it can end access from another machine or another workspace using the same grant. Settle that before approving.
@@ -60,4 +60,4 @@ Local-file is not a route here. This connector does not read a bound file, use a
 
 ## Last connected
 
-Not yet.
+Yes.

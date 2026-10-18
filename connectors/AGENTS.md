@@ -27,32 +27,37 @@ Five layers stand between a module and a vendor call. Which layer holds what ans
 | Toolkit | Provider | The vendor surface: its base URL and the auth schemes it may carry. Shipped by the provider, or upserted by the gateway for a vendor the provider does not ship |
 | Auth config | Provider | How to authenticate that toolkit: the scheme, and for OAuth the app and the scopes |
 | Connected account | Provider | The vendor credential, created when a person consents or pastes a key. The module never receives it |
-| Connection record | `connections.json` | A pointer: this service and module use that connected account, at a status |
+| Connection record | `connections.json` | A pointer: this service and module, under an optional label, use that connected account, at a status |
 | Module | Here | Nothing. It asks for a call by action id and sees none of the above |
 
 Four consequences follow, each a fact about the code rather than a rule:
 
-- **Execute uses the record as it stands.** On a hosted grant an ACTIVE record's account is used with no status check first; a local-file grant's file is read on every call instead, and an unreadable one stops the grant. A module with no ACTIVE record may adopt the toolkit's account, and adoption is skipped where that toolkit carries more than one ACTIVE account, judged over the accounts the provider returns in one page. A module already bound is unaffected by a second account.
-- **`start_connect` rebinds.** It writes a new account id over that service and module's row, so connecting again replaces which credential the module uses. Nothing revokes the account it replaced. `skills/Connect Account/` stops rather than doing this to an ACTIVE grant unless the person asks to rotate; that is the skill's judgment, not the gateway's.
+- **Execute uses the record as it stands.** On a hosted grant an ACTIVE record's account is used with no status check first; a local-file grant's file is read on every call instead, and an unreadable one stops the grant. An unlabelled binding with no ACTIVE record may adopt the toolkit's account, and adoption is skipped where that toolkit carries more than one ACTIVE account, judged over all pages the provider returns. Adoption is for unlabelled bindings only, never uses an account held by a labelled row, and never runs on a toolkit that has a labelled row. A module already bound is unaffected by a second account.
+- **`start_connect` rebinds.** It writes a new account id over that service, module and label's row, so connecting again replaces which credential that binding uses and leaves the others alone. Nothing revokes the account it replaced. `skills/Connect Account/` stops rather than doing this to an ACTIVE grant unless the person asks to rotate; that is the skill's judgment, not the gateway's.
 - **One shipped path removes a record, and it is `disconnect`.** It revokes the credential at the provider, asks the provider whether it is still there, and removes every local row holding that provider account **only** when the answer is that it is gone. A grant that is merely inactive keeps its rows, because it is coming back. A status does update short of removal, when a check returns a recognised inactive status: `connect_status` writes what the provider reports, and an execute meeting 401 or 403 refreshes. A provider outage leaves the row as it was, deliberately, so an outage does not read as a lost grant. **Until 2026-09-20 nothing removed a record at all**, and a row outlived the account it named; the `pagespeed/insights` row that stood ACTIVE against a 404 for five sessions is what that looked like.
 - **Replacing a credential without reconnecting is not a path this root has.** The adapter implements no update operation, and whether the provider offers one has not been verified here. Reconnecting is the shipped route; check before assuming an in-place edit exists.
 
 ## Grants are per module
 
-**One binding per module, and several bindings may share one credential.** Both halves are the
-model and they are stated together here on purpose. Taught as the first half alone, a reader
-builds a mental model in which a module owns its access, and then meets revoking, which ends
-every module bound to the same credential, and reads that as a surprise or a defect. It is
-neither. The order was the defect.
+**One binding per module and label, and several bindings may share one credential.** Both
+halves are the model and they are stated together here on purpose. Taught as the first half
+alone, a reader builds a mental model in which a module owns its access, and then meets revoking,
+which ends every module bound to the same credential, and reads that as a surprise or a defect.
+It is neither. The order was the defect.
 
-**Connecting is the first half.** A connection record is keyed by service and module, so two
-modules on one service are two bindings, even where the vendor would have accepted one broader
-grant: the provider holds one grant per toolkit and a record that pretends otherwise cannot be
-honoured. The facade is naming and shared scope, never a shared token. **Two bindings are not
-always two human turns.** `skills/Connect Account/` treats each as its own turn, which is that
-skill's policy, and the gateway may adopt a toolkit's account for a module with no ACTIVE record
-of its own, as What a grant is made of states above. So a second module sometimes runs without a
-second stop; what it never does is share the first module's record.
+**Connecting is the first half.** A connection record is keyed by service, module and an optional
+label, so two modules on one service are two bindings, even where the vendor would have accepted
+one broader grant: the provider holds one grant per toolkit and a record that pretends otherwise
+cannot be honoured. The facade is naming and shared scope, never a shared token. **A label lets
+one module hold several credentials at once**, such as one per workspace of a self-hosted install:
+a call names the label, no label means the unlabelled binding, and an `execute` or `disconnect`
+with no label where the module has only labelled bindings is refused, naming the labels. **Two bindings are not always two
+human turns.** For an unlabelled connect, `skills/Connect Account/` treats each module as its own
+turn, which is that skill's policy, and the gateway may adopt a toolkit's account for a module
+with no ACTIVE unlabelled record of its own, as What a grant is made of states above. A labelled
+connect binds every module of the connector's toolkit under its label to its credential, so one
+turn connects them all and one label holds one credential per toolkit. What it never does is share one
+module's record with another.
 
 **Revoking is the second half, and it follows from it.** `disconnect` acts on the credential, so
 it ends every binding pointing at that credential and not only the module you named; it says
@@ -61,8 +66,10 @@ above. A binding is a pointer, the credential is the thing, and removing the thi
 pointer to it.
 
 **What each half lets you predict.** From the first: a second module has its own record, and
-`skills/Connect Account/` gives it its own turn, though adoption may spare it a stop. From the second: to keep one module while
-ending another, give the one you are keeping a credential of its own first, then revoke; and
+an unlabelled connect gets its own turn through `skills/Connect Account/`, though adoption may
+spare it a stop; a labelled connect binds the toolkit's modules in one turn. From the second: to keep one module while
+ending another, give the one you are keeping a credential of its own first, with no label when
+the two share one, since a labelled connection moves as one, then revoke; and
 `list_connections` showing one module is not evidence that one credential is all there is. Every
 guide's `## Revoking` section carries the same working through, from `connectors/shared-text.md`.
 
@@ -129,6 +136,6 @@ guide's `## Revoking` section carries the same working through, from `connectors
 |-----------|-------------|
 | `zoho/CONNECTOR.md` | Reads mail, Books and Invoice invoices, Desk tickets, Inventory and Bigin contacts through six read grants, and reads, searches, and creates CRM leads with confirmation |
 | `hubspot/CONNECTOR.md` | Reads and searches contacts |
-| `twenty/CONNECTOR.md` | Reads and creates records, objects, fields and select options in one Twenty workspace, confirming every write |
+| `twenty/CONNECTOR.md` | Reads and creates records, objects, fields and select options in Twenty workspaces through labelled connections, confirming every write |
 
 <!-- /generated:index -->

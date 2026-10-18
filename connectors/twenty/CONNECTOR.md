@@ -2,13 +2,13 @@
 name: twenty
 type: connector
 category: crm
-description: Reads and creates records, objects, fields and select options in one Twenty workspace, confirming every write
-version: 0.1.3
+description: Reads and creates records, objects, fields and select options in Twenty workspaces through labelled connections, confirming every write
+version: 0.1.4
 ---
 
 # Twenty
 
-Reads and creates records, objects, fields and select options in one self-hosted Twenty workspace. Every endpoint is relative to that install's address. No action takes a host as input.
+Reads and creates records, objects, fields and select options in self-hosted Twenty workspaces through labelled connections. Every endpoint is relative to that install's address. No action takes a host as input.
 
 ## Status
 
@@ -26,13 +26,13 @@ This connector sends none of them. It holds a workspace API key and calls no end
 
 A record `twenty.records.create` creates can start the workspace's own workflows. A workflow the workspace already holds may send from a member's connected mailbox. This connector cannot see that workflow and cannot stop it. Creating a record stops for confirmation every time.
 
-## One workspace
+## Several workspaces
 
-Work in one workspace at a time. This is an operating rule, not something the gateway enforces. A key belongs to one workspace, and each module is bound to its own account, so reconnecting one module to a second workspace leaves the other on the first. To move to another workspace, connect **both** modules again, then read `twenty.records.workspace` and `twenty.metadata.workspace` and write nothing until both name the workspace you intend. Connecting again does not revoke the key it replaced; revoke that key in the first workspace's settings. Both modules use one toolkit, so after the first is connected the second may adopt that account. Adoption is skipped when the toolkit has more than one ACTIVE account, and then each module is connected by name. `auth.md` says how.
+Each workspace is a labelled connection. Use its subdomain as the label: `acme` for `acme.<base>`. One connect binds both `records` and `metadata` under that label to the same key. Every call names the label. Before any write in a workspace, read `twenty.records.workspace` and `twenty.metadata.workspace` under that label and stop unless both name the workspace whose subdomain equals the label. An unlabelled connection still works as a single workspace. Connecting again under a label replaces that label's key and does not revoke the replaced key in Twenty: revoke it in that workspace's settings. `auth.md` says how.
 
 ## Reaching it
 
-Through the gateway, by action id, on the Wiser endpoint or the local gateway. The endpoint holds this toolkit only once the service is set up for it. `auth.md` says which route is yours. API names match `^[a-z][a-zA-Z0-9]{0,62}$`. Length bounds below count code points. The gateway applies types, enums, patterns, required fields and item types before the module runs. The module applies `minLength`, `maxLength`, `minimum`, `maximum`, `minItems`, `maxItems`, `maxProperties`, the `oneOf` that ties `options` to the select types, and every nested rule.
+Through the gateway, by action id, on the Wiser endpoint or the local gateway. `label` is a gateway argument beside `input`, never an action input. The endpoint holds this toolkit only once the service is set up for it. `auth.md` says which route is yours. API names match `^[a-z][a-zA-Z0-9]{0,62}$`. Length bounds below count code points. The gateway applies types, enums, patterns, required fields and item types before the module runs. The module applies `minLength`, `maxLength`, `minimum`, `maximum`, `minItems`, `maxItems`, `maxProperties`, the `oneOf` that ties `options` to the select types, and every nested rule.
 
 ```
 twenty.records.list                  { object, limit?, cursor? }
