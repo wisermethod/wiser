@@ -145,6 +145,6 @@ It is a check, not a step. A personal root that never runs it is onboarded; one 
 - `memory/voice.md` was written by Build Voice, or its headings carry the label that says why not and the key closed provisional.
 - The `## Onboarding` section of `AGENTS.md` carries one state line per key, each provisional or blocked line naming its owner and what it waits on.
 - On the full path, every gate ran and the close report names each one that did not pass, per `full-path.md`.
-- Where Build Voice wrote its confirmed draft to the bound voice file in this run, `skills/Voice Report/` was offered once, at the end of the run, and run only on a yes; Build Voice made no offer of its own.
+- Where Build Voice wrote its confirmed draft to the bound voice file in this run, `skills/Voice Report/` was offered once, at the end of the run, after G20 passed on the full path and only where no restore ran, and run only on a yes; Build Voice made no offer of its own.
 
 A credential's value never enters the conversation, a log, a commit, or another file.
