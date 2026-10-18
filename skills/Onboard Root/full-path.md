@@ -288,9 +288,9 @@ Copy still-open root-meta items to `zBuilds/builds.md` under `standards/user-roo
 
 **Then the close report**, `work/onboarding/close-report.md`: the tier that ran and what was not done; the type and the scope that decided it; the destination; the per-key close state; every open heading named; every gate that failed and every gate that did not apply; what the audit found and how each finding was disposed of; and everything outstanding with its owner.
 
-Then, where Build Voice wrote `memory/voice.md` in this run, make the Voice Report offer that Step 5 of `SKILL.md` makes; the voice key's state line Phase 9 wrote is the one that page reads.
-
 Exit: G20.
+
+Once G20 passes, where Build Voice wrote its confirmed draft to the root's bound voice file in this run, make the Voice Report offer that Step 5 of `SKILL.md` makes; the voice key's state line Phase 9 wrote is the one that page reads.
 
 ## The Records the Gates Read
 
