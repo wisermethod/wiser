@@ -14,6 +14,7 @@ Changes before September 27, 2026 are in the commit history only.
 - The page shows only your voice file's own lines, the measurements you confirmed, your folder's record of whether the voice is complete or still provisional, and fixed labels. It calls your voice confirmed only where its confirmation line holds a date, reads a voice line edited by hand, in bold or with a trailing colon, for its state, and shows bold and italic text without stray stars.
 - Asking again the same day reuses the page while your voice is unchanged. Once it changes, the old page is archived and a new one is built.
 - When Build Voice finishes your voice, it offers Voice Report, which shows the voice as dials and saves it as one page. During onboarding the offer comes at the end, once your folder records where your voice stands. The page is made only on your yes.
+- When Build Voice finishes your voice outside onboarding, it updates your folder's record of whether the voice is complete or still provisional, telling you first what that record said. Work that waits on a complete voice can go ahead once it is, a rebuild that leaves the voice provisional marks it provisional again, and Voice Report shows the state Build Voice just reported.
 
 ## v2026.10.17, October 17, 2026
 
