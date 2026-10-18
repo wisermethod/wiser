@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types
-version: 0.38.6
+version: 0.38.8
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -109,6 +109,8 @@ Onboarded <date> on the personal path of `skills/Onboard Root/`. A deliverable t
 A key is **complete** when every heading is answered or labeled, at least one is answered, and every claim survived the read-back. It is **provisional** when the file is usable and a named gap remains, with an owner and what it waits on in the same line; a file whose every heading is a label is provisional, not complete, with the person as owner. It is **blocked** when the file is not usable, with the blocker named on the line as `person:`, `credential:` or `capability:` followed by who or what; the form is `blocked (person: <who>; waits on <what>)`. A key that cannot pass its read-back is provisional or blocked, never closed complete. Nothing in the section is ever deleted; a later session updates a line when a key closes.
 
 Then tell the person what is in the three files, which keys are provisional, and what closes them. No run record, no close report, no operating file: the state lines are the record.
+
+Where Build Voice wrote `memory/voice.md` in this run, end by offering `skills/Voice Report/`, which shows the voice as dials and saves it as one page. Build Voice leaves this offer to the close because that page reads the voice key's state line, which this close has just written. Does the person take it? Yes: run it. No, or no answer: stop there, since the page is never made unasked.
 
 ### The optional check
 
