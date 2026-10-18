@@ -1,0 +1,13 @@
+{
+  "em_dash": 3.0,
+  "en_dash": 0.3,
+  "double_hyphen": 0.2,
+  "semicolon": 2.0,
+  "ellipsis": 0.3,
+  "exclamation": 0.5,
+  "parenthesis": 2.5,
+  "serial_comma": 1.5,
+  "initial_and": 1.0,
+  "initial_but": 2.0,
+  "initial_so": 0.6
+}

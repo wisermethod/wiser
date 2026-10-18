@@ -1,0 +1,37 @@
+A letter to the operations board on supplier lead times
+
+Dear colleagues,
+
+You asked me to look at why our inbound lead times have stretched over the past year, and to recommend what, if anything, we should change before the next contract round. I have now spoken with most of our main suppliers, read through the delivery records, and spent two days with the goods-in team. This letter sets out what I found; a fuller report will follow, but I wanted you to have the headline before the board meeting.
+
+The short version is this. Our suppliers are not slower than they were; we are harder to deliver to. The upshot is that a good part of the delay we blame on them is delay we create ourselves, and it is within our power to remove it.
+
+Let me explain how I reached that view. I began by trying to analyse the raw delivery data, supplier by supplier, and the picture was confusing. Some suppliers looked much worse than a year ago; others looked unchanged; one or two looked better. There was no obvious pattern by region, by product or by size of supplier. It was only when I sorted the deliveries by the day and hour they arrived at our doors that the pattern became clear. Deliveries that arrived in the morning were turned round quickly; deliveries that arrived after two in the afternoon often waited until the next day to be booked in. In practice, a lorry arriving at half past two could add a full day to the recorded lead time, through no fault of the haulier.
+
+Why the afternoon? Because the goods-in team is stretched thinnest then. They spend the morning receiving; they spend the afternoon on returns, on cycle counts, and on a growing pile of administrative work that has drifted towards them over the past two years. Whilst they are doing that work, the afternoon lorries wait in the yard. Nobody decided this; it simply happened, one small task at a time, and nobody stepped back to see the whole.
+
+There was a small kerfuffle when I raised this with the team leader, who felt, understandably, that I was criticising his people. I was not, and I hope I made that clear. His team is doing what it has been asked to do; the trouble is that it has been asked to do too much, and the most important task, getting stock off lorries and into the building, has been quietly pushed to the back of the queue. The kerfuffle did at least have one good result: it brought out a list of the extra tasks the team has absorbed, which I had not been able to get from anyone else.
+
+I also spoke to the suppliers themselves, which I would recommend to anyone in our position. Several of them told me that they now schedule our deliveries for the morning wherever they can, because they have learnt that an afternoon slot means waiting. That is a sensible response on their part; but in practice it means our morning is overloaded and our afternoon is wasted, and the problem shifts rather than disappears. Two suppliers told me they had started charging us a waiting fee, which none of us had noticed because it is buried in the invoice lines.
+
+What do I recommend? Three things, and none of them is expensive.
+
+First, protect the afternoon receiving window. Move the returns processing and the cycle counts to a separate, small team, or to the early morning before the first lorries arrive. The aim is that a lorry arriving at three in the afternoon is treated exactly like one arriving at nine. The upshot should be visible within a month: shorter recorded lead times, fewer waiting fees, and happier hauliers.
+
+Second, publish a booking system for delivery slots and hold suppliers to it. At the moment, lorries arrive when they arrive, and the yard is either empty or jammed. A simple booking sheet, shared with suppliers a week ahead, would let us spread deliveries across the day and plan the team's work around them. I would analyse the first month of bookings closely, to see whether the slots we offer match the times suppliers can actually meet.
+
+Third, and this is the hardest, we need to stop measuring supplier lead time from the order to the booking-in, and start measuring it from the order to the arrival at our gate. The current measure blames suppliers for our own delays, and it has shaped a year of difficult conversations at contract reviews. You can't eat your cake and have it too; if we want honest performance figures from our suppliers, we need to measure the part they control, and own the part we control.
+
+I want to anticipate one objection. Some of you will say that the extra tasks the goods-in team has absorbed have to be done by someone, and that moving them simply moves the cost. That is true, and I do not pretend otherwise. But the cost of a delayed delivery is far higher than the cost of an hour of returns processing, because a delayed delivery holds up picking, which holds up dispatch, which holds up the customer. In practice, the cheapest place to do low-priority work is never the bottleneck.
+
+I should also say something about the longer term. Our inbound volumes are growing, and the yard is not. Within two years we will need either a second set of doors or a much tighter booking regime, and I would rather we chose the second deliberately than drifted into the first. I would be glad to work with the property team on the options, and I will set out the numbers in the full report.
+
+Finally, a word of thanks. The goods-in team gave me their time generously, during a busy fortnight, and answered every question I asked, including several that must have seemed naive. Whatever the board decides, I hope it will be clear to them that the problem I am describing is not of their making. They have been working steadily towards a standard that the rest of the business moved away from without telling them.
+
+I will circulate the full report before the end of the month. If anyone would like to walk the yard with me in the meantime, I would welcome the company; there is no better way to understand what I am describing than to stand at the gate at half past two and watch a lorry wait.
+
+With best wishes,
+
+Maren
+
+Postscript, on the data. I have kept the raw delivery records, sorted as I described, and anyone who wants to analyse them for themselves is welcome to a copy. I would only ask that you sort by arrival hour first; whilst the supplier view is the obvious one to start with, it hides the very pattern that matters. The upshot of sorting the other way is that the whole picture changes, and it changes in a direction that should encourage us, because the fix lies in our own hands rather than theirs.
