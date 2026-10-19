@@ -19,6 +19,7 @@ Changes before September 27, 2026 are in the commit history only.
 - The page shows only your voice file's own lines, the measurements you confirmed, your folder's record of whether the voice is complete or still provisional, and fixed labels. It calls your voice confirmed only where its confirmation line holds a date, reads a voice line edited by hand, in bold or with a trailing colon, for its state, and shows bold and italic text without stray stars.
 - Asking again the same day reuses the page while your voice is unchanged. Once it changes, the old page is archived and a new one is built.
 - When Build Voice finishes your voice as complete and your folder's record does not say otherwise, it offers Voice Report, which shows the voice as dials and saves it as one page; otherwise it tells you what that record says, or that there is none. During onboarding the offer comes at the end instead, once your folder records where your voice stands, complete or not. The page is made only on your yes.
+- Bringing an existing folder up to date no longer edits its `CLAUDE.md` or `.cursor/rules`. Where one still points at an earlier plugin, Onboard Root tells you the line to change so your app starts at the folder's own `AGENTS.md`. (fa2a71b)
 
 ## v2026.10.17, October 17, 2026
 

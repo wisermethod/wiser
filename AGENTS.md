@@ -52,7 +52,7 @@ The attached working folder is the **owning root**: the personal, org, client, d
 
 **The root a session loaded its governing constitution from is not a destination for that session's work product**, whatever that root's folder name or position in the workspace, and including when it is the working directory. This is `Irreversibles` read as the rule it already is: *during a session that uses it*. The root identifies itself, so no token is needed and none is added.
 
-The clause governs **work product only**. Three writes are therefore unaffected, named here so a reader need not infer them: what a tool installs for itself, which `Writes` states and `tools/AGENTS.md` inventories; `skills/Onboard Root/` writing into an `empty` or `populated-undeclared` destination, which is how an owning root comes to exist at all; and `skills/Housekeeping/` installing local filing routers in a foreign tree, which declares no identity there.
+The clause governs **work product only**. Three writes are therefore unaffected, named here so a reader need not infer them: what a tool installs for itself, which `Writes` states and `tools/AGENTS.md` inventories; `skills/Onboard Root/` writing into a destination its Destination discriminator routes to a copy path or to adoption, which is how an owning root comes to exist at all; and `skills/Housekeeping/` installing local filing routers in a foreign tree, which declares no identity there.
 
 Authoring this root is entered by **the operator's authorization for a named phase and a named target**. An Active Playbook is the *record* of that authorization and never the grant: a row a session set Active itself grants nothing, and a Playbook may be Active and forbid these writes in the same sentence.
 
