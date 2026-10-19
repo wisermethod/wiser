@@ -1,0 +1,14 @@
+{
+  "name": "voice-lexicon",
+  "version": "0.2.1",
+  "description": "Find the style markers and the rhythm and stance ranges a person's writing samples keep, and check a draft against them, as one JSON object",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node scripts/voice-lexicon.js help",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

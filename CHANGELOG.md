@@ -9,6 +9,10 @@ Changes before September 27, 2026 are in the commit history only.
 - The plugin's manifest names an icon for Anthropic's plugin directory: the Wiser mark on a transparent background, black, or white when the viewer's device is set to dark. Claude Code does not read it.
 - The README no longer says your installed copy follows each release by itself, since no app has yet been checked moving a copy to a new release, by itself or by the update steps. It now says how to turn on Claude Code's own update check for `wiser-method`: run `/plugin`, open Marketplaces, and turn on Enable auto-update.
 - Reviews, such as each pass of Ghost Writer's gate, start from the session you are working in. A helper that session hands work to starts no review or helper of its own: where its work owes a review, it stops before what the review guards and hands back what the review needs, with the review named.
+- Build Voice measures what recurs across your writing samples: signature words and phrases, spelling and contraction choices, punctuation habits and altered sayings, each with how often it appears and in which samples, and the ranges your sentence length, pronoun mix and hedging keep. It asks you, for each, whether to keep it or polish it away. Your voice file records the answers, and a confirmed copy of the measurements is saved in your folder.
+- A polish of sentence length names which range it means, the average, how much it varies or the long end, and Build Voice asks when you have not said. If its final review sends your voice file back twice, Build Voice shows you what is still open and asks whether to write the file as it stands or decline the review.
+- Writing in your voice aims to be better than your samples and still recognizably yours. Content Author uses your signature words and sayings sparingly, keeps your spelling and contraction choices every time, and keeps each range you polished within its new bound.
+- Onboard Root now also closes your voice as provisional when your writing is too short to measure, and no longer closes it complete when Build Voice reports it provisional.
 
 ## v2026.10.17, October 17, 2026
 

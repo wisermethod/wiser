@@ -25,16 +25,16 @@ Labels and registers are `standards/conventions.md`'s, written in place and neve
 
 ## Tone
 
-*Register and distance: formal to casual, warm to blunt, how much they hedge.*
+*Register and distance: formal to casual, warm to blunt. The pronoun mix (I, we, you) and how much they hedge or assert, each with the band `tools/voice-lexicon/` reports and its evidence ids, and whether the person chose to keep it or polish it away (over-hedging, for example) and, for a polish, the side and the bound it moves to, with who said so.*
 
 ## Vocabulary
 
-*Words and phrases they reach for, words they avoid, and how technical the language runs.*
+*The markers `tools/voice-lexicon/` found and the person confirmed to keep, each with its count and evidence ids (writing uses a signature word or phrase sparingly, per `skills/Content Author/`): a signature word or phrase as `"in practice": 9 uses in E1, E3, E4`, a variant with the form it is chosen over, a punctuation habit with its rate against the usual rate and whether that is more or less often; words they say they reach for and words they avoid, with who said so; and how technical the language runs.*
 
 ## Structural Habits
 
-*Sentence and paragraph shape, how a piece opens and closes, when they use lists.*
+*Sentence and paragraph shape, how a piece opens and closes, when they use lists. Sentence length, its long end and how much it varies, each with the band `tools/voice-lexicon/` reports and its evidence ids, and whether the person chose to keep it or polish it away (rambling past the long end, for example) and, for a polish, the side and the bound it moves to, with who said so.*
 
 ## Prohibitions
 
-*What must never appear in their writing: constructions, claims, formats, subjects.*
+*What must never appear in their writing: constructions, claims, formats, subjects. The markers and habits the person chose to polish away (errors, filler), each with who said so.*
