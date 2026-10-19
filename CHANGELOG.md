@@ -8,6 +8,7 @@ Changes before September 27, 2026 are in the commit history only.
 
 - The plugin's manifest names an icon for Anthropic's plugin directory: the Wiser mark on a transparent background, black, or white when the viewer's device is set to dark. Claude Code does not read it.
 - The README no longer says your installed copy follows each release by itself, since no app has yet been checked moving a copy to a new release, by itself or by the update steps. It now says how to turn on Claude Code's own update check for `wiser-method`: run `/plugin`, open Marketplaces, and turn on Enable auto-update.
+- Reviews, such as each pass of Ghost Writer's gate, start from the session you are working in. A helper that session hands work to starts no review or helper of its own: where its work owes a review, it stops before what the review guards and hands back what the review needs, with the review named.
 
 ## v2026.10.17, October 17, 2026
 
