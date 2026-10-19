@@ -7,6 +7,7 @@ Changes before September 27, 2026 are in the commit history only.
 ## Unreleased
 
 - The plugin's manifest names an icon for Anthropic's plugin directory: the Wiser mark on a transparent background, black, or white when the viewer's device is set to dark. Claude Code does not read it.
+- The README no longer says your installed copy follows each release by itself, since no app has yet been checked moving a copy to a new release, by itself or by the update steps. It now says how to turn on Claude Code's own update check for `wiser-method`: run `/plugin`, open Marketplaces, and turn on Enable auto-update.
 
 ## v2026.10.17, October 17, 2026
 
