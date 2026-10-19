@@ -55,11 +55,16 @@ The zone rows reach every domain on the account; the member may narrow them to n
 
 ## Steps
 
-1. **Settle the route.** Gateway tools missing, or a call answers `needs_provider`: stop; `skills/Set Up Connectors/` is the next human turn. Does the job deploy a site or apply a D1 migration? Those run on the local gateway only (`skills/Cloudflare Pages/`). Where this session is on the Wiser endpoint and the job needs them, say so, name Set Up Connectors, which attaches the local gateway on request in a command-line harness, and run this skill there; a member who also uses the endpoint pastes the same token once on each route. Then call `list_connections` with `{}`. What did it return?
+1. **Settle the route.** Gateway tools missing, or a call answers `needs_provider`: stop; `skills/Set Up Connectors/` is the next human turn. Does the job deploy a site or apply a D1 migration, which run on the local gateway only (`skills/Cloudflare Pages/`)?
+   - Yes, and this session is on the Wiser endpoint: say so and stop before any call; Set Up Connectors attaches the local gateway, on request in a command-line harness, and this skill runs again there.
+   - Yes, on the local gateway; or no: call `list_connections` with `{}`.
+
+   What did it return?
    - A status other than `needs_provider`: `skills/Connection Troubleshooter/`.
+   - Neither a status nor a `connections` list: name what came back, and stop.
    - No `cloudflare` row `ACTIVE`: step 2.
-   - At least one unlabelled `cloudflare` row `ACTIVE`: the member has a token on this route. Step 2 settles the account, then step 6.
-   - `ACTIVE` rows only under labels: ask which label this job uses and pass it as `label` on every call below. Step 2 settles the account, then step 6.
+   - `ACTIVE` rows with no label only: the member has a token on this route. Step 2 settles the account, then step 6.
+   - `ACTIVE` rows under a label, with or without unlabelled ones: ask which binding this job uses, and pass its label, if it has one, as `label` on every `execute` below. Step 2 settles the account, then step 6.
 
 2. **The Cloudflare account.** Does the member have a Cloudflare account they want Wiser to use?
    - No: hand them `https://dash.cloudflare.com/sign-up` to make one and verify their email, which are their own steps, and wait until they say they are signed in.
@@ -69,8 +74,8 @@ The zone rows reach every domain on the account; the member may narrow them to n
    Then step 3, or step 6 where step 1 found a token.
 
 3. **The token.** Which job is this?
-   - A site, or a domain's DNS moved onto Cloudflare: the Site Link.
-   - An app on Cloudflare Workers, its sign-in included: this release has no link for it (`gaps`). Say so and stop. A member who already holds a token readies sign-in through step 1.
+   - A site, a domain's DNS moved onto Cloudflare, or staff sign-in through Cloudflare Access: the Site Link, then, for sign-in, step 8 after step 6.
+   - Installing an app on Cloudflare Workers: this release has no link for it (`gaps`). Say so and stop.
    - Not said: ask.
 
    Before the link, tell the member in plain words what the token will let Wiser do, from the table's last column, and that it cannot change their account settings, their API tokens or their billing. Then hand it with these instructions: open it, choose the account from step 2, check that the ticked boxes match the table and say if any differs, press Review token, create the token, and copy its value, which Cloudflare shows once. Keep that page open, do not paste the value here, and say "copied" when it is. What did they say?
@@ -85,7 +90,7 @@ The zone rows reach every domain on the account; the member may narrow them to n
 5. **The other modules.** Call `list_connections` again. For each of `dns`, `pages` and `rulesets` the job needs, what does it show?
    - `ACTIVE` on the same provider account as `zones`: no turn of its own; step 6 proves it. A row's `privilege` is what the module declares, not what the token allows.
    - No row: step 6, where its first call may bind it.
-   - A row on another provider account, or more than one Cloudflare credential on the local gateway: no module binds by itself there. Say so, and give each such module its own Connect Account turn with the same token.
+   - A row on another provider account, or the toolkit holding another Cloudflare credential or any labelled Cloudflare connection: no module binds by itself, on either route. Say so, and give each such module its own Connect Account turn with the same token.
 
 6. **Prove the modules the job needs, one read each**, through `execute`, with `label` where step 1 took one:
    - Always `cloudflare.zones.list_accounts` with `{}`. It must name the account from step 2 alone. Another account, or more than one: the token is on the wrong account. The member deletes it at Cloudflare, and steps 3 and 4 run again on the right one, Connect Account taking it as a rotation.
@@ -105,9 +110,10 @@ The zone rows reach every domain on the account; the member may narrow them to n
    - `success: true` and `access_enabled: true`: ask the member for the team name the Zero Trust overview shows in their dashboard; the team domain is that name followed by `.cloudflareaccess.com`.
    - `success: true` and `access_enabled: false`: Zero Trust was never set up. First say: "Cloudflare asks for a card even on the free plan and does not charge it." Then the member opens Zero Trust in their dashboard, chooses a team name and picks the Free plan. When they say it is done, call again: `access_enabled: true` takes the outcome above; `false` again: ask what onboarding showed, and stop there with it named.
    - `vendor_error` with `http_status` 403: the Access row is not ticked; step 7, then call again.
+   - `invalid_arguments`: correct the input from step 6's reads, and the label from step 1, and call again.
    - Any other status: `skills/Connection Troubleshooter/`.
 
-9. **A domain's DNS.** When the member asks to move a domain's DNS onto Cloudflare, hand it to `skills/Zone Publisher/`'s move route under `experts/IT Expert/`, with the account id and the domain. Their registrar stays where it is.
+9. **A domain's DNS.** When the member asks to move a domain's DNS onto Cloudflare, hand it to `skills/Zone Publisher/`, Moving a Domain's DNS, under `experts/IT Expert/`, with the account id and the domain. Their registrar stays where it is.
 
 10. **Hand back.** Tell the member, and the caller where there is one: the account's name and id; each module the job needs, proved by a read or the stop it met; the team domain where step 8 ran; what the token can do; and that a later job edits this same token through step 7.
 
@@ -124,7 +130,7 @@ The zone rows reach every domain on the account; the member may narrow them to n
 
 - One account-owned token, made from the job's link or already held and proved in step 6, its value never entering the conversation, a log, a commit, or another file.
 - `cloudflare.zones.list_accounts` named the member's chosen account alone.
-- Each module the job needs answered a read through the connection, or the stop it met was named; no module was called connected from `ACTIVE` alone, and no read was called proof of an edit.
+- Each module the job needs answered a read through the connection, or the stop it met was named, or, for `dns` on an account holding no domain yet, it was named unproved; no module was called connected from `ACTIVE` alone, and no read was called proof of an edit.
 - Where a token was made, one Connect Account turn, with another only for an expired link or for a module that answered `needs_connect`, and the reason said.
 - Where app sign-in was needed: `access_enabled: true` and the team domain handed back, the card sentence said first where onboarding ran; or the stop named.
 - Nothing written to the Cloudflare account by this skill, and a DNS move handed to Zone Publisher.
