@@ -2,10 +2,10 @@
 name: Cloudflare Setup
 type: skill
 category: development
-description: Take a member from no Cloudflare connection to one account-owned token, made from one pre-filled link and pasted once, with each Cloudflare module their job needs proved by a read through it, the account id and, where an app needs sign-in, the Zero Trust team domain handed back, and a domain's DNS move handed to Zone Publisher
+description: Take a member from no Cloudflare connection to one account-owned token, made from the pre-filled link for their job and pasted once, with each Cloudflare module their job needs proved by a read through it, the account id and, where an app needs sign-in, the Zero Trust team domain handed back, and a domain's DNS move handed to Zone Publisher
 version: 0.1.0
 gaps:
-  - a token link for installing an app on Cloudflare Workers
+  - a token link for installing an app on Cloudflare Workers, its staff sign-in included
 ---
 
 # Cloudflare Setup
@@ -34,12 +34,12 @@ The person who runs the account, handing a member the narrowest key that does th
 
 ## The Site Link
 
-For a site: a site published on Cloudflare Pages, its database, its domain's DNS and settings, and moving a domain's DNS onto Cloudflare. The link opens Cloudflare's account-owned token form with these boxes ticked, named as the form shows them:
+For a site: a site published on Cloudflare Pages, its database, and its domain's DNS and settings. The link opens Cloudflare's account-owned token form with these boxes ticked, named as the form shows them:
 
 | Form group | Row | Level | What it lets Wiser do |
 |------------|-----|-------|-----------------------|
 | DNS & Zones | DNS | Edit | read and change DNS records |
-| DNS & Zones | Zone | Edit | list the account's domains and add one |
+| DNS & Zones | Zone | Edit | list the account's domains, add one, and delete one |
 | DNS & Zones | Zone Settings | Edit | read and change a domain's settings, such as its SSL mode |
 | Cache & Performance | Zone SSL & Certificates | Read | read a domain's certificates |
 | Developer Platform | Pages | Edit | create, deploy and manage Pages projects |
@@ -52,6 +52,21 @@ https://dash.cloudflare.com/?to=/:account/api-tokens&permissionGroupKeys=%5B%7B%
 ```
 
 The zone rows reach every domain on the account; the member may narrow them to named domains on the form, and a domain left out then reads as absent. The link ticks no Account Settings Edit, no API token permission and no billing permission. Redirect rules, Bulk Redirects, and the rule and bot reads Zone Publisher pulls need permissions a link cannot tick; when one of those calls answers `vendor_error` with `http_status` 403, step 7 adds the permission `connectors/cloudflare/auth.md` names for that action to this same token.
+
+## The DNS Link
+
+For moving a domain's DNS onto Cloudflare, and nothing else. It ticks two rows, both reaching every domain on the account:
+
+| Form group | Row | Level | What it lets Wiser do |
+|------------|-----|-------|-----------------------|
+| DNS & Zones | DNS | Edit | read and change DNS records |
+| DNS & Zones | Zone | Edit | list the account's domains, add one, and delete one |
+
+```
+https://dash.cloudflare.com/?to=/:account/api-tokens&permissionGroupKeys=%5B%7B%22key%22%3A%22dns%22%2C%22type%22%3A%22edit%22%7D%2C%7B%22key%22%3A%22zone%22%2C%22type%22%3A%22edit%22%7D%5D&name=Wiser%20DNS
+```
+
+The member does not narrow these rows: the domain being moved is not on the account yet, so a token narrowed to the domains already there cannot add it. A later site job adds the Site Link's other rows to this same token through step 7.
 
 ## Steps
 
@@ -74,13 +89,14 @@ The zone rows reach every domain on the account; the member may narrow them to n
    Then step 3, or step 6 where step 1 found a token.
 
 3. **The token.** Which job is this?
-   - A site, a domain's DNS moved onto Cloudflare, or staff sign-in through Cloudflare Access: the Site Link, then, for sign-in, step 8 after step 6.
-   - Installing an app on Cloudflare Workers: this release has no link for it (`gaps`). Say so and stop.
+   - A site: the Site Link, and for staff sign-in on it, step 8 after step 6.
+   - A domain's DNS moved onto Cloudflare, and nothing else: the DNS Link.
+   - Installing an app on Cloudflare Workers, or staff sign-in with no site: this release has no link for it (`gaps`). Say so and stop; a member who already holds a token reaches step 8 through step 1.
    - Not said: ask.
 
-   Before the link, tell the member in plain words what the token will let Wiser do, from the table's last column, and that it cannot change their account settings, their API tokens or their billing. Then hand it with these instructions: open it, choose the account from step 2, check that the ticked boxes match the table and say if any differs, press Review token, create the token, and copy its value, which Cloudflare shows once. Keep that page open, do not paste the value here, and say "copied" when it is. What did they say?
+   Before the link, tell the member in plain words what the token will let Wiser do, from its table's last column, and that it cannot change their account settings, their API tokens or their billing. Then hand it with these instructions: open it, choose the account from step 2, check that the ticked boxes match its table and say if any differs, press Review token, create the token, and copy its value, which Cloudflare shows once. Keep that page open, do not paste the value here, and say "copied" when it is. What did they say?
    - "copied": step 4.
-   - A box differs: name its row and level from the table. Before the token is created, they correct it on that form; a token already created is corrected through step 7. Then they say "copied".
+   - A box differs: name its row and level from the link's table. Before the token is created, they correct it on that form; a token already created is corrected through step 7. Then they say "copied".
 
 4. **One connect.** Only after "copied", run `skills/Connect Account/` for `cloudflare` / `zones`, telling it the token is already made and copied. Its link lasts minutes, which is why the token comes first. How did that turn end?
    - `connected`: step 5.
@@ -94,7 +110,8 @@ The zone rows reach every domain on the account; the member may narrow them to n
 
 6. **Prove the modules the job needs, one read each**, through `execute`, with `label` where step 1 took one:
    - Always `cloudflare.zones.list_accounts` with `{}`. It must name the account from step 2 alone. Another account, or more than one: the token is on the wrong account. The member deletes it at Cloudflare, and steps 3 and 4 run again on the right one, Connect Account taking it as a rotation.
-   - For a site or a DNS move: `cloudflare.zones.list` with `{}`, showing the member their domains; `cloudflare.dns.list_records` with `{ zone_id, per_page: 5 }` on one of them, or, where the account holds none, the statement that DNS was not checked and `dns` stays unproved; and `cloudflare.pages.list_projects` with `{ account_id }`, showing the projects.
+   - For a site or a DNS move: `cloudflare.zones.list` with `{}`, showing the member their domains; and `cloudflare.dns.list_records` with `{ zone_id, per_page: 5 }` on one of them, or, where the account holds none, the statement that DNS was not checked and `dns` stays unproved.
+   - For a site: `cloudflare.pages.list_projects` with `{ account_id }`, showing the projects.
    - `rulesets` is not proved here: its reads need a permission the link cannot tick, which redirect work adds later through step 7.
 
    Each read proves that its module answers and that the token can read; whether it can edit shows at the first write, and a write answering `vendor_error` with `http_status` 403 goes to step 7. What did each call return?
@@ -104,10 +121,10 @@ The zone rows reach every domain on the account; the member may narrow them to n
    - `invalid_arguments`: correct the input from the earlier reads and run it again.
    - Any other status: `skills/Connection Troubleshooter/`.
 
-7. **Edit the token, never make a second.** For a permission a 403 or a later job needs: the member opens Cloudflare's Manage account, Account API tokens, the token's Edit, ticks the row the Site Link's table names, or for any other permission the one `connectors/cloudflare/auth.md` names for the action, and presses Review token, then Update token. The token keeps its value, so nothing is reconnected. The call that needed it runs again; `vendor_error` with `http_status` 403 again: name the permission and the row they ticked, and stop there. Account Settings Edit goes on only as that guide says, for the one run that needs it, and comes off afterwards; an API token or billing permission never goes on.
+7. **Edit the token, never make a second.** For a permission a 403 or a later job needs: the member opens Cloudflare's Manage account, Account API tokens, the token's Edit, ticks the row a link's table names, or for any other permission the one `connectors/cloudflare/auth.md` names for the action, and presses Review token, then Update token. The token keeps its value, so nothing is reconnected. The call that needed it runs again; `vendor_error` with `http_status` 403 again: name the permission and the row they ticked, and stop there. Account Settings Edit goes on only as that guide says, for the one run that needs it, and comes off afterwards; an API token or billing permission never goes on.
 
 8. **Zero Trust, when the job or the caller needs app sign-in.** Call `cloudflare.zones.list_access_apps` with `{ account_id }`. What did it return?
-   - `success: true` and `access_enabled: true`: ask the member for the team name the Zero Trust overview shows in their dashboard; the team domain is that name followed by `.cloudflareaccess.com`.
+   - `success: true` and `access_enabled: true`: ask the member for the team domain Cloudflare shows in Zero Trust's settings, and take only a hostname ending in `.cloudflareaccess.com`; a team's display name is not it.
    - `success: true` and `access_enabled: false`: Zero Trust was never set up. First say: "Cloudflare asks for a card even on the free plan and does not charge it." Then the member opens Zero Trust in their dashboard, chooses a team name and picks the Free plan. When they say it is done, call again: `access_enabled: true` takes the outcome above; `false` again: ask what onboarding showed, and stop there with it named.
    - `vendor_error` with `http_status` 403: the Access row is not ticked; step 7, then call again.
    - `invalid_arguments`: correct the input from step 6's reads, and the label from step 1, and call again.
