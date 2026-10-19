@@ -15,6 +15,9 @@ Changes before September 27, 2026 are in the commit history only.
 - Onboard Root now also closes your voice as provisional when your writing is too short to measure, and no longer closes it complete when Build Voice reports it provisional.
 - Content Author: in a long piece, each header says what its section establishes, so the headers read alone give the argument in order; each paragraph holds one idea, and none is split only for its length; and lists hold only parallel items, such as steps or options, with reasoning left in prose. The number of sections follows the steps of the argument instead of a count set by the piece's length.
 - Setting up a personal Wiser folder in an empty folder you already have open, in Cowork, ChatGPT for desktop's Work mode, an editor or a terminal, makes that folder your Wiser folder under its own name, rather than a new folder named after you inside it. Your name goes in your memory files, and Onboard Root's optional check reads it from the first heading of `memory/about.md`.
+- New skill, Voice Report: ask to see your voice, for example "show me my voice" or "voice report", and get its dials for register, stance and rhythm. The dials appear in the conversation where the app can draw them; otherwise the page opens, or you get a link to it. The full page is saved in your folder's `work/onboarding/`, with a data file beside it.
+- The page shows only your voice file's own lines, the measurements you confirmed, your folder's record of whether the voice is complete or still provisional, and fixed labels. It calls your voice confirmed only where its confirmation line holds a date, reads a voice line edited by hand, in bold or with a trailing colon, for its state, and shows bold and italic text without stray stars.
+- Asking again the same day reuses the page while your voice is unchanged. Once it changes, the old page is archived and a new one is built.
 
 ## v2026.10.17, October 17, 2026
 
