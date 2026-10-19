@@ -4,6 +4,13 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## Unreleased
+
+- The plugin's manifest names an icon for Anthropic's plugin directory: the Wiser mark on a transparent background, black, or white when the viewer's device is set to dark. Claude Code does not read it.
+- The README no longer says your installed copy follows each release by itself. It now says how to turn on Claude Code's own update check for `wiser-method`: run `/plugin`, open Marketplaces, and turn on Enable auto-update.
+- Bringing an existing folder up to date no longer changes its `CLAUDE.md` or `.cursor/rules` without asking. Where one still points at an earlier plugin, Onboard Root quotes those lines, says what changing them does, and on your yes changes only those lines for you, so your app starts at the folder's own `AGENTS.md`; you never edit it yourself.
+- Setting up a personal Wiser folder in an empty folder you already have open, in Cowork, ChatGPT for desktop's Work mode, an editor or a terminal, makes that folder your Wiser folder under its own name once you say yes to its path, rather than a new folder named after you inside it. Your name goes in your memory files, and Onboard Root's optional check reads it from the first heading of `memory/about.md`.
+
 ## v2026.10.17, October 17, 2026
 
 - You can connect the same service more than once by giving each connection a short name, and Wiser uses the one you name; asked without a name where you only have named ones, it lists them rather than guessing. A named connection covers every part of that service it shares a sign-in with, so one connect is enough. (98e3d8d)

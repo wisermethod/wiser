@@ -2,6 +2,7 @@
   "name": "wiser",
   "displayName": "Wiser",
   "description": "Skills that work together in your own voice, on files you own, with experts that check the work.",
+  "icon": "./assets/wiser-icon.svg",
   "author": {
     "name": "Wiser Memory",
     "email": "support@wisermemory.com",

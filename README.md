@@ -26,7 +26,7 @@ Install Wiser, sign in to the Wiser endpoint, then attach your working folder. I
 
 Install from this repository, as the steps below do, and not from the plugin directory in Claude: a copy installed from the directory does not update when Wiser does.
 
-- **Claude Cowork.** Open Customize, then Plugins, then Add marketplace. Give it the full address, `https://github.com/wisermethod/wiser`, and install `wiser`. If Cowork warns that installing grants the plugin access to everything available to Cowork, continue. Then open Customize, then Plugins, then Add, then Manage marketplaces, open the `wiser` marketplace's menu, and turn on Sync automatically, so your copy follows each release. Then open Customize, then Plugins, then Wiser, then its Connectors tab. Next to `wiser`, if it shows Not added, press Connect to add it, or, if you cannot, ask an Owner of your organization to add it; once it shows Not connected, press Connect and sign in. Do not add another Wiser connector because Customize, Connectors does not list it. Then attach your working folder.
+- **Claude Cowork.** Open Customize, then Plugins, then Add marketplace. Give it the full address, `https://github.com/wisermethod/wiser`, and install `wiser`. If Cowork warns that installing grants the plugin access to everything available to Cowork, continue. Then open Customize, then Plugins, then Add, then Manage marketplaces, open the `wiser` marketplace's menu, and turn on Sync automatically. Then open Customize, then Plugins, then Wiser, then its Connectors tab. Next to `wiser`, if it shows Not added, press Connect to add it, or, if you cannot, ask an Owner of your organization to add it; once it shows Not connected, press Connect and sign in. Do not add another Wiser connector because Customize, Connectors does not list it. Then attach your working folder.
 - **Claude Code.** Run `claude plugin marketplace add wisermethod/wiser`, then `claude plugin install wiser@wiser-method`, and start Claude Code in your working folder. Run `/mcp`, choose Wiser's endpoint, and sign in. A clone added with `/add-dir` instead is not an installed plugin; `gateway/SETUP.md` section 1 says how to add the endpoint by hand. The plugin carries a hook that asks the Wiser service for its current notice when a session starts and shows it; `hooks/AGENTS.md` says what that hook reads and sends, and how to turn it off.
 - **Codex and ChatGPT for desktop.** In either, add `wisermethod/wiser` as a marketplace and install `wiser`. Codex's sandbox has network off by default, so a tool's first install stops until you turn network on.
 - **Grok.** Run `grok plugin marketplace add wisermethod/wiser`, then `grok plugin install wiser --trust`. We have not run this with Wiser yet; these are Grok's own documented steps, read at version 1.0.40.
@@ -34,12 +34,24 @@ Install from this repository, as the steps below do, and not from the plugin dir
 
 ## Updating
 
-Each release is listed in `CHANGELOG.md`, and not every app updates its copy by itself, so check that yours is current:
+Each release is listed in `CHANGELOG.md`. Each app has its own update step:
 
-- **Claude Cowork.** With Sync automatically on, as Install sets it, your copy follows each release. To update by hand, open Customize, then Plugins, then Add, then Manage marketplaces, open the `wiser` marketplace's menu, and choose Check for updates.
+- **Claude Cowork.** The Install steps turn on Sync automatically for the `wiser` marketplace. To update by hand, open Customize, then Plugins, then Add, then Manage marketplaces, open the `wiser` marketplace's menu, and choose Check for updates.
 - **Claude Code.** Run `claude plugin marketplace update wiser-method`, then `claude plugin update wiser@wiser-method`, and start a new session.
 - **Codex, ChatGPT for desktop and Grok.** Update the `wisermethod/wiser` marketplace and the `wiser` plugin with that app's own update step.
 - **Cursor.** Run `git pull` in your clone.
+
+Claude Code can also look for updates by itself. Its documentation, read on 2026-10-15, says this is on by default only for Anthropic's official marketplaces and those added from claude.ai, so it starts off for `wiser-method` ([plugin loading](https://code.claude.com/docs/en/plugins/loading#when-auto-update-runs)). To turn it on, run `/plugin`, open Marketplaces, and turn on Enable auto-update for `wiser-method`. The same page says Claude Code then checks up to ten minutes after your first message in a session, and that the new copy loads when you run `/reload-plugins` or start a new session.
+
+## On a phone
+
+We have not run Wiser on a phone yet. This section is what Anthropic's documentation says, read on 2026-10-17.
+
+- **The Claude phone app on its own.** A chat there loads a plugin's skills and its remote connector, and skips its hooks and local servers ([platform support](https://claude.com/docs/plugins/platform-support)). So Wiser's skills and the Wiser endpoint can reach you there, once you have installed Wiser in Claude, as the Claude Cowork step above does, and connected the endpoint on the plugin's Connectors tab. A Claude Code install from the command line stays on that computer and does not reach the phone ([platform support](https://claude.com/docs/plugins/platform-support)). What needs a computer: your working folder, which holds your voice, facts and design and is where work lands; Wiser's tools, which run as programs on your computer; and the local gateway.
+- **Claude Cowork, through Dispatch** ([Dispatch](https://claude.com/docs/cowork/guide/dispatch)). Leave Claude Desktop open on your computer, awake and online. In the Claude phone app, open Dispatch and describe the task; it runs on your computer, in the Cowork project or Claude Code workspace you name. Dispatch needs a Pro or Max plan and the latest Claude Desktop on macOS or Windows.
+- **Claude Code, through Remote Control** ([Remote Control](https://code.claude.com/docs/en/remote-control)). In your working folder, run `claude remote-control` and press the spacebar to show a QR code, or type `/remote-control` in a session already running there and type it again to show the QR code. Scan it with the Claude phone app to open the session. The session keeps running on your computer, so leave it on. Remote Control needs a Pro, Max, Team or Enterprise plan; on Team and Enterprise, an Owner switches it on first. Its documentation says your files, MCP servers and project configuration stay available, and does not say whether plugin hooks run.
+
+Codex, ChatGPT and Grok on a phone are not covered here.
 
 ## Where to start reading
 
