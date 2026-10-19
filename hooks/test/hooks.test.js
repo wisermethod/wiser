@@ -346,7 +346,7 @@ test('roster keeps offered what the seam gate cannot see or reads as doubtful', 
   ]);
 });
 
-test('the tree excludes ten primitives on their own clean none declarations', () => {
+test('the tree excludes eleven primitives on their own clean none declarations', () => {
   const gate = seamGate(tempHome());
   const omitted = [];
   const expected = [];
@@ -363,6 +363,7 @@ test('the tree excludes ten primitives on their own clean none declarations', ()
     }
   }
   assert.deepEqual(omitted, [
+    'skills/Cloudflare Setup/SKILL.md',
     'skills/Commit and Release/SKILL.md',
     'skills/Delegate Build/SKILL.md',
     'skills/Prove Change/SKILL.md',

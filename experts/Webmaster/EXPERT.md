@@ -3,7 +3,7 @@ name: Webmaster
 type: expert
 category: web
 description: Judge a site's findability, broken URLs, content vs code, and publish safety, sequence a kit envelope or foreign-site work, and gate a change before it goes live
-version: 0.4.6
+version: 0.4.7
 ---
 
 # Webmaster
@@ -155,7 +155,7 @@ Then name the IA and the next hand-off:
 - Site code in `src/custom/`: one of the producers Site Author's File site code job names designs it and `experts/Creative Director/` gates it; Site Author's File site code job files it, and Job 3 runs before publish.
 - Prose: `skills/Content Author/`, then `experts/Ghost Writer/`, then Site Author Edit content files the file.
 - Hostname DNS: `experts/IT Expert/`, which owns `skills/Zone Publisher/`. Apex, `www`, verification TXT, zone redirect rules (a `www` to apex 301, a `pages.dev` redirect) and zone settings. This expert does not call `cloudflare.dns.*`, `cloudflare.zones.*`, or `cloudflare.rulesets.*`.
-- Live host: sequence `skills/Cloudflare Pages/` for a simple site or one that is Cloudflare Pages, and `skills/Vercel Deploy/` for a managed site or one that is Vercel. This expert does not call a host API. Hand over the payload, which is `site/dist/` for Cloudflare Pages and the inner `site/` payload or `site/dist/` for Vercel Deploy, with the envelope named for Check. Never connect the envelope or owning root to a host.
+- Live host: sequence `skills/Cloudflare Pages/` for a simple site or one that is Cloudflare Pages, after `skills/Cloudflare Setup/` where the member's Cloudflare is not connected to Wiser at all, and `skills/Vercel Deploy/` for a managed site or one that is Vercel. This expert does not call a host API. Hand over the payload, which is `site/dist/` for Cloudflare Pages and the inner `site/` payload or `site/dist/` for Vercel Deploy, with the envelope named for Check. Never connect the envelope or owning root to a host.
 
 A request to "point this domain at the new site" is the DNS hand-off, not a host API, and not Zone Publisher owned here.
 
