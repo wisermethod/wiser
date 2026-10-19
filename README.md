@@ -34,7 +34,7 @@ Install from this repository, as the steps below do, and not from the plugin dir
 
 ## Updating
 
-Each release is listed in `CHANGELOG.md`. To bring your copy up to the latest release:
+Each release is listed in `CHANGELOG.md`. Each app has its own update step:
 
 - **Claude Cowork.** The Install steps turn on Sync automatically for the `wiser` marketplace. To update by hand, open Customize, then Plugins, then Add, then Manage marketplaces, open the `wiser` marketplace's menu, and choose Check for updates.
 - **Claude Code.** Run `claude plugin marketplace update wiser-method`, then `claude plugin update wiser@wiser-method`, and start a new session.
