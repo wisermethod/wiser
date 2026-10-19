@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types
-version: 0.38.5
+version: 0.38.8
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -86,7 +86,7 @@ Current Focus carries the date the person confirmed it. Design fills from a desi
 
 ### Step 3: Voice
 
-`memory/voice.md` is written by `skills/Build Voice/` and by nothing else. Build Voice's confirmation sample is Ghost-Writer-gated as prose before the authority sees it, per `skills/Build Voice/SKILL.md` step 10. Run it when the person supplies any writing of their own, and record what it returned: with three pieces or more from different contexts it closes `voice` complete once the person confirms, and where they do not confirm it closes provisional, naming the confirmation it waits on and the person as owner; with one or two, or three from one context, it writes the file and says which sections rest on thin evidence, and the key closes provisional naming how many more pieces are wanted. When they supply none, replace each prompt line in `voice.md` with `[Not available: no writing supplied; Build Voice runs when writing is]` and close the key provisional in Step 5. A provisional voice does not block a deliverable that loads only `about` or `design`.
+`memory/voice.md` is written by `skills/Build Voice/` and by nothing else. Build Voice's confirmation sample is Ghost-Writer-gated as prose before the authority sees it, per `skills/Build Voice/SKILL.md` step 10. Run it when the person supplies any writing of their own, and record what it returned: on thin evidence as `skills/Build Voice/SKILL.md` step 4 defines it, the profile's `status` included, it closes `voice` provisional naming what more evidence is wanted; otherwise it closes complete once the person confirms, and where they do not confirm it closes provisional, naming the confirmation it waits on and the person as owner. When they supply none, replace each prompt line in `voice.md` with `[Not available: no writing supplied; Build Voice runs when writing is]` and close the key provisional in Step 5. A provisional voice does not block a deliverable that loads only `about` or `design`.
 
 ### Step 4: Read back
 
@@ -109,6 +109,8 @@ Onboarded <date> on the personal path of `skills/Onboard Root/`. A deliverable t
 A key is **complete** when every heading is answered or labeled, at least one is answered, and every claim survived the read-back. It is **provisional** when the file is usable and a named gap remains, with an owner and what it waits on in the same line; a file whose every heading is a label is provisional, not complete, with the person as owner. It is **blocked** when the file is not usable, with the blocker named on the line as `person:`, `credential:` or `capability:` followed by who or what; the form is `blocked (person: <who>; waits on <what>)`. A key that cannot pass its read-back is provisional or blocked, never closed complete. Nothing in the section is ever deleted; a later session updates a line when a key closes.
 
 Then tell the person what is in the three files, which keys are provisional, and what closes them. No run record, no close report, no operating file: the state lines are the record.
+
+Where Build Voice wrote its confirmed draft to the root's bound voice file in this run, end by offering `skills/Voice Report/`, which shows the voice as dials and saves it as one page. Build Voice leaves this offer to the close because that page reads the voice key's state line, which this close has just written. Does the person take it? Yes: run it on the voice of the root this run onboarded. No, or no answer: stop there, since the page is never made unasked.
 
 ### The optional check
 
@@ -143,5 +145,6 @@ It is a check, not a step. A personal root that never runs it is onboarded; one 
 - `memory/voice.md` was written by Build Voice, or its headings carry the label that says why not and the key closed provisional.
 - The `## Onboarding` section of `AGENTS.md` carries one state line per key, each provisional or blocked line naming its owner and what it waits on.
 - On the full path, every gate ran and the close report names each one that did not pass, per `full-path.md`.
+- Where Build Voice wrote its confirmed draft to the bound voice file in this run, `skills/Voice Report/` was offered once, at the end of the run, after G20 passed on the full path and only where no restore ran, and run only on a yes; Build Voice made no offer of its own.
 
 A credential's value never enters the conversation, a log, a commit, or another file.

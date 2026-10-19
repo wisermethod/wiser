@@ -1,0 +1,15 @@
+I spent two days last month at the Corby site, watching the stock team run their weekly cycle counts. The client wanted to know why their stock records kept drifting away from what was on the shelves. I want to set down what I found before the details fade, and to say what I would change first.
+
+The counts themselves were done with care, and nobody on the team was cutting corners or rushing the work. The trouble was in what happened after each count, when the differences were meant to be checked and cleared. In practice, the differences were logged on a sheet, the sheet went into a tray, and the tray filled up. I counted more than three hundred open differences in that tray, some of them older than the people now clearing them.
+
+My first thought was that the team needed more hours, but the figures for the past year told a different story. The hours had gone up by a quarter, and the open differences had gone up faster than the hours had. When I sat with the supervisor to analyse the backlog, the pattern behind those figures showed itself within an hour. Most of the differences came from the same twenty lines, each of them stored in two places at once.
+
+Those twenty lines had been split between a pick face and an overflow bay during last winter, when space ran short. Nobody had moved them back, and the system had never been told that the overflow bays were still in use. So every count found stock in the wrong place, and every difference went into the tray to wait its turn. I do not blame the team for this, since they were doing what the written process asked of them each week.
+
+We talked through the options on the second afternoon, with the supervisor, two counters and the site manager in the room. Of course the manager wanted a new system, and I understand the instinct, but a system would not fix this. What we agreed instead was simpler, cheaper and quicker, and it can be done by the end of the month.
+
+First, the twenty split lines go back to a single location each, chosen by the supervisor and recorded in the system. Second, the tray goes, and each difference is cleared on the day it is found, by the person who found it. Third, the overflow bays get a weekly check of their own, so that nothing settles there for longer than a week.
+
+If you run a site with a tray of differences, I would ask you to look at where the stock lives. Perhaps the counts are fine and the locations are wrong, which is a cheaper problem to solve than most people expect. I will return to Corby in six weeks to see whether the tray has stayed empty and the records have held.
+
+My lesson from the visit is one I keep relearning, which is that the floor tells you more than the reports. I had read every report on the train up, and none of them mentioned the tray or the twenty split lines. It took ten minutes beside the tray to see what a month of reports had missed, and that stays with me.
