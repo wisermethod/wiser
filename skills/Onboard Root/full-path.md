@@ -290,6 +290,8 @@ Copy still-open root-meta items to `zBuilds/builds.md` under `standards/user-roo
 
 Exit: G20.
 
+Once G20 passes, where Build Voice wrote its confirmed draft to the root's bound voice file in this run, make the Voice Report offer that Step 5 of `SKILL.md` makes; the voice key's state line Phase 9 wrote is the one that page reads.
+
 ## The Records the Gates Read
 
 What each record is, where its type keeps it, and the written form every gate parses. Where they go is below, then the shape each takes; the gate table that reads them is the section after this one.

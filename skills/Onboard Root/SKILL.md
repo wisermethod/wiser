@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types
-version: 0.38.7
+version: 0.38.8
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -110,6 +110,8 @@ A key is **complete** when every heading is answered or labeled, at least one is
 
 Then tell the person what is in the three files, which keys are provisional, and what closes them. No run record, no close report, no operating file: the state lines are the record.
 
+Where Build Voice wrote its confirmed draft to the root's bound voice file in this run, end by offering `skills/Voice Report/`, which shows the voice as dials and saves it as one page. Build Voice leaves this offer to the close because that page reads the voice key's state line, which this close has just written. Does the person take it? Yes: run it on the voice of the root this run onboarded. No, or no answer: stop there, since the page is never made unasked.
+
 ### The optional check
 
 The gate harness beside this file can read a personal root afterwards. It sees a personal root with no run record and runs only the file gates: prompt lines, labels, registers, the provenance a figure table carries, placeholders, paths, and the state lines themselves, with the voice gates only where `voice` closed complete. It takes the owner's name, the one person whose firsthand facts and voice confirmation it accepts, from the first heading of `memory/about.md`, `# About <name>`, and from `root:` only where that heading is absent or still a placeholder, because a root that is an open folder carries the folder's name rather than the person's.
@@ -143,5 +145,6 @@ It is a check, not a step. A personal root that never runs it is onboarded; one 
 - `memory/voice.md` was written by Build Voice, or its headings carry the label that says why not and the key closed provisional.
 - The `## Onboarding` section of `AGENTS.md` carries one state line per key, each provisional or blocked line naming its owner and what it waits on.
 - On the full path, every gate ran and the close report names each one that did not pass, per `full-path.md`.
+- Where Build Voice wrote its confirmed draft to the bound voice file in this run, `skills/Voice Report/` was offered once, at the end of the run, after G20 passed on the full path and only where no restore ran, and run only on a yes; Build Voice made no offer of its own.
 
 A credential's value never enters the conversation, a log, a commit, or another file.
