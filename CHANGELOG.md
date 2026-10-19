@@ -13,6 +13,7 @@ Changes before September 27, 2026 are in the commit history only.
 - A polish of sentence length names which range it means, the average, how much it varies or the long end, and Build Voice asks when you have not said. If its final review sends your voice file back twice, Build Voice shows you what is still open and asks whether to write the file as it stands or decline the review.
 - Writing in your voice aims to be better than your samples and still recognizably yours. Content Author uses your signature words and sayings sparingly, keeps your spelling and contraction choices every time, and keeps each range you polished within its new bound.
 - Onboard Root now also closes your voice as provisional when your writing is too short to measure, and no longer closes it complete when Build Voice reports it provisional.
+- Content Author: in a long piece, each header says what its section establishes, so the headers read alone give the argument in order; each paragraph holds one idea, and none is split only for its length; and lists hold only parallel items, such as steps or options, with reasoning left in prose. The number of sections follows the steps of the argument instead of a count set by the piece's length.
 
 ## v2026.10.17, October 17, 2026
 
