@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types
-version: 0.38.9
+version: 0.38.11
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -18,7 +18,7 @@ Not for updating a deployed copy of this plugin to a new release, which the plug
 
 ## Objective
 
-A user root stands at its real name beside the workspace's other roots, or, on the personal path, is the empty folder the session already had open, under that folder's name; its memory files hold only what someone said or a supplied file says, each claim carrying its source, and the root's own `AGENTS.md` says which memory keys are usable. The person who asked reads three files and knows what is still open.
+A user root stands at its real name beside the workspace's other roots, or, on the personal path, is the folder the session already had open, empty until then, under that folder's name; its memory files hold only what someone said or a supplied file says, each claim carrying its source, and the root's own `AGENTS.md` says which memory keys are usable. The person who asked reads three files and knows what is still open.
 
 ## Identity
 
@@ -64,17 +64,17 @@ Five rules bind it. The full set of standing rules in `full-path.md` binds the f
 2. **Every claim carries its source in place.** A fact the person told you in this conversation is `(Firsthand: <their name>)`. A fact read from a file they supplied names the file in parentheses at the end of the sentence: `(bio.md)`. A heading nothing answers takes one of the four evidence labels from `standards/conventions.md`, written in square brackets where the answer would have been, never a sentence of invention and never a fifth label. Prevents: a memory file a later session cannot tell apart from a guess.
 3. **The read-back is a separate pass.** After the files are written, read each claim back against what the person said or the file it names, in a pass distinct from the one that wrote it. A claim the pass cannot find becomes `[Unverified: requires confirmation]` in place. Prevents: a transcription slip bound as a fact.
 4. **A credential's value never enters the conversation, a file, or a log.** Account access is the gateway: do not write a vendor token into this root, and do not create a secrets file here. A credential the person mentions is recorded under Key Facts in `about.md` by name, with who can revoke it at the platform, never by value: the standing fact is that this root reaches that platform through the gateway, and who can end that. What one rotation or change of access did is an event rather than a standing fact, and `experts/IT Expert/` files that in the owning root's work directory. A value pasted into the conversation is treated as compromised: have the person revoke it at the platform and issue a new one. Prevents: a key living in a memory file that every session loads.
-5. **Ask only what cannot be inferred.** The person's name as they spell it and the destination are asked when they are not already given. Nothing else is asked before the files exist; the read-back pass produces the sharper questions. Prevents: an interview that outlasts the person's patience before a file exists.
+5. **Ask only what cannot be inferred.** The person's name as they spell it and the destination are asked when they are not already given; an open empty folder Step 1 can take is offered by its path in that same question, not asked open. Nothing else is asked before the files exist; the read-back pass produces the sharper questions. Prevents: an interview that outlasts the person's patience before a file exists.
 
 ### Step 1: Copy
 
-Copy `system/templates/User Root Template/` whole, hidden files included, to the established empty destination under the person's real name, spelled as they give it, beside the workspace's other user roots and never inside this plugin. Where the person names no other destination and this session already has a folder open that the Destination discriminator above classes `empty` and that sits inside neither this plugin nor another root, that folder is the established destination and is the root itself, under its own name: copy into it, and make no folder for the person's name inside it. Set `type: personal` in the copy's `AGENTS.md`. Copy the template's `prompts/personal/about.md` and `design.md` over the copied `memory/about.md` and `memory/design.md`; then remove the copied `prompts/` directory, which is copy-time input only. Replace `[name]` throughout the remaining copy: in `AGENTS.md` with the root's folder name, and in the memory files with the person's name, spelled as they give it. The frontmatter `root:` matches the folder name. The directory tree projects `standards/user-root.md`; only phases that run produce records. Confirm with one command that no `[name]` survives:
+Copy `system/templates/User Root Template/` whole, hidden files included, to the established empty destination, never inside this plugin. Which destination is established? Where the person named one, it is that one, under the person's real name, spelled as they give it, beside the workspace's other user roots. Where they named none and this session has exactly one folder open that the Destination discriminator above classes `empty`, that sits inside neither this plugin nor another root, and whose name passes the Names rules in `standards/conventions.md`, say that folder's path and ask once whether to set it up there. On a yes, that folder is the established destination and is the root itself, under its own name: copy into it, and make no folder for the person's name inside it. On anything else, or where no open folder qualifies or more than one does, ask where. Set `type: personal` in the copy's `AGENTS.md`. Copy the template's `prompts/personal/about.md` and `design.md` over the copied `memory/about.md` and `memory/design.md`; then remove the copied `prompts/` directory, which is copy-time input only. Replace `[name]` throughout the remaining copy: in `AGENTS.md` with the root's folder name, and in the memory files with the person's name, spelled as they give it. The frontmatter `root:` matches the folder name. The directory tree projects `standards/user-root.md`; only phases that run produce records. Confirm with one command that no `[name]` survives:
 
 ```
 grep -rn '\[name\]' "<the root>"
 ```
 
-Where that command prints nothing, continue. Where it prints one or more hits, replace those remaining `[name]` tokens and run the command again. Do not start Step 2 while any remain.
+Where that command prints nothing, continue. Where it prints one or more hits, replace those remaining `[name]` tokens as above, the root's folder name in `AGENTS.md` and the person's name in the memory files, and run the command again. Do not start Step 2 while any remain.
 
 Then confirm this session loads the new root; a root on disk that no session loads is not onboarded. A root that is a folder this session already has open is loaded: the folder a person attached in Claude Cowork or picked in ChatGPT for desktop's Work mode, the folder an editor has open, or the working directory of a command-line session. Say nothing to the person about adding it anywhere, because there is nothing to add. Where the root is not one of those folders and the host keeps a workspace file this session can edit, add the root there. Otherwise hand the person that one step in their app's own terms, such as attaching the folder in Cowork, and never describe it as adding the folder to Wiser, which keeps no workspace of its own.
 
@@ -128,7 +128,7 @@ It is a check, not a step. A personal root that never runs it is onboarded; one 
 
 ## Pitfalls
 
-- **An ambiguous request.** The path the request leaves open and the type does not settle, the real name, or the destination left to inference: ask before copying anything. Each one is expensive to change once paths point at the root.
+- **An ambiguous request.** The path the request leaves open and the type does not settle, the real name, or the destination left to inference, an open folder Step 1 offers included: ask before copying anything. Each one is expensive to change once paths point at the root.
 - **Over-asking when the answer is already given.** Destination already established, or the path already decided by Two paths above: proceed. Sibling inventory and inventing an organization's name from context are not gates.
 - **A credential value reaching the conversation.** Pasted by the requester, read back for confirmation, or copied into a note: treat it as compromised, have them revoke it, and record under Key Facts only what rule 4 allows: the name, and who can revoke it.
 - **A root filled from the model's own knowledge.** A plausible sentence about a real person that nobody in the workspace said is a fabrication with its source line missing. Ask, or label.
@@ -138,7 +138,7 @@ It is a check, not a step. A personal root that never runs it is onboarded; one 
 
 ## Success
 
-- The root exists at its real name beside the workspace's other roots, or, on the personal path, is the empty folder this session already had open, under that folder's name, and this session loads it, or the person holds the single step that will.
+- The root exists at its real name beside the workspace's other roots, or, on the personal path, is the folder this session already had open, empty until then, under that folder's name, and this session loads it, or the person holds the single step that will.
 - No `[name]` and no prompt line survives in the root.
 - Every claim in a memory file names the person who said it or the file that says it, or carries one of the four labels in place.
 - The read-back pass ran after the files were written, and what it could not find is labeled and asked, not bound.
