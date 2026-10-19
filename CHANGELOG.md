@@ -14,6 +14,7 @@ Changes before September 27, 2026 are in the commit history only.
 - Writing in your voice aims to be better than your samples and still recognizably yours. Content Author uses your signature words and sayings sparingly, keeps your spelling and contraction choices every time, and keeps each range you polished within its new bound.
 - Onboard Root now also closes your voice as provisional when your writing is too short to measure, and no longer closes it complete when Build Voice reports it provisional.
 - Content Author: in a long piece, each header says what its section establishes, so the headers read alone give the argument in order; each paragraph holds one idea, and none is split only for its length; and lists hold only parallel items, such as steps or options, with reasoning left in prose. The number of sections follows the steps of the argument instead of a count set by the piece's length.
+- Setting up a personal Wiser folder in an empty folder you already have open, in Cowork, ChatGPT for desktop's Work mode, an editor or a terminal, makes that folder your Wiser folder under its own name, rather than a new folder named after you inside it. Your name goes in your memory files, and Onboard Root's optional check reads it from the first heading of `memory/about.md`.
 
 ## v2026.10.17, October 17, 2026
 
