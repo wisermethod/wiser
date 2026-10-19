@@ -45,7 +45,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 | Skill | Description | Owner |
 |-------|-------------|-------|
 | `Cloudflare Setup/SKILL.md` | Take a member from no Cloudflare connection to one account-owned token, made from one pre-filled link and pasted once, with each Cloudflare module their job needs proved by a read through it, the account id and, where an app needs sign-in, the Zero Trust team domain handed back, and a domain's DNS move handed to Zone Publisher | IT Expert |
-| `Zone Publisher/SKILL.md` | Bring one Cloudflare zone's DNS records, its Single Redirect rules, the Bulk Redirects whose sources are this zone's names or a moved Pages project's pages.dev name, and its SSL mode, Always Use HTTPS, HSTS, minimum TLS version, Automatic HTTPS Rewrites, Email Obfuscation and Browser Cache TTL into a reviewable state, publish the approved changes with every removal approved by name, and re-read every published part from the platform | IT Expert |
+| `Zone Publisher/SKILL.md` | Bring one Cloudflare zone's DNS records, its Single Redirect rules, the Bulk Redirects whose sources are this zone's names or a moved Pages project's pages.dev name, and its SSL mode, Always Use HTTPS, HSTS, minimum TLS version, Automatic HTTPS Rewrites, Email Obfuscation and Browser Cache TTL into a reviewable state, publish the approved changes with every removal approved by name, and re-read every published part from the platform, or move a domain's DNS onto Cloudflare from another host, its records copied, checked against the live answers, and a rollback plan written before the member switches nameservers | IT Expert |
 
 ### Knowledge
 
