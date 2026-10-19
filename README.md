@@ -41,6 +41,16 @@ Each release is listed in `CHANGELOG.md`, and not every app updates its copy by 
 - **Codex, ChatGPT for desktop and Grok.** Update the `wisermethod/wiser` marketplace and the `wiser` plugin with that app's own update step.
 - **Cursor.** Run `git pull` in your clone.
 
+## On a phone
+
+We have not run Wiser on a phone yet. This section is what Anthropic's documentation says, read on 2026-10-17.
+
+- **The Claude phone app on its own.** A chat there loads a plugin's skills and its remote connector, and skips its hooks and local servers ([platform support](https://claude.com/docs/plugins/platform-support)). So Wiser's skills and the Wiser endpoint can reach you there, once you have installed Wiser in Claude, as the Claude Cowork step above does, and connected the endpoint on the plugin's Connectors tab. A Claude Code install from the command line stays on that computer and does not reach the phone ([platform support](https://claude.com/docs/plugins/platform-support)). What needs a computer: your working folder, which holds your voice, facts and design and is where work lands; Wiser's tools, which run as programs on your computer; and the local gateway.
+- **Claude Cowork, through Dispatch** ([Dispatch](https://claude.com/docs/cowork/guide/dispatch)). Leave Claude Desktop open on your computer, awake and online. In the Claude phone app, open Dispatch and describe the task; it runs on your computer, in the Cowork project or Claude Code workspace you name. Dispatch needs a Pro or Max plan and the latest Claude Desktop on macOS or Windows.
+- **Claude Code, through Remote Control** ([Remote Control](https://code.claude.com/docs/en/remote-control)). In your working folder, run `claude remote-control` and press the spacebar to show a QR code, or type `/remote-control` in a session already running there and type it again to show the QR code. Scan it with the Claude phone app to open the session. The session keeps running on your computer, so leave it on. Remote Control needs a Pro, Max, Team or Enterprise plan; on Team and Enterprise, an Owner switches it on first. Its documentation says your files, MCP servers and project configuration stay available, and does not say whether plugin hooks run.
+
+Codex, ChatGPT and Grok on a phone are not covered here.
+
 ## Where to start reading
 
 `AGENTS.md` is the constitution: the rules every part follows, and the place a session starts. `GLOSSARY.md` defines the words it uses. `gateway/SETUP.md` is the recipe for reaching connectors from a new app or machine; ask Wiser to set up connectors and it walks you through it.
