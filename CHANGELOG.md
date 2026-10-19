@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## Unreleased
+
+- The plugin's manifest names an icon for Anthropic's plugin directory: the Wiser mark on a transparent background, black, or white when the viewer's device is set to dark. Claude Code does not read it.
+
 ## v2026.10.17, October 17, 2026
 
 - You can connect the same service more than once by giving each connection a short name, and Wiser uses the one you name; asked without a name where you only have named ones, it lists them rather than guessing. A named connection covers every part of that service it shares a sign-in with, so one connect is enough. (98e3d8d)
