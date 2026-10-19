@@ -8,7 +8,7 @@ Changes before September 27, 2026 are in the commit history only.
 
 - The plugin's manifest names an icon for Anthropic's plugin directory: the Wiser mark on a transparent background, black, or white when the viewer's device is set to dark. Claude Code does not read it.
 - The README no longer says your installed copy follows each release by itself. It now says how to turn on Claude Code's own update check for `wiser-method`: run `/plugin`, open Marketplaces, and turn on Enable auto-update.
-- Bringing an existing folder up to date no longer edits its `CLAUDE.md` or `.cursor/rules`. Where one still points at an earlier plugin, Onboard Root tells you the line to change so your app starts at the folder's own `AGENTS.md`. (fa2a71b)
+- Bringing an existing folder up to date no longer changes its `CLAUDE.md` or `.cursor/rules` without asking. Where one still points at an earlier plugin, Onboard Root quotes those lines, says what changing them does, and on your yes changes only those lines for you, so your app starts at the folder's own `AGENTS.md`; you never edit it yourself.
 
 ## v2026.10.17, October 17, 2026
 
