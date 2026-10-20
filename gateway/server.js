@@ -508,6 +508,7 @@ async function main() {
 
   const gateway = new ConnectionGateway({
     home: screenedHome,
+    ...((flags.route || flags.call !== null) ? {} : { outputsDir: join(screenedHome, 'outputs') }),
     role,
     harness: flags.harness,
     store,
@@ -552,6 +553,7 @@ async function main() {
     process.exit(0);
   }
 
+  gateway.cleanupOutputs();
   writeClassifierStatus(screenedHome, flags.harness, {
     attached: !classifierNeedsSubscription(classifier, flags.env),
     classifier_dirs: classifierDirs,

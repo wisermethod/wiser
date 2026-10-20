@@ -38,7 +38,7 @@ The one list; a tool's pages point here.
 
 `voice-report-html` writes nothing but the `--output` file it is given, never over an existing file, and installs nothing: Node built-ins cover it.
 
-The gateway's writes (connection store, audit log, empty project-key template) are listed in `gateway/AGENTS.md` and are not restated here.
+The gateway's writes are listed in `gateway/AGENTS.md`, Everything the gateway writes, and where.
 
 <!-- generated:index -->
 

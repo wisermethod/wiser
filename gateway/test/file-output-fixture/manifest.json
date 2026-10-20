@@ -1,0 +1,19 @@
+{
+  "id": "file-output-fixture",
+  "service": "file-output-fixture",
+  "modules": {
+    "audio": {
+      "auth": { "provider": "catalog", "toolkit": "FAKE_AUDIO", "scheme": "OAUTH2", "privilege": "write" },
+      "actions": {
+        "render": {
+          "description": "Render invented test audio.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": { "type": "object", "properties": {}, "additionalProperties": false },
+          "output_file": { "media_types": ["audio/mpeg"], "max_bytes": 64 }
+        }
+      }
+    }
+  }
+}
