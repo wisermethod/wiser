@@ -3,7 +3,7 @@ name: Prove Change
 type: skill
 category: system
 description: "A recorded proof of a change: checks run against its committed text, every control shown able to fail, and a verdict naming the commit it tested and saying what passed, what failed, what could not be checked, and what stays unverified"
-version: 0.2.0
+version: 0.2.1
 ---
 
 # Prove Change
@@ -206,6 +206,8 @@ A listed row no longer fails and the ratchet stayed green, or a new failure was 
 7. **This context is about to review the proof it just produced.** Stop. Hand the proof and the reviewing primitive to a context that did not produce the work, per the constitution's Behavioral Core.
 
 8. **A live failure is being read as a reason to weaken the rule.** Classify it by Check a live system step 3, and leave the rule as it was written.
+
+9. **A file's hash taken by the code that wrote it is recorded as proof the file matches its source.** It proves the write, not the source. Copy the payload at the last hop before the writer, decode that copy outside the code under test, and compare its hash with the file's.
 
 ## Success
 
