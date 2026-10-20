@@ -36,7 +36,7 @@ The one list; a tool's pages point here.
 
 `copy-check` writes nothing and installs nothing: Node built-ins cover it, and every command prints one JSON object.
 
-The gateway's writes (connection store, audit log, empty project-key template) are listed in `gateway/AGENTS.md` and are not restated here.
+The gateway's writes are listed in `gateway/AGENTS.md`, Everything the gateway writes, and where.
 
 <!-- generated:index -->
 

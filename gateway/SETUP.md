@@ -191,7 +191,7 @@ Every answer is one JSON object. A `status` field on it usually means the work d
 
 ## 6. What the gateway writes, and where
 
-For the local gateway, `gateway/AGENTS.md` is the register. In short: a connection store and an audit log under `~/.wiser/gateway/`, both metadata, neither holding a token, and nothing inside the plugin. On the Wiser endpoint the gateway runs in the service and this plugin writes nothing; your app keeps its own sign-in.
+For the local gateway, the inventory in `gateway/AGENTS.md`, Everything the gateway writes, and where, is the register, including declared file outputs in `outputs/`. On the Wiser endpoint the gateway runs in the service and this plugin writes nothing; your app keeps its own sign-in.
 
 ## 7. Policy
 

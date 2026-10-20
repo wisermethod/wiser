@@ -1,10 +1,12 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { isAbsolute } from 'node:path';
 import { isAncestorPid, rescanRefusal, verify } from '../../hooks/lib/binding.mjs';
 import { isRefused } from '../../hooks/lib/presence.mjs';
 import { buildContext } from './context.js';
 import { STATUS, StatusSignal, classifierAuditStatus, isStatusObject, projectProviderCodes, sanitizeError, statusObject, vendorErrorFrom } from './errors.js';
 import { composeSummary, containsUnsafeCodePoint, discloseInput } from './disclosure.js';
 import { validateInput } from './input-schema.js';
+import { cleanupOutputs, writeOutputFile } from './file-output.js';
 import { evaluate } from './policy.js';
 import { readProviderUserId, writeProviderUserIdIfEmpty } from './paths.js';
 import { readClassifierKey } from './paths.js';
@@ -508,6 +510,10 @@ export class ConnectionGateway {
    */
   constructor(opts) {
     this.home = opts.home;
+    if (opts.outputsDir != null && (typeof opts.outputsDir !== 'string' || !isAbsolute(opts.outputsDir))) {
+      throw new TypeError('outputsDir must be an absolute path');
+    }
+    this.outputsDir = opts.outputsDir ?? null;
     this.role = opts.role || 'runtime';
     this.harness = opts.harness || 'unknown';
     this.store = opts.store;
@@ -538,6 +544,11 @@ export class ConnectionGateway {
       : new Map();
     /** Milliseconds. Read on every use so a test can reassign `gw.now`. */
     this.now = typeof opts.now === 'function' ? opts.now : Date.now;
+  }
+
+  /** Called only on stdio serve start, and by the writer before each file. */
+  cleanupOutputs() {
+    cleanupOutputs(this.outputsDir);
   }
 
   /** Drop pending approvals whose expiry has passed. */
@@ -993,7 +1004,10 @@ export class ConnectionGateway {
         confirmation: act.confirmation,
         execution: act.execution,
         input: act.input ?? null,
-        description: act.description ?? null,
+        description: act.output_file
+          ? `${act.description ? `${act.description} ` : ''}This action writes a file into the gateway's outputs/ directory and runs on the local gateway only.`
+          : (act.description ?? null),
+        ...(act.output_file ? { output_file: act.output_file, local_only: true } : {}),
       };
     }
     const resolved = resolveAction(id, {
@@ -1115,6 +1129,13 @@ export class ConnectionGateway {
       if (!act) {
         line.path = 'none';
         return statusObject(STATUS.NEEDS_CONNECTOR, { action, reason: 'undeclared' });
+      }
+
+      if (act.output_file && !this.outputsDir) {
+        return statusObject(STATUS.LOCAL_ONLY, {
+          action,
+          reason: 'This action writes a file on your own computer, which only the local gateway can do.',
+        });
       }
 
       const authForRun = resolved.path === 'connector' ? resolved.auth : auth;
@@ -1346,7 +1367,9 @@ export class ConnectionGateway {
         }
 
         const result = await resolved.fn(input ?? {}, ctx);
-        return classifyExecuteResult(result);
+        return classifyExecuteResult(act.output_file
+          ? writeOutputFile(act.output_file, result, this.outputsDir, line.cid)
+          : result);
       } catch (err) {
         // Classify ctx.proxy / ctx.catalog signals before withAudit sees them.
         if (err instanceof StatusSignal) return classifyExecuteResult(err.object);
