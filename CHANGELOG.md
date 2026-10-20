@@ -4,9 +4,9 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
-## Unreleased
+## v2026.10.19.2, October 19, 2026
 
-- A connection that has stopped working, such as a Google sign-in that lapsed, now tells your assistant to reconnect it instead of reporting that the service refused.
+- A connection that has stopped working, such as a Google sign-in that lapsed, now tells your assistant to reconnect it instead of reporting that the service refused. (0f4bd30, 86f5d89)
 
 ## v2026.10.19, October 19, 2026
 
