@@ -8,6 +8,11 @@ Changes before September 27, 2026 are in the commit history only.
 
 - Content Author: in a long piece, each header says what its section establishes, so the headers read alone give the argument in order; each paragraph holds one idea, and none is split only for its length; and lists hold only parallel items, such as steps or options, with reasoning left in prose. The number of sections follows the steps of the argument instead of a count set by the piece's length.
 
+## v2026.10.20, October 20, 2026
+
+- A plan that spans several sessions no longer sets a target date on each stage; a stage is done when its work is. (b15e59a)
+- New Wiser folders include an empty `memory/answers/`, where later releases will keep the answers you give when your voice or design is built. A folder set up before this release is one small update behind: saying "update root" proposes that update, and you approve it before anything changes. (220e001, 01a2c89, b181781)
+
 ## v2026.10.19.2, October 19, 2026
 
 - A connection that has stopped working, such as a Google sign-in that lapsed, now tells your assistant to reconnect it instead of reporting that the service refused. (0f4bd30, 86f5d89, 0656640)

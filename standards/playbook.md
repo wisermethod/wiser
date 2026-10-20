@@ -1,6 +1,6 @@
 ---
 standard: playbook
-version: 0.3.0
+version: 0.3.1
 description: The Playbook format; the WISER method for multi-session execution with decision tracking and learning capture
 ---
 
@@ -41,7 +41,7 @@ Order is fixed and cognitive: constraints, then objective, then unknowns, then p
 
 ## Milestones and Tasks
 
-Expand holds milestones; each groups a few tasks, typically 3 to 5, toward one verifiable outcome. For multi-session builds a milestone is a session, with a target date and a coherent theme.
+Expand holds milestones; each groups a few tasks, typically 3 to 5, toward one verifiable outcome. For multi-session builds a milestone is a session with a coherent theme. A Playbook sets no target dates: a milestone is done when its tasks are, not when a date arrives.
 
 Every task is atomic (one action, not two joined by "and" or "then"), verifiable (a done-state checkable on disk or by a run, not by opinion), right-sized (completable inside its session), and independent of its siblings where possible. Warning signs: vague verbs (handle, address, improve); no observable done state; a milestone holding one or two tasks, which is a task; a task that is really a project.
 

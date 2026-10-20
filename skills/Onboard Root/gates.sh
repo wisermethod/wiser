@@ -295,10 +295,11 @@ list_any() {
   find "$1" -type f ! -name 'AGENTS.md' ! -name '.*' ! -name '.DS_Store' 2>/dev/null | sort
 }
 
-# bound files: the markdown files under memory/, never the credential store.
+# bound files: the markdown files under memory/, never the credential store
+# and never memory/answers/, which Provides does not bind (standards/user-root.md C14).
 bound_files() {
   [ -d "$MEM" ] || return 0
-  find "$MEM" -type f -name '*.md' 2>/dev/null | grep -v "^$MEM/secrets/" | sort
+  find "$MEM" -type f -name '*.md' 2>/dev/null | grep -v "^$MEM/secrets/" | grep -v "^$MEM/answers/" | sort
 }
 
 # ---------------------------------------------------------------- awk library
