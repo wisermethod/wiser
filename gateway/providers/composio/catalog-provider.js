@@ -69,6 +69,8 @@ function vendorError(endpoint, method, status) {
  * `success: false` on the inner object. Confirmed 2026-09-08: GitHub
  * catalog execute returns the vendor object; Cloudflare nested
  * `{ success: false }` must not leave this adapter.
+ * Measured 2026-10-19: HTTP 200 `{ successful: false, data: { status_code: 401 } }`
+ * carries the tool's refusal inside the envelope; preserve it so grant refresh can run.
  * @param {object|null} data
  * @param {boolean} [malformed]
  * @returns {{ failed: boolean, httpStatus: number|null }}
@@ -77,15 +79,19 @@ export function providerExecuteFailed(data, malformed = false) {
   if (malformed) return { failed: true, httpStatus: 0 };
   if (!data || typeof data !== 'object') return { failed: false, httpStatus: null };
   const inner = Number(data.status);
+  // The tool's own refusal, read only where no status of 400 or more is given above it.
+  const refusalCode = (value) => (Number.isInteger(value) && value >= 400 && value <= 599 ? value : null);
   if (data.successful === false || data.success === false || data.error
       || (Number.isFinite(inner) && inner >= 400)) {
-    return { failed: true, httpStatus: Number.isFinite(inner) && inner >= 400 ? inner : 400 };
+    const httpStatus = Number.isFinite(inner) && inner >= 400 ? inner : refusalCode(data.data?.status_code);
+    return { failed: true, httpStatus: httpStatus ?? 400 };
   }
   const payload = data.data ?? data.response;
   if (payload && typeof payload === 'object'
       && (payload.success === false || payload.successful === false)) {
     const nested = Number(payload.status);
-    return { failed: true, httpStatus: Number.isFinite(nested) && nested >= 400 ? nested : 400 };
+    const httpStatus = Number.isFinite(nested) && nested >= 400 ? nested : refusalCode(payload.status_code);
+    return { failed: true, httpStatus: httpStatus ?? 400 };
   }
   return { failed: false, httpStatus: null };
 }

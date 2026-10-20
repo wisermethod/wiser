@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## Unreleased
+
+- A connection that has stopped working, such as a Google sign-in that lapsed, now tells your assistant to reconnect it instead of reporting that the service refused.
+
 ## v2026.10.19, October 19, 2026
 
 - New skill, Cloudflare Setup: it connects your Cloudflare account to Wiser with one token. You make the token from a link that opens Cloudflare's token page with the right boxes already ticked for your job, a site or moving a domain's DNS, and paste it once. Wiser tells you in plain words what the token can and cannot do, checks each part of Cloudflare your work needs with a read, and, for a site that needs staff sign-in, readies Cloudflare Zero Trust and hands back its team domain. A later job adds what it needs by editing the same token, with nothing to reconnect. (70ca68f, e528809, 9912558, 214aa2b)

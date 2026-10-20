@@ -1,7 +1,93 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { providerExecuteFailed } from './catalog-provider.js';
+import { createCatalogProvider, providerExecuteFailed } from './catalog-provider.js';
+
+// HTTP 200 failures measured 2026-10-19; text and ids are synthetic.
+const refusedToolEnvelopes = [401, 404].map((status) => ({
+  data: { http_error: `${status} Client Error: fixture`, message: 'fixture message', status_code: status },
+  successful: false,
+  error: 'fixture error',
+  log_id: 'log_fixture',
+}));
+
+for (const envelope of refusedToolEnvelopes) {
+  const status = envelope.data.status_code;
+  test(`HTTP 200 tool refusal preserves upstream ${status} and drops the body`, async (t) => {
+    assert.deepEqual(providerExecuteFailed(envelope), { failed: true, httpStatus: status });
+    const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const dir = mkdtempSync(join(tmpdir(), 'wiser-tool-refusal-'));
+    t.after(() => rmSync(dir, { recursive: true, force: true }));
+    const envPath = join(dir, 'project-key.txt');
+    writeFileSync(envPath, 'WISER_AUTH_PROVIDER_KEY=synthetic-test-key\n');
+    t.mock.method(globalThis, 'fetch', async () => ({ status: 200, text: async () => JSON.stringify(envelope) }));
+    const provider = createCatalogProvider({ envPath });
+    assert.deepEqual(await provider.execute({ actionId: 'github.repos.get', arguments: {} }), {
+      status,
+      error: { code: 'vendor_error', endpoint: '/tools/execute/GITHUB_GET_A_REPOSITORY', method: 'POST' },
+    });
+  });
+}
+
+const refusalCodeCases = [
+  [400, 400], [401, 401], [599, 599],
+  [399, 400], [600, 400], ['401', 400], [401.5, 400],
+  [null, 400], [undefined, 400], [NaN, 400], [Infinity, 400],
+];
+
+test('failed envelope reads only an integer data.status_code from 400 through 599', () => {
+  for (const [code, expected] of refusalCodeCases) {
+    for (const failure of [{ successful: false }, { success: false }, { error: 'fixture' }]) {
+      assert.deepEqual(providerExecuteFailed({ ...failure, data: { status_code: code } }),
+        { failed: true, httpStatus: expected }, `data.status_code: ${String(code)}`);
+    }
+  }
+});
+
+// A status field keeps the reading it had before status_code was read: any value Number()
+// makes 400 or more, a numeric string included. Only status_code is held to an integer from
+// 400 through 599.
+test('a top-level status of 400 or more still wins over data.status_code', () => {
+  for (const [status, expected] of [[400, 400], [403, 403], [599, 599], [600, 600], [400.5, 400.5], ['403', 403]]) {
+    assert.deepEqual(providerExecuteFailed({ status, successful: false, data: { status_code: 401 } }),
+      { failed: true, httpStatus: expected });
+  }
+  for (const status of [200, null, undefined]) {
+    assert.deepEqual(providerExecuteFailed({ status, successful: false, data: { status_code: 401 } }),
+      { failed: true, httpStatus: 401 });
+  }
+});
+
+for (const field of ['data', 'response']) {
+  for (const failure of ['success', 'successful']) {
+    test(`nested ${field}.${failure}:false reads its own status, then status_code`, () => {
+      for (const [code, expected] of refusalCodeCases) {
+        assert.deepEqual(providerExecuteFailed({ successful: true, [field]: { [failure]: false, status_code: code } }),
+          { failed: true, httpStatus: expected }, `status_code: ${String(code)}`);
+      }
+      for (const [status, expected] of [[403, 403], ['403', 403], [600, 600], [400.5, 400.5]]) {
+        assert.deepEqual(providerExecuteFailed({ [field]: { [failure]: false, status, status_code: 422 } }),
+          { failed: true, httpStatus: expected }, `status: ${String(status)}`);
+      }
+      for (const status of [200, 399, null, undefined]) {
+        assert.deepEqual(providerExecuteFailed({ [field]: { [failure]: false, status, status_code: 422 } }),
+          { failed: true, httpStatus: 422 }, `status: ${String(status)}`);
+      }
+    });
+  }
+}
+
+test('status_code alone never makes a successful body a failure', () => {
+  for (const code of [401, 404, 410, 422, 599]) {
+    for (const body of [
+      { successful: true, status_code: code },
+      { successful: true, data: { status_code: code } },
+      { success: true, response: { status_code: code } },
+    ]) assert.deepEqual(providerExecuteFailed(body), { failed: false, httpStatus: null });
+  }
+});
 
 test('GitHub-shaped catalog body is not a failure', () => {
   const r = providerExecuteFailed({
