@@ -6,7 +6,7 @@ import { buildContext } from './context.js';
 import { STATUS, StatusSignal, classifierAuditStatus, isStatusObject, projectProviderCodes, sanitizeError, statusObject, vendorErrorFrom } from './errors.js';
 import { composeSummary, containsUnsafeCodePoint, discloseInput } from './disclosure.js';
 import { validateInput } from './input-schema.js';
-import { cleanupOutputs, writeOutputFile } from './file-output.js';
+import { cleanupOutputs, stripSlot, writeOutputFile } from './file-output.js';
 import { evaluate } from './policy.js';
 import { readProviderUserId, writeProviderUserIdIfEmpty } from './paths.js';
 import { readClassifierKey } from './paths.js';
@@ -1371,8 +1371,9 @@ export class ConnectionGateway {
           ? writeOutputFile(act.output_file, result, this.outputsDir, line.cid)
           : result);
       } catch (err) {
-        // Classify ctx.proxy / ctx.catalog signals before withAudit sees them.
-        if (err instanceof StatusSignal) return classifyExecuteResult(err.object);
+        // Classify ctx.proxy / ctx.catalog signals before withAudit sees them. A
+        // file-output module's thrown status never carries its slot out.
+        if (err instanceof StatusSignal) return classifyExecuteResult(act.output_file ? stripSlot(err.object) : err.object);
         throw err;
       }
     });

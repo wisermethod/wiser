@@ -49,6 +49,8 @@ function fixtureConnectors() {
           not_bytes: action({ output_file: out() }),
           empty: action({ output_file: out() }),
           status_obj: action({ output_file: out() }),
+          status_with_slot: action({ output_file: out(1024) }),
+          throws_with_slot: action({ output_file: out() }),
         },
         unwrap_token: false,
         fallback: 'none',
@@ -56,7 +58,9 @@ function fixtureConnectors() {
     },
   }));
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'speak-fixture', private: true, type: 'module' }));
+  const errorsUrl = new URL('../src/errors.js', import.meta.url).href;
   writeFileSync(join(dir, 'index.js'), `
+import { StatusSignal } from '${errorsUrl}';
 async function envelope(ctx) {
   const res = await ctx.proxy({ endpoint: '/v1/tts', method: 'POST', body: { text: 'invented' } });
   return res.data;
@@ -86,6 +90,16 @@ export const modules = {
     async status_obj(_input, ctx) {
       await envelope(ctx);
       return { status: 'vendor_error', endpoint: '/v1/tts', method: 'POST', http_status: 500 };
+    },
+    async status_with_slot(_input, ctx) {
+      const env = await envelope(ctx);
+      return { status: 'vendor_error', endpoint: '/v1/tts', method: 'POST', reason: 'unexpected answer',
+        output_file: { media_type: 'audio/mpeg', data: Buffer.from(env.audio, 'base64') } };
+    },
+    async throws_with_slot(_input, ctx) {
+      const env = await envelope(ctx);
+      throw new StatusSignal({ status: 'vendor_error', endpoint: '/v1/tts', method: 'POST',
+        output_file: { media_type: 'audio/mpeg', data: Buffer.from(env.audio, 'base64') } });
     },
   },
 };
@@ -156,8 +170,11 @@ function auditText(home) {
 }
 
 function noBytesIn(text) {
-  assert.equal(text.includes(AUDIO_B64.slice(0, 64)), false, 'base64 of the audio leaked');
+  assert.equal(text.includes(AUDIO_B64), false, 'base64 of the audio leaked');
+  assert.equal(text.includes(AUDIO_B64.slice(0, 64)), false, 'a stretch of the base64 leaked');
   assert.equal(text.includes(AUDIO.toString('hex').slice(0, 64)), false, 'hex of the audio leaked');
+  assert.equal(text.includes('"type":"Buffer"'), false, 'a serialised Buffer leaked');
+  assert.equal(text.includes(JSON.stringify(Array.from(AUDIO.subarray(0, 16))).slice(1, -1)), false, 'the byte values leaked');
   assert.equal(text.includes('output_file'), false, 'the slot leaked');
 }
 
@@ -203,10 +220,21 @@ test('T1: a status object from the module writes nothing', async () => {
   assert.deepEqual(treeFiles(outputsDir), []);
 });
 
+for (const action of ['status_with_slot', 'throws_with_slot']) {
+  test(`T5: a status from ${action} reaches the answer without its slot or bytes, and nothing is written`, async () => {
+    const { gw, home, outputsDir } = await build();
+    const result = await gw.execute({ action: `speak.voice.${action}`, input: {} });
+    assert.equal(result.status, 'vendor_error');
+    noBytesIn(JSON.stringify(result));
+    noBytesIn(auditText(home));
+    assert.deepEqual(treeFiles(outputsDir), []);
+  });
+}
+
 test('T2: no write outside outputs/ for any action', async () => {
   const { gw, home } = await build();
   const before = new Set(treeFiles(home));
-  for (const action of ['say', 'bad_type', 'over_cap', 'not_bytes', 'empty', 'status_obj']) {
+  for (const action of ['say', 'bad_type', 'over_cap', 'not_bytes', 'empty', 'status_obj', 'status_with_slot', 'throws_with_slot']) {
     await gw.execute({ action: `speak.voice.${action}`, input: {} });
   }
   const added = treeFiles(home).filter((f) => !before.has(f));

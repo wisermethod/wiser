@@ -1,5 +1,5 @@
 import {
-  chmodSync, closeSync, constants, fchmodSync, fsyncSync, lstatSync, mkdirSync, openSync,
+  chmodSync, closeSync, constants, fchmodSync, fstatSync, fsyncSync, lstatSync, mkdirSync, openSync,
   readdirSync, renameSync, unlinkSync, writeSync,
 } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -20,6 +20,38 @@ function refused(detail, extra = {}) {
 }
 
 /**
+ * A copy of `result` without its `output_file` member. A status object, or a
+ * thrown status, from a file-output action can still carry the slot a module
+ * built before it gave up; the slot never reaches a tool answer that way.
+ * @param {unknown} result
+ */
+export function stripSlot(result) {
+  if (!result || typeof result !== 'object' || !Object.hasOwn(result, 'output_file')) return result;
+  const { output_file: _slot, ...rest } = result;
+  return rest;
+}
+
+/**
+ * Open `outputsDir` itself, refusing a symbolic link or a non-directory, and
+ * return its descriptor and identity. Node has no openat, so later steps go by
+ * path; each one re-checks that the path still names this same directory.
+ * @param {string} outputsDir
+ */
+function openDirectory(outputsDir) {
+  const fd = openSync(outputsDir, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
+  const st = fstatSync(fd);
+  return { fd, dev: st.dev, ino: st.ino };
+}
+
+/** True while the path still names the directory that was opened. */
+function sameDirectory(outputsDir, dir) {
+  try {
+    const st = lstatSync(outputsDir);
+    return !st.isSymbolicLink() && st.isDirectory() && st.dev === dir.dev && st.ino === dir.ino;
+  } catch { return false; }
+}
+
+/**
  * Best effort, without creating a directory or following a link. A failure on
  * one entry leaves it alone and does not stop the remaining entries or a call.
  * @param {string | null} outputsDir
@@ -27,17 +59,23 @@ function refused(detail, extra = {}) {
  */
 export function cleanupOutputs(outputsDir, now = Date.now()) {
   if (!outputsDir) return;
+  let dir;
   let names;
   try {
-    const dir = lstatSync(outputsDir);
-    if (dir.isSymbolicLink() || !dir.isDirectory()) return;
+    const st = lstatSync(outputsDir);
+    if (st.isSymbolicLink() || !st.isDirectory()) return;
+    dir = { dev: st.dev, ino: st.ino };
     names = readdirSync(outputsDir);
   } catch { return; }
   for (const name of names) {
     try {
+      if (!OUTPUT_NAME.test(name)) continue;
+      // The directory is re-checked before every removal, so a path swapped for a
+      // link after the open stops the sweep rather than reaching its target.
+      if (!sameDirectory(outputsDir, dir)) return;
       const path = join(outputsDir, name);
       const st = lstatSync(path);
-      if (st.isFile() && st.nlink === 1 && OUTPUT_NAME.test(name) && now - st.mtimeMs > RETENTION_MS) {
+      if (st.isFile() && st.nlink === 1 && now - st.mtimeMs > RETENTION_MS) {
         unlinkSync(path);
       }
     } catch { /* Leave an unreadable or unremovable entry alone. */ }
@@ -55,7 +93,8 @@ export function cleanupOutputs(outputsDir, now = Date.now()) {
  * @param {string} cid The correlation id already assigned by withAudit.
  */
 export function writeOutputFile(declaration, result, outputsDir, cid) {
-  if (isStatusObject(result) || !result || typeof result !== 'object' || !Object.hasOwn(result, 'output_file')) return result;
+  if (isStatusObject(result)) return stripSlot(result);
+  if (!result || typeof result !== 'object' || !Object.hasOwn(result, 'output_file')) return result;
   const slot = result.output_file;
   const mediaType = slot?.media_type;
   if (!declaration.media_types.includes(mediaType) || !Object.hasOwn(OUTPUT_EXTENSIONS, mediaType)) {
@@ -70,6 +109,7 @@ export function writeOutputFile(declaration, result, outputsDir, cid) {
   let partial;
   let created = false;
   let fd;
+  let dir;
   try {
     // Keep a snapshot for both the write and its digest, including a view that
     // spans only part of a Uint8Array's underlying buffer.
@@ -79,12 +119,21 @@ export function writeOutputFile(declaration, result, outputsDir, cid) {
     const name = `${cid}.${OUTPUT_EXTENSIONS[mediaType]}`;
     const path = join(outputsDir, name);
     const answer = { ...out, file: { path, bytes: data.length, sha256, media_type: mediaType } };
-    try { mkdirSync(outputsDir, { mode: 0o700 }); } catch (err) {
+    try {
+      mkdirSync(outputsDir, { mode: 0o700 });
+      // A restrictive umask can leave the new directory unreadable to its owner.
+      // It was created a moment ago by this call, so its mode is set by path once,
+      // and the open below still refuses it if it has since become a link.
+      chmodSync(outputsDir, 0o700);
+    } catch (err) {
       if (err.code !== 'EEXIST') throw err;
     }
-    const dir = lstatSync(outputsDir);
-    if (dir.isSymbolicLink() || !dir.isDirectory()) return refused('outputs_not_clean', { entry: basename(outputsDir) });
-    chmodSync(outputsDir, 0o700);
+    try {
+      dir = openDirectory(outputsDir);
+    } catch {
+      return refused('outputs_not_clean', { entry: basename(outputsDir) });
+    }
+    fchmodSync(dir.fd, 0o700);
     for (const name of readdirSync(outputsDir)) {
       const st = lstatSync(join(outputsDir, name));
       if (st.isSymbolicLink() || !st.isFile() || st.nlink > 1) {
@@ -96,6 +145,13 @@ export function writeOutputFile(declaration, result, outputsDir, cid) {
     fd = openSync(partial, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
     created = true;
     fchmodSync(fd, 0o600);
+    // The file just created must be the one the path names, in the directory
+    // that was opened: a directory swapped between the screen and the open fails here.
+    const opened = fstatSync(fd);
+    const named = lstatSync(partial);
+    if (!sameDirectory(outputsDir, dir) || named.dev !== opened.dev || named.ino !== opened.ino) {
+      throw new Error('outputs directory changed');
+    }
     let offset = 0;
     while (offset < data.length) {
       const written = writeSync(fd, data, offset, data.length - offset);
@@ -111,6 +167,7 @@ export function writeOutputFile(declaration, result, outputsDir, cid) {
     } catch (err) {
       if (err.code !== 'ENOENT') throw err;
     }
+    if (!sameDirectory(outputsDir, dir)) throw new Error('outputs directory changed');
     renameSync(partial, path);
     created = false;
     return answer;
@@ -121,7 +178,13 @@ export function writeOutputFile(declaration, result, outputsDir, cid) {
       try { closeSync(fd); } catch { /* Best effort after a failed write. */ }
     }
     if (created) {
-      try { unlinkSync(partial); } catch { /* Never remove a file we did not create. */ }
+      // Only the partial this call created, and a second try if the first fails.
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try { unlinkSync(partial); break; } catch { /* Retried once, then left. */ }
+      }
+    }
+    if (dir) {
+      try { closeSync(dir.fd); } catch { /* Best effort. */ }
     }
   }
 }
