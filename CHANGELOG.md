@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## Unreleased
+
+- A plan that spans several sessions no longer sets a target date on each stage; a stage is done when its work is.
+
 ## v2026.10.19.2, October 19, 2026
 
 - A connection that has stopped working, such as a Google sign-in that lapsed, now tells your assistant to reconnect it instead of reporting that the service refused. (0f4bd30, 86f5d89, 0656640)
