@@ -81,6 +81,9 @@ const CONNECTORS = fileURLToPath(new URL('../../connectors', import.meta.url));
  * wrong entry fails loudly, and a pattern with no entry fails rather than being skipped.
  */
 const PATTERN_OK = {
+  // xai: voice ids and the published language-tag subset.
+  '^[a-z0-9]{1,64}$': 'fakevoice123',
+  '^(auto|[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*)$': 'en-US',
   '\\S': 'x',
   '^([a-z][a-z0-9-]{4,28}[a-z0-9]|[0-9]{1,19})$': 'wiser-method-prod',
   '^\\d{4}-\\d{2}-\\d{2}$': '2026-09-20',

@@ -7,6 +7,7 @@ Changes before September 27, 2026 are in the commit history only.
 ## Unreleased
 
 - The local gateway can save an action's declared file output in its own `outputs/` directory and return the path, byte count and SHA-256 instead of the bytes. File-output actions run only on the local stdio gateway; unfiled outputs are removed after seven days.
+- New xAI connector: synthesize MP3 speech to a local file with word or character timings, and list built-in and team custom voices. Speech synthesis accepts up to 5,000 characters and runs on the local gateway.
 
 ## v2026.10.19.2, October 19, 2026
 
