@@ -7,6 +7,7 @@ Changes before September 27, 2026 are in the commit history only.
 ## Unreleased
 
 - A plan that spans several sessions no longer sets a target date on each stage; a stage is done when its work is.
+- Your Wiser folder has a new place, `memory/answers/`, for the answers you give when your voice or design is built, so a later rebuild can start from them. A folder set up before this release reports one small update owed, which "update root" makes.
 
 ## v2026.10.19.2, October 19, 2026
 
