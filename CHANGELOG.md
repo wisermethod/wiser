@@ -8,6 +8,11 @@ Changes before September 27, 2026 are in the commit history only.
 
 - Content Author: in a long piece, each header says what its section establishes, so the headers read alone give the argument in order; each paragraph holds one idea, and none is split only for its length; and lists hold only parallel items, such as steps or options, with reasoning left in prose. The number of sections follows the steps of the argument instead of a count set by the piece's length.
 
+## v2026.10.20.2, October 20, 2026
+
+- When a connected service hands back a file, such as narration audio, the local gateway now saves it in its own `outputs/` folder and gives your assistant the file's location, size and fingerprint instead of the file itself, so long audio no longer has to pass through the conversation. It works on the local gateway only, and a saved file not moved elsewhere is removed after seven days. (cc09b88, bdcf194)
+- New xAI connector: narration in an xAI voice, built-in or your own voice clone, up to 5,000 characters a call, saved as an MP3 with word timings for captions, and lists of xAI's built-in voices and your team's voice clones. It runs on the local gateway and costs at most about 7.5 cents a call at xAI's list price. (e0dda43, 5405822)
+
 ## v2026.10.20, October 20, 2026
 
 - A plan that spans several sessions no longer sets a target date on each stage; a stage is done when its work is. (b15e59a)

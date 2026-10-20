@@ -26,6 +26,7 @@ export const STATUS = {
   // the binding did not verify, was refused, or named no single owning root. Added, never
   // renamed: nothing above changes meaning.
   CLASSIFIER_UNBOUND: 'classifier_unbound',
+  LOCAL_ONLY: 'local_only',
 };
 
 /**

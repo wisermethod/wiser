@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -90,7 +90,10 @@ test('--check validates all shipped connectors and prints one JSON object', asyn
   const obj = JSON.parse(r.stdout);
   assert.equal(obj.ok, true);
   const ids = obj.connectors.map((c) => c.id).sort();
-  assert.deepEqual(ids, ['bing', 'clarity', 'cloudflare', 'courtlistener', 'dataforseo', 'figma', 'github', 'google', 'google-apis', 'google-cloud', 'google-vision', 'hubspot', 'huggingface', 'linkedin', 'microsoft', 'monday', 'notion', 'replicate', 'stripe', 'supabase', 'tinyfish', 'twenty', 'usebouncer', 'vercel', 'vm', 'zoho', 'zoom']);
+  assert.deepEqual(ids, ['bing', 'clarity', 'cloudflare', 'courtlistener', 'dataforseo', 'figma', 'github', 'google', 'google-apis', 'google-cloud', 'google-vision', 'hubspot', 'huggingface', 'linkedin', 'microsoft', 'monday', 'notion', 'replicate', 'stripe', 'supabase', 'tinyfish', 'twenty', 'usebouncer', 'vercel', 'vm', 'xai', 'zoho', 'zoom']);
+  assert.ok(obj.actions.includes('xai.speech.synthesize'));
+  assert.ok(obj.actions.includes('xai.speech.list_builtin_voices'));
+  assert.ok(obj.actions.includes('xai.speech.list_voice_clones'));
   assert.ok(obj.actions.includes('tinyfish.web.search'));
   assert.ok(obj.actions.includes('tinyfish.web.fetch'));
   assert.ok(obj.actions.includes('github.repos.get'));
@@ -127,4 +130,53 @@ test('--check exits nonzero on a module and manifest mismatch', () => {
   const result = spawnSync(process.execPath, [SERVER, '--check', '--connectors', root], { encoding: 'utf8' });
   assert.notEqual(result.status, 0);
   assert.ok((result.stderr + result.stdout).includes('not declared in manifest.json'));
+});
+
+for (const [name, output] of [
+  ['null', null], ['array', []], ['string', 'audio/mpeg'], ['number', 1],
+  ['empty object', {}],
+  ['unknown member', { media_types: ['audio/mpeg'], max_bytes: 64, path: '/invented' }],
+  ['missing media types', { max_bytes: 64 }],
+  ['non-array media types', { media_types: 'audio/mpeg', max_bytes: 64 }],
+  ['empty media types', { media_types: [], max_bytes: 64 }],
+  ['duplicate media types', { media_types: ['audio/mpeg', 'audio/mpeg'], max_bytes: 64 }],
+  ['unknown media type', { media_types: ['audio/unknown'], max_bytes: 64 }],
+  ['prototype member as media type', { media_types: ['__proto__'], max_bytes: 64 }],
+  ['non-string media type', { media_types: [5], max_bytes: 64 }],
+  ['null media type', { media_types: [null], max_bytes: 64 }],
+  ['missing cap', { media_types: ['audio/mpeg'] }],
+  ['zero cap', { media_types: ['audio/mpeg'], max_bytes: 0 }],
+  ['negative cap', { media_types: ['audio/mpeg'], max_bytes: -1 }],
+  ['fractional cap', { media_types: ['audio/mpeg'], max_bytes: 1.5 }],
+  ['unsafe cap', { media_types: ['audio/mpeg'], max_bytes: Number.MAX_SAFE_INTEGER + 1 }],
+  ['string cap', { media_types: ['audio/mpeg'], max_bytes: '64' }],
+  ['boolean cap', { media_types: ['audio/mpeg'], max_bytes: true }],
+  ['null cap', { media_types: ['audio/mpeg'], max_bytes: null }],
+]) {
+  test(`validator rejects output_file with ${name}`, async (t) => {
+    const root = makeHome();
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    const dir = join(root, 'sample');
+    writeConnector(dir, { id: 'sample' });
+    const file = join(dir, 'manifest.json');
+    const manifest = JSON.parse(readFileSync(file, 'utf8'));
+    manifest.modules.items.actions.ping.output_file = output;
+    writeFileSync(file, JSON.stringify(manifest));
+    await assert.rejects(() => loadConnector(dir), /modules\.items\.actions\.ping\.output_file/);
+  });
+}
+
+test('validator accepts a declared file output with any positive safe integer cap', async (t) => {
+  const root = makeHome();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const dir = join(root, 'sample');
+  writeConnector(dir, { id: 'sample' });
+  const file = join(dir, 'manifest.json');
+  const manifest = JSON.parse(readFileSync(file, 'utf8'));
+  for (const max_bytes of [1, 16777216, Number.MAX_SAFE_INTEGER]) {
+    const output = { media_types: ['audio/mpeg'], max_bytes };
+    manifest.modules.items.actions.ping.output_file = output;
+    writeFileSync(file, JSON.stringify(manifest));
+    assert.deepEqual((await loadConnector(dir)).manifest.modules.items.actions.ping.output_file, output);
+  }
 });
