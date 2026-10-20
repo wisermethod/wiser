@@ -4,10 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
-## Unreleased
+## v2026.10.20.2, October 20, 2026
 
-- The local gateway can save an action's declared file output in its own `outputs/` directory and return the path, byte count and SHA-256 instead of the bytes. File-output actions run only on the local stdio gateway; unfiled outputs are removed after seven days.
-- New xAI connector: synthesize MP3 speech to a local file with word or character timings, and list xAI's built-in voices and your team's voice clones. Speech synthesis accepts up to 5,000 characters and runs on the local gateway.
+- When a connected service hands back a file, such as narration audio, the local gateway now saves it in its own `outputs/` folder and gives your assistant the file's location, size and fingerprint instead of the file itself, so long audio no longer has to pass through the conversation. It works on the local gateway only, and a saved file not moved elsewhere is removed after seven days. (cc09b88, bdcf194)
+- New xAI connector: narration in an xAI voice, built-in or your own voice clone, up to 5,000 characters a call, saved as an MP3 with word timings for captions, and lists of xAI's built-in voices and your team's voice clones. It runs on the local gateway and costs at most about 7.5 cents a call at xAI's list price. (e0dda43, 5405822)
 
 ## v2026.10.20, October 20, 2026
 
