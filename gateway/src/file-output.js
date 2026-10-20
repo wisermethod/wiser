@@ -122,9 +122,11 @@ export function writeOutputFile(declaration, result, outputsDir, cid) {
     try {
       mkdirSync(outputsDir, { mode: 0o700 });
       // A restrictive umask can leave the new directory unreadable to its owner.
-      // It was created a moment ago by this call, so its mode is set by path once,
-      // and the open below still refuses it if it has since become a link.
-      chmodSync(outputsDir, 0o700);
+      // It was created a moment ago by this call; its mode is set by path only
+      // while the path is still a real directory, never through a link, and the
+      // open below refuses it if it has since become one.
+      const made = lstatSync(outputsDir);
+      if (!made.isSymbolicLink() && made.isDirectory()) chmodSync(outputsDir, 0o700);
     } catch (err) {
       if (err.code !== 'EEXIST') throw err;
     }

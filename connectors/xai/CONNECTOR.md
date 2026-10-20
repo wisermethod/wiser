@@ -2,17 +2,17 @@
 name: xai
 type: connector
 category: media
-description: Synthesizes MP3 speech to a local file with word or character timings, and lists built-in and team custom voices through xAI
+description: Synthesizes MP3 speech to a local file with word or character timings, and lists xAI's built-in voices and the team's voice clones
 version: 0.1.0
 ---
 
 # xAI
 
-Generate speech from text and list the voices available to the connected xAI team. One `voice` module uses an ordinary API key held by the gateway's provider.
+Generate speech from text and list the voices available to the connected xAI team. One `speech` module uses an ordinary API key held by the gateway's provider.
 
 ## Status
 
-Added 2026-10-20. Verified through fake-provider gateway tests, schema agreement, guide conformance, toolkit mapping and manifest/export checks.
+Added 2026-10-20. Verified through fake-provider gateway tests, schema agreement, guide conformance, toolkit mapping and manifest/export checks, and by live calls through hosted connect, including one at the 5,000-character cap, whose written file matched the audio the vendor sent byte for byte.
 
 ## Reaching it
 
@@ -20,9 +20,9 @@ Invoke through the gateway's `execute` tool, by action id. Every action rejects 
 
 | Action id | Input | Risk | Confirmation |
 |-----------|-------|------|--------------|
-| `xai.voice.synthesize` | `text`, `voice_id`, `language`; optional `speed`, `sample_rate`, `bit_rate`, `text_normalization`, `timings` | medium | none |
-| `xai.voice.list_voices` | `{}` | low | none |
-| `xai.voice.list_custom_voices` | Optional `limit`, `pagination_token` | low | none |
+| `xai.speech.synthesize` | `text`, `voice_id`, `language`; optional `speed`, `sample_rate`, `bit_rate`, `text_normalization`, `timings` | medium | none |
+| `xai.speech.list_builtin_voices` | `{}` | low | none |
+| `xai.speech.list_voice_clones` | Optional `limit`, `pagination_token` | low | none |
 
 `synthesize` runs on the local gateway only because the gateway writes its audio to a file. A hosted call returns `local_only` before transport. The two listing actions need no file output and can run through either gateway route.
 
@@ -49,21 +49,20 @@ A success returns `duration`, `content_type`, `voice_id`, `characters` (code poi
 - `characters`: `timings` is `{ graph_chars, graph_times }`, preserving the two arrays as xAI sent them, including tags.
 - `none`: the result has no `timings` property.
 
-The 5,000-character envelope's passage through the proxy has not been verified end to end. Fake tests prove the local cap and file contract; a live call at the cap remains a separate verification.
 
 ### Voice lists
 
-`list_voices` calls `GET /v1/tts/voices` and returns `{ voices: [{ voice_id, name }] }`.
+`list_builtin_voices` calls `GET /v1/tts/voices` and returns `{ voices: [{ voice_id, name }] }`.
 
-`list_custom_voices` calls `GET /v1/custom-voices`. Optional `limit` is an integer from 1 to 1000 inclusive, checked by the module; optional `pagination_token` is a nonempty string. Both are passed as query parameters, with their values encoded by the proxy. No default limit is added.
+`list_voice_clones` calls `GET /v1/custom-voices`. Optional `limit` is an integer from 1 to 1000 inclusive, checked by the module; optional `pagination_token` is a nonempty string. Both are passed as query parameters, with their values encoded by the proxy. No default limit is added.
 
-Custom voices retain `voice_id`, `name`, and language or creation fields whose values are plain strings. Those extra field names start with `language`, `created` or `creation`, followed by the end of the name, an underscore or a capital letter, covering `language`, `language_code`, `created_at` and `createdAt`. Other fields, nested data and non-string values are dropped. Either listing retains a string `pagination_token` when present. A non-object answer, missing voices array, or voice without string `voice_id` and `name` returns `vendor_error` with its endpoint, `method: 'GET'` and `reason: 'unexpected answer'`; no vendor body is returned.
+Voice clones retain `voice_id`, `name`, and language or creation fields whose values are plain strings. Those extra field names start with `language`, `created` or `creation`, followed by the end of the name, an underscore or a capital letter, covering `language`, `language_code`, `created_at` and `createdAt`. Other fields, nested data and non-string values are dropped. Either listing retains a string `pagination_token` when present. A non-object answer, missing voices array, or voice without string `voice_id` and `name` returns `vendor_error` with its endpoint, `method: 'GET'` and `reason: 'unexpected answer'`; no vendor body is returned.
 
 ## Credentials and module
 
 | Module | Grant privilege | Actions |
 |--------|-----------------|---------|
-| `voice` | write | `synthesize`, `list_voices`, `list_custom_voices` |
+| `speech` | write | `synthesize`, `list_builtin_voices`, `list_voice_clones` |
 
 Generation creates billed output, so the ordinary key's grant is `write`. Both reads share that key and module. This connector holds no credential and uses no local vendor-key file or Provides secret binding. `auth.md` describes hosted connect and revocation.
 
@@ -71,17 +70,17 @@ Generation creates billed output, so the ordinary key's grant is `write`. Both r
 
 | Action | Effect | Worst case per call | Confirmation |
 |--------|--------|---------------------|--------------|
-| `xai.voice.synthesize` | Creates billed speech and a new local output file; incurred charges cannot be undone | $0.075 for 5,000 characters at $15.00 per million characters | none |
+| `xai.speech.synthesize` | Creates billed speech and a new local output file; incurred charges cannot be undone | $0.075 for 5,000 characters at $15.00 per million characters | none |
 
 The base rate and worst case use xAI's [pricing](https://docs.x.ai/developers/pricing), read 2026-10-20 in the approved plan's evidence. The action's published `maxLength: 5000` bounds its only cost-driving input and the module enforces that bound in code points. It deletes, overwrites, sends and publishes nothing. The voice-list reads have no confirmation stop.
 
 ## Excluded
 
-Streaming, WebSockets, creating, editing or deleting custom voices, `replace`, codecs other than MP3, `optimize_streaming_latency`, speech to text, chat, images, video and every other xAI operation. Voice cloning is outside this connector; its consent decision belongs to the calling production workflow.
+Streaming, WebSockets, creating, editing or deleting voice clones, `replace`, codecs other than MP3, `optimize_streaming_latency`, speech to text, chat, images, video and every other xAI operation. Voice cloning is outside this connector; its consent decision belongs to the calling production workflow.
 
 ## Troubleshooting
 
-- `needs_connect`: connect service `xai`, module `voice`, following `auth.md`.
+- `needs_connect`: connect service `xai`, module `speech`, following `auth.md`.
 - `local_only`: attach and use the local stdio gateway for `synthesize`.
 - `invalid_arguments`: correct the named field against the input rules above.
 - `needs_provider_capability`: the gateway's provider cannot proxy the request; have its setup checked.

@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { createTestGateway, makeHome, putActive } from '../../../gateway/test/fake-provider.js';
 
 const BASE = { text: '[pause]Hi [breath]<emphasis>🌟 go</emphasis>!', voice_id: 'fakevoice123', language: 'en' };
-const INPUTS = { synthesize: BASE, list_voices: {}, list_custom_voices: {} };
+const INPUTS = { synthesize: BASE, list_builtin_voices: {}, list_voice_clones: {} };
 const AUDIO = 'AP8TgEMEAOlHN7ZbISoRBQ==';
 const GRAPH_CHARS = Array.from(BASE.text);
 const GRAPH_TIMES = GRAPH_CHARS.map((_, i) => [i / 10, (i + 1) / 10]);
@@ -33,7 +33,7 @@ async function setup(t, { active = true, answer = ENVELOPE, outputs = true } = {
     return { status: 200, data: structuredClone(answer), headers: { ignored: 'invented header' } };
   };
   state.fake.catalog.execute = async () => assert.fail('proxy action reached catalog');
-  if (active) await putActive(state.store, state.fake, { service: 'xai', module: 'voice', privilege: 'write' });
+  if (active) await putActive(state.store, state.fake, { service: 'xai', module: 'speech', privilege: 'write' });
   return { ...state, calls, outputsDir };
 }
 
@@ -47,24 +47,24 @@ function noAudio(result, state) {
 }
 
 for (const [action, input] of Object.entries(INPUTS)) {
-  test(`${action} needs the voice write grant before any transport`, async (t) => {
+  test(`${action} needs the speech write grant before any transport`, async (t) => {
     const state = await setup(t, { active: false });
-    const result = await state.gw.execute({ action: `xai.voice.${action}`, input });
+    const result = await state.gw.execute({ action: `xai.speech.${action}`, input });
     assert.equal(result.status, 'needs_connect');
     assert.equal(result.service, 'xai');
-    assert.equal(result.module, 'voice');
+    assert.equal(result.module, 'speech');
     assert.equal(result.privilege, 'write');
     assert.equal(state.calls.length, 0);
     assert.equal(existsSync(state.outputsDir), false);
   });
 }
 
-test('list_voices projects built-in fields and preserves a pagination token', async (t) => {
+test('list_builtin_voices projects built-in fields and preserves a pagination token', async (t) => {
   const state = await setup(t, { answer: {
     voices: [{ voice_id: 'builtin123', name: 'Example built-in', language: 'en', preview_url: 'https://example.invalid/audio' }],
     pagination_token: 'fake-next', ignored: 'invented body field',
   } });
-  const result = await state.gw.execute({ action: 'xai.voice.list_voices', input: {} });
+  const result = await state.gw.execute({ action: 'xai.speech.list_builtin_voices', input: {} });
   assert.deepEqual(result, { voices: [{ voice_id: 'builtin123', name: 'Example built-in' }], pagination_token: 'fake-next' });
   assert.equal(state.calls.length, 1);
   assert.equal(state.calls[0].endpoint, '/v1/tts/voices');
@@ -73,7 +73,7 @@ test('list_voices projects built-in fields and preserves a pagination token', as
   assert.equal(existsSync(state.outputsDir), false);
 });
 
-test('list_custom_voices projects string language/creation fields and sends query parameters', async (t) => {
+test('list_voice_clones projects string language/creation fields and sends query parameters', async (t) => {
   const state = await setup(t, { answer: {
     voices: [{ voice_id: 'custom123abc', name: 'Example custom', language: 'en', language_code: 'en-US',
       created_at: '2026-10-20T00:00:00Z', createdAt: '2026-10-20T00:00:00Z', creation_time: 'invented-time',
@@ -81,7 +81,7 @@ test('list_custom_voices projects string language/creation fields and sends quer
     pagination_token: 'next-example', total_count: 1, cap: 10,
   } });
   const pagination_token = 'fake+cursor & limit=9/?';
-  const result = await state.gw.execute({ action: 'xai.voice.list_custom_voices', input: { limit: 2, pagination_token } });
+  const result = await state.gw.execute({ action: 'xai.speech.list_voice_clones', input: { limit: 2, pagination_token } });
   assert.deepEqual(result, { voices: [{ voice_id: 'custom123abc', name: 'Example custom', language: 'en', language_code: 'en-US',
     created_at: '2026-10-20T00:00:00Z', createdAt: '2026-10-20T00:00:00Z', creation_time: 'invented-time' }], pagination_token: 'next-example' });
   assert.equal(state.calls[0].endpoint, '/v1/custom-voices');
@@ -99,7 +99,7 @@ test('list_custom_voices projects string language/creation fields and sends quer
 test('custom list has no implicit query defaults and accepts both limit boundaries', async (t) => {
   const state = await setup(t, { answer: { voices: [] } });
   for (const input of [{}, { limit: 1 }, { limit: 1000 }]) {
-    assert.deepEqual(await state.gw.execute({ action: 'xai.voice.list_custom_voices', input }), { voices: [] });
+    assert.deepEqual(await state.gw.execute({ action: 'xai.speech.list_voice_clones', input }), { voices: [] });
   }
   assert.deepEqual(state.calls.map(({ parameters }) => parameters), [[],
     [{ name: 'limit', value: '1', type: 'query' }], [{ name: 'limit', value: '1000', type: 'query' }],
@@ -108,13 +108,13 @@ test('custom list has no implicit query defaults and accepts both limit boundari
 
 test('synthesize writes an independent decode, applies defaults and drops tags from word timings', async (t) => {
   const state = await setup(t);
-  const result = await state.gw.execute({ action: 'xai.voice.synthesize', input: BASE });
+  const result = await state.gw.execute({ action: 'xai.speech.synthesize', input: BASE });
   assert.equal(state.calls.length, 1);
   const request = state.calls[0];
   assert.equal(request.endpoint, '/v1/tts');
   assert.equal(request.method, 'POST');
   assert.equal(request.toolkit, 'GROK');
-  assert.equal(request.providerAccountId, 'fake-acct-xai-voice');
+  assert.equal(request.providerAccountId, 'fake-acct-xai-speech');
   assert.deepEqual(request.body, {
     text: BASE.text, voice_id: BASE.voice_id, language: 'en',
     output_format: { codec: 'mp3', sample_rate: 48000, bit_rate: 192000 }, with_timestamps: true,
@@ -135,7 +135,7 @@ test('synthesize writes an independent decode, applies defaults and drops tags f
 for (const timings of ['words', 'characters', 'none']) {
   test(`synthesize timings ${timings} has exactly the declared projection`, async (t) => {
     const state = await setup(t);
-    const result = await state.gw.execute({ action: 'xai.voice.synthesize', input: { ...BASE, timings } });
+    const result = await state.gw.execute({ action: 'xai.speech.synthesize', input: { ...BASE, timings } });
     if (timings === 'words') assert.deepEqual(result.timings, WORDS);
     if (timings === 'characters') assert.deepEqual(result.timings, ENVELOPE.audio_timestamps);
     if (timings === 'none') assert.equal(Object.hasOwn(result, 'timings'), false);
@@ -152,7 +152,7 @@ test('word timings preserve punctuation, whitespace boundaries and a tag inside 
   const times = chars.map((_, i) => [i, i + 1]);
   const answer = { ...ENVELOPE, audio_timestamps: { graph_chars: chars, graph_times: times } };
   const state = await setup(t, { answer });
-  const result = await state.gw.execute({ action: 'xai.voice.synthesize', input: { ...BASE, text } });
+  const result = await state.gw.execute({ action: 'xai.speech.synthesize', input: { ...BASE, text } });
   assert.deepEqual(result.timings, [
     { text: 'Hithere,', start: 1, end: text.indexOf(',') + 1 },
     { text: 'world!', start: text.indexOf('world'), end: text.indexOf('!') + 1 },
@@ -165,7 +165,7 @@ test('explicit options are forwarded, including false normalization and speed bo
     for (const sample_rate of [22050, 24000, 44100, 48000]) {
       for (const bit_rate of [64000, 96000, 128000, 192000]) {
         const input = { ...BASE, speed, sample_rate, bit_rate, text_normalization: false, timings: 'none' };
-        const result = await state.gw.execute({ action: 'xai.voice.synthesize', input });
+        const result = await state.gw.execute({ action: 'xai.speech.synthesize', input });
         assert.ok(result.file);
         assert.deepEqual(state.calls.at(-1).body, {
           text: BASE.text, voice_id: BASE.voice_id, language: BASE.language, speed, text_normalization: false,
@@ -174,7 +174,7 @@ test('explicit options are forwarded, including false normalization and speed bo
       }
     }
   }
-  await state.gw.execute({ action: 'xai.voice.synthesize', input: { ...BASE, text_normalization: true } });
+  await state.gw.execute({ action: 'xai.speech.synthesize', input: { ...BASE, text_normalization: true } });
   assert.equal(state.calls.at(-1).body.text_normalization, true);
 });
 
@@ -182,7 +182,7 @@ test('5000 non-BMP code points are accepted without a UTF-16-unit limit', async 
   const state = await setup(t);
   const text = '🌟'.repeat(5000);
   assert.equal(text.length, 10000);
-  const result = await state.gw.execute({ action: 'xai.voice.synthesize', input: { ...BASE, text } });
+  const result = await state.gw.execute({ action: 'xai.speech.synthesize', input: { ...BASE, text } });
   assert.equal(result.characters, 5000);
   assert.ok(result.file);
   assert.equal(state.calls[0].body.text, text);
@@ -205,7 +205,7 @@ for (const [name, extra, field] of [
 ]) {
   test(`synthesize refuses ${name} before transport`, async (t) => {
     const state = await setup(t);
-    const result = await state.gw.execute({ action: 'xai.voice.synthesize', input: { ...BASE, ...extra } });
+    const result = await state.gw.execute({ action: 'xai.speech.synthesize', input: { ...BASE, ...extra } });
     assert.equal(result.status, 'invalid_arguments');
     assert.equal(result.field, field);
     assert.equal(state.calls.length, 0);
@@ -216,14 +216,14 @@ for (const [name, extra, field] of [
 test('synthesize refuses a missing language before transport', async (t) => {
   const state = await setup(t);
   const { language: _language, ...input } = BASE;
-  assert.deepEqual(await state.gw.execute({ action: 'xai.voice.synthesize', input }), { status: 'invalid_arguments', field: 'language' });
+  assert.deepEqual(await state.gw.execute({ action: 'xai.speech.synthesize', input }), { status: 'invalid_arguments', field: 'language' });
   assert.equal(state.calls.length, 0);
 });
 
 for (const input of [{ limit: 0 }, { limit: 1001 }, { limit: 1.5 }, { limit: '2' }, { pagination_token: '' }, { other: 'invented' }]) {
   test(`custom list refuses ${JSON.stringify(input)} before transport`, async (t) => {
     const state = await setup(t);
-    assert.equal((await state.gw.execute({ action: 'xai.voice.list_custom_voices', input })).status, 'invalid_arguments');
+    assert.equal((await state.gw.execute({ action: 'xai.speech.list_voice_clones', input })).status, 'invalid_arguments');
     assert.equal(state.calls.length, 0);
   });
 }
@@ -251,10 +251,13 @@ for (const [name, answer] of [
   ['non-string character', { ...ENVELOPE, audio_timestamps: { graph_chars: [1], graph_times: [[0, 1]] } }],
   ['malformed timing pair', { ...ENVELOPE, audio_timestamps: { graph_chars: ['a'], graph_times: [[0]] } }],
   ['nonfinite timing', { ...ENVELOPE, audio_timestamps: { graph_chars: ['a'], graph_times: [[0, NaN]] } }],
+  // xAI's reference describes {start, end} objects; the live answer carries [start, end] pairs.
+  // The object form stays refused, so a change toward the reference cannot start writing audio.
+  ['timing objects instead of pairs', { ...ENVELOPE, audio_timestamps: { graph_chars: ['a'], graph_times: [{ start: 0, end: 1 }] } }],
 ]) {
   test(`synthesize rejects ${name} with no file or vendor body`, async (t) => {
     const state = await setup(t, { answer });
-    const result = await state.gw.execute({ action: 'xai.voice.synthesize', input: BASE });
+    const result = await state.gw.execute({ action: 'xai.speech.synthesize', input: BASE });
     assert.deepEqual(result, { status: 'vendor_error', endpoint: '/v1/tts', method: 'POST', reason: 'unexpected answer' });
     assert.equal(state.calls.length, 1);
     assert.equal(existsSync(state.outputsDir), false);
@@ -262,11 +265,11 @@ for (const [name, answer] of [
   });
 }
 
-for (const [action, endpoint] of [['list_voices', '/v1/tts/voices'], ['list_custom_voices', '/v1/custom-voices']]) {
+for (const [action, endpoint] of [['list_builtin_voices', '/v1/tts/voices'], ['list_voice_clones', '/v1/custom-voices']]) {
   test(`${action} refuses malformed answers without vendor data`, async (t) => {
     for (const answer of ['invented response', null, [], {}, { voices: [null] }, { voices: [{ voice_id: 1, name: 'invented' }] }]) {
       const state = await setup(t, { answer });
-      assert.deepEqual(await state.gw.execute({ action: `xai.voice.${action}`, input: {} }), {
+      assert.deepEqual(await state.gw.execute({ action: `xai.speech.${action}`, input: {} }), {
         status: 'vendor_error', endpoint, method: 'GET', reason: 'unexpected answer',
       });
       assert.equal(existsSync(state.outputsDir), false);
@@ -287,12 +290,12 @@ test('template schema-enforcement block is kept at the gateway boundary', async 
     { ...BASE, voice_id: 12345 },
     {},
   ]) {
-    const refused = await gw.execute({ action: 'xai.voice.synthesize', input });
+    const refused = await gw.execute({ action: 'xai.speech.synthesize', input });
     assert.equal(refused.status, 'invalid_arguments', JSON.stringify(input));
   }
   for (const input of [null, [], 'example', 1]) {
     assert.deepEqual(
-      await gw.execute({ action: 'xai.voice.synthesize', input }),
+      await gw.execute({ action: 'xai.speech.synthesize', input }),
       { status: 'invalid_arguments', field: 'input' });
   }
   assert.equal(calls.length, 0);
@@ -300,10 +303,10 @@ test('template schema-enforcement block is kept at the gateway boundary', async 
 
 test('hosted synthesis is local_only before transport while lists still work', async (t) => {
   const state = await setup(t, { outputs: false, answer: { voices: [] } });
-  assert.equal((await state.gw.execute({ action: 'xai.voice.synthesize', input: BASE })).status, 'local_only');
+  assert.equal((await state.gw.execute({ action: 'xai.speech.synthesize', input: BASE })).status, 'local_only');
   assert.equal(state.calls.length, 0);
-  for (const action of ['list_voices', 'list_custom_voices']) {
-    assert.deepEqual(await state.gw.execute({ action: `xai.voice.${action}`, input: {} }), { voices: [] });
+  for (const action of ['list_builtin_voices', 'list_voice_clones']) {
+    assert.deepEqual(await state.gw.execute({ action: `xai.speech.${action}`, input: {} }), { voices: [] });
   }
   assert.equal(existsSync(state.outputsDir), false);
 });
@@ -312,9 +315,9 @@ test('gateway preserves proxy capability and vendor failure stops for each actio
   const state = await setup(t);
   for (const [action, input] of Object.entries(INPUTS)) {
     state.fake.auth.proxy = async () => ({ supported: false });
-    assert.equal((await state.gw.execute({ action: `xai.voice.${action}`, input })).status, 'needs_provider_capability');
+    assert.equal((await state.gw.execute({ action: `xai.speech.${action}`, input })).status, 'needs_provider_capability');
     state.fake.auth.proxy = async ({ endpoint, method }) => ({ status: 429, error: { code: 'vendor_error', endpoint, method } });
-    const result = await state.gw.execute({ action: `xai.voice.${action}`, input });
+    const result = await state.gw.execute({ action: `xai.speech.${action}`, input });
     assert.equal(result.status, 'vendor_error');
     assert.equal(result.http_status, 429);
     assert.equal(Object.hasOwn(result, 'output_file'), false);
@@ -325,7 +328,7 @@ test('gateway preserves proxy capability and vendor failure stops for each actio
 test('a multi-megabyte envelope is decoded without recursive-regex overflow and never returned', async (t) => {
   const audio = Buffer.alloc(7200000, 39).toString('base64');
   const state = await setup(t, { answer: { ...ENVELOPE, audio } });
-  const result = await state.gw.execute({ action: 'xai.voice.synthesize', input: { ...BASE, text: '🌟'.repeat(5000), timings: 'none' } });
+  const result = await state.gw.execute({ action: 'xai.speech.synthesize', input: { ...BASE, text: '🌟'.repeat(5000), timings: 'none' } });
   assert.equal(result.characters, 5000);
   assert.deepEqual(readFileSync(result.file.path), Buffer.from(audio, 'base64'));
   assert.equal(JSON.stringify(result).includes(audio), false);
@@ -334,7 +337,7 @@ test('a multi-megabyte envelope is decoded without recursive-regex overflow and 
 test('gateway enforces this connector\'s declared 16 MiB output cap', async (t) => {
   const audio = Buffer.alloc(16777217, 39).toString('base64');
   const state = await setup(t, { answer: { ...ENVELOPE, audio } });
-  const result = await state.gw.execute({ action: 'xai.voice.synthesize', input: BASE });
+  const result = await state.gw.execute({ action: 'xai.speech.synthesize', input: BASE });
   assert.deepEqual(result, { status: 'vendor_error', reason: 'output_refused', detail: 'over_cap' });
   assert.equal(existsSync(state.outputsDir), false);
   assert.equal(JSON.stringify(result).includes(audio), false);
@@ -342,16 +345,16 @@ test('gateway enforces this connector\'s declared 16 MiB output cap', async (t) 
 
 test('the manifest declares exactly the approved module, actions and file output', () => {
   const manifest = JSON.parse(readFileSync(fileURLToPath(new URL('../manifest.json', import.meta.url)), 'utf8'));
-  assert.deepEqual(Object.keys(manifest.modules), ['voice']);
-  const voice = manifest.modules.voice;
-  assert.deepEqual(voice.auth, { provider: 'catalog', toolkit: 'GROK', scheme: 'API_KEY', privilege: 'write' });
-  assert.equal(voice.unwrap_token, false);
-  assert.equal(voice.fallback, 'none');
-  assert.deepEqual(Object.keys(voice.actions).sort(), Object.keys(INPUTS).sort());
-  for (const action of Object.values(voice.actions)) {
+  assert.deepEqual(Object.keys(manifest.modules), ['speech']);
+  const speech = manifest.modules.speech;
+  assert.deepEqual(speech.auth, { provider: 'catalog', toolkit: 'GROK', scheme: 'API_KEY', privilege: 'write' });
+  assert.equal(speech.unwrap_token, false);
+  assert.equal(speech.fallback, 'none');
+  assert.deepEqual(Object.keys(speech.actions).sort(), Object.keys(INPUTS).sort());
+  for (const action of Object.values(speech.actions)) {
     assert.equal(action.confirmation, 'none');
     assert.equal(action.execution.prefer, 'proxy');
     assert.equal(action.input.additionalProperties, false);
   }
-  assert.deepEqual(voice.actions.synthesize.output_file, { media_types: ['audio/mpeg'], max_bytes: 16777216 });
+  assert.deepEqual(speech.actions.synthesize.output_file, { media_types: ['audio/mpeg'], max_bytes: 16777216 });
 });

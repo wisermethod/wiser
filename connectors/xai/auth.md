@@ -1,10 +1,10 @@
 # Connecting xAI
 
-Connect service `xai`, module `voice`, with an ordinary xAI API key. The Connect Account skill handles the hosted link in its own turn; no key belongs in a conversation.
+Connect service `xai`, module `speech`, with an ordinary xAI API key. The Connect Account skill handles the hosted link in its own turn; no key belongs in a conversation.
 
 ## On the platform's side, first
 
-1. Open the [xAI console](https://console.x.ai/) and select the team that holds the custom voice you will use. The key must belong to that team to list and use its voices.
+1. Open the [xAI console](https://console.x.ai/) and select the team that holds the voice clone you will use. The key must belong to that team to list and use its voices.
 2. Open **API Keys** and create an ordinary API key. Never use a Management API key: management credentials administer keys or the team and are not the speech credential.
 3. In the console's permissions picker, restrict the key to the **Voice** endpoint by the label shown there. Do not guess an ACL string from another endpoint's documentation. Save the restriction.
 4. Keep the key ready for hosted connect. Paste it only into that hosted page, never into a conversation, a root file or a gateway configuration file.
@@ -15,7 +15,7 @@ The module's grant is `write` because speech synthesis creates billed output. Th
 
 ## Through the gateway
 
-1. Say "Connect xAI voice". The skill calls `start_connect` with service `xai` and module `voice` and returns a hosted link.
+1. Say "Connect xAI speech". The skill calls `start_connect` with service `xai` and module `speech` and returns a hosted link.
 2. Open that link in your own browser. Paste the ordinary API key into hosted connect's API-key field, without a header name or prefix.
 3. The skill calls `connect_status` on the returned connection. Only `ACTIVE` completes the connection.
 
@@ -41,7 +41,7 @@ Use the Voice limits currently shown for the team in the xAI console. xAI docume
 - **It removes nothing locally unless the provider confirms the credential is gone**, so a grant that is merely suspended keeps its records.
 - **A finished teardown says what it established, in `credential_revoked`.** `yes` means every step the provider reported succeeded. **`unknown` means the provider's record of the credential is gone and an earlier step failed**, so the credential may still work at the vendor even though nothing here points at it any more. Removing the local rows is right either way; **`unknown` is not a completed cutoff**, and the vendor route below is what finishes it.
 
-**At the vendor instead**, if you would rather, or if `disconnect` answers `needs_provider_capability`, meaning this provider will not revoke this credential for you. Delete the ordinary API key in the xAI console's API Keys page, in the team that owns it, to revoke it at xAI. Then run disconnect for xai/voice and approve the listed bindings to remove the gateway's credential record; deleting the key alone does not remove that record. Afterwards run `connect_status` for each module you revoked and read what it returns: it asks the provider and records the answer, so the row stops reading ACTIVE only once the provider agrees, and a provider error leaves it unchanged. A `how` field on the gateway's answer is the adapter's own words; where it names a route this guide does not list, the two disagree and that is worth reporting rather than following.
+**At the vendor instead**, if you would rather, or if `disconnect` answers `needs_provider_capability`, meaning this provider will not revoke this credential for you. Delete the ordinary API key in the xAI console's API Keys page, in the team that owns it, to revoke it at xAI. Then run disconnect for xai/speech and approve the listed bindings to remove the gateway's credential record; deleting the key alone does not remove that record. Afterwards run `connect_status` for each module you revoked and read what it returns: it asks the provider and records the answer, so the row stops reading ACTIVE only once the provider agrees, and a provider error leaves it unchanged. A `how` field on the gateway's answer is the adapter's own words; where it names a route this guide does not list, the two disagree and that is worth reporting rather than following.
 
 ## Last connected
 

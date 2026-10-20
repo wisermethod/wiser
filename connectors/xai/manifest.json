@@ -2,7 +2,7 @@
   "id": "xai",
   "service": "xai",
   "modules": {
-    "voice": {
+    "speech": {
       "auth": {
         "provider": "catalog",
         "toolkit": "GROK",
@@ -32,15 +32,15 @@
           },
           "output_file": { "media_types": ["audio/mpeg"], "max_bytes": 16777216 }
         },
-        "list_voices": {
+        "list_builtin_voices": {
           "description": "List built-in voices as voice_id and name. A non-object answer, missing voices array, or voice without string voice_id and name returns vendor_error with reason unexpected answer.",
           "risk": "low",
           "confirmation": "none",
           "execution": { "prefer": "proxy" },
           "input": { "type": "object", "properties": {}, "additionalProperties": false }
         },
-        "list_custom_voices": {
-          "description": "List the team's custom voices as voice_id and name, retaining language and creation fields only when they are strings, plus a string pagination_token when present. A non-object answer, missing voices array, or voice without string voice_id and name returns vendor_error with reason unexpected answer.",
+        "list_voice_clones": {
+          "description": "List the team's voice clones as voice_id and name, retaining language and creation fields only when they are strings, plus a string pagination_token when present. A non-object answer, missing voices array, or voice without string voice_id and name returns vendor_error with reason unexpected answer.",
           "risk": "low",
           "confirmation": "none",
           "execution": { "prefer": "proxy" },

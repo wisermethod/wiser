@@ -91,9 +91,9 @@ test('--check validates all shipped connectors and prints one JSON object', asyn
   assert.equal(obj.ok, true);
   const ids = obj.connectors.map((c) => c.id).sort();
   assert.deepEqual(ids, ['bing', 'clarity', 'cloudflare', 'courtlistener', 'dataforseo', 'figma', 'github', 'google', 'google-apis', 'google-cloud', 'google-vision', 'hubspot', 'huggingface', 'linkedin', 'microsoft', 'monday', 'notion', 'replicate', 'stripe', 'supabase', 'tinyfish', 'twenty', 'usebouncer', 'vercel', 'vm', 'xai', 'zoho', 'zoom']);
-  assert.ok(obj.actions.includes('xai.voice.synthesize'));
-  assert.ok(obj.actions.includes('xai.voice.list_voices'));
-  assert.ok(obj.actions.includes('xai.voice.list_custom_voices'));
+  assert.ok(obj.actions.includes('xai.speech.synthesize'));
+  assert.ok(obj.actions.includes('xai.speech.list_builtin_voices'));
+  assert.ok(obj.actions.includes('xai.speech.list_voice_clones'));
   assert.ok(obj.actions.includes('tinyfish.web.search'));
   assert.ok(obj.actions.includes('tinyfish.web.fetch'));
   assert.ok(obj.actions.includes('github.repos.get'));

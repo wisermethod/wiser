@@ -100,7 +100,7 @@ function readVoices(answer, endpoint, custom = false) {
 }
 
 export const modules = {
-  voice: {
+  speech: {
     async synthesize(input, ctx) {
       // The gateway enforces the published types, required fields, enums and
       // patterns. These are the bounds it deliberately leaves to the module.
@@ -122,11 +122,11 @@ export const modules = {
       const answer = await proxyData(ctx, { endpoint: '/v1/tts', method: 'POST', body });
       return readSpeech(answer, input, characters);
     },
-    async list_voices(_input, ctx) {
+    async list_builtin_voices(_input, ctx) {
       const endpoint = '/v1/tts/voices';
       return readVoices(await proxyData(ctx, { endpoint, method: 'GET' }), endpoint);
     },
-    async list_custom_voices(input, ctx) {
+    async list_voice_clones(input, ctx) {
       if (input.limit !== undefined && (input.limit < 1 || input.limit > 1000)) {
         return { status: 'invalid_arguments', field: 'limit' };
       }

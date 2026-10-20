@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
 import {
-  existsSync, linkSync, lstatSync, lutimesSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync,
+  chmodSync, existsSync, linkSync, lstatSync, lutimesSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync,
   symlinkSync, utimesSync, writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -40,7 +40,7 @@ function fixtureConnectors() {
     id: 'speak',
     service: 'speak',
     modules: {
-      voice: {
+      speech: {
         auth: { provider: 'catalog', toolkit: 'FAKE_SPEAK', scheme: 'API_KEY', privilege: 'write' },
         actions: {
           say: action({ output_file: out() }),
@@ -66,7 +66,7 @@ async function envelope(ctx) {
   return res.data;
 }
 export const modules = {
-  voice: {
+  speech: {
     async say(_input, ctx) {
       const env = await envelope(ctx);
       return { duration: env.duration, output_file: { media_type: 'audio/mpeg', data: Buffer.from(env.audio, 'base64') } };
@@ -126,7 +126,7 @@ async function build({ outputs = true, home = mkdtempSync(join(tmpdir(), 'withhe
   const fake = fakeProvider();
   const store = new JsonFileStore(home);
   store.putConnection({
-    id: 'conn-speak-voice', service: 'speak', module: 'voice', privilege: 'write', provider: 'catalog',
+    id: 'conn-speak-speech', service: 'speak', module: 'speech', privilege: 'write', provider: 'catalog',
     provider_account_id: 'fake-acct-speak', scopes: [], status: 'ACTIVE',
     created: new Date().toISOString(), updated: new Date().toISOString(),
   });
@@ -180,7 +180,7 @@ function noBytesIn(text) {
 
 test('T7 and T5: the file equals an independent decode of the envelope; nothing of the bytes in the result or audit', async () => {
   const { gw, home, outputsDir } = await build();
-  const result = await gw.execute({ action: 'speak.voice.say', input: {} });
+  const result = await gw.execute({ action: 'speak.speech.say', input: {} });
   assert.ok(result.file, `expected a file, got ${JSON.stringify(result).slice(0, 300)}`);
   const independent = Buffer.from(AUDIO_B64, 'base64');
   const written = readFileSync(result.file.path);
@@ -203,7 +203,7 @@ test('T7 and T5: the file equals an independent decode of the envelope; nothing 
 for (const [action, detail] of [['bad_type', 'undeclared_type'], ['over_cap', 'over_cap'], ['not_bytes', 'not_bytes'], ['empty', 'empty']]) {
   test(`T1: ${action} is neither written nor returned`, async () => {
     const { gw, home, outputsDir } = await build();
-    const result = await gw.execute({ action: `speak.voice.${action}`, input: {} });
+    const result = await gw.execute({ action: `speak.speech.${action}`, input: {} });
     assert.equal(result.status, 'vendor_error');
     assert.equal(result.reason, 'output_refused');
     assert.equal(result.detail, detail);
@@ -215,7 +215,7 @@ for (const [action, detail] of [['bad_type', 'undeclared_type'], ['over_cap', 'o
 
 test('T1: a status object from the module writes nothing', async () => {
   const { gw, outputsDir } = await build();
-  const result = await gw.execute({ action: 'speak.voice.status_obj', input: {} });
+  const result = await gw.execute({ action: 'speak.speech.status_obj', input: {} });
   assert.equal(result.status, 'vendor_error');
   assert.deepEqual(treeFiles(outputsDir), []);
 });
@@ -223,7 +223,7 @@ test('T1: a status object from the module writes nothing', async () => {
 for (const action of ['status_with_slot', 'throws_with_slot']) {
   test(`T5: a status from ${action} reaches the answer without its slot or bytes, and nothing is written`, async () => {
     const { gw, home, outputsDir } = await build();
-    const result = await gw.execute({ action: `speak.voice.${action}`, input: {} });
+    const result = await gw.execute({ action: `speak.speech.${action}`, input: {} });
     assert.equal(result.status, 'vendor_error');
     noBytesIn(JSON.stringify(result));
     noBytesIn(auditText(home));
@@ -235,7 +235,7 @@ test('T2: no write outside outputs/ for any action', async () => {
   const { gw, home } = await build();
   const before = new Set(treeFiles(home));
   for (const action of ['say', 'bad_type', 'over_cap', 'not_bytes', 'empty', 'status_obj', 'status_with_slot', 'throws_with_slot']) {
-    await gw.execute({ action: `speak.voice.${action}`, input: {} });
+    await gw.execute({ action: `speak.speech.${action}`, input: {} });
   }
   const added = treeFiles(home).filter((f) => !before.has(f));
   const outside = added.filter((f) => !f.startsWith('outputs/') && f !== 'audit.jsonl' && f !== 'connections.json');
@@ -246,11 +246,13 @@ test('T3: outputs/ that is a symbolic link is refused and its target untouched',
   const home = mkdtempSync(join(tmpdir(), 'withheld-home-'));
   const elsewhere = mkdtempSync(join(tmpdir(), 'withheld-elsewhere-'));
   symlinkSync(elsewhere, join(home, 'outputs'));
+  chmodSync(elsewhere, 0o755);
   const { gw } = await build({ home });
-  const result = await gw.execute({ action: 'speak.voice.say', input: {} });
+  const result = await gw.execute({ action: 'speak.speech.say', input: {} });
   assert.equal(result.status, 'vendor_error');
   assert.equal(result.reason, 'output_refused');
   assert.deepEqual(readdirSync(elsewhere), []);
+  assert.equal(statSync(elsewhere).mode & 0o777, 0o755, 'the link target\'s mode was changed');
   noBytesIn(JSON.stringify(result));
 });
 
@@ -267,7 +269,7 @@ for (const [label, plant] of [
     mkdirSync(dir, { mode: 0o700 });
     plant(dir, outside);
     const { gw } = await build({ home });
-    const result = await gw.execute({ action: 'speak.voice.say', input: {} });
+    const result = await gw.execute({ action: 'speak.speech.say', input: {} });
     assert.equal(result.status, 'vendor_error');
     assert.equal(result.reason, 'output_refused');
     assert.equal(result.detail, 'outputs_not_clean');
@@ -298,7 +300,7 @@ test('T4: cleanup removes only old, matching, singly linked regular files in out
   const { gw } = await build({ home });
   // The cleanup runs before a write; the planted entries below would refuse that write,
   // so the links and hard links are tested in a separate home.
-  const result = await gw.execute({ action: 'speak.voice.say', input: {} });
+  const result = await gw.execute({ action: 'speak.speech.say', input: {} });
   const left = readdirSync(dir);
   assert.equal(left.includes(oldMatch), false, 'an old matching file was kept');
   assert.equal(left.includes(oldPartial), false, 'an old matching .partial was kept');
@@ -322,7 +324,7 @@ test('T4: cleanup removes only old, matching, singly linked regular files in out
   linkSync(join(outside, 'hard.mp3'), join(dir2, hardName));
   utimesSync(join(outside, 'hard.mp3'), old, old);
   const { gw: gw2 } = await build({ home: home2 });
-  await gw2.execute({ action: 'speak.voice.say', input: {} });
+  await gw2.execute({ action: 'speak.speech.say', input: {} });
   const left2 = readdirSync(dir2);
   assert.ok(left2.includes(linkName), 'an old matching symbolic link was removed');
   assert.ok(left2.includes(hardName), 'an old hard-linked matching file was removed');
@@ -332,7 +334,7 @@ test('T4: cleanup removes only old, matching, singly linked regular files in out
 
 test('T6a: built as the hosted service builds it, the action is local_only and nothing is called', async () => {
   const { gw, fake, home } = await build({ outputs: false });
-  const result = await gw.execute({ action: 'speak.voice.say', input: {} });
+  const result = await gw.execute({ action: 'speak.speech.say', input: {} });
   assert.equal(result.status, 'local_only');
   assert.equal(typeof result.reason, 'string');
   assert.equal(/read/i.test(result.reason), false, 'the reason says the action reads files');
@@ -346,7 +348,7 @@ test('T6a: a gateway with a home and no outputsDir never derives one from home',
   const home = mkdtempSync(join(tmpdir(), 'withheld-home-'));
   mkdirSync(join(home, 'outputs'), { mode: 0o700 });
   const { gw, fake } = await build({ outputs: false, home });
-  const result = await gw.execute({ action: 'speak.voice.say', input: {} });
+  const result = await gw.execute({ action: 'speak.speech.say', input: {} });
   assert.equal(result.status, 'local_only');
   assert.equal(fake.calls.proxy, 0);
   assert.deepEqual(readdirSync(join(home, 'outputs')), []);
@@ -354,8 +356,8 @@ test('T6a: a gateway with a home and no outputsDir never derives one from home',
 
 test('T11: two calls never overwrite each other', async () => {
   const { gw } = await build();
-  const a = await gw.execute({ action: 'speak.voice.say', input: {} });
-  const b = await gw.execute({ action: 'speak.voice.say', input: {} });
+  const a = await gw.execute({ action: 'speak.speech.say', input: {} });
+  const b = await gw.execute({ action: 'speak.speech.say', input: {} });
   assert.notEqual(a.file.path, b.file.path);
   assert.ok(existsSync(a.file.path) && existsSync(b.file.path));
 });
