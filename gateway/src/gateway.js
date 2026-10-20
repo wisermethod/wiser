@@ -172,6 +172,9 @@ export function classifierNeedsSubscription(classifier, envPath) {
  * it in the other, which is this family's named defect shape.
  */
 const STOPPED_GRANT_STATES = ['EXPIRED', 'FAILED', 'INACTIVE', 'INITIATED', 'ABSENT'];
+// These refusals may mean the grant itself failed. The status read decides:
+// only a stopped reading changes the result or the connection row.
+const GRANT_REFUSAL_STATUSES = [401, 403, 410, 422];
 
 /** The pre-seam sentence. `tools/list` returns this byte for byte when no classifier is loaded. */
 const SEARCH_ACTIONS_DESCRIPTION = 'Search action ids this gateway serves, with privilege, risk, and confirmation.';
@@ -1176,13 +1179,14 @@ export class ConnectionGateway {
         file: authForRun?.file,
         variables: authForRun?.variables,
       };
-      const stopGrant = (providerStatus) => {
+      const stopGrant = (providerStatus, reason) => {
         this.store.putConnection({ ...record, status: providerStatus });
         return statusObject(STATUS.NEEDS_CONNECT, {
           service: parsed.service,
           module: parsed.module,
           privilege: privilege ?? null,
           provider_status: providerStatus,
+          ...(reason === undefined ? {} : { reason }),
           ...labelled,
         });
       };
@@ -1266,7 +1270,7 @@ export class ConnectionGateway {
         result = projectProviderCodes(result);
         if (result?.status === STATUS.NEEDS_CONNECT && label !== undefined) result = { ...result, label };
         if (authForRun?.provider === 'local-file' || result?.status !== STATUS.VENDOR_ERROR ||
-            ![401, 403].includes(result.http_status) || typeof provider?.status !== 'function') {
+            !GRANT_REFUSAL_STATUSES.includes(result.http_status) || typeof provider?.status !== 'function') {
           return result;
         }
         let raw;
@@ -1277,7 +1281,7 @@ export class ConnectionGateway {
         }
         if (raw && typeof raw === 'object' && raw.error) return result;
         const mapped = typeof raw === 'string' ? raw : raw?.status;
-        if (STOPPED_GRANT_STATES.includes(mapped)) return stopGrant(mapped);
+        if (STOPPED_GRANT_STATES.includes(mapped)) return stopGrant(mapped, 'refused_by_provider');
         return result;
       };
 
@@ -2152,7 +2156,7 @@ export class ConnectionGateway {
       // and the account then reads absent, the two readings are indistinguishable, so
       // this fails closed rather than deleting every local row on an ambiguity. The
       // final step is the one the contract says a top-level error reports, and it is
-      // the DELETE for the composio adapter — which is why the measured case where the
+      // a DELETE in the measured sequence, which is why the case where the
       // revoke POST is refused and the DELETE succeeds still passes here.
       // An adapter that reports nothing has established nothing. `{ supported: true,
       // steps: [] }` plus an ABSENT reading was accepted until adversarial review found
@@ -2205,7 +2209,7 @@ export class ConnectionGateway {
       const removed = this.store.deleteConnection({ providerAccountId: accountId });
       // **What succeeded is not always what a reader assumes.** The teardown is the
       // adapter's sequence, and its last call is the one this gate requires: for the
-      // composio adapter that is the DELETE, which removes the provider's record of the
+      // measured sequence that is the DELETE, which removes the provider's record of the
       // credential. An earlier step failing means the credential may still be live at
       // the vendor while the provider has forgotten it — the measured `API_KEY` case
       // exactly, where the revoke POST is refused and the DELETE does the work. Saying

@@ -8,6 +8,8 @@ Composio holds the grants. When you connect an account, you approve it at the ve
 
 The free tier, read on 2026-09-05, allows one hundred thousand tool calls a month with no card. That covers an individual's use of this plugin many times over.
 
+Measured against Composio's live API on 2026-10-19: a refused tool call arrives as HTTP 200 with `successful: false` and the upstream status in `data.status_code`, which the adapter reads as the failure status. A call on an `EXPIRED` account answers 410, `ActionExecute_ConnectedAccountExpired`, on execute and 422, `TOOL_AUTH_BadConnectedAccountState`, on the proxy. The gateway follows either refusal with a status read. Composio's API reference lists 410 on execute as a deprecated tool, which is why the status read, not the code, decides whether the grant stopped.
+
 ## Three different things. Do not mix them.
 
 | Thing | Where it lives | What it is |

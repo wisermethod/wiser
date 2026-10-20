@@ -17,6 +17,15 @@ Changes before September 27, 2026 are in the commit history only.
 - Asking again the same day reuses the page while your voice is unchanged. Once it changes, the old page is archived and a new one is built.
 - When Build Voice finishes your voice as complete and your folder's record does not say otherwise, it offers Voice Report, which shows the voice as dials and saves it as one page; otherwise it tells you what that record says, or that there is none. During onboarding the offer comes at the end instead, once your folder records where your voice stands, complete or not. The page is made only on your yes.
 
+## v2026.10.20, October 20, 2026
+
+- A plan that spans several sessions no longer sets a target date on each stage; a stage is done when its work is. (b15e59a)
+- New Wiser folders include an empty `memory/answers/`, where later releases will keep the answers you give when your voice or design is built. A folder set up before this release is one small update behind: saying "update root" proposes that update, and you approve it before anything changes. (220e001, 01a2c89, b181781)
+
+## v2026.10.19.2, October 19, 2026
+
+- A connection that has stopped working, such as a Google sign-in that lapsed, now tells your assistant to reconnect it instead of reporting that the service refused. (0f4bd30, 86f5d89, 0656640)
+
 ## v2026.10.19, October 19, 2026
 
 - New skill, Cloudflare Setup: it connects your Cloudflare account to Wiser with one token. You make the token from a link that opens Cloudflare's token page with the right boxes already ticked for your job, a site or moving a domain's DNS, and paste it once. Wiser tells you in plain words what the token can and cannot do, checks each part of Cloudflare your work needs with a read, and, for a site that needs staff sign-in, readies Cloudflare Zero Trust and hands back its team domain. A later job adds what it needs by editing the same token, with nothing to reconnect. (70ca68f, e528809, 9912558, 214aa2b)

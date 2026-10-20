@@ -1,7 +1,7 @@
 ---
 root: [name]
 type:
-layout: 3
+layout: 4
 classifier_refusal: no
 ---
 
@@ -28,6 +28,7 @@ Competitors follows the constitution's Workspace Model. Knowledge sets are not P
 | `inbox/` | Unclassified captures | ships |
 | `memory/` | Bound files for about, voice, design, and competitors only when bound. Provides binds files, never this directory | ships bound stubs |
 | `memory/knowledge/<set>/` | Knowledge sets, never bound by Provides. Router: `memory/knowledge/AGENTS.md` | first use; empty `memory/knowledge/` may ship |
+| `memory/answers/` | Dated answer files from a voice or design build, never bound by Provides. Router: `memory/answers/AGENTS.md` | ships, with router |
 | `shared/` | This root's own skills, playbooks, experts, templates, tools, and connectors, each in its family directory. Never under memory | first use; declared row |
 | `zBuilds/` | Root-meta playbooks, `builds.md`, Housekeeping plans at `zBuilds/playbooks/housekeeping.plan.md` | first use; declared row |
 | `work/onboarding/` | Onboarding records for every type. Router: `work/onboarding/AGENTS.md` | ships |
