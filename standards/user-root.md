@@ -21,7 +21,7 @@ The table states, per integer, what a root must carry to reach it, which primiti
 | Contract | What a root must carry | Who brings it there | Required or advisory |
 |---|---|---|---|
 | 1 | No record. This standard declared 2 in its first commit and no commit in this repository introduces `layout: 1`. Nothing is reconstructed here | - | - |
-| 2 | The C3 declared directories, their routers, and the C2 to C11 clauses as this standard now states them, less the `memory/knowledge/` router cell that row 3 owns. Those clauses are otherwise unchanged since 2026-09-10, except that C4 came to permit nested programs on 2026-10-09, which asks nothing of a root that holds none, so an installed copy carrying no git history scores this row from the text in front of it | `skills/Onboard Root/` at instantiation, `skills/Housekeeping/` afterwards | required |
+| 2 | The C3 declared directories, their routers, and the C2 to C11 clauses as this standard now states them, less the `memory/knowledge/` router cell that row 3 owns and the `memory/answers/` row that row 4 owns. Those clauses are otherwise unchanged since 2026-09-10, except that C4 came to permit nested programs on 2026-10-09, which asks nothing of a root that holds none, so an installed copy carrying no git history scores this row from the text in front of it | `skills/Onboard Root/` at instantiation, `skills/Housekeeping/` afterwards | required |
 | 3 | C12 Set registration and the C3 `memory/knowledge/` router cell, both of which entered this standard on 2026-09-15 without moving the integer and therefore bound no root by number; and the stamp read as this contract rather than as the tree alone | `skills/Housekeeping/` for the router cell, which is a tree change; the Sets row per C12, which Housekeeping names and hands off, is written by `skills/Knowledge Set Onboarding/` and updated by `skills/Knowledge Curation/`, and is owed only where C12 scores the root anything: a root with **neither a set nor a row** takes C12's vacuous case, owes those two nothing, and is not held short of this contract by a certification for work that does not exist. A set without a row, or a row naming no set directory, is C12's absent or misfiled and is still owed | required |
 | 4 | The C3 `memory/answers/` row in the root's Work Directories table, the directory `memory/answers/`, and its router `memory/answers/AGENTS.md` copied from the template. An answers file is not owed: a directory with none takes C14's vacuous case | `skills/Onboard Root/` at instantiation, by copying the template; `skills/Housekeeping/` afterwards, which adds the table row and the missing router and writes no answers file and no bound file | required |
 
@@ -120,17 +120,17 @@ Each file is one table. The columns are question number, question bank version, 
 
 A sample is named by the path where it is filed. Its text is not copied into the answers file. This clause gives samples no new home.
 
-`voice.md`, `design.md`, and `about.md` cite an answer by its question number. They do not copy the answer. Copying an answer into a bound file is misfiled.
+`voice.md`, `design.md`, and `about.md` cite an answer by its question number. They do not reproduce an answers file's rows. A bound file that reproduces a row of an answers file is misfiled. A bound file written from what a person said, before or without an answers file, is not scored on this sentence.
 
 An answers file is not an onboarding record and does not file under `work/onboarding/`. C10 does not score it.
 
-A root whose directory holds no answers file scores present on this clause (vacuous). Score absent when the Work Directories table lacks the C3 row, or when the directory or the router is missing. Score misfiled when a file in the directory breaks this grammar, when Provides binds the directory, or when a bound file copies an answer.
+A root whose directory holds no answers file scores present on this clause (vacuous). Score absent when the Work Directories table lacks the C3 row, or when the directory or the router is missing. Score misfiled when a file in the directory breaks this grammar, when Provides binds the directory, or when a bound file reproduces a row of an answers file.
 
 The router cites this clause and restates none of it.
 
 The skill that builds `voice.md` writes the voice answers file. The skill that writes `design.md` writes the design answers file. Housekeeping creates a missing `memory/answers/` and copies `memory/answers/AGENTS.md` from `system/templates/User Root Template/` where the root has none. It writes no answers file and no bound file. Copying that router is a create. It does not replace the root `AGENTS.md`.
 
-While the root's stamp is below row 4, those skills do not write an answers file and do not copy answers into a bound file. They offer the named ask **update root** before saving. They do not apply the plan. C1 and the constitution's named ask own that stop. If the person declines, the run stops and the answers are not kept, and they are not filed under `work/onboarding/`.
+While the root's stamp is below row 4, a skill that would write an answers file offers the named ask **update root** first and does not create `memory/answers/` itself, and it does not apply the plan; C1 and the constitution's named ask own that comparison. Where the person declines, or the update is not applied, the skill writes no answers file and goes on with the rest of its run, and the bound files it writes stand. The answers are then not kept anywhere, and they are not filed under `work/onboarding/`.
 
 ## Scoring
 
