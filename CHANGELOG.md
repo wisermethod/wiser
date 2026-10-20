@@ -4,10 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
-## Unreleased
+## v2026.10.20, October 20, 2026
 
-- A plan that spans several sessions no longer sets a target date on each stage; a stage is done when its work is.
-- New Wiser folders include an empty `memory/answers/`, where later releases will keep the answers you give when your voice or design is built. A folder set up before this release is one small update behind: saying "update root" proposes that update, and you approve it before anything changes.
+- A plan that spans several sessions no longer sets a target date on each stage; a stage is done when its work is. (b15e59a)
+- New Wiser folders include an empty `memory/answers/`, where later releases will keep the answers you give when your voice or design is built. A folder set up before this release is one small update behind: saying "update root" proposes that update, and you approve it before anything changes. (220e001, 01a2c89, b181781)
 
 ## v2026.10.19.2, October 19, 2026
 
