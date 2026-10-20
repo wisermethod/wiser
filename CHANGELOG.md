@@ -8,6 +8,10 @@ Changes before September 27, 2026 are in the commit history only.
 
 - Content Author: in a long piece, each header says what its section establishes, so the headers read alone give the argument in order; each paragraph holds one idea, and none is split only for its length; and lists hold only parallel items, such as steps or options, with reasoning left in prose. The number of sections follows the steps of the argument instead of a count set by the piece's length.
 
+## v2026.10.19.2, October 19, 2026
+
+- A connection that has stopped working, such as a Google sign-in that lapsed, now tells your assistant to reconnect it instead of reporting that the service refused. (0f4bd30, 86f5d89, 0656640)
+
 ## v2026.10.19, October 19, 2026
 
 - New skill, Cloudflare Setup: it connects your Cloudflare account to Wiser with one token. You make the token from a link that opens Cloudflare's token page with the right boxes already ticked for your job, a site or moving a domain's DNS, and paste it once. Wiser tells you in plain words what the token can and cannot do, checks each part of Cloudflare your work needs with a read, and, for a site that needs staff sign-in, readies Cloudflare Zero Trust and hands back its team domain. A later job adds what it needs by editing the same token, with nothing to reconnect. (70ca68f, e528809, 9912558, 214aa2b)
