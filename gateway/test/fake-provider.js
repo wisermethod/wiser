@@ -546,6 +546,7 @@ export async function createTestGateway(options = {}) {
   }
   const gw = new ConnectionGateway({
     home,
+    ...(options.outputsDir === undefined ? {} : { outputsDir: options.outputsDir }),
     role: options.role || 'runtime',
     harness: options.harness || 'test',
     store,

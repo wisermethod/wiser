@@ -117,6 +117,7 @@ const TO_SLUG = new Map(ROWS);
 const FROM_SLUG = new Map(ROWS.map(([id, slug]) => [slug, id]));
 
 const TOOLKITS = {
+  xai: 'GROK',
   tinyfish: 'CUSTOM_TINYFISH',
   courtlistener: 'CUSTOM_COURTLISTENER',
   vm: 'CUSTOM_VM',

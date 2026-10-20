@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { OUTPUT_EXTENSIONS } from './file-output.js';
 
 /**
  * The two vocabularies `gateway.js` also needs, for the one path that reads a store
@@ -89,6 +90,22 @@ function validateAction(action, file, field) {
   }
   if (action.description !== undefined && typeof action.description !== 'string') {
     throw validationError(file, `${field}.description`, 'must be a string');
+  }
+  if (Object.hasOwn(action, 'output_file')) {
+    const output = action.output_file;
+    const at = `${field}.output_file`;
+    requireObject(output, file, at);
+    if (Object.keys(output).some((key) => key !== 'media_types' && key !== 'max_bytes')) {
+      throw validationError(file, at, 'must contain only media_types and max_bytes');
+    }
+    if (!Array.isArray(output.media_types) || output.media_types.length === 0 ||
+        output.media_types.some((type) => typeof type !== 'string' || !Object.hasOwn(OUTPUT_EXTENSIONS, type)) ||
+        new Set(output.media_types).size !== output.media_types.length) {
+      throw validationError(file, `${at}.media_types`, 'must list distinct media types from the gateway output table');
+    }
+    if (!Number.isSafeInteger(output.max_bytes) || output.max_bytes <= 0) {
+      throw validationError(file, `${at}.max_bytes`, 'must be a positive safe integer');
+    }
   }
 }
 
