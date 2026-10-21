@@ -16,7 +16,7 @@ The line starts at the left margin, carries nothing but the paths, backticked an
 
 | Expert | Description | Owns |
 |--------|-------------|------|
-| `Creative Director/EXPERT.md` | Direct visual design before it is made and judge it against its brief once it exists, enforcing intentionality and catching generic AI-design patterns, and return direction or a verdict whose findings each name what they fail and the fix that clears it | `skills/Color Palette Design/`, `skills/Component Design/`, `skills/Designer/`, `skills/Typography Design/`, `skills/Design System/`, `skills/Marketing Page Design/`, `skills/Create Presentation/`, `skills/Visualizer/`, `skills/Animated Explainer/`, `skills/Media Generator/`, `skills/Headshot Normalizer/`; a standalone component is gated at the caller's request; Media Generator and Headshot Normalizer take its direction before the first billed call, in the same context, and its read of the result after, in a second |
+| `Creative Director/EXPERT.md` | Direct visual design before it is made and judge it against its brief once it exists, enforcing intentionality and catching generic AI-design patterns, and return direction or a verdict whose findings each name what they fail and the fix that clears it | `skills/Color Palette Design/`, `skills/Component Design/`, `skills/Designer/`, `skills/Typography Design/`, `skills/Design System/`, `skills/Marketing Page Design/`, `skills/Create Presentation/`, `skills/Visualizer/`, `skills/Illustrator/`, `skills/Animated Explainer/`, `skills/Media Generator/`, `skills/Headshot Normalizer/`; a standalone component is gated at the caller's request; Media Generator and Headshot Normalizer take its direction before the first billed call, in the same context, and its read of the result after, in a second |
 
 ### Knowledge
 
@@ -35,7 +35,7 @@ The line starts at the left margin, carries nothing but the paths, backticked an
 
 | Expert | Description | Owns |
 |--------|-------------|------|
-| `IT Expert/EXPERT.md` | Judge a proposed DNS, zone, hosting, or credential change for its blast radius, its rollback, and its timing, and sequence Zone Publisher for a change worth seeing whole before it goes live | `skills/Zone Publisher/`; its gate runs on the plan, before anything would be written |
+| `IT Expert/EXPERT.md` | Judge a proposed DNS, zone, hosting, or credential change for its blast radius, its rollback, and its timing, sequence Zone Publisher for a change worth seeing whole before it goes live, and sequence Cloudflare Setup for a member connecting their Cloudflare account | `skills/Zone Publisher/`, `skills/Cloudflare Setup/`; its gate on Zone Publisher runs on the plan, before anything would be written; Cloudflare Setup takes no expert gate, the member making the token being its gate |
 
 ### Research
 

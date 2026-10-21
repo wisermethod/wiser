@@ -1,10 +1,13 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { isAbsolute } from 'node:path';
 import { isAncestorPid, rescanRefusal, verify } from '../../hooks/lib/binding.mjs';
 import { isRefused } from '../../hooks/lib/presence.mjs';
 import { buildContext } from './context.js';
 import { STATUS, StatusSignal, classifierAuditStatus, isStatusObject, projectProviderCodes, sanitizeError, statusObject, vendorErrorFrom } from './errors.js';
 import { composeSummary, containsUnsafeCodePoint, discloseInput } from './disclosure.js';
 import { validateInput } from './input-schema.js';
+import { cleanupOutputs, stripSlot, writeOutputFile } from './file-output.js';
+import { createResponseHeaderGuard } from './response-headers.js';
 import { evaluate } from './policy.js';
 import { readProviderUserId, writeProviderUserIdIfEmpty } from './paths.js';
 import { readClassifierKey } from './paths.js';
@@ -172,6 +175,9 @@ export function classifierNeedsSubscription(classifier, envPath) {
  * it in the other, which is this family's named defect shape.
  */
 const STOPPED_GRANT_STATES = ['EXPIRED', 'FAILED', 'INACTIVE', 'INITIATED', 'ABSENT'];
+// These refusals may mean the grant itself failed. The status read decides:
+// only a stopped reading changes the result or the connection row.
+const GRANT_REFUSAL_STATUSES = [401, 403, 410, 422];
 
 /** The pre-seam sentence. `tools/list` returns this byte for byte when no classifier is loaded. */
 const SEARCH_ACTIONS_DESCRIPTION = 'Search action ids this gateway serves, with privilege, risk, and confirmation.';
@@ -505,6 +511,10 @@ export class ConnectionGateway {
    */
   constructor(opts) {
     this.home = opts.home;
+    if (opts.outputsDir != null && (typeof opts.outputsDir !== 'string' || !isAbsolute(opts.outputsDir))) {
+      throw new TypeError('outputsDir must be an absolute path');
+    }
+    this.outputsDir = opts.outputsDir ?? null;
     this.role = opts.role || 'runtime';
     this.harness = opts.harness || 'unknown';
     this.store = opts.store;
@@ -535,6 +545,11 @@ export class ConnectionGateway {
       : new Map();
     /** Milliseconds. Read on every use so a test can reassign `gw.now`. */
     this.now = typeof opts.now === 'function' ? opts.now : Date.now;
+  }
+
+  /** Called only on stdio serve start, and by the writer before each file. */
+  cleanupOutputs() {
+    cleanupOutputs(this.outputsDir);
   }
 
   /** Drop pending approvals whose expiry has passed. */
@@ -990,7 +1005,10 @@ export class ConnectionGateway {
         confirmation: act.confirmation,
         execution: act.execution,
         input: act.input ?? null,
-        description: act.description ?? null,
+        description: act.output_file
+          ? `${act.description ? `${act.description} ` : ''}This action writes a file into the gateway's outputs/ directory and runs on the local gateway only.`
+          : (act.description ?? null),
+        ...(act.output_file ? { output_file: act.output_file, local_only: true } : {}),
       };
     }
     const resolved = resolveAction(id, {
@@ -1114,6 +1132,13 @@ export class ConnectionGateway {
         return statusObject(STATUS.NEEDS_CONNECTOR, { action, reason: 'undeclared' });
       }
 
+      if (act.output_file && !this.outputsDir) {
+        return statusObject(STATUS.LOCAL_ONLY, {
+          action,
+          reason: 'This action writes a file on your own computer, which only the local gateway can do.',
+        });
+      }
+
       const authForRun = resolved.path === 'connector' ? resolved.auth : auth;
       let record = this.store.getConnection({ service: parsed.service, module: parsed.module, label });
       if (label === undefined && !record) {
@@ -1176,13 +1201,14 @@ export class ConnectionGateway {
         file: authForRun?.file,
         variables: authForRun?.variables,
       };
-      const stopGrant = (providerStatus) => {
+      const stopGrant = (providerStatus, reason) => {
         this.store.putConnection({ ...record, status: providerStatus });
         return statusObject(STATUS.NEEDS_CONNECT, {
           service: parsed.service,
           module: parsed.module,
           privilege: privilege ?? null,
           provider_status: providerStatus,
+          ...(reason === undefined ? {} : { reason }),
           ...labelled,
         });
       };
@@ -1261,12 +1287,16 @@ export class ConnectionGateway {
 
       // Refresh hosted grants only after an auth-class refusal. Provider outages
       // and unmapped statuses preserve both the original error and the ACTIVE row.
+      const responseHeaderGuard = createResponseHeaderGuard();
       const classifyExecuteResult = async (result) => {
+        if (responseHeaderGuard.holdsValue(result)) {
+          return statusObject(STATUS.VENDOR_ERROR, { reason: 'output_refused', detail: 'response_header' });
+        }
         if (!isStatusObject(result) && result?.error?.code === 'vendor_error') result = vendorErrorFrom(result);
         result = projectProviderCodes(result);
         if (result?.status === STATUS.NEEDS_CONNECT && label !== undefined) result = { ...result, label };
         if (authForRun?.provider === 'local-file' || result?.status !== STATUS.VENDOR_ERROR ||
-            ![401, 403].includes(result.http_status) || typeof provider?.status !== 'function') {
+            !GRANT_REFUSAL_STATUSES.includes(result.http_status) || typeof provider?.status !== 'function') {
           return result;
         }
         let raw;
@@ -1277,7 +1307,7 @@ export class ConnectionGateway {
         }
         if (raw && typeof raw === 'object' && raw.error) return result;
         const mapped = typeof raw === 'string' ? raw : raw?.status;
-        if (STOPPED_GRANT_STATES.includes(mapped)) return stopGrant(mapped);
+        if (STOPPED_GRANT_STATES.includes(mapped)) return stopGrant(mapped, 'refused_by_provider');
         return result;
       };
 
@@ -1325,14 +1355,20 @@ export class ConnectionGateway {
           authProvider: this.providerFor(resolved.auth),
           catalogProvider: this.catalogProvider,
           unwrap,
+          responseHeaders: act.response_headers,
+          responseHeaderGuard,
         });
         if (this.catalogProvider && typeof this.catalogProvider.execute === 'function') {
           ctx.catalog = async (actionId, catalogInput) => {
+            const args = catalogInput ?? input ?? {};
+            if (responseHeaderGuard.holdsValue({ actionId, arguments: args })) {
+              throw new StatusSignal(statusObject(STATUS.VENDOR_ERROR, { reason: 'output_refused', detail: 'response_header' }));
+            }
             const res = await this.catalogProvider.execute({
               actionId,
               userId: this.resolveUserId(),
               providerAccountId: record.provider_account_id,
-              arguments: catalogInput ?? input ?? {},
+              arguments: args,
             });
             if (res && res.error && res.error.code === 'vendor_error') {
               throw new StatusSignal(vendorErrorFrom(res));
@@ -1342,10 +1378,14 @@ export class ConnectionGateway {
         }
 
         const result = await resolved.fn(input ?? {}, ctx);
-        return classifyExecuteResult(result);
+        return classifyExecuteResult(act.output_file
+          ? writeOutputFile(act.output_file, result, this.outputsDir, line.cid)
+          : result);
       } catch (err) {
-        // Classify ctx.proxy / ctx.catalog signals before withAudit sees them.
-        if (err instanceof StatusSignal) return classifyExecuteResult(err.object);
+        // Classify ctx.proxy / ctx.catalog signals before withAudit sees them. A
+        // file-output module's thrown status never carries its slot out.
+        if (err instanceof StatusSignal) return classifyExecuteResult(act.output_file ? stripSlot(err.object) : err.object);
+        if (responseHeaderGuard.holdsError(err)) throw new Error('internal error');
         throw err;
       }
     });
@@ -2152,7 +2192,7 @@ export class ConnectionGateway {
       // and the account then reads absent, the two readings are indistinguishable, so
       // this fails closed rather than deleting every local row on an ambiguity. The
       // final step is the one the contract says a top-level error reports, and it is
-      // the DELETE for the composio adapter — which is why the measured case where the
+      // a DELETE in the measured sequence, which is why the case where the
       // revoke POST is refused and the DELETE succeeds still passes here.
       // An adapter that reports nothing has established nothing. `{ supported: true,
       // steps: [] }` plus an ABSENT reading was accepted until adversarial review found
@@ -2205,7 +2245,7 @@ export class ConnectionGateway {
       const removed = this.store.deleteConnection({ providerAccountId: accountId });
       // **What succeeded is not always what a reader assumes.** The teardown is the
       // adapter's sequence, and its last call is the one this gate requires: for the
-      // composio adapter that is the DELETE, which removes the provider's record of the
+      // measured sequence that is the DELETE, which removes the provider's record of the
       // credential. An earlier step failing means the credential may still be live at
       // the vendor while the provider has forgotten it — the measured `API_KEY` case
       // exactly, where the revoke POST is refused and the DELETE does the work. Saying

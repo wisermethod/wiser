@@ -1,0 +1,61 @@
+{
+  "id": "xai",
+  "service": "xai",
+  "modules": {
+    "speech": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "GROK",
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "actions": {
+        "synthesize": {
+          "description": "Synthesize at most 5000 code points to an MP3 file. Always requests the timestamp envelope. The answer must contain nonempty canonical base64 audio, audio/mpeg content_type, a finite positive duration, and equal graph_chars/graph_times arrays containing strings and finite start/end pairs. Otherwise returns vendor_error with reason unexpected answer and writes nothing. The gateway enforces a 16777216-byte file cap. Word timings drop square-bracket and angle-bracket tags; character timings preserve both arrays; none omits timings.",
+          "risk": "medium",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "text": { "type": "string", "minLength": 1, "maxLength": 5000 },
+              "voice_id": { "type": "string", "pattern": "^[a-z0-9]{1,64}$" },
+              "language": { "type": "string", "pattern": "^(auto|[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*)$" },
+              "speed": { "type": "number", "minimum": 0.7, "maximum": 1.5 },
+              "sample_rate": { "type": "integer", "enum": [22050, 24000, 44100, 48000] },
+              "bit_rate": { "type": "integer", "enum": [64000, 96000, 128000, 192000] },
+              "text_normalization": { "type": "boolean" },
+              "timings": { "type": "string", "enum": ["words", "characters", "none"] }
+            },
+            "required": ["text", "voice_id", "language"],
+            "additionalProperties": false
+          },
+          "output_file": { "media_types": ["audio/mpeg"], "max_bytes": 16777216 }
+        },
+        "list_builtin_voices": {
+          "description": "List built-in voices as voice_id and name. A non-object answer, missing voices array, or voice without string voice_id and name returns vendor_error with reason unexpected answer.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": { "type": "object", "properties": {}, "additionalProperties": false }
+        },
+        "list_voice_clones": {
+          "description": "List the team's voice clones as voice_id and name, retaining language and creation fields only when they are strings, plus a string pagination_token when present. A non-object answer, missing voices array, or voice without string voice_id and name returns vendor_error with reason unexpected answer.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "limit": { "type": "integer", "minimum": 1, "maximum": 1000 },
+              "pagination_token": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    }
+  }
+}

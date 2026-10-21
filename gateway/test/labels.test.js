@@ -410,7 +410,7 @@ test('execute auth refusals refresh only the selected label and carry it on need
   f.fake.auth.setStatus(acme.provider_account_id, 'EXPIRED');
   f.fake.auth.proxy = async () => ({ status: 401, error: { code: 'vendor_error', endpoint: '/metadata', method: 'POST' } });
   const result = await f.gw.callTool('execute', { ...read, label: 'acme' });
-  assert.deepEqual(result, { status: 'needs_connect', ...key, privilege: 'admin', provider_status: 'EXPIRED', label: 'acme' });
+  assert.deepEqual(result, { status: 'needs_connect', ...key, privilege: 'admin', provider_status: 'EXPIRED', reason: 'refused_by_provider', label: 'acme' });
   assert.equal(f.store.getConnection({ ...key, label: 'acme' }).status, 'EXPIRED');
   assert.deepEqual(f.store.getConnection(key), old);
   assert.deepEqual(f.store.getConnection({ ...key, label: 'beta' }), beta);

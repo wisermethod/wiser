@@ -53,6 +53,7 @@ for (const path of ['ctx.catalog', 'catalog', 'ctx.proxy']) {
     const result = await gw.execute({ action, input });
     assert.equal(result.status, 'needs_connect');
     assert.equal(result.provider_status, 'EXPIRED');
+    assert.equal(result.reason, 'refused_by_provider');
     const saved = store.getConnection(key);
     assert.equal(saved.status, 'EXPIRED');
     assert.equal(saved.id, record.id);
@@ -65,6 +66,7 @@ for (const path of ['ctx.catalog', 'catalog', 'ctx.proxy']) {
     }]]);
     const audit = readFileSync(join(home, 'audit.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
     assert.equal(audit.at(-1).status, 'needs_connect');
+    assert.equal(Object.hasOwn(audit.at(-1), 'reason'), false);
   });
 }
 
@@ -78,9 +80,74 @@ for (const word of ['EXPIRED', 'FAILED', 'INACTIVE', 'INITIATED', 'ABSENT']) {
     const result = await gw.execute({ action, input });
     assert.equal(result.status, 'needs_connect');
     assert.equal(result.provider_status, word);
+    assert.equal(result.reason, 'refused_by_provider');
     assert.equal(store.getConnection(key).status, word);
   });
 }
+
+for (const httpStatus of [410, 422]) {
+  for (const path of ['ctx.catalog', 'catalog', 'ctx.proxy']) {
+    test(`${path}: refusal ${httpStatus} refreshes an EXPIRED grant`, async (t) => {
+      const { gw, store, fake, record, status, home } = await hosted(t, path);
+      fake.catalog.setResult('FAKE_REPOS_GET', refusal(httpStatus));
+      fake.auth.proxy = async () => refusal(httpStatus);
+      const result = await gw.execute({ action, input });
+      assert.deepEqual(result, {
+        status: 'needs_connect', ...key, privilege: gw.lookupModule(key.service, key.module).auth.privilege,
+        provider_status: 'EXPIRED', reason: 'refused_by_provider',
+      });
+      assert.equal(status.mock.callCount(), 1);
+      const saved = store.getConnection(key);
+      assert.deepEqual(saved, { ...record, status: 'EXPIRED', updated: saved.updated });
+      assert.ok(Date.parse(saved.updated) >= Date.parse(record.updated));
+      const audit = readFileSync(join(home, 'audit.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+      assert.equal(audit.at(-1).status, 'needs_connect');
+      assert.equal(Object.hasOwn(audit.at(-1), 'reason'), false);
+    });
+  }
+
+  for (const [label, raw] of [
+    ['ACTIVE', 'ACTIVE'], ['object ACTIVE', { status: 'ACTIVE' }],
+    ['unknown', 'UNKNOWN'], ['unmapped', null],
+    ['transport 503', refusal(503)], ['transport 0', refusal(0)],
+    ['error with grant word', { status: 'EXPIRED', error: { code: 'vendor_error' } }],
+  ]) {
+    test(`refusal ${httpStatus} plus status ${label} preserves vendor_error and ACTIVE`, async (t) => {
+      const { gw, store, fake, record } = await hosted(t, httpStatus === 410 ? 'catalog' : 'ctx.proxy');
+      fake.catalog.setResult('FAKE_REPOS_GET', refusal(httpStatus));
+      fake.auth.proxy = async () => refusal(httpStatus);
+      const status = t.mock.method(fake.auth, 'status', async () => raw);
+      assert.deepEqual(await gw.execute({ action, input }), {
+        status: 'vendor_error', http_status: httpStatus, endpoint: '/example', method: 'POST',
+      });
+      assert.equal(status.mock.callCount(), 1);
+      assertUnchanged(store, record);
+    });
+  }
+
+  test(`refusal ${httpStatus} plus thrown status preserves vendor_error and ACTIVE`, async (t) => {
+    const { gw, store, fake, record } = await hosted(t, httpStatus === 410 ? 'catalog' : 'ctx.proxy');
+    fake.auth.proxy = async () => refusal(httpStatus);
+    fake.catalog.setResult('FAKE_REPOS_GET', refusal(httpStatus));
+    fake.auth.status = async () => { throw new Error('offline'); };
+    assert.deepEqual(await gw.execute({ action, input }), {
+      status: 'vendor_error', http_status: httpStatus, endpoint: '/example', method: 'POST',
+    });
+    assertUnchanged(store, record);
+  });
+}
+
+test('missing execute record and connect_status stopped readings carry no refusal reason', async (t) => {
+  const { gw, store } = await hosted(t);
+  const status = await gw.connectStatus(key);
+  assert.equal(status.status, 'needs_connect');
+  assert.equal(status.provider_status, 'EXPIRED');
+  assert.equal(Object.hasOwn(status, 'reason'), false);
+  store.deleteConnection(key);
+  const result = await gw.execute({ action, input });
+  assert.equal(result.status, 'needs_connect');
+  assert.equal(Object.hasOwn(result, 'reason'), false);
+});
 
 for (const httpStatus of [0, 400, 404, 500, 503]) {
   test(`vendor ${httpStatus} does not refresh or change an ACTIVE grant`, async (t) => {
@@ -143,6 +210,7 @@ for (const state of ['missing', 'empty', 'missing variable']) {
     const result = await gw.execute({ action, input });
     assert.equal(result.status, 'needs_connect');
     assert.equal(result.provider_status, 'INACTIVE');
+    assert.equal(Object.hasOwn(result, 'reason'), false);
     assert.equal(store.getConnection(key).status, 'INACTIVE');
     assert.equal(status.mock.callCount(), 1);
     assert.equal(unwrap.mock.callCount(), 0);
@@ -155,6 +223,7 @@ test('local-file confirmation once with a missing file is needs_connect, not nee
   const result = await gw.execute({ action, input });
   assert.equal(result.status, 'needs_connect');
   assert.equal(result.provider_status, 'INACTIVE');
+  assert.equal(Object.hasOwn(result, 'reason'), false);
   assert.equal(store.getConnection(key).status, 'INACTIVE');
   assert.equal(fetch.mock.callCount(), 0);
 });
@@ -166,6 +235,7 @@ test('local-file unwrap of an empty credential after ACTIVE status marks INACTIV
   const result = await gw.execute({ action, input });
   assert.equal(result.status, 'needs_connect');
   assert.equal(result.provider_status, 'INACTIVE');
+  assert.equal(Object.hasOwn(result, 'reason'), false);
   assert.equal(store.getConnection(key).status, 'INACTIVE');
   assert.equal(fetch.mock.callCount(), 0);
 });
@@ -176,6 +246,7 @@ test('local-file status throw marks the grant INACTIVE', async (t) => {
   const result = await gw.execute({ action, input });
   assert.equal(result.status, 'needs_connect');
   assert.equal(result.provider_status, 'INACTIVE');
+  assert.equal(Object.hasOwn(result, 'reason'), false);
   assert.equal(store.getConnection(key).status, 'INACTIVE');
   assert.equal(unwrap.mock.callCount(), 0);
   assert.equal(fetch.mock.callCount(), 0);
@@ -191,6 +262,7 @@ test('local-file unwrap miss after ACTIVE status marks the grant INACTIVE', asyn
   const result = await gw.execute({ action, input });
   assert.equal(result.status, 'needs_connect');
   assert.equal(result.provider_status, 'INACTIVE');
+  assert.equal(Object.hasOwn(result, 'reason'), false);
   assert.equal(store.getConnection(key).status, 'INACTIVE');
   assert.equal(fetch.mock.callCount(), 0);
 });
@@ -202,11 +274,26 @@ test('local-file unwrap throw after ACTIVE status marks the grant INACTIVE', asy
   const result = await gw.execute({ action, input });
   assert.equal(result.status, 'needs_connect');
   assert.equal(result.provider_status, 'INACTIVE');
+  assert.equal(Object.hasOwn(result, 'reason'), false);
   assert.equal(store.getConnection(key).status, 'INACTIVE');
   assert.equal(fetch.mock.callCount(), 0);
 });
 
 for (const httpStatus of [401, 403]) {
+  test(`local-file present plus vendor ${httpStatus} stays vendor_error without refresh`, async (t) => {
+    const { gw, store, record, path, status, fetch } = await local(t);
+    writeFileSync(path, `VALUE=${randomUUID()}\n`);
+    fetch.mock.mockImplementation(async () => ({ ok: false, status: httpStatus }));
+    const result = await gw.execute({ action, input });
+    assert.equal(result.status, 'vendor_error');
+    assert.equal(result.http_status, httpStatus);
+    assert.equal(status.mock.callCount(), 1);
+    assert.equal(fetch.mock.callCount(), 1);
+    assertUnchanged(store, record);
+  });
+}
+
+for (const httpStatus of [410, 422]) {
   test(`local-file present plus vendor ${httpStatus} stays vendor_error without refresh`, async (t) => {
     const { gw, store, record, path, status, fetch } = await local(t);
     writeFileSync(path, `VALUE=${randomUUID()}\n`);

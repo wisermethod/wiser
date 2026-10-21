@@ -3,7 +3,7 @@ name: Visualizer
 type: skill
 category: design
 description: Turn source material into one diagram whose geometry matches the structure the material actually has, delivered as a self-contained HTML file or as Mermaid for markdown
-version: 0.8.4
+version: 0.8.5
 ---
 
 # Visualizer
@@ -12,7 +12,7 @@ version: 0.8.4
 
 Use when material should be seen rather than read: a document, a research set, a process, a set of ideas turned into a diagram that carries its structure. One request yields one diagram.
 
-Not for reducing material to what it amounts to, which is `skills/Categorize Content/` and feeds this skill rather than competing with it. Not for slides, which is `skills/Create Presentation/`. Not for a diagram that moves to show how something works or what happened, on a page or a slide, which is `skills/Animated Explainer/`; it takes this skill's geometry and labeling rules as citations. Not for turning a finished diagram into an image, which `tools/render/` `mermaid`, `tools/render/` `svg`, and `tools/render/` `html` do by consuming this skill's output. Out of scope by domain: charts of quantitative data, whose concerns are scales, encodings, and distributions rather than conceptual geometry; those are `tools/data/` `chart`, not this skill.
+Not for reducing material to what it amounts to, which is `skills/Categorize Content/` and feeds this skill rather than competing with it. Not for slides, which is `skills/Create Presentation/`. Not for a diagram that moves to show how something works or what happened, on a page or a slide, which is `skills/Animated Explainer/`; it takes this skill's geometry and labeling rules as citations. Not for a still picture that explains or illustrates for an audience, an illustration, an infographic or a diagram drawn as a picture for a page, a slide or a document, which is `skills/Illustrator/`; it too takes this skill's geometry table as a citation. Not for turning a finished diagram into an image, which `tools/render/` `mermaid`, `tools/render/` `svg`, and `tools/render/` `html` do by consuming this skill's output. Out of scope by domain: charts of quantitative data, whose concerns are scales, encodings, and distributions rather than conceptual geometry; those are `tools/data/` `chart`, not this skill.
 
 ## Objective
 

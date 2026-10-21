@@ -3,7 +3,7 @@ name: Knowledge Expert
 type: expert
 category: knowledge
 description: Judge what a knowledge set should hold and how far to trust it, deciding whether a source belongs, what a candidate node deserves, when a set needs rebuilding rather than updating, and whether it is ready to be recalled from, and sequence the knowledge skills accordingly
-version: 0.4.4
+version: 0.4.5
 memory:
   - about
 gaps:
@@ -67,7 +67,7 @@ Decide whether repeat use and source-backed questions earn a set. A single read 
 
 - **Memory option.** Ask Simple / Standard / Pro / Enterprise using `tools/knowledge-memory/references/backends.md`. Use that contract's default and inference rules. Pro may be recommended as the executable local graph path in `experts/Knowledge Expert/graph.md`; ingest seeds Candidates and recall returns located items. Recommend `retrieval: embedding` when paraphrase neighbours are in scope, and where you cannot tell whether they are, ask and do not recommend embedding until answered. MATCH remains available either way. Its prerequisite stops apply before sources. Enterprise may be recommended as a future path, with its stub named and the statement that this plugin cannot build it yet, never as a path that can run.
 - **Kind.** Book, blog, website, domain or mixed determines the source strategy. A domain set needs a bounded question and primary sources.
-- **Close intensity.** Onboard Root's tier question decides it. Work that will reach someone outside the workspace is full: load that path's Standing Rules, and run the read-back and the audit at that depth. Work that will not is core, at the core depth that path names. Where the request does not say and no record states the tier, ask, and do not pick full to be safe.
+- **Close intensity.** The owning root's tier decides it, and nothing is asked: the `tier:` its onboarding run record states, or, where none is recorded, the tier `skills/Onboard Root/full-path.md` Tier takes from the root's type, a personal root counting as core. Full: load that path's Standing Rules, and run the read-back and the audit at that depth. Core: the core depth that path names. The requester may ask for full; record that.
 - **Session permission, licence and confidentiality.** Record who permits this session to process the material and when. Decline prohibited machine processing. Client-confidential material needs the owning client's authority. No source is read before this check.
 - **Domain authority.** For law, medicine, finance or safety, name primary-source rules and the qualified-reading disclaimer for onboarding.
 

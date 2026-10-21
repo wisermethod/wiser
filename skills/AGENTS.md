@@ -36,6 +36,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 | `Create Presentation/SKILL.md` | Build a single-file reveal.js HTML slide deck with a narrative arc, conclusion headlines, and brand-consistent design | Ghost Writer, Creative Director |
 | `Design System/SKILL.md` | Compose existing color and type tokens into a complete design system, delivered as an agent-readable specification, a combined CSS token file, and optional Tailwind configuration | Creative Director |
 | `Designer/SKILL.md` | Run a design job end to end, from brief and visual direction through foundations, composition, and validation, producing the wireframe, style guide, or extracted system itself and directing every other phase to the design skill that owns it | Creative Director |
+| `Illustrator/SKILL.md` | One still picture that explains or illustrates, an illustration of how something works, an infographic of sourced figures, a spot illustration beside a section, slide or article, or a diagram drawn as a picture, in the owning root's design unless the project or requester names other design instructions, its structure placed by code, true to its sources, and delivered to a site built with the plugin's site kit, any other site, one deck slide, an image file, or a skill that moves it. | Creative Director |
 | `Marketing Page Design/SKILL.md` | Design a complete marketing page as responsive HTML with a narrative scroll arc, clear visual hierarchy, and one primary action | Creative Director |
 | `Typography Design/SKILL.md` | Design a modular type system delivered as CSS custom properties with a type specimen, chosen from brand personality and usage context | Creative Director |
 | `Visualizer/SKILL.md` | Turn source material into one diagram whose geometry matches the structure the material actually has, delivered as a self-contained HTML file or as Mermaid for markdown | Creative Director |
@@ -44,7 +45,8 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 
 | Skill | Description | Owner |
 |-------|-------------|-------|
-| `Zone Publisher/SKILL.md` | Bring one Cloudflare zone's DNS records, its Single Redirect rules, the Bulk Redirects whose sources are this zone's names or a moved Pages project's pages.dev name, and its SSL mode, Always Use HTTPS, HSTS, minimum TLS version, Automatic HTTPS Rewrites, Email Obfuscation and Browser Cache TTL into a reviewable state, publish the approved changes with every removal approved by name, and re-read every published part from the platform | IT Expert |
+| `Cloudflare Setup/SKILL.md` | Take a member from no Cloudflare connection to one account-owned token, made from the pre-filled link for their job and pasted once, with each Cloudflare module their job needs proved by a read through it, the account id and, where an app needs sign-in, the Zero Trust team domain handed back, and a domain's DNS move handed to Zone Publisher | IT Expert |
+| `Zone Publisher/SKILL.md` | Bring one Cloudflare zone's DNS records, its Single Redirect rules, the Bulk Redirects whose sources are this zone's names or a moved Pages project's pages.dev name, and its SSL mode, Always Use HTTPS, HSTS, minimum TLS version, Automatic HTTPS Rewrites, Email Obfuscation and Browser Cache TTL into a reviewable state, publish the approved changes with every removal approved by name, and re-read every published part from the platform, or move a domain's DNS onto Cloudflare from another host, its records copied, checked against the live answers, and a rollback plan written before the member switches nameservers | IT Expert |
 
 ### Knowledge
 
@@ -71,7 +73,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 
 | Skill | Description | Owner |
 |-------|-------------|-------|
-| `Build Voice/SKILL.md` | Build or rebuild one user root's voice.md from real writing evidence, routed to the voice register that root's own outputs need | Ghost Writer |
+| `Build Voice/SKILL.md` | Build or rebuild one user root's voice.md, for a personal root as a coach that asks short questions and offers pairs of passages to choose between, writing samples optional, and for every other type from real writing evidence routed to the register that root's outputs need | Ghost Writer |
 | `Onboard Root/SKILL.md` | Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types | System Expert |
 
 ### Research

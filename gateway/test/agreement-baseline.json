@@ -1,12 +1,15 @@
 {
-  "note": "Known manifest-to-module divergences. This file may only shrink. The two filesystem-state rows for pages.d1_apply_migration and pages.deploy_with_functions were added 2026-10-07 with those actions, and the row for pages.deploy_static on 2026-10-10 with that action, the same permanent class as pages.deploy. See test/agreement.test.js.",
-  "measured": "2026-10-10",
-  "count": 5,
+  "note": "Known manifest-to-module divergences. This file may only shrink. The two filesystem-state rows for pages.d1_apply_migration and pages.deploy_with_functions were added 2026-10-07 with those actions, and the row for pages.deploy_static on 2026-10-10 with that action, the same permanent class as pages.deploy. See test/agreement.test.js. The three youtube path rows for captions.insert, videos.set_thumbnail and videos.upload were added 2026-10-21 with those actions, the same permanent filesystem-state class; each has a per-run fixture.",
+  "measured": "2026-10-21",
+  "count": 8,
   "divergences": [
     "A cloudflare pages.d1_apply_migration file",
     "A cloudflare pages.deploy dir",
     "A cloudflare pages.deploy_static dir",
     "A cloudflare pages.deploy_with_functions dir",
-    "A vercel deployments.upload_file path"
+    "A vercel deployments.upload_file path",
+    "A youtube captions.insert path",
+    "A youtube videos.set_thumbnail path",
+    "A youtube videos.upload path"
   ]
 }

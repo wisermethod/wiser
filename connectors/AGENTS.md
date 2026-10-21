@@ -115,6 +115,8 @@ guide's `## Revoking` section carries the same working through, from `connectors
 
 | Connector | Description |
 |-----------|-------------|
+| `youtube/CONNECTOR.md` | Reads the signed-in YouTube channel, uploads and updates videos, sets thumbnails, inserts captions, and manages playlists, with channel and ownership checks and confirmation on every write |
+| `xai/CONNECTOR.md` | Synthesizes MP3 speech to a local file with word or character timings, and lists xAI's built-in voices and the team's voice clones |
 | `replicate/CONNECTOR.md` | Lists curated model collections, starts confirmed predictions, and returns prediction status and output URLs |
 | `google-apis/CONNECTOR.md` | Run PageSpeed Insights on one public URL, translate text through Google Cloud Translation, synthesize speech through Cloud Text-to-Speech, transcribe audio through Cloud Speech-to-Text, and annotate text through Cloud Natural Language |
 | `google-vision/CONNECTOR.md` | Detects faces and returns eye coordinates for faces with both eyes available |

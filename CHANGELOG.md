@@ -8,6 +8,63 @@ Changes before September 27, 2026 are in the commit history only.
 
 - Reviews, such as each pass of Ghost Writer's gate, start from the session you are working in. A helper that session hands work to starts no review or helper of its own: where its work owes a review, it stops before what the review guards and hands back what the review needs, with the review named.
 
+## v2026.10.21.6, October 21, 2026
+
+- Building your voice is now mostly quick taps: buttons where your app has them, or a letter if it has none. You type only if you want to, for a writing sample or a subject of your own. Five this-or-that picks about you replace the ten statements you rated 1 to 5, and the passages you choose between are about half as long. The question about what you write most is gone. The last tap chooses the short piece the coach writes for you. A short card names your style, and then you see that piece. (78954e1, faa31a4, c820690)
+- Setting up asks one question, who Wiser will be writing for: just you, your company or organization, a client you work for, or a team you're part of. It replaces two questions about whether your work goes out under an organization's or a client's name, and everything setup says to you is now in plain words for someone on their first day. (bd66c99, faa31a4, c820690)
+
+## v2026.10.21.5, October 21, 2026
+
+- New Illustrator skill: ask for a picture that explains how something works, an infographic of your figures, or a small illustration beside a section, slide or article, and it draws one still picture in your own design. It lists every fact it will show against your sources before it lays anything out, lets code place the steps or figures so their order and spacing hold, draws the things themselves so they are recognised before a label is read, sizes the picture to the width it will really show at, and checks it on a phone. Its design review comes back to you as recommendations, never as changes you did not see. Where your account has an image generator connected, it can offer one inexpensive reference picture as a guide, which never ships. (2252122, cabcee9, be31ce0, 139eb89, 9cb99b6, b6d95d0, 2713708)
+- New icon tool: standard icons and pictogram people from Phosphor Icons and Health Icons, installed when first used and recoloured to your design. (b0a7675, 2b0f307)
+- Animated explainers now take their picture from Illustrator, and you approve the picture and its motion once. (e4f19ee, be31ce0, 9cb99b6, b6d95d0)
+- A design review is now handed your own words beside the brief it judges, so a brief that narrowed what you asked for is caught. (cabcee9, deb936d)
+- A site built with the plugin's site kit now takes a drawn picture only with its maker's passing review and your approval on record; photographs, logos and files you supply file as before. (b3c796d, a82ab81, 6f397b7)
+
+## v2026.10.21.4, October 21, 2026
+
+- Wiser's page in Claude's plugin settings no longer shows a warning about an unrecognized icon field. Nothing else changes. (a2258b3)
+
+## v2026.10.21.3, October 21, 2026
+
+- Setting up your own folder now builds your writing voice right after your name and folder, with no writing samples needed. A writing coach asks about ten minutes of quick questions: what you write and for whom, ten short ones about you, eight pairs of short passages where you pick the one that sounds more like you, your reading level, and what you would hate to sound like. It ends on a short piece in your new voice for you to approve. Samples you're proud of are welcome but optional. If you choose a habit that would make writing hard to follow, such as every sentence the same length, the coach keeps that part easy to read and tells you what it kept. Your answers are kept in `memory/answers/`, and a read of your personality goes in `memory/about.md`. Folders for an organization, a client, a department or a field still build their voice from writing samples, as before. Say "build my voice" to run it on a folder you already set up. (914cb99, 41431f5, 98ede45)
+- The writing review now accepts a short scene, or a sentence or two of context that leads straight to the point, as a way to open; an opening that announces or restates its subject is still flagged. (41431f5, 98ede45)
+
+## v2026.10.21.2, October 21, 2026
+
+- When a session ends, a plan that is paused no longer comes with a line telling the next session to resume it. Its line now shows the plan's status as the plan states it, such as what it is waiting on, beside its path, so you can see it is waiting on you rather than on a session. (d678b57)
+
+## v2026.10.21, October 21, 2026
+
+- New YouTube connector, on the local gateway: uploads a video from your computer to your channel in resumable pieces, adds captions, sets a custom thumbnail on a phone-verified channel, changes a video's title, description or privacy, and manages playlists. Every write checks it is acting on the channel you named, and asks before it runs. It runs on a Google app of your own; setting one up comes in a later release. (a53e2b1, b8fcaa9, 6caad24, f02a698)
+- Connectors can now read the two headers a resumable upload needs, and the upload's private address never reaches your conversation or the gateway's log. (8aaf01a, 9fc50a5, dfb6d13)
+
+## v2026.10.20.2, October 20, 2026
+
+- When a connected service hands back a file, such as narration audio, the local gateway now saves it in its own `outputs/` folder and gives your assistant the file's location, size and fingerprint instead of the file itself, so long audio no longer has to pass through the conversation. It works on the local gateway only, and a saved file not moved elsewhere is removed after seven days. (cc09b88, bdcf194)
+- New xAI connector: narration in an xAI voice, built-in or your own voice clone, up to 5,000 characters a call, saved as an MP3 with word timings for captions, and lists of xAI's built-in voices and your team's voice clones. It runs on the local gateway and costs at most about 7.5 cents a call at xAI's list price. (e0dda43, 5405822)
+
+## v2026.10.20, October 20, 2026
+
+- A plan that spans several sessions no longer sets a target date on each stage; a stage is done when its work is. (b15e59a)
+- New Wiser folders include an empty `memory/answers/`, where later releases will keep the answers you give when your voice or design is built. A folder set up before this release is one small update behind: saying "update root" proposes that update, and you approve it before anything changes. (220e001, 01a2c89, b181781)
+
+## v2026.10.19.2, October 19, 2026
+
+- A connection that has stopped working, such as a Google sign-in that lapsed, now tells your assistant to reconnect it instead of reporting that the service refused. (0f4bd30, 86f5d89, 0656640)
+
+## v2026.10.19, October 19, 2026
+
+- New skill, Cloudflare Setup: it connects your Cloudflare account to Wiser with one token. You make the token from a link that opens Cloudflare's token page with the right boxes already ticked for your job, a site or moving a domain's DNS, and paste it once. Wiser tells you in plain words what the token can and cannot do, checks each part of Cloudflare your work needs with a read, and, for a site that needs staff sign-in, readies Cloudflare Zero Trust and hands back its team domain. A later job adds what it needs by editing the same token, with nothing to reconnect. (70ca68f, e528809, 9912558, 214aa2b)
+- One Cloudflare token, pasted once, now serves DNS, domains, Pages and rules: where it is your only Cloudflare connection, Wiser connects the rest itself. The Cloudflare guide and Connect Account say so, and Connect Account no longer walks you through making a token another skill already had you make. (70ca68f, e528809)
+- Zone Publisher can move a domain's DNS onto Cloudflare from another host, keeping your registrar. It takes the record list from your old host, checks it from outside, writes a plan to roll back to your old DNS before anything is built, builds every record unproxied with your approval, and offers the nameserver switch, which you make at your registrar, only once Cloudflare's own nameservers answer as your old host does and no DNSSEC record stands in the way. This move has not yet run on a live domain. (4f112b1, 1f9f589, 9912558, 214aa2b)
+- Zone Publisher re-reads before each change it publishes and starts the review over if anything moved since you approved; compares several records on one name one by one; reads zones longer than one page; leaves alone the records Cloudflare manages itself; and still checks what it published after a failure. (4f112b1, 1f9f589, 214aa2b)
+- The plugin's manifest names an icon for Anthropic's plugin directory: the Wiser mark on a transparent background, black, or white when the viewer's device is set to dark. Claude Code does not read it. (a0385be)
+- The README no longer says your installed copy follows each release by itself. It now says how to turn on Claude Code's own update check for `wiser-method`: run `/plugin`, open Marketplaces, and turn on Enable auto-update. (38c75f7, 8fc93d9, d1a1ec9, d8c6f87)
+- The README has an On a phone section: what reaches the Claude phone app once Wiser is installed in Claude, and how to run Wiser from a phone through Cowork's Dispatch or Claude Code's Remote Control, as Anthropic's documentation describes them. Wiser has not been run on a phone yet, and the section says so. (abe114f, 37a05f1)
+- Bringing an existing folder up to date no longer changes its `CLAUDE.md` or `.cursor/rules` without asking. Where one still points at an earlier plugin, Onboard Root quotes those lines, says what changing them does, and on your yes changes only those lines for you, so your app starts at the folder's own `AGENTS.md`; you never edit it yourself. (fa2a71b, 61208b0)
+- Setting up a personal Wiser folder in an empty folder you already have open, in Cowork, ChatGPT for desktop's Work mode, an editor or a terminal, makes that folder your Wiser folder under its own name once you say yes to its path, rather than a new folder named after you inside it. Your name goes in your memory files, and Onboard Root's optional check reads it from the first heading of `memory/about.md`. (c9e45f5, 59a1746)
+
 ## v2026.10.17, October 17, 2026
 
 - You can connect the same service more than once by giving each connection a short name, and Wiser uses the one you name; asked without a name where you only have named ones, it lists them rather than guessing. A named connection covers every part of that service it shares a sign-in with, so one connect is enough. (98e3d8d)

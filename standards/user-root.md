@@ -1,6 +1,6 @@
 ---
 standard: user-root
-version: 0.8.0
+version: 0.9.0
 description: One declared user-root tree and the clauses used to score its layout
 ---
 
@@ -12,7 +12,7 @@ Applies to personal, org, client, department, and industry user roots. This is t
 
 ## C1 Identification
 
-The constitution's Workspace Model (`wiser/AGENTS.md`) owns root identification. Its declaration is in root `AGENTS.md`: `type:`, a Provides block, the Wiser constitution citation, Onboarding state lines, and the declared-directory table. A folder set never identifies a user root. The frontmatter also carries `root:` and `layout:`, the latter this standard's current tree version (3). Increment that integer when this standard changes the tree; a version difference is a converge input, never permission to re-onboard. `skills/Housekeeping/` owns layout migration on a declared Wiser user root and is callable any time to bring its shelves and filing declarations into conformance with this standard. A missing layout version on an already-declared Wiser root is drift, not foreign identity.
+The constitution's Workspace Model (`wiser/AGENTS.md`) owns root identification. Its declaration is in root `AGENTS.md`: `type:`, a Provides block, the Wiser constitution citation, Onboarding state lines, and the declared-directory table. A folder set never identifies a user root. The frontmatter also carries `root:` and `layout:`, the latter this standard's current tree version (4). Increment that integer when this standard changes the tree; a version difference is a converge input, never permission to re-onboard. `skills/Housekeeping/` owns layout migration on a declared Wiser user root and is callable any time to bring its shelves and filing declarations into conformance with this standard. A missing layout version on an already-declared Wiser root is drift, not foreign identity.
 
 That integer is the root **contract** version: the tree above, and whatever else this standard requires of a root before it counts as current. Increment it equally when a row of the table below requires something a tree change does not cover. One integer and no minor part; a row says whether it is required or advisory, so severity lives in the row and not in the number.
 
@@ -21,8 +21,9 @@ The table states, per integer, what a root must carry to reach it, which primiti
 | Contract | What a root must carry | Who brings it there | Required or advisory |
 |---|---|---|---|
 | 1 | No record. This standard declared 2 in its first commit and no commit in this repository introduces `layout: 1`. Nothing is reconstructed here | - | - |
-| 2 | The C3 declared directories, their routers, and the C2 to C11 clauses as this standard now states them, less the `memory/knowledge/` router cell that row 3 owns. Those clauses are otherwise unchanged since 2026-09-10, except that C4 came to permit nested programs on 2026-10-09, which asks nothing of a root that holds none, so an installed copy carrying no git history scores this row from the text in front of it | `skills/Onboard Root/` at instantiation, `skills/Housekeeping/` afterwards | required |
+| 2 | The C3 declared directories, their routers, and the C2 to C11 clauses as this standard now states them, less the `memory/knowledge/` router cell that row 3 owns and the `memory/answers/` row that row 4 owns. Those clauses are otherwise unchanged since 2026-09-10, except that C4 came to permit nested programs on 2026-10-09, which asks nothing of a root that holds none, so an installed copy carrying no git history scores this row from the text in front of it | `skills/Onboard Root/` at instantiation, `skills/Housekeeping/` afterwards | required |
 | 3 | C12 Set registration and the C3 `memory/knowledge/` router cell, both of which entered this standard on 2026-09-15 without moving the integer and therefore bound no root by number; and the stamp read as this contract rather than as the tree alone | `skills/Housekeeping/` for the router cell, which is a tree change; the Sets row per C12, which Housekeeping names and hands off, is written by `skills/Knowledge Set Onboarding/` and updated by `skills/Knowledge Curation/`, and is owed only where C12 scores the root anything: a root with **neither a set nor a row** takes C12's vacuous case, owes those two nothing, and is not held short of this contract by a certification for work that does not exist. A set without a row, or a row naming no set directory, is C12's absent or misfiled and is still owed | required |
+| 4 | The C3 `memory/answers/` row in the root's Work Directories table, the directory `memory/answers/`, and its router `memory/answers/AGENTS.md` copied from the template. An answers file is not owed: a directory with none takes C14's vacuous case | `skills/Onboard Root/` at instantiation, by copying the template; `skills/Housekeeping/` afterwards, which adds the table row and the missing router and writes no answers file and no bound file | required |
 
 ## C2 One tree
 
@@ -41,6 +42,7 @@ The root's Work Directories table projects these rows. A first-use row is presen
 | `inbox/` | Unclassified captures | ships |
 | `memory/` | Bound files for about, voice, design, and competitors only when bound. Provides binds files, never this directory | ships bound stubs |
 | `memory/knowledge/<set>/` | Knowledge sets, never bound by Provides. Router: `memory/knowledge/AGENTS.md` | first use; empty `memory/knowledge/` may ship |
+| `memory/answers/` | Dated answer files from a voice or design build, never bound by Provides. Router: `memory/answers/AGENTS.md` | ships, with router |
 | `shared/` | This root's own skills, playbooks, experts, templates, tools, and connectors, each in its family directory. Never under memory | first use; declared row |
 | `zBuilds/` | Root-meta playbooks, `builds.md`, Housekeeping plans at `zBuilds/playbooks/housekeeping.plan.md` | first use; declared row |
 | `work/onboarding/` | Onboarding records for every type. Router: `work/onboarding/AGENTS.md` | ships |
@@ -107,6 +109,28 @@ This clause gives Housekeeping a finding to hand off, not a knowledge write. The
 ## C13 Classifier refusal
 
 Optional, and absent by default. A root may declare that no session which has resolved it as owning sends anything to a classifier, the routing ask included. The declaration is one line in the root's `AGENTS.md` frontmatter, `classifier_refusal:`, and its absence is not drift: a root that has not written it has made no statement, and both an absent line and a `no` leave the classifier behaving as `wiser/AGENTS.md` `## Classifier` describes. **The line's value is the refusal, not its presence.** The template writes it `no`, so a root instantiated from the template carries the line and refuses nothing; a root refuses when the value says so. A reader that treats any present line as a refusal reads every new root as refusing, which is the error this sentence exists to stop. **And a root that refuses is refusing sending, not configuring the gateway.** The gateway may have a classifier attached for other roots in the same workspace; what this clause governs is what a session owned by this root sends, which is nothing. `skills/Housekeeping/` proposes the line where the root asks for it and never writes it unasked. **No C1 contract row scores this clause, and that is decided rather than missing.** The contract integer states what a root must carry; this clause requires a root to carry nothing, so a root satisfies it by doing nothing and there is nothing for a row to score. A row that requires nothing cannot be satisfied by doing nothing, which is a contradiction a stamp comparison surfaces as a failure. **Do not add one, and do not read the absence as an oversight.**
+
+## C14 Answer files
+
+Answer files live at `memory/answers/`. Provides does not bind that directory or the files in it. The C3 row is the declaration. This clause is the grammar.
+
+One file per run. A voice run writes `YYYY-MM-DD voice answers.md`. A design run writes `YYYY-MM-DD design answers.md`. The date is the day the run writes the file. If that name is already there, the run does not overwrite it. It writes the next free name, `YYYY-MM-DD V2 voice answers.md` or `YYYY-MM-DD V2 design answers.md`, and so on.
+
+Each file is one table. The columns are question number, question bank version, what was shown, the answer, and status. Status is answered, skipped, or in between. A skipped row leaves the answer empty. An in-between row says so and may carry the words the member added. The question bank version is the name and version the skill that asked states. This clause does not define that version.
+
+A sample is named by the path where it is filed. Its text is not copied into the answers file. This clause gives samples no new home.
+
+`voice.md`, `design.md`, and `about.md` cite an answer by its question number. They do not reproduce an answers file's rows. A bound file that reproduces a row of an answers file is misfiled. A bound file written from what a person said, before or without an answers file, is not scored on this sentence.
+
+An answers file is not an onboarding record and does not file under `work/onboarding/`. C10 does not score it.
+
+A root whose directory holds no answers file scores present on this clause (vacuous). Score absent when the Work Directories table lacks the C3 row, or when the directory or the router is missing. Score misfiled when a file in the directory breaks this grammar, when Provides binds the directory, or when a bound file reproduces a row of an answers file.
+
+The router cites this clause and restates none of it.
+
+The skill that builds `voice.md` writes the voice answers file. The skill that writes `design.md` writes the design answers file. Housekeeping creates a missing `memory/answers/` and copies `memory/answers/AGENTS.md` from `system/templates/User Root Template/` where the root has none. It writes no answers file and no bound file. Copying that router is a create. It does not replace the root `AGENTS.md`.
+
+While the root's stamp is below row 4, a skill that would write an answers file offers the named ask **update root** first and does not create `memory/answers/` itself, and it does not apply the plan; C1 and the constitution's named ask own that comparison. Where the person declines, or the update is not applied, the skill writes no answers file and goes on with the rest of its run, and the bound files it writes stand. The answers are then not kept anywhere, and they are not filed under `work/onboarding/`.
 
 ## Scoring
 

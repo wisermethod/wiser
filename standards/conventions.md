@@ -1,6 +1,6 @@
 ---
 standard: conventions
-version: 0.4.2
+version: 0.4.3
 description: The cross-cutting conventions every file and agent in a Wiser workspace follows: formatting, dates, portable names, working files, root layout, archives, sourcing, and evidence labels
 ---
 
@@ -56,7 +56,7 @@ Directories whose structure another standard already fixes are exempt:
 
 - Plugin `skills/`, `experts/`, and `tools/` are flat under `standards/primitives.md`; user-root overlays follow `standards/user-root.md` C7.
 - Play and Playbook files follow `standards/play.md` and `standards/playbook.md` inside the homes `standards/user-root.md` C3 and C8 permit. This grants no root-level directory exemption.
-- `memory/` holds the files the root's Provides block binds.
+- `memory/` holds the files the root's Provides block binds, and the unbound homes `standards/user-root.md` C3 declares under it: knowledge sets and answer files.
 - `inbox/` holds captures with no subject yet, per Working Files above; a capture whose subject becomes known moves to that subject's folder. `zArchive/` follows Archives, below.
 
 **The two-hop test:** in every directory that takes subject folders, a file is findable in two hops: the root's declared-directory table names the directory, and the subject folder names the work; parts deeper than that are named by the subject folder's own AGENTS.md. A file that cannot be found that way is misfiled.

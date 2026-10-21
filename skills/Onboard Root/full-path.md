@@ -52,9 +52,7 @@ These bind every phase. The phases below name a rule rather than restating it, a
 
 ## Tier
 
-**One question sets it, asked in Phase 0: will work produced from this root reach someone outside the workspace?**
-
-Yes is the **full tier**: every phase, every gate. No is the **minimum core**. The core is five things, and it is mandatory for every root at either tier:
+**The type sets it in Phase 0, and nothing is asked.** An org or a client root takes the **full tier**: every phase, every gate, since its work goes out under that organization's or client's name. A department or an industry root takes the **minimum core**, since its work may never leave the workspace, unless the requester asks for the full tier: then the run record says `tier: full` and nothing more, and the close report's Tier section quotes their words. The core is five things, and it is mandatory for every root at either tier:
 
 1. Read-back on load-bearing claims. Non-load-bearing claims may enter labeled `Unverified`.
 2. The must-reach list per source, each item asserted on the standing rule's split: a prohibition or a compliance flag into a bound file only, and any other item into a bound file, the operating file with a named disposition, or both.
@@ -85,7 +83,7 @@ Settle in one exchange, and only what cannot be inferred.
 
 **Destination.** A path the requester named, or an empty folder the host already attached as this root's home, is established; place there and do not ask again. When no path is established, enumerate the workspace's roots and place the copy beside them in the same container. More than one container could hold it, or none is visible and no path was given: ask.
 
-**Tier.** Ask the outside-the-workspace question and record the answer; where the request states it, confirm rather than ask.
+**Tier.** Set it from the type, per Tier above, and record it; ask nothing.
 
 **The research-first offer.** Reasoning, not evidence: no recorded failure supports it, and it is recommended anyway, because it produces a shorter interview, sharper questions, and contradictions found early rather than late.
 
@@ -109,7 +107,7 @@ Exit: G1.
 
 - Place the new root beside the other user roots, never inside this plugin root. This tree holds capability; user roots hold the work.
 - Copy `system/templates/User Root Template/` whole, hidden files included, so the declared empty directories survive, then confirm the copy holds the same file names as the source. Set `type:` to Phase 0's type and `root:` to the chosen name. Copy the matching `prompts/<type>/about.md` and `design.md` onto the copied memory files. Remove the copied `prompts/` after selecting the sheets and replace `[name]` throughout the remaining copy. Department and industry use this same tree; their first about line names the parent organization or field. Record copy vantages before these intended transformations, and verify the transformations separately.
-- After those transformations, read `standards/user-root.md` C1 and state the expected integer in `work/onboarding/verification.md`: "This copy must carry `layout: 3`, the current tree version read from `standards/user-root.md` C1." Use the integer actually read if C1 has advanced. Compare the copied frontmatter declaration to that integer before Phase 1 exits. Does the copy carry exactly one `layout:` integer, equal to the integer just read? Yes: Phase 1 may exit this check. No: make the frontmatter carry exactly one `layout:` set to that integer, then compare again. Do not continue while it is missing, malformed, duplicated, or different. Inherited template bytes alone are not evidence. Run G21 again with the ordinary harness at Phase 9.
+- After those transformations, read `standards/user-root.md` C1 and state the expected integer in `work/onboarding/verification.md`: "This copy must carry `layout: 4`, the current tree version read from `standards/user-root.md` C1." Use the integer actually read if C1 has advanced. Compare the copied frontmatter declaration to that integer before Phase 1 exits. Does the copy carry exactly one `layout:` integer, equal to the integer just read? Yes: Phase 1 may exit this check. No: make the frontmatter carry exactly one `layout:` set to that integer, then compare again. Do not continue while it is missing, malformed, duplicated, or different. Inherited template bytes alone are not evidence. Run G21 again with the ordinary harness at Phase 9.
 - A copy is not established because the tool that performed it reported success, or because reading it back through that same tool confirms it. Where this host offers more than one way to reach the destination, a second tool, a separate process, a distinct session, confirm the copy is visible through one of those before continuing. Where only one way exists, this is already satisfied and the close report says so. Where two ways disagree, the path the workspace's own declaration names is ground truth, and the root is not treated as copied until the mismatch is resolved.
 - The `## Onboarding` section keeps every key blocked until Phase 9 closes it. Do not rewrite it earlier.
 

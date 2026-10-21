@@ -295,10 +295,11 @@ list_any() {
   find "$1" -type f ! -name 'AGENTS.md' ! -name '.*' ! -name '.DS_Store' 2>/dev/null | sort
 }
 
-# bound files: the markdown files under memory/, never the credential store.
+# bound files: the markdown files under memory/, never the credential store
+# and never memory/answers/, which Provides does not bind (standards/user-root.md C14).
 bound_files() {
   [ -d "$MEM" ] || return 0
-  find "$MEM" -type f -name '*.md' 2>/dev/null | grep -v "^$MEM/secrets/" | sort
+  find "$MEM" -type f -name '*.md' 2>/dev/null | grep -v "^$MEM/secrets/" | grep -v "^$MEM/answers/" | sort
 }
 
 # ---------------------------------------------------------------- awk library
@@ -498,9 +499,30 @@ _json_esc() {
   }'
 }
 
-# The owner's declared name, lower-cased, for the gates that accept it as a
-# person regardless of its shape. Set here, after kv is defined.
-OWNER_LC=$(kv "$AGENTS" "root" 2>/dev/null | tr 'A-Z' 'a-z')
+# The owner's name as the person gave it. On the personal path it is read from
+# the first heading of memory/about.md, "# About <name>": Onboard Root makes an
+# empty folder the session already has open the root under that folder's own
+# name, so `root:` can name a folder rather than a person. Where that heading
+# is absent or still carries a placeholder, which G18 reports, and on every
+# other path, it is the `root:` declaration. On a root named after its person
+# the two agree.
+about_owner() {
+  [ "$SHORT" = "1" ] && [ -f "$MEM/about.md" ] || return 0
+  ao=$(grep -m1 -E '^# About ' "$MEM/about.md" 2>/dev/null | sed -E 's/^# About //; s/[[:space:]]+$//')
+  case "$ao" in *'['*) ao="" ;; esac
+  printf '%s' "$ao"
+}
+owner_name() {
+  on=$(about_owner)
+  if [ -z "$on" ]; then
+    on=$(kv "$AGENTS" "root" 2>/dev/null)
+  fi
+  printf '%s\n' "$on"
+}
+
+# The owner's name, lower-cased, for the gates that accept it as a person
+# regardless of its shape. Set here, after kv is defined.
+OWNER_LC=$(owner_name | tr 'A-Z' 'a-z')
 
 PASS_N=0; FAIL_N=0; SKIP_N=0
 
@@ -1587,12 +1609,16 @@ build_person_registry() {
       { split($0,f,US); if(f[3]!="" && f[3]!="-") print f[3]; if(f[4]!="" && f[4]!="-") print f[4] }' \
       >> "$TMPD/people.txt"
   fi
-  # On the personal path the only recorded person is the root's owner, whose
-  # name is the root's `root:` declaration and its title line, and every
-  # firsthand fact in the files is what that person said.
+  # On the personal path the only recorded person is the root's owner, and
+  # every firsthand fact in the files is what that person said. Their name is
+  # owner_name's: the heading of memory/about.md, or, where that heading is
+  # absent or a placeholder, the root's `root:` declaration and its title line.
+  # A folder name is not registered as a person while about.md names the owner.
   if [ "$SHORT" = "1" ]; then
-    kv "$AGENTS" "root" >> "$TMPD/people.txt" 2>/dev/null || :
-    grep -m1 -E '^# ' "$AGENTS" 2>/dev/null | sed 's/^# //' >> "$TMPD/people.txt" || :
+    owner_name >> "$TMPD/people.txt" 2>/dev/null || :
+    if [ -z "$(about_owner)" ]; then
+      grep -m1 -E '^# ' "$AGENTS" 2>/dev/null | sed 's/^# //' >> "$TMPD/people.txt" || :
+    fi
   fi
   # Reduce the registry to NAMES. Matching a payload against raw prose let
   # "Marketing Director" pass because that title sits inside a sentence about a
@@ -1608,6 +1634,13 @@ gate_G10() {
     set_skip "$(rel "$MEM") does not exist: nothing to check"
     return
   fi
+  # The answer numbers the root's answers files record, first cell of each row.
+  : > "$TMPD/g10-answer-ids.txt"
+  for af in "$MEM/answers"/*.md; do
+    [ -f "$af" ] || continue
+    [ "$(basename "$af")" = "AGENTS.md" ] && continue
+    awk '{ l=$0; sub(/^[ \t]*\|/, "", l); n=split(l, c, "|"); if (n<2) next; v=c[1]; gsub(/^[ \t]+|[ \t]+$/, "", v); if (v ~ /^[WYPRHSAXF][0-9]+[a-z]?$/) print v }' "$af"
+  done | sort -u > "$TMPD/g10-answer-ids.txt"
   bf=$(bound_files | wc -l | tr -d ' ')
   if [ "$bf" -eq 0 ]; then
     set_skip "$(rel "$MEM") holds no bound markdown files"
@@ -1640,8 +1673,8 @@ gate_G10() {
           # rows of the must-reach lists and the interview's who-confirms
           # answer. An observer nobody wrote down is not an observer.
           if [ "$SHORT" = "1" ] && [ -n "$OWNER_LC" ] && [ "$(printf '%s' "$payload" | cut -d, -f1 | sed 's/[[:space:]]*$//' | tr 'A-Z' 'a-z')" = "$OWNER_LC" ]; then
-            # The root's owner, by the name the root declares, whatever its
-            # shape: a mononym or a non-Latin name is a person all the same.
+            # The root's owner, by owner_name's name, whatever its shape: a
+            # mononym or a non-Latin name is a person all the same.
             :
           elif printf '%s' "$payload" | tr 'A-Z' 'a-z' | grep -qE "$DOC_GRAMMAR"; then
             add_fail "$r line $ln: (Firsthand: $payload) names a document as the observer"
@@ -1659,13 +1692,64 @@ gate_G10() {
           fi
           ;;
         'Research inference')
-          if ! printf '%s' "$payload" | grep -qE 'E[0-9]+'; then
-            add_fail "$r line $ln: (Research inference: $payload) names no E<n> evidence row"
+          # An inference names what it was derived from: an E<n> evidence row,
+          # or, on a personal root only, answer numbers that a file under
+          # memory/answers/ records as rows (standards/user-root.md C14), as
+          # Build Voice's personality read does. On a personal root every
+          # answer number it names must be one of those rows, an E<n> beside
+          # it or not.
+          ids=""
+          if [ "$ROOT_TYPE" = "personal" ]; then
+            ids=$(printf '%s' "$payload" | grep -oE '(^|[^A-Za-z0-9])[WYPRHSAXF][0-9]+[a-z]?([^A-Za-z0-9]|$)' | grep -oE '[WYPRHSAXF][0-9]+[a-z]?')
+          fi
+          if [ -n "$ids" ]; then
+            missing=""
+            for id in $ids; do
+              grep -qxF "$id" "$TMPD/g10-answer-ids.txt" || missing="$missing $id"
+            done
+            [ -z "$missing" ] || add_fail "$r line $ln: (Research inference: $payload) names answer number(s)$missing that no file in memory/answers/ records"
+          elif ! printf '%s' "$payload" | grep -qE '(^|[^A-Za-z0-9])E[0-9]+'; then
+            if [ "$ROOT_TYPE" = "personal" ]; then
+              add_fail "$r line $ln: (Research inference: $payload) names no E<n> evidence row and no answer number"
+            else
+              add_fail "$r line $ln: (Research inference: $payload) names no E<n> evidence row"
+            fi
           fi
           ;;
       esac
     done < <(strip_preamble "$f" | grep -onE '\((Firsthand|Secondhand|Public statement|Research inference)[^)]*\)' 2>/dev/null)
   done < <(bound_files)
+  # A personal voice file the coach wrote cites answer numbers bare, "(P1, R1)",
+  # outside any register. Every answer number a parenthesis in voice.md names
+  # must be a row of the newest voice answers file, the run that wrote it, so
+  # a citation carried over from a run on an earlier question bank is caught.
+  # Newest is the latest date, then the highest V<n> on that date (C14 names).
+  : > "$TMPD/g10-voice-ids.txt"
+  newest=""; best=""
+  for af in "$MEM/answers"/*" voice answers.md"; do
+    [ -f "$af" ] || continue
+    b=$(basename "$af"); d=${b:0:10}
+    n=$(printf '%s' "$b" | sed -nE 's/^[0-9-]{10} V([0-9]+) voice answers\.md$/\1/p'); [ -n "$n" ] || n=1
+    k=$(printf '%s %05d' "$d" "$n")
+    if [ -z "$best" ] || [[ "$k" > "$best" ]]; then best="$k"; newest="$af"; fi
+  done
+  if [ -n "$newest" ]; then
+    awk '{ l=$0; sub(/^[ \t]*\|/, "", l); n=split(l, c, "|"); if (n<2) next; v=c[1]; gsub(/^[ \t]+|[ \t]+$/, "", v); if (v ~ /^[WYPRHSAXF][0-9]+[a-z]?$/) print v }' "$newest" | sort -u > "$TMPD/g10-voice-ids.txt"
+  fi
+  if [ "$ROOT_TYPE" = "personal" ] && [ -s "$TMPD/g10-voice-ids.txt" ] && [ -f "$MEM/voice.md" ]; then
+    while IFS= read -r hit; do
+      [ -n "$hit" ] || continue
+      ln=${hit%%:*}
+      grp=$(printf '%s' "$hit" | sed 's/^[0-9]*://')
+      ids=$(printf '%s' "$grp" | grep -oE '(^|[^A-Za-z0-9])[WYPRHSAXF][0-9]+[a-z]?([^A-Za-z0-9]|$)' | grep -oE '[WYPRHSAXF][0-9]+[a-z]?')
+      [ -n "$ids" ] || continue
+      missing=""
+      for id in $ids; do
+        grep -qxF "$id" "$TMPD/g10-voice-ids.txt" || missing="$missing $id"
+      done
+      [ -z "$missing" ] || add_fail "$(rel "$MEM/voice.md") line $ln: $grp cites answer number(s)$missing that the newest voice answers file, $(basename "$newest"), does not record"
+    done < <(strip_preamble "$MEM/voice.md" | grep -onE '\([^)]*\)' 2>/dev/null)
+  fi
 }
 
 # ---- G11 Label vocabulary is closed --------------------------------------
@@ -1979,7 +2063,7 @@ gate_G14() {
   vab=$(kv "$VOICE" "voice-authority-basis")
   if [ -n "$van" ]; then
     if [ "$SHORT" = "1" ] && [ -n "$OWNER_LC" ] && [ "$(printf '%s' "$van" | tr 'A-Z' 'a-z')" = "$OWNER_LC" ]; then
-      : # the root's owner, by the declared name, whatever its shape
+      : # the root's owner, by owner_name's name, whatever its shape
     elif ! printf '%s' "$van" | grep -qE "$PERSON_GRAMMAR"; then
       add_fail "$(rel "$VOICE"): 'voice-authority-name: $van' does not name a person; a role is not an authority anyone can identify"
     elif printf '%s' "$van" | grep -qE "$NONPERSON_TAIL"; then
@@ -1997,7 +2081,7 @@ gate_G14() {
     # no domain of authority is owed; the basis only has to say more than the
     # name. The first confirmed personal voice failed here for saying exactly
     # that in words the domain list does not contain.
-    owner=$(kv "$AGENTS" "root" 2>/dev/null | tr 'A-Z' 'a-z')
+    owner="$OWNER_LC"
     if [ "$SHORT" = "1" ] && [ -n "$owner" ] && [ "$(printf '%s' "$van" | tr 'A-Z' 'a-z')" = "$owner" ]; then
       lab=$(printf '%s' "$vab" | tr 'A-Z' 'a-z')
       if [ -z "$vab" ] || [ "$lab" = "$owner" ]; then
