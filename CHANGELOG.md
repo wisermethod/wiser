@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## Unreleased
+
+- Setting up your own folder now builds your writing voice right after your name and folder, with no writing samples needed. A writing coach asks about ten minutes of quick questions: what you write and for whom, ten short ones about you, and eight pairs of short passages where you pick the one that sounds more like you. It ends on a short piece in your new voice for you to approve. Samples you're proud of are welcome but optional, and the voice it writes stays well written even where a choice would pull it below that. Your answers are kept in `memory/answers/`, and a read of your personality goes in `memory/about.md`. Folders for an organization, a client, a department or a field still build their voice from writing samples, as before. Say "build my voice" to run it on a folder you already set up.
+
 ## v2026.10.21, October 21, 2026
 
 - New YouTube connector, on the local gateway: uploads a video from your computer to your channel in resumable pieces, adds captions, sets a custom thumbnail on a phone-verified channel, changes a video's title, description or privacy, and manages playlists. Every write checks it is acting on the channel you named, and asks before it runs. It runs on a Google app of your own; setting one up comes in a later release. (a53e2b1, b8fcaa9, 6caad24, f02a698)

@@ -1685,8 +1685,11 @@ gate_G10() {
           fi
           ;;
         'Research inference')
-          if ! printf '%s' "$payload" | grep -qE 'E[0-9]+'; then
-            add_fail "$r line $ln: (Research inference: $payload) names no E<n> evidence row"
+          # An inference names what it was derived from: an E<n> evidence row,
+          # or an answer number from an answers file under memory/answers/
+          # (standards/user-root.md C14), as Build Voice's personality read does.
+          if ! printf '%s' "$payload" | grep -qE '(^|[^A-Za-z0-9])(E|W|Y|P|R|H|S|A|X)[0-9]+[a-z]?([^A-Za-z0-9]|$)'; then
+            add_fail "$r line $ln: (Research inference: $payload) names no E<n> evidence row and no answer number"
           fi
           ;;
       esac

@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types
-version: 0.38.10
+version: 0.39.0
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -64,7 +64,7 @@ Five rules bind it. The full set of standing rules in `full-path.md` binds the f
 2. **Every claim carries its source in place.** A fact the person told you in this conversation is `(Firsthand: <their name>)`. A fact read from a file they supplied names the file in parentheses at the end of the sentence: `(bio.md)`. A heading nothing answers takes one of the four evidence labels from `standards/conventions.md`, written in square brackets where the answer would have been, never a sentence of invention and never a fifth label. Prevents: a memory file a later session cannot tell apart from a guess.
 3. **The read-back is a separate pass.** After the files are written, read each claim back against what the person said or the file it names, in a pass distinct from the one that wrote it. A claim the pass cannot find becomes `[Unverified: requires confirmation]` in place. Prevents: a transcription slip bound as a fact.
 4. **A credential's value never enters the conversation, a file, or a log.** Account access is the gateway: do not write a vendor token into this root, and do not create a secrets file here. A credential the person mentions is recorded under Key Facts in `about.md` by name, with who can revoke it at the platform, never by value: the standing fact is that this root reaches that platform through the gateway, and who can end that. What one rotation or change of access did is an event rather than a standing fact, and `experts/IT Expert/` files that in the owning root's work directory. A value pasted into the conversation is treated as compromised: have the person revoke it at the platform and issue a new one. Prevents: a key living in a memory file that every session loads.
-5. **Ask only what cannot be inferred.** The person's name as they spell it and the destination are asked when they are not already given; an open empty folder Step 1 can take is offered by its path in that same question, not asked open. Nothing else is asked before the files exist; the read-back pass produces the sharper questions. Prevents: an interview that outlasts the person's patience before a file exists.
+5. **Ask only what cannot be inferred.** The person's name as they spell it and the destination are asked when they are not already given; an open empty folder Step 1 can take is offered by its path in that same question, not asked open. Nothing else is asked before the files exist; then the voice coach in Step 2 asks its own questions, and the read-back pass produces the sharper ones. Prevents: an interview that outlasts the person's patience before a file exists.
 
 ### Step 1: Copy
 
@@ -78,19 +78,21 @@ Where that command prints nothing, continue. Where it prints one or more hits, r
 
 Then confirm this session loads the new root; a root on disk that no session loads is not onboarded. A root that is a folder this session already has open is loaded: the folder a person attached in Claude Cowork or picked in ChatGPT for desktop's Work mode, the folder an editor has open, or the working directory of a command-line session. Say nothing to the person about adding it anywhere, because there is nothing to add. Where the root is not one of those folders and the host keeps a workspace file this session can edit, add the root there. Otherwise hand the person that one step in their app's own terms, such as attaching the folder in Cowork, and never describe it as adding the folder to Wiser, which keeps no workspace of its own.
 
-### Step 2: Fill about and design
+### Step 2: Voice
 
-`memory/about.md` has four headings: Who, Key Facts, Relationships, Current Focus. `memory/design.md` has five. Fill each from what the person said and from any file they supplied, under rules 1 and 2. Each prompt line in the template, a whole line beginning and ending with `*`, is replaced with content or with a label; none survives. A heading the person has not addressed gets `[Not available: not yet supplied]`, and the file is still usable.
+Voice comes right after the files exist. `memory/voice.md` is written by `skills/Build Voice/` and by nothing else. Run it now, whether or not the person has any writing of their own: on a personal root it runs as a coach of short questions and pairs of passages to choose between, with samples optional, and it writes `memory/voice.md`, the run's answers file in `memory/answers/` and the `## Personality` heading of `memory/about.md`, per `skills/Build Voice/SKILL.md` The coach. Before it starts, tell the person in one line that their voice comes first, takes about ten minutes, and needs nothing prepared.
 
-Current Focus carries the date the person confirmed it. Design fills from a design guide or a sample document when one is supplied, and takes labels when none is.
+What did Build Voice return? Complete: the person said yes to its finale piece, and the key closes complete. Provisional: they stopped after the pairs or after two returns on the finale, and the key closes provisional with what Build Voice named as outstanding and the person as owner. The person declined the coach for now, or stopped before any pair: replace each prompt line in `voice.md` with `[Not available: the voice coach has not run; say "build my voice" to run it]` and close the key provisional in Step 5. A provisional voice does not block a deliverable that loads only `about` or `design`.
 
-### Step 3: Voice
+### Step 3: Fill about and design
 
-`memory/voice.md` is written by `skills/Build Voice/` and by nothing else. Build Voice's confirmation sample is Ghost-Writer-gated as prose before the authority sees it, per `skills/Build Voice/SKILL.md` step 10. Run it when the person supplies any writing of their own, and record what it returned: with three pieces or more from different contexts it closes `voice` complete once the person confirms, and where they do not confirm it closes provisional, naming the confirmation it waits on and the person as owner; with one or two, or three from one context, it writes the file and says which sections rest on thin evidence, and the key closes provisional naming how many more pieces are wanted. When they supply none, replace each prompt line in `voice.md` with `[Not available: no writing supplied; Build Voice runs when writing is]` and close the key provisional in Step 5. A provisional voice does not block a deliverable that loads only `about` or `design`.
+`memory/about.md` has four headings: Who, Key Facts, Relationships, Current Focus, and after Step 2 it may carry `## Personality`, which Build Voice owns and this step leaves as written. `memory/design.md` has five. Fill each from what the person said, from the run's answers file and from any file they supplied, under rules 1 and 2. A fact from the answers file is the person's own answer, so it carries `(Firsthand: <their name>, W3)` with its question number. Each prompt line in the template, a whole line beginning and ending with `*`, is replaced with content or with a label; none survives. A heading the person has not addressed gets `[Not available: not yet supplied]`, and the file is still usable.
+
+Current Focus fills from W3 where the coach asked it, and carries the date the person gave that answer or otherwise confirmed it. Design fills from a design guide or a sample document when one is supplied, and takes labels when none is.
 
 ### Step 4: Read back
 
-Rule 3. In a separate pass, take every claim in `about.md` and `design.md` and find it in what the person said or in the file it names. Found: it stands. Not found, or found saying something else: `[Unverified: requires confirmation]` in place, and the question goes to the person. This pass is the interview: what it could not find is what you ask, and nothing else.
+Rule 3. In a separate pass, take every claim in `about.md` and `design.md` and find it in what the person said, in the file it names, or in the run's answers file under the question number it cites. Found: it stands. Not found, or found saying something else: `[Unverified: requires confirmation]` in place, and the question goes to the person. This pass is the interview: what it could not find is what you ask, and nothing the coach already asked is asked again.
 
 ### Step 5: Close
 
@@ -102,9 +104,11 @@ Rewrite the `## Onboarding` section of the root's `AGENTS.md`. The template ship
 Onboarded <date> on the personal path of `skills/Onboard Root/`. A deliverable that loads a provisional or blocked key waits until that key closes; one that loads only complete keys proceeds.
 
 - about: complete
-- voice: provisional (no writing supplied; Build Voice runs when writing is; owner: <the person>)
+- voice: complete
 - design: provisional (every heading labeled; owner: <the person>; waits on their design guide)
 ```
+
+Where the voice coach did not finish, the voice line reads as Step 2 left it, such as `- voice: provisional (the voice coach has not run; owner: <the person>; say "build my voice")`.
 
 A key is **complete** when every heading is answered or labeled, at least one is answered, and every claim survived the read-back. It is **provisional** when the file is usable and a named gap remains, with an owner and what it waits on in the same line; a file whose every heading is a label is provisional, not complete, with the person as owner. It is **blocked** when the file is not usable, with the blocker named on the line as `person:`, `credential:` or `capability:` followed by who or what; the form is `blocked (person: <who>; waits on <what>)`. A key that cannot pass its read-back is provisional or blocked, never closed complete. Nothing in the section is ever deleted; a later session updates a line when a key closes.
 
