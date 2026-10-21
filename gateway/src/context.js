@@ -1,4 +1,5 @@
 import { STATUS, statusSignal, vendorErrorFrom } from './errors.js';
+import { pickResponseHeaders } from './response-headers.js';
 
 /**
  * Build the ctx a module action receives. The module never sees a credential,
@@ -36,12 +37,19 @@ export function buildContext({
 }) {
   const toolkit = auth?.toolkit;
   const providerAccountId = record?.provider_account_id ?? null;
+  const declared = responseHeaders === undefined ? undefined : [...responseHeaders];
+
+  function refuseAddress(value) {
+    if (responseHeaderGuard?.holdsValue(value)) {
+      throw statusSignal(STATUS.VENDOR_ERROR, { reason: 'output_refused', detail: 'response_header' });
+    }
+  }
 
   async function proxy(req = {}) {
     if (!authProvider || typeof authProvider.proxy !== 'function') {
       throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
     }
-    const res = await authProvider.proxy({
+    let res = await authProvider.proxy({
       providerAccountId,
       toolkit,
       endpoint: req.endpoint,
@@ -49,7 +57,7 @@ export function buildContext({
       body: req.body,
       binary_body: req.binary_body,
       parameters: req.parameters,
-      ...(responseHeaders === undefined ? {} : { response_headers: responseHeaders }),
+      ...(declared === undefined ? {} : { response_headers: [...declared] }),
     });
     if (res && res.supported === false) {
       throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
@@ -63,11 +71,16 @@ export function buildContext({
       }
       throw statusSignal(STATUS.VENDOR_ERROR, vendorErrorFrom(res));
     }
+    if (res && typeof res === 'object') {
+      const { headers, ...rest } = res;
+      res = { ...rest, ...(declared === undefined ? {} : { headers: pickResponseHeaders(headers, declared) }) };
+    }
     responseHeaderGuard?.remember(res?.headers);
     return res;
   }
 
   async function http(req = {}) {
+    refuseAddress({ url: req.url, headers: req.headers, body: req.body });
     if (!unwrap || unwrap.supported !== true || !unwrap.header) {
       if (auth?.provider === 'local-file') {
         throw statusSignal(STATUS.NEEDS_CONNECT, {
@@ -120,6 +133,8 @@ export function buildContext({
   }
 
   async function catalog(actionId, catalogInput) {
+    const args = catalogInput ?? input ?? {};
+    refuseAddress({ actionId, arguments: args });
     if (auth?.provider !== 'catalog' || !catalogProvider || typeof catalogProvider.execute !== 'function') {
       throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
     }
@@ -127,7 +142,7 @@ export function buildContext({
       actionId,
       userId: undefined,
       providerAccountId,
-      arguments: catalogInput ?? input ?? {},
+      arguments: args,
     });
     if (res && res.error && res.error.code === 'vendor_error') {
       throw statusSignal(STATUS.VENDOR_ERROR, vendorErrorFrom(res));

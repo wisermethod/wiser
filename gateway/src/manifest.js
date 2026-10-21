@@ -101,6 +101,9 @@ function validateAction(action, file, field) {
     }
   }
   if (Object.hasOwn(action, 'output_file')) {
+    if (Object.hasOwn(action, 'response_headers')) {
+      throw validationError(file, `${field}.output_file`, 'must not be combined with response_headers');
+    }
     const output = action.output_file;
     const at = `${field}.output_file`;
     requireObject(output, file, at);
