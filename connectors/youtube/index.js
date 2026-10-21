@@ -127,9 +127,9 @@ async function proxy(ctx, request, safeEndpoint = request.endpoint.split('?')[0]
   return res;
 }
 
-async function sessionProxy(ctx, request) {
+async function uploadProxy(ctx, request) {
   try { return await proxy(ctx, request, UPLOAD_PATH); }
-  catch (error) { return failure(error, UPLOAD_PATH, 'PUT'); }
+  catch (error) { return failure(error, UPLOAD_PATH, request.method); }
 }
 
 function endpoint(path, values) {
@@ -221,7 +221,7 @@ async function owned(ctx, path, id, channelId, field, part = 'snippet,status') {
 }
 
 function snippet(input, current = {}) {
-  const out = { ...current };
+  const out = select(current, ['title', 'description', 'tags', 'categoryId', 'defaultLanguage', 'defaultAudioLanguage']);
   for (const key of ['title', 'description', 'tags']) if (input[key] !== undefined) out[key] = input[key];
   if (input.category_id !== undefined) out.categoryId = input.category_id;
   if (input.language !== undefined) {
@@ -293,16 +293,18 @@ export function createModules({ wait = sleep, read = readSync } = {}) {
         const channel = await checkChannel(input, ctx);
         if (stopped(channel)) return channel;
         const started = Date.now();
-        const initial = await proxy(ctx, { endpoint: `${UPLOAD}/videos?uploadType=resumable&part=snippet,status`, method: 'POST',
+        const initial = await uploadProxy(ctx, { endpoint: `${UPLOAD}/videos?uploadType=resumable&part=snippet,status`, method: 'POST',
           body: { snippet: snippet(input), status: { privacyStatus: input.privacy ?? 'private', selfDeclaredMadeForKids: input.made_for_kids } },
           parameters: [{ name: 'X-Upload-Content-Length', value: String(file.size), type: 'header' },
-            { name: 'X-Upload-Content-Type', value: file.type, type: 'header' }] }, UPLOAD_PATH);
+            { name: 'X-Upload-Content-Type', value: file.type, type: 'header' }] });
         if (stopped(initial)) return initial;
         const session = initial?.headers?.location;
         if (typeof session !== 'string' || !session) return { status: 'vendor_error', endpoint: UPLOAD_PATH, method: 'POST', reason: 'no upload session' };
         const buffer = Buffer.alloc(CHUNK);
         const hash = createHash('sha256');
         let offset = 0, hashedThrough = 0, chunks = 0, refusals = 0, consecutive = 0;
+        const query = () => uploadProxy(ctx, { endpoint: session, method: 'PUT',
+          parameters: [{ name: 'Content-Range', value: `bytes */${file.size}`, type: 'header' }] });
         const finish = (answer) => {
           if (!object(answer?.data) || typeof answer.data.id !== 'string' || hashedThrough !== file.size) return unexpected(UPLOAD_PATH, 'PUT');
           return { video_id: answer.data.id, channel_id: input.channel_id,
@@ -310,31 +312,35 @@ export function createModules({ wait = sleep, read = readSync } = {}) {
             bytes: file.size, sha256: hash.digest('hex'), chunks, refusals, seconds: (Date.now() - started) / 1000 };
         };
         for (;;) {
-          const size = Math.min(CHUNK, file.size - offset);
-          if (size <= 0) return unexpected(UPLOAD_PATH, 'PUT');
-          if (!readPiece(read, file.fd, buffer, offset, size)) return invalid('path', 'file changed');
-          // Hash each file byte once, even when a refusal or short commit replays it.
-          const end = offset + size;
-          if (end > hashedThrough) { hash.update(buffer.subarray(hashedThrough - offset, size)); hashedThrough = end; }
-          chunks += 1;
-          const answer = await sessionProxy(ctx, { endpoint: session, method: 'PUT',
-            binary_body: { base64: buffer.subarray(0, size).toString('base64'), content_type: file.type },
-            parameters: [{ name: 'Content-Range', value: `bytes ${offset}-${end - 1}/${file.size}`, type: 'header' }] });
+          let answer;
+          if (offset === file.size) answer = await query();
+          else {
+            const size = Math.min(CHUNK, file.size - offset);
+            if (!readPiece(read, file.fd, buffer, offset, size)) return invalid('path', 'file changed');
+            // Hash each file byte once, even when a refusal or short commit replays it.
+            const end = offset + size;
+            if (end > hashedThrough) { hash.update(buffer.subarray(hashedThrough - offset, size)); hashedThrough = end; }
+            chunks += 1;
+            answer = await uploadProxy(ctx, { endpoint: session, method: 'PUT',
+              binary_body: { base64: buffer.subarray(0, size).toString('base64'), content_type: file.type },
+              parameters: [{ name: 'Content-Range', value: `bytes ${offset}-${end - 1}/${file.size}`, type: 'header' }] });
+          }
           if (answer?.status === 200 || answer?.status === 201) return finish(answer);
           if (answer?.status === 308) {
             const next = committed(answer, file.size, hashedThrough);
             if (next === null) return unexpected(UPLOAD_PATH, 'PUT');
-            if (next > offset) consecutive = 0;
-            offset = next;
-            continue;
-          }
-          if (answer?.status !== 'vendor_error' || !(answer.http_status === null || answer.http_status === 0 || answer.http_status === 413 || answer.http_status >= 500)) return answer;
+            if (next > offset) {
+              consecutive = 0;
+              offset = next;
+              continue;
+            }
+            answer = { status: 'vendor_error', endpoint: UPLOAD_PATH, method: 'PUT', reason: 'upload did not advance' };
+          } else if (answer?.status !== 'vendor_error' || !(answer.http_status === null || answer.http_status === 0 || answer.http_status === 413 || answer.http_status >= 500)) return answer;
           refusals += 1;
           consecutive += 1;
           if (consecutive > 5) return answer;
           await wait(1000 * (2 ** (consecutive - 1)));
-          const status = await sessionProxy(ctx, { endpoint: session, method: 'PUT',
-            parameters: [{ name: 'Content-Range', value: `bytes */${file.size}`, type: 'header' }] });
+          const status = await query();
           if (stopped(status)) return status;
           if (status?.status === 200 || status?.status === 201) return finish(status);
           if (status?.status !== 308) return unexpected(UPLOAD_PATH, 'PUT');
@@ -354,9 +360,15 @@ export function createModules({ wait = sleep, read = readSync } = {}) {
         if (stopped(channel)) return channel;
         const current = await owned(ctx, '/videos', input.video_id, input.channel_id, 'video_id');
         if (stopped(current)) return current;
-        const status = { ...current.status };
+        const nextSnippet = snippet(input, current.snippet);
+        if (nextSnippet.categoryId === undefined) return unexpected('/videos');
+        const status = select(current.status, ['privacyStatus', 'embeddable', 'publicStatsViewable', 'license', 'selfDeclaredMadeForKids', 'containsSyntheticMedia', 'publishAt']);
+        if (!Object.hasOwn(status, 'selfDeclaredMadeForKids') && object(current.status) && Object.hasOwn(current.status, 'madeForKids')) {
+          status.selfDeclaredMadeForKids = current.status.madeForKids;
+        }
         if (input.privacy !== undefined) status.privacyStatus = input.privacy;
-        const answer = await data(ctx, '/videos', { part: 'snippet,status' }, 'PUT', { id: input.video_id, snippet: snippet(input, current.snippet), status });
+        if (status.privacyStatus !== 'private' || !(Date.parse(status.publishAt) > Date.now())) delete status.publishAt;
+        const answer = await data(ctx, '/videos', { part: 'snippet,status' }, 'PUT', { id: input.video_id, snippet: nextSnippet, status });
         return stopped(answer) ? answer : videoProjection(answer);
       }, { updating: true }),
       set_thumbnail: action(async (input, ctx, file) => {

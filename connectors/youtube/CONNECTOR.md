@@ -39,7 +39,7 @@ The API charges no money. Quota belongs to your own Google Cloud project: 10,000
 
 `manifest.json` publishes the schema, with no undeclared keys. Channel ids are `UC` followed by 22 URL-safe characters; video ids have 11; playlist ids have 2 to 64; playlist item ids have 8 to 128. Category ids have 1 to 3 digits. Language is a 2 or 3 letter tag with optional 2 to 8 character alphanumeric subtags. Page tokens are nonempty; `max_results` is 1 to 50 and `position` is a nonnegative integer.
 
-Video titles are 1 to 100 code points; playlist titles are 1 to 150. Titles and descriptions exclude `<` and `>`. Descriptions are at most 5,000 UTF-8 bytes. Tags number at most 50 and total at most 500 code points, counting separating commas and two quotation marks for each tag containing a space. Caption `name` is at most 150 code points. `videos.update` requires at least one editable field, reads the current snippet and status, and preserves all fields except those named in the input. `language` sets both default language and default audio language.
+Video titles are 1 to 100 code points; playlist titles are 1 to 150. Titles and descriptions exclude `<` and `>`. Descriptions are at most 5,000 UTF-8 bytes. Tags number at most 50 and total at most 500 code points, counting separating commas and two quotation marks for each tag containing a space. Caption `name` is at most 150 code points. `videos.update` requires at least one editable field, reads the current snippet and status, and sends only writable fields with the named changes. It always sends the category and preserves the made-for-kids declaration, using the current `madeForKids` when `selfDeclaredMadeForKids` is absent. It sends an existing `publishAt` only when the resulting privacy is private and that time is still in the future. `language` sets both default language and default audio language.
 
 Uploads require a boolean `made_for_kids`. They default to `privacy: private` and allow `unlisted`; public requires a separate `videos.update` confirmation. Playlist creation defaults to private; it and video updates allow private, unlisted or public.
 
@@ -49,7 +49,7 @@ Local files must exist as readable regular files. The screen canonicalizes the p
 - Thumbnails: `.jpg`, `.jpeg`, `.png`, at most 3,145,728 bytes. The cap is the proxy body's bound, lower than YouTube's 50 MB bound. The signed-in channel's `status.longUploadsStatus` must be `allowed` before a thumbnail call.
 - Captions: `.srt`, `.vtt`, `.sbv`, at most 3,145,728 bytes. Sent as `multipart/related` with metadata and file parts, always `isDraft: false`.
 
-Uploads use 3,145,728-byte chunks, the last shorter. A streaming SHA-256 covers each file byte once. A 308 range resumes at its next byte, including a short commit; no range means zero bytes committed. A 413, 5xx or transport refusal is followed by one status query and resume, with at most five consecutive retries and waits of 1, 2, 4, 8 and 16 seconds; the sixth refusal ends the call. Returns only `video_id`, `channel_id`, `privacy_status`, `upload_status`, `bytes`, `sha256`, `chunks`, `refusals`, `seconds`. `chunks` counts data requests, including retries. The session address stays inside the module's proxy calls.
+Uploads use 3,145,728-byte chunks, the last shorter. A streaming SHA-256 covers each file byte once. A 308 range resumes at its next byte, including a short commit; no range means zero bytes committed. A 308 acknowledging the whole file is followed by a status query to obtain the completed video. A 413, 5xx, transport refusal or 308 that does not advance is followed by one status query and resume, with at most five consecutive retries and waits of 1, 2, 4, 8 and 16 seconds; the sixth refusal ends the call. A stalled 308 ends with the fixed reason `upload did not advance`. Returns only `video_id`, `channel_id`, `privacy_status`, `upload_status`, `bytes`, `sha256`, `chunks`, `refusals`, `seconds`. `chunks` counts data requests, including retries. The session address stays inside the module's proxy calls.
 
 Reads project named fields only. Channels return identity and status; videos return snippet fields, status, processing status, file size, container and streams when available to the owner, and duration, definition and caption. Lists return ids, titles, privacy or positions as applicable, caption track details, and `next_page_token` when supplied. A non-object answer is `vendor_error`.
 
@@ -91,7 +91,7 @@ Before every write, a fresh signed-in channel read must return exactly one chann
 - `vendor_error` with HTTP 403 or 429: check the Google project's scopes and remaining quota; never infer an account change from quota alone.
 - `vendor_error` with HTTP 413: check the file cap; video chunks retry through the resumable protocol.
 - `vendor_error` with a 5xx or transport failure: read the state before repeating a write; the call may have run.
-- `vendor_error` with `no upload session` or `unexpected answer`: report the sanitized endpoint and fixed reason; no session address is exposed.
+- `vendor_error` with `no upload session`, `upload did not advance` or `unexpected answer`: report the sanitized endpoint and fixed reason; no session address is exposed.
 - `local_only` or `needs_provider_capability` from a hosted endpoint: use the local gateway.
 
 ## Reference

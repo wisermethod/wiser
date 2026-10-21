@@ -16,7 +16,9 @@ const CHUNK = 3145728;
 const SESSION = `https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&upload_id=${'invented-session-'.repeat(5)}`;
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const channel = (id = CHANNEL, allowed = 'allowed') => ({ id, snippet: { title: 'Invented channel', customUrl: '@invented' }, status: { privacyStatus: 'public', longUploadsStatus: allowed, isLinked: true } });
-const snippet = { channelId: CHANNEL, title: 'Before', description: 'Keep description', tags: ['keep'], categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en', localized: { title: 'Keep localized' }, thumbnails: { default: { url: 'https://example.invalid/image' } } };
+const snippet = { channelId: CHANNEL, publishedAt: '2026-01-01T00:00:00Z', channelTitle: 'Invented channel', liveBroadcastContent: 'none',
+  title: 'Before', description: 'Keep description', tags: ['keep'], categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en',
+  localized: { title: 'Keep localized' }, thumbnails: { default: { url: 'https://example.invalid/image' } } };
 const video = () => ({ id: VIDEO, snippet: structuredClone(snippet), status: { privacyStatus: 'private', uploadStatus: 'uploaded', embeddable: true, selfDeclaredMadeForKids: false }, ignored: 'not projected' });
 const inputs = (files) => ({
  'channels.mine': {},
@@ -89,6 +91,7 @@ async function setup(t, { active = true, failures = [], channelItems = [channel(
         bytes.copy(api.received, start, 0, keep);
         api.committed += keep;
         if (planned.transport) throw new Error('invented transport failure');
+        if (planned.status === 308) return response('', 308, planned.noRange ? {} : { range: `bytes=0-${api.committed - 1}` });
         return { status: planned.status ?? 503, error: { code: 'vendor_error', endpoint: request.endpoint, method: 'PUT', provider_codes: [17, 'discard', 17] } };
       }
       if (api.noRangeOnce) { api.noRangeOnce = false; return response('', 308); }
@@ -202,11 +205,67 @@ for (const [name, failures, expected] of [
     }
   });
 }
-test('upload resumes a 308 without range from zero', async (t) => {
+test('upload retries a first 308 without range with a refusal and wait', async (t) => {
   const s = await setup(t);
   s.api.noRangeOnce = true;
-  assert.equal((await s.call('videos.upload')).sha256, digest(s.api.received));
+  const got = await s.call('videos.upload');
+  assert.equal(got.sha256, digest(s.api.received));
+  assert.equal(got.refusals, 1);
+  assert.deepEqual(s.waits, [1000]);
   assert.equal(s.api.ranges[0], s.api.ranges[1]);
+});
+for (const [name, failures] of [
+  ['ten 308s without range', Array.from({ length: 10 }, (_, i) => ({ at: i + 1, status: 308, noRange: true }))],
+  ['ten 308s repeating the offset after a refused short commit', [{ at: 1, status: 413, keep: 1 },
+    ...Array.from({ length: 10 }, (_, i) => ({ at: i + 2, status: 308 }))]],
+]) {
+  test(`upload caps ${name} at six consecutive refusals`, async (t) => {
+    const s = await setup(t, { size: CHUNK + 29, failures });
+    const got = await s.call('videos.upload');
+    assert.deepEqual(got, { status: 'vendor_error', endpoint: '/upload/youtube/v3/videos', method: 'PUT', reason: 'upload did not advance' });
+    assert.equal(s.api.dataAttempts, 6);
+    assert.equal(s.api.queries, 5);
+    assert.deepEqual(s.waits, [1000, 2000, 4000, 8000, 16000]);
+    assert.equal(new Set(s.api.ranges.slice(1)).size, 1);
+  });
+}
+test('upload resets the refusal count on advancing 308s, then caps six stalled data calls', async (t) => {
+  const s = await setup(t, { size: CHUNK + 29, failures: [{ at: 1 },
+    ...Array.from({ length: 10 }, (_, i) => ({ at: i + 3, status: 308 }))] });
+  const got = await s.call('videos.upload');
+  assert.equal(got.reason, 'upload did not advance');
+  assert.equal(s.api.dataAttempts, 8); // One refusal, one advancing chunk, six stalled chunks.
+  assert.deepEqual(s.waits, [1000, 1000, 2000, 4000, 8000, 16000]);
+});
+for (const transport of [false, true]) {
+  test(`upload finishes from a status-query 201 after ${transport ? 'a final transport refusal' : 'a 308 covering the whole file'}`, async (t) => {
+    const size = 29;
+    const s = await setup(t, { size, failures: [{ at: 1, keep: size, status: 308, transport }] });
+    s.api.finishOnQuery = true;
+    const got = await s.call('videos.upload');
+    assert.equal(got.video_id, VIDEO);
+    assert.equal(got.sha256, digest(readFileSync(s.files.mp4)));
+    assert.deepEqual(s.api.received, readFileSync(s.files.mp4));
+    assert.equal(got.bytes, size);
+    assert.equal(got.chunks, 1);
+    assert.equal(got.refusals, transport ? 1 : 0);
+    assert.equal(s.api.dataAttempts, 1);
+    assert.equal(s.api.queries, 1);
+    assert.deepEqual(s.waits, transport ? [1000] : []);
+  });
+}
+test('upload start refusal returns only the sanitized endpoint path', async (t) => {
+  const s = await setup(t, { size: 1 });
+  const proxy = s.fake.auth.proxy;
+  s.fake.auth.proxy = async (request) => {
+    if (request.method !== 'POST') return proxy(request);
+    return { status: 403, error: { code: 'vendor_error', endpoint: request.endpoint, method: 'POST',
+      provider_codes: [17, 'discard', 17], message: 'invented vendor message' } };
+  };
+  assert.deepEqual(await s.call('videos.upload'), { status: 'vendor_error', http_status: 403,
+    endpoint: '/upload/youtube/v3/videos', method: 'POST', provider_codes: [17] });
+  assert.equal(s.api.dataAttempts, 0);
+  assert.equal(s.api.queries, 0);
 });
 test('upload missing session stops with the fixed start error', async (t) => {
   const s = await setup(t, { size: 1 });
@@ -261,15 +320,46 @@ for (const action of ['videos.set_thumbnail', 'captions.insert']) {
     assert.equal(s.api.calls.length, 0);
   });
 }
-test('update preserves all current snippet/status fields except named changes', async (t) => {
+test('update sends only writable snippet/status fields with named changes', async (t) => {
   const s = await setup(t, { size: 1 });
-  const original = structuredClone(s.api.video);
+  s.api.video.status = { privacyStatus: 'private', uploadStatus: 'uploaded', failureReason: 'codec', rejectionReason: 'duplicate',
+    embeddable: false, publicStatsViewable: false, license: 'creativeCommon', madeForKids: true, containsSyntheticMedia: false,
+    publishAt: new Date(Date.now() + 86400000).toISOString() };
   const changes = { title: 'Changed', description: '', tags: [], category_id: '28', language: 'fr-CA', privacy: 'public' };
   await s.call('videos.update', { channel_id: CHANNEL, video_id: VIDEO, ...changes });
-  assert.deepEqual(s.api.writes[0].body, { id: VIDEO, snippet: { ...original.snippet, title: 'Changed', description: '', tags: [], categoryId: '28', defaultLanguage: 'fr-CA', defaultAudioLanguage: 'fr-CA' }, status: { ...original.status, privacyStatus: 'public' } });
+  assert.deepEqual(s.api.writes[0].body, { id: VIDEO,
+    snippet: { title: 'Changed', description: '', tags: [], categoryId: '28', defaultLanguage: 'fr-CA', defaultAudioLanguage: 'fr-CA' },
+    status: { privacyStatus: 'public', embeddable: false, publicStatsViewable: false, license: 'creativeCommon', selfDeclaredMadeForKids: true, containsSyntheticMedia: false } });
   s.api.writes.length = 0;
   await s.call('videos.update', { channel_id: CHANNEL, video_id: VIDEO, privacy: 'unlisted' });
-  assert.deepEqual(s.api.writes[0].body.snippet, original.snippet);
+  assert.deepEqual(s.api.writes[0].body.snippet, { title: 'Before', description: 'Keep description', tags: ['keep'], categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' });
+  assert.equal(Object.hasOwn(s.api.writes[0].body.status, 'publishAt'), false);
+});
+for (const [name, privacy, publishAt, keep] of [
+  ['future private schedule', undefined, () => new Date(Date.now() + 86400000).toISOString(), true],
+  ['explicit private future schedule', 'private', () => new Date(Date.now() + 86400000).toISOString(), true],
+  ['past private schedule', undefined, () => '2020-01-01T00:00:00Z', false],
+  ['invalid private schedule', undefined, () => 'invalid timestamp', false],
+  ['existing public schedule', undefined, () => new Date(Date.now() + 86400000).toISOString(), false],
+]) {
+  test(`update ${name} sends publishAt only for a future private schedule`, async (t) => {
+    const s = await setup(t, { size: 1 });
+    s.api.video.status.publishAt = publishAt();
+    s.api.video.status.madeForKids = true; // The self-declared false takes precedence.
+    if (name === 'existing public schedule') s.api.video.status.privacyStatus = 'public';
+    await s.call('videos.update', { channel_id: CHANNEL, video_id: VIDEO, title: 'Changed', ...(privacy === undefined ? {} : { privacy }) });
+    assert.deepEqual(s.api.writes[0].body.status, { privacyStatus: s.api.video.status.privacyStatus,
+      embeddable: true, selfDeclaredMadeForKids: false, ...(keep ? { publishAt: s.api.video.status.publishAt } : {}) });
+    assert.equal(s.api.writes[0].body.snippet.categoryId, '27');
+  });
+}
+test('update omits absent writable fields and preserves a false madeForKids fallback', async (t) => {
+  const s = await setup(t, { size: 1 });
+  s.api.video.snippet = { channelId: CHANNEL, title: 'Before', categoryId: '27' };
+  s.api.video.status = { privacyStatus: 'private', madeForKids: false, uploadStatus: 'uploaded' };
+  await s.call('videos.update');
+  assert.deepEqual(s.api.writes[0].body, { id: VIDEO, snippet: { title: 'After', categoryId: '27' },
+    status: { privacyStatus: 'private', selfDeclaredMadeForKids: false } });
 });
 test('update without any edit refuses before transport', async (t) => {
   const s = await setup(t, { size: 1 });
