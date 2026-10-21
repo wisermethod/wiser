@@ -3,7 +3,7 @@ name: Profile Page
 type: skill
 category: writing
 description: A gated copy package for a single page about one person, every fact on it checked against a claims ledger, stopped for review by that person or their named approver, then handed to whoever builds the page
-version: 0.2.0
+version: 0.2.1
 memory:
   - voice
   - about
@@ -52,7 +52,7 @@ Each question is answered from the brief, the owning root's `AGENTS.md`, and the
 
 **Does the bound `voice` carry this person's own voice?** Read it from the owning root's `AGENTS.md` and the voice file's registers: a personal root whose declaration says its `voice` is its person's, or a register the voice file names for writing under this person's name. The voice file's authority line names who confirms the file, not whose voice it is, so it decides nothing here. Yes: continue. The voice is an organisation's or another person's, with no register for writing under this person's name: stop, and name the two routes, `skills/Build Voice/` adding that register to this root, or the person's own root. Cannot tell: ask.
 
-**Does the voice file's Routing Table carry a row for a personal site page about this person?** The table is the `## Routing Table` heading `skills/Build Voice/` writes. Yes: that row's register governs. No row, or no Routing Table: stop, and name `skills/Build Voice/` as the step that adds the row. This skill never writes the voice file. Resume when the row exists.
+**Does the voice file's Routing Table carry a row for a personal site page about this person?** The table is the `## Routing Table` heading `skills/Build Voice/` writes. Yes, or a row whose output type is everything the person writes, as Build Voice's coach writes it: that row's register governs. No row, or no Routing Table: stop, and name `skills/Build Voice/` as the step that adds the row. This skill never writes the voice file. Resume when the row exists.
 
 **Who are the readers, and what does each come to check?** Named, with what each checks: record them. Named without it: record each group with the section `skills/Content Author/profile-page.md` gives that reader. Not named: ask.
 

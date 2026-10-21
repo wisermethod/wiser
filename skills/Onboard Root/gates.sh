@@ -1719,6 +1719,24 @@ gate_G10() {
       esac
     done < <(strip_preamble "$f" | grep -onE '\((Firsthand|Secondhand|Public statement|Research inference)[^)]*\)' 2>/dev/null)
   done < <(bound_files)
+  # A personal voice file the coach wrote cites answer numbers bare, "(P1, R1)",
+  # outside any register. Where the root keeps answers files, every answer
+  # number a parenthesis in voice.md names must be one of their rows, so a
+  # citation of a question the bank no longer asks is caught.
+  if [ "$ROOT_TYPE" = "personal" ] && [ -s "$TMPD/g10-answer-ids.txt" ] && [ -f "$MEM/voice.md" ]; then
+    while IFS= read -r hit; do
+      [ -n "$hit" ] || continue
+      ln=${hit%%:*}
+      grp=$(printf '%s' "$hit" | sed 's/^[0-9]*://')
+      ids=$(printf '%s' "$grp" | grep -oE '(^|[^A-Za-z0-9])[WYPRHSAXF][0-9]+[a-z]?([^A-Za-z0-9]|$)' | grep -oE '[WYPRHSAXF][0-9]+[a-z]?')
+      [ -n "$ids" ] || continue
+      missing=""
+      for id in $ids; do
+        grep -qxF "$id" "$TMPD/g10-answer-ids.txt" || missing="$missing $id"
+      done
+      [ -z "$missing" ] || add_fail "$(rel "$MEM/voice.md") line $ln: $grp cites answer number(s)$missing that no file in memory/answers/ records"
+    done < <(strip_preamble "$MEM/voice.md" | grep -onE '\([^)]*\)' 2>/dev/null)
+  fi
 }
 
 # ---- G11 Label vocabulary is closed --------------------------------------
