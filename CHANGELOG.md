@@ -17,6 +17,10 @@ Changes before September 27, 2026 are in the commit history only.
 - Asking again the same day reuses the page while your voice is unchanged. Once it changes, the old page is archived and a new one is built.
 - When Build Voice finishes your voice as complete and your folder's record does not say otherwise, it offers Voice Report, which shows the voice as dials and saves it as one page; otherwise it tells you what that record says, or that there is none. During onboarding the offer comes at the end instead, once your folder records where your voice stands, complete or not. The page is made only on your yes.
 
+## v2026.10.21.2, October 21, 2026
+
+- When a session ends, a plan that is paused no longer comes with a line telling the next session to resume it. Its line now shows the plan's status as the plan states it, such as what it is waiting on, beside its path, so you can see it is waiting on you rather than on a session. (d678b57)
+
 ## v2026.10.21, October 21, 2026
 
 - New YouTube connector, on the local gateway: uploads a video from your computer to your channel in resumable pieces, adds captions, sets a custom thumbnail on a phone-verified channel, changes a video's title, description or privacy, and manages playlists. Every write checks it is acting on the channel you named, and asks before it runs. It runs on a Google app of your own; setting one up comes in a later release. (a53e2b1, b8fcaa9, 6caad24, f02a698)
