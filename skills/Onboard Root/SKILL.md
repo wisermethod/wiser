@@ -51,7 +51,7 @@ The root's type decides the path, and the path is recorded with the type that de
 - A client I work for: Work I do for them, in their voice (client)
 - A team or group I'm part of: A team inside a bigger organization (department, by the test in `system/templates/AGENTS.md`)
 
-An answer that fits none, a field's shared knowledge among them, is settled by the discriminating question of `full-path.md`'s Phase 0: who signs the outputs this root will hold, and whose facts and voice they carry. The type is set in the unified template, per `system/templates/AGENTS.md`, and `full-path.md`'s Tier section takes the tier from it.
+An answer that fits none, a field's shared knowledge among them, or one that fits two, is settled by the discriminating question of `full-path.md`'s Phase 0: who signs the outputs this root will hold, and whose facts and voice they carry. Where "A team or group I'm part of" fails the test in `system/templates/AGENTS.md`, because the team has no facts or voice of its own, no root is copied for it: say that the team's work belongs with its organization, and offer to set the organization up where it is not set up yet. The type is set in the unified template, per `system/templates/AGENTS.md`, and `full-path.md`'s Tier section takes the tier from it.
 
 - **A personal root** takes the personal path below: three bound files, one read-back pass, no produced run record, close report or operating file, and no harness step; the common directory tree still follows `standards/user-root.md` C10. This is the shortest path in the plugin.
 - **Every other type**, an org or a client root and a department or an industry root copied from the unified template, takes the full path in `full-path.md` beside this file: eleven phases numbered 0 to 10, the standing rules, the records, and the gate harness. Read that file once the type is settled, never before.
@@ -130,7 +130,7 @@ It is a check, not a step. A personal root that never runs it is onboarded; one 
 
 ## The full path
 
-`full-path.md` beside this file. It holds the standing rules, the tier question, the eleven phases, 0 to 10, from scope to operating handover, the records the gates read, where each root type keeps them, and the twenty-seven gates. Phase 9 runs the same `gates.sh`, which reads the root's declared type for close intensity and uses `standards/user-root.md` C10 for all record paths, and Phase 10 hands over an operating file where every gap has an owner. It is the long path on purpose: an org, a client, a department or an industry root binds facts other people are held to, and the audit and the read-back are what that costs.
+`full-path.md` beside this file. It holds the standing rules, the tier each type takes, the eleven phases, 0 to 10, from scope to operating handover, the records the gates read, where each root type keeps them, and the twenty-seven gates. Phase 9 runs the same `gates.sh`, which reads the root's declared type for close intensity and uses `standards/user-root.md` C10 for all record paths, and Phase 10 hands over an operating file where every gap has an owner. It is the long path on purpose: an org, a client, a department or an industry root binds facts other people are held to, and the audit and the read-back are what that costs.
 
 ## Pitfalls
 

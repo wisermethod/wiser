@@ -52,7 +52,7 @@ These bind every phase. The phases below name a rule rather than restating it, a
 
 ## Tier
 
-**The type sets it in Phase 0, and nothing is asked.** An org or a client root takes the **full tier**: every phase, every gate, since its work goes out under that organization's or client's name. A department or an industry root takes the **minimum core**, since its work may never leave the workspace, unless the requester asks for the full tier, which is recorded with their words. The core is five things, and it is mandatory for every root at either tier:
+**The type sets it in Phase 0, and nothing is asked.** An org or a client root takes the **full tier**: every phase, every gate, since its work goes out under that organization's or client's name. A department or an industry root takes the **minimum core**, since its work may never leave the workspace, unless the requester asks for the full tier: then the run record says `tier: full` and nothing more, and the close report's Tier section quotes their words. The core is five things, and it is mandatory for every root at either tier:
 
 1. Read-back on load-bearing claims. Non-load-bearing claims may enter labeled `Unverified`.
 2. The must-reach list per source, each item asserted on the standing rule's split: a prohibition or a compliance flag into a bound file only, and any other item into a bound file, the operating file with a named disposition, or both.

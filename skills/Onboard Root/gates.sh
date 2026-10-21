@@ -1720,10 +1720,23 @@ gate_G10() {
     done < <(strip_preamble "$f" | grep -onE '\((Firsthand|Secondhand|Public statement|Research inference)[^)]*\)' 2>/dev/null)
   done < <(bound_files)
   # A personal voice file the coach wrote cites answer numbers bare, "(P1, R1)",
-  # outside any register. Where the root keeps answers files, every answer
-  # number a parenthesis in voice.md names must be one of their rows, so a
-  # citation of a question the bank no longer asks is caught.
-  if [ "$ROOT_TYPE" = "personal" ] && [ -s "$TMPD/g10-answer-ids.txt" ] && [ -f "$MEM/voice.md" ]; then
+  # outside any register. Every answer number a parenthesis in voice.md names
+  # must be a row of the newest voice answers file, the run that wrote it, so
+  # a citation carried over from a run on an earlier question bank is caught.
+  # Newest is the latest date, then the highest V<n> on that date (C14 names).
+  : > "$TMPD/g10-voice-ids.txt"
+  newest=""; best=""
+  for af in "$MEM/answers"/*" voice answers.md"; do
+    [ -f "$af" ] || continue
+    b=$(basename "$af"); d=${b:0:10}
+    n=$(printf '%s' "$b" | sed -nE 's/^[0-9-]{10} V([0-9]+) voice answers\.md$/\1/p'); [ -n "$n" ] || n=1
+    k=$(printf '%s %05d' "$d" "$n")
+    if [ -z "$best" ] || [[ "$k" > "$best" ]]; then best="$k"; newest="$af"; fi
+  done
+  if [ -n "$newest" ]; then
+    awk '{ l=$0; sub(/^[ \t]*\|/, "", l); n=split(l, c, "|"); if (n<2) next; v=c[1]; gsub(/^[ \t]+|[ \t]+$/, "", v); if (v ~ /^[WYPRHSAXF][0-9]+[a-z]?$/) print v }' "$newest" | sort -u > "$TMPD/g10-voice-ids.txt"
+  fi
+  if [ "$ROOT_TYPE" = "personal" ] && [ -s "$TMPD/g10-voice-ids.txt" ] && [ -f "$MEM/voice.md" ]; then
     while IFS= read -r hit; do
       [ -n "$hit" ] || continue
       ln=${hit%%:*}
@@ -1732,9 +1745,9 @@ gate_G10() {
       [ -n "$ids" ] || continue
       missing=""
       for id in $ids; do
-        grep -qxF "$id" "$TMPD/g10-answer-ids.txt" || missing="$missing $id"
+        grep -qxF "$id" "$TMPD/g10-voice-ids.txt" || missing="$missing $id"
       done
-      [ -z "$missing" ] || add_fail "$(rel "$MEM/voice.md") line $ln: $grp cites answer number(s)$missing that no file in memory/answers/ records"
+      [ -z "$missing" ] || add_fail "$(rel "$MEM/voice.md") line $ln: $grp cites answer number(s)$missing that the newest voice answers file, $(basename "$newest"), does not record"
     done < <(strip_preamble "$MEM/voice.md" | grep -onE '\([^)]*\)' 2>/dev/null)
   fi
 }

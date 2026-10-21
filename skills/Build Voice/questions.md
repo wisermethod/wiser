@@ -73,3 +73,8 @@ On the fourth option, ask once: "What are you working on? A sentence is plenty."
 - Change the tone: warmer, cooler, more casual, or more serious
 - Change the words: say the same thing a different way
 - Change the length and the order: where the point sits, and how long the sentences run
+
+Follow-ups, asked before the rewrite:
+- After Change the tone, "Which way?": Warmer / Cooler / More casual / More serious.
+- After Change the length and the order, "Which way?": Shorter / Longer / Point sooner / Point later.
+- After Change the words, "Which words?", answered in their own words in the free-text answer.
