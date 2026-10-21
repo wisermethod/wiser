@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { OUTPUT_EXTENSIONS } from './file-output.js';
+import { RESPONSE_HEADER_NAMES } from './response-headers.js';
 
 /**
  * The two vocabularies `gateway.js` also needs, for the one path that reads a store
@@ -91,7 +92,18 @@ function validateAction(action, file, field) {
   if (action.description !== undefined && typeof action.description !== 'string') {
     throw validationError(file, `${field}.description`, 'must be a string');
   }
+  if (Object.hasOwn(action, 'response_headers')) {
+    const headers = action.response_headers;
+    if (!Array.isArray(headers) || headers.length === 0 ||
+        headers.some((name) => typeof name !== 'string' || !RESPONSE_HEADER_NAMES.includes(name)) ||
+        new Set(headers).size !== headers.length) {
+      throw validationError(file, `${field}.response_headers`, 'must list distinct lower-case names from the gateway response header set');
+    }
+  }
   if (Object.hasOwn(action, 'output_file')) {
+    if (Object.hasOwn(action, 'response_headers')) {
+      throw validationError(file, `${field}.output_file`, 'must not be combined with response_headers');
+    }
     const output = action.output_file;
     const at = `${field}.output_file`;
     requireObject(output, file, at);

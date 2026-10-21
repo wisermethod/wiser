@@ -53,6 +53,10 @@
  *   added 2026-10-10 with the action. It needs a real static directory that is no kit payload, no
  *   declared root and no working folder, and it reuses the `deploy_with_functions` static fixture.
  *
+ * - **`youtube videos.upload`, `youtube videos.set_thumbnail` and `youtube captions.insert`
+ *   `path` are filesystem-state rows of the same permanent class**, added 2026-10-21 with
+ *   their actions. Each needs a readable regular file with its closed media extension.
+ *
  * And one that changed shape when the validator moved into the gateway, stated because a
  * reader could otherwise take direction B for more than it is. **For a constraint the gateway
  * itself reads, `type`, `enum`, `pattern`, `minLength` and `items`, the enforcement this proves
@@ -81,6 +85,13 @@ const CONNECTORS = fileURLToPath(new URL('../../connectors', import.meta.url));
  * wrong entry fails loudly, and a pattern with no entry fails rather than being skipped.
  */
 const PATTERN_OK = {
+  '^UC[A-Za-z0-9_-]{22}$': 'UCabcdefghijklmnopqrstuv',
+  '^[A-Za-z0-9_-]{11}$': 'abcdefghijk',
+  '^[A-Za-z0-9_-]{2,64}$': 'PLexample123',
+  '^[A-Za-z0-9_-]{8,128}$': 'item123456',
+  '^/': '/a',
+  '^[0-9]{1,3}$': '27',
+  '^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$': 'en-US',
   // xai: voice ids and the published language-tag subset.
   '^[a-z0-9]{1,64}$': 'fakevoice123',
   '^(auto|[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*)$': 'en-US',
@@ -180,6 +191,9 @@ const VIOLATION_CANDIDATES = [' ', '/', '!', '', 'a/b', '\u0000', 'ZZ ZZ', '../.
  * `node --test` loads every file under `test/`, so an import-time write would happen on
  * every suite run, at a predictable path an existing symlink could redirect.
  */
+let FIXTURE_YOUTUBE_VIDEO = '';
+let FIXTURE_YOUTUBE_THUMBNAIL = '';
+let FIXTURE_YOUTUBE_CAPTION = '';
 let FIXTURE_FILE = '';
 let FIXTURE_DIST = '';
 let FIXTURE_MIGRATION = '';
@@ -196,6 +210,9 @@ let FIXTURE_FUNCTIONS_BUILD = '';
  */
 const URL_OK = 'https://example.com/';
 const FIXTURES = {
+  'youtube:videos.upload': () => ({ path: FIXTURE_YOUTUBE_VIDEO }),
+  'youtube:videos.set_thumbnail': () => ({ path: FIXTURE_YOUTUBE_THUMBNAIL }),
+  'youtube:captions.insert': () => ({ path: FIXTURE_YOUTUBE_CAPTION }),
   // Resolved at call time, because FIXTURE_FILE is created per run rather than at import.
   'vercel:deployments.upload_file': () => ({ path: FIXTURE_FILE }),
   'cloudflare:pages.deploy': () => ({ dir: FIXTURE_DIST }),
@@ -466,6 +483,12 @@ export async function collectDivergences() {
   // New filesystem fixtures use the real spelling. On macOS the temp directory's
   // spelling contains a symbolic link, and these two actions refuse that.
   const realScratch = realpathSync(scratch);
+  FIXTURE_YOUTUBE_VIDEO = join(realScratch, 'youtube-video.mp4');
+  writeFileSync(FIXTURE_YOUTUBE_VIDEO, 'invented video fixture');
+  FIXTURE_YOUTUBE_THUMBNAIL = join(realScratch, 'youtube-thumbnail.jpg');
+  writeFileSync(FIXTURE_YOUTUBE_THUMBNAIL, 'invented thumbnail fixture');
+  FIXTURE_YOUTUBE_CAPTION = join(realScratch, 'youtube-caption.srt');
+  writeFileSync(FIXTURE_YOUTUBE_CAPTION, '1\n00:00:00,000 --> 00:00:01,000\nInvented caption\n');
   FIXTURE_MIGRATION = join(realScratch, 'migration.sql');
   writeFileSync(FIXTURE_MIGRATION, 'SELECT 1;\n');
   FIXTURE_STATIC = join(realScratch, 'static-site');
