@@ -6,7 +6,7 @@ An extended argument: an essay, a guide, a framework piece, 2,000 words and up, 
 
 - **Length.** 2,000 to 5,000 words and beyond, set by the argument rather than by a target. Depth is what buys the length, and a reader who chose to spend the time notices immediately when something else was substituted for it.
 - **Thesis.** In the opening two or three paragraphs. The reader should know what is being argued before they scroll, and a thesis that arrives at the halfway mark has spent half the piece on a reader who did not know what they were reading.
-- **Sections.** Six to eight for 2,000 to 3,000 words; eight to twelve past 3,000. Does a sub-section do work a header in its parent could not? Yes: it earns its place. No: do not add it.
+- **Sections.** As many as the argument has steps. Does a sub-section do work a header in its parent could not? Yes: it earns its place. No: do not add it.
 - **Register.** Long-form has room to shift between sections and is the only format that does: analytical through the argument, narrative where a case carries the point, terse where a principle lands. The bound voice governs each of them.
 
 ## Format rules
@@ -15,6 +15,9 @@ An extended argument: an essay, a guide, a framework piece, 2,000 words and up, 
 - **Explicit transitions.** At this length the dependency between two sections is never obvious by proximity, so every one of them is signposted in the text. The reader should not have to ask why this section is here now.
 - **Ground terms before using them.** The format has the room to define a term the first time it appears and then use it freely. A term used before it is grounded costs the reader the rest of the section, and they do not scroll back.
 - **No hard-coded numbering.** Headers carry the structure. Numbered parts fix an order the piece then cannot change without a rewrite, and they invite the reader to treat sections as a list rather than an argument.
+- **Headers name findings.** Each header says what its section establishes, not the topic it covers, so the headers read alone give the spine of the argument. Could this header sit unchanged on another piece? Yes: it names a topic; say what the section establishes. No: it stays.
+- **One idea to a paragraph.** A paragraph holds one idea with its evidence and its bridge, and a new idea starts a new paragraph. Never split on length: an idea developed at length stays whole, because the cut falls where the bridge was.
+- **Lists for what is parallel.** Steps, options, and items the reader will compare. Does any item need the one before it to make its point? Yes: prose, because the reasoning lives in the transitions a list strips out. No: a list.
 - **Weight follows importance.** Do not distribute length evenly across sections because the outline looks tidier that way. Where the argument concentrates, the words concentrate.
 - **Close on a reframe.** Return to the opening claim and show it differently now that the body has established what it establishes. The reader should see the thesis changed, not repeated.
 
@@ -25,12 +28,16 @@ An extended argument: an essay, a guide, a framework piece, 2,000 words and up, 
 - **The lost thread.** Every section is interesting and none of them build, which is the failure long-form is most prone to because the format has room to hide it for pages at a time.
 - **Delayed thesis.** Two thousand words before the reader learns what the piece argues, usually because the writer found the thesis at that point and left the search in.
 - **Skeletal writing.** Compressed so hard the connective tissue is gone: the argument is technically present and cannot be followed. Brevity comes from cutting what does not carry weight, not from never writing the bridges.
+- **The wall.** Paragraphs that each carry several ideas, under headers that name topics, so the reader who scans before committing finds nothing to hold. The fix is structure that shows the argument, not shorter sentences.
+- **Structure as decoration.** Structure laid over an argument that is not yet built, or a developed paragraph chopped to look scannable; the reader who trusts the structure finds the argument missing. Structure shows an argument and cannot supply one, so the argument is settled first, and no split, header, or list is made that would cost a bridge, an example, or a section's evidence.
 
 ## Format checks
 
 - The thesis is stated inside the first two or three paragraphs.
 - Every section advances the argument, and the order carries a real dependency.
 - Transitions between sections are in the text, not in the writer's head.
+- Read alone, the headers carry the argument in order.
+- No paragraph holds two ideas, no split cost a bridge, and no list holds points that need the one before them.
 - Every section carries evidence a reader could point at, sourced or marked.
 - The close reframes the opening claim rather than summarizing the body.
 - The length is what the argument needed, and no section is there to reach it.
