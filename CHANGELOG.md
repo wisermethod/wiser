@@ -6,6 +6,8 @@ Changes before September 27, 2026 are in the commit history only.
 
 ## Unreleased
 
+- New YouTube connector on the local gateway: uploads, video updates, thumbnails, captions and playlists, with channel and ownership checks and confirmation on every write.
+
 - Connector actions can request named response headers for resumable uploads; delivered upload addresses stay private to the call.
 
 ## v2026.10.20.2, October 20, 2026
