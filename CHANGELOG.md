@@ -8,6 +8,11 @@ Changes before September 27, 2026 are in the commit history only.
 
 - Content Author: in a long piece, each header says what its section establishes, so the headers read alone give the argument in order; each paragraph holds one idea, and none is split only for its length; and lists hold only parallel items, such as steps or options, with reasoning left in prose. The number of sections follows the steps of the argument instead of a count set by the piece's length.
 
+## v2026.10.21, October 21, 2026
+
+- New YouTube connector, on the local gateway: uploads a video from your computer to your channel in resumable pieces, adds captions, sets a custom thumbnail on a phone-verified channel, changes a video's title, description or privacy, and manages playlists. Every write checks it is acting on the channel you named, and asks before it runs. It runs on a Google app of your own; setting one up comes in a later release. (a53e2b1, b8fcaa9, 6caad24, f02a698)
+- Connectors can now read the two headers a resumable upload needs, and the upload's private address never reaches your conversation or the gateway's log. (8aaf01a, 9fc50a5, dfb6d13)
+
 ## v2026.10.20.2, October 20, 2026
 
 - When a connected service hands back a file, such as narration audio, the local gateway now saves it in its own `outputs/` folder and gives your assistant the file's location, size and fingerprint instead of the file itself, so long audio no longer has to pass through the conversation. It works on the local gateway only, and a saved file not moved elsewhere is removed after seven days. (cc09b88, bdcf194)

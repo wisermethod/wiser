@@ -10,6 +10,7 @@ import { ConnectionGateway } from '../src/gateway.js';
 import { loadConnectors } from '../src/manifest.js';
 import { loadPolicy } from '../src/policy.js';
 import { JsonFileStore } from '../src/store.js';
+import { pickResponseHeaders } from '../src/response-headers.js';
 
 const DEFAULT_POLICY = fileURLToPath(new URL('../policy.default.json', import.meta.url));
 const DEFAULT_CONNECTORS = fileURLToPath(new URL('../../connectors', import.meta.url));
@@ -249,7 +250,7 @@ const DEFAULT_RESULTS = {
  * In-memory AuthProvider and CatalogProvider. Connections toggled by test code.
  * proxy and execute return canned results keyed by endpoint or FAKE_ slug.
  */
-export function createFakeProviders() {
+export function createFakeProviders({ proxyRules: suppliedRules = [] } = {}) {
   /** @type {Map<string, string>} */
   const accounts = new Map();
   /** @type {object|null|((args: object) => object)} */
@@ -257,6 +258,7 @@ export function createFakeProviders() {
   const slugs = { ...DEFAULT_SLUGS };
   const executeResults = { ...DEFAULT_RESULTS };
   const proxyRules = [
+    ...suppliedRules,
     {
       match: (endpoint, method) => method === 'GET' && typeof endpoint === 'string' && endpoint.startsWith('https://api.search.tinyfish.ai?'),
       result: { status: 200, data: { query: 'example', results: [{ position: 1, site_name: 'Example', title: 'Example', snippet: 'Example content', url: 'https://example.com/' }], total_results: 1, page: 0 }, headers: {} },
@@ -396,13 +398,19 @@ export function createFakeProviders() {
       if (!accounts.has(providerAccountId)) return 'ABSENT';
       return accounts.get(providerAccountId);
     },
-    async proxy({ endpoint, method }) {
+    async proxy({ endpoint, method, response_headers }) {
+      let result = { status: 200, data: {} };
       for (const rule of proxyRules) {
         if (rule.match(endpoint, method)) {
-          return typeof rule.result === 'function' ? rule.result({ endpoint, method }) : rule.result;
+          result = typeof rule.result === 'function' ? await rule.result({ endpoint, method }) : rule.result;
+          break;
         }
       }
-      return { status: 200, data: {}, headers: {} };
+      const { headers, ...answer } = result;
+      if (!result.error && result.status < 400 && Array.isArray(response_headers) && response_headers.length > 0) {
+        answer.headers = pickResponseHeaders(headers, response_headers);
+      }
+      return answer;
     },
     async unwrap() {
       return { supported: false };
