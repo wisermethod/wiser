@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.21.4, October 21, 2026
+
+- Wiser's page in Claude's plugin settings no longer shows a warning about an unrecognized icon field. Nothing else changes. (a2258b3)
+
 ## v2026.10.21.3, October 21, 2026
 
 - Setting up your own folder now builds your writing voice right after your name and folder, with no writing samples needed. A writing coach asks about ten minutes of quick questions: what you write and for whom, ten short ones about you, eight pairs of short passages where you pick the one that sounds more like you, your reading level, and what you would hate to sound like. It ends on a short piece in your new voice for you to approve. Samples you're proud of are welcome but optional. If you choose a habit that would make writing hard to follow, such as every sentence the same length, the coach keeps that part easy to read and tells you what it kept. Your answers are kept in `memory/answers/`, and a read of your personality goes in `memory/about.md`. Folders for an organization, a client, a department or a field still build their voice from writing samples, as before. Say "build my voice" to run it on a folder you already set up. (914cb99, 41431f5, 98ede45)
