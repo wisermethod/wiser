@@ -7,6 +7,7 @@ import { STATUS, StatusSignal, classifierAuditStatus, isStatusObject, projectPro
 import { composeSummary, containsUnsafeCodePoint, discloseInput } from './disclosure.js';
 import { validateInput } from './input-schema.js';
 import { cleanupOutputs, stripSlot, writeOutputFile } from './file-output.js';
+import { createResponseHeaderGuard } from './response-headers.js';
 import { evaluate } from './policy.js';
 import { readProviderUserId, writeProviderUserIdIfEmpty } from './paths.js';
 import { readClassifierKey } from './paths.js';
@@ -1286,7 +1287,11 @@ export class ConnectionGateway {
 
       // Refresh hosted grants only after an auth-class refusal. Provider outages
       // and unmapped statuses preserve both the original error and the ACTIVE row.
+      const responseHeaderGuard = createResponseHeaderGuard();
       const classifyExecuteResult = async (result) => {
+        if (responseHeaderGuard.active && responseHeaderGuard.holds(JSON.stringify(result))) {
+          return statusObject(STATUS.VENDOR_ERROR, { reason: 'output_refused', detail: 'response_header' });
+        }
         if (!isStatusObject(result) && result?.error?.code === 'vendor_error') result = vendorErrorFrom(result);
         result = projectProviderCodes(result);
         if (result?.status === STATUS.NEEDS_CONNECT && label !== undefined) result = { ...result, label };
@@ -1350,6 +1355,8 @@ export class ConnectionGateway {
           authProvider: this.providerFor(resolved.auth),
           catalogProvider: this.catalogProvider,
           unwrap,
+          responseHeaders: act.response_headers,
+          responseHeaderGuard,
         });
         if (this.catalogProvider && typeof this.catalogProvider.execute === 'function') {
           ctx.catalog = async (actionId, catalogInput) => {
@@ -1374,6 +1381,7 @@ export class ConnectionGateway {
         // Classify ctx.proxy / ctx.catalog signals before withAudit sees them. A
         // file-output module's thrown status never carries its slot out.
         if (err instanceof StatusSignal) return classifyExecuteResult(act.output_file ? stripSlot(err.object) : err.object);
+        if (responseHeaderGuard.holds(err?.message)) throw new Error('internal error');
         throw err;
       }
     });

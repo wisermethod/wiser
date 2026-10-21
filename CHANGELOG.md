@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## Unreleased
+
+- Connector actions can request named response headers for resumable uploads; delivered upload addresses stay private to the call.
+
 ## v2026.10.20.2, October 20, 2026
 
 - When a connected service hands back a file, such as narration audio, the local gateway now saves it in its own `outputs/` folder and gives your assistant the file's location, size and fingerprint instead of the file itself, so long audio no longer has to pass through the conversation. It works on the local gateway only, and a saved file not moved elsewhere is removed after seven days. (cc09b88, bdcf194)

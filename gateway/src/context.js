@@ -15,6 +15,8 @@ import { STATUS, statusSignal, vendorErrorFrom } from './errors.js';
  * @param {object} [opts.authProvider]
  * @param {object} [opts.catalogProvider]
  * @param {object} [opts.unwrap]
+ * @param {string[]} [opts.responseHeaders] The action's manifest declaration.
+ * @param {object} [opts.responseHeaderGuard] Private call-scoped address tracker.
  * @param {() => void} [opts.onAudit]
  */
 export function buildContext({
@@ -28,6 +30,8 @@ export function buildContext({
   authProvider,
   catalogProvider,
   unwrap,
+  responseHeaders,
+  responseHeaderGuard,
   onAudit,
 }) {
   const toolkit = auth?.toolkit;
@@ -45,13 +49,21 @@ export function buildContext({
       body: req.body,
       binary_body: req.binary_body,
       parameters: req.parameters,
+      ...(responseHeaders === undefined ? {} : { response_headers: responseHeaders }),
     });
     if (res && res.supported === false) {
       throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
     }
     if (res && res.error && res.error.code === 'vendor_error') {
+      if (responseHeaderGuard?.holds(req.endpoint)) {
+        // The request used an upload credential. Report only its URL path.
+        let path;
+        try { path = new URL(req.endpoint).pathname; } catch { path = String(req.endpoint).split(/[?#]/)[0]; }
+        throw statusSignal(STATUS.VENDOR_ERROR, vendorErrorFrom({ ...res, error: { ...res.error, endpoint: path } }));
+      }
       throw statusSignal(STATUS.VENDOR_ERROR, vendorErrorFrom(res));
     }
+    responseHeaderGuard?.remember(res?.headers);
     return res;
   }
 
