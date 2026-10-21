@@ -17,13 +17,15 @@ The engines keep every line of this, proved in Chromium. A piece on its own scri
 
 ## The picture
 
-The picture is inline SVG, or HTML elements, drawn for the subject. It sits on the stage, which keeps a fixed aspect: the starter sets that aspect in its own demo geometry, so set `aspect-ratio` on the stage under the piece's class, or the stage collapses and the engine draws nothing. Every element on it is placed in the stage's width units (`cqw`) or in its SVG's own units, so it holds at every width. Which layouts does the piece have? One aspect: one picture. A page that narrows below what that aspect can carry: a second layout shown by its own container query, as the starter's `ax-wide` and `ax-narrow` overlays are.
+The picture is the inline SVG `skills/Illustrator/` drew to its `drawing.md` `## A picture another skill will move`, one drawing per layout. It sits on the stage, which keeps a fixed aspect: the starter sets that aspect in its own demo geometry, so set `aspect-ratio` on the stage under the piece's class, or the stage collapses and the engine draws nothing. Every element on it is placed in the stage's width units (`cqw`) or in its SVG's own units, so it holds at every width. Which layouts does the piece have? One aspect: one picture. A page that narrows below what that aspect can carry: a second layout shown by its own container query, as the starter's `ax-wide` and `ax-narrow` overlays are.
 
-Motion is transform and opacity, per Performance in `skills/Component Design/motion-design.md`. A drawn shape turns on by the class `on` the timeline gives it, and its moving rules sit in the motion block. Ids inside the picture, a gradient, a clip path or a `<use>` target, are global to the page: prefix each with the piece's name, and where one component may sit twice on a page, add a suffix it takes as a prop. A once piece's drawing moves on the root's classes: hidden inside the motion block under `.ax-armed:not(.ax-go)`, entering under `.ax-go`.
+Engine markup is the root, frame, stage and layout wrappers, cover and pause control; the engine's classes and timing, anchor, line, flight and count attributes named here and in the starter's header; `pathLength="1"` and the line's dash; a line the engine measures, its default `d` computed by `wirePath` per `## Measuring and drawing`, in place of the drawn line between the same two objects; an HTML anchor overlay the engine measures from, where an SVG anchor would carry a transform; and the `aria-hidden` wrapper and text description `## The accessibility floor` requires. Any other change to finished geometry runs `skills/Illustrator/` again by name as a revision, naming the change, as `SKILL.md` Pitfalls says.
 
-Colours are custom properties set on the piece's class: the engine's own (the loop's `--ax-ground`, `--ax-ink`, `--ax-muted`, `--ax-box`, `--ax-line` and `--ax-focus`; the once's `--ax-ground`, `--ax-ink` and `--ax-muted`) and any the picture adds. Their values come from the bound `design`, or the destination's tokens, as `SKILL.md` Inputs says. The starters' greys are placeholders and never ship. The loop's cover, which hides the stage at each wrap, is `--ax-ground`: set it to the picture's own backdrop colour, or the stage blinks to another at every cycle. On a site, keep the piece's properties apart from the site's palette names, so a palette change elsewhere cannot recolour the piece unseen. On a deck, set them from the deck's `:root` brand properties with `var()`, so a change to the deck's look reaches the slide, as `skills/Create Presentation/` makes every look change.
+Motion is transform and opacity, per Performance in `skills/Component Design/motion-design.md`. A drawn shape turns on by the class `on` the timeline gives it, and its moving rules sit in the motion block. Id prefixes follow `skills/Illustrator/drawing.md` `## The file`; where one component may sit twice on a page, add a suffix it takes as a prop. A once piece's drawing moves on the root's classes: hidden inside the motion block under `.ax-armed:not(.ax-go)`, entering under `.ax-go`.
 
-On a page, no word renders under 12px at any width from 320 to 1440; the stage's width units make that a real risk at 320, so write label sizes as `max(12px, <n>cqw)`, as the starter does. On a slide, no word renders under 16px in the slide's own pixels, the floor in `skills/Create Presentation/slide-design.md` Typography.
+The engine's colours are custom properties set on the piece's class (the loop's `--ax-ground`, `--ax-ink`, `--ax-muted`, `--ax-box`, `--ax-line` and `--ax-focus`; the once's `--ax-ground`, `--ax-ink` and `--ax-muted`); the picture's own properties are the ones Illustrator set, named for their roles, and the engine's take their values from the same design sources. The starters' greys are placeholders and never ship. The loop's cover, which hides the stage at each wrap, is `--ax-ground`: set it to the picture's own backdrop colour, or the stage blinks to another at every cycle. On a site, keep the piece's properties apart from the site's palette names, so a palette change elsewhere cannot recolour the piece unseen. On a deck, set them from the deck's `:root` brand properties with `var()`, so a change to the deck's look reaches the slide, as `skills/Create Presentation/` makes every look change.
+
+The page text floor is `skills/Illustrator/drawing.md` `## Words on the picture`; the stage's width units make it a real risk at 320, so write label sizes as `max(12px, <n>cqw)`, as the starter does, with `<n>` chosen so a label meets that section's floor at every width. On a slide, keep that section's slide floor in the slide's own pixels, per `skills/Create Presentation/slide-design.md` Typography.
 
 ## The timeline
 
@@ -57,8 +59,6 @@ Lines (`path[data-from][data-to]`) and flights (`.ax-fly`) are optional: use the
 
 A line's default path in the markup is its finished shape, in its overlay's units, so the still shows it. Does every line have a default path computed with the engine's curve? No, or one was drawn by hand: open the piece with its script once, call `window.AxLoop.wirePath(a, b, head)` with `a` and `b` as `{x, y}` points and `head` a length, all in the overlay's units, and write the returned path into its `d`. `data-head` is a percent of the stage's width. Lines draw with `pathLength="1"` and a dash of 1.
 
-Where the subject is a structure of steps, parts or causes, the geometry table in Step 2 of `skills/Visualizer/SKILL.md` helps choose its arrangement, and that skill's Step 5 is the home of where labels sit. This skill does not run Visualizer, whose output is a standalone file or Mermaid.
-
 ## The accessibility floor
 
 Every piece meets this floor in every destination. Each line is checkable on the renders or in the markup.
@@ -86,7 +86,7 @@ Every address is cache-busted with a fresh query string of your own naming, sinc
 
 ## Pitfalls
 
-- **The starter's look shipped.** Grey boxes and arrows with new labels. Replace the whole picture, per `SKILL.md` Step 3.
+- **The starter's look shipped.** Grey boxes and arrows with new labels. Replace the whole picture, per `SKILL.md` Step 4.
 - **Lines cut short.** A fixed dash length. Use `pathLength="1"` and a dash of 1.
 - **A flight or a line off its target.** A measurement of the on-screen box, or padding or a border on the stage. Leave measuring to the engine and keep the stage bare.
 - **The still missing a connection.** A line with no default path. Write it per Measuring and drawing.

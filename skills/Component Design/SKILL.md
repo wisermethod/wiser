@@ -3,7 +3,7 @@ name: Component Design
 type: skill
 category: design
 description: Design a single UI component as self-contained, renderable HTML and CSS with every applicable state, semantic markup, and design tokens
-version: 0.2.6
+version: 0.2.7
 memory:
   - design
 ---
@@ -14,7 +14,7 @@ memory:
 
 Use this to design one UI component, a button, a card, a form, a navigation bar, a modal, a table, and the like, as self-contained HTML and CSS that renders correctly the moment the file is opened in a browser, carrying every applicable state, semantic markup, and design-token integration.
 
-Not for full pages or layouts: composing components into a page belongs to a page-design skill, not this one. Not for design systems or token sets; this skill consumes a design system, it does not author one. Not for framework component code (React, Vue, Svelte) or for JavaScript behavior; the output is HTML and CSS covering structure and every state, and any framework translation or interactivity is a separate step after it. A picture that moves on a timeline to show how something works, on a page or a slide, is `skills/Animated Explainer/`. Not for drawing icons or illustrations; reference a professional icon set rather than producing artwork here.
+Not for full pages or layouts: composing components into a page belongs to a page-design skill, not this one. Not for design systems or token sets; this skill consumes a design system, it does not author one. Not for framework component code (React, Vue, Svelte) or for JavaScript behavior; the output is HTML and CSS covering structure and every state, and any framework translation or interactivity is a separate step after it. A picture that moves on a timeline to show how something works, on a page or a slide, is `skills/Animated Explainer/`. Not for drawing icons or illustrations: an icon comes from a professional icon set, and an illustration that explains something is `skills/Illustrator/`.
 
 ## Objective
 
