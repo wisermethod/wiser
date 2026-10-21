@@ -3,7 +3,7 @@ name: Delegate Build
 type: skill
 category: system
 description: Delegated build work and its independent review, with only verified findings folded back
-version: 0.2.0
+version: 0.2.1
 ---
 
 # Delegate Build
@@ -71,7 +71,7 @@ Build the artifact under test and commit it before any case or any key exists. A
 
 Give every judging run its material inline, forbid commands and tool calls, count those its record of reads holds, which Verify step 4 names, and re-run any run that recorded one. Where no record of its reads exists, the count cannot show isolation, and the run is not cited as isolated.
 
-4. Write the brief. It names every file the delegate must read or change by absolute path, states `<objective>`, states `<targets>`, and states the acceptance. It names where the delegate writes any evidence or record the work asks for, inside `<targets>`, and says that the delegate does not edit the plan: this session, which owns the plan, reads that evidence and updates the plan. It authorizes no deploy, no external message, and no write outside `<targets>`. It tells a builder to read the relevant files first, run the checks the work needs, fix what it breaks, leave folder layout as it stands, and not print, copy, or commit the contents of a `.env` file or of anything under a root named memory. A brief a script assembles from a template splits it on the marker's whole line, such as `\nTEMPLATE BEGINS\n`, never on the bare marker string.
+4. Write the brief. It names every file the delegate must read or change by absolute path, states `<objective>`, states `<targets>`, and states the acceptance. It names where the delegate writes any evidence or record the work asks for, inside `<targets>`, and says that the delegate does not edit the plan: this session, which owns the plan, reads that evidence and updates the plan. It authorizes no deploy, no external message, and no write outside `<targets>`. It tells the delegate to start no review or delegate of its own and to return any review its work owes, named, per the constitution's Behavioral Core. It tells a builder to read the relevant files first, run the checks the work needs, fix what it breaks, leave folder layout as it stands, and not print, copy, or commit the contents of a `.env` file or of anything under a root named memory. A brief a script assembles from a template splits it on the marker's whole line, such as `\nTEMPLATE BEGINS\n`, never on the bare marker string.
 
 Does the brief name an interface to a cited system, its fields, inputs or outputs? Yes: take each field's meaning from that system's own definition, read and cited in the brief, never from a summary of its names. No: go on.
 

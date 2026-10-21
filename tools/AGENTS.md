@@ -34,7 +34,9 @@ The one list; a tool's pages point here.
 | A knowledge set's own records: corpus, wiki or extraction, review items, reports | inside the set directory the caller passes as `--set`, at `corpus/`, `wiki/`, `extraction/`, `review/`, and `reports/` as the backend uses them | `knowledge-memory` |
 | A delegate's run record: the prompt, the vendor's two output streams, the parsed report, and `status.json` (`started` with the vendor's process and group ids, then the final state) | one folder under the caller-named `--runs`, which may not sit inside this plugin; a refusal before the vendor starts writes none | `Subagent Runner` |
 
-`copy-check` writes nothing and installs nothing: Node built-ins cover it, and every command prints one JSON object.
+`copy-check` writes nothing and installs nothing: Node built-ins cover it, and every command prints one JSON object. `voice-lexicon` writes nothing but the `--output` file it is given, and installs nothing: Node built-ins cover it too.
+
+`voice-report-html` writes nothing but the `--output` file it is given, never over an existing file, and installs nothing: Node built-ins cover it.
 
 The gateway's writes are listed in `gateway/AGENTS.md`, Everything the gateway writes, and where.
 
@@ -60,6 +62,8 @@ The gateway's writes are listed in `gateway/AGENTS.md`, Everything the gateway w
 | `copy-check/TOOL.md` | Count and match page copy against a ledger, a fact map, patterns, and a corpus, and return one JSON object |
 | `deck-export/TOOL.md` | Writes a new reveal.js deck project on disk, from a brand template or as a self-contained starter, and renders a finished deck to a PDF or to one PNG per slide |
 | `keynote-render/TOOL.md` | Builds and edits native Keynote decks from JSON or markdown SSOT, with zArchive safety before every in-place mutation |
+| `voice-lexicon/TOOL.md` | Find the style markers that recur across a person's writing samples, each with its count and sample ids, and the rhythm and stance ranges they keep, and check a draft against them for avoided terms, contradicted markers and the dose of signature markers and sayings, with rhythm and stance outside those ranges and missing markers as advice, as one JSON object |
+| `voice-report-html/TOOL.md` | Read a root's bound voice.md, the confirmed voice-lexicon profile it names, and the voice key's state line in the root's AGENTS.md into one data object, render that object as one static HTML page with dials for register, stance and rhythm or as a fragment of those dials for a host that draws HTML in the conversation, and say whether an existing page still shows the voice as set now |
 
 ### Knowledge
 

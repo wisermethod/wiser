@@ -1,0 +1,17 @@
+Last month I spent three days at the Kettering dispatch centre, looking at why so many orders missed the evening collection. The client had already replaced the label printers and hired two extra packers, and neither change had moved the figures. I want to record what I saw, and what I suggested, so that the next review starts from a better place than mine did.
+
+The centre ships about four thousand parcels on a normal weekday. Most of them leave on two trailers, one at six in the evening and one at nine. An order that misses the late trailer waits until the next evening, and the customer notices. Over the last quarter, one order in twelve missed its trailer, against a target of one in fifty.
+
+My first morning went on the order data. I sorted the missed orders by the hour they were released to the floor, and the pattern was easy to see. Orders released before two in the afternoon made their trailer. Orders released after four were the ones that missed, and most of those had been held back by the planning team for a reason that nobody could quite explain.
+
+The reason, when I found it, was an old rule. When the centre opened, it had a single evening trailer, and the planners held late orders back so that the morning shift could start with a full wave. The second trailer arrived two years later, but the rule stayed. So the planners went on holding orders that the floor had time to pack, and the floor went on waiting for work that arrived too late.
+
+I spent the second day on the floor itself. The packers were quick and careful, and the benches were well laid out. The slowest step was the walk from the last bench to the trailer bay, which ran the length of the building past the returns cage and the goods-in doors. Each trolley made that trip on its own, so a packer could lose ten minutes per run pushing a trolley.
+
+On the third day I sat down with the site manager, the planning lead and two of the shift leads. We agreed on three changes. First, the hold rule goes, and every order is released to the floor as soon as payment clears. Second, the trolleys travel to the trailer bay in batches, on a fixed loop every twenty minutes, so the packers stay at their benches. Third, the planning lead reviews the missed orders every Monday and writes down the cause of each one.
+
+None of these changes costs much. The hold rule was a line in a spreadsheet, and the loop needs one person per shift and a few more trolleys. The Monday review takes an hour. I expect the missed share to fall within a month, and I plan to go back in six weeks to check the figures with the planning lead.
+
+The wider point, for anyone running a site like this, concerns old rules. Every centre I visit has a few of them, written for a building or a customer long since changed, and kept because nobody remembers why they were made. A short list of the rules your planners follow, with the date each one was written and the reason given, costs little to keep and saves a great deal of guessing later.
+
+I left Kettering with a notebook full of small observations and one large one. The packers had been blamed for a delay that started in an office upstairs, and they took the blame more patiently than most people manage. I said so to the manager before I left.

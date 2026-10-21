@@ -1,0 +1,124 @@
+{
+  "status": "enough",
+  "words": 3120,
+  "samples": 5,
+  "registers": 2,
+  "origins": 1,
+  "markers": [
+    {
+      "class": "signature",
+      "marker": "the ask",
+      "basis": "uncommon-word",
+      "count": 7,
+      "samples": [
+        "E1",
+        "E2",
+        "E5"
+      ],
+      "spread": 0.6,
+      "weight": 0.6
+    },
+    {
+      "class": "variant",
+      "marker": "full forms",
+      "over": "contractions",
+      "share": 0.9,
+      "count": 31,
+      "samples": [
+        "E3"
+      ],
+      "spread": 0.2,
+      "weight": 0.2
+    },
+    {
+      "class": "punctuation",
+      "marker": "semicolon",
+      "rate": 6.1,
+      "reference": 2,
+      "count": 19,
+      "samples": [
+        "E1",
+        "E3",
+        "E5"
+      ],
+      "spread": 0.6,
+      "weight": 0.6
+    }
+  ],
+  "ranges": {
+    "chunk_words": 500,
+    "chunks": 6,
+    "features": {
+      "sentence_mean": {
+        "low": 11.2,
+        "q1": null,
+        "median": 13.8,
+        "q3": null,
+        "high": 17.1,
+        "decision": "keep"
+      },
+      "sentence_cv": {
+        "low": 0.41,
+        "q1": null,
+        "median": 0.52,
+        "q3": null,
+        "high": 0.66
+      },
+      "long_sentences": {
+        "low": 0,
+        "q1": null,
+        "median": 2.1,
+        "q3": null,
+        "high": 5.3
+      },
+      "first_singular": {
+        "low": 12.0,
+        "q1": null,
+        "median": 21.5,
+        "q3": null,
+        "high": 34.0
+      },
+      "first_plural": {
+        "low": 0,
+        "q1": null,
+        "median": 4.0,
+        "q3": null,
+        "high": 15.2
+      },
+      "second_person": {
+        "low": 8.0,
+        "q1": null,
+        "median": 19.0,
+        "q3": null,
+        "high": 31.0
+      },
+      "hedges": {
+        "low": 2.0,
+        "q1": null,
+        "median": 3.5,
+        "q3": null,
+        "high": 4.0,
+        "decision": "polish",
+        "polish": "high",
+        "measured": {
+          "low": 2.0,
+          "high": 9.0
+        }
+      },
+      "boosters": {
+        "low": 1.0,
+        "q1": null,
+        "median": 2.6,
+        "q3": null,
+        "high": 5.5
+      },
+      "semicolon": {
+        "low": 3.0,
+        "q1": null,
+        "median": 6.0,
+        "q3": null,
+        "high": 9.5
+      }
+    }
+  }
+}
