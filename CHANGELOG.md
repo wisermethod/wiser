@@ -4,10 +4,14 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
-## Unreleased
+## v2026.10.21.3, October 21, 2026
 
-- Setting up your own folder now builds your writing voice right after your name and folder, with no writing samples needed. A writing coach asks about ten minutes of quick questions: what you write and for whom, ten short ones about you, eight pairs of short passages where you pick the one that sounds more like you, your reading level, and what you would hate to sound like. It ends on a short piece in your new voice for you to approve. Samples you're proud of are welcome but optional. If you choose a habit that would make writing hard to follow, such as every sentence the same length, the coach keeps that part easy to read and tells you what it kept. Your answers are kept in `memory/answers/`, and a read of your personality goes in `memory/about.md`. Folders for an organization, a client, a department or a field still build their voice from writing samples, as before. Say "build my voice" to run it on a folder you already set up.
-- The writing review now accepts a short scene, or a sentence or two of context that leads straight to the point, as a way to open; an opening that announces or restates its subject is still flagged.
+- Setting up your own folder now builds your writing voice right after your name and folder, with no writing samples needed. A writing coach asks about ten minutes of quick questions: what you write and for whom, ten short ones about you, eight pairs of short passages where you pick the one that sounds more like you, your reading level, and what you would hate to sound like. It ends on a short piece in your new voice for you to approve. Samples you're proud of are welcome but optional. If you choose a habit that would make writing hard to follow, such as every sentence the same length, the coach keeps that part easy to read and tells you what it kept. Your answers are kept in `memory/answers/`, and a read of your personality goes in `memory/about.md`. Folders for an organization, a client, a department or a field still build their voice from writing samples, as before. Say "build my voice" to run it on a folder you already set up. (914cb99, 41431f5, 98ede45)
+- The writing review now accepts a short scene, or a sentence or two of context that leads straight to the point, as a way to open; an opening that announces or restates its subject is still flagged. (41431f5, 98ede45)
+
+## v2026.10.21.2, October 21, 2026
+
+- When a session ends, a plan that is paused no longer comes with a line telling the next session to resume it. Its line now shows the plan's status as the plan states it, such as what it is waiting on, beside its path, so you can see it is waiting on you rather than on a session. (d678b57)
 
 ## v2026.10.21, October 21, 2026
 
