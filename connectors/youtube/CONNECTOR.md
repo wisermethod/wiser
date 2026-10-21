@@ -14,7 +14,7 @@ Excluded: deleting videos; updating, deleting or downloading captions; channel u
 
 ## Status
 
-Runs on the local gateway only. Verified against the gateway's fake provider.
+Runs on the local gateway only. Verified against the gateway's fake provider, and live through the provider's proxy on a Workspace account's Internal Google app: a resumable upload in 27 chunks with its bytes read back, a caption track, a custom thumbnail, a playlist and a description change.
 
 ## Reaching it
 
