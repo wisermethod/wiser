@@ -1639,7 +1639,7 @@ gate_G10() {
   for af in "$MEM/answers"/*.md; do
     [ -f "$af" ] || continue
     [ "$(basename "$af")" = "AGENTS.md" ] && continue
-    awk '{ l=$0; sub(/^[ \t]*\|/, "", l); n=split(l, c, "|"); if (n<2) next; v=c[1]; gsub(/^[ \t]+|[ \t]+$/, "", v); if (v ~ /^[WYPRHSAX][0-9]+[a-z]?$/) print v }' "$af"
+    awk '{ l=$0; sub(/^[ \t]*\|/, "", l); n=split(l, c, "|"); if (n<2) next; v=c[1]; gsub(/^[ \t]+|[ \t]+$/, "", v); if (v ~ /^[WYPRHSAXF][0-9]+[a-z]?$/) print v }' "$af"
   done | sort -u > "$TMPD/g10-answer-ids.txt"
   bf=$(bound_files | wc -l | tr -d ' ')
   if [ "$bf" -eq 0 ]; then
@@ -1700,7 +1700,7 @@ gate_G10() {
           # it or not.
           ids=""
           if [ "$ROOT_TYPE" = "personal" ]; then
-            ids=$(printf '%s' "$payload" | grep -oE '(^|[^A-Za-z0-9])[WYPRHSAX][0-9]+[a-z]?([^A-Za-z0-9]|$)' | grep -oE '[WYPRHSAX][0-9]+[a-z]?')
+            ids=$(printf '%s' "$payload" | grep -oE '(^|[^A-Za-z0-9])[WYPRHSAXF][0-9]+[a-z]?([^A-Za-z0-9]|$)' | grep -oE '[WYPRHSAXF][0-9]+[a-z]?')
           fi
           if [ -n "$ids" ]; then
             missing=""

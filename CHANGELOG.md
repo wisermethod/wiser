@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## Unreleased
+
+- Building your voice is now quick taps instead of typing. The coach asks with buttons where your app has them. Five this-or-that picks about you replace the ten statements you rated 1 to 5. The passages you choose between are about half as long. The question about what you write most is gone, and what to write about now comes last, as your first piece. It ends with a short voice card naming your style before that piece.
+
 ## v2026.10.21.3, October 21, 2026
 
 - Setting up your own folder now builds your writing voice right after your name and folder, with no writing samples needed. A writing coach asks about ten minutes of quick questions: what you write and for whom, ten short ones about you, eight pairs of short passages where you pick the one that sounds more like you, your reading level, and what you would hate to sound like. It ends on a short piece in your new voice for you to approve. Samples you're proud of are welcome but optional. If you choose a habit that would make writing hard to follow, such as every sentence the same length, the coach keeps that part easy to read and tells you what it kept. Your answers are kept in `memory/answers/`, and a read of your personality goes in `memory/about.md`. Folders for an organization, a client, a department or a field still build their voice from writing samples, as before. Say "build my voice" to run it on a folder you already set up. (914cb99, 41431f5, 98ede45)
