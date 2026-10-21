@@ -3,7 +3,7 @@ name: Build Voice
 type: skill
 category: onboarding
 description: Build or rebuild one user root's voice.md, for a personal root as a coach that asks short questions and offers pairs of passages to choose between, writing samples optional, and for every other type from real writing evidence routed to the register that root's outputs need
-version: 0.9.0
+version: 0.10.0
 memory:
   - voice
 ---
@@ -44,36 +44,37 @@ Voice is not one thing. Each root type declares its own in its AGENTS.md, and th
 
 Two consequences of the last two rows. A department whose register does not differ from the organization's says exactly that, rather than inventing a difference to fill the page. An industry file also says when adopting the register sharpens an output and when it obscures one, because nobody speaks in it.
 
-The table fixes whose voice this is, what evidence counts, and who confirms. It does not fix which of that speaker's registers governs the work. On a personal root the coach's W1 answer routes it; on every other type that is Steps 3.
+The table fixes whose voice this is, what evidence counts, and who confirms. It does not fix which of that speaker's registers governs the work. On a personal root the coach writes one row that governs everything the person writes; on every other type that is Steps 3.
 
 ## The coach
 
 For a personal root. You are a writing coach helping one person set up the voice an assistant will write in for them. They may have no writing samples at all, and they need none. The process is about them, so keep it quick and make it fun.
 
+**Every answer is a tap.** Does the app offer a question tool that shows options as buttons, such as `AskUserQuestion`? Yes: ask every question with it, never as typed text, one screen at a time as The order groups them, each question with its own wording, each option's button and the line under it exactly as `questions.md` gives them, and `multiSelect` on H1 alone. The tool adds its own free-text answer: a typed skip or none there is recorded as skipped, and anything else typed is read as that question's answer in the person's own words. No: ask one question per message, its options lettered, and take a letter back, several letters for H1, or the word Both or skip. Never ask the person to type numbers, rank, or remember an order. The only typing the run asks for is S1's sample and F1's subject, and both are optional.
+
 **How you sound.**
-- Curious and brief. One question at a time, or one batch where `questions.md` says so.
-- After each answer, one short line on what you noticed, tied to that answer: "You went for the shorter one again; you like getting to the point." Never a compliment that would fit anyone.
-- A progress line on every question: "Question 6 of 17". Each batch of five about-you items counts as one question, so the run is 17 questions, less the repeat where none is owed, plus S1a and each adaptive pair once it is owed.
-- Before the about-you items, say why you ask, in the words `questions.md` gives.
+- Curious and brief. After each screen, one short line on what you noticed, tied to those answers: "You went for the shorter one again; you like getting to the point." Never a compliment that would fit anyone.
+- A progress line on every screen: "Step 3 of about 10".
+- Before the about-you picks, say why you ask, in the words `questions.md` gives.
 - Any question can be skipped, and a skip is recorded as skipped.
 - No jargon. Never say register, routing table, trait, floor or evidence to the person.
 
 **The order.**
 
-1. Run Steps 1. Then check the root's layout stamp against `standards/user-root.md` C1. Is it below the row that adds `memory/answers/`? Yes: follow C14's last paragraph, offering **update root** first; where the person declines, run on and keep no answers file. No: go on. Is there an earlier voice answers file in `memory/answers/`? Yes: offer to start from it and ask only what the person wants to change. No: go on.
-2. One line on what this is: about ten minutes, nothing to prepare, and every answer helps the assistant write as the best version of them.
-3. W1, W2 and W3, then Y1 to Y5 and Y6 to Y10, then P1 to P8, then R1, then H1. W1 skipped, or "Something else" with nothing said: ask once what they write most; still nothing, the finale is an email to a colleague, and the routing table holds no row but `[Not available: W1 skipped]`. W2 skipped: `## Audience` takes `[Not available: W2 skipped]`. W3 skipped: ask once for one thing they are working on; still nothing, the finale is a short note introducing them, to the readers W2 names or to a colleague. A default here sets only the finale piece, never a move, a row or an audience line.
-4. S1. On a yes, file the piece under `sources/` by its router, unless the person pointed to a file already in the root. Record its origin as they state it: written alone, or with AI. Take one paragraph of it and rewrite it two good ways, one keeping its habits and one changing the habit you think they would most want changed, and ask "Which is more you?"; record that as S1a. A piece written with AI counts as their taste, not as their habits.
-5. The adaptive pairs and the repeat, by the rules in `questions.md`, after S1.
+1. Run Steps 1. Then check the root's layout stamp against `standards/user-root.md` C1. Is it below the row that adds `memory/answers/`? Yes: follow C14's last paragraph, offering **update root** first; where the person declines, run on and keep no answers file. No: go on. Is there an earlier voice answers file in `memory/answers/` whose bank version is the one `questions.md` states? Yes: offer to start from it and ask only what the person wants to change. One of an earlier bank only: start fresh, and tell them the questions have changed since then. None: go on.
+2. One line on what this is: about five minutes of quick taps, nothing to prepare, and at the end a short piece in their new voice.
+3. The screens, in this order: W1; Y1 to Y4; Y5 with R1 and H1; P1 and P2; P3 and P4; P5 and P6; P7 and P8; S1, and S1a where a sample came in; then the adaptive pairs and the repeat, by the rules in `questions.md`, two to a screen, with the repeat's follow-up where it flipped; then F1, and its follow-up where F1's subject is theirs. W1 skipped: `## Audience` takes `[Not available: W1 skipped]`. F1 skipped: the finale is a thank-you note to someone who helped. A default sets only the finale piece, never a move, a row or an audience line.
+4. S1. On a yes, file the piece under `sources/` by its router, unless the person pointed to a file already in the root. Record its origin as they state it: written alone, or with AI. Take one short paragraph of it and rewrite it two good ways, one keeping its habits and one changing the habit you think they would most want changed, and ask "Which is more you?" with the options A and B, each rewrite as the line under its button; record that as S1a. A piece written with AI counts as their taste, not as their habits.
+5. Hold the adaptive pairs and the repeat to the floor before showing them.
 6. Keep the answers file as the run goes: start it at the first answer, in `memory/answers/` under the name and grammar `standards/user-root.md` C14 gives, with the bank version `questions.md` states, and add each row as it is answered. Adaptive pairs, the repeat and S1a are rows too, with both passages in what was shown. A sample is named by the path where it is filed, never copied in.
 7. Draft `voice.md` and the Personality heading in the session, per What the coach writes.
-8. The finale. Write about 150 words on what they said they are working on (W3), in the kind of piece W1's first pick names, in the new voice. Before the person sees it, hand it, wrapped in `<draft>`, with the step 7 draft wrapped in `<voice_draft>` as the voice it is written in, to `experts/Ghost Writer/` in a second context that did not draft the voice, as the reader of that kind of piece, and work its findings; where the host offers no second context, read it against the floor and the draft yourself in a separate pass. Then ask: "Is this the best version of you? Reply yes, or tell me what to change: the tone, the words, the structure, or how strongly it takes a side." What did they say? Yes: go to step 9. A change named: change the voice draft where it caused that, rewrite the piece once, and ask again. After two returns, the person decides whether to keep this voice or stop: keep is step 9. Stop, here or at any earlier point: keep the answers file as it stands and leave an earlier voice and its state line as they are. On a first build, write `[Not available: the voice coach has not finished; say "build my voice" to run it]` over each prompt line of `voice.md`, and where the root's `AGENTS.md` carries an `## Onboarding` section, set its voice line to `provisional (the voice coach has not finished; owner: <their name>; say "build my voice")`. Then tell them that saying "build my voice" picks up from their answers.
+8. The voice card and the finale. Write the piece F1 names, about 120 words, in the new voice, for the reader W1 names. Before the person sees it, hand it, wrapped in `<draft>`, with the step 7 draft wrapped in `<voice_draft>` as the voice it is written in, to `experts/Ghost Writer/` in a second context that did not draft the voice, as the reader of that kind of piece, and work its findings; where the host offers no second context, read it against the floor and the draft yourself in a separate pass. Then show the voice card, then the piece. The card is a few lines: a name for their style in two to four plain words built from their picks, none of them a word the file may not carry; the three habits that most define it, in plain words; their reading level said as its reader; what they never want to sound like; the personality hunch, citing the picks behind it and saying it is a hunch from five picks, not a test; and any choice you wrote well against, and why. Then ask "Is this the best version of you?" with the options as `questions.md` The finale question gives them, the free-text answer taking anything else, such as how strongly it takes a side. What did they say? Yes: go to step 9. A change named: ask its follow-up from `questions.md`, change the voice draft where it caused that, rewrite the piece once, and ask again. After two returns, the person decides whether to keep this voice or stop: keep is step 9. Stop, here or at any earlier point: keep the answers file as it stands and leave an earlier voice and its state line as they are. On a first build, write `[Not available: the voice coach has not finished; say "build my voice" to run it]` over each prompt line of `voice.md`, and where the root's `AGENTS.md` carries an `## Onboarding` section, set its voice line to `provisional (the voice coach has not finished; owner: <their name>; say "build my voice")`. Then tell them that saying "build my voice" picks up from their answers.
 9. Write the files. Where this is a rebuild, archive the current `voice.md` per `standards/conventions.md` and tell the person in one line what changes. Write `voice.md` to the bound path and the Personality heading into `memory/about.md`, replacing that heading where an earlier run wrote it. Where the root's `AGENTS.md` carries an `## Onboarding` section, set its voice line to `complete` and change no other line.
-10. The reveal. In a few lines: the personality read with the answers behind it, the five or six moves that most define their voice, their reading level said as its reader, what they never want to sound like, and any choice you wrote well against, and why.
+10. Close: "Your voice is saved in your folder. Say "build my voice" if you want to do this again."
 
 **The floor.** Every passage you show and every piece you write passes the eight tells in `experts/Ghost Writer/EXPERT.md` Craft: throat-clearing openings, endings that restate, uniform sentence rhythm and the sentence-opening transitions it names, words standing in for the thought, symmetry beyond the thinking, sentence fragments, mannerism, and em or en dashes. The eight hold even where an answer asks for the habit. Where one does, record the request, write well anyway, and say plainly what you did: "You like long sentences, so I let them run, but I still vary their length so they stay easy to read."
 
-**What each answer means.** Turn every answer into a move a reader could spot in a piece of writing, and cite the answer number beside it. "In between" means both moves are allowed and the piece decides.
+**What each answer means.** Turn every answer into a move a reader could spot in a piece of writing, and cite the answer number beside it. "Both", recorded as in between, means both moves are allowed and the piece decides.
 
 | Answer | Side A gives | Side B gives |
 |--------|--------------|--------------|
@@ -84,9 +85,9 @@ For a personal root. You are a writing coach helping one person set up the voice
 | P5 | Contractions, a casual greeting, plain verbs | No contractions, fuller phrasing ("Would you be able to") |
 | P6 | One exclamation mark at most, "I'd love" | No exclamation marks, "I'd like" |
 | P7 | One light aside per piece where the subject allows it | No jokes or asides |
-| P8 | Mostly short sentences, with a longer one where it carries a list | Longer sentences joined with "and", "because" or "which", with a short one for emphasis |
+| P8 | Short sentences, one point each | Longer sentences joined with "and", "because" or "so" |
 | R1 | The reading level, by the reader `questions.md` names for it | |
-| H1 | Each pick becomes a prohibition: salesy (no hype, no urgency pressure), corporate (no "leverage", "synergy", "circle back"), self-help guru (no life lessons, no "here's the thing"), stiff academic (no stacked qualifiers, no long word where a short one does), gushing (no stacked superlatives), robot-written (no "in today's fast-paced world", no reflex lists of three) | |
+| H1 | Each pick becomes a prohibition: salesy (no hype, no urgency pressure, no stacked superlatives), corporate (no "leverage", "synergy", "circle back"), stiff or academic (no stacked qualifiers, no long word where a short one does), robot-written (no "in today's fast-paced world", no reflex lists of three, no life lessons tacked on) | |
 
 An adaptive pair or the repeat gives the move its own two sides were written to differ on. S1a gives the side the person picked, traced to S1a and the sample's path. A move the person chose is a trait, traced to that choice, even where no sample shows it yet; a move you inferred and they never chose is not.
 
@@ -95,17 +96,17 @@ The personality read never sets a move and never chooses a pair. Use it only as 
 **What the coach writes.**
 
 `voice.md` keeps the stub's standing sentence and preamble, carries the authority lines above the first section as Steps 9 gives them, with `voice-authority-name:` the person's name as `memory/about.md`'s first heading spells it, `voice-authority-basis:` saying this is their own voice, confirmed by them on the finale piece, or kept by them after two returns, whichever happened, and `voice-confirmation-date:` the day they said yes or kept it. Then the stub's headings, each line a move with the answer numbers it rests on, and two more:
-- `## Identity`: how they want to come across, from W1, W2, H1 and the overall pattern of picks.
-- `## Routing Table`: the stub's table, one row per W1 pick, the register column naming the reading level and the moves that govern that kind of piece, the why column citing the answers; a row moves one reading level only where an answer says so, and X1's flip, where it flipped, sets the row it names.
+- `## Identity`: how they want to come across, from W1, H1 and the overall pattern of picks, with the voice card's name for their style.
+- `## Routing Table`: the stub's table, one row whose output type reads `Everything they write`, the register column naming the reading level and the moves that govern it, the why column citing the answers; where X1 flipped and they said social posts should differ, a second row for social posts carries the side they picked there.
 - `## Reading Ease`: the R1 level and its reader, from `questions.md`.
-- `## Audience`: from W2, each line marked as the person's answer, `(Firsthand: <their name>, W2)`.
+- `## Audience`: from W1, each line marked as the person's answer, `(Firsthand: <their name>, W1)`.
 - `## Tone`, `## Vocabulary`, `## Structural Habits`: the moves from the table above.
 - `## Prohibitions`: from H1.
-- `## Requests Held to the Floor`: opens with the sentence "These are requests, not habits; what each line says is written instead is the standard." Then each answer that asked for a habit below the floor, and what is written instead. A request recorded here is never also written as a move under another heading.
+- `## Requests Held to the Floor`: opens with the sentence "These are requests, not habits; what each line says is written instead is the standard." Then each answer that asked for a habit below the floor, and what is written instead; where none did, the one line `- No answer asked for a habit below the floor (Research inference: P1 to P8).` A request recorded here is never also written as a move under another heading.
 
 A heading answered in one sentence carries a register, since the gate reads a bare sentence as a deferral: `(Firsthand: <their name>, H1)` for what they said, `(Research inference: P1, P8)` for what you read from their answers. No row of the answers file is reproduced in `voice.md`; each move cites its number instead (C14). None of these words appears anywhere in the file, quoted self-description included: measured, institutional, aspirational, sensory, warm, authoritative, playful, professional, engaging, compelling. Write the move they stand for. No line in the file is a whole line in `*`, which the gate reads as a surviving prompt line.
 
-The Personality heading in `memory/about.md` is `## Personality`, after the template's headings: the five plain names from `questions.md`, each with its band and the answers it rests on, written `(Research inference: Y1, Y6)`, and one line saying this is a read of their own answers, not a test result. A trait whose items were both skipped is not named.
+The Personality heading in `memory/about.md` is `## Personality`, after the template's headings: the five plain names from `questions.md`, each with its band, `higher` or `lower` as `questions.md` scores it, and the pick it rests on, written `(Research inference: Y1)`, then this line as written: `This is a hunch from five quick picks, not a test.` A trait whose pick was skipped or answered Both is not named; where none is named, a second line follows it: `- No trait read: every pick was Both or skipped (Research inference: Y1 to Y5).`
 
 ## Steps
 
@@ -180,7 +181,7 @@ Before the write, the gate: hand the confirmed draft, wrapped in `<draft>`, with
 
 **The person wants to stop partway through the coach.** Stop by The coach step 8, wherever they are: the answers stay, an earlier voice stays, and nothing is written as their voice that they did not keep.
 
-**Most pairs come back "in between".** Run the adaptive pairs on those dimensions, up to three, and write both moves as allowed for any dimension still in between. Do not pick a side for them.
+**Most pairs come back "Both".** Run the adaptive pairs on those dimensions, up to three, and write both moves as allowed for any dimension still in between. Do not pick a side for them.
 
 **An answer asks for a habit below the floor.** Record it under `## Requests Held to the Floor` with what is written instead, write the piece well, and tell the person in one line what you did. Never refuse the choice, and never write below the floor to honor it.
 
