@@ -263,7 +263,7 @@ A missing description in frontmatter fails `check` rather than shipping an empty
 | Agents and content jobs may change | Site code | They may not |
 |---|---|---|
 | `src/content/**` | `src/custom/**`, site code: filed only by Site Author's File site code job after the Creative Director's gate, never by a content job. Upgrade keeps it byte-identical | `src/components/**`, `src/layouts/**`, `src/pages/**` (routes), `src/function/**` |
-| `public/images/**` | | `astro.config.mjs`, `package.json`, `package-lock.json` |
+| `public/images/**`, a picture an agent drew, new or replacing one, only as Site Author's Edit content states | | `astro.config.mjs`, `package.json`, `package-lock.json` |
 | `public/files/**`, downloads served at `/files/<path>` | | a page, script, stylesheet, SVG or XML file, a hidden file, or a symbolic link under `public/files/` |
 | `src/content/llms.txt` when SEO Assets writes it | | `src/styles/**`, except `src/styles/tokens.css` when `skills/Designer/` has already gated that token update. Any other write under `src/styles/**` is refused |
 | `public/fonts/**` only within a Designer-gated token update | | `.github/**`, `KIT.md` copies |
