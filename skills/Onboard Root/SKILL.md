@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types
-version: 0.39.0
+version: 0.40.0
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -14,7 +14,7 @@ gaps:
 
 Use when the workspace needs a new user root or an existing folder brought up to current specs. `existing-root.md` beside this file is the existing-folder companion; load it when the discriminator routes there. `system/templates/AGENTS.md` names the one template and five type-specific prompt sheets under `standards/user-root.md`.
 
-Not for updating a deployed copy of this plugin to a new release, which the plugin carries no procedure for. Not for authoring a primitive or a Play inside a root that already exists; that is `skills/Play Author/`, which carries its own format; the templates this plugin ships are root templates only. Not for writing `memory/voice.md`, which `skills/Build Voice/` owns on both paths. Not for giving work a second home: when a composed root's scope already fits the request, that root owns it. A conformance request on a declared Wiser root needs no adoption request or identity production; `existing-root.md` handles remaining shelves work and any undefined memory key, preserving defined bound files. Whether a new root is the right change at all is judged first by `experts/System Expert/`, on the person's answer to the path question below, taken as that section says, and the destination, handed the composed roots' `AGENTS.md` files by path as its `<root_state>`, before this skill copies anything; that expert does not judge the produced files, and this skill's read-back, the full path's independent audit and harness, and the gates of the skills it invokes still apply. An edit to a bound file that a re-onboarding request calls for is a change to a root, judged by `experts/System Expert/` first.
+Not for updating a deployed copy of this plugin to a new release, which the plugin carries no procedure for. Not for authoring a primitive or a Play inside a root that already exists; that is `skills/Play Author/`, which carries its own format; the templates this plugin ships are root templates only. Not for writing `memory/voice.md`, which `skills/Build Voice/` owns on both paths. Not for giving work a second home: when a composed root's scope already fits the request, that root owns it. A conformance request on a declared Wiser root needs no adoption request or identity production; `existing-root.md` handles remaining shelves work and any undefined memory key, preserving defined bound files. Whether a new root is the right change at all is judged first by `experts/System Expert/`, on the root's type, settled as Two paths below says, and the destination, handed the composed roots' `AGENTS.md` files by path as its `<root_state>`, before this skill copies anything; that expert does not judge the produced files, and this skill's read-back, the full path's independent audit and harness, and the gates of the skills it invokes still apply. An edit to a bound file that a re-onboarding request calls for is a change to a root, judged by `experts/System Expert/` first.
 
 ## Objective
 
@@ -45,14 +45,16 @@ A missing Onboarding section or directory table on a declared Wiser root is drif
 
 ## Two paths
 
-One question decides the path, and the path is recorded either way with what decided it: **will work produced from this root reach someone outside the workspace under an organization's or a client's name?** Where the request states the answer, take it from the request.
+The root's type decides the path, and the path is recorded with the type that decided it. Where the request names the type, take it from the request and ask nothing. Otherwise ask one question, once, as taps where the app offers a question tool, per `skills/Build Voice/questions.md`'s first paragraph: **What kind of folder is this?**
+- Just for me: my own work, in my own voice (personal)
+- For my organization (org)
+- For a client (client)
+- For a team or a field: a unit inside an organization, or a field's knowledge (department or industry, settled by the test in `system/templates/AGENTS.md`)
 
-Where the request names the root's type, the type decides, it outranks a stated answer, and the question is not asked. A personal root takes the personal path; an org, a client, a department or an industry root takes the full path, with type set in the unified template, per `system/templates/AGENTS.md`. The type is not a paraphrase of the question: a department's work and an industry's may never leave the workspace at all, and `full-path.md`'s tier question is where such a root scales down to the minimum core. A request that describes a root without naming its type settles the type first, by the discriminating question of `full-path.md`'s Phase 0, who signs the outputs this root will hold and whose facts and voice they carry, and for a unit inside an organization by the test in `system/templates/AGENTS.md`; the path follows from the type.
+An answer that fits none is settled by the discriminating question of `full-path.md`'s Phase 0: who signs the outputs this root will hold, and whose facts and voice they carry. The type is set in the unified template, per `system/templates/AGENTS.md`. A department's work and an industry's may never leave the workspace at all; `full-path.md`'s tier question is where such a root scales down to the minimum core.
 
-Otherwise, where no type is named and none is settled, the question is asked, once.
-
-- **A personal root** takes the personal path below: three bound files, one read-back pass, no produced run record, close report or operating file, and no harness step; the common directory tree still follows `standards/user-root.md` C10. This is the shortest path in the plugin. **No** to the question, with no type named and none settled, is this root.
-- **Every other type**, an org or a client root and a department or an industry root copied from the unified template, takes the full path in `full-path.md` beside this file: eleven phases numbered 0 to 10, the standing rules, the records, and the gate harness. **Yes** to the question, with no type named and none settled, is one of these. Read that file once the path is settled, never before.
+- **A personal root** takes the personal path below: three bound files, one read-back pass, no produced run record, close report or operating file, and no harness step; the common directory tree still follows `standards/user-root.md` C10. This is the shortest path in the plugin.
+- **Every other type**, an org or a client root and a department or an industry root copied from the unified template, takes the full path in `full-path.md` beside this file: eleven phases numbered 0 to 10, the standing rules, the records, and the gate harness. Read that file once the type is settled, never before.
 
 A personal root whose owner later signs work for an organization does not change path. That work requests `voice:org` and `about:org` from the organization's own root, per the constitution's Workspace Model.
 
@@ -130,8 +132,8 @@ It is a check, not a step. A personal root that never runs it is onboarded; one 
 
 ## Pitfalls
 
-- **An ambiguous request.** The path the request leaves open and the type does not settle, the real name, or the destination left to inference, an open folder Step 1 offers included: ask before copying anything. Each one is expensive to change once paths point at the root.
-- **Over-asking when the answer is already given.** Destination already established, or the path already decided by Two paths above: proceed. Sibling inventory and inventing an organization's name from context are not gates.
+- **An ambiguous request.** The type the request leaves unsettled, the real name, or the destination left to inference, an open folder Step 1 offers included: ask before copying anything. Each one is expensive to change once paths point at the root.
+- **Over-asking when the answer is already given.** Destination already established, or the type already settled by Two paths above: proceed. Sibling inventory and inventing an organization's name from context are not gates.
 - **A credential value reaching the conversation.** Pasted by the requester, read back for confirmation, or copied into a note: treat it as compromised, have them revoke it, and record under Key Facts only what rule 4 allows: the name, and who can revoke it.
 - **A root filled from the model's own knowledge.** A plausible sentence about a real person that nobody in the workspace said is a fabrication with its source line missing. Ask, or label.
 - **A copy confirmed only by the tool that wrote it.** On a host with more than one way to reach the destination, those ways can disagree while each reports success. Confirm through a second one where it exists.

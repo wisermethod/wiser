@@ -3,7 +3,7 @@ name: Build Voice
 type: skill
 category: onboarding
 description: Build or rebuild one user root's voice.md, for a personal root as a coach that asks short questions and offers pairs of passages to choose between, writing samples optional, and for every other type from real writing evidence routed to the register that root's outputs need
-version: 0.9.0
+version: 0.10.0
 memory:
   - voice
 ---

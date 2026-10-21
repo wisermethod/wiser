@@ -7,6 +7,7 @@ Changes before September 27, 2026 are in the commit history only.
 ## Unreleased
 
 - Building your voice is now quick taps instead of typing. The coach asks with buttons where your app has them. Five this-or-that picks about you replace the ten statements you rated 1 to 5. The passages you choose between are about half as long. The question about what you write most is gone, and what to write about now comes last, as your first piece. It ends with a short voice card naming your style before that piece.
+- Setting up a folder asks one question, what kind of folder it is, as four taps: just for me, my organization, a client, or a team or a field. The question about whether your work goes out under an organization's or a client's name is gone, since the kind of folder answers it.
 
 ## v2026.10.21.3, October 21, 2026
 
