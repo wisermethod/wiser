@@ -15,8 +15,8 @@ The one list; a tool's pages point here.
 | What | Where | Which tools |
 |------|-------|-------------|
 | Plugin consent marker | `.wiser-consent` at the plugin root | every tool that installs |
-| Node packages | `node_modules/` in the tool's directory | the 9 tools whose `package.json` declares a dependency; `pages-functions` is about 210 MB of them, Wrangler and its `workerd` runtime |
-| npm's cache and logs | npm's configured cache, `~/.npm` by default, outside this plugin | the same 9, and the shared browser runtime |
+| Node packages | `node_modules/` in the tool's directory | the 10 tools whose `package.json` declares a dependency; `pages-functions` is about 210 MB of them, Wrangler and its `workerd` runtime |
+| npm's cache and logs | npm's configured cache, `~/.npm` by default, outside this plugin | the same 10, and the shared browser runtime |
 | Python packages | `.venv/` in the tool's directory; pip's cache is switched off | `Transcribe Audio`, `knowledge-memory` graph commands |
 | Playwright and its Chromium build | once, into `tools/lib/browser-runtime/` and Playwright's cache (`PLAYWRIGHT_BROWSERS_PATH` if set to a path; inside `tools/lib/browser-runtime/node_modules/` if set to `0`; otherwise `~/Library/Caches/ms-playwright` on macOS, `~/.cache/ms-playwright` on Linux, `%LOCALAPPDATA%\ms-playwright` on Windows) | the three browser tools |
 | Compatibility shims, compiled on a Linux host missing an X library | `tools/lib/browser-runtime/node_modules/.wiser-lib`; Linux only, untested there | the three browser tools |
@@ -77,6 +77,7 @@ The gateway's writes are listed in `gateway/AGENTS.md`, Everything the gateway w
 
 | Tool | Description |
 |------|-------------|
+| `icon-set/TOOL.md` | Searches two pinned open-source sets, Phosphor 2.1.1 (MIT) and Health Icons 2.0.0 (CC0 icons, MIT package), and writes one icon recoloured at the caller's size as an SVG file or a fragment to place inside a drawing |
 | `image/TOOL.md` | Applies local edits to an existing image or composites an overlay over a base image, and writes the result as a PNG, JPEG, or WEBP |
 | `render/TOOL.md` | Renders a local HTML file to a PNG or JPEG, an SVG or a Mermaid diagram to a PNG, and captures a PNG of a live web page; a `--url` that points at a loopback, private-range, link-local, or cloud-metadata address is refused by name before the browser is launched, the same screen `sitemap` `fetch` applies |
 | `Transcribe Audio/TOOL.md` | Turns one audio file into a text transcript with a speech model that runs on this machine |

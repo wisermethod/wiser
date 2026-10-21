@@ -1,0 +1,18 @@
+{
+  "name": "icon-set",
+  "version": "0.2.0",
+  "description": "Searches Phosphor Icons and Health Icons and writes one recoloured SVG icon",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node scripts/icon-set.js help",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@phosphor-icons/core": "2.1.1",
+    "healthicons": "2.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -4,10 +4,22 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
-## Unreleased
+## v2026.10.21.6, October 21, 2026
 
-- Building your voice is now mostly quick taps: buttons where your app has them, or a letter if it has none. You type only if you want to, for a writing sample or a subject of your own. Five this-or-that picks about you replace the ten statements you rated 1 to 5, and the passages you choose between are about half as long. The question about what you write most is gone. The last tap chooses the short piece the coach writes for you. A short card names your style, and then you see that piece.
-- Setting up asks one question, who Wiser will be writing for: just you, your company or organization, a client you work for, or a team you're part of. It replaces two questions about whether your work goes out under an organization's or a client's name, and everything setup says to you is now in plain words for someone on their first day.
+- Building your voice is now mostly quick taps: buttons where your app has them, or a letter if it has none. You type only if you want to, for a writing sample or a subject of your own. Five this-or-that picks about you replace the ten statements you rated 1 to 5, and the passages you choose between are about half as long. The question about what you write most is gone. The last tap chooses the short piece the coach writes for you. A short card names your style, and then you see that piece. (78954e1, faa31a4, c820690)
+- Setting up asks one question, who Wiser will be writing for: just you, your company or organization, a client you work for, or a team you're part of. It replaces two questions about whether your work goes out under an organization's or a client's name, and everything setup says to you is now in plain words for someone on their first day. (bd66c99, faa31a4, c820690)
+
+## v2026.10.21.5, October 21, 2026
+
+- New Illustrator skill: ask for a picture that explains how something works, an infographic of your figures, or a small illustration beside a section, slide or article, and it draws one still picture in your own design. It lists every fact it will show against your sources before it lays anything out, lets code place the steps or figures so their order and spacing hold, draws the things themselves so they are recognised before a label is read, sizes the picture to the width it will really show at, and checks it on a phone. Its design review comes back to you as recommendations, never as changes you did not see. Where your account has an image generator connected, it can offer one inexpensive reference picture as a guide, which never ships. (2252122, cabcee9, be31ce0, 139eb89, 9cb99b6, b6d95d0, 2713708)
+- New icon tool: standard icons and pictogram people from Phosphor Icons and Health Icons, installed when first used and recoloured to your design. (b0a7675, 2b0f307)
+- Animated explainers now take their picture from Illustrator, and you approve the picture and its motion once. (e4f19ee, be31ce0, 9cb99b6, b6d95d0)
+- A design review is now handed your own words beside the brief it judges, so a brief that narrowed what you asked for is caught. (cabcee9, deb936d)
+- A site built with the plugin's site kit now takes a drawn picture only with its maker's passing review and your approval on record; photographs, logos and files you supply file as before. (b3c796d, a82ab81, 6f397b7)
+
+## v2026.10.21.4, October 21, 2026
+
+- Wiser's page in Claude's plugin settings no longer shows a warning about an unrecognized icon field. Nothing else changes. (a2258b3)
 
 ## v2026.10.21.3, October 21, 2026
 
