@@ -1,0 +1,497 @@
+{
+  "id": "youtube",
+  "service": "youtube",
+  "modules": {
+    "channels": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "YOUTUBE",
+        "scheme": "OAUTH2",
+        "privilege": "write"
+      },
+      "actions": {
+        "mine": {
+          "description": "Read the signed-in channel id, title, handle and channel status.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    },
+    "videos": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "YOUTUBE",
+        "scheme": "OAUTH2",
+        "privilege": "write"
+      },
+      "actions": {
+        "upload": {
+          "description": "Upload privately by default, or unlisted. Public requires videos.update. Accepts .mp4, .mov or .webm, 1 to 274877906944 bytes. Uses 3145728-byte resumable chunks; retries at most five consecutive 413, 5xx or transport refusals with a status query and waits of 1, 2, 4, 8 and 16 seconds. Returns only video_id, channel_id, privacy_status, upload_status, bytes, sha256, chunks, refusals and seconds. Tags: at most 50 and 500 code points including commas and two quotes for each tag containing a space. Titles exclude < and >; descriptions exclude < and > and are at most 5000 UTF-8 bytes. The absolute path must resolve to a readable regular file outside the gateway user-config directory, including hard-link identities, and must not resolve to a .env or .env.* file. Opens with O_NOFOLLOW and checks descriptor identity and size. Checks the signed-in channel against channel_id before any write and checks ownership of existing resources.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "channel_id": {
+                "type": "string",
+                "pattern": "^UC[A-Za-z0-9_-]{22}$"
+              },
+              "path": {
+                "type": "string",
+                "pattern": "^/",
+                "minLength": 2
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "category_id": {
+                "type": "string",
+                "pattern": "^[0-9]{1,3}$"
+              },
+              "made_for_kids": {
+                "type": "boolean"
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 5000
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "maxItems": 50
+              },
+              "language": {
+                "type": "string",
+                "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+              },
+              "privacy": {
+                "type": "string",
+                "enum": [
+                  "private",
+                  "unlisted"
+                ]
+              }
+            },
+            "required": [
+              "channel_id",
+              "path",
+              "title",
+              "category_id",
+              "made_for_kids"
+            ],
+            "additionalProperties": false
+          },
+          "response_headers": [
+            "location",
+            "range"
+          ]
+        },
+        "get": {
+          "description": "Read named video snippet, status, processing, file and content fields; file details are available only to the owner.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "video_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{11}$"
+              }
+            },
+            "required": [
+              "video_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "update": {
+          "description": "Read and preserve the current snippet and status, changing only named fields. At least one editable field is required. Tags: at most 50 and 500 code points including commas and quotes for spaces. Titles exclude < and >; descriptions exclude < and > and are at most 5000 UTF-8 bytes. Checks the signed-in channel against channel_id before any write and checks ownership of existing resources.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "channel_id": {
+                "type": "string",
+                "pattern": "^UC[A-Za-z0-9_-]{22}$"
+              },
+              "video_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{11}$"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 5000
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "maxItems": 50
+              },
+              "category_id": {
+                "type": "string",
+                "pattern": "^[0-9]{1,3}$"
+              },
+              "language": {
+                "type": "string",
+                "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+              },
+              "privacy": {
+                "type": "string",
+                "enum": [
+                  "private",
+                  "unlisted",
+                  "public"
+                ]
+              }
+            },
+            "required": [
+              "channel_id",
+              "video_id"
+            ],
+            "additionalProperties": false,
+            "anyOf": [
+              {
+                "required": [
+                  "title"
+                ]
+              },
+              {
+                "required": [
+                  "description"
+                ]
+              },
+              {
+                "required": [
+                  "tags"
+                ]
+              },
+              {
+                "required": [
+                  "category_id"
+                ]
+              },
+              {
+                "required": [
+                  "language"
+                ]
+              },
+              {
+                "required": [
+                  "privacy"
+                ]
+              }
+            ]
+          }
+        },
+        "set_thumbnail": {
+          "description": "Set a .jpg, .jpeg or .png of at most 3145728 bytes. Requires channel status.longUploadsStatus allowed; otherwise returns vendor_error, reason channel_not_verified, field channel_id and verify_url https://www.youtube.com/verify without setting a thumbnail. The absolute path must resolve to a readable regular file outside the gateway user-config directory, including hard-link identities, and must not resolve to a .env or .env.* file. Opens with O_NOFOLLOW and checks descriptor identity and size. Checks the signed-in channel against channel_id before any write and checks ownership of existing resources.",
+          "risk": "medium",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "channel_id": {
+                "type": "string",
+                "pattern": "^UC[A-Za-z0-9_-]{22}$"
+              },
+              "video_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{11}$"
+              },
+              "path": {
+                "type": "string",
+                "pattern": "^/",
+                "minLength": 2
+              }
+            },
+            "required": [
+              "channel_id",
+              "video_id",
+              "path"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    },
+    "captions": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "YOUTUBE",
+        "scheme": "OAUTH2",
+        "privilege": "write"
+      },
+      "actions": {
+        "insert": {
+          "description": "Insert a published caption track with isDraft false, using multipart/related. Accepts .srt, .vtt or .sbv of at most 3145728 bytes; name at most 150 code points. The absolute path must resolve to a readable regular file outside the gateway user-config directory, including hard-link identities, and must not resolve to a .env or .env.* file. Opens with O_NOFOLLOW and checks descriptor identity and size. Checks the signed-in channel against channel_id before any write and checks ownership of existing resources.",
+          "risk": "medium",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "channel_id": {
+                "type": "string",
+                "pattern": "^UC[A-Za-z0-9_-]{22}$"
+              },
+              "video_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{11}$"
+              },
+              "path": {
+                "type": "string",
+                "pattern": "^/",
+                "minLength": 2
+              },
+              "language": {
+                "type": "string",
+                "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 150
+              }
+            },
+            "required": [
+              "channel_id",
+              "video_id",
+              "path",
+              "language"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "list": {
+          "description": "List named caption track ids, language, names, kinds and status, plus next_page_token.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "video_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{11}$"
+              }
+            },
+            "required": [
+              "video_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    },
+    "playlists": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "YOUTUBE",
+        "scheme": "OAUTH2",
+        "privilege": "write"
+      },
+      "actions": {
+        "create": {
+          "description": "Create a playlist, private by default. Title at most 150 code points. Titles exclude < and >; descriptions exclude < and > and are at most 5000 UTF-8 bytes. Checks the signed-in channel against channel_id before any write and checks ownership of existing resources.",
+          "risk": "medium",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "channel_id": {
+                "type": "string",
+                "pattern": "^UC[A-Za-z0-9_-]{22}$"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 150
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 5000
+              },
+              "privacy": {
+                "type": "string",
+                "enum": [
+                  "private",
+                  "unlisted",
+                  "public"
+                ]
+              }
+            },
+            "required": [
+              "channel_id",
+              "title"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "list": {
+          "description": "List the signed-in channel playlists with ids, titles and privacy, plus next_page_token.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "max_results": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "page_token": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "add_video": {
+          "description": "Add a video to an owned playlist after checking both owners. Position must be nonnegative. Checks the signed-in channel against channel_id before any write and checks ownership of existing resources.",
+          "risk": "medium",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "channel_id": {
+                "type": "string",
+                "pattern": "^UC[A-Za-z0-9_-]{22}$"
+              },
+              "playlist_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{2,64}$"
+              },
+              "video_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{11}$"
+              },
+              "position": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "channel_id",
+              "playlist_id",
+              "video_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "list_items": {
+          "description": "List playlist item ids, video ids, titles and positions, plus next_page_token.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "playlist_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{2,64}$"
+              },
+              "max_results": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "page_token": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "playlist_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "remove_item": {
+          "description": "Remove a playlist item after checking its owner and the owner of its playlist. Checks the signed-in channel against channel_id before any write and checks ownership of existing resources.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "channel_id": {
+                "type": "string",
+                "pattern": "^UC[A-Za-z0-9_-]{22}$"
+              },
+              "playlist_item_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{8,128}$"
+              }
+            },
+            "required": [
+              "channel_id",
+              "playlist_item_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    }
+  }
+}

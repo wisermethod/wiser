@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { createCustomToolkitBody, findCustomToolkit, registeredSlug } from './custom-toolkits.js';
+import { pickResponseHeaders } from '../../src/response-headers.js';
 
 export { createCustomToolkitBody } from './custom-toolkits.js';
 
@@ -456,7 +457,7 @@ export function createAuthProvider({ envPath } = {}) {
       if (!mapped) return vendorError(path, 'GET', res.status);
       return mapped;
     },
-    async proxy({ providerAccountId, endpoint, method, body, parameters, binary_body }) {
+    async proxy({ providerAccountId, endpoint, method, body, parameters, binary_body, response_headers }) {
       if (!apiKey) return vendorError('/tools/execute/proxy', 'POST', 0);
       // Confirmed 2026-09-08: POST /tools/execute/proxy with
       // connected_account_id, endpoint, method. Inner status 400 is wrapped;
@@ -483,6 +484,8 @@ export function createAuthProvider({ envPath } = {}) {
       return {
         status: Number.isFinite(inner) ? inner : res.status,
         data: await resolveProxyPayload(data),
+        ...(Array.isArray(response_headers) && response_headers.length > 0
+          ? { headers: pickResponseHeaders(data.headers, response_headers) } : {}),
       };
     },
     async unwrap() {
