@@ -1634,6 +1634,13 @@ gate_G10() {
     set_skip "$(rel "$MEM") does not exist: nothing to check"
     return
   fi
+  # The answer numbers the root's answers files record, first cell of each row.
+  : > "$TMPD/g10-answer-ids.txt"
+  for af in "$MEM/answers"/*.md; do
+    [ -f "$af" ] || continue
+    [ "$(basename "$af")" = "AGENTS.md" ] && continue
+    awk -F'|' 'NF>2 { c=$2; gsub(/^[ \t]+|[ \t]+$/, "", c); if (c ~ /^[WYPRHSAX][0-9]+[a-z]?$/) print c }' "$af"
+  done | sort -u > "$TMPD/g10-answer-ids.txt"
   bf=$(bound_files | wc -l | tr -d ' ')
   if [ "$bf" -eq 0 ]; then
     set_skip "$(rel "$MEM") holds no bound markdown files"
@@ -1686,10 +1693,25 @@ gate_G10() {
           ;;
         'Research inference')
           # An inference names what it was derived from: an E<n> evidence row,
-          # or an answer number from an answers file under memory/answers/
-          # (standards/user-root.md C14), as Build Voice's personality read does.
-          if ! printf '%s' "$payload" | grep -qE '(^|[^A-Za-z0-9])(E|W|Y|P|R|H|S|A|X)[0-9]+[a-z]?([^A-Za-z0-9]|$)'; then
-            add_fail "$r line $ln: (Research inference: $payload) names no E<n> evidence row and no answer number"
+          # or, on the personal path only, answer numbers that a file under
+          # memory/answers/ records as rows (standards/user-root.md C14), as
+          # Build Voice's personality read does. Every answer number it names
+          # must be one of those rows.
+          if printf '%s' "$payload" | grep -qE 'E[0-9]+'; then
+            :
+          elif [ "$SHORT" = "1" ]; then
+            ids=$(printf '%s' "$payload" | grep -oE '(^|[^A-Za-z0-9])[WYPRHSAX][0-9]+[a-z]?([^A-Za-z0-9]|$)' | grep -oE '[WYPRHSAX][0-9]+[a-z]?')
+            if [ -z "$ids" ]; then
+              add_fail "$r line $ln: (Research inference: $payload) names no E<n> evidence row and no answer number"
+            else
+              missing=""
+              for id in $ids; do
+                grep -qxF "$id" "$TMPD/g10-answer-ids.txt" || missing="$missing $id"
+              done
+              [ -z "$missing" ] || add_fail "$r line $ln: (Research inference: $payload) names answer number(s)$missing that no file in memory/answers/ records"
+            fi
+          else
+            add_fail "$r line $ln: (Research inference: $payload) names no E<n> evidence row"
           fi
           ;;
       esac

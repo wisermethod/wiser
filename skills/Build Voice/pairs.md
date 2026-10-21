@@ -15,7 +15,7 @@ I've been pulled into board prep this week, right on top of Thursday's client ca
 ## P2. Close, or composed
 
 **A, close.**
-I wanted to say thank you properly. When I was out last week, you picked up the Hendricks work without being asked, and I came back to nothing on fire. That meant a lot to me. I know you had your own deadlines. If something lands on you next month, I'm covering it, no discussion.
+Thank you for picking up the Hendricks work last week. When I was out, you took it on without being asked, and I came back to nothing on fire. That meant a lot to me. I know you had your own deadlines. If you need cover next month, let me know and I will take it.
 
 **B, composed.**
 Thank you for covering the Hendricks work last week. Everything was current when I returned, including the two deliverables due Friday, which made the handover simple and meant the client noticed nothing. I know it came on top of your own deadlines. If you need cover next month, let me know and I will take it.

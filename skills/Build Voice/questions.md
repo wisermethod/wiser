@@ -4,7 +4,7 @@ The coach's questions, in the order `SKILL.md` The coach runs them. Every questi
 
 ## Warm-up
 
-**W1. What do you write most? Pick any.**
+**W1. What do you write most? Pick all that apply, with the one you write most first.**
 1. Social posts
 2. Emails to colleagues
 3. Notes or proposals to clients
@@ -24,7 +24,9 @@ The coach's questions, in the order `SKILL.md` The coach runs them. Every questi
 
 ## About you
 
-Introduced as: "Ten quick ones about you, so I know who I'm writing for. Answer each 1 to 5, where 1 is very inaccurate and 5 is very accurate. You can reply with five numbers at once, like 4 2 5 3 1."
+Introduced as: "Ten quick ones about you, so I know who I'm writing for. Your answers tell me how you come across, and I'll say what I heard at the end. Answer each 1 to 5, where 1 is very inaccurate and 5 is very accurate. Skip any you don't want to answer. You can reply with five numbers at once, like 4 2 5 3 1."
+
+Say each item's sentence only; the trait in brackets is for scoring and is never said to the person.
 
 The five-point scale: 1 Very inaccurate, 2 Moderately inaccurate, 3 Neither accurate nor inaccurate, 4 Moderately accurate, 5 Very accurate.
 
@@ -69,7 +71,7 @@ On 5, the coach answers with each level's reader in one line, then asks R1 again
 
 ## Hard lines
 
-**H1. Which of these would you hate to sound like? Pick any.**
+**H1. Which of these would you hate to sound like? Pick all that apply.**
 1. Salesy
 2. Corporate
 3. A self-help guru
@@ -86,6 +88,6 @@ On 5, the coach answers with each level's reader in one line, then asks R1 again
 
 ## Adaptive pairs and the repeat
 
-After the fixed pairs and R1, the coach writes up to three adaptive pairs, and one repeat:
-- **Adaptive (A1 to A3):** only for a dimension the person answered "in between", or where the personality read suggests the opposite of their pick. Written on the person's own W3 subject, in the kind of piece W1's first pick names, both sides above the floor, the same length within about ten percent, and one difference between them. None is owed where no dimension qualifies.
-- **The repeat (X1):** one fixed-pair dimension the coach chooses, rewritten in a different situation (a social post, unless W1 picked social posts, then a note to a client). Where the answer flips, the coach asks which situation fits each side, and the routing table carries the difference.
+After S1, the coach writes up to three adaptive pairs, and one repeat:
+- **Adaptive (A1 to A3):** one for each fixed pair the person answered "in between", taken in pair order, at most three. Written on the person's own W3 subject, in the kind of piece W1's first pick names, both sides above the floor, the same length within about ten percent, and differing on that pair's dimension alone. None is owed where no pair came back in between.
+- **The repeat (X1):** P1's dimension, or P3's where P1 came back in between, or P4's where both did; none where all three did. Rewritten in a different situation: a social post, unless W1 picked social posts, then a note to a client. Where the answer flips, the coach asks which situation fits each side, and the routing table carries the difference.
