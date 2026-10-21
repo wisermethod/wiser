@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## Unreleased
+
+- Reviews, such as each pass of Ghost Writer's gate, start from the session you are working in. A helper that session hands work to starts no review or helper of its own: where its work owes a review, it stops before what the review guards and hands back what the review needs, with the review named.
+
 ## v2026.10.21.6, October 21, 2026
 
 - Building your voice is now mostly quick taps: buttons where your app has them, or a letter if it has none. You type only if you want to, for a writing sample or a subject of your own. Five this-or-that picks about you replace the ten statements you rated 1 to 5, and the passages you choose between are about half as long. The question about what you write most is gone. The last tap chooses the short piece the coach writes for you. A short card names your style, and then you see that piece. (78954e1, faa31a4, c820690)
