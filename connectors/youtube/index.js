@@ -302,7 +302,10 @@ export function createModules({ wait = sleep, read = readSync } = {}) {
         if (typeof session !== 'string' || !session) return { status: 'vendor_error', endpoint: UPLOAD_PATH, method: 'POST', reason: 'no upload session' };
         const buffer = Buffer.alloc(CHUNK);
         const hash = createHash('sha256');
-        let offset = 0, hashedThrough = 0, chunks = 0, refusals = 0, consecutive = 0;
+        // mark is the furthest resume point YouTube has acknowledged. Only a data answer that moves
+        // past it is progress; a status query that rewinds the offset, and the resend that recovers
+        // it, count toward the five consecutive refusals, so an oscillation cannot run forever.
+        let offset = 0, mark = 0, hashedThrough = 0, chunks = 0, refusals = 0, consecutive = 0;
         const query = () => uploadProxy(ctx, { endpoint: session, method: 'PUT',
           parameters: [{ name: 'Content-Range', value: `bytes */${file.size}`, type: 'header' }] });
         const finish = (answer) => {
@@ -329,11 +332,13 @@ export function createModules({ wait = sleep, read = readSync } = {}) {
           if (answer?.status === 308) {
             const next = committed(answer, file.size, hashedThrough);
             if (next === null) return unexpected(UPLOAD_PATH, 'PUT');
-            if (next > offset) {
+            if (next > mark) {
               consecutive = 0;
+              mark = next;
               offset = next;
               continue;
             }
+            if (next > offset) offset = next;
             answer = { status: 'vendor_error', endpoint: UPLOAD_PATH, method: 'PUT', reason: 'upload did not advance' };
           } else if (answer?.status !== 'vendor_error' || !(answer.http_status === null || answer.http_status === 0 || answer.http_status === 413 || answer.http_status >= 500)) return answer;
           refusals += 1;
@@ -346,6 +351,9 @@ export function createModules({ wait = sleep, read = readSync } = {}) {
           if (status?.status !== 308) return unexpected(UPLOAD_PATH, 'PUT');
           const next = committed(status, file.size, hashedThrough);
           if (next === null) return unexpected(UPLOAD_PATH, 'PUT');
+          // A status query may report more than was known, which raises the mark without
+          // resetting the count; one that reports less rewinds the offset and leaves the mark.
+          if (next > mark) mark = next;
           offset = next;
         }
       }, { fileTypes: VIDEO_TYPES, maxBytes: 274877906944, minBytes: 1 }),

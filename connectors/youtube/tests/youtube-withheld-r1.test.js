@@ -149,3 +149,35 @@ test('U5: a 308 whose range covers the whole file is followed by a status query,
   assert.equal(result.video_id, VIDEO_ID, JSON.stringify(result).slice(0, 200));
   assert.ok(counter.puts <= 4, `${counter.puts} calls`);
 });
+
+// Round 2 (Grok run 20261021-044324): a status query that rewinds the offset, and the resend
+// that recovers it, must not reset the refusal count, or the upload never ends.
+test('U6: a status query that rewinds, and a resend that recovers the prefix, end the call after a bounded number of tries', async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'yt-r2-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const path = join(dir, 'clip.mp4');
+  writeFileSync(path, randomBytes(2 * CHUNK + 5));
+  let puts = 0;
+  const proxy = async (req) => {
+    const ep = String(req.endpoint);
+    if (req.method === 'GET' && ep.startsWith('/channels')) return channelAnswer();
+    if (req.method === 'POST' && ep.startsWith('https://www.googleapis.com/upload/youtube/v3/videos')) return { status: 200, data: {}, headers: { location: LOCATION } };
+    if (req.method === 'PUT' && ep === LOCATION) {
+      puts += 1;
+      if (puts > 60) throw new Error('the upload did not stop');
+      const range = req.parameters.find((p) => p.name === 'Content-Range').value;
+      if (range.startsWith('bytes */')) return { status: 308, data: '' };
+      if (range.startsWith('bytes 0-')) return { status: 308, data: '', headers: { range: `bytes=0-${CHUNK - 1}` } };
+      return { status: 413, error: { code: 'vendor_error', endpoint: req.endpoint, method: 'PUT' } };
+    }
+    return { status: 404, error: { code: 'vendor_error', endpoint: req.endpoint, method: req.method } };
+  };
+  const waits = [];
+  const modules = createModules({ wait: async (ms) => { waits.push(ms); } });
+  const ctx = { proxy: async (req) => { const res = await proxy(req); if (res.error) throw Object.assign(new Error('refused'), { object: { status: 'vendor_error', http_status: res.status } }); return res; } };
+  const result = await modules.videos.upload({ channel_id: CHANNEL, path, title: 'Invented', category_id: '27', made_for_kids: false, privacy: 'unlisted' }, ctx);
+  assert.ok(puts <= 20, `${puts} calls to the session`);
+  assert.equal(Object.hasOwn(result, 'video_id'), false);
+  assert.ok(typeof result.status === 'string', JSON.stringify(result).slice(0, 200));
+  assert.ok(waits.length <= 5, `${waits.length} waits`);
+});
