@@ -275,8 +275,10 @@ function adapterWith(headers) {
 
 test('A5: a value over 8,192 characters, or holding a control character, is left out whole', async () => {
   const cases = [
-    ['x'.repeat(8193), false],
-    ['x'.repeat(8192), true],
+    [`https://example.invalid/${'x'.repeat(8193 - 24)}`, false],
+    [`https://example.invalid/${'x'.repeat(8192 - 24)}`, true],
+    ['http://example.invalid/not-https', false],
+    ['not a url', false],
     ['https://example.invalid/a\nb', false],
     ['https://example.invalid/a\rb', false],
     ['https://example.invalid/a\u0000b', false],

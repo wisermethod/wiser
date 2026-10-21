@@ -4,6 +4,10 @@ import { types } from 'node:util';
 export const RESPONSE_HEADER_NAMES = Object.freeze(['location', 'range']);
 export const RESPONSE_HEADER_VALUE_CAP = 8192;
 
+function isHttpsUrl(value) {
+  try { return new URL(value).protocol === 'https:'; } catch { return false; }
+}
+
 /** Pick declared headers from the provider's envelope, never its payload. */
 export function pickResponseHeaders(raw, declared) {
   const out = {};
@@ -15,6 +19,9 @@ export function pickResponseHeaders(raw, declared) {
     const value = Array.isArray(rawValue) ? rawValue[0] : rawValue;
     if (typeof value !== 'string' || value.length === 0 ||
         value.length > RESPONSE_HEADER_VALUE_CAP || /[\u0000-\u001f\u007f]/.test(value)) continue;
+    // A location is delivered only when the guard below would remember it: an
+    // https URL. Anything else would reach the module unguarded.
+    if (name === 'location' && !isHttpsUrl(value)) continue;
     out[name] = value;
   }
   return out;
