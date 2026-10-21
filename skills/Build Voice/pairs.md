@@ -50,7 +50,7 @@ Would you be able to move Tuesday's meeting to Thursday? A matter with the Denve
 The pilot worked! Response times dropped from two days to four hours, and three clients wrote in to say they noticed. That is exactly what we hoped for when we pitched this in June. I'd love to show the team on Friday and talk about rolling it out to everyone. Thank you for pushing for it.
 
 **B, steady.**
-The pilot results are in. Response times dropped from two days to four hours, and three clients wrote in to say they noticed. That matches what we set out to test in June. I'd like to show the team on Friday and discuss rolling it out more widely. Thank you for pushing for it.
+The pilot worked. Response times dropped from two days to four hours, and three clients wrote in to say they noticed. That matches what we set out to test in June. I'd like to show the team on Friday and discuss rolling it out more widely. Thank you for pushing for it.
 
 ## P7. A little wit, or straight
 

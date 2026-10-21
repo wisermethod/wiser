@@ -92,7 +92,7 @@ Current Focus fills from W3 where the coach asked it, and carries the date the p
 
 ### Step 4: Read back
 
-Rule 3. In a separate pass, take every claim in `about.md` and `design.md` and find it in what the person said, in the file it names, or in the run's answers file under the question number it cites. Found: it stands. Not found, or found saying something else: `[Unverified: requires confirmation]` in place, and the question goes to the person. `## Personality` is Build Voice's read of the person's answers, not a claim they stated: each band stands where the scoring in `skills/Build Voice/questions.md` gives it from the items it cites, and is corrected to what the scoring gives where it does not; it is never relabeled or asked. This pass is the interview: what it could not find is what you ask, and nothing the coach already asked is asked again.
+Rule 3. In a separate pass, take every claim in `about.md` and `design.md` and find it in what the person said, in the file it names, or in the run's answers file under the question number it cites. Found: it stands. Not found, or found saying something else: `[Unverified: requires confirmation]` in place, and the question goes to the person. `## Personality` is Build Voice's read of the person's answers, not a claim they stated: each band stands where the scoring in `skills/Build Voice/questions.md` gives it from the items it cites, and is corrected to what the scoring gives where it does not; its closing line, that this is a read of their answers and not a test result, stands with the bands; none of it is relabeled or asked. This pass is the interview: what it could not find is what you ask, and nothing the coach already asked is asked again.
 
 ### Step 5: Close
 
