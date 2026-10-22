@@ -6,7 +6,7 @@ Each question says what it **feeds**. A line in quotation marks after a pick is 
 
 ## Opening
 
-> Let's find your voice on the page. It takes about eight minutes: a few questions about you, two quick screens of taps, then I'll show you how you come across and write your first piece. There's nothing to prepare, and "not sure" is always a fine answer.
+> Let's find your voice on the page. It takes about eight minutes: a few questions about you, some quick taps, then I'll show you how you come across and write your first piece. There's nothing to prepare, and "not sure" is always a fine answer.
 
 ## W1 (typed)
 
@@ -32,56 +32,44 @@ Feeds: whatever its question feeds, made concrete. After W4 it gives `## Prohibi
 
 Said before it:
 
-> Now some quick taps. I've taken what you just told me and said it two ways each time. Pick the one you'd actually say, not the one that sounds better. "Depends" is a real answer.
+> Now some quick taps. I've taken what you just told me and said it two ways each time. Pick the one you'd actually say, not the one that sounds better. "Both" is a real answer.
 
-**How every pair is written.** Each pair is written from the person's own answer named under it; where that answer makes more than one point, from the first point it makes. Copy one stretch of what they said onto both sides, in their words, with their facts and their hedges, and change only the one thing the pair names: P1 the frame, P2 the order of their example and their point, P3 one detail of their own, P4 one feeling they named, P5 one figure of speech they used. Every word on either side is theirs except P1's frame and what a sentence needs to be whole. Both sides pass the floor. Where the pair would need a second change, or anything they did not say, a fact, number, name, hedge, feeling, joke or image, ask its fixed version instead. A pair never puts words in their mouth. The answers file records both lines shown and which kind it was.
+**How every pair is written.** Each pair is written from the person's own answer named under it; where that answer makes more than one point, from the first point it makes. Copy one stretch of what they said onto both sides, in their words, with their facts and their hedges, and change only the one thing the pair names: P1 the frame, P2 the order of their example and their point, P3 one detail of their own, P4 one feeling they named, P5 one figure of speech they used. Every word on either side is theirs except P1's frame and what a sentence needs to be whole. A side that leaves something out uses only words already in that stretch, and neither side changes who did what. Both sides pass the floor. Where the pair would need a second change, or anything they did not say, a fact, number, name, hedge, feeling, joke or image, the pair is not asked: it writes nothing, and a screen asks only the pairs their answers give. A pair never puts words in their mouth. The answers file records both lines shown.
 
-Every pair is worded **"Which would you actually say?"** and has four options: **A** with its line under it, **B** with its line under it, **Depends on the moment**, and **Neither**. Depends writes the pair's Depends line. Neither, or a skip, writes nothing. Typed instead of tapped, "depends" is Depends, "neither" is Neither, and "not sure" or "skip" is a skip.
+Every pair is worded **"Which would you actually say?"** and has four options: **A** with its line under it, **B** with its line under it, **Both sound like me**, and **Neither**. Both writes the pair's Both line. Neither, or a skip, writes nothing. Typed instead of tapped, "both" or "depends" is Both, "neither" is Neither, and "not sure" or "skip" is a skip.
 
 ### P1. Disagreeing
 
-From W2's point, in their words. A says it outright; B puts the same words as their own view, with "I think" or "I'd".
-
-Fixed version, "Saying no to a plan":
-- A: "Friday at five won't work. We'd sit in traffic for an hour."
-- B: "I'd rather not go Friday at five, because we'd sit in traffic for an hour."
+From W2's point, in their words. A says it outright; B puts the same words as their own view, with "I think" or "I'd". Where W2 gave no point, or that stretch already says they are sure, such as "I know", it is not asked.
 
 Writes:
 - A: "When disagreeing, says so outright, then gives the reason."
 - B: "When disagreeing, puts it as their own view, then gives the reason."
-- Depends: "When disagreeing, says so outright or as their own view, as the piece needs."
+- Both: "When disagreeing, says so outright or as their own view, as the piece needs."
 
 ### P2. Explaining
 
-From W2's point and the example they gave with it, both in their words. A leads with the example, then the point; B leads with the point, then the example. Where W2 gave no example, or the example is not a case of the point, the fixed version.
-
-Fixed version, "Telling a friend to leave early for the airport":
-- A: "Last Monday the security line took an hour, so leave early."
-- B: "Leave early: last Monday the security line took an hour."
+From W2's point and the example they gave with it, both in their words. A leads with the example, then the point; B leads with the point, then the example. Where W2 gave no example, or the example is not a case of the point, it is not asked.
 
 Writes:
 - A: "When explaining, starts from one concrete case, then the point."
 - B: "When explaining, starts from the point, then the case that shows it."
-- Depends: "When explaining, starts from the case or the point, as the piece needs."
+- Both: "When explaining, starts from the case or the point, as the piece needs."
 
 ### P3. Your own experience
 
-From W2's point and one detail of their own they gave in W1 or W2: the place they work, the people they work with, a thing they do. A makes the point with that detail; B is the same sentence without it. Never a stock opener such as "I've found", "I notice", "In my work" or "To me". Where they gave no such detail, the fixed version.
-
-Fixed version, "Recommending a book":
-- A: "In my kitchen, this book made weeknight cooking simpler."
-- B: "This book makes weeknight cooking simpler."
+From W2's point and one detail of their own they gave in W1 or W2: the place they work, the people they work with, a thing they do. A makes the point with that detail; B is the same sentence without it. Never a stock opener such as "I've found", "I notice", "In my work" or "To me". Where they gave no such detail, it is not asked.
 
 Writes:
 - A: "Makes a point through their own experience when they have a true one to tell."
 - B: "Keeps the point on the subject rather than on themselves."
-- Depends: "Uses their own experience or keeps to the subject, as the piece needs."
+- Both: "Uses their own experience or keeps to the subject, as the piece needs."
 
 ## W3 (typed)
 
 > Finish this sentence: "At my best, I sound like someone who..."
 
-Feeds: the portrait's aim; `about.md` `## Personality`.
+Feeds: the portrait's aim; P4 where it names a feeling and P5 where its words carry a figure of speech; `about.md` `## Personality`.
 
 ## W4 (typed)
 
@@ -93,33 +81,25 @@ Feeds: `## Prohibitions`, as concrete phrases or moves; `about.md` `## Personali
 
 Said before it:
 
-> Three more, then I'll show you how you come across.
+> One last screen, then I'll show you how you come across.
 
 ### P4. How it feels
 
-From W1, what they do and what people come to them for, and a feeling about their work they named anywhere in W1 to W3, such as "I love that part". A says it in their words without the feeling; B says the same with it. Where they named no feeling, the fixed version.
-
-Fixed version, "Recommending a place you liked":
-- A: "The new café on Fifth is good. Try the cinnamon roll."
-- B: "I love the new café on Fifth. Try the cinnamon roll."
+From W1, what they do and what people come to them for, and a feeling about their work they named anywhere in W1 to W3, such as "I love that part". A says it in their words without the feeling; B says the same with it. Where they named no feeling, it is not asked.
 
 Writes:
 - A: "Lets the facts carry the feeling and rarely names it."
 - B: "Names the feeling plainly when they have one."
-- Depends: "Names the feeling or lets the facts carry it, as the piece needs."
+- Both: "Names the feeling or lets the facts carry it, as the piece needs."
 
 ### P5. A turn of phrase
 
-From W2, or W1, where their own words carry a figure of speech or a dry turn, such as "food cost is killing them". A keeps their phrase; B says the same thing literally. Where their words carry none, the fixed version.
-
-Fixed version, "Complaining about a form":
-- A: "The form asks for my address four times, in case I moved halfway through."
-- B: "The form asks for my address four times, which seems like too many."
+From W1 to W3, where their own words carry a figure of speech or a dry turn, such as "food cost is killing them". A keeps their phrase; B says the same thing in the plainest words, adding nothing. Where their words carry none, it is not asked.
 
 Writes:
 - A: "Lets a figure of speech or a dry turn in where the subject allows it."
 - B: "Keeps it literal, with no asides."
-- Depends: "Keeps it literal or lets a figure of speech in, as the piece needs."
+- Both: "Keeps it literal or lets a figure of speech in, as the piece needs."
 
 ### R1. How should your writing read?
 
@@ -140,7 +120,7 @@ The portrait is shown first, opened with: "Here's how you come across on the pag
 - Close, but...
 - Not quite
 
-On Close, but or Not quite, they say what to change, in the free-text answer or a reply. Feeds: the portrait; `about.md` `## Personality` where it changes their angle or their aim.
+On Close, but or Not quite, they say what to change, in the free-text answer or a reply. Feeds: the portrait; `about.md` `## Personality` where it changes their angle or their aim; where it says how they write rather than who they are, it is sorted like an A3 change.
 
 ## F1. The first piece (tapped)
 
@@ -181,22 +161,13 @@ Asked on Almost or No:
 
 After the rewrite, A5. Feeds: each change by its sort in `SKILL.md`.
 
-## A3a (tapped)
+## A3a (typed, only when they answer it)
 
-Asked once, after A3, for every change it named about how they say things, the kind that could carry to another piece: a word they use or avoid, an opening, an ending, a greeting or sign-off, length, order, punctuation. A change that only says one sentence another way is fixed in the piece and not asked. After the rewrite, A5a.
+Never asked as a question. Version 2 is shown with one line on where each change went, naming what is now in their voice and what stays in this piece, and ending:
 
-One such change:
+> Tell me if any of those should go the other way.
 
-> Is that how you always write it, or just in this piece?
-
-- Always
-- Just this piece
-
-More than one: a single question that lets them tap several, each change a button, named in a few words:
-
-> Which of these do you always do? Tap any; the rest stay in this piece only.
-
-Where the app's question tool takes fewer options than there are changes, the rest go in a second such question. Without the tool, the changes are lettered and they answer with the letters, or "none". Each change tapped or lettered is Always; each left is Just this piece. Always: the change becomes one line in `## How They Write`, or in `## Prohibitions` where it says never. Just this piece: the piece changes and the voice does not.
+Where they name one, in A4's free-text answer or a reply, it is recorded as A3a and moved: into the voice, one line in `## How They Write`, or in `## Prohibitions` where it says never; or out of it, so the piece keeps it and the voice does not. Silence moves nothing. After the second rewrite, A5a.
 
 ## A6. Keep or stop (tapped)
 
