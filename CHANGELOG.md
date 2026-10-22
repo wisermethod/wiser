@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.22.7, October 22, 2026
+
+- Every piece Wiser writes now goes out without two patterns that make writing sound machine-made: a point staged as a correction nobody needed, such as "That doesn't mean X. It means Y.", and a colon that holds the point back for a reveal, such as "Here's the thing:". The review that checks each piece before it ships no longer lets either through as harmless. (d420016)
+- The voice coach's first piece opens on a claim or a scene rather than a question, ends on the point or a next step rather than a slogan, and gets the full writing review before you see it. Anything it makes up to fill out the piece is never a fact about you. (d420016)
+
 ## v2026.10.22.6, October 22, 2026
 
 - Setting up Wiser in an empty folder you already have open, such as a Cowork project's folder, no longer asks whether to keep your work there: Wiser uses that folder, and its closing message names it. (c8f0c36, 7ccc30e)
