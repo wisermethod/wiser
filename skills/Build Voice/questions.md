@@ -22,11 +22,11 @@ Feeds: the portrait's first sentence, with their role; P3's detail; `about.md` `
 
 ## The follow-up
 
-Asked at most once per answer. After W1, W2 or W3, only when the answer is a label, an adjective or two, rather than a picture. After W4, only when their answer quotes no words they'd never use. Recorded as W1a, W2a, W3a or W4a.
+Asked at most once per answer, after W1, W2 or W3, only when the answer is a label, an adjective or two, rather than a picture. Recorded as W1a, W2a or W3a. W4 has its own, W4a, below.
 
-> What would that sound like? A phrase is plenty.
+> What's something you'd actually say that sounds like that? A few words is plenty.
 
-Feeds: whatever its question feeds, made concrete. After W4 it gives `## Prohibitions` its phrases.
+Feeds: whatever its question feeds, made concrete.
 
 ## Screen 1 (tapped)
 
@@ -91,6 +91,19 @@ Feeds: the portrait's sentence on how they come across; `about.md` `## Personali
 > And what would you hate to sound like? A word or phrase that makes you wince is perfect.
 
 Feeds: `## Prohibitions`, as concrete phrases or moves; `about.md` `## Personality`.
+
+### W4a (tapped)
+
+Asked only when W4 names a kind of writing, such as "corporate" or "a finance textbook", rather than quoting words of it. Write three lines of that kind, one short sentence each, about the person's own work from W1, each a different phrase. They show the fault on purpose, so the floor does not hold them to it, and none has an em or en dash.
+
+> Which of these would make you wince most?
+
+- the first line
+- the second line
+- the third line
+- None of these
+
+Feeds: `## Prohibitions`, the line they tap as the example of what W4 names. None of these, or a skip, adds nothing beyond W4. The answers file records the three lines shown and the one tapped.
 
 ## Screen 2 (tapped)
 
