@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.22.4, October 22, 2026
+
+- The portrait the voice coach shows you is now its reading of how you come across, written to you, rather than your answers read back: it puts what you said together, says what it adds up to, and quotes you only where your own words say it best. (4cf9e5e)
+
 ## v2026.10.22.3, October 22, 2026
 
 - When the voice coach asks whether the portrait is you on a good day, or whether you'd send a piece under your name, the portrait or the piece now comes in the same question, so you never see the question without what it asks about. (a89695c)
