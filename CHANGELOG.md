@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.22, October 22, 2026
+
+- Building your voice is now a short conversation about you, with nothing to write beyond a sentence at a time. The coach asks what you do, one thing you wish more people knew, how a friend would describe the way you talk, and what you'd hate to sound like. In between come quick taps: your own sentences said two ways, where you pick the one you'd actually say, or Both; four about how you like to come across, such as whether you'd joke about something going wrong or what you'd most love a reader to say; and how your writing usually reads. Then it shows you how you come across on the page and writes a first piece only from what you told it. You say what you'd change: a fact fixes the piece, and a habit, such as a word you never use or the way you sign off, goes into your voice. The coach tells you which went where, and you can move any of them. (ab49736, 9b43384, 6bfc02d, 0d4ee62, 47a1ecd, fac3430, d3ec72b, bf257ab, a014f36, d40fb3a, 627a915, 5860f06)
+- Your voice file now holds a short portrait of you, how you write, a few lines from the piece you kept, what you never do, and your reading level. Writing from it keeps what its reader is owed, such as a greeting, a thanks, an apology or a fact you gave, and never reuses your approved lines word for word. (ab49736, 6bfc02d, 0d4ee62)
+
 ## v2026.10.21.6, October 21, 2026
 
 - Building your voice is now mostly quick taps: buttons where your app has them, or a letter if it has none. You type only if you want to, for a writing sample or a subject of your own. Five this-or-that picks about you replace the ten statements you rated 1 to 5, and the passages you choose between are about half as long. The question about what you write most is gone. The last tap chooses the short piece the coach writes for you. A short card names your style, and then you see that piece. (78954e1, faa31a4, c820690)
