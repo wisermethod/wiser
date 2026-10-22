@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.22.2, October 22, 2026
+
+- When you tell the voice coach what you'd hate to sound like and it is a kind of writing rather than an actual phrase, it now shows you three short lines in that style about your own work and asks which would make you wince most, instead of asking you to come up with a phrase yourself. The one you pick becomes the example your voice never uses. The follow-up after a one-word answer now asks for something you'd actually say. (5550d66)
+
 ## v2026.10.22, October 22, 2026
 
 - Building your voice is now a short conversation about you, with nothing to write beyond a sentence at a time. The coach asks what you do, one thing you wish more people knew, how a friend would describe the way you talk, and what you'd hate to sound like. In between come quick taps: your own sentences said two ways, where you pick the one you'd actually say, or Both; four about how you like to come across, such as whether you'd joke about something going wrong or what you'd most love a reader to say; and how your writing usually reads. Then it shows you how you come across on the page and writes a first piece only from what you told it. You say what you'd change: a fact fixes the piece, and a habit, such as a word you never use or the way you sign off, goes into your voice. The coach tells you which went where, and you can move any of them. (ab49736, 9b43384, 6bfc02d, 0d4ee62, 47a1ecd, fac3430, d3ec72b, bf257ab, a014f36, d40fb3a, 627a915, 5860f06)
