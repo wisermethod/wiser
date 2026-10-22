@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.22.3, October 22, 2026
+
+- When the voice coach asks whether the portrait is you on a good day, or whether you'd send a piece under your name, the portrait or the piece now comes in the same question, so you never see the question without what it asks about. (a89695c)
+
 ## v2026.10.22.2, October 22, 2026
 
 - When you tell the voice coach what you'd hate to sound like and it is a kind of writing rather than an actual phrase, it now shows you three short lines in that style about your own work and asks which would make you wince most, instead of asking you to come up with a phrase yourself. The one you pick becomes the example your voice never uses. The follow-up after a one-word answer now asks for something you'd actually say. (5550d66)
