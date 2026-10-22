@@ -319,7 +319,7 @@ test('records.update stops for confirmation and then sends updateOpportunity var
   const input = {
     object: 'opportunity',
     id: OBJECT_ID,
-    data: { stage: 'RESEARCH_CALL_BOOKED', pointOfContactId: FIELD_ID, companyId: '22222222-2222-4222-8222-222222222222' },
+    data: { stage: 'RESEARCH_CALL_BOOKED', pointOfContactId: '33333333-3333-4333-8333-333333333333', companyId: '22222222-2222-4222-8222-222222222222' },
   };
   fixture.reply({ data: { updateOpportunity: { id: OBJECT_ID, other: 'planted' } } });
   const stopped = await fixture.gw.execute({ action: 'twenty.records.update', input });
@@ -1049,4 +1049,61 @@ test('create_field refuses options on a non-select type after confirmation, send
   });
   assert.equal(result.status, 'invalid_arguments');
   assert.equal(fixture.calls.length, 0);
+});
+
+test('create and update spell a humped custom name as Twenty does', async () => {
+  const fixture = await connected(allowTwenty);
+  for (const [object, name] of [['noteTarget', 'NoteTarget'], ['foo2bar', 'Foo2Bar'], ['fooBAR', 'FooBar'], ['fooBARBaz', 'FooBarBaz'], ['item2', 'Item2'], ['v2Item', 'V2Item']]) {
+    for (const [action, input, kind] of [
+      ['create', { object, data: {} }, 'Create'],
+      ['update', { object, id: OBJECT_ID, data: {} }, 'Update'],
+    ]) {
+      fixture.calls.length = 0;
+      fixture.reply({ data: { [`${action}${name}`]: { id: OBJECT_ID } } });
+      const result = await confirmCall(fixture.gw, { action: `twenty.records.${action}`, input, confirm: true });
+      assert.deepEqual(result, { id: OBJECT_ID }, `${action} ${object}`);
+      const { query } = fixture.calls[0].body;
+      assert.equal(query.includes(`${action}${name}(`), true, `${action} ${object}`);
+      assert.equal(query.includes(`$data: ${name}${kind}Input!`), true, `${action} ${object}`);
+    }
+  }
+});
+
+test('records.update refuses Twenty\'s own fields as data keys at the gateway and in the module', async () => {
+  const fixture = await connected(allowTwenty);
+  const ctx = { proxy: async () => { throw new Error('a system field reached the module transport'); } };
+  const fields = ['id', 'createdAt', 'updatedAt', 'deletedAt', 'createdBy', 'updatedBy', 'searchVector'];
+  for (const key of fields) {
+    const input = { object: 'opportunity', id: OBJECT_ID, data: { stage: 'TARGET', [key]: null } };
+    const refused = await confirmCall(fixture.gw, { action: 'twenty.records.update', input, confirm: true });
+    assert.equal(refused.status, 'invalid_arguments', key);
+    assert.deepEqual(await modules.records.update(input, ctx), { status: 'invalid_arguments', field: 'data' }, key);
+    assert.equal(fixture.calls.length, 0, key);
+  }
+  const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
+  const pattern = manifest.modules.records.actions.update.input.properties.data.propertyNames.pattern;
+  const named = /^\^\(\?!\(\?:([A-Za-z|]+)\)\$\)\[a-z\]\[a-zA-Z0-9\]\{0,62\}\$$/.exec(pattern);
+  assert.ok(named, pattern);
+  assert.deepEqual(named[1].split('|'), fields);
+  for (const key of ['position', 'idea', 'deletedAtNote', 'stage']) {
+    fixture.calls.length = 0;
+    fixture.reply({ data: { updateOpportunity: { id: OBJECT_ID } } });
+    const input = { object: 'opportunity', id: OBJECT_ID, data: { [key]: 'x' } };
+    assert.deepEqual(await confirmCall(fixture.gw, { action: 'twenty.records.update', input, confirm: true }), { id: OBJECT_ID }, key);
+  }
+});
+
+test('GraphQL messages omit a credential word split by a control character, and the wider words', async () => {
+  const fixture = await connected(allowTwenty);
+  for (const message of [
+    'Bea\u0000rer planted', 'to\u001fken planted', 'Invalid API key: planted', 'API  KEY planted',
+    'password planted', 'passwd planted', 'credential planted',
+  ]) {
+    fixture.reply({ errors: [{ message, extensions: { code: 'BAD_USER_INPUT' } }] });
+    const result = await fixture.gw.execute({ action: 'twenty.metadata.list_objects', input: {} });
+    assert.deepEqual(result, {
+      status: 'vendor_error', http_status: 200, endpoint: '/metadata', method: 'POST', code: 'BAD_USER_INPUT',
+    }, JSON.stringify(message));
+    noLeak(result);
+  }
 });

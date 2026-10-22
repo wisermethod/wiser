@@ -45,6 +45,9 @@ const OBJECT_PLURALS = {
   task: 'tasks',
   taskTarget: 'taskTargets',
 };
+// Twenty's own fields on every object. records.update refuses them as data keys: deletedAt
+// would delete or restore the record, and the rest are the workspace's own bookkeeping.
+const SYSTEM_FIELDS = new Set(['id', 'createdAt', 'updatedAt', 'deletedAt', 'createdBy', 'updatedBy', 'searchVector']);
 const FIELD_TYPES = new Set(['TEXT', 'NUMBER', 'BOOLEAN', 'DATE', 'DATE_TIME', 'SELECT', 'MULTI_SELECT']);
 const SELECT_TYPES = new Set(['SELECT', 'MULTI_SELECT']);
 // Twenty's TAG_COLORS, from the amended plan. red is first so a sampler's enum exemplar is red.
@@ -110,10 +113,16 @@ function graphqlCode(error) {
   return typeof code === 'string' && GRAPHQL_CODE.test(code) ? code : null;
 }
 
+const CREDENTIAL_WORDS = /token|secret|passw(?:or)?d|credential|api[\s_-]*key|bearer|authorization/i;
+const JWT_RUN = /eyJ[A-Za-z0-9_-]{10,}/;
+
+// The words are tested with control characters removed as well as replaced, so a
+// control character inside a word does not hide it.
 function graphqlMessage(error) {
   if (!error || typeof error.message !== 'string') return null;
   const message = error.message.replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
-  if (!message || /token|secret|api[_-]?key|bearer|authorization/i.test(message) || /eyJ[A-Za-z0-9_-]{10,}/.test(message)) {
+  const joined = error.message.replace(/[\u0000-\u001f\u007f]/g, '');
+  if (!message || [message, joined].some((text) => CREDENTIAL_WORDS.test(text) || JWT_RUN.test(text))) {
     return null;
   }
   return [...message].slice(0, 300).join('');
@@ -155,14 +164,25 @@ function checkApiName(value, field) {
   return null;
 }
 
-function checkRecordData(data) {
+function checkRecordData(data, refused = new Set()) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return invalid('data');
   const keys = Object.keys(data);
   if (keys.length > 100) return invalid('data');
   for (const key of keys) {
-    if (!API_NAME.test(key)) return invalid('data');
+    if (!API_NAME.test(key) || refused.has(key)) return invalid('data');
   }
   return null;
+}
+
+// Twenty names a record's mutations and input types with twenty-shared's pascalCase, which
+// is lodash camelCase capitalized (6007ad5a). This is that word split for an API name, so
+// foo2bar is Foo2Bar and fooBAR is FooBar there. Checked against lodash.camelcase 4.3.0.
+const HUMPED = /[a-z][A-Z]|[A-Z]{2,}[a-z]|[0-9][a-zA-Z]|[a-zA-Z][0-9]/;
+const NAME_WORD = /[A-Z]?[a-z]+(?=[A-Z]|$)|[A-Z]+(?=[A-Z][a-z]|$)|[A-Z]?[a-z]+|[A-Z]+|\d+/g;
+
+function typeName(object) {
+  const words = HUMPED.test(object) ? object.match(NAME_WORD) : [object];
+  return words.map((word) => word[0].toUpperCase() + word.slice(1).toLowerCase()).join('');
 }
 
 function checkBoundedText(value, field, max, min = 1) {
@@ -356,9 +376,9 @@ export const modules = {
       if (SYSTEM_OBJECTS.has(input.object)) return invalid('object');
       const data = checkRecordData(input.data);
       if (data) return data;
-      // The mutation name is the checked object with its first letter upper-cased.
-      // Values stay in variables. The input type name is the generated form.
-      const name = input.object[0].toUpperCase() + input.object.slice(1);
+      // The mutation and input type names are the checked object as Twenty spells them.
+      // Values stay in variables.
+      const name = typeName(input.object);
       const query = `mutation ($data: ${name}CreateInput!) { create${name}(data: $data) { id } }`;
       const result = await graphql(ctx, GRAPHQL, query, { data: input.data });
       if (result.status === 'vendor_error') return result;
@@ -372,9 +392,9 @@ export const modules = {
       if (bad) return bad;
       if (SYSTEM_OBJECTS.has(input.object)) return invalid('object');
       if (typeof input.id !== 'string' || !UUID.test(input.id)) return invalid('id');
-      const data = checkRecordData(input.data);
+      const data = checkRecordData(input.data, SYSTEM_FIELDS);
       if (data) return data;
-      const name = input.object[0].toUpperCase() + input.object.slice(1);
+      const name = typeName(input.object);
       const query = `mutation ($id: UUID!, $data: ${name}UpdateInput!) { update${name}(id: $id, data: $data) { id } }`;
       const result = await graphql(ctx, GRAPHQL, query, { id: input.id, data: input.data });
       if (result.status === 'vendor_error') return result;
