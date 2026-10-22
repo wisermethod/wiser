@@ -198,7 +198,7 @@ Skipped: write only from what they told you in W1 and W2, for someone who would 
 
 ## A2. The verdict (tapped)
 
-The question carries the piece, so the two are always seen together: it opens with "Here's your first piece:", then the piece in full, then:
+The question carries the piece, so the two are always seen together: it opens with "Here's your first piece:", then the piece in full and, where anything in it was made up, the one line that says what, then:
 
 > Would you send this under your name?
 
@@ -206,7 +206,7 @@ The question carries the piece, so the two are always seen together: it opens wi
 - Almost: I'd change a few things
 - No, it doesn't sound like me
 
-Yes sets the confirmation date. After a rewrite it is asked again and recorded A4, opening with "Here it is with your changes:", the piece in full and the one line A3a gives.
+The answers file records the piece and what was made up. Yes sets the confirmation date. After a rewrite it is asked again and recorded A4, opening with "Here it is with your changes:", the piece in full and the one line A3a gives.
 
 ## A3 (typed)
 
