@@ -34,7 +34,7 @@ Said before it:
 
 > Now some quick taps. I've taken what you just told me and said it two ways each time. Pick the one you'd actually say, not the one that sounds better. "Both" is a real answer.
 
-**How every pair is written.** Each pair is written from the person's own answer named under it; where that answer makes more than one point, from the first point it makes. Copy one stretch of what they said onto both sides, in their words, with their facts and their hedges, and change only the one thing the pair names: P1 the frame, P2 the order of their example and their point, P3 one detail of their own, P4 one feeling they named, P5 one figure of speech they used. Every word on either side is theirs except P1's frame and what a sentence needs to be whole. A side that leaves something out uses only words already in that stretch, and neither side changes who did what. Both sides pass the floor. Where the pair would need a second change, or anything they did not say, a fact, number, name, hedge, feeling, joke or image, the pair is not asked: it writes nothing, and a screen asks only the pairs their answers give. A pair never puts words in their mouth. The answers file records both lines shown.
+**How every pair is written.** Each pair is written from the person's own answer named under it; where that answer makes more than one point, from the first point it makes. Copy one stretch of what they said onto both sides, in their words, with their facts and their hedges, and change only the one thing the pair names: P1 the frame, P2 the order of their example and their point, P3 one detail of their own, P4 one feeling they named, P5 one figure of speech they used. Every word on either side is theirs except P1's frame, P5's plain words for their figure of speech, and what a sentence needs to be whole. A side that leaves something out uses only words already in that stretch, and neither side changes who did what. Both sides pass the floor. Where the pair would need a second change, or anything they did not say, a fact, number, name, hedge, feeling, joke or image, the pair is not asked: it writes nothing, and a screen asks only the pairs their answers give. A pair never puts words in their mouth. The answers file records both lines shown.
 
 Every pair is worded **"Which would you actually say?"** and has four options: **A** with its line under it, **B** with its line under it, **Both sound like me**, and **Neither**. Both writes the pair's Both line. Neither, or a skip, writes nothing. Typed instead of tapped, "both" or "depends" is Both, "neither" is Neither, and "not sure" or "skip" is a skip.
 
@@ -167,11 +167,11 @@ Never asked as a question. Version 2 is shown with one line on where each change
 
 > Tell me if any of those should go the other way.
 
-Where they name one, in A4's free-text answer or a reply, it is recorded as A3a and moved: into the voice, one line in `## How They Write`, or in `## Prohibitions` where it says never; or out of it, so the piece keeps it and the voice does not. Silence moves nothing. After the second rewrite, A5a.
+Where they name one, typed in place of a tap or in a reply, it is recorded as A3a and moved: into the voice, one line in `## How They Write`, or in `## Prohibitions` where it says never; or out of it, so the piece keeps it and the voice does not. Then A4 is asked again, and a move is not a return. Silence moves nothing. After the second rewrite, A5a.
 
 ## A6. Keep or stop (tapped)
 
-Asked only after two returns, when the piece still is not one they would send.
+Asked with the third version, after two returns, in place of A2.
 
 > Want to keep your voice as it is now, or stop here and pick it up later?
 
