@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ConnectionGateway, PENDING_CONFIRMATION_TTL_MS, buildStandingApprovalWarning, confirmationDigest, createStandingApprovals, matchStandingApproval, validateArgs } from '../src/gateway.js';
@@ -110,7 +112,7 @@ test('propose, grant and execute use one warning and one module call, with audit
   assert.equal(proposal.status, 'standing_approval_proposed');
   assert.equal(Object.hasOwn(proposal, 'reason'), false);
   assert.equal(proposal.expires_on, '2027-01-20');
-  assert.equal(f.gw.pendingConfirmations.has(confirmationDigest(['standing_approval', proposal.scope])), true);
+  assert.equal(f.gw.pendingConfirmations.has(confirmationDigest(['standing_approval', proposal.scope, proposal.warning])), true);
   assert.equal((await f.gw.standingApprovals.list()).length, 0);
   const answer = await tool(f, { ...SCOPE, mode: 'grant', confirmed: true });
   const saved = answer.standing_approval;
@@ -328,24 +330,26 @@ test('the default adapter persists grants and revocation across gateway instance
   const third = await fixture(t, { home: first.home });
   assert.deepEqual((await tool(third, { mode: 'list' })).standing_approvals, []);
   assert.equal((await third.gw.callTool('execute', CALL)).status, 'needs_confirmation');
-  assert.equal(statSync(first.store.file).mode & 0o777, 0o600);
+  assert.equal(statSync(join(first.home, 'standing-approvals.jsonl')).mode & 0o777, 0o600);
+  assert.equal((await first.gw.callTool('execute', CALL)).status, 'needs_confirmation');
 });
 
-test('the exported adapter normalizes an old document and prunes on add and revoke using a movable clock', async (t) => {
+test('the exported adapter keeps grants separate and prunes on add using a movable clock', async (t) => {
   const f = await fixture(t);
   writeFileSync(f.store.file, JSON.stringify({ userId: null, connections: f.store.listConnections() }));
-  assert.deepEqual(new JsonFileStore(f.home).read().standing_approvals, []);
+  assert.equal(Object.hasOwn(new JsonFileStore(f.home).read(), 'standing_approvals'), false);
   const saved = await grant(f, { ...SCOPE, days: 1 });
   let at = NOW;
-  const adapter = createStandingApprovals(f.store, () => at);
+  const adapter = createStandingApprovals(f.store.home, () => at);
   await adapter.revoke(saved.id, new Date(at).toISOString());
   assert.equal((await adapter.list()).length, 1);
   at += STANDING_APPROVAL_DAY_MS;
   await adapter.add({ ...saved, id: 'sa_next', expires_at: new Date(at + 1000).toISOString() });
-  assert.deepEqual(f.store.read().standing_approvals.map((row) => row.id), ['sa_next']);
+  assert.deepEqual((await adapter.list()).map((row) => row.id), ['sa_next']);
+  assert.equal(readFileSync(join(f.home, 'standing-approvals.jsonl'), 'utf8').includes(saved.id), false);
   at += 1000;
   assert.equal(await adapter.revoke('sa_absent', new Date(at).toISOString()), null);
-  assert.deepEqual(f.store.read().standing_approvals, []);
+  assert.equal(Object.hasOwn(f.store.read(), 'standing_approvals'), false);
   await assert.rejects(() => adapter.add({ ...saved, root: 'sk-must-not-store', expires_at: new Date(at + 1000).toISOString() }), /credential-shaped/);
 });
 
@@ -360,7 +364,7 @@ test('a host adapter supplied to the constructor owns grant storage', async (t) 
   f.gw = new ConnectionGateway({ ...f.gw, standingApprovals: adapter });
   const saved = await grant(f);
   assert.equal(rows[0].id, saved.id);
-  assert.deepEqual(f.store.read().standing_approvals, []);
+  assert.equal(Object.hasOwn(f.store.read(), 'standing_approvals'), false);
   assert.equal((await f.gw.callTool('execute', CALL)).standing_approval.id, saved.id);
   await tool(f, { mode: 'revoke', id: saved.id });
   assert.ok(rows[0].revoked_at);
@@ -543,4 +547,231 @@ test('a call without a root or current eligibility never reads standing approval
   delete f.gw.connectors[0].manifest.modules.records.actions.create.standing_approval;
   assert.equal((await f.gw.callTool('execute', CALL)).status, 'needs_confirmation');
   assert.equal(f.calls.length, 0);
+});
+
+test('real root and Playbook names propose, grant and match in execute and both schemas', async (t) => {
+  const f = await fixture(t);
+  const scope = { ...SCOPE, root: 'Wiser Memory', playbook: '2026-10-22-standing-approvals.plan.md' };
+  const saved = await grant(f, scope);
+  const call = { ...CALL, root: scope.root, playbook: scope.playbook };
+  assert.equal((await f.gw.callTool('execute', call)).standing_approval.id, saved.id);
+  for (const name of ['execute', 'standing_approvals']) {
+    const schema = f.gw.listTools().find((tool) => tool.name === name).inputSchema;
+    const args = name === 'execute' ? call : { ...scope, mode: 'propose' };
+    assert.equal(validateArgs(name, args), null);
+    for (const field of ['root', 'playbook']) {
+      assert.equal(new RegExp(schema.properties[field].pattern).test(args[field]), true);
+      for (const bad of ['Wiser Memory ', ' Wiser', '.hidden', 'name.']) {
+        assert.equal(new RegExp(schema.properties[field].pattern).test(bad), false, `${name}.${field}: ${bad}`);
+        const result = await f.gw.callTool(name, { ...args, [field]: bad });
+        assert.equal(result.status, 'invalid_arguments');
+        assert.equal(result.field, field);
+      }
+    }
+  }
+});
+
+test('a revoke survives a stale connection document written by another store', async (t) => {
+  const f = await fixture(t);
+  const saved = await grant(f);
+  const other = new JsonFileStore(f.home);
+  const stale = other.read();
+  // Hold the old document through putConnection's read-modify-write cycle.
+  other.read = () => stale;
+  assert.equal((await tool(f, { mode: 'revoke', id: saved.id })).status, 'ok');
+  other.putConnection({ ...stale.connections[0], status: 'ACTIVE' });
+  const stored = (await f.gw.standingApprovals.list()).find((row) => row.id === saved.id);
+  assert.equal(stored.revoked_at, new Date(NOW).toISOString());
+  assert.equal((await f.gw.callTool('execute', CALL)).status, 'needs_confirmation');
+  assert.equal(Object.hasOwn(other.read(), 'standing_approvals'), false);
+  assert.equal(f.calls.length, 0);
+});
+
+test('a revoke after an incomplete journal line remains a separate readable record', async (t) => {
+  const f = await fixture(t);
+  const saved = await grant(f);
+  const file = join(f.home, 'standing-approvals.jsonl');
+  writeFileSync(file, `${readFileSync(file, 'utf8')}{incomplete`);
+  assert.equal((await tool(f, { mode: 'revoke', id: saved.id })).status, 'ok');
+  assert.ok((await f.gw.standingApprovals.list()).find((row) => row.id === saved.id).revoked_at);
+  assert.equal((await f.gw.callTool('execute', CALL)).status, 'needs_confirmation');
+});
+
+test('a stale approval lock is removed before granting and cleaned up afterwards', async (t) => {
+  const f = await fixture(t);
+  const lock = join(f.home, 'standing-approvals.lock');
+  mkdirSync(lock);
+  const stale = new Date(Date.now() - 11000);
+  utimesSync(lock, stale, stale);
+  const saved = await grant(f);
+  assert.equal((await f.gw.standingApprovals.list())[0].id, saved.id);
+  assert.equal(existsSync(lock), false);
+});
+
+test('a fresh approval lock times out without writing a grant', async (t) => {
+  const f = await fixture(t);
+  await tool(f, { ...SCOPE, mode: 'propose' });
+  const lock = join(f.home, 'standing-approvals.lock');
+  mkdirSync(lock);
+  const started = Date.now();
+  await assert.rejects(() => tool(f, { ...SCOPE, mode: 'grant', confirmed: true }), /lock/i);
+  assert.ok(Date.now() - started >= 2000);
+  assert.equal(existsSync(join(f.home, 'standing-approvals.jsonl')), false);
+  assert.equal(existsSync(lock), true);
+  assert.equal(auditLines(f).at(-1).status, 'error');
+});
+
+for (const name of ['standing-approvals.jsonl', 'standing-approvals.lock']) {
+  test(`approval storage refuses a symbolic link at ${name}`, async (t) => {
+    const f = await fixture(t);
+    const target = join(f.home, 'untouched');
+    writeFileSync(target, 'unchanged');
+    symlinkSync(target, join(f.home, name));
+    await assert.rejects(() => grant(f), /symbolic link/);
+    assert.equal(readFileSync(target, 'utf8'), 'unchanged');
+  });
+}
+
+test('the approval journal skips malformed lines and compacts expired grants and revokes only on add', async (t) => {
+  const f = await fixture(t);
+  let at = NOW;
+  const adapter = createStandingApprovals(f.home, () => at);
+  const saved = await grant(f, { ...SCOPE, days: 1 });
+  await adapter.revoke(saved.id, new Date(at).toISOString());
+  const active = { ...saved, id: 'sa_active', expires_at: new Date(NOW + 3 * STANDING_APPROVAL_DAY_MS).toISOString() };
+  const revoked = { ...active, id: 'sa_revoked' };
+  await adapter.add(active);
+  await adapter.add(revoked);
+  await adapter.revoke(revoked.id, new Date(at).toISOString());
+  const file = join(f.home, 'standing-approvals.jsonl');
+  const before = readFileSync(file, 'utf8');
+  const entries = before.trim().split('\n').map(JSON.parse);
+  assert.deepEqual(entries.map((entry) => Object.keys(entry)[0]), ['grant', 'revoke', 'grant', 'grant', 'revoke']);
+  assert.deepEqual(entries[1], { revoke: { id: saved.id, at: new Date(at).toISOString() } });
+  writeFileSync(file, `${before}{bad json\nnull\n`);
+  at += STANDING_APPROVAL_DAY_MS;
+  assert.deepEqual((await adapter.list()).map((row) => row.id), [active.id, revoked.id]);
+  assert.ok(readFileSync(file, 'utf8').includes(saved.id), 'list must not compact');
+  await adapter.add({ ...active, id: 'sa_new' });
+  const compacted = readFileSync(file, 'utf8').trim().split('\n').map(JSON.parse);
+  assert.equal(JSON.stringify(compacted).includes(saved.id), false);
+  assert.deepEqual(compacted.map((entry) => entry.grant?.id ?? entry.revoke.id), [active.id, revoked.id, revoked.id, 'sa_new']);
+  assert.ok((await adapter.list()).find((row) => row.id === revoked.id).revoked_at);
+  assert.equal(statSync(file).mode & 0o777, 0o600);
+  const clean = readFileSync(file, 'utf8');
+  await assert.rejects(() => adapter.add({ ...active, root: 'sk-must-not-store' }), /credential-shaped/);
+  await assert.rejects(() => adapter.revoke(active.id, 'sk-must-not-store'), /credential-shaped/);
+  assert.equal(readFileSync(file, 'utf8'), clean);
+  assert.equal(existsSync(join(f.home, 'standing-approvals.lock')), false);
+});
+
+for (const kind of ['send', 'delete']) {
+  test(`a ninety-day change approval stops when the current kind becomes ${kind}`, async (t) => {
+    const f = await probe(t, { kind: 'change' });
+    const saved = await grant(f, f.scope);
+    assert.equal(saved.heightened, false);
+    assert.equal((await f.gw.callTool('execute', f.call)).standing_approval.id, saved.id);
+    f.gw.connectors[0].manifest.modules.items.actions.marked.standing_approval.kind = kind;
+    assert.equal((await f.gw.callTool('execute', f.call)).status, 'needs_confirmation');
+    assert.equal(f.calls.length, 1);
+  });
+}
+
+test('a heightened match requires the current kind, explicit heightened consent and a seven-day lifetime', async (t) => {
+  const f = await probe(t);
+  const saved = await grant(f, f.scope);
+  const call = { ...f.call, manifestAction: f.gw.connectors[0].manifest.modules.items.actions.marked,
+    providerAccountId: saved.provider_account_id, now: NOW };
+  assert.equal(matchStandingApproval([saved], call), saved);
+  for (const invalid of [
+    { kinds: ['change'] }, { kinds: undefined }, { heightened: false }, { heightened: undefined },
+    { expires_at: new Date(NOW + 7 * STANDING_APPROVAL_DAY_MS + 1).toISOString() },
+    { created_at: 'invalid' },
+  ]) assert.equal(matchStandingApproval([{ ...saved, ...invalid }], call), null, JSON.stringify(invalid));
+});
+
+for (const proposedAt of ['2026-10-22T23:50:00Z', '2026-10-22T23:55:00Z']) {
+  test(`a proposal at ${proposedAt} crossing midnight UTC must show the changed expiry date before granting`, async (t) => {
+    const f = await fixture(t);
+    const scope = { ...SCOPE, days: 1 };
+    f.gw.now = () => Date.parse(proposedAt);
+    const proposal = await tool(f, { ...scope, mode: 'propose' });
+    f.gw.now = () => Date.parse('2026-10-23T00:05:00Z');
+    const result = await tool(f, { ...scope, mode: 'grant', confirmed: true });
+    assert.equal(result.status, 'standing_approval_proposed');
+    assert.equal(result.reason, 'unmatched_confirm');
+    assert.equal(result.expires_on, '2026-10-24');
+    assert.notEqual(result.warning, proposal.warning);
+    assert.deepEqual(await f.gw.standingApprovals.list(), []);
+    assert.equal((await tool(f, { ...scope, mode: 'grant', confirmed: true })).status, 'ok');
+  });
+}
+
+test('an append waits for another process to release the approval lock', async (t) => {
+  const f = await fixture(t);
+  const saved = await grant(f);
+  const lock = join(f.home, 'standing-approvals.lock');
+  mkdirSync(lock);
+  const child = spawn(process.execPath, ['-e',
+    "setTimeout(() => require('node:fs').rmdirSync(process.argv[1]), 150)", lock],
+  { stdio: 'ignore' });
+  t.after(() => child.kill());
+  const ended = once(child, 'exit');
+  const started = Date.now();
+  const result = await tool(f, { mode: 'revoke', id: saved.id });
+  assert.equal(result.status, 'ok');
+  assert.ok(Date.now() - started >= 150);
+  assert.deepEqual(await ended, [0, null]);
+  assert.equal(existsSync(lock), false);
+  assert.equal((await f.gw.callTool('execute', CALL)).status, 'needs_confirmation');
+});
+
+test('a held lock prevents both revocation and compaction from changing the journal', async (t) => {
+  const f = await fixture(t);
+  const saved = await grant(f);
+  const adapter = f.gw.standingApprovals;
+  await adapter.add({ ...saved, id: 'sa_expired', expires_at: new Date(NOW).toISOString() });
+  const file = join(f.home, 'standing-approvals.jsonl');
+  const original = readFileSync(file, 'utf8');
+  mkdirSync(join(f.home, 'standing-approvals.lock'));
+  await assert.rejects(() => adapter.revoke(saved.id, new Date(NOW).toISOString()), /lock/i);
+  assert.equal(readFileSync(file, 'utf8'), original);
+  await assert.rejects(() => adapter.add({ ...saved, id: 'sa_unwritten' }), /lock/i);
+  assert.equal(readFileSync(file, 'utf8'), original);
+});
+
+for (const [field, value] of [['summary', 'change records in Twenty'], ['caution', 'A changed caution.']]) {
+  test(`a changed manifest ${field} needs a fresh proposal`, async (t) => {
+    const f = await fixture(t);
+    const proposal = await tool(f, { ...SCOPE, mode: 'propose' });
+    f.gw.connectors[0].manifest.modules.records.actions.create.standing_approval[field] = value;
+    const result = await tool(f, { ...SCOPE, mode: 'grant', confirmed: true });
+    assert.equal(result.status, 'standing_approval_proposed');
+    assert.equal(result.reason, 'unmatched_confirm');
+    assert.notEqual(result.warning, proposal.warning);
+    assert.deepEqual(await f.gw.standingApprovals.list(), []);
+  });
+}
+
+const TWENTY_CAUTION = "Creating or changing a Twenty record can start your workspace's own workflows, and a workflow may send email from a connected mailbox, so under this approval nobody looks at the record before that happens.";
+const TWENTY_WARNING = 'This standing approval lets your assistant create records in Twenty and change fields on existing Twenty records on your connection with no label without asking you first, for work done from the root "Wiser Memory". For 90 days, until 2027-01-20, every call that matches runs straight away, with no approval step for you to see or refuse. Anything outside it still asks you, as today. ' + TWENTY_CAUTION + ' You can end it at any time: ask your assistant to revoke it, or remove it on your Wiser account page. Answer yes to grant it, or no to leave things as they are.';
+
+test('the exact Twenty warning includes the shared create and update caution once', async (t) => {
+  const f = await fixture(t);
+  const result = await tool(f, { mode: 'propose', module: 'twenty.records', root: 'Wiser Memory' });
+  assert.equal(result.warning, TWENTY_WARNING);
+  assert.equal(result.warning.split(TWENTY_CAUTION).length - 1, 1);
+  const saved = await grant(f, { module: 'twenty.records', root: 'Wiser Memory' });
+  assert.deepEqual(saved.kinds, ['change']);
+  assert.equal(saved.heightened, false);
+});
+
+test('covered cautions are distinct and follow action order before the heightened warning', async (t) => {
+  const f = await fixture(t);
+  const actions = f.gw.connectors[0].manifest.modules.records.actions;
+  actions.create.standing_approval.caution = 'First caution.';
+  actions.update.standing_approval.caution = 'Second caution.';
+  actions.update.standing_approval.kind = 'send';
+  const result = await tool(f, { mode: 'propose', actions: [UPDATE, CREATE], root: SCOPE.root });
+  assert.match(result.warning, /Anything outside it still asks you, as today\. First caution\. Second caution\. Some of these actions send messages/);
 });

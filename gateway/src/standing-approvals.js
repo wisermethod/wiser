@@ -1,3 +1,8 @@
+import { appendFileSync, chmodSync, lstatSync, mkdirSync, readFileSync, renameSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { assertNoSecrets, refuseSymlink } from './store.js';
+
 /** Milliseconds in a grant day, independent of the local timezone. */
 export const STANDING_APPROVAL_DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -26,31 +31,131 @@ export function isActiveStandingApproval(grant, now) {
 }
 
 /**
- * Local metadata adapter. The clock is a callback so replacing `gw.now` also
- * changes pruning. All writes use the connection store's secret and mode checks.
- * @param {import('./store.js').JsonFileStore} store
+ * Local append-only metadata, separate from connection read-modify-writes.
+ * The clock is a callback so replacing `gw.now` also changes pruning. Lock
+ * deadlines use elapsed real time, independent of that grant clock.
+ * @param {string} home
  * @param {() => number} [now]
  */
-export function createStandingApprovals(store, now = Date.now) {
+export function createStandingApprovals(home, now = Date.now) {
+  const sleeper = new Int32Array(new SharedArrayBuffer(4));
+
+  // Hosts that never use local grants need no local home at construction time.
+  function paths() {
+    return { file: join(home, 'standing-approvals.jsonl'), lock: join(home, 'standing-approvals.lock') };
+  }
+
+  function readEntries() {
+    const { file, lock } = paths();
+    refuseSymlink(home, 'standing approval directory');
+    refuseSymlink(lock, 'standing approval lock');
+    refuseSymlink(file, 'standing approval file');
+    let raw;
+    try { raw = readFileSync(file, 'utf8'); } catch (err) {
+      if (err.code === 'ENOENT') return [];
+      throw err;
+    }
+    const entries = [];
+    for (const line of raw.split('\n')) {
+      let entry;
+      try { entry = JSON.parse(line); } catch { continue; }
+      if (entry && typeof entry === 'object' && (entry.grant || entry.revoke)) entries.push(entry);
+    }
+    return entries;
+  }
+
+  function grantsFrom(entries, at) {
+    const revokes = new Map(entries.filter((entry) => entry.revoke).map(({ revoke }) => [revoke.id, revoke.at]));
+    return entries.filter((entry) => entry.grant && Date.parse(entry.grant.expires_at) > at)
+      .map(({ grant }) => revokes.has(grant.id) ? { ...grant, revoked_at: revokes.get(grant.id) } : grant);
+  }
+
+  function withLock(write) {
+    const { lock } = paths();
+    refuseSymlink(home, 'standing approval directory');
+    mkdirSync(home, { recursive: true, mode: 0o700 });
+    const started = performance.now();
+    while (true) {
+      if (performance.now() - started >= 2000) throw new Error('standing approval lock could not be taken within 2 seconds');
+      refuseSymlink(lock, 'standing approval lock');
+      try {
+        mkdirSync(lock, { mode: 0o700 });
+        break;
+      } catch (err) {
+        if (err.code !== 'EEXIST') throw err;
+      }
+      refuseSymlink(lock, 'standing approval lock');
+      try {
+        if (Date.now() - lstatSync(lock).mtimeMs > 10000) {
+          rmdirSync(lock);
+          continue;
+        }
+      } catch (err) {
+        if (err.code !== 'ENOENT') throw err;
+      }
+      const remaining = 2000 - (performance.now() - started);
+      if (remaining <= 0) throw new Error('standing approval lock could not be taken within 2 seconds');
+      Atomics.wait(sleeper, 0, 0, Math.min(20, remaining));
+    }
+    try { return write(); } finally { rmdirSync(lock); }
+  }
+
+  function encode(entry) {
+    assertNoSecrets(entry, 'standing approval record');
+    return `${JSON.stringify(entry)}\n`;
+  }
+
+  function append(entry) {
+    const { file } = paths();
+    const line = encode(entry);
+    refuseSymlink(file, 'standing approval file');
+    // A crashed append may leave a partial last line. Keep the next record on
+    // its own line so skipping that fragment cannot also discard a new revoke.
+    let separator = '';
+    try {
+      const raw = readFileSync(file, 'utf8');
+      if (raw && !raw.endsWith('\n')) separator = '\n';
+    } catch (err) { if (err.code !== 'ENOENT') throw err; }
+    appendFileSync(file, separator + line, { encoding: 'utf8', mode: 0o600 });
+    chmodSync(file, 0o600);
+  }
+
+  function compact(entries, at) {
+    const { file } = paths();
+    const expired = new Set(entries.filter(({ grant }) => grant && Date.parse(grant.expires_at) <= at)
+      .map(({ grant }) => grant.id));
+    if (!expired.size) return;
+    const kept = entries.filter(({ grant, revoke }) => !expired.has(grant?.id ?? revoke?.id));
+    const payload = kept.map(encode).join('');
+    const tmp = `${file}.${randomUUID()}.tmp`;
+    try {
+      writeFileSync(tmp, payload, { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+      refuseSymlink(file, 'standing approval file');
+      renameSync(tmp, file);
+    } finally {
+      try { unlinkSync(tmp); } catch (err) { if (err.code !== 'ENOENT') throw err; }
+    }
+  }
+
   return {
     async list() {
-      const at = now();
-      return store.read().standing_approvals.filter((row) => Date.parse(row.expires_at) > at);
+      return grantsFrom(readEntries(), now());
     },
     async add(grant) {
-      const doc = store.read();
-      const at = now();
-      doc.standing_approvals = [...doc.standing_approvals, grant].filter((row) => Date.parse(row.expires_at) > at);
-      store.write(doc);
+      // Validate before compaction, so a rejected record never changes the file.
+      encode({ grant });
+      withLock(() => {
+        compact(readEntries(), now());
+        append({ grant });
+      });
     },
     async revoke(id, atIso) {
-      const doc = store.read();
-      const at = now();
-      doc.standing_approvals = doc.standing_approvals.filter((row) => Date.parse(row.expires_at) > at);
-      const grant = doc.standing_approvals.find((row) => row.id === id && !row.revoked_at);
-      if (grant) grant.revoked_at = atIso;
-      store.write(doc);
-      return grant ?? null;
+      return withLock(() => {
+        const grant = grantsFrom(readEntries(), now()).find((row) => row.id === id && !row.revoked_at);
+        if (!grant) return null;
+        append({ revoke: { id, at: atIso } });
+        return { ...grant, revoked_at: atIso };
+      });
     },
   };
 }
@@ -64,8 +169,13 @@ export function createStandingApprovals(store, now = Date.now) {
  */
 export function matchStandingApproval(grants, { action, manifestAction, label, providerAccountId, root, playbook, input, now }) {
   if (!manifestAction?.standing_approval || !root) return null;
+  const kind = manifestAction.standing_approval.kind;
   const matches = grants.filter((grant) => isActiveStandingApproval(grant, now)
     && Array.isArray(grant.actions) && grant.actions.includes(action)
+    && Array.isArray(grant.kinds) && grant.kinds.includes(kind)
+    && (!isHeightened([kind]) || (grant.heightened === true
+      && Date.parse(grant.expires_at) - Date.parse(grant.created_at) > 0
+      && Date.parse(grant.expires_at) - Date.parse(grant.created_at) <= 7 * STANDING_APPROVAL_DAY_MS))
     && grant.label === (label ?? null)
     && grant.provider_account_id === providerAccountId
     && grant.root === root
@@ -91,13 +201,14 @@ function scopeWords(scope) {
 
 /**
  * Fixed warning shown word for word before a grant can exist.
- * @param {{ scope: object, summaries: string[], kinds: string[], heightened: boolean, expiresOn: string }} proposal
+ * @param {{ scope: object, summaries: string[], cautions?: string[], kinds: string[], heightened: boolean, expiresOn: string }} proposal
  */
-export function buildStandingApprovalWarning({ scope, summaries, kinds, heightened, expiresOn }) {
+export function buildStandingApprovalWarning({ scope, summaries, cautions = [], kinds, heightened, expiresOn }) {
+  const cautionText = [...new Set(cautions)].map((caution) => `${caution} `).join('');
   const heightenedText = heightened
     ? `Some of these actions ${joinWords(Object.entries(HEIGHTENED_PHRASES).filter(([kind]) => kinds.includes(kind)).map(([, phrase]) => phrase))}. Under this approval nobody looks at each one before it happens, and once done it cannot be called back. It lasts at most 7 days. `
     : '';
-  return `This standing approval lets your assistant ${joinWords(summaries)} ${scopeWords(scope)}. For ${scope.days} ${scope.days === 1 ? 'day' : 'days'}, until ${expiresOn}, every call that matches runs straight away, with no approval step for you to see or refuse. Anything outside it still asks you, as today. ${heightenedText}You can end it at any time: ask your assistant to revoke it, or remove it on your Wiser account page. Answer yes to grant it, or no to leave things as they are.`;
+  return `This standing approval lets your assistant ${joinWords(summaries)} ${scopeWords(scope)}. For ${scope.days} ${scope.days === 1 ? 'day' : 'days'}, until ${expiresOn}, every call that matches runs straight away, with no approval step for you to see or refuse. Anything outside it still asks you, as today. ${cautionText}${heightenedText}You can end it at any time: ask your assistant to revoke it, or remove it on your Wiser account page. Answer yes to grant it, or no to leave things as they are.`;
 }
 
 /**

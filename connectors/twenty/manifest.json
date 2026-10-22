@@ -67,7 +67,11 @@
           "description": "Create one record. object is the singular API name and matches ^[a-z][a-zA-Z0-9]{0,62}$. It may not be one of Twenty's own system objects, which are refused by name: workflows and their versions, triggers and runs, campaigns and their deliveries, messages, message lists and suppressions, calendar events, agent records, attachments, the blocklist, workspace members, dashboards, record shares, short links, timeline activities and call recordings. person, company, opportunity, note, noteTarget, task, taskTarget and custom objects are admitted. data holds at most 100 field values, and each of its keys matches that same pattern. The values travel only as GraphQL variables. Returns the new record's id. A record this action creates can start the workspace's own workflows, and such a workflow may send email. This action sends none.",
           "risk": "medium",
           "confirmation": "always",
-          "standing_approval": { "kind": "change", "summary": "create records in Twenty" },
+          "standing_approval": {
+            "kind": "change",
+            "summary": "create records in Twenty",
+            "caution": "Creating or changing a Twenty record can start your workspace's own workflows, and a workflow may send email from a connected mailbox, so under this approval nobody looks at the record before that happens."
+          },
           "execution": {
             "prefer": "proxy"
           },
@@ -97,7 +101,11 @@
           "description": "Update one record's named fields and leave every other field as it is. object is the singular API name and matches ^[a-z][a-zA-Z0-9]{0,62}$. It may not be one of Twenty's own system objects, which are refused by name: workflows and their versions, triggers and runs, campaigns and their deliveries, messages, message lists and suppressions, calendar events, agent records, attachments, the blocklist, workspace members, dashboards, record shares, short links, timeline activities and call recordings. person, company, opportunity, note, noteTarget, task, taskTarget and custom objects are admitted. id is a lowercase UUID. data holds at most 100 field values, and each of its keys matches that same pattern. Twenty's own fields id, createdAt, updatedAt, deletedAt, createdBy, updatedBy and searchVector are refused as keys, so an update never deletes or restores a record. A SELECT field takes an option's value, such as an opportunity's stage; an option whose value starts with a digit is sent with a leading underscore, as Twenty's GraphQL names it. A relation is set by its id field, such as pointOfContactId or companyId. The values travel only as GraphQL variables. Returns the record's id. An update can start the workspace's own workflows, and such a workflow may send email. This action sends none.",
           "risk": "high",
           "confirmation": "always",
-          "standing_approval": { "kind": "change", "summary": "change fields on existing Twenty records" },
+          "standing_approval": {
+            "kind": "change",
+            "summary": "change fields on existing Twenty records",
+            "caution": "Creating or changing a Twenty record can start your workspace's own workflows, and a workflow may send email from a connected mailbox, so under this approval nobody looks at the record before that happens."
+          },
           "execution": {
             "prefer": "proxy"
           },

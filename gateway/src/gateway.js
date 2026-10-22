@@ -221,8 +221,8 @@ export function oneShotClassifierIdentity(env = process.env, opts = {}) {
 const LABEL_PATTERN = '^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$';
 const LABEL_SCHEMA = { type: 'string', pattern: LABEL_PATTERN, description: 'Optional connection name. Omit to use the unlabelled binding' };
 
-const ROOT_PATTERN = '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$';
-const PLAYBOOK_PATTERN = '^[A-Za-z0-9][A-Za-z0-9 ._()-]{0,127}$';
+const ROOT_PATTERN = '^[A-Za-z0-9_-](?:[A-Za-z0-9 ._-]{0,62}[A-Za-z0-9_-])?$';
+const PLAYBOOK_PATTERN = '^[A-Za-z0-9_-](?:[A-Za-z0-9 ._()-]{0,126}[A-Za-z0-9_()-])?$';
 const ROOT_SCHEMA = { type: 'string', pattern: ROOT_PATTERN, description: 'The root from which this work is done.' };
 const PLAYBOOK_SCHEMA = { type: 'string', pattern: PLAYBOOK_PATTERN, description: 'The Playbook under which this work is done.' };
 
@@ -622,7 +622,7 @@ export class ConnectionGateway {
       : new Map();
     /** Milliseconds. Read on every use so a test can reassign `gw.now`. */
     this.now = typeof opts.now === 'function' ? opts.now : Date.now;
-    this.standingApprovals = opts.standingApprovals || createStandingApprovals(this.store, () => this.now());
+    this.standingApprovals = opts.standingApprovals || createStandingApprovals(this.store?.home, () => this.now());
   }
 
   /** Called only on stdio serve start, and by the writer before each file. */
@@ -934,19 +934,20 @@ export class ConnectionGateway {
       }
       const checked = this.standingApprovalScope(args);
       if (checked.refusal) return checked.refusal;
-      const { scope, summaries, kinds, heightened } = checked;
-      const key = confirmationDigest(['standing_approval', scope]);
+      const { scope, summaries, cautions, kinds, heightened } = checked;
+      const at = this.now();
+      const expiresOn = new Date(at + scope.days * STANDING_APPROVAL_DAY_MS).toISOString().slice(0, 10);
+      const warning = buildStandingApprovalWarning({ scope, summaries, cautions, kinds, heightened, expiresOn });
+      const key = confirmationDigest(['standing_approval', scope, warning]);
       if (mode !== 'grant' || args.confirmed !== true || !this.takePendingConfirmation(key)) {
         this.recordPendingConfirmation(key);
-        const expiresOn = new Date(this.now() + scope.days * STANDING_APPROVAL_DAY_MS).toISOString().slice(0, 10);
         return {
           status: 'standing_approval_proposed', scope, expires_on: expiresOn, heightened, kinds,
-          warning: buildStandingApprovalWarning({ scope, summaries, kinds, heightened, expiresOn }),
+          warning,
           next: 'Show the warning to the person word for word; only their own yes in their next turn creates it, by calling standing_approvals with mode grant, the same scope and confirmed: true.',
           ...(mode === 'grant' && args.confirmed === true ? { reason: 'unmatched_confirm' } : {}),
         };
       }
-      const at = this.now();
       const { days, ...storedScope } = scope;
       const grant = {
         id: `sa_${randomUUID()}`, service, module, ...storedScope, summaries, kinds, heightened,
@@ -1031,7 +1032,11 @@ export class ConnectionGateway {
     for (const field of ['root', 'playbook', 'provider_account_id']) {
       try { assertNoSecrets(scope[field]); } catch { return bad(field, 'credential_like'); }
     }
-    return { scope, kinds, heightened, summaries: covered.map(({ def }) => def.standing_approval.summary) };
+    return {
+      scope, kinds, heightened,
+      summaries: covered.map(({ def }) => def.standing_approval.summary),
+      cautions: covered.map(({ def }) => def.standing_approval.caution).filter((caution) => caution !== undefined),
+    };
   }
 
   listConnections() {

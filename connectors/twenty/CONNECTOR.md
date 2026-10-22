@@ -24,7 +24,7 @@ Twenty has three kinds of email.
 
 This connector sends none of them. It holds a workspace API key and calls no endpoint that sends. No mailbox is named. It cannot create or update a workflow, a campaign or a message either: `twenty.records.create` and `twenty.records.update` refuse Twenty's own system objects by name.
 
-A record `twenty.records.create` creates or `twenty.records.update` updates can start the workspace's own workflows. A workflow the workspace already holds may send from a member's connected mailbox. This connector cannot see that workflow and cannot stop it. Creating or updating a record stops for confirmation every time, unless the person holds a standing approval that covers the call. A workflow such a record starts then runs with nobody having looked at that record first.
+A record `twenty.records.create` creates or `twenty.records.update` updates can start the workspace's own workflows. A workflow the workspace already holds may send from a member's connected mailbox. This connector cannot see that workflow and cannot stop it. Creating or updating a record stops for confirmation every time, unless the person holds a standing approval that covers the call. A workflow such a record starts then runs with nobody having looked at that record first, and the approval's warning says so before the person grants it.
 
 ## Several workspaces
 

@@ -228,6 +228,32 @@ test('validator accepts every standing approval kind on an action with a stop', 
   }
 });
 
+test('validator accepts safe standing approval cautions and rejects invalid values at caution', async (t) => {
+  const root = makeHome();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const dir = join(root, 'sample');
+  writeConnector(dir, { id: 'sample' });
+  const file = join(dir, 'manifest.json');
+  const manifest = JSON.parse(readFileSync(file, 'utf8'));
+  const action = manifest.modules.items.actions.ping;
+  action.confirmation = 'always';
+  action.standing_approval = { kind: 'change', summary: 'change things' };
+  for (const caution of ['.', 'This may trigger workflows.', `${'a'.repeat(239)}.`]) {
+    action.standing_approval.caution = caution;
+    writeFileSync(file, JSON.stringify(manifest));
+    assert.equal((await loadConnector(dir)).manifest.modules.items.actions.ping.standing_approval.caution, caution);
+  }
+  for (const caution of ['', `${'a'.repeat(240)}.`, 'No final period', 'Trailing period. ', null, 1,
+    'Unsafe\n.', 'Unsafe\u2060.', 'Unsafe\ud800.', 'Unsafe\u2028.', 'Unsafe\u2029.', 'Unsafe\ufe0f.']) {
+    action.standing_approval.caution = caution;
+    writeFileSync(file, JSON.stringify(manifest));
+    await assert.rejects(() => loadConnector(dir), (err) => {
+      assert.equal(err.field, 'modules.items.actions.ping.standing_approval.caution');
+      return true;
+    });
+  }
+});
+
 test('Twenty marks exactly records.create and records.update for standing approvals', async () => {
   const connector = await loadConnector(join(CONNECTORS, 'twenty'));
   const marked = [];
@@ -237,7 +263,7 @@ test('Twenty marks exactly records.create and records.update for standing approv
     }
   }
   assert.deepEqual(marked, [
-    ['records.create', { kind: 'change', summary: 'create records in Twenty' }],
-    ['records.update', { kind: 'change', summary: 'change fields on existing Twenty records' }],
+    ['records.create', { kind: 'change', summary: 'create records in Twenty', caution: "Creating or changing a Twenty record can start your workspace's own workflows, and a workflow may send email from a connected mailbox, so under this approval nobody looks at the record before that happens." }],
+    ['records.update', { kind: 'change', summary: 'change fields on existing Twenty records', caution: "Creating or changing a Twenty record can start your workspace's own workflows, and a workflow may send email from a connected mailbox, so under this approval nobody looks at the record before that happens." }],
   ]);
 });

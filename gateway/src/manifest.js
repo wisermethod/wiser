@@ -98,8 +98,8 @@ function validateAction(action, file, field) {
     const standing = action.standing_approval;
     const at = `${field}.standing_approval`;
     requireObject(standing, file, at);
-    if (Object.keys(standing).some((key) => key !== 'kind' && key !== 'summary')) {
-      throw validationError(file, at, 'must contain only kind and summary');
+    if (Object.keys(standing).some((key) => key !== 'kind' && key !== 'summary' && key !== 'caution')) {
+      throw validationError(file, at, 'must contain only kind, summary and optional caution');
     }
     if (!STANDING_APPROVAL_KINDS.has(standing.kind)) {
       throw validationError(file, `${at}.kind`, 'must be change | delete | send | pay | publish | grant_access');
@@ -107,6 +107,11 @@ function validateAction(action, file, field) {
     if (typeof standing.summary !== 'string' || standing.summary.length < 1 || standing.summary.length > 80 ||
         containsUnsafeCodePoint(standing.summary) || !/^\p{L}[\p{L}\p{N}]*(?:[ '\u2019-][\p{L}\p{N}]+)*$/u.test(standing.summary)) {
       throw validationError(file, `${at}.summary`, 'must be 1 to 80 characters of plain words completing "lets your assistant ..."');
+    }
+    if (Object.hasOwn(standing, 'caution') && (typeof standing.caution !== 'string' ||
+        standing.caution.length < 1 || standing.caution.length > 240 || containsUnsafeCodePoint(standing.caution) ||
+        !standing.caution.endsWith('.'))) {
+      throw validationError(file, `${at}.caution`, 'must be 1 to 240 safe characters ending in a period');
     }
     if (!action.confirmation || action.confirmation === 'none') {
       throw validationError(file, at, 'requires a confirmation stop');

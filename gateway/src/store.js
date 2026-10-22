@@ -59,7 +59,7 @@ export function assertNoSecrets(value, via = 'record') {
 
 /**
  * @param {string} home
- * @returns {{ userId: string | null, connections: ConnectionRecord[], standing_approvals: object[] }}
+ * @returns {{ userId: string | null, connections: ConnectionRecord[] }}
  */
 /**
  * A state file that is a symbolic link points somewhere this process did not choose.
@@ -84,7 +84,7 @@ export function refuseSymlink(path, what) {
 }
 
 function emptyDoc() {
-  return { userId: null, connections: [], standing_approvals: [] };
+  return { userId: null, connections: [] };
 }
 
 /**
@@ -108,7 +108,7 @@ export class JsonFileStore {
   }
 
   /**
-   * @returns {{ userId: string | null, connections: ConnectionRecord[], standing_approvals: object[] }}
+   * @returns {{ userId: string | null, connections: ConnectionRecord[] }}
    */
   read() {
     if (!existsSync(this.file)) return emptyDoc();
@@ -118,7 +118,6 @@ export class JsonFileStore {
     const doc = JSON.parse(raw);
     if (!doc || typeof doc !== 'object') return emptyDoc();
     if (!Array.isArray(doc.connections)) doc.connections = [];
-    if (!Array.isArray(doc.standing_approvals)) doc.standing_approvals = [];
     // Another writer may spell "no label" as null or ''; both read as the unlabelled binding.
     for (const row of doc.connections) {
       if (row && typeof row === 'object' && (row.label === null || row.label === '')) delete row.label;
@@ -128,7 +127,7 @@ export class JsonFileStore {
   }
 
   /**
-   * @param {{ userId: string | null, connections: ConnectionRecord[], standing_approvals: object[] }} doc
+   * @param {{ userId: string | null, connections: ConnectionRecord[] }} doc
    */
   write(doc) {
     assertNoSecrets(doc, 'store');
