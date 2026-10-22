@@ -3,7 +3,6 @@ import math
 from pathlib import Path
 
 from paths import CaptureError
-from geometry import union
 from terms import Matcher
 
 
@@ -52,17 +51,14 @@ def vision(path, terms=()):
         combined = "\n".join(line[1] for line in lines)
         matches = []
         for lo, hi, label in Matcher(terms).matches(combined):
-            boxes = []
+            # A match that runs across lines gets one box per line. A union of lines far apart would cover
+            # whatever sits between them, and tracking then carries that box through every still frame.
             for start, text, candidate, fallback in lines:
                 a, b = max(lo, start), min(hi, start + len(text))
                 if a >= b:
                     continue
                 observation, error = candidate.boundingBoxForRange_error_(_range(text, a - start, b - start), None)
-                boxes.append(_pixels(observation.boundingBox() if observation else fallback, width, height))
-            if boxes:
-                box = boxes[0]
-                for extra in boxes[1:]:
-                    box = union(box, extra)
+                box = _pixels(observation.boundingBox() if observation else fallback, width, height)
                 matches.append({"class": label, "box": list(box)})
         return matches
 

@@ -142,6 +142,13 @@ class TermsTests(unittest.TestCase):
         self.assertEqual(self.labels(["Mark", "Mark Stone"], "Marketplace"), set())
         self.assertEqual(self.labels(["Riley Quintero"], "Rileys"), set())
 
+    def test_unknown_address_is_matched_as_read(self):
+        # Tesseract's sparse mode puts each block on its own line; a stray glyph read as "©" must not join them.
+        self.assertNotIn("address-shaped", self.labels([], "Contact\n©\nSupport.Team"))
+        self.assertNotIn("address-shaped", self.labels([], "Writing ©? reply.now"))
+        self.assertIn("address-shaped", self.labels([], "riley.q @ example.org"))
+        self.assertIn("term 1 whole", self.labels(["riley.q@example.org"], "riley.q\n@\nexample.org"))
+
     def test_offsets_and_numbered_classes(self):
         text = "Hi 🙂 R I L E Y Quintero!"
         matches = Matcher(["Nobody", "Riley Quintero"]).matches(text)

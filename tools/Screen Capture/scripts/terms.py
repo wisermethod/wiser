@@ -1,8 +1,9 @@
 """Text matching in memory. Matches carry offsets and numbered classes, never text."""
 import re
 
-# Deliberately loose, as the proof was: OCR confuses @ and the punctuation.
-ADDRESS = re.compile(r"[A-Za-z0-9._%+|\-]+\s?[@©®]\s?[A-Za-z0-9|\-]+(?:\s?[.,]\s?[A-Za-z0-9|\-]+)+")
+# Deliberately loose, as the proof was: OCR confuses @ and the punctuation, and may put a space around either.
+# Never a line break: OCR puts separate blocks of a screen on separate lines.
+ADDRESS = re.compile(r"[A-Za-z0-9._%+|\-]+[ \t]?[@©®][ \t]?[A-Za-z0-9|\-]+(?:[ \t]?[.,][ \t]?[A-Za-z0-9|\-]+)+")
 FOLD = str.maketrans({"0": "o", "1": "l", "|": "l"})
 
 
@@ -42,14 +43,10 @@ class Matcher:
 
     def matches(self, text):
         compact, positions = folded(text)
+        # An unknown address is matched on the text as read, whose loose pattern already allows one space around
+        # "@" and each dot. Matching it with the whitespace removed joins words OCR read on separate lines to a stray
+        # "@" or "©", and a clean frame fails. Declared terms below are specific enough to match with it removed.
         found = [(m.start(), m.end(), "address-shaped") for m in ADDRESS.finditer(text)]
-        # Also find address-shaped runs through arbitrary OCR whitespace.
-        for m in ADDRESS.finditer(compact):
-            lo, hi = positions[m.start()], positions[m.end() - 1] + 1
-            # Prefer the loose pattern's own run where it already found one.
-            # Removing all spaces must not absorb the surrounding sentence.
-            if not any(a < hi and lo < b for a, b, label in found):
-                found.append((lo, hi, "address-shaped"))
         for needle, label, edges in self.rules:
             start = 0
             while True:

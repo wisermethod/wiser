@@ -1,8 +1,8 @@
-"""Replace letters with size-seeded bands of two colours, then the approved soft blur."""
+"""Replace letters with glyph-like strokes of two colours, seeded by the box size, then the approved soft blur."""
 import math
 import random
 import numpy as np
-from PIL import Image, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter
 
 PAD = 1
 FEATHER = 3
@@ -28,19 +28,35 @@ def colours(a, box):
 
 
 def replacement(width, height, bg, ink):
-    """No location, source pixels, text or letter shape can enter this function."""
+    """No location, source pixels, text or letter shape can enter this function.
+
+    Glyph-like strokes at about the ink density of a line of text, so that after the blur the box reads as softened
+    text, as the approved blur did, rather than as solid bars. Drawn at four times the size and reduced, so the
+    strokes are anti-aliased; every choice comes from a generator seeded by the box's width and height alone.
+    """
     rng = random.Random((width << 32) | height)
-    band = np.zeros((height, width), dtype=np.float32)
-    # Soft vertical band, with deterministic word-like gaps along its length.
-    yy = (np.arange(height) + 0.5) / max(height, 1)
-    weight = np.exp(-0.5 * ((yy - 0.5) / 0.15) ** 2)
-    x = max(1, round(height * 0.12))
-    while x < width:
-        length = rng.randint(max(2, height // 2), max(3, height * 3))
-        end = min(width, x + length)
-        band[:, x:end] = weight[:, None]
-        x = end + rng.randint(max(1, height // 6), max(2, height // 2))
-    return bg + band[..., None] * (ink - bg)
+    scale = 4
+    big_w, big_h = width * scale, height * scale
+    mask = Image.new("L", (big_w, big_h), 0)
+    draw = ImageDraw.Draw(mask)
+    top, base = round(0.30 * big_h), round(0.74 * big_h)
+    stem = max(scale, round(0.13 * big_h))
+    x, letters = round(0.06 * big_w), 0
+    while x < big_w - stem:
+        advance = round(big_h * rng.uniform(0.42, 0.62))
+        kind = rng.random()
+        draw.rectangle((x, round(0.12 * big_h) if kind < 0.18 else top, x + stem, base), fill=255)
+        if kind > 0.45:
+            draw.rectangle((x + advance - 2 * stem, top, x + advance - stem, base), fill=255)
+        if 0.3 < kind < 0.75:
+            draw.rectangle((x, top, x + advance - stem, top + stem), fill=255)
+        x += advance
+        letters += 1
+        if letters >= rng.randint(6, 14):
+            x += round(big_h * rng.uniform(0.20, 0.30))
+            letters = 0
+    coverage = np.asarray(mask.resize((width, height), Image.LANCZOS), dtype=np.float32)[..., None] / 255.0
+    return bg + coverage * (ink - bg)
 
 
 def soften(image, rects):

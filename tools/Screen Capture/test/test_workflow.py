@@ -40,6 +40,19 @@ class WorkflowTests(unittest.TestCase):
             self.assertLess(whole[0][2] - whole[0][0], box[2] - box[0] - 70)
             self.assertEqual(ocr._range("🙂Riley", 1, 6), (2, 5))
 
+    def test_match_across_lines_gets_one_box_per_line(self):
+        with temporary() as directory:
+            source = Path(directory) / "split.png"
+            image = Image.new("RGB", (900, 700), "white")
+            draw = ImageDraw.Draw(image)
+            draw.text((45, 60), "Write to riley.q@", font=font(), fill="black")
+            draw.text((45, 560), "example.org today", font=font(), fill="black")
+            image.save(source)
+            boxes = [hit["box"] for hit in ocr.vision(source, [ADDRESS]) if hit["class"] == "term 1 whole"]
+            self.assertGreaterEqual(len(boxes), 2, "Vision must read both halves of the split address")
+            for box in boxes:
+                self.assertLess(box[3] - box[1], 120, "a box spans more than one line")
+
     def test_named_region_holds_when_detection_misses(self):
         with temporary() as directory:
             root = Path(directory)
