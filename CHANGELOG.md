@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.22.8, October 22, 2026
+
+- The Twenty connector can now update a record. It changes only the fields you name on a person, company, deal or other record, such as moving a deal to another stage or linking it to its contact and company, and it asks you first every time. It never deletes or restores a record. (2b27d2f, c062f0e, bc1b29d)
+- Listing and counting Twenty records now take the same singular name as creating one, such as person or opportunity, where they used to fail; the plural still works. Reading a workspace's objects and their fields works again on Twenty 2.45. When Twenty refuses a request, your assistant now sees Twenty's own reason, unless it looks as if it could hold a password or key. (2b27d2f, c062f0e)
+
 ## v2026.10.22.7, October 22, 2026
 
 - Every piece Wiser writes now goes out without two patterns that make writing sound machine-made: a point staged as a correction nobody needed, such as "That doesn't mean X. It means Y.", and a colon that holds the point back for a reveal, such as "Here's the thing:". The review that checks each piece before it ships no longer lets either through as harmless. (d420016)

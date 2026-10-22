@@ -36,6 +36,18 @@ const CURSOR = /^[A-Za-z0-9+/=_-]{1,512}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const GRAPHQL_CODE = /^[A-Z_]{1,64}$/;
 const SAFE_ID = /^[A-Za-z0-9-]{1,64}$/;
+const OBJECT_PLURALS = {
+  person: 'people',
+  company: 'companies',
+  opportunity: 'opportunities',
+  note: 'notes',
+  noteTarget: 'noteTargets',
+  task: 'tasks',
+  taskTarget: 'taskTargets',
+};
+// Twenty's own fields on every object. records.update refuses them as data keys: deletedAt
+// would delete or restore the record, and the rest are the workspace's own bookkeeping.
+const SYSTEM_FIELDS = new Set(['id', 'createdAt', 'updatedAt', 'deletedAt', 'createdBy', 'updatedBy', 'searchVector']);
 const FIELD_TYPES = new Set(['TEXT', 'NUMBER', 'BOOLEAN', 'DATE', 'DATE_TIME', 'SELECT', 'MULTI_SELECT']);
 const SELECT_TYPES = new Set(['SELECT', 'MULTI_SELECT']);
 // Twenty's TAG_COLORS, from the amended plan. red is first so a sampler's enum exemplar is red.
@@ -47,8 +59,9 @@ const COLORS = new Set([
 
 // Twenty's own standard objects at v2.45.6 (6007ad5a, STANDARD_OBJECT_UNIVERSAL_IDENTIFIERS),
 // every one but the CRM's seven: person, company, opportunity, note, noteTarget, task and
-// taskTarget. records.create refuses each by name, before any call. A created workflow,
-// campaign or message could send email, and the rest are the workspace's own machinery.
+// taskTarget. records.create and records.update refuse each by name, before any call. A
+// created workflow, campaign or message could send email, and the rest are the workspace's
+// own machinery.
 // Every other name is admitted, custom objects among them.
 const SYSTEM_OBJECTS = new Set([
   'agentChatThread', 'agentChatThreadTarget', 'agentMessage', 'agentMessagePart', 'agentTurn',
@@ -69,10 +82,10 @@ const OBJECTS_QUERY = [
   '  objects(paging: { first: 200 }, filter: {}) {',
   '    pageInfo { hasNextPage }',
   '    edges { node {',
-  '      id nameSingular namePlural labelSingular labelPlural isCustom isActive',
+  '      id nameSingular namePlural labelSingular labelPlural isSystem isActive',
   '      fields(paging: { first: 200 }, filter: {}) {',
   '        pageInfo { hasNextPage }',
-  '        edges { node { id name label type isCustom isActive options } }',
+  '        edges { node { id name label type isSystem isActive options } }',
   '      }',
   '    } }',
   '  }',
@@ -80,6 +93,7 @@ const OBJECTS_QUERY = [
 ].join('\n');
 
 const WORKSPACE_QUERY = 'query { currentWorkspace { id subdomain displayName } }';
+const OBJECT_NAMES_QUERY = 'query { objects(paging: { first: 200 }, filter: {}) { pageInfo { hasNextPage } edges { node { nameSingular namePlural } } } }';
 const FIELD_QUERY = 'query ($id: UUID!) { field(id: $id) { id type options } }';
 const CREATE_OBJECT_QUERY = 'mutation ($input: CreateOneObjectInput!) { createOneObject(input: $input) { id } }';
 const CREATE_FIELD_QUERY = 'mutation ($input: CreateOneFieldMetadataInput!) { createOneField(input: $input) { id } }';
@@ -99,6 +113,21 @@ function graphqlCode(error) {
   return typeof code === 'string' && GRAPHQL_CODE.test(code) ? code : null;
 }
 
+const CREDENTIAL_WORDS = /token|secret|passw(?:or)?d|credential|api[\s_-]*key|bearer|authorization/i;
+const JWT_RUN = /eyJ[A-Za-z0-9_-]{10,}/;
+
+// The words are tested with control characters removed as well as replaced, so a
+// control character inside a word does not hide it.
+function graphqlMessage(error) {
+  if (!error || typeof error.message !== 'string') return null;
+  const message = error.message.replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
+  const joined = error.message.replace(/[\u0000-\u001f\u007f]/g, '');
+  if (!message || [message, joined].some((text) => CREDENTIAL_WORDS.test(text) || JWT_RUN.test(text))) {
+    return null;
+  }
+  return [...message].slice(0, 300).join('');
+}
+
 // Twenty answers a GraphQL failure with HTTP 200 and an errors array. A REST 4xx
 // throws from ctx.proxy before this returns, and that throw is left alone.
 async function graphql(ctx, endpoint, query, variables) {
@@ -109,7 +138,10 @@ async function graphql(ctx, endpoint, query, variables) {
     return vendorError(endpoint, httpStatus, 'POST');
   }
   if (Array.isArray(body.errors) && body.errors.length > 0) {
-    return vendorError(endpoint, httpStatus, 'POST', graphqlCode(body.errors[0]));
+    const error = vendorError(endpoint, httpStatus, 'POST', graphqlCode(body.errors[0]));
+    const message = graphqlMessage(body.errors[0]);
+    if (message) error.message = message;
+    return error;
   }
   if (!body.data || typeof body.data !== 'object' || Array.isArray(body.data)) {
     return vendorError(endpoint, httpStatus, 'POST');
@@ -130,6 +162,28 @@ async function restGet(ctx, endpoint) {
 function checkApiName(value, field) {
   if (typeof value !== 'string' || !API_NAME.test(value)) return invalid(field);
   return null;
+}
+
+function checkRecordData(data, refused = new Set()) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return invalid('data');
+  const keys = Object.keys(data);
+  if (keys.length > 100) return invalid('data');
+  for (const key of keys) {
+    if (!API_NAME.test(key) || refused.has(key)) return invalid('data');
+  }
+  return null;
+}
+
+// Twenty names a record's mutations and input types with twenty-shared's pascalCase, which
+// is lodash camelCase capitalized (6007ad5a). This is that word split for an API name, so
+// foo2bar is Foo2Bar and fooBAR is FooBar there. Checked against lodash.camelcase 4.3.0, the
+// version Twenty resolves, which has no ordinal rule: foo2nd is Foo2Nd.
+const HUMPED = /[a-z][A-Z]|[A-Z]{2,}[a-z]|[0-9][a-zA-Z]|[a-zA-Z][0-9]/;
+const NAME_WORD = /[A-Z]?[a-z]+(?=[A-Z]|$)|[A-Z]+(?=[A-Z][a-z]|$)|[A-Z]?[a-z]+|[A-Z]+|\d+/g;
+
+function typeName(object) {
+  const words = HUMPED.test(object) ? object.match(NAME_WORD) : [object];
+  return words.map((word) => word[0].toUpperCase() + word.slice(1).toLowerCase()).join('');
 }
 
 function checkBoundedText(value, field, max, min = 1) {
@@ -185,6 +239,33 @@ function hasMore(connection) {
   return Boolean(connection && typeof connection === 'object' && connection.pageInfo && connection.pageInfo.hasNextPage === true);
 }
 
+async function restName(ctx, object) {
+  if (Object.hasOwn(OBJECT_PLURALS, object)) return { namePlural: OBJECT_PLURALS[object] };
+  if (Object.values(OBJECT_PLURALS).includes(object)) return { namePlural: object };
+  const result = await graphql(ctx, METADATA, OBJECT_NAMES_QUERY, {});
+  if (result.status === 'vendor_error') return result;
+  const connection = result.payload.objects;
+  if (!connection || typeof connection !== 'object' || Array.isArray(connection)
+    || !Array.isArray(connection.edges) || typeof connection.pageInfo?.hasNextPage !== 'boolean') {
+    return vendorError(METADATA, result.httpStatus, 'POST');
+  }
+  const nodes = [];
+  for (const edge of connection.edges) {
+    const node = edge && typeof edge === 'object' ? edge.node : undefined;
+    if (!node || typeof node !== 'object' || Array.isArray(node)
+      || typeof node.nameSingular !== 'string' || typeof node.namePlural !== 'string') {
+      return vendorError(METADATA, result.httpStatus, 'POST');
+    }
+    nodes.push(node);
+  }
+  const match = nodes.find((node) => node.nameSingular === object) || nodes.find((node) => node.namePlural === object);
+  if (!match) {
+    return hasMore(connection) ? vendorError(METADATA, result.httpStatus, 'POST', INCOMPLETE) : invalid('object');
+  }
+  if (!API_NAME.test(match.namePlural)) return vendorError(METADATA, result.httpStatus, 'POST');
+  return { namePlural: match.namePlural };
+}
+
 function projectFields(fields) {
   const edges = fields && typeof fields === 'object' ? fields.edges : undefined;
   if (!Array.isArray(edges)) return null;
@@ -198,7 +279,7 @@ function projectFields(fields) {
       name: node.name,
       label: node.label,
       type: node.type,
-      isCustom: node.isCustom,
+      isSystem: node.isSystem,
       isActive: node.isActive,
       options: node.options,
     });
@@ -222,7 +303,7 @@ function projectObjects(payload) {
       namePlural: node.namePlural,
       labelSingular: node.labelSingular,
       labelPlural: node.labelPlural,
-      isCustom: node.isCustom,
+      isSystem: node.isSystem,
       isActive: node.isActive,
       fields,
     });
@@ -263,13 +344,15 @@ export const modules = {
         if (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 60) return invalid('limit');
         limit = input.limit;
       }
-      let endpoint = `/rest/${encodeURIComponent(input.object)}?limit=${limit}`;
       if (input.cursor !== undefined) {
         if (typeof input.cursor !== 'string' || !CURSOR.test(input.cursor) || codePoints(input.cursor) > 512) {
           return invalid('cursor');
         }
-        endpoint += `&starting_after=${encodeURIComponent(input.cursor)}`;
       }
+      const resolved = await restName(ctx, input.object);
+      if (resolved.status) return resolved;
+      let endpoint = `/rest/${encodeURIComponent(resolved.namePlural)}?limit=${limit}`;
+      if (input.cursor !== undefined) endpoint += `&starting_after=${encodeURIComponent(input.cursor)}`;
       return restGet(ctx, endpoint);
     },
 
@@ -277,7 +360,9 @@ export const modules = {
     async count(input, ctx) {
       const bad = unknownField(input, ['object']) || checkApiName(input.object, 'object');
       if (bad) return bad;
-      const endpoint = `/rest/${encodeURIComponent(input.object)}?limit=1`;
+      const resolved = await restName(ctx, input.object);
+      if (resolved.status) return resolved;
+      const endpoint = `/rest/${encodeURIComponent(resolved.namePlural)}?limit=1`;
       const body = await restGet(ctx, endpoint);
       if (body.status === 'vendor_error') return body;
       if (!Number.isInteger(body.totalCount) || body.totalCount < 0) return vendorError(endpoint, null, 'GET');
@@ -290,21 +375,33 @@ export const modules = {
       const bad = unknownField(input, ['object', 'data']) || checkApiName(input.object, 'object');
       if (bad) return bad;
       if (SYSTEM_OBJECTS.has(input.object)) return invalid('object');
-      if (!input.data || typeof input.data !== 'object' || Array.isArray(input.data)) return invalid('data');
-      const keys = Object.keys(input.data);
-      if (keys.length > 100) return invalid('data');
-      for (const key of keys) {
-        if (!API_NAME.test(key)) return invalid('data');
-      }
-      // The mutation name is the checked object with its first letter upper-cased.
-      // Values stay in variables. The input type name is the generated form.
-      const name = input.object[0].toUpperCase() + input.object.slice(1);
+      const data = checkRecordData(input.data);
+      if (data) return data;
+      // The mutation and input type names are the checked object as Twenty spells them.
+      // Values stay in variables.
+      const name = typeName(input.object);
       const query = `mutation ($data: ${name}CreateInput!) { create${name}(data: $data) { id } }`;
       const result = await graphql(ctx, GRAPHQL, query, { data: input.data });
       if (result.status === 'vendor_error') return result;
       const created = createdId(result.payload, `create${name}`);
       if (!created) return vendorError(GRAPHQL, result.httpStatus, 'POST');
       return created;
+    },
+
+    async update(input, ctx) {
+      const bad = unknownField(input, ['object', 'id', 'data']) || checkApiName(input.object, 'object');
+      if (bad) return bad;
+      if (SYSTEM_OBJECTS.has(input.object)) return invalid('object');
+      if (typeof input.id !== 'string' || !UUID.test(input.id)) return invalid('id');
+      const data = checkRecordData(input.data, SYSTEM_FIELDS);
+      if (data) return data;
+      const name = typeName(input.object);
+      const query = `mutation ($id: UUID!, $data: ${name}UpdateInput!) { update${name}(id: $id, data: $data) { id } }`;
+      const result = await graphql(ctx, GRAPHQL, query, { id: input.id, data: input.data });
+      if (result.status === 'vendor_error') return result;
+      const updated = createdId(result.payload, `update${name}`);
+      if (!updated) return vendorError(GRAPHQL, result.httpStatus, 'POST');
+      return updated;
     },
   },
 

@@ -11,7 +11,7 @@
       },
       "actions": {
         "list": {
-          "description": "List one object's records. object is the plural API name and matches ^[a-z][a-zA-Z0-9]{0,62}$. limit is an integer from 1 to 60 and defaults to 20. cursor, when present, matches ^[A-Za-z0-9+/=_-]{1,512}$ and is sent as starting_after. Returns the records, pageInfo and totalCount as Twenty answers them.",
+          "description": "List one object's records. object is the singular API name, such as person, or its plural, such as people, and matches ^[a-z][a-zA-Z0-9]{0,62}$. A custom object's name is resolved by one metadata read. limit is an integer from 1 to 60 and defaults to 20. cursor, when present, matches ^[A-Za-z0-9+/=_-]{1,512}$ and is sent as starting_after. Returns the records, pageInfo and totalCount as Twenty answers them.",
           "risk": "low",
           "confirmation": "none",
           "execution": {
@@ -43,7 +43,7 @@
           }
         },
         "count": {
-          "description": "Count one object's records. object is the plural API name and matches ^[a-z][a-zA-Z0-9]{0,62}$. Returns totalCount only; no record leaves the module.",
+          "description": "Count one object's records. object is the singular API name, such as person, or its plural, such as people, and matches ^[a-z][a-zA-Z0-9]{0,62}$. A custom object's name is resolved by one metadata read. Returns totalCount only; no record leaves the module.",
           "risk": "low",
           "confirmation": "none",
           "execution": {
@@ -92,6 +92,40 @@
             "additionalProperties": false
           }
         },
+        "update": {
+          "description": "Update one record's named fields and leave every other field as it is. object is the singular API name and matches ^[a-z][a-zA-Z0-9]{0,62}$. It may not be one of Twenty's own system objects, which are refused by name: workflows and their versions, triggers and runs, campaigns and their deliveries, messages, message lists and suppressions, calendar events, agent records, attachments, the blocklist, workspace members, dashboards, record shares, short links, timeline activities and call recordings. person, company, opportunity, note, noteTarget, task, taskTarget and custom objects are admitted. id is a lowercase UUID. data holds at most 100 field values, and each of its keys matches that same pattern. Twenty's own fields id, createdAt, updatedAt, deletedAt, createdBy, updatedBy and searchVector are refused as keys, so an update never deletes or restores a record. A SELECT field takes an option's value, such as an opportunity's stage; an option whose value starts with a digit is sent with a leading underscore, as Twenty's GraphQL names it. A relation is set by its id field, such as pointOfContactId or companyId. The values travel only as GraphQL variables. Returns the record's id. An update can start the workspace's own workflows, and such a workflow may send email. This action sends none.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "object": {
+                "type": "string",
+                "pattern": "^(?!(?:agentChatThread|agentChatThreadTarget|agentMessage|agentMessagePart|agentTurn|agentTurnEvaluation|attachment|blocklist|calendarChannelEventAssociation|calendarEvent|calendarEventParticipant|calendarEventTarget|callRecording|campaignDelivery|dashboard|message|messageCampaign|messageChannelMessageAssociation|messageChannelMessageAssociationMessageFolder|messageList|messageListMember|messageParticipant|messageSuppression|messageThread|messageThreadTarget|recordShare|shortLink|timelineActivity|workflow|workflowAutomatedTrigger|workflowRun|workflowVersion|workspaceMember)$)[a-z][a-zA-Z0-9]{0,62}$"
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "data": {
+                "type": "object",
+                "propertyNames": {
+                  "pattern": "^(?!(?:id|createdAt|updatedAt|deletedAt|createdBy|updatedBy|searchVector)$)[a-z][a-zA-Z0-9]{0,62}$"
+                },
+                "maxProperties": 100
+              }
+            },
+            "required": [
+              "object",
+              "id",
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        },
         "workspace": {
           "description": "Read the workspace the bound key belongs to. Takes an empty object. Returns id, subdomain and displayName. A caller checks it before writing, on each module it uses, since each module can be bound to its own account.",
           "risk": "low",
@@ -119,7 +153,7 @@
       },
       "actions": {
         "list_objects": {
-          "description": "List the workspace's objects and their fields. Takes an empty object. Each object includes id, nameSingular, namePlural, labelSingular, labelPlural, isCustom and isActive, and each field includes id, name, label, type, isCustom, isActive and options. A workspace with more than 200 objects, or an object with more than 200 fields, is refused as vendor_error with code RESULT_INCOMPLETE rather than returned in part.",
+          "description": "List the workspace's objects and their fields. Takes an empty object. Each object includes id, nameSingular, namePlural, labelSingular, labelPlural, isSystem and isActive, and each field includes id, name, label, type, isSystem, isActive and options. A workspace with more than 200 objects, or an object with more than 200 fields, is refused as vendor_error with code RESULT_INCOMPLETE rather than returned in part.",
           "risk": "low",
           "confirmation": "none",
           "execution": {
