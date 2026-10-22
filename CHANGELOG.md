@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.22.6, October 22, 2026
+
+- Setting up Wiser in an empty folder you already have open, such as a Cowork project's folder, no longer asks whether to keep your work there: Wiser uses that folder, and its closing message names it. (c8f0c36, 7ccc30e)
+
 ## v2026.10.22.5, October 22, 2026
 
 - The voice coach's first piece is now written to be one you'd be glad to send. Where it needs something you didn't give, such as the steps of a guide or an example, the coach makes it up in keeping with what you said and tells you in one line under the piece, so you can swap in your own; it never makes up numbers, names, credentials or results, and nothing it made up goes into your voice file. Before you see it, the piece is also checked for the patterns that make writing sound machine-made, such as a question it answers itself or "That doesn't mean X. It means Y." (cb34553)
