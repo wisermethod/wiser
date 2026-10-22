@@ -32,7 +32,7 @@ Feeds: whatever its question feeds, made concrete. After W4 it gives `## Prohibi
 
 Said before it:
 
-> Now some quick taps. I've taken what you just told me and said it two ways each time. Pick the one you'd actually say, not the one that sounds better. "Both" is a real answer.
+> Now some quick taps. Where I've said what you told me two ways, pick the one you'd actually say, not the one that sounds better. "Both" is a real answer.
 
 **How every pair is written.** Each pair is written from the person's own answer named under it; where that answer makes more than one point, from the first point it makes. Copy one stretch of what they said onto both sides, in their words, with their facts and their hedges, and change only the one thing the pair names: P1 the frame, P2 the order of their example and their point, P3 one detail of their own, P4 one feeling they named. Every word on either side is theirs except P1's frame and what a sentence needs to be whole. A side that leaves something out uses only words already in that stretch, and neither side changes who did what. Both sides pass the floor. Where the pair would need a second change, or anything they did not say, a fact, number, name, hedge, feeling, joke or image, the pair is not asked: it writes nothing, and a screen asks only the pairs their answers give. A pair never puts words in their mouth. The answers file records both lines shown.
 
@@ -65,6 +65,21 @@ Writes:
 - B: "Keeps the point on the subject rather than on themselves."
 - Both: "Uses their own experience or keeps to the subject, as the piece needs."
 
+### P6. Humour
+
+P6, P7 and P8 are not pairs: each is the same for everyone and asked on every run. A skip writes nothing. Typed instead of tapped, the answer is recorded in their words and writes the line of the option it plainly matches, or nothing.
+
+> Something's gone a bit wrong. Would you make a joke about it in writing?
+
+- Yes, it keeps everyone sane
+- Only with people I know well
+- No, not in writing
+
+Writes:
+- Yes, it keeps everyone sane: "Lets a light joke in, even when something has gone wrong, where the reader would take it well."
+- Only with people I know well: "Jokes only with readers they know well, and otherwise keeps it straight."
+- No, not in writing: "Keeps jokes out of their writing."
+
 ## W3 (typed)
 
 > How would a friend describe the way you talk? Their words, not the polite version.
@@ -91,6 +106,34 @@ Writes:
 - A: "Lets the facts carry the feeling and rarely names it."
 - B: "Names the feeling plainly when they have one."
 - Both: "Names the feeling or lets the facts carry it, as the piece needs."
+
+### P7. What they'd love to hear
+
+> Someone just finished reading something you wrote. What would you most love them to say?
+
+- "That was so clear."
+- "You made me laugh."
+- "I felt that."
+- "OK, you've convinced me."
+
+Writes:
+- That was so clear: "Where a piece has room, aims first for it to be clear."
+- You made me laugh: "Where a piece has room, aims first to leave the reader smiling."
+- I felt that: "Where a piece has room, aims first for the reader to feel it."
+- OK, you've convinced me: "Where a piece has room, aims first to persuade."
+
+### P8. Excitement
+
+> You've got good news to share. Does your excitement show?
+
+- Yes, let it show
+- A little
+- No, the news speaks for itself
+
+Writes:
+- Yes, let it show: "Lets their excitement show when they have good news."
+- A little: "Shows a little excitement at good news, never more than the news."
+- No, the news speaks for itself: "Lets good news speak for itself, with no added excitement."
 
 ### R1. How should your writing usually read?
 
