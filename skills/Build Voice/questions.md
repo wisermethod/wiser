@@ -28,23 +28,7 @@ Asked at most once per answer. After W1, W2 or W3, only when the answer is a lab
 
 Feeds: whatever its question feeds, made concrete. After W4 it gives `## Prohibitions` its phrases.
 
-## W3 (typed)
-
-> How would a friend describe the way you talk? Their words, not the polite version.
-
-Feeds: the portrait's sentence on how they come across; How they write, below; `about.md` `## Personality`.
-
-## W4 (typed)
-
-> And what would you hate to sound like? A word or phrase that makes you wince is perfect.
-
-Feeds: `## Prohibitions`, as concrete phrases or moves; `about.md` `## Personality`.
-
 ## R1 (tapped)
-
-Said before it:
-
-> One tap, then I'll show you how you come across.
 
 > How should your writing usually read?
 
@@ -55,19 +39,31 @@ Said before it:
 
 "Depends" typed in the free-text answer is recorded as answered. Feeds: `## Reading Ease`, the option's level and the line under it, or on Depends or a skip, "Set by each piece's reader"; the routing row's register.
 
+## W3 (typed)
+
+> How would a friend describe the way you talk? Their words, not the polite version.
+
+Feeds: the portrait's sentence on how they come across; How they write, below; `about.md` `## Personality`.
+
+## W4 (typed)
+
+> Last one: what would you hate to sound like? A word or phrase that makes you wince is perfect.
+
+Feeds: `## Prohibitions`, as concrete phrases or moves; `about.md` `## Personality`.
+
 ## How they write (never asked)
 
-Nothing here is asked. Read W1 to W4 and their follow-ups as the person typed them, and write a line below only where their own words plainly show it; where they show neither side, or the answer was skipped, write nothing. Each line is copied word for word and cites the answers it is read from, as `(Research inference: W2)`. The portrait may say one of them back to the person, as "you".
+Nothing here is asked. Read the answers each line names, with their follow-ups, as the person typed them, and write the line only where their own words plainly show it. Where an answer shows both sides of a line, or neither, or was skipped, write nothing for that line. Each line is copied word for word and cites the answers it is read from, as `(Research inference: W2)`. The portrait may say one of them back to the person, as "you".
 
-- Their point, as they stated it:
-  - with no hedge on it: "Says the point outright, without hedging it."
-  - with "I think", "I'd say", "maybe" or another hedge of theirs on it: "Puts a point as their own view."
-- A point and an example of it, given together:
+- W2's point, as they stated it. A hedge is a word that puts the point as their opinion or as uncertain, such as "I think", "I'd say", "maybe", "probably" or "I feel like"; a word for how often or how much, such as "almost always" or "usually", is not one.
+  - no hedge on it: "Says the point outright, without hedging it."
+  - a hedge on it: "Puts a point as their own view."
+- W2's point and an example of it, given together:
   - the example first: "Starts from one concrete case, then the point."
   - the point first: "Starts from the point, then the case that shows it."
-- A point made through their own place, people or work, such as "in the restaurants I keep the books for": "Makes a point through their own experience when they have a true one to tell."
-- A feeling about their work, named in their own words, such as "I love that part": "Names the feeling plainly when they have one."
-- A figure of speech or a dry turn of their own, such as "food cost is killing them": "Lets a figure of speech or a dry turn in where the subject allows it."
+- W2's point made through their own place, people or work, such as "in the restaurants I keep the books for": "Makes a point through their own experience when they have a true one to tell."
+- A feeling about their work, named in their own words in W1 to W3, such as "I love that part": "Names the feeling plainly when they have one."
+- A figure of speech or a dry turn in their own words in W1 to W4, such as "food cost is killing them": "Lets a figure of speech or a dry turn in where the subject allows it."
 
 ## A1. The portrait (tapped)
 
