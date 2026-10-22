@@ -22,9 +22,9 @@ Feeds: the portrait's first sentence, with their role; P3's detail; P4's wording
 
 ## The follow-up
 
-Asked at most once per answer. After W1, W2 or W3, only when the answer is a label, an adjective or two, rather than a picture. After W4, always, unless their answer already quotes the words that person would say. Recorded as W1a, W2a, W3a or W4a.
+Asked at most once per answer. After W1, W2 or W3, only when the answer is a label, an adjective or two, rather than a picture. After W4, only when their answer quotes no words they'd never use. Recorded as W1a, W2a, W3a or W4a.
 
-> What would that sound like? A phrase that person would say is perfect.
+> What would that sound like? A phrase is plenty.
 
 Feeds: whatever its question feeds, made concrete. After W4 it gives `## Prohibitions` its phrases.
 
@@ -67,13 +67,13 @@ Writes:
 
 ## W3 (typed)
 
-> Finish this sentence: "At my best, I sound like someone who..."
+> How would a friend describe the way you talk? Their words, not the polite version.
 
-Feeds: the portrait's aim; P4 where it names a feeling and P5 where its words carry a figure of speech; `about.md` `## Personality`.
+Feeds: the portrait's sentence on how they come across; P4 where it names a feeling and P5 where its words carry a figure of speech; `about.md` `## Personality`.
 
 ## W4 (typed)
 
-> And this one: "I never want to sound like someone who..."
+> And what would you hate to sound like? A word or phrase that makes you wince is perfect.
 
 Feeds: `## Prohibitions`, as concrete phrases or moves; `about.md` `## Personality`.
 
@@ -101,14 +101,14 @@ Writes:
 - B: "Keeps it literal, with no asides."
 - Both: "Keeps it literal or lets a figure of speech in, as the piece needs."
 
-### R1. How should your writing read?
+### R1. How should your writing usually read?
 
-- Easy and casual: a busy friend reading on a phone
-- Everyday: a smart colleague from another team
-- Polished: a client or an executive who expects care
-- Technical: a peer who knows the terms
+- Easy and casual: like a text to a friend
+- Everyday: clear to anyone outside your field
+- Polished: careful, for readers who expect it
+- Technical: for people who know the terms
 
-"Depends" typed in the free-text answer is recorded as answered. Feeds: `## Reading Ease`, the option's level and its reader, or on Depends or a skip, "Set by each piece's reader"; the routing row's register.
+"Depends" typed in the free-text answer is recorded as answered. Feeds: `## Reading Ease`, the option's level and the line under it, or on Depends or a skip, "Set by each piece's reader"; the routing row's register.
 
 ## A1. The portrait (tapped)
 
