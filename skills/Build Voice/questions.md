@@ -81,7 +81,7 @@ Feeds: `## Prohibitions`, as concrete phrases or moves; `about.md` `## Personali
 
 Said before it:
 
-> One last screen, then I'll show you how you come across.
+> A few more taps, then I'll show you how you come across.
 
 ### P4. How it feels
 
