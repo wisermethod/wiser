@@ -1695,9 +1695,10 @@ gate_G10() {
           # An inference names what it was derived from: an E<n> evidence row,
           # or, on a personal root only, answer numbers that a file under
           # memory/answers/ records as rows (standards/user-root.md C14), as
-          # Build Voice's personality read does. On a personal root every
-          # answer number it names must be one of those rows, an E<n> beside
-          # it or not.
+          # Build Voice's Requests Held to the Floor does. Its Personality
+          # lines carry the person's own answers firsthand instead. On a
+          # personal root every answer number an inference names must be one
+          # of those rows, an E<n> beside it or not.
           ids=""
           if [ "$ROOT_TYPE" = "personal" ]; then
             ids=$(printf '%s' "$payload" | grep -oE '(^|[^A-Za-z0-9])[WYPRHSAXF][0-9]+[a-z]?([^A-Za-z0-9]|$)' | grep -oE '[WYPRHSAXF][0-9]+[a-z]?')

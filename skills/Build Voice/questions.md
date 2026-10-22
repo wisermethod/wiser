@@ -1,80 +1,192 @@
-# The question bank
+# The interview
 
-The coach's questions, in the order `SKILL.md` The coach runs them. Every question is a tap: asked with the app's question tool where it has one, each option a button, at most four options to a question and four questions to a screen; where the app has none, one question per message, its options lettered, answered with a letter. Where an option below has words after a colon, the words before it are the button and the words after it are the line shown under it. The codes (W1, Y1, P1, R1, H1, S1, A1, X1, F1) are the question numbers the answers file records and `voice.md` cites. Bank version for every row: `Build Voice bank 2`.
+What the coach says and asks, in the order `SKILL.md` The coach runs it. A tapped question is asked with the app's question tool where it has one: each option a button, and where an option below has words after a colon, the words before it are the button and the words after it are the line under it. Where the app has none, one question per message, its options lettered, answered with a letter. A typed question is a plain message, one at a time. The codes (W, P, R, F, A) are the question numbers the answers file records and `voice.md` cites. Bank version for every row: `Build Voice bank 3`.
 
-## Warm-up
+Each question says what it **feeds**. A line in quotation marks after a pick is the exact line that pick writes into `voice.md` `## How They Write`, copied word for word.
 
-**W1. Who do you write to most?**
-- People I know well
-- My team
-- Clients or customers
-- Lots of people at once: posts, articles, talks
+## Opening
 
-## About you
+> Let's find your voice on the page. It takes about eight minutes: a few questions about you, two quick screens of taps, then I'll show you how you come across and write your first piece. There's nothing to prepare, and "not sure" is always a fine answer.
 
-Introduced as: "Five quick picks about you, just for fun and so I know you a little better. No right answers; tap whichever is more you."
+## W1 (typed)
 
-Each pick is a question, then its options split by slashes: two everyday choices and Both. The first option is the higher end of the trait in brackets, which is for scoring and never said to the person.
+> What do you do, and what do people come to you for? A few words is plenty, like "I teach chemistry, and people ask me to explain things simply."
 
-- Y1. Friday night? A dinner with a crowd / A quiet night in / Both [Outgoing]
-- Y2. Someone cuts in line ahead of you? Let it go / Say something / Both [Considerate]
-- Y3. Packing for a trip? A list, days ahead / Everything in the bag the night before / Both [Organized]
-- Y4. Right before a big presentation? Calm / Butterflies / Both [Steady]
-- Y5. Your ideal trip? Somewhere new, no plan / A favorite place I know well / Both [Imaginative]
+Feeds: the portrait's first sentence, with their role; `about.md` `## Key Facts`, written by Onboard Root.
 
-Scoring: the first option is `higher`, the second is `lower`, and Both or a skip leaves the trait unread. These picks are written for this coach, after the five broad traits personality research uses; they are not a validated test, and the coach says so.
+## W2 (typed)
 
-## The pairs
+> What do you notice about your work, or your world, that most people miss? An example helps, if one comes to mind.
 
-P1 to P8 from `pairs.md`, two pairs to a screen. Each pair is its own question, worded "Pair 1 of 8: which sounds more like you?" with its own number, and has three options: A, with the A passage as the line under it; B, with the B passage under it; and Both: either one sounds like me. Both is recorded as in between. In plain text, show both passages, then take A, B or Both.
+"None" or a skip is a fine answer. Feeds: the portrait's angle; `about.md` `## Personality`; P1's wording; the first offer at F1.
 
-## Reading ease
+## The follow-up
 
-**R1. How should your writing read?**
+Asked after W1, W2, W3 or W4 only when the answer is a label, an adjective or two, rather than a picture, and at most once per answer. Recorded as W1a, W2a, W3a or W4a.
+
+> What would that sound like? A phrase that person would say is perfect.
+
+Feeds: whatever its question feeds, made concrete.
+
+## Screen 1 (tapped)
+
+Said before it:
+
+> Now some quick taps. Each one is two ways of saying the same thing. Pick the one you'd actually say, not the one that sounds better. "Depends" is a real answer.
+
+Every pair has four options: **A** with its line under it, **B** with its line under it, **Depends on the moment**, and **Neither**. Depends writes the pair's Depends line. Neither, or a skip, writes nothing.
+
+### P1. Disagreeing
+
+**Written on their own point** where W2 gave one: "Here's your point two ways. Which would you actually say?" Both sides make W2's claim with the same facts and the same hedges, within a few words of the same length, and differ only in this: A says it outright; B puts it as their own view or what they'd do. Add nothing they did not say. Both pass the floor. The answers file records both lines shown.
+
+**Otherwise, the fixed pair**, "Saying no to a plan. Which would you actually send?":
+- A: "Friday at five won't work. We'd sit in traffic for an hour."
+- B: "I'd rather not go Friday at five, because we'd sit in traffic for an hour."
+
+Writes:
+- A: "When disagreeing, says so outright, then gives the reason."
+- B: "When disagreeing, puts it as their own view, then gives the reason."
+- Depends: "When disagreeing, says so outright or as their own view, as the piece needs."
+
+### P2. Something you like
+
+"Recommending a place you liked. Which would you actually send?"
+- A: "The new café on Fifth is good. Try the cinnamon roll."
+- B: "I love the new café on Fifth. You have to try the cinnamon roll."
+
+Writes:
+- A: "When something is good, says so and lets the details carry the feeling."
+- B: "When something is good, says how they feel about it, plainly."
+- Depends: "When something is good, lets the details carry it or names the feeling, as the piece needs."
+
+### P3. Explaining
+
+"Telling a friend to leave early for the airport. Which would you actually send?"
+- A: "Last Monday the security line took an hour."
+- B: "Security lines are longest when everyone flies at once."
+
+Writes:
+- A: "When explaining, starts from one concrete case."
+- B: "When explaining, starts from the reason behind it."
+- Depends: "When explaining, starts from a concrete case or the reason, as the piece needs."
+
+## W3 (typed)
+
+> Finish this sentence: "At my best, I sound like someone who..."
+
+Feeds: the portrait's aim; `about.md` `## Personality`.
+
+## W4 (typed)
+
+> And this one: "I never want to sound like someone who..."
+
+Feeds: `## Prohibitions`, as concrete phrases or moves; `about.md` `## Personality`.
+
+## Screen 2 (tapped)
+
+### P4. Something absurd
+
+"Complaining about a form. Which would you actually send?"
+- A: "The form asks for my address four times, in case I moved halfway through."
+- B: "The form asks for my address four times, which seems like too many."
+
+Writes:
+- A: "Has room for a dry aside where the subject allows it."
+- B: "Keeps it straight, with no asides."
+- Depends: "Keeps it straight or allows a dry aside, as the piece needs."
+
+### P5. Not knowing yet
+
+"A friend asks if the package will arrive by Saturday. Which would you actually send?"
+- A: "I don't know yet. I'll know tomorrow when it ships."
+- B: "Probably, but I won't know for sure until it ships tomorrow."
+
+Writes:
+- A: "When unsure, says they don't know yet and what they're waiting on."
+- B: "When unsure, gives a best guess and what would confirm it."
+- Depends: "When unsure, says they don't know yet or gives a best guess, as the piece needs."
+
+### P6. Your own experience
+
+"Recommending a book. Which would you actually send?"
+- A: "This book changed how I cook on weeknights."
+- B: "This book makes weeknight cooking simpler."
+
+Writes:
+- A: "Makes a point through their own experience when they have a true one to tell."
+- B: "Keeps the point on the subject rather than on themselves."
+- Depends: "Uses their own experience or keeps to the subject, as the piece needs."
+
+### R1. How should your writing read?
+
 - Easy and casual: a busy friend reading on a phone
-- Everyday, the usual pick: a smart colleague from another team
+- Everyday: a smart colleague from another team
 - Polished: a client or an executive who expects care
 - Technical: a peer who knows the terms
 
-## Hard lines
+"Depends" typed in the free-text answer is recorded as answered. Feeds: `## Reading Ease`, the option's level and its reader, or on Depends, "Set by each piece's reader"; the routing row's register.
 
-**H1. Which would you hate to sound like? Tap all that apply.** Asked with `multiSelect`. None of these is typed in the free-text answer, or the question is left without a pick.
-- Salesy
-- Corporate
-- Stiff or academic
-- Like a robot wrote it
+## A1. The portrait (tapped)
 
-## Samples
+The portrait is shown first, opened with: "Here's how you come across on the page, at your best:"
 
-**S1. Got any writing you're proud of? Totally optional.**
-- Yes, I'll paste it or point you to it
-- No, keep going
+> Is that you on a good day?
 
-## Adaptive pairs and the repeat
-
-After S1, the coach writes up to three adaptive pairs, and one repeat, each two or three sentences a side, asked like the fixed pairs:
-- **Adaptive (A1 to A3):** one for each fixed pair the person answered Both, taken in pair order, at most three. A short email to a colleague on a new subject, both sides above the floor, the same length within about ten percent, and differing on that pair's dimension alone. None is owed where no pair came back Both.
-- **The repeat (X1):** P1's dimension, or P3's where P1 came back Both, or P4's where both did; none where all three did. Rewritten as a short social post. Where the answer differs from the fixed pair's, ask: "You picked differently for a social post. Should your posts sound different from your emails?" with the options Yes, posts my way here, and No, keep them the same.
-
-## The first piece
-
-**F1. Last one: what should I write for you first?**
-- A thank-you note to someone who helped
-- An email asking for a meeting
-- A short post sharing some news
-- Something I'm working on: tell me in a sentence
-
-On the fourth option, ask once: "What are you working on? A sentence is plenty." Their sentence is the subject, and it is the only F1 answer that is a fact about their work. A subject typed in the free-text answer is taken the same way.
-
-## The finale question
-
-**"Is this the best version of you?"**
 - Yes, that's me
-- Change the tone: warmer, cooler, more casual, or more serious
-- Change the words: say the same thing a different way
-- Change the length and the order: where the point sits, and how long the sentences run
+- Close, but...
+- Not quite
 
-Follow-ups, asked before the rewrite:
-- After Change the tone, "Which way?": Warmer / Cooler / More casual / More serious.
-- After Change the length and the order, "Which way?": Shorter / Longer / Point sooner / Point later.
-- After Change the words, "Which words?", answered in their own words in the free-text answer.
+On Close, but or Not quite, they say what to change, in the free-text answer or a reply. Feeds: the portrait; `about.md` `## Personality` where it changes their angle or their aim.
+
+## F1. The first piece (tapped)
+
+> Let's see it in action. What should I write first?
+
+- A short post about what you notice: the thing you said most people miss (offered only when W2 gave one)
+- Something I'm working on
+- An email asking for a meeting
+- A thank-you note to someone who helped
+
+## F1a (typed)
+
+One sentence that gives the piece what it needs, asked by the option picked:
+- The post: "Who should read it, and what should they take away? A sentence is plenty."
+- Something I'm working on: "What is it, and who's it for? A sentence is plenty."
+- The meeting email: "Who's it to, and what's the meeting about?"
+- The thank-you note: "Who's it for, and what did they do?"
+
+Feeds: the piece's subject and reader; `about.md` `## Current Focus` where it is their work, written by Onboard Root.
+
+## A2. The verdict (tapped)
+
+> Would you send this under your name?
+
+- Yes, send it
+- Almost: I'd change a few things
+- No, it doesn't sound like me
+
+Yes sets the confirmation date. After a rewrite it is asked again and recorded A4.
+
+## A3 (typed)
+
+Asked on Almost or No:
+
+> What would you change? Quote the line and say it your way, or just tell me.
+
+After the rewrite, A5. Feeds: each change by its sort in `SKILL.md`.
+
+## A3a, A3b, and on (tapped)
+
+Asked once for each change about how they say something, before it enters the voice. After the rewrite, A5a, A5b.
+
+> Is that how you always write it, or just in this piece?
+
+- Always
+- Just this piece
+
+Always: the change becomes one line in `## How They Write`, or in `## Prohibitions` where it says never. Just this piece: the piece changes and the voice does not.
+
+## Close
+
+> Your voice is saved in your folder. Whenever you have something you wrote and like, show me and I'll tune your voice to it. Say "build my voice" to start again.
