@@ -165,7 +165,7 @@ Writes:
 
 ## A1. The portrait (tapped)
 
-The portrait is shown first, opened with: "Here's how you come across on the page:"
+The question carries the portrait, so the two are always seen together: it opens with "Here's how you come across on the page:", then the portrait in full, then:
 
 > Is that you on a good day?
 
@@ -198,13 +198,15 @@ Skipped: write only from what they told you in W1 and W2, for someone who would 
 
 ## A2. The verdict (tapped)
 
+The question carries the piece, so the two are always seen together: it opens with "Here's your first piece:", then the piece in full, then:
+
 > Would you send this under your name?
 
 - Yes, send it
 - Almost: I'd change a few things
 - No, it doesn't sound like me
 
-Yes sets the confirmation date. After a rewrite it is asked again and recorded A4.
+Yes sets the confirmation date. After a rewrite it is asked again and recorded A4, opening with "Here it is with your changes:", the piece in full and the one line A3a gives.
 
 ## A3 (typed)
 
@@ -224,7 +226,7 @@ Where they name one, typed in place of a tap or in a reply, it is recorded as A3
 
 ## A6. Keep or stop (tapped)
 
-Asked with the third version, after two returns, in place of A2.
+Asked with the third version, after two returns, in place of A2, and carrying that version and its line as A4 does.
 
 > Want to keep your voice as it is now, or stop here and pick it up later?
 
