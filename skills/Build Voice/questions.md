@@ -1,24 +1,24 @@
 # The interview
 
-What the coach says and asks, in the order `SKILL.md` The coach runs it. A tapped question is asked with the app's question tool where it has one: each option a button, and where an option below has words after a colon, the words before it are the button and the words after it are the line under it. Where the app has none, one question per message, its options lettered, answered with a letter. A typed question is a plain message, one at a time. The codes (W, R, F, A) are the question numbers the answers file records and `voice.md` cites. Bank version for every row: `Build Voice bank 3`.
+What the coach says and asks, in the order `SKILL.md` The coach runs it. A tapped question is asked with the app's question tool where it has one: each option a button, and where an option below has words after a colon, the words before it are the button and the words after it are the line under it. Where the app has none, one question per message, its options lettered, answered with a letter. A typed question is a plain message, one at a time. The codes (W, P, R, F, A) are the question numbers the answers file records and `voice.md` cites. Bank version for every row: `Build Voice bank 3`.
 
-Each question says what it **feeds**. A line in quotation marks under How they write is the exact line written into `voice.md` `## How They Write`, copied word for word.
+Each question says what it **feeds**. A line in quotation marks after a pick is the exact line that pick writes into `voice.md` `## How They Write`, copied word for word.
 
 ## Opening
 
-> Let's find your voice on the page. It takes about five minutes: a few questions about you, then I'll show you how you come across and write your first piece. There's nothing to prepare, and "not sure" is always a fine answer.
+> Let's find your voice on the page. It takes about eight minutes: a few questions about you, some quick taps, then I'll show you how you come across and write your first piece. There's nothing to prepare, and "not sure" is always a fine answer.
 
 ## W1 (typed)
 
 > What do you do, and what do people come to you for? A few words is plenty, like "I teach chemistry, and people ask me to explain things simply."
 
-Feeds: the portrait's first sentence, with their role; How they write, below; `about.md` `## Key Facts`, written by Onboard Root.
+Feeds: the portrait's first sentence, with their role; P3's detail; P4's wording; `about.md` `## Key Facts`, written by Onboard Root.
 
 ## W2 (typed)
 
 > What's one thing about your work, or your world, you wish more people knew? An example helps, if one comes to mind.
 
-"None" or a skip is a fine answer. Feeds: the portrait's angle; `about.md` `## Personality`; How they write, below; the first offer at F1.
+"None" or a skip is a fine answer. Feeds: the portrait's angle; `about.md` `## Personality`; the wording of P1, P2 and P3; the first offer at F1.
 
 ## The follow-up
 
@@ -28,9 +28,71 @@ Asked at most once per answer. After W1, W2 or W3, only when the answer is a lab
 
 Feeds: whatever its question feeds, made concrete. After W4 it gives `## Prohibitions` its phrases.
 
-## R1 (tapped)
+## Screen 1 (tapped)
 
-> How should your writing usually read?
+Said before it:
+
+> Now some quick taps. I've taken what you just told me and said it two ways each time. Pick the one you'd actually say, not the one that sounds better. "Both" is a real answer.
+
+**How every pair is written.** Each pair is written from the person's own answer named under it; where that answer makes more than one point, from the first point it makes. Copy one stretch of what they said onto both sides, in their words, with their facts and their hedges, and change only the one thing the pair names: P1 the frame, P2 the order of their example and their point, P3 one detail of their own, P4 one feeling they named. Every word on either side is theirs except P1's frame and what a sentence needs to be whole. A side that leaves something out uses only words already in that stretch, and neither side changes who did what. Both sides pass the floor. Where the pair would need a second change, or anything they did not say, a fact, number, name, hedge, feeling, joke or image, the pair is not asked: it writes nothing, and a screen asks only the pairs their answers give. A pair never puts words in their mouth. The answers file records both lines shown.
+
+Every pair is worded **"Which would you actually say?"** and has four options: **A** with its line under it, **B** with its line under it, **Both sound like me**, and **Neither**. Both writes the pair's Both line. Neither, or a skip, writes nothing. Typed instead of tapped, "both" or "depends" is Both, "neither" is Neither, and "not sure" or "skip" is a skip.
+
+### P1. Disagreeing
+
+From W2's point, in their words. A says it outright; B puts the same words as their own view, with "I think" or "I'd". Where W2 gave no point, or that stretch already says they are sure, such as "I know", it is not asked.
+
+Writes:
+- A: "When disagreeing, says so outright, then gives the reason."
+- B: "When disagreeing, puts it as their own view, then gives the reason."
+- Both: "When disagreeing, says so outright or as their own view, as the piece needs."
+
+### P2. Explaining
+
+From W2's point and the example they gave with it, both in their words. A leads with the example, then the point; B leads with the point, then the example. Where W2 gave no example, or the example is not a case of the point, it is not asked.
+
+Writes:
+- A: "When explaining, starts from one concrete case, then the point."
+- B: "When explaining, starts from the point, then the case that shows it."
+- Both: "When explaining, starts from the case or the point, as the piece needs."
+
+### P3. Your own experience
+
+From W2's point and one detail of their own they gave in W1 or W2: the place they work, the people they work with, a thing they do. A makes the point with that detail; B is the same sentence without it. Never a stock opener such as "I've found", "I notice", "In my work" or "To me". Where they gave no such detail, it is not asked.
+
+Writes:
+- A: "Makes a point through their own experience when they have a true one to tell."
+- B: "Keeps the point on the subject rather than on themselves."
+- Both: "Uses their own experience or keeps to the subject, as the piece needs."
+
+## W3 (typed)
+
+> How would a friend describe the way you talk? Their words, not the polite version.
+
+Feeds: the portrait's sentence on how they come across; P4 where it names a feeling; `about.md` `## Personality`.
+
+## W4 (typed)
+
+> And what would you hate to sound like? A word or phrase that makes you wince is perfect.
+
+Feeds: `## Prohibitions`, as concrete phrases or moves; `about.md` `## Personality`.
+
+## Screen 2 (tapped)
+
+Said before it:
+
+> One last screen, then I'll show you how you come across.
+
+### P4. How it feels
+
+From W1, what they do and what people come to them for, and a feeling about their work they named anywhere in W1 to W3, such as "I love that part". A says it in their words without the feeling; B says the same with it. Where they named no feeling, it is not asked.
+
+Writes:
+- A: "Lets the facts carry the feeling and rarely names it."
+- B: "Names the feeling plainly when they have one."
+- Both: "Names the feeling or lets the facts carry it, as the piece needs."
+
+### R1. How should your writing usually read?
 
 - Easy and casual: like a text to a friend
 - Everyday: clear to anyone outside your field
@@ -38,32 +100,6 @@ Feeds: whatever its question feeds, made concrete. After W4 it gives `## Prohibi
 - Technical: for people who know the terms
 
 "Depends" typed in the free-text answer is recorded as answered. Feeds: `## Reading Ease`, the option's level and the line under it, or on Depends or a skip, "Set by each piece's reader"; the routing row's register.
-
-## W3 (typed)
-
-> How would a friend describe the way you talk? Their words, not the polite version.
-
-Feeds: the portrait's sentence on how they come across; How they write, below; `about.md` `## Personality`.
-
-## W4 (typed)
-
-> Last one: what would you hate to sound like? A word or phrase that makes you wince is perfect.
-
-Feeds: `## Prohibitions`, as concrete phrases or moves; `about.md` `## Personality`.
-
-## How they write (never asked)
-
-Nothing here is asked. Read the answers each line names, with their follow-ups, as the person typed them, and write the line only where their own words plainly show it. Where an answer shows both sides of a line, or neither, or was skipped, write nothing for that line. Each line is copied word for word and cites the answers it is read from, as `(Research inference: W2)`. The portrait may say one of them back to the person, as "you".
-
-- W2's point, as they stated it. A hedge is a word that puts the point as their opinion or as uncertain, such as "I think", "I'd say", "maybe", "probably" or "I feel like"; a word for how often or how much, such as "almost always" or "usually", is not one.
-  - no hedge on it: "Says the point outright, without hedging it."
-  - a hedge on it: "Puts a point as their own view."
-- W2's point and an example of it, given together:
-  - the example first: "Starts from one concrete case, then the point."
-  - the point first: "Starts from the point, then the case that shows it."
-- W2's point made through their own place, people or work, such as "in the restaurants I keep the books for": "Makes a point through their own experience when they have a true one to tell."
-- A feeling about their work, named in their own words in W1 to W3, such as "I love that part": "Names the feeling plainly when they have one."
-- A figure of speech or a dry turn in their own words in W1 to W4, such as "food cost is killing them": "Lets a figure of speech or a dry turn in where the subject allows it."
 
 ## A1. The portrait (tapped)
 
