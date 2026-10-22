@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Screen Capture's redaction core. Stdlib only until flags, paths and dependencies pass."""
+"""Screen Capture entry point. Stdlib only until flags, paths and dependencies pass."""
 import json
 import math
 import sys
@@ -11,7 +11,7 @@ sys.dont_write_bytecode = True
 from paths import CaptureError, screen, same_file
 
 TOOL = Path(__file__).resolve().parent.parent
-USAGE = """Screen Capture - redact and verify existing images and recordings on macOS.
+USAGE = """Screen Capture - capture, drive, redact and verify on macOS.
 
 Usage:
   python3 scripts/capture.py help
@@ -22,7 +22,40 @@ Usage:
   python3 scripts/capture.py verify --input <absolute path> --report <absolute path>
       [--term <text>]... [--fps <n>] [--install]
 
-Commands: help, redact, verify.
+  python3 scripts/capture.py check
+  python3 scripts/capture.py windows --app <name>
+  python3 scripts/capture.py size --app <name> --width <n> --height <n> [--x <n> --y <n>]
+  python3 scripts/capture.py click --app <name> --x <n> --y <n>
+  python3 scripts/capture.py move --app <name> (--x <n> --y <n> | --park)
+  python3 scripts/capture.py key --app <name> --key <name>
+  python3 scripts/capture.py still --app <name> --output <absolute .png>
+  python3 scripts/capture.py record --app <name> --seconds <n> --output <absolute .mov>
+  python3 scripts/capture.py run --recipe <absolute .json> --output <absolute new directory>
+  python3 scripts/capture.py compare --a <absolute run directory> --b <absolute run directory>
+
+Commands: help, check, windows, size, click, move, key, still, record, run, compare, redact, verify.
+All commands accept --help; --install applies to every command except check, size and help.
+Capture and drive flags:
+  --app <name>        Exact app name as macOS shows it; largest on-screen layer-0 window.
+  --width <n>         Positive integer window width in points (size).
+  --height <n>        Positive integer window height in points (size).
+  --x <n> --y <n>    Together: signed integer global position for size, otherwise finite
+                     nonnegative window-relative point, excluding right and bottom edges.
+  --park             Move only, 60 points left of the window at its vertical middle.
+  --key <name>       One of escape, return, tab, space, up, down, left, right; no modifiers.
+  --seconds <n>      Recording duration greater than 0, at most 600; native frame rate.
+  --recipe <path>    JSON app, optional window {width,height,x?,y?}, steps with exactly one
+                     click:[x,y], move:[x,y], park:true, key:name, wait_ms:0..60000 (integer),
+                     or still:id. x/y together; unique still ids, case-insensitive,
+                     1..80 ASCII letters/digits/hyphens/underscores, starting alphanumeric.
+  --a <path>         First run directory (compare).
+  --b <path>         Second run directory (compare).
+  --output <path>    New PNG (still), MOV (record), or directory (run), absolute, outside tool.
+check installs nothing and reports both permissions, their settings panes and launching app.
+windows returns a windows list (including titles) and the main window id. Other receipts omit titles.
+run validates every step first; writes raw/<id>.png and run.json even after a refused step.
+compare counts differing RGBA pixels; box is exclusive [left,top,right,bottom].
+Different sizes report a null pixel count and box; missing ids are listed separately.
 Options:
   --input <path>       Existing PNG still, or MOV/MP4 recording; absolute path.
   --output <path>      New PNG for a still, MP4 for a recording; outside this tool.
@@ -43,9 +76,14 @@ Success: one JSON object, exit 0. Failure: stderr only, exit 1, with a cause and
 def parse(argv):
     if not argv or argv[0] in ("help", "--help"):
         if len(argv) > 1:
-            raise CaptureError("help accepts no extra arguments; run python3 scripts/capture.py help")
+            option = argv[1]
+            name = option.split("=", 1)[0] if option.startswith("-") else "(positional argument)"
+            raise CaptureError("unknown option " + name + "; help accepts no extra arguments; run python3 scripts/capture.py help")
         return None
     command = argv[0]
+    from desktop import FLAGS, parse as parse_desktop
+    if command in FLAGS:
+        return parse_desktop(argv, TOOL)
     allowed = {"--input", "--report", "--term", "--fps", "--install", "--help"}
     if command == "redact":
         allowed.update(("--output", "--region"))
@@ -118,6 +156,11 @@ def main(argv=None):
         parsed = parse(argv)
         if parsed is None:
             sys.stdout.write(USAGE)
+            return 0
+        if isinstance(parsed, dict):
+            from desktop import execute as execute_desktop
+            result = execute_desktop(parsed['command'], parsed['values'], TOOL, argv)
+            sys.stdout.write(json.dumps(result, separators=(",", ":")) + "\n")
             return 0
         command, source, output, report, terms, named, fps, authorised = parsed
         # Local presence checks precede any install, and only run where needed.

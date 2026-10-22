@@ -1,0 +1,121 @@
+"""Small macOS adapters. Importing this module never contacts a window or loads PyObjC."""
+import ctypes
+import os
+import subprocess
+import time
+from pathlib import Path
+
+from paths import CaptureError
+
+
+def permissions():
+    cg = ctypes.CDLL('/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics')
+    ax = ctypes.CDLL('/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices')
+    cg.CGPreflightScreenCaptureAccess.argtypes = []
+    cg.CGPreflightScreenCaptureAccess.restype = ctypes.c_bool
+    ax.AXIsProcessTrusted.argtypes = []
+    ax.AXIsProcessTrusted.restype = ctypes.c_bool
+    # These probes never ask macOS to show a permission prompt.
+    return {"screen_recording": bool(cg.CGPreflightScreenCaptureAccess()),
+            "accessibility": bool(ax.AXIsProcessTrusted())}
+
+
+def parent_process(pid):
+    """Executable path and parent pid only; never inspect arguments or environment."""
+    lib = ctypes.CDLL('/usr/lib/libproc.dylib')
+    lib.proc_pidpath.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
+    lib.proc_pidpath.restype = ctypes.c_int
+    buffer = ctypes.create_string_buffer(4096)
+    length = lib.proc_pidpath(pid, buffer, len(buffer))
+    result = subprocess.run(['ps', '-o', 'ppid=', '-p', str(pid)],
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    parent = int(result.stdout.strip()) if result.returncode == 0 else 0
+    return (os.fsdecode(buffer.value) if length > 0 else ''), parent
+
+
+def launching_app():
+    pid, seen = os.getppid(), set()
+    while pid > 0 and pid not in seen:
+        seen.add(pid)
+        try:
+            executable, parent = parent_process(pid)
+        except (OSError, ValueError):
+            break
+        for component in Path(executable).parts:
+            if component.endswith('.app'):
+                return component[:-4]
+        pid = parent
+    return 'unknown'
+
+
+def window_list():
+    import Quartz as q
+    rows = q.CGWindowListCopyWindowInfo(q.kCGWindowListOptionOnScreenOnly |
+                                      q.kCGWindowListExcludeDesktopElements, q.kCGNullWindowID)
+    if rows is None:
+        raise CaptureError('window list unavailable; grant Screen Recording and retry')
+    result = []
+    for row in rows:
+        bounds = row.get(q.kCGWindowBounds, {})
+        result.append({"owner": str(row.get(q.kCGWindowOwnerName, '')),
+                       "id": int(row.get(q.kCGWindowNumber, -1)),
+                       "title": str(row.get(q.kCGWindowName, '')),
+                       "layer": int(row.get(q.kCGWindowLayer, -1)),
+                       "bounds": {key: float(bounds.get(source, 0))
+                                  for key, source in (("x", "X"), ("y", "Y"),
+                                                      ("width", "Width"), ("height", "Height"))}})
+    return result
+
+
+def activate(app):
+    from AppKit import NSWorkspace, NSApplicationActivateIgnoringOtherApps
+    for running in NSWorkspace.sharedWorkspace().runningApplications():
+        if str(running.localizedName()) == app:
+            if running.activateWithOptions_(NSApplicationActivateIgnoringOtherApps):
+                return
+    raise CaptureError('app could not be activated; open the named app and retry')
+
+
+def frontmost():
+    from AppKit import NSWorkspace
+    running = NSWorkspace.sharedWorkspace().frontmostApplication()
+    return str(running.localizedName()) if running else None
+
+
+def osascript(script, arguments):
+    result = subprocess.run(['osascript', '-e', script, '--'] + list(arguments),
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if result.returncode:
+        raise CaptureError('System Events sizing failed; grant Accessibility and Automation to the launching app and retry')
+    return result.stdout.decode('utf-8').strip()
+
+
+def mouse(kind, x, y):
+    import Quartz as q
+    types = {'move': q.kCGEventMouseMoved, 'down': q.kCGEventLeftMouseDown, 'up': q.kCGEventLeftMouseUp}
+    source = q.CGEventSourceCreate(q.kCGEventSourceStateHIDSystemState)
+    event = q.CGEventCreateMouseEvent(source, types[kind], (x, y), q.kCGMouseButtonLeft)
+    if event is None:
+        raise CaptureError('mouse event could not be created; check Accessibility and retry')
+    q.CGEventSetFlags(event, 0)
+    q.CGEventPost(q.kCGHIDEventTap, event)
+
+
+def keyboard(code, down):
+    import Quartz as q
+    source = q.CGEventSourceCreate(q.kCGEventSourceStateHIDSystemState)
+    event = q.CGEventCreateKeyboardEvent(source, code, down)
+    if event is None:
+        raise CaptureError('keyboard event could not be created; check Accessibility and retry')
+    q.CGEventSetFlags(event, 0)
+    q.CGEventPost(q.kCGHIDEventTap, event)
+
+
+def capture(arguments):
+    result = subprocess.run(['screencapture'] + list(arguments), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if result.returncode:
+        raise CaptureError('screencapture failed; check Screen Recording, the window and the destination, then retry')
+
+
+def pause(seconds):
+    time.sleep(seconds)

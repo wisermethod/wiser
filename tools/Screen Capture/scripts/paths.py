@@ -69,7 +69,7 @@ def config_dir():
     return Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))) / "wiser"
 
 
-def screen(value, option, tool, destination=False):
+def screen(value, option, tool, destination=False, directory=False):
     if not Path(value).is_absolute():
         raise CaptureError(option + " must be absolute; pass a full path")
     path = canonical(value)
@@ -88,6 +88,6 @@ def screen(value, option, tool, destination=False):
             raise CaptureError(option + " already exists; choose a new filename")
         if not path.parent.is_dir():
             raise CaptureError(option + " parent is absent; create the work directory and retry")
-    elif not path.is_file():
-        raise CaptureError(option + " is not a readable file; check its path")
+    elif not (path.is_dir() if directory else path.is_file()):
+        raise CaptureError(option + " is not a readable file or directory; check its path")
     return path

@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 
 from PIL import Image
-from check import verify
+from check import verify, spawn_map
 from geometry import track, regions
 from media import decode, encode, versions
 from ocr import detect
@@ -31,7 +31,32 @@ def write_report(path, report):
         stream.write("\n")
 
 
-def execute(command, source, output, report, terms=(), named=(), fps=30):
+def _soften_chunk(jobs):
+    output = []
+    for i, source, boxes, size, directory in jobs:
+        with Image.open(source) as image:
+            if image.size != size:
+                raise CaptureError("frame dimensions changed; normalize the recording's dimensions and retry")
+            path = Path(directory) / ("part%05d.png" % i)
+            soften(image, boxes).save(path, format="PNG")
+            output.append((i, str(path)))
+    return output
+
+
+def render_frames(files, per, rendered, size, workers=None):
+    # Workers receive bounded chunks and write to disk, never send full frames
+    # through pipes. Reassemble by frame index, never by worker completion/order.
+    count = min(workers or 8, os.cpu_count() or 1, len(files))
+    jobs = [(i, str(path), boxes, size, str(rendered))
+            for i, (path, boxes) in enumerate(zip(files, per), 1)]
+    chunks = [jobs[i::count] for i in range(count)]
+    rows = [row for chunk in spawn_map(_soften_chunk, chunks, workers) for row in chunk]
+    ordered = sorted(rows, key=lambda row: row[0])
+    for i, (_, path) in enumerate(ordered, 1):
+        Path(path).rename(rendered / ("f%05d.png" % i))
+
+
+def execute(command, source, output, report, terms=(), named=(), fps=30, workers=None):
     kind = "still" if source.suffix.lower() == ".png" else "video"
     clock = {key: 0.0 for key in ("decode", "detect", "redact", "encode", "check")}
     version = versions(kind == "video")
@@ -68,11 +93,7 @@ def execute(command, source, output, report, terms=(), named=(), fps=30):
                 per = [boxes + list(named) for boxes in per]
             rendered = work / "redacted"
             rendered.mkdir()
-            for i, (path, boxes) in enumerate(zip(files, per), 1):
-                with Image.open(path) as image:
-                    if image.size != (width, height):
-                        raise CaptureError("frame dimensions changed; normalize the recording's dimensions and retry")
-                    soften(image, boxes).save(rendered / ("f%05d.png" % i), format="PNG")
+            render_frames(files, per, rendered, (width, height), workers)
             clock["redact"] = time.perf_counter() - start
             descriptor, filename = tempfile.mkstemp(prefix=".wiser-screen-capture-", suffix=output.suffix,
                                                    dir=str(output.parent))
