@@ -176,7 +176,8 @@ function checkRecordData(data, refused = new Set()) {
 
 // Twenty names a record's mutations and input types with twenty-shared's pascalCase, which
 // is lodash camelCase capitalized (6007ad5a). This is that word split for an API name, so
-// foo2bar is Foo2Bar and fooBAR is FooBar there. Checked against lodash.camelcase 4.3.0.
+// foo2bar is Foo2Bar and fooBAR is FooBar there. Checked against lodash.camelcase 4.3.0, the
+// version Twenty resolves, which has no ordinal rule: foo2nd is Foo2Nd.
 const HUMPED = /[a-z][A-Z]|[A-Z]{2,}[a-z]|[0-9][a-zA-Z]|[a-zA-Z][0-9]/;
 const NAME_WORD = /[A-Z]?[a-z]+(?=[A-Z]|$)|[A-Z]+(?=[A-Z][a-z]|$)|[A-Z]?[a-z]+|[A-Z]+|\d+/g;
 

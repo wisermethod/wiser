@@ -1051,9 +1051,16 @@ test('create_field refuses options on a non-select type after confirmation, send
   assert.equal(fixture.calls.length, 0);
 });
 
+// Each expected name is lodash.camelcase 4.3.0's own output, capitalized: the version Twenty's
+// yarn.lock resolves at 6007ad5a. That package has no ordinal rule, unlike lodash 4.17, so
+// foo2nd is Foo2Nd there, not Foo2nd.
 test('create and update spell a humped custom name as Twenty does', async () => {
   const fixture = await connected(allowTwenty);
-  for (const [object, name] of [['noteTarget', 'NoteTarget'], ['foo2bar', 'Foo2Bar'], ['fooBAR', 'FooBar'], ['fooBARBaz', 'FooBarBaz'], ['item2', 'Item2'], ['v2Item', 'V2Item']]) {
+  for (const [object, name] of [
+    ['noteTarget', 'NoteTarget'], ['foo2bar', 'Foo2Bar'], ['fooBAR', 'FooBar'], ['fooBARBaz', 'FooBarBaz'],
+    ['item2', 'Item2'], ['v2Item', 'V2Item'], ['foo2nd', 'Foo2Nd'], ['foo10th', 'Foo10Th'], ['foo11th', 'Foo11Th'],
+    ['q1stQuarter', 'Q1StQuarter'], ['foo1STbar', 'Foo1STbar'], ['foo2ndx', 'Foo2Ndx'],
+  ]) {
     for (const [action, input, kind] of [
       ['create', { object, data: {} }, 'Create'],
       ['update', { object, id: OBJECT_ID, data: {} }, 'Update'],
