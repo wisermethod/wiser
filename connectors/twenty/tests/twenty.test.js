@@ -99,6 +99,7 @@ test('needs_connect before a grant', async () => {
   for (const [action, module, input] of [
     ['twenty.records.list', 'records', { object: 'people' }],
     ['twenty.records.create', 'records', { object: 'person', data: { name: 'Invented Name' } }],
+    ['twenty.records.update', 'records', { object: 'person', id: OBJECT_ID, data: {} }],
     ['twenty.metadata.list_objects', 'metadata', {}],
     ['twenty.metadata.create_object', 'metadata', objectInput()],
   ]) {
@@ -117,6 +118,7 @@ test('the shipped default policy denies admin before any install call', async ()
   for (const [action, input] of [
     ['twenty.records.list', { object: 'people' }],
     ['twenty.records.create', { object: 'person', data: {} }],
+    ['twenty.records.update', { object: 'person', id: OBJECT_ID, data: {} }],
     ['twenty.metadata.list_objects', {}],
     ['twenty.metadata.add_field_options', { fieldId: FIELD_ID, options: [option('Later', 'LATER')] }],
   ]) {
@@ -153,6 +155,117 @@ test('records.list encodes starting_after and keeps a supplied limit', async () 
   noLeak(result);
   assert.equal(fixture.calls[0].endpoint, '/rest/people?limit=15&starting_after=ab%2Bc%2Fd%3De_f');
   assert.equal(fixture.calls[0].method, 'GET');
+});
+
+test('records.list and records.count resolve the seven CRM singulars and accept their plurals without metadata', async () => {
+  const fixture = await connected(allowTwenty);
+  fixture.reply({ totalCount: 0 });
+  for (const [singular, plural] of [
+    ['person', 'people'], ['company', 'companies'], ['opportunity', 'opportunities'],
+    ['note', 'notes'], ['noteTarget', 'noteTargets'], ['task', 'tasks'], ['taskTarget', 'taskTargets'],
+  ]) {
+    for (const object of [singular, plural]) {
+      for (const [action, limit] of [['list', 20], ['count', 1]]) {
+        fixture.calls.length = 0;
+        const result = await fixture.gw.execute({ action: `twenty.records.${action}`, input: { object } });
+        assert.deepEqual(result, { totalCount: 0 }, `${action} ${object}`);
+        noLeak(result);
+        assert.equal(fixture.calls.length, 1, `${action} ${object}`);
+        assert.equal(fixture.calls[0].method, 'GET');
+        assert.equal(fixture.calls[0].endpoint, `/rest/${plural}?limit=${limit}`);
+      }
+    }
+  }
+});
+
+test('records.list and records.count resolve a custom singular or plural by one metadata read', async () => {
+  const fixture = await connected(allowTwenty);
+  for (const object of ['invention', 'inventions']) {
+    for (const [action, limit] of [['list', 20], ['count', 1]]) {
+      fixture.calls.length = 0;
+      fixture.fake.auth.proxy = async (request) => {
+        fixture.calls.push(request);
+        if (request.endpoint === '/metadata') {
+          return { status: 200, data: { data: { objects: {
+            pageInfo: { hasNextPage: false },
+            edges: [{ node: { nameSingular: 'invention', namePlural: 'inventions' } }],
+          } } }, headers: PLANTED };
+        }
+        return { status: 200, data: { totalCount: 3 }, headers: PLANTED };
+      };
+      const result = await fixture.gw.execute({ action: `twenty.records.${action}`, input: { object } });
+      assert.deepEqual(result, { totalCount: 3 });
+      noLeak(result);
+      assert.equal(fixture.calls.length, 2);
+      assert.equal(fixture.calls[0].method, 'POST');
+      assert.equal(fixture.calls[0].endpoint, '/metadata');
+      assert.equal(fixture.calls[0].body.query, 'query { objects(paging: { first: 200 }, filter: {}) { pageInfo { hasNextPage } edges { node { nameSingular namePlural } } } }');
+      assert.equal(fixture.calls[0].body.query.includes('isCustom'), false);
+      assert.deepEqual(fixture.calls[0].body.variables, {});
+      assert.equal(fixture.calls[1].method, 'GET');
+      assert.equal(fixture.calls[1].endpoint, `/rest/inventions?limit=${limit}`);
+    }
+  }
+});
+
+test('custom name resolution refuses unknown, incomplete, unsafe and malformed answers without a REST call', async () => {
+  const fixture = await connected(allowTwenty);
+  for (const action of ['list', 'count']) {
+    for (const [objects, expected] of [
+      [{ pageInfo: { hasNextPage: false }, edges: [] }, { status: 'invalid_arguments', field: 'object' }],
+      [{ pageInfo: { hasNextPage: true }, edges: [] }, { status: 'vendor_error', http_status: 200, endpoint: '/metadata', method: 'POST', code: 'RESULT_INCOMPLETE' }],
+      ...['bad/name', '', 'Inventions', 'a'.repeat(64)].map((namePlural) => [
+        { pageInfo: { hasNextPage: false }, edges: [{ node: { nameSingular: 'invention', namePlural } }] },
+        { status: 'vendor_error', http_status: 200, endpoint: '/metadata', method: 'POST' },
+      ]),
+      ...[null, [], {}, { edges: [] }, { pageInfo: { hasNextPage: 'false' }, edges: [] },
+        { pageInfo: { hasNextPage: false }, edges: [null] },
+        { pageInfo: { hasNextPage: false }, edges: [{ node: { nameSingular: 'invention' } }] },
+      ].map((objects) => [objects, { status: 'vendor_error', http_status: 200, endpoint: '/metadata', method: 'POST' }]),
+    ]) {
+      fixture.calls.length = 0;
+      fixture.reply({ data: { objects } });
+      const result = await fixture.gw.execute({ action: `twenty.records.${action}`, input: { object: 'invention' } });
+      assert.deepEqual(result, expected);
+      noLeak(result);
+      assert.equal(fixture.calls.length, 1);
+      assert.equal(fixture.calls[0].endpoint, '/metadata');
+    }
+  }
+});
+
+test('custom name resolution returns a GraphQL failure as it is', async () => {
+  const fixture = await connected(allowTwenty);
+  fixture.reply({ errors: [{ message: 'Metadata is unavailable', extensions: { code: 'INTERNAL_SERVER_ERROR' } }] });
+  for (const action of ['list', 'count']) {
+    fixture.calls.length = 0;
+    const result = await fixture.gw.execute({ action: `twenty.records.${action}`, input: { object: 'invention' } });
+    assert.deepEqual(result, {
+      status: 'vendor_error', http_status: 200, endpoint: '/metadata', method: 'POST',
+      code: 'INTERNAL_SERVER_ERROR', message: 'Metadata is unavailable',
+    });
+    noLeak(result);
+    assert.equal(fixture.calls.length, 1);
+  }
+});
+
+test('records.list validates custom name inputs before any metadata read', async () => {
+  const fixture = await connected(allowTwenty);
+  const ctx = { proxy: async () => { throw new Error('invalid list reached the module transport'); } };
+  for (const [input, field] of [
+    [{ object: 'invention', limit: 0 }, 'limit'],
+    [{ object: 'invention', limit: 61 }, 'limit'],
+    [{ object: 'invention', limit: 1.5 }, 'limit'],
+    [{ object: 'invention', cursor: 'has space' }, 'cursor'],
+    [{ object: 'invention', cursor: 'a'.repeat(513) }, 'cursor'],
+    [{ object: 'bad/name' }, 'object'],
+    [{ object: 'invention', undeclared: true }, 'undeclared'],
+  ]) {
+    const result = await fixture.gw.execute({ action: 'twenty.records.list', input });
+    assert.deepEqual(result, { status: 'invalid_arguments', field });
+    assert.deepEqual(await modules.records.list(input, ctx), { status: 'invalid_arguments', field });
+    assert.equal(fixture.calls.length, 0);
+  }
 });
 
 test('records.list refuses a limit outside 1 to 60 and a bad cursor', async () => {
@@ -201,6 +314,82 @@ test('records.create stops for confirmation and then sends createPerson variable
   assert.deepEqual(variables, { data: { name: 'Invented Name' } });
 });
 
+test('records.update stops for confirmation and then sends updateOpportunity variables only', async () => {
+  const fixture = await connected(allowTwenty);
+  const input = {
+    object: 'opportunity',
+    id: OBJECT_ID,
+    data: { stage: 'RESEARCH_CALL_BOOKED', pointOfContactId: FIELD_ID, companyId: '22222222-2222-4222-8222-222222222222' },
+  };
+  fixture.reply({ data: { updateOpportunity: { id: OBJECT_ID, other: 'planted' } } });
+  const stopped = await fixture.gw.execute({ action: 'twenty.records.update', input });
+  assert.equal(stopped.status, 'needs_confirmation');
+  assert.equal(stopped.confirmation, 'always');
+  assert.equal(fixture.calls.length, 0);
+
+  const result = await confirmCall(fixture.gw, { action: 'twenty.records.update', input, confirm: true });
+  assert.deepEqual(result, { id: OBJECT_ID });
+  noLeak(result);
+  assert.equal(fixture.calls.length, 1);
+  assert.equal(fixture.calls[0].method, 'POST');
+  assert.equal(fixture.calls[0].endpoint, '/graphql');
+  const { query, variables } = fixture.calls[0].body;
+  assert.equal(query, 'mutation ($id: UUID!, $data: OpportunityUpdateInput!) { updateOpportunity(id: $id, data: $data) { id } }');
+  for (const value of [input.id, ...Object.values(input.data)]) assert.equal(query.includes(value), false);
+  assert.deepEqual(variables, { id: input.id, data: input.data });
+
+  const again = await fixture.gw.execute({ action: 'twenty.records.update', input });
+  assert.equal(again.status, 'needs_confirmation');
+  assert.equal(fixture.calls.length, 1);
+});
+
+test('records.update refuses invalid data, ids and undeclared inputs at the gateway and in the module', async () => {
+  const fixture = await connected(allowTwenty);
+  const ctx = { proxy: async () => { throw new Error('invalid update reached the module transport'); } };
+  const base = { object: 'opportunity', id: OBJECT_ID, data: {} };
+  for (const [input, field] of [
+    [{ ...base, data: Object.fromEntries(Array.from({ length: 101 }, (_, index) => [`field${index}`, index])) }, 'data'],
+    [{ ...base, data: { 'not-an-api-name': true } }, 'data'],
+    ...[null, [], 'text', 123, undefined].map((data) => [{ ...base, data }, 'data']),
+    ...[OBJECT_ID.toUpperCase(), 'not-a-uuid', '', null, 123, undefined].map((id) => [{ ...base, id }, 'id']),
+    [{ ...base, object: 'bad/name' }, 'object'],
+    [{ ...base, object: undefined }, 'object'],
+    [{ ...base, undeclared: true }, 'undeclared'],
+  ]) {
+    const result = await confirmCall(fixture.gw, { action: 'twenty.records.update', input, confirm: true });
+    assert.deepEqual(result, { status: 'invalid_arguments', field });
+    assert.deepEqual(await modules.records.update(input, ctx), { status: 'invalid_arguments', field });
+    assert.equal(fixture.calls.length, 0);
+  }
+});
+
+test('records.update returns a GraphQL code and safe message, and refuses an unusable returned id', async () => {
+  const fixture = await connected(allowTwenty);
+  const input = { object: 'opportunity', id: OBJECT_ID, data: { stage: 'RESEARCH_CALL_BOOKED' } };
+  fixture.reply({
+    errors: [{ message: 'Stage is not available', extensions: { code: 'BAD_USER_INPUT' } }],
+    data: { updateOpportunity: { id: 'should-not-return' } },
+  });
+  const failed = await confirmCall(fixture.gw, { action: 'twenty.records.update', input, confirm: true });
+  assert.deepEqual(failed, {
+    status: 'vendor_error', http_status: 200, endpoint: '/graphql', method: 'POST',
+    code: 'BAD_USER_INPUT', message: 'Stage is not available',
+  });
+  noLeak(failed);
+  assert.equal(JSON.stringify(failed).includes('should-not-return'), false);
+  for (const payload of [
+    {}, { updateOpportunity: null }, { updateOpportunity: {} },
+    ...['', 'not an id!', 'a'.repeat(65), 123, null].map((id) => ({ updateOpportunity: { id } })),
+  ]) {
+    fixture.calls.length = 0;
+    fixture.reply({ data: payload });
+    const result = await confirmCall(fixture.gw, { action: 'twenty.records.update', input, confirm: true });
+    assert.deepEqual(result, { status: 'vendor_error', http_status: 200, endpoint: '/graphql', method: 'POST' });
+    noLeak(result);
+    assert.equal(fixture.calls.length, 1);
+  }
+});
+
 // Twenty's own standard objects at v2.45.6 other than the CRM's seven, read from
 // STANDARD_OBJECT_UNIVERSAL_IDENTIFIERS at 6007ad5a. A created workflow, campaign or
 // message could send email, so records.create refuses every one of them by name.
@@ -237,6 +426,23 @@ test('records.create refuses each system object at the gateway and in the module
   assert.deepEqual(named[1].split('|'), SYSTEM_OBJECTS);
 });
 
+test('records.update refuses each system object at the gateway and in the module, with the same published pattern as create', async () => {
+  const fixture = await connected(allowTwenty);
+  const ctx = { proxy: async () => { throw new Error('a system object reached the module transport'); } };
+  for (const object of SYSTEM_OBJECTS) {
+    const input = { object, id: OBJECT_ID, data: {} };
+    const refused = await fixture.gw.execute({ action: 'twenty.records.update', input });
+    assert.deepEqual(refused, { status: 'invalid_arguments', field: 'object' }, object);
+    assert.deepEqual(await modules.records.update(input, ctx), { status: 'invalid_arguments', field: 'object' }, object);
+    assert.equal(fixture.calls.length, 0);
+  }
+  const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
+  assert.equal(
+    manifest.modules.records.actions.update.input.properties.object.pattern,
+    manifest.modules.records.actions.create.input.properties.object.pattern,
+  );
+});
+
 test('records.create admits the CRM\'s seven objects, a custom object and names extending a refused one', async () => {
   const fixture = await connected(allowTwenty);
   for (const object of ['person', 'company', 'opportunity', 'note', 'noteTarget', 'task', 'taskTarget', 'invention', 'workflowNote']) {
@@ -250,11 +456,33 @@ test('records.create admits the CRM\'s seven objects, a custom object and names 
   }
 });
 
-test('a GraphQL errors answer fails with the code and not the message', async () => {
+test('records.update admits the CRM\'s seven objects and custom names, including 100 field values', async () => {
+  const fixture = await connected(allowTwenty);
+  const data = Object.fromEntries(Array.from({ length: 100 }, (_, index) => [`field${index}`, index]));
+  for (const object of ['person', 'company', 'opportunity', 'note', 'noteTarget', 'task', 'taskTarget', 'invention', 'workflowNote']) {
+    const name = object[0].toUpperCase() + object.slice(1);
+    fixture.calls.length = 0;
+    fixture.reply({ data: { [`update${name}`]: { id: OBJECT_ID } } });
+    const result = await confirmCall(fixture.gw, {
+      action: 'twenty.records.update', input: { object, id: OBJECT_ID, data }, confirm: true,
+    });
+    assert.deepEqual(result, { id: OBJECT_ID }, object);
+    noLeak(result);
+    assert.equal(fixture.calls.length, 1);
+    assert.equal(fixture.calls[0].body.query.includes(`update${name}(id: $id, data: $data)`), true);
+    assert.deepEqual(fixture.calls[0].body.variables, { id: OBJECT_ID, data });
+  }
+});
+
+test('a GraphQL errors answer returns only the first safe code and message', async () => {
   const fixture = await connected(allowTwenty);
   const input = { object: 'person', data: { name: 'Invented Name' } };
+  const message = 'Cannot query field "isCustom" on type "Object".';
   fixture.reply({
-    errors: [{ message: 'leak-this-message', extensions: { code: 'UNAUTHENTICATED' } }],
+    errors: [
+      { message, extensions: { code: 'GRAPHQL_VALIDATION_FAILED', other: 'planted' }, path: ['planted'], locations: [{ planted: true }] },
+      { message: 'leak-this-message', extensions: { code: 'SECOND_ERROR' } },
+    ],
     data: { createPerson: { id: 'should-not-return' } },
   });
   const result = await confirmCall(fixture.gw, { action: 'twenty.records.create', input, confirm: true });
@@ -263,14 +491,16 @@ test('a GraphQL errors answer fails with the code and not the message', async ()
     http_status: 200,
     endpoint: '/graphql',
     method: 'POST',
-    code: 'UNAUTHENTICATED',
+    code: 'GRAPHQL_VALIDATION_FAILED',
+    message,
   });
   noLeak(result);
   assert.equal(JSON.stringify(result).includes('should-not-return'), false);
+  assert.equal(JSON.stringify(result).includes('SECOND_ERROR'), false);
 
   fixture.calls.length = 0;
   fixture.reply({
-    errors: [{ message: 'leak-this-message', extensions: { code: 'leaked-code' } }],
+    errors: [{ message, extensions: { code: 'leaked-code' } }],
   });
   const omitted = await confirmCall(fixture.gw, { action: 'twenty.records.create', input, confirm: true });
   assert.deepEqual(omitted, {
@@ -278,8 +508,44 @@ test('a GraphQL errors answer fails with the code and not the message', async ()
     http_status: 200,
     endpoint: '/graphql',
     method: 'POST',
+    message,
   });
   noLeak(omitted);
+});
+
+test('GraphQL messages omit credentials, empty text and non-strings', async () => {
+  const fixture = await connected(allowTwenty);
+  for (const message of [
+    'Bearer planted', 'Failed eyJabcdefghij_1234567890', 'TOKEN planted', 'secret planted',
+    'api_key planted', 'api-key planted', 'apikey planted', 'Authorization planted',
+    `${'a'.repeat(310)} Bearer planted`, '', ' \u0000\t\n\u001f\u007f ', null, 123, {},
+  ]) {
+    fixture.reply({ errors: [{ message, extensions: { code: 'FORBIDDEN' } }] });
+    const result = await fixture.gw.execute({ action: 'twenty.metadata.list_objects', input: {} });
+    assert.deepEqual(result, {
+      status: 'vendor_error', http_status: 200, endpoint: '/metadata', method: 'POST', code: 'FORBIDDEN',
+    });
+    noLeak(result);
+  }
+});
+
+test('GraphQL messages replace every control character, trim and cap at 300 code points', async () => {
+  const fixture = await connected(allowTwenty);
+  const controls = Array.from({ length: 32 }, (_, index) => String.fromCharCode(index)).join('') + '\u007f';
+  for (const [message, expected] of [
+    ['x'.repeat(400), 'x'.repeat(300)],
+    ['\u{1f642}'.repeat(400), '\u{1f642}'.repeat(300)],
+    [` \tCannot${controls}query\nfield\r `, `Cannot${' '.repeat(33)}query field`],
+  ]) {
+    fixture.reply({ errors: [{ message, extensions: { code: 'GRAPHQL_VALIDATION_FAILED' } }] });
+    const result = await fixture.gw.execute({ action: 'twenty.metadata.list_objects', input: {} });
+    assert.deepEqual(result, {
+      status: 'vendor_error', http_status: 200, endpoint: '/metadata', method: 'POST',
+      code: 'GRAPHQL_VALIDATION_FAILED', message: expected,
+    });
+    assert.ok([...result.message].length <= 300);
+    noLeak(result);
+  }
 });
 
 test('a REST failure keeps the gateway status and drops the body', async () => {
@@ -316,7 +582,7 @@ test('list_objects returns the invented objects', async () => {
               namePlural: 'people',
               labelSingular: 'Person',
               labelPlural: 'People',
-              isCustom: false,
+              isSystem: false,
               isActive: true,
               fields: {
                 edges: [
@@ -326,7 +592,7 @@ test('list_objects returns the invented objects', async () => {
                       name: 'stage',
                       label: 'Stage',
                       type: 'SELECT',
-                      isCustom: false,
+                      isSystem: false,
                       isActive: true,
                       options: [{ label: 'New', value: 'NEW', color: 'gray', position: 0 }],
                     },
@@ -348,7 +614,7 @@ test('list_objects returns the invented objects', async () => {
         namePlural: 'people',
         labelSingular: 'Person',
         labelPlural: 'People',
-        isCustom: false,
+        isSystem: false,
         isActive: true,
         fields: [
           {
@@ -356,7 +622,7 @@ test('list_objects returns the invented objects', async () => {
             name: 'stage',
             label: 'Stage',
             type: 'SELECT',
-            isCustom: false,
+            isSystem: false,
             isActive: true,
             options: [{ label: 'New', value: 'NEW', color: 'gray', position: 0 }],
           },
@@ -371,6 +637,10 @@ test('list_objects returns the invented objects', async () => {
   const query = fixture.calls[0].body.query;
   assert.equal(query.includes('objects(paging: { first: 200 }, filter: {})'), true);
   assert.equal(query.includes('fields(paging: { first: 200 }, filter: {})'), true);
+  assert.equal(query.includes('isSystem'), true);
+  assert.equal(query.includes('isCustom'), false);
+  assert.equal(query.match(/pageInfo \{ hasNextPage \}/g).length, 2);
+  assert.equal(JSON.stringify(result).includes('isCustom'), false);
   assert.deepEqual(fixture.calls[0].body.variables, {});
 });
 
@@ -658,6 +928,9 @@ test('shipped files keep the header template and no other placeholder', () => {
   const manifest = JSON.parse(readFileSync(new URL('manifest.json', dir), 'utf8'));
   const fieldEnum = manifest.modules.metadata.actions.create_field.input.properties.options.items.properties.color.enum;
   const addEnum = manifest.modules.metadata.actions.add_field_options.input.properties.options.items.properties.color.enum;
+  assert.equal(manifest.modules.records.actions.update.risk, 'high');
+  assert.equal(manifest.modules.records.actions.update.confirmation, 'always');
+  assert.deepEqual(manifest.modules.records.actions.update.execution, { prefer: 'proxy' });
   assert.deepEqual(fieldEnum, COLORS);
   assert.deepEqual(addEnum, COLORS);
   assert.equal(
@@ -756,8 +1029,8 @@ test('list_objects refuses a partial inventory as RESULT_INCOMPLETE', async () =
     fixture.reply({ data: { objects: {
       pageInfo: { hasNextPage: objectsMore },
       edges: [{ node: {
-        id: 'obj-1', nameSingular: 'person', namePlural: 'people', labelSingular: 'Person', labelPlural: 'People', isCustom: false, isActive: true,
-        fields: { pageInfo: { hasNextPage: fieldsMore }, edges: [{ node: { id: 'fld-1', name: 'name', label: 'Name', type: 'FULL_NAME', isCustom: false, isActive: true, options: null } }] },
+        id: 'obj-1', nameSingular: 'person', namePlural: 'people', labelSingular: 'Person', labelPlural: 'People', isSystem: false, isActive: true,
+        fields: { pageInfo: { hasNextPage: fieldsMore }, edges: [{ node: { id: 'fld-1', name: 'name', label: 'Name', type: 'FULL_NAME', isSystem: false, isActive: true, options: null } }] },
       } }],
     } } });
     const result = await fixture.gw.execute({ action: 'twenty.metadata.list_objects', input: {} });
