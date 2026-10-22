@@ -478,6 +478,24 @@ test('the pure matcher chooses the oldest eligible active grant and does not mut
   assert.equal(matchStandingApproval(grants, { ...call, now: Date.parse(first.expires_at) }), null);
 });
 
+// Each scope check isolated: every other check passes, so only the one under test can refuse.
+// Added after the mutation controls showed label and action each covered only by a neighbour.
+test('the pure matcher refuses another label on the same account, and an unnamed action with an identical summary', async (t) => {
+  const f = await fixture(t);
+  const made = await grant(f);
+  const create = f.gw.connectors[0].manifest.modules.records.actions.create;
+  const call = { ...CALL, manifestAction: create, label: made.label, providerAccountId: made.provider_account_id, now: NOW };
+  assert.equal(matchStandingApproval([made], call), made);
+  // The same provider account under another label: only the label check can refuse it.
+  const sameAccount = { ...made, label: 'other-label' };
+  assert.equal(matchStandingApproval([sameAccount], call), null);
+  assert.equal(matchStandingApproval([sameAccount], { ...call, label: 'other-label' }), sameAccount);
+  // Another action whose manifest entry is identical in kind, summary and caution: only the action check can refuse it.
+  const twin = 'twenty.records.create-twin';
+  assert.equal(matchStandingApproval([made], { ...call, action: twin }), null);
+  assert.equal(matchStandingApproval([{ ...made, actions: [...made.actions, twin] }], { ...call, action: twin }).id, made.id);
+});
+
 test('ineligible, unknown, mixed and inactive scopes cannot be proposed', async (t) => {
   const f = await fixture(t);
   const p = await probe(t);
