@@ -12,7 +12,7 @@ Each question says what it **feeds**. A line in quotation marks after a pick is 
 
 > What do you do, and what do people come to you for? A few words is plenty, like "I teach chemistry, and people ask me to explain things simply."
 
-Feeds: the portrait's first sentence, with their role; P3's detail; P4's wording; `about.md` `## Key Facts`, written by Onboard Root.
+Feeds: the portrait's first sentence, with their role; P3's detail; `about.md` `## Key Facts`, written by Onboard Root.
 
 ## W2 (typed)
 
@@ -34,7 +34,7 @@ Said before it:
 
 > Now some quick taps. Where I've said what you told me two ways, pick the one you'd actually say, not the one that sounds better. "Both" is a real answer.
 
-**How every pair is written.** Each pair is written from the person's own answer named under it; where that answer makes more than one point, from the first point it makes. Copy one stretch of what they said onto both sides, in their words, with their facts and their hedges, and change only the one thing the pair names: P1 the frame, P2 the order of their example and their point, P3 one detail of their own, P4 one feeling they named. Every word on either side is theirs except P1's frame and what a sentence needs to be whole. A side that leaves something out uses only words already in that stretch, and neither side changes who did what. Both sides pass the floor. Where the pair would need a second change, or anything they did not say, a fact, number, name, hedge, feeling, joke or image, the pair is not asked: it writes nothing, and a screen asks only the pairs their answers give. A pair never puts words in their mouth. The answers file records both lines shown.
+**How every pair is written.** Each pair is written from the person's own answer named under it; where that answer makes more than one point, from the first point it makes. Copy one stretch of what they said onto both sides, in their words, with their facts and their hedges, and change only the one thing the pair names: P1 the frame, P2 the order of their example and their point, P3 one detail of their own. Every word on either side is theirs except P1's frame and what a sentence needs to be whole. A side that leaves something out uses only words already in that stretch, and neither side changes who did what. Both sides pass the floor. Where the pair would need a second change, or anything they did not say, a fact, number, name, hedge, feeling, joke or image, the pair is not asked: it writes nothing, and a screen asks only the pairs their answers give. A pair never puts words in their mouth. The answers file records both lines shown.
 
 Every pair is worded **"Which would you actually say?"** and has four options: **A** with its line under it, **B** with its line under it, **Both sound like me**, and **Neither**. Both writes the pair's Both line. Neither, or a skip, writes nothing. Typed instead of tapped, "both" or "depends" is Both, "neither" is Neither, and "not sure" or "skip" is a skip.
 
@@ -67,7 +67,7 @@ Writes:
 
 ### P6. Humour
 
-P6, P7 and P8 are not pairs: each is the same for everyone and asked on every run. A skip writes nothing. Typed instead of tapped, the answer is recorded in their words and writes the line of the option it plainly matches, or nothing.
+P6 to P9 are not pairs: each is the same for everyone and asked on every run. A skip writes nothing. Typed instead of tapped, the answer is recorded in their words and writes the line of the option it plainly matches, or nothing.
 
 > Something's gone a bit wrong. Would you make a joke about it in writing?
 
@@ -84,7 +84,7 @@ Writes:
 
 > How would a friend describe the way you talk? Their words, not the polite version.
 
-Feeds: the portrait's sentence on how they come across; P4 where it names a feeling; `about.md` `## Personality`.
+Feeds: the portrait's sentence on how they come across; `about.md` `## Personality`.
 
 ## W4 (typed)
 
@@ -98,14 +98,18 @@ Said before it:
 
 > A few more taps, then I'll show you how you come across.
 
-### P4. How it feels
+### P9. The stock phrase
 
-From W1, what they do and what people come to them for, and a feeling about their work they named anywhere in W1 to W3, such as "I love that part". A says it in their words without the feeling; B says the same with it. Where they named no feeling, it is not asked.
+> Your field has a phrase everyone uses that you find a bit ridiculous. In writing, would you poke fun at it?
+
+- Yes, happily
+- Only with people who'd get it
+- No, I'd just never use it
 
 Writes:
-- A: "Lets the facts carry the feeling and rarely names it."
-- B: "Names the feeling plainly when they have one."
-- Both: "Names the feeling or lets the facts carry it, as the piece needs."
+- Yes, happily: "Will poke fun at a stock phrase of their field where it makes the point."
+- Only with people who'd get it: "Pokes fun at stock phrases only with readers who'd get the joke."
+- No, I'd just never use it: "Leaves stock phrases out quietly rather than mocking them."
 
 ### P7. What they'd love to hear
 
