@@ -32,7 +32,7 @@ Feeds: whatever its question feeds, made concrete. After W4 it gives `## Prohibi
 
 Said before it:
 
-> Now some quick taps. Where I've said what you told me two ways, pick the one you'd actually say, not the one that sounds better. "Both" is a real answer.
+> Now some quick taps. Where I've said what you told me two ways, pick the one you'd actually say, not the one that sounds better; there, "Both" is a real answer.
 
 **How every pair is written.** Each pair is written from the person's own answer named under it; where that answer makes more than one point, from the first point it makes. Copy one stretch of what they said onto both sides, in their words, with their facts and their hedges, and change only the one thing the pair names: P1 the frame, P2 the order of their example and their point, P3 one detail of their own. Every word on either side is theirs except P1's frame and what a sentence needs to be whole. A side that leaves something out uses only words already in that stretch, and neither side changes who did what. Both sides pass the floor. Where the pair would need a second change, or anything they did not say, a fact, number, name, hedge, feeling, joke or image, the pair is not asked: it writes nothing, and a screen asks only the pairs their answers give. A pair never puts words in their mouth. The answers file records both lines shown.
 
@@ -67,7 +67,7 @@ Writes:
 
 ### P6. Humour
 
-P6 to P9 are not pairs: each is the same for everyone and asked on every run. A skip writes nothing. Typed instead of tapped, the answer is recorded in their words and writes the line of the option it plainly matches, or nothing.
+P6 to P9 are not pairs: each is the same for everyone and asked on every run, and each line it writes covers only the moment its question names. A skip writes nothing. Typed instead of tapped, an answer that plainly matches an option writes that option's line; one that matches none, such as "only about my own mistakes", writes one line in their words, for the same moment, cited with the tap's number.
 
 > Something's gone a bit wrong. Would you make a joke about it in writing?
 
@@ -76,9 +76,9 @@ P6 to P9 are not pairs: each is the same for everyone and asked on every run. A 
 - No, not in writing
 
 Writes:
-- Yes, it keeps everyone sane: "Lets a light joke in, even when something has gone wrong, where the reader would take it well."
-- Only with people I know well: "Jokes only with readers they know well, and otherwise keeps it straight."
-- No, not in writing: "Keeps jokes out of their writing."
+- Yes, it keeps everyone sane: "When something has gone wrong, lets a light joke in."
+- Only with people I know well: "When something has gone wrong, jokes about it only with readers they know well."
+- No, not in writing: "When something has gone wrong, keeps jokes out of it."
 
 ## W3 (typed)
 
@@ -105,11 +105,13 @@ Said before it:
 - Yes, happily
 - Only with people who'd get it
 - No, I'd just never use it
+- My field doesn't really have one
 
 Writes:
-- Yes, happily: "Will poke fun at a stock phrase of their field where it makes the point."
-- Only with people who'd get it: "Pokes fun at stock phrases only with readers who'd get the joke."
-- No, I'd just never use it: "Leaves stock phrases out quietly rather than mocking them."
+- Yes, happily: "Will poke fun at a stock phrase of their field, rather than only leave it out."
+- Only with people who'd get it: "Pokes fun at a stock phrase of their field only for readers in that field, and otherwise leaves it out."
+- No, I'd just never use it: "Leaves the stock phrases of their field out quietly rather than mocking them."
+- My field doesn't really have one: nothing.
 
 ### P7. What they'd love to hear
 
@@ -122,7 +124,7 @@ Writes:
 
 Writes:
 - That was so clear: "Where a piece has room, aims first for it to be clear."
-- You made me laugh: "Where a piece has room, aims first to leave the reader smiling."
+- You made me laugh: "Where a piece has room, aims first to make the reader laugh."
 - I felt that: "Where a piece has room, aims first for the reader to feel it."
 - OK, you've convinced me: "Where a piece has room, aims first to persuade."
 
