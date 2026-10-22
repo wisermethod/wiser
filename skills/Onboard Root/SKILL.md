@@ -92,7 +92,7 @@ What did Build Voice return? Complete: the person kept its first piece, and the 
 
 `memory/about.md` has four headings: Who, Key Facts, Relationships, Current Focus, and after Step 2 it may carry `## Personality`, which Build Voice owns and this step leaves as written. `memory/design.md` has five. Fill each from what the person said, from the run's answers file and from any file they supplied, under rules 1 and 2. A fact from the answers file is the person's own answer, so it carries `(Firsthand: <their name>, W1)` with its question number. Each prompt line in the template, a whole line beginning and ending with `*`, is replaced with content or with a label; none survives. A heading the person has not addressed gets `[Not available: not yet supplied]`, and the file is still usable.
 
-What they do and what people come to them for (W1) fills `## Key Facts`. Current Focus fills from F1a where the person told the coach about something they are working on, and carries the date they said it; otherwise it takes its label like any heading. Design fills from a design guide or a sample document when one is supplied, and takes labels when none is.
+What they do and what people come to them for (W1) fills `## Key Facts`; where a later answer in the run corrects it (A3 or A5), the later answer is the one written and cited. Current Focus fills from F1a where the person told the coach about something they are working on, and carries the date they said it; otherwise it takes its label like any heading. Design fills from a design guide or a sample document when one is supplied, and takes labels when none is.
 
 ### Step 4: Read back
 

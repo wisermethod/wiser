@@ -5,7 +5,7 @@ Whose voice this is follows the declared type and `skills/Build Voice/SKILL.md`,
 <!-- provenance-preamble -->
 Markers delimit this preamble for the gate harness; keep both.
 
-Labels and registers are `standards/conventions.md`'s, written in place and never restated here. A prompt line (a whole line in `*`) or the name placeholder surviving means `skills/Onboard Root/` has not finished. On a personal root each citation names a question the coach asked: W the person said it, P they picked it, A they changed or approved it on a real piece; where two disagree, A wins. Every line is a tendency for a piece to use where it fits, never a quota.
+Labels and registers are `standards/conventions.md`'s, written in place and never restated here. A prompt line (a whole line in `*`) or the name placeholder surviving means `skills/Onboard Root/` has not finished. On a personal root each citation names a question the coach asked: W the person said it, P they picked it, A they changed or approved it on a real piece; where two disagree, A wins. Every line is a tendency for a piece to use where it fits, never a quota, and none takes out what the piece's reader is owed, such as a greeting, a thanks or an apology.
 <!-- /provenance-preamble -->
 
 ## Portrait
