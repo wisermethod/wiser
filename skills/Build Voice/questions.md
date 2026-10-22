@@ -12,13 +12,13 @@ Each question says what it **feeds**. A line in quotation marks after a pick is 
 
 > What do you do, and what do people come to you for? A few words is plenty, like "I teach chemistry, and people ask me to explain things simply."
 
-Feeds: the portrait's first sentence, with their role; `about.md` `## Key Facts`, written by Onboard Root.
+Feeds: the portrait's first sentence, with their role; P4's wording; `about.md` `## Key Facts`, written by Onboard Root.
 
 ## W2 (typed)
 
 > What do you notice about your work, or your world, that most people miss? An example helps, if one comes to mind.
 
-"None" or a skip is a fine answer. Feeds: the portrait's angle; `about.md` `## Personality`; P1's wording; the first offer at F1.
+"None" or a skip is a fine answer. Feeds: the portrait's angle; `about.md` `## Personality`; the wording of P1, P2, P3 and P5; the first offer at F1.
 
 ## The follow-up
 
@@ -32,15 +32,17 @@ Feeds: whatever its question feeds, made concrete.
 
 Said before it:
 
-> Now some quick taps. Each one is two ways of saying the same thing. Pick the one you'd actually say, not the one that sounds better. "Depends" is a real answer.
+> Now some quick taps. I've taken what you just told me and said it two ways each time. Pick the one you'd actually say, not the one that sounds better. "Depends" is a real answer.
 
-Every pair has four options: **A** with its line under it, **B** with its line under it, **Depends on the moment**, and **Neither**. Depends writes the pair's Depends line. Neither, or a skip, writes nothing.
+**How every pair is written.** Each pair is written from the person's own answer named under it. Both sides say the same thing, with the same facts and the same hedges, within a few words of the same length; both pass the floor; and they differ only in the way the pair names. Add no fact, number, name, feeling or story the person did not give, except where the pair's B side names a feeling, which they can turn down. Where their answer gives nothing to say two ways, ask the pair's fixed version instead. The answers file records both lines shown and which kind it was.
+
+Every pair is worded **"Which would you actually say?"** and has four options: **A** with its line under it, **B** with its line under it, **Depends on the moment**, and **Neither**. Depends writes the pair's Depends line. Neither, or a skip, writes nothing.
 
 ### P1. Disagreeing
 
-**Written on their own point** where W2 gave one: "Here's your point two ways. Which would you actually say?" Both sides make W2's claim with the same facts and the same hedges, within a few words of the same length, and differ only in this: A says it outright; B puts it as their own view or what they'd do. Add nothing they did not say. Both pass the floor. The answers file records both lines shown.
+From W2's point. A says it outright; B puts it as their own view or what they'd do.
 
-**Otherwise, the fixed pair**, "Saying no to a plan. Which would you actually send?":
+Fixed version, "Saying no to a plan":
 - A: "Friday at five won't work. We'd sit in traffic for an hour."
 - B: "I'd rather not go Friday at five, because we'd sit in traffic for an hour."
 
@@ -49,27 +51,31 @@ Writes:
 - B: "When disagreeing, puts it as their own view, then gives the reason."
 - Depends: "When disagreeing, says so outright or as their own view, as the piece needs."
 
-### P2. Something you like
+### P2. Explaining
 
-"Recommending a place you liked. Which would you actually send?"
-- A: "The new café on Fifth is good. Try the cinnamon roll."
-- B: "I love the new café on Fifth. You have to try the cinnamon roll."
+From W2's point and the example they gave with it. A leads with the example, then the point; B leads with the point, then the example. Where W2 gave no example, the fixed version.
 
-Writes:
-- A: "When something is good, says so and lets the details carry the feeling."
-- B: "When something is good, says how they feel about it, plainly."
-- Depends: "When something is good, lets the details carry it or names the feeling, as the piece needs."
-
-### P3. Explaining
-
-"Telling a friend to leave early for the airport. Which would you actually send?"
-- A: "Last Monday the security line took an hour."
-- B: "Security lines are longest when everyone flies at once."
+Fixed version, "Telling a friend to leave early for the airport":
+- A: "Last Monday the security line took an hour, so leave early."
+- B: "Leave early, because security lines get long; last Monday it took an hour."
 
 Writes:
-- A: "When explaining, starts from one concrete case."
-- B: "When explaining, starts from the reason behind it."
-- Depends: "When explaining, starts from a concrete case or the reason, as the piece needs."
+- A: "When explaining, starts from one concrete case, then the point."
+- B: "When explaining, starts from the point, then the case that shows it."
+- Depends: "When explaining, starts from the case or the point, as the piece needs."
+
+### P3. Your own experience
+
+From W2's point. A makes it through their own experience ("In the kitchens I work with..."); B makes it about the subject alone.
+
+Fixed version, "Recommending a book":
+- A: "This book changed how I cook on weeknights."
+- B: "This book makes weeknight cooking simpler."
+
+Writes:
+- A: "Makes a point through their own experience when they have a true one to tell."
+- B: "Keeps the point on the subject rather than on themselves."
+- Depends: "Uses their own experience or keeps to the subject, as the piece needs."
 
 ## W3 (typed)
 
@@ -85,38 +91,35 @@ Feeds: `## Prohibitions`, as concrete phrases or moves; `about.md` `## Personali
 
 ## Screen 2 (tapped)
 
-### P4. Something absurd
+Said before it:
 
-"Complaining about a form. Which would you actually send?"
+> Two more, then I'll show you how you come across.
+
+### P4. How it feels
+
+From W1, what they do and what people come to them for. A says it plainly and lets the facts carry the feeling; B says the same and names how they feel about it, plainly.
+
+Fixed version, "Recommending a place you liked":
+- A: "The new café on Fifth is good. Try the cinnamon roll."
+- B: "I love the new café on Fifth. You have to try the cinnamon roll."
+
+Writes:
+- A: "Lets the facts carry the feeling and rarely names it."
+- B: "Names the feeling plainly when they have one."
+- Depends: "Names the feeling or lets the facts carry it, as the piece needs."
+
+### P5. A light touch
+
+From W2's point. A turns it with a dry twist of phrase that adds no fact; B says the same thing straight.
+
+Fixed version, "Complaining about a form":
 - A: "The form asks for my address four times, in case I moved halfway through."
 - B: "The form asks for my address four times, which seems like too many."
 
 Writes:
-- A: "Has room for a dry aside where the subject allows it."
+- A: "Has room for a dry turn of phrase where the subject allows it."
 - B: "Keeps it straight, with no asides."
-- Depends: "Keeps it straight or allows a dry aside, as the piece needs."
-
-### P5. Not knowing yet
-
-"A friend asks if the package will arrive by Saturday. Which would you actually send?"
-- A: "I don't know yet. I'll know tomorrow when it ships."
-- B: "Probably, but I won't know for sure until it ships tomorrow."
-
-Writes:
-- A: "When unsure, says they don't know yet and what they're waiting on."
-- B: "When unsure, gives a best guess and what would confirm it."
-- Depends: "When unsure, says they don't know yet or gives a best guess, as the piece needs."
-
-### P6. Your own experience
-
-"Recommending a book. Which would you actually send?"
-- A: "This book changed how I cook on weeknights."
-- B: "This book makes weeknight cooking simpler."
-
-Writes:
-- A: "Makes a point through their own experience when they have a true one to tell."
-- B: "Keeps the point on the subject rather than on themselves."
-- Depends: "Uses their own experience or keeps to the subject, as the piece needs."
+- Depends: "Keeps it straight or allows a dry turn of phrase, as the piece needs."
 
 ### R1. How should your writing read?
 
