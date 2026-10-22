@@ -1,4 +1,4 @@
-import { appendFileSync, chmodSync, lstatSync, mkdirSync, readFileSync, renameSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { appendFileSync, chmodSync, closeSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { assertNoSecrets, refuseSymlink } from './store.js';
@@ -72,21 +72,29 @@ export function createStandingApprovals(home, now = Date.now) {
 
   function withLock(write) {
     const { lock } = paths();
+    const ownerFile = join(lock, 'owner');
+    const owner = `${process.pid} ${randomUUID()}`;
     refuseSymlink(home, 'standing approval directory');
     mkdirSync(home, { recursive: true, mode: 0o700 });
     const started = performance.now();
     while (true) {
       if (performance.now() - started >= 2000) throw new Error('standing approval lock could not be taken within 2 seconds');
       refuseSymlink(lock, 'standing approval lock');
+      let acquired = false;
       try {
         mkdirSync(lock, { mode: 0o700 });
-        break;
+        acquired = true;
       } catch (err) {
         if (err.code !== 'EEXIST') throw err;
       }
+      if (acquired) {
+        writeFileSync(ownerFile, owner, { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+        break;
+      }
       refuseSymlink(lock, 'standing approval lock');
       try {
-        if (Date.now() - lstatSync(lock).mtimeMs > 10000) {
+        if (Date.now() - lstatSync(lock).mtimeMs > 10000 && ownerGone()) {
+          try { unlinkSync(ownerFile); } catch (err) { if (err.code !== 'ENOENT') throw err; }
           rmdirSync(lock);
           continue;
         }
@@ -97,7 +105,23 @@ export function createStandingApprovals(home, now = Date.now) {
       if (remaining <= 0) throw new Error('standing approval lock could not be taken within 2 seconds');
       Atomics.wait(sleeper, 0, 0, Math.min(20, remaining));
     }
-    try { return write(); } finally { rmdirSync(lock); }
+    try { return write(); } finally {
+      let currentOwner;
+      try { currentOwner = readFileSync(ownerFile, 'utf8'); } catch { /* A replaced lock is not ours to release. */ }
+      if (currentOwner === owner) {
+        unlinkSync(ownerFile);
+        rmdirSync(lock);
+      }
+    }
+
+    function ownerGone() {
+      let recorded;
+      try { recorded = readFileSync(ownerFile, 'utf8'); } catch { return true; }
+      const pid = Number(recorded.match(/^([1-9][0-9]*) \S+$/)?.[1]);
+      if (!Number.isSafeInteger(pid)) return true;
+      try { process.kill(pid, 0); } catch (err) { return err.code === 'ESRCH'; }
+      return false;
+    }
   }
 
   function encode(entry) {
@@ -130,6 +154,8 @@ export function createStandingApprovals(home, now = Date.now) {
     const tmp = `${file}.${randomUUID()}.tmp`;
     try {
       writeFileSync(tmp, payload, { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+      const fd = openSync(tmp, 'r+');
+      try { fsyncSync(fd); } finally { closeSync(fd); }
       refuseSymlink(file, 'standing approval file');
       renameSync(tmp, file);
     } finally {
@@ -145,8 +171,10 @@ export function createStandingApprovals(home, now = Date.now) {
       // Validate before compaction, so a rejected record never changes the file.
       encode({ grant });
       withLock(() => {
-        compact(readEntries(), now());
-        append({ grant });
+        const entries = readEntries();
+        const exists = entries.some((entry) => entry.grant?.id === grant.id);
+        compact(entries, now());
+        if (!exists) append({ grant });
       });
     },
     async revoke(id, atIso) {
@@ -173,6 +201,9 @@ export function matchStandingApproval(grants, { action, manifestAction, label, p
   const matches = grants.filter((grant) => isActiveStandingApproval(grant, now)
     && Array.isArray(grant.actions) && grant.actions.includes(action)
     && Array.isArray(grant.kinds) && grant.kinds.includes(kind)
+    && Array.isArray(grant.summaries) && grant.summaries.includes(manifestAction.standing_approval.summary)
+    && (manifestAction.standing_approval.caution === undefined
+      || (Array.isArray(grant.cautions) && grant.cautions.includes(manifestAction.standing_approval.caution)))
     && (!isHeightened([kind]) || (grant.heightened === true
       && Date.parse(grant.expires_at) - Date.parse(grant.created_at) > 0
       && Date.parse(grant.expires_at) - Date.parse(grant.created_at) <= 7 * STANDING_APPROVAL_DAY_MS))

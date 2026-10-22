@@ -658,14 +658,19 @@ export class ConnectionGateway {
    * @param {string} key
    */
   takePendingConfirmation(key) {
+    return this.takePendingConfirmationExpiry(key) !== null;
+  }
+
+  /** Consume a matching proposal and return its fixed expiry, or null. */
+  takePendingConfirmationExpiry(key) {
     this.prunePendingConfirmations();
     const expiry = this.pendingConfirmations.get(key);
     if (expiry === undefined || expiry <= this.now()) {
       if (expiry !== undefined) this.pendingConfirmations.delete(key);
-      return false;
+      return null;
     }
     this.pendingConfirmations.delete(key);
-    return true;
+    return expiry;
   }
 
   /**
@@ -939,7 +944,8 @@ export class ConnectionGateway {
       const expiresOn = new Date(at + scope.days * STANDING_APPROVAL_DAY_MS).toISOString().slice(0, 10);
       const warning = buildStandingApprovalWarning({ scope, summaries, cautions, kinds, heightened, expiresOn });
       const key = confirmationDigest(['standing_approval', scope, warning]);
-      if (mode !== 'grant' || args.confirmed !== true || !this.takePendingConfirmation(key)) {
+      const proposalExpiry = mode === 'grant' && args.confirmed === true ? this.takePendingConfirmationExpiry(key) : null;
+      if (proposalExpiry === null) {
         this.recordPendingConfirmation(key);
         return {
           status: 'standing_approval_proposed', scope, expires_on: expiresOn, heightened, kinds,
@@ -950,13 +956,16 @@ export class ConnectionGateway {
       }
       const { days, ...storedScope } = scope;
       const grant = {
-        id: `sa_${randomUUID()}`, service, module, ...storedScope, summaries, kinds, heightened,
+        id: `sa_${createHash('sha256').update(`${key}:${proposalExpiry}`).digest('hex').slice(0, 32)}`,
+        service, module, ...storedScope, summaries, cautions, kinds, heightened,
         created_at: new Date(at).toISOString(),
         expires_at: new Date(at + days * STANDING_APPROVAL_DAY_MS).toISOString(), revoked_at: null,
       };
       await this.standingApprovals.add(grant);
-      line.grant_id = grant.id;
-      return { status: 'ok', standing_approval: grant, summary: standingApprovalSummary(grant) };
+      const stored = (await this.standingApprovals.list()).find((row) => row.id === grant.id);
+      if (!stored) throw new Error('standing approval was not saved');
+      line.grant_id = stored.id;
+      return { status: 'ok', standing_approval: stored, summary: standingApprovalSummary(stored) };
     });
   }
 
@@ -1035,7 +1044,7 @@ export class ConnectionGateway {
     return {
       scope, kinds, heightened,
       summaries: covered.map(({ def }) => def.standing_approval.summary),
-      cautions: covered.map(({ def }) => def.standing_approval.caution).filter((caution) => caution !== undefined),
+      cautions: [...new Set(covered.map(({ def }) => def.standing_approval.caution).filter((caution) => caution !== undefined))],
     };
   }
 

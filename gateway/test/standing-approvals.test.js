@@ -1,4 +1,7 @@
 import { test } from 'node:test';
+import fs from 'node:fs';
+import { createHash } from 'node:crypto';
+import { syncBuiltinESMExports } from 'node:module';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
@@ -116,10 +119,10 @@ test('propose, grant and execute use one warning and one module call, with audit
   assert.equal((await f.gw.standingApprovals.list()).length, 0);
   const answer = await tool(f, { ...SCOPE, mode: 'grant', confirmed: true });
   const saved = answer.standing_approval;
-  assert.match(saved.id, /^sa_[0-9a-f-]{36}$/);
+  assert.match(saved.id, /^sa_[0-9a-f]{32}$/);
   assert.deepEqual(Object.keys(saved).sort(), [
     'id', 'service', 'module', 'actions', 'module_wide', 'label', 'provider_account_id', 'root', 'playbook', 'where',
-    'summaries', 'kinds', 'heightened', 'created_at', 'expires_at', 'revoked_at',
+    'summaries', 'cautions', 'kinds', 'heightened', 'created_at', 'expires_at', 'revoked_at',
   ].sort());
   // The plain words the person was warned with travel on the grant, so a list reads the same way.
   assert.deepEqual(saved.summaries, ['create records in Twenty']);
@@ -764,6 +767,7 @@ test('the exact Twenty warning includes the shared create and update caution onc
   const saved = await grant(f, { module: 'twenty.records', root: 'Wiser Memory' });
   assert.deepEqual(saved.kinds, ['change']);
   assert.equal(saved.heightened, false);
+  assert.deepEqual(saved.cautions, [TWENTY_CAUTION]);
 });
 
 test('covered cautions are distinct and follow action order before the heightened warning', async (t) => {
@@ -774,4 +778,137 @@ test('covered cautions are distinct and follow action order before the heightene
   actions.update.standing_approval.kind = 'send';
   const result = await tool(f, { mode: 'propose', actions: [UPDATE, CREATE], root: SCOPE.root });
   assert.match(result.warning, /Anything outside it still asks you, as today\. First caution\. Second caution\. Some of these actions send messages/);
+});
+
+
+test('rehydrating the same proposal grants once and returns the stored grant; a fresh proposal has a new id', async (t) => {
+  const first = await fixture(t);
+  await tool(first, { ...SCOPE, mode: 'propose' });
+  const pending = new Map(first.gw.pendingConfirmations);
+  const saved = (await tool(first, { ...SCOPE, mode: 'grant', confirmed: true })).standing_approval;
+  const second = await fixture(t, { home: first.home, pendingConfirmations: new Map(pending), now: () => NOW + 1000 });
+  const retry = await tool(second, { ...SCOPE, mode: 'grant', confirmed: true });
+  assert.equal(retry.status, 'ok');
+  assert.deepEqual(retry.standing_approval, saved);
+  const [[key, expiry]] = pending;
+  assert.equal(saved.id, `sa_${createHash('sha256').update(`${key}:${expiry}`).digest('hex').slice(0, 32)}`);
+  const entries = readFileSync(join(first.home, 'standing-approvals.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+  assert.equal(entries.filter((entry) => entry.grant).length, 1);
+  assert.equal((await tool(second, { mode: 'revoke', id: saved.id })).status, 'ok');
+  second.gw.now = () => NOW + 2000;
+  const fresh = await grant(second);
+  assert.notEqual(fresh.id, saved.id);
+  assert.equal((await second.gw.callTool('execute', CALL)).standing_approval.id, fresh.id);
+});
+
+test('an aged approval lock with a live owner times out without writing a grant', async (t) => {
+  const f = await fixture(t);
+  await tool(f, { ...SCOPE, mode: 'propose' });
+  const lock = join(f.home, 'standing-approvals.lock');
+  mkdirSync(lock);
+  const owner = `${process.pid} live-owner`;
+  writeFileSync(join(lock, 'owner'), owner);
+  const stale = new Date(Date.now() - 11000);
+  utimesSync(lock, stale, stale);
+  const started = performance.now();
+  await assert.rejects(() => tool(f, { ...SCOPE, mode: 'grant', confirmed: true }), /within 2 seconds/);
+  assert.ok(performance.now() - started >= 2000);
+  assert.equal(readFileSync(join(lock, 'owner'), 'utf8'), owner);
+  assert.equal(existsSync(join(f.home, 'standing-approvals.jsonl')), false);
+});
+
+test('an aged approval lock with a dead owner is removed before granting', async (t) => {
+  const f = await fixture(t);
+  const child = spawn(process.execPath, ['-e', ''], { stdio: 'ignore' });
+  const deadPid = child.pid;
+  await once(child, 'exit');
+  assert.throws(() => process.kill(deadPid, 0), { code: 'ESRCH' });
+  const lock = join(f.home, 'standing-approvals.lock');
+  mkdirSync(lock);
+  writeFileSync(join(lock, 'owner'), `${deadPid} dead-owner`);
+  const stale = new Date(Date.now() - 11000);
+  utimesSync(lock, stale, stale);
+  const saved = await grant(f);
+  assert.equal((await f.gw.standingApprovals.list())[0].id, saved.id);
+  assert.equal(existsSync(lock), false);
+});
+
+test('approval lock release leaves a replacement owner token alone', async (t) => {
+  const f = await fixture(t);
+  const lock = join(f.home, 'standing-approvals.lock');
+  const append = fs.appendFileSync;
+  let heldOwner;
+  t.mock.method(fs, 'appendFileSync', (file, ...args) => {
+    if (file === join(f.home, 'standing-approvals.jsonl')) {
+      heldOwner = readFileSync(join(lock, 'owner'), 'utf8');
+      writeFileSync(join(lock, 'owner'), `${process.pid} replacement-owner`);
+    }
+    return append(file, ...args);
+  });
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+  const saved = await grant(f);
+  assert.match(heldOwner, new RegExp(`^${process.pid} [0-9a-f-]+$`));
+  assert.equal((await f.gw.standingApprovals.list())[0].id, saved.id);
+  assert.equal(readFileSync(join(lock, 'owner'), 'utf8'), `${process.pid} replacement-owner`);
+});
+
+test('approval compaction syncs the temporary file before replacing the journal', async (t) => {
+  const f = await fixture(t);
+  await grant(f, { ...SCOPE, days: 1 });
+  f.gw.now = () => NOW + STANDING_APPROVAL_DAY_MS;
+  const synced = new Set();
+  const sync = fs.fsyncSync;
+  const rename = fs.renameSync;
+  let replacements = 0;
+  t.mock.method(fs, 'fsyncSync', (fd) => {
+    sync(fd);
+    synced.add(fs.fstatSync(fd).ino);
+  });
+  t.mock.method(fs, 'renameSync', (from, to) => {
+    if (to === join(f.home, 'standing-approvals.jsonl')) {
+      assert.ok(synced.has(statSync(from).ino), 'the replacement must be synced before rename');
+      replacements += 1;
+    }
+    return rename(from, to);
+  });
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+  await grant(f);
+  assert.equal(replacements, 1);
+});
+
+for (const [field, value] of [['summary', 'send different messages'], ['caution', 'Messages may start a workflow.']]) {
+  test(`a changed manifest ${field} stops an existing grant from matching`, async (t) => {
+    const f = await probe(t);
+    const saved = await grant(f, f.scope);
+    assert.equal((await f.gw.callTool('execute', f.call)).standing_approval.id, saved.id);
+    f.gw.connectors[0].manifest.modules.items.actions.marked.standing_approval[field] = value;
+    assert.equal((await f.gw.callTool('execute', f.call)).status, 'needs_confirmation');
+    assert.equal(f.calls.length, 1);
+    assert.deepEqual(saved.cautions, []);
+  });
+}
+
+test('a legacy grant without cautions matches only an action with no caution', async (t) => {
+  const f = await probe(t);
+  const saved = await grant(f, f.scope);
+  delete saved.cautions;
+  const manifestAction = f.gw.connectors[0].manifest.modules.items.actions.marked;
+  const call = { ...f.call, manifestAction, providerAccountId: saved.provider_account_id, now: NOW };
+  assert.equal(matchStandingApproval([saved], call), saved);
+  manifestAction.standing_approval.caution = 'A new caution.';
+  assert.equal(matchStandingApproval([saved], call), null);
+});
+
+test('a Twenty grant stores both cautions and matches both warned actions', async (t) => {
+  const f = await fixture(t);
+  const actions = f.gw.connectors[0].manifest.modules.records.actions;
+  actions.create.standing_approval.caution = 'First caution.';
+  actions.update.standing_approval.caution = 'Second caution.';
+  const saved = await grant(f, { module: 'twenty.records', root: SCOPE.root });
+  assert.deepEqual(saved.cautions, ['First caution.', 'Second caution.']);
+  assert.equal((await f.gw.callTool('execute', CALL)).standing_approval.id, saved.id);
+  assert.equal((await f.gw.callTool('execute', { ...CALL, action: UPDATE, input: { ...INPUT, id: UUID } })).standing_approval.id, saved.id);
+  assert.equal(f.calls.length, 2);
 });
