@@ -3,7 +3,7 @@ name: Connector Advisor
 type: expert
 category: system
 description: Classify how to build a proposed connector and return an approved plan with its auth route, modules, privileges, actions, and verification
-version: 0.6.1
+version: 0.7.0
 ---
 
 # Connector Advisor
@@ -12,9 +12,9 @@ version: 0.6.1
 
 Use when a connector needs a build plan or Connector Author brings a plan for approval. System Expert Job 2 decides whether the capability belongs in this plugin; this expert decides how to build one that does. This expert owns the connector family and plans connectors. Set Up Connectors is machine and harness onboarding; Connect Account remains the vendor grant; Connection Troubleshooter remains the status next step. This expert does not attach the harness, grant accounts, or write modules itself. Infrastructure changes remain with IT Expert.
 
-Owns: `skills/Set Up Connectors/`, `skills/Connect Account/`, `skills/Connection Troubleshooter/`, `skills/Connector Author/`
+Owns: `skills/Set Up Connectors/`, `skills/Connect Account/`, `skills/Connection Troubleshooter/`, `skills/Connector Author/`, `skills/Standing Approval/`
 
-The gate on Connector Author is this plan, before the skill writes. No default end-of-skill gate follows it. Set Up Connectors, Connect Account, and Connection Troubleshooter take no expert gate: the person signing in to the Wiser endpoint, or on the local route attaching the harness and pasting the project key into the instituted file, is the setup gate, the person is the connect gate, and a diagnosis names one next step. A connector shipping in this plugin requires an authoring Playbook; the constitution's Writes rule governs an installed plugin.
+The gate on Connector Author is this plan, before the skill writes. No default end-of-skill gate follows it. Set Up Connectors, Connect Account, Connection Troubleshooter and Standing Approval take no expert gate: the person signing in to the Wiser endpoint, or on the local route attaching the harness and pasting the project key into the instituted file, is the setup gate, the person is the connect gate, a diagnosis names one next step, and the person's yes to the gateway's warning is the grant's gate. A connector shipping in this plugin requires an authoring Playbook; the constitution's Writes rule governs an installed plugin.
 
 ## Objective
 

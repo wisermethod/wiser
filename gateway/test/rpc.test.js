@@ -73,12 +73,13 @@ test('rpc round trip initialize -> tools/list -> tools/call execute', async () =
     method: 'tools/list',
   }));
   const names = listed.result.tools.map((t) => t.name);
-  // Seven since 2026-09-20; `disconnect` is the first tool that removes anything.
+  // Eight since 2026-10-22, when `standing_approvals` joined; `disconnect` is the first tool that removes anything.
   assert.deepEqual(names, [
     'execute',
     'start_connect',
     'connect_status',
     'disconnect',
+    'standing_approvals',
     'list_connections',
     'search_actions',
     'describe_action',

@@ -1,6 +1,6 @@
 ---
 standard: primitives
-version: 0.14.0
+version: 0.15.0
 description: The four typed primitives, how they invoke and sequence one another, the frontmatter every typed file carries, and the classifier seam a new typed file declares, and any file whose seam changes
 ---
 
@@ -77,7 +77,7 @@ The New generation is a module the root's gateway loads. The gateway runs in one
 
 A module holds no credential. Vendor grants live with the auth provider. A local-file module's key is `--secret <service>=<abs file>` or a Provides `secrets:<platform>` path the root names, never a default directory in a root, and never `memory/secrets/`. The module receives a context (`catalog`, `proxy`, `http` when unwrap is allowed, `audit`) and never a provider client. It imports Node built-ins and files inside its own directory only. It never reads a credential file, never writes a file, and never names a provider slug. Agent-facing ids are `service.module.action`. A grant is per module: two modules are two `needs_connect` stops.
 
-`CONNECTOR.md` uses the same five required frontmatter keys as the other types, with `type: connector`. Risk, confirmation, privilege, and execution live in `manifest.json`, not in that block. An action no manifest declares never runs.
+`CONNECTOR.md` uses the same five required frontmatter keys as the other types, with `type: connector`. Risk, confirmation, privilege, and execution live in `manifest.json`, not in that block. An action no manifest declares never runs. An action that stops for confirmation may also declare `standing_approval: { kind, summary }`, which makes it one a person can approve ahead of time; an action without it never is. `gateway/AGENTS.md` **Standing approvals** owns what each kind means, what the summary is for, and how a grant matches a call.
 
 ## Placement
 

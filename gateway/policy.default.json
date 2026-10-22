@@ -6,6 +6,7 @@
     { "role": "runtime",  "privilege": "admin",            "effect": "deny" },
     { "role": "runtime",  "risk": "destructive",           "effect": "confirm" },
     { "role": "runtime",  "op": "startConnect",            "effect": "allow" },
+    { "role": "readonly", "op": "standingApproval",        "effect": "deny" },
     { "role": "readonly", "op": "disconnect",              "effect": "deny" },
     { "role": "runtime",  "op": "disconnect",              "effect": "confirm" },
     { "role": "*", "service": "wiser", "privilege": "read", "op": "execute", "effect": "allow" },

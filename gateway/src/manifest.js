@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { containsUnsafeCodePoint } from './disclosure.js';
 import { OUTPUT_EXTENSIONS } from './file-output.js';
 import { RESPONSE_HEADER_NAMES } from './response-headers.js';
 
@@ -14,6 +15,7 @@ export const AUTH_PROVIDERS = new Set(['catalog', 'local-file']);
 const SCHEMES = new Set(['OAUTH2', 'API_KEY', 'BEARER', 'BASIC']);
 export const PRIVILEGES = new Set(['read', 'write', 'admin']);
 const RISKS = new Set(['low', 'medium', 'high', 'destructive']);
+const STANDING_APPROVAL_KINDS = new Set(['change', 'delete', 'send', 'pay', 'publish', 'grant_access']);
 const CONFIRMATIONS = new Set(['none', 'once', 'always']);
 const PREFERS = new Set(['proxy', 'catalog', 'local_http', 'first_party_mcp']);
 const FALLBACKS = new Set(['catalog', 'none']);
@@ -91,6 +93,24 @@ function validateAction(action, file, field) {
   }
   if (action.description !== undefined && typeof action.description !== 'string') {
     throw validationError(file, `${field}.description`, 'must be a string');
+  }
+  if (Object.hasOwn(action, 'standing_approval')) {
+    const standing = action.standing_approval;
+    const at = `${field}.standing_approval`;
+    requireObject(standing, file, at);
+    if (Object.keys(standing).some((key) => key !== 'kind' && key !== 'summary')) {
+      throw validationError(file, at, 'must contain only kind and summary');
+    }
+    if (!STANDING_APPROVAL_KINDS.has(standing.kind)) {
+      throw validationError(file, `${at}.kind`, 'must be change | delete | send | pay | publish | grant_access');
+    }
+    if (typeof standing.summary !== 'string' || standing.summary.length < 1 || standing.summary.length > 80 ||
+        containsUnsafeCodePoint(standing.summary) || !/^\p{L}[\p{L}\p{N}]*(?:[ '\u2019-][\p{L}\p{N}]+)*$/u.test(standing.summary)) {
+      throw validationError(file, `${at}.summary`, 'must be 1 to 80 characters of plain words completing "lets your assistant ..."');
+    }
+    if (!action.confirmation || action.confirmation === 'none') {
+      throw validationError(file, at, 'requires a confirmation stop');
+    }
   }
   if (Object.hasOwn(action, 'response_headers')) {
     const headers = action.response_headers;

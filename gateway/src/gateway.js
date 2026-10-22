@@ -9,12 +9,16 @@ import { validateInput } from './input-schema.js';
 import { cleanupOutputs, stripSlot, writeOutputFile } from './file-output.js';
 import { createResponseHeaderGuard } from './response-headers.js';
 import { evaluate } from './policy.js';
+import { assertNoSecrets } from './store.js';
+import { STANDING_APPROVAL_DAY_MS, buildStandingApprovalWarning, createStandingApprovals, isActiveStandingApproval, isHeightened, matchStandingApproval, standingApprovalResult, standingApprovalSummary } from './standing-approvals.js';
 import { readProviderUserId, writeProviderUserIdIfEmpty } from './paths.js';
 import { readClassifierKey } from './paths.js';
 import { FIRST_PARTY_ACTIONS, firstPartyDef, parseActionId, resolveAction, validateFirstPartyAnswer } from './resolve.js';
 // The vocabularies a store row's own `privilege` and `provider` are checked against,
 // taken from where the manifest validator already defines them rather than restated.
 import { AUTH_PROVIDERS, PRIVILEGES } from './manifest.js';
+
+export { buildStandingApprovalWarning, createStandingApprovals, matchStandingApproval, standingApprovalSummary } from './standing-approvals.js';
 
 /** A version fact is a non-empty string. Longer than this is a payload, not a version. */
 const VERSION_FACT_MAX = 128;
@@ -217,6 +221,11 @@ export function oneShotClassifierIdentity(env = process.env, opts = {}) {
 const LABEL_PATTERN = '^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$';
 const LABEL_SCHEMA = { type: 'string', pattern: LABEL_PATTERN, description: 'Optional connection name. Omit to use the unlabelled binding' };
 
+const ROOT_PATTERN = '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$';
+const PLAYBOOK_PATTERN = '^[A-Za-z0-9][A-Za-z0-9 ._()-]{0,127}$';
+const ROOT_SCHEMA = { type: 'string', pattern: ROOT_PATTERN, description: 'The root from which this work is done.' };
+const PLAYBOOK_SCHEMA = { type: 'string', pattern: PLAYBOOK_PATTERN, description: 'The Playbook under which this work is done.' };
+
 const TOOLS = [
   {
     name: 'execute',
@@ -226,6 +235,8 @@ const TOOLS = [
       properties: {
         action: { type: 'string', description: 'Action id, service.module.action' },
         input: { type: 'object', description: 'Action arguments' },
+        root: ROOT_SCHEMA,
+        playbook: PLAYBOOK_SCHEMA,
         label: LABEL_SCHEMA,
         confirm: { type: 'boolean', description: 'True only after a person approved a needs_confirmation stop for this exact input. The approval is used once. A confirm with no matching stop is answered with a fresh stop' },
       },
@@ -280,6 +291,28 @@ const TOOLS = [
       additionalProperties: false,
     },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+  },
+  {
+    name: 'standing_approvals',
+    description: "Propose a standing approval, grant it after the person's explicit yes to the warning, list approvals, or revoke one.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        mode: { type: 'string', enum: ['propose', 'grant', 'list', 'revoke'], description: 'Choose whether to propose, grant, list or revoke a standing approval.' },
+        actions: { type: 'array', minItems: 1, maxItems: 20, items: { type: 'string', pattern: '^[a-z0-9][a-z0-9-]*\\.[a-z0-9][a-z0-9-]*\\.[a-z0-9][a-z0-9_.-]*$' }, description: 'Name the eligible action ids to approve within one module.' },
+        module: { type: 'string', pattern: '^[a-z0-9][a-z0-9-]*\\.[a-z0-9][a-z0-9-]*$', description: 'Name one service.module to approve all its currently eligible actions.' },
+        label: { ...LABEL_SCHEMA, description: 'Name the connection label, or omit it for the unlabelled connection.' },
+        root: ROOT_SCHEMA,
+        playbook: PLAYBOOK_SCHEMA,
+        where: { type: 'object', additionalProperties: { type: 'array', minItems: 1, maxItems: 20, items: { type: 'string', minLength: 1, maxLength: 120 } }, description: 'Restrict declared string fields to these exact allowed values.' },
+        days: { type: 'integer', minimum: 1, maximum: 365, description: 'Set the duration in days, at most seven for heightened actions.' },
+        confirmed: { type: 'boolean', description: 'Use true only after the person answers yes to this exact proposed warning.' },
+        id: { type: 'string', description: 'Identify the standing approval to revoke.' },
+      },
+      required: ['mode'],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   },
   {
     name: 'list_connections',
@@ -395,6 +428,9 @@ function approvalDisclosure(spec, input) {
 const NAME_RE = /^[a-z0-9][a-z0-9-]*$/;
 const ACTION_RE = /^[a-z0-9][a-z0-9-]*\.[a-z0-9][a-z0-9-]*\.[a-z0-9][a-z0-9_.-]*$/;
 const LABEL_RE = new RegExp(LABEL_PATTERN);
+const ROOT_RE = new RegExp(ROOT_PATTERN);
+const PLAYBOOK_RE = new RegExp(PLAYBOOK_PATTERN);
+const MODULE_RE = /^[a-z0-9][a-z0-9-]*\.[a-z0-9][a-z0-9-]*$/;
 
 function isPlainObject(v) {
   return Boolean(v) && typeof v === 'object' && !Array.isArray(v);
@@ -408,18 +444,59 @@ function isPlainObject(v) {
  */
 export function validateArgs(name, args) {
   const bad = (field) => statusObject(STATUS.INVALID_ARGUMENTS, { tool: name, field });
-  if (!isPlainObject(args)) return bad('arguments');
+  if (!isPlainObject(args)) return name === 'standing_approvals'
+    ? statusObject(STATUS.INVALID_ARGUMENTS, { tool: name, field: 'arguments', reason: 'type' })
+    : bad('arguments');
   const a = args;
-  if (['execute', 'start_connect', 'connect_status', 'disconnect'].includes(name)
+  if (['execute', 'start_connect', 'connect_status', 'disconnect', 'standing_approvals'].includes(name)
     && Object.hasOwn(a, 'label')
-    && (typeof a.label !== 'string' || !LABEL_RE.test(a.label))) return bad('label');
+    && (typeof a.label !== 'string' || !LABEL_RE.test(a.label))) {
+    return name === 'standing_approvals'
+      ? statusObject(STATUS.INVALID_ARGUMENTS, { tool: name, field: 'label', reason: 'pattern' })
+      : bad('label');
+  }
   const optString = (k, re) => a[k] === undefined || (typeof a[k] === 'string' && (!re || re.test(a[k])));
   switch (name) {
     case 'execute':
       if (typeof a.action !== 'string' || !ACTION_RE.test(a.action)) return bad('action');
       if (a.input !== undefined && !isPlainObject(a.input)) return bad('input');
       if (a.confirm !== undefined && typeof a.confirm !== 'boolean') return bad('confirm');
+      if (!optString('root', ROOT_RE)) return bad('root');
+      if (!optString('playbook', PLAYBOOK_RE)) return bad('playbook');
       return null;
+    case 'standing_approvals': {
+      const invalid = (field, reason) => statusObject(STATUS.INVALID_ARGUMENTS, { tool: name, field, reason });
+      const schema = TOOLS.find((tool) => tool.name === name).inputSchema;
+      for (const key of Object.keys(a)) {
+        if (!Object.hasOwn(schema.properties, key)) return invalid(key, 'not_declared');
+      }
+      if (!schema.properties.mode.enum.includes(a.mode)) return invalid('mode', 'enum');
+      if (!optString('root', ROOT_RE)) return invalid('root', 'pattern');
+      if (!optString('playbook', PLAYBOOK_RE)) return invalid('playbook', 'pattern');
+      if (!optString('module', MODULE_RE)) return invalid('module', 'pattern');
+      if (!optString('id')) return invalid('id', 'type');
+      if (a.confirmed !== undefined && typeof a.confirmed !== 'boolean') return invalid('confirmed', 'type');
+      if (a.actions !== undefined) {
+        if (!Array.isArray(a.actions)) return invalid('actions', 'type');
+        if (a.actions.length < 1 || a.actions.length > 20) return invalid('actions', a.actions.length < 1 ? 'min' : 'max');
+        if (a.actions.some((id) => typeof id !== 'string' || !ACTION_RE.test(id))) return invalid('actions', 'pattern');
+      }
+      if (a.days !== undefined) {
+        if (!Number.isInteger(a.days)) return invalid('days', 'type');
+        if (a.days < 1 || a.days > 365) return invalid('days', a.days < 1 ? 'min' : 'max');
+      }
+      if (a.where !== undefined) {
+        if (!isPlainObject(a.where)) return invalid('where', 'type');
+        for (const [field, values] of Object.entries(a.where)) {
+          const at = `where.${field}`;
+          if (!Array.isArray(values)) return invalid(at, 'type');
+          if (values.length < 1 || values.length > 20) return invalid(at, values.length < 1 ? 'min' : 'max');
+          if (values.some((value) => typeof value !== 'string')) return invalid(at, 'type');
+          if (values.some((value) => value.length < 1 || value.length > 120)) return invalid(at, 'length');
+        }
+      }
+      return null;
+    }
     case 'start_connect':
     case 'connect_status':
       if (typeof a.service !== 'string' || !NAME_RE.test(a.service)) return bad('service');
@@ -545,6 +622,7 @@ export class ConnectionGateway {
       : new Map();
     /** Milliseconds. Read on every use so a test can reassign `gw.now`. */
     this.now = typeof opts.now === 'function' ? opts.now : Date.now;
+    this.standingApprovals = opts.standingApprovals || createStandingApprovals(this.store, () => this.now());
   }
 
   /** Called only on stdio serve start, and by the writer before each file. */
@@ -686,6 +764,8 @@ export class ConnectionGateway {
         return this.connectStatus(args);
       case 'disconnect':
         return this.disconnect(args);
+      case 'standing_approvals':
+        return this.standingApprovalsTool(args);
       case 'list_connections':
         return this.listConnections();
       case 'search_actions':
@@ -776,6 +856,7 @@ export class ConnectionGateway {
       service: fields.service ?? null,
       module: fields.module ?? null,
       label: fields.label ?? null,
+      grant_id: fields.grant_id ?? null,
       privilege: fields.privilege ?? null,
       provider_account_id: fields.provider_account_id ?? null,
     };
@@ -795,6 +876,7 @@ export class ConnectionGateway {
       if (result && isStatusObject(result)) line.status = result.status;
       else if (result && result.status === 'connected') line.status = 'connected';
       else if (result && (result.status === 'link' || result.status === 'file')) line.status = result.status;
+      else if (op.startsWith('standing_approvals.') && result && result.status === 'standing_approval_proposed') line.status = result.status;
       else if (result && result.status === 'disconnected') line.status = 'disconnected';
       else if (line.path === 'first_party_mcp' && result && typeof result.status === 'string' && result.status) {
         line.status = classifierAuditStatus(result.status);
@@ -809,6 +891,147 @@ export class ConnectionGateway {
       }
       this.audit.write(line);
     }
+  }
+
+  /**
+   * Standing approvals use the same pending map as a per-call stop. Only a
+   * canonical, freshly checked scope can consume the warning's single use.
+   * @param {object} args
+   */
+  async standingApprovalsTool(args = {}) {
+    const { mode, label } = args;
+    const parsed = args.module ? args.module.split('.') : parseActionId(args.actions?.[0]);
+    const service = Array.isArray(parsed) ? parsed[0] : parsed?.service;
+    const module = Array.isArray(parsed) ? parsed[1] : parsed?.module;
+    return this.withAudit(`standing_approvals.${mode}`, { service, module, label }, async (line) => {
+      if (mode !== 'list') {
+        const decision = evaluate(this.policy, {
+          harness: this.harness, role: this.role, service, module, op: 'standingApproval',
+        });
+        if (decision.effect === 'deny') return statusObject(STATUS.DENIED, { rule: decision.rule });
+      }
+      const invalid = validateArgs('standing_approvals', args);
+      if (invalid) return invalid;
+      if (mode === 'list') {
+        const stored = await this.standingApprovals.list();
+        const grants = stored.filter((grant) => isActiveStandingApproval(grant, this.now()))
+          .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+        return { status: 'ok', standing_approvals: grants.map((grant) => ({ ...grant, summary: standingApprovalSummary(grant) })) };
+      }
+      if (mode === 'revoke') {
+        if (typeof args.id !== 'string' || !args.id) {
+          return statusObject(STATUS.INVALID_ARGUMENTS, { field: 'id', reason: 'required' });
+        }
+        const grants = await this.standingApprovals.list();
+        const active = grants.find((grant) => grant.id === args.id && isActiveStandingApproval(grant, this.now()));
+        const revoked = active ? await this.standingApprovals.revoke(args.id, new Date(this.now()).toISOString()) : null;
+        if (!revoked) return statusObject(STATUS.INVALID_ARGUMENTS, { field: 'id', reason: 'not_found' });
+        line.service = revoked.service;
+        line.module = revoked.module;
+        line.label = revoked.label;
+        line.grant_id = revoked.id;
+        return { status: 'ok', revoked };
+      }
+      const checked = this.standingApprovalScope(args);
+      if (checked.refusal) return checked.refusal;
+      const { scope, summaries, kinds, heightened } = checked;
+      const key = confirmationDigest(['standing_approval', scope]);
+      if (mode !== 'grant' || args.confirmed !== true || !this.takePendingConfirmation(key)) {
+        this.recordPendingConfirmation(key);
+        const expiresOn = new Date(this.now() + scope.days * STANDING_APPROVAL_DAY_MS).toISOString().slice(0, 10);
+        return {
+          status: 'standing_approval_proposed', scope, expires_on: expiresOn, heightened, kinds,
+          warning: buildStandingApprovalWarning({ scope, summaries, kinds, heightened, expiresOn }),
+          next: 'Show the warning to the person word for word; only their own yes in their next turn creates it, by calling standing_approvals with mode grant, the same scope and confirmed: true.',
+          ...(mode === 'grant' && args.confirmed === true ? { reason: 'unmatched_confirm' } : {}),
+        };
+      }
+      const at = this.now();
+      const { days, ...storedScope } = scope;
+      const grant = {
+        id: `sa_${randomUUID()}`, service, module, ...storedScope, summaries, kinds, heightened,
+        created_at: new Date(at).toISOString(),
+        expires_at: new Date(at + days * STANDING_APPROVAL_DAY_MS).toISOString(), revoked_at: null,
+      };
+      await this.standingApprovals.add(grant);
+      line.grant_id = grant.id;
+      return { status: 'ok', standing_approval: grant, summary: standingApprovalSummary(grant) };
+    });
+  }
+
+  /**
+   * Recheck the manifest and account for both propose and grant. Module scope
+   * expands now and is frozen in the stored record, never at execute time.
+   * @param {object} args
+   */
+  standingApprovalScope(args) {
+    const bad = (field, reason) => ({ refusal: statusObject(STATUS.INVALID_ARGUMENTS, { field, reason }) });
+    const allowed = new Set(['mode', 'actions', 'module', 'label', 'root', 'playbook', 'where', 'days']);
+    if (args.mode === 'grant') allowed.add('confirmed');
+    for (const field of Object.keys(args)) if (!allowed.has(field)) return bad(field, 'not_declared');
+    if (args.root === undefined) return bad('root', 'required');
+    if ((args.actions !== undefined) === (args.module !== undefined)) return bad('actions', 'exactly_one');
+    let actions = args.actions;
+    if (args.module) {
+      const [service, module] = args.module.split('.');
+      const found = this.lookupModule(service, module);
+      actions = Object.entries(found?.mod.actions ?? {})
+        .filter(([, action]) => action.standing_approval)
+        .map(([name]) => `${service}.${module}.${name}`);
+      if (actions.length === 0) return bad('module', 'not_eligible');
+    }
+    actions = [...new Set(actions)].sort();
+    const covered = [];
+    for (const action of actions) {
+      const parsed = parseActionId(action);
+      if (!parsed || parsed.service === 'wiser') return bad('actions', 'not_eligible');
+      const resolved = resolveAction(action, { connectors: this.connectors });
+      if (resolved.path !== 'connector' || !resolved.def.standing_approval) return bad('actions', 'not_eligible');
+      covered.push(resolved);
+    }
+    const { service, module } = covered[0].parsed;
+    if (covered.some((item) => item.parsed.service !== service || item.parsed.module !== module)) {
+      return bad('actions', 'mixed_modules');
+    }
+    const auth = covered[0].auth;
+    if (args.label !== undefined && auth.provider === 'local-file') return bad('label', 'not_eligible');
+    const record = this.store.getConnection({ service, module, label: args.label });
+    if (!isActive(record) || typeof record.provider_account_id !== 'string' || !record.provider_account_id) {
+      return { refusal: statusObject(STATUS.NEEDS_CONNECT, {
+        service, module, privilege: auth.privilege ?? null,
+        ...(args.label === undefined ? {} : { label: args.label }),
+      }) };
+    }
+    const entries = [];
+    for (const field of Object.keys(args.where ?? {}).sort()) {
+      if (containsUnsafeCodePoint(field)) return bad(`where.${field}`, 'unsafe');
+      if (covered.some(({ def }) => {
+        const properties = def.input?.properties ?? {};
+        if (!Object.hasOwn(properties, field)) return true;
+        const type = properties[field]?.type;
+        return !(Array.isArray(type) ? type : [type]).includes('string');
+      })) return bad(`where.${field}`, 'not_declared');
+      const values = args.where[field];
+      if (values.some((value) => containsUnsafeCodePoint(value))) return bad(`where.${field}`, 'unsafe');
+      if (new Set(values).size !== values.length) return bad(`where.${field}`, 'duplicate');
+      try { assertNoSecrets({ [field]: values }); } catch { return bad(`where.${field}`, 'credential_like'); }
+      entries.push([field, values.slice().sort()]);
+    }
+    const kinds = [...new Set(covered.map(({ def }) => def.standing_approval.kind))].sort();
+    const heightened = isHeightened(kinds);
+    const days = args.days ?? (heightened ? 7 : 90);
+    if (heightened && days > 7) return bad('days', 'max');
+    const scope = {
+      actions, module_wide: Boolean(args.module), label: args.label ?? null,
+      provider_account_id: record.provider_account_id, root: args.root,
+      playbook: args.playbook ?? null, where: entries.length ? Object.fromEntries(entries) : null, days,
+    };
+    // Root identifiers can themselves resemble credentials; reject before the
+    // local adapter would throw, and before a hosted adapter could save them.
+    for (const field of ['root', 'playbook', 'provider_account_id']) {
+      try { assertNoSecrets(scope[field]); } catch { return bad(field, 'credential_like'); }
+    }
+    return { scope, kinds, heightened, summaries: covered.map(({ def }) => def.standing_approval.summary) };
   }
 
   listConnections() {
@@ -1053,9 +1276,10 @@ export class ConnectionGateway {
     return statusObject(STATUS.NEEDS_CONNECTOR, { action: id });
   }
 
-  async execute({ action, input, confirm, label } = {}) {
+  async execute({ action, input, confirm, label, root, playbook } = {}) {
     const labelled = label === undefined ? {} : { label };
-    return this.withAudit('execute', { action: action ?? null, label }, async (line) => {
+    let standingGrant = null;
+    const result = await this.withAudit('execute', { action: action ?? null, label }, async (line) => {
       const parsed = parseActionId(action);
       if (!parsed) {
         line.path = 'none';
@@ -1244,41 +1468,50 @@ export class ConnectionGateway {
       if (needsConfirm) {
         const approval = approvalDisclosure(act, input);
         if (approval.refusal) return approval.refusal;
-        const confirmKey = confirmationDigest([
-          'execute',
-          action,
-          approval.inputForKey,
-          record.provider_account_id,
-          // A label joins the key only when given, so an unlabelled approval keeps today's key.
-          ...(label === undefined ? [] : [label]),
-        ]);
-        const matched = confirm === true && this.takePendingConfirmation(confirmKey);
-        if (!matched) {
-          this.recordPendingConfirmation(confirmKey);
-          const disclosure = approval.disclosure;
-          const summary = composeSummary({
-            action,
-            service: parsed.service,
-            module: parsed.module,
-            risk,
-            description: act?.description,
-            disclosure,
+        if (confirm !== true && root && act.standing_approval && resolved.path === 'connector') {
+          standingGrant = matchStandingApproval(await this.standingApprovals.list(), {
+            action, manifestAction: act, label, providerAccountId: record.provider_account_id,
+            root, playbook, input, now: this.now(),
           });
-          return statusObject(STATUS.NEEDS_CONFIRMATION, {
+          if (standingGrant) line.grant_id = standingGrant.id;
+        }
+        if (!standingGrant) {
+          const confirmKey = confirmationDigest([
+            'execute',
             action,
-            service: parsed.service,
-            module: parsed.module,
-            risk: risk ?? null,
-            confirmation,
-            label: label ?? null,
-            input_fields: disclosure.fields,
-            undeclared_fields: disclosure.undeclared,
-            input_values: inputValueEntries(disclosure.shown),
-            withheld_fields: disclosure.withheld,
-            summary,
-            description: act?.description ?? null,
-            ...(confirm === true ? { reason: 'unmatched_confirm' } : {}),
-          });
+            approval.inputForKey,
+            record.provider_account_id,
+            // A label joins the key only when given, so an unlabelled approval keeps today's key.
+            ...(label === undefined ? [] : [label]),
+          ]);
+          const matched = confirm === true && this.takePendingConfirmation(confirmKey);
+          if (!matched) {
+            this.recordPendingConfirmation(confirmKey);
+            const disclosure = approval.disclosure;
+            const summary = composeSummary({
+              action,
+              service: parsed.service,
+              module: parsed.module,
+              risk,
+              description: act?.description,
+              disclosure,
+            });
+            return statusObject(STATUS.NEEDS_CONFIRMATION, {
+              action,
+              service: parsed.service,
+              module: parsed.module,
+              risk: risk ?? null,
+              confirmation,
+              label: label ?? null,
+              input_fields: disclosure.fields,
+              undeclared_fields: disclosure.undeclared,
+              input_values: inputValueEntries(disclosure.shown),
+              withheld_fields: disclosure.withheld,
+              summary,
+              description: act?.description ?? null,
+              ...(confirm === true ? { reason: 'unmatched_confirm' } : {}),
+            });
+          }
         }
       }
       if (confirm === true && confirmation === 'once') {
@@ -1389,6 +1622,7 @@ export class ConnectionGateway {
         throw err;
       }
     });
+    return standingApprovalResult(result, standingGrant);
   }
 
   /**

@@ -67,16 +67,16 @@ function noProvider(f) {
   }
 }
 
-test('labels are optional on exactly four tool schemas and accept the published boundaries', async (t) => {
+test('labels are optional on exactly five tool schemas and accept the published boundaries', async (t) => {
   const { gw } = await fixture(t);
   for (const tool of gw.listTools()) {
-    if (['execute', 'start_connect', 'connect_status', 'disconnect'].includes(tool.name)) {
+    if (['execute', 'start_connect', 'connect_status', 'disconnect', 'standing_approvals'].includes(tool.name)) {
       const schema = tool.inputSchema.properties.label;
       assert.equal(schema.type, 'string');
       assert.equal(schema.pattern, pattern);
       assert.equal(typeof schema.description, 'string');
       assert.equal(tool.inputSchema.required.includes('label'), false);
-      const args = tool.name === 'execute' ? read : key;
+      const args = tool.name === 'execute' ? read : (tool.name === 'standing_approvals' ? { mode: 'list' } : key);
       for (const label of ['a', '0', 'a-b', 'a--b', 'a'.repeat(32)]) {
         assert.equal(validateArgs(tool.name, { ...args, label }), null);
       }
