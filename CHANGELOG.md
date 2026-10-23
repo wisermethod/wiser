@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.23.2, October 23, 2026
+
+- After a Wiser update that changes one of its tools, your assistant now tells you to start a new session if the app is still showing the tool as it was, instead of leaving an action to stop for no clear reason. A session opened before the update can keep the old version of the tool, and reconnecting does not refresh it. That is why a standing approval made yesterday could still stop in a session that was already open. (5e8714f)
+
 ## v2026.10.23, October 23, 2026
 
 - Wiser can now build your brand with you. Ask it to help with your brand and choose how: about ten minutes of questions that record the brand you already have in your design file, or a full build over a few sessions that starts by writing a plan into your folder. The full build shows you whole brand boards, each a complete look with its colours, lettering and graphic shapes, and you say what you like, ask for blends and changes, and lock the one that is yours; it then writes a brand direction, design tokens, your brand on a social post, a flyer and a business card, a short guide and your design file. It reads your voice file and never changes it, and where a brand word clashes with how you write, it asks you which should win. A logo is not drawn yet: the build names it as still to come. (bcbd9b0, 8bed28a, a559d32, 560a978)
