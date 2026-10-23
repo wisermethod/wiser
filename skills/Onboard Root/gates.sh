@@ -2720,6 +2720,28 @@ gate_G19() {
     add_note "no $(rel "$SECRETS") directory: the credential clause did not run"
   fi
 
+  # The Provides block's own memory bindings: each names a file under the root.
+  # A state written over a binding ("- design: provisional (...)") unbinds the
+  # key while every other gate still passes, so the binding itself is checked.
+  if [ -f "$AGENTS" ] && grep -qE '^## Provides[[:space:]]*$' "$AGENTS"; then
+    strip_comments < "$AGENTS" > "$TMPD/g19-agents.md" 2>/dev/null
+    while IFS= read -r bind; do
+      [ -n "$bind" ] || continue
+      ran=1
+      key=$(printf '%s' "$bind" | sed -E 's/^ {0,3}-[[:space:]]+([a-z]+):.*/\1/')
+      val=$(printf '%s' "$bind" | sed -E 's/^ {0,3}-[[:space:]]+[a-z]+:[[:space:]]*//; s/[[:space:]]+$//; s/^`//; s/`$//')
+      case "$val" in
+        *.md) ;;
+        *) add_fail "$(rel "$AGENTS"): Provides binds '$key' to '$val', which is not a markdown file path"; continue ;;
+      esac
+      if ! under_root "$val"; then
+        add_fail "$(rel "$AGENTS"): Provides binding '$key: $val' $_ur_why"
+      elif [ ! -f "$ROOT/$val" ]; then
+        add_fail "$(rel "$AGENTS"): Provides binding '$key: $val' does not resolve under the root"
+      fi
+    done < <(section_body "$TMPD/g19-agents.md" "## Provides" 2>/dev/null | grep -E '^ {0,3}-[[:space:]]+(about|voice|design):')
+  fi
+
   if [ "$ran" = "0" ]; then
     set_skip "no bound files and no credential store: nothing to resolve"
   fi
