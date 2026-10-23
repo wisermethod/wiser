@@ -92,7 +92,7 @@ def execute(command, source, output, report, terms=(), named=(), fps=30, workers
                 clock["check"] = time.perf_counter() - start
                 write_report(report, {"ok": not bool(checked["hits"]), "kind": kind, **checked})
                 if checked["hits"]:
-                    raise CaptureError("output check found readable content; inspect the places in " + str(report) +
+                    raise CaptureError("output check found readable content; inspect the hits in " + str(report) +
                                        " and redact those regions before retrying")
                 return {"ok": True, "kind": kind, "check": checked, "report": str(report),
                         "seconds": clock, "versions": version}
@@ -100,7 +100,7 @@ def execute(command, source, output, report, terms=(), named=(), fps=30, workers
                 width, height = image.size
             for x0, y0, x1, y1 in named:
                 if x0 < 0 or y0 < 0 or x1 > width or y1 > height:
-                    raise CaptureError("--region falls outside the image; use a rectangle in output pixels within its dimensions")
+                    raise CaptureError("--region falls outside the image; use a rectangle in the input's pixels within its dimensions")
             start = time.perf_counter()
             detected = detect(files, terms)
             found_frames = sum(bool(b) for b in detected)
@@ -132,7 +132,7 @@ def execute(command, source, output, report, terms=(), named=(), fps=30, workers
             clock["check"] = time.perf_counter() - start
             write_report(report, {"ok": not bool(checked["hits"]), "kind": kind, **checked})
             if checked["hits"]:
-                raise CaptureError("redaction check found readable content; output withheld. Inspect the places in " + str(report) +
+                raise CaptureError("redaction check found readable content; output withheld. Inspect the hits in " + str(report) +
                                    " and add --region rectangles before retrying")
             descriptor, filename = tempfile.mkstemp(prefix=".wiser-screen-capture-", suffix=output.suffix,
                                                    dir=str(output.parent))

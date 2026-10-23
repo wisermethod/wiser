@@ -61,9 +61,9 @@ Different sizes report a null pixel count and box; missing ids are listed separa
 Options:
   --input <path>       Existing PNG still, or MOV/MP4 recording; absolute path.
   --output <path>      New PNG for a still, MP4 for a recording; outside this tool.
-  --report <path>      New JSON report, absolute, outside this tool; counts and places only.
+  --report <path>      New JSON report, absolute, outside this tool; counts and hit places only.
   --term <text>        Repeatable address or name, held only in memory; case/whitespace/OCR folding.
-  --region <x,y,w,h>   Repeatable integer rectangle, in output pixels; redact only, all frames, no fit.
+  --region <x,y,w,h>   Repeatable integer rectangle, in the input's pixels; redact only, all frames, no fit.
   --fps <n>           redact only: a recording's decode rate, positive number; default 30.
                       verify reads every frame a recording holds, at the rate it was written.
   --install           Authorize pinned wheels into this tool's .venv, pip cache off;
