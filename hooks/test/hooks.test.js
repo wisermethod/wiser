@@ -720,10 +720,14 @@ test('round 2: a container declaring root:, a symlink to a refusing root, a blan
 });
 
 test('named asks are not sent, and a tool answer is not a route', () => {
-  for (const ask of ['update root', 'Update this root.', 'wrap up', 'set up connectors', 'install connectors', '"check root"']) {
+  for (const ask of ['update root', 'Update this root.', 'wrap up', 'set up connectors', 'install connectors', '"check root"',
+    'Set up Wiser', 'setup wiser!', 'Onboard Project', '"Onboard Project."', 'Onboard Project. Right now I am focused on the launch']) {
     assert.equal(isNamedAsk(ask), true, ask);
   }
   assert.equal(isNamedAsk('update the root page copy for the launch'), false);
+  for (const ask of ['set up wiserly', 'onboard projector', 'set me up', 'first run the tests', 'get me set up with GitHub']) {
+    assert.equal(isNamedAsk(ask), false, ask);
+  }
   for (const ask of ['wrap up\u2014include the open gates', 'wrap up? Include the open gates', 'wrap up! now', 'update root\u2013today']) {
     assert.equal(isNamedAsk(ask), true, ask);
   }
