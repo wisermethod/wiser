@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types
-version: 0.42.4
+version: 0.43.0
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -96,15 +96,17 @@ What they do and what people come to them for (W1) fills `## Key Facts`; where a
 
 `memory/design.md` takes its headings, optional headings included, from the template's `prompts/personal/design.md` sheet. After filling `about.md` and before filling `design.md`, ask once, as taps where the app offers a question tool, the way Two paths asks the type, in these words: **"Last, how your work should look. Do you already have a look you'd like me to record, or shall we build one together?"** Where the request already answers it, take that answer and ask nothing.
 
-- **Record my look · about 10 minutes**
-- **Build one with me · a few sessions**
-- **Not now**
+- **I have a personal brand. I'll give it to you to record.**
+- **I want to build a personal look and feel for my work.**
+- **Design isn't that important to me. Just build a simple brand from what you know about me.**
+- **Let's do this later.**
 
 What did they choose?
 
-- **Not now:** Design fills from a design guide or a sample document when one is supplied, and takes labels when none is. Fill each heading, optional headings included, under rules 1 and 2; an unanswered heading gets `[Not available: not yet supplied]`. Continue to Step 4.
-- **Record my look:** run `skills/Build Brand/` by name, handing `<caller>` the root's path, its type `personal`, that this is personal onboarding, not full onboarding, and the answer `brief`, and any supplied guide or files in `<source_material>`. No verification file is sought. It runs its brief path, writes `design.md` and the run's design answers file, does its own read-back and returns its ending. Keep that ending and the answers file's path for Steps 4 and 5, then continue to Step 4.
-- **Build one with me:** run `skills/Build Brand/` by name with the same handoff and the answer `full`. It writes the brand Playbook in this root and a provisional `design.md` naming that Playbook, then returns before any stage runs. Keep the returned Playbook path and ending, continue to Step 4 and close onboarding.
+- **I have a personal brand:** run `skills/Build Brand/` by name, handing `<caller>` the root's path, its type `personal`, that this is personal onboarding, not full onboarding, and the answer `brief`, and any supplied guide or files in `<source_material>`. No verification file is sought. It runs its brief path, writes `design.md` and the run's design answers file, does its own read-back and returns its ending. Keep that ending and the answers file's path for Steps 4 and 5, then continue to Step 4.
+- **I want to build a personal look and feel:** run `skills/Build Brand/` by name with the same handoff and the answer `full`. It writes the brand Playbook in this root and a provisional `design.md` naming that Playbook, then returns before any stage runs. Keep the returned Playbook path and ending, continue to Step 4 and close onboarding.
+- **Design isn't that important to me:** run `skills/Build Brand/` by name with the same handoff and the answer `simple`. It asks nothing: it makes one simple brand from what this root already holds, writes `design.md` and the run's design answers file, does its own read-back, and returns its ending and the path of a one-page look at the brand. Keep both for Steps 4 and 5, then continue to Step 4.
+- **Let's do this later:** run nothing. Design fills from a design guide or a sample document when one is supplied, and takes labels when none is. Fill each heading, optional headings included, under rules 1 and 2; an unanswered heading gets `[Not available: not yet supplied]`. Continue to Step 4.
 
 A stopped Build Brand run leaves the bound file as it was. Replace any surviving design prompt lines with `[Not available: design build stopped before confirmation]`, retain supported content, and carry what it returned as outstanding to Step 5 with the person as owner.
 
@@ -112,7 +114,7 @@ A stopped Build Brand run leaves the bound file as it was. Replace any surviving
 
 Rule 3. In a separate pass, take every claim in `about.md` and `design.md` and find it in what the person said, in the file it names, or in the run's answers file under the question number it cites. Found: it stands. Not found, or found saying something else: `[Unverified: requires confirmation]` in place, and the question goes to the person. `## Personality` is Build Voice's paraphrase of the person's own answers, each line cited by its question number: check each against the answer it cites like any other claim, and where it says something else, correct it to what the answer says; it is not relabeled or asked. This pass is the interview: what it could not find is what you ask, and nothing the coach already asked is asked again.
 
-Where Build Brand's brief path ran, check `design.md` against the design answers file it returned and the supplied files it cites. A transcription slip against a confirmed answer is corrected to that answer; ask only what those sources do not settle, never again what Build Brand already confirmed. The full path's provisional file keeps its Playbook and outstanding stages named; Step 4 does not run them.
+Where Build Brand's brief path ran, check `design.md` against the design answers file it returned and the supplied files it cites. A transcription slip against a confirmed answer is corrected to that answer; ask only what those sources do not settle, never again what Build Brand already confirmed. The full path's provisional file keeps its Playbook and outstanding stages named; Step 4 does not run them. Where its simple path ran, check `design.md` against the parts its answers file records and the person's answer that asked for it; ask nothing that answer settles, since it asked for a brand made for them.
 
 ### Step 5: Close
 
@@ -125,7 +127,7 @@ Onboarded <date> on the personal path of `skills/Onboard Root/`. A deliverable t
 
 - about: complete
 - voice: complete
-- design: provisional (every heading labeled; owner: <the person>; waits on their design guide)
+- design: complete
 ```
 
 Where the voice coach did not finish, the voice line reads `- voice: provisional (the voice coach has not finished; owner: <the person>; say "build my voice")`.
@@ -135,12 +137,13 @@ Which design ending did Step 3 return? Set its line accordingly:
 - Build Brand's brief path complete: `- design: complete`.
 - Its brief path left headings labeled: `- design: provisional (<what it waits on, as Build Brand returned it>; owner: <the person>)`.
 - Its full path: `- design: provisional (owner: <the person>; waits on the brand Playbook at <its path>)`.
-- Not now: keep the light fill's existing close, the line above where every heading is labeled, or `- design: complete` where it meets the definition below.
+- Its simple path: `- design: complete`.
+- Let's do this later: `- design: provisional (every heading labeled; owner: <the person>; waits on "build my brand")`, or `- design: complete` where the fill from a supplied guide meets the definition below.
 - Stopped: `- design: provisional (<what it waits on, as Build Brand returned it>; owner: <the person>)`.
 
 A key is **complete** when every heading is answered or labeled, at least one is answered, and every claim survived the read-back. It is **provisional** when the file is usable and a named gap remains, with an owner and what it waits on in the same line; a file whose every heading is a label is provisional, not complete, with the person as owner. It is **blocked** when the file is not usable, with the blocker named on the line as `person:`, `credential:` or `capability:` followed by who or what; the form is `blocked (person: <who>; waits on <what>)`. A key that cannot pass its read-back is provisional or blocked, never closed complete. Nothing in the section is ever deleted; a later session updates a line when a key closes.
 
-Which design ending is being closed? **Not now, with every heading labeled:** say "You're all set. In your <name> folder I've saved how you write, a little about you, and a page for how your work should look, which fills in once you share a logo or a style guide." **Record my look complete, or a complete light fill:** say "You're all set. In your <name> folder I've saved how you write, a little about you, and how your work should look. Your look is recorded." **Build one with me returned a Playbook:** say "You're all set. In your <name> folder I've saved how you write and a little about you. Your brand plan is at <Playbook path>; we'll continue it next session." **Any other provisional or stopped ending:** keep the opening through "a page for how your work should look" and follow it with one short sentence saying what that page still needs, as the state line records. Where the voice key is provisional, add: "Your writing voice isn't finished yet. Say "build my voice" whenever you like." In these lines `<name>` is the root's folder name, which on an open folder is that folder's own name, not the person's. No run record, no close report, no operating file: the state lines are the record.
+Which design ending is being closed? **The recorded look complete:** say "You're all set. In your <name> folder I've saved how you write, a little about you, and how your work should look. Your look is recorded." **The build returned a Playbook:** say "You're all set. In your <name> folder I've saved how you write and a little about you. Your brand plan is at <Playbook path>; we'll continue it next session." **The simple brand:** say "You're all set. In your <name> folder I've saved how you write, a little about you, and a simple look for your work, made from what you told me. Say "build my brand" any time to make it your own." Then show the one-page look by the path Build Brand returned; where it returned none, the line stands alone. **Let's do this later:** say "You're all set. In your <name> folder I've saved how you write, a little about you, and a page for how your work should look. Say "build my brand" whenever you have time for it." **Any other provisional or stopped ending:** say "You're all set. In your <name> folder I've saved how you write, a little about you, and a page for how your work should look," and follow it with one short sentence saying what that page still needs, as the state line records. Where the voice key is provisional, add: "Your writing voice isn't finished yet. Say "build my voice" whenever you like." In these lines `<name>` is the root's folder name, which on an open folder is that folder's own name, not the person's. No run record, no close report, no operating file: the state lines are the record.
 
 ### The optional check
 

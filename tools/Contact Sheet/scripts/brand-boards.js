@@ -19,7 +19,7 @@ function object(o, keys, at) {
 function text(s, at, line = true) {
   if (typeof s !== 'string' || !s.trim() || /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(s) || (line && /[\r\n\u2028\u2029]/.test(s))) fail(`${at} must be non-empty ${line ? 'single-line ' : ''}text. Correct the spec.`);
 }
-function list(a, at) { if (!Array.isArray(a) || !a.length) fail(`${at} must be a non-empty array. Correct the spec.`); }
+function list(a, at, allowEmpty = false) { if (!Array.isArray(a) || (!allowEmpty && !a.length)) fail(`${at} must be ${allowEmpty ? 'an array' : 'a non-empty array'}. Correct the spec.`); }
 function number(n, min, max, at) { if (typeof n !== 'number' || !Number.isFinite(n) || n < min || n > max) fail(`${at} must be a number from ${min} to ${max}. Correct the spec.`); }
 function hex(c, at) { if (typeof c !== 'string' || !/^#(?:[a-f\d]{3}|[a-f\d]{6})$/i.test(c)) fail(`${at} must be opaque sRGB #RGB or #RRGGBB. Correct the colour.`); }
 function rgb(c) { const h = c.slice(1); return (h.length === 3 ? [...h].map((x) => x + x).join('') : h).match(/../g).map((x) => parseInt(x, 16) / 255); }
@@ -350,8 +350,11 @@ export function validateBrandBoards(spec, assets, readAsset) {
     attempt(() => {
       object(b.content, ['brandName', 'sentence', 'body', 'smallPrint', 'photoRules', 'never'], 'content');
       for (const k of ['brandName', 'sentence', 'smallPrint']) text(b.content[k], `content.${k}`);
-      for (const k of ['body', 'photoRules']) text(b.content[k], `content.${k}`, false);
-      list(b.content.never, 'content.never'); b.content.never.forEach((s) => text(s, 'content.never entry'));
+      text(b.content.body, 'content.body', false);
+      if (own(b.content, 'photoRules')) text(b.content.photoRules, 'content.photoRules', false);
+      if (own(b.content, 'never')) {
+        list(b.content.never, 'content.never', true); b.content.never.forEach((s) => text(s, 'content.never entry'));
+      }
     });
     attempt(() => {
       text(b.graphics.title, 'graphics.title'); text(b.graphics.description, 'graphics.description');
@@ -362,8 +365,10 @@ export function validateBrandBoards(spec, assets, readAsset) {
       }
     });
     attempt(() => {
-      list(b.words, 'words');
-      for (const w of b.words) { object(w, ['word', 'not'], 'words entry'); text(w.word, 'words.word'); text(w.not, 'words.not'); }
+      if (own(b, 'words')) {
+        list(b.words, 'words', true);
+        for (const w of b.words) { object(w, ['word', 'not'], 'words entry'); text(w.word, 'words.word'); text(w.not, 'words.not'); }
+      }
       list(b.closingExamples, 'closingExamples');
       if (b.closingExamples.length < 2 || b.closingExamples.length > 3) fail('closingExamples needs two or three example answers.');
       b.closingExamples.forEach((v) => text(v, 'closingExamples entry'));

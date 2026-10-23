@@ -34,7 +34,7 @@ function tar(entries) {
   return Buffer.concat([...blocks, Buffer.alloc(1024)]);
 }
 function fixture() {
-  const root = mkdtempSync(join(work, 'fixture-'));
+  const root = realpathSync(mkdtempSync(join(work, 'fixture-')));
   const plugin = join(root, 'plugin'), skill = join(plugin, 'skills/Build Brand');
   mkdirSync(join(skill, 'scripts'), { recursive: true }); mkdirSync(join(plugin, 'tools/lib'), { recursive: true });
   copyFileSync(script, join(skill, 'scripts/fonts.mjs')); copyFileSync(consent, join(plugin, 'tools/lib/consent.js'));
@@ -63,6 +63,283 @@ function refused(child, pattern, f) {
   assert.equal(child.status, 1, child.stderr); assert.equal(child.stdout, ''); assert.match(child.stderr, pattern);
   assert.equal(existsSync(f.directory), false, 'a refused archive must write no font files or directories');
 }
+
+const expectedAssetName = path => path.slice('fonts/'.length).replaceAll('/', '--').replaceAll(' ', '_');
+function familyFixture() {
+  const f = fixture(), assets = join(f.root, 'assets'); mkdirSync(assets);
+  const bold = { name: 'Test Face/bold.woff2', data: Buffer.from('tiny bold font') };
+  const other = [{ name: 'Other Face/face.woff2', data: Buffer.from('other font') }, { name: 'Other Face/OFL.txt', data: Buffer.from('other licence') }];
+  f.library.fonts.Test.files.push({ path: 'fonts/' + bold.name, sha256: hash(bold.data), bytes: bold.data.length });
+  f.library.fonts.Other = {
+    files: [{ path: 'fonts/' + other[0].name, sha256: hash(other[0].data), bytes: other[0].data.length }],
+    licenceFile: 'fonts/' + other[1].name, licenceSha256: hash(other[1].data), licenceBytes: other[1].data.length
+  };
+  const selected = [f.entries[0], bold, f.entries[1]], entries = [...selected, ...other];
+  for (const e of entries) writeFileSync(join(assets, expectedAssetName('fonts/' + e.name)), e.data);
+  f.save();
+  return { ...f, assets, selected, other, entries };
+}
+
+function installedTree(directory) {
+  if (!existsSync(directory)) return null;
+  return readdirSync(directory, { withFileTypes: true }).map(entry => {
+    const file = join(directory, entry.name), info = statSync(file);
+    return { name: entry.name, ino: info.ino, mtime: info.mtimeMs,
+      content: entry.isDirectory() ? installedTree(file) : readFileSync(file).toString('hex') };
+  });
+}
+
+function faultedInstall(f, fault, args, later) {
+  const harness = join(f.root, 'fault.mjs');
+  writeFileSync(harness, `
+    import fs from 'node:fs';
+    import { syncBuiltinESMExports } from 'node:module';
+    const originalWrite = fs.writeFileSync, originalRename = fs.renameSync;
+    let fired = false;
+    const fail = () => { fired = true; const error = new Error('injected later-member ENOSPC'); error.code = 'ENOSPC'; throw error; };
+    fs.writeFileSync = function(path, data, options) {
+      if (${JSON.stringify(fault)} === 'stage' && Buffer.isBuffer(data) && data.equals(Buffer.from(${JSON.stringify(later.at(-1).data.toString())}))) {
+        originalWrite(path, data.subarray(0, 2), options); fail();
+      }
+      return originalWrite(path, data, options);
+    };
+    fs.renameSync = function(from, to) {
+      if (${JSON.stringify(fault)} === 'publish' && !fired && [${JSON.stringify(join(f.directory, later[0].name.split('/')[0]))}, ${JSON.stringify(join(f.directory, later[1].name))}].includes(to)) fail();
+      return originalRename(from, to);
+    };
+    syncBuiltinESMExports();
+    const { main } = await import(${JSON.stringify(pathToFileURL(join(f.skill, 'scripts/fonts.mjs')).href)});
+    await main(${JSON.stringify([...f.args, ...args, '--install'])});
+    if (!fired) throw new Error('fault injection did not fire');
+  `);
+  return spawnSync(process.execPath, [harness], { encoding: 'utf8', env: f.env });
+}
+
+function faultedFamilyInstall(f, fault, extra = []) {
+  return faultedInstall(f, fault, [...extra, '--family', 'Test', '--from', f.assets], f.selected);
+}
+
+for (const fault of ['stage', 'publish']) test(`pack rollback: a later ${fault} failure restores every family`, async t => {
+  for (const existing of ['absent', 'empty', 'mixed', 'all']) await t.test(existing, () => {
+    const f = familyFixture(); f.replace(f.entries);
+    if (existing !== 'absent') mkdirSync(f.directory);
+    if (existing === 'mixed' || existing === 'all') {
+      for (const family of existing === 'all' ? ['Test Face', 'Other Face'] : ['Test Face']) {
+        mkdirSync(join(f.directory, family));
+        for (const entry of f.entries.filter(entry => entry.name.startsWith(family + '/'))) {
+          writeFileSync(join(f.directory, entry.name), 'old ' + entry.name);
+        }
+        writeFileSync(join(f.directory, family, 'keep.txt'), 'unlisted file');
+      }
+    }
+    const before = installedTree(f.directory);
+    const child = faultedInstall(f, fault, ['--from', f.pack], f.other);
+    assert.equal(child.status, 1, child.stderr); assert.equal(child.stdout, '');
+    assert.match(child.stderr, /injected later-member ENOSPC/);
+    assert.deepEqual(installedTree(f.directory), before, 'every family and original member must be restored, with no staging entries left');
+    const retry = f.run(['--install', '--from', f.pack]);
+    assert.equal(retry.status, 0, retry.stderr); assert.equal(JSON.parse(retry.stdout).installed, true);
+    for (const entry of f.entries) assert.deepEqual(readFileSync(join(f.directory, entry.name)), entry.data);
+    if (existing === 'mixed' || existing === 'all') {
+      assert.equal(readFileSync(join(f.directory, 'Test Face/keep.txt'), 'utf8'), 'unlisted file');
+      if (existing === 'all') assert.equal(readFileSync(join(f.directory, 'Other Face/keep.txt'), 'utf8'), 'unlisted file');
+    }
+    assert.deepEqual(readdirSync(f.directory).sort(), ['Other Face', 'Test Face']);
+  });
+});
+
+test('family rollback: a partial write of the later licence restores absent and existing families', () => {
+  for (const existing of [false, true]) {
+    const f = familyFixture();
+    if (existing) {
+      mkdirSync(join(f.directory, 'Test Face'), { recursive: true });
+      writeFileSync(join(f.directory, f.selected[0].name), 'old damaged font');
+      writeFileSync(join(f.directory, 'Test Face/keep.txt'), 'unlisted file');
+    }
+    const before = installedTree(f.directory);
+    const child = faultedFamilyInstall(f, 'stage');
+    assert.equal(child.status, 1, child.stderr); assert.equal(child.stdout, '');
+    assert.match(child.stderr, /injected later-member ENOSPC/);
+    assert.deepEqual(installedTree(f.directory), before, 'no family, changed originals or staging entries survive the failed write');
+  }
+});
+
+test('family rollback: a later publish restores every requested family and preserves existing extras on retry', () => {
+  for (const existing of [false, true]) {
+    const f = familyFixture();
+    if (existing) {
+      for (const family of ['Test Face', 'Other Face']) mkdirSync(join(f.directory, family), { recursive: true });
+      for (const entry of f.entries) writeFileSync(join(f.directory, entry.name), 'old ' + entry.name);
+      writeFileSync(join(f.directory, 'Test Face/keep.txt'), 'unlisted file');
+    }
+    const before = installedTree(f.directory);
+    const child = faultedFamilyInstall(f, 'publish', ['--family', 'Other']);
+    assert.equal(child.status, 1, child.stderr); assert.equal(child.stdout, '');
+    assert.match(child.stderr, /injected later-member ENOSPC/);
+    assert.deepEqual(installedTree(f.directory), before, 'published members and families must be rolled back, with no stage left');
+    const retry = f.run(['--family', 'Other', '--family', 'Test', '--install', '--from', f.assets]);
+    assert.equal(retry.status, 0, retry.stderr);
+    for (const entry of f.entries) assert.deepEqual(readFileSync(join(f.directory, entry.name)), entry.data);
+    if (existing) assert.equal(readFileSync(join(f.directory, 'Test Face/keep.txt'), 'utf8'), 'unlisted file');
+    assert.deepEqual(readdirSync(f.directory).sort(), ['Other Face', 'Test Face']);
+  }
+});
+
+test('family: --family installs only its asset-named files and leaves other families untouched', () => {
+  const f = familyFixture();
+  const child = f.run(['--family', 'Test', '--install', '--from', f.assets]);
+  assert.equal(child.status, 0, child.stderr);
+  const state = JSON.parse(child.stdout);
+  assert.deepEqual(state.families, ['Test']); assert.equal(state.installed, true);
+  assert.deepEqual(state.missing, []); assert.deepEqual(state.changed, []);
+  assert.deepEqual(readdirSync(f.directory), ['Test Face']);
+  for (const e of f.selected) assert.deepEqual(readFileSync(join(f.directory, e.name)), e.data);
+  mkdirSync(join(f.directory, 'Other Face'));
+  const untouched = f.other.map(e => {
+    const file = join(f.directory, e.name); writeFileSync(file, 'leave this damaged file alone');
+    return { file, bytes: readFileSync(file), info: statSync(file) };
+  });
+  writeFileSync(join(f.directory, f.selected[0].name), 'damaged');
+  rmSync(join(f.directory, f.selected[1].name));
+  const survey = JSON.parse(f.run(['--family', 'Test']).stdout);
+  assert.deepEqual(survey.missing, ['fonts/' + f.selected[1].name]);
+  assert.deepEqual(survey.changed, ['fonts/' + f.selected[0].name]);
+  const unasked = f.run(['--family', 'Test', '--from', f.assets]);
+  assert.notEqual(unasked.status, 0, 'a family fetch left no consent, so a repair without --install still asks');
+  const repaired = f.run(['--family', 'Test', '--install', '--from', f.assets]);
+  assert.equal(repaired.status, 0, repaired.stderr); assert.equal(JSON.parse(repaired.stdout).installed, true);
+  for (const { file, bytes, info } of untouched) {
+    assert.deepEqual(readFileSync(file), bytes);
+    assert.equal(statSync(file).mtimeMs, info.mtimeMs); assert.equal(statSync(file).ino, info.ino);
+  }
+  assert.deepEqual(readdirSync(join(f.directory, 'Test Face')).sort(), f.selected.map(e => e.name.split('/')[1]).sort(), 'no staging files remain');
+});
+test('family: repeatable --family installs the union and names each requested family once', () => {
+  const f = familyFixture();
+  const child = f.run(['--family', 'Other', '--family', 'Test', '--family', 'Other', '--from', f.assets], { WISER_ALLOW_INSTALL: '1' });
+  assert.equal(child.status, 0, child.stderr); assert.deepEqual(JSON.parse(child.stdout).families, ['Other', 'Test']);
+  for (const e of f.entries) assert.deepEqual(readFileSync(join(f.directory, e.name)), e.data);
+  // A family fetch is scoped: it leaves no consent record that would let later installs skip the question.
+  assert.equal(existsSync(join(f.plugin, '.wiser-consent')), false);
+  const flagged = familyFixture(), viaFlag = flagged.run(['--install', '--family', 'Test', '--from', flagged.assets]);
+  assert.equal(viaFlag.status, 0, viaFlag.stderr); assert.equal(existsSync(join(flagged.plugin, '.wiser-consent')), false);
+});
+for (const kind of ['bytes', 'sha256']) test(`family: a fetched ${kind} mismatch is refused before any family file is written`, () => {
+  const f = familyFixture(), last = f.selected.at(-1), data = Buffer.from(last.data);
+  data[0] ^= 1;
+  writeFileSync(join(f.assets, expectedAssetName('fonts/' + last.name)), kind === 'bytes' ? Buffer.concat([data, Buffer.from('extra')]) : data);
+  refused(f.run(['--family', 'Test', '--install', '--from', f.assets]), kind === 'bytes' ? /size differs|size exceeds/ : /sha256 differs/, f);
+});
+test('family: a missing final licence asset leaves the entire family unwritten', () => {
+  const f = familyFixture(); rmSync(join(f.assets, expectedAssetName('fonts/' + f.selected.at(-1).name)));
+  refused(f.run(['--family', 'Test', '--install', '--from', f.assets]), /asset.*missing|asset.*absent|asset.*unreadable/i, f);
+});
+test('family: an unknown family is refused before consent or any writes', () => {
+  const f = familyFixture(), before = readdirSync(f.root);
+  refused(f.run(['--family', 'Typo Face', '--install', '--from', f.assets]), /unknown family.*Typo Face/i, f);
+  assert.equal(existsSync(join(f.plugin, '.wiser-consent')), false); assert.deepEqual(readdirSync(f.root), before);
+});
+test('family: assetName is one-to-one across every pinned member', async () => {
+  const { assetName, members } = await import('../scripts/fonts.mjs');
+  assert.equal(typeof assetName, 'function', 'assetName must be exported');
+  assert.equal(assetName('fonts/Instrument Sans/InstrumentSans-Latin.woff2'), 'Instrument_Sans--InstrumentSans-Latin.woff2');
+  const entries = [...members(JSON.parse(readFileSync(LIBRARY))).values()], assets = entries.map(e => assetName(e.path));
+  assert.equal(new Set(assets).size, entries.length);
+  assert.deepEqual(assets, entries.map(e => expectedAssetName(e.path)));
+});
+test('family: assets lists every member in library order with asset name, sha256 and bytes and writes nothing', () => {
+  const f = familyFixture(), before = readdirSync(f.root);
+  const child = spawnSync(process.execPath, [join(f.skill, 'scripts/fonts.mjs'), 'assets', '--library', f.libraryPath], { encoding: 'utf8', env: f.env });
+  assert.equal(child.status, 0, child.stderr); assert.equal(child.stderr, '');
+  assert.deepEqual(JSON.parse(child.stdout), f.entries.map(e => ({ asset: expectedAssetName('fonts/' + e.name), path: 'fonts/' + e.name, sha256: hash(e.data), bytes: e.data.length })));
+  const real = spawnSync(process.execPath, [script, 'assets'], { encoding: 'utf8' });
+  assert.equal(real.status, 0, real.stderr);
+  const library = JSON.parse(readFileSync(LIBRARY));
+  const expected = Object.values(library.fonts).flatMap(f => [...f.files.map(({ path, sha256, bytes }) => ({ asset: expectedAssetName(path), path, sha256, bytes })), { asset: expectedAssetName(f.licenceFile), path: f.licenceFile, sha256: f.licenceSha256, bytes: f.licenceBytes }]);
+  assert.deepEqual(JSON.parse(real.stdout), expected);
+  assert.deepEqual(readdirSync(f.root), before); assert.equal(existsSync(join(f.plugin, '.wiser-consent')), false);
+});
+test('family: plain check --family writes nothing without authorization or with existing consent', () => {
+  const f = familyFixture(), before = readdirSync(f.root);
+  for (const environment of [{}, { WISER_ALLOW_INSTALL: '1' }]) {
+    const child = f.run(['--family', 'Test'], environment);
+    assert.equal(child.status, 0, child.stderr); assert.equal(child.stderr, '');
+    const state = JSON.parse(child.stdout);
+    assert.deepEqual(state.families, ['Test']); assert.equal(state.installed, false);
+    assert.deepEqual(state.missing, f.selected.map(e => 'fonts/' + e.name)); assert.deepEqual(state.changed, []);
+    assert.deepEqual(readdirSync(f.root), before); assert.equal(existsSync(join(f.plugin, '.wiser-consent')), false);
+  }
+  const marker = join(f.plugin, '.wiser-consent'); writeFileSync(marker, JSON.stringify({ realpath: realpathSync(f.plugin) }));
+  const info = statSync(marker), child = f.run(['--family', 'Test']);
+  assert.equal(child.status, 0, child.stderr); assert.equal(existsSync(f.directory), false); assert.equal(statSync(marker).mtimeMs, info.mtimeMs);
+});
+test('family: --from without authorization is refused without writes', () => {
+  const f = familyFixture(), before = readdirSync(f.root);
+  refused(f.run(['--family', 'Test', '--from', f.assets]), /Test.*github\.com.*into .*fonts.*check --install/, f);
+  assert.deepEqual(readdirSync(f.root), before); assert.equal(existsSync(join(f.plugin, '.wiser-consent')), false);
+});
+test('family: an existing symlink at the directory, family or member cannot redirect an install', () => {
+  for (const level of ['directory', 'family', 'member']) {
+    const f = familyFixture(), outside = join(f.root, 'outside'); mkdirSync(outside);
+    if (level === 'directory') symlinkSync(outside, f.directory);
+    else {
+      mkdirSync(f.directory);
+      if (level === 'family') symlinkSync(outside, join(f.directory, 'Test Face'));
+      else {
+        mkdirSync(join(f.directory, 'Test Face'));
+        symlinkSync(join(outside, 'missing'), join(f.directory, f.selected[0].name));
+      }
+    }
+    const child = f.run(['--family', 'Test', '--install', '--from', f.assets]);
+    assert.equal(child.status, 1, child.stderr); assert.equal(child.stdout, '');
+    assert.match(child.stderr, /unsafe install destination|directory link|symbolic link/);
+    assert.deepEqual(readdirSync(outside), []);
+    if (level !== 'directory') assert.equal(existsSync(join(f.directory, f.selected.at(-1).name)), false);
+  }
+});
+test('family: HTTPS assets use the release directory and preserve download guards', async (t) => {
+  const certificates = fixture(), key = join(certificates.root, 'key.pem'), cert = join(certificates.root, 'cert.pem');
+  execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', key, '-out', cert, '-days', '1', '-subj', '/CN=localhost', '-addext', 'subjectAltName=DNS:localhost,IP:127.0.0.1'], { stdio: 'pipe' });
+  let current, mode; const requests = [];
+  const server = createServer({ key: readFileSync(key), cert: readFileSync(cert) }, (request, response) => {
+    requests.push(request.url);
+    if (mode === 'redirect limit') { response.writeHead(302, { Location: request.url }); response.end(); return; }
+    if (mode === 'downgrade') { response.writeHead(302, { Location: 'http://127.0.0.1/asset' }); response.end(); return; }
+    if (request.url.startsWith('/release/')) { response.writeHead(302, { Location: request.url.replace('/release/', '/files/') }); response.end(); return; }
+    const asset = request.url.slice('/files/'.length), entry = current.selected.find(e => expectedAssetName('fonts/' + e.name) === asset);
+    if (!entry || (mode === 'missing' && entry === current.selected.at(-1))) { response.writeHead(404); response.end(); return; }
+    let data = Buffer.from(entry.data);
+    if (entry === current.selected.at(-1)) {
+      if (mode === 'too large') data = Buffer.concat([data, Buffer.from('exceeds the pinned byte count')]);
+      if (mode === 'truncated') data = data.subarray(0, data.length - 1);
+      if (mode === 'hash') data[0] ^= 1;
+    }
+    response.writeHead(200); response.end(data);
+  });
+  await new Promise((accept, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', accept); });
+  try {
+    const origin = `https://127.0.0.1:${server.address().port}`;
+    for (const [scenario, pattern] of [['success', null], ['too large', /size exceeds/], ['truncated', /size differs/], ['hash', /sha256 differs/], ['missing', /HTTPS 404/], ['redirect limit', /redirect limit/], ['downgrade', /must use https/]]) {
+      await t.test(scenario, async () => {
+        current = familyFixture(); mode = scenario; requests.length = 0;
+        current.library.fontPack.url = origin + '/release/pack.tar'; current.save();
+        let child;
+        try {
+          child = { status: 0, ...await execute(process.execPath, [join(current.skill, 'scripts/fonts.mjs'), ...current.args, '--family', 'Test', '--install'], { env: { ...current.env, NODE_EXTRA_CA_CERTS: cert }, timeout: 10000 }) };
+        } catch (error) { child = { status: error.code, stdout: error.stdout, stderr: error.stderr }; }
+        if (pattern) refused(child, pattern, current);
+        else {
+          assert.equal(child.status, 0, child.stderr); assert.equal(JSON.parse(child.stdout).installed, true);
+          assert.deepEqual(requests, current.selected.flatMap(e => { const asset = expectedAssetName('fonts/' + e.name); return ['/release/' + asset, '/files/' + asset]; }));
+          for (const e of current.selected) assert.deepEqual(readFileSync(join(current.directory, e.name)), e.data);
+          assert.deepEqual(readdirSync(current.directory), ['Test Face']);
+        }
+        if (scenario === 'redirect limit') assert.equal(requests.length, 6);
+        if (scenario === 'downgrade') assert.equal(requests.length, 1);
+      });
+    }
+  } finally { await new Promise(accept => server.close(accept)); }
+});
 
 test('help forms need no library, install or consent; import has no output', () => {
   for (const args of [[], ['help'], ['--help'], ['-h'], ['check', 'help'], ['check', '--help'], ['check', '-h']]) {

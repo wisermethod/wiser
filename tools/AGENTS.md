@@ -6,7 +6,7 @@ Deterministic operations that skills and experts call; `standards/primitives.md`
 
 A tool ships its manifest and never its packages. The plugin asks once, on the first install in this copy; `--install` on that run is the answer, and later tools install without asking (`tools/RUNNING.md`). Packages land in the tool's own directory, per copy of the plugin, so the plugin directory has to be writable. Playwright for the three browser tools lands once in `tools/lib/browser-runtime/`. An install writes nothing this repository ships.
 
-**Hosts an install reaches.** `registry.npmjs.org` for a Node tool; `cdn.playwright.dev`, with `playwright.download.prss.microsoft.com` as fallback, for a Chromium build; `pypi.org`, `files.pythonhosted.org` and `openaipublic.azureedge.net` for `Transcribe Audio`; `pypi.org` and `files.pythonhosted.org` for `knowledge-memory` packages only. `github.com`, redirected to `release-assets.githubusercontent.com`, for Build Brand's pinned font pack. At run time a deck or a diagram may name `cdn.jsdelivr.net` or `cdnjs.cloudflare.com` for its own assets.
+**Hosts an install reaches.** `registry.npmjs.org` for a Node tool; `cdn.playwright.dev`, with `playwright.download.prss.microsoft.com` as fallback, for a Chromium build; `pypi.org`, `files.pythonhosted.org` and `openaipublic.azureedge.net` for `Transcribe Audio`; `pypi.org` and `files.pythonhosted.org` for `knowledge-memory` packages only. `github.com`, redirected to `release-assets.githubusercontent.com`, for Build Brand's pinned font pack and the single font files published beside it on the same release. At run time a deck or a diagram may name `cdn.jsdelivr.net` or `cdnjs.cloudflare.com` for its own assets.
 
 ## Everything a tool writes, and where
 

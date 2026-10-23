@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync, existsSync, mkdtempSync, mkdirSync, symlinkSync, linkSync, readdirSync, rmSync, realpathSync, chmodSync } from 'node:fs';
+import { copyFileSync, readFileSync, writeFileSync, existsSync, mkdtempSync, mkdirSync, symlinkSync, linkSync, readdirSync, rmSync, realpathSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, dirname, join, isAbsolute, basename, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -33,6 +33,36 @@ test('selection assembles and Contact Sheet builds it, with absolute local fonts
   const {spec,result}=build(select());
   assert.equal(result.itemCount,1);
   for(const f of Object.values(spec.boards[0].type)) for(const file of f.files) { assert.ok(isAbsolute(file.path)); assert.ok(file.path.startsWith(resolve(dirname(LIBRARY),'fonts')+'/')); }
+});
+test('family: boards using only two families assemble after only those family assets are installed', () => {
+  const root = mkdtempSync(join(work, 'two-families-')), plugin = join(root, 'plugin');
+  const scripts = join(plugin, 'skills/Build Brand/scripts'), parts = join(root, 'parts'), assets = join(root, 'assets');
+  for (const dir of [scripts, parts, assets, join(plugin, 'tools/lib')]) mkdirSync(dir, { recursive: true });
+  copyFileSync(fileURLToPath(new URL('../scripts/fonts.mjs', import.meta.url)), join(scripts, 'fonts.mjs'));
+  copyFileSync(fileURLToPath(new URL('../../../tools/lib/consent.js', import.meta.url)), join(plugin, 'tools/lib/consent.js'));
+  writeFileSync(join(plugin, 'tools/AGENTS.md'), '# Isolated test plugin\n');
+  const libraryPath = join(parts, 'parts.json'); writeFileSync(libraryPath, JSON.stringify(library));
+  const families = ['Fraunces', 'Instrument Sans'];
+  for (const name of families) {
+    const metadata = library.fonts[name];
+    for (const path of [...metadata.files.map(f => f.path), metadata.licenceFile]) {
+      copyFileSync(resolve(dirname(LIBRARY), path), join(assets, path.slice(6).replaceAll('/', '--').replaceAll(' ', '_')));
+    }
+  }
+  const child = spawnSync(process.execPath, [join(scripts, 'fonts.mjs'), 'check', '--install', '--library', libraryPath, '--from', assets, ...families.flatMap(name => ['--family', name])], { encoding: 'utf8', env: { ...process.env, WISER_ALLOW_INSTALL: '' } });
+  assert.equal(child.status, 0, child.stderr); assert.equal(JSON.parse(child.stdout).installed, true);
+  assert.deepEqual(readdirSync(join(parts, 'fonts')).sort(), [...families].sort());
+  assert.equal(checkPack(library, join(parts, 'fonts')).installed, false, 'the full pack remains incomplete');
+  const s = selection([board(library, { pairing: 'soft-serif' }), board(library, { number: 2, pairing: 'soft-serif' })], library);
+  const input = join(root, 'selection.json'), output = join(root, 'spec.json'); writeFileSync(input, JSON.stringify(s));
+  assert.equal(run(['--selection', input, '--library', libraryPath, '--output', output]).boards, 2);
+  const spec = JSON.parse(readFileSync(output));
+  for (const b of spec.boards) {
+    assert.deepEqual(Object.values(b.type).map(f => f.family), families);
+    for (const face of Object.values(b.type)) for (const f of face.files) assert.ok(f.path.startsWith(realpathSync(parts) + '/fonts/'));
+  }
+  const changed = join(parts, library.fonts.Fraunces.files[0].path); writeFileSync(changed, 'damaged');
+  assert.throws(() => assemble(s, library, { partsDir: parts }), /Fraunces is missing or changed/);
 });
 for (const [field, key] of [['palette','palette'],['pairing','pairing'],['graphicSet','graphic set'],['container','container']]) {
   test(`unknown ${key} refuses atomically with board and field`, () => {
@@ -132,14 +162,39 @@ for (const [field, value] of [['family', ''], ['weight', 0], ['weight', 1001], [
     assert.throws(() => assemble(s, library), new RegExp(`pairing.bodyFrom.${field}`));
   });
 }
-for (const [field, value] of [['sentence', ''], ['photoRules', ''], ['never', []]]) test(`an empty board ${field} cannot be assembled`, () => {
+for (const [field, value] of [['sentence', ''], ['photoRules', ''], ['never', ['']]]) test(`an empty board ${field} cannot be assembled`, () => {
   const s = select(); s.boards[0].content[field] = value;
   assert.throws(() => assemble(s, library), new RegExp(`content.${field}`));
 });
 test('an empty core word or boundary cannot be assembled', () => {
-  for (const words of [[], [{ word: '', not: 'boundary' }], [{ word: 'word', not: '' }]]) {
+  for (const words of [[{ word: '', not: 'boundary' }], [{ word: 'word', not: '' }]]) {
     const s = select(); s.boards[0].words = words;
     assert.throws(() => assemble(s, library), /\.words/);
+  }
+});
+test('optional selection fields survive assembly, omit their blocks, and reject malformed present values', () => {
+  for (let mask = 0; mask < 8; mask++) for (const empty of [false, true]) {
+    const s = select(), b = s.boards[0];
+    if (!(mask & 1)) { if (empty) b.words = []; else delete b.words; }
+    if (!(mask & 2)) delete b.content.photoRules;
+    if (!(mask & 4)) { if (empty) b.content.never = []; else delete b.content.never; }
+    const { spec, output } = build(s), actual = spec.boards[0], html = readFileSync(output, 'utf8');
+    assert.equal(Object.hasOwn(actual, 'words'), Object.hasOwn(b, 'words'));
+    if (Object.hasOwn(b, 'words')) assert.deepEqual(actual.words, b.words);
+    assert.deepEqual(actual.content, b.content);
+    assert.equal((html.match(/<section class="words">/g) || []).length, mask & 1 ? 2 : 0);
+    assert.equal((html.match(/>Photo rules<\/h3>/g) || []).length, mask & 2 ? 2 : 0);
+    assert.equal((html.match(/>Never<\/h3>/g) || []).length, mask & 4 ? 2 : 0);
+    assert.equal((html.match(/<section class="rules">/g) || []).length, mask & 6 ? 2 : 0);
+  }
+  for (const [field, values] of [
+    ['words', [null, {}, '', [{ word: '', not: 'vague' }], [{ word: 'clear' }], [{ word: 'clear', not: 'vague', extra: true }]]],
+    ['photoRules', [null, [], '', '  ', 42]],
+    ['never', [null, {}, '', [''], ['line\nbreak'], [42]]]
+  ]) for (const value of values) {
+    const s = select(), target = field === 'words' ? s.boards[0] : s.boards[0].content;
+    target[field] = value;
+    assert.throws(() => assemble(s, library), new RegExp(field));
   }
 });
 test('body blend, role and pattern overrides reach the built spec exactly', () => {
