@@ -166,6 +166,9 @@ def main(argv=None):
             sys.stdout.write(json.dumps(result, separators=(",", ":")) + "\n")
             return 0
         command, source, output, report, terms, named, fps, authorised = parsed
+        if sys.platform != "darwin":
+            # Vision, which finds and checks every frame, is macOS's; refuse by name before any dependency or install.
+            raise CaptureError("macOS is required for this command; run it on macOS")
         # Local presence checks precede any install, and only run where needed.
         import shutil
         import subprocess

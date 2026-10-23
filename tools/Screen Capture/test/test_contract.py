@@ -95,6 +95,22 @@ class ContractTests(unittest.TestCase):
             with self.assertRaises(CaptureError):
                 capture.parse(["redact", "--input", str(source), "--output", str(root / "same.png"), "--report", str(root / "same.png")])
 
+    def test_redact_and_verify_refuse_other_platforms_first(self):
+        with temporary() as directory:
+            root = Path(directory)
+            source = root / "input.png"
+            still(source)
+            for argv in (["verify", "--input", str(source), "--report", str(root / "report.json")],
+                         ["redact", "--input", str(source), "--output", str(root / "out.png"), "--report", str(root / "r.json")]):
+                stdout, stderr = io.StringIO(), io.StringIO()
+                with patch.object(sys, "platform", "linux"), patch.object(shutil, "which") as which, \
+                        patch.object(install, "ensure") as ensure, contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                    code = capture.main(argv)
+                self.assertEqual((code, stdout.getvalue()), (1, ""))
+                self.assertIn("macOS is required", stderr.getvalue())
+                which.assert_not_called()
+                ensure.assert_not_called()
+
     def test_missing_dependency_before_install(self):
         with temporary() as directory:
             root = Path(directory)
