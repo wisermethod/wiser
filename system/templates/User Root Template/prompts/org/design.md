@@ -25,3 +25,31 @@ Labels and registers are `standards/conventions.md`'s. Replace each whole-line p
 ## Prohibitions
 
 *The design treatments this organization forbids, with the source or named authority for each.*
+
+## Foundation
+
+*Who this organization's work is for, what it promises them, the alternatives beside it and the open space among them, and what success looks like.*
+
+## Words
+
+*The sentence that says what this organization's brand is, and three to five core words, each with what the brand is not.*
+
+## Visual Personality
+
+*How the personality in `about.md` should look: classic or contemporary, quiet or bold, warm or cool, playful or serious, hand-shaped or geometric.*
+
+## Brand Board
+
+*The locked brand board for this organization: its palette, faces, graphic language and photo rules, with the file that shows it.*
+
+## Mark
+
+*This organization's mark or logo, kept, improved or made new, with its file path, or the mark still owed.*
+
+## Imagery and Illustration
+
+*What belongs in a photograph or an illustration for this organization and what never does, and the illustration style.*
+
+## Icons and Graphic Elements
+
+*The icon style, shape language and graphic elements used by this organization.*

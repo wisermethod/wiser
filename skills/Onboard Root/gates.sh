@@ -295,11 +295,21 @@ list_any() {
   find "$1" -type f ! -name 'AGENTS.md' ! -name '.*' ! -name '.DS_Store' 2>/dev/null | sort
 }
 
-# bound files: the markdown files under memory/, never the credential store
-# and never memory/answers/, which Provides does not bind (standards/user-root.md C14).
+# bound files: the markdown files under memory/, never the credential store,
+# never memory/answers/, which Provides does not bind (standards/user-root.md C14),
+# and never a zArchive/ directory: an archived copy is a record of what a file
+# was, kept by standards/conventions.md Archives before a rewrite, not a bound
+# file, and an archived template stub still holds its prompt lines.
 bound_files() {
   [ -d "$MEM" ] || return 0
-  find "$MEM" -type f -name '*.md' 2>/dev/null | grep -v "^$MEM/secrets/" | grep -v "^$MEM/answers/" | sort
+  # Pruned by find rather than filtered by grep: a pattern built from $MEM breaks on
+  # a path holding a regex character, and a bare /zArchive/ match would drop every
+  # file of a root that itself sits under a folder of that name. -path globs, so the
+  # glob characters in $MEM are escaped first, or a root named "Client [acme]" would
+  # let secrets/ through.
+  local mem_glob
+  mem_glob=$(printf '%s' "$MEM" | sed 's/[][*?\\]/\\&/g')
+  find "$MEM" \( -path "$mem_glob/secrets" -o -path "$mem_glob/answers" -o -name zArchive \) -prune -o -type f -name '*.md' -print 2>/dev/null | sort
 }
 
 # ---------------------------------------------------------------- awk library

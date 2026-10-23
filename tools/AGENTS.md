@@ -6,7 +6,7 @@ Deterministic operations that skills and experts call; `standards/primitives.md`
 
 A tool ships its manifest and never its packages. The plugin asks once, on the first install in this copy; `--install` on that run is the answer, and later tools install without asking (`tools/RUNNING.md`). Packages land in the tool's own directory, per copy of the plugin, so the plugin directory has to be writable. Playwright for the three browser tools lands once in `tools/lib/browser-runtime/`. An install writes nothing this repository ships.
 
-**Hosts an install reaches.** `registry.npmjs.org` for a Node tool; `cdn.playwright.dev`, with `playwright.download.prss.microsoft.com` as fallback, for a Chromium build; `pypi.org`, `files.pythonhosted.org` and `openaipublic.azureedge.net` for `Transcribe Audio`; `pypi.org` and `files.pythonhosted.org` for `knowledge-memory` packages only. At run time a deck or a diagram may name `cdn.jsdelivr.net` or `cdnjs.cloudflare.com` for its own assets.
+**Hosts an install reaches.** `registry.npmjs.org` for a Node tool; `cdn.playwright.dev`, with `playwright.download.prss.microsoft.com` as fallback, for a Chromium build; `pypi.org`, `files.pythonhosted.org` and `openaipublic.azureedge.net` for `Transcribe Audio`; `pypi.org` and `files.pythonhosted.org` for `knowledge-memory` packages only. `github.com`, redirected to `release-assets.githubusercontent.com`, for Build Brand's pinned font pack. At run time a deck or a diagram may name `cdn.jsdelivr.net` or `cdnjs.cloudflare.com` for its own assets.
 
 ## Everything a tool writes, and where
 
@@ -14,6 +14,7 @@ The one list; a tool's pages point here.
 
 | What | Where | Which tools |
 |------|-------|-------------|
+| Build Brand's font pack | `skills/Build Brand/parts/fonts/`; download in an OS-temporary directory removed at the end, staging inside `fonts/` removed at the end | `skills/Build Brand/scripts/fonts.mjs` |
 | Plugin consent marker | `.wiser-consent` at the plugin root | every tool that installs |
 | Node packages | `node_modules/` in the tool's directory | the 10 tools whose `package.json` declares a dependency; `pages-functions` is about 210 MB of them, Wrangler and its `workerd` runtime |
 | npm's cache and logs | npm's configured cache, `~/.npm` by default, outside this plugin | the same 10, and the shared browser runtime |
@@ -77,6 +78,7 @@ The gateway's writes are listed in `gateway/AGENTS.md`, Everything the gateway w
 
 | Tool | Description |
 |------|-------------|
+| `Contact Sheet/TOOL.md` | Write one self-contained HTML page of numbered options to pick from or whole brand boards, from local assets and licensed fonts |
 | `icon-set/TOOL.md` | Searches two pinned open-source sets, Phosphor 2.1.1 (MIT) and Health Icons 2.0.0 (CC0 icons, MIT package), and writes one icon recoloured at the caller's size as an SVG file or a fragment to place inside a drawing |
 | `image/TOOL.md` | Applies local edits to an existing image or composites an overlay over a base image, and writes the result as a PNG, JPEG, or WEBP |
 | `render/TOOL.md` | Renders a local HTML file to a PNG or JPEG, an SVG or a Mermaid diagram to a PNG, and captures a PNG of a live web page; a `--url` that points at a loopback, private-range, link-local, or cloud-metadata address is refused by name before the browser is launched, the same screen `sitemap` `fetch` applies |

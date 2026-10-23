@@ -28,7 +28,7 @@ The attached working folder is the **owning root**: the personal, org, client, d
 
 **Abstract keys and the Provides block.** Primitives do not name files; they request keys, and the owning root's Provides block binds each key to a file.
 
-- The keys are `voice`, `about`, `design`, `secrets:<platform>` and `competitors`. **Whether a key is required or optional is the primitive's own declaration**, made in its Inputs: `about` and `design` are optional to most that request them and `voice` is required to every one. `competitors` is the exception this file owns, and is optional to all of them for the reason below.
+- The keys are `voice`, `about`, `design`, `secrets:<platform>` and `competitors`. **Whether a key is required or optional is the primitive's own declaration**, made in its Inputs: `about` and `design` are optional to most that request them, and `voice` is required to every one that writes in it; one that only reads it to check words against it, as `skills/Build Brand/` does, may declare it optional, and says when it was unavailable. `competitors` is the exception this file owns, and is optional to all of them for the reason below.
 - An **unscoped** key resolves in the root that owns the output. A **scoped** key, written `voice:org` or `voice:client`, resolves in the root of that type.
 - More than one plausible root, or none: ask. Never hunt.
 

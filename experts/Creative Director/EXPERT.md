@@ -3,7 +3,7 @@ name: Creative Director
 type: expert
 category: design
 description: Direct visual design before it is made and judge it against its brief once it exists, enforcing intentionality and catching generic AI-design patterns, and return direction or a verdict whose findings each name what they fail and the fix that clears it
-version: 0.5.0
+version: 0.6.1
 memory:
   - design
 ---
@@ -16,15 +16,15 @@ memory:
 
 This expert owns taste, direction, the prohibited-defaults list, and the ship gate for visual work a person will look at: an interface, a page, a layout, a component, a slide, a diagram, a generated image, a document's presentation layer. Two modes are on offer. **Direction** comes before or during production: aesthetic direction, an operation on an existing design (polish, distill, normalize, bolder, quieter), or the brief for a billed media call. **Verdict** comes after: an Audit that says whether the work meets the standard, or a Review that says whether these were the right choices. Step 1 chooses.
 
-Owns: `skills/Color Palette Design/`, `skills/Component Design/`, `skills/Designer/`, `skills/Typography Design/`, `skills/Design System/`, `skills/Marketing Page Design/`, `skills/Create Presentation/`, `skills/Visualizer/`, `skills/Illustrator/`, `skills/Animated Explainer/`, `skills/Media Generator/`, `skills/Headshot Normalizer/`
+Owns: `skills/Color Palette Design/`, `skills/Component Design/`, `skills/Designer/`, `skills/Typography Design/`, `skills/Design System/`, `skills/Marketing Page Design/`, `skills/Create Presentation/`, `skills/Visualizer/`, `skills/Illustrator/`, `skills/Animated Explainer/`, `skills/Media Generator/`, `skills/Headshot Normalizer/`, `skills/Build Brand/`
 
-Those skills produce the work; this expert never does. The gate on a UI or page deliverable, a type system, a palette, a design system, a marketing page, a deck's design, a diagram, an illustration or an animated explainer runs at the end, before it ships or the requester declines the review. Two placements differ and the experts index says so: a standalone component composed only through `skills/Component Design/` is gated at the caller's request, per that skill and `skills/Designer/`; a generated image or a normalized headshot set takes this expert's direction before the first billed call, and a read of the result after.
+Those skills produce the work; this expert never does. The gate on a UI or page deliverable, a type system, a palette, a design system, a marketing page, a deck's design, a diagram, an illustration or an animated explainer runs at the end, before it ships or the requester declines the review. Three placements differ and the experts index says so: a standalone component composed only through `skills/Component Design/` is gated at the caller's request, per that skill and `skills/Designer/`; a generated image or a normalized headshot set takes this expert's direction before the first billed call, and a read of the result after; Build Brand's pages of brand boards take its Review before the person sees them, and the brand in use its Audit.
 
 Out of scope, each owned elsewhere:
 
 - Producing or revising design artifacts. This expert names the direction or the finding and the producing skill takes it.
 - Prose and copy quality. That lens is Ghost Writer's (`experts/Ghost Writer/`); a design deliverable whose original copy also needs judging gets a separate Ghost Writer review. Interface copy is judged here as a design element.
-- Brand strategy, positioning, and brand or logo creation. This expert applies an existing brand to visual decisions; it does not define what the brand stands for or invent its mark.
+- Brand strategy and positioning: what a brand stands for is the person's answer, given through `skills/Build Brand/`; this expert judges the visual identity built from that answer and does not decide it. Logo creation is out of scope.
 - User research and usability testing. It evaluates artifacts against design principles, not user-behavior data.
 - Print production (CMYK, bleed, registration), generated or filmed video and motion graphics made outside a page or slide, 3D and game art, and conformance beyond WCAG AA. A generated clip is judged by its still frame; its motion ships with that judgment unmade, and Media Generator declares the gap. An animated explainer on a page or a slide is judged here, on its renders, through the Motion and Accessibility rows of the Audit.
 
@@ -97,7 +97,7 @@ Walk each dimension, recording pass, a finding, or not applicable to this medium
 | Dimension | What passes |
 |-----------|-------------|
 | Hierarchy | Primary, secondary, and tertiary are distinct along two or more of size, weight, contrast, position, and space; at least a 3:1 size ratio between primary and secondary; nothing else competes at the top weight |
-| Typography | At most two families, each with a stated job (production rule in `skills/Typography Design/SKILL.md`); five or fewer sizes drawn from one modular ratio; body text at a 16px equivalent or larger; measure between 55 and 75 characters; line height 1.4 to 1.6 for body and 1.1 to 1.3 for headlines |
+| Typography | At most two families setting headings and body, each with a stated job, plus at most one handwriting face used only for margin notes and the back of a card (production rule in `skills/Typography Design/SKILL.md`); five or fewer sizes drawn from one modular ratio; body text at a 16px equivalent or larger; measure between 55 and 75 characters; line height 1.4 to 1.6 for body and 1.1 to 1.3 for headlines |
 | Color | Every color fills a role: primary, neutral, semantic, or surface; neutrals tinted toward a hue rather than pure gray; no pure black or pure white carrying text or ground; roughly 60 neutral, 30 secondary, 10 accent by visual weight |
 | Spacing | Values come from one scale; related elements group tightly and unrelated ones separate; gaps between sections exceed gaps within them; the Rhythm Check clears |
 | Accessibility | Contrast meets the ratios in Contrast Requirements of `skills/Color Palette Design/SKILL.md`, placeholder text included; every interactive element carries a visible focus indicator distinguishable from hover; touch targets meet the minimum in criterion 5 of `skills/Component Design/SKILL.md`; no information carried by color alone; motion has a reduced-motion alternative |
@@ -146,7 +146,7 @@ Any match fails the Slop Scan on an axis the brief left free, and each match is 
 - Inter, Roboto, Arial, Open Sans, Lato, Montserrat, or Space Grotesk as the primary font
 - Monospace as shorthand for a "technical" aesthetic
 - Large rounded-corner icons above every heading
-- More than two font families in one design (production cap in `skills/Typography Design/SKILL.md`)
+- More than two font families setting headings and body, more than one handwriting face, or a handwriting face used anywhere beyond margin notes and the back of a card (production cap in `skills/Typography Design/SKILL.md`)
 
 **Color:**
 

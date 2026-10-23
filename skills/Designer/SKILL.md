@@ -3,7 +3,7 @@ name: Designer
 type: skill
 category: design
 description: Run a design job end to end, from brief and visual direction through foundations, composition, and validation, producing the wireframe, style guide, or extracted system itself and directing every other phase to the design skill that owns it
-version: 0.9.9
+version: 0.9.11
 memory:
   - design
 gaps:
@@ -20,7 +20,7 @@ This skill produces the design. `experts/Creative Director/` owns taste, the pro
 
 Use when the job is a design outcome rather than one settled artifact: "design me a dashboard", "we need a look for this product", "make this feel like someone designed it". The brief, the visual direction, and the register have to be fixed before anything is composed, and the work then spans several artifacts that must agree with each other. Use it also for the three artifacts no other design skill in this root produces: a structural wireframe, a browsable style guide, and a design system read back out of an existing site or codebase.
 
-Not for a job that is already one artifact with its direction settled. A palette is `skills/Color Palette Design/`, a type system is `skills/Typography Design/`, one component is `skills/Component Design/`, a persuasion page is `skills/Marketing Page Design/`, an animated explainer is `skills/Animated Explainer/`, a still illustration or infographic is `skills/Illustrator/`, and a token system composed from existing color and type is `skills/Design System/`. Running the whole arc around a settled single artifact adds phases the request already answered; invoke the owning skill directly.
+Not for a job that is already one artifact with its direction settled. A palette is `skills/Color Palette Design/`, a type system is `skills/Typography Design/`, one component is `skills/Component Design/`, a persuasion page is `skills/Marketing Page Design/`, an animated explainer is `skills/Animated Explainer/`, a still illustration or infographic is `skills/Illustrator/`, and a token system composed from existing color and type is `skills/Design System/`. A brand built or rebuilt from the person's own answers, ending in the root's `design.md`, is `skills/Build Brand/`, invoked directly before any phase here runs. Running the whole arc around a settled single artifact adds phases the request already answered; invoke the owning skill directly.
 
 Not for judging design that exists, which is `experts/Creative Director/`, in its verdict mode for a deliverable and its direction mode for the standing taxonomy. Not for a brand mark: no primitive in this root covers logo creation, declared as a gap, and no part of it is carried here. Not for slide decks (`skills/Create Presentation/`) or for the words in an interface or page (`skills/Content Author/`). Outside its competence and declined rather than approximated: generating imagery from a description, which is `skills/Media Generator/`; charts of data, which are `tools/data/` `chart`; a diagram made to analyse material, which is `skills/Visualizer/`; print production (CMYK, bleed, registration), authored motion graphics made outside a page or slide, such as a title sequence, which no primitive in this root makes, and user research; a generated clip is `skills/Media Generator/`. A picture that moves on a page or a slide to show how something works is `skills/Animated Explainer/`.
 
@@ -96,7 +96,7 @@ Where the deliverable is a single component or one page rather than a system, th
 
 ### 4. Compose
 
-Build the artifact on Phase 3's foundations, routed by what is being made. Every handoff carries the same three things, in whatever input wrappers the receiving skill declares: Phase 1's brief, Phase 2's direction and register, and Phase 3's tokens. A receiver that declares no token wrapper takes the tokens inside `<source_material>`, stated as the foundations to build on, so no receiving skill regenerates values Phase 3 already produced.
+The brand row below is Context's direct route. For every other deliverable, build the artifact on Phase 3's foundations, routed by what is being made. Each of those handoffs carries the same three things, in whatever input wrappers the receiving skill declares: Phase 1's brief, Phase 2's direction and register, and Phase 3's tokens. A receiver that declares no token wrapper takes the tokens inside `<source_material>`, stated as the foundations to build on, so no receiving skill regenerates values Phase 3 already produced.
 
 | Deliverable | Produced by |
 |-------------|-------------|
@@ -104,6 +104,7 @@ Build the artifact on Phase 3's foundations, routed by what is being made. Every
 | A persuasion page: landing, product, pricing, campaign, waitlist | `skills/Marketing Page Design/` |
 | An animated explainer: a picture on a page or a slide that moves to show how something works or what happened | `skills/Animated Explainer/` |
 | A still picture that explains or illustrates: an illustration, an infographic, a spot illustration or a diagram drawn as a picture | `skills/Illustrator/` |
+| A brand built or rebuilt from the person's own answers, ending in the root's `design.md` | `skills/Build Brand/` directly, without running Phase 3 first or choosing foundations here |
 | A design system or token set | `skills/Design System/` |
 | A structural wireframe | This skill (Reference: Wireframes) |
 | A style guide documenting a system | This skill (Reference: Style guides) |

@@ -27,3 +27,31 @@ Record supplied field conventions; do not invent a unified brand for the field.
 ## Prohibitions
 
 *The design treatments this field forbids, with the source or named authority for each.*
+
+## Foundation
+
+*The audiences, promises and alternatives this field's supplied material describes; not a brand for the field.*
+
+## Words
+
+*The words this field's supplied material uses for its work, each with what it rules out; not a brand for the field.*
+
+## Visual Personality
+
+*How work in this field is expected to look, from supplied material: classic or contemporary, quiet or bold, warm or cool, playful or serious, hand-shaped or geometric.*
+
+## Brand Board
+
+*A supplied board or style reference for this field's work, with its source; not one made for the field.*
+
+## Mark
+
+*Marks this field's supplied material requires, such as certification or association marks, with their sources.*
+
+## Imagery and Illustration
+
+*What belongs in a photograph or an illustration in this field and what never does, from supplied material.*
+
+## Icons and Graphic Elements
+
+*The icon style, shape language and graphic elements this field's supplied material uses.*

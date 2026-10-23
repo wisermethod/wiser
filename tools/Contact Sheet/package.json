@@ -1,0 +1,12 @@
+{
+  "name": "contact-sheet",
+  "version": "0.1.0",
+  "description": "Write a self-contained HTML page of numbered options or brand boards from local assets",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node scripts/contact-sheet.js help",
+    "test": "node --test"
+  },
+  "engines": { "node": ">=18.0.0" }
+}

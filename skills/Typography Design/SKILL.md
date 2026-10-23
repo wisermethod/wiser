@@ -3,7 +3,7 @@ name: Typography Design
 type: skill
 category: design
 description: Design a modular type system delivered as CSS custom properties with a type specimen, chosen from brand personality and usage context
-version: 0.2.4
+version: 0.3.1
 gaps:
   - right-to-left and CJK typography, which need script-specific knowledge this skill does not carry
 memory:
@@ -23,7 +23,7 @@ Not for color, which is `skills/Color Palette Design/`. Not for composing a full
 A complete type system as CSS custom properties, plus a type specimen that shows the system in action. Verified when all hold:
 
 - Scale ratio selected with a stated rationale connecting to domain context.
-- Font selection stated with a rationale connecting to brand personality; no more than two families; none from the prohibited defaults as a primary.
+- Font selection stated with a rationale connecting to brand personality; no more than two families setting the text, with at most one handwriting face beside them for notes only; none from the prohibited defaults as a primary.
 - Body text at a minimum of 16px (1rem).
 - Sizes above body use clamp() with a rem offset, derived from a scale config rather than set per size by hand.
 - Vertical rhythm base defined from the body line-height.
@@ -59,7 +59,7 @@ Apply the ratio to a 16px (1rem) base as a five-level scale: caption (minus 1), 
 
 ### 3. Font selection
 
-Map the brand personality to font characteristics using the Font Archetypes table, then verify availability against Google Fonts, system fonts, or a user-provided family. A family they supplied or mandated is the primary unless it is a prohibited default, and it names the Font Archetypes row whose characteristics it shares most, which the availability and partner choices use. Where they supplied none, take the matching row's families in the order listed and use the first available, and tell them the other families in the row. Where a family covers only display or only body, add one partner from that row and state the pairing rationale. Never start from the catalog. Never take a primary family from the prohibited defaults. System fonts are a valid primary where performance outweighs personality. Keep to a maximum of two families; one family across several weights often reads cleaner than two competing typefaces, so add a second only for genuine contrast (for example a display serif with a body sans), and state the pairing rationale.
+Map the brand personality to font characteristics using the Font Archetypes table, then verify availability against Google Fonts, system fonts, or a user-provided family. A family they supplied or mandated is the primary unless it is a prohibited default, and it names the Font Archetypes row whose characteristics it shares most, which the availability and partner choices use. Where they supplied none, take the matching row's families in the order listed and use the first available, and tell them the other families in the row. Where a family covers only display or only body, add one partner from that row and state the pairing rationale. Never start from the catalog. Never take a primary family from the prohibited defaults. System fonts are a valid primary where performance outweighs personality. Keep to at most two families setting headings and body, plus at most one handwriting face used only for margin notes and the back of a card. One family across several weights often reads cleaner than two competing typefaces, so add a second only for genuine contrast (for example a display serif with a body sans), and state the pairing rationale.
 
 ### 4. Weight hierarchy
 
@@ -165,12 +165,12 @@ The preferred value is `base-rem + vw-component`; a higher vw component scales f
 - **A brand-mandated font.** Accept it and build the system around it; if it needs a partner, add a compatible pairing and state which characteristics make it compatible.
 - **The chosen font is unavailable.** Suggest the closest alternative from the archetype table, naming the characteristics (x-height, weight range, width) that make it a fair substitute.
 - **Existing tokens conflict with the request.** Trust the user's current direction, name the conflict, and offer to update the design memory rather than silently overriding it.
-- **The user wants more than two families.** Explain the cost, visual noise and load time, and ask whether weights and sizes within one or two families reach the same hierarchy. If the user insists, accommodate and note the trade-off.
+- **The user wants more than two families.** Explain the cost, visual noise and load time, and ask whether weights and sizes within one or two families reach the same hierarchy. If the user insists, accommodate and note the trade-off. A handwriting face used only where a person would write by hand, such as a margin note or the back of a card, is not a third family: the cap counts the faces that set headings and text, and such a face never sets either.
 
 ## Success
 
 - Scale ratio stated with a rationale tied to domain context.
-- Font selection stated with a rationale tied to brand personality; at most two families; no prohibited default as a primary.
+- Font selection stated with a rationale tied to brand personality; at most two families setting the text, plus at most one handwriting face used only for notes; no prohibited default as a primary.
 - Body text at a minimum of 16px (1rem); every size above body uses clamp() with a rem offset.
 - Vertical rhythm base defined from the body line-height; line heights fit each level; letter spacing adjusted for headings and for small or uppercase text.
 - Type specimen HTML shows every scale level, weight, and line height in the selected fonts.

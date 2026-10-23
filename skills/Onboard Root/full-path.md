@@ -216,7 +216,23 @@ Exit: G13, G13b, G14.
 
 ### Phase 7: Design
 
-`memory/design.md` is how this root's outputs look, documents, decks, and images, where `memory/voice.md` is how they sound; presentation-producing skills read it. Unlike about and voice it does not block onboarding. Did the requester accept the offer to do design? Yes: take one of the three sources below, and Phase 9 scores the key complete, provisional, or blocked like any other key. No: replace each prompt line with `Not available` and the reason that design was declined, and continue. The owner on the state line is the person named under who-confirms for design, or for facts if design names none. If that class was deferred, use the named person or role on its operating-file row. If neither names one, ask for a person or a role before writing the state line. Phase 9 scores that key. Do not stop the onboard, do not leave a prompt line in place, and do not write the owner as the requester.
+`memory/design.md` is how this root's outputs look, documents, decks, and images, where `memory/voice.md` is how they sound; presentation-producing skills read it. Unlike about and voice it does not block onboarding. Ask the requester once, as taps where the app offers a question tool, the way Two paths in `SKILL.md` asks the type, in these words: **"Last, how your work should look. Do you already have a look you'd like me to record, or shall we build one together?"** Where the request already answers it, take that answer and ask nothing.
+
+- **Record my look · about 10 minutes**
+- **Build one with me · a few sessions**
+- **Not now**
+
+For `type: industry`, offer **Record my look** and **Not now** only, keeping their wording above. Follow `system/templates/User Root Template/prompts/industry/design.md`: record supplied field conventions and never invent a unified brand for the field. Its Record my look handoff records only that supplied material; it offers no brand boards or full brand build.
+
+What did they choose?
+
+- **Not now:** replace each prompt line with `Not available` and the reason that design was declined, and continue.
+- **Record my look:** run `skills/Build Brand/` by name inside this phase. Hand `<caller>` the root's path, its declared type, the answer `brief`, that this is full onboarding, and `work/onboarding/verification.md`; for industry, include the supplied-conventions-only limit above. Hand the three sources below in `<source_material>`. Its brief path writes `design.md` and the run's design answers file, does its separate read-back, and adds the design verification rows and `[V<n>]` anchors G5a reads, using those sources as evidence. Keep its returned ending, answers file path and outstanding work for Phase 9, then run this phase's exit gates.
+- **Build one with me:** for a type other than industry, run `skills/Build Brand/` by name, handing `<caller>` the root's path, its declared type, the answer `full`, that this is full onboarding, and `work/onboarding/verification.md`. It writes the brand Playbook in this root and a provisional `design.md` naming it, recording design verification rows and `[V<n>]` anchors for that file as its Step 4 requires, then returns before any stage runs. Phase 9 scores the key provisional, with its owner and what it waits on, the brand Playbook at the returned path.
+
+The owner on the state line is the person named under who-confirms for design, or for facts if design names none. If that class was deferred, use the named person or role on its operating-file row. If neither names one, ask for a person or a role before writing the state line. Phase 9 scores that key. Do not stop the onboard, do not leave a prompt line in place, and do not write the owner as the requester. A stopped Build Brand run leaves its file as it was: label any surviving prompt with `Not available` and that reason, retain supported content, and record what it waits on for Phase 9. Phases 8 to 10 continue in every case.
+
+These three bullets are the sources handed to Build Brand on **Record my look** only, not another fill after it returns. **Not now**, **Build one with me** and a stopped run do not apply them. For industry, only supplied field conventions are used, as above.
 
 - A brand or design guide the requester hands over is the source for what it states: fill each heading from it and name it. Where the requester's stated rule contradicts the guide, the stated rule governs and the file records that the guide was superseded there, and what it said.
 - No guide means reverse engineering from what the subject publishes, which is legitimate and must say so: what was read, out of which file, the method's limits, and that nothing reverse engineered is authorized by the subject.

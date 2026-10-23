@@ -1,0 +1,866 @@
+{
+  "layout": "board",
+  "person": "Sample Person",
+  "intro": [
+    "Each board brings colour, type and drawn details together on everyday items.",
+    "Say in the chat what you would keep or change, such as the colours of 1 with the type of 3."
+  ],
+  "groups": [
+    {
+      "id": "familiar",
+      "label": "Familiar starting points"
+    },
+    {
+      "id": "exploratory",
+      "label": "A different setting"
+    }
+  ],
+  "footnote": "Monograms are placeholders, not logos. The real mark is drawn after a board is locked. The supplied mark stays in place.",
+  "boards": [
+    {
+      "number": 1,
+      "name": "Useful Objects",
+      "group": "familiar",
+      "energy": "Measured colour with a crisp accent",
+      "why": "Keeps the work easy to read and the details visible.",
+      "recommendation": "Matches the request for care in small details.",
+      "primaryMode": "light",
+      "buttonRadius": 7,
+      "palette": {
+        "light": {
+          "ground": "#fdfcff",
+          "panel": "#e8edf6",
+          "text": "#18243c",
+          "headline": "#18243c",
+          "smallPrint": "#46536b",
+          "deep": "#18243c",
+          "pop": "#164fb8",
+          "onPop": "#fdfcff",
+          "mark": "#164fb8",
+          "cardFront": "#fdfcff",
+          "cardFrontText": "#18243c",
+          "cardFrontSmallPrint": "#46536b",
+          "cardBack": "#18243c",
+          "cardBackText": "#fdfcff",
+          "cardBackMark": "#94b6fa"
+        },
+        "dark": {
+          "ground": "#101b2b",
+          "panel": "#1c2c46",
+          "text": "#f0f3fb",
+          "headline": "#f0f3fb",
+          "smallPrint": "#bbc9e3",
+          "deep": "#080f1c",
+          "pop": "#94b6fa",
+          "onPop": "#101b2b",
+          "mark": "#94b6fa",
+          "cardFront": "#1c2c46",
+          "cardFrontText": "#f0f3fb",
+          "cardFrontSmallPrint": "#bbc9e3",
+          "cardBack": "#101b2b",
+          "cardBackText": "#f0f3fb",
+          "cardBackMark": "#94b6fa"
+        },
+        "swatches": [
+          {
+            "name": "Blank sheet",
+            "role": "Page ground",
+            "share": 50,
+            "key": "ground"
+          },
+          {
+            "name": "Reading field",
+            "role": "Secondary panels",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Written line",
+            "role": "Words and deep fields",
+            "share": 20,
+            "key": "text"
+          },
+          {
+            "name": "Action blue",
+            "role": "Buttons and small gestures",
+            "share": 10,
+            "key": "pop"
+          }
+        ]
+      },
+      "type": {
+        "heading": {
+          "family": "Contact Sheet Fixture",
+          "description": "A simple face for checking the composition.",
+          "weights": [
+            400
+          ],
+          "licence": "CC0 1.0 Universal",
+          "files": [
+            {
+              "path": "fixture.ttf",
+              "weight": 400,
+              "style": "normal"
+            }
+          ],
+          "sample": "Every detail earns its place.",
+          "sizes": {
+            "display": {
+              "size": 86,
+              "lineHeight": 0.99,
+              "tracking": -0.028,
+              "weight": 400,
+              "variations": null,
+              "maxWidth": 9
+            },
+            "middle": {
+              "size": 29,
+              "lineHeight": 1.2,
+              "tracking": -0.01,
+              "weight": 400,
+              "variations": null
+            },
+            "small": {
+              "size": 22,
+              "lineHeight": 1.4,
+              "tracking": 0,
+              "weight": 400,
+              "variations": null
+            }
+          }
+        },
+        "body": {
+          "family": "Contact Sheet Fixture",
+          "description": "A simple face for checking the composition.",
+          "weights": [
+            400
+          ],
+          "licence": "CC0 1.0 Universal",
+          "files": [
+            {
+              "path": "fixture.ttf",
+              "weight": 400,
+              "style": "normal"
+            }
+          ],
+          "sample": "Make an object people reach for each day.",
+          "sizes": {
+            "display": {
+              "size": 72,
+              "lineHeight": 1,
+              "tracking": -0.02,
+              "weight": 400,
+              "variations": null
+            },
+            "middle": {
+              "size": 17,
+              "lineHeight": 1.55,
+              "tracking": 0,
+              "weight": 400,
+              "variations": null
+            },
+            "small": {
+              "size": 17,
+              "lineHeight": 1.5,
+              "tracking": 0,
+              "weight": 400,
+              "variations": null
+            }
+          }
+        },
+        "handwriting": {
+          "family": "Contact Sheet Fixture",
+          "description": "An optional note face used to exercise notes and the card back.",
+          "weights": [
+            400
+          ],
+          "licence": "CC0 1.0 Universal",
+          "files": [
+            {
+              "path": "fixture.ttf",
+              "weight": 400,
+              "style": "normal"
+            }
+          ],
+          "sample": "Make an object people reach for each day.",
+          "sizes": {
+            "display": {
+              "size": 32,
+              "lineHeight": 1.1,
+              "tracking": 0,
+              "weight": 400,
+              "variations": null
+            },
+            "middle": {
+              "size": 23,
+              "lineHeight": 1.2,
+              "tracking": 0,
+              "weight": 400,
+              "variations": null
+            },
+            "small": {
+              "size": 17,
+              "lineHeight": 1.25,
+              "tracking": 0,
+              "weight": 400,
+              "variations": null
+            }
+          }
+        }
+      },
+      "tags": {
+        "paletteLoudness": 2,
+        "typeLoudness": 2,
+        "typeCut": "contemporary"
+      },
+      "graphics": {
+        "hero": {
+          "phrase": "made to last.",
+          "svg": "<svg viewBox=\"0 0 100 20\" preserveAspectRatio=\"none\"><rect width=\"100\" height=\"20\" fill=\"currentColor\"/></svg>",
+          "shape": "highlight",
+          "role": "panel"
+        },
+        "pattern": {
+          "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"64\" height=\"64\" viewBox=\"0 0 100 100\"><path d=\"M0 25 H100 M0 75 H100 M25 0 V100 M75 0 V100\" stroke=\"currentColor\" fill=\"none\"/></svg>",
+          "strength": {
+            "light": 0.08,
+            "dark": 0.19
+          },
+          "angle": 17
+        },
+        "texture": {
+          "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"80\" height=\"80\" viewBox=\"0 0 100 100\"><path d=\"M0 10 H100 M0 35 H100 M0 60 H100 M0 85 H100\" stroke=\"{{cardBackMark}}\" fill=\"none\"/></svg>",
+          "strength": {
+            "light": 0.17,
+            "dark": 0.23
+          }
+        },
+        "title": "Details with a purpose.",
+        "description": "Each gesture helps the reader find the next useful detail.",
+        "legend": [
+          {
+            "name": "Opening stroke",
+            "use": "Introduces the next section.",
+            "svg": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><path d=\"M0 17 L100 14\" stroke=\"currentColor\" stroke-width=\"3\"/></svg>"
+          },
+          {
+            "name": "Loop",
+            "use": "Brings a detail into focus.",
+            "svg": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><ellipse cx=\"50\" cy=\"15\" rx=\"47\" ry=\"12\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"none\"/></svg>"
+          },
+          {
+            "name": "Trail",
+            "use": "Connects the stages of making.",
+            "svg": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><path d=\"M4 15 Q25 4 48 15 T96 15\" stroke=\"currentColor\" fill=\"none\" stroke-dasharray=\"3 4\"/><circle cx=\"4\" cy=\"15\" r=\"3\" fill=\"currentColor\"/></svg>"
+          },
+          {
+            "name": "Finishing tick",
+            "use": "Closes a completed piece.",
+            "svg": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><path d=\"M10 2 L50 28 L90 2\" stroke=\"currentColor\" stroke-width=\"3\" fill=\"none\"/></svg>"
+          }
+        ]
+      },
+      "monogram": {
+        "initials": "SP",
+        "container": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><rect x=\"8\" y=\"8\" width=\"84\" height=\"84\" stroke=\"currentColor\" stroke-width=\"3\" fill=\"none\"/></svg>"
+      },
+      "content": {
+        "brandName": "Sample Person",
+        "sentence": "Small things, made to last.",
+        "body": "A little attention makes an everyday object useful for longer. Begin with the details people touch and keep the work easy to use.",
+        "smallPrint": "Care is visible in the details.",
+        "photoRules": "Show everyday objects being used, with clear light and enough room to see their edges.",
+        "never": [
+          "Disposable props.",
+          "Crowded arrangements."
+        ]
+      },
+      "words": [
+        {
+          "word": "Considered",
+          "not": "fussy"
+        },
+        {
+          "word": "Durable",
+          "not": "disposable"
+        },
+        {
+          "word": "Welcoming",
+          "not": "crowded"
+        }
+      ],
+      "note": {
+        "text": "A detail to keep.",
+        "direction": "left",
+        "svg": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><path d=\"M96 9 Q60 30 6 18 L20 8 M6 18 L22 29\" stroke=\"currentColor\" stroke-width=\"3\" fill=\"none\"/></svg>"
+      },
+      "closingExamples": [
+        "Keep the shape, soften the colour.",
+        "Try the second face here.",
+        "Take this in a new direction."
+      ],
+      "sample": {
+        "kicker": "In the making",
+        "title": "A useful object, made with care",
+        "phrase": "care",
+        "body": "Look at the detail you touch first. Give it room, test it in use, then keep what helps.",
+        "note": "Begin with the edge.",
+        "steps": [
+          "Look",
+          "Make",
+          "Use",
+          "Keep"
+        ],
+        "rule": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><path d=\"M0 17 L100 14\" stroke=\"currentColor\" stroke-width=\"3\"/></svg>",
+        "circle": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><ellipse cx=\"50\" cy=\"15\" rx=\"47\" ry=\"12\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"none\"/></svg>",
+        "path": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><path d=\"M4 15 Q25 4 48 15 T96 15\" stroke=\"currentColor\" fill=\"none\" stroke-dasharray=\"3 4\"/><circle cx=\"4\" cy=\"15\" r=\"3\" fill=\"currentColor\"/></svg>",
+        "closing": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><path d=\"M10 2 L50 28 L90 2\" stroke=\"currentColor\" stroke-width=\"3\" fill=\"none\"/></svg>",
+        "meta": "A short practice for any day"
+      },
+      "items": {
+        "cardLine": "Useful objects for everyday rituals",
+        "cardBack": "Keep the useful things.\nGive the details time.",
+        "bannerHeadline": "Care in the things you use.",
+        "bannerLine": "A few good decisions, made visible in the details.",
+        "contact": "sample.example",
+        "primaryAction": "Explore the work",
+        "secondaryAction": "Read the approach"
+      }
+    },
+    {
+      "number": 2,
+      "name": "Daily Practice",
+      "group": "familiar",
+      "energy": "Measured colour with a crisp accent",
+      "why": "Carries the supplied mark through each everyday item.",
+      "primaryMode": "light",
+      "buttonRadius": 24,
+      "palette": {
+        "light": {
+          "ground": "#fdfcff",
+          "panel": "#e8edf6",
+          "text": "#18243c",
+          "headline": "#18243c",
+          "smallPrint": "#46536b",
+          "deep": "#18243c",
+          "pop": "#164fb8",
+          "onPop": "#fdfcff",
+          "mark": "#164fb8",
+          "cardFront": "#fdfcff",
+          "cardFrontText": "#18243c",
+          "cardFrontSmallPrint": "#46536b",
+          "cardBack": "#18243c",
+          "cardBackText": "#fdfcff",
+          "cardBackMark": "#94b6fa"
+        },
+        "dark": {
+          "ground": "#101b2b",
+          "panel": "#1c2c46",
+          "text": "#f0f3fb",
+          "headline": "#f0f3fb",
+          "smallPrint": "#bbc9e3",
+          "deep": "#080f1c",
+          "pop": "#94b6fa",
+          "onPop": "#101b2b",
+          "mark": "#94b6fa",
+          "cardFront": "#1c2c46",
+          "cardFrontText": "#f0f3fb",
+          "cardFrontSmallPrint": "#bbc9e3",
+          "cardBack": "#101b2b",
+          "cardBackText": "#f0f3fb",
+          "cardBackMark": "#94b6fa"
+        },
+        "swatches": [
+          {
+            "name": "Blank sheet",
+            "role": "Page ground",
+            "share": 50,
+            "key": "ground"
+          },
+          {
+            "name": "Reading field",
+            "role": "Secondary panels",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Written line",
+            "role": "Words and deep fields",
+            "share": 20,
+            "key": "text"
+          },
+          {
+            "name": "Action blue",
+            "role": "Buttons and small gestures",
+            "share": 10,
+            "key": "pop"
+          }
+        ]
+      },
+      "type": {
+        "heading": {
+          "family": "Contact Sheet Fixture",
+          "description": "A simple face for checking the composition.",
+          "weights": [
+            400
+          ],
+          "licence": "CC0 1.0 Universal",
+          "files": [
+            {
+              "path": "fixture.ttf",
+              "weight": 400,
+              "style": "normal"
+            }
+          ],
+          "sample": "Every detail earns its place.",
+          "sizes": {
+            "display": {
+              "size": 94,
+              "lineHeight": 0.99,
+              "tracking": -0.028,
+              "weight": 400,
+              "variations": null,
+              "maxWidth": 9
+            },
+            "middle": {
+              "size": 29,
+              "lineHeight": 1.2,
+              "tracking": -0.01,
+              "weight": 400,
+              "variations": null
+            },
+            "small": {
+              "size": 22,
+              "lineHeight": 1.4,
+              "tracking": 0,
+              "weight": 400,
+              "variations": null
+            }
+          }
+        },
+        "body": {
+          "family": "Contact Sheet Fixture",
+          "description": "A simple face for checking the composition.",
+          "weights": [
+            400
+          ],
+          "licence": "CC0 1.0 Universal",
+          "files": [
+            {
+              "path": "fixture.ttf",
+              "weight": 400,
+              "style": "normal"
+            }
+          ],
+          "sample": "Make an object people reach for each day.",
+          "sizes": {
+            "display": {
+              "size": 72,
+              "lineHeight": 1,
+              "tracking": -0.02,
+              "weight": 400,
+              "variations": null
+            },
+            "middle": {
+              "size": 17,
+              "lineHeight": 1.55,
+              "tracking": 0,
+              "weight": 400,
+              "variations": null
+            },
+            "small": {
+              "size": 17,
+              "lineHeight": 1.5,
+              "tracking": 0,
+              "weight": 400,
+              "variations": null
+            }
+          }
+        }
+      },
+      "tags": {
+        "paletteLoudness": 2,
+        "typeLoudness": 2,
+        "typeCut": "contemporary"
+      },
+      "graphics": {
+        "hero": {
+          "phrase": "made to last.",
+          "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" preserveAspectRatio=\"none\" viewBox=\"0 0 100 12\"><path d=\"M2 3 Q50 11 98 3\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"none\"/></svg>"
+        },
+        "pattern": {
+          "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"64\" height=\"64\" viewBox=\"0 0 100 100\"><path d=\"M0 25 H100 M0 75 H100 M25 0 V100 M75 0 V100\" stroke=\"currentColor\" fill=\"none\"/></svg>",
+          "strength": {
+            "light": 0.08,
+            "dark": 0.19
+          },
+          "angle": 17
+        },
+        "texture": {
+          "svg": "<svg viewBox=\"0 0 80 80\"><defs><filter id=\"grain\"><feTurbulence baseFrequency=\".65\" seed=\"5\"/><feComposite in=\"SourceGraphic\" operator=\"in\"/></filter></defs><rect width=\"80\" height=\"80\" fill=\"currentColor\" filter=\"url(#grain)\" opacity=\".5\"/></svg>",
+          "strength": {
+            "light": 0.17,
+            "dark": 0.23
+          }
+        },
+        "title": "Details with a purpose.",
+        "description": "Each gesture helps the reader find the next useful detail.",
+        "legend": [
+          {
+            "name": "Opening stroke",
+            "use": "Introduces the next section.",
+            "svg": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><path d=\"M0 17 L100 14\" stroke=\"currentColor\" stroke-width=\"3\"/></svg>"
+          },
+          {
+            "name": "Loop",
+            "use": "Brings a detail into focus.",
+            "svg": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><ellipse cx=\"50\" cy=\"15\" rx=\"47\" ry=\"12\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"none\"/></svg>"
+          },
+          {
+            "name": "Trail",
+            "use": "Connects the stages of making.",
+            "svg": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><path d=\"M4 15 Q25 4 48 15 T96 15\" stroke=\"currentColor\" fill=\"none\" stroke-dasharray=\"3 4\"/><circle cx=\"4\" cy=\"15\" r=\"3\" fill=\"currentColor\"/></svg>"
+          },
+          {
+            "name": "Finishing tick",
+            "use": "Closes a completed piece.",
+            "svg": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><path d=\"M10 2 L50 28 L90 2\" stroke=\"currentColor\" stroke-width=\"3\" fill=\"none\"/></svg>"
+          }
+        ]
+      },
+      "monogram": {
+        "file": "tiny.svg"
+      },
+      "content": {
+        "brandName": "Sample Person",
+        "sentence": "Small things, made to last.",
+        "body": "A little attention makes an everyday object useful for longer. Begin with the details people touch and keep the work easy to use.",
+        "smallPrint": "Care is visible in the details.",
+        "photoRules": "Show everyday objects being used, with clear light and enough room to see their edges.",
+        "never": [
+          "Disposable props.",
+          "Crowded arrangements."
+        ]
+      },
+      "words": [
+        {
+          "word": "Considered",
+          "not": "fussy"
+        },
+        {
+          "word": "Durable",
+          "not": "disposable"
+        },
+        {
+          "word": "Welcoming",
+          "not": "crowded"
+        }
+      ],
+      "note": {
+        "text": "Worth keeping.",
+        "direction": "left",
+        "svg": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><path d=\"M96 9 Q60 30 6 18 L20 8 M6 18 L22 29\" stroke=\"currentColor\" stroke-width=\"3\" fill=\"none\"/></svg>"
+      },
+      "closingExamples": [
+        "Keep the shape, soften the colour.",
+        "Try the second face here.",
+        "Take this in a new direction."
+      ],
+      "sample": {
+        "kicker": "In the making",
+        "title": "A useful object, made with care",
+        "phrase": "care",
+        "body": "Look at the detail you touch first. Give it room, test it in use, then keep what helps.",
+        "note": "Begin with the edge.",
+        "steps": [
+          "Look",
+          "Make",
+          "Use",
+          "Keep"
+        ],
+        "rule": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><path d=\"M0 17 L100 14\" stroke=\"currentColor\" stroke-width=\"3\"/></svg>",
+        "circle": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><ellipse cx=\"50\" cy=\"15\" rx=\"47\" ry=\"12\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"none\"/></svg>",
+        "path": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><path d=\"M4 15 Q25 4 48 15 T96 15\" stroke=\"currentColor\" fill=\"none\" stroke-dasharray=\"3 4\"/><circle cx=\"4\" cy=\"15\" r=\"3\" fill=\"currentColor\"/></svg>",
+        "closing": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><path d=\"M10 2 L50 28 L90 2\" stroke=\"currentColor\" stroke-width=\"3\" fill=\"none\"/></svg>",
+        "meta": "A short practice for any day"
+      },
+      "items": {
+        "cardLine": "Useful objects for everyday rituals",
+        "cardBack": "Keep the useful things.\nGive the details time.",
+        "bannerHeadline": "Care in the things you use.",
+        "bannerLine": "A few good decisions, made visible in the details.",
+        "contact": "sample.example",
+        "primaryAction": "Explore the work",
+        "secondaryAction": "Read the approach"
+      }
+    },
+    {
+      "number": 3,
+      "name": "Late Edition",
+      "group": "exploratory",
+      "energy": "A dark ground with one clear signal",
+      "why": "Starts from a darker setting while keeping the same useful content.",
+      "primaryMode": "dark",
+      "buttonRadius": 7,
+      "palette": {
+        "light": {
+          "ground": "#fdfcff",
+          "panel": "#e8edf6",
+          "text": "#18243c",
+          "headline": "#18243c",
+          "smallPrint": "#46536b",
+          "deep": "#18243c",
+          "pop": "#25644e",
+          "onPop": "#fdfcff",
+          "mark": "#25644e",
+          "cardFront": "#fdfcff",
+          "cardFrontText": "#18243c",
+          "cardFrontSmallPrint": "#46536b",
+          "cardBack": "#18243c",
+          "cardBackText": "#fdfcff",
+          "cardBackMark": "#94b6fa"
+        },
+        "dark": {
+          "ground": "#101b2b",
+          "panel": "#1c2c46",
+          "text": "#f0f3fb",
+          "headline": "#f0f3fb",
+          "smallPrint": "#bbc9e3",
+          "deep": "#080f1c",
+          "pop": "#a9decd",
+          "onPop": "#101b2b",
+          "mark": "#a9decd",
+          "cardFront": "#1c2c46",
+          "cardFrontText": "#f0f3fb",
+          "cardFrontSmallPrint": "#bbc9e3",
+          "cardBack": "#101b2b",
+          "cardBackText": "#f0f3fb",
+          "cardBackMark": "#a9decd"
+        },
+        "swatches": [
+          {
+            "name": "Blank sheet",
+            "role": "Page ground",
+            "share": 50,
+            "key": "ground"
+          },
+          {
+            "name": "Reading field",
+            "role": "Secondary panels",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Written line",
+            "role": "Words and deep fields",
+            "share": 20,
+            "key": "text"
+          },
+          {
+            "name": "Action green",
+            "role": "Buttons and small gestures",
+            "share": 10,
+            "key": "pop"
+          }
+        ]
+      },
+      "type": {
+        "heading": {
+          "family": "Contact Sheet Fixture",
+          "description": "A simple face for checking the composition.",
+          "weights": [
+            400
+          ],
+          "licence": "CC0 1.0 Universal",
+          "files": [
+            {
+              "path": "fixture.ttf",
+              "weight": 400,
+              "style": "normal"
+            }
+          ],
+          "sample": "Every detail earns its place.",
+          "sizes": {
+            "display": {
+              "size": 102,
+              "lineHeight": 0.99,
+              "tracking": -0.028,
+              "weight": 400,
+              "variations": null,
+              "maxWidth": 9
+            },
+            "middle": {
+              "size": 29,
+              "lineHeight": 1.2,
+              "tracking": -0.01,
+              "weight": 400,
+              "variations": null
+            },
+            "small": {
+              "size": 22,
+              "lineHeight": 1.4,
+              "tracking": 0,
+              "weight": 400,
+              "variations": null
+            }
+          }
+        },
+        "body": {
+          "family": "Contact Sheet Fixture",
+          "description": "A simple face for checking the composition.",
+          "weights": [
+            400
+          ],
+          "licence": "CC0 1.0 Universal",
+          "files": [
+            {
+              "path": "fixture.ttf",
+              "weight": 400,
+              "style": "normal"
+            }
+          ],
+          "sample": "Make an object people reach for each day.",
+          "sizes": {
+            "display": {
+              "size": 72,
+              "lineHeight": 1,
+              "tracking": -0.02,
+              "weight": 400,
+              "variations": null
+            },
+            "middle": {
+              "size": 17,
+              "lineHeight": 1.55,
+              "tracking": 0,
+              "weight": 400,
+              "variations": null
+            },
+            "small": {
+              "size": 17,
+              "lineHeight": 1.5,
+              "tracking": 0,
+              "weight": 400,
+              "variations": null
+            }
+          }
+        }
+      },
+      "tags": {
+        "paletteLoudness": 2,
+        "typeLoudness": 2,
+        "typeCut": "contemporary"
+      },
+      "graphics": {
+        "hero": {
+          "phrase": "made to last.",
+          "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" preserveAspectRatio=\"none\" viewBox=\"0 0 100 12\"><path d=\"M2 6 L98 6\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"none\"/></svg>"
+        },
+        "pattern": {
+          "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"64\" height=\"64\" viewBox=\"0 0 100 100\"><path d=\"M0 25 H100 M0 75 H100 M25 0 V100 M75 0 V100\" stroke=\"currentColor\" fill=\"none\"/></svg>",
+          "strength": {
+            "light": 0.08,
+            "dark": 0.19
+          },
+          "angle": -11
+        },
+        "texture": {
+          "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"80\" height=\"80\" viewBox=\"0 0 100 100\"><path d=\"M0 10 H100 M0 35 H100 M0 60 H100 M0 85 H100\" stroke=\"{{cardBackMark}}\" fill=\"none\"/></svg>",
+          "strength": {
+            "light": 0.17,
+            "dark": 0.23
+          }
+        },
+        "title": "Details with a purpose.",
+        "description": "Each gesture helps the reader find the next useful detail.",
+        "legend": [
+          {
+            "name": "Opening stroke",
+            "use": "Introduces the next section.",
+            "svg": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><path d=\"M0 17 L100 14\" stroke=\"currentColor\" stroke-width=\"3\"/></svg>"
+          },
+          {
+            "name": "Loop",
+            "use": "Brings a detail into focus.",
+            "svg": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><ellipse cx=\"50\" cy=\"15\" rx=\"47\" ry=\"12\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"none\"/></svg>"
+          },
+          {
+            "name": "Trail",
+            "use": "Connects the stages of making.",
+            "svg": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><path d=\"M4 15 Q25 4 48 15 T96 15\" stroke=\"currentColor\" fill=\"none\" stroke-dasharray=\"3 4\"/><circle cx=\"4\" cy=\"15\" r=\"3\" fill=\"currentColor\"/></svg>"
+          },
+          {
+            "name": "Finishing tick",
+            "use": "Closes a completed piece.",
+            "svg": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><path d=\"M10 2 L50 28 L90 2\" stroke=\"currentColor\" stroke-width=\"3\" fill=\"none\"/></svg>"
+          }
+        ]
+      },
+      "monogram": {
+        "initials": "SP",
+        "container": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><rect x=\"8\" y=\"8\" width=\"84\" height=\"84\" stroke=\"currentColor\" stroke-width=\"3\" fill=\"none\"/></svg>"
+      },
+      "content": {
+        "brandName": "Sample Person",
+        "sentence": "Small things, made to last.",
+        "body": "A little attention makes an everyday object useful for longer. Begin with the details people touch and keep the work easy to use.",
+        "smallPrint": "Care is visible in the details.",
+        "photoRules": "Show everyday objects being used, with clear light and enough room to see their edges.",
+        "never": [
+          "Disposable props.",
+          "Crowded arrangements."
+        ]
+      },
+      "words": [
+        {
+          "word": "Considered",
+          "not": "fussy"
+        },
+        {
+          "word": "Durable",
+          "not": "disposable"
+        },
+        {
+          "word": "Welcoming",
+          "not": "crowded"
+        }
+      ],
+      "note": {
+        "text": "Worth keeping.",
+        "direction": "left",
+        "svg": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><path d=\"M96 9 Q60 30 6 18 L20 8 M6 18 L22 29\" stroke=\"currentColor\" stroke-width=\"3\" fill=\"none\"/></svg>"
+      },
+      "closingExamples": [
+        "Keep the shape, soften the colour.",
+        "Try the second face here.",
+        "Take this in a new direction."
+      ],
+      "sample": {
+        "kicker": "In the making",
+        "title": "A useful object, made with care",
+        "phrase": "care",
+        "body": "Look at the detail you touch first. Give it room, test it in use, then keep what helps.",
+        "note": "Begin with the edge.",
+        "steps": [
+          "Look",
+          "Make",
+          "Use",
+          "Keep"
+        ],
+        "rule": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><path d=\"M0 17 L100 14\" stroke=\"currentColor\" stroke-width=\"3\"/></svg>",
+        "circle": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><ellipse cx=\"50\" cy=\"15\" rx=\"47\" ry=\"12\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"none\"/></svg>",
+        "path": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><path d=\"M4 15 Q25 4 48 15 T96 15\" stroke=\"currentColor\" fill=\"none\" stroke-dasharray=\"3 4\"/><circle cx=\"4\" cy=\"15\" r=\"3\" fill=\"currentColor\"/></svg>",
+        "closing": "<svg viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><path d=\"M10 2 L50 28 L90 2\" stroke=\"currentColor\" stroke-width=\"3\" fill=\"none\"/></svg>",
+        "meta": "A short practice for any day"
+      },
+      "items": {
+        "cardLine": "Useful objects for everyday rituals",
+        "cardBack": "Keep the useful things.\nGive the details time.",
+        "bannerHeadline": "Care in the things you use.",
+        "bannerLine": "A few good decisions, made visible in the details.",
+        "contact": "sample.example",
+        "primaryAction": "Explore the work",
+        "secondaryAction": "Read the approach"
+      }
+    }
+  ]
+}
