@@ -3,7 +3,7 @@ name: Standing Approval
 type: skill
 category: system
 description: Grant, list or revoke a person's standing approval for a scoped set of connector actions, so calls inside that scope run without a stop each time, made only on their own yes to the gateway's warning, and used, reported and ended as the gateway records it
-version: 0.1.1
+version: 0.1.2
 ---
 
 # Standing Approval
@@ -67,7 +67,7 @@ An assistant who asks for the narrowest grant that covers the work, shows the wa
 
 ## Working under a grant
 
-- **Declare the scope on every call it should cover.** Pass `root`, and `playbook` where the grant names one, on each `execute`. A call that names neither stops as it always did.
+- **Declare the scope on every call it should cover.** Pass `root`, and `playbook` where the grant names one, on each `execute`. A call that names neither stops as it always did. Does `execute` list `root` among its inputs? No: this app session holds a definition from before standing approvals; say so, and the next step is a new session, not a reconnect, as `skills/Connection Troubleshooter/` says.
 - **A stop under a grant is an ordinary stop.** It means the call falls outside the grant, or the grant has ended. Show it and ask, as for any approval. Never retry with another root, Playbook or field value to make a call match.
 - **Report what ran without asking.** An answer carrying `standing_approval` ran with no stop. Tell the person in plain words what each such call did, in the session's report, before the session ends.
 - **Before an update or a delete, still read the target and name what will be lost**, in that report. The grant took away the person's stop, not this duty.
