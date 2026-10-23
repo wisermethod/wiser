@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.23.3, October 23, 2026
+
+- After a Wiser update that changes one of its tools, your assistant now tells you to start a new session if the app is still showing the tool as it was, instead of leaving an action to stop for no clear reason. A session opened before the update can keep the old version of the tool, and reconnecting does not refresh it. That is why a standing approval made yesterday could still stop in a session that was already open. (5e8714f)
+
 ## v2026.10.23.2, October 23, 2026
 
 - On a personal folder, the voice coach's first piece is now a bit of fun: a personality profile of you in the style of a horoscope, drawn from your birthday, where you were born and roughly what time, then written in your voice. Say "skip" and it writes a short piece on your topic instead. Call the reading spooky good and the coach keeps it in a file of its own in your folder and adds two things it says about you to your voice, after telling you which; say the style is right but the personality is off, and it asks what's off and uses your answer. (bc288d9, a7c1fe5, afd935f)
