@@ -66,7 +66,7 @@ Finish with B8 after the separate check in Step 7. Show only the headline rules,
 
 ## The five questions
 
-These questions choose how your brand should look, not who you are. Where `about.md` has an answered personality, name it once before P1 in at most six plain words total, with no filename or parenthetical; never repeat it at each question. The answers select its visible expression. No answered personality: omit that introduction and record the absence in the answers record. Do not ask for personality again or derive a personality trait from a visual pick.
+These questions choose how your brand should look, not who you are. Where `about.md` has an answered personality, name it once before P1 in at most six plain words total, with no filename or parenthetical; never repeat it at each question. The answers select its visible expression. No answered personality: omit that introduction; on the full path the Playbook instance's Witness records the absence, as `SKILL.md` Inputs says. Do not ask for personality again or derive a personality trait from a visual pick.
 
 The five axes separate the age of the forms, their visual force, their colour temperature, their sense of play, and how they appear to have been made, so each can change colour, lettering, shape, or imagery without forcing the others. The combined warm-and-organic versus cool-and-precise candidate is separated into P3's temperature and P5's construction: warm can be geometric, and cool can be hand-shaped. Spacious versus dense is left out because the amount of room and information follows the use, such as a working screen, a page drawing attention, or a page for reading, rather than a permanent trait of the brand; record that use from the brief and apply the appropriate layout later.
 
