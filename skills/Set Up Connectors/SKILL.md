@@ -3,7 +3,7 @@ name: Set Up Connectors
 type: skill
 category: system
 description: Lead this app to the Wiser endpoint and its sign-in, or on request attach the local gateway in a command-line harness with its project key, naming the one step the state in front of it needs
-version: 0.4.2
+version: 0.5.0
 ---
 
 # Set Up Connectors
@@ -40,7 +40,8 @@ A steward of how this app reaches Wiser's connectors, who prefers the endpoint a
    - Yes: signed in. Go to step 5.
    - No, in Claude Code: step 4.
    - No, in Claude Cowork: no Wiser tool exists until the person connects the endpoint the plugin declares. Tell them to open Customize, then Plugins, then Wiser, then its Connectors tab; next to `wiser`, if it shows Not added, to press Connect to add it, or, if they cannot, to ask an Owner of their organization to add it; once it shows Not connected, to press Connect and sign in; then to ask again in a new task. Never send them to add another connector because Customize, Connectors does not list Wiser. Only if, once the plugin's page has finished loading, its Connectors tab has no `wiser` and Customize, Connectors has no connector at the address from step 2: tell them to add a custom connector with that address and sign in, or, if they cannot add one, to ask an Owner of their organization. Stop.
-   - No, in any other app (Claude on the web or desktop, ChatGPT, Codex, Grok, Cursor, and the rest): give the person the address from step 2 and one step: add it in the app's connector or MCP server settings as a remote server, then sign in when the app asks. Stop.
+   - No, in the ChatGPT desktop app: Wiser's tools come with the plugin and appear once the person signs in. Tell them to open Plugins, find Wiser, and when ChatGPT asks, sign in with their Wiser account and choose Allow; if Wiser is not in Plugins, first to choose Add there, add Wiser's marketplace `wisermethod/wiser`, and install Wiser with its plus button; then to ask again in a new chat. Never send them to add the address as a custom server: that is chatgpt.com's route, where Wiser's skills do not run. Stop.
+   - No, in any other app (Claude on the web or desktop, ChatGPT on the web, Codex, Grok, Cursor, and the rest): give the person the address from step 2 and one step: add it in the app's connector or MCP server settings as a remote server, then sign in when the app asks. Stop.
 4. **Claude Code without the endpoint's tools.** Which applies?
    - This session has an `authenticate` tool on Wiser's server, the plugin's `wiser` server or one whose description names the address from step 2: the endpoint is attached and awaits sign-in. Call it, and give the person the link it returns: "To sign in to Wiser, open this link:" and the link. Wiser's tools appear in this session once they finish. Never ask them to paste the address their browser lands on afterwards; if that page fails to load, tell them to run `/mcp`, choose Wiser, and sign in there. Stop.
    - Otherwise, run `claude mcp list` in this process, so `CLAUDE_CONFIG_DIR` is inherited, and find the entry whose address is the one from step 2, under any name:

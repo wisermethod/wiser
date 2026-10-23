@@ -16,6 +16,7 @@ import { runHook } from './lib/run.mjs';
 export const NAMED_ASKS = new Set([
   'update root', 'update this root', 'check root', 'is this root current',
   'set up connectors', 'setup connectors', 'enable connectors', 'install connectors',
+  'set up wiser', 'setup wiser', 'onboard project',
   'wrap up',
 ]);
 

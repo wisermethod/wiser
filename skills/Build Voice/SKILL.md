@@ -3,7 +3,7 @@ name: Build Voice
 type: skill
 category: onboarding
 description: Build or rebuild one user root's voice.md, for a personal root as a coach that asks a few short questions about the person and two screens of quick taps, shows them how they come across, and has them correct a first piece, writing samples optional, and for every other type from real writing evidence routed to the register that root's outputs need
-version: 0.13.2
+version: 0.13.3
 memory:
   - voice
 ---
@@ -79,7 +79,7 @@ For a personal root. You are a writing coach interviewing one person so an assis
 7. Draft `voice.md` and `## Personality` in the session, per What the coach writes.
 8. **Stop**, at any point before the person keeps the piece: keep the answers file as it stands and leave an earlier voice and its state line as they are. On a first build, write `[Not available: the voice coach has not finished; say "build my voice" to run it]` over each prompt line of `voice.md`, and where the root's `AGENTS.md` carries an `## Onboarding` section, set the `- voice:` state line under that heading, never the `- voice:` binding under `## Provides`, to `provisional (the voice coach has not finished; owner: <their name>; say "build my voice")`. Then tell them that saying "build my voice" picks up from their answers.
 9. Write the files. Where this is a rebuild, archive the current `voice.md` per `standards/conventions.md` and tell the person in one line what changes. Write `voice.md` to the bound path and `## Personality` into `memory/about.md`, replacing that heading where an earlier run wrote it. Where they called the reading spooky good (A2 or A4) and the run keeps an answers file, write the reading file beside it, under the name `standards/user-root.md` C14 gives: the piece as they kept it, then the reading it was written from. No other file cites it. Where the root's `AGENTS.md` carries an `## Onboarding` section, set the `- voice:` state line under that heading, never the `- voice:` binding under `## Provides`, to `complete`, and change no other line.
-10. Say the close from `questions.md`.
+10. Where this session has the Wiser endpoint's `first_run` tool, call it with `mode: "finish"`, which records that the person's setup is done; where it has none, or the call fails, go on without it and say nothing of it. Say the close from `questions.md`.
 
 **The floor.** Every line you write for the person to see, the pairs, the portrait and the piece, but not W4a's lines, which show a fault on purpose, passes the eight tells in `experts/Ghost Writer/EXPERT.md` Craft: throat-clearing openings, endings that restate, uniform sentence rhythm and the sentence-opening transitions it names, words standing in for the thought, symmetry beyond the thinking, sentence fragments, mannerism, and em or en dashes. The eight hold even where an answer asks for the habit, except in a line the person wrote out themselves, which goes in as step 6 says. Where an answer asks for one, record the request, write well anyway, and say plainly what you did: "You like long sentences, so I let them run, but I still vary their length so they stay easy to read." A greeting, a sign-off or an interjection the person uses, such as "Hi Luis," or "Heads up!!", is how they open or close, not a fragment: keep it, and where a change of theirs asks for it, it is a line under `## How They Write`.
 
