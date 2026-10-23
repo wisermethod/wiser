@@ -25,7 +25,7 @@ The person chose the full path of `skills/Build Brand/`: their brand built from 
 ## Preconditions
 
 - [ ] The owning root is resolved and its Provides block binds `design` (`skills/Build Brand/SKILL.md` Step 1). Evidence: [the root declaration, bound path and YYYY-MM-DD].
-- [ ] The answers record is open, with B0 answered full, B1 to B3 and the existing-mark question B9 answered or reused (`skills/Build Brand/SKILL.md` Step 2). Evidence: [the record path, answer numbers, reused sources and YYYY-MM-DD].
+- [ ] The answers record is open, with B0 answered full (`skills/Build Brand/SKILL.md` Step 2); B1 to B3 and the existing-mark question B9 are asked at the first stage, one at a time, or reused. Evidence: [the record path, answer numbers, reused sources and YYYY-MM-DD].
 - [ ] `design.md` is provisional and names this instance as what it waits on (`skills/Build Brand/SKILL.md` Step 4). Evidence: [the separately checked provisional file, instance path and YYYY-MM-DD]; the person's B8 confirmation belongs to Milestone 4.
 
 ## Authority
