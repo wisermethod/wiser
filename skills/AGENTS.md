@@ -76,6 +76,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 | `Build Brand/SKILL.md` | Build or rebuild one user root's design.md from the person's own answers, by a brief path of about ten minutes for an existing brand or a full path that writes a Playbook first and builds the brand by reacting to whole brand boards over sessions, with every claim traced to an answer or a file | Creative Director |
 | `Build Voice/SKILL.md` | Build or rebuild one user root's voice.md, for a personal root as a coach that asks a few short questions about the person and two screens of quick taps, shows them how they come across, and has them correct a first piece, writing samples optional, and for every other type from real writing evidence routed to the register that root's outputs need | Ghost Writer |
 | `Onboard Root/SKILL.md` | Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types | System Expert |
+| `Set Up Wiser/SKILL.md` | Take a new member from a first chat with no folder open to their own Wiser folder on their Desktop and a project in their app with that folder attached, checking their Wiser connection first and ending on Onboard Project | System Expert |
 
 ### Research
 
