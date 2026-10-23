@@ -48,10 +48,11 @@ def launching_app():
     return 'unknown'
 
 
-def window_list():
+def window_list(desktop=False):
+    """On-screen windows, front to back. desktop=True keeps the menu bar, the Dock and the desktop itself."""
     import Quartz as q
-    rows = q.CGWindowListCopyWindowInfo(q.kCGWindowListOptionOnScreenOnly |
-                                      q.kCGWindowListExcludeDesktopElements, q.kCGNullWindowID)
+    options = q.kCGWindowListOptionOnScreenOnly | (0 if desktop else q.kCGWindowListExcludeDesktopElements)
+    rows = q.CGWindowListCopyWindowInfo(options, q.kCGNullWindowID)
     if rows is None:
         raise CaptureError('window list unavailable; grant Screen Recording and retry')
     result = []
@@ -97,25 +98,41 @@ def osascript(script, arguments):
     return result.stdout.decode('utf-8').strip()
 
 
-def mouse(kind, x, y):
+def app_pid(app):
+    from AppKit import NSWorkspace
+    for running in NSWorkspace.sharedWorkspace().runningApplications():
+        if str(running.localizedName()) == app:
+            return int(running.processIdentifier())
+    return None
+
+
+def _post(event, pid):
+    import Quartz as q
+    q.CGEventSetFlags(event, 0)
+    if pid is None:
+        q.CGEventPost(q.kCGHIDEventTap, event)
+    else:
+        # Delivered to that app alone, whatever window is now on top.
+        q.CGEventPostToPid(pid, event)
+
+
+def mouse(kind, x, y, pid=None):
     import Quartz as q
     types = {'move': q.kCGEventMouseMoved, 'down': q.kCGEventLeftMouseDown, 'up': q.kCGEventLeftMouseUp}
     source = q.CGEventSourceCreate(q.kCGEventSourceStateHIDSystemState)
     event = q.CGEventCreateMouseEvent(source, types[kind], (x, y), q.kCGMouseButtonLeft)
     if event is None:
         raise CaptureError('mouse event could not be created; check Accessibility and retry')
-    q.CGEventSetFlags(event, 0)
-    q.CGEventPost(q.kCGHIDEventTap, event)
+    _post(event, pid)
 
 
-def keyboard(code, down):
+def keyboard(code, down, pid=None):
     import Quartz as q
     source = q.CGEventSourceCreate(q.kCGEventSourceStateHIDSystemState)
     event = q.CGEventCreateKeyboardEvent(source, code, down)
     if event is None:
         raise CaptureError('keyboard event could not be created; check Accessibility and retry')
-    q.CGEventSetFlags(event, 0)
-    q.CGEventPost(q.kCGHIDEventTap, event)
+    _post(event, pid)
 
 
 def capture(arguments):

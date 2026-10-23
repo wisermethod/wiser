@@ -4,10 +4,12 @@ import re
 # Deliberately loose, as the proof was: OCR confuses @ and the punctuation, and may put a space around either.
 # Never a line break: OCR puts separate blocks of a screen on separate lines.
 # The second form is an address a page shortened, "name@domain" with its ending cut off. It takes a real "@" with no
-# space around it and three characters or more on each side, so neither a glyph OCR misreads as "©" between two
-# words nor two letters OCR runs into a misread "@" is one.
+# space around it and the cut-off mark after it: an ellipsis, two dots or more, or one dot ending the line, which is
+# how OCR reads an ellipsis. A bare line end is not a mark: OCR puts each block of a screen on its own line, so
+# letters it runs into a misread "@" end lines too. So a prompt such as "dev@mini:~$", a glyph OCR misreads as "©"
+# between two words, and that noise are none of them an address.
 ADDRESS = re.compile(r"[A-Za-z0-9._%+|\-]+[ \t]?[@©®][ \t]?[A-Za-z0-9|\-]+(?:[ \t]?[.,][ \t]?[A-Za-z0-9|\-]+)+"
-                     r"|(?<![A-Za-z0-9._%+\-])[A-Za-z0-9._%+\-]{3,}@[A-Za-z0-9\-]{3,}")
+                     r"|(?<![A-Za-z0-9._%+\-])[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]{2,}(?=\.?\u2026|\.{2,}|\.[ \t]*(?:\n|$))")
 FOLD = str.maketrans({"0": "o", "1": "l", "|": "l"})
 
 

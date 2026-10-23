@@ -147,8 +147,14 @@ class TermsTests(unittest.TestCase):
         self.assertNotIn("address-shaped", self.labels([], "Contact\n©\nSupport.Team"))
         self.assertNotIn("address-shaped", self.labels([], "Writing ©? reply.now"))
         self.assertIn("address-shaped", self.labels([], "riley.q @ example.org"))
-        # A page that shortens an address leaves no ending; the address is still found.
-        self.assertIn("address-shaped", self.labels([], "Signed in as riley.q@exampl\u2026"))
+        # A page that shortens an address leaves no ending; the address is still found by its cut-off mark.
+        for shortened in ("Signed in as riley.q@exampl\u2026", "me@gmai\u2026 Settings", "ed@acme...",
+                          "riley.q@exampleorg.\nNext", "Account riley.q@exampl."):
+            self.assertIn("address-shaped", self.labels([], shortened), shortened)
+        # The last is OCR noise as Tesseract's sparse mode gives it: two letters, a misread "@", a word, a line end.
+        for ordinary in ("dev@mini:~$ ls", "user@MacBook-Pro:~ %", "Today@Apple is here", "main@HEAD -> origin",
+                         "to@Wiser\n\n& Home"):
+            self.assertNotIn("address-shaped", self.labels([], ordinary), ordinary)
         self.assertNotIn("address-shaped", self.labels([], "Contact © Support"))
         self.assertNotIn("address-shaped", self.labels([], "Follow @wisermemory"))
         # Two letters run into a misread "@" are OCR noise, not a shortened address.

@@ -30,11 +30,11 @@ class DesktopTests(unittest.TestCase):
         # An unexpected screen/NSWorkspace/subprocess operation fails the test.
         self.adapters = {}
         for name in ('permissions', 'launching_app', 'parent_process', 'window_list', 'activate',
-                     'frontmost', 'osascript', 'mouse', 'keyboard', 'capture', 'pause'):
+                     'frontmost', 'osascript', 'mouse', 'keyboard', 'capture', 'pause', 'app_pid'):
             self.adapters[name] = self.stack.enter_context(patch.object(native, name, side_effect=AssertionError('unstubbed native adapter')))
         for name, result in (('permissions', {'screen_recording': True, 'accessibility': True}),
                              ('launching_app', 'Synthetic Host'), ('window_list', [window()]),
-                             ('frontmost', 'Sample'), ('activate', None), ('pause', None)):
+                             ('frontmost', 'Sample'), ('activate', None), ('pause', None), ('app_pid', 4242)):
             self.stub(name, return_value=result)
         self.stack.enter_context(patch.object(install, 'ensure'))
         self.stack.enter_context(patch.object(desktop.shutil, 'which', return_value='/synthetic/bin/program'))
@@ -122,7 +122,7 @@ class DesktopTests(unittest.TestCase):
     def test_check_reads_pins_from_venv_only(self):
         with temporary() as directory:
             tool = Path(directory)
-            location = tool / '.venv/lib/python3.11/site-packages'
+            location = tool / '.venv' / ('lib/python%d.%d/site-packages' % sys.version_info[:2])
             dist = location / 'pillow-11.3.0.dist-info'
             dist.mkdir(parents=True)
             (dist / 'METADATA').write_text('Metadata-Version: 2.1\nName: Pillow\nVersion: 11.3.0\n')
@@ -182,13 +182,40 @@ class DesktopTests(unittest.TestCase):
 
     def test_focus_lost_after_press_still_releases_the_button(self):
         mouse = self.stub('mouse')
-        def flip(kind, x, y):
+        def flip(kind, x, y, pid=None):
             if kind == 'down':
                 self.stub('frontmost', return_value='Other')
         mouse.side_effect = flip
         code, out, err = self.invoke(['click', '--app', 'Sample', '--x', '10', '--y', '20'])
         self.assertEqual((code, out), (1, ''))
         self.assertEqual([c.args[0] for c in mouse.call_args_list], ['move', 'down', 'up'])
+        # The release goes to the app itself, never to whatever now holds the point.
+        self.assertEqual(mouse.call_args_list[-1].kwargs.get('pid'), 4242)
+        self.assertNotIn('pid', mouse.call_args_list[1].kwargs)
+
+    def test_interrupt_while_pressed_still_releases_to_the_app(self):
+        mouse = self.stub('mouse')
+        def pause(seconds):
+            if seconds == 0.06:
+                raise KeyboardInterrupt()
+        self.stub('pause', side_effect=pause)
+        code, out, err = self.invoke(['click', '--app', 'Sample', '--x', '10', '--y', '20'])
+        self.assertEqual((code, out), (1, ''))
+        self.assertEqual([c.args[0] for c in mouse.call_args_list], ['move', 'down', 'up'])
+        self.assertEqual(mouse.call_args_list[-1].kwargs.get('pid'), 4242)
+
+    def test_the_menu_bar_over_the_point_refuses_the_click(self):
+        mouse = self.stub('mouse')
+        menu_bar = window(wid=1, owner='Window Server', layer=24, x=0, y=0, width=2000, height=24)
+        app = window(x=100, y=0)
+        # Choosing the app's window uses the list without desktop elements; the hit test, the list with them.
+        self.stub('window_list', side_effect=lambda desktop=False: [menu_bar, app] if desktop else [app])
+        code, out, err = self.invoke(['click', '--app', 'Sample', '--x', '10', '--y', '2'])
+        self.assertEqual((code, out), (1, ''))
+        self.assertIn('covers that point', err)
+        mouse.assert_not_called()
+        code, out, err = self.invoke(['click', '--app', 'Sample', '--x', '10', '--y', '40'])
+        self.assertEqual((code, err), (0, ''))
 
     def test_a_window_over_the_point_refuses_the_click(self):
         mouse = self.stub('mouse')
@@ -207,19 +234,20 @@ class DesktopTests(unittest.TestCase):
 
     def test_key_focus_lost_after_press_releases_and_refuses(self):
         keyboard = self.stub('keyboard')
-        def flip(code, down):
+        def flip(code, down, pid=None):
             if down:
                 self.stub('frontmost', return_value='Other')
         keyboard.side_effect = flip
         code, out, err = self.invoke(['key', '--app', 'Sample', '--key', 'escape'])
         self.assertEqual((code, out), (1, ''))
         self.assertEqual([c.args[1] for c in keyboard.call_args_list], [True, False])
+        self.assertEqual(keyboard.call_args_list[-1].kwargs.get('pid'), 4242)
 
     def test_run_refuses_when_the_main_window_changes(self):
         self.stub('mouse')
         # One read at the recipe's start, then four for the first click: its window and a hit test before each event.
         lists = iter([[window()]] * 5 + [[window(wid=12, width=300)]] * 20)
-        self.stub('window_list', side_effect=lambda: next(lists))
+        self.stub('window_list', side_effect=lambda desktop=False: next(lists))
         with temporary() as directory:
             root = Path(directory)
             recipe = root / 'recipe.json'
@@ -302,7 +330,7 @@ class DesktopTests(unittest.TestCase):
             capture_mock = self.stub('capture', side_effect=lambda args: Path(args[-1]).write_bytes(b'synthetic'))
             for command, suffix, extra, flags in (
                 ('still', '.png', [], ['-x', '-o', '-l11']),
-                ('record', '.mov', ['--seconds', '2.5'], ['-x', '-v', '-o', '-l11', '-V2.5'])):
+                ('record', '.mov', ['--seconds', '2.5'], ['-x', '-v', '-C', '-o', '-l11', '-V2.5'])):
                 output = root / ('out' + suffix)
                 args = [command, '--app', 'Sample', '--output', str(output)] + extra
                 code, out, err = self.invoke(args)

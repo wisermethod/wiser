@@ -203,6 +203,25 @@ class CacheReviewTests(unittest.TestCase):
 
 
 class PathAndWorkerReviewTests(unittest.TestCase):
+    def test_check_reads_only_this_interpreters_cache(self):
+        import desktop
+        with temporary() as directory:
+            tool = Path(directory) / 'tool'
+            tool.mkdir()
+            pins = install.required_pins(TOOL)
+            other = (3, 99) if sys.version_info[:2] != (3, 99) else (3, 98)
+            stale = tool / '.venv' / ('lib/python%d.%d/site-packages' % other)
+            for name, version in pins.items():
+                info = stale / ('%s-%s.dist-info' % (name.replace('-', '_'), version))
+                info.mkdir(parents=True)
+                (info / 'METADATA').write_text('Metadata-Version: 2.1\nName: %s\nVersion: %s\n' % (name, version))
+            (tool / '.venv' / ('lib/python%d.%d/site-packages' % sys.version_info[:2])).mkdir(parents=True)
+            status = desktop.package_status(tool)
+            self.assertEqual(set(status), set(pins))
+            self.assertFalse(any(row['installed'] for row in status.values()),
+                             'a package in another interpreter\'s tree must not read as installed')
+            self.assertEqual(install.ready(tool / '.venv'), False)
+
     def test_input_hard_link_to_another_credential_file_is_refused(self):
         with temporary() as directory:
             root = Path(directory)

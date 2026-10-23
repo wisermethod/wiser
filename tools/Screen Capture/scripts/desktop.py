@@ -195,14 +195,20 @@ def parse(argv, tool):
 
 
 def package_status(tool):
-    locations = [str(p) for p in (tool / '.venv').glob('lib/python*/site-packages')]
-    found = {dist.metadata['Name'].lower().replace('_', '-'): dist.version
-             for dist in importlib.metadata.distributions(path=locations)}
-    pins = {name: '11.1' for name in ('pyobjc-core', 'pyobjc-framework-Cocoa', 'pyobjc-framework-Quartz',
-                                     'pyobjc-framework-CoreML', 'pyobjc-framework-Vision')}
-    pins.update(pillow='11.3.0', numpy='2.0.2' if sys.version_info < (3, 11) else '2.3.5')
-    return {name: {'required': pin, 'version': found.get(name.lower()), 'installed': found.get(name.lower()) == pin}
-            for name, pin in pins.items()}
+    # The same pins and the same single site-packages directory install.ready() reads, so check and the run agree.
+    from install import required_pins
+    site = tool / '.venv' / ('lib/python%d.%d/site-packages' % sys.version_info[:2])
+    found = {}
+    for dist in importlib.metadata.distributions(path=[str(site)]):
+        name = dist.metadata.get('Name')
+        if name:
+            found.setdefault(re.sub(r'[-_.]+', '-', name).lower(), set()).add(dist.version)
+    status = {}
+    # The pins ship beside these scripts; the cache is the one in the tool directory the caller runs.
+    for name, pin in required_pins(Path(__file__).resolve().parent.parent).items():
+        versions = found.get(name, set())
+        status[name] = {'required': pin, 'version': ', '.join(sorted(versions)) or None, 'installed': versions == {pin}}
+    return status
 
 
 def check(tool):
@@ -288,7 +294,7 @@ def same_window(row, expected):
 
 def topmost_at(x, y):
     """The front-most visible window containing a global point, in the window server's front-to-back order."""
-    for row in native.window_list():
+    for row in native.window_list(desktop=True):
         b = row['bounds']
         if row.get('alpha', 1.0) > 0 and b['x'] <= x < b['x'] + b['width'] and b['y'] <= y < b['y'] + b['height']:
             return row
@@ -328,12 +334,17 @@ def click(app, x, y, expected=None):
     native.pause(0.12)
     guard(app, window_id, target)
     native.mouse('down', *target)
-    native.pause(0.06)
+    released = False
     try:
+        native.pause(0.06)
         guard(app, window_id, target)
-    finally:
-        # A pressed button is always released, so a refusal here never leaves it held down.
         native.mouse('up', *target)
+        released = True
+    finally:
+        if not released:
+            # A pressed button is always released, even on an interrupt, and to the app itself, never to a window
+            # that now covers the point.
+            native.mouse('up', *target, pid=native.app_pid(app))
     return {'point': list(target)}
 
 
@@ -352,9 +363,17 @@ def key(app, name, expected=None):
     native.ready()
     same_window(main_window(app), expected)
     guard(app, None)
-    # Down and up back to back, with nothing between them, then focus read again; a key is never left down.
+    # Down and up back to back. Where focus moved between them, or anything failed, the key is released to the app
+    # itself, never left down; focus is read again after.
     native.keyboard(KEYS[name], True)
-    native.keyboard(KEYS[name], False)
+    released = False
+    try:
+        if native.frontmost() == app:
+            native.keyboard(KEYS[name], False)
+            released = True
+    finally:
+        if not released:
+            native.keyboard(KEYS[name], False, pid=native.app_pid(app))
     guard(app, None)
     return {'key': name}
 
@@ -373,7 +392,8 @@ def capture_file(app, output, tool, seconds=None, expected=None):
         seconds = number(seconds, '--seconds', minimum=0, maximum=600)
         if seconds <= 0:
             raise CaptureError('--seconds must be greater than 0 and at most 600; consult help')
-        arguments = ['-x', '-v', '-o', '-l%d' % row['id'], '-V' + format(seconds, 'g'), str(output)]
+        # -C keeps the pointer in the recording: a walkthrough shows it, and the redaction is tested with it moving.
+        arguments = ['-x', '-v', '-C', '-o', '-l%d' % row['id'], '-V' + format(seconds, 'g'), str(output)]
     try:
         native.capture(arguments)
         if not output.is_file() or output.stat().st_size == 0:
