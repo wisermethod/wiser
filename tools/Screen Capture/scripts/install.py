@@ -1,6 +1,8 @@
 """The tool-local wheel cache and plugin-scoped install consent (stdlib only)."""
+import importlib.metadata
 import json
 import os
+import re
 import subprocess
 import sys
 from datetime import date
@@ -24,9 +26,42 @@ def install_env(cache):
     return env
 
 
+def required_pins(tool):
+    pins = {}
+    for line in (tool / "requirements.txt").read_text().splitlines():
+        line = line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        requirement, separator, marker = line.partition(";")
+        if separator:
+            # The manifest uses only these two Python-version markers. Fail
+            # closed if a later manifest introduces an unsupported expression.
+            match = re.fullmatch(r'\s*python_version\s*(<|>=)\s*"(\d+)\.(\d+)"\s*', marker)
+            if not match:
+                raise ValueError("unsupported requirement marker")
+            before = sys.version_info[:2] < (int(match[2]), int(match[3]))
+            if before != (match[1] == "<"):
+                continue
+        match = re.fullmatch(r"\s*([A-Za-z0-9_.-]+)==([^\s;]+)\s*", requirement)
+        if not match:
+            raise ValueError("requirement must be pinned")
+        pins[re.sub(r"[-_.]+", "-", match[1]).lower()] = match[2]
+    return pins
+
+
 def ready(cache):
-    return any((p / "objc" / "__init__.py").is_file()
-               for p in cache.glob("lib/python*/site-packages"))
+    site = cache / ("lib/python%d.%d/site-packages" % sys.version_info[:2])
+    try:
+        pins = required_pins(cache.parent)
+        found = {}
+        for dist in importlib.metadata.distributions(path=[str(site)]):
+            name = dist.metadata.get("Name")
+            if name:
+                key = re.sub(r"[-_.]+", "-", name).lower()
+                found.setdefault(key, set()).add(dist.version)
+        return bool(pins) and all(found.get(name) == {version} for name, version in pins.items())
+    except (OSError, ValueError):
+        return False
 
 
 def ensure(tool, authorised, argv):
@@ -52,10 +87,12 @@ def ensure(tool, authorised, argv):
             marker = root / ".wiser-consent"
             marker.write_text(json.dumps(payload) + "\n")
             marker.chmod(0o600)
+        failure = ("wheel install failed; remove the incomplete .venv at " + str(cache) +
+                   " and retry with --install after checking python3 -m venv, pinned wheel support and directory permissions")
         try:
-            if not cache.exists():
+            if not python.is_file():
                 subprocess.run([sys.executable, "-m", "venv", str(cache)], check=True,
-                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                               env=install_env(cache), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             sys.stderr.write("First run: installing dependencies into " + str(cache) + "\n")
             # Wheels only: an unsupported interpreter must fail, never compile.
             result = subprocess.run([str(python), "-m", "pip", "install", "--only-binary=:all:",
@@ -63,12 +100,11 @@ def ensure(tool, authorised, argv):
                                      str(tool / "requirements.txt")], env=install_env(cache),
                                     stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
             if result.returncode or not ready(cache):
-                raise CaptureError("wheel install failed; check the pinned requirements support this interpreter, "
-                                   "remove the incomplete .venv and retry with --install")
-        except OSError:
-            raise CaptureError("cannot create the tool's .venv; check python3 -m venv and directory permissions") from None
+                raise CaptureError(failure)
+        except (OSError, subprocess.SubprocessError):
+            raise CaptureError(failure) from None
     if Path(sys.prefix).resolve() != cache.resolve():
         if os.environ.get("WISER_CAPTURE_CACHE_RUN") == "1" or not python.is_file():
             raise CaptureError("the .venv interpreter is incomplete; remove it and retry with --install")
         os.environ["WISER_CAPTURE_CACHE_RUN"] = "1"
-        os.execv(str(python), [str(python), str(tool / "scripts" / "capture.py")] + argv)
+        os.execv(str(python), [str(python), "-B", str(tool / "scripts" / "capture.py")] + argv)

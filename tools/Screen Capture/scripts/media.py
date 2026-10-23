@@ -37,10 +37,11 @@ def run(arguments, operation):
     return result.stdout
 
 
-def decode(path, directory, fps):
+def decode(path, directory, fps=None):
     directory.mkdir()
+    rate = ["-vf", "fps=" + str(fps), "-fps_mode", "cfr"] if fps is not None else ["-fps_mode", "passthrough"]
     run(["ffmpeg", "-nostdin", "-v", "error", "-protocol_whitelist", "file,pipe", "-i", str(path),
-         "-vf", "fps=" + str(fps), "-fps_mode", "cfr", str(directory / "f%05d.png")], "video decode")
+         *rate, str(directory / "f%05d.png")], "video decode")
     files = sorted(directory.glob("f*.png"))
     if not files:
         raise CaptureError("video decoded to zero frames; check its duration and --fps")

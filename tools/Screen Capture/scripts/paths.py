@@ -81,6 +81,11 @@ def screen(value, option, tool, destination=False, directory=False):
     reserved = canonical(key.parent)
     if path == reserved or reserved in path.parents or inside(path, reserved):
         raise CaptureError(option + " is in the credential directory; choose a work file")
+    try:
+        if reserved.is_dir() and any(entry.is_file() and same_file(path, entry) for entry in reserved.iterdir()):
+            raise CaptureError(option + " identifies a file in the credential directory; choose a work file")
+    except OSError:
+        raise CaptureError(option + " cannot screen the credential directory; check folder permissions and retry") from None
     if destination:
         if inside(path, tool):
             raise CaptureError(option + " resolves inside the tool; choose a work directory")

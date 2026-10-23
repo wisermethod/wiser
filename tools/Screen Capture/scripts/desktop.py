@@ -373,8 +373,7 @@ def capture_file(app, output, tool, seconds=None, expected=None):
         seconds = number(seconds, '--seconds', minimum=0, maximum=600)
         if seconds <= 0:
             raise CaptureError('--seconds must be greater than 0 and at most 600; consult help')
-        rect = ','.join(format(row['bounds'][k], 'g') for k in ('x', 'y', 'width', 'height'))
-        arguments = ['-x', '-v', '-C', '-k', '-V' + format(seconds, 'g'), '-R' + rect, str(output)]
+        arguments = ['-x', '-v', '-o', '-l%d' % row['id'], '-V' + format(seconds, 'g'), str(output)]
     try:
         native.capture(arguments)
         if not output.is_file() or output.stat().st_size == 0:

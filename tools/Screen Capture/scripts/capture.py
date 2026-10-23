@@ -2,11 +2,13 @@
 """Screen Capture entry point. Stdlib only until flags, paths and dependencies pass."""
 import json
 import math
+import os
 import sys
 from pathlib import Path
 
 # Prevent bytecode writes alongside shipped scripts, including spawned workers.
 sys.dont_write_bytecode = True
+os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 
 from paths import CaptureError, screen, same_file
 

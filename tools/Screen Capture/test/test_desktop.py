@@ -302,7 +302,7 @@ class DesktopTests(unittest.TestCase):
             capture_mock = self.stub('capture', side_effect=lambda args: Path(args[-1]).write_bytes(b'synthetic'))
             for command, suffix, extra, flags in (
                 ('still', '.png', [], ['-x', '-o', '-l11']),
-                ('record', '.mov', ['--seconds', '2.5'], ['-x', '-v', '-C', '-k', '-V2.5', '-R100,50,200,100'])):
+                ('record', '.mov', ['--seconds', '2.5'], ['-x', '-v', '-o', '-l11', '-V2.5'])):
                 output = root / ('out' + suffix)
                 args = [command, '--app', 'Sample', '--output', str(output)] + extra
                 code, out, err = self.invoke(args)

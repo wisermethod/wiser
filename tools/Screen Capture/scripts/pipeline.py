@@ -95,20 +95,19 @@ def execute(command, source, output, report, terms=(), named=(), fps=30, workers
             rendered.mkdir()
             render_frames(files, per, rendered, (width, height), workers)
             clock["redact"] = time.perf_counter() - start
-            descriptor, filename = tempfile.mkstemp(prefix=".wiser-screen-capture-", suffix=output.suffix,
-                                                   dir=str(output.parent))
-            os.close(descriptor)
-            pending = Path(filename)
+            candidate = work / ("candidate" + output.suffix)
             start = time.perf_counter()
             tags = None
             if kind == "still":
-                shutil.copyfile(rendered / "f00001.png", pending)
+                shutil.copyfile(rendered / "f00001.png", candidate)
             else:
-                tags = encode(rendered, pending, fps)
+                tags = encode(rendered, candidate, fps)
             clock["encode"] = time.perf_counter() - start
             start = time.perf_counter()
             # Read the written deliverable, including H.264 artifacts, never the pre-encode frames.
-            check_files = [pending] if kind == "still" else decode(pending, work / "check", fps)
+            check_files = [candidate] if kind == "still" else decode(candidate, work / "check")
+            if len(check_files) != len(files):
+                raise CaptureError("encoded video frame count changed during decode; output withheld. Check ffmpeg and retry")
             checked = verify(check_files, terms)
             clock["check"] = time.perf_counter() - start
             write_report(report, {"ok": not bool(checked["hits"]), "kind": kind, **checked})
@@ -117,6 +116,11 @@ def execute(command, source, output, report, terms=(), named=(), fps=30, workers
                                    " and add --region rectangles before retrying")
             if output.exists():
                 raise CaptureError("--output appeared during the run; choose a new filename and retry")
+            descriptor, filename = tempfile.mkstemp(prefix=".wiser-screen-capture-", suffix=output.suffix,
+                                                   dir=str(output.parent))
+            os.close(descriptor)
+            pending = Path(filename)
+            shutil.copyfile(candidate, pending)
             pending.rename(output)
             pending = None
             return {"ok": True, "output": str(output), "kind": kind, "frames": len(files),
