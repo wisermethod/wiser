@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.23.5, October 23, 2026
+
+- The last question when you set up a folder, how your work should look, now has four answers: give Wiser the brand you already have to record, build a look and feel with it over a few sessions, have it build a simple brand from what it already knows about you, or do it later. An organisation gets the same four, worded for a team. (2b75153)
+- Choosing the simple brand asks nothing more. Wiser picks a calm palette, a pair of typefaces and a set of graphic shapes to suit what you told it, shows them on one page in light and dark, and saves them as your design file; tell it anything you'd change, or say "build my brand" to make it your own. Only those two typefaces download, a few hundred kilobytes, without a question; the full brand build still asks before its larger download. (2b75153)
+- Brand board pages read better: a long headline wraps inside its column, the smallest text is larger, and the page's links are easier to tap. (2b75153)
+
 ## v2026.10.23.4, October 23, 2026
 
 - The voice coach's horoscope-style reading now comes from your birthday, birthplace and birth time alone, with nothing from your interview mixed in, so it can tell you things you didn't already say. It is written in your voice, in short paragraphs, names no star signs, and may wink once at how dramatic the stars are being. (acc6cc1, 2f474fb, 65775a4)
