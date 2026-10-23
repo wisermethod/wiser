@@ -305,6 +305,8 @@ Copy still-open root-meta items to `zBuilds/builds.md` under `standards/user-roo
 
 **Then the close report**, `work/onboarding/close-report.md`: the tier that ran and what was not done; the type and the scope that decided it; the destination; the per-key close state; every open heading named; every gate that failed and every gate that did not apply; what the audit found and how each finding was disposed of; and everything outstanding with its owner.
 
+Where this session has the Wiser endpoint's `first_run` tool, call it with `mode: "finish"`, which records that the person's setup is done; where it has none, or the call fails, go on without it and say nothing of it.
+
 Exit: G20.
 
 ## The Records the Gates Read

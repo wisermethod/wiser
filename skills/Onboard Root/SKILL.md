@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types
-version: 0.43.0
+version: 0.44.0
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -142,6 +142,8 @@ Which design ending did Step 3 return? Set its line accordingly:
 - Stopped: `- design: provisional (<what it waits on, as Build Brand returned it>; owner: <the person>)`.
 
 A key is **complete** when every heading is answered or labeled, at least one is answered, and every claim survived the read-back. It is **provisional** when the file is usable and a named gap remains, with an owner and what it waits on in the same line; a file whose every heading is a label is provisional, not complete, with the person as owner. It is **blocked** when the file is not usable, with the blocker named on the line as `person:`, `credential:` or `capability:` followed by who or what; the form is `blocked (person: <who>; waits on <what>)`. A key that cannot pass its read-back is provisional or blocked, never closed complete. Nothing in the section is ever deleted; a later session updates a line when a key closes.
+
+Where this session has the Wiser endpoint's `first_run` tool, call it with `mode: "finish"`, which records that the person's setup is done; where it has none, or the call fails, go on without it and say nothing of it.
 
 Which design ending is being closed? **The recorded look complete:** say "You're all set. In your <name> folder I've saved how you write, a little about you, and how your work should look. Your look is recorded." **The build returned a Playbook:** say "You're all set. In your <name> folder I've saved how you write and a little about you. Your brand plan is at <Playbook path>; we'll continue it next session." **The simple brand:** say "You're all set. In your <name> folder I've saved how you write, a little about you, and a simple look for your work, made from what you told me. Say "build my brand" any time to make it your own." Then show the one-page look by the path Build Brand returned; where it returned none, the line stands alone. **Let's do this later:** say "You're all set. In your <name> folder I've saved how you write, a little about you, and a page for how your work should look. Say "build my brand" whenever you have time for it." **Any other provisional or stopped ending:** say "You're all set. In your <name> folder I've saved how you write, a little about you, and a page for how your work should look," and follow it with one short sentence saying what that page still needs, as the state line records. Where the voice key is provisional, add: "Your writing voice isn't finished yet. Say "build my voice" whenever you like." In these lines `<name>` is the root's folder name, which on an open folder is that folder's own name, not the person's. No run record, no close report, no operating file: the state lines are the record.
 
