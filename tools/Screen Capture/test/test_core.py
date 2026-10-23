@@ -151,6 +151,8 @@ class TermsTests(unittest.TestCase):
         self.assertIn("address-shaped", self.labels([], "Signed in as riley.q@exampl\u2026"))
         self.assertNotIn("address-shaped", self.labels([], "Contact © Support"))
         self.assertNotIn("address-shaped", self.labels([], "Follow @wisermemory"))
+        # Two letters run into a misread "@" are OCR noise, not a shortened address.
+        self.assertNotIn("address-shaped", self.labels([], "to@Wiser? Yes, now"))
         self.assertIn("term 1 whole", self.labels(["riley.q@example.org"], "riley.q\n@\nexample.org"))
 
     def test_offsets_and_numbered_classes(self):

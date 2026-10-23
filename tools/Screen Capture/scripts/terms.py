@@ -4,9 +4,10 @@ import re
 # Deliberately loose, as the proof was: OCR confuses @ and the punctuation, and may put a space around either.
 # Never a line break: OCR puts separate blocks of a screen on separate lines.
 # The second form is an address a page shortened, "name@domain" with its ending cut off. It takes a real "@" with no
-# space around it, so a glyph OCR misreads as "©" between two words is not one.
+# space around it and three characters or more on each side, so neither a glyph OCR misreads as "©" between two
+# words nor two letters OCR runs into a misread "@" is one.
 ADDRESS = re.compile(r"[A-Za-z0-9._%+|\-]+[ \t]?[@©®][ \t]?[A-Za-z0-9|\-]+(?:[ \t]?[.,][ \t]?[A-Za-z0-9|\-]+)+"
-                     r"|[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]{2,}")
+                     r"|(?<![A-Za-z0-9._%+\-])[A-Za-z0-9._%+\-]{3,}@[A-Za-z0-9\-]{3,}")
 FOLD = str.maketrans({"0": "o", "1": "l", "|": "l"})
 
 
