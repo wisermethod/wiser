@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.23.7, October 23, 2026
+
+- "Set up Wiser" now gives you every step for making your project in one message, with your name and your folder written in, so you can leave the chat to follow them instead of coming back after each click. (13cd442)
+
 ## v2026.10.23.6, October 23, 2026
 
 - To get started, type "Set up Wiser" in Claude Cowork or the ChatGPT desktop app. Wiser checks that it's connected, asks your first name, makes a folder for you called Wiser on your Desktop with your name inside it, and walks you through making a project in your app with that folder attached. (da90f5a, 9752e2b, 69c02ed, a392eb7)
