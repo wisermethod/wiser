@@ -819,6 +819,25 @@ const woff2InvalidDirectories = [
   ['truncated compressed data', [0, 1], { compressed: 1 }]
 ];
 
+// The real WOFF2 corpus is Build Brand's font pack, which installs only on a person's yes
+// (skills/Build Brand/scripts/fonts.mjs). Without it this test is skipped, visibly, so the
+// Contact Sheet's own suite does not fail on another skill's optional download.
+test('WOFF2: every real file in the installed font pack is accepted', (t) => {
+  const pack = resolve(ROOT, '../../skills/Build Brand/parts/fonts');
+  const fonts = existsSync(pack) ? woff2Files(pack) : [];
+  if (!fonts.length) {
+    t.skip('the Build Brand font pack is not installed: run node scripts/fonts.mjs check --install from that skill to check real files');
+    return;
+  }
+  const dir = temp(t), spec = brandFixture();
+  spec.boards = [spec.boards[0]]; spec.groups = [spec.groups[0]];
+  for (const [i, font] of fonts.entries()) {
+    spec.boards[0].type.heading.files[0].path = font;
+    success(build(dir, spec, 'real-' + i + '.html').result);
+  }
+  t.diagnostic('Accepted all ' + fonts.length + ' real WOFF2 files.');
+});
+
 for (const [label, directory, options] of woff2InvalidDirectories) test('WOFF2 regression: ' + label + ' is refused', (t) => {
   if (label === 'header without a directory') {
     const dir = temp(t), spec = brandFixture();
@@ -829,13 +848,7 @@ for (const [label, directory, options] of woff2InvalidDirectories) test('WOFF2 r
       spec.boards[0].type.heading.files[0].path = file;
       success(build(dir, spec, 'bounded-' + i + '.html').result);
     }
-    const fonts = woff2Files(resolve(ROOT, '../../skills/Build Brand/parts/fonts'));
-    assert.ok(fonts.length > 0, 'the installed font pack is required');
-    for (const [i, font] of fonts.entries()) {
-      spec.boards[0].type.heading.files[0].path = font;
-      success(build(dir, spec, 'real-' + i + '.html').result);
-    }
-    t.diagnostic('Accepted all ' + fonts.length + ' real WOFF2 files and all bounded directory forms.');
+    t.diagnostic('Accepted all bounded directory forms.');
   }
   brandRefusal(t, (s, dir) => {
     const file = join(dir, 'invalid.woff2');
