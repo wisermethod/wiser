@@ -3,7 +3,7 @@ name: Illustrator
 type: skill
 category: design
 description: One still picture that explains or illustrates, an illustration of how something works, an infographic of sourced figures, a spot illustration beside a section, slide or article, or a diagram drawn as a picture, in the owning root's design unless the project or requester names other design instructions, its structure placed by code, true to its sources, and delivered to a site built with the plugin's site kit, any other site, one deck slide, an image file, or a skill that moves it.
-version: 0.1.0
+version: 0.1.1
 memory:
   - about
   - design
@@ -109,7 +109,7 @@ Read `drawing.md` for this step.
 
 **3d. Which path?** Pick it by `drawing.md` `## Placing it by code`, and record the path, the template where there is one, and why.
 
-**3e. Did the requester ask to choose among options?** Yes: lay out two or three structures or templates, each rendered at the width Frame recorded, on one local page side by side, each with its letter and one line naming its structure and template; show it to the approver Frame recorded, and record the pick and any change in their words. No answer: the picture is unfinished at this step, and the run stops, naming it. No, they did not ask: the run picks, and records why. For a picture another skill will move, the options are code-layout arrangements only, and the pick replaces Steps 3c's and 3d's records.
+**3e. Did the requester ask to choose among options?** Yes: render two or three structures or templates, each at the width Frame recorded, and lay them out side by side on one `pick` page with `tools/Contact Sheet/`, each an image item numbered in order, labelled with one line naming its structure and template; show that page to the approver Frame recorded, and record the pick and any change in their words. No answer: the picture is unfinished at this step, and the run stops, naming it. No, they did not ask: the run picks, and records why. For a picture another skill will move, the options are code-layout arrangements only, and the pick replaces Steps 3c's and 3d's records.
 
 ### 4. Draw
 

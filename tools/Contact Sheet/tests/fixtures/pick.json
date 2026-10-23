@@ -1,0 +1,126 @@
+{
+  "layout": "pick",
+  "title": "Directions to compare",
+  "intro": "Six small options, shown for a person to choose.",
+  "items": [
+    {
+      "kind": "image",
+      "label": "Material study",
+      "file": "tiny.png",
+      "alt": "Two rows of muted colour",
+      "source": "Original fixture",
+      "note": "A material and colour cue."
+    },
+    {
+      "kind": "image",
+      "label": "Simple forms",
+      "file": "tiny.svg",
+      "alt": "A dark circle on a gradient rectangle",
+      "source": "https://example.invalid/reference",
+      "note": "A shape cue."
+    },
+    {
+      "kind": "text",
+      "label": "A direction in words",
+      "text": "The work speaks clearly.",
+      "note": "A sentence to compare."
+    },
+    {
+      "kind": "palette",
+      "label": "Paper and ink",
+      "note": "A restrained palette.",
+      "colors": [
+        {
+          "name": "Paper",
+          "value": "#fafafa",
+          "role": "Canvas",
+          "share": 70
+        },
+        {
+          "name": "Ink",
+          "value": "#222222",
+          "role": "Copy and actions",
+          "share": 30
+        }
+      ],
+      "sample": {
+        "background": "Paper",
+        "text": "Ink",
+        "accent": "Ink",
+        "onAccent": "Paper"
+      },
+      "recommended": true,
+      "reason": "Reflects your quiet direction."
+    },
+    {
+      "kind": "palette",
+      "label": "Warm and grounded",
+      "note": "A warmer palette.",
+      "colors": [
+        {
+          "name": "Warm",
+          "value": "oklch(95% 0.02 80)",
+          "role": "Canvas",
+          "share": 65
+        },
+        {
+          "name": "Deep",
+          "value": "#243b35",
+          "role": "Copy",
+          "share": 25
+        },
+        {
+          "name": "Clay",
+          "value": "#b87654",
+          "role": "Actions",
+          "share": 10
+        }
+      ],
+      "sample": {
+        "background": "Warm",
+        "text": "Deep",
+        "accent": "Clay",
+        "onAccent": "Deep"
+      }
+    },
+    {
+      "kind": "type",
+      "label": "A fixture type system",
+      "heading": {
+        "family": "Contact Sheet Fixture",
+        "file": "fixture.ttf",
+        "licence": "CC0 1.0 Universal; original fixture font"
+      },
+      "body": {
+        "family": "Contact Sheet Fixture",
+        "file": "fixture.ttf",
+        "licence": "CC0 1.0 Universal; original fixture font"
+      },
+      "sentence": "The work speaks clearly.",
+      "palette": {
+        "colors": [
+          {
+            "name": "Paper",
+            "value": "#fafafa",
+            "role": "Canvas",
+            "share": 70
+          },
+          {
+            "name": "Ink",
+            "value": "#222222",
+            "role": "Copy and actions",
+            "share": 30
+          }
+        ],
+        "sample": {
+          "background": "Paper",
+          "text": "Ink",
+          "accent": "Ink",
+          "onAccent": "Paper"
+        }
+      },
+      "note": "The test font at three sizes."
+    }
+  ],
+  "closing": "Which ones are you leaning towards? We can refine from there."
+}

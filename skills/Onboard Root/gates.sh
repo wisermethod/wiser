@@ -295,11 +295,21 @@ list_any() {
   find "$1" -type f ! -name 'AGENTS.md' ! -name '.*' ! -name '.DS_Store' 2>/dev/null | sort
 }
 
-# bound files: the markdown files under memory/, never the credential store
-# and never memory/answers/, which Provides does not bind (standards/user-root.md C14).
+# bound files: the markdown files under memory/, never the credential store,
+# never memory/answers/, which Provides does not bind (standards/user-root.md C14),
+# and never a zArchive/ directory: an archived copy is a record of what a file
+# was, kept by standards/conventions.md Archives before a rewrite, not a bound
+# file, and an archived template stub still holds its prompt lines.
 bound_files() {
   [ -d "$MEM" ] || return 0
-  find "$MEM" -type f -name '*.md' 2>/dev/null | grep -v "^$MEM/secrets/" | grep -v "^$MEM/answers/" | sort
+  # Pruned by find rather than filtered by grep: a pattern built from $MEM breaks on
+  # a path holding a regex character, and a bare /zArchive/ match would drop every
+  # file of a root that itself sits under a folder of that name. -path globs, so the
+  # glob characters in $MEM are escaped first, or a root named "Client [acme]" would
+  # let secrets/ through.
+  local mem_glob
+  mem_glob=$(printf '%s' "$MEM" | sed 's/[][*?\\]/\\&/g')
+  find "$MEM" \( -path "$mem_glob/secrets" -o -path "$mem_glob/answers" -o -name zArchive \) -prune -o -type f -name '*.md' -print 2>/dev/null | sort
 }
 
 # ---------------------------------------------------------------- awk library
@@ -1777,7 +1787,9 @@ gate_G11() {
         Competitor) continue ;;
       esac
       add_fail "$r line $ln: label token '[$head]' is outside the standard's four (Verified, Estimated, Unverified, Not available)"
-    done < <(strip_preamble "$f" | grep -onE '\[[A-Z][A-Za-z ]*(:[^]]*)?\]' 2>/dev/null)
+    # A markdown link's text, [Brand direction](path), is not a label: the link is
+    # reduced to its text first, line for line, so line numbers still match.
+    done < <(strip_preamble "$f" | sed -E 's/\[([^]]*)\]\([^)]*\)/\1/g' | grep -onE '\[[A-Z][A-Za-z ]*(:[^]]*)?\]' 2>/dev/null)
   done < <(bound_files)
 }
 
@@ -2708,6 +2720,28 @@ gate_G19() {
     [ "$n" -gt 0 ] || add_note "$(rel "$SECRETS") holds no credential files"
   else
     add_note "no $(rel "$SECRETS") directory: the credential clause did not run"
+  fi
+
+  # The Provides block's own memory bindings: each names a file under the root.
+  # A state written over a binding ("- design: provisional (...)") unbinds the
+  # key while every other gate still passes, so the binding itself is checked.
+  if [ -f "$AGENTS" ] && grep -qE '^## Provides[[:space:]]*$' "$AGENTS"; then
+    strip_comments < "$AGENTS" > "$TMPD/g19-agents.md" 2>/dev/null
+    while IFS= read -r bind; do
+      [ -n "$bind" ] || continue
+      ran=1
+      key=$(printf '%s' "$bind" | sed -E 's/^ {0,3}-[[:space:]]+([a-z]+):.*/\1/')
+      val=$(printf '%s' "$bind" | sed -E 's/^ {0,3}-[[:space:]]+[a-z]+:[[:space:]]*//; s/[[:space:]]+$//; s/^`//; s/`$//')
+      case "$val" in
+        *.md) ;;
+        *) add_fail "$(rel "$AGENTS"): Provides binds '$key' to '$val', which is not a markdown file path"; continue ;;
+      esac
+      if ! under_root "$val"; then
+        add_fail "$(rel "$AGENTS"): Provides binding '$key: $val' $_ur_why"
+      elif [ ! -f "$ROOT/$val" ]; then
+        add_fail "$(rel "$AGENTS"): Provides binding '$key: $val' does not resolve under the root"
+      fi
+    done < <(section_body "$TMPD/g19-agents.md" "## Provides" 2>/dev/null | grep -E '^ {0,3}-[[:space:]]+(about|voice|design):')
   fi
 
   if [ "$ran" = "0" ]; then

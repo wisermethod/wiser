@@ -25,3 +25,6 @@ __pycache__/
 .cache/
 speech-models/
 ms-playwright/
+
+# Build Brand installs its pinned font pack once per plugin copy.
+skills/Build Brand/parts/fonts/
