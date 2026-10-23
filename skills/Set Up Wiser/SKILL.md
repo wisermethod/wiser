@@ -3,7 +3,7 @@ name: Set Up Wiser
 type: skill
 category: onboarding
 description: Take a new member from a first chat with no folder open to their own Wiser folder on their Desktop and a project in their app with that folder attached, checking their Wiser connection first and ending on Onboard Project
-version: 0.1.0
+version: 0.2.0
 ---
 
 # Set Up Wiser
@@ -56,26 +56,24 @@ Take the name as they spell it, with each character the Names rules in `standard
 
 Find their Desktop as their computer reports it, never by assuming where it is: on Windows it is often inside OneDrive. Can this session reach it? Where the app shows the person a request to allow that, tell them to allow it.
 
-- **Yes, and Wiser on the Desktop already holds a folder with that name, compared ignoring case.** Use the folder's own spelling from here on. Is it empty? Yes: use it. Is it a Wiser folder? Yes: use it, say "You already have a Wiser folder, so we'll use that one.", and step 6 ends differently. Neither: say a folder with that name is already there with other things in it, and ask for another name to use, such as their first name and last initial; take the answer through the paragraph on the Names rules above, not the question before it.
+- **Yes, and Wiser on the Desktop already holds a folder with that name, compared ignoring case.** Use the folder's own spelling from here on. Is it empty? Yes: use it. Is it a Wiser folder? Yes: use it, say "You already have a Wiser folder, so we'll use that one.", and step 5's last step is different. Neither: say a folder with that name is already there with other things in it, and ask for another name to use, such as their first name and last initial; take the answer through the paragraph on the Names rules above, not the question before it.
 - **Yes, and there is no such folder.** Make the folder Wiser on the Desktop where it is missing, and the folder with their first name inside it, and put nothing in either. Read it back. It exists and is empty: say "Done. Your folder is on your Desktop, in Wiser, called <first name>." It is missing or holds anything: take the next bullet's route.
 - **No**, or the app refuses: the person makes the two folders in step 5, at the moment the app asks them to choose a folder. Say: "I can't reach your Desktop from this chat, so you'll make the folder in the next step. I'll tell you exactly where to click."
 
 Then go to step 5.
 
-### 5. The project
+### 5. The project, and what comes next
 
-Say: "Next, you'll make a project. A project is a space in your app where every chat already knows about your folder, so you never have to point me to it again."
+They will leave this chat to make the project, so give every step in one message and do not wait between them. Open the message with: "Next, you'll make a project. A project is a space in your app where every chat already knows about your folder, so you never have to point me to it again. You'll leave this chat to do it, so here's every step at once." Then give that app's steps below as one numbered list, writing in their first name and the folder's place wherever a step names them, and end the list with the last step for their folder. Then stop: this chat is done.
 
-Which app is this? Give that app's steps below, one message at a time, waiting for them to say each is done. Where step 4 could not make the folders, the moment the app asks them to choose a folder is where they make them: in that window, open the Desktop, choose New Folder, name it Wiser, open it, choose New Folder again, name it with their first name, and choose it.
+- **Claude Cowork:** open Projects, choose the plus button, then Use an existing folder; choose Desktop, then Wiser, then the folder with their first name; name the project with their first name; where there is a description box, type Wiser Managed Project; create the project.
+- **The ChatGPT desktop app:** open Projects and make a new project on this computer, named with their first name; open its menu and choose Edit project, then Add folder; choose Desktop, then Wiser, then the folder with their first name; where it offers Make primary, choose it. There is no description to fill in.
 
-- **Claude Cowork:** open Projects, choose the plus button, then Use an existing folder, and choose the folder with their first name inside Wiser on the Desktop. Name the project with their first name. Where there is a description box, type Wiser Managed Project. Create the project.
-- **The ChatGPT desktop app:** open Projects and make a new project on this computer, named with their first name. Open its menu, choose Edit project, then Add folder, and choose the folder with their first name inside Wiser on the Desktop; where it offers Make primary, choose it. There is no description to fill in.
+Where step 4 could not make the folders, the step that chooses the folder makes them instead: in that window, open the Desktop, choose New Folder and name it Wiser, open it, choose New Folder again and name it with their first name, and choose it.
 
-Where the screens they describe differ from these, ask what they see, in their words, and guide from that; never send them to type a location or paste text.
+The last step depends on step 4. The folder was new or empty: "Open a new chat inside your project and type Onboard Project. That's where I'll set up your folder and get to know how you write." The folder was already a Wiser folder: "Open a new chat inside your project and just start working. Your folder is already set up."
 
-### 6. The next step
-
-Was the folder already a Wiser folder in step 4? No: say "Your project is ready. Open a new chat inside it and type Onboard Project. That's where I'll set up your folder and get to know how you write." Yes: say "Your project is ready, and your folder was already set up. Open a new chat inside it and just start working." Stop.
+Where they come back and say the screens differ from these steps, ask what they see, in their words, and guide from that; never send them to type a location or paste text.
 
 ## Pitfalls
 
