@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.23.2, October 23, 2026
+
+- On a personal folder, the voice coach's first piece is now a bit of fun: a personality profile of you in the style of a horoscope, drawn from your birthday, where you were born and roughly what time, then written in your voice. Say "skip" and it writes a short piece on your topic instead. Call the reading spooky good and the coach keeps it in a file of its own in your folder and adds two things it says about you to your voice, after telling you which; say the style is right but the personality is off, and it asks what's off and uses your answer. (bc288d9, a7c1fe5, afd935f)
+- The portrait the coach shows you now reads like a personality profile rather than your answers handed back: the role you play, what drives you, how the people you write for experience you, and you at your best. (bc288d9)
+- The coach's opening, its humour question, its lead-in to the taps and its close are reworded, it asks one follow-up where it used to ask three, and setting up a folder no longer introduces the coach twice. (bc288d9)
+
 ## v2026.10.23, October 23, 2026
 
 - Wiser can now build your brand with you. Ask it to help with your brand and choose how: about ten minutes of questions that record the brand you already have in your design file, or a full build over a few sessions that starts by writing a plan into your folder. The full build shows you whole brand boards, each a complete look with its colours, lettering and graphic shapes, and you say what you like, ask for blends and changes, and lock the one that is yours; it then writes a brand direction, design tokens, your brand on a social post, a flyer and a business card, a short guide and your design file. It reads your voice file and never changes it, and where a brand word clashes with how you write, it asks you which should win. A logo is not drawn yet: the build names it as still to come. (bcbd9b0, 8bed28a, a559d32, 560a978)

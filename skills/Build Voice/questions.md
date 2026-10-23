@@ -1,12 +1,12 @@
 # The interview
 
-What the coach says and asks, in the order `SKILL.md` The coach runs it. A tapped question is asked with the app's question tool where it has one: each option a button, and where an option below has words after a colon, the words before it are the button and the words after it are the line under it. Where the app has none, one question per message, its options lettered, answered with a letter. A typed question is a plain message, one at a time. The codes (W, P, R, F, A) are the question numbers the answers file records and `voice.md` cites. Bank version for every row: `Build Voice bank 3`.
+What the coach says and asks, in the order `SKILL.md` The coach runs it. A tapped question is asked with the app's question tool where it has one: each option a button, and where an option below has words after a colon, the words before it are the button and the words after it are the line under it. Where the app has none, one question per message, its options lettered, answered with a letter. A typed question is a plain message, one at a time. The codes (W, P, R, F, A) are the question numbers the answers file records and `voice.md` cites. Bank version for every row: `Build Voice bank 4`.
 
 Each question says what it **feeds**. A line in quotation marks after a pick is the exact line that pick writes into `voice.md` `## How They Write`, copied word for word.
 
 ## Opening
 
-> Let's find your voice on the page. It takes about eight minutes: a few questions about you, some quick taps, then I'll show you how you come across and write your first piece. There's nothing to prepare, and "not sure" is always a fine answer.
+> We are going to begin by building a writing style we call your "voice" together. It takes about eight minutes: a few questions about you, some quick taps, then I'll show you how you come across and write your first piece. There's nothing to prepare, and "not sure" is always a fine answer.
 
 ## W1 (typed)
 
@@ -18,21 +18,21 @@ Feeds: the portrait's first sentence, with their role; P3's detail; `about.md` `
 
 > What's one thing about your work, or your world, you wish more people knew? An example helps, if one comes to mind.
 
-"None" or a skip is a fine answer. Feeds: the portrait's angle; `about.md` `## Personality`; the wording of P1, P2 and P3; the first offer at F1.
+"None" or a skip is a fine answer. Feeds: the portrait's angle; `about.md` `## Personality`; the wording of P1, P2 and P3; the piece on their topic at F2.
 
-## The follow-up
+### W2a (typed)
 
-Asked at most once per answer, after W1, W2 or W3, only when the answer is a label, an adjective or two, rather than a picture. Recorded as W1a, W2a or W3a. W4 has its own, W4a, below.
+Asked at most once, after W2, only when the answer is a label, a word or two, rather than a point. [what they do] is what they do, from W1, in their words, such as "doing the books for restaurants", or "your work" where W1 was skipped.
 
-> What's something you'd actually say that sounds like that? A few words is plenty.
+> I need you to expand on that a little: give me a full sentence about your point of view or a perspective you have on [what they do].
 
-Feeds: whatever its question feeds, made concrete.
+Feeds: whatever W2 feeds, made concrete.
 
 ## Screen 1 (tapped)
 
-Said before it:
+Said before it, leaving out its last two sentences where the screen asks no pair:
 
-> Now some quick taps. Where I've said what you told me two ways, pick the one you'd actually say, not the one that sounds better; there, "Both" is a real answer.
+> Now some quick taps. These are simple: just pick the one you'd actually say, not the one that sounds better. "Both" is a real answer.
 
 **How every pair is written.** Each pair is written from the person's own answer named under it; where that answer makes more than one point, from the first point it makes. Copy one stretch of what they said onto both sides, in their words, with their facts and their hedges, and change only the one thing the pair names: P1 the frame, P2 the order of their example and their point, P3 one detail of their own. Every word on either side is theirs except P1's frame and what a sentence needs to be whole. A side that leaves something out uses only words already in that stretch, and neither side changes who did what. Both sides pass the floor. Where the pair would need a second change, or anything they did not say, a fact, number, name, hedge, feeling, joke or image, the pair is not asked: it writes nothing, and a screen asks only the pairs their answers give. A pair never puts words in their mouth. The answers file records both lines shown.
 
@@ -69,7 +69,7 @@ Writes:
 
 P6 to P9 are not pairs: each is the same for everyone and asked on every run, and each line it writes covers only the moment its question names. A skip writes nothing. Typed instead of tapped, an answer that plainly matches an option writes that option's line; one that matches none, such as "only about my own mistakes", writes one line in their words, for the same moment, cited with the tap's number.
 
-> Something's gone a bit wrong. Would you make a joke about it in writing?
+> To help me gauge your usage of humor, tell me: when something's gone a bit wrong, would you make a joke about it in writing?
 
 - Yes, it keeps everyone sane
 - Only with people I know well
@@ -175,20 +175,31 @@ The question carries the portrait, so the two are always seen together: it opens
 
 On Close, but or Not quite, they say what to change, in the free-text answer or a reply. Feeds: the portrait; `about.md` `## Personality` where it changes their angle or their aim; where it says how they write rather than who they are, it is sorted like an A3 change.
 
-## F1. The first piece (tapped)
+## F1. The reading (typed)
+
+> Now let's have a little fun with your first writing sample. I'll write a personality profile of you in the style of a horoscope. I just need your birthday with the year, where you were born, and roughly what time. A guess at the time is fine. Say "skip" if you have an allergy to hearing about yourself.
+
+The answer is recorded as given; a time they do not know is left out, and the rest still makes the reading. Skipped, or given without a birthday or a place: F2. Feeds: the reading's prompt, and nothing else.
+
+The prompt, filled in and handed over as `SKILL.md` The coach step 5 says, word for word:
+
+> I want you to give me an astrology reading for [name] born on [date] in [location] at [time], with the attributes [a little context] - focus on personality, career, ambition, and work/personal relationships. Keep the astrology terminology to a minimum
+
+## F2. A piece on your topic (tapped)
+
+Only after F1 is skipped or gives no birthday or no place, or the reading does not come back. Where W2 gave a point, F2 is not asked: the piece is the short post on what they wish people knew, and F2a asks its post line. Otherwise:
 
 > Let's see it in action. What should I write first?
 
-- A short post on what you wish people knew: the thing you told me earlier (offered only when W2 gave one)
 - Something I'm working on
 - An email asking for a meeting
 - A thank-you note to someone who helped
 
-Skipped: the post where W2 gave a point; otherwise a short note saying what they do, from W1.
+Skipped: a short note saying what they do, from W1; where W1 was skipped too, there is nothing to write from, and the run stops by `SKILL.md` The coach step 8.
 
-## F1a (typed)
+## F2a (typed)
 
-One sentence that gives the piece what it needs, asked by the option picked:
+One sentence that gives the piece what it needs, asked by the piece:
 - The post: "Who should read it, and what should they take away? A sentence is plenty."
 - Something I'm working on: "What is it, and who's it for? A sentence is plenty."
 - The meeting email: "Who's it to, and what's the meeting about?"
@@ -198,7 +209,17 @@ Skipped: write only from what they told you in W1 and W2, for someone who would 
 
 ## A2. The verdict (tapped)
 
-The question carries the piece, so the two are always seen together: it opens with "Here's your first piece:", then the piece in full and, where anything in it was made up, the one line that says what, then:
+The question carries the piece, so the two are always seen together: it opens with "Here's your first piece:", then the piece in full and, where anything in it was made up, the one line that says what, then the question for the piece.
+
+After the reading:
+
+> How does this piece sound?
+
+- This is spooky good
+- The writing style is on, personality is off
+- Neither the style nor the personality works
+
+After a piece on their topic:
 
 > Would you send this under your name?
 
@@ -206,11 +227,19 @@ The question carries the piece, so the two are always seen together: it opens wi
 - Almost: I'd change a few things
 - No, it doesn't sound like me
 
-The answers file records the piece and what was made up. Yes sets the confirmation date. After a rewrite it is asked again and recorded A4, opening with "Here it is with your changes:", the piece in full and the one line A3a gives.
+The answers file records the piece and what was made up. This is spooky good, The writing style is on, or Yes sets the confirmation date. After a rewrite it is asked again, in the same form, and recorded A4, opening with "Here it is with your changes:", the piece in full and the one line A3a gives.
+
+### A2a (typed)
+
+Asked on The writing style is on, personality is off, recorded A4a after a rewrite.
+
+> What's off about it? A few words is plenty.
+
+Feeds: the portrait and `about.md` `## Personality`; where it says how they write, a line in the voice. The piece is not rewritten. A skip changes nothing.
 
 ## A3 (typed)
 
-Asked on Almost or No:
+Asked on Neither, Almost or No:
 
 > What would you change? Quote the line and say it your way, or just tell me.
 
@@ -235,4 +264,4 @@ Asked with the third version, after two returns, in place of A2, and carrying th
 
 ## Close
 
-> Your voice is saved in your folder. Whenever you have something you wrote and like, show me and I'll tune your voice to it. Say "build my voice" to start again.
+> Your voice is saved in your project folder. Whenever you have something you wrote and like, bring it to me and ask me to tune your voice using it.

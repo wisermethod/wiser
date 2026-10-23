@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types
-version: 0.42.3
+version: 0.42.4
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -84,7 +84,7 @@ Then confirm this session loads the new root; a root on disk that no session loa
 
 ### Step 2: Voice
 
-Voice comes right after the files exist. `memory/voice.md` is written by `skills/Build Voice/` and by nothing else. Run it now, whether or not the person has any writing of their own: on a personal root it runs as a coach: a few short questions about the person, two screens of quick taps, how they come across, and a first piece they can correct, with no samples needed, and it writes `memory/voice.md`, the run's answers file in `memory/answers/` and the `## Personality` heading of `memory/about.md`, per `skills/Build Voice/SKILL.md` The coach. Before it starts, say: "Next, let's find your writing voice. It's about eight minutes: a few questions about you and some quick taps, and there's nothing to prepare."
+Voice comes right after the files exist. `memory/voice.md` is written by `skills/Build Voice/` and by nothing else. Run it now, whether or not the person has any writing of their own: on a personal root it runs as a coach: a few short questions about the person, two screens of quick taps, how they come across, and a first piece they can correct, with no samples needed, and it writes `memory/voice.md`, the run's answers file in `memory/answers/` and the `## Personality` heading of `memory/about.md`, per `skills/Build Voice/SKILL.md` The coach. The coach opens itself, so say nothing before it starts.
 
 What did Build Voice return? Complete: the person kept its first piece, and the key closes complete. Stopped, at any point before that: Build Voice wrote `[Not available: the voice coach has not finished; say "build my voice" to run it]` over each prompt line of `voice.md`, and the key closes provisional in Step 5 with the person as owner. The person declined the coach before it started: write that same label over each prompt line yourself, and close the key the same way. A provisional voice does not block a deliverable that loads only `about` or `design`.
 
@@ -92,7 +92,7 @@ What did Build Voice return? Complete: the person kept its first piece, and the 
 
 `memory/about.md` has four headings: Who, Key Facts, Relationships, Current Focus, and after Step 2 it may carry `## Personality`, which Build Voice owns and this step leaves as written. Fill `about.md` from what the person said, from the run's answers file and from any file they supplied, under rules 1 and 2. A fact from the answers file is the person's own answer, so it carries `(Firsthand: <their name>, W1)` with its question number. Each prompt line in the template, a whole line beginning and ending with `*`, is replaced with content or with a label; none survives. A heading the person has not addressed gets `[Not available: not yet supplied]`, and the file is still usable.
 
-What they do and what people come to them for (W1) fills `## Key Facts`; where a later answer in the run corrects it (A3 or A5), the later answer is the one written and cited. Current Focus fills from F1a where the person told the coach about something they are working on, and carries the date they said it; otherwise it takes its label like any heading.
+What they do and what people come to them for (W1) fills `## Key Facts`; where a later answer in the run corrects it (A3 or A5), the later answer is the one written and cited. Current Focus fills from F2a where the person told the coach about something they are working on, and carries the date they said it; otherwise it takes its label like any heading.
 
 `memory/design.md` takes its headings, optional headings included, from the template's `prompts/personal/design.md` sheet. After filling `about.md` and before filling `design.md`, ask once, as taps where the app offers a question tool, the way Two paths asks the type, in these words: **"Last, how your work should look. Do you already have a look you'd like me to record, or shall we build one together?"** Where the request already answers it, take that answer and ask nothing.
 
