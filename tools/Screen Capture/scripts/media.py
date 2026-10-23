@@ -21,6 +21,16 @@ def dependency(name):
         raise CaptureError("missing " + name + "; check: " + name + " " + flag + ". Make that check pass and retry") from None
 
 
+def has_libx264():
+    """Whether this ffmpeg can encode H.264 with libx264, which redaction's encode asks for."""
+    try:
+        result = subprocess.run(["ffmpeg", "-hide_banner", "-encoders"], stdout=subprocess.PIPE,
+                                stderr=subprocess.DEVNULL, text=True)
+    except OSError:
+        return False
+    return result.returncode == 0 and any(line.split()[1:2] == ["libx264"] for line in result.stdout.splitlines())
+
+
 def versions(video):
     values = {"pyobjc": importlib.metadata.version("pyobjc-core"), "tesseract": dependency("tesseract")}
     values["ffmpeg"] = dependency("ffmpeg") if video else None
@@ -63,7 +73,7 @@ def encode(directory, output, fps):
          "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv",
          "-movflags", "+faststart", str(output)], "video encode")
     tags = colour_tags(output)
-    retagged = any(tags[key] != "bt709" for key in ("color_transfer", "color_primaries"))
+    retagged = any(tags[key] != "bt709" for key in ("color_space", "color_transfer", "color_primaries"))
     if retagged:
         tagged = output.with_name(output.stem + "-tagged.mp4")
         try:

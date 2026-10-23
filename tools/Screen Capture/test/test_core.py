@@ -161,6 +161,10 @@ class TermsTests(unittest.TestCase):
         self.assertNotIn("address-shaped", self.labels([], "to@Wiser? Yes, now"))
         self.assertIn("term 1 whole", self.labels(["riley.q@example.org"], "riley.q\n@\nexample.org"))
 
+    def test_a_short_address_fragment_matches_only_as_a_word(self):
+        self.assertEqual(self.labels(["me@gmail.com"], "Home Menu"), set())
+        self.assertIn("term 1 fragment", self.labels(["me@gmail.com"], "Signed in as me"))
+
     def test_offsets_and_numbered_classes(self):
         text = "Hi 🙂 R I L E Y Quintero!"
         matches = Matcher(["Nobody", "Riley Quintero"]).matches(text)

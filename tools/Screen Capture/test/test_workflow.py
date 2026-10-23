@@ -187,6 +187,60 @@ class WorkflowTests(unittest.TestCase):
                         raise RuntimeError("synthetic failure")
             self.assertFalse(path.exists())
 
+    def test_retag_runs_when_only_the_matrix_tag_is_wrong(self):
+        with temporary() as directory:
+            root = Path(directory)
+            (root / "frames").mkdir()
+            wrong = {"color_space": "unknown", "color_transfer": "bt709", "color_primaries": "bt709"}
+            final = {key: "bt709" for key in wrong}
+            def fake_run(arguments, operation):
+                Path(arguments[-1]).write_bytes(b"synthetic")
+            with patch.object(media, "run", side_effect=fake_run) as run, patch.object(media, "colour_tags", side_effect=[wrong, final]):
+                result = media.encode(root / "frames", root / "out.mp4", 30)
+            self.assertTrue(result["retagged"])
+            self.assertEqual(run.call_count, 2)
+
+    def test_publish_never_replaces_a_file_that_appeared(self):
+        with temporary() as directory:
+            root = Path(directory)
+            pending, output = root / ".pending.png", root / "out.png"
+            pending.write_bytes(b"checked")
+            output.write_bytes(b"someone else's")
+            with self.assertRaisesRegex(CaptureError, "appeared during the run"):
+                pipeline.publish(pending, output)
+            self.assertEqual(output.read_bytes(), b"someone else's")
+            self.assertFalse(pending.exists())
+            # A volume without links: the exclusive create refuses the same way.
+            pending.write_bytes(b"checked")
+            with patch.object(pipeline.os, "link", side_effect=OSError(45, "not supported")):
+                with self.assertRaisesRegex(CaptureError, "appeared during the run"):
+                    pipeline.publish(pending, output)
+            self.assertEqual(output.read_bytes(), b"someone else's")
+            fresh = root / "fresh.png"
+            pending.write_bytes(b"checked")
+            with patch.object(pipeline.os, "link", side_effect=OSError(45, "not supported")):
+                pipeline.publish(pending, fresh)
+            self.assertEqual(fresh.read_bytes(), b"checked")
+
+    def test_a_workers_own_refusal_reaches_the_caller(self):
+        from support import refusing_worker
+        with self.assertRaisesRegex(CaptureError, "Tesseract OCR failed"):
+            check.spawn_map(refusing_worker, [1, 2, 3], workers=2)
+
+    def test_video_redaction_needs_libx264_before_install(self):
+        with temporary() as directory:
+            root = Path(directory)
+            source = root / "in.mp4"
+            source.write_bytes(b"synthetic")
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with patch.object(media, "has_libx264", return_value=False), patch("install.ensure") as ensure, \
+                    contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                code = capture.main(["redact", "--input", str(source), "--output", str(root / "out.mp4"),
+                                     "--report", str(root / "r.json")])
+            self.assertEqual((code, stdout.getvalue()), (1, ""))
+            self.assertIn("libx264", stderr.getvalue())
+            ensure.assert_not_called()
+
     def test_retag_runs_once_then_reports_final_tags(self):
         with temporary() as directory:
             root = Path(directory)

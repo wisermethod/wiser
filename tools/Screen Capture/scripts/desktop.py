@@ -211,12 +211,18 @@ def package_status(tool):
     return status
 
 
+def media_has_libx264():
+    from media import has_libx264
+    return has_libx264()
+
+
 def check(tool):
     granted = native.permissions()
     app = native.launching_app()
     return {'ok': True, 'python': sys.version.split()[0], 'packages': package_status(tool),
-            'programs': {name: shutil.which(name) is not None
-                         for name in ('ffmpeg', 'ffprobe', 'tesseract', 'screencapture')},
+            'programs': {**{name: shutil.which(name) is not None
+                            for name in ('ffmpeg', 'ffprobe', 'tesseract', 'screencapture')},
+                         'ffmpeg_libx264': shutil.which('ffmpeg') is not None and media_has_libx264()},
             'permissions': {key: {'granted': value, **({} if value else
                            {'app': app, 'pane': 'System Settings > Privacy & Security > ' +
                             ('Screen Recording' if key == 'screen_recording' else 'Accessibility')})}

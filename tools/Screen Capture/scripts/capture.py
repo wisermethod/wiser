@@ -182,6 +182,11 @@ def main(argv=None):
             if not shutil.which(dependency) or subprocess.run([dependency, flag], stdout=subprocess.DEVNULL,
                                                             stderr=subprocess.DEVNULL).returncode:
                 raise CaptureError("missing " + dependency + "; check: " + dependency + " " + flag + ". Make that check pass and retry")
+        if command == "redact" and source.suffix.lower() != ".png":
+            from media import has_libx264
+            if not has_libx264():
+                raise CaptureError("ffmpeg has no libx264 encoder; check: ffmpeg -hide_banner -encoders | grep libx264. "
+                                   "Use an ffmpeg built with libx264 and retry")
         from install import ensure
         ensure(TOOL, authorised, argv)
         from pipeline import execute

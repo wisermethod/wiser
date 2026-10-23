@@ -24,6 +24,24 @@ class Workspace:
         shutil.rmtree(self.path)
 
 
+def publish(pending, output):
+    """Give the checked file its name without ever replacing one: a link refuses an existing name, where a rename
+    would replace it. A volume without links gets an exclusive create and a copy instead."""
+    try:
+        os.link(pending, output)
+    except FileExistsError:
+        raise CaptureError("--output appeared during the run; choose a new filename and retry") from None
+    except OSError:
+        try:
+            descriptor = os.open(output, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+        except FileExistsError:
+            raise CaptureError("--output appeared during the run; choose a new filename and retry") from None
+        with os.fdopen(descriptor, "wb") as target, open(pending, "rb") as source:
+            shutil.copyfileobj(source, target)
+    finally:
+        pending.unlink(missing_ok=True)
+
+
 def write_report(path, report):
     # Never persist OCR strings, terms, fragments or exception bodies.
     with path.open("x", encoding="utf-8") as stream:
@@ -116,15 +134,12 @@ def execute(command, source, output, report, terms=(), named=(), fps=30, workers
             if checked["hits"]:
                 raise CaptureError("redaction check found readable content; output withheld. Inspect the places in " + str(report) +
                                    " and add --region rectangles before retrying")
-            if output.exists():
-                raise CaptureError("--output appeared during the run; choose a new filename and retry")
             descriptor, filename = tempfile.mkstemp(prefix=".wiser-screen-capture-", suffix=output.suffix,
                                                    dir=str(output.parent))
             os.close(descriptor)
             pending = Path(filename)
             shutil.copyfile(candidate, pending)
-            pending.rename(output)
-            pending = None
+            publish(pending, output)
             return {"ok": True, "output": str(output), "kind": kind, "frames": len(files),
                     "frames_with_found_box": found_frames, "frames_added_by_tracking": added,
                     "regions": len(regs) + len(named), "check": checked, "seconds": clock,

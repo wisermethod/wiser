@@ -14,9 +14,12 @@ def _batch(sender, function, jobs):
     try:
         try:
             payload = (True, [(i, function(job)) for i, job in jobs])
+        except CaptureError as error:
+            # The tool's own refusal is fixed text, never recognized text or a term, so it is passed on.
+            payload = (False, str(error))
         except BaseException:
             # No exception body: a native OCR error can contain recognized text.
-            payload = (False, [])
+            payload = (False, None)
         try:
             sender.send(payload)
         except (OSError, EOFError):
@@ -52,9 +55,9 @@ def spawn_map(function, jobs, workers=None):
                 try:
                     ok, rows = receiver.recv()
                 except EOFError:
-                    ok, rows = False, []
+                    ok, rows = False, None
                 if not ok:
-                    raise CaptureError("parallel OCR failed; check the pinned packages and readable input frames, then retry")
+                    raise CaptureError(rows or "parallel OCR failed; check the pinned packages and readable input frames, then retry")
                 for i, result in rows:
                     output[i] = result
                 pending.remove(receiver)

@@ -31,3 +31,8 @@ def still(path, text=NAME, location=(45, 65), size=(900, 260)):
 
 def failing_worker(job):
     raise RuntimeError(NAME)
+
+
+def refusing_worker(job):
+    from paths import CaptureError
+    raise CaptureError("Tesseract OCR failed; check: tesseract --version, then retry with a readable frame")

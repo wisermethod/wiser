@@ -53,6 +53,7 @@ class DesktopTests(unittest.TestCase):
         return code, out.getvalue(), err.getvalue()
 
     def test_check_false_permissions_panes_host_no_install(self):
+        self.stack.enter_context(patch.object(desktop, 'media_has_libx264', return_value=True))
         self.stub('permissions', return_value={'screen_recording': False, 'accessibility': False})
         with temporary() as directory, patch.object(capture, 'TOOL', Path(directory)):
             code, out, err = self.invoke(['check'])
@@ -64,7 +65,7 @@ class DesktopTests(unittest.TestCase):
                 self.assertEqual(permission['app'], 'Synthetic Host')
                 self.assertEqual(permission['pane'], 'System Settings > Privacy & Security > ' + pane)
             self.assertEqual(result['python'], sys.version.split()[0])
-            self.assertEqual(set(result['programs']), {'ffmpeg', 'ffprobe', 'tesseract', 'screencapture'})
+            self.assertEqual(set(result['programs']), {'ffmpeg', 'ffprobe', 'tesseract', 'screencapture', 'ffmpeg_libx264'})
             self.assertTrue(all(result['programs'].values()))
             self.assertEqual(len(result['packages']), 7)
             self.assertTrue(all(not p['installed'] for p in result['packages'].values()))

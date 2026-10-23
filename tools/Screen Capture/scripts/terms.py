@@ -36,7 +36,8 @@ class Matcher:
             if address:
                 local, domain = re.split(r"[@©®]", re.sub(r"\s+", "", term), maxsplit=1)
                 for fragment in (local, domain, "@" + re.split(r"[.,]", domain)[0]):
-                    self._add(fragment, "term %d fragment" % number, False)
+                    # A short local part such as "me" would otherwise match inside "Home" and "Menu".
+                    self._add(fragment, "term %d fragment" % number, len(fragment) < 4)
             else:
                 for part in term.split():
                     if len(part) >= 4:
