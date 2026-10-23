@@ -89,6 +89,9 @@ class ContractTests(unittest.TestCase):
                     capture.parse(base + extra)
             with self.assertRaises(CaptureError):
                 capture.parse(["verify", "--input", str(source), "--report", str(root / "report.json"), "--region", "0,0,10,10"])
+            # verify reads every frame as written, so it takes no decode rate.
+            with self.assertRaises(CaptureError):
+                capture.parse(["verify", "--input", str(source), "--report", str(root / "report.json"), "--fps", "30"])
             with self.assertRaises(CaptureError):
                 capture.parse(["redact", "--input", str(source), "--output", str(root / "same.png"), "--report", str(root / "same.png")])
 

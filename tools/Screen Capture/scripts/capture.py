@@ -22,7 +22,7 @@ Usage:
       --report <absolute path> [--term <text>]... [--region <x,y,w,h>]...
       [--fps <n>] [--install]
   python3 scripts/capture.py verify --input <absolute path> --report <absolute path>
-      [--term <text>]... [--fps <n>] [--install]
+      [--term <text>]... [--install]
 
   python3 scripts/capture.py check
   python3 scripts/capture.py windows --app <name>
@@ -64,7 +64,8 @@ Options:
   --report <path>      New JSON report, absolute, outside this tool; counts and places only.
   --term <text>        Repeatable address or name, held only in memory; case/whitespace/OCR folding.
   --region <x,y,w,h>   Repeatable integer rectangle, in output pixels; redact only, all frames, no fit.
-  --fps <n>           Recording decode rate, positive number; default 30.
+  --fps <n>           redact only: a recording's decode rate, positive number; default 30.
+                      verify reads every frame a recording holds, at the rate it was written.
   --install           Authorize pinned wheels into this tool's .venv, pip cache off;
                       WISER_ALLOW_INSTALL=1 also authorizes an unattended run.
   --help              Print this message before any dependency check.
@@ -86,9 +87,9 @@ def parse(argv):
     from desktop import FLAGS, parse as parse_desktop
     if command in FLAGS:
         return parse_desktop(argv, TOOL)
-    allowed = {"--input", "--report", "--term", "--fps", "--install", "--help"}
+    allowed = {"--input", "--report", "--term", "--install", "--help"}
     if command == "redact":
-        allowed.update(("--output", "--region"))
+        allowed.update(("--output", "--region", "--fps"))
     elif command != "verify":
         raise CaptureError("unknown command " + command + "; run python3 scripts/capture.py help")
     values = {"--term": [], "--region": []}

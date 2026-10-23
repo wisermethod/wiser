@@ -40,6 +40,17 @@ class VideoReviewTests(unittest.TestCase):
             self.assertNotIn('-vf', arguments)
             self.assertEqual(arguments[arguments.index('-fps_mode') + 1], 'passthrough')
 
+    def test_verify_reads_every_frame_as_written(self):
+        with temporary() as directory:
+            root = Path(directory)
+            files = self.frames(root)
+            checked = {'frames': 3, 'distinct_frames': 3, 'hits': [], 'hits_per_engine': {'vision': 0, 'tesseract': 0}}
+            with patch.object(pipeline, 'versions', return_value={}), \
+                    patch.object(pipeline, 'decode', return_value=files) as decode, \
+                    patch.object(pipeline, 'verify', return_value=checked):
+                pipeline.execute('verify', root / 'published.mp4', None, root / 'report.json', fps=30)
+            self.assertIsNone(decode.call_args.args[2], 'verify must decode with no frame-rate filter')
+
     def test_short_decode_refuses_redact(self):
         with temporary() as directory:
             root = Path(directory)

@@ -64,7 +64,9 @@ def execute(command, source, output, report, terms=(), named=(), fps=30, workers
     try:
         with Workspace() as work:
             start = time.perf_counter()
-            files = [source] if kind == "still" else decode(source, work / "raw", fps)
+            # redact resamples to a fixed rate for tracking; verify reads every frame as it was written, so a file
+            # already published is checked frame for frame.
+            files = [source] if kind == "still" else decode(source, work / "raw", fps if command == "redact" else None)
             clock["decode"] = time.perf_counter() - start
             if command == "verify":
                 start = time.perf_counter()
