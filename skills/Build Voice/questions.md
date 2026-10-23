@@ -261,7 +261,7 @@ Where they name one, typed in place of a tap or in a reply, it is recorded as A3
 
 ## A6. Keep or stop (tapped)
 
-Asked with the third version, after two returns, in place of A2, and carrying that version and its line as A4 does.
+Asked with the third version, after two returns, in place of A2, and carrying that version and its line as A4 does; or, after A4a, with the piece on their topic rewritten once from A5.
 
 > Want to keep your voice as it is now, or stop here and pick it up later?
 
