@@ -61,10 +61,17 @@ def window_list():
                        "id": int(row.get(q.kCGWindowNumber, -1)),
                        "title": str(row.get(q.kCGWindowName, '')),
                        "layer": int(row.get(q.kCGWindowLayer, -1)),
+                       "alpha": float(row.get(q.kCGWindowAlpha, 1.0)),
                        "bounds": {key: float(bounds.get(source, 0))
                                   for key, source in (("x", "X"), ("y", "Y"),
                                                       ("width", "Width"), ("height", "Height"))}})
     return result
+
+
+def ready():
+    """Load the frameworks the event adapters use, so no import sits between a check and its event."""
+    import AppKit  # noqa: F401
+    import Quartz  # noqa: F401
 
 
 def activate(app):

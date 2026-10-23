@@ -152,13 +152,83 @@ class DesktopTests(unittest.TestCase):
         self.assertEqual((code, out), (1, ''))
         self.assertIn('bounds differ', err)
         self.stub('osascript', return_value='-20,30,200,100')
+        self.stub('window_list', return_value=[window(x=-20, y=30)])
         code, out, err = self.invoke(['size', '--app', 'Sample', '--width', '200', '--height', '100', '--x', '-20', '--y', '30'])
         self.assertEqual((code, err), (0, ''))
         self.assertEqual(json.loads(out)['bounds'], dict(x=-20, y=30, width=200, height=100))
+        self.assertNotIn('id', json.loads(out))
         self.assertEqual(script.call_args.args[1], ['Sample', '200', '100', '-20', '30'])
         self.assertNotIn('Sample', script.call_args.args[0])
         self.assertIn('position of front window', script.call_args.args[0])
-        self.adapters['window_list'].assert_not_called()
+
+    def test_size_refuses_when_the_sized_window_is_not_the_main_window(self):
+        # System Events sized a small front window; the app's largest window, which later steps use, is elsewhere.
+        self.stub('osascript', return_value='100,50,200,100')
+        self.stub('window_list', return_value=[window(wid=11), window(wid=12, width=900, height=600, x=0, y=0)])
+        code, out, err = self.invoke(['size', '--app', 'Sample', '--width', '200', '--height', '100'])
+        self.assertEqual((code, out), (1, ''))
+        self.assertIn('not the app', err)
+
+    def test_focus_lost_after_move_posts_no_press(self):
+        mouse = self.stub('mouse')
+        def flip(kind, x, y):
+            if kind == 'move':
+                self.stub('frontmost', return_value='Other')
+        mouse.side_effect = flip
+        code, out, err = self.invoke(['click', '--app', 'Sample', '--x', '10', '--y', '20'])
+        self.assertEqual((code, out), (1, ''))
+        self.assertIn('frontmost', err)
+        self.assertEqual([c.args[0] for c in mouse.call_args_list], ['move'])
+
+    def test_focus_lost_after_press_still_releases_the_button(self):
+        mouse = self.stub('mouse')
+        def flip(kind, x, y):
+            if kind == 'down':
+                self.stub('frontmost', return_value='Other')
+        mouse.side_effect = flip
+        code, out, err = self.invoke(['click', '--app', 'Sample', '--x', '10', '--y', '20'])
+        self.assertEqual((code, out), (1, ''))
+        self.assertEqual([c.args[0] for c in mouse.call_args_list], ['move', 'down', 'up'])
+
+    def test_a_window_over_the_point_refuses_the_click(self):
+        mouse = self.stub('mouse')
+        # The Dock, front-most in the window server's order, covers the bottom of the app's window.
+        self.stub('window_list', return_value=[window(wid=99, owner='Dock', layer=20, x=0, y=130, width=2000, height=40),
+                                               window()])
+        code, out, err = self.invoke(['click', '--app', 'Sample', '--x', '10', '--y', '90'])
+        self.assertEqual((code, out), (1, ''))
+        self.assertIn('covers that point', err)
+        mouse.assert_not_called()
+        # A transparent window over the point does not count as covering it.
+        self.stub('window_list', return_value=[dict(window(wid=98, owner='Overlay', layer=25, x=0, y=0, width=2000, height=2000), alpha=0.0),
+                                               window()])
+        code, out, err = self.invoke(['click', '--app', 'Sample', '--x', '10', '--y', '90'])
+        self.assertEqual((code, err), (0, ''))
+
+    def test_key_focus_lost_after_press_releases_and_refuses(self):
+        keyboard = self.stub('keyboard')
+        def flip(code, down):
+            if down:
+                self.stub('frontmost', return_value='Other')
+        keyboard.side_effect = flip
+        code, out, err = self.invoke(['key', '--app', 'Sample', '--key', 'escape'])
+        self.assertEqual((code, out), (1, ''))
+        self.assertEqual([c.args[1] for c in keyboard.call_args_list], [True, False])
+
+    def test_run_refuses_when_the_main_window_changes(self):
+        self.stub('mouse')
+        # One read at the recipe's start, then four for the first click: its window and a hit test before each event.
+        lists = iter([[window()]] * 5 + [[window(wid=12, width=300)]] * 20)
+        self.stub('window_list', side_effect=lambda: next(lists))
+        with temporary() as directory:
+            root = Path(directory)
+            recipe = root / 'recipe.json'
+            recipe.write_text(json.dumps({'app': 'Sample', 'steps': [{'click': [10, 20]}, {'click': [10, 20]}]}))
+            code, out, err = self.invoke(['run', '--recipe', str(recipe), '--output', str(root / 'run')])
+            self.assertEqual((code, out), (1, ''))
+            self.assertIn('main window changed', err)
+            receipt = json.loads((root / 'run' / 'run.json').read_text())
+            self.assertEqual([s['status'] for s in receipt['steps']], ['done', 'refused'])
 
     def test_click_move_outside_fresh_bounds_and_frontmost(self):
         mouse = self.stub('mouse')

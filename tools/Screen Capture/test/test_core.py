@@ -147,6 +147,10 @@ class TermsTests(unittest.TestCase):
         self.assertNotIn("address-shaped", self.labels([], "Contact\n©\nSupport.Team"))
         self.assertNotIn("address-shaped", self.labels([], "Writing ©? reply.now"))
         self.assertIn("address-shaped", self.labels([], "riley.q @ example.org"))
+        # A page that shortens an address leaves no ending; the address is still found.
+        self.assertIn("address-shaped", self.labels([], "Signed in as riley.q@exampl\u2026"))
+        self.assertNotIn("address-shaped", self.labels([], "Contact © Support"))
+        self.assertNotIn("address-shaped", self.labels([], "Follow @wisermemory"))
         self.assertIn("term 1 whole", self.labels(["riley.q@example.org"], "riley.q\n@\nexample.org"))
 
     def test_offsets_and_numbered_classes(self):

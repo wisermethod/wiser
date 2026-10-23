@@ -257,7 +257,13 @@ def size(app, spec):
         raise CaptureError('System Events returned invalid bounds; check Accessibility and retry') from None
     if any(bounds[key] != value for key, value in spec.items()):
         raise CaptureError('window bounds differ from the requested size or position; check the app minimum size and retry')
-    return {'bounds': bounds}
+    # System Events sized the app's front window; every later step uses its largest layer-0 window. They must be one.
+    rows = [row for row in native.window_list() if row['owner'] == app and row['layer'] == 0
+            and row['bounds']['width'] > 0 and row['bounds']['height'] > 0]
+    main = max(rows, key=lambda row: row['bounds']['width'] * row['bounds']['height']) if rows else None
+    if main is None or any(int(round(main['bounds'][key])) != value for key, value in bounds.items()):
+        raise CaptureError('the sized window is not the app\'s main window; close the app\'s other windows and retry')
+    return {'bounds': bounds, 'id': main['id']}
 
 
 def foreground(app):
@@ -275,9 +281,35 @@ def frontmost(app):
         raise CaptureError('named app is not frontmost; bring it forward and retry')
 
 
-def point(app, x=None, y=None, park=False):
+def same_window(row, expected):
+    if expected is not None and row['id'] != expected:
+        raise CaptureError('the app\'s main window changed during the recipe; close its other windows and retry in a new directory')
+
+
+def topmost_at(x, y):
+    """The front-most visible window containing a global point, in the window server's front-to-back order."""
+    for row in native.window_list():
+        b = row['bounds']
+        if row.get('alpha', 1.0) > 0 and b['x'] <= x < b['x'] + b['width'] and b['y'] <= y < b['y'] + b['height']:
+            return row
+    return None
+
+
+def guard(app, window_id, target=None):
+    """Read immediately before each event: the app frontmost, and at a target, its window the one on top there."""
+    frontmost(app)
+    if target is not None:
+        top = topmost_at(*target)
+        if top is None or top['id'] != window_id:
+            raise CaptureError('another window covers that point, such as the menu bar, the Dock or a notification; '
+                               'clear it and retry')
+
+
+def point(app, x=None, y=None, park=False, expected=None):
     foreground(app)
+    native.ready()
     row = main_window(app)  # Fresh rectangle, after activation, just before the event.
+    same_window(row, expected)
     bounds = row['bounds']
     if park:
         target = (bounds['x'] - 60, bounds['y'] + bounds['height'] / 2)
@@ -286,41 +318,53 @@ def point(app, x=None, y=None, park=False):
             raise CaptureError('point is outside the window; use coordinates within its current bounds')
         target = (bounds['x'] + x, bounds['y'] + y)
     frontmost(app)
-    return target
+    return target, row['id']
 
 
-def click(app, x, y):
-    target = point(app, x, y)
+def click(app, x, y, expected=None):
+    target, window_id = point(app, x, y, expected=expected)
+    guard(app, window_id, target)
     native.mouse('move', *target)
     native.pause(0.12)
+    guard(app, window_id, target)
     native.mouse('down', *target)
     native.pause(0.06)
-    native.mouse('up', *target)
+    try:
+        guard(app, window_id, target)
+    finally:
+        # A pressed button is always released, so a refusal here never leaves it held down.
+        native.mouse('up', *target)
     return {'point': list(target)}
 
 
-def move(app, x=None, y=None, park=False):
-    target = point(app, x, y, park)
+def move(app, x=None, y=None, park=False, expected=None):
+    target, window_id = point(app, x, y, park, expected=expected)
+    # A parked pointer is outside the window by design, so only the app's focus is read for it.
+    guard(app, window_id, None if park else target)
     native.mouse('move', *target)
     return {'point': list(target)}
 
 
-def key(app, name):
+def key(app, name, expected=None):
     if name not in KEYS:
         raise CaptureError('unsupported --key; choose escape, return, tab, space, up, down, left or right')
     foreground(app)
-    main_window(app)
-    frontmost(app)
+    native.ready()
+    same_window(main_window(app), expected)
+    guard(app, None)
+    # Down and up back to back, with nothing between them, then focus read again; a key is never left down.
     native.keyboard(KEYS[name], True)
     native.keyboard(KEYS[name], False)
+    guard(app, None)
     return {'key': name}
 
 
-def capture_file(app, output, tool, seconds=None):
+def capture_file(app, output, tool, seconds=None, expected=None):
     # Recheck each recipe destination immediately before its capture.
     output = screen(str(output), '--output', tool, True)
     require('screen_recording')
     row = main_window(app)
+    same_window(row, expected)
     if not shutil.which('screencapture'):
         raise CaptureError('missing screencapture; check: command -v screencapture. Make that check pass and retry')
     if seconds is None:
@@ -357,27 +401,31 @@ def run_recipe(values, tool):
     (output / 'raw').mkdir()
     receipt = {'ok': True, 'recipe_sha256': values['recipe_sha256'], 'steps': []}
     steps = ([{'size': data['window']}] if 'window' in data else []) + data['steps']
+    window_id = None  # One window for the whole recipe: the one sized, or the main window at the first step.
     try:
         for step in steps:
             kind, value = next(iter(step.items()))
             row = {'kind': kind, 'status': 'refused', 'result': {'refused': True}}
             receipt['steps'].append(row)
+            if kind != 'size' and kind != 'wait_ms' and window_id is None:
+                window_id = main_window(data['app'])['id']
             if kind == 'size':
                 result = size(data['app'], value)
+                window_id = result.pop('id')
             elif kind == 'click':
-                result = click(data['app'], *value)
+                result = click(data['app'], *value, expected=window_id)
             elif kind == 'move':
-                result = move(data['app'], *value)
+                result = move(data['app'], *value, expected=window_id)
             elif kind == 'park':
-                result = move(data['app'], park=True)
+                result = move(data['app'], park=True, expected=window_id)
             elif kind == 'key':
-                result = key(data['app'], value)
+                result = key(data['app'], value, expected=window_id)
             elif kind == 'wait_ms':
                 native.pause(value / 1000)
                 result = {'wait_ms': value}
             else:
                 path = output / 'raw' / (value + '.png')
-                captured = capture_file(data['app'], path, tool)
+                captured = capture_file(data['app'], path, tool, expected=window_id)
                 result = {'id': value, 'file': 'raw/' + path.name, **still_hash(path),
                           'window': {k: captured[k] for k in ('id', 'bounds')}}
             row.update(status='done', result=result)
@@ -447,6 +495,7 @@ def execute(command, values, tool, argv):
                 'main': max(main, key=lambda r: r['bounds']['width'] * r['bounds']['height'])['id'] if main else None}
     if command == 'size':
         result = size(app, {k[2:]: v for k, v in values.items() if k != '--app'})
+        result.pop('id')
     elif command == 'click':
         result = click(app, values['--x'], values['--y'])
     elif command == 'move':
