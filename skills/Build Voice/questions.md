@@ -1,6 +1,6 @@
 # The interview
 
-What the coach says and asks, in the order `SKILL.md` The coach runs it. A tapped question is asked with the app's question tool where it has one: each option a button, and where an option below has words after a colon, the words before it are the button and the words after it are the line under it. Where the app has none, one question per message, its options lettered, answered with a letter. A typed question is a plain message, one at a time. The codes (W, P, R, F, A) are the question numbers the answers file records and `voice.md` cites. Bank version for every row: `Build Voice bank 4`.
+What the coach says and asks, in the order `SKILL.md` The coach runs it. A tapped question is asked with the app's question tool where it has one: each option a button, and where an option below has words after a colon, the words before it are the button and the words after it are the line under it. Where the app has none, one question per message, its options lettered, answered with a letter. A typed question is a plain message, one at a time. The codes (W, P, R, F, A) are the question numbers the answers file records and `voice.md` cites. Bank version for every row: `Build Voice bank 5`.
 
 Each question says what it **feeds**. A line in quotation marks after a pick is the exact line that pick writes into `voice.md` `## How They Write`, copied word for word.
 
@@ -12,7 +12,7 @@ Each question says what it **feeds**. A line in quotation marks after a pick is 
 
 > What do you do, and what do people come to you for? A few words is plenty, like "I teach chemistry, and people ask me to explain things simply."
 
-Feeds: the portrait's first sentence, with their role; P3's detail; `about.md` `## Key Facts`, written by Onboard Root.
+Feeds: the portrait, never with their role or title; P3's detail; `about.md` `## Key Facts`, written by Onboard Root.
 
 ## W2 (typed)
 
@@ -36,7 +36,7 @@ Said before it, leaving out its last two sentences where the screen asks no pair
 
 **How every pair is written.** Each pair is written from the person's own answer named under it; where that answer makes more than one point, from the first point it makes. Copy one stretch of what they said onto both sides, in their words, with their facts and their hedges, and change only the one thing the pair names: P1 the frame, P2 the order of their example and their point, P3 one detail of their own. Every word on either side is theirs except P1's frame and what a sentence needs to be whole. A side that leaves something out uses only words already in that stretch, and neither side changes who did what. Both sides pass the floor. Where the pair would need a second change, or anything they did not say, a fact, number, name, hedge, feeling, joke or image, the pair is not asked: it writes nothing, and a screen asks only the pairs their answers give. A pair never puts words in their mouth. The answers file records both lines shown.
 
-Every pair is worded **"Which would you actually say?"** and has four options: **A** with its line under it, **B** with its line under it, **Both sound like me**, and **Neither**. Both writes the pair's Both line. Neither, or a skip, writes nothing. Typed instead of tapped, "both" or "depends" is Both, "neither" is Neither, and "not sure" or "skip" is a skip.
+Every pair is worded **"Which would you actually say?"** and has four options: its A line, its B line, **Both sound like me**, and **Neither**. With the app's question tool each line is its own whole button, with no letter and nothing under it; with none, the four are lettered as every question is. Both writes the pair's Both line. Neither, or a skip, writes nothing. Typed instead of tapped, "both" or "depends" is Both, "neither" is Neither, and "not sure" or "skip" is a skip.
 
 ### P1. Disagreeing
 
@@ -177,17 +177,23 @@ On Close, but or Not quite, they say what to change, in the free-text answer or 
 
 ## F1. The reading (typed)
 
-> Now let's have a little fun with your first writing sample. I'll write a personality profile of you in the style of a horoscope. I just need your birthday with the year, where you were born, and roughly what time. A guess at the time is fine. Say "skip" if you have an allergy to hearing about yourself.
+> Now let's have a little fun with your first writing sample. I'll write a personality profile of you in the style of a horoscope. Tell me your:
+>
+> - Birthday with year
+> - State / province / locality where you were born
+> - Roughly what time you were born
+>
+> Say "skip" if you have an allergy to hearing about yourself (but you'll be missing out on a little magic if you do).
 
 The answer is recorded as given; a time they do not know is left out, and the rest still makes the reading. Skipped, or given without a birthday or a place: F2. Feeds: the reading's prompt, and nothing else.
 
 The prompt, filled in and handed over as `SKILL.md` The coach step 5 says, word for word:
 
-> I want you to give me an astrology reading for [name] born on [date] in [location] at [time], with the attributes [a little context] - focus on personality, career, ambition, and work/personal relationships. Keep the astrology terminology to a minimum
+> I want you to give me an astrology reading for [name] born on [date] in [location] at [time] - focus on personality, career, ambition, and work/personal relationships. Keep the astrology terminology to a minimum
 
 ## F2. A piece on your topic (tapped)
 
-Only after F1 is skipped or gives no birthday or no place, or the reading does not come back. Where W2 gave a point, F2 is not asked: the piece is the short post on what they wish people knew, and F2a asks its post line. Otherwise:
+Only after F1 is skipped or gives no birthday or no place, the reading does not come back, or A2a or A4a. Where W2 gave a point, F2 is not asked: the piece is the short post on what they wish people knew, and F2a asks its post line. Otherwise:
 
 > Let's see it in action. What should I write first?
 
@@ -227,7 +233,7 @@ After a piece on their topic:
 - Almost: I'd change a few things
 - No, it doesn't sound like me
 
-The answers file records the piece and what was made up. This is spooky good, The writing style is on, or Yes sets the confirmation date. After a rewrite it is asked again, in the same form, and recorded A4, opening with "Here it is with your changes:", the piece in full and the one line A3a gives.
+Each piece opens in short paragraphs with a blank line between them. After A2a or A4a, the piece on their topic opens with "Here's your voice on something you'd send:" in place of "Here's your first piece:", takes the verdict for a piece on their topic, Yes, Almost or No, and is recorded A2b. The answers file records each piece and what was made up. This is spooky good, or Yes, sets the confirmation date. After a rewrite it is asked again, in the same form, and recorded A4, opening with "Here it is with your changes:", the piece in full and the one line A3a gives.
 
 ### A2a (typed)
 
@@ -235,7 +241,7 @@ Asked on The writing style is on, personality is off, recorded A4a after a rewri
 
 > What's off about it? A few words is plenty.
 
-Feeds: the portrait and `about.md` `## Personality`; where it says how they write, a line in the voice. The piece is not rewritten. A skip changes nothing.
+Feeds: the portrait and `about.md` `## Personality`; where it says how they write, a line in the voice. Then the piece on their topic, F2, with its verdict recorded A2b; a skip goes there too.
 
 ## A3 (typed)
 
@@ -255,7 +261,7 @@ Where they name one, typed in place of a tap or in a reply, it is recorded as A3
 
 ## A6. Keep or stop (tapped)
 
-Asked with the third version, after two returns, in place of A2, and carrying that version and its line as A4 does.
+Asked with the third version, after two returns, in place of A2, and carrying that version and its line as A4 does; or, after A4a, with the piece on their topic rewritten once from A5.
 
 > Want to keep your voice as it is now, or stop here and pick it up later?
 

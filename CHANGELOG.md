@@ -4,6 +4,13 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.23.4, October 23, 2026
+
+- The voice coach's horoscope-style reading now comes from your birthday, birthplace and birth time alone, with nothing from your interview mixed in, so it can tell you things you didn't already say. It is written in your voice, in short paragraphs, names no star signs, and may wink once at how dramatic the stars are being. (acc6cc1, 2f474fb, 65775a4)
+- The portrait reads more like someone has worked you out: it draws on what your answers suggest about you underneath, uses none of your own words or your job title, and comes in short paragraphs. (acc6cc1, 2f474fb)
+- If you say the reading's style is right but the personality is off, the coach now writes a short piece on your own topic for you to judge, and keeps your voice from the one you'd send. (acc6cc1, 2f474fb, 65775a4)
+- The quick taps show each statement as its own button, with no A or B, and the reading's question lists the three things it needs one per line. (acc6cc1, 2f474fb)
+
 ## v2026.10.23.3, October 23, 2026
 
 - After a Wiser update that changes one of its tools, your assistant now tells you to start a new session if the app is still showing the tool as it was, instead of leaving an action to stop for no clear reason. A session opened before the update can keep the old version of the tool, and reconnecting does not refresh it. That is why a standing approval made yesterday could still stop in a session that was already open. (5e8714f)
