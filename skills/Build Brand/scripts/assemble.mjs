@@ -32,7 +32,7 @@ function object(value, keys, at) {
 function text(value, at, multiline = false) {
   if (typeof value !== 'string' || !value.trim() || /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(value) || (!multiline && /[\r\n\u2028\u2029]/.test(value))) fail(at, 'expected non-empty text');
 }
-function list(value, at) { if (!Array.isArray(value) || !value.length) fail(at, 'expected a non-empty array'); }
+function list(value, at, allowEmpty = false) { if (!Array.isArray(value) || (!allowEmpty && !value.length)) fail(at, allowEmpty ? 'expected an array' : 'expected a non-empty array'); }
 function num(value, min, max, at) { if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) fail(at, `expected a number from ${min} to ${max}`); }
 function strings(value, keys, at, multiline = []) {
   object(value, keys, at);
@@ -241,12 +241,17 @@ export function assemble(selection, library, { partsDir = dirname(LIBRARY), sele
       if (container.plate) monogram.surfaces = Object.fromEntries([['ground','headline'], ['cardFront','cardFrontText'], ['cardBack','cardBackText']].map(([surface, ink]) => [surface, { background: ink, ink: surface, frame: surface, radius: container.plate.radius }]));
     }
     object(b.content, ['brandName', 'sentence', 'body', 'smallPrint', 'photoRules', 'never'], `${at}.content`);
-    for (const k of ['brandName', 'sentence', 'body', 'smallPrint', 'photoRules']) text(b.content[k], `${at}.content.${k}`, ['body', 'photoRules'].includes(k));
-    list(b.content.never, `${at}.content.never`); b.content.never.forEach((s) => text(s, `${at}.content.never`));
+    for (const k of ['brandName', 'sentence', 'body', 'smallPrint']) text(b.content[k], `${at}.content.${k}`, k === 'body');
+    if (has(b.content, 'photoRules')) text(b.content.photoRules, `${at}.content.photoRules`, true);
+    if (has(b.content, 'never')) {
+      list(b.content.never, `${at}.content.never`, true); b.content.never.forEach((s) => text(s, `${at}.content.never`));
+    }
     if (!b.content.sentence.includes(b.heroPhrase)) fail(`${at}.heroPhrase`, 'must occur in content.sentence');
     strings(b.note, ['text', 'direction'], `${at}.note`);
     if (!['left','right','up','down'].includes(b.note.direction)) fail(`${at}.note.direction`, 'use left, right, up or down');
-    list(b.words, `${at}.words`); b.words.forEach((w) => strings(w, ['word','not'], `${at}.words`));
+    if (has(b, 'words')) {
+      list(b.words, `${at}.words`, true); b.words.forEach((w) => strings(w, ['word','not'], `${at}.words`));
+    }
     object(b.sample, ['kicker','title','phrase','body','note','steps','meta'], `${at}.sample`);
     for (const k of ['kicker','title','phrase','body','note','meta']) text(b.sample[k], `${at}.sample.${k}`, k === 'body');
     if (!b.sample.title.includes(b.sample.phrase)) fail(`${at}.sample.phrase`, 'must occur in sample.title');
@@ -258,7 +263,7 @@ export function assemble(selection, library, { partsDir = dirname(LIBRARY), sele
     list(b.closingExamples, `${at}.closingExamples`);
     if (![2,3].includes(b.closingExamples.length)) fail(`${at}.closingExamples`, 'supply two or three examples');
     b.closingExamples.forEach((s) => text(s, `${at}.closingExamples`));
-    return { ...Object.fromEntries(['number','name','group','energy','why','recommendation','zero','primaryMode','buttonRadius'].filter((k) => has(b,k)).map((k) => [k,b[k]])), palette, type, tags: { paletteLoudness: recipe.paletteLoudness, typeLoudness: heading.tags.typeLoudness, typeCut: heading.tags.typeCut }, graphics, monogram, content: copy(b.content), words: copy(b.words), note: {...b.note, svg: set.noteArrow}, sample: {...copy(b.sample), ...copy(set.sample), rule: set.bannerRule}, items: copy(b.items), closingExamples: copy(b.closingExamples) };
+    return { ...Object.fromEntries(['number','name','group','energy','why','recommendation','zero','primaryMode','buttonRadius'].filter((k) => has(b,k)).map((k) => [k,b[k]])), palette, type, tags: { paletteLoudness: recipe.paletteLoudness, typeLoudness: heading.tags.typeLoudness, typeCut: heading.tags.typeCut }, graphics, monogram, content: copy(b.content), ...(has(b, 'words') ? { words: copy(b.words) } : {}), note: {...b.note, svg: set.noteArrow}, sample: {...copy(b.sample), ...copy(set.sample), rule: set.bannerRule}, items: copy(b.items), closingExamples: copy(b.closingExamples) };
   });
   for (const g of groups) if (!boards.some((b) => b.group === g)) fail(`groups.${g}`, 'empty group');
   return { layout: 'board', person: selection.person, intro: copy(selection.intro), groups: copy(selection.groups), footnote: selection.footnote, boards };

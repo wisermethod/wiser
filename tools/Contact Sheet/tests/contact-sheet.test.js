@@ -326,6 +326,77 @@ function brandRefusal(t, mutate, pattern) {
   return error.error;
 }
 
+test('Headline regression: every whole board caps its headline at the hero column in both modes', (t) => {
+  const dir = temp(t);
+  for (const single of [false, true]) {
+    const spec = brandFixture();
+    if (single) { spec.boards = [spec.boards[0]]; spec.groups = [spec.groups[0]]; }
+    spec.boards[0].content.sentence = 'Accurate translations delivered on time.';
+    spec.boards[0].graphics.hero.phrase = 'delivered on time.';
+    spec.boards[0].type.heading.family = 'Newsreader';
+    spec.boards[0].type.heading.sizes.display.size = 98;
+    spec.boards[0].type.heading.sizes.display.maxWidth = 12;
+    if (!single) delete spec.boards[1].type.heading.sizes.display.maxWidth;
+    const html = readFileSync(success(build(dir, spec, `headline-${single}.html`).result).output, 'utf8');
+    const wholes = [...html.matchAll(/<div class="brand-board" data-board="(\d+)" data-mode="(light|dark)"[\s\S]*?<h2 class="brand-headline" style="([^"]+)"/g)];
+    assert.equal(wholes.length, spec.boards.length * 2);
+    for (const b of spec.boards) for (const mode of ['light', 'dark']) {
+      const headline = wholes.find(([, number, m]) => Number(number) === b.number && m === mode);
+      assert.ok(headline, `board ${b.number} ${mode}`);
+      assert.ok(headline[3].includes(`max-width:min(${b.type.heading.sizes.display.maxWidth || 12}em,100%)`));
+    }
+    assert.match(html, /\.tile \.brand-headline\{max-width:none!important/);
+    // A hero phrase longer than its column wraps inside it rather than running under the palette
+    // (2026-10-23, "Accurate translations" at 98px); a ring keeps its one line.
+    assert.match(html, /\.hero-phrase\{white-space:normal;max-width:100%\}/);
+    if (single) assert.doesNotMatch(html, /All 1 boards|Board 1 of 1/, 'a one-board page names no index of boards');
+    else assert.match(html, /All \d+ boards/);
+    // Whole-board text is at least 12px and the sheet-head links are at least 44px tall (2026-10-23, the simple
+    // page's second-context Review: 8px step labels, 10px chip values, small navigation targets). Tiles are miniatures.
+    const css = html.match(/<style>([\s\S]*?)<\/style>/)[1];
+    for (const [, sel, size] of css.matchAll(/([^{}]+)\{[^}]*?font-size:(\d+(?:\.\d+)?)px/g)) {
+      if (/\.tile/.test(sel)) continue;
+      assert.ok(Number(size) >= 12, `${sel.trim()} sets ${size}px`);
+    }
+    // Component Design criterion 5: interactive targets are at least 44px; padding extends the hit area.
+    assert.match(css, /\.board-nav a\{display:inline-block;min-height:44px;padding:10px 0;line-height:24px\}/);
+    assert.match(css, /\.contrast-results>summary\{min-height:44px;padding:12px 0;line-height:20px;cursor:pointer\}/);
+    assert.match(html, /\.hero-phrase,\.ring\{position:relative;white-space:nowrap;display:inline-block\}\.hero-phrase\{white-space:normal/);
+  }
+});
+
+test('Optional board fields omit only their own blocks in both modes and remain strict when present', (t) => {
+  const dir = temp(t);
+  for (let mask = 0; mask < 8; mask++) for (const empty of [false, true]) {
+    const spec = brandFixture();
+    for (const b of spec.boards) {
+      if (!(mask & 1)) { if (empty) b.words = []; else delete b.words; }
+      if (!(mask & 2)) delete b.content.photoRules;
+      if (!(mask & 4)) { if (empty) b.content.never = []; else delete b.content.never; }
+    }
+    const reply = success(build(dir, spec, `optional-${mask}-${empty}.html`).result);
+    const html = readFileSync(reply.output, 'utf8');
+    const boards = [...html.matchAll(/<div class="brand-board" data-board="(\d+)" data-mode="(light|dark)"([\s\S]*?)<footer class="whole-foot">/g)];
+    assert.equal(boards.length, spec.boards.length * 2);
+    for (const [, , , body] of boards) {
+      assert.equal(body.includes('<section class="words">'), Boolean(mask & 1));
+      assert.equal(body.includes('The words</p>'), Boolean(mask & 1));
+      assert.equal(body.includes('>Photo rules</h3>'), Boolean(mask & 2));
+      assert.equal(body.includes('>Never</h3>'), Boolean(mask & 4));
+      assert.equal(body.includes('<section class="rules">'), Boolean(mask & 6));
+    }
+    for (const b of reply.boards) assert.ok(b.checks.every((c) => (c.need == null || c.wcag >= c.need) && (!c.apcaNeed || Math.abs(c.apcaLc) >= c.apcaNeed)));
+  }
+  for (const [field, values] of [
+    ['words', [null, {}, '', [{ word: '', not: 'vague' }], [{ word: 'clear' }], [{ word: 'clear', not: 'vague', extra: true }]]],
+    ['photoRules', [null, [], '', '  ', 42]],
+    ['never', [null, {}, '', [''], ['line\nbreak'], [42]]]
+  ]) for (const value of values) brandRefusal(t, (s) => {
+    const target = field === 'words' ? s.boards[0] : s.boards[0].content;
+    target[field] = value;
+  }, new RegExp(field));
+});
+
 test('28. Brand boards render names before tiles, ordered groups, whole links and both complete modes', (t) => {
   const dir = temp(t), spec = brandFixture();
   const reply = success(build(dir, spec).result);

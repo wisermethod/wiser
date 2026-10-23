@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // system/templates/Script Contract.md; user-facing rules: tools/RUNNING.md.
 import { createHash } from 'node:crypto';
-import { createWriteStream, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { cpSync, createWriteStream, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { get } from 'node:https';
 import { tmpdir } from 'node:os';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
@@ -13,12 +13,16 @@ import { installAuthorised, writeConsent } from '../../../tools/lib/consent.js';
 const SCRIPT = fileURLToPath(import.meta.url);
 const SKILL = resolve(dirname(SCRIPT), '..');
 export const INSTALL = 'node scripts/fonts.mjs check --install';
-const HELP = `Build Brand font pack: survey or install the pinned open-licence files.
+const HELP = `Build Brand fonts: survey, list assets or install pinned open-licence files.
 Usage: node scripts/fonts.mjs help
-       node scripts/fonts.mjs check [--install] [--from <absolute.tar>]
+       node scripts/fonts.mjs check [--install] [--from <absolute path>] [--family <name>]...
+       node scripts/fonts.mjs assets [--library <absolute parts.json>]
        node scripts/fonts.mjs check help
   --install          Authorize installation and finish this check.
-  --from <file>      Request installation from an absolute local pack instead of
+  --family <name>    Repeatable parts.json fonts key; check/install only these
+                     families, including their licences. Omit for the whole pack.
+  --from <path>      Request installation from an absolute local pack tar, or a
+                     directory of asset-named files with --family, instead of
                      HTTPS; requires --install, WISER_ALLOW_INSTALL=1 or consent.
   --library <file>   Absolute parts.json; default: this skill's parts/parts.json.
   --directory <dir>  Absolute install directory; default: fonts/ beside library.
@@ -26,9 +30,13 @@ Usage: node scripts/fonts.mjs help
   --help, -h         Print usage without opening files or reading consent.
 A plain check surveys, even with consent or WISER_ALLOW_INSTALL=1. It writes
 nothing and returns one JSON object, exit 0, with installed, missing and changed.
-An install fetches about 4.5 MB once per plugin copy, checks the pack and every
-member, and writes fonts/ plus the plugin consent marker. HTTPS uses an OS-temp
-file removed at the end. No packages, credentials or configuration are needed.
+With --family it also names the families, and fetches only their individual release
+assets. Without --family an install fetches the whole pack (about 4.5 MB).
+assets prints a JSON array in parts.json order: asset, path, sha256 and bytes.
+Asset names drop fonts/, replace / with -- and each space with _.
+Installs verify sizes and hashes before writing fonts/ plus the plugin consent
+marker; HTTPS uses OS-temp files removed at the end. No packages, credentials or
+configuration are needed. assets writes nothing and never reads consent.
 Failure: stderr only, exit 1, with the cause and fix. See tools/RUNNING.md.`;
 const hash = data => createHash('sha256').update(data).digest('hex');
 const own = (object, key) => Object.hasOwn(object, key);
@@ -61,7 +69,11 @@ function fingerprint(file, at) {
   if (!/^[a-f0-9]{64}$/.test(file?.sha256) || !Number.isSafeInteger(file.bytes) || file.bytes < 0) stop(`${at} needs sha256 and bytes in parts.json`);
   return file;
 }
-export function members(library) {
+export function assetName(path) {
+  if (typeof path !== 'string' || !path.startsWith('fonts/')) stop('asset path must be relative to parts/fonts/');
+  return memberPath(path.slice(6)).replaceAll('/', '--').replaceAll(' ', '_');
+}
+export function members(library, families) {
   const expected = new Map();
   const add = (path, entry) => {
     if (typeof path !== 'string' || !path.startsWith('fonts/')) stop('parts.json files must be relative to parts/fonts/');
@@ -70,13 +82,35 @@ export function members(library) {
     expected.set(name, { path, ...fingerprint(entry, name) });
   };
   if (!library.fonts || typeof library.fonts !== 'object' || Array.isArray(library.fonts)) stop('parts.json needs fonts');
-  for (const font of Object.values(library.fonts)) {
+  for (const family of families || Object.keys(library.fonts)) {
+    if (!own(library.fonts, family)) stop(`unknown family ${JSON.stringify(family)}; use a key of parts.json fonts`);
+    const font = library.fonts[family];
     if (!Array.isArray(font.files) || !font.files.length) stop('parts.json needs font files');
     for (const file of font.files) add(file.path, { sha256: file.sha256, bytes: file.bytes });
     add(font.licenceFile, { sha256: font.licenceSha256, bytes: font.licenceBytes });
   }
   if (!expected.size) stop('parts.json names no font pack members');
   return expected;
+}
+function assets(expected) {
+  const names = new Set();
+  return [...expected.values()].map(({ path, sha256, bytes }) => {
+    const asset = assetName(path);
+    if (names.has(asset)) stop(`duplicate release asset name ${asset}; use distinct member paths`);
+    names.add(asset);
+    return { asset, path, sha256, bytes };
+  });
+}
+
+// Do not canonicalize a caller's destination link into permission to write there.
+function safeDirectory(directory) {
+  for (let path = directory; ; path = dirname(path)) {
+    try {
+      const info = lstatSync(path);
+      if (info.isSymbolicLink() || !info.isDirectory()) stop(`unsafe install destination ${path}; remove the link or conflicting entry`);
+    } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    if (dirname(path) === path) break;
+  }
 }
 
 // Existing links within fonts/ are never followed, for either checking or writing.
@@ -92,9 +126,9 @@ function safeTarget(directory, name) {
   }
   return path;
 }
-export function checkPack(library, directory = join(SKILL, 'parts/fonts')) {
+export function checkPack(library, directory = join(SKILL, 'parts/fonts'), families) {
   const missing = [], changed = [];
-  for (const [name, entry] of members(library)) {
+  for (const [name, entry] of members(library, families)) {
     try {
       const data = readFileSync(safeTarget(directory, name));
       if (data.length !== entry.bytes || hash(data) !== entry.sha256) changed.push(entry.path);
@@ -177,7 +211,7 @@ async function install(library, directory, from, authorised) {
   // All options and metadata have been checked before consent or temp writes.
   writeConsent(SCRIPT, 'Build Brand fonts', authorised);
   process.stderr.write(`First run: installing dependencies (${pack.name}) in ${directory}.\n`);
-  const temp = mkdtempSync(join(tmpdir(), 'wiser-brand-fonts-')); let stage;
+  const temp = mkdtempSync(join(tmpdir(), 'wiser-brand-fonts-'));
   try {
     const archive = from || join(temp, 'fonts.tar');
     if (!from) await download(url, archive, pack.bytes);
@@ -185,58 +219,147 @@ async function install(library, directory, from, authorised) {
     const data = readFileSync(archive);
     if (hash(data) !== pack.sha256) stop('font pack sha256 differs from parts.json; use the pinned pack');
     const files = readTar(data, expected);
-    for (const name of files.keys()) safeTarget(directory, name);
-    // Nothing under fonts/ is written until the entire pack has passed.
-    mkdirSync(directory, { recursive: true });
-    stage = mkdtempSync(join(directory, '.install-'));
-    for (const [name, bytes] of files) {
-      const target = join(stage, name); mkdirSync(dirname(target), { recursive: true });
-      writeFileSync(target, bytes, { flag: 'wx' });
-    }
-    for (const name of files.keys()) {
-      const target = safeTarget(directory, name); mkdirSync(dirname(target), { recursive: true });
-      renameSync(join(stage, name), target);
-    }
+    stageFamilies(directory, files);
   } finally {
-    if (stage) rmSync(stage, { recursive: true, force: true });
     rmSync(temp, { recursive: true, force: true });
   }
 }
 
+async function installFamilies(library, directory, from, authorised, families) {
+  const expected = members(library, families), files = assets(expected);
+  let base;
+  try { base = new URL('.', library.fontPack.url); } catch { stop('fontPack.url is invalid'); }
+  if (base.protocol !== 'https:') stop('fontPack.url and redirects must use https');
+  for (const name of expected.keys()) safeTarget(directory, name);
+  const bytes = files.reduce((total, file) => total + file.bytes, 0);
+  if (!installAuthorised(SCRIPT, authorised)) stop(`Installing families ${families.join(', ')} fetches ${bytes} bytes from ${base.hostname} (${base.href}; GitHub redirects to release-assets.githubusercontent.com)${from ? `, using local assets ${from}` : ''} into ${directory}. Run ${INSTALL} with --family to authorize it; WISER_ALLOW_INSTALL=1 or this plugin's consent marker also authorizes it`);
+  // A family fetch is scoped and writes no consent record: a later install still asks.
+  process.stderr.write(`First run: installing dependencies (${families.join(', ')}) in ${directory}.\n`);
+  const temp = mkdtempSync(join(tmpdir(), 'wiser-brand-fonts-')), verified = new Map();
+  try {
+    for (const entry of files) {
+      const file = from ? screened(join(from, entry.asset), '--from asset') : join(temp, entry.asset);
+      if (!from) await download(new URL(encodeURIComponent(entry.asset), base), file, entry.bytes);
+      let info;
+      try { info = statSync(file); } catch { stop(`asset ${entry.asset} is missing or unreadable; supply every family member`); }
+      if (!info.isFile()) stop(`asset ${entry.asset} is not a regular file`);
+      if (info.size !== entry.bytes) stop(`asset ${entry.asset} size differs from parts.json; use the pinned file`);
+      const data = readFileSync(file);
+      if (data.length !== entry.bytes) stop(`asset ${entry.asset} size differs from parts.json; use the pinned file`);
+      if (hash(data) !== entry.sha256) stop(`asset ${entry.asset} sha256 differs from parts.json; use the pinned file`);
+      verified.set(entry.path.slice(6), data);
+    }
+    stageFamilies(directory, verified);
+  } finally {
+    rmSync(temp, { recursive: true, force: true });
+  }
+}
+
+function stageFamilies(directory, verified) {
+  const swaps = [];
+  let stage, createdDirectory, installed = false, retainStage = false;
+  try {
+    // Validate every requested member before creating any install directory or file.
+    safeDirectory(directory);
+    for (const name of verified.keys()) safeTarget(directory, name);
+    createdDirectory = mkdirSync(directory, { recursive: true });
+    stage = mkdtempSync(join(directory, '.install-'));
+    const next = join(stage, 'next'), previous = join(stage, 'previous');
+    mkdirSync(next); mkdirSync(previous);
+    // Stage complete top-level family directories beside their destinations.
+    // Preserve unlisted existing entries; originals stay untouched until publish.
+    for (const name of new Set([...verified.keys()].map(name => name.split('/')[0]))) {
+      const target = join(directory, name), replacement = join(next, name);
+      let existed = true;
+      try { lstatSync(target); } catch (error) { if (error.code !== 'ENOENT') throw error; existed = false; }
+      if (existed) cpSync(target, replacement, { recursive: true, verbatimSymlinks: true, preserveTimestamps: true });
+      swaps.push({ target, replacement, backup: join(previous, name), existed, moved: false, published: false });
+    }
+    for (const [name, data] of verified) {
+      const target = safeTarget(next, name); mkdirSync(dirname(target), { recursive: true });
+      rmSync(target, { force: true });
+      writeFileSync(target, data, { flag: 'wx', mode: 0o644 });
+    }
+    safeDirectory(directory);
+    for (const name of verified.keys()) safeTarget(directory, name);
+    for (const swap of swaps) {
+      if (swap.existed) { renameSync(swap.target, swap.backup); swap.moved = true; }
+      renameSync(swap.replacement, swap.target); swap.published = true;
+    }
+    installed = true;
+  } catch (error) {
+    try {
+      for (const swap of [...swaps].reverse()) {
+        if (swap.published) rmSync(swap.target, { recursive: true, force: true });
+        if (swap.moved) renameSync(swap.backup, swap.target);
+      }
+    } catch (rollback) {
+      // Never erase the originals if the filesystem also refuses their restore.
+      retainStage = true;
+      throw new Error(`${error.message}; rollback failed: ${rollback.message}; recover originals from ${stage}`);
+    }
+    throw error;
+  } finally {
+    if (stage && !retainStage) rmSync(stage, { recursive: true, force: true });
+    if (createdDirectory && !installed && !retainStage) {
+      for (let path = directory; ; path = dirname(path)) {
+        rmdirSync(path);
+        if (path === createdDirectory) break;
+      }
+    }
+  }
+}
+
 export async function run(argv) {
-  if (!argv.length || (argv.length === 1 && ['help', '--help', '-h'].includes(argv[0])) || (argv.length === 2 && argv[0] === 'check' && ['help', '--help', '-h'].includes(argv[1]))) return HELP;
-  if (argv[0] !== 'check') stop(`unknown command ${JSON.stringify(argv[0])}`);
+  if (!argv.length || (argv.length === 1 && ['help', '--help', '-h'].includes(argv[0])) || (argv.length === 2 && ['check', 'assets'].includes(argv[0]) && ['help', '--help', '-h'].includes(argv[1]))) return HELP;
+  const command = argv[0];
+  if (!['check', 'assets'].includes(command)) stop(`unknown command ${JSON.stringify(command)}`);
   const options = {};
+  const flags = command === 'check' ? ['--install', '--from', '--library', '--directory', '--family'] : ['--library'];
   for (let i = 1; i < argv.length; i++) {
     const flag = argv[i];
-    if (!['--install', '--from', '--library', '--directory'].includes(flag)) stop(`unknown option ${flag}`);
-    if (own(options, flag)) stop(`duplicate option ${flag}`);
+    if (!flags.includes(flag)) stop(`unknown option ${flag}`);
+    if (flag !== '--family' && own(options, flag)) stop(`duplicate option ${flag}`);
     if (flag === '--install') options[flag] = true;
     else {
       const value = argv[++i];
+      if (flag === '--family') {
+        if (!value || value.startsWith('--')) stop('--family requires a family name');
+        (options[flag] ||= []).push(value); continue;
+      }
       if (!value || !isAbsolute(value)) stop(`${flag} requires an absolute path`);
       options[flag] = value;
     }
   }
   const libraryPath = screened(options['--library'] || join(SKILL, 'parts/parts.json'), '--library');
+  let library;
+  try { library = JSON.parse(readFileSync(libraryPath, 'utf8')); }
+  catch { stop('--library is unreadable or invalid JSON; use a valid parts.json'); }
+  if (command === 'assets') return assets(members(library));
+  const families = options['--family'] ? [...new Set(options['--family'])] : undefined;
+  if (families) members(library, families); // Unknown families fail before any install side effect.
   const defaultDirectory = join(dirname(libraryPath), 'fonts');
+  if (families) safeDirectory(options['--directory'] || defaultDirectory);
   const directory = screened(options['--directory'] || defaultDirectory, '--directory');
   if (!options['--directory'] && directory !== defaultDirectory) stop('parts/fonts resolves outside its library; remove the directory link');
   const from = options['--from'] ? screened(options['--from'], '--from') : null;
   if (from) {
-    try { if (!statSync(from).isFile()) stop('--from needs a regular pack file'); }
-    catch { stop('--from needs a readable regular pack file; supply the pinned local archive'); }
+    if (families) {
+      try { if (!statSync(from).isDirectory()) stop('--from needs an asset directory with --family'); }
+      catch { stop('--from needs a readable asset directory with --family'); }
+    } else {
+      try { if (!statSync(from).isFile()) stop('--from needs a regular pack file'); }
+      catch { stop('--from needs a readable regular pack file; supply the pinned local archive'); }
+    }
   }
-  let library;
-  try { library = JSON.parse(readFileSync(libraryPath, 'utf8')); }
-  catch { stop('--library is unreadable or invalid JSON; use a valid parts.json'); }
-  let state = checkPack(library, directory);
+  let state = checkPack(library, directory, families);
   if (!state.installed && (options['--install'] || from)) {
-    await install(library, directory, from, options['--install'] === true);
-    state = checkPack(library, directory);
+    if (families) await installFamilies(library, directory, from, options['--install'] === true, families);
+    else await install(library, directory, from, options['--install'] === true);
+    state = checkPack(library, directory, families);
     if (!state.installed) stop(`font pack is still incomplete; run ${INSTALL}`);
   }
-  return { pack: library.fontPack?.name, directory, ...state, ...(state.installed ? {} : { remediation: INSTALL }) };
+  return { pack: library.fontPack?.name, directory, ...(families ? { families } : {}), ...state, ...(state.installed ? {} : { remediation: INSTALL }) };
 }
 export async function main(argv = process.argv.slice(2)) {
   try { const result = await run(argv); process.stdout.write(`${typeof result === 'string' ? result : JSON.stringify(result)}\n`); }

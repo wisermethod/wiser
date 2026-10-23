@@ -4,7 +4,7 @@ This bank gathers your answers for a brief design file or a brand built over sev
 
 | Field | What it carries |
 |-------|-----------------|
-| Number | B0 for the path choice, B1 to B7 for the brief path, B8 for read-back confirmation on either path, B9 for the existing mark on either path, B10 for a brief board-round extension offer, B11 for its pick and B12 for its photo sentence, P1 to P5 for the five visual questions, F1 onward for the full path; R0 for the person's ask that opened the run, and R1 onward for anything they say unasked, each saved in their own words with what was shown left as the words they replied to, or empty. Each P question has one form, in words, used on both paths. |
+| Number | B0 for the path choice, B1 to B7 for the brief path, B8 for read-back confirmation on either path, B9 for the existing mark on either path, B10 for a brief board-round extension offer, B11 for its pick and B12 for its photo sentence, P1 to P5 for the five visual questions, F1 onward for the full path; S1 to S3 for the simple path's choices made for the person, the palette, the type pairing and the graphic set, each with its part's id; R0 for the person's ask that opened the run, and R1 onward for anything they say unasked, each saved in their own words with what was shown left as the words they replied to, or empty. Each P question has one form, in words, used on both paths. |
 | Ask | The words said to you, one question at a time. |
 | Default | An offered answer you may explicitly take; silence does not accept it. |
 | Fills | The `design.md` heading that uses the answer, or a named item in the answers record when it is preparation for a later stage. |
