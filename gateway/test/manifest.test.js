@@ -181,3 +181,89 @@ test('validator accepts a declared file output with any positive safe integer ca
     assert.deepEqual((await loadConnector(dir)).manifest.modules.items.actions.ping.output_file, output);
   }
 });
+
+for (const [name, standing, confirmation = 'always'] of [
+  ['unknown kind', { kind: 'run', summary: 'change things' }],
+  ['missing summary', { kind: 'change' }],
+  ['extra member', { kind: 'change', summary: 'change things', days: 7 }],
+  ['no confirmation stop', { kind: 'change', summary: 'change things' }, 'none'],
+  ['absent confirmation', { kind: 'change', summary: 'change things' }, null],
+  ['null', null], ['array', []], ['string', 'change'],
+  ['empty summary', { kind: 'change', summary: '' }],
+  ['numeric summary', { kind: 'change', summary: '123' }],
+  ['long summary', { kind: 'change', summary: 'a'.repeat(81) }],
+  ['control in summary', { kind: 'change', summary: 'change\nthings' }],
+  ['invisible in summary', { kind: 'change', summary: 'change\u2060things' }],
+  ['punctuation in summary', { kind: 'change', summary: 'change things.' }],
+]) {
+  test(`validator rejects standing_approval with ${name}`, async (t) => {
+    const root = makeHome();
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    const dir = join(root, 'sample');
+    writeConnector(dir, { id: 'sample' });
+    const file = join(dir, 'manifest.json');
+    const manifest = JSON.parse(readFileSync(file, 'utf8'));
+    const action = manifest.modules.items.actions.ping;
+    action.standing_approval = standing;
+    if (confirmation === null) delete action.confirmation;
+    else action.confirmation = confirmation;
+    writeFileSync(file, JSON.stringify(manifest));
+    await assert.rejects(() => loadConnector(dir), /modules\.items\.actions\.ping\.(standing_approval|confirmation)/);
+  });
+}
+
+test('validator accepts every standing approval kind on an action with a stop', async (t) => {
+  const root = makeHome();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const dir = join(root, 'sample');
+  writeConnector(dir, { id: 'sample' });
+  const file = join(dir, 'manifest.json');
+  const manifest = JSON.parse(readFileSync(file, 'utf8'));
+  for (const kind of ['change', 'delete', 'send', 'pay', 'publish', 'grant_access']) {
+    const standing = { kind, summary: 'change things' };
+    manifest.modules.items.actions.ping.confirmation = 'once';
+    manifest.modules.items.actions.ping.standing_approval = standing;
+    writeFileSync(file, JSON.stringify(manifest));
+    assert.deepEqual((await loadConnector(dir)).manifest.modules.items.actions.ping.standing_approval, standing);
+  }
+});
+
+test('validator accepts safe standing approval cautions and rejects invalid values at caution', async (t) => {
+  const root = makeHome();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const dir = join(root, 'sample');
+  writeConnector(dir, { id: 'sample' });
+  const file = join(dir, 'manifest.json');
+  const manifest = JSON.parse(readFileSync(file, 'utf8'));
+  const action = manifest.modules.items.actions.ping;
+  action.confirmation = 'always';
+  action.standing_approval = { kind: 'change', summary: 'change things' };
+  for (const caution of ['.', 'This may trigger workflows.', `${'a'.repeat(239)}.`]) {
+    action.standing_approval.caution = caution;
+    writeFileSync(file, JSON.stringify(manifest));
+    assert.equal((await loadConnector(dir)).manifest.modules.items.actions.ping.standing_approval.caution, caution);
+  }
+  for (const caution of ['', `${'a'.repeat(240)}.`, 'No final period', 'Trailing period. ', null, 1,
+    'Unsafe\n.', 'Unsafe\u2060.', 'Unsafe\ud800.', 'Unsafe\u2028.', 'Unsafe\u2029.', 'Unsafe\ufe0f.']) {
+    action.standing_approval.caution = caution;
+    writeFileSync(file, JSON.stringify(manifest));
+    await assert.rejects(() => loadConnector(dir), (err) => {
+      assert.equal(err.field, 'modules.items.actions.ping.standing_approval.caution');
+      return true;
+    });
+  }
+});
+
+test('Twenty marks exactly records.create and records.update for standing approvals', async () => {
+  const connector = await loadConnector(join(CONNECTORS, 'twenty'));
+  const marked = [];
+  for (const [module, definition] of Object.entries(connector.manifest.modules)) {
+    for (const [action, row] of Object.entries(definition.actions)) {
+      if (row.standing_approval) marked.push([`${module}.${action}`, row.standing_approval]);
+    }
+  }
+  assert.deepEqual(marked, [
+    ['records.create', { kind: 'change', summary: 'create records in Twenty', caution: "Creating or changing a Twenty record can start your workspace's own workflows, and a workflow may send email from a connected mailbox, so under this approval nobody looks at the record before that happens." }],
+    ['records.update', { kind: 'change', summary: 'change fields on existing Twenty records', caution: "Creating or changing a Twenty record can start your workspace's own workflows, and a workflow may send email from a connected mailbox, so under this approval nobody looks at the record before that happens." }],
+  ]);
+});

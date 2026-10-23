@@ -113,7 +113,7 @@ test('decoded proxy envelope reaches disk exactly, with metadata and the audit c
   assert.deepEqual(events, ['fsync', 'close', 'rename']);
   assert.equal(line.status, 'ok');
   assert.deepEqual(Object.keys(line).sort(), [
-    'ts', 'harness', 'role', 'op', 'action', 'service', 'module', 'label', 'privilege',
+    'ts', 'harness', 'role', 'op', 'action', 'service', 'module', 'label', 'grant_id', 'privilege',
     'path', 'provider_account_id', 'status', 'model', 'calibrated_model_version', 'ms', 'cid',
   ].sort());
   const serialized = JSON.stringify(result) + rawAudit;

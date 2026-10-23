@@ -138,6 +138,6 @@ guide's `## Revoking` section carries the same working through, from `connectors
 |-----------|-------------|
 | `zoho/CONNECTOR.md` | Reads mail, Books and Invoice invoices, Desk tickets, Inventory and Bigin contacts through six read grants, and reads, searches, and creates CRM leads with confirmation |
 | `hubspot/CONNECTOR.md` | Reads and searches contacts |
-| `twenty/CONNECTOR.md` | Reads, creates and updates records, and reads and creates objects, fields and select options in Twenty workspaces through labelled connections, confirming every write |
+| `twenty/CONNECTOR.md` | Reads, creates and updates records, and reads and creates objects, fields and select options in Twenty workspaces through labelled connections, confirming every write unless a standing approval covers a record create or update |
 
 <!-- /generated:index -->

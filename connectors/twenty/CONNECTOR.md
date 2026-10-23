@@ -2,8 +2,8 @@
 name: twenty
 type: connector
 category: crm
-description: Reads, creates and updates records, and reads and creates objects, fields and select options in Twenty workspaces through labelled connections, confirming every write
-version: 0.2.0
+description: Reads, creates and updates records, and reads and creates objects, fields and select options in Twenty workspaces through labelled connections, confirming every write unless a standing approval covers a record create or update
+version: 0.3.0
 ---
 
 # Twenty
@@ -24,7 +24,7 @@ Twenty has three kinds of email.
 
 This connector sends none of them. It holds a workspace API key and calls no endpoint that sends. No mailbox is named. It cannot create or update a workflow, a campaign or a message either: `twenty.records.create` and `twenty.records.update` refuse Twenty's own system objects by name.
 
-A record `twenty.records.create` creates or `twenty.records.update` updates can start the workspace's own workflows. A workflow the workspace already holds may send from a member's connected mailbox. This connector cannot see that workflow and cannot stop it. Creating or updating a record stops for confirmation every time.
+A record `twenty.records.create` creates or `twenty.records.update` updates can start the workspace's own workflows. A workflow the workspace already holds may send from a member's connected mailbox. This connector cannot see that workflow and cannot stop it. Creating or updating a record stops for confirmation every time, unless the person holds a standing approval that covers the call. A workflow such a record starts then runs with nobody having looked at that record first, and the approval's warning says so before the person grants it.
 
 ## Several workspaces
 
@@ -71,7 +71,7 @@ For `create` and `update`, `object` may be `person`, `company`, `opportunity`, `
 
 A label Twenty counts in UTF-16 units can pass the code-point bound here and still be refused by Twenty. A label in emoji is the case.
 
-A self-hosted install charges nothing per call. Every write takes `always`, because one approval does not cover another write.
+A self-hosted install charges nothing per call. Every write takes `always`, because one approval does not cover another write. Only a standing approval covers more than one: `twenty.records.create` and `twenty.records.update` are eligible for one, of kind `change`, and the three metadata writes are not, so they stop every time.
 
 ## Credentials
 
@@ -88,12 +88,12 @@ A grant is per module. Both modules use one toolkit. How to connect is `auth.md`
 
 ## Destructive Actions
 
-None of these actions deletes a record, deactivates an object or a field, or removes an option. The five writes below create or update a record, create an object or a field, or append options. An update replaces the values it names and keeps no copy of the old ones. Each one confirms every time.
+None of these actions deletes a record, deactivates an object or a field, or removes an option. The five writes below create or update a record, create an object or a field, or append options. An update replaces the values it names and keeps no copy of the old ones. Each one confirms every time, except a record create or update a standing approval covers. Under one, read the record before an update and name the values it will replace.
 
 | Action | Effect | Confirmation |
 |--------|--------|--------------|
-| `twenty.records.create` | Creates one record. A workspace workflow may run because of it. | `always` |
-| `twenty.records.update` | Replaces the named field values and keeps no copy of the old ones. A workspace workflow may run because of it. | `always` |
+| `twenty.records.create` | Creates one record. A workspace workflow may run because of it. | `always`; eligible for a standing approval |
+| `twenty.records.update` | Replaces the named field values and keeps no copy of the old ones. A workspace workflow may run because of it. | `always`; eligible for a standing approval |
 | `twenty.metadata.create_object` | Creates one object. | `always` |
 | `twenty.metadata.create_field` | Creates one field of one of the seven types. | `always` |
 | `twenty.metadata.add_field_options` | Appends options and leaves the ones already there unchanged. | `always` |
@@ -117,7 +117,7 @@ None of these actions deletes a record, deactivates an object or a field, or rem
 
 `needs_connect`: connect the named module in its own turn using `auth.md`. Privilege on that stop is `admin`.
 
-`needs_confirmation`: the call is one of the five writes. Read the stop, then repeat the identical call with `confirm: true` only when it is the one you want. A confirm with no matching stop is a fresh stop.
+`needs_confirmation`: the call is one of the five writes. Read the stop, then repeat the identical call with `confirm: true` only when it is the one you want. A confirm with no matching stop is a fresh stop. A create or update you expected a standing approval to cover falls outside its scope, or the approval has ended: it is this same stop. An answer carrying `standing_approval` ran under one, with no stop.
 
 `denied`: on the local gateway, the shipped default policy denies privilege `admin` for the runtime role. These modules declare `admin`. Until `policy.json` in the gateway home allows service `twenty` at privilege `admin`, no request is sent. On the Wiser endpoint the policy is the service's.
 

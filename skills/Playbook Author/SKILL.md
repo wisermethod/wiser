@@ -3,7 +3,7 @@ name: Playbook Author
 type: skill
 category: authoring
 description: Create, instantiate, resume, review, hand off at a session's end, or close out a WISER Playbook for work that spans sessions
-version: 0.2.4
+version: 0.2.5
 ---
 
 # Playbook Author
@@ -95,9 +95,10 @@ The named ask **wrap up** runs all five steps with step 5's answer already given
 1. Confirm this file is an instance or a one-time Playbook; a Template master is never closed out.
 2. Run Final Check and record its evidence, then set Status to Complete.
 3. Name the artifacts this work's completion affects. Update an artifact this session owns and can write; otherwise hand the list to whoever owns it. Where you cannot name the owner, ask who owns it, and do not update it.
-4. Archive per `standards/conventions.md`.
-5. Decide promotion. A Template instance is not promoted; the master already exists. Write a learning back to the master only when the next instance would run it unchanged whoever the inputs are. A learning that names this run's dates, inputs, or results stays behind, and so does one you cannot tell about. A One-time Playbook is promoted by the reset in `standards/playbook.md`, the undated master a new file beside the archived run with its header declaring Template, only when the requester has said this process will run again. Where they have said it will not, do not promote. Where you cannot tell, ask, and do not promote while the answer is open.
-6. Run Hand Off step 4, the lesson capture and the inbox routing. This is not the promotion in step 5: a learning about this run stays under that step, and this step routes a lesson a later session on different work would act on. A lesson already in its one home is not written again.
+4. End every standing approval that names this Playbook, whether or not its Authority section carries a reference line for it, as `skills/Standing Approval/` **Ending a Playbook's grants** does, and record each outcome in the close-out evidence. Where the gateway or a connection cannot be reached, name that as still open there; Status stays Complete only with that line written.
+5. Archive per `standards/conventions.md`.
+6. Decide promotion. A Template instance is not promoted; the master already exists. Write a learning back to the master only when the next instance would run it unchanged whoever the inputs are. A learning that names this run's dates, inputs, or results stays behind, and so does one you cannot tell about. A One-time Playbook is promoted by the reset in `standards/playbook.md`, the undated master a new file beside the archived run with its header declaring Template, only when the requester has said this process will run again. Where they have said it will not, do not promote. Where you cannot tell, ask, and do not promote while the answer is open.
+7. Run Hand Off step 4, the lesson capture and the inbox routing. This is not the promotion in step 6: a learning about this run stays under that step, and this step routes a lesson a later session on different work would act on. A lesson already in its one home is not written again.
 
 ## Pitfalls
 
@@ -112,5 +113,5 @@ The named ask **wrap up** runs all five steps with step 5's answer already given
 - The file sits at the path its owning root declares, named per `standards/playbook.md`; a created or instantiated document meets that standard's Success condition.
 - A resume left reconciliation done and Progress naming one attested next action, or Status Paused with its blocker recorded.
 - A review delivered the stress test and ranked findings per the Review Process, and did not rewrite the document.
-- A close-out left Final Check evidence recorded, Status Complete, the archive copy in place, any promotion producing an undated master beside it, and the lesson capture done.
+- A close-out left Final Check evidence recorded, Status Complete, every standing approval naming the Playbook revoked or named open, the archive copy in place, any promotion producing an undated master beside it, and the lesson capture done.
 - A hand-off left the document reconciled, every open decision put with a recommendation and each option's cost, the requester still choosing, the lesson capture done, and the wrap up offered at an ending rather than taken. Each path of a Playbook this session worked and did not close out printed once, in the hand-over block, except each the sequence decision leaves out, which printed none and stands in the starting Playbook's Next action; and the block printed only in the session's final message at an ending; a stop-and-tell checkpoint printed none.

@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.22.9, October 22, 2026
+
+- You can now let your assistant take some actions in your connected accounts without asking you each time. Ask it to stop asking before, say, creating and updating records in your Twenty CRM, and it shows you a warning in plain words first. The warning names the actions, the connection, the folder the work is done from and any Playbook, any limits you set such as only deals and contacts, and when the approval ends: 90 days unless you choose otherwise, at most a year. Nothing changes until you answer yes to that warning. Approvals for actions that delete, send, pay, publish or give someone access carry a stronger warning and last at most 7 days. You can see and end your approvals at any time, in the chat or on your Wiser account page, and closing a Playbook ends the ones made for it. Every action that runs this way is recorded with the approval it ran under, and your assistant tells you what it did. Only actions a connector marks can be approved ahead of time; today that is creating and updating Twenty records, whose warning also says a new or changed record can start one of your workspace's workflows, which may send email. (8d0aa36, 67cbb45, 9048e7b, 32aa770)
+- Asking Wiser to remember that you approve a kind of action ahead of time now leads you to a standing approval, with its warning, instead of being turned down as a preference. (8d0aa36)
+
 ## v2026.10.22.8, October 22, 2026
 
 - The Twenty connector can now update a record. It changes only the fields you name on a person, company, deal or other record, such as moving a deal to another stage or linking it to its contact and company, and it asks you first every time. It never deletes or restores a record. (2b27d2f, c062f0e, bc1b29d)
