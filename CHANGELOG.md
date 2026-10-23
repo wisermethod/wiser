@@ -4,6 +4,13 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.23.6, October 23, 2026
+
+- To get started, type "Set up Wiser" in Claude Cowork or the ChatGPT desktop app. Wiser checks that it's connected, asks your first name, makes a folder for you called Wiser on your Desktop with your name inside it, and walks you through making a project in your app with that folder attached. (da90f5a, 9752e2b, 69c02ed)
+- Then open a new chat in that project and type "Onboard Project". Wiser sets up your folder there without asking your name, where to keep it or who you'll be writing for, and goes straight to the voice coach. (da90f5a, bc77d3b, 69c02ed)
+- Every new Wiser folder now carries a small file that points Claude to the folder's own instructions, so each new chat in your project picks up your folder on its own. (bc77d3b)
+- In the ChatGPT desktop app, connecting Wiser now walks you through signing in from Wiser's own page in Plugins, instead of the steps meant for ChatGPT on the web. (1ba1e3e, 69c02ed)
+
 ## v2026.10.23.5, October 23, 2026
 
 - The last question when you set up a folder, how your work should look, now has four answers: give Wiser the brand you already have to record, build a look and feel with it over a few sessions, have it build a simple brand from what it already knows about you, or do it later. An organisation gets the same four, worded for a team. (2b75153)
