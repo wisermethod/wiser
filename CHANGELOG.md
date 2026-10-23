@@ -4,6 +4,13 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.23, October 23, 2026
+
+- Wiser can now build your brand with you. Ask it to help with your brand and choose how: about ten minutes of questions that record the brand you already have in your design file, or a full build over a few sessions that starts by writing a plan into your folder. The full build shows you whole brand boards, each a complete look with its colours, lettering and graphic shapes, and you say what you like, ask for blends and changes, and lock the one that is yours; it then writes a brand direction, design tokens, your brand on a social post, a flyer and a business card, a short guide and your design file. It reads your voice file and never changes it, and where a brand word clashes with how you write, it asks you which should win. A logo is not drawn yet: the build names it as still to come. (bcbd9b0, 8bed28a, a559d32, 560a978)
+- The boards use open-licence fonts, about 4.5 MB, downloaded once and only after you say yes. (bcbd9b0, 6413e35)
+- Setting up a folder now ends with one question about how your work should look: record the look you already have, build one with Wiser over a few sessions, or not now. (bcbd9b0)
+- The checks Wiser runs on a set-up folder now catch a design, voice or about file the folder no longer points to, and no longer mistake an archived copy of a file, or a link in your design file, for a problem. (bcbd9b0, f3f8d3c, 5729f7d)
+
 ## v2026.10.22.9, October 22, 2026
 
 - You can now let your assistant take some actions in your connected accounts without asking you each time. Ask it to stop asking before, say, creating and updating records in your Twenty CRM, and it shows you a warning in plain words first. The warning names the actions, the connection, the folder the work is done from and any Playbook, any limits you set such as only deals and contacts, and when the approval ends: 90 days unless you choose otherwise, at most a year. Nothing changes until you answer yes to that warning. Approvals for actions that delete, send, pay, publish or give someone access carry a stronger warning and last at most 7 days. You can see and end your approvals at any time, in the chat or on your Wiser account page, and closing a Playbook ends the ones made for it. Every action that runs this way is recorded with the approval it ran under, and your assistant tells you what it did. Only actions a connector marks can be approved ahead of time; today that is creating and updating Twenty records, whose warning also says a new or changed record can start one of your workspace's workflows, which may send email. (8d0aa36, 67cbb45, 9048e7b, 32aa770)
