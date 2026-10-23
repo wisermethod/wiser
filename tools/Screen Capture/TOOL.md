@@ -70,7 +70,7 @@ Python is this tool's declared interpreter under the Script Contract's Runtimes 
 | Tesseract | Second OCR engine for redact/verify, stills included | `tesseract --version` succeeds |
 | screencapture, shipped with macOS | Still and recording capture | `command -v screencapture` succeeds |
 
-`check`'s `programs` booleans report presence on PATH, except `ffmpeg_libx264`, which asks FFmpeg for its encoders. A video redaction refuses before package installation when that encoder is absent. The survey does not try a decode or OCR run. It also reports each required package pin in this interpreter's tool-local `.venv`. The packages are PyObjC 11.1 (core, Cocoa, Quartz, CoreML, Vision), Pillow 11.3.0, and NumPy 2.0.2 below Python 3.11 or 2.3.5 from Python 3.11 onward. Desktop commands other than `check` and `size`, and both file-processing commands, require this cache, including `compare`.
+`check`'s `programs` booleans report presence on PATH, except `ffmpeg_libx264`, which asks FFmpeg for its encoders. A video redaction refuses before package installation when that encoder is absent. The survey does not try a decode or OCR run. It also reports each required package pin in this interpreter's tool-local `.venv`. The packages are PyObjC 11.1 (core, Cocoa, Quartz, CoreML, Vision), Pillow 11.3.0, and NumPy 2.0.2 below Python 3.11 or 2.3.5 from Python 3.11 onward. Every desktop command but `check`, and both file-processing commands, require this cache, `size` and `compare` included.
 
 ## Configuration
 
@@ -112,16 +112,16 @@ Prefix each command below with `python3 scripts/capture.py`. Each flag belongs o
 | `--term [text]` | redact, verify: email address or name to find; repeat as Inputs requires | None; each nonblank; matching described below |
 | `--region [x,y,w,h]` | redact only: exact rectangle in the decoded frame's pixels, bypassing fitting, on every frame; a still uses the image's own pixels | None; repeatable; nonnegative integer x/y, positive integer width/height, entirely within the input frame |
 | `--fps [n]` | redact only, recordings only: decode and output rate | 30; finite positive number. verify takes no rate flag |
-| `--install` | windows, click, move, key, still, record, run, compare, redact, verify: authorize the pinned package install and finish the command | Off; refused by check, size and help |
+| `--install` | windows, size, click, move, key, still, record, run, compare, redact, verify: authorize the pinned package install and finish the command | Off; refused by check and help |
 | `--help` | Print full usage before dependency checks; a desktop command on another operating system gives the macOS refusal first | Off; top-level alias for help; extra unknown flags are still refused |
 
 ### Driving a window
 
 Coordinates for clicks and moves are **window-relative points**, measured from its current top-left corner after activation. To convert a window-relative rectangle to captured-image pixels, multiply its x and width by the image's pixel width divided by the capture receipt's `bounds.width`, and its y and height by the image's pixel height divided by `bounds.height`. Supply integer pixel rectangles to `--region`. `size` alone uses global coordinates for position. Width and height exclude points on the right and bottom edges.
 
-The tool activates the app before pointer and key actions. Before each pointer event inside the window, it reads the app's focus again and hit-tests that point against the front-to-back window list, including the menu bar, Dock and notifications. A covering window refuses the action. Parking is outside the window by design and checks focus only. A pressed mouse button or key is always released, including on interruption or lost focus, with a fallback release sent to that app alone.
+The tool activates the app before pointer and key actions. Before each pointer event inside the window, it reads the app's focus again and hit-tests that point against the front-to-back window list, including the menu bar, Dock and notifications. A covering window refuses the action. Parking is outside the window by design and checks focus only. A pressed mouse button or key is always released, including on interruption or lost focus, with a fallback release sent to that app alone. If the app has quit by then, nothing is sent anywhere else and the run stops saying so.
 
-A recipe key is refused when the selected window is no longer the app's largest layer-0 window. Otherwise it goes to the app's **focused window**, a dialog included, while the app is frontmost; a key has no coordinate hit test. A click requires that selected window to be on top at the point, so a menu or sheet the app opened over it refuses the click. Has a menu, sheet or dialog opened by the app changed the main window or covered the click point? Yes: stop and ask the person to operate that window, or change the recipe before retrying. No: continue with the selected window and the current bounds. Use `move --park` or a recipe's `park` step before a capture to keep the pointer outside the captured window; recordings otherwise show it.
+A key is refused when the selected window is no longer the app's largest layer-0 window. It goes to the app's **focused window** while the app is frontmost; a key has no coordinate hit test. Is another window of the app in front of the selected one, such as a dialog? Yes, and the key is `escape`: it is sent, so a recipe can close that dialog, and the receipt's `selected_window_in_front` reads false. Yes, and it is any other key: it is refused before anything is sent, since `return` would press the dialog's default button. No: it is sent. A click requires that selected window to be on top at the point, so a menu or sheet the app opened over it refuses the click. Has a menu, sheet or dialog opened by the app changed the main window or covered the click point? Yes: stop and ask the person to operate that window, or change the recipe before retrying. No: continue with the selected window and the current bounds. Use `move --park` or a recipe's `park` step before a capture to keep the pointer outside the captured window; recordings otherwise show it.
 
 ### Recording a walkthrough
 
@@ -175,7 +175,7 @@ Before releasing the candidate, **both Vision and Tesseract check every frame of
 
 `scripts/capture.py` is the only entry point; the other modules are its implementation. It follows `system/templates/Script Contract.md`; the governing standard is `standards/script-contract.md` and the user's running contract is `tools/RUNNING.md`. This typed file's frontmatter and seam follow `standards/primitives.md`; instruction wording follows `standards/instruction-quality.md`.
 
-Flags, numeric bounds, paths and complete recipe structure are checked before an install. Redact/verify check their system programs before packages; desktop capture checks screencapture when it captures. `size` uses macOS System Events through osascript without packages; macOS may additionally require Automation permission for that operation. `check` probes permissions without requesting them.
+Flags, numeric bounds, paths and complete recipe structure are checked before an install. Redact/verify check their system programs before packages; desktop capture checks screencapture when it captures. `size` sets the window through macOS System Events and osascript, then reads it back through the window list, so it needs the packages, Accessibility and Screen Recording before it touches the window; macOS may additionally require Automation permission for that operation. `check` probes permissions without requesting them.
 
 The path screen resolves symbolic links and compares hard links by filesystem identity, then uses the resolved paths. A Finder alias is its own file and is not followed. The screen does not accept existing destinations. Redaction keeps decoded frames and unchecked candidates in the temporary workspace listed in `tools/AGENTS.md`; ordinary completion, failure and handled interruption remove it, while a kill can leave it. Publishing copies a checked candidate to a `.wiser-screen-capture-*` sibling beside `--output`, then gives the output its name by a link that refuses an existing file. On a volume without link support, an exclusive create and copy also refuses an existing file. The sibling is removed once the output has its name; failure and handled interruption remove it too, while a kill can leave it. No unchecked candidate is published at the caller's output path.
 
@@ -189,7 +189,7 @@ Except for help text, success is one JSON object on stdout and exit 0. Failure i
 | `windows` | `ok`, `windows` (id, title, layer, bounds), `main` id or null |
 | `size` | `ok`, actual `bounds` in points |
 | `click`, `move` | `ok`, global `point` actually used |
-| `key` | `ok`, `key` sent |
+| `key` | `ok`, `key` sent, `selected_window_in_front` |
 | `still`, `record` | `ok`, window `id`, `bounds`, absolute `output`; raw PNG or MOV |
 | `run` | `ok`, `output`, `steps` count, `recipe_sha256`; `run.json` records the steps, hashes, geometry and refusals described under Recipe JSON, whose numbering includes sizing |
 | `compare` | `ok`, per-id `stills` with `same_size`, `identical`, `differing_pixels`, `box`; `only_a`, `only_b`. It compares RGBA pixels, not file hashes. Unequal sizes yield null count/box and both sizes; identical images yield zero and null box |
@@ -270,6 +270,8 @@ Message fragments below identify the code's stops; variable paths, flags, steps 
 | `named app is not frontmost` | Focus changed or activation failed | Bring it forward and retry after checking state |
 | `the app's main window changed during the recipe` | Another largest layer-0 window replaced the chosen id; a key is refused before sending | Follow Driving a window's menu, sheet and dialog decision; retry only with a corrected recipe or app state in a new directory |
 | `another window covers that point` | Menu bar, Dock, notification or window, including the app's own menu or sheet, won the hit test | Follow Driving a window's menu, sheet and dialog decision for the app's own window; for another obstruction, clear it and recheck the target |
+| `another window of the app is in front of the selected one` | A dialog or another window of the app is in front, and the key is not escape | Close it with `escape` or ask the person to operate it, then retry |
+| `the app quit while a button or key was pressed` | The app ended mid-press; no release was sent elsewhere | Ask the person to press and release that button or key once by hand if it reads as held |
 | `point is outside the window` | Coordinates exceed freshly read bounds | Recalculate window-relative points |
 | `mouse event could not be created` | macOS failed to create an event | Check Accessibility and retry |
 | `keyboard event could not be created` | macOS failed to create a key event | Check Accessibility and retry |

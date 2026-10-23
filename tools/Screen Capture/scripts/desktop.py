@@ -22,7 +22,7 @@ FLAGS = {
     'record': {'--app', '--seconds', '--output'},
     'run': {'--recipe', '--output'}, 'compare': {'--a', '--b'},
 }
-for _command in ('windows', 'click', 'move', 'key', 'still', 'record', 'run', 'compare'):
+for _command in ('windows', 'size', 'click', 'move', 'key', 'still', 'record', 'run', 'compare'):
     FLAGS[_command].add('--install')
 
 SID = re.compile(r'[A-Za-z0-9][A-Za-z0-9_-]{0,79}\Z')
@@ -159,7 +159,7 @@ def parse(argv, tool):
     if '--app' in values:
         app_name(values['--app'])
     if command == 'size':
-        window_spec({k[2:]: v for k, v in values.items() if k != '--app'})
+        window_spec({k[2:]: v for k, v in values.items() if k not in ('--app', '--install')})
     if command == 'move':
         if (values.get('--park') and ('--x' in values or '--y' in values)) or (not values.get('--park') and not {'--x', '--y'} <= set(values)):
             raise CaptureError('move needs either --x and --y or --park; consult help')
@@ -257,7 +257,8 @@ def geometry(row):
 
 
 def size(app, spec):
-    require('accessibility')
+    # Both before the window is touched: the read-back below needs the window list, as every later step does.
+    require('accessibility', 'screen_recording')
     spec = window_spec(spec)
     text = native.osascript(SIZING, [app] + [str(spec[k]) for k in ('width', 'height', 'x', 'y') if k in spec])
     try:
@@ -291,6 +292,23 @@ def foreground(app):
 def frontmost(app):
     if native.frontmost() != app:
         raise CaptureError('named app is not frontmost; bring it forward and retry')
+
+
+def front_window(app):
+    """The app's layer-0 window nearest the front, in the window server's front-to-back order."""
+    for row in native.window_list():
+        if row['owner'] == app and row['layer'] == 0 and row['bounds']['width'] > 0 and row['bounds']['height'] > 0:
+            return row
+    return None
+
+
+def release(post, app):
+    """Post a release to the app's own process. Where the app has gone, post nothing at large, and say so."""
+    pid = native.app_pid(app)
+    if pid is None:
+        raise CaptureError('the app quit while a button or key was pressed; nothing else was sent. '
+                           'Press and release it once by hand if it reads as held')
+    post(pid)
 
 
 def same_window(row, expected):
@@ -350,7 +368,7 @@ def click(app, x, y, expected=None):
         if not released:
             # A pressed button is always released, even on an interrupt, and to the app itself, never to a window
             # that now covers the point.
-            native.mouse('up', *target, pid=native.app_pid(app))
+            release(lambda pid: native.mouse('up', *target, pid=pid), app)
     return {'point': list(target)}
 
 
@@ -367,7 +385,15 @@ def key(app, name, expected=None):
         raise CaptureError('unsupported --key; choose escape, return, tab, space, up, down, left or right')
     foreground(app)
     native.ready()
-    same_window(main_window(app), expected)
+    selected = main_window(app)
+    same_window(selected, expected)
+    front = front_window(app)
+    in_front = front is not None and front['id'] == selected['id']
+    # A key goes to the app's focused window. Escape may close one of its dialogs, which is how a recipe dismisses one;
+    # any other key, return above all, is refused unless the selected window is the one in front.
+    if not in_front and name != 'escape':
+        raise CaptureError('another window of the app is in front of the selected one, such as a dialog; '
+                           'close it with escape or by hand, then retry')
     guard(app, None)
     # Down and up back to back. Where focus moved between them, or anything failed, the key is released to the app
     # itself, never left down; focus is read again after.
@@ -379,9 +405,9 @@ def key(app, name, expected=None):
             released = True
     finally:
         if not released:
-            native.keyboard(KEYS[name], False, pid=native.app_pid(app))
+            release(lambda pid: native.keyboard(KEYS[name], False, pid=pid), app)
     guard(app, None)
-    return {'key': name}
+    return {'key': name, 'selected_window_in_front': in_front}
 
 
 def capture_file(app, output, tool, seconds=None, expected=None):
@@ -510,8 +536,7 @@ def execute(command, values, tool, argv):
         return check(tool)
     # All flags, paths and the complete recipe passed before this dependency gate.
     from install import ensure
-    if command != 'size':
-        ensure(tool, values.get('--install', False), argv)
+    ensure(tool, values.get('--install', False), argv)
     app = values.get('--app')
     if command == 'windows':
         rows = windows(app)
@@ -519,7 +544,7 @@ def execute(command, values, tool, argv):
         return {'ok': True, 'windows': rows,
                 'main': max(main, key=lambda r: r['bounds']['width'] * r['bounds']['height'])['id'] if main else None}
     if command == 'size':
-        result = size(app, {k[2:]: v for k, v in values.items() if k != '--app'})
+        result = size(app, {k[2:]: v for k, v in values.items() if k not in ('--app', '--install')})
         result.pop('id')
     elif command == 'click':
         result = click(app, values['--x'], values['--y'])

@@ -170,6 +170,48 @@ class DesktopTests(unittest.TestCase):
         self.assertEqual((code, out), (1, ''))
         self.assertIn('not the app', err)
 
+    def test_size_installs_and_needs_both_permissions_before_touching_the_window(self):
+        script = self.stub('osascript', return_value='100,50,200,100')
+        install.ensure.side_effect = CaptureError('packages missing; retry with --install')
+        code, out, err = self.invoke(['size', '--app', 'Sample', '--width', '200', '--height', '100'])
+        self.assertEqual((code, out), (1, ''))
+        self.assertIn('packages missing', err)
+        script.assert_not_called()
+        install.ensure.side_effect = None
+        self.stub('permissions', return_value={'screen_recording': False, 'accessibility': True})
+        code, out, err = self.invoke(['size', '--app', 'Sample', '--width', '200', '--height', '100'])
+        self.assertEqual((code, out), (1, ''))
+        self.assertIn('Screen Recording', err)
+        script.assert_not_called()
+        self.stub('permissions', return_value={'screen_recording': True, 'accessibility': True})
+        code, out, err = self.invoke(['size', '--app', 'Sample', '--width', '200', '--height', '100', '--install'])
+        self.assertEqual((code, err), (0, ''))
+
+    def test_a_key_other_than_escape_is_refused_when_a_dialog_is_in_front(self):
+        keyboard = self.stub('keyboard')
+        dialog = window(wid=12, width=80, height=40, x=150, y=80)
+        self.stub('window_list', return_value=[dialog, window(wid=11)])
+        code, out, err = self.invoke(['key', '--app', 'Sample', '--key', 'return'])
+        self.assertEqual((code, out), (1, ''))
+        self.assertIn('in front of the selected one', err)
+        keyboard.assert_not_called()
+        code, out, err = self.invoke(['key', '--app', 'Sample', '--key', 'escape'])
+        self.assertEqual((code, err), (0, ''))
+        self.assertFalse(json.loads(out)['selected_window_in_front'])
+        self.assertEqual([c.args[1] for c in keyboard.call_args_list], [True, False])
+
+    def test_a_release_is_never_posted_at_large_when_the_app_has_gone(self):
+        mouse = self.stub('mouse')
+        self.stub('app_pid', return_value=None)
+        def flip(kind, x, y, pid=None):
+            if kind == 'down':
+                self.stub('frontmost', return_value='Other')
+        mouse.side_effect = flip
+        code, out, err = self.invoke(['click', '--app', 'Sample', '--x', '10', '--y', '20'])
+        self.assertEqual((code, out), (1, ''))
+        self.assertIn('quit', err)
+        self.assertEqual([c.args[0] for c in mouse.call_args_list], ['move', 'down'])
+
     def test_focus_lost_after_move_posts_no_press(self):
         mouse = self.stub('mouse')
         def flip(kind, x, y):

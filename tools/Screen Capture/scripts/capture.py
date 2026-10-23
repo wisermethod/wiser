@@ -36,7 +36,7 @@ Usage:
   python3 scripts/capture.py compare --a <absolute run directory> --b <absolute run directory>
 
 Commands: help, check, windows, size, click, move, key, still, record, run, compare, redact, verify.
-All commands accept --help; --install applies to every command except check, size and help.
+All commands accept --help; --install applies to every command except check and help.
 Capture and drive flags:
   --app <name>        Exact app name as macOS shows it; largest on-screen layer-0 window.
   --width <n>         Positive integer window width in points (size).
