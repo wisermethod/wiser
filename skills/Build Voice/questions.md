@@ -179,7 +179,7 @@ On Close, but or Not quite, they say what to change, in the free-text answer or 
 
 > Now let's have a little fun with your first writing sample. I'll write a personality profile of you in the style of a horoscope. I just need your birthday with the year, where you were born, and roughly what time. A guess at the time is fine. Say "skip" if you have an allergy to hearing about yourself.
 
-The answer is recorded as given; a time they do not know is left out, and the rest still makes the reading. Skipped, or given without a birthday: F2. Feeds: the reading's prompt, and nothing else.
+The answer is recorded as given; a time they do not know is left out, and the rest still makes the reading. Skipped, or given without a birthday or a place: F2. Feeds: the reading's prompt, and nothing else.
 
 The prompt, filled in and handed over as `SKILL.md` The coach step 5 says, word for word:
 
@@ -187,7 +187,7 @@ The prompt, filled in and handed over as `SKILL.md` The coach step 5 says, word 
 
 ## F2. A piece on your topic (tapped)
 
-Only after F1 is skipped. Where W2 gave a point, F2 is not asked: the piece is the short post on what they wish people knew, and F2a asks its post line. Otherwise:
+Only after F1 is skipped or gives no birthday or no place, or the reading does not come back. Where W2 gave a point, F2 is not asked: the piece is the short post on what they wish people knew, and F2a asks its post line. Otherwise:
 
 > Let's see it in action. What should I write first?
 
@@ -195,7 +195,7 @@ Only after F1 is skipped. Where W2 gave a point, F2 is not asked: the piece is t
 - An email asking for a meeting
 - A thank-you note to someone who helped
 
-Skipped: a short note saying what they do, from W1.
+Skipped: a short note saying what they do, from W1; where W1 was skipped too, there is nothing to write from, and the run stops by `SKILL.md` The coach step 8.
 
 ## F2a (typed)
 
@@ -235,7 +235,7 @@ Asked on The writing style is on, personality is off, recorded A4a after a rewri
 
 > What's off about it? A few words is plenty.
 
-Feeds: the portrait and `about.md` `## Personality`, as an A1 change does. A skip changes nothing.
+Feeds: the portrait and `about.md` `## Personality`; where it says how they write, a line in the voice. The piece is not rewritten. A skip changes nothing.
 
 ## A3 (typed)
 

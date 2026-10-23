@@ -126,7 +126,7 @@ A sample is named by the path where it is filed. Its text is not copied into the
 
 An answers file is not an onboarding record and does not file under `work/onboarding/`. C10 does not score it.
 
-A root whose directory holds no answers file scores present on this clause (vacuous). Score absent when the Work Directories table lacks the C3 row, or when the directory or the router is missing. Score misfiled when a file in the directory breaks this grammar, when Provides binds the directory, or when a bound file reproduces a row of an answers file.
+A root whose directory holds no answers file scores present on this clause (vacuous). Score absent when the Work Directories table lacks the C3 row, or when the directory or the router is missing. Score misfiled when a file in the directory breaks this grammar, when Provides binds the directory, or when a bound file reproduces a row of an answers file or the text of a reading file.
 
 The router cites this clause and restates none of it.
 
