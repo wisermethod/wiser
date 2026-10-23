@@ -12,7 +12,7 @@ Each question says what it **feeds**. A line in quotation marks after a pick is 
 
 > What do you do, and what do people come to you for? A few words is plenty, like "I teach chemistry, and people ask me to explain things simply."
 
-Feeds: the portrait's first sentence, with their role; P3's detail; `about.md` `## Key Facts`, written by Onboard Root.
+Feeds: the portrait, never with their role or title; P3's detail; `about.md` `## Key Facts`, written by Onboard Root.
 
 ## W2 (typed)
 
@@ -193,7 +193,7 @@ The prompt, filled in and handed over as `SKILL.md` The coach step 5 says, word 
 
 ## F2. A piece on your topic (tapped)
 
-Only after F1 is skipped or gives no birthday or no place, the reading does not come back, or A2a. Where W2 gave a point, F2 is not asked: the piece is the short post on what they wish people knew, and F2a asks its post line. Otherwise:
+Only after F1 is skipped or gives no birthday or no place, the reading does not come back, or A2a or A4a. Where W2 gave a point, F2 is not asked: the piece is the short post on what they wish people knew, and F2a asks its post line. Otherwise:
 
 > Let's see it in action. What should I write first?
 
@@ -233,7 +233,7 @@ After a piece on their topic:
 - Almost: I'd change a few things
 - No, it doesn't sound like me
 
-Each piece opens in short paragraphs with a blank line between them. After A2a, the piece on their topic opens with "Here's your voice on something you'd send:", takes the verdict for a piece on their topic, and is recorded A2b. The answers file records each piece and what was made up. This is spooky good, or Yes, sets the confirmation date. After a rewrite it is asked again, in the same form, and recorded A4, opening with "Here it is with your changes:", the piece in full and the one line A3a gives.
+Each piece opens in short paragraphs with a blank line between them. After A2a or A4a, the piece on their topic opens with "Here's your voice on something you'd send:" in place of "Here's your first piece:", takes the verdict for a piece on their topic, Yes, Almost or No, and is recorded A2b. The answers file records each piece and what was made up. This is spooky good, or Yes, sets the confirmation date. After a rewrite it is asked again, in the same form, and recorded A4, opening with "Here it is with your changes:", the piece in full and the one line A3a gives.
 
 ### A2a (typed)
 
