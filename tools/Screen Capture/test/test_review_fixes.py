@@ -253,14 +253,20 @@ class PathAndWorkerReviewTests(unittest.TestCase):
                               '    result = check.verify(sys.argv[2:], (), workers=2)\n'
                               '    print(json.dumps(result))\n')
             environment = dict(os.environ)
-            for key in ('PYTHONDONTWRITEBYTECODE', 'PYTHONPYCACHEPREFIX'):
-                environment.pop(key, None)
+            environment.pop('PYTHONDONTWRITEBYTECODE', None)
+            # Apple's Python keeps bytecode under a cache prefix of its own rather than beside the scripts, so the
+            # prefix is pointed at a folder of this test's: any bytecode written, in the tool or under the prefix,
+            # shows that writing was not switched off, whichever interpreter runs.
+            prefix = root / 'bytecode-prefix'
+            environment['PYTHONPYCACHEPREFIX'] = str(prefix)
             result = subprocess.run([sys.executable, str(runner), str(tool / 'scripts')] + list(map(str, files)),
                                     env=environment, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             reading = json.loads(result.stdout)
             self.assertEqual((reading['frames'], reading['distinct_frames'], reading['hits']), (2, 2, []))
             self.assertEqual(list((tool / 'scripts').rglob('__pycache__')), [])
+            self.assertEqual([p for p in prefix.rglob('*.pyc') if 'scripts' in p.parts], [],
+                             'the tool or its workers wrote bytecode')
 
 
 if __name__ == '__main__':
