@@ -212,6 +212,34 @@ class DesktopTests(unittest.TestCase):
         self.assertIn('quit', err)
         self.assertEqual([c.args[0] for c in mouse.call_args_list], ['move', 'down'])
 
+    def test_a_key_release_still_goes_out_when_the_app_has_gone(self):
+        keyboard = self.stub('keyboard')
+        self.stub('app_pid', return_value=None)
+        def flip(code, down, pid=None):
+            if down:
+                self.stub('frontmost', return_value='Other')
+        keyboard.side_effect = flip
+        code, out, err = self.invoke(['key', '--app', 'Sample', '--key', 'return'])
+        self.assertEqual((code, out), (1, ''))
+        self.assertEqual([(c.args[1], c.kwargs.get('pid')) for c in keyboard.call_args_list], [(True, None), (False, None)])
+
+    def test_an_alert_or_menu_of_the_app_at_any_level_refuses_return(self):
+        keyboard = self.stub('keyboard')
+        for layer in (8, 101):
+            panel = window(wid=30, layer=layer, width=60, height=30, x=160, y=90)
+            self.stub('window_list', return_value=[panel, window(wid=11)])
+            code, out, err = self.invoke(['key', '--app', 'Sample', '--key', 'return'])
+            self.assertEqual((code, out), (1, ''), layer)
+            self.assertIn('in front of the selected one', err)
+        keyboard.assert_not_called()
+        # The app's menu bar icon overlaps no window, and a transparent overlay is not in front.
+        icon = window(wid=31, layer=25, width=22, height=22, x=900, y=0)
+        overlay = dict(window(wid=32, layer=0, width=200, height=100), alpha=0.0)
+        self.stub('window_list', return_value=[icon, overlay, window(wid=11)])
+        code, out, err = self.invoke(['key', '--app', 'Sample', '--key', 'return'])
+        self.assertEqual((code, err), (0, ''))
+        self.assertTrue(json.loads(out)['selected_window_in_front'])
+
     def test_focus_lost_after_move_posts_no_press(self):
         mouse = self.stub('mouse')
         def flip(kind, x, y):

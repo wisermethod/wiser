@@ -240,8 +240,9 @@ def require(*names):
 
 def windows(app):
     require('screen_recording')
+    # A fully transparent window shows nothing, so it is never listed or chosen as the app's main window.
     return [{k: row[k] for k in ('id', 'title', 'layer', 'bounds')} for row in native.window_list()
-            if row['owner'] == app and row['bounds']['width'] > 0 and row['bounds']['height'] > 0]
+            if row['owner'] == app and row.get('alpha', 1.0) > 0 and row['bounds']['width'] > 0 and row['bounds']['height'] > 0]
 
 
 def main_window(app):
@@ -271,7 +272,7 @@ def size(app, spec):
     if any(bounds[key] != value for key, value in spec.items()):
         raise CaptureError('window bounds differ from the requested size or position; check the app minimum size and retry')
     # System Events sized the app's front window; every later step uses its largest layer-0 window. They must be one.
-    rows = [row for row in native.window_list() if row['owner'] == app and row['layer'] == 0
+    rows = [row for row in native.window_list() if row['owner'] == app and row['layer'] == 0 and row.get('alpha', 1.0) > 0
             and row['bounds']['width'] > 0 and row['bounds']['height'] > 0]
     main = max(rows, key=lambda row: row['bounds']['width'] * row['bounds']['height']) if rows else None
     if main is None or any(int(round(main['bounds'][key])) != value for key, value in bounds.items()):
@@ -294,20 +295,31 @@ def frontmost(app):
         raise CaptureError('named app is not frontmost; bring it forward and retry')
 
 
-def front_window(app):
-    """The app's layer-0 window nearest the front, in the window server's front-to-back order."""
+def front_window(app, selected):
+    """The app's visible window nearest the front that overlaps the selected one, at any level: an alert panel, a
+    sheet or a menu sits above the selected window at a level other than 0. The app's menu bar icon, which overlaps
+    no window, and a fully transparent overlay do not count."""
+    sb = selected['bounds']
     for row in native.window_list():
-        if row['owner'] == app and row['layer'] == 0 and row['bounds']['width'] > 0 and row['bounds']['height'] > 0:
+        b = row['bounds']
+        if row['owner'] != app or row.get('alpha', 1.0) <= 0 or b['width'] <= 0 or b['height'] <= 0:
+            continue
+        if row['id'] == selected['id']:
+            return row
+        if b['x'] < sb['x'] + sb['width'] and sb['x'] < b['x'] + b['width'] and \
+                b['y'] < sb['y'] + sb['height'] and sb['y'] < b['y'] + b['height']:
             return row
     return None
 
 
-def release(post, app):
-    """Post a release to the app's own process. Where the app has gone, post nothing at large, and say so."""
+def release(post, app, at_large=False):
+    """Post a release to the app's own process. Where the app has gone, a key's release still goes out, since a lone
+    key-up presses nothing and a held key would repeat in the next app; a mouse button's release does not, since it
+    could land on whatever window now holds the point."""
     pid = native.app_pid(app)
-    if pid is None:
-        raise CaptureError('the app quit while a button or key was pressed; nothing else was sent. '
-                           'Press and release it once by hand if it reads as held')
+    if pid is None and not at_large:
+        raise CaptureError('the app quit while a button was pressed; no release was sent. '
+                           'Press and release the mouse button once by hand before any retry')
     post(pid)
 
 
@@ -387,7 +399,7 @@ def key(app, name, expected=None):
     native.ready()
     selected = main_window(app)
     same_window(selected, expected)
-    front = front_window(app)
+    front = front_window(app, selected)
     in_front = front is not None and front['id'] == selected['id']
     # A key goes to the app's focused window. Escape may close one of its dialogs, which is how a recipe dismisses one;
     # any other key, return above all, is refused unless the selected window is the one in front.
@@ -405,7 +417,7 @@ def key(app, name, expected=None):
             released = True
     finally:
         if not released:
-            release(lambda pid: native.keyboard(KEYS[name], False, pid=pid), app)
+            release(lambda pid: native.keyboard(KEYS[name], False, pid=pid), app, at_large=True)
     guard(app, None)
     return {'key': name, 'selected_window_in_front': in_front}
 

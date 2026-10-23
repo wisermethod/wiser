@@ -19,7 +19,7 @@ When a check fails, the agent follows `standards/script-contract.md` System depe
 
 ## 2. Packages
 
-The first command needing packages reports their pins, roughly 100 MB, the hosts `pypi.org` and `files.pythonhosted.org`, and this tool's `.venv`, then stops unless this copy already has install consent. Put that report to the person; their answer is `--install` on the same command, or `WISER_ALLOW_INSTALL=1` for an unattended run. The authorized run installs and finishes the work. `check`, `size` and `help` take no install flag.
+The first command needing packages reports their pins, roughly 100 MB, the hosts `pypi.org` and `files.pythonhosted.org`, and this tool's `.venv`, then stops unless this copy already has install consent. Put that report to the person; their answer is `--install` on the same command, or `WISER_ALLOW_INSTALL=1` for an unattended run. The authorized run installs and finishes the work. `check` and `help` take no install flag; `size` takes one like the other desktop commands, since it needs the packages to read the window back.
 
 The pins are PyObjC core and its Cocoa, Quartz, CoreML and Vision frameworks at 11.1, Pillow at 11.3.0, and NumPy at 2.0.2 below Python 3.11 or 2.3.5 from Python 3.11 onward. `NOTICE.md` records the three measured resolutions. Only wheels are accepted; nothing is compiled. pip's download cache is off, so deleting `.venv` requires a new download. No packages are installed into the machine's Python environment. Use one interpreter consistently per copy; the `.venv` check looks only in that interpreter's site-packages.
 
@@ -32,7 +32,7 @@ Screen Recording belongs to the app that launched the tool, such as the terminal
 - System Settings > Privacy & Security > Screen Recording
 - System Settings > Privacy & Security > Accessibility
 
-The person grants these in System Settings. Re-run `check` from the same host afterward and confirm both `granted` fields are true. Screen Recording is used for window inventory and capture; pointer/key actions need both permissions; window sizing needs Accessibility and may also need macOS Automation permission for System Events. File-only redaction and verification need neither screen permission.
+The person grants these in System Settings. Re-run `check` from the same host afterward and confirm both `granted` fields are true. Screen Recording is used for window inventory and capture; pointer and key actions need both permissions; window sizing needs both before it changes the window, since it reads the window back, and may also need macOS Automation permission for System Events. File-only redaction and verification need neither screen permission.
 
 ## 4. Verify
 
