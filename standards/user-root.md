@@ -1,6 +1,6 @@
 ---
 standard: user-root
-version: 0.9.0
+version: 0.10.0
 description: One declared user-root tree and the clauses used to score its layout
 ---
 
@@ -114,9 +114,11 @@ Optional, and absent by default. A root may declare that no session which has re
 
 Answer files live at `memory/answers/`. Provides does not bind that directory or the files in it. The C3 row is the declaration. This clause is the grammar.
 
-One file per run. A voice run writes `YYYY-MM-DD voice answers.md`. A design run writes `YYYY-MM-DD design answers.md`. The date is the day the run writes the file. If that name is already there, the run does not overwrite it. It writes the next free name, `YYYY-MM-DD V2 voice answers.md` or `YYYY-MM-DD V2 design answers.md`, and so on.
+One answers file per run. A voice run writes `YYYY-MM-DD voice answers.md`. A design run writes `YYYY-MM-DD design answers.md`. The date is the day the run writes the file. If that name is already there, the run does not overwrite it. It writes the next free name, `YYYY-MM-DD V2 voice answers.md` or `YYYY-MM-DD V2 design answers.md`, and so on.
 
-Each file is one table. The columns are question number, question bank version, what was shown, the answer, and status. Status is answered, skipped, or in between. A skipped row leaves the answer empty. An in-between row says so and may carry the words the member added. The question bank version is the name and version the skill that asked states. This clause does not define that version.
+A voice run whose first piece was a reading the person called spooky good also writes `YYYY-MM-DD voice reading.md` beside its answers file, with the same date and the same V numbering: the piece as kept, then the reading it was written from. It is not a table. No bound file cites it or reproduces it.
+
+Each answers file is one table. The columns are question number, question bank version, what was shown, the answer, and status. Status is answered, skipped, or in between. A skipped row leaves the answer empty. An in-between row says so and may carry the words the member added. The question bank version is the name and version the skill that asked states. This clause does not define that version.
 
 A sample is named by the path where it is filed. Its text is not copied into the answers file. This clause gives samples no new home.
 
