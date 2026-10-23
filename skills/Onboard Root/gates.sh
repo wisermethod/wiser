@@ -1787,7 +1787,9 @@ gate_G11() {
         Competitor) continue ;;
       esac
       add_fail "$r line $ln: label token '[$head]' is outside the standard's four (Verified, Estimated, Unverified, Not available)"
-    done < <(strip_preamble "$f" | grep -onE '\[[A-Z][A-Za-z ]*(:[^]]*)?\]' 2>/dev/null)
+    # A markdown link's text, [Brand direction](path), is not a label: the link is
+    # reduced to its text first, line for line, so line numbers still match.
+    done < <(strip_preamble "$f" | sed -E 's/\[([^]]*)\]\([^)]*\)/\1/g' | grep -onE '\[[A-Z][A-Za-z ]*(:[^]]*)?\]' 2>/dev/null)
   done < <(bound_files)
 }
 
