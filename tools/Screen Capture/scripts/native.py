@@ -69,6 +69,20 @@ def window_list(desktop=False):
     return result
 
 
+def display_bounds():
+    """Each active display's bounds in global points, as the window list gives window bounds."""
+    import Quartz as q
+    error, ids, count = q.CGGetActiveDisplayList(16, None, None)
+    if error:
+        return []
+    result = []
+    for display in ids[:count]:
+        r = q.CGDisplayBounds(display)
+        result.append({"x": float(r.origin.x), "y": float(r.origin.y),
+                       "width": float(r.size.width), "height": float(r.size.height)})
+    return result
+
+
 def ready():
     """Load the frameworks the event adapters use, so no import sits between a check and its event."""
     import AppKit  # noqa: F401

@@ -286,7 +286,7 @@ def bring_forward(app):
     """Activate the app and wait until it is frontmost and one of its windows is on screen, which takes a moment when
     the window is on another desktop Space."""
     native.activate(app)
-    for _ in range(40):
+    for _ in range(100):  # up to 5 s: a switch to another desktop Space measured over 2 s on this Mac
         if native.frontmost() == app and any(row['owner'] == app and row['layer'] == 0 and row.get('alpha', 1.0) > 0
                                              for row in native.window_list()):
             return
@@ -337,12 +337,22 @@ def same_window(row, expected):
         raise CaptureError('the app\'s main window changed during the recipe; close its other windows and retry in a new directory')
 
 
+# System processes that keep a window the size of a whole display above every app, through which clicks pass. The
+# Dock keeps one; its bar, the menu bar and a notification are smaller and still cover what is under them.
+OVERLAY_OWNERS = {'Dock', 'Window Server', 'WindowManager'}
+
+
 def topmost_at(x, y):
-    """The front-most visible window containing a global point, in the window server's front-to-back order."""
+    """The front-most visible window containing a global point, in the window server's front-to-back order, leaving
+    out a system overlay exactly the size of a display."""
+    displays = [tuple(round(d[k]) for k in ('x', 'y', 'width', 'height')) for d in native.display_bounds()]
     for row in native.window_list(desktop=True):
         b = row['bounds']
-        if row.get('alpha', 1.0) > 0 and b['x'] <= x < b['x'] + b['width'] and b['y'] <= y < b['y'] + b['height']:
-            return row
+        if row.get('alpha', 1.0) <= 0 or not (b['x'] <= x < b['x'] + b['width'] and b['y'] <= y < b['y'] + b['height']):
+            continue
+        if row['owner'] in OVERLAY_OWNERS and tuple(round(b[k]) for k in ('x', 'y', 'width', 'height')) in displays:
+            continue
+        return row
     return None
 
 

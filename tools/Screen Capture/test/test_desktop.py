@@ -30,11 +30,12 @@ class DesktopTests(unittest.TestCase):
         # An unexpected screen/NSWorkspace/subprocess operation fails the test.
         self.adapters = {}
         for name in ('permissions', 'launching_app', 'parent_process', 'window_list', 'activate',
-                     'frontmost', 'osascript', 'mouse', 'keyboard', 'capture', 'pause', 'app_pid'):
+                     'frontmost', 'osascript', 'mouse', 'keyboard', 'capture', 'pause', 'app_pid', 'display_bounds'):
             self.adapters[name] = self.stack.enter_context(patch.object(native, name, side_effect=AssertionError('unstubbed native adapter')))
         for name, result in (('permissions', {'screen_recording': True, 'accessibility': True}),
                              ('launching_app', 'Synthetic Host'), ('window_list', [window()]),
-                             ('frontmost', 'Sample'), ('activate', None), ('pause', None), ('app_pid', 4242)):
+                             ('frontmost', 'Sample'), ('activate', None), ('pause', None), ('app_pid', 4242),
+                             ('display_bounds', [dict(x=0, y=0, width=2000, height=1200)])):
             self.stub(name, return_value=result)
         self.stack.enter_context(patch.object(install, 'ensure'))
         self.stack.enter_context(patch.object(desktop.shutil, 'which', return_value='/synthetic/bin/program'))
@@ -312,6 +313,20 @@ class DesktopTests(unittest.TestCase):
         mouse.assert_not_called()
         code, out, err = self.invoke(['click', '--app', 'Sample', '--x', '10', '--y', '40'])
         self.assertEqual((code, err), (0, ''))
+
+    def test_the_docks_display_sized_overlay_does_not_cover_the_window(self):
+        mouse = self.stub('mouse')
+        overlay = window(wid=9, owner='Dock', layer=20, x=0, y=0, width=2000, height=1200)
+        self.stub('window_list', return_value=[overlay, window()])
+        code, out, err = self.invoke(['click', '--app', 'Sample', '--x', '10', '--y', '20'])
+        self.assertEqual((code, err), (0, ''))
+        self.assertEqual([c.args[0] for c in mouse.call_args_list], ['move', 'down', 'up'])
+        # Another app's window the size of the display still covers the point.
+        mouse.reset_mock()
+        self.stub('window_list', return_value=[dict(overlay, owner='Other App'), window()])
+        code, out, err = self.invoke(['click', '--app', 'Sample', '--x', '10', '--y', '20'])
+        self.assertEqual((code, out), (1, ''))
+        mouse.assert_not_called()
 
     def test_a_window_over_the_point_refuses_the_click(self):
         mouse = self.stub('mouse')
