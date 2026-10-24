@@ -31,13 +31,13 @@ class DesktopTests(unittest.TestCase):
         self.adapters = {}
         for name in ('permissions', 'launching_app', 'parent_process', 'window_list', 'activate',
                      'frontmost', 'osascript', 'mouse', 'keyboard', 'capture', 'pause', 'app_pid', 'display_bounds',
-                     'cursor_level'):
+                     'window_levels'):
             self.adapters[name] = self.stack.enter_context(patch.object(native, name, side_effect=AssertionError('unstubbed native adapter')))
         for name, result in (('permissions', {'screen_recording': True, 'accessibility': True}),
                              ('launching_app', 'Synthetic Host'), ('window_list', [window()]),
                              ('frontmost', 'Sample'), ('activate', None), ('pause', None), ('app_pid', 4242),
                              ('display_bounds', [dict(x=0, y=0, width=2000, height=1200)]),
-                             ('cursor_level', 2147483630)):
+                             ('window_levels', {'cursor': 2147483630, 'dock': 20})):
             self.stub(name, return_value=result)
         self.stack.enter_context(patch.object(install, 'ensure'))
         self.stack.enter_context(patch.object(desktop.shutil, 'which', return_value='/synthetic/bin/program'))
@@ -361,6 +361,11 @@ class DesktopTests(unittest.TestCase):
         bar = window(wid=9, owner='Dock', layer=20, x=0, y=1100, width=2000, height=100)
         self.stub('window_list', return_value=[bar, window(y=1000, height=200)])
         code, out, err = self.invoke(['click', '--app', 'Sample', '--x', '10', '--y', '150'])
+        self.assertEqual((code, out), (1, ''))
+        mouse.assert_not_called()
+        # A Dock window the size of the display at another level, as Mission Control may draw, still covers the point.
+        self.stub('window_list', return_value=[dict(overlay, layer=101), window()])
+        code, out, err = self.invoke(['click', '--app', 'Sample', '--x', '10', '--y', '20'])
         self.assertEqual((code, out), (1, ''))
         mouse.assert_not_called()
         # Another app's window the size of the display still covers the point.

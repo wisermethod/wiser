@@ -337,24 +337,21 @@ def same_window(row, expected):
         raise CaptureError('the app\'s main window changed during the recipe; close its other windows and retry in a new directory')
 
 
-# System processes that keep a window the size of a whole display above every app, through which clicks pass. The
-# Dock keeps one; its bar, the menu bar and a notification are smaller and still cover what is under them.
-OVERLAY_OWNERS = {'Dock', 'Window Server', 'WindowManager'}
-
-
 def topmost_at(x, y):
-    """The front-most visible window containing a global point, in the window server's front-to-back order, leaving
-    out a system overlay exactly the size of a display and the pointer's own image, which sits on every point the
-    pointer has just moved to."""
+    """The front-most visible window containing a global point, in the window server's front-to-back order. Two windows
+    are left out: the pointer's own image, which sits on every point the pointer has just moved to, and the window the
+    Dock keeps at its own level exactly the size of a display, which clicks pass through, measured on macOS 26. Any other
+    Dock window, such as its bar, and any window of another size or level still covers what is under it."""
     displays = [tuple(round(d[k]) for k in ('x', 'y', 'width', 'height')) for d in native.display_bounds()]
-    cursor = native.cursor_level()
+    levels = native.window_levels()
     for row in native.window_list(desktop=True):
         b = row['bounds']
         if row.get('alpha', 1.0) <= 0 or not (b['x'] <= x < b['x'] + b['width'] and b['y'] <= y < b['y'] + b['height']):
             continue
-        if row['layer'] == cursor:
+        if row['layer'] == levels['cursor']:
             continue
-        if row['owner'] in OVERLAY_OWNERS and tuple(round(b[k]) for k in ('x', 'y', 'width', 'height')) in displays:
+        if row['owner'] == 'Dock' and row['layer'] == levels['dock'] and \
+                tuple(round(b[k]) for k in ('x', 'y', 'width', 'height')) in displays:
             continue
         return row
     return None

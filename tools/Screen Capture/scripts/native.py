@@ -83,10 +83,12 @@ def display_bounds():
     return result
 
 
-def cursor_level():
-    """The window level of the pointer's own image, which the window server lists as a window under the pointer."""
+def window_levels():
+    """The window levels of the pointer's own image and of the Dock, whose windows the window server lists in front of
+    an app's window."""
     import Quartz as q
-    return int(q.CGWindowLevelForKey(q.kCGCursorWindowLevelKey))
+    return {'cursor': int(q.CGWindowLevelForKey(q.kCGCursorWindowLevelKey)),
+            'dock': int(q.CGWindowLevelForKey(q.kCGDockWindowLevelKey))}
 
 
 def ready():
