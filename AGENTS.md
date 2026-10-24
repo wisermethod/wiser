@@ -103,9 +103,9 @@ The named ask **update root** (also "update this root", "check root", and "is th
 
 The named ask **set up connectors** (also "setup connectors" and "enable connectors") enters `skills/Set Up Connectors/`. It is the path for a new app, harness, machine, or OS user. It does not grant a vendor account; that remains Connect Account. The phrase "install connectors" routes here too and is not a tool `--install`; the gateway installs nothing.
 
-The named ask **set up wiser** (also "setup wiser") enters `skills/Set Up Wiser/`. It is a new member's first run, in an app with no folder open: it checks their Wiser connection, makes their Wiser folder, and walks them through making a project in their app with that folder attached, ending on the next named ask.
+The named ask **set up wiser** (also "setup wiser") enters `skills/Set Up Wiser/`. It is a new member's whole first run, in one chat with no folder open: it checks their Wiser connection, makes their Wiser folder, sets it up through `skills/Onboard Root/`, and ends with the steps for a project in their app with that folder attached.
 
-The named ask **onboard project** enters `skills/Onboard Root/` on its personal path, in the folder the project has open. It is the first run's second half, typed in a new chat inside the project **set up wiser** walked them through making.
+The named ask **onboard project** enters `skills/Onboard Root/` on its personal path, in the folder the project has open. It is the first run's fallback, typed in a new chat inside the project when **set up wiser** could not reach the folder to set it up.
 
 The named ask **wrap up** enters `skills/Playbook Author/` and runs its Hand Off, which readies this session's Playbooks for the next one and owns what it commits and hands over.
 

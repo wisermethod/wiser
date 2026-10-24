@@ -2,19 +2,19 @@
 name: Set Up Wiser
 type: skill
 category: onboarding
-description: Take a new member from a first chat with no folder open to their own Wiser folder on their Desktop and a project in their app with that folder attached, checking their Wiser connection first and ending on Onboard Project
-version: 0.2.0
+description: Take a new member, in one chat, from no folder open to their own Wiser folder on their Desktop, set up and with their voice and look recorded, and then to a project in their app with that folder attached, checking their Wiser connection first
+version: 0.3.0
 ---
 
 # Set Up Wiser
 
 ## Context
 
-Use when a person types the named ask **set up wiser** in Claude Cowork or the ChatGPT desktop app. It is the first half of the first run; the second half is the named ask **onboard project**, which `skills/Onboard Root/` runs inside the project this skill walks them through making. It makes an empty folder, not a root, and takes no expert gate.
+Use when a person types the named ask **set up wiser** in Claude Cowork or the ChatGPT desktop app. It is the whole first run, in one chat: it makes their folder, hands it to `skills/Onboard Root/`, which sets it up and runs the voice coach and the design question here, and ends with the steps for the project that makes every later chat start from that folder. It takes no expert gate, and neither does the onboarding it hands over, which it has already settled (`skills/Onboard Root/` Context). The named ask **onboard project** is the fallback for a folder this chat could not reach, onboarded inside the project instead.
 
-Not for writing anything into the folder: this skill leaves it empty, because `skills/Onboard Root/` takes an open empty folder as the person's own without asking and would treat a filled one as an existing folder. Not for connecting a vendor account, which is `skills/Connect Account/`. Not for a command-line session, whose working directory is already its folder: tell them to start it in an empty folder named with their first name and type "Onboard Project", and stop. Not for Claude or ChatGPT in a web browser, where Wiser's skills do not run: say that Wiser's setup runs in Claude Cowork or the ChatGPT desktop app, and stop.
+Not for writing into the folder itself: `skills/Onboard Root/` fills it. Not for connecting a vendor account, which is `skills/Connect Account/`. Not for a command-line session, whose working directory is already its folder: tell them to start it in an empty folder named with their first name and type "Onboard Project", and stop. Not for Claude or ChatGPT in a web browser, where Wiser's skills do not run: say that Wiser's setup runs in Claude Cowork or the ChatGPT desktop app, and stop.
 
-The person may be new to all of this and may not yet know what a folder is for. Every line this skill says that uses the word folder or project says in plain words what it is; it never says root or path, never asks what kind of folder this is, and never asks them to copy text from one app into another. Typing the two short phrases "Wiser Managed Project" and "Onboard Project" is theirs to do and is not copying.
+The person may be new to all of this and may not yet know what a folder is for. Every line this skill says that uses the word folder or project says in plain words what it is; it never says root or path, never asks what kind of folder this is, and never asks them to copy text from one app into another. Typing the short phrases "Wiser Managed Project" and, on the fallback, "Onboard Project" is theirs to do and is not copying.
 
 A folder is **empty** here as `skills/Onboard Root/` tests it: nothing in it but `.DS_Store`, sync machinery, or hidden files and directories whose names start with a period. A folder is a **Wiser folder** where its `AGENTS.md` declares a user root by `standards/user-root.md` C1.
 
@@ -22,7 +22,7 @@ Classifier seam: none.
 
 ## Objective
 
-The person ends with an empty folder named with their first name inside a folder named Wiser on their Desktop, or the Wiser folder of that name they already had, and a project in their app named with their first name, with that folder attached and, where the app has a description, the description "Wiser Managed Project"; and they know their next step is a new chat in that project where they type "Onboard Project". Verified by reading the folder back on disk where this session can reach it, and by the person saying the project is made.
+In this one chat, the person ends with a folder named with their first name inside a folder named Wiser on their Desktop, set up by `skills/Onboard Root/` with their voice and look recorded, or the Wiser folder of that name they already had; and with every step, and a page of them, for a project in their app named with their first name, with that folder attached and, where the app has a description, the description "Wiser Managed Project". Verified by reading the folder back on disk where this session can reach it, its `AGENTS.md` carrying the Onboarding section Onboard Root closes, and by the person saying the project is made.
 
 ## Identity
 
@@ -56,22 +56,26 @@ Take the name as they spell it, with each character the Names rules in `standard
 
 Find their Desktop as their computer reports it, never by assuming where it is: on Windows it is often inside OneDrive. Can this session reach it? Where the app shows the person a request to allow that, tell them to allow it.
 
-- **Yes, and Wiser on the Desktop already holds a folder with that name, compared ignoring case.** Use the folder's own spelling from here on. Is it empty? Yes: use it. Is it a Wiser folder? Yes: use it, say "You already have a Wiser folder, so we'll use that one.", and step 5's last step is different. Neither: say a folder with that name is already there with other things in it, and ask for another name to use, such as their first name and last initial; take the answer through the paragraph on the Names rules above, not the question before it.
+- **Yes, and Wiser on the Desktop already holds a folder with that name, compared ignoring case.** Use the folder's own spelling from here on. Is it empty? Yes: use it. Is it a Wiser folder? Yes: use it, say "You already have a Wiser folder, so we'll use that one.", and step 5 does not run. Neither: say a folder with that name is already there with other things in it, and ask for another name to use, such as their first name and last initial; take the answer through the paragraph on the Names rules above, not the question before it.
 - **Yes, and there is no such folder.** Make the folder Wiser on the Desktop where it is missing, and the folder with their first name inside it, and put nothing in either. Read it back. It exists and is empty: say "Done. Your folder is on your Desktop, in Wiser, called <first name>." It is missing or holds anything: take the next bullet's route.
-- **No**, or the app refuses: the person makes the two folders in step 5, at the moment the app asks them to choose a folder. Say: "I can't reach your Desktop from this chat, so you'll make the folder in the next step. I'll tell you exactly where to click."
+- **No**, or the app refuses: the person makes the two folders in step 6, at the moment the app asks them to choose a folder. Say: "I can't reach your Desktop from this chat, so you'll make the folder in the next step. I'll tell you exactly where to click."
 
 Then go to step 5.
 
-### 5. The project, and what comes next
+### 5. Set up their folder
 
-They will leave this chat to make the project, so give every step in one message and do not wait between them. Open the message with: "Next, you'll make a project. A project is a space in your app where every chat already knows about your folder, so you never have to point me to it again. You'll leave this chat to do it, so here's every step at once." Then give that app's steps below as one numbered list, writing in their first name and the folder's place wherever a step names them, and end the list with the last step for their folder. Then stop: this chat is done.
+Was the folder new or empty, and made where this session can write it? Yes: run `skills/Onboard Root/` by name on its personal path, handing it that folder as the destination, the type personal, and their first name, as they spelled it, as their name; it copies the folder in, runs the voice coach and the design question in this chat, and closes. Then go to step 6. It was already a Wiser folder, or the person will make it in step 6: go to step 6.
+
+### 6. The project, and what comes next
+
+They will leave this chat to make the project, so give every step in one message and do not wait between them. Open the message with: "Next, you'll make a project. A project is a space in your app where every chat already knows about your folder, so you never have to point me to it again. You'll leave this chat to do it, so here's every step at once." Then give that app's steps below as one numbered list, writing in their first name and the folder's place wherever a step names them, and end the list with the last step for their folder. After the list, give the same steps as a page they can keep open beside the app: the address is the `url` of the `wiser` server in this plugin's `.mcp.json` with its path replaced by `/setup/claude` for Claude Cowork or `/setup/chatgpt` for the ChatGPT desktop app, and `#name=` and their first name, URL-encoded, after it; say "Here are the same steps on a page you can keep open:" and the address. Where this session can run a command on their computer, open that address in their browser too. Then stop: this chat is done.
 
 - **Claude Cowork:** open Projects, choose the plus button, then Use an existing folder; choose Desktop, then Wiser, then the folder with their first name; name the project with their first name; where there is a description box, type Wiser Managed Project; create the project.
 - **The ChatGPT desktop app:** open Projects and make a new project on this computer, named with their first name; open its menu and choose Edit project, then Add folder; choose Desktop, then Wiser, then the folder with their first name; where it offers Make primary, choose it. There is no description to fill in.
 
 Where step 4 could not make the folders, the step that chooses the folder makes them instead: in that window, open the Desktop, choose New Folder and name it Wiser, open it, choose New Folder again and name it with their first name, and choose it.
 
-The last step depends on step 4. The folder was new or empty: "Open a new chat inside your project and type Onboard Project. That's where I'll set up your folder and get to know how you write." The folder was already a Wiser folder: "Open a new chat inside your project and just start working. Your folder is already set up."
+The last step depends on step 5. Onboarding ran, or the folder was already a Wiser folder: "Open a new task inside your project and start working." Onboarding did not run, because this chat could not reach the folder: "Open a new task inside your project and type Onboard Project. That's where I'll set up your folder and get to know how you write."
 
 Where they come back and say the screens differ from these steps, ask what they see, in their words, and guide from that; never send them to type a location or paste text.
 
@@ -82,4 +86,4 @@ Where they come back and say the screens differ from these steps, ask what they 
 
 ## Success
 
-The folder with their first name exists inside Wiser on their Desktop, empty or already a Wiser folder, read back where this session can reach it; the person was given their app's project steps, ending on "Onboard Project" for an empty folder; no line used folder or project without saying what it is, none said root or path, and nothing was copied between apps.
+The folder with their first name exists inside Wiser on their Desktop and was set up by Onboard Root in this chat, or was already a Wiser folder, or, where this chat could not reach it, the person made it in step 6 and was told to type "Onboard Project" in the project; the person was given their app's project steps in one message and the page with their name in its address; no line used folder or project without saying what it is, none said root or path, and nothing was copied between apps.
