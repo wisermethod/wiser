@@ -170,6 +170,31 @@ class DesktopTests(unittest.TestCase):
         self.assertEqual((code, out), (1, ''))
         self.assertIn('not the app', err)
 
+    def test_size_and_still_bring_a_window_on_another_space_forward_first(self):
+        self.stub('osascript', return_value='100,50,200,100')
+        # No window on screen until the app is activated, as when it is on another desktop Space.
+        self.stub('window_list', return_value=[])
+        self.stub('activate', side_effect=lambda app: self.stub('window_list', return_value=[window()]))
+        code, out, err = self.invoke(['size', '--app', 'Sample', '--width', '200', '--height', '100'])
+        self.assertEqual((code, err), (0, ''))
+        self.adapters['activate'].assert_called_with('Sample')
+        with temporary() as directory:
+            self.stub('window_list', return_value=[])
+            self.stub('activate', side_effect=lambda app: self.stub('window_list', return_value=[window()]))
+            capture_mock = self.stub('capture', side_effect=lambda args: Path(args[-1]).write_bytes(b'synthetic'))
+            code, out, err = self.invoke(['still', '--app', 'Sample', '--output', str(Path(directory) / 'still.png')])
+            self.assertEqual((code, err), (0, ''))
+            capture_mock.assert_called_once()
+        # An app whose window never comes on screen is refused by name, before any capture.
+        self.stub('window_list', return_value=[])
+        self.stub('activate', return_value=None)
+        capture_mock.reset_mock()
+        with temporary() as directory:
+            code, out, err = self.invoke(['still', '--app', 'Sample', '--output', str(Path(directory) / 'none.png')])
+        self.assertEqual((code, out), (1, ''))
+        self.assertIn('window on screen', err)
+        capture_mock.assert_not_called()
+
     def test_size_installs_and_needs_both_permissions_before_touching_the_window(self):
         script = self.stub('osascript', return_value='100,50,200,100')
         install.ensure.side_effect = CaptureError('packages missing; retry with --install')
@@ -315,10 +340,12 @@ class DesktopTests(unittest.TestCase):
         self.assertEqual(keyboard.call_args_list[-1].kwargs.get('pid'), 4242)
 
     def test_run_refuses_when_the_main_window_changes(self):
-        self.stub('mouse')
-        # One read at the recipe's start, then four for the first click: its window and a hit test before each event.
-        lists = iter([[window()]] * 5 + [[window(wid=12, width=300)]] * 20)
-        self.stub('window_list', side_effect=lambda desktop=False: next(lists))
+        mouse = self.stub('mouse')
+        # The app's main window changes once the first click has been released.
+        def after(kind, x, y, pid=None):
+            if kind == 'up':
+                self.stub('window_list', return_value=[window(wid=12, width=300)])
+        mouse.side_effect = after
         with temporary() as directory:
             root = Path(directory)
             recipe = root / 'recipe.json'

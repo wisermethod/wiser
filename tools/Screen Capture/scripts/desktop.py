@@ -261,6 +261,8 @@ def size(app, spec):
     # Both before the window is touched: the read-back below needs the window list, as every later step does.
     require('accessibility', 'screen_recording')
     spec = window_spec(spec)
+    # System Events sizes the front window, and the read-back sees on-screen windows only, so the app comes forward.
+    bring_forward(app)
     text = native.osascript(SIZING, [app] + [str(spec[k]) for k in ('width', 'height', 'x', 'y') if k in spec])
     try:
         actual = list(map(int, text.split(',')))
@@ -280,14 +282,21 @@ def size(app, spec):
     return {'bounds': bounds, 'id': main['id']}
 
 
-def foreground(app):
-    require('accessibility', 'screen_recording')
+def bring_forward(app):
+    """Activate the app and wait until it is frontmost and one of its windows is on screen, which takes a moment when
+    the window is on another desktop Space."""
     native.activate(app)
-    for _ in range(20):
-        if native.frontmost() == app:
+    for _ in range(40):
+        if native.frontmost() == app and any(row['owner'] == app and row['layer'] == 0 and row.get('alpha', 1.0) > 0
+                                             for row in native.window_list()):
             return
         native.pause(0.05)
-    raise CaptureError('named app is not frontmost; bring it forward and retry')
+    raise CaptureError('named app is not frontmost with a window on screen; bring its window forward and retry')
+
+
+def foreground(app):
+    require('accessibility', 'screen_recording')
+    bring_forward(app)
 
 
 def frontmost(app):
@@ -426,6 +435,8 @@ def capture_file(app, output, tool, seconds=None, expected=None):
     # Recheck each recipe destination immediately before its capture.
     output = screen(str(output), '--output', tool, True)
     require('screen_recording')
+    # A window on another desktop Space is not on screen and cannot be captured, so the app comes forward first.
+    bring_forward(app)
     row = main_window(app)
     same_window(row, expected)
     if not shutil.which('screencapture'):
