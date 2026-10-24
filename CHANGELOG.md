@@ -4,10 +4,16 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
-## v2026.10.24, October 24, 2026
+## v2026.10.24.2, October 24, 2026
 
 - "Set up Wiser" now does the whole first run in one chat: it makes your folder, sets it up and runs the voice coach and the design question right there, and only then gives you the steps for your project, with a page of the same steps that has your name filled in. You no longer need a second chat to finish setting up. (fb97870)
 - Choosing to build your look and feel while setting up a folder no longer asks about logos, colours and fonts right then; those questions open your first brand session, one at a time. (3aeb6eb)
+
+## v2026.10.24, October 24, 2026
+
+- On a Mac, a new tool, `Screen Capture`, takes a picture or a recording of one app's window. It can also click through steps written down for that window and take the same pictures again, matching to the pixel each time. It works only on the window you name, checks just before each click that nothing else covers the spot, and stops rather than click anywhere else. (c73ccfc, f1903a9, 1cf27ad)
+- Before a picture or recording is saved, the tool covers every email address it finds and any names or words you list with a soft blur over scrambled letters. It then reads every frame of what it wrote with two different text readers, and saves nothing if either still finds one. (c73ccfc, 540eaa6, ab4a0f8)
+- It needs Screen Recording and Accessibility switched on for the app you run it from, and Tesseract and FFmpeg installed. The first time, it asks before installing its own Python packages. (f1903a9, 88f9f88)
 
 ## v2026.10.23.7, October 23, 2026
 

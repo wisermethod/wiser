@@ -1,0 +1,8 @@
+pyobjc-core==11.1
+pyobjc-framework-Cocoa==11.1
+pyobjc-framework-Quartz==11.1
+pyobjc-framework-CoreML==11.1
+pyobjc-framework-Vision==11.1
+pillow==11.3.0
+numpy==2.0.2; python_version < "3.11"
+numpy==2.3.5; python_version >= "3.11"
