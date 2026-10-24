@@ -116,28 +116,71 @@ def snap(g, rect):
     return nx0, ny0, nx1, ny1
 
 
+def _merges(shared, a, b):
+    """The one merge rule, for single boxes and for rows of them: the shared area is at least half the smaller box's."""
+    return shared >= 0.5 * np.minimum(a, b)
+
+
 def overlaps(a, b):
-    return intersection(a, b) >= 0.5 * min(area(a), area(b))
+    return bool(_merges(intersection(a, b), area(a), area(b)))
+
+
+def _overlapping(rect, rects):
+    """overlaps(rect, each row of rects) at once, by the same rule and arithmetic."""
+    shared = (np.maximum(0, np.minimum(rect[2], rects[:, 2]) - np.maximum(rect[0], rects[:, 0])) *
+              np.maximum(0, np.minimum(rect[3], rects[:, 3]) - np.maximum(rect[1], rects[:, 1])))
+    sizes = np.maximum(0, rects[:, 2] - rects[:, 0]) * np.maximum(0, rects[:, 3] - rects[:, 1])
+    return _merges(shared, area(rect), sizes)
+
+
+def merge(rects):
+    """Each group's rectangle and member indices, ordered by its first member. The groups are exactly those of
+    repeatedly merging the first overlapping pair, in list order, and restarting, since a larger rectangle can bridge
+    earlier regions and overlap is not monotone as rectangles grow. Only what a union can change is read again: the
+    pairs before the grown rectangle, then its row and the rows after it, each row at once, so a recording with
+    thousands of boxes takes seconds where restarting from the first pair took an hour."""
+    if not rects:
+        return []
+    # Within 2**25 px every area is below 2**52, where NumPy's int64 and float64 agree exactly with Python's
+    # comparison; a frame is far smaller, and anything larger is refused rather than merged differently.
+    if any(abs(v) >= 2 ** 25 for r in rects for v in r):
+        raise ValueError("box coordinates beyond 2**25 px")
+    integral = all(isinstance(v, (int, np.integer)) for r in rects for v in r)
+    box = np.array(rects, dtype=np.int64 if integral else np.float64)
+    members = [[k] for k in range(len(rects))]
+    alive = np.ones(len(rects), bool)
+    start = 0  # every pair whose first rectangle comes before this index is known not to overlap
+    while True:
+        live = np.flatnonzero(alive)
+        found = None
+        for at in range(int(np.searchsorted(live, start)), len(live) - 1):
+            hit = np.flatnonzero(_overlapping(box[live[at]], box[live[at + 1:]]))
+            if len(hit):
+                found = int(live[at]), int(live[at + 1 + hit[0]])
+                break
+        if found is None:
+            break
+        keep, gone = found
+        while True:
+            box[keep] = (min(box[keep][0], box[gone][0]), min(box[keep][1], box[gone][1]),
+                         max(box[keep][2], box[gone][2]), max(box[keep][3], box[gone][3]))
+            members[keep] += members[gone]
+            alive[gone] = False
+            # The grown rectangle may now overlap one before it, which is then the first overlapping pair.
+            before = np.flatnonzero(alive[:keep])
+            hit = np.flatnonzero(_overlapping(box[keep], box[before])) if len(before) else []
+            if not len(hit):
+                break
+            keep, gone = int(before[hit[0]]), keep
+        start = keep
+    cast = int if integral else float
+    return [(tuple(cast(v) for v in box[k]), members[k]) for k in np.flatnonzero(alive)]
 
 
 def regions(files, per, dilate=None):
     dilate = DILATE if dilate is None else dilate
-    regs = [{"rect": tuple(box), "frames": {i}} for i, boxes in enumerate(per)
-            for box in boxes if area(box)]
-    # Restart after each union: a larger rectangle can bridge earlier regions.
-    merging = True
-    while merging:
-        merging = False
-        for i in range(len(regs)):
-            for j in range(i + 1, len(regs)):
-                if overlaps(regs[i]["rect"], regs[j]["rect"]):
-                    regs[i]["rect"] = union(regs[i]["rect"], regs[j]["rect"])
-                    regs[i]["frames"].update(regs[j]["frames"])
-                    del regs[j]
-                    merging = True
-                    break
-            if merging:
-                break
+    found = [(tuple(box), i) for i, boxes in enumerate(per) for box in boxes if area(box)]
+    regs = [{"rect": rect, "frames": {found[k][1] for k in ids}} for rect, ids in merge([b for b, _ in found])]
     output = [[] for _ in files]
     for region in regs:
         found = sorted(region["frames"])

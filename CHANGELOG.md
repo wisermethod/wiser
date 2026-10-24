@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.24.3, October 24, 2026
+
+- Redacting a recording of a window full of text with `Screen Capture` now takes about a minute where it could take over an hour, and the result is the same picture, frame for frame. (273d4e3, cc7e1bd, 21389fc)
+
 ## v2026.10.24.2, October 24, 2026
 
 - "Set up Wiser" now does the whole first run in one chat: it makes your folder, sets it up and runs the voice coach and the design question right there, and only then gives you the steps for your project, with a page of the same steps that has your name filled in. You no longer need a second chat to finish setting up. (fb97870)
