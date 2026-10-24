@@ -78,6 +78,60 @@ class MechanicsTests(unittest.TestCase):
             self.assertEqual(len(regs), 1, "half of the smaller area must merge even when IoU is below half")
             self.assertEqual(per, [[(20, 20, 100, 40)]])
 
+    def test_merge_matches_restarting_from_the_first_pair(self):
+        # The loop regions() used before 2026-10-24, kept as the reference: merge the first overlapping pair in list
+        # order, then restart. Overlap at half the smaller area is not monotone, so order decides the groups.
+        def reference(rects):
+            regs = [{"rect": r, "ids": [k]} for k, r in enumerate(rects)]
+            merging = True
+            while merging:
+                merging = False
+                for i in range(len(regs)):
+                    for j in range(i + 1, len(regs)):
+                        if geometry.overlaps(regs[i]["rect"], regs[j]["rect"]):
+                            regs[i]["rect"] = geometry.union(regs[i]["rect"], regs[j]["rect"])
+                            regs[i]["ids"] += regs[j]["ids"]
+                            del regs[j]
+                            merging = True
+                            break
+                    if merging:
+                        break
+            return [(r["rect"], sorted(r["ids"])) for r in regs]
+
+        rng = np.random.default_rng(20261024)
+        cases = 0
+        for size in (2, 3, 5, 8, 13, 40, 120):
+            for _ in range(300 if size < 40 else 40):
+                x0 = rng.integers(0, 60, size)
+                y0 = rng.integers(0, 30, size)
+                rects = [(int(a), int(b), int(a + rng.integers(1, 40)), int(b + rng.integers(1, 14)))
+                         for a, b in zip(x0, y0)]
+                got = [(rect, sorted(ids)) for rect, ids in geometry.merge(rects)]
+                self.assertEqual(got, reference(rects), rects)
+                cases += 1
+        # Order matters: a small box inside a later union stops overlapping once the union outgrows it.
+        rects = [(0, 0, 10, 10), (5, 0, 40, 10), (0, 0, 4, 40), (30, 0, 80, 10)]
+        self.assertEqual([(r, sorted(i)) for r, i in geometry.merge(rects)], reference(rects))
+        self.assertGreater(cases, 1500)
+
+    def test_regions_scale_to_a_dense_recording(self):
+        # 600 frames of a text window, about thirty boxes a frame jittering by a pixel, as the TextEdit run had.
+        rng = np.random.default_rng(7)
+        per = []
+        for _ in range(600):
+            per.append([(20 + 120 * (k % 6) + int(rng.integers(0, 2)), 30 + 22 * (k // 6) + int(rng.integers(0, 2)),
+                         120 + 120 * (k % 6), 46 + 22 * (k // 6)) for k in range(30)])
+        with temporary() as directory:
+            path = Path(directory) / "blank.png"
+            Image.new("RGB", (800, 200), "white").save(path)
+            with patch.object(geometry, "snap", side_effect=lambda g, rect: rect):
+                import time
+                start = time.perf_counter()
+                out, regs = regions([path] * 600, per)
+                took = time.perf_counter() - start
+        self.assertEqual(len(regs), 30)
+        self.assertLess(took, 60, "merging 18,000 boxes took %.0f s" % took)
+
     def test_dilation_is_three_and_no_more(self):
         with temporary() as directory:
             path = Path(directory) / "blank.png"
