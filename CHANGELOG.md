@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.24.4, October 24, 2026
+
+- When you finish a session, Wiser now ends with one short message in the same four parts every time: what got done, which files changed, anything waiting on you with its recommendation, and what's next. What's next names your next session, the project or workspace to open it in, and a prompt to copy into the new chat; when nothing is left, it says so. (010099c, 0810c84, fe49ce6)
+- In Claude Cowork or the ChatGPT desktop app, that message no longer mentions commits or pushes, the prompt gives your plan's place inside your project rather than a full path, and saying you're stopping for the day goes straight to it instead of asking again. (010099c, 0810c84, fe49ce6)
+- Your plan now records which session last worked on it, so the next one is numbered; a number is never guessed. (010099c, fe49ce6)
+
 ## v2026.10.24.3, October 24, 2026
 
 - Redacting a recording of a window full of text with `Screen Capture` now takes about a minute where it could take over an hour, and the result is the same picture, frame for frame. (273d4e3, cc7e1bd, 21389fc)
