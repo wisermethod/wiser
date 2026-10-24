@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.24, October 24, 2026
+
+- "Set up Wiser" now does the whole first run in one chat: it makes your folder, sets it up and runs the voice coach and the design question right there, and only then gives you the steps for your project, with a page of the same steps that has your name filled in. You no longer need a second chat to finish setting up. (fb97870)
+- Choosing to build your look and feel while setting up a folder no longer asks about logos, colours and fonts right then; those questions open your first brand session, one at a time. (3aeb6eb)
+
 ## v2026.10.23.7, October 23, 2026
 
 - "Set up Wiser" now gives you every step for making your project in one message, with your name and your folder written in, so you can leave the chat to follow them instead of coming back after each click. (13cd442)
