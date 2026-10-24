@@ -121,6 +121,25 @@ class DesktopTests(unittest.TestCase):
             ORIGINAL_CAPTURE(['-x', '-o', '-l11', '/synthetic/out.png'])
             self.assertEqual(run.call_args.args[0], ['screencapture', '-x', '-o', '-l11', '/synthetic/out.png'])
 
+    def test_the_front_app_and_running_list_are_read_after_pending_notifications(self):
+        # Without a pass of the run loop a command keeps the front app it first read, which refused a live click.
+        order = Mock()
+        appkit, foundation = Mock(), Mock()
+        foundation.NSRunLoop.currentRunLoop.return_value.runMode_beforeDate_ = order.pump
+        shared = appkit.NSWorkspace.sharedWorkspace.return_value
+        shared.frontmostApplication = order.front
+        order.front.return_value.localizedName.return_value = 'Sample'
+        running = Mock()
+        running.localizedName.return_value = 'Sample'
+        running.processIdentifier.return_value = 4242
+        shared.runningApplications = order.running
+        order.running.return_value = [running]
+        with patch.dict(sys.modules, {'AppKit': appkit, 'Foundation': foundation}):
+            self.assertEqual(ORIGINAL_FRONTMOST(), 'Sample')
+            self.assertEqual(ORIGINAL_APP_PID('Sample'), 4242)
+        self.assertEqual([c[0] for c in order.mock_calls if c[0] in ('pump', 'front', 'running')],
+                         ['pump', 'front', 'pump', 'running'])
+
     def test_check_reads_pins_from_venv_only(self):
         with temporary() as directory:
             tool = Path(directory)
@@ -321,7 +340,15 @@ class DesktopTests(unittest.TestCase):
         code, out, err = self.invoke(['click', '--app', 'Sample', '--x', '10', '--y', '20'])
         self.assertEqual((code, err), (0, ''))
         self.assertEqual([c.args[0] for c in mouse.call_args_list], ['move', 'down', 'up'])
+        # The Dock's own bar, smaller than the display, still covers what is under it.
+        mouse.reset_mock()
+        bar = window(wid=9, owner='Dock', layer=20, x=0, y=1100, width=2000, height=100)
+        self.stub('window_list', return_value=[bar, window(y=1000, height=200)])
+        code, out, err = self.invoke(['click', '--app', 'Sample', '--x', '10', '--y', '150'])
+        self.assertEqual((code, out), (1, ''))
+        mouse.assert_not_called()
         # Another app's window the size of the display still covers the point.
+        self.stub('window_list', return_value=[overlay, window()])
         mouse.reset_mock()
         self.stub('window_list', return_value=[dict(overlay, owner='Other App'), window()])
         code, out, err = self.invoke(['click', '--app', 'Sample', '--x', '10', '--y', '20'])
@@ -610,6 +637,8 @@ ORIGINAL_OSASCRIPT = native.osascript
 ORIGINAL_CAPTURE = native.capture
 ORIGINAL_PERMISSIONS = native.permissions
 ORIGINAL_LAUNCHING_APP = native.launching_app
+ORIGINAL_FRONTMOST = native.frontmost
+ORIGINAL_APP_PID = native.app_pid
 
 if __name__ == '__main__':
     unittest.main()

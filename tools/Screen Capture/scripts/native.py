@@ -86,12 +86,22 @@ def display_bounds():
 def ready():
     """Load the frameworks the event adapters use, so no import sits between a check and its event."""
     import AppKit  # noqa: F401
+    import Foundation  # noqa: F401
     import Quartz  # noqa: F401
 
 
+def workspace():
+    """The shared workspace with its pending notifications delivered. A command never runs its main loop, so without
+    this pass the front app and the running list stay as the process first read them, measured on macOS 26."""
+    from AppKit import NSWorkspace
+    from Foundation import NSDate, NSDefaultRunLoopMode, NSRunLoop
+    NSRunLoop.currentRunLoop().runMode_beforeDate_(NSDefaultRunLoopMode, NSDate.date())
+    return NSWorkspace.sharedWorkspace()
+
+
 def activate(app):
-    from AppKit import NSWorkspace, NSApplicationActivateIgnoringOtherApps
-    for running in NSWorkspace.sharedWorkspace().runningApplications():
+    from AppKit import NSApplicationActivateIgnoringOtherApps
+    for running in workspace().runningApplications():
         if str(running.localizedName()) == app:
             if running.activateWithOptions_(NSApplicationActivateIgnoringOtherApps):
                 return
@@ -99,8 +109,7 @@ def activate(app):
 
 
 def frontmost():
-    from AppKit import NSWorkspace
-    running = NSWorkspace.sharedWorkspace().frontmostApplication()
+    running = workspace().frontmostApplication()
     return str(running.localizedName()) if running else None
 
 
@@ -113,8 +122,7 @@ def osascript(script, arguments):
 
 
 def app_pid(app):
-    from AppKit import NSWorkspace
-    for running in NSWorkspace.sharedWorkspace().runningApplications():
+    for running in workspace().runningApplications():
         if str(running.localizedName()) == app:
             return int(running.processIdentifier())
     return None

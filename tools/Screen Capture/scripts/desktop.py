@@ -286,7 +286,7 @@ def bring_forward(app):
     """Activate the app and wait until it is frontmost and one of its windows is on screen, which takes a moment when
     the window is on another desktop Space."""
     native.activate(app)
-    for _ in range(100):  # up to 5 s: a switch to another desktop Space measured over 2 s on this Mac
+    for _ in range(100):  # up to 5 s for a window on another desktop Space to come on screen
         if native.frontmost() == app and any(row['owner'] == app and row['layer'] == 0 and row.get('alpha', 1.0) > 0
                                              for row in native.window_list()):
             return
