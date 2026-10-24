@@ -344,11 +344,15 @@ OVERLAY_OWNERS = {'Dock', 'Window Server', 'WindowManager'}
 
 def topmost_at(x, y):
     """The front-most visible window containing a global point, in the window server's front-to-back order, leaving
-    out a system overlay exactly the size of a display."""
+    out a system overlay exactly the size of a display and the pointer's own image, which sits on every point the
+    pointer has just moved to."""
     displays = [tuple(round(d[k]) for k in ('x', 'y', 'width', 'height')) for d in native.display_bounds()]
+    cursor = native.cursor_level()
     for row in native.window_list(desktop=True):
         b = row['bounds']
         if row.get('alpha', 1.0) <= 0 or not (b['x'] <= x < b['x'] + b['width'] and b['y'] <= y < b['y'] + b['height']):
+            continue
+        if row['layer'] == cursor:
             continue
         if row['owner'] in OVERLAY_OWNERS and tuple(round(b[k]) for k in ('x', 'y', 'width', 'height')) in displays:
             continue

@@ -30,12 +30,14 @@ class DesktopTests(unittest.TestCase):
         # An unexpected screen/NSWorkspace/subprocess operation fails the test.
         self.adapters = {}
         for name in ('permissions', 'launching_app', 'parent_process', 'window_list', 'activate',
-                     'frontmost', 'osascript', 'mouse', 'keyboard', 'capture', 'pause', 'app_pid', 'display_bounds'):
+                     'frontmost', 'osascript', 'mouse', 'keyboard', 'capture', 'pause', 'app_pid', 'display_bounds',
+                     'cursor_level'):
             self.adapters[name] = self.stack.enter_context(patch.object(native, name, side_effect=AssertionError('unstubbed native adapter')))
         for name, result in (('permissions', {'screen_recording': True, 'accessibility': True}),
                              ('launching_app', 'Synthetic Host'), ('window_list', [window()]),
                              ('frontmost', 'Sample'), ('activate', None), ('pause', None), ('app_pid', 4242),
-                             ('display_bounds', [dict(x=0, y=0, width=2000, height=1200)])):
+                             ('display_bounds', [dict(x=0, y=0, width=2000, height=1200)]),
+                             ('cursor_level', 2147483630)):
             self.stub(name, return_value=result)
         self.stack.enter_context(patch.object(install, 'ensure'))
         self.stack.enter_context(patch.object(desktop.shutil, 'which', return_value='/synthetic/bin/program'))
@@ -332,6 +334,20 @@ class DesktopTests(unittest.TestCase):
         mouse.assert_not_called()
         code, out, err = self.invoke(['click', '--app', 'Sample', '--x', '10', '--y', '40'])
         self.assertEqual((code, err), (0, ''))
+
+    def test_the_pointers_own_image_does_not_cover_the_point_it_moved_to(self):
+        mouse = self.stub('mouse')
+        pointer = window(wid=6, owner='Window Server', layer=2147483630, x=105, y=65, width=35, height=50)
+        self.stub('window_list', return_value=[pointer, window()])
+        code, out, err = self.invoke(['click', '--app', 'Sample', '--x', '10', '--y', '20'])
+        self.assertEqual((code, err), (0, ''))
+        self.assertEqual([c.args[0] for c in mouse.call_args_list], ['move', 'down', 'up'])
+        # The same small window at any other level still covers the point.
+        mouse.reset_mock()
+        self.stub('window_list', return_value=[dict(pointer, layer=25), window()])
+        code, out, err = self.invoke(['click', '--app', 'Sample', '--x', '10', '--y', '20'])
+        self.assertEqual((code, out), (1, ''))
+        mouse.assert_not_called()
 
     def test_the_docks_display_sized_overlay_does_not_cover_the_window(self):
         mouse = self.stub('mouse')

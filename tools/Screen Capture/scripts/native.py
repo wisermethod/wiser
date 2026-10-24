@@ -83,6 +83,12 @@ def display_bounds():
     return result
 
 
+def cursor_level():
+    """The window level of the pointer's own image, which the window server lists as a window under the pointer."""
+    import Quartz as q
+    return int(q.CGWindowLevelForKey(q.kCGCursorWindowLevelKey))
+
+
 def ready():
     """Load the frameworks the event adapters use, so no import sits between a check and its event."""
     import AppKit  # noqa: F401
