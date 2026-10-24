@@ -12,7 +12,7 @@ version: 0.2.1
 
 Use to commit a session's work, to push one captured commit, to tag a release, or to confirm a release reached what serves it.
 
-Not for deciding whether to push or to release. That authorization is the requester's, and never this skill's to grant. Not for a deployment a deploy skill owns. Not for reconciling a Playbook, for authorizing a wrap up, or for reporting the unpushed range. `skills/Playbook Author/` Hand Off keeps those, and it invokes this skill by name for the commit itself, reporting this skill's result in its hand-over block.
+Not for deciding whether to push or to release. That authorization is the requester's, and never this skill's to grant. Not for a deployment a deploy skill owns. Not for reconciling a Playbook, for authorizing a wrap up, or for reporting the unpushed range. `skills/Playbook Author/` Hand Off keeps those, and it invokes this skill by name for the commit itself and reports this skill's result in its hand-over block, as that block says.
 
 Classifier seam: none.
 
