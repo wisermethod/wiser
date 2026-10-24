@@ -116,16 +116,21 @@ def snap(g, rect):
     return nx0, ny0, nx1, ny1
 
 
+def _merges(shared, a, b):
+    """The one merge rule, for single boxes and for rows of them: the shared area is at least half the smaller box's."""
+    return shared >= 0.5 * np.minimum(a, b)
+
+
 def overlaps(a, b):
-    return intersection(a, b) >= 0.5 * min(area(a), area(b))
+    return bool(_merges(intersection(a, b), area(a), area(b)))
 
 
 def _overlapping(rect, rects):
-    """overlaps(rect, each row of rects), with the same arithmetic."""
-    inter = (np.maximum(0, np.minimum(rect[2], rects[:, 2]) - np.maximum(rect[0], rects[:, 0])) *
-             np.maximum(0, np.minimum(rect[3], rects[:, 3]) - np.maximum(rect[1], rects[:, 1])))
+    """overlaps(rect, each row of rects) at once, by the same rule and arithmetic."""
+    shared = (np.maximum(0, np.minimum(rect[2], rects[:, 2]) - np.maximum(rect[0], rects[:, 0])) *
+              np.maximum(0, np.minimum(rect[3], rects[:, 3]) - np.maximum(rect[1], rects[:, 1])))
     sizes = np.maximum(0, rects[:, 2] - rects[:, 0]) * np.maximum(0, rects[:, 3] - rects[:, 1])
-    return inter >= 0.5 * np.minimum(area(rect), sizes)
+    return _merges(shared, area(rect), sizes)
 
 
 def merge(rects):
