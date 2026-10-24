@@ -109,10 +109,16 @@ class MechanicsTests(unittest.TestCase):
                 got = [(rect, sorted(ids)) for rect, ids in geometry.merge(rects)]
                 self.assertEqual(got, reference(rects), rects)
                 cases += 1
-        # Order matters: a small box inside a later union stops overlapping once the union outgrows it.
-        rects = [(0, 0, 10, 10), (5, 0, 40, 10), (0, 0, 4, 40), (30, 0, 80, 10)]
-        self.assertEqual([(r, sorted(i)) for r, i in geometry.merge(rects)], reference(rects))
+        # Order decides the groups: the same three boxes pair differently in two orders, and merge() follows each.
+        first = [(5, 0, 25, 10), (0, 0, 10, 10), (0, 5, 10, 25)]
+        second = [(0, 0, 10, 10), (0, 5, 10, 25), (5, 0, 25, 10)]
+        self.assertEqual(reference(first), [((0, 0, 25, 10), [0, 1]), ((0, 5, 10, 25), [2])])
+        self.assertEqual(reference(second), [((0, 0, 10, 25), [0, 1]), ((5, 0, 25, 10), [2])])
+        for rects in (first, second):
+            self.assertEqual([(r, sorted(i)) for r, i in geometry.merge(rects)], reference(rects))
         self.assertGreater(cases, 1500)
+        with self.assertRaises(ValueError):
+            geometry.merge([(0, 0, 2 ** 25, 1)])
 
     def test_regions_scale_to_a_dense_recording(self):
         # 600 frames of a text window, about thirty boxes a frame jittering by a pixel, as the TextEdit run had.
@@ -131,6 +137,24 @@ class MechanicsTests(unittest.TestCase):
                 took = time.perf_counter() - start
         self.assertEqual(len(regs), 30)
         self.assertLess(took, 60, "merging 18,000 boxes took %.0f s" % took)
+        # The same groups as the old loop on the first 25 frames, 750 boxes, which it can still finish quickly.
+        rects = [box for boxes in per[:25] for box in boxes]
+        regs_old = [{"rect": r, "ids": [k]} for k, r in enumerate(rects)]
+        merging = True
+        while merging:
+            merging = False
+            for i in range(len(regs_old)):
+                for j in range(i + 1, len(regs_old)):
+                    if geometry.overlaps(regs_old[i]["rect"], regs_old[j]["rect"]):
+                        regs_old[i]["rect"] = geometry.union(regs_old[i]["rect"], regs_old[j]["rect"])
+                        regs_old[i]["ids"] += regs_old[j]["ids"]
+                        del regs_old[j]
+                        merging = True
+                        break
+                if merging:
+                    break
+        self.assertEqual([(r, sorted(i)) for r, i in geometry.merge(rects)],
+                         [(r["rect"], sorted(r["ids"])) for r in regs_old])
 
     def test_dilation_is_three_and_no_more(self):
         with temporary() as directory:

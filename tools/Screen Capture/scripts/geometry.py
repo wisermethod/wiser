@@ -141,6 +141,10 @@ def merge(rects):
     thousands of boxes takes seconds where restarting from the first pair took an hour."""
     if not rects:
         return []
+    # Within 2**25 px every area is below 2**52, where NumPy's int64 and float64 agree exactly with Python's
+    # comparison; a frame is far smaller, and anything larger is refused rather than merged differently.
+    if any(abs(v) >= 2 ** 25 for r in rects for v in r):
+        raise ValueError("box coordinates beyond 2**25 px")
     integral = all(isinstance(v, (int, np.integer)) for r in rects for v in r)
     box = np.array(rects, dtype=np.int64 if integral else np.float64)
     members = [[k] for k in range(len(rects))]
