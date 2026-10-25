@@ -77,7 +77,7 @@ Every path is absolute. Every output path is new, outside this tool's directory 
 
 ## Profiles
 
-- **`publish`**, the default: H.264 High at CRF 16, a closed group of pictures of half the frame rate with 2 B-frames, converted to BT.709 at TV range and tagged so, square pixels, `faststart`, and no edit list. These are the upload settings a measured proof met for YouTube. Use it for a video that stands alone.
+- **`publish`**, the default: H.264 High at CRF 16, a closed group of pictures of half the frame rate, a half rounded up (15 frames at 30 fps, 13 at 25), with 2 B-frames, converted to BT.709 at TV range and tagged so, square pixels, `faststart`, and no edit list. These are the upload settings a measured proof met for YouTube. Use it for a video that stands alone.
 - **`intermediate`**: H.264 at CRF 0 in `yuv420p`, BT.709 at TV range, the arguments a cutting tool uses for segments it joins. It is exact to its `yuv420p` frames, not to the page's RGB pixels. Use it for a scene that will be joined with other footage and encoded once, at the end.
 
 Before an MP4 is given its name, `render` reads it back: its frame count; one video stream and no audio; H.264 in `yuv420p`; BT.709 at TV range; square pixels; the requested size; no edit list; and for `publish`, every keyframe an IDR picture at exactly the group spacing, a shorter last group allowed. A file failing any check is removed, and the refusal names the check.
