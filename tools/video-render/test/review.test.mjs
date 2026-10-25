@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
+import { chmod, cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -271,4 +271,21 @@ test('the bridge script is a cache key input, so a change to it alone is a miss'
   assert.equal(inputs.bridgeSha256, createHash('sha256').update(BRIDGE).digest('hex'));
   const changed = { ...inputs, bridgeSha256: createHash('sha256').update(BRIDGE + ' ').digest('hex') };
   assert.notEqual(cacheKey(changed), cacheKey(inputs));
+});
+
+test('a project holding a credential file deep in its tree is refused before any of its files is read', async (t) => {
+  const path = await scratch(t), project = join(path, 'project');
+  await mkdir(join(project, 'z', 'deeper'), { recursive: true });
+  await writeFile(join(project, 'index.html'), '<main data-video-root>Local</main>');
+  // A file listed first whose read would fail: any read before the refusal surfaces as EACCES instead.
+  await writeFile(join(project, 'a.html'), '<p>unreadable</p>');
+  await chmod(join(project, 'a.html'), 0o000);
+  t.after(() => chmod(join(project, 'a.html'), 0o600).catch(() => {}));
+  for (const name of ['credentials.json', 'production.env', '.env.local']) {
+    const file = join(project, 'z', 'deeper', name);
+    await writeFile(file, 'secret');
+    await assert.rejects(inspectProject(project), (error) => /deeper.*is a protected memory or credential path/.test(error.message) && !/EACCES/.test(error.message));
+    await rm(file);
+  }
+  await assert.rejects(inspectProject(project), /EACCES/, 'the control: with no credential file, the unreadable file is read');
 });

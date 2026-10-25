@@ -180,7 +180,9 @@ export function protectedPath(path) {
 
 export async function inspectProject(project) {
   if (protectedPath(project)) throw new Error(`--project ${project} names a protected memory or credential path; use a local asset project.`);
-  const files = [];
+  // Every name is listed and screened before any file is read, so a project holding a credential file is
+  // refused with none of its files read, wherever that file sits in the tree.
+  const regular = [];
   async function walk(directory) {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name);
@@ -190,15 +192,19 @@ export async function inspectProject(project) {
       if (stat.isSymbolicLink()) throw new Error(`Project file ${name} is a symbolic link; put its local asset bytes in the project instead.`);
       if (stat.isDirectory()) { await walk(path); continue; }
       if (!stat.isFile()) throw new Error(`Project file ${name} is not a regular file; remove it from the project.`);
-      let text;
-      const bytes = await readFile(await realpath(path));
-      files.push({ path: name.split(sep).join('/'), sha256: createHash('sha256').update(bytes).digest('hex') });
-      try { text = decoder.decode(bytes); } catch { continue; }
-      const ref = loadingReference(text, extname(name));
-      if (ref) throw new Error(`Project file ${name} references ${ref.value} in ${ref.rule}; use local assets before rendering.`);
+      regular.push({ path, name });
     }
   }
   await walk(project);
+  const files = [];
+  for (const { path, name } of regular) {
+    let text;
+    const bytes = await readFile(await realpath(path));
+    files.push({ path: name.split(sep).join('/'), sha256: createHash('sha256').update(bytes).digest('hex') });
+    try { text = decoder.decode(bytes); } catch { continue; }
+    const ref = loadingReference(text, extname(name));
+    if (ref) throw new Error(`Project file ${name} references ${ref.value} in ${ref.rule}; use local assets before rendering.`);
+  }
   const html = await readFile(join(project, 'index.html'), 'utf8');
   const roots = openingTags(html).filter((tag) => tag.attrs.some((a) => a.name === 'data-video-root'));
   if (roots.length !== 1) throw new Error(`index.html has ${roots.length} data-video-root elements; provide exactly one at the frame's size.`);
