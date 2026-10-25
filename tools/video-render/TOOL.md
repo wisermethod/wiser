@@ -68,12 +68,12 @@ Every path is absolute. Every output path is new, outside this tool's directory 
 | `check [--install]` | Nothing without `--install`; with it, the install |
 | `sequence --project <dir> --output <dir> --width N --height N --fps N --duration S` | A new directory holding `frames/frame_000001.png` onward, the first being frame 0, `frames/frames.sha256` (one SHA-256 of each frame's decoded RGBA pixels) and `render.log` |
 | `render --project <dir> --output <file.mp4> --width N --height N --fps N --duration S [--profile publish\|intermediate] [--frame-hashes <file>] [--cache <dir>]` | The MP4, and only with `--frame-hashes` its decoded-frame hash list; with `--cache`, an entry in that directory |
-| `frames --project <dir> --output <dir> --width N --height N --fps N --duration S --times T1,T2,...` | A new directory with one PNG per frame named and `frames.json` |
+| `frames --project <dir> --output <dir> --width N --height N --fps N --duration S --times T1,T2,... [--select at\|after]` | A new directory with one PNG per frame named and `frames.json` |
 
 `sequence`, `render` and `frames` also take `--workers N|auto` (default `auto`), `--gpu hardware|software` (default `hardware`), `--capture screenshot|fast` (default `screenshot`) and `--install`. Each command answers `help` and `--help` before any dependency check, its help lists every flag, and an unknown flag is refused by name.
 
 - **Frame count.** Every output holds exactly round(duration × fps) frames.
-- **`frames`.** A time names frame floor(t × fps), the last frame drawn at or before it; a time at or past the end names the last frame. At most 60 times, none twice. Its files are named by frame number from 0, `frame_000000.png` for frame 0; read each still's file from `frames.json`.
+- **`frames`.** Frame n is drawn at exactly n / fps, and a time names the last frame drawn at or before it, floor(t × fps) in exact arithmetic, chosen by that same division so 4.1 s at 30 fps is frame 123; a time at or past the last frame's time names the last frame. With `--select after`, each time names the frame after that one, the first drawn past it, which is where a moment timed at that time first shows; a time with no frame past it within the duration is refused. At most 60 times, none twice. Its files are named by frame number from 0, `frame_000000.png` for frame 0; read each still's file from `frames.json`.
 
 ## Profiles
 
@@ -108,7 +108,7 @@ Success is one JSON object on stdout and exit 0; failure is stderr only, stdout 
 | `check` | `node`, `ffmpeg`, `ffprobe`, `hyperframes`, `chrome` (`build`, `launches`, and on a failure `failure` and `remediation`), `ready` |
 | `sequence` | `hyperframesVersion`, `chromeBuild`, `gpu`, `capture`, `frameCount`, `hashesPath`, `hashesSha256`, `logPath`, `lintFindings`, `seconds` |
 | `render` | the above, `hashesPath` being the `--frame-hashes` file when that flag is set and null otherwise, `logPath` null since the sequence is temporary, plus `output`, `profile`, `bytes`, `sha256`, `checks`, `sequenceHashesSha256`, `cache` (`hit`, `miss` or `off`), `key`, and on a replaced entry the reason |
-| `frames` | the above, `output`, and `frames`: for each requested time, `requestedTime`, `frame`, `time`, `file` and `sha256` |
+| `frames` | the above, `output`, `select`, and `frames`: for each requested time, `requestedTime`, `frame`, `time`, `file` and `sha256` |
 
 `lintFindings` repeats what HyperFrames' own lint printed. A page whose motion is driven from the seek draws its `css_transition_used` warning, which is expected there: the transitions are set to the time on every frame. This tool never renders with HyperFrames' strict lint.
 

@@ -8,7 +8,7 @@ import { prepareRuntime } from './dependencies.mjs';
 
 const VALUE_FLAGS = new Set(['--project', '--output', '--width', '--height', '--fps', '--duration', '--workers', '--gpu', '--capture']);
 const RENDER_FLAGS = new Set([...VALUE_FLAGS, '--profile', '--frame-hashes', '--cache']);
-const FRAMES_FLAGS = new Set([...VALUE_FLAGS, '--times']);
+const FRAMES_FLAGS = new Set([...VALUE_FLAGS, '--times', '--select']);
 const flagsFor = (command) => command === 'render' ? RENDER_FLAGS : command === 'frames' ? FRAMES_FLAGS : VALUE_FLAGS;
 const INSTALL_HELP = `  --install                Authorise packages and the pinned Chrome, then finish this run.
                            WISER_ALLOW_INSTALL=1 also authorises work commands.
@@ -26,8 +26,8 @@ Usage:
     [--workers N|auto] [--gpu hardware|software] [--capture screenshot|fast]
     [--frame-hashes <abs file>] [--cache <abs dir>] [--install]
   node scripts/video-render.js frames --project <abs dir> --output <abs dir>
-    --width N --height N --fps N --duration S --times T1,T2,... [--workers N|auto]
-    [--gpu hardware|software] [--capture screenshot|fast] [--install]
+    --width N --height N --fps N --duration S --times T1,T2,... [--select at|after]
+    [--workers N|auto] [--gpu hardware|software] [--capture screenshot|fast] [--install]
   node scripts/video-render.js check [--install]
 
 Options:
@@ -41,8 +41,12 @@ Options:
   --gpu hardware|software  Browser GPU mode (default: hardware).
   --capture screenshot|fast Capture mode (default: screenshot).
   --times T1,T2,...        Frames only. Required, up to 60 unique, finite, non-negative
-                           seconds. Frame n = min(floor(t * fps), round(duration * fps) - 1),
-                           showing n / fps. At or past duration selects the last frame.
+                           seconds. Frame n, drawn at n / fps, is the last frame drawn at or
+                           before t, so floor(t * fps) in exact arithmetic; at or past the last
+                           frame's time selects the last frame.
+  --select at|after        Frames only. at (default) as above; after selects the frame after
+                           that one, the first drawn past t, where a moment timed at t first
+                           shows. A time with no frame past it within the duration is refused.
   --profile publish|intermediate Render only. H.264 publish (default) or CRF 0 intermediate, exact to its yuv420p frames.
   --frame-hashes <abs file> Render only. New decoded yuv420p framehash SHA-256 list outside
                            this tool and project. Omit to retain only the MP4.
@@ -58,7 +62,7 @@ publish, round(fps / 2) >= 1. MP4 checks run before publication; frames are temp
 frames renders the whole temporary sequence, copies the selected PNGs unchanged to
 frame_<n, six digits>.png (zero-based), and writes frames.json in request order:
 requestedTime, frame, time, file, sha256 (decoded RGBA pixels). Distinct times may
-share a frame and its file. The result includes output and frames; temporary logPath
+share a frame and its file. The result includes output, select and frames; temporary logPath
 and hashesPath are null. The full sequence is removed on success and failure.
 check surveys without fetching or retaining files; --install permits installation.
 Success prints one JSON object; failure prints to stderr and exits 1.

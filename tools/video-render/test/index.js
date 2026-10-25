@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { CHROME_BUILD, HYPERFRAMES_VERSION, TOOL_DIR, ffmpegSurvey } from '../scripts/dependencies.mjs';
+import { CHROME_BUILD, HYPERFRAMES_VERSION, TOOL_DIR, ffmpegSurvey, ownPackage } from '../scripts/dependencies.mjs';
 import { checkMetadata, encodeArguments, hasEditList, optionsForRender, packetHasIDR, renderCacheInputs } from '../scripts/render.mjs';
 import { RENDER_VERSION, cacheKey, canonicalJSON, readCache, writeCache } from '../scripts/cache.mjs';
 import { inspectProject } from '../scripts/project.mjs';
@@ -272,6 +272,63 @@ test('frames maps zero-based times by floor, clamps to the last core frame and a
     assert.equal(rounded.workers, 'auto'); assert.equal(rounded.gpu, 'software'); assert.equal(rounded.capture, 'fast');
   }
   assert.deepEqual(await readdir(path), []);
+});
+
+test('frames chooses by the renderer\'s own n / fps, and --select after names the first frame past each time', async (t) => {
+  const path = await scratch(t), input = { ...values(fixture, join(path, 'new')), fps: 30, duration: 10 };
+  const at = await optionsForFrames({ ...input, times: '4.1,8.2,0,0.5,9.95,9.97,100' });
+  assert.equal(at.select, 'at');
+  assert.deepEqual(at.frames.map((frame) => frame.frame), [123, 246, 0, 15, 298, 299, 299]);
+  const after = await optionsForFrames({ ...input, times: '4.1,8.2,0,0.5,4.11,9.95', select: 'after' });
+  assert.equal(after.select, 'after');
+  assert.deepEqual(after.frames.map((frame) => frame.frame), [124, 247, 1, 16, 124, 299]);
+  assert.deepEqual(after.frames[0], { requestedTime: 4.1, frame: 124, time: 124 / 30, file: 'frame_000124.png' });
+  await assert.rejects(optionsForFrames({ ...input, times: '9.97', select: 'after' }), /no frame is drawn after 9\.97 s/);
+  await assert.rejects(optionsForFrames({ ...input, times: '1', select: 'before' }), /--select must be at or after/);
+  // A time a float step below a frame's own time, whose product floors onto that frame, names the frame before.
+  for (const [fps, time, frame] of [[25, 0.19999999999999998, 4], [30, 0.7666666666666666, 22]]) {
+    assert.deepEqual((await optionsForFrames({ ...input, fps, times: String(time) })).frames.map((f) => f.frame), [frame], `at ${time} s, ${fps} fps`);
+    assert.deepEqual((await optionsForFrames({ ...input, fps, times: String(time), select: 'after' })).frames.map((f) => f.frame), [frame + 1], `after ${time} s, ${fps} fps`);
+  }
+  // Every frame's own time names that frame, and with after the next one, at the rates a video uses.
+  for (const fps of [23.976, 24, 25, 29.97, 30, 50, 60]) {
+    const last = Math.round(10 * fps) - 1;
+    for (let start = 0; start <= last; start += 60) {
+      const ns = Array.from({ length: Math.min(60, last + 1 - start) }, (_, i) => start + i);
+      const times = ns.map((n) => String(n / fps)).join(',');
+      assert.deepEqual((await optionsForFrames({ ...input, fps, times })).frames.map((frame) => frame.frame), ns, `at ${fps} fps from ${start}`);
+      const before = ns.filter((n) => n < last);
+      if (before.length) assert.deepEqual((await optionsForFrames({ ...input, fps, times: before.map((n) => String(n / fps)).join(','), select: 'after' }))
+        .frames.map((frame) => frame.frame), before.map((n) => n + 1), `after at ${fps} fps from ${start}`);
+    }
+  }
+  assert.deepEqual(await readdir(path), []);
+});
+
+test('real frames: the time a frame is drawn at names it, and --select after names the next, read from the page', { timeout: 120_000 }, async (t) => {
+  const path = await scratch(t), project = join(path, 'project');
+  await mkdir(project);
+  await writeFile(join(project, 'index.html'), `<!doctype html><style>html,body{margin:0}main{width:4px;height:4px}</style>
+    <main data-video-root></main><script>
+    function paint(event) { const n = Math.round((event && event.detail ? event.detail.time : 0) * 30);
+      document.querySelector('main').style.backgroundColor = \`rgb(\${n & 255},\${n >> 8},0)\`; }
+    paint(); addEventListener('video-render:seek', paint);</script>`);
+  const { default: sharp } = await ownPackage('sharp');
+  const shown = async (select) => {
+    const output = join(path, select);
+    const result = run(['frames', ...flags({ project, output, width: 4, height: 4, fps: 30, duration: 8.3, workers: 1, times: '4.1,8.2', select })]);
+    assert.equal(result.status, 0, result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.equal(report.select, select);
+    const drawn = [];
+    for (const frame of report.frames) {
+      const [r, g] = await sharp(join(output, frame.file)).extract({ left: 2, top: 2, width: 1, height: 1 }).removeAlpha().raw().toBuffer();
+      drawn.push([frame.frame, r + 256 * g]);
+    }
+    return drawn;
+  };
+  assert.deepEqual(await shown('at'), [[123, 123], [246, 246]]);
+  assert.deepEqual(await shown('after'), [[124, 124], [247, 247]]);
 });
 
 test('real frames match decoded sequence pixels and PNG bytes at five times, including between frames and past the end', { timeout: 120_000 }, async (t) => {

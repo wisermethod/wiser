@@ -13,11 +13,24 @@ export async function optionsForFrames(input) {
   const times = parts.map((part) => part.trim() ? Number(part) : NaN);
   if (times.some((time) => !Number.isFinite(time) || time < 0)) throw new Error('--times must contain finite, non-negative numbers of seconds; see video-render.js help.');
   if (new Set(times).size !== times.length) throw new Error('--times contains duplicate times; pass each time once. See video-render.js help.');
+  const select = input.select ?? 'at';
+  if (!['at', 'after'].includes(select)) throw new Error('--select must be at or after; see video-render.js help.');
+  const last = options.expectedFrames - 1;
+  // The renderer draws frame n at exactly n / fps, so a frame is chosen by that same division. Flooring t * fps
+  // alone puts 4.1 s at 30 fps on frame 122, though frame 123 is the one drawn at 4.1 s.
+  const atOrBefore = (t) => {
+    if (t >= last / options.fps) return last;
+    let n = Math.floor(t * options.fps);
+    while (n > 0 && n / options.fps > t) n--;
+    while ((n + 1) / options.fps <= t) n++;
+    return n;
+  };
   const frames = times.map((requestedTime) => {
-    const frame = Math.min(Math.floor(requestedTime * options.fps), options.expectedFrames - 1);
+    if (select === 'after' && requestedTime >= last / options.fps) throw new Error(`--select after: no frame is drawn after ${requestedTime} s within the duration; see video-render.js help.`);
+    const frame = atOrBefore(requestedTime) + (select === 'after' ? 1 : 0);
     return { requestedTime, frame, time: frame / options.fps, file: `frame_${String(frame).padStart(6, '0')}.png` };
   });
-  return { ...options, frames };
+  return { ...options, select, frames };
 }
 
 export async function frames(input, { install = false } = {}) {
@@ -52,7 +65,7 @@ export async function frames(input, { install = false } = {}) {
       copied.add(frame.frame);
     }
     await writeFile(join(options.output, 'frames.json'), `${JSON.stringify(selected, null, 2)}\n`, { flag: 'wx' });
-    return { ...core, output: options.output, frames: selected, logPath: null, hashesPath: null,
+    return { ...core, output: options.output, select: options.select, frames: selected, logPath: null, hashesPath: null,
       seconds: Math.round((performance.now() - started) / 10) / 100 };
   } catch (error) {
     if (claimed) await rm(options.output, { recursive: true, force: true });
