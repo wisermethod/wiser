@@ -6,12 +6,12 @@ import { optionsForSequence, sequence } from './sequence.mjs';
 
 export async function optionsForFrames(input) {
   const options = await optionsForSequence(input);
-  if (typeof input.times !== 'string' || !input.times.trim()) throw new Error('--times is required: pass comma-separated seconds; see video-render.mjs help.');
+  if (typeof input.times !== 'string' || !input.times.trim()) throw new Error('--times is required: pass comma-separated seconds; see video-render.js help.');
   const parts = input.times.split(',');
-  if (parts.length > 60) throw new Error('--times accepts at most 60 times; see video-render.mjs help.');
+  if (parts.length > 60) throw new Error('--times accepts at most 60 times; see video-render.js help.');
   const times = parts.map((part) => part.trim() ? Number(part) : NaN);
-  if (times.some((time) => !Number.isFinite(time) || time < 0)) throw new Error('--times must contain finite, non-negative numbers of seconds; see video-render.mjs help.');
-  if (new Set(times).size !== times.length) throw new Error('--times contains duplicate times; pass each time once. See video-render.mjs help.');
+  if (times.some((time) => !Number.isFinite(time) || time < 0)) throw new Error('--times must contain finite, non-negative numbers of seconds; see video-render.js help.');
+  if (new Set(times).size !== times.length) throw new Error('--times contains duplicate times; pass each time once. See video-render.js help.');
   const frames = times.map((requestedTime) => {
     const frame = Math.min(Math.floor(requestedTime * options.fps), options.expectedFrames - 1);
     return { requestedTime, frame, time: frame / options.fps, file: `frame_${String(frame).padStart(6, '0')}.png` };

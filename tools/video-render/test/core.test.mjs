@@ -8,9 +8,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import test from 'node:test';
 import { compositionHtml, inspectProject, openingTags, remoteReference } from '../scripts/project.mjs';
 import { browserPath, canonical, checkRuntime, childEnvironment, hashFrames, hyperframesDuration, optionsForSequence, readRenderLog, renderArguments, TOOL_DIR } from '../scripts/sequence.mjs';
-import { parseArguments } from '../scripts/video-render.mjs';
+import { parseArguments } from '../scripts/video-render.js';
 
-const cli = join(TOOL_DIR, 'scripts/video-render.mjs');
+const cli = join(TOOL_DIR, 'scripts/video-render.js');
 const fixture = fileURLToPath(new URL('./fixtures/steps/', import.meta.url));
 async function scratch(t) {
   const path = await mkdtemp(join(tmpdir(), 'wiser-video-test-'));
@@ -27,7 +27,7 @@ test('help works in an uninstalled copy and importing the command does no work',
   await cp(join(TOOL_DIR, 'scripts'), join(path, 'tools/video-render/scripts'), { recursive: true });
   await mkdir(join(path, 'tools/lib'), { recursive: true });
   await cp(join(TOOL_DIR, '../lib/consent.js'), join(path, 'tools/lib/consent.js'));
-  const script = join(path, 'tools/video-render/scripts/video-render.mjs');
+  const script = join(path, 'tools/video-render/scripts/video-render.js');
   for (const args of [['help'], ['--help'], ['sequence', '--help']]) {
     const result = run(args, script);
     assert.equal(result.status, 0, result.stderr);

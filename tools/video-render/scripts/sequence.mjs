@@ -16,7 +16,7 @@ async function exists(path) {
 }
 
 export async function canonical(path, name) {
-  if (typeof path !== 'string' || !isAbsolute(path)) throw new Error(`${name} must be an absolute path; see video-render.mjs help.`);
+  if (typeof path !== 'string' || !isAbsolute(path)) throw new Error(`${name} must be an absolute path; see video-render.js help.`);
   if (protectedPath(path)) throw new Error(`${name} names a protected memory or .env path; choose a project or output directory.`);
   const missing = [];
   let head = path;
@@ -51,7 +51,7 @@ export async function inside(candidate, directory) {
 function number(value, name, integer = false) {
   const n = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : NaN;
   if (!Number.isFinite(n) || n <= 0 || (integer && !Number.isSafeInteger(n))) {
-    throw new Error(`${name} must be a positive ${integer ? 'integer' : 'number'}; see video-render.mjs help.`);
+    throw new Error(`${name} must be a positive ${integer ? 'integer' : 'number'}; see video-render.js help.`);
   }
   return n;
 }
@@ -81,8 +81,8 @@ export async function optionsForSequence(input) {
   const workers = input.workers === undefined || input.workers === 'auto' ? 'auto' : number(input.workers, '--workers', true);
   const gpu = input.gpu ?? 'hardware';
   const capture = input.capture ?? 'screenshot';
-  if (!['hardware', 'software'].includes(gpu)) throw new Error('--gpu must be hardware or software; see video-render.mjs help.');
-  if (!['screenshot', 'fast'].includes(capture)) throw new Error('--capture must be screenshot or fast; see video-render.mjs help.');
+  if (!['hardware', 'software'].includes(gpu)) throw new Error('--gpu must be hardware or software; see video-render.js help.');
+  if (!['screenshot', 'fast'].includes(capture)) throw new Error('--capture must be screenshot or fast; see video-render.js help.');
   return { project, output, width, height, fps, duration, expectedFrames, workers, gpu, capture };
 }
 

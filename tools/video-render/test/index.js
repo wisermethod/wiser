@@ -19,7 +19,7 @@ import { inspectProject } from '../scripts/project.mjs';
 import { optionsForFrames } from '../scripts/frames.mjs';
 import { browserPath, childEnvironment, writeBrowserWrapper } from '../scripts/sequence.mjs';
 
-const cli = join(TOOL_DIR, 'scripts/video-render.mjs');
+const cli = join(TOOL_DIR, 'scripts/video-render.js');
 const fixture = fileURLToPath(new URL('./fixtures/steps/', import.meta.url));
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const run = (args, extra = {}) => spawnSync(process.execPath, [cli, ...args], {
@@ -176,7 +176,7 @@ test('a real render shows that runtime fetch and image requests both fail behind
 });
 
 test('frames help works in an uninstalled copy and refuses unknown, duplicate and command-only flags', async (t) => {
-  const path = await scratch(t), script = join(path, 'scripts/video-render.mjs');
+  const path = await scratch(t), script = join(path, 'scripts/video-render.js');
   await cp(join(TOOL_DIR, 'scripts'), join(path, 'scripts'), { recursive: true });
   for (const args of [['frames', '--help'], ['frames', 'help'], ['help', 'frames']]) {
     const result = spawnSync(process.execPath, [script, ...args], { encoding: 'utf8', env: { PATH: '' } });

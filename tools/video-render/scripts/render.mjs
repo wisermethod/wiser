@@ -30,12 +30,12 @@ async function refuseExisting(path, name) {
 
 export async function optionsForRender(input) {
   const options = await optionsForSequence(input);
-  if (extname(options.output).toLowerCase() !== '.mp4') throw new Error('--output must name an absolute .mp4 file; see video-render.mjs help.');
-  if (options.width % 2 || options.height % 2) throw new Error('--width and --height must be even for H.264 yuv420p; see video-render.mjs help.');
+  if (extname(options.output).toLowerCase() !== '.mp4') throw new Error('--output must name an absolute .mp4 file; see video-render.js help.');
+  if (options.width % 2 || options.height % 2) throw new Error('--width and --height must be even for H.264 yuv420p; see video-render.js help.');
   const profile = input.profile ?? 'publish';
-  if (!['publish', 'intermediate'].includes(profile)) throw new Error('--profile must be publish or intermediate; see video-render.mjs help.');
+  if (!['publish', 'intermediate'].includes(profile)) throw new Error('--profile must be publish or intermediate; see video-render.js help.');
   const gop = Math.round(options.fps / 2);
-  if (profile === 'publish' && (!Number.isSafeInteger(gop) || gop < 1)) throw new Error('--fps must give round(fps / 2) >= 1 for publish; see video-render.mjs help.');
+  if (profile === 'publish' && (!Number.isSafeInteger(gop) || gop < 1)) throw new Error('--fps must give round(fps / 2) >= 1 for publish; see video-render.js help.');
   let frameHashes = null;
   if (input['frame-hashes'] !== undefined) {
     // Reuse the core's canonical, inode-aware destination screen, including symlink parents.

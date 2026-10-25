@@ -17,18 +17,18 @@ const INSTALL_HELP = `  --install                Authorise packages and the pinn
 export const HELP = `video-render - render one local project to PNG frames or a picture-only MP4
 
 Usage:
-  node scripts/video-render.mjs help [sequence|render|frames|check]
-  node scripts/video-render.mjs sequence --project <abs dir> --output <abs dir>
+  node scripts/video-render.js help [sequence|render|frames|check]
+  node scripts/video-render.js sequence --project <abs dir> --output <abs dir>
     --width N --height N --fps N --duration S [--workers N|auto]
     [--gpu hardware|software] [--capture screenshot|fast] [--install]
-  node scripts/video-render.mjs render --project <abs dir> --output <abs .mp4>
+  node scripts/video-render.js render --project <abs dir> --output <abs .mp4>
     --width N --height N --fps N --duration S [--profile publish|intermediate]
     [--workers N|auto] [--gpu hardware|software] [--capture screenshot|fast]
     [--frame-hashes <abs file>] [--cache <abs dir>] [--install]
-  node scripts/video-render.mjs frames --project <abs dir> --output <abs dir>
+  node scripts/video-render.js frames --project <abs dir> --output <abs dir>
     --width N --height N --fps N --duration S --times T1,T2,... [--workers N|auto]
     [--gpu hardware|software] [--capture screenshot|fast] [--install]
-  node scripts/video-render.mjs check [--install]
+  node scripts/video-render.js check [--install]
 
 Options:
   --project <abs dir>       Required. Directory containing index.html and local assets.
@@ -43,7 +43,7 @@ Options:
   --times T1,T2,...        Frames only. Required, up to 60 unique, finite, non-negative
                            seconds. Frame n = min(floor(t * fps), round(duration * fps) - 1),
                            showing n / fps. At or past duration selects the last frame.
-  --profile publish|intermediate Render only. H.264 publish (default) or lossless intermediate.
+  --profile publish|intermediate Render only. H.264 publish (default) or CRF 0 intermediate, exact to its yuv420p frames.
   --frame-hashes <abs file> Render only. New decoded yuv420p framehash SHA-256 list outside
                            this tool and project. Omit to retain only the MP4.
   --cache <abs dir>         Render only. Reuse verified MP4s in this caller-owned directory,
@@ -69,8 +69,8 @@ help installs nothing and refuses --install. Each command accepts help and --hel
 export const CHECK_HELP = `video-render check - survey this machine and this tool's pinned runtime
 
 Usage:
-  node scripts/video-render.mjs check [--install]
-  node scripts/video-render.mjs check help
+  node scripts/video-render.js check [--install]
+  node scripts/video-render.js check help
 
 Options:
 ${INSTALL_HELP}
@@ -87,7 +87,7 @@ Always prints one JSON object and exits 0; read ready, not the exit code.
 export function parseArguments(argv) {
   let command = argv[0] ?? 'help';
   if (command === '--help') command = 'help';
-  if (!['help', 'sequence', 'render', 'frames', 'check'].includes(command)) throw new Error(`Unknown ${command.startsWith('-') ? 'flag' : 'command'} ${command}; see video-render.mjs help.`);
+  if (!['help', 'sequence', 'render', 'frames', 'check'].includes(command)) throw new Error(`Unknown ${command.startsWith('-') ? 'flag' : 'command'} ${command}; see video-render.js help.`);
   const options = {};
   let help = command === 'help';
   const seen = new Set();
@@ -96,18 +96,18 @@ export function parseArguments(argv) {
     if (flag === 'help' || flag === '--help') { help = true; continue; }
     if (command === 'help' && ['sequence', 'render', 'frames', 'check'].includes(flag)) { command = flag; continue; }
     const flags = flagsFor(command);
-    if (flag !== '--install' && !(['sequence', 'render', 'frames'].includes(command) && flags.has(flag))) throw new Error(`Unknown flag ${flag}; see video-render.mjs help.`);
-    if (seen.has(flag)) throw new Error(`Duplicate flag ${flag}; pass it once. See video-render.mjs help.`);
+    if (flag !== '--install' && !(['sequence', 'render', 'frames'].includes(command) && flags.has(flag))) throw new Error(`Unknown flag ${flag}; see video-render.js help.`);
+    if (seen.has(flag)) throw new Error(`Duplicate flag ${flag}; pass it once. See video-render.js help.`);
     seen.add(flag);
     if (flag === '--install') continue;
     const value = argv[++i];
     if (value === undefined || value.startsWith('--')) {
-      if (value?.startsWith('--') && !flags.has(value) && !['--help', '--install'].includes(value)) throw new Error(`Unknown flag ${value}; see video-render.mjs help.`);
-      throw new Error(`${flag} needs a value; see video-render.mjs help.`);
+      if (value?.startsWith('--') && !flags.has(value) && !['--help', '--install'].includes(value)) throw new Error(`Unknown flag ${value}; see video-render.js help.`);
+      throw new Error(`${flag} needs a value; see video-render.js help.`);
     }
     options[flag.slice(2)] = value;
   }
-  if (help && seen.has('--install')) throw new Error('Unknown flag --install for help: help installs nothing; see video-render.mjs help.');
+  if (help && seen.has('--install')) throw new Error('Unknown flag --install for help: help installs nothing; see video-render.js help.');
   return { command, options, help };
 }
 

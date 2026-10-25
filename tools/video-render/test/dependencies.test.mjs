@@ -28,7 +28,7 @@ async function copyTool(t) {
   await mkdir(bin);
   await writeFile(join(bin, 'ffmpeg'), '#!/bin/sh\nprintf "ffmpeg version test-fixture\\n"\n', { mode: 0o755 });
   const env = { ...process.env, PATH: bin, WISER_ALLOW_INSTALL: '0' };
-  const script = join(tool, 'scripts/video-render.mjs');
+  const script = join(tool, 'scripts/video-render.js');
   const args = ['sequence', '--project', project, '--output', join(path, 'output'), '--width', '32', '--height', '24', '--fps', '1', '--duration', '1'];
   return { path, tool, env, script, args };
 }
