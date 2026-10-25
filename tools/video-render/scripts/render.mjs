@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, extname, isAbsolute, join, relative, sep } from 'node:path';
 import { promisify } from 'node:util';
 import { childEnvironment, prepareRuntime } from './dependencies.mjs';
-import { optionsForSequence, sequence } from './sequence.mjs';
+import { BROWSER_SWITCHES, optionsForSequence, sequence } from './sequence.mjs';
 import { inspectProject } from './project.mjs';
 import { RENDER_VERSION, cacheDirectory, cacheKey, canonicalJSON, fileHash, readCache, validFrameHashes, writeCache } from './cache.mjs';
 
@@ -59,7 +59,7 @@ export function encodeArguments(frames, output, options) {
   const args = ['-hide_banner', '-loglevel', 'error', '-n', '-framerate', String(options.fps), '-start_number', '1',
     '-i', join(frames, 'frame_%06d.png'), '-frames:v', String(options.expectedFrames), '-vf', FILTER];
   if (options.profile === 'publish') args.push(
-    '-c:v', 'libx264', '-profile:v', 'high', '-preset', 'medium', '-crf', '16',
+    '-c:v', 'libx264', '-profile:v', 'high', '-preset', 'medium', '-crf', '16', '-threads', '4',
     '-g', String(options.gop), '-keyint_min', String(options.gop), '-sc_threshold', '0', '-flags', '+cgop', '-bf', '2',
     '-x264-params', 'open-gop=0:b-adapt=0:cabac=1:colorprim=bt709:transfer=bt709:colormatrix=bt709',
     '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv');
@@ -78,6 +78,7 @@ export function renderCacheInputs(options, versions, files) {
     ffmpegVersion: versions.ffmpegVersion, gpu: options.gpu, capture: options.capture,
     width: options.width, height: options.height, fps: options.fps, duration: options.duration,
     frameCount: options.expectedFrames, profile: options.profile,
+    browserSwitches: [...BROWSER_SWITCHES],
     encoderArguments: encodeArguments('<frames>', '<output>.mp4', options),
     files: files.map(({ path, sha256 }) => ({ path, sha256 })).sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0),
   };
@@ -197,11 +198,11 @@ export async function verifyMP4(path, options) {
 export async function render(input, { install = false } = {}) {
   const started = performance.now();
   const options = await optionsForRender(input);
+  const project = await inspectProject(options.project);
   // Refuse a missing readback dependency before rendering or authorising an install.
   await media('ffprobe', ['-version'], 'ffprobe presence check');
   let runtime, inputs, entry, key = null, cacheReason = null;
   if (options.cache) {
-    const project = await inspectProject(options.project);
     runtime = await prepareRuntime({ install, gpu: options.gpu });
     inputs = renderCacheInputs(options, { hyperframesVersion: runtime.hyperframes.version,
       chromeBuild: runtime.chrome.build, ffmpegVersion: runtime.ffmpeg.version }, project.files);

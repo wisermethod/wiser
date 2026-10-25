@@ -1,0 +1,249 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import test from 'node:test';
+import { CHROME_BUILD, TOOL_DIR, ownPackage } from '../scripts/dependencies.mjs';
+import { BROWSER_SWITCHES, browserPath, sequence, writeBrowserWrapper } from '../scripts/sequence.mjs';
+import { BRIDGE, inspectProject, protectedPath, remoteReference } from '../scripts/project.mjs';
+import { cacheKey, fileHash, readCache, writeCache } from '../scripts/cache.mjs';
+import { renderCacheInputs } from '../scripts/render.mjs';
+
+const cli = join(TOOL_DIR, 'scripts/video-render.js');
+const fixture = fileURLToPath(new URL('./fixtures/steps/', import.meta.url));
+const flags = (values) => Object.entries(values).flatMap(([key, value]) => [`--${key}`, String(value)]);
+const values = (project, output) => ({ project, output, width: 32, height: 24, fps: 10, duration: 0.2, workers: 1 });
+const data = (type, content, base64 = false) => `data:${type}${base64 ? ';base64' : ''},${base64 ? Buffer.from(content).toString('base64') : encodeURIComponent(content)}`;
+const attr = (value) => value.replaceAll('&', '&amp;').replaceAll('"', '&quot;');
+const image = (url) => `<img src="${attr(url)}">`;
+async function scratch(t) {
+  const path = await mkdtemp(join(tmpdir(), 'wiser-video-review-test-'));
+  t.after(() => rm(path, { recursive: true, force: true }));
+  return realpath(path);
+}
+
+// These traps run before the command's modules load. A refusal must name the
+// offending input, rather than reaching any read, copy, runtime probe or process.
+function guarded(args, readPath = null) {
+  const script = `
+    import fs from 'node:fs/promises';
+    import child from 'node:child_process';
+    import { syncBuiltinESMExports } from 'node:module';
+    const originalRead = fs.readFile;
+    fs.readFile = function (path, ...rest) {
+      if (/(?:^|[/\\\\])(?:credentials(?:\\.json)?|\\.env(?:\\..*)?|[^/\\\\]+\\.env)$/i.test(String(path))) throw new Error('credential bytes were read');
+      if (String(path).includes('/node_modules/hyperframes/package.json')) throw new Error('prepareRuntime started');
+      return originalRead.call(this, path, ...rest);
+    };
+    fs.cp = fs.mkdtemp = async function () { throw new Error('temporary project started'); };
+    child.spawn = child.spawnSync = child.execFile = function () { throw new Error('browser or process started'); };
+    syncBuiltinESMExports();
+    if (${JSON.stringify(readPath)}) {
+      const { readFile } = await import('node:fs/promises');
+      await readFile(${JSON.stringify(readPath)});
+    }
+    const { main } = await import(${JSON.stringify(pathToFileURL(cli).href)});
+    await main(${JSON.stringify(args)});
+  `;
+  return spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+    encoding: 'utf8', timeout: 30_000, env: { ...process.env, WISER_ALLOW_INSTALL: '0' },
+  });
+}
+
+const originCases = [
+  ['data CSS percent decoded', image(data('text/css', '@import "https://example.invalid/nested.css";')), 'src data:text/css @import'],
+  ['data CSS base64 decoded', `<style>@import "${data('text/css', 'a{background:url(https://example.invalid/a)}', true)}";</style>`, 'data:text/css url()'],
+  ['data HTML percent decoded', `<iframe src="${attr(data('text/html', image('https://example.invalid/a')))}"></iframe>`, 'data:text/html src'],
+  ['data HTML base64 decoded', image(data('text/html', image('https://example.invalid/a'), true)), 'data:text/html src'],
+  ['data HTML MIME whitespace', image(data(' text/html ; base64', Buffer.from(image('https://example.invalid/a')).toString('base64'))), 'data:text/html src'],
+  ['data HTML UTF-16 decoded', image(`data:text/html;charset=utf-16le;base64,${Buffer.from(image('https://example.invalid/a'), 'utf16le').toString('base64')}`), 'data:text/html src'],
+  ['data SVG percent decoded', image(data('image/svg+xml', '<svg><image href="https://example.invalid/a"/></svg>')), 'data:image/svg+xml href'],
+  ['data SVG base64 decoded', `<style>a{background:url("${data('image/svg+xml', '<svg><image href="https://example.invalid/a"/></svg>', true)}")}</style>`, 'data:image/svg+xml href'],
+  ['iframe srcdoc', `<iframe srcdoc="${attr(image('https://example.invalid/a'))}"></iframe>`, 'srcdoc src'],
+  ['nested iframe srcdoc', `<iframe srcdoc="${attr(`<iframe srcdoc="${attr(image('https://example.invalid/a'))}"></iframe>`)}"></iframe>`, 'srcdoc srcdoc src'],
+  ['meta refresh', '<meta content="0; URL=https://example.invalid/a" http-equiv="ReFrEsH">', 'meta refresh content'],
+  ['meta refresh quoted URL', '<meta http-equiv="refresh" content="0;url=&#39;https://example.invalid/a&#39;">', 'meta refresh content'],
+  ...['fill', 'filter', 'mask', 'clip-path', 'marker-start', 'data-note'].map((name) => [
+    `attribute ${name}`, `<svg><path ${name}="url(https://example.invalid/a)"/></svg>`, `${name} url()`,
+  ]),
+  ...['action', 'formaction', 'background'].map((name) => [`attribute ${name}`, `<form ${name}="https://example.invalid/a"></form>`, name]),
+  ['attribute ping list', '<a ping="local https://example.invalid/a next">Link</a>', 'ping'],
+  ['CSS image-set string', '<style>a{background:image-set("local.png" 1x, "https://example.invalid/a" 2x)}</style>', 'image-set()'],
+  ['CSS -webkit-image-set string', '<style>a{background:-webkit-image-set("https://example.invalid/a" 1x)}</style>', '-webkit-image-set()'],
+  ['CSS image-set escaped string', '<style>a{background:image-set("https\\3a //example.invalid/a" 1x)}</style>', 'image-set()'],
+  ['CSS image-set nested data', `<style>a{background:image-set("${data('image/svg+xml', '<svg><image href="https://example.invalid/a"/></svg>', true)}" 1x)}</style>`, 'image-set() data:image/svg+xml href'],
+];
+let nested = '<main>Local</main>';
+for (let i = 0; i < 4; i++) nested = `<iframe src="${attr(data('text/html', nested, true))}"></iframe>`;
+originCases.push(['data URL nesting beyond three', nested, 'data URL nesting exceeds depth 3']);
+
+for (const [name, content, rule] of originCases) test(`origin screen refuses ${name} before runtime, copies or browsers`, async (t) => {
+  const path = await scratch(t), project = join(path, 'project');
+  await mkdir(project);
+  await writeFile(join(project, 'index.html'), `<main data-video-root>${content}</main>`);
+  for (const command of ['sequence', 'render', 'frames']) {
+    const options = values(project, join(path, command === 'render' ? 'out.mp4' : 'out'));
+    if (command === 'frames') options.times = '0';
+    const result = guarded([command, ...flags(options)]);
+    assert.equal(result.status, 1, result.stderr);
+    assert.equal(result.stdout, '');
+    assert.ok(result.stderr.includes('Project file index.html references '), result.stderr);
+    assert.ok(result.stderr.includes(rule), result.stderr);
+    assert.doesNotMatch(result.stderr, /prepareRuntime started|temporary project started|browser or process started/);
+  }
+  assert.deepEqual(await readdir(path), ['project']);
+});
+
+test('embedded local content at depth three, namespaces and script text remain allowed', async (t) => {
+  const path = await scratch(t);
+  let local = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><script>const site = "https://example.invalid/a";</script></svg>';
+  for (let i = 0; i < 3; i++) local = image(data(i === 0 ? 'image/svg+xml' : 'text/html', local, i % 2 === 0));
+  await writeFile(join(path, 'index.html'), `<main data-video-root>${local}<svg xmlns="http://www.w3.org/2000/svg"><script>const site = "https://example.invalid/a";</script></svg></main>`);
+  await inspectProject(path);
+  assert.equal(remoteReference('a{background:image-set("local.png" type("image/png") 1x);content:"image-set(https://example.invalid/a)"}', '.css'), null);
+  assert.equal(remoteReference('<img src="data:image/png;base64,AAAA">', '.html'), null);
+});
+
+for (const name of ['credentials.json', 'production.env']) test(`project refuses ${name} before its bytes are read or copied`, async (t) => {
+  const path = await scratch(t), project = join(path, 'project');
+  await mkdir(project);
+  await writeFile(join(project, 'index.html'), '<main data-video-root>Local</main>');
+  await writeFile(join(project, name), '');
+  const readControl = guarded([], join(project, name));
+  assert.equal(readControl.status, 1);
+  assert.match(readControl.stderr, /credential bytes were read/);
+  for (const command of ['sequence', 'render', 'frames']) {
+    const options = values(project, join(path, command === 'render' ? 'out.mp4' : 'out'));
+    if (command === 'frames') options.times = '0';
+    const result = guarded([command, ...flags(options)]);
+    assert.equal(result.status, 1, result.stderr);
+    assert.equal(result.stdout, '');
+    assert.ok(result.stderr.includes(`Project file ${name} is a protected`), result.stderr);
+    assert.doesNotMatch(result.stderr, /credential bytes were read|prepareRuntime started|temporary project started|browser or process started/);
+  }
+  assert.deepEqual(await readdir(path), ['project']);
+});
+
+test('every caller path uses the same protected component check, including canonical aliases', async (t) => {
+  const path = await scratch(t), project = join(path, 'project');
+  await mkdir(project);
+  await writeFile(join(project, 'index.html'), '<main data-video-root>Local</main>');
+  for (const name of ['memory', '.env', '.env.local', 'production.env', 'credentials.json', 'credentials']) {
+    assert.equal(protectedPath(join(path, name, 'child')), true);
+    for (const flag of ['project', 'output', 'frame-hashes', 'cache']) {
+      const result = guarded(['render', ...flags({ ...values(project, join(path, 'out.mp4')), [flag]: join(path, name) })]);
+      assert.equal(result.status, 1, result.stderr);
+      assert.ok(result.stderr.includes(`--${flag} names a protected`), result.stderr);
+    }
+  }
+  await mkdir(join(path, 'production.env'));
+  await symlink(join(path, 'production.env'), join(path, 'alias'));
+  const result = guarded(['render', ...flags({ ...values(project, join(path, 'out.mp4')), cache: join(path, 'alias/cache') })]);
+  assert.match(result.stderr, /--cache resolves to a protected/);
+});
+
+test('refusal instrumentation detects a valid project reaching a dependency process', async (t) => {
+  const path = await scratch(t), project = join(path, 'project');
+  await mkdir(project);
+  await writeFile(join(project, 'index.html'), '<main data-video-root>Local</main>');
+  const result = guarded(['sequence', ...flags(values(project, join(path, 'out')))]);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /browser or process started/);
+});
+
+test('Chrome 152 render forces reduced motion false, with an opposite-switch true control', { timeout: 120_000 }, async (t) => {
+  const path = await scratch(t), project = join(path, 'project');
+  await mkdir(project);
+  await writeFile(join(project, 'index.html'), `<!doctype html><style>html,body{margin:0}main{width:32px;height:24px}</style>
+    <main data-video-root></main><script>
+    function paint() { const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      document.querySelector('main').style.backgroundColor = reduced ? 'rgb(255,0,0)' : 'rgb(0,255,0)'; }
+    paint(); addEventListener('video-render:seek', paint);</script>`);
+  const { default: sharp } = await ownPackage('sharp');
+  const render = async (output, runtime) => {
+    const report = await sequence(values(project, output), { runtime });
+    assert.equal(report.chromeBuild, CHROME_BUILD);
+    assert.equal(report.frameCount, 2);
+    const pixels = [];
+    for (const file of (await readdir(join(output, 'frames'))).filter((name) => name.endsWith('.png'))) {
+      const pixel = await sharp(join(output, 'frames', file)).extract({ left: 16, top: 12, width: 1, height: 1 }).removeAlpha().raw().toBuffer();
+      pixels.push([...pixel]);
+    }
+    return pixels;
+  };
+  assert.deepEqual(await render(join(path, 'normal')), [[0, 255, 0], [0, 255, 0]]);
+  // Keep the production wrapper and render path. A second executable wrapper
+  // changes only the media-feature switch before launching the same pinned Chrome.
+  const control = join(path, 'control');
+  await mkdir(control);
+  const wrapper = await writeBrowserWrapper(control, await browserPath());
+  await writeFile(wrapper, (await readFile(wrapper, 'utf8')).replace('--force-prefers-no-reduced-motion', '--force-prefers-reduced-motion'));
+  assert.deepEqual(await render(join(path, 'reduced'), { chrome: { executablePath: wrapper } }), [[255, 0, 0], [255, 0, 0]]);
+  t.diagnostic(`Chrome ${CHROME_BUILD}: --force-prefers-no-reduced-motion => false (green); --force-prefers-reduced-motion => true (red), both frames.`);
+});
+
+test('changing only the wrapper switch list causes a cache miss', async (t) => {
+  const path = await scratch(t), cache = join(path, 'cache'), source = join(path, 'fixture');
+  const inputs = renderCacheInputs({ ...values('/project', '/out.mp4'), expectedFrames: 2, profile: 'publish', gop: 5, gpu: 'hardware', capture: 'screenshot' },
+    { hyperframesVersion: '0.8.134', chromeBuild: CHROME_BUILD, ffmpegVersion: 'fixture' }, []);
+  assert.deepEqual(inputs.browserSwitches, BROWSER_SWITCHES);
+  const key = cacheKey(inputs);
+  await writeFile(source, 'cache lookup fixture');
+  const sha256 = await fileHash(source);
+  await writeCache(cache, { key, inputs, bytes: Buffer.byteLength('cache lookup fixture'), sha256,
+    frameHashes: `0, 0, 0, 1, 1152, ${sha256}\n0, 1, 1, 1, 1152, ${sha256}\n`,
+    sequenceHashesSha256: sha256, lintFindings: [], checks: {} }, source);
+  assert.ok((await readCache(cache, key, inputs, [])).record);
+  const changed = { ...inputs, browserSwitches: inputs.browserSwitches.map((flag) => flag.replace('--force-prefers-no-reduced-motion', '--force-prefers-reduced-motion')) };
+  assert.notEqual(cacheKey(changed), key);
+  assert.deepEqual(await readCache(cache, cacheKey(changed), changed, []), { record: null, reason: null });
+  assert.deepEqual((await readdir(cache)).sort(), [`${key}.json`, `${key}.mp4`]);
+});
+
+test('check names missing ffprobe and reports unready even with FFmpeg, packages and Chrome', { timeout: 60_000 }, async (t) => {
+  const path = await scratch(t), bin = join(path, 'bin');
+  await mkdir(bin);
+  await writeFile(join(bin, 'ffmpeg'), '#!/bin/sh\nprintf "ffmpeg version fixture\\n"\n', { mode: 0o755 });
+  const result = spawnSync(process.execPath, [cli, 'check'], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, PATH: bin, WISER_ALLOW_INSTALL: '0' } });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, '');
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.ffmpeg.present, true);
+  assert.equal(report.hyperframes.ok, true);
+  assert.equal(report.chrome.launches, true, JSON.stringify(report.chrome));
+  assert.deepEqual(report.ffprobe, { present: false, version: null, check: 'ffprobe -version' });
+  assert.equal(report.ready, false);
+});
+
+test('bridge forwards seeks without hiding animations or replacing Element.animate', async () => {
+  const { runInNewContext } = await import('node:vm');
+  const listeners = new Map(), forwarded = [];
+  const getAnimations = () => ['live animation'];
+  const patchedAnimate = () => 'adapter';
+  const Element = function () {};
+  Element.prototype.animate = patchedAnimate;
+  Element.prototype.__hfOriginalAnimate = () => 'original';
+  const document = { readyState: 'complete', getAnimations };
+  const window = { Element, addEventListener: (name, fn) => listeners.set(name, fn), dispatchEvent: (event) => forwarded.push(event) };
+  runInNewContext(BRIDGE, { window, document, Element, CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init.detail; } } });
+  listeners.get('hf-seek')({ detail: { time: 0.75 } });
+  assert.equal(document.getAnimations, getAnimations);
+  assert.equal(Element.prototype.animate, patchedAnimate);
+  assert.deepEqual(forwarded.map((event) => [event.type, event.detail.time]), [['video-render:seek', 0], ['video-render:seek', 0.75]]);
+});
+
+test('four-step fixture at 0.33 seconds and 10 fps renders exactly three frames', { timeout: 120_000 }, async (t) => {
+  const path = await scratch(t), project = join(path, 'project'), output = join(path, 'out.mp4');
+  await cp(fixture, project, { recursive: true });
+  const result = spawnSync(process.execPath, [cli, 'render', ...flags({ ...values(project, output), width: 640, height: 360, duration: 0.33 })],
+    { encoding: 'utf8', timeout: 120_000, env: { ...process.env, WISER_ALLOW_INSTALL: '0' } });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, '');
+  assert.equal(JSON.parse(result.stdout).frameCount, 3);
+  const decoded = spawnSync('ffprobe', ['-v', 'error', '-count_frames', '-show_entries', 'stream=nb_read_frames', '-of', 'json', output], { encoding: 'utf8', timeout: 30_000 });
+  assert.equal(decoded.status, 0, decoded.stderr);
+  assert.equal(Number(JSON.parse(decoded.stdout).streams[0].nb_read_frames), 3);
+  t.diagnostic('0.33 s x 10 fps: renderer reports 3 frames; independent ffprobe decodes 3 frames.');
+});

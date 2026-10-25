@@ -8,8 +8,9 @@
  * page later is started by calling window.AxLoop.scan(). Each root runs on its own clock: it starts when a
  * quarter of its stage is in view, or when its reveal.js slide is current and any fragment holding it is
  * shown, and waits off-screen, on a hidden tab, and while its pause control is pressed. Every word it shows
- * comes from the markup, the pause control's two names included. It writes no style attribute, so a page
- * whose policy is style-src 'self' runs it.
+ * comes from the markup, the pause control's two names included. Only the render clock writes style attributes,
+ * freezing each frame until the next seek, when it removes those values. A page rendered to video must allow
+ * inline style; the browser clock writes no style attribute, so a policy of style-src 'self' runs it.
  *
  * What it reads from the markup:
  *   data-len on the root            the cycle in seconds; the last moment is at least 0.3 s;

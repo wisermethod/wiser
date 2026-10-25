@@ -44,15 +44,27 @@ function cssValue(value) {
   });
 }
 
-function cssReference(text, imports = true) {
+function cssReference(text, imports = true, depth = 0) {
   // Preserve strings while removing comments, then skip ordinary strings such as
-  // content: "url(https://example.invalid)". Only URL tokens and imports load assets.
+  // content: "url(https://example.invalid)". URL tokens, image-set strings and imports load assets.
   const css = text.replace(/("(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*')|\/\*[\s\S]*?(?:\*\/|$)/g, (_, string) => string ?? '');
-  const tokens = /(?:(@import)\s*)?(?<![\w-])url\(\s*(?:"((?:\\[\s\S]|[^"\\])*)"|'((?:\\[\s\S]|[^'\\])*)'|((?:\\[\s\S]|[^)"'\\])*))\s*\)|(@import)\s*(?:"((?:\\[\s\S]|[^"\\])*)"|'((?:\\[\s\S]|[^'\\])*)')|"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*'/gi;
+  const tokens = /(?:(@import)\s*)?(?<![\w-])url\(\s*(?:"((?:\\[\s\S]|[^"\\])*)"|'((?:\\[\s\S]|[^'\\])*)'|((?:\\[\s\S]|[^)"'\\])*))\s*\)|(@import)\s*(?:"((?:\\[\s\S]|[^"\\])*)"|'((?:\\[\s\S]|[^'\\])*)')|([\w-]+)\(|([()])|("(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*')/gi;
+  const functions = [];
   for (const match of css.matchAll(tokens)) {
+    if (match[8]) { functions.push(match[8].toLowerCase()); continue; }
+    if (match[9]) {
+      if (match[9] === '(') functions.push(null);
+      else functions.pop();
+      continue;
+    }
     if (!imports && (match[1] || match[5])) continue;
-    const value = match[2] ?? match[3] ?? match[4] ?? match[6] ?? match[7];
-    if (value !== undefined && anotherOrigin(cssValue(value))) return { rule: match[1] || match[5] ? '@import' : 'url()', value: value.trim() };
+    const imageSet = match[10] && ['image-set', '-webkit-image-set'].includes(functions.at(-1));
+    const value = match[2] ?? match[3] ?? match[4] ?? match[6] ?? match[7] ?? (imageSet ? match[10].slice(1, -1) : undefined);
+    if (value === undefined) continue;
+    const rule = match[1] || match[5] ? '@import' : imageSet ? `${functions.at(-1)}()` : 'url()';
+    const ref = urlReference(cssValue(value), depth);
+    if (ref) return { ...ref, rule: `${rule}${ref.rule ? ` ${ref.rule}` : ''}`,
+      value: ref.rule ? ref.value : value.trim() };
   }
   return null;
 }
@@ -87,26 +99,69 @@ function* srcsetValues(value) {
   }
 }
 
-function loadingReference(text, extension) {
+function urlReference(value, depth) {
+  if (anotherOrigin(value)) return { value: value.trim() };
+  const url = value.trim().replace(/[\t\r\n]/g, '');
+  if (!/^data:/i.test(url)) return null;
+  const comma = url.indexOf(',');
+  const header = url.slice(5, comma < 0 ? undefined : comma).trim();
+  const type = header.split(';')[0].trim().toLowerCase();
+  const extension = { 'text/css': '.css', 'text/html': '.html', 'application/xhtml+xml': '.html', 'image/svg+xml': '.svg' }[type];
+  if (!extension) return null;
+  if (depth >= 3) return { rule: 'data URL nesting exceeds depth 3', value: 'data:' + type };
+  let content;
+  try {
+    if (comma < 0) throw new Error('missing comma');
+    // Decode URL bytes before base64 and the declared text encoding. Treating
+    // UTF-16 bytes as UTF-8 would hide the markup between NUL characters.
+    let bytes = Buffer.concat(url.slice(comma + 1).split(/(%[\da-f]{2})/gi).map((part) =>
+      /^%[\da-f]{2}$/i.test(part) ? Buffer.from([Number.parseInt(part.slice(1), 16)]) : Buffer.from(part)));
+    if (/;\s*base64$/i.test(header)) bytes = Buffer.from(bytes.toString('utf8'), 'base64');
+    const charset = /;\s*charset\s*=\s*(?:"([^"]*)"|([^;]*))/i.exec(header);
+    const encoding = bytes[0] === 0xff && bytes[1] === 0xfe ? 'utf-16le'
+      : bytes[0] === 0xfe && bytes[1] === 0xff ? 'utf-16be' : charset?.[1] ?? charset?.[2]?.trim() ?? 'utf-8';
+    content = new TextDecoder(encoding).decode(bytes);
+  } catch {
+    return { rule: 'invalid data URL', value: 'data:' + type };
+  }
+  const ref = loadingReference(content, extension, depth + 1);
+  return ref ? { ...ref, rule: `data:${type} ${ref.rule}` } : null;
+}
+
+function loadingReference(text, extension, depth = 0) {
   const ext = extension.toLowerCase();
-  if (ext === '.css') return cssReference(text);
+  if (ext === '.css') return cssReference(text, true, depth);
   if (!['.html', '.htm', '.svg'].includes(ext)) return null;
   for (const tag of openingTags(text)) {
     for (const attr of tag.attrs) {
       const decoded = attributeValue(attr.value);
-      if (['src', 'href', 'xlink:href', 'srcset', 'poster', 'data'].includes(attr.name)) {
-        const values = attr.name === 'srcset' ? srcsetValues(decoded) : [decoded];
+      if (attr.name === 'xmlns' || attr.name.startsWith('xmlns:')) continue;
+      if (tag.name === 'iframe' && attr.name === 'srcdoc') {
+        const ref = depth >= 3 ? { rule: 'nesting exceeds depth 3', value: 'srcdoc' } : loadingReference(decoded, '.html', depth + 1);
+        if (ref) return { ...ref, rule: `srcdoc ${ref.rule}` };
+      }
+      if (['src', 'href', 'xlink:href', 'srcset', 'poster', 'data', 'action', 'formaction', 'background', 'ping'].includes(attr.name)) {
+        const values = attr.name === 'srcset' ? srcsetValues(decoded) : attr.name === 'ping' ? decoded.split(/\s+/) : [decoded];
         for (const value of values) {
-          if (anotherOrigin(value)) return { rule: attr.name, value: value.trim() };
+          const ref = urlReference(value, depth);
+          if (ref) return { ...ref, rule: `${attr.name}${ref.rule ? ` ${ref.rule}` : ''}` };
         }
       }
-      if (attr.name === 'style') {
-        const ref = cssReference(decoded, false);
-        if (ref) return { ...ref, rule: `style ${ref.rule}` };
+      if (attr.name === 'style' || /url\(/i.test(decoded)) {
+        const ref = cssReference(decoded, false, depth);
+        if (ref) return { ...ref, rule: `${attr.name} ${ref.rule}` };
+      }
+    }
+    if (tag.name === 'meta' && tag.attrs.some((a) => a.name === 'http-equiv' && attributeValue(a.value).trim().toLowerCase() === 'refresh')) {
+      const content = attributeValue(tag.attrs.find((a) => a.name === 'content')?.value ?? '');
+      const match = /^\s*[\d.]+(?:\s*[;,]\s*|\s+)(?:url\s*=\s*)?([\s\S]*)$/i.exec(content);
+      if (match) {
+        const ref = urlReference(match[1].trim().replace(/^(['"])([\s\S]*)\1$/, '$2'), depth);
+        if (ref) return { ...ref, rule: `meta refresh content${ref.rule ? ` ${ref.rule}` : ''}` };
       }
     }
     if (tag.name === 'style') {
-      const ref = cssReference(tag.content);
+      const ref = cssReference(tag.content, true, depth);
       if (ref) return { ...ref, rule: `<style> ${ref.rule}` };
     }
   }
@@ -118,17 +173,17 @@ export function remoteReference(text, extension) {
 }
 
 export function protectedPath(path) {
-  return path.split(sep).some((part) => /^memory$/i.test(part) || /^\.env(?:\.|$)/i.test(part));
+  return path.split(sep).some((part) => /^(?:memory|\.env(?:\..*)?|.+\.env|credentials(?:\.json)?)$/i.test(part));
 }
 
 export async function inspectProject(project) {
-  if (protectedPath(project)) throw new Error(`--project ${project} names a protected memory or .env path; use a local asset project.`);
+  if (protectedPath(project)) throw new Error(`--project ${project} names a protected memory or credential path; use a local asset project.`);
   const files = [];
   async function walk(directory) {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name);
       const name = relative(project, path);
-      if (protectedPath(path)) throw new Error(`Project file ${name} is a protected memory or .env path; remove it from the project.`);
+      if (protectedPath(path)) throw new Error(`Project file ${name} is a protected memory or credential path; remove it from the project.`);
       const stat = await lstat(path);
       if (stat.isSymbolicLink()) throw new Error(`Project file ${name} is a symbolic link; put its local asset bytes in the project instead.`);
       if (stat.isDirectory()) { await walk(path); continue; }
@@ -168,19 +223,7 @@ export const BRIDGE = `/* The renderer owns its event names; the explainer only 
     var t = Number(time);
     window.dispatchEvent(new CustomEvent('video-render:seek', { detail: { time: Number.isFinite(t) ? t : 0 } }));
   }
-  /* HyperFrames 0.8.134's CSS and Web Animations adapters seek every animation document.getAnimations() returns by
-     their own clock, counted from when they first met it, and pause it; pausing an animation the page has just
-     cancelled brings it back, so a frame would depend on the seeks before it. The page owns its motion through
-     this tool's seek, so those adapters are shown no animations, and the adapter's patch of Element.animate is
-     undone before each seek. The page's own element.getAnimations() is untouched. */
-  try { document.getAnimations = function () { return []; }; } catch (e) { /* a read-only document */ }
-  function unpatchAnimate() {
-    var proto = window.Element && Element.prototype;
-    if (proto && typeof proto.__hfOriginalAnimate === 'function' && proto.animate !== proto.__hfOriginalAnimate) {
-      try { proto.animate = proto.__hfOriginalAnimate; } catch (e) { /* left patched */ }
-    }
-  }
-  window.addEventListener('hf-seek', function (event) { unpatchAnimate(); seek(event.detail && event.detail.time); });
+  window.addEventListener('hf-seek', function (event) { seek(event.detail && event.detail.time); });
   function first() { seek(window.__hfThreeTime || 0); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', first, { once: true });
   else first();

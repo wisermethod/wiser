@@ -75,9 +75,9 @@ Usage:
 Options:
 ${INSTALL_HELP}
 
-Reports Node's version and whether it is >=22, FFmpeg's version line and presence,
+Reports Node's version and whether it is >=22, FFmpeg's and ffprobe's version lines and presence,
 HyperFrames' installed version and whether it is exactly 0.8.134, and Chrome's
-actual build and headless launch result. ready is true only when all four hold.
+actual build and headless launch result. ready is true only when all five hold.
 Without --install it ignores install consent, fetches nothing and retains no files.
 A Chrome trial uses a temporary profile and removes it before returning.
 With --install it may install packages and Chrome, then reports in the same run.

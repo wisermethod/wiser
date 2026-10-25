@@ -4,6 +4,7 @@ import { copyFile, lstat, mkdir, readFile, readdir, rename, rm, writeFile } from
 import { dirname, join } from 'node:path';
 import { TOOL_DIR } from './dependencies.mjs';
 import { canonical, inside } from './sequence.mjs';
+import { protectedPath } from './project.mjs';
 
 // Raise this whenever the tool changes the bytes a render produces.
 export const RENDER_VERSION = '1.0.0';
@@ -37,8 +38,7 @@ export async function cacheDirectory(path, project) {
       const info = await lstat(head);
       if (!info.isDirectory()) throw new Error('--cache must name a directory with directory parents.');
       const entries = await readdir(head, { withFileTypes: true });
-      if (entries.some((entry) => !entry.isDirectory()
-        && /^(?:\.env(?:\.|$)|.+\.env$|credentials(?:\.json)?$)/i.test(entry.name))) {
+      if (entries.some((entry) => !entry.isDirectory() && protectedPath(entry.name))) {
         throw new Error('--cache is beside a credential file or inside its directory; choose a separate work directory.');
       }
     } catch (error) { if (error.code !== 'ENOENT') throw error; }

@@ -139,7 +139,7 @@ function mockRuntime({ installed = false, browser = false, authorised = true, fa
     async probe() { calls.push(['probe']); return { build: browser ? CHROME_BUILD : null, launches: browser, failure, remediation: 'Zibble launch failed; preserve the current browser.' }; },
     run(executable, args, options) {
       calls.push(['run', executable, args, options]);
-      if (args[0] === '-version') return { status: 0, stdout: 'ffmpeg version fixture\n' };
+      if (args[0] === '-version') return { status: 0, stdout: `${executable} version fixture\n` };
       if (args[0] === 'ci') installed = true;
       else { assert.deepEqual(args.slice(1), ['browser', 'ensure']); browser = true; }
       return { status: 0, stdout: '', stderr: '' };
@@ -184,12 +184,12 @@ test('working Chrome and non-artifact launch failures never trigger a browser in
   for (const failure of ['host', 'permission', 'launch', 'protocol', 'version']) {
     const fixture = mockRuntime({ installed: true, failure });
     await assert.rejects(prepareRuntime({ install: true }, fixture.operations), /preserve the current browser/);
-    assert.equal(fixture.calls.filter((call) => call[0] === 'run').length, 1);
+    assert.equal(fixture.calls.filter((call) => call[0] === 'run').length, 2);
     assert.ok(!fixture.calls.some((call) => call[0] === 'consent'));
   }
   const refused = mockRuntime({ authorised: false });
   await assert.rejects(prepareRuntime({}, refused.operations), /--install/);
-  assert.equal(refused.calls.filter((call) => call[0] === 'run').length, 1);
+  assert.equal(refused.calls.filter((call) => call[0] === 'run').length, 2);
 });
 
 test('failure diagnosis distinguishes missing executable from permissions, host libraries and ambiguous crashes', () => {

@@ -31,6 +31,13 @@ export function ffmpegSurvey(run = spawnSync) {
   return { present: result.status === 0 && version !== null, version, check: 'ffmpeg -version' };
 }
 
+export function ffprobeSurvey(run = spawnSync) {
+  const result = run('ffprobe', ['-version'], { encoding: 'utf8', timeout: 10_000, stdio: ['ignore', 'pipe', 'pipe'] });
+  const firstLine = result.stdout?.split(/\r?\n/)[0];
+  const version = /^ffprobe version\s/i.test(firstLine ?? '') ? firstLine : null;
+  return { present: result.status === 0 && version !== null, version, check: 'ffprobe -version' };
+}
+
 export async function packageSurvey(tool = TOOL_DIR) {
   const marker = join(tool, 'node_modules/hyperframes/package.json');
   try {
@@ -151,7 +158,7 @@ function runInstaller(run, executable, args, tool, home, label) {
 export async function prepareRuntime({ install = false, survey = false, gpu = 'hardware' } = {}, operations = {}) {
   const { tool = TOOL_DIR, home = homedir(), run = spawnSync, probe = chromeSurvey,
     packages = packageSurvey, nodeVersion = process.versions.node } = operations;
-  const report = { node: nodeSurvey(nodeVersion), ffmpeg: ffmpegSurvey(run), hyperframes: await packages(tool),
+  const report = { node: nodeSurvey(nodeVersion), ffmpeg: ffmpegSurvey(run), ffprobe: ffprobeSurvey(run), hyperframes: await packages(tool),
     chrome: { expectedBuild: CHROME_BUILD, build: null, launches: false, failure: 'packages' }, ready: false };
   try {
     if (!survey || install) requireSystems(report);
@@ -185,7 +192,7 @@ export async function prepareRuntime({ install = false, survey = false, gpu = 'h
         if (!report.chrome.launches) throw new Error(report.chrome.remediation);
       }
     }
-    report.ready = report.node.ok && report.ffmpeg.present && report.hyperframes.ok && report.chrome.launches;
+    report.ready = report.node.ok && report.ffmpeg.present && report.ffprobe.present && report.hyperframes.ok && report.chrome.launches;
   } catch (error) {
     if (!survey) throw error;
     report.error = error.message;

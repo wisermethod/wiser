@@ -3,6 +3,7 @@ import './core.test.mjs';
 import './clock.test.mjs';
 import './once-clock.test.mjs';
 import './dependencies.test.mjs';
+import './review.test.mjs';
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -17,7 +18,7 @@ import { checkMetadata, encodeArguments, hasEditList, optionsForRender, packetHa
 import { RENDER_VERSION, cacheKey, canonicalJSON, readCache, writeCache } from '../scripts/cache.mjs';
 import { inspectProject } from '../scripts/project.mjs';
 import { optionsForFrames } from '../scripts/frames.mjs';
-import { browserPath, childEnvironment, writeBrowserWrapper } from '../scripts/sequence.mjs';
+import { BROWSER_SWITCHES, browserPath, childEnvironment, writeBrowserWrapper } from '../scripts/sequence.mjs';
 
 const cli = join(TOOL_DIR, 'scripts/video-render.js');
 const fixture = fileURLToPath(new URL('./fixtures/steps/', import.meta.url));
@@ -45,7 +46,7 @@ test('the static screen allows SVG namespaces, script URLs, comments and non-loa
   const path = await scratch(t);
   await writeFile(join(path, 'index.html'), `<main data-video-root>
     <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><path d="M0 0"/></svg>
-    <span title="https://example.com/" data-note="url(https://example.com/)">https://example.com/</span>
+    <span title="https://example.com/" data-note="https://example.com/">https://example.com/</span>
     <script src="library.js"></script>
     <script>const markup = '<img src="https://example.com/x.png">';</script>
     <!-- <img src="https://example.com/x.png"> -->
@@ -109,8 +110,7 @@ test('the Chrome wrapper preserves arguments and appends both network restrictio
   const args = ['--headless', 'with spaces', "with'quotes", '$literal`command`', '*.png', '--proxy-server=earlier'];
   const result = spawnSync(wrapper, args, { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual(result.stdout.trimEnd().split('\n'), [...args, '--proxy-server=http://127.0.0.1:9',
-    '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE localhost , EXCLUDE 127.0.0.1']);
+  assert.deepEqual(result.stdout.trimEnd().split('\n'), [...args, ...BROWSER_SWITCHES]);
   assert.equal(childEnvironment(path, wrapper).HYPERFRAMES_BROWSER_PATH, wrapper);
   await assert.rejects(writeBrowserWrapper(path, executable), { code: 'EEXIST' });
 });
@@ -574,6 +574,7 @@ test('encode uses the image demuxer, fixed count, required color conversion and 
     assert.equal(value('-fflags'), '+bitexact'); assert.equal(value('-flags:v'), '+bitexact');
     assert.ok(args.includes('-an')); assert.ok(!args.includes('concat')); assert.ok(!args.includes('--quality'));
     if (profile === 'publish') {
+      assert.equal(value('-threads'), '4');
       assert.equal(value('-crf'), '16'); assert.equal(value('-g'), '5'); assert.equal(value('-keyint_min'), '5');
       assert.equal(value('-bf'), '2'); assert.equal(value('-sc_threshold'), '0');
       assert.match(value('-x264-params'), /open-gop=0:b-adapt=0:cabac=1/);
@@ -665,8 +666,9 @@ test('cache inputs are canonical, complete, pure and exclude workers, destinatio
   const inputs = renderCacheInputs(f.options, f.versions, files);
   assert.deepEqual({ options: f.options, versions: f.versions, files }, before);
   assert.deepEqual(Object.keys(inputs).sort(), ['toolVersion', 'hyperframesVersion', 'chromeBuild', 'ffmpegVersion',
-    'gpu', 'capture', 'width', 'height', 'fps', 'duration', 'frameCount', 'profile', 'encoderArguments', 'files'].sort());
+    'gpu', 'capture', 'width', 'height', 'fps', 'duration', 'frameCount', 'profile', 'browserSwitches', 'encoderArguments', 'files'].sort());
   assert.deepEqual(inputs.encoderArguments, encodeArguments('<frames>', '<output>.mp4', f.options));
+  assert.deepEqual(inputs.browserSwitches, BROWSER_SWITCHES);
   const reordered = Object.fromEntries(Object.entries(inputs).reverse());
   assert.equal(canonicalJSON(inputs), canonicalJSON(reordered));
   assert.equal(f.key, hash(canonicalJSON(inputs)));

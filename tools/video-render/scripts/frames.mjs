@@ -3,6 +3,7 @@ import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promi
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { optionsForSequence, sequence } from './sequence.mjs';
+import { inspectProject } from './project.mjs';
 
 export async function optionsForFrames(input) {
   const options = await optionsForSequence(input);
@@ -22,6 +23,7 @@ export async function optionsForFrames(input) {
 export async function frames(input, { install = false } = {}) {
   const started = performance.now();
   const options = await optionsForFrames(input);
+  await inspectProject(options.project);
   const temporary = await mkdtemp(join(tmpdir(), 'wiser-video-frames-'));
   let claimed = false;
   try {

@@ -8,6 +8,12 @@ import { TOOL_DIR, HYPERFRAMES_VERSION, CHROME_BUILD, childEnvironment, ownPacka
 
 export { TOOL_DIR, HYPERFRAMES_VERSION, CHROME_BUILD, browserPath, checkRuntime, childEnvironment } from './dependencies.mjs';
 
+export const BROWSER_SWITCHES = Object.freeze([
+  '--proxy-server=http://127.0.0.1:9',
+  '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE localhost , EXCLUDE 127.0.0.1',
+  '--force-prefers-no-reduced-motion',
+]);
+
 async function exists(path) {
   try { await lstat(path); return true; } catch (error) {
     if (error.code === 'ENOENT') return false;
@@ -17,13 +23,13 @@ async function exists(path) {
 
 export async function canonical(path, name) {
   if (typeof path !== 'string' || !isAbsolute(path)) throw new Error(`${name} must be an absolute path; see video-render.js help.`);
-  if (protectedPath(path)) throw new Error(`${name} names a protected memory or .env path; choose a project or output directory.`);
+  if (protectedPath(path)) throw new Error(`${name} names a protected memory or credential path: ${path}; choose a project or output directory.`);
   const missing = [];
   let head = path;
   for (;;) {
     try {
       const resolved = join(await realpath(head), ...missing);
-      if (protectedPath(resolved)) throw new Error(`${name} resolves to a protected memory or .env path; choose another directory.`);
+      if (protectedPath(resolved)) throw new Error(`${name} resolves to a protected memory or credential path: ${resolved}; choose another directory.`);
       return resolved;
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
@@ -96,10 +102,10 @@ export function renderArguments(copy, frames, options) {
 
 export async function writeBrowserWrapper(temporary, executable) {
   // HyperFrames identifies the headless shell by this basename. Keep all caller
-  // arguments, then append the network policy so earlier flags cannot override it.
+  // arguments, then append the network and motion policy so earlier flags cannot override it.
   const wrapper = join(temporary, 'chrome-headless-shell');
   const quote = (value) => `'${value.replaceAll("'", "'\\''")}'`;
-  await writeFile(wrapper, `#!/bin/sh\nexec ${quote(executable)} "$@" ${quote('--proxy-server=http://127.0.0.1:9')} ${quote('--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE localhost , EXCLUDE 127.0.0.1')}\n`, { flag: 'wx', mode: 0o700 });
+  await writeFile(wrapper, `#!/bin/sh\nexec ${quote(executable)} "$@" ${BROWSER_SWITCHES.map(quote).join(' ')}\n`, { flag: 'wx', mode: 0o700 });
   return wrapper;
 }
 
