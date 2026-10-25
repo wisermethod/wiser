@@ -10,7 +10,7 @@ version: 0.10.1
 
 DNS on a named zone, every zone the token can see, the settings on a zone, the zone's configuration reads, D1 databases, Pages projects and custom-domain status, Web Analytics sites, redirect rules, Bulk Redirects, rulesets, and signed Worker releases with their static assets, plain variables, custom domains, free addresses and version history. Zone Publisher is the DNS consumer. Listing every domain is `cloudflare.zones.list`, not DNS.
 
-Not for arbitrary Worker code, Worker scheduled triggers, release migrations, restore points or rollback, R2, KV, cache purging, or mail routing, and not for writes to Workers routes, Access, certificates, Page Rules, or non-redirect phases. The SSL mode is one of the seven settings `zones.update_setting` changes.
+Not for arbitrary Worker code, Worker scheduled triggers, restore points or rollback, R2, KV, cache purging, or mail routing, and not for writes to Workers routes, Access, certificates, Page Rules, or non-redirect phases. The SSL mode is one of the seven settings `zones.update_setting` changes.
 
 ## Status
 
@@ -60,6 +60,8 @@ cloudflare.workers.add_custom_domain { account_id, script_name, zone_id, hostnam
 cloudflare.workers.remove_custom_domain { account_id, script_name, hostname }    confirmation: always
 cloudflare.workers.set_workers_dev { account_id, script_name, enabled, previews_enabled } confirmation: always
 cloudflare.workers.list_versions { account_id, script_name }                    confirmation: none
+cloudflare.workers.d1_migrate   { account_id, database_id, app, version }        confirmation: always
+cloudflare.workers.d1_adopt     { account_id, database_id, app, version }        confirmation: always
 cloudflare.pages.list_projects   { account_id }
 cloudflare.pages.get_project     { account_id, project_name }
 cloudflare.pages.list_deployments { account_id, project_name }
@@ -132,7 +134,7 @@ The zone settings, the zone configuration reads, the Pages domain actions, `rule
 
 ### Worker releases
 
-The `workers` module ships nine actions. `workers_subdomain` reads the account's
+The `workers` module ships eleven actions. `workers_subdomain` reads the account's
 free address without creating it. `get_worker` reads the active deployment's
 version and binding names and types, retaining only D1's database id; a gradual
 deployment returns `versions` and a null singular `version_id`. `delete_worker`
@@ -259,6 +261,72 @@ This connector holds none. One token connected on any one module, with no label,
 
 R2, KV, cache purging, and mail routing are later modules, never extra permissions on these five. A read of a Workers route, an Access application, a certificate pack, a Page Rule or a non-redirect phase does not write it.
 
+### Release migrations and adoption
+
+`workers.d1_migrate` and `workers.d1_adopt` each take `account_id`, `database_id`,
+release `app` and `version`, and require confirmation every time. They share
+deploy's signature-first manifest verification, pinned host and exact format-2
+contract. Every `migrations.files` file is fetched by SHA-256 and checked for size,
+hash and UTF-8 before any Cloudflare call. The serialized query for each file,
+including its history INSERT, must fit 3 MiB. No local file path is accepted;
+these actions can run on the hosted endpoint when it carries this release.
+They do not call `pages.d1_apply_migration`.
+
+`d1_migrate` uses [Query D1 Database](https://developers.cloudflare.com/api/resources/d1/subresources/database/methods/query/)
+to create `migrations.table` with Wrangler 4.93.1's `id INTEGER PRIMARY KEY
+AUTOINCREMENT`, `name TEXT UNIQUE` and `applied_at TIMESTAMP DEFAULT
+CURRENT_TIMESTAMP NOT NULL`. It reads names ordered by id, sorts release names
+lexically and then stably by their numeric prefix, skips recorded names, and
+sends each remaining file's text with the history INSERT appended in that same
+request. Names and table come from the verified manifest. Its `applied`, `skipped`
+and `ignored` arrays name the files; an extra recorded name is ignored as Wrangler
+ignores it. A corrupt history value that is not a safe SQL filename is withheld
+by hash, never echoed as SQL. Answers carry no SQL or raw provider diagnostic.
+
+A statement reporting `success: false` stops the action and names `file` and
+zero-based `statement_index`. This deliberately differs from Wrangler 4.93.1,
+which continues after that result. The answer retains previously applied files;
+it never claims to roll back earlier statements or requests. The API reference
+says semicolon-separated statements execute as a batch but does not specify the
+effect of a later failed statement on earlier statements in that request.
+Stop application writes and take a restore point before an upgrade. Concurrent
+migration calls are not serialized by this connector; the history table's unique
+name is no substitute for stopping concurrent upgrade runs.
+
+`d1_adopt` reproduces `adopt.mjs` for `0001_baseline.sql` first and the default
+`d1_migrations` table; another table or missing baseline is refused. Its four
+outcomes are a matching baseline `adopted` by recording its name without running
+it on the member database, `empty` with nothing written when no baseline table
+exists (unrelated tables are allowed), `already_adopted` for compatible existing
+history, or an incompatible baseline refused with named `mismatches`. Existing
+history must be a nonempty lexical prefix of release SQL filenames, and still
+undergoes the complete schema check. Empty, unknown, gapped or reordered history
+is refused. Member tables and rows are unchanged on a comparison refusal.
+
+The member and reference shapes are read with single SELECTs from `sqlite_master`
+and `pragma_table_info`, `pragma_index_list`, `pragma_index_info` and
+`pragma_foreign_key_list`. Each baseline column's type, notnull, default and pk
+must match; column order is ignored. Every baseline index, including autoindexes,
+must match its name, unique and partial flags and ordered column names. Foreign
+key rows must match exactly. Extra tables, columns and indexes are allowed.
+A query API refusal of those SELECTs stops adoption before a member write.
+The final history CREATE and INSERT are sent in one query request.
+
+To let SQLite interpret the baseline, adoption [creates a temporary D1 database](https://developers.cloudflare.com/api/resources/d1/subresources/database/methods/create/)
+named `wiser-adopt-` plus a random suffix, after a complete
+[name search](https://developers.cloudflare.com/api/resources/d1/subresources/database/methods/list/)
+reads it absent. Only that reference receives the baseline SQL. Before returning,
+success, refusal and error all [delete the reference](https://developers.cloudflare.com/api/resources/d1/subresources/database/methods/delete/),
+verify its id returns 404 and its name is absent. Ownership is read before delete;
+the member database id is never a cleanup target. A lost create response is
+reconciled by the generated name. `temporary_database` always names a created or
+attempted reference; unconfirmed deletion is `vendor_error` with `deleted: false`
+and the original `outcome`, so the operator can remove that named resource.
+The token needs Account / D1 / Edit for migration, temporary creation and removal.
+These paths are verified with fake providers and local D1; live API behavior
+remains unverified. Stop application writes during adoption to keep its shape
+reads and final history record consistent.
+
 ## Destructive Actions
 
 | Action | Effect | Undoable there? |
@@ -280,6 +348,8 @@ R2, KV, cache purging, and mail routing are later modules, never extra permissio
 | `rulesets.add_list_items` | Adds redirect items, as one bulk operation | `rulesets.remove_list_items` removes them once their ids are known |
 | `rulesets.remove_list_items` | Removes the named items from a list | Only by adding them again |
 | `rulesets.delete_list` | Deletes the list | No |
+| `workers.d1_migrate` | Runs verified release SQL and records filenames in the manifest history table | No automatic undo; stop on a failed statement and use the upgrade restore sequence |
+| `workers.d1_adopt` | Creates and deletes a temporary reference database; records a matching baseline on the member database | Member baseline SQL is never run; an unconfirmed reference deletion is a named failure |
 | `workers.set_vars` | Changes plain variables and creates a settings version; other bindings are inherited | Set the previous values again; no values are returned |
 | `workers.add_custom_domain` | Routes the hostname to the Worker | `workers.remove_custom_domain` detaches it |
 | `workers.remove_custom_domain` | Detaches the hostname from the Worker and its previews | Only by adding it again |

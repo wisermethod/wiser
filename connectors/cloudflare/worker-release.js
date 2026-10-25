@@ -1,6 +1,7 @@
-import { createHash, webcrypto } from 'node:crypto';
+import { createHash, randomUUID, webcrypto } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { extname } from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 
 const APP = /^[a-z0-9](?:[a-z0-9-]{0,40}[a-z0-9])?$/;
 const VERSION = /^(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})$/;
@@ -280,6 +281,237 @@ const domainOwner = (domain, input) => domain.service === input.script_name
   && (!domain.environment || domain.environment === 'production');
 const refused = (reason) => ({ status: 'invalid_arguments', reason });
 
+
+// Wrangler 4.93.1: lexical names first, then a stable numeric-prefix sort.
+// Keep the comparison (rather than subtraction) even for very large prefixes.
+const migrationOrder = (files) => [...files].sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
+  .sort((a, b) => {
+    const left = parseInt(a.name.split('_')[0]);
+    const right = parseInt(b.name.split('_')[0]);
+    return left < right ? -1 : left > right ? 1 : 0;
+  });
+const historyDDL = (table) => `CREATE TABLE IF NOT EXISTS ${table}(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT UNIQUE,
+  applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);`;
+const recordMigration = (table, name) => `INSERT INTO ${table} (name)\nvalues ('${name.replaceAll("'", "''")}');`;
+const d1Path = (input, id = input.database_id) => `/accounts/${input.account_id}/d1/database${id ? `/${id}` : ''}`;
+const sqlString = (value) => `'${value.replaceAll("'", "''")}'`;
+
+// Neither an exception, a SQL diagnostic nor a returned row is an answer.
+async function d1Call(ctx, req) {
+  try { return await call(ctx, req); }
+  catch { return { error: vendor(req) }; }
+}
+async function d1Query(input, ctx, sql, id = input.database_id) {
+  const req = { endpoint: d1Path(input, id) + '/query', method: 'POST', body: { sql } };
+  const reply = await d1Call(ctx, req);
+  if (reply.error) return reply;
+  if (!Array.isArray(reply.result) || !reply.result.length) return { error: vendor(req) };
+  const rows = reply.result.flat();
+  for (let index = 0; index < rows.length; index++) {
+    if (rows[index]?.success === false) return { error: { ...vendor(req), reason: 'statement failed', statement_index: index } };
+    if (!object(rows[index]) || rows[index].success !== true) return { error: vendor(req) };
+  }
+  return { rows };
+}
+async function d1Select(input, ctx, sql, id = input.database_id) {
+  const reply = await d1Query(input, ctx, sql, id);
+  if (reply.error) return reply;
+  if (reply.rows.length !== 1 || !Array.isArray(reply.rows[0].results)
+    || !reply.rows[0].results.every(object)) {
+    return { error: vendor({ endpoint: d1Path(input, id) + '/query', method: 'POST' }) };
+  }
+  return { rows: reply.rows[0].results };
+}
+
+async function loadMigrations(input, ctx, maxBytes) {
+  const loaded = await loadManifest(input, ctx);
+  if (loaded.error) return loaded;
+  const { manifest, prefix, fetchFile, fetched, calls } = loaded;
+  const files = [];
+  const content = new Map();
+  for (const file of manifest.migrations.files) {
+    if (!content.has(file.sha256)) {
+      const reply = await fetchFile(prefix + `files/${file.sha256}`, Math.max(1, file.size), file.sha256);
+      if (reply.error) return { error: reply.error };
+      const bytes = Buffer.from(reply.bytes);
+      if (bytes.length !== file.size || sha256(bytes) !== file.sha256) {
+        return { error: before(`release file mismatch: ${file.sha256}`, { fetched, calls }) };
+      }
+      let text;
+      try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
+      catch { return { error: before('release migration is not UTF-8') }; }
+      content.set(file.sha256, text);
+    }
+    const text = content.get(file.sha256);
+    const sql = `${text}\n${recordMigration(manifest.migrations.table, file.name)}`;
+    if (Buffer.byteLength(JSON.stringify({ sql })) > maxBytes) return { error: before('migration query exceeds proxy request limit') };
+    files.push({ name: file.name, text, sql });
+  }
+  return { table: manifest.migrations.table, files: migrationOrder(files) };
+}
+
+async function migrate(input, ctx, maxBytes) {
+  const loaded = await loadMigrations(input, ctx, maxBytes);
+  if (loaded.error) return loaded.error;
+  const { table, files } = loaded;
+  const applied = [], skipped = [], ignored = [];
+  const report = { database_id: input.database_id, table, applied, skipped, ignored };
+  const created = await d1Query(input, ctx, historyDDL(table));
+  if (created.error) return { ...created.error, ...report };
+  const history = await d1Select(input, ctx, `SELECT name FROM ${table} ORDER BY id`);
+  if (history.error) return { ...history.error, ...report };
+  if (history.rows.some((row) => typeof row.name !== 'string')) return { ...vendor({ endpoint: d1Path(input) + '/query', method: 'POST' }), ...report };
+  const names = new Set(history.rows.map(({ name }) => name));
+  for (const name of names) {
+    if (!files.some((file) => file.name === name)) {
+      // History is member data: a non-filename cannot echo SQL or a diagnostic.
+      ignored.push(/^[A-Za-z0-9_.-]{1,512}\.sql$/.test(name) ? name : { withheld: true, sha256: sha256(Buffer.from(name)) });
+    }
+  }
+  for (const file of files) {
+    if (names.has(file.name)) { skipped.push(file.name); continue; }
+    const result = await d1Query(input, ctx, file.sql);
+    if (result.error) return { ...result.error, ...report, file: file.name };
+    applied.push(file.name);
+  }
+  return report;
+}
+
+// List by generated name, not by a caller-provided target. A short page proves
+// the search complete; total_count is account-wide even with a name filter.
+async function temporaryByName(input, ctx, name) {
+  const found = [];
+  for (let page = 1; page <= 1000; page++) {
+    const req = { endpoint: d1Path(input, null), method: 'GET', parameters: [
+      { name: 'name', value: name, type: 'query' },
+      { name: 'page', value: String(page), type: 'query' },
+      { name: 'per_page', value: '100', type: 'query' },
+    ] };
+    const reply = await d1Call(ctx, req);
+    if (reply.error) return reply;
+    if (!Array.isArray(reply.result) || reply.result.length > 100
+      || reply.result.some((db) => !object(db) || typeof db.name !== 'string' || !string(db.uuid, UUID))) return { error: vendor(req) };
+    found.push(...reply.result.filter((db) => db.name === name).map((db) => ({ name, uuid: db.uuid })));
+    if (reply.result.length < 100) return { databases: found };
+  }
+  return { error: { status: 'vendor_error', reason: 'temporary database listing incomplete' } };
+}
+async function deleteTemporary(input, ctx, name, id) {
+  const failed = { name, deleted: false, read_back: 'unconfirmed' };
+  if (!id) {
+    const found = await temporaryByName(input, ctx, name);
+    if (found.error) return failed;
+    if (!found.databases.length) return { name, deleted: true, read_back: 'absent' };
+    if (found.databases.length !== 1) return failed;
+    id = found.databases[0].uuid;
+  }
+  if (id === input.database_id) return failed;
+  // Verify ownership before deletion, then absence both by id and by name.
+  const req = { endpoint: d1Path(input, id), method: 'GET' };
+  const current = await d1Call(ctx, req);
+  if (!current.error && (current.result?.name !== name || current.result?.uuid !== id)) return failed;
+  if (current.error && current.error.http_status !== 404) return failed;
+  if (!current.error) await d1Call(ctx, { ...req, method: 'DELETE' });
+  const after = await d1Call(ctx, req);
+  const named = await temporaryByName(input, ctx, name);
+  return after.error?.http_status === 404 && !named.error && !named.databases.length
+    ? { name, deleted: true, read_back: 'absent' } : failed;
+}
+
+async function compareBaseline(input, ctx, referenceId, baseline, table, files) {
+  const select = async (sql, id) => {
+    const answer = await d1Select(input, ctx, sql, id);
+    if (answer.error) throw answer.error;
+    return answer.rows;
+  };
+  const targetTables = await select("SELECT name FROM sqlite_master WHERE type = 'table'");
+  if (targetTables.some((row) => typeof row.name !== 'string')) throw vendor({ endpoint: d1Path(input) + '/query', method: 'POST' });
+  const haveTables = new Set(targetTables.map(({ name }) => name));
+  const hasHistory = haveTables.has(table);
+  if (hasHistory) {
+    const names = (await select(`SELECT name FROM ${table} ORDER BY id`)).map(({ name }) => name);
+    const lexical = files.map(({ name }) => name).sort();
+    if (!names.length) return refused(`Refusing ${table} history: empty. Nothing changed.`);
+    if (lexical[0] !== baseline.name || names.length > lexical.length || names.some((name, i) => name !== lexical[i])) {
+      return refused(`Refusing ${table} history: names must be an ordered prefix of the migration files. Nothing changed.`);
+    }
+  }
+  const requiredTables = (await select("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' ORDER BY name", referenceId)).map(({ name }) => name);
+  if (!requiredTables.length || requiredTables.some((name) => typeof name !== 'string')) throw vendor({ endpoint: d1Path(input, referenceId) + '/query', method: 'POST' });
+  if (!hasHistory && !requiredTables.some((name) => haveTables.has(name))) {
+    return { result: 'empty', message: 'No baseline tables found; nothing changed. Run wrangler d1 migrations apply.' };
+  }
+  const mismatches = [];
+  const rows = (pragma, name, id) => select(`SELECT * FROM pragma_${pragma}(${sqlString(name)})`, id);
+  for (const name of requiredTables) {
+    if (!haveTables.has(name)) { mismatches.push(`missing table ${name}`); continue; }
+    const required = await rows('table_info', name, referenceId);
+    const actual = await rows('table_info', name);
+    for (const column of required) {
+      const found = actual.find(({ name }) => name === column.name);
+      if (!found) { mismatches.push(`missing column ${name}.${column.name}`); continue; }
+      for (const property of ['type', 'notnull', 'dflt_value', 'pk']) {
+        if (found[property] !== column[property]) mismatches.push(`column ${name}.${column.name} ${property} differs`);
+      }
+    }
+    const actualIndexes = await rows('index_list', name);
+    for (const index of await rows('index_list', name, referenceId)) {
+      const found = actualIndexes.find(({ name }) => name === index.name);
+      if (!found) { mismatches.push(`missing index ${name}.${index.name}`); continue; }
+      for (const property of ['unique', 'partial']) {
+        if (found[property] !== index[property]) mismatches.push(`index ${name}.${index.name} ${property} differs`);
+      }
+      const columns = async (id) => (await rows('index_info', index.name, id)).sort((a, b) => a.seqno - b.seqno).map(({ name }) => name);
+      if (!isDeepStrictEqual(await columns(), await columns(referenceId))) mismatches.push(`index columns differ: ${name}.${index.name}`);
+    }
+    if (!isDeepStrictEqual(await rows('foreign_key_list', name), await rows('foreign_key_list', name, referenceId))) mismatches.push(`foreign keys differ: ${name}`);
+  }
+  if (mismatches.length) return { ...refused('Refusing incompatible baseline. Nothing changed.'), mismatches };
+  if (hasHistory) return { result: 'already_adopted', message: `${table} already records the baseline and the schema matches; nothing changed.` };
+  const changed = await d1Query(input, ctx, `${historyDDL(table)}\n${recordMigration(table, baseline.name)}`);
+  if (changed.error) return changed.error;
+  return { result: 'adopted', name: baseline.name, table, message: `Adopted ${baseline.name} without running it; recorded in ${table}.` };
+}
+
+async function adopt(input, ctx, maxBytes) {
+  const loaded = await loadMigrations(input, ctx, maxBytes);
+  if (loaded.error) return loaded.error;
+  // adopt.mjs binds exactly this baseline and Wrangler's default table.
+  const baseline = loaded.files.find(({ name }) => name === '0001_baseline.sql');
+  if (!baseline || loaded.table !== 'd1_migrations' || loaded.files.map(({ name }) => name).sort()[0] !== baseline.name) {
+    return refused('Adoption requires 0001_baseline.sql first and Wrangler default d1_migrations table');
+  }
+  const name = 'wiser-adopt-' + randomUUID();
+  const absent = await temporaryByName(input, ctx, name);
+  if (absent.error) return { ...absent.error, temporary_database: { name, created: false } };
+  if (absent.databases.length) return { ...refused('temporary database name already exists'), temporary_database: { name, created: false } };
+  let id, result, cleanup;
+  try {
+    // A transport failure can follow a successful create, so cleanup also finds
+    // the generated name when the create response could not yield its id.
+    const req = { endpoint: d1Path(input, null), method: 'POST', body: { name } };
+    const created = await d1Call(ctx, req);
+    if (created.error) result = created.error;
+    else if (created.result?.name !== name || !string(created.result?.uuid, UUID) || created.result.uuid === input.database_id) result = vendor(req);
+    else {
+      id = created.result.uuid;
+      const applied = await d1Query(input, ctx, baseline.text, id);
+      result = applied.error || await compareBaseline(input, ctx, id, baseline, loaded.table, loaded.files);
+    }
+  } catch (error) {
+    // Only the locally constructed status can pass, never exception prose.
+    result = error?.status === 'vendor_error' ? error : { status: 'vendor_error', reason: 'baseline comparison failed' };
+  } finally {
+    cleanup = await deleteTemporary(input, ctx, name, id);
+  }
+  if (!cleanup.deleted) return { status: 'vendor_error', reason: 'temporary database deletion could not be confirmed',
+    temporary_database: cleanup, outcome: result };
+  return { ...result, temporary_database: cleanup };
+}
+
 export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, redact }) {
   // The shape every live multipart through the provider's proxy has used
   // (index.js postDeployment, dns.import_zone, vercel's file upload): the body as
@@ -321,6 +553,8 @@ export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, red
   }
   return {
     workers_subdomain: subdomain,
+    d1_migrate: (input, ctx) => migrate(input, ctx, MAX_UPLOAD_BYTES),
+    d1_adopt: (input, ctx) => adopt(input, ctx, MAX_UPLOAD_BYTES),
     get_worker: getWorker,
     async set_vars(input, ctx) {
       if (!varsShape(input.vars)) return { ...refused('vars must contain only non-secret uppercase names and strings of at most 512 characters'), field: 'vars' };

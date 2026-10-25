@@ -505,6 +505,80 @@
             "additionalProperties": false
           }
         },
+        "d1_migrate": {
+          "description": "Apply signed format-2 release migrations through D1 query, only after every migration size and SHA-256 is verified. Uses the manifest table and names in Wrangler lexical then stable numeric-prefix order. Recorded names are skipped; extra history is ignored and reported, unsafe non-filenames withheld by hash. Stops on success false with file and zero-based statement_index, a deliberate divergence from Wrangler. No SQL or provider diagnostic in answers. Each serialized query must fit 3 MiB. Stop app writes before migration; no cross-request rollback is promised.",
+          "privilege": "write",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{32}$"
+              },
+              "database_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "app": {
+                "type": "string",
+                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,40}[a-z0-9])?$"
+              },
+              "version": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})$"
+              }
+            },
+            "required": [
+              "account_id",
+              "database_id",
+              "app",
+              "version"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "d1_adopt": {
+          "description": "Adopt a complete release baseline without running it on the member database, after signed-manifest and migration-file verification. Requires 0001_baseline.sql first and default d1_migrations table, as adopt.mjs. Empty databases unchanged; existing history must be a nonempty lexical prefix and still pass baseline comparison. Columns, indexes and foreign keys must match; extra tables, columns and indexes allowed. Uses single SELECTs of sqlite_master and pragma table functions. Creates a wiser-adopt- random temporary D1 database only after reading its name absent; deletes and reads it absent on success, refusal and error. Unconfirmed cleanup is a failure naming the temporary database. No SQL in answers. Each serialized migration query must fit 3 MiB. Stop app writes before adoption.",
+          "privilege": "write",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{32}$"
+              },
+              "database_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "app": {
+                "type": "string",
+                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,40}[a-z0-9])?$"
+              },
+              "version": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})$"
+              }
+            },
+            "required": [
+              "account_id",
+              "database_id",
+              "app",
+              "version"
+            ],
+            "additionalProperties": false
+          }
+        },
         "set_vars": {
           "description": "Set a subset of the signed release vars_required as plain-text variables on an existing Worker, without uploading code. Signature and exact format-2 shape are verified before any Cloudflare call. vars obeys the deploy name and 512 Unicode-character bounds; unlisted names are refused without echoing keys or values. Preserve every other binding by inheritance; refuse replacing a non-plain binding. The answer contains keys_set and the single active version_id read after the update; an unavailable single version is a vendor error.",
           "privilege": "write",
