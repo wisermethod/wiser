@@ -1,0 +1,12 @@
+{
+  "name": "video-render",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "hyperframes": "0.8.134"
+  }
+}
