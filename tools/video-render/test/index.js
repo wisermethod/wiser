@@ -16,6 +16,7 @@ import { CHROME_BUILD, HYPERFRAMES_VERSION, TOOL_DIR, ffmpegSurvey } from '../sc
 import { checkMetadata, encodeArguments, hasEditList, optionsForRender, packetHasIDR, renderCacheInputs } from '../scripts/render.mjs';
 import { RENDER_VERSION, cacheKey, canonicalJSON, readCache, writeCache } from '../scripts/cache.mjs';
 import { inspectProject } from '../scripts/project.mjs';
+import { optionsForFrames } from '../scripts/frames.mjs';
 
 const cli = join(TOOL_DIR, 'scripts/video-render.mjs');
 const fixture = fileURLToPath(new URL('./fixtures/steps/', import.meta.url));
@@ -36,8 +37,171 @@ function probe(args) {
   return result;
 }
 async function temporaryRenders() {
-  return (await readdir(tmpdir())).filter((name) => /^wiser-video-(?:render|encode|probe)-/.test(name)).sort();
+  return (await readdir(tmpdir())).filter((name) => /^wiser-video-(?:render|encode|probe|frames)-/.test(name)).sort();
 }
+
+test('frames help works in an uninstalled copy and refuses unknown, duplicate and command-only flags', async (t) => {
+  const path = await scratch(t), script = join(path, 'scripts/video-render.mjs');
+  await cp(join(TOOL_DIR, 'scripts'), join(path, 'scripts'), { recursive: true });
+  for (const args of [['frames', '--help'], ['frames', 'help'], ['help', 'frames']]) {
+    const result = spawnSync(process.execPath, [script, ...args], { encoding: 'utf8', env: { PATH: '' } });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stderr, '');
+    for (const flag of ['times', 'install', 'project', 'output', 'width', 'height', 'fps', 'duration', 'workers', 'gpu', 'capture']) assert.ok(result.stdout.includes(`--${flag}`));
+    assert.match(result.stdout, /requestedTime, frame, time, file, sha256/);
+  }
+  for (const [args, pattern] of [
+    [['frames', '--install', '--quality', 'high'], /Unknown flag --quality/],
+    [['frames', '--profile', 'publish'], /Unknown flag --profile/],
+    [['frames', '--frame-hashes', '/hashes'], /Unknown flag --frame-hashes/],
+    [['frames', '--cache', '/cache'], /Unknown flag --cache/],
+    [['frames', '--times', '0', '--times', '1'], /Duplicate flag --times/],
+    [['frames', '--times'], /--times needs a value/],
+    [['frames', '--times', '--install'], /--times needs a value/],
+    [['frames', '--times', '--unserved'], /Unknown flag --unserved/],
+    [['frames', '--help', '--install'], /Unknown flag --install for help/],
+    ...['sequence', 'render', 'check'].map((command) => [[command, '--times', '0'], /Unknown flag --times/]),
+  ]) {
+    const result = run(args, { env: { PATH: '', WISER_ALLOW_INSTALL: '1' } });
+    assert.equal(result.status, 1, JSON.stringify(args));
+    assert.equal(result.stdout, '');
+    assert.match(result.stderr, pattern);
+  }
+  assert.deepEqual(await readdir(path), ['scripts']);
+});
+
+test('frames refuses invalid times, arguments and unsafe destinations before dependency checks or writes', async (t) => {
+  const path = await scratch(t), project = join(path, 'project');
+  await cp(fixture, project, { recursive: true });
+  await mkdir(join(path, 'existing'));
+  await writeFile(join(path, 'existing/keep'), 'Zibble');
+  await writeFile(join(path, 'existing-file'), 'Pluvo');
+  await symlink(TOOL_DIR, join(path, 'tool-link'));
+  await symlink(project, join(path, 'project-link'));
+  await symlink(join(path, 'missing'), join(path, 'dangling'));
+  const input = { ...values(project, join(path, 'new')), times: '0,0.56,3' };
+  for (const missing of ['project', 'output', 'width', 'height', 'fps', 'duration', 'times']) {
+    const options = { ...input };
+    delete options[missing];
+    const result = run(['frames', ...flags(options), '--install'], { env: { PATH: '' } });
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, '');
+    assert.match(result.stderr, new RegExp(`--${missing}`));
+  }
+  for (const [change, pattern] of [
+    ...['', ' ', ',', '0,', ',0', '0,,1', 'no', 'NaN', 'Infinity', '1e309', '-0.1', '0,-1'].map((times) => [{ times }, /--times/]),
+    ...['0,0', '1,1.0', '1e0,1', '-0,0'].map((times) => [{ times }, /--times.*duplicate times/]),
+    [{ times: Array.from({ length: 61 }, (_, i) => i).join(',') }, /--times.*at most 60/],
+    [{ project: 'relative' }, /--project must be an absolute/],
+    [{ output: 'relative' }, /--output must be an absolute/],
+    [{ width: 0 }, /--width/], [{ height: 0.5 }, /--height/],
+    [{ fps: 0 }, /--fps/], [{ duration: -1 }, /--duration/],
+    [{ duration: 0.001 }, /round to at least one/],
+    [{ workers: 0 }, /--workers/], [{ gpu: 'maybe' }, /--gpu/], [{ capture: 'maybe' }, /--capture/],
+    [{ output: join(path, 'existing') }, /already exists/],
+    [{ output: join(path, 'existing-file') }, /already exists/],
+    [{ output: join(project, 'new') }, /inside --project/],
+    [{ output: join(TOOL_DIR, 'new') }, /inside the tool/],
+    [{ output: join(path, 'tool-link/missing/new') }, /inside the tool/],
+    [{ output: join(path, 'project-link/missing/new') }, /inside --project/],
+    [{ output: join(path, 'dangling/new') }, /canonicalized/],
+    [{ output: join(path, 'memory/new') }, /protected/],
+    [{ output: join(path, '.env') }, /protected/],
+  ]) {
+    const result = run(['frames', ...flags({ ...input, ...change }), '--install'], { env: { PATH: '' } });
+    assert.equal(result.status, 1, JSON.stringify(change));
+    assert.equal(result.stdout, '');
+    assert.match(result.stderr, pattern);
+  }
+  assert.equal(await readFile(join(path, 'existing/keep'), 'utf8'), 'Zibble');
+  assert.equal(await readFile(join(path, 'existing-file'), 'utf8'), 'Pluvo');
+  assert.deepEqual((await readdir(path)).sort(), ['dangling', 'existing', 'existing-file', 'project', 'project-link', 'tool-link']);
+});
+
+test('frames maps zero-based times by floor, clamps to the last core frame and accepts distinct times sharing a frame', async (t) => {
+  const path = await scratch(t), input = { ...values(fixture, join(path, 'new')), times: '0,0.56,1.25,2.1,3' };
+  const options = await optionsForFrames(input);
+  assert.deepEqual(options.frames, [
+    { requestedTime: 0, frame: 0, time: 0, file: 'frame_000000.png' },
+    { requestedTime: 0.56, frame: 5, time: 0.5, file: 'frame_000005.png' },
+    { requestedTime: 1.25, frame: 12, time: 1.2, file: 'frame_000012.png' },
+    { requestedTime: 2.1, frame: 20, time: 2, file: 'frame_000020.png' },
+    { requestedTime: 3, frame: 20, time: 2, file: 'frame_000020.png' },
+  ]);
+  const sixty = await optionsForFrames({ ...input, times: Array.from({ length: 60 }, (_, i) => i / 1000).join(',') });
+  assert.equal(sixty.frames.length, 60);
+  assert.ok(sixty.frames.every((frame) => frame.frame === 0));
+  for (const duration of [0.24, 0.26]) {
+    const rounded = await optionsForFrames({ ...input, duration, times: `0.23,${duration},100,1e308`, workers: 'auto', gpu: 'software', capture: 'fast' });
+    assert.ok(rounded.frames.every((frame) => frame.frame === Math.round(duration * 10) - 1));
+    assert.equal(rounded.workers, 'auto'); assert.equal(rounded.gpu, 'software'); assert.equal(rounded.capture, 'fast');
+  }
+  assert.deepEqual(await readdir(path), []);
+});
+
+test('real frames match decoded sequence pixels and PNG bytes at five times, including between frames and past the end', { timeout: 120_000 }, async (t) => {
+  const path = await scratch(t), project = join(path, 'project');
+  await cp(fixture, project, { recursive: true });
+  const source = await inspectProject(project), before = await temporaryRenders();
+  const input = { ...values(project, join(path, 'stills')), width: 640, height: 360, gpu: 'hardware', capture: 'screenshot' };
+  const result = run(['frames', ...flags({ ...input, times: '2.1,0,0.56,1.25,3' })]);
+  assert.equal(result.status, 0, result.stderr); assert.equal(result.stderr, '');
+  const report = JSON.parse(result.stdout);
+  assert.deepEqual(await temporaryRenders(), before);
+  assert.equal(report.output, input.output);
+  assert.equal(report.frameCount, 21);
+  assert.equal(report.logPath, null); assert.equal(report.hashesPath, null);
+  assert.ok(Number.isFinite(report.seconds) && report.seconds >= 0);
+  assert.deepEqual(report.frames, JSON.parse(await readFile(join(input.output, 'frames.json'), 'utf8')));
+  assert.deepEqual(report.frames.map(({ requestedTime, frame, time, file }) => ({ requestedTime, frame, time, file })), [
+    { requestedTime: 2.1, frame: 20, time: 2, file: 'frame_000020.png' },
+    { requestedTime: 0, frame: 0, time: 0, file: 'frame_000000.png' },
+    { requestedTime: 0.56, frame: 5, time: 0.5, file: 'frame_000005.png' },
+    { requestedTime: 1.25, frame: 12, time: 1.2, file: 'frame_000012.png' },
+    { requestedTime: 3, frame: 20, time: 2, file: 'frame_000020.png' },
+  ]);
+  assert.deepEqual((await readdir(input.output)).sort(), ['frame_000000.png', 'frame_000005.png', 'frame_000012.png', 'frame_000020.png', 'frames.json']);
+  const sequence = run(['sequence', ...flags({ ...input, output: join(path, 'sequence') })]);
+  assert.equal(sequence.status, 0, sequence.stderr); assert.equal(sequence.stderr, '');
+  const reference = JSON.parse(sequence.stdout);
+  for (const key of ['hyperframesVersion', 'chromeBuild', 'lintFindings', 'gpu', 'capture', 'frameCount', 'hashesSha256']) assert.deepEqual(report[key], reference[key], key);
+  const { default: sharp } = await import('sharp');
+  const decode = (path) => sharp(path).toColourspace('srgb').ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  for (const frame of report.frames) {
+    const still = join(input.output, frame.file);
+    const original = join(path, 'sequence/frames', `frame_${String(frame.frame + 1).padStart(6, '0')}.png`);
+    const decoded = await decode(still), expected = await decode(original);
+    assert.equal(decoded.info.width, input.width); assert.equal(decoded.info.height, input.height); assert.equal(decoded.info.channels, 4);
+    assert.deepEqual(decoded.data, expected.data, `decoded pixels at ${frame.requestedTime}s`);
+    assert.equal(frame.sha256, hash(decoded.data));
+    assert.deepEqual(await readFile(still), await readFile(original), `unchanged PNG bytes at ${frame.requestedTime}s`);
+  }
+  assert.equal(new Set(report.frames.map((frame) => frame.sha256)).size, 4, 'the selected frames must show motion');
+  assert.deepEqual((await decode(join(input.output, 'frame_000020.png'))).data,
+    (await decode(join(path, 'sequence/frames/frame_000017.png'))).data, 'the finished picture holds through the last frame');
+  assert.deepEqual((await inspectProject(project)).files, source.files);
+  assert.deepEqual(await temporaryRenders(), before);
+  t.diagnostic(JSON.stringify({ frames: report.frames, sequenceFrames: report.frameCount, temporarySequencesRemoved: true }));
+});
+
+test('frames removes the complete temporary sequence after a real renderer failure and publishes no stills', {
+  timeout: 120_000, skip: process.platform === 'win32' ? 'POSIX executable fixture' : false,
+}, async (t) => {
+  const path = await scratch(t), project = join(path, 'project'), bin = join(path, 'bin');
+  await cp(fixture, project, { recursive: true });
+  await mkdir(join(project, '.hyperframes/bin'), { recursive: true });
+  await writeFile(join(project, '.hyperframes/bin/ffmpeg'), 'Zibble');
+  await mkdir(bin);
+  await writeFile(join(bin, 'ffmpeg'), '#!/bin/sh\nif [ ! -f "$0.checked" ]; then\n  : > "$0.checked"\n  printf "ffmpeg version test-fixture\\n"\n  exit 0\nfi\nexit 1\n', { mode: 0o755 });
+  const before = await temporaryRenders();
+  const result = run(['frames', ...flags({ ...values(project, join(path, 'stills')), times: '0' })], {
+    env: { ...process.env, PATH: bin, LANG: 'C', WISER_ALLOW_INSTALL: '0' },
+  });
+  assert.equal(result.status, 1); assert.equal(result.stdout, '');
+  assert.match(result.stderr, /HyperFrames render failed/);
+  assert.deepEqual(await temporaryRenders(), before);
+  assert.deepEqual((await readdir(path)).sort(), ['bin', 'project']);
+});
 
 test('render help works without dependencies, and command-only, unknown and duplicate flags are refused', async (t) => {
   for (const args of [['render', '--help'], ['render', 'help'], ['help', 'render']]) {
