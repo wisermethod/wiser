@@ -324,6 +324,12 @@ test('the network guard refuses every host but this machine inside a Node proces
     for (const url of ['https://example.invalid/', 'http://203.0.113.9/', 'https://fonts.googleapis.com/css2?family=Inter']) {
       try { await fetch(url); out[url] = 'reached'; } catch (error) { out[url] = String(error.cause?.message ?? error.message); }
     }
+    const dns = await import('node:dns');
+    for (const [name, query] of [['lookup', () => dns.promises.lookup('example.com')], ['resolve4', () => new dns.promises.Resolver().resolve4('example.com')],
+      ['callback', () => new Promise((resolve, reject) => new dns.Resolver().resolve6('example.com', (error, value) => (error ? reject(error) : resolve(value))))]]) {
+      try { await query(); out[name] = 'resolved'; } catch (error) { out[name] = error.message; }
+    }
+    out.localLookup = (await dns.promises.lookup('localhost')).address;
     out.local = await (await fetch('http://127.0.0.1:' + server.address().port + '/')).text();
     server.close();
     console.log(JSON.stringify(out));`;
@@ -334,6 +340,8 @@ test('the network guard refuses every host but this machine inside a Node proces
   for (const url of ['https://example.invalid/', 'http://203.0.113.9/', 'https://fonts.googleapis.com/css2?family=Inter']) {
     assert.match(out[url], /video-render refused a connection to /, url);
   }
+  for (const name of ['lookup', 'resolve4', 'callback']) assert.match(out[name], /video-render refused a lookup of example\.com/, name);
+  assert.match(out.localLookup, /^(127\.0\.0\.1|::1)$/);
   assert.equal(out.local, 'local');
   assert.match(guarded.stderr, /video-render: refused a connection to fonts\.googleapis\.com:443/);
   // Only a render carries it: the installer's environment does not.
@@ -350,4 +358,27 @@ test('a font named in a style element reaches no font service during a render', 
   const log = await readFile(report.logPath, 'utf8');
   assert.doesNotMatch(log, /from Google Fonts/);
   assert.match(log, /video-render: refused a connection to fonts\.googleapis\.com:443/);
+});
+
+test('a page in the render browser gathers no UDP route off this machine', { timeout: 60_000 }, async (t) => {
+  // WebRTC's STUN requests are UDP to the address given, which neither the proxy nor the resolver rule sees.
+  const path = await scratch(t);
+  const { default: puppeteer } = await ownPackage('puppeteer-core');
+  const browser = await puppeteer.launch({ executablePath: await browserPath(), headless: true,
+    args: ['--no-sandbox', ...BROWSER_SWITCHES], userDataDir: join(path, 'profile') });
+  try {
+    const page = await browser.newPage();
+    await page.setContent('<p>x</p>');
+    const seen = await page.evaluate(() => new Promise((resolve) => {
+      const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:203.0.113.9:3478' }] });
+      const found = [];
+      pc.onicecandidate = (event) => { if (event.candidate) found.push(`${event.candidate.protocol} ${event.candidate.type}`); };
+      pc.onicegatheringstatechange = () => { if (pc.iceGatheringState === 'complete') resolve(found); };
+      pc.createDataChannel('x');
+      pc.createOffer().then((offer) => pc.setLocalDescription(offer));
+      setTimeout(() => resolve([...found, 'gathering still running']), 15_000);
+    }));
+    assert.deepEqual(seen, []);
+  } finally { await browser.close(); }
+  assert.ok(BROWSER_SWITCHES.includes('--disable-quic'));
 });

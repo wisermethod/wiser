@@ -13,9 +13,14 @@ export const BROWSER_SWITCHES = Object.freeze([
   '--proxy-server=http://127.0.0.1:9',
   '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE localhost , EXCLUDE 127.0.0.1',
   '--force-prefers-no-reduced-motion',
-  // Raster on the CPU, every changed tile in full. Measured on Chrome 152: the GPU raster, and a tile redrawn only
-  // where it changed, each made a frame depend on what its render worker had drawn before, so the frames of one
-  // project differed by how the run was split; with both switches every split draws the same frames.
+  // Neither the proxy nor the resolver rule sees UDP to a literal address: a page's WebRTC sent STUN requests to one
+  // until these two switches were added (measured on Chrome 152).
+  '--force-webrtc-ip-handling-policy=disable_non_proxied_udp',
+  '--disable-quic',
+  // Raster on the CPU, every changed tile in full. Measured on Chrome 152, a counted figure at 1,280x720: with neither
+  // switch its frames differed between one worker and two, and between one and four; with the CPU raster alone, the
+  // first frame a worker drew mid-count differed; with partial redraws off alone, nothing changed on the GPU; with both,
+  // every split drew the same frames.
   '--disable-gpu-rasterization',
   '--disable-partial-raster',
 ]);
