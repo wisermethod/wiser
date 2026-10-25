@@ -1,4 +1,5 @@
 import { lstat, readdir, readFile, realpath } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { extname, join, relative, sep } from 'node:path';
 
 const decoder = new TextDecoder('utf-8', { fatal: true });
@@ -66,6 +67,7 @@ export function protectedPath(path) {
 
 export async function inspectProject(project) {
   if (protectedPath(project)) throw new Error(`--project ${project} names a protected memory or .env path; use a local asset project.`);
+  const files = [];
   async function walk(directory) {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name);
@@ -77,6 +79,7 @@ export async function inspectProject(project) {
       if (!stat.isFile()) throw new Error(`Project file ${name} is not a regular file; remove it from the project.`);
       let text;
       const bytes = await readFile(await realpath(path));
+      files.push({ path: name.split(sep).join('/'), sha256: createHash('sha256').update(bytes).digest('hex') });
       try { text = decoder.decode(bytes); } catch { continue; }
       const ref = remoteReference(text, extname(name));
       if (ref) throw new Error(`Project file ${name} references ${ref}; use local assets before rendering.`);
@@ -86,7 +89,7 @@ export async function inspectProject(project) {
   const html = await readFile(join(project, 'index.html'), 'utf8');
   const roots = openingTags(html).filter((tag) => tag.attrs.some((a) => a.name === 'data-video-root'));
   if (roots.length !== 1) throw new Error(`index.html has ${roots.length} data-video-root elements; provide exactly one at the frame's size.`);
-  return { html, root: roots[0] };
+  return { html, root: roots[0], files: files.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0) };
 }
 
 export function compositionHtml({ html, root }, { width, height, duration }, bridgeName) {

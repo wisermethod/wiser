@@ -1,12 +1,14 @@
 import { execFile } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { createReadStream } from 'node:fs';
-import { lstat, mkdir, mkdtemp, open, rename, rm, stat } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { copyFile, lstat, mkdir, mkdtemp, open, rename, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, extname, isAbsolute, join, relative, sep } from 'node:path';
 import { promisify } from 'node:util';
-import { childEnvironment } from './dependencies.mjs';
+import { childEnvironment, prepareRuntime } from './dependencies.mjs';
 import { optionsForSequence, sequence } from './sequence.mjs';
+import { inspectProject } from './project.mjs';
+import { RENDER_VERSION, cacheDirectory, cacheKey, canonicalJSON, fileHash, readCache, validFrameHashes, writeCache } from './cache.mjs';
 
 const execute = promisify(execFile);
 const FILTER = 'format=rgb24,scale=out_color_matrix=bt709:out_range=tv,format=yuv420p,'
@@ -43,7 +45,14 @@ export async function optionsForRender(input) {
     const contains = (a, b) => { const rel = relative(a, b); return rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel); };
     if (contains(frameHashes, options.output) || contains(options.output, frameHashes)) throw new Error('--frame-hashes and --output cannot contain each other; choose separate files.');
   }
-  return { ...options, profile, gop, frameHashes };
+  const cache = input.cache === undefined ? null : await cacheDirectory(input.cache, options.project);
+  if (cache) {
+    const contains = (a, b) => { const rel = relative(a, b); return rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel); };
+    for (const path of [options.output, frameHashes].filter(Boolean)) {
+      if (contains(cache, path) || contains(path, cache)) throw new Error('--cache and output files cannot contain each other; choose separate paths.');
+    }
+  }
+  return { ...options, profile, gop, frameHashes, cache };
 }
 
 export function encodeArguments(frames, output, options) {
@@ -58,6 +67,26 @@ export function encodeArguments(frames, output, options) {
     '-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709', '-color_range', 'tv',
     '-bsf:v', 'h264_metadata=colour_primaries=1:transfer_characteristics=1:matrix_coefficients=1:video_full_range_flag=0');
   return [...args, '-an', '-movflags', '+faststart', '-use_editlist', '0', '-fflags', '+bitexact', '-flags:v', '+bitexact', output];
+}
+
+// Pure: callers supply version probes and project digests; output paths, workers,
+// process state and environment variables never enter the canonical input object.
+export function renderCacheInputs(options, versions, files) {
+  return {
+    toolVersion: versions.toolVersion ?? RENDER_VERSION,
+    hyperframesVersion: versions.hyperframesVersion, chromeBuild: versions.chromeBuild,
+    ffmpegVersion: versions.ffmpegVersion, gpu: options.gpu, capture: options.capture,
+    width: options.width, height: options.height, fps: options.fps, duration: options.duration,
+    frameCount: options.expectedFrames, profile: options.profile,
+    encoderArguments: encodeArguments('<frames>', '<output>.mp4', options),
+    files: files.map(({ path, sha256 }) => ({ path, sha256 })).sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0),
+  };
+}
+
+function requiredChecks(options) {
+  return ['videoOnly', 'frameCount', 'h264', 'yuv420p', 'bt709TV', 'squarePixels', 'dimensions', 'noEditList',
+    ...(options.profile === 'publish' ? ['firstFrameKeyframe', 'keyframeSpacing', 'lastGroup', 'keyframesIDR'] : []),
+    'decodedFrameHashes'];
 }
 
 function requireCheck(checks, name, passed, detail) {
@@ -165,39 +194,61 @@ export async function verifyMP4(path, options) {
   return { frameCount: Number(probe.streams[0].nb_read_frames), checks };
 }
 
-async function fileHash(path) {
-  const hash = createHash('sha256');
-  for await (const bytes of createReadStream(path)) hash.update(bytes);
-  return hash.digest('hex');
-}
-
 export async function render(input, { install = false } = {}) {
   const started = performance.now();
   const options = await optionsForRender(input);
   // Refuse a missing readback dependency before rendering or authorising an install.
   await media('ffprobe', ['-version'], 'ffprobe presence check');
-  const temporary = await mkdtemp(join(tmpdir(), 'wiser-video-encode-'));
+  let runtime, inputs, entry, key = null, cacheReason = null;
+  if (options.cache) {
+    const project = await inspectProject(options.project);
+    runtime = await prepareRuntime({ install, gpu: options.gpu });
+    inputs = renderCacheInputs(options, { hyperframesVersion: runtime.hyperframes.version,
+      chromeBuild: runtime.chrome.build, ffmpegVersion: runtime.ffmpeg.version }, project.files);
+    key = cacheKey(inputs);
+    ({ record: entry, reason: cacheReason } = await readCache(options.cache, key, inputs, requiredChecks(options)));
+  }
+  let temporary;
   const pending = join(dirname(options.output), `.wiser-video-render-${randomUUID()}.mp4`);
   let wroteHashes = false;
   try {
-    const core = await sequence({ ...options, output: join(temporary, 'sequence') }, { install });
-    const frames = join(temporary, 'sequence/frames');
-    // The sequence core checks count and pixels; also require the exact names the demuxer consumes.
-    for (let i = 1; i <= options.expectedFrames; i++) {
-      if (!(await stat(join(frames, `frame_${String(i).padStart(6, '0')}.png`))).isFile()) throw new Error(`PNG sequence check failed at frame ${i}; require frame_%06d.png starting at 1.`);
-    }
+    let core, verified, hashes = null, bytes, sha256;
     await mkdir(dirname(options.output), { recursive: true });
-    await media('ffmpeg', encodeArguments(frames, pending, options), 'FFmpeg encode');
-    const verified = await verifyMP4(pending, options);
-    let hashes = null;
-    if (options.frameHashes) {
-      hashes = (await media('ffmpeg', ['-v', 'error', '-i', pending, '-map', '0:v:0', '-an', '-pix_fmt', 'yuv420p',
-        '-fps_mode', 'passthrough', '-f', 'framehash', '-hash', 'sha256', '-'], 'decoded frame hashes')).stdout;
-      const records = hashes.split('\n').filter((line) => line && !line.startsWith('#'));
-      requireCheck(verified.checks, 'decodedFrameHashes', records.length === verified.frameCount
-        && records.every((line) => /,\s*[0-9a-f]{64}$/i.test(line)), 'require one SHA-256 per decoded frame');
+    if (entry) {
+      await copyFile(join(options.cache, `${key}.mp4`), pending, constants.COPYFILE_EXCL);
+      bytes = (await stat(pending)).size;
+      sha256 = await fileHash(pending);
+      if (bytes !== entry.bytes || sha256 !== entry.sha256) throw new Error('Cached MP4 changed while copying; retry with new output paths.');
+      core = { hyperframesVersion: inputs.hyperframesVersion, chromeBuild: inputs.chromeBuild,
+        gpu: options.gpu, capture: options.capture, lintFindings: entry.lintFindings, hashesSha256: entry.sequenceHashesSha256 };
+      verified = { frameCount: inputs.frameCount, checks: entry.checks };
+      hashes = options.frameHashes ? entry.frameHashes : null;
+    } else {
+      temporary = await mkdtemp(join(tmpdir(), 'wiser-video-encode-'));
+      core = await sequence({ ...options, output: join(temporary, 'sequence') }, { install, runtime });
+      const frames = join(temporary, 'sequence/frames');
+      // The sequence core checks count and pixels; also require the exact names the demuxer consumes.
+      for (let i = 1; i <= options.expectedFrames; i++) {
+        if (!(await stat(join(frames, `frame_${String(i).padStart(6, '0')}.png`))).isFile()) throw new Error(`PNG sequence check failed at frame ${i}; require frame_%06d.png starting at 1.`);
+      }
+      await media('ffmpeg', encodeArguments(frames, pending, options), 'FFmpeg encode');
+      verified = await verifyMP4(pending, options);
+      if (options.frameHashes || options.cache) {
+        hashes = (await media('ffmpeg', ['-v', 'error', '-i', pending, '-map', '0:v:0', '-an', '-pix_fmt', 'yuv420p',
+          '-fps_mode', 'passthrough', '-f', 'framehash', '-hash', 'sha256', '-'], 'decoded frame hashes')).stdout;
+        requireCheck(verified.checks, 'decodedFrameHashes', validFrameHashes(hashes, verified.frameCount), 'require one SHA-256 per decoded frame');
+      }
+      bytes = (await stat(pending)).size;
+      sha256 = await fileHash(pending);
+      if (options.cache) {
+        if (canonicalJSON((await inspectProject(options.project)).files) !== canonicalJSON(inputs.files)) {
+          throw new Error('Project files changed during rendering; no cache entry or output published. Retry with stable inputs.');
+        }
+        await writeCache(options.cache, { key, inputs, bytes, sha256, frameHashes: hashes,
+          sequenceHashesSha256: core.hashesSha256, lintFindings: core.lintFindings, checks: verified.checks }, pending);
+      }
+      if (!options.frameHashes) hashes = null;
     }
-    const bytes = (await stat(pending)).size, sha256 = await fileHash(pending);
     await refuseExisting(options.output, '--output');
     if (hashes !== null) {
       await mkdir(dirname(options.frameHashes), { recursive: true });
@@ -207,6 +258,7 @@ export async function render(input, { install = false } = {}) {
     }
     await rename(pending, options.output);
     return { ...core, profile: options.profile, output: options.output, bytes, sha256, ...verified,
+      cache: options.cache ? entry ? 'hit' : 'miss' : 'off', key, ...(cacheReason ? { cacheReason } : {}),
       sequenceHashesSha256: core.hashesSha256, logPath: null, hashesPath: options.frameHashes,
       hashesSha256: hashes === null ? null : createHash('sha256').update(hashes).digest('hex'),
       seconds: Math.round((performance.now() - started) / 10) / 100 };
@@ -215,6 +267,6 @@ export async function render(input, { install = false } = {}) {
     throw error;
   } finally {
     try { await rm(pending, { force: true }); }
-    finally { await rm(temporary, { recursive: true, force: true }); }
+    finally { if (temporary) await rm(temporary, { recursive: true, force: true }); }
   }
 }

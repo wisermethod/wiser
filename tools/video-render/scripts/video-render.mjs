@@ -6,7 +6,7 @@ import { render } from './render.mjs';
 import { prepareRuntime } from './dependencies.mjs';
 
 const VALUE_FLAGS = new Set(['--project', '--output', '--width', '--height', '--fps', '--duration', '--workers', '--gpu', '--capture']);
-const RENDER_FLAGS = new Set([...VALUE_FLAGS, '--profile', '--frame-hashes']);
+const RENDER_FLAGS = new Set([...VALUE_FLAGS, '--profile', '--frame-hashes', '--cache']);
 const INSTALL_HELP = `  --install                Authorise packages and the pinned Chrome, then finish this run.
                            WISER_ALLOW_INSTALL=1 also authorises work commands.
   --help                   Show help before checking dependencies.`;
@@ -21,7 +21,7 @@ Usage:
   node scripts/video-render.mjs render --project <abs dir> --output <abs .mp4>
     --width N --height N --fps N --duration S [--profile publish|intermediate]
     [--workers N|auto] [--gpu hardware|software] [--capture screenshot|fast]
-    [--frame-hashes <abs file>] [--install]
+    [--frame-hashes <abs file>] [--cache <abs dir>] [--install]
   node scripts/video-render.mjs check [--install]
 
 Options:
@@ -37,6 +37,8 @@ Options:
   --profile publish|intermediate Render only. H.264 publish (default) or lossless intermediate.
   --frame-hashes <abs file> Render only. New decoded yuv420p framehash SHA-256 list outside
                            this tool and project. Omit to retain only the MP4.
+  --cache <abs dir>         Render only. Reuse verified MP4s in this caller-owned directory,
+                           outside the tool, project, memory and credential directories.
 ${INSTALL_HELP}
 
 Exactly one data-video-root element is required. All assets must be local.

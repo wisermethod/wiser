@@ -7,13 +7,15 @@ import './dependencies.test.mjs';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, stat, symlink, writeFile } from 'node:fs/promises';
+import { cp, link, mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { TOOL_DIR } from '../scripts/dependencies.mjs';
-import { checkMetadata, encodeArguments, hasEditList, optionsForRender, packetHasIDR } from '../scripts/render.mjs';
+import { CHROME_BUILD, HYPERFRAMES_VERSION, TOOL_DIR, ffmpegSurvey } from '../scripts/dependencies.mjs';
+import { checkMetadata, encodeArguments, hasEditList, optionsForRender, packetHasIDR, renderCacheInputs } from '../scripts/render.mjs';
+import { RENDER_VERSION, cacheKey, canonicalJSON, readCache, writeCache } from '../scripts/cache.mjs';
+import { inspectProject } from '../scripts/project.mjs';
 
 const cli = join(TOOL_DIR, 'scripts/video-render.mjs');
 const fixture = fileURLToPath(new URL('./fixtures/steps/', import.meta.url));
@@ -42,7 +44,7 @@ test('render help works without dependencies, and command-only, unknown and dupl
     const result = run(args, { env: { PATH: '' } });
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stderr, '');
-    for (const flag of ['profile', 'frame-hashes', 'install', 'project', 'output', 'width', 'height', 'fps', 'duration', 'workers', 'gpu', 'capture']) assert.ok(result.stdout.includes(`--${flag}`));
+    for (const flag of ['profile', 'frame-hashes', 'cache', 'install', 'project', 'output', 'width', 'height', 'fps', 'duration', 'workers', 'gpu', 'capture']) assert.ok(result.stdout.includes(`--${flag}`));
   }
   const path = await scratch(t);
   const before = await readdir(path);
@@ -50,10 +52,14 @@ test('render help works without dependencies, and command-only, unknown and dupl
     [['render', '--install', '--quality', 'high'], /Unknown flag --quality/],
     [['render', '--profile', 'publish', '--profile', 'intermediate'], /Duplicate flag --profile/],
     [['render', '--frame-hashes', 'a', '--frame-hashes', 'b'], /Duplicate flag --frame-hashes/],
+    [['render', '--cache', 'a', '--cache', 'b'], /Duplicate flag --cache/],
+    [['render', '--cache'], /--cache needs a value/],
     [['render', '--profile'], /--profile needs a value/],
     [['render', '--frame-hashes', '--install'], /--frame-hashes needs a value/],
     [['render', '--help', '--install'], /Unknown flag --install for help/],
     [['sequence', '--profile', 'publish'], /Unknown flag --profile/],
+    [['sequence', '--cache', 'a'], /Unknown flag --cache/],
+    [['check', '--cache', 'a'], /Unknown flag --cache/],
     [['check', '--frame-hashes', join(path, 'hashes')], /Unknown flag --frame-hashes/],
   ]) {
     const result = run(args, { env: { PATH: '', WISER_ALLOW_INSTALL: '1' } });
@@ -181,6 +187,8 @@ test('real render for each profile passes independent ffprobe checks and cleans 
     assert.equal(result.stderr, '');
     const report = JSON.parse(result.stdout);
     assert.equal(report.profile, profile);
+    assert.equal(report.cache, 'off');
+    assert.equal(report.key, null);
     assert.equal(report.output, output);
     assert.equal(report.frameCount, 21);
     assert.equal(report.bytes, (await stat(output)).size);
@@ -301,4 +309,197 @@ process.exit(child.status ?? 1);\n`, { mode: 0o755 });
   assert.match(result.stderr, /MP4 check squarePixels failed/);
   assert.deepEqual(await temporaryRenders(), before);
   assert.deepEqual(await readdir(path), ['bin']);
+});
+
+async function cacheFixture(t) {
+  const path = await scratch(t), project = join(path, 'project'), cache = join(path, 'cache');
+  await mkdir(project);
+  await writeFile(join(project, 'index.html'), '<main data-video-root style="width:32px;height:24px;background:#123456">Zibble</main>');
+  await writeFile(join(project, 'asset.bin'), Buffer.from([0, 255, 1]));
+  const options = await optionsForRender({ ...values(project, join(path, 'new.mp4')), width: 32, height: 24, duration: 0.2, cache });
+  const versions = { toolVersion: RENDER_VERSION, hyperframesVersion: HYPERFRAMES_VERSION,
+    chromeBuild: CHROME_BUILD, ffmpegVersion: 'ffmpeg version cache-test' };
+  const inputs = renderCacheInputs(options, versions, (await inspectProject(project)).files);
+  const key = cacheKey(inputs), source = join(path, 'lookup-fixture');
+  // Unit tests exercise storage and lookup without pretending this fixture is a render.
+  const bytes = Buffer.from('Cache lookup fixture, never published as a rendered video.');
+  await writeFile(source, bytes);
+  const record = { key, inputs, bytes: bytes.length, sha256: hash(bytes),
+    frameHashes: Array.from({ length: inputs.frameCount }, (_, i) => `0, ${i}, ${i}, 1, 1152, ${hash(String(i))}\n`).join(''),
+    sequenceHashesSha256: hash('sequence'), lintFindings: [], checks: { decodedFrameHashes: true } };
+  await writeCache(cache, record, source);
+  return { path, project, cache, options, versions, inputs, key, record, source };
+}
+
+// Each case is its own test, and uses the same pure function the real renderer uses.
+for (const [name, change] of [
+  ['project file bytes', async (f) => writeFile(join(f.project, 'asset.bin'), Buffer.from([0, 255, 2]))],
+  ['file added', async (f) => writeFile(join(f.project, 'new.bin'), Buffer.from([0, 255, 1]))],
+  ['file renamed', async (f) => rename(join(f.project, 'asset.bin'), join(f.project, 'renamed.bin'))],
+  ['width', async (f) => { f.options.width += 2; }],
+  ['height', async (f) => { f.options.height += 2; }],
+  ['fps', async (f) => { f.options.fps += 1; }],
+  ['duration', async (f) => { f.options.duration += 0.1; }],
+  ['profile', async (f) => { f.options.profile = 'intermediate'; }],
+  ['GPU mode', async (f) => { f.options.gpu = 'software'; }],
+  ['capture mode', async (f) => { f.options.capture = 'fast'; }],
+  ['tool version constant', async (f) => { f.versions.toolVersion = `${RENDER_VERSION}-changed`; }],
+  ['FFmpeg version line', async (f) => { f.versions.ffmpegVersion = 'ffmpeg version changed'; }],
+  ['HyperFrames version', async (f) => { f.versions.hyperframesVersion = '0.8.135'; }],
+  ['Chrome build', async (f) => { f.versions.chromeBuild = '152.0.7977.31'; }],
+]) test(`cache misses when only ${name} changes`, async (t) => {
+  const f = await cacheFixture(t);
+  assert.ok((await readCache(f.cache, f.key, f.inputs, ['decodedFrameHashes'])).record);
+  await change(f);
+  f.options.expectedFrames = Math.round(f.options.duration * f.options.fps);
+  f.options.gop = Math.round(f.options.fps / 2);
+  const changed = renderCacheInputs(f.options, f.versions, (await inspectProject(f.project)).files);
+  const key = cacheKey(changed);
+  assert.notEqual(key, f.key);
+  assert.deepEqual(await readCache(f.cache, key, changed, ['decodedFrameHashes']), { record: null, reason: null });
+  assert.ok((await readCache(f.cache, f.key, f.inputs, ['decodedFrameHashes'])).record, 'the old entry is retained for its original inputs');
+});
+
+test('cache inputs are canonical, complete, pure and exclude workers, destinations and environment', async (t) => {
+  const f = await cacheFixture(t), files = (await inspectProject(f.project)).files;
+  const before = structuredClone({ options: f.options, versions: f.versions, files });
+  const inputs = renderCacheInputs(f.options, f.versions, files);
+  assert.deepEqual({ options: f.options, versions: f.versions, files }, before);
+  assert.deepEqual(Object.keys(inputs).sort(), ['toolVersion', 'hyperframesVersion', 'chromeBuild', 'ffmpegVersion',
+    'gpu', 'capture', 'width', 'height', 'fps', 'duration', 'frameCount', 'profile', 'encoderArguments', 'files'].sort());
+  assert.deepEqual(inputs.encoderArguments, encodeArguments('<frames>', '<output>.mp4', f.options));
+  const reordered = Object.fromEntries(Object.entries(inputs).reverse());
+  assert.equal(canonicalJSON(inputs), canonicalJSON(reordered));
+  assert.equal(f.key, hash(canonicalJSON(inputs)));
+  for (const workers of [2, 'auto']) {
+    const same = renderCacheInputs({ ...f.options, workers, output: '/different.mp4', project: '/different',
+      cache: '/another-cache', frameHashes: '/hashes', arbitraryEnvironment: 'ignored' }, f.versions, files.toReversed());
+    assert.equal(cacheKey(same), f.key);
+    assert.ok((await readCache(f.cache, cacheKey(same), same, ['decodedFrameHashes'])).record);
+  }
+  const changedFrameCount = { ...inputs, frameCount: inputs.frameCount + 1 };
+  assert.notEqual(cacheKey(changedFrameCount), f.key);
+  const changedEncoder = { ...inputs, encoderArguments: [...inputs.encoderArguments, '-extra-test-argument'] };
+  assert.notEqual(cacheKey(changedEncoder), f.key);
+  assert.equal(renderCacheInputs(f.options, { ...f.versions, toolVersion: undefined }, files).toolVersion, RENDER_VERSION);
+  assert.deepEqual(inputs.files, [
+    { path: 'asset.bin', sha256: hash(Buffer.from([0, 255, 1])) },
+    { path: 'index.html', sha256: hash(await readFile(join(f.project, 'index.html'))) },
+  ]);
+  const firstLine = 'ffmpeg version key-input';
+  assert.equal(ffmpegSurvey(() => ({ status: 0, stdout: `${firstLine}\nbuild details\n` })).version, firstLine);
+  assert.equal(ffmpegSurvey(() => ({ status: 0, stdout: `unexpected preamble\n${firstLine}\n` })).present, false);
+});
+
+test('cache path screening precedes dependency checks and resolves aliases and missing parents', async (t) => {
+  const path = await scratch(t), project = join(path, 'project'), credentials = join(path, 'credentials');
+  await mkdir(project); await mkdir(credentials);
+  // Empty credential-name fixtures are never opened by the path screen.
+  await writeFile(join(credentials, '.env.test'), '');
+  await mkdir(join(path, 'memory'));
+  await symlink(TOOL_DIR, join(path, 'tool-link'));
+  await symlink(project, join(path, 'project-link'));
+  await symlink(credentials, join(path, 'credential-link'));
+  await symlink(join(path, 'memory'), join(path, 'memory-link'));
+  await symlink(join(path, 'absent'), join(path, 'dangling'));
+  await writeFile(join(path, 'not-a-directory'), 'Zibble');
+  const input = values(project, join(path, 'out.mp4'));
+  for (const [cache, pattern] of [
+    ['relative', /--cache must be an absolute/],
+    [join(TOOL_DIR, 'new-cache'), /--cache.*inside the tool/],
+    [join(path, 'tool-link/missing/cache'), /--cache.*inside the tool/],
+    [join(project, 'new-cache'), /--cache.*inside --project/],
+    [join(path, 'project-link/missing/cache'), /--cache.*inside --project/],
+    [credentials, /--cache.*credential/],
+    [join(path, 'credential-link/missing/cache'), /--cache.*credential/],
+    [join(path, 'memory/cache'), /--cache.*protected/],
+    [join(path, 'memory-link/cache'), /--cache.*protected/],
+    [join(path, '.env.cache'), /--cache.*protected/],
+    [join(path, 'dangling/cache'), /--cache.*canonicalized/],
+    [join(path, 'not-a-directory'), /--cache must name a directory/],
+    [join(path, 'out.mp4/child'), /cannot contain each other/],
+    [path, /cannot contain each other/],
+  ]) {
+    const result = run(['render', ...flags({ ...input, cache }), '--install'], { env: { PATH: '' } });
+    assert.equal(result.status, 1, cache); assert.equal(result.stdout, ''); assert.match(result.stderr, pattern);
+  }
+  await symlink(path, join(path, 'work-link'));
+  assert.equal((await optionsForRender({ ...input, cache: join(path, 'work-link/new/cache') })).cache, join(path, 'new/cache'));
+  await mkdir(join(path, 'cache'));
+  assert.equal((await optionsForRender({ ...input, cache: join(path, 'cache') })).cache, join(path, 'cache'));
+});
+
+for (const [name, corrupt, pattern] of [
+  ['unreadable JSON', async (f) => writeFile(join(f.cache, `${f.key}.json`), '{'), /record cannot be read/],
+  ['incomplete pair', async (f) => rm(join(f.cache, `${f.key}.json`)), /incomplete/],
+  ['altered MP4 of the same length', async (f) => {
+    const file = join(f.cache, `${f.key}.mp4`), bytes = await readFile(file); bytes[0] ^= 1; await writeFile(file, bytes);
+  }, /SHA-256/],
+  ['missing frame hash list', async (f) => {
+    delete f.record.frameHashes; await writeFile(join(f.cache, `${f.key}.json`), JSON.stringify(f.record));
+  }, /invalid or incomplete/],
+  ['wrong input record', async (f) => {
+    f.record.inputs.width += 2; await writeFile(join(f.cache, `${f.key}.json`), JSON.stringify(f.record));
+  }, /invalid or incomplete/],
+  ['symbolic link', async (f) => {
+    await rm(join(f.cache, `${f.key}.mp4`)); await symlink(f.source, join(f.cache, `${f.key}.mp4`));
+  }, /link or non-regular/],
+  ['hard link', async (f) => {
+    await rm(join(f.cache, `${f.key}.mp4`)); await link(f.source, join(f.cache, `${f.key}.mp4`));
+  }, /link or non-regular/],
+]) test(`cache removes a bad entry with ${name} and reports a miss reason`, async (t) => {
+  const f = await cacheFixture(t), original = structuredClone(f.inputs);
+  await writeFile(join(f.cache, 'unrelated'), 'Zibble');
+  await corrupt(f);
+  const result = await readCache(f.cache, f.key, original, ['decodedFrameHashes']);
+  assert.equal(result.record, null); assert.match(result.reason, pattern);
+  assert.deepEqual(await readdir(f.cache), ['unrelated']);
+  assert.equal(hash(await readFile(f.source)), hash('Cache lookup fixture, never published as a rendered video.'));
+});
+
+test('real cache hit copies identical bytes and hashes; workers alone hit; corruption misses and is replaced', { timeout: 120_000 }, async (t) => {
+  const path = await scratch(t), project = join(path, 'project'), cache = join(path, 'cache');
+  await mkdir(project);
+  await writeFile(join(project, 'index.html'), '<main data-video-root style="width:32px;height:24px;background:#123456"></main>');
+  const input = { ...values(project, join(path, 'first.mp4')), cache, width: 32, height: 24, duration: 0.2 };
+  const before = await temporaryRenders();
+  const execute = (options) => {
+    const result = run(['render', ...flags(options)]);
+    assert.equal(result.status, 0, result.stderr); assert.equal(result.stderr, '');
+    return JSON.parse(result.stdout);
+  };
+  // No hash output requested on the miss: the entry must still retain the decoded list.
+  const first = execute(input);
+  assert.equal(first.cache, 'miss'); assert.match(first.key, /^[0-9a-f]{64}$/); assert.equal(first.cacheReason, undefined);
+  const cached = JSON.parse(await readFile(join(cache, `${first.key}.json`), 'utf8'));
+  assert.equal(cached.key, first.key); assert.equal(cacheKey(cached.inputs), first.key);
+  assert.equal(cached.inputs.hyperframesVersion, HYPERFRAMES_VERSION); assert.equal(cached.inputs.chromeBuild, CHROME_BUILD);
+  assert.equal(cached.inputs.toolVersion, RENDER_VERSION);
+  const ffmpeg = spawnSync('ffmpeg', ['-version'], { encoding: 'utf8' });
+  assert.equal(cached.inputs.ffmpegVersion, ffmpeg.stdout.split(/\r?\n/)[0]);
+  assert.equal(cached.bytes, first.bytes); assert.equal(cached.sha256, first.sha256);
+  const second = execute({ ...input, output: join(path, 'second.mp4'), 'frame-hashes': join(path, 'decoded.sha256') });
+  assert.equal(second.cache, 'hit'); assert.equal(second.key, first.key); assert.equal(second.sha256, first.sha256);
+  assert.deepEqual(await readFile(second.output), await readFile(first.output));
+  assert.equal(await readFile(second.hashesPath, 'utf8'), cached.frameHashes);
+  const reference = spawnSync('ffmpeg', ['-v', 'error', '-i', second.output, '-map', '0:v:0', '-an', '-pix_fmt', 'yuv420p',
+    '-fps_mode', 'passthrough', '-f', 'framehash', '-hash', 'sha256', '-'], { encoding: 'utf8' });
+  assert.equal(reference.status, 0, reference.stderr); assert.equal(cached.frameHashes, reference.stdout);
+  assert.equal(second.hashesSha256, hash(reference.stdout));
+  const workers = execute({ ...input, output: join(path, 'workers.mp4'), workers: 2 });
+  assert.equal(workers.cache, 'hit'); assert.equal(workers.key, first.key);
+  assert.deepEqual(await readFile(workers.output), await readFile(first.output));
+  const corrupt = await readFile(join(cache, `${first.key}.mp4`)); corrupt[corrupt.length - 1] ^= 1;
+  await writeFile(join(cache, `${first.key}.mp4`), corrupt);
+  const replaced = execute({ ...input, output: join(path, 'replaced.mp4') });
+  assert.equal(replaced.cache, 'miss'); assert.equal(replaced.key, first.key); assert.match(replaced.cacheReason, /SHA-256/);
+  const replacement = JSON.parse(await readFile(join(cache, `${first.key}.json`), 'utf8'));
+  assert.equal(replacement.sha256, hash(await readFile(join(cache, `${first.key}.mp4`))));
+  assert.deepEqual(await readFile(replaced.output), await readFile(join(cache, `${first.key}.mp4`)));
+  const last = execute({ ...input, output: join(path, 'last.mp4') });
+  assert.equal(last.cache, 'hit'); assert.equal(last.cacheReason, undefined);
+  assert.deepEqual((await readdir(cache)).sort(), [`${first.key}.json`, `${first.key}.mp4`]);
+  assert.deepEqual(await temporaryRenders(), before);
+  t.diagnostic(JSON.stringify({ first: first.cache, second: second.cache, workers: workers.cache,
+    replaced: replaced.cache, reason: replaced.cacheReason, last: last.cache, frames: first.frameCount }));
 });

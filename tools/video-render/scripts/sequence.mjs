@@ -37,7 +37,7 @@ export async function canonical(path, name) {
   }
 }
 
-async function inside(candidate, directory) {
+export async function inside(candidate, directory) {
   const root = await stat(directory);
   for (let head = candidate;; head = dirname(head)) {
     try {
@@ -136,11 +136,11 @@ export async function hashFrames(framesDir, expected, width, height) {
   return { frameCount: files.length, hashesPath, hashesSha256: sha256(manifest) };
 }
 
-export async function sequence(input, { install = false } = {}) {
+export async function sequence(input, { install = false, runtime: preparedRuntime } = {}) {
   const started = performance.now();
   const options = await optionsForSequence(input);
   const project = await inspectProject(options.project);
-  const runtime = await prepareRuntime({ install, gpu: options.gpu });
+  const runtime = preparedRuntime ?? await prepareRuntime({ install, gpu: options.gpu });
   const browser = runtime.chrome.executablePath;
   const temporary = await mkdtemp(join(tmpdir(), 'wiser-video-render-'));
   let logPath;

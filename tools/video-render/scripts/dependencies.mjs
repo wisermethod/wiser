@@ -26,7 +26,8 @@ export function nodeSurvey(version = process.versions.node) {
 
 export function ffmpegSurvey(run = spawnSync) {
   const result = run('ffmpeg', ['-version'], { encoding: 'utf8', timeout: 10_000, stdio: ['ignore', 'pipe', 'pipe'] });
-  const version = result.stdout?.split(/\r?\n/).find((line) => /^ffmpeg version\s/i.test(line)) ?? null;
+  const firstLine = result.stdout?.split(/\r?\n/)[0];
+  const version = /^ffmpeg version\s/i.test(firstLine ?? '') ? firstLine : null;
   return { present: result.status === 0 && version !== null, version, check: 'ffmpeg -version' };
 }
 
