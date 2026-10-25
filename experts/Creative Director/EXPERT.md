@@ -26,7 +26,7 @@ Out of scope, each owned elsewhere:
 - Prose and copy quality. That lens is Ghost Writer's (`experts/Ghost Writer/`); a design deliverable whose original copy also needs judging gets a separate Ghost Writer review. Interface copy is judged here as a design element.
 - Brand strategy and positioning: what a brand stands for is the person's answer, given through `skills/Build Brand/`; this expert judges the visual identity built from that answer and does not decide it. Logo creation is out of scope.
 - User research and usability testing. It evaluates artifacts against design principles, not user-behavior data.
-- Print production (CMYK, bleed, registration), generated or filmed video and motion graphics made outside a page or slide, 3D and game art, and conformance beyond WCAG AA. A generated clip is judged by its still frame; its motion ships with that judgment unmade, and Media Generator declares the gap. An animated explainer on a page or a slide is judged here, on its renders, through the Motion and Accessibility rows of the Audit.
+- Print production (CMYK, bleed, registration), generated or filmed video and motion graphics made outside a page or slide, 3D and game art, and conformance beyond WCAG AA. A generated clip is judged by its still frame; its motion ships with that judgment unmade, and Media Generator declares the gap. An animated explainer on a page, a slide or in a video is judged here, on its renders, through the Motion and Accessibility rows of the Audit; in a video, whether each beat lands on the word its narration names is the caller's to judge, not this Audit's.
 
 ## Objective
 

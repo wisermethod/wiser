@@ -10,7 +10,7 @@ Every piece keeps these, whether it runs on a starter's engine or on its own scr
 - The script only arms what that block animates. Falling back to the still, it cancels every running animation, because in Chrome a transition already running keeps going after its rule stops applying.
 - The still matches the picture at the end of the motion, every connection drawn.
 - Every visible word is in the markup: the labels, the text description beside the `aria-hidden` picture, the control's names, any caption. The script writes no word, apart from a count's intermediate digits.
-- A loop has a pause control, stops off-screen and on a hidden tab, and resumes where it stopped. On a slide, the piece plays only while its slide is current.
+- A loop on a page or a slide stops off-screen and on a hidden tab and resumes where it stopped, and draws its pause control where `## The accessibility floor` says one is drawn. On a slide, the piece plays only while its slide is current. In a video, the piece plays once, as `## Video` says.
 - It loads nothing from another origin, and its rules are scoped under its own class, so two pieces on one page never restyle each other.
 
 The engines keep every line of this, proved in Chromium. A piece on its own script proves each line on its renders.
@@ -43,7 +43,7 @@ Durations and curves are Duration Scale and Easing Curves in `skills/Component D
 
 A process, a cycle or a relationship seen whole is a loop, from `starters/loop/`. It starts when a quarter of its stage is in view or, on a slide, when the slide is current and every fragment holding it is shown. It waits off-screen, on a hidden tab, and while paused, and the time it was away is not added to its clock.
 
-Its pause control is required (WCAG 2.2.2): a loop runs for longer than five seconds whatever its cycle. Its two names are the markup's `data-pause` and `data-play`. A pause inside either of the cover's fades moves to the hold and pauses there with the cover clear; a pause anywhere else keeps its frame; a resume never replays a motion already finished. Do not remove the control. The engine shows it only while it can animate.
+Its pause control is drawn where `## The accessibility floor` says one is, and a loop runs for longer than five seconds whatever its cycle. Its two names are the markup's `data-pause` and `data-play`. A pause inside either of the cover's fades moves to the hold and pauses there with the cover clear; a pause anywhere else keeps its frame; a resume never replays a motion already finished. Do not remove the control from the markup. The engine shows it only while it can animate on the browser's clock, and never on the render clock.
 
 One engine serves every `.ax-loop` on a page, each on its own clock, and including `loop.js` or `loop.css` twice is harmless. `window.AxLoop.scan()` starts a piece added after load. Known limit: paused mid-draw, then resized across the layout switch, the layout that appears shows its lines complete until play resumes.
 
@@ -52,6 +52,16 @@ One engine serves every `.ax-loop` on a page, each on its own clock, and includi
 One figure or one outcome that lands is a once piece, from `starters/once/`. With motion wanted, it stays hidden until a quarter of it is in view, or until its slide is current, then plays once and holds. A figure already a quarter in view when the script arms it, off a slide, keeps the finished figure and never plays: where the figure will sit in the first screen, Step 6's message and a placement note say it shows its finished figure there and counts only lower on the page. Several on one page take turns in document order.
 
 `.ax-num` holds one quantity the engine can read, with words or symbols around it; it counts in the markup's own format, which the once starter's header sets out, and ends on the markup's own text. A year, a code, or anything that is not a quantity: `data-count="off"`. A second number, a range, a negative or an ambiguous separator such as `1.250,5`: the engine fades it in instead of counting. `window.AxOnce.scan()` starts a figure added after load.
+
+## Video
+
+A piece for a video plays its timeline once from the renderer's time, never the browser's clock, so the same time gives the same frame on any render worker. Its root carries `data-clock="render"`, and each engine then runs on its render clock; the piece's markup, its motion block and `## The timeline` stay the one statement of when each element turns on and off. `tools/video-render/` renders the page, and its `TOOL.md` is the one home of what the project holds and how the time reaches the page.
+
+- **A loop's timeline, played once.** `data-len` is the video's duration, and any number past the last moment holds, since a video has no closing fade. The cover lifts at 0.3 s as on a page, the conclusion marked `data-keep` shows from the first frame, and the finished picture holds from the end of the last motion to the end.
+- **A once figure.** The root's `data-at` is when it plays, 0.3 s where it has none. It waits hidden until then, counts in its own format and holds. Several figures each play at their own `data-at`, never in turns.
+- **What moves.** A transition on a timed element or on any element inside one, a flight, an element leaving at `data-off`, and a once figure's count are each set to the render time on every frame, and frozen there before the frame is drawn. A motion on an element with no timed element at or above it is not, and the engine names its class in the console: in a video, move only timed elements and what sits inside them.
+- **The still.** Each line overlay's `viewBox` is the stage's size in the frame's own CSS pixels, and each line's default path is written in those units by `## Measuring and drawing`'s procedure at the frame's size, so the still a video is judged against is drawn as its hold is.
+- **The hold.** It runs from the end of the last motion to the end the caller set. Is it shorter than 0.33 s for each word on the finished picture, the fast end of the 160 to 180 words a minute the BBC's subtitle guidance recommends (as summarised at `clevercast.com/bbc-subtitling-guidelines`, read 2026-10-25), or does the end fall before the last motion finishes? Yes: say so in the delivery record, with the hold it would need. No: nothing to say.
 
 ## Measuring and drawing
 
@@ -64,23 +74,25 @@ A line's default path in the markup is its finished shape, in its overlay's unit
 Every piece meets this floor in every destination. Each line is checkable on the renders or in the markup.
 
 - Without JavaScript, under reduced motion at load or switched on later, and in print or PDF, the finished picture shows.
-- A loop has a pause control (WCAG 2.2.2), stops off-screen and on a hidden tab, and resumes where it stopped.
+- On a page or a slide, a loop has a pause control (WCAG 2.2.2), stops off-screen and on a hidden tab, and resumes where it stopped. In a video, no control is drawn, since the player carries pause, and the piece plays once and holds. This line is the one home of when a control is drawn.
 - A once piece plays once and holds, hidden rather than shown at zero until it plays.
-- The picture is `aria-hidden`, with the text description beside it. A once piece's number and caption are the text.
-- No word renders under 12px on a page from 320 to 1440 wide, or under 16px on a slide in its own pixels.
+- The picture is `aria-hidden`, with the text description beside it. A once piece's number and caption are the text. In a video, the text description travels with the segment, for the video's own description or transcript.
+- No word renders under 12px on a page from 320 to 1440 wide, under 16px on a slide in its own pixels, or, in a video, under 28px for each 1,080 pixels of the frame's shorter side, the smallest body text Amazon's Fire TV design guidelines allow on a 1080p screen (at least 14sp, about 28px; `developer.amazon.com/docs/fire-tv/design-and-user-experience-guidelines.html`, read 2026-10-25).
 - Every control meets criteria 4 and 5 of `skills/Component Design/SKILL.md`, and is reached and worked by keyboard.
 - Nothing flashes more than three times a second (WCAG 2.3.1).
 - Contrast meets Contrast Requirements in `skills/Color Palette Design/SKILL.md`, and colour is never the only carrier of meaning.
 
 ## Renders
 
-Step 5 captures through `tools/Browser Control/`, at 1440 and 390 wide, and at 320 for the text floor:
+For a page or a slide, Step 5 captures through `tools/Browser Control/`, at 1440 and 390 wide, and at 320 for the text floor:
 
 - Mid-motion, and the hold or the held figure.
 - With no JavaScript, from a copy of the page with its script tags removed. A deck needs reveal.js's script to show any slide, so a deck slide's render with no JavaScript is its `section` alone on a plain page that loads the deck's stylesheet, with no script; how the deck itself looks with no script is the deck's matter, per `destinations.md` `## A deck slide`.
 - Under reduced motion, with that tool's `emulate set --reduced-motion reduce`, twice: set before the page loads, and switched on after it has started moving, when nothing may still be moving. The setting stays on the tab until `emulate reset`, which also resets the window's size, so set the width again after it.
 - A loop paused mid-motion. A once piece waiting and playing, where it loads below the fold.
 - A deck slide playing, and the deck exported through `tools/deck-export/`: its `pdf` opens the deck on `?print-pdf` and its `png` with the export query, so both show the finished picture.
+
+For a video, the renders come from `tools/video-render/` at the caller's frame size and rate, one size only: `frames` at each beat, mid-motion, and at the hold, with the segment's decoded-frame hashes from its `render`; and the still, the same project with its script tags removed. Is the hold's last frame the still, pixel for pixel? Yes: the still matches the hold. No: back to `SKILL.md` Step 4.
 
 Every address is cache-busted with a fresh query string of your own naming, since a capture from a cached build has misled a gate before; `export` and `print-pdf` are the names that hold the still. Every capture is a new file. Check each line by looking along it, since a short line missing from the still barely moves a whole-picture comparison. Save the captures in the record folder, with a profile directory per run in the owning root's work area, per Session State in `tools/Browser Control/TOOL.md`.
 
