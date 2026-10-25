@@ -336,8 +336,17 @@ async function d1Restore(input, ctx) {
     return { ...refused(`bookmark age ${age.toFixed(6)} days exceeds the ${input.window_days}-day account window or the API's 30-day limit`),
       field: 'bookmark_time', age_days: age };
   }
+  // Resolve this checked time at Cloudflare, as Wrangler does. A caller-supplied
+  // fresh timestamp must never authorize restoring a different bookmark.
+  const lookup = { endpoint: d1Path(input) + '/time_travel/bookmark', method: 'GET',
+    parameters: [{ name: 'timestamp', value: input.bookmark_time, type: 'query' }] };
+  const resolved = await d1Call(ctx, lookup);
+  if (resolved.error) return resolved.error;
+  const bookmark = resolved.result?.bookmark;
+  if (!string(bookmark, BOOKMARK)) return vendor(lookup);
+  if (bookmark !== input.bookmark) return { ...refused('bookmark does not match the bookmark Cloudflare returned for bookmark_time'), field: 'bookmark' };
   const req = { endpoint: d1Path(input) + '/time_travel/restore', method: 'POST',
-    parameters: [{ name: 'bookmark', value: input.bookmark, type: 'query' }] };
+    parameters: [{ name: 'bookmark', value: bookmark, type: 'query' }] };
   const reply = await d1Call(ctx, req);
   if (reply.error) return reply.error;
   if (!string(reply.result?.bookmark, BOOKMARK) || !string(reply.result?.previous_bookmark, BOOKMARK)) {
@@ -622,7 +631,8 @@ export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, red
     rollback,
     get_worker: getWorker,
     async set_vars(input, ctx) {
-      if (!varsShape(input.vars)) return { ...refused('vars must contain only non-secret uppercase names and strings of at most 512 characters'), field: 'vars' };
+      if (!varsShape(input.vars) || !Object.keys(input.vars).length) return { ...refused('vars must be non-empty and contain only non-secret uppercase names and strings of at most 512 characters'), field: 'vars' };
+      const keys_set = Object.keys(input.vars);
       const loaded = await loadManifest(input, ctx);
       if (loaded.error) return loaded.error;
       const { manifest } = loaded;
@@ -650,12 +660,21 @@ export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, red
       // active deployment instead of treating a binding id as a Worker version.
       const versionReq = { endpoint: endpoint(input, '/deployments'), method: 'GET' };
       const after = await call(ctx, versionReq);
-      if (after.error) return after.error;
-      const versions = after.result?.deployments?.[0]?.versions;
-      if (!Array.isArray(versions) || versions.length !== 1 || !string(versions[0].version_id, UUID)) {
-        return { ...vendor(versionReq), reason: 'settings updated; no single active version reported' };
+      if (after.error) return { ...after.error, reason: 'settings updated; active deployment read-back failed' };
+      const version_id = singleDeployedVersion(after.result?.deployments?.[0]?.versions);
+      if (!version_id) {
+        return { ...vendor(versionReq), reason: 'settings updated; no single active version at 100 percent reported' };
       }
-      return { keys_set: Object.keys(input.vars), version_id: versions[0].version_id };
+      // Confirm only the keys we set. Read names and types, never binding values.
+      const settings = await call(ctx, req);
+      if (settings.error) return { ...settings.error, reason: 'settings updated; binding names/types read-back failed' };
+      const confirmed = settings.result?.bindings;
+      if (!Array.isArray(confirmed) || confirmed.some((b) => !object(b) || typeof b.name !== 'string' || typeof b.type !== 'string')
+        || new Set(confirmed.map((b) => b.name)).size !== confirmed.length
+        || !keys_set.every((key) => confirmed.some((b) => b.name === key && b.type === 'plain_text'))) {
+        return { ...vendor(req), reason: 'settings updated; set keys not confirmed as plain_text bindings' };
+      }
+      return { keys_set, version_id };
     },
     async add_custom_domain(input, ctx) {
       const found = await findDomain(input, ctx);

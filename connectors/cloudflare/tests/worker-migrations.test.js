@@ -36,7 +36,7 @@ const shape = () => ({
   },
   labels: { columns: [{ cid: 0, name: 'name', type: 'TEXT', notnull: 0, dflt_value: null, pk: 1 }], indexes: [], foreign: [] },
 });
-const indexColumns = () => ({ sqlite_autoindex_contacts_1: [{ seqno: 0, cid: 0, name: 'id' }], idx_contacts_label: [{ seqno: 0, cid: 1, name: 'label' }] });
+const indexColumns = () => ({ sqlite_autoindex_contacts_1: [{ seqno: 0, cid: 0, name: 'id' }], idx_contacts_label: [{ seqno: 0, cid: 1, name: 'label' }, { seqno: 1, cid: 0, name: 'id' }] });
 
 async function setup(t, options = {}) {
   const home = mkdtempSync(join(tmpdir(), 'worker-migrations-'));
@@ -250,7 +250,7 @@ for (const [label, mutate, diagnostic] of [
     assert.equal(answer.status, 'invalid_arguments'); assert.ok(answer.mismatches.includes(diagnostic)); assert.deepEqual(env.writes, []); deleted(env, answer);
   });
 }
-test('d1_adopt: extras and changed table column order allowed, index column order preserved', async (t) => {
+test('d1_adopt: extras and changed table column order allowed', async (t) => {
   const env = await setup(t, { mutate: (s) => {
     s.contacts.columns.reverse(); s.contacts.columns.forEach((c, i) => c.cid = i);
     s.contacts.columns.push({ cid: 2, name: 'custom', type: 'TEXT' });
@@ -301,3 +301,15 @@ for (const options of [{ texts: { '0002_next.sql': SQL } }, { table: 'other_hist
     assert.equal(answer.status, 'invalid_arguments'); assert.deepEqual(env.calls, []); noSql(answer);
   });
 }
+
+test('d1_adopt: swapped index seqno refused without member writes; temporary deleted', async (t) => {
+  const env = await setup(t, { mutate: (_s, columns) => {
+    // Keep the returned array and column names identical. Only the index order changes.
+    columns.idx_contacts_label[0].seqno = 1;
+    columns.idx_contacts_label[1].seqno = 0;
+  } });
+  const answer = await env.execute('d1_adopt');
+  assert.equal(answer.status, 'invalid_arguments');
+  assert.ok(answer.mismatches.includes('index columns differ: contacts.idx_contacts_label'));
+  assert.deepEqual(env.writes, []); deleted(env, answer);
+});

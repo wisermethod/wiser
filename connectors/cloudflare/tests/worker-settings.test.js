@@ -121,7 +121,7 @@ test('set_vars: verified manifest then read settings, preserve all other binding
   const result = await env.execute('set_vars');
   assert.deepEqual(result, { keys_set: ['ACCESS_AUD'], version_id: ID }); noValues(result);
   assert.deepEqual(env.fetches, ['manifest.json', 'manifest.sig'].map((n) => BASE + 'wiser-crm/1.0.0/' + n));
-  assert.deepEqual(trace(env.calls), [['GET', SCRIPT + '/settings'], ['PATCH', SCRIPT + '/settings'], ['GET', SCRIPT + '/deployments']]);
+  assert.deepEqual(trace(env.calls), [['GET', SCRIPT + '/settings'], ['PATCH', SCRIPT + '/settings'], ['GET', SCRIPT + '/deployments'], ['GET', SCRIPT + '/settings']]);
   const req = env.calls[1];
   assert.equal(req.body, undefined);
   const form = await new Response(Buffer.from(req.binary_body.base64, 'base64'), { headers: { 'Content-Type': req.binary_body.content_type } }).formData();
@@ -155,7 +155,9 @@ for (const badVars of [{ ACCESS_TOKEN: VALUE }, { 'BAD-NAME': VALUE }, { ACCESS_
   });
 }
 test('set_vars: Unicode bound counts 512 code points and permits partial updates', async (t) => {
-  const env = await setup(t); assert.deepEqual(await env.execute('set_vars', { ...vars, vars: { ACCESS_AUD: '\u{1f600}'.repeat(512) } }), { keys_set: ['ACCESS_AUD'], version_id: ID });
+  // ACCESS_AUD is documented as an optional property, not a required update key.
+  const env = await setup(t, { bindings: [...currentBindings, { name: 'ACCESS_TEAM_DOMAIN', type: 'plain_text' }] });
+  assert.deepEqual(await env.execute('set_vars', { ...vars, vars: { ACCESS_TEAM_DOMAIN: '\u{1f600}'.repeat(512) } }), { keys_set: ['ACCESS_TEAM_DOMAIN'], version_id: ID });
 });
 test('set_vars: an allowed name cannot overwrite a resource or secret binding', async (t) => {
   const env = await setup(t, { bindings: [{ name: 'ACCESS_AUD', type: 'secret_text' }] });
@@ -218,4 +220,59 @@ test('list_versions: reads a second page after a full first page', async (t) => 
   const env = await setup(t, { responder: (req, n) => envelope({ items: n === 1 ? Array.from({ length: 100 }, (_, i) => ({ id: `${i.toString(16).padStart(8, '0')}-1234-1234-1234-123456789abc`, metadata: { created_on: '2026-10-25T00:00:00Z' } })) : [] }) });
   assert.equal((await env.execute('list_versions')).versions.length, 100); assert.equal(env.calls.length, 2);
   assert.equal(env.calls[1].parameters[0].value, '2');
+});
+
+for (const versions of [[{ version_id: ID, percentage: 0 }], [{ version_id: ID }], [{ version_id: ID, percentage: 99 }],
+  [{ version_id: ID, percentage: 50 }, { version_id: '23456789-2345-2345-2345-23456789abcd', percentage: 50 }]]) {
+  test(`set_vars: unconfirmed traffic ${JSON.stringify(versions)} reports settings updated`, async (t) => {
+    const env = await setup(t, { responder: (req) => req.endpoint.endsWith('/deployments')
+      ? envelope({ deployments: [{ versions }] }) : envelope({ bindings: currentBindings }) });
+    const answer = await env.execute('set_vars');
+    assert.equal(answer.status, 'vendor_error'); assert.match(answer.reason, /settings updated/);
+    assert.ok(!Object.hasOwn(answer, 'version_id')); noValues(answer);
+    assert.equal(env.calls.filter((req) => req.method === 'PATCH').length, 1);
+  });
+}
+test('set_vars: empty vars refused before any call or release fetch', async (t) => {
+  const env = await setup(t), answer = await env.execute('set_vars', { ...vars, vars: {} });
+  assert.equal(answer.status, 'invalid_arguments'); assert.equal(answer.field, 'vars');
+  assert.deepEqual(env.calls, []); assert.deepEqual(env.fetches, []); noValues(answer);
+});
+for (const bindings of [[], [{ name: 'ACCESS_AUD', type: 'secret_text' }], [{ name: 'ACCESS_AUD' }],
+  [{ name: 'ACCESS_AUD', type: 'plain_text' }, { name: 'ACCESS_AUD', type: 'plain_text' }]]) {
+  test('set_vars: read-back must contain each set key once as plain_text', async (t) => {
+    let reads = 0;
+    const env = await setup(t, { responder: (req) => {
+      if (req.endpoint.endsWith('/deployments')) return envelope({ deployments: [{ versions: [{ version_id: ID, percentage: 100 }] }] });
+      if (req.method === 'GET') return envelope({ bindings: ++reads === 1 ? currentBindings : bindings });
+      return envelope({});
+    } });
+    const answer = await env.execute('set_vars');
+    assert.equal(answer.status, 'vendor_error'); assert.match(answer.reason, /settings updated/);
+    assert.ok(!Object.hasOwn(answer, 'version_id')); noValues(answer);
+    assert.equal(reads, 2);
+  });
+}
+test('set_vars: read-back confirms every set key using names/types without reading values', async (t) => {
+  let reads = 0;
+  const after = ['ACCESS_AUD', 'ACCESS_TEAM_DOMAIN'].map((name) => ({ name, type: 'plain_text',
+    get text() { assert.fail('read-back must never inspect binding values'); } }));
+  const env = await setup(t, { responder: (req) => {
+    if (req.endpoint.endsWith('/deployments')) return envelope({ deployments: [{ versions: [{ version_id: ID, percentage: 100 }] }] });
+    if (req.method === 'GET') return envelope({ bindings: ++reads === 1 ? currentBindings : after });
+    return envelope({});
+  } });
+  const answer = await env.execute('set_vars', { ...vars, vars: { ACCESS_AUD: VALUE, ACCESS_TEAM_DOMAIN: 'example.test' } });
+  assert.deepEqual(answer, { keys_set: ['ACCESS_AUD', 'ACCESS_TEAM_DOMAIN'], version_id: ID });
+  assert.equal(reads, 2); noValues(answer);
+});
+test('set_vars: failed settings read-back reports update without leaking diagnostic', async (t) => {
+  let reads = 0;
+  const env = await setup(t, { responder: (req) => {
+    if (req.endpoint.endsWith('/deployments')) return envelope({ deployments: [{ versions: [{ version_id: ID, percentage: 100 }] }] });
+    if (req.method === 'GET') return ++reads === 1 ? envelope({ bindings: currentBindings }) : error(500);
+    return envelope({});
+  } });
+  const answer = await env.execute('set_vars');
+  assert.equal(answer.status, 'vendor_error'); assert.match(answer.reason, /settings updated/); noValues(answer);
 });

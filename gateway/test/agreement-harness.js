@@ -325,6 +325,8 @@ function unmodelledKeyword(schema) {
     for (const k of UNMODELLED) if (Object.hasOwn(d, k)) return `${k} (nested)`;
     const inner = unmodelledKeyword(d.items);
     if (inner) return `${inner} (items)`;
+    const names = unmodelledKeyword(d.propertyNames);
+    if (names) return `${names} (propertyNames)`;
   }
   return null;
 }

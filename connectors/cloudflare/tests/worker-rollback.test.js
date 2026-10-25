@@ -147,11 +147,12 @@ test('d1_restore: confirmation names bookmark time and says every later change i
   assert.match(stop.summary, /Every change after that time is lost/);
   safe(stop); assert.deepEqual(env.calls, []);
 });
-test('d1_restore: POST bookmark as query, return new and previous bookmarks only', async (t) => {
-  const env = await setup(t), result = await env.execute('d1_restore');
-  assert.deepEqual(trace(env.calls), [['POST', d1Path() + '/restore']]);
-  assert.deepEqual(env.calls[0].parameters, [{ name: 'bookmark', value: BOOKMARK, type: 'query' }]);
-  assert.equal(env.calls[0].body, undefined);
+test('d1_restore: resolve checked timestamp then POST only its bookmark, return new and previous bookmarks only', async (t) => {
+  const env = await setup(t), input = restore(), result = await env.execute('d1_restore', input);
+  assert.deepEqual(trace(env.calls), [['GET', d1Path() + '/bookmark'], ['POST', d1Path() + '/restore']]);
+  assert.deepEqual(env.calls[0].parameters, [{ name: 'timestamp', value: input.bookmark_time, type: 'query' }]);
+  assert.deepEqual(env.calls[1].parameters, [{ name: 'bookmark', value: BOOKMARK, type: 'query' }]);
+  assert.equal(env.calls[0].body, undefined); assert.equal(env.calls[1].body, undefined);
   assert.deepEqual(result, { bookmark: NEW_BOOKMARK, previous_bookmark: BOOKMARK }); safe(result);
 });
 test('d1_restore: another database read cannot contaminate restore answer', async (t) => {
@@ -200,7 +201,7 @@ for (const field of ['bookmark', 'bookmark_time', 'window_days']) test(`d1_resto
 });
 for (const result of [{}, { bookmark: NEW_BOOKMARK }, { previous_bookmark: BOOKMARK }, { bookmark: TOKEN, previous_bookmark: BOOKMARK }, { bookmark: NEW_BOOKMARK, previous_bookmark: TOKEN }]) {
   test('d1_restore: incomplete or contaminated restore response reports submitted, never invents undo bookmark', async (t) => {
-    const env = await setup(t, { responder: () => envelope({ ...result, message: TOKEN + OTHER_BOOKMARK }) });
+    const env = await setup(t, { responder: (req) => req.method === 'GET' ? envelope({ bookmark: BOOKMARK }) : envelope({ ...result, message: TOKEN + OTHER_BOOKMARK }) });
     const answer = await env.execute('d1_restore');
     assert.equal(answer.status, 'vendor_error'); assert.match(answer.reason, /restore submitted/); safe(answer);
   });
@@ -263,4 +264,29 @@ test('get_worker: a sole version below 100 percent is not a rollback target', as
 for (const percentage of [TOKEN, null, -1, 101]) test('get_worker: malformed traffic percentage cannot leak vendor text', async (t) => {
   const env = await setup(t, { live: [{ version_id: VERSION, percentage }] });
   const result = await env.execute('get_worker', worker); assert.equal(result.status, 'vendor_error'); safe(result);
+});
+
+// The caller's time/window never authorizes a different bookmark.
+for (const window of [7, 30]) test(`d1_restore: fresh time with different bookmark on ${window}-day plan makes zero restore POSTs`, async (t) => {
+  const env = await setup(t), input = { ...restore(1 / 1440, window), bookmark: NEW_BOOKMARK };
+  const answer = await env.execute('d1_restore', input);
+  assert.equal(env.calls.filter((req) => req.method === 'POST').length, 0);
+  assert.equal(answer.status, 'invalid_arguments'); assert.equal(answer.field, 'bookmark');
+  assert.deepEqual(trace(env.calls), [['GET', d1Path() + '/bookmark']]);
+  assert.deepEqual(env.calls[0].parameters, [{ name: 'timestamp', value: input.bookmark_time, type: 'query' }]);
+  safe(answer);
+});
+for (const bookmark of [undefined, null, TOKEN, 'bad-bookmark', { bookmark: BOOKMARK }]) {
+  test('d1_restore: malformed timestamp bookmark makes zero restore POSTs', async (t) => {
+    const env = await setup(t, { responder: () => envelope({ bookmark }) });
+    const answer = await env.execute('d1_restore');
+    assert.equal(env.calls.filter((req) => req.method === 'POST').length, 0);
+    assert.equal(answer.status, 'vendor_error'); safe(answer);
+  });
+}
+test('d1_restore: account refuses checked timestamp despite supplied 30-day window; zero restore POSTs', async (t) => {
+  const env = await setup(t, { responder: () => failure(400) });
+  const answer = await env.execute('d1_restore', restore(20, 30));
+  assert.equal(env.calls.filter((req) => req.method === 'POST').length, 0);
+  assert.equal(answer.status, 'vendor_error'); safe(answer);
 });

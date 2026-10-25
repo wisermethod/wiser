@@ -440,9 +440,9 @@
             "properties": {
               "vars": {
                 "type": "object",
+                "description": "Plain-text Worker variables: each name one the signed release declares in vars_required; a name with a SECRET, TOKEN, PASSWORD, PASSWD, KEY, CREDENTIAL, CREDENTIALS or AUTHORIZATION segment is refused by the action, since a secret is never a plain variable.",
                 "propertyNames": {
-                  "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
-                  "not": { "pattern": "(^|_)(SECRET|TOKEN|PASSWORD|PASSWD|KEY|CREDENTIALS?|AUTHORIZATION)(_|$)" }
+                  "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
                 },
                 "additionalProperties": { "type": "string", "maxLength": 512 }
               },
@@ -580,7 +580,7 @@
           }
         },
         "set_vars": {
-          "description": "Set a subset of the signed release vars_required as plain-text variables on an existing Worker, without uploading code. Signature and exact format-2 shape are verified before any Cloudflare call. vars obeys the deploy name and 512 Unicode-character bounds; unlisted names are refused without echoing keys or values. Preserve every other binding by inheritance; refuse replacing a non-plain binding. The answer contains keys_set and the single active version_id read after the update; an unavailable single version is a vendor error.",
+          "description": "Set a non-empty subset of the signed release vars_required as plain-text variables on an existing Worker, without uploading code. Signature and exact format-2 shape are verified before any Cloudflare call. vars obeys the deploy name and 512 Unicode-character bounds; unlisted names are refused without echoing keys or values. Preserve every other binding by inheritance; refuse replacing a non-plain binding. Read back binding names and types, never values, and require every set key as plain_text. The answer contains keys_set and version_id only when a single version serves 100 percent of traffic after the update; otherwise report settings updated but unverified.",
           "privilege": "write",
           "risk": "high",
           "confirmation": "always",
@@ -608,11 +608,17 @@
               },
               "vars": {
                 "type": "object",
-                "propertyNames": {
-                  "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
-                  "not": {
-                    "pattern": "(^|_)(SECRET|TOKEN|PASSWORD|PASSWD|KEY|CREDENTIALS?|AUTHORIZATION)(_|$)"
+                "description": "Plain-text Worker variables: each name one the signed release declares in vars_required; a name with a SECRET, TOKEN, PASSWORD, PASSWD, KEY, CREDENTIAL, CREDENTIALS or AUTHORIZATION segment is refused by the action, since a secret is never a plain variable.",
+                "minProperties": 1,
+                "properties": {
+                  "ACCESS_AUD": {
+                    "type": "string",
+                    "maxLength": 512,
+                    "description": "Optional Access audience tag, allowed only when the signed release lists ACCESS_AUD in vars_required. Other listed plain-text names may be set independently."
                   }
+                },
+                "propertyNames": {
+                  "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
                 },
                 "additionalProperties": {
                   "type": "string",
@@ -789,7 +795,7 @@
           }
         },
         "d1_restore": {
-          "description": "Restore to the bookmark at the supplied bookmark_time. Every change after that time is lost. In-flight queries are cancelled. window_days must be the account plan window, 7 or 30 days; a valid UTC bookmark_time (Z, at most millisecond precision) in the future or older than that window or the API's 30 days is refused before any call, naming its age. Keep bookmark/time paired with this account/database; the API does not verify the supplied time or plan. Returns only new bookmark and previous_bookmark, which undoes this restore.",
+          "description": "Restore to the bookmark at the supplied bookmark_time. Every change after that time is lost. In-flight queries are cancelled. window_days must be the account plan window, 7 or 30 days; a valid UTC bookmark_time (Z, at most millisecond precision) in the future or older than that window or the API's 30 days is refused before any call, naming its age. The account plan window remains a caller fact. Returns only new bookmark and previous_bookmark, which undoes this restore. After local time/window checks, resolve bookmark_time through Cloudflare and refuse without a restore POST unless its returned bookmark equals bookmark; POST only that returned bookmark.",
           "privilege": "write",
           "risk": "high",
           "confirmation": "always",

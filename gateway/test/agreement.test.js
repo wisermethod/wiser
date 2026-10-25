@@ -20,7 +20,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { call, collectDivergences } from './agreement-harness.js';
+import { call, collectDivergences, schemaViolation } from './agreement-harness.js';
 
 const BASELINE = JSON.parse(readFileSync(new URL('./agreement-baseline.json', import.meta.url), 'utf8'));
 
@@ -56,4 +56,28 @@ test('every connector action agrees with its own published schema, in both direc
 
   assert.deepEqual(fixed, [],
     'these divergences are fixed. Delete their rows from agreement-baseline.json in the same commit; the baseline only ever shrinks.');
+});
+
+test('agreement reports unmodelled not under propertyNames just as under items', () => {
+  for (const container of ['items', 'propertyNames']) {
+    const schema = { type: 'object', properties: { vars: { [container]: { not: { pattern: 'SECRET' } } } } };
+    assert.equal(schemaViolation(schema, { vars: {} }), `unmodelled:not (${container})`);
+  }
+});
+test('agreement sees a vars propertyNames rule in its own fixture schema', () => {
+  const schema = {
+    type: 'object',
+    properties: {
+      vars: {
+        type: 'object',
+        propertyNames: { pattern: '^[A-Z][A-Z0-9_]*$', not: { pattern: 'SECRET' } },
+        additionalProperties: { type: 'string' },
+      },
+    },
+    required: ['vars'],
+    additionalProperties: false,
+  };
+  for (const input of [{}, { vars: { ACCESS_AUD: 'fixture-audience' } }]) {
+    assert.equal(schemaViolation(schema, input), 'unmodelled:not (propertyNames)');
+  }
 });

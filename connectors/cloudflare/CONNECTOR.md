@@ -192,7 +192,7 @@ fake-provider tests; their live and hosted behavior remains unverified.
 
 `workers.set_vars` takes `account_id`, `script_name`, release `app` and `version`, and
 `vars`. It shares deploy's signature-first verification and exact format-2 shape
-check, fetching only the manifest and signature. Names must be a subset of that
+check, fetching only the manifest and signature. Names must be a non-empty subset of that
 signed release's `vars_required`; callers cannot supply an allowlist. The deploy's
 non-secret uppercase-name rule and 512 Unicode-character value limit apply.
 Unlisted names are refused before any Cloudflare call; refusals echo neither
@@ -205,8 +205,11 @@ whose contents are unreadable, following Wrangler's
 [settings read](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/script_and_version_settings/methods/get/)
 supplies those names. No code is uploaded. The PATCH reference does not specify a
 resulting version id, so the action reads [the active deployment](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/deployments/methods/list/) afterward and
-returns only `keys_set` and its single `version_id`. Multiple or missing active
-versions produce a vendor error saying the settings were updated. This reports
+requires one version serving 100 percent of traffic, then re-reads binding names
+and types without inspecting values. Every key in `keys_set` must appear as
+`plain_text`; other bindings are not confirmed. It returns only `keys_set` and
+`version_id`. Missing keys, non-plain types, or an unconfirmed deployment produce
+a vendor error saying the settings were updated. This reports
 the post-update active version using Wrangler's `fetchLatestDeployment` and
 `fetchDeploymentVersions` reading, rather than attributing an undocumented id to
 the PATCH. A
@@ -276,13 +279,18 @@ accept the documented lowercase hex spelling, three eight-digit groups then one
 Before any provider call it parses `bookmark_time` as a valid UTC date-time ending
 in `Z`, with up to three fractional digits, refuses a future time, and refuses an
 age greater than the supplied window or 30 days, reporting the age in days.
-The plan and the bookmark/time pairing are caller facts; this endpoint does not
-verify them. A bookmark can still be unavailable or rate limited at Cloudflare.
+The plan window remains a caller fact. After those local checks, it resolves
+`bookmark_time` through [Get D1 database bookmark](https://developers.cloudflare.com/api/resources/d1/subresources/database/subresources/time_travel/methods/get_bookmark/)
+with a `timestamp` query parameter and refuses without a restore POST unless
+Cloudflare's bookmark equals the caller's `bookmark`. A failed or malformed lookup
+also makes no restore POST. A bookmark can still be unavailable or rate limited
+at Cloudflare.
 Its confirmation names `bookmark_time` and says every change after that time is
 lost; restoring overwrites the database in place and cancels in-flight queries.
 [Restore D1 Database](https://developers.cloudflare.com/api/resources/d1/subresources/database/subresources/time_travel/methods/restore/)
 is `POST .../time_travel/restore` with a `bookmark` query parameter, no SQL or JSON
-body. This matches Wrangler's `handleRestore`. The result contains only the new
+body, using only the bookmark returned by that lookup. This matches Wrangler's
+`getBookmarkIdFromTimestamp` and `handleRestore`. The result contains only the new
 `bookmark` and `previous_bookmark`, which can undo this restore. Missing either
 is a named vendor error saying the restore was submitted, never an invented undo
 point. Retain the previous bookmark with the same database and the local time
