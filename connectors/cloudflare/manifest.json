@@ -369,6 +369,220 @@
       "unwrap_token": false,
       "fallback": "catalog"
     },
+    "access": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "CLOUDFLARE_API_KEY",
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "actions": {
+        "create_app": {
+          "description": "Create a self-hosted Access application for one hostname with reusable policy ids, after reading the Zero Trust organization and refusing any existing covering or unresolved application. Token-shaped text is refused.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{32}$"
+              },
+              "hostname": {
+                "type": "string",
+                "maxLength": 253,
+                "pattern": "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_-]{40}))[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100,
+                "pattern": "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_-]{40}))[^\\u0000-\\u001f\\u007f]+$"
+              },
+              "policy_ids": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 50,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              }
+            },
+            "required": [
+              "account_id",
+              "hostname",
+              "name",
+              "policy_ids"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "create_policy": {
+          "description": "Create a reusable Allow policy with 1 to 50 emails, or a Service Auth (non_identity) policy with one existing service token id, exactly one shape. Reads the organization first; never creates a service token. Token-shaped text is refused.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{32}$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100,
+                "pattern": "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_-]{40}))[^\\u0000-\\u001f\\u007f]+$"
+              },
+              "decision": {
+                "type": "string",
+                "enum": [
+                  "allow",
+                  "non_identity"
+                ]
+              },
+              "emails": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 50,
+                "items": {
+                  "type": "string",
+                  "maxLength": 254,
+                  "pattern": "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_-]{40}))[^\\s@\\u0000]+@[^\\s@\\u0000]+$"
+                }
+              },
+              "service_token_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              }
+            },
+            "required": [
+              "account_id",
+              "name",
+              "decision"
+            ],
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "required": [
+                  "decision",
+                  "emails"
+                ],
+                "properties": {
+                  "decision": {
+                    "enum": [
+                      "allow"
+                    ]
+                  },
+                  "service_token_id": false
+                }
+              },
+              {
+                "required": [
+                  "decision",
+                  "service_token_id"
+                ],
+                "properties": {
+                  "decision": {
+                    "enum": [
+                      "non_identity"
+                    ]
+                  },
+                  "emails": false
+                }
+              }
+            ]
+          }
+        },
+        "set_staff": {
+          "description": "Add or remove exactly one email in a reusable Allow policy after reading the organization and policy; refuse the last email removal. Reads back and returns emails before and after. Refuses non-email includes or unsupported policy settings rather than overwriting them. Token-shaped text is refused.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{32}$"
+              },
+              "policy_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "add": {
+                "type": "string",
+                "maxLength": 254,
+                "pattern": "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_-]{40}))[^\\s@\\u0000]+@[^\\s@\\u0000]+$"
+              },
+              "remove": {
+                "type": "string",
+                "maxLength": 254,
+                "pattern": "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_-]{40}))[^\\s@\\u0000]+@[^\\s@\\u0000]+$"
+              }
+            },
+            "required": [
+              "account_id",
+              "policy_id"
+            ],
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "required": [
+                  "add"
+                ],
+                "properties": {
+                  "remove": false
+                }
+              },
+              {
+                "required": [
+                  "remove"
+                ],
+                "properties": {
+                  "add": false
+                }
+              }
+            ]
+          }
+        },
+        "get_app": {
+          "description": "Read a self-hosted Access application hostname, reusable policy ids and audience tag. Refuses an ambiguous or malformed application rather than returning provider data.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{32}$"
+              },
+              "app_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              }
+            },
+            "required": [
+              "account_id",
+              "app_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
     "workers": {
       "release_hosts": ["releases.example.test"],
       "auth": {
