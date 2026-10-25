@@ -11,7 +11,7 @@ ffprobe -version
 node scripts/video-render.js check
 ```
 
-Node must print 22 or later; `ffmpeg` and `ffprobe` must exit 0. `check` surveys all of them, the installed HyperFrames version and a headless trial launch of its pinned Chrome, and installs nothing. Its `ready` is true only when every part holds. When a program is missing, follow `standards/script-contract.md` System dependencies: read the program's own current documentation, run what the host can run, and hand the person only the smallest step it cannot. Machine-level changes need the person's approval. Install walkthroughs are not kept here.
+Node must print 22 or later; `ffmpeg` and `ffprobe` must exit 0. `check` surveys Node, FFmpeg, ffprobe, the installed HyperFrames version and a headless trial launch of its pinned Chrome, and installs nothing. Its `ready` is true only when every part holds. When a program is missing, follow `standards/script-contract.md` System dependencies: read the program's own current documentation, run what the host can run, and hand the person only the smallest step it cannot. Machine-level changes need the person's approval. Install walkthroughs are not kept here.
 
 ## 2. Packages and the pinned Chrome
 

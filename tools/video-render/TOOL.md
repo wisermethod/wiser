@@ -10,7 +10,7 @@ gaps:
 
 # video-render
 
-One run turns one local page into video frames: a picture-only MP4 in one of two profiles, a numbered PNG sequence, or stills at named times. The same inputs give the same bytes on this machine.
+One run turns one local page into video frames: a picture-only MP4 in one of two profiles, a numbered PNG sequence, or stills at named times. The same inputs give the same decoded frames on this machine, and a cache hit gives the same bytes.
 
 ## Context
 
@@ -18,7 +18,7 @@ Use it when an HTML animation has to become a video file frame for frame: an exp
 
 Not for a still of a page, which is `tools/render/`. Not for editing a recording that exists, which is `tools/video-edit/`. Not for sound: it writes picture only, and narration, music, loudness and joining are the caller's, `tools/video-edit/` among them. Not for a page that animates on the browser's own clock, since its frames would depend on how fast the machine draws: the page answers this tool's seek, under The project below. Not for generating imagery, which is `skills/Media Generator/`.
 
-It authenticates to nothing and reads no credential. After its install, a render reaches no other origin: the screen below refuses one where the page would load it, and the browser it launches reaches only this machine.
+It authenticates to nothing and reads no credential. After its install, a render reaches no other origin: the screen in The project refuses one where the page would load it, and the browser it launches reaches only this machine.
 
 Classifier seam: none.
 
@@ -29,8 +29,8 @@ This section is the one home of what a page must be for this tool to render it.
 - **One directory**, absolute, holding `index.html` and every file the page loads, as local files.
 - **One root.** `index.html` has exactly one element carrying `data-video-root`, laid out at the frame's size in CSS pixels. The tool sets the renderer's own attributes on that element in its copy of the project; a page carries none of them.
 - **The seek.** On every frame the tool dispatches, on `window`, a `CustomEvent` named `video-render:seek` whose `detail.time` is the frame's time in seconds: frame n shows time n / fps. The page's listener sets the frame for that time before it returns. Frames are drawn in any order and split across several browser processes, so a frame depends on its time alone, never on an earlier seek, the browser's clock, or `requestAnimationFrame` and timers, which do not advance between seeks.
-- **Nothing animating at capture.** A page that drives CSS transitions or animations from the seek sets them to the time and freezes them into its elements' styles before returning, as `skills/Animated Explainer/`'s two engines do on their render clock. A page that seeks a library's own timeline seeks it to the time. Neither uses `element.animate()` for motion the frame depends on.
-- **Nothing from another origin.** A value that loads, in `src`, `href`, `xlink:href`, `srcset`, `poster`, `data`, an inline `style`'s `url(...)`, or a stylesheet's `url(...)` and `@import`, may not name another origin: a scheme other than `data:` or `blob:`, or `//`. A refusal names the file, the attribute or rule, and the value. An XML namespace and a script's text are not screened; the browser itself reaches nothing but this machine.
+- **Nothing animating at load or at capture.** A page that drives CSS transitions or animations from the seek sets them to the time and freezes them into its elements' styles before returning, as `skills/Animated Explainer/`'s two engines do on their render clock, and a page that seeks a library's own timeline seeks it to the time and writes styles, as GSAP does. A page leaves no CSS animation or Web Animation running or paused at load or when its listener returns: the renderer's own adapters re-time any they find by their own clock, so the frame would not be the page's, measured on HyperFrames 0.8.134. The browser runs with reduced motion forced off, so a page's motion rules always apply.
+- **Nothing from another origin.** A value that loads may not name another origin, a scheme other than `data:` or `blob:`, or `//`: in `src`, `href`, `xlink:href`, `srcset`, `poster`, `data`, `action`, `formaction`, `background` and `ping`; in any attribute or stylesheet's `url(...)`, `@import` and `image-set()`; in a refresh's URL; in an `iframe`'s `srcdoc`; and in the content of a `data:` URL holding CSS, HTML or SVG, to three levels. A refusal names the file, the attribute or rule, and the value. An XML namespace and a script's text are not screened; the browser itself reaches nothing but this machine.
 - **A library is the page's own.** The tool installs no animation, 3D or font library for a page; a page that uses one carries its local copy and that library's own terms.
 
 ## Quick Start
@@ -66,14 +66,14 @@ Every path is absolute. Every output path is new, outside this tool's directory 
 |---------|----------------|
 | `help` | Nothing |
 | `check [--install]` | Nothing without `--install`; with it, the install |
-| `sequence --project <dir> --output <dir> --width N --height N --fps N --duration S` | A new directory holding `frames/frame_000001.png` onward, `frames/frames.sha256` (one SHA-256 of each frame's decoded RGBA pixels) and `render.log` |
+| `sequence --project <dir> --output <dir> --width N --height N --fps N --duration S` | A new directory holding `frames/frame_000001.png` onward, the first being frame 0, `frames/frames.sha256` (one SHA-256 of each frame's decoded RGBA pixels) and `render.log` |
 | `render --project <dir> --output <file.mp4> --width N --height N --fps N --duration S [--profile publish\|intermediate] [--frame-hashes <file>] [--cache <dir>]` | The MP4, and only with `--frame-hashes` its decoded-frame hash list; with `--cache`, an entry in that directory |
 | `frames --project <dir> --output <dir> --width N --height N --fps N --duration S --times T1,T2,...` | A new directory with one PNG per frame named and `frames.json` |
 
 `sequence`, `render` and `frames` also take `--workers N|auto` (default `auto`), `--gpu hardware|software` (default `hardware`), `--capture screenshot|fast` (default `screenshot`) and `--install`. Each command answers `help` and `--help` before any dependency check, its help lists every flag, and an unknown flag is refused by name.
 
 - **Frame count.** Every output holds exactly round(duration × fps) frames.
-- **`frames`.** A time names frame floor(t × fps), the last frame drawn at or before it; a time at or past the end names the last frame. At most 60 times, none twice.
+- **`frames`.** A time names frame floor(t × fps), the last frame drawn at or before it; a time at or past the end names the last frame. At most 60 times, none twice. Its files are named by frame number from 0, `frame_000000.png` for frame 0; read each still's file from `frames.json`.
 
 ## Profiles
 
@@ -105,16 +105,16 @@ Success is one JSON object on stdout and exit 0; failure is stderr only, stdout 
 
 | Command | Fields |
 |---------|--------|
-| `check` | `node`, `ffmpeg`, `hyperframes`, `chrome` (`build`, `launches`, and on a failure `failure` and `remediation`), `ready` |
+| `check` | `node`, `ffmpeg`, `ffprobe`, `hyperframes`, `chrome` (`build`, `launches`, and on a failure `failure` and `remediation`), `ready` |
 | `sequence` | `hyperframesVersion`, `chromeBuild`, `gpu`, `capture`, `frameCount`, `hashesPath`, `hashesSha256`, `logPath`, `lintFindings`, `seconds` |
-| `render` | the above but the sequence's paths, which are temporary and null, plus `output`, `profile`, `bytes`, `sha256`, `checks`, `sequenceHashesSha256`, `cache` (`hit`, `miss` or `off`), `key`, and on a replaced entry the reason |
+| `render` | the above, `hashesPath` being the `--frame-hashes` file when that flag is set and null otherwise, `logPath` null since the sequence is temporary, plus `output`, `profile`, `bytes`, `sha256`, `checks`, `sequenceHashesSha256`, `cache` (`hit`, `miss` or `off`), `key`, and on a replaced entry the reason |
 | `frames` | the above, `output`, and `frames`: for each requested time, `requestedTime`, `frame`, `time`, `file` and `sha256` |
 
 `lintFindings` repeats what HyperFrames' own lint printed. A page whose motion is driven from the seek draws its `css_transition_used` warning, which is expected there: the transitions are set to the time on every frame. This tool never renders with HyperFrames' strict lint.
 
 ## Script Contract
 
-`scripts/video-render.js` is the only entry point; the other modules are its implementation. It follows `system/templates/Script Contract.md`; the governing standard is `standards/script-contract.md`, and the user's running contract is `tools/RUNNING.md`. Help and flag refusals come before any dependency check. Paths are canonicalised, compared by device and inode, and refused inside this tool's directory, inside the project, beside a credential file, or under a memory directory. Every write it makes is listed in `tools/AGENTS.md`.
+`scripts/video-render.js` is the only entry point; the other modules are its implementation. It follows `system/templates/Script Contract.md`; the governing standard is `standards/script-contract.md`, and the user's running contract is `tools/RUNNING.md`. Help and flag refusals come before any dependency check. Paths are canonicalised, compared by device and inode, and refused inside this tool's directory, inside the project, under a `memory` directory, or where a name is `.env`, `.env.*`, `*.env` or `credentials.json`; a project holding such a file is refused before any of its files is read. Every write it makes is listed in `tools/AGENTS.md`.
 
 ## Troubleshooting
 
@@ -124,6 +124,8 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 |---------|-------|-----|
 | `Node … is too old; video-render requires Node >=22` | An older Node is first on `PATH` | Put Node 22 or later first on `PATH`, per Dependencies |
 | `FFmpeg is missing or cannot run` | No `ffmpeg` on `PATH` | Make `ffmpeg -version` succeed, per Dependencies |
+| `check` reports `ffprobe.present: false` | No `ffprobe` on `PATH`; `render` reads every MP4 back with it | Make `ffprobe -version` succeed, per Dependencies |
+| `… is a protected memory, .env or credential path` | A path, or a file in the project, is under a `memory` directory or is named `.env`, `.env.*`, `*.env` or `credentials.json` | Move the file out of the project, or name another path; the tool reads none of them |
 | `index.html has N data-video-root elements` | The page marks no root, or more than one | Mark exactly one element at the frame's size |
 | `Project file … references …` | A loading attribute or rule names another origin | Copy that asset into the project and refer to it locally |
 | `HyperFrames wrote N frames; expected …` | The render stopped early, or the page failed to load | Read `render.log` in the run's output for the page's error, fix it, and render to a new path |
@@ -133,7 +135,7 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 ## Success
 
 - `help` prints usage, exits 0, and installs nothing on a copy with no `node_modules/`.
-- `check` exits 0 with one JSON object whose `ready` is true only when Node, FFmpeg, HyperFrames 0.8.134 and the pinned Chrome's launch all hold.
+- `check` exits 0 with one JSON object whose `ready` is true only when Node, FFmpeg, ffprobe, HyperFrames 0.8.134 and the pinned Chrome's launch all hold.
 - `render` writes one MP4 at `--output` that passed every check its profile names, and its JSON names the frame count, the SHA-256 and whether the cache hit.
 - Two runs of the same project with the same flags give the same decoded frames.
 - A project naming another origin where it loads is refused before anything renders, and a render reaches no other origin.
