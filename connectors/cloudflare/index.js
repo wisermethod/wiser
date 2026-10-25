@@ -2346,7 +2346,7 @@ function checkPagesRead(input, withDomain) {
 // Access uses the same proxy toolkit as Workers. Only numeric diagnostics cross
 // a failed request: a provider body, thrown message or organization can hold keys.
 const ACCESS_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const ACCESS_TOKEN_SHAPE = /eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+|[A-Za-z0-9_-]{40}/;
+const ACCESS_TOKEN_SHAPE = /eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}/;
 const accessEmail = (v) => typeof v === 'string' && [...v].length <= 254
   && /^[^\s@\u0000]+@[^\s@\u0000]+$/.test(v) && !ACCESS_TOKEN_SHAPE.test(v);
 const accessName = (v) => typeof v === 'string' && [...v].length >= 1 && [...v].length <= 100
@@ -2402,10 +2402,56 @@ async function accessDuplicate(input, ctx) {
     else return { ...accessVendor(req), reason: 'Access application listing incomplete; duplicate hostname could not be ruled out.' };
   }
 }
+// Only the two rule shapes create_policy writes can protect a new app.
+// https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/policies/methods/get/
+function accessPolicyProblem(policy) {
+  if (!asObject(policy) || !['allow', 'non_identity'].includes(policy.decision)) return 'decision must be allow or non_identity.';
+  for (const field of ['exclude', 'require']) {
+    if (Object.hasOwn(policy, field) && (!Array.isArray(policy[field]) || policy[field].length !== 0)) return `${field} must be absent or an empty array.`;
+  }
+  const email = policy.decision === 'allow';
+  if (!Array.isArray(policy.include) || policy.include.length < 1 || policy.include.length > (email ? 50 : 1)) {
+    return email ? 'Allow include must contain 1 to 50 explicit emails.' : 'Service Auth include must contain exactly one service token id.';
+  }
+  for (const rule of policy.include) {
+    if (!asObject(rule) || Object.keys(rule).length !== 1) return 'include must contain only the supported rule key.';
+    const value = email ? rule.email : rule.service_token;
+    if (!asObject(value) || Object.keys(value).length !== 1
+      || (email ? !accessEmail(value.email) : typeof value.token_id !== 'string' || !ACCESS_UUID.test(value.token_id))) {
+      return email ? 'Allow include must contain only explicit email rules.' : 'Service Auth include must contain only one service_token rule with a token_id UUID.';
+    }
+  }
+  return null;
+}
+function accessPolicyRefusal(policyId, reason, req) {
+  const id = typeof policyId === 'string' && ACCESS_UUID.test(policyId) ? policyId : null;
+  return { ...accessVendor(req), ...(id ? { policy_id: id } : {}), reason: `Policy ${id || '(unidentified)'}: ${reason}` };
+}
 function accessAppResult(app, req, detail) {
   if (!asObject(app) || !ACCESS_UUID.test(app.id) || typeof app.aud !== 'string' || !/^[0-9a-f]{64}$/.test(app.aud)) return accessVendor(req);
   const out = { success: true, id: app.id, aud: app.aud };
-  if (!detail) return out;
+  if (!detail) {
+    // The application-create response embeds policy details; links alone cannot
+    // confirm what was attached after the preflight read.
+    // https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/methods/create/
+    if (!Array.isArray(app.policies) || app.policies.length < 1 || app.policies.length > 50) {
+      return { ...accessVendor(req), reason: 'Application policies must contain 1 to 50 checked policy details.' };
+    }
+    for (const policy of app.policies) {
+      const problem = accessPolicyProblem(policy);
+      if (problem) return accessPolicyRefusal(policy?.id, problem, req);
+    }
+    return out;
+  }
+  // A public path override skips authentication even when the main URI matches.
+  // https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/methods/get/
+  if (Array.isArray(app.destinations) && app.destinations.some((destination) => Array.isArray(destination?.overrides) && destination.overrides.length > 0)) {
+    return { ...accessVendor(req), reason: 'Application destination overrides can bypass Access authentication for a path.' };
+  }
+  if (Array.isArray(app.policies) && app.policies.some((policy) => asObject(policy) && Object.hasOwn(policy, 'decision')
+    && !['allow', 'non_identity'].includes(policy.decision))) {
+    return { ...accessVendor(req), reason: 'Embedded policy decision must be allow or non_identity.' };
+  }
   if (app.type !== 'self_hosted' || !accessHostname(app.domain)) return accessVendor(req);
   const hostname = app.domain.toLowerCase();
   if (app.destinations !== undefined && (!Array.isArray(app.destinations) || app.destinations.length !== 1
@@ -2738,6 +2784,13 @@ export const modules = {
       if (team) return team;
       const duplicate = await accessDuplicate(input, ctx);
       if (duplicate) return duplicate;
+      for (const id of input.policy_ids) {
+        const policyReq = { endpoint: `${accessPath(input.account_id)}/policies/${encodeURIComponent(id)}`, method: 'GET' };
+        const policy = await accessRequest(ctx, policyReq);
+        if (policy.error) return policy.error;
+        const problem = accessPolicyProblem(policy.result);
+        if (problem) return accessPolicyRefusal(id, problem, policyReq);
+      }
       const req = { endpoint: `${accessPath(input.account_id)}/apps`, method: 'POST', body: {
         type: 'self_hosted', domain: input.hostname.toLowerCase(), name: input.name,
         destinations: [{ type: 'public', uri: input.hostname.toLowerCase() }],

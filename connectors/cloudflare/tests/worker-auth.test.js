@@ -23,3 +23,26 @@ test('workers auth row names the permission for every action and cites bookmark 
   assert.ok(row.includes('Workers product scope') && row.includes('Account / Workers Scripts / Read and Edit'));
   assert.match(row, /https:\/\/developers\.cloudflare\.com\/workers\/authorization\/workers\//);
 });
+
+test('fix2 access auth row covers app read, three writes and organization read without service-token writes', () => {
+  const guide = readFileSync(new URL('../auth.md', import.meta.url), 'utf8');
+  const access = guide.split('\n').find((line) => line.startsWith('| `access` |'));
+  assert.ok(access, 'access permission row must exist');
+  assert.match(access, /`get_app` needs Account \/ Access: Apps and Policies \/ Read or Write/);
+  for (const action of ['create_app', 'create_policy', 'set_staff']) assert.ok(access.includes('`' + action + '`'));
+  assert.match(access, /`create_app`, `create_policy` and `set_staff` need Account \/ Access: Apps and Policies \/ Write/);
+  assert.match(access, /Account \/ Access: Organizations, Identity Providers, and Groups \/ Read/);
+  // The explicit exclusion is allowed; no affirmative permission clause may request it.
+  assert.match(access, /No Service Tokens Write permission is needed/);
+  assert.doesNotMatch(access.replace('No Service Tokens Write permission is needed', ''), /Service Tokens.*(?:Write|Edit)/i);
+});
+test('fix2 auth one-token paragraph names six modules including Access', () => {
+  const guide = readFileSync(new URL('../auth.md', import.meta.url), 'utf8');
+  const paragraph = guide.split('\n').find((line) => line.startsWith('**One token, pasted once'));
+  assert.match(paragraph, /all six modules/); assert.match(paragraph, /other five/); assert.match(paragraph, /Access/);
+});
+test('fix2 auth gateway step names six modules including Access', () => {
+  const guide = readFileSync(new URL('../auth.md', import.meta.url), 'utf8');
+  const step = guide.split('## Through the gateway')[1].split('\n').find((line) => line.startsWith('1.'));
+  assert.match(step, /six modules/); assert.match(step, /Connect Cloudflare Access/);
+});
