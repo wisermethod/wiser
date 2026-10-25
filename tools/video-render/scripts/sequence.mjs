@@ -12,6 +12,11 @@ export const BROWSER_SWITCHES = Object.freeze([
   '--proxy-server=http://127.0.0.1:9',
   '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE localhost , EXCLUDE 127.0.0.1',
   '--force-prefers-no-reduced-motion',
+  // Raster on the CPU, every changed tile in full. Measured on Chrome 152: the GPU raster, and a tile redrawn only
+  // where it changed, each made a frame depend on what its render worker had drawn before, so the frames of one
+  // project differed by how the run was split; with both switches every split draws the same frames.
+  '--disable-gpu-rasterization',
+  '--disable-partial-raster',
 ]);
 
 async function exists(path) {

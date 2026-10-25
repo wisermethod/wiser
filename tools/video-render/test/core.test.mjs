@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import test from 'node:test';
 import { compositionHtml, inspectProject, openingTags, remoteReference } from '../scripts/project.mjs';
-import { browserPath, canonical, checkRuntime, childEnvironment, hashFrames, hyperframesDuration, optionsForSequence, readRenderLog, renderArguments, TOOL_DIR } from '../scripts/sequence.mjs';
+import { BROWSER_SWITCHES, browserPath, canonical, checkRuntime, childEnvironment, hashFrames, hyperframesDuration, optionsForSequence, readRenderLog, renderArguments, TOOL_DIR } from '../scripts/sequence.mjs';
 import { parseArguments } from '../scripts/video-render.js';
 
 const cli = join(TOOL_DIR, 'scripts/video-render.js');
@@ -178,10 +178,10 @@ test('real HyperFrames sequence has sixteen frames, stable pixels across workers
   const { default: sharp } = await import('sharp');
   const home = join(path, 'home');
   await mkdir(home);
-  // Match HyperFrames 0.8.134's text shaping, device scale and hardware rasterizer.
+  // Match HyperFrames 0.8.134's text shaping, device scale and GPU compositing, and the tool's own rasterizer.
   const angle = { darwin: 'metal', win32: 'd3d11', linux: 'gl-egl' }[process.platform];
   const referenceArgs = ['--disable-background-networking', '--force-device-scale-factor=1', '--font-render-hinting=none',
-    '--enable-gpu-rasterization', ...(angle ? ['--use-gl=angle', `--use-angle=${angle}`] : [])];
+    ...BROWSER_SWITCHES.filter((flag) => /raster/.test(flag)), ...(angle ? ['--use-gl=angle', `--use-angle=${angle}`] : [])];
   const browser = await puppeteer.launch({ executablePath: await browserPath(), headless: true,
     env: childEnvironment(home, await browserPath()), userDataDir: join(home, 'profile'),
     defaultViewport: { width: 640, height: 360 }, args: referenceArgs });

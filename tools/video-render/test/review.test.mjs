@@ -289,3 +289,27 @@ test('a project holding a credential file deep in its tree is refused before any
   }
   await assert.rejects(inspectProject(project), /EACCES/, 'the control: with no credential file, the unreadable file is read');
 });
+
+test('the render browser rasterizes on the CPU and redraws every changed tile in full', () => {
+  assert.ok(BROWSER_SWITCHES.includes('--disable-gpu-rasterization'));
+  assert.ok(BROWSER_SWITCHES.includes('--disable-partial-raster'));
+});
+
+test('a counted figure draws the same frames at one worker and four', { timeout: 240_000 }, async (t) => {
+  // A worker opens the page fresh at its own first frame. On Chrome 152 the GPU raster and partial tile redraws each
+  // made that history show in the pixels: this figure differed on 119 of 150 frames with neither switch, and on one,
+  // the first a worker drew mid-count, with only the CPU raster.
+  const path = await scratch(t), project = join(path, 'project');
+  await cp(fileURLToPath(new URL('./fixtures/counted/', import.meta.url)), project, { recursive: true });
+  const once = fileURLToPath(new URL('../../../skills/Animated Explainer/starters/once/', import.meta.url));
+  for (const file of ['once.js', 'once.css']) await cp(join(once, file), join(project, file));
+  const hashes = async (workers) => {
+    const report = await sequence({ project, output: join(path, `w${workers}`), width: 1280, height: 720, fps: 25, duration: 6, workers });
+    assert.equal(report.frameCount, 150);
+    return (await readFile(report.hashesPath, 'utf8')).trim().split('\n').map((line) => line.slice(0, 64));
+  };
+  const one = await hashes(1), four = await hashes(4);
+  const differing = one.map((hash, i) => (hash === four[i] ? null : i)).filter((i) => i !== null);
+  assert.deepEqual(differing, [], `frames differing between one worker and four: ${differing.join(', ')}`);
+  assert.ok(new Set(one).size > 10, 'the figure must move');
+});

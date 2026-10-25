@@ -93,11 +93,11 @@ Before an MP4 is given its name, `render` reads it back: its frame count; one vi
 - the profile and its full encoder arguments, the browser's switches, and the SHA-256 of the script that carries the seek to the page;
 - every project file's path and SHA-256.
 
-The number of workers is not in the key, since the frames do not depend on it. A hit re-hashes the cached MP4 against its record before it is used. A mismatch, or a record that cannot be read, is a miss that replaces the entry, and the result says why. A change to one scene of a video therefore re-renders that scene alone.
+The number of workers is not in the key, since the frames do not depend on it, for a page that draws each frame from its time alone (`## Same frames, and their scope`). A hit re-hashes the cached MP4 against its record before it is used. A mismatch, or a record that cannot be read, is a miss that replaces the entry, and the result says why. A change to one scene of a video therefore re-renders that scene alone.
 
 ## Same frames, and their scope
 
-On one machine, with one GPU mode and one Chrome build, the same project gives the same decoded frames on every run, however the work is split across workers. The defaults are the modes the measured proofs ran: the hardware GPU and screenshot capture. Fast capture and the software GPU draw frames that differ from them, so a frame hash recorded in one mode holds only in that mode. Another machine is not promised the same bytes. A reference set made for comparing frames is made again whenever the machine, the mode or the Chrome changes.
+On one machine, with one GPU mode and one Chrome build, the same project gives the same decoded frames on every run, however the work is split across workers. Each worker opens the page fresh and starts at its own first frame, so this holds where the page draws every frame from its time alone, as both of Animated Explainer's engines do; a page whose own script carries state from one seek to the next draws differently by split. The browser rasterizes on the CPU and redraws every changed tile in full, since the GPU raster and partial redraws each made a frame depend on what its worker had drawn before (measured on Chrome 152, a counted figure at 1,280×720 differing on 119 of 150 frames between one worker and four). The defaults are the modes the measured proofs ran: the hardware GPU for compositing and screenshot capture. Fast capture and the software GPU draw frames that differ from them, so a frame hash recorded in one mode holds only in that mode. Another machine is not promised the same bytes. A reference set made for comparing frames is made again whenever the machine, the mode or the Chrome changes.
 
 ## Output
 
