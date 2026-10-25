@@ -5,6 +5,13 @@ import { extname } from 'node:path';
 const APP = /^[a-z0-9](?:[a-z0-9-]{0,40}[a-z0-9])?$/;
 const VERSION = /^(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})$/;
 const HASH = /^[0-9a-f]{64}$/;
+const COMMIT = /^[0-9a-f]{40}$/;
+const VAR_NAME = /^[A-Z][A-Z0-9_]{0,63}$/;
+const SECRET_NAME = /(?:^|_)(?:SECRET|TOKEN|PASSWORD|PASSWD|KEY|CREDENTIALS?|AUTHORIZATION)(?:_|$)/;
+const plainName = (name) => string(name, VAR_NAME) && !SECRET_NAME.test(name);
+const MODULE_TYPES = { '.js': 'application/javascript+module', '.mjs': 'application/javascript+module',
+  '.cjs': 'application/javascript', '.wasm': 'application/wasm', '.txt': 'text/plain',
+  '.html': 'text/plain', '.bin': 'application/octet-stream' };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const BINDING = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
 const LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
@@ -19,6 +26,8 @@ const string = (v, pattern) => typeof v === 'string' && pattern.test(v);
 const shape = (v, required, optional = []) => object(v)
   && required.every((key) => Object.hasOwn(v, key))
   && Object.keys(v).every((key) => required.includes(key) || optional.includes(key));
+// Format 2 fixes both the field set and its serialization order.
+const orderedShape = (v, keys) => shape(v, keys) && keys.every((key, i) => Object.keys(v)[i] === key);
 const before = (reason, extra = {}) => ({ status: 'invalid_arguments', field: 'release', reason, stage: 'before upload', ...extra });
 const bodyBytes = (form) => 4 * Math.ceil(form.body.length / 3);
 
@@ -59,63 +68,69 @@ function releaseConfig() {
   try { config = JSON.parse(readFileSync(new URL('./release.json', import.meta.url), 'utf8')); }
   catch (err) { return { error: before(`release.json is ${err.code === 'ENOENT' ? 'missing' : 'malformed'}`) }; }
   let hosts;
-  try { hosts = JSON.parse(readFileSync(new URL('./manifest.json', import.meta.url), 'utf8')).modules.pages.release_hosts; }
+  try { hosts = JSON.parse(readFileSync(new URL('./manifest.json', import.meta.url), 'utf8')).modules.workers.release_hosts; }
   catch { return { error: before('release.json base host is not in release_hosts') }; }
   if (!validReleaseConfig(config, hosts)) return { error: before('release.json is malformed or its base host is not in release_hosts') };
   return { config };
 }
 
 function assetsConfig(config) {
-  if (!shape(config, [], ['html_handling', 'not_found_handling', 'run_worker_first', 'serve_directly', '_headers', '_redirects', 'base_path'])) return false;
-  for (const [key, value] of Object.entries(config)) {
-    if (key === 'html_handling' && !['auto-trailing-slash', 'force-trailing-slash', 'drop-trailing-slash', 'none'].includes(value)) return false;
-    if (key === 'not_found_handling' && !['none', '404-page', 'single-page-application'].includes(value)) return false;
-    if (key === 'serve_directly' && typeof value !== 'boolean') return false;
-    if (key === '_headers' || key === '_redirects') {
-      if (typeof value !== 'string' || value.length > 65536 || value.includes('\0')) return false;
-    }
-    if (key === 'base_path' && value !== '/' && !safePath(value, true)) return false;
-    if (key === 'run_worker_first' && typeof value !== 'boolean') {
-      if (!Array.isArray(value) || !value.length || value.length > 100
-        || !value.every((rule) => string(rule, /^!?\/[A-Za-z0-9_./*!-]*$/) && rule.length <= 512 && !rule.includes('..'))
-        || !value.some((rule) => rule.startsWith('/'))) return false;
-    }
-  }
-  return true;
+  return orderedShape(config, ['html_handling', 'not_found_handling', 'run_worker_first'])
+    && ['auto-trailing-slash', 'force-trailing-slash', 'drop-trailing-slash', 'none'].includes(config.html_handling)
+    && ['none', '404-page', 'single-page-application'].includes(config.not_found_handling)
+    && config.run_worker_first === true;
 }
 function checkedManifest(manifest, input) {
-  if (!shape(manifest, ['format', 'app', 'version', 'created', 'worker', 'assets', 'migrations']) || manifest.format !== 1) return { error: before('release manifest malformed') };
+  if (!orderedShape(manifest, ['format', 'app', 'version', 'created', 'source', 'checks', 'worker', 'assets', 'migrations']) || manifest.format !== 2) return { error: before('release manifest malformed') };
   if (manifest.app !== input.app || manifest.version !== input.version) return { error: before('release names another version') };
   if (!string(manifest.app, APP) || !string(manifest.version, VERSION)
     || !string(manifest.created, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/) || !Number.isFinite(Date.parse(manifest.created))
-    || new Date(manifest.created).toISOString().slice(0, 19) !== manifest.created.slice(0, 19)
-    || !Array.isArray(manifest.migrations) || manifest.migrations.length !== 0) return { error: before('release manifest malformed') };
+    || new Date(manifest.created).toISOString().slice(0, 19) !== manifest.created.slice(0, 19)) return { error: before('release manifest malformed') };
+  const s = manifest.source;
+  if (!orderedShape(s, ['repository', 'commit', 'upstream_commit', 'f1']) || s.repository !== 'wisermethod/wiser-crm'
+    || !string(s.commit, COMMIT) || !string(s.upstream_commit, COMMIT)
+    || !orderedShape(s.f1, ['count', 'limit']) || !Number.isSafeInteger(s.f1.count) || s.f1.count < 0
+    || !Number.isSafeInteger(s.f1.limit) || s.f1.limit < 0 || s.f1.count > s.f1.limit) return { error: before('release source malformed') };
+  if (!orderedShape(manifest.checks, ['lockfile', 'install_log', 'bundle_inputs'])
+    || !Object.values(manifest.checks).every((value) => value === 'PASS')) return { error: before('release checks malformed') };
   const w = manifest.worker;
-  if (!shape(w, ['main_module', 'compatibility_date', 'compatibility_flags', 'd1_binding', 'assets_binding', 'modules'])
+  if (!orderedShape(w, ['main_module', 'compatibility_date', 'compatibility_flags', 'd1_binding', 'assets_binding', 'vars_required', 'modules'])
     || !safePath(w.main_module, false) || !date(w.compatibility_date)
     || !Array.isArray(w.compatibility_flags) || w.compatibility_flags.length > 100
     || !w.compatibility_flags.every((flag) => string(flag, /^[a-z][a-z0-9_]{0,127}$/))
     || new Set(w.compatibility_flags).size !== w.compatibility_flags.length
     || !string(w.d1_binding, BINDING) || !string(w.assets_binding, BINDING) || w.d1_binding === w.assets_binding
+    || !Array.isArray(w.vars_required) || !w.vars_required.every(plainName)
+    || new Set(w.vars_required).size !== w.vars_required.length
+    || w.vars_required.includes(w.d1_binding) || w.vars_required.includes(w.assets_binding)
     || !Array.isArray(w.modules) || !w.modules.length || w.modules.length > 50) return { error: before('release worker malformed') };
   const a = manifest.assets;
-  if (!shape(a, ['config', 'files']) || !assetsConfig(a.config) || !Array.isArray(a.files) || a.files.length > 20000) return { error: before('release assets malformed') };
+  if (!orderedShape(a, ['config', 'files']) || !assetsConfig(a.config) || !Array.isArray(a.files) || a.files.length > 20000) return { error: before('release assets malformed') };
+  const m = manifest.migrations;
+  if (!orderedShape(m, ['table', 'files']) || !string(m.table, /^[A-Za-z_][A-Za-z0-9_]*$/)
+    || !Array.isArray(m.files)) return { error: before('release migrations malformed') };
   const modules = new Set();
   const paths = new Set();
+  const migrations = new Set();
   const files = new Map();
   let total = 0;
-  for (const [items, kind] of [[w.modules, 'module'], [a.files, 'asset']]) {
+  for (const [items, kind] of [[w.modules, 'module'], [a.files, 'asset'], [m.files, 'migration']]) {
     for (const file of items) {
-      const keys = kind === 'module' ? ['name', 'type', 'sha256', 'size'] : ['path', 'sha256', 'size', 'content_type'];
-      if (!shape(file, keys) || !string(file.sha256, HASH) || !Number.isSafeInteger(file.size)
+      const keys = kind === 'module' ? ['name', 'type', 'sha256', 'size']
+        : kind === 'asset' ? ['path', 'sha256', 'size', 'content_type'] : ['name', 'sha256', 'size'];
+      if (!orderedShape(file, keys) || !string(file.sha256, HASH) || !Number.isSafeInteger(file.size)
         || file.size < 0 || file.size > MAX_FILE_BYTES) return { error: before(`release ${kind} malformed`) };
       if (kind === 'module') {
         if (!safePath(file.name, false) || file.name === 'metadata' || modules.has(file.name)
-          || !['application/javascript+module', 'application/wasm', 'text/plain', 'application/octet-stream'].includes(file.type)) return { error: before('release module malformed') };
+          || !Object.hasOwn(MODULE_TYPES, extname(file.name)) || MODULE_TYPES[extname(file.name)] !== file.type) return { error: before('release module malformed') };
         modules.add(file.name);
-      } else {
+      } else if (kind === 'asset') {
         if (!safePath(file.path, true) || paths.has(file.path) || !mime(file.content_type)) return { error: before('release asset malformed') };
         paths.add(file.path);
+      } else {
+        if (!safePath(file.name, false) || !/^\d+_[A-Za-z0-9_-]+\.sql$/.test(file.name)
+          || migrations.has(file.name)) return { error: before('release migration malformed') };
+        migrations.add(file.name);
       }
       total += file.size;
       if (total > MAX_TOTAL_BYTES) return { error: before('release exceeds 64 MiB total') };
@@ -125,6 +140,10 @@ function checkedManifest(manifest, input) {
   }
   if (!modules.has(w.main_module)) return { error: before('release main module missing') };
   return { files: [...files.values()] };
+}
+function varsShape(vars) {
+  return object(vars) && [Object.prototype, null].includes(Object.getPrototypeOf(vars))
+    && Object.entries(vars).every(([name, value]) => plainName(name) && typeof value === 'string' && [...value].length <= 512);
 }
 
 function endpoint(input, tail = '') {
@@ -217,7 +236,10 @@ export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, red
       compatibility_date: manifest.worker.compatibility_date,
       compatibility_flags: manifest.worker.compatibility_flags,
       bindings: [{ type: 'd1', name: manifest.worker.d1_binding, database_id: input.database_id },
-        { type: 'assets', name: manifest.worker.assets_binding }],
+        { type: 'assets', name: manifest.worker.assets_binding },
+        // Cloudflare Upload Worker Module: metadata.bindings PlainText has name,
+        // text and type: 'plain_text'. https://developers.cloudflare.com/api/resources/workers/subresources/scripts/methods/update/
+        ...manifest.worker.vars_required.map((name) => ({ name, text: input.vars[name], type: 'plain_text' }))],
       assets: { jwt, config: manifest.assets.config },
     })) },
     ...manifest.worker.modules.map((module) => ({ name: module.name, filename: module.name, contentType: module.type, value: files.get(module.sha256) })),
@@ -252,6 +274,7 @@ export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, red
         : { deleted: input.script_name, read_back: 'absent' };
     },
     async deploy_worker_release(input, ctx) {
+      if (!varsShape(input.vars)) return { ...before('vars must contain only non-secret uppercase names and strings of at most 512 characters'), field: 'vars' };
       const loaded = releaseConfig();
       if (loaded.error) return loaded.error;
       const config = loaded.config;
@@ -286,6 +309,10 @@ export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, red
       catch { return before('release manifest malformed', { fetched, calls }); }
       const checked = checkedManifest(manifest, input);
       if (checked.error) return { ...checked.error, fetched, calls };
+      if (Object.keys(input.vars).length !== manifest.worker.vars_required.length
+        || !manifest.worker.vars_required.every((name) => Object.hasOwn(input.vars, name))) {
+        return { ...before('vars must exactly match release vars_required', { fetched, calls }), field: 'vars' };
+      }
       const files = new Map();
       for (const file of checked.files) {
         // fetchRelease's smallest budget is one byte; empty files still must be
@@ -313,7 +340,16 @@ export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, red
       let completion;
       const tokens = [];
       const remember = (token) => { if (typeof token === 'string' && token.length) tokens.push(token); };
-      const finish = (result) => tokens.reduce((out, token) => redact(out, token), result);
+      const finish = (result) => {
+        const out = tokens.reduce((value, token) => redact(value, token), result);
+        // Only the address carries vendor-supplied text in a deploy result.
+        // Never scrub all fields by plain variable values: a value like "1"
+        // would corrupt version ids, file hashes and diagnostics.
+        if (typeof out.url === 'string' && Object.values(input.vars).some((value) => value && out.url.includes(value))) {
+          return { ...out, url: null, reason: 'Worker address withheld because it repeats a supplied variable value' };
+        }
+        return out;
+      };
       remember(session.result?.jwt);
       const fail = (error) => finish({ ...error, fetched, calls });
       if (session.error) return fail(session.error);

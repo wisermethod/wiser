@@ -2635,8 +2635,9 @@ export const modules = {
     },
   },
 
+  workers: workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, redact }),
+
   pages: sealPagesModule({
-    ...workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, redact }),
     // confirmed proxy execute 2026-09-08; { success, result, errors, messages, result_info }.
     // Live result was an empty array on every account the zones grant listed.
     async list_projects(input, ctx) {

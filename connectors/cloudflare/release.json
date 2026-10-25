@@ -2,7 +2,7 @@
   "format": 1,
   "base": "https://releases.example.test/",
   "apps": {
-    "wiser-crm-proof": {
+    "wiser-crm": {
       "keys": [
         {
           "id": "21fe31dfa154a261",

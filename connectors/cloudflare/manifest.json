@@ -369,7 +369,7 @@
       "unwrap_token": false,
       "fallback": "catalog"
     },
-    "pages": {
+    "workers": {
       "release_hosts": ["releases.example.test"],
       "auth": {
         "provider": "catalog",
@@ -379,7 +379,7 @@
       },
       "actions": {
         "workers_subdomain": {
-          "description": "Read the account workers.dev subdomain without creating one. Proof only.",
+          "description": "Read the account workers.dev subdomain without creating one.",
           "privilege": "read",
           "risk": "low",
           "confirmation": "none",
@@ -401,7 +401,7 @@
           }
         },
         "get_worker": {
-          "description": "Read current deployed Worker version ids and binding names and types; D1 database_id is the only binding id returned. Proof only.",
+          "description": "Read current deployed Worker version ids and binding names and types; D1 database_id is the only binding id returned.",
           "privilege": "read",
           "risk": "low",
           "confirmation": "none",
@@ -428,7 +428,7 @@
           }
         },
         "deploy_worker_release": {
-          "description": "Deploy an admitted signed app release from the pinned release base with a D1 binding and static assets. App and version are identifiers, never addresses. Proof only.",
+          "description": "Deploy an admitted signed format-2 app release from the pinned base with a D1 binding, static assets and plain variables; migrations are verified but not applied. App and version are identifiers, never addresses. vars must be an object of strings of at most 512 Unicode characters, with names matching ^[A-Z][A-Z0-9_]{0,63}$ and no secret-name segment (SECRET, TOKEN, PASSWORD, PASSWD, KEY, CREDENTIAL, CREDENTIALS or AUTHORIZATION). Its keys must exactly match the verified manifest vars_required names, which cannot collide with resource bindings; this comparison precedes all content-file fetches and Cloudflare calls.",
           "privilege": "write",
           "risk": "high",
           "confirmation": "always",
@@ -438,6 +438,14 @@
           "input": {
             "type": "object",
             "properties": {
+              "vars": {
+                "type": "object",
+                "propertyNames": {
+                  "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                  "not": { "pattern": "(^|_)(SECRET|TOKEN|PASSWORD|PASSWD|KEY|CREDENTIALS?|AUTHORIZATION)(_|$)" }
+                },
+                "additionalProperties": { "type": "string", "maxLength": 512 }
+              },
               "account_id": {
                 "type": "string",
                 "pattern": "^[0-9a-f]{32}$"
@@ -464,13 +472,14 @@
               "script_name",
               "app",
               "version",
-              "database_id"
+              "database_id",
+              "vars"
             ],
             "additionalProperties": false
           }
         },
         "delete_worker": {
-          "description": "Delete a Worker and read it back to confirm absence. Proof only.",
+          "description": "Delete a Worker and read it back to confirm absence.",
           "privilege": "write",
           "risk": "destructive",
           "confirmation": "always",
@@ -495,7 +504,19 @@
             ],
             "additionalProperties": false
           }
-        },
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    },
+    "pages": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "CLOUDFLARE_API_KEY",
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "actions": {
         "list_projects": {
           "description": "List Pages projects in an account",
           "risk": "low",

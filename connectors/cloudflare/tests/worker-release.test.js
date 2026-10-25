@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash, createPrivateKey, sign } from 'node:crypto';
+import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -10,7 +10,8 @@ import { createTestGateway, putActive } from '../../../gateway/test/fake-provide
 const ACCOUNT = '0123456789abcdef0123456789abcdef';
 const DATABASE = '01234567-89ab-cdef-0123-456789abcdef';
 const VERSION_ID = '12345678-1234-1234-1234-123456789abc';
-const INPUT = { account_id: ACCOUNT, script_name: 'proof-worker', app: 'wiser-crm-proof', version: '1.0.0', database_id: DATABASE };
+const VARS = { ACCESS_TEAM_DOMAIN: 'fixture-team.example', ACCESS_AUD: 'fixture-audience', AGENT_CLIENT_ID: 'fixture-client-id' };
+const INPUT = { account_id: ACCOUNT, script_name: 'proof-worker', app: 'wiser-crm', version: '1.0.0', database_id: DATABASE, vars: VARS };
 const BASE = 'https://releases.example.test/';
 const ROOT = `/accounts/${ACCOUNT}/workers`;
 const SCRIPT = `${ROOT}/scripts/${INPUT.script_name}`;
@@ -19,12 +20,16 @@ const CAP = 3 * 1024 * 1024;
 const UPLOAD = 'fixture-upload-token-private';
 const COMPLETE = 'fixture-completion-token-private';
 const sha = (value) => createHash('sha256').update(value).digest('hex');
-// RFC 8032 test vector 1. The private half exists only in this test file.
-const privateKey = (seed) => createPrivateKey({ key: Buffer.concat([Buffer.from('302e020100300506032b657004220420', 'hex'), seed]), format: 'der', type: 'pkcs8' });
-const KEY = privateKey(Buffer.from('9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60', 'hex'));
-const SECOND_KEY = privateKey(Buffer.alloc(32, 2));
+// assemble fixture from wiser-crm fork commit f82bd8961ed2f15ef9eacd347720124bd75ee391.
+// Generated once by that commit's release/build.mjs; never import the fork here.
+const FIXTURE = new URL('./fixtures/worker-release-format2/', import.meta.url);
+const ASSEMBLED_BYTES = readFileSync(new URL('manifest.json', FIXTURE));
+const ASSEMBLED = JSON.parse(ASSEMBLED_BYTES);
+const { privateKey: KEY, publicKey } = generateKeyPairSync('ed25519');
+const SECOND_KEY = generateKeyPairSync('ed25519').privateKey;
+const publicBytes = publicKey.export({ type: 'spki', format: 'der' }).subarray(-32);
 const CONFIG = JSON.parse(readFileSync(new URL('../release.json', import.meta.url)));
-const FIXTURE_CONFIG = { format: 1, base: BASE, apps: { 'wiser-crm-proof': { keys: [{ id: '21fe31dfa154a261', ed25519: '11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo=' }] } } };
+const FIXTURE_CONFIG = { format: 1, base: BASE, apps: { [INPUT.app]: { keys: [{ id: sha(publicBytes).slice(0, 16), ed25519: publicBytes.toString('base64') }] } } };
 const envelope = (result) => ({ status: 200, data: { success: true, result, errors: [], messages: [] } });
 const refusal = (req, status, codes) => ({ status, error: { code: 'vendor_error', endpoint: req.endpoint, method: req.method, provider_codes: codes } });
 const trace = (calls) => calls.map(({ method, endpoint }) => [method, endpoint]);
@@ -33,19 +38,23 @@ const readInput = { account_id: ACCOUNT, script_name: INPUT.script_name };
 function release(options = {}) {
   const contents = new Map();
   const file = (bytes) => { const hash = sha(bytes); contents.set(hash, bytes); return { sha256: hash, size: bytes.length }; };
-  const manifest = {
-    format: 1, app: INPUT.app, version: INPUT.version, created: '2026-10-18T00:00:00.000Z',
-    worker: { main_module: 'index.js', compatibility_date: '2026-10-18', compatibility_flags: ['nodejs_compat'], d1_binding: 'DB', assets_binding: 'ASSETS', modules: [
+  const manifest = options.assembled ? structuredClone(ASSEMBLED) : {
+    format: 2, app: INPUT.app, version: INPUT.version, created: '2026-10-18T00:00:00.000Z',
+    source: structuredClone(ASSEMBLED.source), checks: { lockfile: 'PASS', install_log: 'PASS', bundle_inputs: 'PASS' },
+    worker: { main_module: 'index.js', compatibility_date: '2026-10-18', compatibility_flags: ['nodejs_compat'], d1_binding: 'DB', assets_binding: 'ASSETS', vars_required: Object.keys(VARS), modules: [
       { name: 'index.js', type: 'application/javascript+module', ...file(Buffer.alloc(options.scriptBytes || 100, 65)) },
       { name: 'pad.js', type: 'application/javascript+module', ...file(Buffer.from('export default 1;')) },
     ] },
-    assets: { config: { html_handling: 'auto-trailing-slash', not_found_handling: 'single-page-application' }, files: [
-      { path: '/index.html', content_type: 'text/html; charset=utf-8', ...file(Buffer.from('<html>proof</html>')) },
-      ...[1, 2, 3].map((i) => ({ path: `/assets/${i}.bin`, content_type: 'application/octet-stream', ...file(Buffer.alloc(options.assetBytes || 750000, i)) })),
-    ] }, migrations: [],
+    assets: { config: { html_handling: 'auto-trailing-slash', not_found_handling: 'single-page-application', run_worker_first: true }, files: [
+      { path: '/index.html', ...file(Buffer.from('<html>proof</html>')), content_type: 'text/html; charset=utf-8' },
+      ...[1, 2, 3].map((i) => ({ path: `/assets/${i}.bin`, ...file(Buffer.alloc(options.assetBytes || 750000, i)), content_type: 'application/octet-stream' })),
+    ] }, migrations: structuredClone(ASSEMBLED.migrations),
   };
+  for (const record of options.assembled ? [...manifest.worker.modules, ...manifest.assets.files, ...manifest.migrations.files] : manifest.migrations.files) {
+    contents.set(record.sha256, readFileSync(new URL(`files/${record.sha256}`, FIXTURE)));
+  }
   if (options.change) options.change(manifest);
-  const raw = Buffer.from(JSON.stringify(manifest));
+  const raw = options.assembled && !options.change ? ASSEMBLED_BYTES : Buffer.from(JSON.stringify(manifest));
   const sig = sign(null, raw, options.key || KEY);
   const served = new Map([[PREFIX + 'manifest.json', raw], [PREFIX + 'manifest.sig', sig], ...[...contents].map(([hash, bytes]) => [PREFIX + `files/${hash}`, bytes])]);
   if (options.badSignature) { const changed = Buffer.from(raw); changed[changed.length - 1] ^= 1; served.set(PREFIX + 'manifest.json', changed); }
@@ -67,7 +76,7 @@ async function setup(t, options = {}) {
   const connectors = join(home, 'connectors');
   const dir = join(connectors, 'cloudflare');
   mkdirSync(dir, { recursive: true });
-  // Copy only this proof's runtime files. The existing kit tests temporarily
+  // Copy only the Worker runtime files. The existing kit tests temporarily
   // move kit-function.json, so copying that unrelated fixture would race them.
   for (const name of ['index.js', 'worker-release.js', 'manifest.json']) {
     cpSync(fileURLToPath(new URL('../' + name, import.meta.url)), join(dir, name));
@@ -75,13 +84,13 @@ async function setup(t, options = {}) {
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ type: 'module' }));
   const manifestPath = join(dir, 'manifest.json');
   const connectorManifest = JSON.parse(readFileSync(manifestPath));
-  connectorManifest.modules.pages.release_hosts = ['releases.example.test'];
+  connectorManifest.modules.workers.release_hosts = ['releases.example.test'];
   writeFileSync(manifestPath, JSON.stringify(connectorManifest));
   writeFileSync(join(dir, 'release.json'), JSON.stringify(FIXTURE_CONFIG));
   if (options.config === 'missing') unlinkSync(join(dir, 'release.json'));
   else if (options.config !== undefined) writeFileSync(join(dir, 'release.json'), typeof options.config === 'string' ? options.config : JSON.stringify(options.config));
   const env = await createTestGateway({ home, connectorDirs: [connectors], fetchImpl });
-  await putActive(env.store, env.fake, { service: 'cloudflare', module: 'pages' });
+  await putActive(env.store, env.fake, { service: 'cloudflare', module: 'workers' });
   const calls = [];
   let missing;
   const uploaded = new Set();
@@ -105,7 +114,7 @@ async function setup(t, options = {}) {
     assert.fail(`unexpected request ${req.method} ${req.endpoint}`);
   };
   async function execute(action = 'deploy_worker_release', input = INPUT) {
-    const args = { action: `cloudflare.pages.${action}`, input };
+    const args = { action: `cloudflare.workers.${action}`, input };
     const first = await env.gw.execute(args);
     return first.status === 'needs_confirmation' ? env.gw.execute({ ...args, confirm: true }) : first;
   }
@@ -117,9 +126,9 @@ async function parseForm(req) {
   assert.equal((req.parameters || []).some((p) => p.name.toLowerCase() === 'content-type'), false);
   return new Request('https://fixture.invalid/', { method: 'POST', headers: { 'Content-Type': req.binary_body.content_type }, body: Buffer.from(req.binary_body.base64, 'base64') }).formData();
 }
-function noTokens(result) {
+function noTokens(result, allowCallValues = false) {
   const text = JSON.stringify(result);
-  for (const token of [UPLOAD, COMPLETE]) assert.equal(text.includes(token), false, text);
+  for (const token of [UPLOAD, COMPLETE, ...(allowCallValues ? [] : Object.values(VARS))]) assert.equal(text.includes(token), false, text);
 }
 function preflight(env, result, reason, paths) {
   assert.equal(result.stage, 'before upload', JSON.stringify(result));
@@ -131,10 +140,36 @@ function preflight(env, result, reason, paths) {
 }
 const signedPaths = [PREFIX + 'manifest.json', PREFIX + 'manifest.sig'];
 
-test('fixture release config public key matches the pinned fixture', () => {
-  // A --release copy intentionally pins another key; the test environment above
-  // still uses the fixed test fixture. Validate the checked-in fixture by key id.
-  if (CONFIG.base === BASE) assert.deepEqual(CONFIG, FIXTURE_CONFIG);
+test('release config keeps the test host and the workers module owns the four actions', () => {
+  assert.equal(CONFIG.base, BASE);
+  assert.ok(Object.hasOwn(CONFIG.apps, INPUT.app));
+  const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url)));
+  assert.equal(manifest.modules.workers.auth.toolkit, 'CLOUDFLARE_API_KEY');
+  assert.equal(manifest.modules.pages.release_hosts, undefined);
+  for (const name of ['workers_subdomain', 'get_worker', 'deploy_worker_release', 'delete_worker']) {
+    assert.ok(manifest.modules.workers.actions[name]);
+    assert.equal(manifest.modules.pages.actions[name], undefined);
+  }
+});
+test('assemble format 2 exact bytes signed by a generated key are accepted with every derived module type', async (t) => {
+  const env = await setup(t, { assembled: true, noneMissing: true });
+  assert.deepEqual(env.raw, ASSEMBLED_BYTES);
+  const result = await env.execute();
+  assert.equal(result.script_name, INPUT.script_name, JSON.stringify(result));
+  const metadata = JSON.parse((await parseForm(env.calls.find((c) => c.method === 'PUT'))).get('metadata'));
+  assert.deepEqual(metadata.bindings.slice(2), Object.entries(VARS).map(([name, text]) => ({ name, text, type: 'plain_text' })));
+  const form = await parseForm(env.calls.find((c) => c.method === 'PUT'));
+  for (const module of ASSEMBLED.worker.modules) {
+    assert.equal(form.get(module.name).type, module.type);
+    assert.deepEqual(Buffer.from(await form.get(module.name).arrayBuffer()), env.contents.get(module.sha256));
+  }
+  const hosts = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url))).modules.workers.release_hosts;
+  assert.ok(env.fetches.every(({ url }) => hosts.includes(new URL(url).hostname)));
+  assert.deepEqual(result.fetched, [...env.served.keys()]);
+  assert.deepEqual(trace(env.calls), [['POST', `${SCRIPT}/assets-upload-session`], ['PUT', SCRIPT], ['POST', `${SCRIPT}/subdomain`], ['GET', `${ROOT}/subdomain`]]);
+  assert.ok(ASSEMBLED.migrations.files.length > 0);
+  assert.equal(env.calls.some((c) => c.endpoint.includes('/d1/')), false);
+  noTokens(result);
 });
 test('good release splits a returned bucket into capped multipart requests and reports the whole proof', async (t) => {
   const env = await setup(t, { scriptBytes: 1600000 });
@@ -166,7 +201,7 @@ test('good release splits a returned bucket into capped multipart requests and r
   const form = await parseForm(put);
   const metadata = JSON.parse(form.get('metadata'));
   assert.deepEqual(metadata, { main_module: 'index.js', compatibility_date: '2026-10-18', compatibility_flags: ['nodejs_compat'],
-    bindings: [{ type: 'd1', name: 'DB', database_id: DATABASE }, { type: 'assets', name: 'ASSETS' }],
+    bindings: [{ type: 'd1', name: 'DB', database_id: DATABASE }, { type: 'assets', name: 'ASSETS' }, ...Object.entries(VARS).map(([name, text]) => ({ name, text, type: 'plain_text' }))],
     assets: { jwt: COMPLETE, config: env.manifest.assets.config } });
   assert.deepEqual([...form.keys()], ['metadata', 'index.js', 'pad.js']);
   for (const module of env.manifest.worker.modules) assert.deepEqual(Buffer.from(await form.get(module.name).arrayBuffer()), env.contents.get(module.sha256));
@@ -232,7 +267,7 @@ test('deployment succeeds with null URL if the account has no subdomain', async 
   assert.equal(result.script_name, INPUT.script_name); assert.equal(result.url, null); assert.match(result.reason, /no workers.dev subdomain/);
   assert.deepEqual(trace(env.calls), [['POST', `${SCRIPT}/assets-upload-session`], ['PUT', SCRIPT], ['POST', `${SCRIPT}/subdomain`], ['GET', `${ROOT}/subdomain`]]); noTokens(result);
 });
-for (const [name, config] of [ ['missing', 'missing'], ['malformed', '{'], ['unlisted base host', { ...FIXTURE_CONFIG, base: 'https://other.example.test/' }], ['wrong key length', { ...FIXTURE_CONFIG, apps: { 'wiser-crm-proof': { keys: [{ id: '0123456789abcdef', ed25519: 'bad' }] } } }] ]) {
+for (const [name, config] of [ ['missing', 'missing'], ['malformed', '{'], ['unlisted base host', { ...FIXTURE_CONFIG, base: 'https://other.example.test/' }], ['wrong key length', { ...FIXTURE_CONFIG, apps: { 'wiser-crm': { keys: [{ id: '0123456789abcdef', ed25519: 'bad' }] } } }] ]) {
   test(`release.json ${name} refuses before any fetch or proxy call`, async (t) => {
     const env = await setup(t, { config }); preflight(env, await env.execute(), /release.json/, []);
   });
@@ -265,7 +300,32 @@ for (const [name, change] of [
   ['invalid compatibility date', (m) => { m.worker.compatibility_date = '2026-02-31'; }],
   ['bad flag', (m) => { m.worker.compatibility_flags = [false]; }],
   ['same binding names', (m) => { m.worker.assets_binding = 'DB'; }],
-  ['migration in proof', (m) => { m.migrations = ['DROP TABLE users']; }],
+  ['migration array instead of format-2 object', (m) => { m.migrations = ['DROP TABLE users']; }],
+  ['source.repository removed', (m) => { delete m.source.repository; }],
+  ['source.f1.limit removed', (m) => { delete m.source.f1.limit; }],
+  ['source.commit invalid', (m) => { m.source.commit = 'a'.repeat(39); }],
+  ['upstream_commit invalid', (m) => { m.source.upstream_commit = 'g'.repeat(40); }],
+  ['source.f1 negative count', (m) => { m.source.f1.count = -1; }],
+  ['source.f1 negative limit', (m) => { m.source.f1.limit = -1; }],
+  ['source.f1 fractional count', (m) => { m.source.f1.count = 0.5; }],
+  ['source.f1 unsafe limit', (m) => { m.source.f1.limit = 2 ** 53; }],
+  ['source.f1 excess', (m) => { m.source.f1.count = m.source.f1.limit + 1; }],
+  ...['lockfile', 'install_log', 'bundle_inputs'].map((key) => [`checks.${key} not PASS`, (m) => { m.checks[key] = 'FAIL'; }]),
+  ['format 1', (m) => { m.format = 1; }],
+  ['run_worker_first false', (m) => { m.assets.config.run_worker_first = false; }],
+  ['run_worker_first missing', (m) => { delete m.assets.config.run_worker_first; }],
+  ['cjs module typed as ESM', (m) => { m.worker.modules[1].name = 'pad.cjs'; }],
+  ['unknown module extension', (m) => { m.worker.modules[1].name = 'pad.json'; }],
+  ['vars_required invalid name', (m) => { m.worker.vars_required[0] = 'lowercase'; }],
+  ['vars_required duplicate', (m) => { m.worker.vars_required.push(m.worker.vars_required[0]); }],
+  ['vars_required secret name', (m) => { m.worker.vars_required.push('AGENT_CLIENT_SECRET'); }],
+  ['vars_required resource collision', (m) => { m.worker.vars_required.push('DB'); }],
+  ['migration table injection', (m) => { m.migrations.table = 'history; DROP TABLE users'; }],
+  ['migration duplicate', (m) => { m.migrations.files.push(m.migrations.files[0]); }],
+  ['migration parent name', (m) => { m.migrations.files[0].name = '../0001_baseline.sql'; }],
+  ['migration size fraction', (m) => { m.migrations.files[0].size = 0.5; }],
+  ['migration bad digest', (m) => { m.migrations.files[0].sha256 = 'g'.repeat(64); }],
+  ['key order', (m) => { m.checks = { install_log: 'PASS', lockfile: 'PASS', bundle_inputs: 'PASS' }; }],
 ]) {
   test(`signed manifest rejects ${name} before any file fetch or proxy call`, async (t) => {
     const env = await setup(t, { change }); const result = await env.execute();
@@ -274,10 +334,14 @@ for (const [name, change] of [
 }
 test('gateway confirmation displays every deploy input before any fetch and runs only after confirm', async (t) => {
   const env = await setup(t, { noneMissing: true });
-  const args = { action: 'cloudflare.pages.deploy_worker_release', input: INPUT };
+  const args = { action: 'cloudflare.workers.deploy_worker_release', input: INPUT };
   const stop = await env.gw.execute(args);
   assert.equal(stop.status, 'needs_confirmation', JSON.stringify(stop));
-  for (const [name, value] of Object.entries(INPUT)) assert.ok(stop.input_values.some((field) => field.name === name && field.value === JSON.stringify(value)));
+  for (const [name, value] of Object.entries(INPUT)) {
+    const field = stop.input_values.find((field) => field.name === name);
+    assert.ok(field); assert.deepEqual(JSON.parse(field.full ?? field.value), value);
+  }
+  noTokens(stop, true);
   assert.deepEqual(env.fetches, []); assert.deepEqual(env.calls, []);
   const result = await env.gw.execute({ ...args, confirm: true }); assert.equal(result.script_name, INPUT.script_name);
   assert.deepEqual(trace(env.calls), [['POST', `${SCRIPT}/assets-upload-session`], ['PUT', SCRIPT], ['POST', `${SCRIPT}/subdomain`], ['GET', `${ROOT}/subdomain`]]); noTokens(result);
@@ -402,4 +466,126 @@ test('a diagnostic status field cannot smuggle a token into a refusal', async (t
   const result = await env.execute();
   assert.deepEqual(trace(env.calls), [['POST', `${SCRIPT}/assets-upload-session`]]);
   assert.equal(result.status, 'vendor_error'); noTokens(result);
+});
+
+// Repeat the brief's malformed cases against the unmodified assemble fixture's shape.
+for (const [name, change] of [
+  ['source.repository removed', (m) => { delete m.source.repository; }],
+  ['source.f1.limit removed', (m) => { delete m.source.f1.limit; }],
+  ['unknown key', (m) => { m.unrecognised = true; }],
+  ['run_worker_first false', (m) => { m.assets.config.run_worker_first = false; }],
+  ['format 1', (m) => { m.format = 1; }],
+  ['cjs module typed as ESM', (m) => { m.worker.modules.find((f) => f.name.endsWith('.cjs')).type = 'application/javascript+module'; }],
+]) test(`assemble fixture refuses ${name} before content fetch or proxy`, async (t) => {
+  const env = await setup(t, { assembled: true, change });
+  preflight(env, await env.execute(), /release/, signedPaths);
+});
+for (const location of ['source', 'f1', 'checks', 'worker', 'module', 'assets', 'config', 'asset', 'migrations', 'migration']) {
+  test(`unknown ${location} key refused before content fetch or proxy`, async (t) => {
+    const env = await setup(t, { assembled: true, change: (m) => {
+      const object = { source: m.source, f1: m.source.f1, checks: m.checks, worker: m.worker, module: m.worker.modules[0],
+        assets: m.assets, config: m.assets.config, asset: m.assets.files[0], migrations: m.migrations, migration: m.migrations.files[0] }[location];
+      object.extra = true;
+    } });
+    preflight(env, await env.execute(), /release/, signedPaths);
+  });
+}
+test('assemble fixture migration hash changed is refused before proxy', async (t) => {
+  const changed = 'f'.repeat(64);
+  const env = await setup(t, { assembled: true, change: (m) => { m.migrations.files[0].sha256 = changed; }, serveChange: (r) => {
+    r.served.set(PREFIX + `files/${changed}`, r.contents.get(ASSEMBLED.migrations.files[0].sha256));
+  } });
+  preflight(env, await env.execute(), new RegExp(`release file mismatch: ${changed}`));
+});
+for (const length of ['shorter', 'longer']) test(`migration ${length} than declared refuses before proxy`, async (t) => {
+  const env = await setup(t, { assembled: true, serveChange: (r) => {
+    const key = PREFIX + `files/${r.manifest.migrations.files[0].sha256}`;
+    const bytes = r.served.get(key);
+    r.served.set(key, length === 'shorter' ? bytes.subarray(1) : Buffer.concat([bytes, Buffer.from('x')]));
+  } });
+  preflight(env, await env.execute(), /release file mismatch/);
+});
+for (const kind of ['missing', 'extra']) test(`assemble fixture vars name ${kind} refuses after verified shape before content fetch`, async (t) => {
+  const env = await setup(t, { assembled: true });
+  const vars = { ...VARS };
+  if (kind === 'missing') delete vars.ACCESS_AUD; else vars.EXTRA_NAME = 'extra-fixture-value';
+  preflight(env, await env.execute('deploy_worker_release', { ...INPUT, vars }), /vars_required/, signedPaths);
+});
+for (const [name, vars] of [
+  ['null', null], ['array', []], ['string', 'value'], ['non-string value', { ACCESS_AUD: 1 }],
+  ['lowercase name', { audience: 'fixture' }], ['long name', { ['A'.repeat(65)]: 'fixture' }],
+  ['513 code points', { ACCESS_AUD: 'a'.repeat(513) }], ['513 astral code points', { ACCESS_AUD: '𐐀'.repeat(513) }],
+  ...['AGENT_CLIENT_SECRET', 'API_TOKEN', 'PASSWORD', 'API_KEY', 'PRIVATE_KEY', 'CREDENTIALS', 'AUTHORIZATION'].map((key) => [key, { [key]: 'invented-secret-value' }]),
+]) test(`vars input ${name} refuses before any fetch`, async (t) => {
+  const env = await setup(t);
+  const result = await env.execute('deploy_worker_release', { ...INPUT, vars });
+  assert.equal(result.status, 'invalid_arguments');
+  assert.deepEqual(env.fetches, []); assert.deepEqual(env.calls, []);
+  noTokens(result);
+  assert.equal(JSON.stringify(result).includes('invented-secret-value'), false);
+});
+test('vars 512 Unicode code points and empty values are accepted and uploaded unchanged', async (t) => {
+  const vars = { ACCESS_TEAM_DOMAIN: '𐐀'.repeat(512), ACCESS_AUD: '', AGENT_CLIENT_ID: 'fixture-client-id' };
+  const env = await setup(t, { assembled: true, noneMissing: true });
+  const result = await env.execute('deploy_worker_release', { ...INPUT, vars });
+  assert.equal(result.script_name, INPUT.script_name);
+  const form = await parseForm(env.calls.find((c) => c.method === 'PUT'));
+  assert.deepEqual(JSON.parse(form.get('metadata')).bindings.slice(2), Object.entries(vars).map(([name, text]) => ({ name, text, type: 'plain_text' })));
+  assert.equal(JSON.stringify(result).includes(vars.ACCESS_TEAM_DOMAIN), false);
+  noTokens(result);
+});
+test('a release with no required variables accepts an empty vars object', async (t) => {
+  const env = await setup(t, { assembled: true, noneMissing: true, change: (m) => { m.worker.vars_required = []; } });
+  assert.equal((await env.execute('deploy_worker_release', { ...INPUT, vars: {} })).script_name, INPUT.script_name);
+});
+test('signature and shape refusals precede exact variable-name comparison', async (t) => {
+  const env = await setup(t, { assembled: true, key: SECOND_KEY });
+  preflight(env, await env.execute('deploy_worker_release', { ...INPUT, vars: {} }), /release signature invalid/, signedPaths);
+  const malformed = await setup(t, { assembled: true, change: (m) => { delete m.source.repository; } });
+  preflight(malformed, await malformed.execute('deploy_worker_release', { ...INPUT, vars: {} }), /release source malformed/, signedPaths);
+});
+test('provider variable echoes cannot enter deploy results or refusals', async (t) => {
+  const env = await setup(t, { noneMissing: true });
+  const normal = env.fake.auth.proxy;
+  env.fake.auth.proxy = (req) => {
+    if (req.endpoint === `${ROOT}/subdomain`) { env.calls.push(req); return envelope({ subdomain: VARS.ACCESS_AUD }); }
+    return normal(req);
+  };
+  noTokens(await env.execute());
+  const refused = await setup(t, { responder: () => { throw { object: { status: 'vendor_error', http_status: 500, reason: Object.values(VARS).join(' ') + UPLOAD + COMPLETE } }; } });
+  noTokens(await refused.execute());
+});
+for (const input of [null, [], 'input', { ...INPUT, extra: 'invented-secret-value' }, { ...INPUT, account_id: 1 }, { ...INPUT, vars: undefined }]) {
+  test('gateway refuses malformed deploy input before transport', async (t) => {
+    const env = await setup(t);
+    const result = await env.execute('deploy_worker_release', input);
+    assert.equal(result.status, 'invalid_arguments');
+    assert.deepEqual(env.fetches, []); assert.deepEqual(env.calls, []);
+    noTokens(result);
+  });
+}
+for (const [field, value] of [['app', '../app'], ['app', 'https://example.test/'], ['version', '../1.0.0'], ['version', '01.0.0'], ['version', '1.0.0?url=x']]) {
+  test(`gateway rejects unsafe ${field} before transport`, async (t) => {
+    const env = await setup(t);
+    const result = await env.execute('deploy_worker_release', { ...INPUT, [field]: value });
+    assert.equal(result.status, 'invalid_arguments');
+    assert.deepEqual(env.fetches, []); assert.deepEqual(env.calls, []);
+    noTokens(result);
+  });
+}
+
+test('short plain variables preserve result hashes, identifiers and vendor statuses', async (t) => {
+  const vars = { ACCESS_TEAM_DOMAIN: 'a', ACCESS_AUD: '1', AGENT_CLIENT_ID: 'f' };
+  const env = await setup(t, { assembled: true, noneMissing: true });
+  const result = await env.execute('deploy_worker_release', { ...INPUT, vars });
+  assert.equal(result.script_name, INPUT.script_name);
+  assert.equal(result.app, INPUT.app); assert.equal(result.version, INPUT.version);
+  assert.equal(result.manifest_sha256, sha(ASSEMBLED_BYTES));
+  assert.deepEqual(result.worker.modules.map((m) => m.sha256), ASSEMBLED.worker.modules.map((m) => m.sha256));
+  assert.equal(result.url, null);
+  assert.equal(result.reason, 'Worker address withheld because it repeats a supplied variable value');
+  const failed = await setup(t, { responder: (req) => refusal(req, 500) });
+  const error = await failed.execute('deploy_worker_release', { ...INPUT, vars });
+  assert.equal(error.status, 'vendor_error');
+  assert.equal(error.http_status, 500);
 });

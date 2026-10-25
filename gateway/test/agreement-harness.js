@@ -86,7 +86,7 @@ const CONNECTORS = fileURLToPath(new URL('../../connectors', import.meta.url));
  */
 const PATTERN_OK = {
   '^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$': 'proof-worker',
-  '^[a-z0-9](?:[a-z0-9-]{0,40}[a-z0-9])?$': 'wiser-crm-proof',
+  '^[a-z0-9](?:[a-z0-9-]{0,40}[a-z0-9])?$': 'wiser-crm',
   '^(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})$': '1.0.0',
   '^UC[A-Za-z0-9_-]{22}$': 'UCabcdefghijklmnopqrstuv',
   '^[A-Za-z0-9_-]{11}$': 'abcdefghijk',
