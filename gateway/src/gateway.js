@@ -598,6 +598,7 @@ export class ConnectionGateway {
     this.policy = opts.policy;
     this.audit = opts.audit;
     this.authProvider = opts.authProvider || null;
+    this.fetchImpl = opts.fetchImpl ?? globalThis.fetch;
     this.catalogProvider = opts.catalogProvider || null;
     this.localFileProvider = opts.localFileProvider || null;
     this.authConfigured = opts.authConfigured !== undefined
@@ -1604,6 +1605,8 @@ export class ConnectionGateway {
           unwrap,
           responseHeaders: act.response_headers,
           responseHeaderGuard,
+          releaseHosts: resolved.connector?.manifest.modules[parsed.module].release_hosts,
+          fetchImpl: this.fetchImpl,
         });
         if (this.catalogProvider && typeof this.catalogProvider.execute === 'function') {
           ctx.catalog = async (actionId, catalogInput) => {

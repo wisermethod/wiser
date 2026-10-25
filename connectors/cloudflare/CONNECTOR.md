@@ -51,6 +51,10 @@ cloudflare.zones.list_certificate_packs { zone_id }                           co
 cloudflare.zones.list_workers_routes { zone_id }                              confirmation: none
 cloudflare.zones.list_access_apps { account_id, hostname? }                   confirmation: none
 
+cloudflare.pages.workers_subdomain { account_id }                            confirmation: none
+cloudflare.pages.get_worker      { account_id, script_name }                  confirmation: none
+cloudflare.pages.deploy_worker_release { account_id, script_name, app, version, database_id } confirmation: always
+cloudflare.pages.delete_worker   { account_id, script_name }                  confirmation: always
 cloudflare.pages.list_projects   { account_id }
 cloudflare.pages.get_project     { account_id, project_name }
 cloudflare.pages.list_deployments { account_id, project_name }
@@ -120,6 +124,31 @@ The zone settings, the zone configuration reads, the Pages domain actions, `rule
 `rulesets.list` and `rulesets.list_list_items` follow `result_info.cursors.after`, 50 to a page, until the cursor is absent, empty, or one already seen, and return every row in one envelope. `result_info.count` and `total_count` are the number of rows returned.
 
 `pages.retry_domain_validation` is a PATCH with no body. `pages.get_domain` on the project's own `pages.dev` name comes back `vendor_error` with HTTP 404, because that name is not a custom domain. `pages.list_domains` returns the custom ones.
+
+### Worker release proof
+
+These four Worker actions on `pages` are a proof, not a release. `workers_subdomain`
+reads the account's free address without creating it. `get_worker` reads the active
+deployment's version and binding names and types, retaining only D1's database id;
+a gradual deployment returns `versions` and a null singular `version_id`.
+`delete_worker` confirms deletion by reading back, reporting `success: false` if
+still present. A missing Worker is an absent result.
+
+`deploy_worker_release` admits only apps and Ed25519 public keys pinned in the
+connector's `release.json`, under a base whose host is in `pages.release_hosts`.
+No input is an address. It checks the exact signed manifest, its app and version,
+every file's size and SHA-256, and every request's size before its first upload.
+The proof allows 50 modules, 20,000 assets, 25 MiB per file and 64 MiB total.
+Unknown manifest fields and unsafe paths are refused. Migrations must be empty.
+Asset configuration is limited to the typed options documented by Cloudflare.
+Script and asset multipart bodies each fit 3 MiB after the proxy's base64 encoding;
+asset contents are base64 encoded inside multipart as well. Preflight reserves
+16 KiB for the completion token before its value is known. The final report gives
+actual request bytes, module sizes, asset counts, fetched paths and vendor calls,
+without upload or completion tokens. All preflight refusals carry
+`stage: "before upload"`. The deployment binds the supplied D1 id and enables the
+Worker's workers.dev address. An account without a subdomain still deploys with a
+null URL and a reason. It never creates an account subdomain.
 
 ## Credentials
 

@@ -85,6 +85,9 @@ const CONNECTORS = fileURLToPath(new URL('../../connectors', import.meta.url));
  * wrong entry fails loudly, and a pattern with no entry fails rather than being skipped.
  */
 const PATTERN_OK = {
+  '^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$': 'proof-worker',
+  '^[a-z0-9](?:[a-z0-9-]{0,40}[a-z0-9])?$': 'wiser-crm-proof',
+  '^(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})$': '1.0.0',
   '^UC[A-Za-z0-9_-]{22}$': 'UCabcdefghijklmnopqrstuv',
   '^[A-Za-z0-9_-]{11}$': 'abcdefghijk',
   '^[A-Za-z0-9_-]{2,64}$': 'PLexample123',
@@ -448,7 +451,7 @@ const REACHED = Symbol('reached-vendor');
 
 function makeCtx(service, module, action, input) {
   const reach = () => { const e = new Error('reached vendor'); e[REACHED] = true; throw e; };
-  return { service, module, action, input, confirm: true, proxy: reach, http: reach, catalog: reach, audit() {} };
+  return { service, module, action, input, confirm: true, proxy: reach, http: reach, fetchRelease: reach, catalog: reach, audit() {} };
 }
 
 async function call(fn, input, service, module, action) {

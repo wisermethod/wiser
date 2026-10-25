@@ -38,6 +38,7 @@ A module is `connectors/<service>/index.js`, exporting `modules`, a map of modul
 | `ctx.catalog(actionId, input)` | Runs the provider's own tool for this id, mapped by the provider adapter. The module never sees the slug | When the module's `auth.provider` is `catalog` |
 | `ctx.proxy({ endpoint, method, body, parameters, binary_body })` | An authenticated HTTP call the provider makes on the module's behalf. The provider enforces its own same-domain rule | Same |
 | `ctx.http(request)` | A direct HTTPS call with the credential attached by the gateway. The module never sees the value. HTTPS only, to a host the manifest's `auth.hosts` lists, and a redirect is refused rather than followed | Only when the manifest says `unwrap_token: true`, lists `auth.hosts`, and the provider can unwrap; in v1 that is the local-file provider |
+| `ctx.fetchRelease(url, { maxBytes })` | An unauthenticated HTTPS GET with a byte limit and a timeout; follows at most three redirects, each to a listed host | Only when the module declares `release_hosts`; every URL must name one of those hosts |
 | `ctx.audit(note)` | Reserved. The audit line is a closed field set so a module cannot put a secret on it; in v1 the call is accepted and the note is dropped | Always |
 
 A module imports Node built-ins and files inside its own directory, and nothing else. It never imports a provider, never reads a credential file, never names a provider slug, and never writes a file. What it needs beyond `ctx`, it does not need.
