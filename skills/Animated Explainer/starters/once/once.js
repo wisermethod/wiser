@@ -1,4 +1,4 @@
-/* Animated Explainer, once starter 0.1.0: the engine for a figure that plays once when it is seen, then holds.
+/* Animated Explainer, once starter 0.2.0: the engine for a figure that plays once when it is seen, then holds.
  *
  * The page's markup and stylesheet are the finished figure. This script hides a figure that has not yet
  * been seen, never showing it at zero; one already a quarter in view on its first arm keeps the still.
@@ -11,7 +11,14 @@
  * motion, in print, in a reveal.js print view (?print-pdf), or when the address carries ?export.
  *
  * It starts every .ax-once on the page, once, however many times the file is included; a figure added to
- * the page later is started by calling window.AxOnce.scan(). It writes no style attribute.
+ * the page later is started by calling window.AxOnce.scan(). Only the render clock writes style attributes,
+ * freezing each frame until the next seek.
+ *
+ * What it reads from the markup:
+ *   data-clock="render" on a root  plays once from video-render:seek on window, whose detail.time is seconds;
+ *                                   keeps the finished still until a seek, with no browser-clock start
+ *   data-at on the root            when the render-clock figure starts, in seconds; missing, 0.3 s;
+ *                                   waits hidden until that time has passed, then plays once and holds
  *
  * What it counts. The markup's .ax-num holds one number, with any words or symbols around it: 37, 1,250,
  * 2.4, $3.5M or 98%. It counts that number in its own format and ends on the markup's own text. Anything it
@@ -30,7 +37,7 @@
     if (typeof window.AxOnce.scan === 'function') window.AxOnce.scan();
     return;
   }
-  var api = window.AxOnce = { version: '0.1.0', roots: [] };
+  var api = window.AxOnce = { version: '0.2.0', roots: [] };
 
   var mq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   var held = /[?&](print-pdf|export)(=|&|$)/.test(window.location.search);
@@ -80,6 +87,140 @@
     }
     return p.prefix + s + p.suffix;
   }
+  function easeCount(p) { return 1 - Math.pow(1 - p, 3); } /* decelerates, never overshoots */
+
+  function renderClock(state) { return state.root.getAttribute('data-clock') === 'render'; }
+  function initRender(state) {
+    state.committed = [];
+    surfaceRender(state.root);
+    if (state.parsed) state.root.classList.add('ax-countable');
+    state.root.axOnce = state;
+    api.roots.push(state.root);
+    states.push(state);
+    setState(state, 'still');
+  }
+  function renderAnimations(root) {
+    return root.getAnimations ? root.getAnimations({ subtree: true }) : [];
+  }
+  function cancelRender(root) {
+    renderAnimations(root).forEach(function (anim) {
+      try { anim.cancel(); } catch (err) { /* already gone */ }
+    });
+  }
+  function flushRender(root) {
+    void root.offsetWidth;
+    window.getComputedStyle(root).opacity;
+  }
+  function surfaceRender(root) {
+    /* Keep the render root on one surface from its still onward: Chromium's rounded-rule raster otherwise
+       depends on earlier scales, even after the animations and frozen values have been removed. */
+    var value = root.style.getPropertyValue('will-change');
+    var hint = value && value !== 'auto' ? value : '';
+    if (!/(^|,\s*)transform(\s*,|$)/.test(hint)) hint += (hint ? ', ' : '') + 'transform';
+    root.style.setProperty('will-change', hint, 'important');
+  }
+  function keyframeProperties(effect) {
+    var names = {};
+    (effect.getKeyframes ? effect.getKeyframes() : []).forEach(function (frame) {
+      Object.keys(frame).forEach(function (key) {
+        if (key !== 'offset' && key !== 'computedOffset' && key !== 'easing' && key !== 'composite') names[key] = 1;
+      });
+    });
+    return Object.keys(names);
+  }
+  function uncommit(state) {
+    (state.committed || []).forEach(function (entry) {
+      if (entry.value) entry.target.style.setProperty(entry.name, entry.value, entry.priority);
+      else entry.target.style.removeProperty(entry.name);
+    });
+    state.committed = [];
+  }
+  function syncRender(state) {
+    if (!still()) return;
+    cancelRender(state.root);
+    uncommit(state);
+    clearCount(state);
+    state.root.classList.remove('ax-armed', 'ax-go');
+    flushRender(state.root);
+    cancelRender(state.root);
+    setState(state, 'still');
+  }
+  function seekRender(state, t) {
+    if (still()) { syncRender(state); return; }
+    var root = state.root;
+    /* Undo the previous frame before changing any class, then establish the same hidden entrance the page uses. */
+    cancelRender(root);
+    uncommit(state);
+    clearCount(state);
+    root.classList.remove('ax-go');
+    root.classList.add('ax-armed');
+    flushRender(root);
+    cancelRender(root);
+    flushRender(root);
+    var at = parseFloat(root.getAttribute('data-at'));
+    if (!isFinite(at)) at = 0.3;
+    setState(state, 'waiting');
+    /* A moment that has only just come shows nothing yet, never a count at zero. */
+    if (t <= at) return;
+
+    var local = (t - at) * 1000;
+    var count = ms(root, '--ax-count', 800);
+    var end = state.parsed ? count : 0;
+    root.classList.add('ax-go');
+    if (state.parsed && t < at + count / 1000) {
+      var span = document.createElement('span');
+      span.className = 'ax-count';
+      span.setAttribute('aria-hidden', 'true');
+      span.textContent = format(state.parsed, state.parsed.value * easeCount(local / count));
+      (state.num.parentNode || root).appendChild(span);
+      state.count = span;
+      root.classList.add('ax-counting');
+    }
+    flushRender(root);
+    var frozen = renderAnimations(root);
+    frozen.forEach(function (anim) {
+      var effect = anim.effect;
+      var finish = effect && effect.getComputedTiming ? effect.getComputedTiming().endTime : Infinity;
+      end = Math.max(end, finish);
+      try {
+        /* Retain a transition's endpoint while reading it, including an identity transform at its end. */
+        if (typeof anim.transitionProperty === 'string') effect.updateTiming({ fill: 'both' });
+        anim.pause();
+        anim.currentTime = Math.min(local, finish);
+      } catch (err) { /* an animation that already ended */ }
+    });
+    flushRender(root);
+    /* Read every animated value before writing any: commitStyles() would commit a transition's end instead.
+       Preserve authored inline values too, so the next seek restores the same starting picture. */
+    var values = frozen.map(function (anim) {
+      var effect = anim.effect, target = effect && effect.target;
+      if (!target || !target.style) return [];
+      var cs = window.getComputedStyle(target);
+      return keyframeProperties(effect).map(function (name) {
+        var cssName = name.indexOf('--') === 0 ? name : name.replace(/[A-Z]/g, function (c) { return '-' + c.toLowerCase(); });
+        return { target: target, name: cssName, frozen: cs.getPropertyValue(cssName),
+          value: target.style.getPropertyValue(cssName), priority: target.style.getPropertyPriority(cssName) };
+      });
+    });
+    values.forEach(function (props) {
+      props.forEach(function (entry) {
+        state.committed.push(entry);
+        entry.target.style.setProperty(entry.name, entry.frozen);
+      });
+    });
+    flushRender(root);
+    cancelRender(root);
+    flushRender(root);
+    /* A write can start a transition, so cancel again after its style has been computed. */
+    cancelRender(root);
+    flushRender(root);
+    setState(state, t >= at + end / 1000 ? 'done' : 'playing');
+  }
+  window.addEventListener('video-render:seek', function (event) {
+    var t = Number(event.detail && event.detail.time);
+    if (!isFinite(t)) return;
+    states.forEach(function (state) { if (renderClock(state)) seekRender(state, t); });
+  });
 
   function clearCount(state) {
     if (state.raf) cancelAnimationFrame(state.raf);
@@ -151,7 +292,7 @@
       var t0 = performance.now();
       var frame = function (now) {
         var p = Math.min(1, Math.max(0, (now - t0) / total));
-        var eased = 1 - Math.pow(1 - p, 3); /* decelerates, never overshoots */
+        var eased = easeCount(p);
         if (p < 1) {
           span.textContent = format(state.parsed, state.parsed.value * eased);
           state.raf = requestAnimationFrame(frame);
@@ -207,6 +348,7 @@
   /* Stop everything at once: a figure that had not finished waits to be armed again; one that had stays done. */
   function stopAll() {
     states.forEach(function (state) {
+      if (renderClock(state)) { syncRender(state); return; }
       clearCount(state);
       state.token += 1;
       state.queued = false;
@@ -229,11 +371,13 @@
     return r.width > 0 && r.height > 0 && w * h >= r.width * r.height * 0.25;
   }
   function sync() {
+    states.forEach(function (state) { if (renderClock(state)) syncRender(state); });
     if (still() || !io) {
       stopAll();
       return;
     }
     states.forEach(function (state) {
+      if (renderClock(state)) return;
       if (state.kept || (state.slide && !window.Reveal)) {
         unshown(state);
         if (busy === state) reset(state);
@@ -273,13 +417,14 @@
       var num = root.querySelector('.ax-num');
       if (!num) return;
       var state = { root: root, num: num, parsed: parse(num.textContent, root), done: false, queued: false, raf: 0, timer: 0, count: null, token: 0, shown: false };
+      if (renderClock(state)) { initRender(state); return; }
       if (state.parsed) root.classList.add('ax-countable');
       root.axOnce = state;
       api.roots.push(root);
       states.push(state);
       added.push(state);
     });
-    if (!io && 'IntersectionObserver' in window) {
+    if (!io && added.length && 'IntersectionObserver' in window) {
       io = new IntersectionObserver(function (entries) {
         entries.forEach(function (entry) {
           var state = entry.target.axOnce;
