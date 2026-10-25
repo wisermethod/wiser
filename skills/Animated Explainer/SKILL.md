@@ -9,6 +9,7 @@ memory:
   - design
   - voice
 gaps:
+  - in a video, a motion on an element with no timed element at or above it, which the render clock leaves to the browser's clock and names in the console
   - placing an explainer bundle on a site whose engine is not the kit, which is handed over and never placed
 ---
 
