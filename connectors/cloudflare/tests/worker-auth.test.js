@@ -6,8 +6,8 @@ const row = readFileSync(new URL('../auth.md', import.meta.url), 'utf8').split('
   .find((line) => line.startsWith('| `workers` |'));
 test('workers auth row names the permission for every action and cites bookmark Read', () => {
   const groups = [
-    ['Account / Workers Scripts / Read', ['workers_subdomain', 'get_worker', 'list_versions']],
-    ['Account / Workers Scripts / Edit', ['deploy_worker_release', 'delete_worker', 'set_vars', 'add_custom_domain', 'remove_custom_domain', 'set_workers_dev', 'rollback']],
+    ['Content Read-Only for', ['workers_subdomain', 'get_worker', 'list_versions']],
+    ['Admin for', ['deploy_worker_release', 'delete_worker', 'set_vars', 'add_custom_domain', 'remove_custom_domain', 'set_workers_dev', 'rollback']],
     ['Account / D1 / Edit', ['d1_migrate', 'd1_adopt', 'd1_restore']],
     ['Account / D1 / Read', ['d1_bookmark']],
   ];
@@ -19,4 +19,7 @@ test('workers auth row names the permission for every action and cites bookmark 
   }
   assert.match(row, /https:\/\/developers\.cloudflare\.com\/api\/resources\/d1\/subresources\/database\/subresources\/time_travel\/methods\/get_bookmark\//);
   assert.ok(!row.includes('does not execute migrations or create a database'));
+  // The new Workers roles, with the legacy rows they replace still named.
+  assert.ok(row.includes('Workers product scope') && row.includes('Account / Workers Scripts / Read and Edit'));
+  assert.match(row, /https:\/\/developers\.cloudflare\.com\/workers\/authorization\/workers\//);
 });
