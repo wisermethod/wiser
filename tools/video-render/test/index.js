@@ -2,3 +2,4 @@
 import './core.test.mjs';
 import './clock.test.mjs';
 import './once-clock.test.mjs';
+import './dependencies.test.mjs';

@@ -17,13 +17,17 @@ async function scratch(t) {
   t.after(() => rm(path, { recursive: true, force: true }));
   return path;
 }
-const run = (args, script = cli, extra = {}) => spawnSync(process.execPath, [script, ...args], { encoding: 'utf8', timeout: 120_000, ...extra });
+const run = (args, script = cli, extra = {}) => spawnSync(process.execPath, [script, ...args], {
+  encoding: 'utf8', timeout: 120_000, env: { ...process.env, WISER_ALLOW_INSTALL: '0' }, ...extra,
+});
 const input = (project, output) => ({ project, output, width: 640, height: 360, fps: 8, duration: 2, workers: 1 });
 
 test('help works in an uninstalled copy and importing the command does no work', async (t) => {
   const path = await scratch(t);
-  await cp(join(TOOL_DIR, 'scripts'), join(path, 'scripts'), { recursive: true });
-  const script = join(path, 'scripts/video-render.mjs');
+  await cp(join(TOOL_DIR, 'scripts'), join(path, 'tools/video-render/scripts'), { recursive: true });
+  await mkdir(join(path, 'tools/lib'), { recursive: true });
+  await cp(join(TOOL_DIR, '../lib/consent.js'), join(path, 'tools/lib/consent.js'));
+  const script = join(path, 'tools/video-render/scripts/video-render.mjs');
   for (const args of [['help'], ['--help'], ['sequence', '--help']]) {
     const result = run(args, script);
     assert.equal(result.status, 0, result.stderr);
@@ -206,7 +210,11 @@ test('a failed renderer keeps its log and removes the temporary project and home
   await mkdir(join(project, '.hyperframes/bin'), { recursive: true });
   await writeFile(join(project, '.hyperframes/bin', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'), 'Zibble');
   const before = new Set((await readdir(tmpdir())).filter((name) => name.startsWith('wiser-video-render-')));
-  const result = run(['sequence', '--project', project, '--output', output, '--width', '640', '--height', '360', '--fps', '8', '--duration', '2', '--workers', '1'], cli, { env: { PATH: '', LANG: 'C', HOME: process.env.HOME } });
+  // Satisfy the entry-point system check, then exercise the renderer's separate local-binary failure.
+  const bin = join(path, 'bin');
+  await mkdir(bin);
+  await writeFile(join(bin, 'ffmpeg'), '#!/bin/sh\nif [ ! -f "$0.checked" ]; then\n  : > "$0.checked"\n  printf "ffmpeg version test-fixture\\n"\n  exit 0\nfi\nexit 1\n', { mode: 0o755 });
+  const result = run(['sequence', '--project', project, '--output', output, '--width', '640', '--height', '360', '--fps', '8', '--duration', '2', '--workers', '1'], cli, { env: { PATH: bin, LANG: 'C', HOME: process.env.HOME } });
   assert.equal(result.status, 1);
   assert.equal(result.stdout, '');
   assert.match(result.stderr, /HyperFrames render failed/);

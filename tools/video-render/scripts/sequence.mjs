@@ -1,16 +1,12 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { constants } from 'node:fs';
-import { access, cp, lstat, mkdir, mkdtemp, open, readFile, readdir, realpath, rm, stat, writeFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
-import { homedir, tmpdir } from 'node:os';
+import { cp, lstat, mkdir, mkdtemp, open, readFile, readdir, realpath, rm, stat, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { basename, dirname, isAbsolute, join, relative, sep } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
 import { BRIDGE, compositionHtml, inspectProject, protectedPath } from './project.mjs';
+import { TOOL_DIR, HYPERFRAMES_VERSION, CHROME_BUILD, childEnvironment, ownPackage, prepareRuntime } from './dependencies.mjs';
 
-export const TOOL_DIR = fileURLToPath(new URL('../', import.meta.url));
-export const HYPERFRAMES_VERSION = '0.8.134';
-export const CHROME_BUILD = '152.0.7977.30';
+export { TOOL_DIR, HYPERFRAMES_VERSION, CHROME_BUILD, browserPath, checkRuntime, childEnvironment } from './dependencies.mjs';
 
 async function exists(path) {
   try { await lstat(path); return true; } catch (error) {
@@ -90,44 +86,6 @@ export async function optionsForSequence(input) {
   return { project, output, width, height, fps, duration, expectedFrames, workers, gpu, capture };
 }
 
-export async function checkRuntime(tool = TOOL_DIR, nodeVersion = process.versions.node) {
-  if (Number(nodeVersion.split('.')[0]) < 22) throw new Error(`Node ${nodeVersion} is too old; video-render requires Node >=22.`);
-  const marker = join(tool, 'node_modules/hyperframes/package.json');
-  let pkg;
-  try { pkg = JSON.parse(await readFile(marker, 'utf8')); } catch (error) {
-    if (error.code !== 'ENOENT') throw new Error(`Cannot read HyperFrames package version at ${marker}; restore this tool's pinned install.`);
-    throw new Error(`HyperFrames ${HYPERFRAMES_VERSION} is missing at ${marker}. Installing would fetch hyperframes and its dependencies from registry.npmjs.org into ${join(tool, 'node_modules')}; this core installs nothing. Provision the pinned packages before rendering.`);
-  }
-  if (pkg.version !== HYPERFRAMES_VERSION) throw new Error(`HyperFrames ${pkg.version} is installed; exactly ${HYPERFRAMES_VERSION} is required. Restore the pinned install.`);
-  return pkg.version;
-}
-
-async function ownPackage(name) {
-  const require = createRequire(join(TOOL_DIR, 'package.json'));
-  return import(pathToFileURL(require.resolve(name)).href);
-}
-
-export async function browserPath(realHome = homedir()) {
-  const { computeExecutablePath, Browser } = await ownPackage('@puppeteer/browsers');
-  const path = computeExecutablePath({
-    cacheDir: join(realHome, '.cache/hyperframes/chrome'), browser: Browser.CHROMEHEADLESSSHELL, buildId: CHROME_BUILD,
-  });
-  try { await access(path, constants.X_OK); } catch {
-    throw new Error(`Pinned chrome-headless-shell ${CHROME_BUILD} is missing or not executable at ${path}; provision that build in HyperFrames' browser cache.`);
-  }
-  return path;
-}
-
-export function childEnvironment(home, browser, caller = process.env) {
-  const env = {};
-  for (const name of ['PATH', 'LANG', 'TMPDIR']) if (caller[name] !== undefined) env[name] = caller[name];
-  return Object.assign(env, {
-    HOME: home, HYPERFRAMES_BROWSER_PATH: browser,
-    HYPERFRAMES_NO_TELEMETRY: '1', DO_NOT_TRACK: '1', HYPERFRAMES_NO_UPDATE_CHECK: '1',
-    HYPERFRAMES_NO_AUTO_INSTALL: '1', HYPERFRAMES_SKIP_SKILLS: '1', NO_COLOR: '1',
-  });
-}
-
 export function renderArguments(copy, frames, options) {
   return [join(TOOL_DIR, 'node_modules/hyperframes/bin/hyperframes.mjs'), 'render', copy,
     '--format', 'png-sequence', '-o', frames, '--fps', String(options.fps),
@@ -178,12 +136,12 @@ export async function hashFrames(framesDir, expected, width, height) {
   return { frameCount: files.length, hashesPath, hashesSha256: sha256(manifest) };
 }
 
-export async function sequence(input) {
+export async function sequence(input, { install = false } = {}) {
   const started = performance.now();
   const options = await optionsForSequence(input);
-  await checkRuntime();
   const project = await inspectProject(options.project);
-  const browser = await browserPath();
+  const runtime = await prepareRuntime({ install, gpu: options.gpu });
+  const browser = runtime.chrome.executablePath;
   const temporary = await mkdtemp(join(tmpdir(), 'wiser-video-render-'));
   let logPath;
   try {
