@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { cp, lstat, mkdir, mkdtemp, open, readFile, readdir, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, isAbsolute, join, relative, sep } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { BRIDGE, compositionHtml, inspectProject, protectedPath } from './project.mjs';
 import { TOOL_DIR, HYPERFRAMES_VERSION, CHROME_BUILD, childEnvironment, ownPackage, prepareRuntime } from './dependencies.mjs';
 
@@ -97,6 +98,12 @@ export async function optionsForSequence(input) {
   return { project, output, width, height, fps, duration, expectedFrames, workers, gpu, capture };
 }
 
+// HyperFrames' Node process runs with network-guard.mjs loaded, so it reaches no host but this machine.
+export const NETWORK_GUARD = join(TOOL_DIR, 'scripts', 'network-guard.mjs');
+export function renderEnvironment(home, browser) {
+  return { ...childEnvironment(home, browser), NODE_OPTIONS: `--import=${pathToFileURL(NETWORK_GUARD).href}` };
+}
+
 export function renderArguments(copy, frames, options) {
   return [join(TOOL_DIR, 'node_modules/hyperframes/bin/hyperframes.mjs'), 'render', copy,
     '--format', 'png-sequence', '-o', frames, '--fps', String(options.fps),
@@ -177,7 +184,7 @@ export async function sequence(input, { install = false, runtime: preparedRuntim
     await mkdir(options.output);
     logPath = join(options.output, 'render.log');
     const framesDir = join(options.output, 'frames');
-    await renderChild(renderArguments(copy, framesDir, options), copy, childEnvironment(home, browser), logPath);
+    await renderChild(renderArguments(copy, framesDir, options), copy, renderEnvironment(home, browser), logPath);
     const log = readRenderLog(await readFile(logPath, 'utf8'));
     const hashes = await hashFrames(framesDir, options.expectedFrames, options.width, options.height);
     return { hyperframesVersion: HYPERFRAMES_VERSION, ...log, gpu: options.gpu, capture: options.capture,

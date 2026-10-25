@@ -18,7 +18,7 @@ Use it when an HTML animation has to become a video file frame for frame: an exp
 
 Not for a still of a page, which is `tools/render/`. Not for editing a recording that exists, which is `tools/video-edit/`. Not for sound: it writes picture only, and narration, music, loudness and joining are the caller's, `tools/video-edit/` among them. Not for a page that animates on the browser's own clock, since its frames would depend on how fast the machine draws: the page answers this tool's seek, under The project below. Not for generating imagery, which is `skills/Media Generator/`.
 
-It authenticates to nothing and reads no credential. After its install, a render reaches no other origin: the screen in The project refuses one where the page would load it, and the browser it launches reaches only this machine.
+It authenticates to nothing and reads no credential. After its install, a render reaches no other origin: the screen in The project refuses one where the page would load it, and neither the browser it launches nor HyperFrames' own Node process reaches anything but this machine.
 
 Classifier seam: none.
 
@@ -32,6 +32,7 @@ This section is the one home of what a page must be for this tool to render it.
 - **Nothing animating at load or at capture.** A page that drives CSS transitions or animations from the seek sets them to the time and freezes them into its elements' styles before returning, as `skills/Animated Explainer/`'s two engines do on their render clock, and a page that seeks a library's own timeline seeks it to the time and writes styles, as GSAP does. A page leaves no CSS animation or Web Animation running or paused at load or when its listener returns: the renderer's own adapters re-time any they find by their own clock, so the frame would not be the page's, measured on HyperFrames 0.8.134. The browser runs with reduced motion forced off, so a page's motion rules always apply.
 - **Nothing from another origin.** A value that loads may not name another origin, a scheme other than `data:` or `blob:`, or `//`: in `src`, `href`, `xlink:href`, `srcset`, `imagesrcset`, `poster`, `data`, `action`, `formaction`, `background` and `ping`; in any attribute or stylesheet's `url(...)`, `@import` and `image-set()`; in a refresh's URL; in an `iframe`'s `srcdoc`; and in the content of a `data:` URL holding CSS, HTML or SVG, to three levels. A refusal names the file, the attribute or rule, and the value. An XML namespace and a script's text are not screened; the browser itself reaches nothing but this machine.
 - **A library is the page's own.** The tool installs no animation, 3D or font library for a page; a page that uses one carries its local copy and that library's own terms.
+- **Fonts in a linked stylesheet.** Name a page's fonts in a stylesheet `index.html` links, or declare each with `@font-face` from the project's own files. For a font named in a `<style>` element or a `style` attribute with no `@font-face`, HyperFrames substitutes its own: a system font such as `system-ui` becomes Inter, and a family it knows takes the copy it ships. It would also ask Google Fonts for more faces; the tool refuses that request inside HyperFrames' process, as a machine with no network would, so the frames are the same online or off and the render log names the refusal. Measured on HyperFrames 0.8.134.
 
 ## Quick Start
 
@@ -126,6 +127,7 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 | `FFmpeg is missing or cannot run` | No `ffmpeg` on `PATH` | Make `ffmpeg -version` succeed, per Dependencies |
 | `check` reports `ffprobe.present: false` | No `ffprobe` on `PATH`; `render` reads every MP4 back with it | Make `ffprobe -version` succeed, per Dependencies |
 | `… is a protected memory, .env or credential path` | A path, or a file in the project, is under a `memory` directory or is named `.env`, `.env.*`, `*.env` or `credentials.json` | Move the file out of the project, or name another path; the tool reads none of them |
+| `video-render: refused a connection to fonts.googleapis.com:443` in `render.log` | A font is named in a `<style>` element or a `style` attribute, so HyperFrames substituted its own and asked Google Fonts for more | Name the font in the linked stylesheet, or declare it with `@font-face` from a file in the project; the render itself is unaffected |
 | `index.html has N data-video-root elements` | The page marks no root, or more than one | Mark exactly one element at the frame's size |
 | `Project file … references …` | A loading attribute or rule names another origin | Copy that asset into the project and refer to it locally |
 | `HyperFrames wrote N frames; expected …` | The render stopped early, or the page failed to load | Read `render.log` in the run's output for the page's error, fix it, and render to a new path |

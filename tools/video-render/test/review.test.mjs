@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import test from 'node:test';
 import { CHROME_BUILD, TOOL_DIR, ownPackage } from '../scripts/dependencies.mjs';
-import { BROWSER_SWITCHES, browserPath, sequence, writeBrowserWrapper } from '../scripts/sequence.mjs';
+import { BROWSER_SWITCHES, NETWORK_GUARD, browserPath, childEnvironment, renderEnvironment, sequence, writeBrowserWrapper } from '../scripts/sequence.mjs';
 import { BRIDGE, inspectProject, protectedPath, remoteReference } from '../scripts/project.mjs';
 import { cacheKey, fileHash, readCache, writeCache } from '../scripts/cache.mjs';
 import { renderCacheInputs } from '../scripts/render.mjs';
@@ -312,4 +312,42 @@ test('a counted figure draws the same frames at one worker and four', { timeout:
   const differing = one.map((hash, i) => (hash === four[i] ? null : i)).filter((i) => i !== null);
   assert.deepEqual(differing, [], `frames differing between one worker and four: ${differing.join(', ')}`);
   assert.ok(new Set(one).size > 10, 'the figure must move');
+});
+
+test('the network guard refuses every host but this machine inside a Node process, before any lookup', async () => {
+  // The child serves itself on loopback: spawnSync holds this process, so a server here could not answer.
+  const script = `
+    const { createServer } = await import('node:http');
+    const server = createServer((request, response) => response.end('local'));
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const out = {};
+    for (const url of ['https://example.invalid/', 'http://203.0.113.9/', 'https://fonts.googleapis.com/css2?family=Inter']) {
+      try { await fetch(url); out[url] = 'reached'; } catch (error) { out[url] = String(error.cause?.message ?? error.message); }
+    }
+    out.local = await (await fetch('http://127.0.0.1:' + server.address().port + '/')).text();
+    server.close();
+    console.log(JSON.stringify(out));`;
+  const guarded = spawnSync(process.execPath, ['--input-type=module', '-e', script], { encoding: 'utf8', timeout: 30_000,
+    env: { ...process.env, NODE_OPTIONS: `--import=${pathToFileURL(NETWORK_GUARD).href}` } });
+  assert.equal(guarded.status, 0, guarded.stderr);
+  const out = JSON.parse(guarded.stdout);
+  for (const url of ['https://example.invalid/', 'http://203.0.113.9/', 'https://fonts.googleapis.com/css2?family=Inter']) {
+    assert.match(out[url], /video-render refused a connection to /, url);
+  }
+  assert.equal(out.local, 'local');
+  assert.match(guarded.stderr, /video-render: refused a connection to fonts\.googleapis\.com:443/);
+  // Only a render carries it: the installer's environment does not.
+  assert.match(renderEnvironment('/home', '/browser').NODE_OPTIONS, /network-guard\.mjs$/);
+  assert.equal(childEnvironment('/home', '/browser').NODE_OPTIONS, undefined);
+});
+
+test('a font named in a style element reaches no font service during a render', { timeout: 120_000 }, async (t) => {
+  const path = await scratch(t), project = join(path, 'project');
+  await mkdir(project);
+  await writeFile(join(project, 'index.html'), `<!doctype html><html><head><style>html,body{margin:0}
+    main{width:64px;height:32px;font-family:system-ui,sans-serif}</style></head><body><main data-video-root>Aa</main></body></html>`);
+  const report = await sequence({ project, output: join(path, 'out'), width: 64, height: 32, fps: 2, duration: 1, workers: 1 });
+  const log = await readFile(report.logPath, 'utf8');
+  assert.doesNotMatch(log, /from Google Fonts/);
+  assert.match(log, /video-render: refused a connection to fonts\.googleapis\.com:443/);
 });
