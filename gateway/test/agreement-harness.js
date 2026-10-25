@@ -86,9 +86,9 @@ const CONNECTORS = fileURLToPath(new URL('../../connectors', import.meta.url));
  */
 const PATTERN_OK = {
   // Access human labels and addresses exclude credential-shaped runs before confirmation.
-  "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}))[^\\u0000-\\u001f\\u007f]+$": "CRM staff",
-  "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}))[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$": "crm.example.com",
-  "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}))[^\\s@\\u0000]+@[^\\s@\\u0000]+$": "staff@example.com",
+  "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}))(?![A-Za-z0-9_-]{40}$)[^\\u0000-\\u001f\\u007f]+$": "CRM staff",
+  "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}))(?!(?:[^.]+\\.)*[A-Za-z0-9_-]{40}(?:\\.|$))[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$": "crm.example.com",
+  "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}))(?![A-Za-z0-9_-]{40}@)[^\\s@\\u0000]+@[^\\s@\\u0000]+$": "staff@example.com",
 
   // Time Travel: documented bookmark spelling and a fresh UTC checkpoint.
   '^[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{32}$': '00000001-00000002-00004e2f-0a83ea2fceebc654de0640c422be4653',

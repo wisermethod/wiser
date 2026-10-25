@@ -2347,12 +2347,14 @@ function checkPagesRead(input, withDomain) {
 // a failed request: a provider body, thrown message or organization can hold keys.
 const ACCESS_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const ACCESS_TOKEN_SHAPE = /eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}/;
+const ACCESS_WHOLE_TOKEN_SHAPE = /^[A-Za-z0-9_-]{40}$/;
 const accessEmail = (v) => typeof v === 'string' && [...v].length <= 254
-  && /^[^\s@\u0000]+@[^\s@\u0000]+$/.test(v) && !ACCESS_TOKEN_SHAPE.test(v);
+  && /^[^\s@\u0000]+@[^\s@\u0000]+$/.test(v) && !ACCESS_TOKEN_SHAPE.test(v)
+  && !ACCESS_WHOLE_TOKEN_SHAPE.test(v.split('@')[0]);
 const accessName = (v) => typeof v === 'string' && [...v].length >= 1 && [...v].length <= 100
-  && /^[^\u0000-\u001f\u007f]+$/.test(v) && !ACCESS_TOKEN_SHAPE.test(v);
+  && /^[^\u0000-\u001f\u007f]+$/.test(v) && !ACCESS_TOKEN_SHAPE.test(v) && !ACCESS_WHOLE_TOKEN_SHAPE.test(v);
 const accessHostname = (v) => typeof v === 'string' && [...v].length <= 253
-  && HOSTNAME.test(v) && !ACCESS_TOKEN_SHAPE.test(v);
+  && HOSTNAME.test(v) && !ACCESS_TOKEN_SHAPE.test(v) && !v.split('.').some((label) => ACCESS_WHOLE_TOKEN_SHAPE.test(label));
 const accessPath = (account) => `/accounts/${encodeURIComponent(account)}/access`;
 const accessVendor = (req, status) => ({ status: 'vendor_error', endpoint: req.endpoint.split('?')[0], method: req.method,
   ...(Number.isInteger(status) ? { http_status: status } : {}) });
@@ -2427,6 +2429,26 @@ function accessPolicyRefusal(policyId, reason, req) {
   const id = typeof policyId === 'string' && ACCESS_UUID.test(policyId) ? policyId : null;
   return { ...accessVendor(req), ...(id ? { policy_id: id } : {}), reason: `Policy ${id || '(unidentified)'}: ${reason}` };
 }
+async function accessReadPolicy(account, id, ctx) {
+  const req = { endpoint: `${accessPath(account)}/policies/${encodeURIComponent(id)}`, method: 'GET' };
+  const reply = await accessRequest(ctx, req);
+  if (reply.error) return { ...reply.error, ...accessPolicyRefusal(id, 'Policy could not be read and checked.', req) };
+  if (reply.result?.id !== id) return accessPolicyRefusal(id, 'Policy read-back id did not match the linked policy.', req);
+  const problem = accessPolicyProblem(reply.result);
+  return problem ? accessPolicyRefusal(id, problem, req) : null;
+}
+async function accessRemoveFailedApp(account, app, failure, ctx) {
+  const id = app?.id;
+  if (typeof id !== 'string' || !ACCESS_UUID.test(id)) {
+    return { ...failure, removed: false, reason: 'Application removal could not be confirmed: the create response has no usable application id.' };
+  }
+  const req = { endpoint: `${accessPath(account)}/apps/${encodeURIComponent(id)}`, method: 'DELETE' };
+  const deleted = await accessRequest(ctx, req);
+  const readBack = await accessRequest(ctx, { ...req, method: 'GET' });
+  const removed = !deleted.error && readBack.error?.http_status === 404;
+  return { ...failure, app_id: id, removed,
+    reason: `Application ${id} ${removed ? 'was removed' : 'removal could not be confirmed'}. ${failure.reason || 'Created application could not be validated.'}` };
+}
 function accessAppResult(app, req, detail) {
   if (!asObject(app) || !ACCESS_UUID.test(app.id) || typeof app.aud !== 'string' || !/^[0-9a-f]{64}$/.test(app.aud)) return accessVendor(req);
   const out = { success: true, id: app.id, aud: app.aud };
@@ -2448,9 +2470,10 @@ function accessAppResult(app, req, detail) {
   if (Array.isArray(app.destinations) && app.destinations.some((destination) => Array.isArray(destination?.overrides) && destination.overrides.length > 0)) {
     return { ...accessVendor(req), reason: 'Application destination overrides can bypass Access authentication for a path.' };
   }
-  if (Array.isArray(app.policies) && app.policies.some((policy) => asObject(policy) && Object.hasOwn(policy, 'decision')
-    && !['allow', 'non_identity'].includes(policy.decision))) {
-    return { ...accessVendor(req), reason: 'Embedded policy decision must be allow or non_identity.' };
+  for (const policy of Array.isArray(app.policies) ? app.policies : []) {
+    if (asObject(policy) && policy.decision !== undefined && !['allow', 'non_identity'].includes(policy.decision)) {
+      return accessPolicyRefusal(policy.id, 'Embedded policy decision must be allow or non_identity.', req);
+    }
   }
   if (app.type !== 'self_hosted' || !accessHostname(app.domain)) return accessVendor(req);
   const hostname = app.domain.toLowerCase();
@@ -2459,7 +2482,9 @@ function accessAppResult(app, req, detail) {
     || app.destinations[0].uri.toLowerCase() !== hostname)) return accessVendor(req);
   if (app.self_hosted_domains !== undefined && (!Array.isArray(app.self_hosted_domains)
     || app.self_hosted_domains.some((v) => typeof v !== 'string' || v.toLowerCase() !== hostname))) return accessVendor(req);
-  if (!Array.isArray(app.policies)) return accessVendor(req);
+  if (!Array.isArray(app.policies) || app.policies.length < 1 || app.policies.length > 50) {
+    return { ...accessVendor(req), reason: 'Application policies must contain 1 to 50 checked policies.' };
+  }
   const ids = app.policies.map((policy) => typeof policy === 'string' ? policy : policy?.id);
   if (!ids.every((id) => typeof id === 'string' && ACCESS_UUID.test(id))) return accessVendor(req);
   return { ...out, hostname, policy_ids: ids };
@@ -2785,11 +2810,8 @@ export const modules = {
       const duplicate = await accessDuplicate(input, ctx);
       if (duplicate) return duplicate;
       for (const id of input.policy_ids) {
-        const policyReq = { endpoint: `${accessPath(input.account_id)}/policies/${encodeURIComponent(id)}`, method: 'GET' };
-        const policy = await accessRequest(ctx, policyReq);
-        if (policy.error) return policy.error;
-        const problem = accessPolicyProblem(policy.result);
-        if (problem) return accessPolicyRefusal(id, problem, policyReq);
+        const problem = await accessReadPolicy(input.account_id, id, ctx);
+        if (problem) return problem;
       }
       const req = { endpoint: `${accessPath(input.account_id)}/apps`, method: 'POST', body: {
         type: 'self_hosted', domain: input.hostname.toLowerCase(), name: input.name,
@@ -2797,7 +2819,26 @@ export const modules = {
         policies: input.policy_ids.map((id, i) => ({ id, precedence: i + 1 })),
       } };
       const reply = await accessRequest(ctx, req);
-      return reply.error || accessAppResult(reply.result, req, false);
+      if (reply.error) return reply.error;
+      const result = accessAppResult(reply.result, req, false);
+      let failure = result.status === 'vendor_error' ? result : null;
+      if (!failure) {
+        const expected = new Set(input.policy_ids);
+        const actual = new Set(reply.result.policies.map((policy) => policy?.id));
+        if (actual.size !== expected.size || [...actual].some((id) => !expected.has(id))) {
+          failure = { ...accessVendor(req), reason: 'Created application policy id set did not match the requested policy id set.' };
+        }
+      }
+      if (!failure) {
+        // A create response can be stale. Read the reusable policies again after
+        // POST, before claiming that the new application is protected.
+        for (const id of new Set(input.policy_ids)) {
+          failure = await accessReadPolicy(input.account_id, id, ctx);
+          if (failure) break;
+        }
+      }
+      if (failure) return accessRemoveFailedApp(input.account_id, reply.result, failure, ctx);
+      return result;
     },
     async create_policy(input, ctx) {
       if (!accessName(input?.name)) return invalid('name');
@@ -2853,7 +2894,20 @@ export const modules = {
     async get_app(input, ctx) {
       const req = { endpoint: `${accessPath(input.account_id)}/apps/${encodeURIComponent(input.app_id)}`, method: 'GET' };
       const reply = await accessRequest(ctx, req);
-      return reply.error || accessAppResult(reply.result, req, true);
+      if (reply.error) return reply.error;
+      const result = accessAppResult(reply.result, req, true);
+      if (result.status === 'vendor_error') return result;
+      for (const policy of reply.result.policies) {
+        const id = typeof policy === 'string' ? policy : policy.id;
+        if (policy?.decision === undefined || policy?.include === undefined) {
+          const problem = await accessReadPolicy(input.account_id, id, ctx);
+          if (problem) return problem;
+        } else {
+          const problem = accessPolicyProblem(policy);
+          if (problem) return accessPolicyRefusal(id, problem, req);
+        }
+      }
+      return result;
     },
   },
 

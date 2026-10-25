@@ -378,7 +378,7 @@
       },
       "actions": {
         "create_app": {
-          "description": "Create a self-hosted Access application for one hostname with reusable policy ids, after reading the Zero Trust organization and refusing any existing covering or unresolved application. Reads each policy before POST and checks the response policies: only Allow with 1 to 50 explicit email includes or non_identity with exactly one service-token UUID include, with exclude and require absent or empty. Token-shaped text is refused.",
+          "description": "Create a self-hosted Access application for one hostname with reusable policy ids, after reading the Zero Trust organization and refusing any existing covering or unresolved application. Reads each policy before POST, checks the response policy id set and details, and reads the linked policies again after POST: only Allow with 1 to 50 explicit email includes or non_identity with exactly one service-token UUID include, with exclude and require absent or empty. A validation failure deletes the created application and reads it back absent; unconfirmed removal is reported by application id. Token-shaped text is refused.",
           "risk": "high",
           "confirmation": "always",
           "execution": {
@@ -394,13 +394,13 @@
               "hostname": {
                 "type": "string",
                 "maxLength": 253,
-                "pattern": "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}))[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$"
+                "pattern": "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}))(?!(?:[^.]+\\.)*[A-Za-z0-9_-]{40}(?:\\.|$))[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$"
               },
               "name": {
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 100,
-                "pattern": "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}))[^\\u0000-\\u001f\\u007f]+$"
+                "pattern": "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}))(?![A-Za-z0-9_-]{40}$)[^\\u0000-\\u001f\\u007f]+$"
               },
               "policy_ids": {
                 "type": "array",
@@ -439,7 +439,7 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 100,
-                "pattern": "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}))[^\\u0000-\\u001f\\u007f]+$"
+                "pattern": "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}))(?![A-Za-z0-9_-]{40}$)[^\\u0000-\\u001f\\u007f]+$"
               },
               "decision": {
                 "type": "string",
@@ -455,7 +455,7 @@
                 "items": {
                   "type": "string",
                   "maxLength": 254,
-                  "pattern": "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}))[^\\s@\\u0000]+@[^\\s@\\u0000]+$"
+                  "pattern": "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}))(?![A-Za-z0-9_-]{40}@)[^\\s@\\u0000]+@[^\\s@\\u0000]+$"
                 }
               },
               "service_token_id": {
@@ -522,12 +522,12 @@
               "add": {
                 "type": "string",
                 "maxLength": 254,
-                "pattern": "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}))[^\\s@\\u0000]+@[^\\s@\\u0000]+$"
+                "pattern": "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}))(?![A-Za-z0-9_-]{40}@)[^\\s@\\u0000]+@[^\\s@\\u0000]+$"
               },
               "remove": {
                 "type": "string",
                 "maxLength": 254,
-                "pattern": "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}))[^\\s@\\u0000]+@[^\\s@\\u0000]+$"
+                "pattern": "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}))(?![A-Za-z0-9_-]{40}@)[^\\s@\\u0000]+@[^\\s@\\u0000]+$"
               }
             },
             "required": [
@@ -556,7 +556,7 @@
           }
         },
         "get_app": {
-          "description": "Read a self-hosted Access application hostname, reusable policy ids and audience tag. Refuses an ambiguous or malformed application, destination path overrides, and embedded policy decisions other than allow or non_identity rather than returning provider data.",
+          "description": "Read a self-hosted Access application hostname, reusable policy ids and audience tag. Refuses an ambiguous or malformed application and destination path overrides. Checks every embedded policy with the create_app safe-shape rules; missing decision or include is resolved by a policy GET. Any policy failure is vendor_error naming the policy and reason.",
           "risk": "low",
           "confirmation": "none",
           "execution": {

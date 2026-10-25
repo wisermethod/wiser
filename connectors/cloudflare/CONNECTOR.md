@@ -371,8 +371,12 @@ Before POST it reads each policy, accepting only `allow` with 1 to 50 explicit
 email includes or `non_identity` with exactly one service-token UUID include.
 Both shapes require `exclude` and `require` to be absent or empty arrays. Any
 other decision or include rule is refused with the policy id and reason.
-The create response must carry policy details satisfying the same checks;
-missing details or an unsafe policy return `vendor_error`, even after a POST.
+The create response must carry the requested policy id set and policy details
+satisfying the same checks. Each linked policy is read again after POST.
+Missing details, a different id set, a failed read or an unsafe policy cause the
+created application to be deleted and read back absent before `vendor_error`
+reports its removal. If removal cannot be confirmed, the error names the
+application id so it can be checked in Cloudflare.
 It returns only `id` and the public audience tag `aud`, beside `success`.
 It has no `read_service_tokens_from_header` input and never sets that property.
 Concurrent application creation after the final read is still possible; the
@@ -402,14 +406,19 @@ Changing a reusable policy affects every application carrying it.
 `access.get_app` reads `account_id` and `app_id`, returning the single `hostname`,
 `policy_ids`, `aud`, `id` and `success`. It refuses an ambiguous application rather
 than imply it protects only one hostname. A non-empty destination `overrides`
-array or an embedded policy decision other than `allow` or `non_identity` is
-reported as `vendor_error` with the reason. App, policy and service token ids use
+array is reported as `vendor_error`. Every embedded policy must pass the same
+safe-shape checks as `create_app`; if its decision or include is missing, the
+policy is fetched by id and checked. Any failure names the policy and reason.
+App, policy and service token ids use
 UUID spelling; account ids use 32 lowercase hexadecimal characters. Names are
 1 to 100 characters, hostnames at most 253, and emails at most 254. Published
 patterns exclude control characters in names and common credential shapes in
 names and addresses: JWTs beginning `eyJ` and uninterrupted alphanumeric or underscore runs
-of 40 or more. Hyphens break that latter run, so hyphenated staff addresses and
-hostname labels remain usable. These are conservative shape checks, not a way to recognize every
+of 40 or more. A whole name, email local part or hostname label consisting of
+exactly 40 letters, digits, underscores or hyphens is also refused.
+This includes staff addresses such as `it-infrastructure-operations-oncall-team@company.com`, whose 40-character local part has the same shape as a token.
+Hyphenated local parts of 39 or 41 characters remain usable when they pass the
+other checks. These are conservative shape checks, not a way to recognize every
 possible secret disguised as ordinary text. Provider fields and diagnostics are
 never returned wholesale. The audience tag is public and intentionally returned.
 

@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
+import { modules } from '../index.js';
 
 const ACCOUNT = '0123456789abcdef0123456789abcdef';
 const ID = '01234567-89ab-cdef-0123-456789abcdef';
@@ -22,7 +23,7 @@ const inputs = {
   get_app: { account_id: ACCOUNT, app_id: ID },
 };
 const app = () => ({ id: ID, type: 'self_hosted', domain: 'crm.example.com', destinations: [{ type: 'public', uri: 'crm.example.com' }],
-  policies: [{ id: POLICY }], aud: AUD, client_secret: CLIENT_VALUE, metadata: { token: JWT } });
+  policies: [attachable()], aud: AUD, client_secret: CLIENT_VALUE, metadata: { token: JWT } });
 const staff = (emails = ['one@example.com', 'two@example.com']) => ({ id: POLICY, name: 'CRM staff', decision: 'allow', reusable: true,
   include: emails.map((email) => ({ email: { email } })), exclude: [{ email: { email: 'excluded@example.com' } }],
   require: [], session_duration: '24h', approval_required: false });
@@ -40,16 +41,22 @@ async function setup(t, options = {}) {
   if (!options.disconnected) await putActive(env.store, env.fake, { service: 'cloudflare', module: 'access' });
   const calls = [];
   let policy = options.policy ?? { ...staff(), exclude: [] };
+  let deleted = false;
+  let posted = false;
   env.fake.auth.proxy = async (req) => {
     calls.push(structuredClone(req));
     if (options.responder) return options.responder(req, calls.length);
     if (req.endpoint === ROOT + '/organizations') return options.off ? error(403, [9999]) : ok({ auth_domain: 'team.cloudflareaccess.com', secret: CLIENT_VALUE });
     if (req.endpoint.startsWith(ROOT + '/apps?')) return ok(options.duplicates ?? [], { total_pages: 1 });
-    if (req.endpoint === ROOT + '/apps' && req.method === 'POST') return ok(options.createdApp ?? { ...app(), policies: req.body.policies.map(({ id }) => id === TOKEN_ID ? agentPolicy() : { ...attachable(), id }) });
-    if (req.endpoint === ROOT + '/apps/' + ID) return ok(options.app ?? app());
+    if (req.endpoint === ROOT + '/apps' && req.method === 'POST') { posted = true; return ok(options.createdApp ?? { ...app(), policies: req.body.policies.map(({ id }) => id === TOKEN_ID ? agentPolicy() : { ...attachable(), id }) }); }
+    if (req.endpoint === ROOT + '/apps/' + ID && req.method === 'DELETE') {
+      if (options.deleteFails) return error(502);
+      deleted = true; return ok({ id: ID });
+    }
+    if (req.endpoint === ROOT + '/apps/' + ID && req.method === 'GET') return deleted && !options.stillPresent ? error(404) : ok(options.app ?? app());
     if (req.endpoint === ROOT + '/policies' && req.method === 'POST') return ok({ id: POLICY, ...req.body, secret: CLIENT_VALUE });
     if (req.endpoint === ROOT + '/policies/' + TOKEN_ID && req.method === 'GET') return ok(agentPolicy());
-    if (req.endpoint === ROOT + '/policies/' + POLICY && req.method === 'GET') return ok(policy);
+    if (req.endpoint === ROOT + '/policies/' + POLICY && req.method === 'GET') return options.postPolicyError && posted ? error(502) : ok(posted ? options.postPolicy ?? policy : policy);
     if (req.endpoint === ROOT + '/policies/' + POLICY && req.method === 'PUT') { if (!options.noChange) policy = { id: POLICY, ...req.body, reusable: true }; return ok({ ...policy, secret: CLIENT_VALUE }); }
     assert.fail('unexpected fake request');
   };
@@ -100,7 +107,7 @@ for (const [action, input] of Object.entries(inputs)) {
 
 test('create_app: one hostname and reusable policy links, no single-header setting', async (t) => {
   const env = await setup(t); const result = await env.execute('create_app');
-  assert.deepEqual(trace(env.calls), [['GET', ROOT + '/organizations'], ['GET', ROOT + '/apps?per_page=1000&page=1'], ['GET', ROOT + '/policies/' + POLICY], ['POST', ROOT + '/apps']]);
+  assert.deepEqual(trace(env.calls), [['GET', ROOT + '/organizations'], ['GET', ROOT + '/apps?per_page=1000&page=1'], ['GET', ROOT + '/policies/' + POLICY], ['POST', ROOT + '/apps'], ['GET', ROOT + '/policies/' + POLICY]]);
   assert.deepEqual(env.calls.find((req) => req.method === 'POST').body, { type: 'self_hosted', domain: 'crm.example.com', name: 'CRM',
     destinations: [{ type: 'public', uri: 'crm.example.com' }], policies: [{ id: POLICY, precedence: 1 }] });
   assert.deepEqual(result, { success: true, id: ID, aud: AUD });
@@ -229,7 +236,7 @@ test('set_staff: adding a 51st email is refused without a PUT', async (t) => {
 });
 test('create_app: multiple policy ids preserve their supplied precedence', async (t) => {
   const env = await setup(t); await env.execute('create_app', { ...inputs.create_app, policy_ids: [POLICY, TOKEN_ID] });
-  assert.deepEqual(env.calls.filter((req) => req.endpoint.startsWith(ROOT + '/policies/')).map((req) => req.endpoint), [ROOT + '/policies/' + POLICY, ROOT + '/policies/' + TOKEN_ID]);
+  assert.deepEqual(env.calls.filter((req) => req.endpoint.startsWith(ROOT + '/policies/')).map((req) => req.endpoint), [ROOT + '/policies/' + POLICY, ROOT + '/policies/' + TOKEN_ID, ROOT + '/policies/' + POLICY, ROOT + '/policies/' + TOKEN_ID]);
   assert.deepEqual(env.calls.find((req) => req.method === 'POST').body.policies, [{ id: POLICY, precedence: 1 }, { id: TOKEN_ID, precedence: 2 }]);
 });
 test('create_app: incomplete pagination is refused before POST', async (t) => {
@@ -252,8 +259,8 @@ test('get_app: malformed error arrays are sanitized', async (t) => {
 });
 
 // fix2: account-owned policies are data, not proof that a hostname is protected.
-const attachable = () => ({ ...staff(), exclude: [] });
-const agentPolicy = () => ({ id: TOKEN_ID, decision: 'non_identity', include: [{ service_token: { token_id: TOKEN_ID } }] });
+function attachable() { return { ...staff(), exclude: [] }; }
+function agentPolicy() { return { id: TOKEN_ID, decision: 'non_identity', include: [{ service_token: { token_id: TOKEN_ID } }] }; }
 const forbiddenPolicies = [
   ['bypass decision', { ...attachable(), decision: 'bypass' }, /decision/],
   ['deny decision', { ...attachable(), decision: 'deny' }, /decision/],
@@ -291,12 +298,15 @@ for (const [label, policy, reason] of forbiddenPolicies) {
     const result = await env.execute('create_app');
     assert.equal(result.status, 'vendor_error'); assert.match(result.reason, new RegExp(POLICY)); assert.match(result.reason, reason);
     assert.equal(env.calls.filter((req) => req.method === 'POST').length, 1);
+    assertRemoved(result, env.calls);
   });
 }
 for (const policies of [undefined, [], [{ id: POLICY }], [POLICY]]) {
   test('fix2 create_app: missing create-response policy detail is refused: ' + JSON.stringify(policies), async (t) => {
     const env = await setup(t, { policy: attachable(), createdApp: { ...app(), policies } });
-    assert.equal((await env.execute('create_app')).status, 'vendor_error');
+    const result = await env.execute('create_app');
+    assert.equal(result.status, 'vendor_error'); assert.match(result.reason, /polic/i);
+    assertRemoved(result, env.calls);
   });
 }
 test('fix2 get_app: matching hostname with public path overrides is refused', async (t) => {
@@ -306,29 +316,32 @@ test('fix2 get_app: matching hostname with public path overrides is refused', as
   assert.equal(result.status, 'vendor_error'); assert.match(result.reason, /override|bypass/i);
 });
 for (const decision of ['bypass', 'deny', 'unknown', null]) test('fix2 get_app: embedded policy decision is refused: ' + decision, async (t) => {
-  const env = await setup(t, { app: { ...app(), policies: [{ id: POLICY, decision }] } });
+  const env = await setup(t, { app: { ...app(), policies: [{ ...attachable(), decision }] } });
   const result = await env.execute('get_app');
   assert.equal(result.status, 'vendor_error'); assert.match(result.reason, /decision/i);
 });
 const HYPHENATED_EMAIL = 'it-infrastructure-operations-oncall-team@company.com';
-test('fix2 credential filter: hyphenated email passes create_policy', async (t) => {
+for (const local of [HYPHENATED_EMAIL.split('@')[0].slice(0, -1), HYPHENATED_EMAIL.split('@')[0] + 's']) {
+test('credential filter: hyphenated email local part of length ' + local.length + ' passes create_policy', async (t) => {
+  const email = local + '@company.com';
   const env = await setup(t);
-  assert.equal((await env.execute('create_policy', { ...inputs.create_policy, emails: [HYPHENATED_EMAIL] })).success, true);
-  assert.deepEqual(env.calls[1].body.include, [{ email: { email: HYPHENATED_EMAIL } }]);
+  assert.equal((await env.execute('create_policy', { ...inputs.create_policy, emails: [email] })).success, true);
+  assert.deepEqual(env.calls[1].body.include, [{ email: { email } }]);
 });
-test('fix2 credential filter: hyphenated email passes set_staff.add', async (t) => {
+test('credential filter: hyphenated email local part of length ' + local.length + ' passes set_staff.add', async (t) => {
+  const email = local + '@company.com';
   const env = await setup(t);
-  const result = await env.execute('set_staff', { account_id: ACCOUNT, policy_id: POLICY, add: HYPHENATED_EMAIL });
-  assert.equal(result.success, true); assert.ok(result.after.includes(HYPHENATED_EMAIL));
-  assert.ok(env.calls.find((req) => req.method === 'PUT').body.include.some((rule) => rule.email.email === HYPHENATED_EMAIL));
+  const result = await env.execute('set_staff', { account_id: ACCOUNT, policy_id: POLICY, add: email });
+  assert.equal(result.success, true); assert.ok(result.after.includes(email));
+  assert.ok(env.calls.find((req) => req.method === 'PUT').body.include.some((rule) => rule.email.email === email));
 });
-test('fix2 credential filter: 40-character hyphenated hostname label passes create_app', async (t) => {
-  const hostname = HYPHENATED_EMAIL.split('@')[0] + '.example.com';
-  assert.equal(hostname.split('.')[0].length, 40);
+test('credential filter: hyphenated hostname label of length ' + local.length + ' passes create_app', async (t) => {
+  const hostname = local + '.example.com';
   const env = await setup(t, { policy: attachable(), createdApp: { ...app(), policies: [attachable()] } });
   assert.equal((await env.execute('create_app', { ...inputs.create_app, hostname })).success, true);
   assert.equal(env.calls.find((req) => req.method === 'POST').body.domain, hostname);
 });
+}
 test('fix2 credential filter: bare 40-character run and JWT remain refused before transport', async (t) => {
   const env = await setup(t);
   for (const token of [API_TOKEN, JWT]) {
@@ -337,3 +350,99 @@ test('fix2 credential filter: bare 40-character run and JWT remain refused befor
   }
   assert.deepEqual(env.calls, []);
 });
+
+function assertRemoved(result, calls) {
+  assert.equal(result.success, undefined);
+  assert.equal(result.app_id, ID);
+  assert.equal(result.removed, true);
+  assert.match(result.reason, /app.*removed/i);
+  assert.deepEqual(calls.filter((req) => req.method === 'DELETE').map((req) => req.endpoint), [ROOT + '/apps/' + ID]);
+  assert.deepEqual(trace(calls).slice(-2), [['DELETE', ROOT + '/apps/' + ID], ['GET', ROOT + '/apps/' + ID]]);
+}
+
+for (const key of ['everyone', 'email_domain', 'any_valid_service_token']) test('fix3 get_app: embedded allow refuses ' + key, async (t) => {
+  const include = [{ [key]: key === 'email_domain' ? { domain: 'example.com' } : {} }];
+  const env = await setup(t, { app: { ...app(), policies: [{ ...attachable(), include }] } });
+  const result = await env.execute('get_app');
+  assert.equal(result.status, 'vendor_error'); assert.equal(result.policy_id, POLICY); assert.match(result.reason, /include/);
+  assert.deepEqual(trace(env.calls), [['GET', ROOT + '/apps/' + ID]]);
+});
+for (const embedded of [{ id: POLICY }, { ...attachable(), decision: undefined }, { ...attachable(), include: undefined }]) {
+  test('fix3 get_app: incomplete embedded policy resolves to a refused bypass: ' + Object.keys(embedded).join(','), async (t) => {
+    const env = await setup(t, { app: { ...app(), policies: [embedded] }, policy: { ...attachable(), decision: 'bypass' } });
+    const result = await env.execute('get_app');
+    assert.equal(result.status, 'vendor_error'); assert.equal(result.policy_id, POLICY); assert.match(result.reason, /decision/);
+    assert.deepEqual(trace(env.calls), [['GET', ROOT + '/apps/' + ID], ['GET', ROOT + '/policies/' + POLICY]]);
+  });
+}
+test('fix3 get_app: a safe linked policy is read before success', async (t) => {
+  const env = await setup(t, { app: { ...app(), policies: [{ id: POLICY }] } });
+  assert.equal((await env.execute('get_app')).success, true);
+  assert.deepEqual(trace(env.calls), [['GET', ROOT + '/apps/' + ID], ['GET', ROOT + '/policies/' + POLICY]]);
+});
+test('fix3 get_app: failed policy GET names the policy without provider text', async (t) => {
+  const env = await setup(t, { responder: (req) => req.endpoint.endsWith('/apps/' + ID) ? ok({ ...app(), policies: [{ id: POLICY }] }) : error(502) });
+  const result = await env.execute('get_app');
+  assert.equal(result.status, 'vendor_error'); assert.equal(result.policy_id, POLICY); assert.match(result.reason, /read|check/i);
+});
+test('fix3 get_app: an application with no policies is refused', async (t) => {
+  const env = await setup(t, { app: { ...app(), policies: [] } });
+  const result = await env.execute('get_app');
+  assert.equal(result.status, 'vendor_error'); assert.match(result.reason, /polic/i);
+});
+
+test('fix3 create_app: safe preflight then bypass on post-POST GET removes the created app', async (t) => {
+  const env = await setup(t, { postPolicy: { ...attachable(), decision: 'bypass' } });
+  const result = await env.execute('create_app');
+  assert.equal(result.status, 'vendor_error'); assert.equal(result.policy_id, POLICY); assert.match(result.reason, /decision/);
+  assertRemoved(result, env.calls);
+  assert.deepEqual(trace(env.calls).slice(2, 5), [['GET', ROOT + '/policies/' + POLICY], ['POST', ROOT + '/apps'], ['GET', ROOT + '/policies/' + POLICY]]);
+});
+test('fix3 create_app: a different response policy id set removes the created app', async (t) => {
+  const env = await setup(t, { createdApp: { ...app(), policies: [agentPolicy()] } });
+  const result = await env.execute('create_app');
+  assert.equal(result.status, 'vendor_error'); assert.match(result.reason, /policy id set/i);
+  assertRemoved(result, env.calls);
+});
+test('fix3 create_app: a failed post-POST policy GET removes the created app', async (t) => {
+  const env = await setup(t, { postPolicyError: true });
+  const result = await env.execute('create_app');
+  assert.equal(result.status, 'vendor_error'); assert.equal(result.policy_id, POLICY); assert.match(result.reason, /read|check/i);
+  assertRemoved(result, env.calls);
+});
+for (const option of ['deleteFails', 'stillPresent']) test('fix3 create_app: unconfirmed removal reports created id: ' + option, async (t) => {
+  const env = await setup(t, { postPolicy: { ...attachable(), decision: 'bypass' }, [option]: true });
+  const result = await env.execute('create_app');
+  assert.equal(result.status, 'vendor_error'); assert.equal(result.success, undefined);
+  assert.equal(result.app_id, ID); assert.equal(result.removed, false);
+  assert.match(result.reason, new RegExp(ID)); assert.match(result.reason, /remov.*could not be confirmed/i);
+  assert.equal(env.calls.filter((req) => req.method === 'DELETE').length, 1);
+  assert.deepEqual(trace(env.calls).slice(-2), [['DELETE', ROOT + '/apps/' + ID], ['GET', ROOT + '/apps/' + ID]]);
+});
+
+const WHOLE_TOKEN = 'YQSn-xWAQiiEh9qM58wZNnyQS7FUdoqGIUAbrh7T';
+const wholeTokenCases = [
+  ['app name', 'create_app', { ...inputs.create_app, name: WHOLE_TOKEN }],
+  ['policy name', 'create_policy', { ...inputs.create_policy, name: WHOLE_TOKEN }],
+  ...[WHOLE_TOKEN, HYPHENATED_EMAIL.split('@')[0]].flatMap((local, i) => [
+    ['policy email ' + i, 'create_policy', { ...inputs.create_policy, emails: [local + '@example.com'] }],
+    ...['add', 'remove'].map((field) => ['staff ' + field + ' ' + i, 'set_staff', { account_id: ACCOUNT, policy_id: POLICY, [field]: local + '@example.com' }]),
+    ['hostname first label ' + i, 'create_app', { ...inputs.create_app, hostname: local + '.example.com' }],
+    ['hostname inner label ' + i, 'create_app', { ...inputs.create_app, hostname: 'crm.' + local + '.com' }],
+  ]),
+  ['exact staff address', 'create_policy', { ...inputs.create_policy, emails: [HYPHENATED_EMAIL] }],
+];
+for (const [label, action, input] of wholeTokenCases) {
+  test('fix3 whole-field token: gateway refuses before confirmation and transport: ' + label, async (t) => {
+    const env = await setup(t);
+    const result = await env.gw.execute({ action: 'cloudflare.access.' + action, input });
+    assert.equal(result.status, 'invalid_arguments');
+    assert.deepEqual(env.calls, []);
+  });
+  test('fix3 whole-field token: module refuses before transport: ' + label, async () => {
+    const calls = [];
+    const result = await modules.access[action](input, { proxy: async (req) => { calls.push(req); return ok({ auth_domain: 'team.cloudflareaccess.com' }); } });
+    assert.equal(result.status, 'invalid_arguments');
+    assert.deepEqual(calls, []);
+  });
+}
