@@ -17,6 +17,7 @@ import { checkMetadata, encodeArguments, hasEditList, optionsForRender, packetHa
 import { RENDER_VERSION, cacheKey, canonicalJSON, readCache, writeCache } from '../scripts/cache.mjs';
 import { inspectProject } from '../scripts/project.mjs';
 import { optionsForFrames } from '../scripts/frames.mjs';
+import { browserPath, childEnvironment, writeBrowserWrapper } from '../scripts/sequence.mjs';
 
 const cli = join(TOOL_DIR, 'scripts/video-render.mjs');
 const fixture = fileURLToPath(new URL('./fixtures/steps/', import.meta.url));
@@ -39,6 +40,140 @@ function probe(args) {
 async function temporaryRenders() {
   return (await readdir(tmpdir())).filter((name) => /^wiser-video-(?:render|encode|probe|frames)-/.test(name)).sort();
 }
+
+test('the static screen allows SVG namespaces, script URLs, comments and non-loading text', async (t) => {
+  const path = await scratch(t);
+  await writeFile(join(path, 'index.html'), `<main data-video-root>
+    <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><path d="M0 0"/></svg>
+    <span title="https://example.com/" data-note="url(https://example.com/)">https://example.com/</span>
+    <script src="library.js"></script>
+    <script>const markup = '<img src="https://example.com/x.png">';</script>
+    <!-- <img src="https://example.com/x.png"> -->
+    <style>/* @import "https://example.com/"; */ p::after { content: 'url(https://example.com/)'; }</style>
+  </main>`);
+  await writeFile(join(path, 'library.js'), '// Licence: https://example.com/\nconst site = "https://example.com/";');
+  await writeFile(join(path, 'icon.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
+  await writeFile(join(path, 'notes.txt'), 'https://example.com/');
+  await writeFile(join(path, 'local.css'), '/* url(//example.com/x.png) */ @import "local.css"; a { background:url(local.png); content:"https://example.com/" }');
+  assert.equal((await inspectProject(path)).files.length, 5);
+});
+
+test('the static screen permits local, data and blob references, including commas in srcset data URLs', async (t) => {
+  const path = await scratch(t);
+  await writeFile(join(path, 'index.html'), `<main data-video-root>
+    <img src="data:image/png;base64,AAAA" srcset="data:image/png;base64,AAAA,https://example.com/ 1x, local.png 2x">
+    <svg><use xlink:href="#local"/></svg><object data="blob:https://example.com/local"></object>
+    <video poster="poster.png"></video><a href="./notes.html">Local</a>
+    <div style="background:url('data:image/png;base64,AAAA')"></div>
+    <style>@import "local.css"; main { background: url(blob:https://example.com/local) }</style>
+  </main>`);
+  await writeFile(join(path, 'local.css'), 'a { background:url("local/https://example.com/image.png") }');
+  await inspectProject(path);
+});
+
+test('the static screen names each remote loading attribute or CSS rule and its value', async (t) => {
+  const path = await scratch(t);
+  const cases = [
+    ['image.html', '<img src="https://example.com/x.png">', 'src', 'https://example.com/x.png'],
+    ['source.html', '<img srcset="local.png 1x, https://example.com/x.png 2x">', 'srcset', 'https://example.com/x.png'],
+    ['remote.css', '/* url(local.png) */ main { background: url(//example.com/x.png) }', 'url()', '//example.com/x.png'],
+    ['import.css', '@import "https://example.com/remote.css";', '@import', 'https://example.com/remote.css'],
+    ['inline.html', '<div style="background:url(https://example.com/x.png)"></div>', 'style url()', 'https://example.com/x.png'],
+    ['style.html', '<style>main { background:url(https://example.com/x.png) }</style>', '<style> url()', 'https://example.com/x.png'],
+    ['import.html', '<style>@import url("https://example.com/remote.css");</style>', '<style> @import', 'https://example.com/remote.css'],
+    ['link.svg', '<svg><use xlink:href="https://example.com/icon.svg#x"/></svg>', 'xlink:href', 'https://example.com/icon.svg#x'],
+    ['poster.html', '<video poster="//example.com/poster.png"></video>', 'poster', '//example.com/poster.png'],
+    ['object.html', '<object data="ftp://example.com/asset"></object>', 'data', 'ftp://example.com/asset'],
+    ['href.html', '<a href="file:///remote/file">Link</a>', 'href', 'file:///remote/file'],
+    ['scheme.html', '<img SRC="  CuStOm+v1://example.com/x.png  ">', 'src', 'CuStOm+v1://example.com/x.png'],
+    ['entity.html', '<img src="https&#58;//example.com/x.png">', 'src', 'https://example.com/x.png'],
+    ['escaped.css', 'main { background:url(https\\3a //example.com/x.png) }', 'url()', 'https\\3a //example.com/x.png'],
+  ];
+  for (const [index, [name, contents, rule, value]] of cases.entries()) {
+    const project = join(path, String(index));
+    await mkdir(project);
+    await writeFile(join(project, 'index.html'), '<main data-video-root>Local</main>');
+    await writeFile(join(project, name), contents);
+    await assert.rejects(inspectProject(project), (error) => {
+      assert.ok(error.message.includes(`Project file ${name} references ${value} in ${rule};`), error.message);
+      return true;
+    });
+  }
+});
+
+test('the Chrome wrapper preserves arguments and appends both network restrictions', async (t) => {
+  const path = await scratch(t), executable = join(path, "pinned chrome's shell");
+  await writeFile(executable, '#!/bin/sh\nprintf "%s\\n" "$@"\n', { mode: 0o700 });
+  const wrapper = await writeBrowserWrapper(path, executable);
+  assert.equal(wrapper, join(path, 'chrome-headless-shell'));
+  const args = ['--headless', 'with spaces', "with'quotes", '$literal`command`', '*.png', '--proxy-server=earlier'];
+  const result = spawnSync(wrapper, args, { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(result.stdout.trimEnd().split('\n'), [...args, '--proxy-server=http://127.0.0.1:9',
+    '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE localhost , EXCLUDE 127.0.0.1']);
+  assert.equal(childEnvironment(path, wrapper).HYPERFRAMES_BROWSER_PATH, wrapper);
+  await assert.rejects(writeBrowserWrapper(path, executable), { code: 'EEXIST' });
+});
+
+test('a real render shows that runtime fetch and image requests both fail behind the proxy', { timeout: 120_000 }, async (t) => {
+  const path = await scratch(t), project = join(path, 'project'), output = join(path, 'frames');
+  await mkdir(project);
+  const html = (status, script = '') => `<!doctype html><html><head><style>
+    * { box-sizing:border-box; text-rendering:geometricPrecision }
+    html,body { margin:0; width:320px; height:180px; background:#111827 }
+    main { width:320px; height:180px; padding:10px; display:grid; gap:10px; grid-template-rows:1fr 1fr; background:#111827 }
+    main div { display:flex; align-items:center; justify-content:center; font:24px Arial,sans-serif; color:white; background:#a16207 }
+    [data-status="failed"] { background:#15803d } [data-status="loaded"] { background:#b91c1c }
+  </style></head><body><main data-video-root>
+    <div id="fetch" data-status="${status}">fetch ${status}</div>
+    <div id="image" data-status="${status}">image ${status}</div>
+  </main>${script}</body></html>`;
+  await writeFile(join(project, 'index.html'), html('pending', '<script src="requests.js"></script>'));
+  await writeFile(join(project, 'requests.js'), `
+    function result(kind, status) {
+      const element = document.getElementById(kind);
+      element.textContent = kind + ' ' + status;
+      element.dataset.status = status;
+    }
+    fetch('https:' + '//example.com/', { mode: 'no-cors' }).then(
+      () => result('fetch', 'loaded'), () => result('fetch', 'failed'));
+    const image = new Image();
+    image.onload = () => result('image', 'loaded');
+    image.onerror = () => result('image', 'failed');
+    image.src = 'https:' + '//example.com/x.png';
+  `);
+  await inspectProject(project);
+  const before = await temporaryRenders();
+  const result = run(['sequence', ...flags({ ...values(project, output), fps: 2, duration: 1.5 })]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, '');
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.chromeBuild, CHROME_BUILD);
+  assert.equal(report.frameCount, 3);
+  const log = await readFile(report.logPath, 'utf8');
+  assert.ok((log.match(/ERR_PROXY_CONNECTION_FAILED/g) ?? []).length >= 2, log);
+
+  // Compare every decoded frame with the literal expected page, including its text.
+  const { default: puppeteer } = await import('puppeteer-core');
+  const { default: sharp } = await import('sharp');
+  const home = join(path, 'home');
+  await mkdir(home);
+  const wrapper = await writeBrowserWrapper(home, await browserPath());
+  const angle = { darwin: 'metal', win32: 'd3d11', linux: 'gl-egl' }[process.platform];
+  const browser = await puppeteer.launch({ executablePath: wrapper, headless: true,
+    env: childEnvironment(home, wrapper), userDataDir: join(home, 'profile'), defaultViewport: { width: 320, height: 180 },
+    args: ['--disable-background-networking', '--force-device-scale-factor=1', '--font-render-hinting=none',
+      '--force-color-profile=srgb', '--enable-gpu-rasterization', ...(angle ? ['--use-gl=angle', `--use-angle=${angle}`] : [])] });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(html('failed'));
+    const expected = await sharp(await page.screenshot()).toColourspace('srgb').ensureAlpha().raw().toBuffer();
+    const lines = (await readFile(report.hashesPath, 'utf8')).trim().split('\n');
+    for (const line of lines) assert.equal(line.slice(0, 64), hash(expected), 'each frame must show fetch failed and image failed');
+  } finally { await browser.close(); }
+  assert.deepEqual(await temporaryRenders(), before);
+  t.diagnostic(JSON.stringify({ chromeBuild: report.chromeBuild, frames: report.frameCount, fetch: 'failed', image: 'failed' }));
+});
 
 test('frames help works in an uninstalled copy and refuses unknown, duplicate and command-only flags', async (t) => {
   const path = await scratch(t), script = join(path, 'scripts/video-render.mjs');

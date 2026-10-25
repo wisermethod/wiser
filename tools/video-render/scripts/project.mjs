@@ -31,34 +31,90 @@ export function openingTags(html) {
   return tags;
 }
 
-function cssReference(text) {
-  const css = text.replace(/\/\*[\s\S]*?\*\//g, '');
-  return /(?:url\(\s*["']?\s*|@import\s*["']\s*)(\/\/[^\s"')<>;]+)/i.exec(css)?.[1];
+function anotherOrigin(value) {
+  const url = value.trim().replace(/[\t\r\n]/g, '');
+  return /^\/\//.test(url) || (/^[a-z][a-z\d+.-]*:/i.test(url) && !/^(?:data|blob):/i.test(url));
 }
 
-export function remoteReference(text, extension) {
-  const absolute = /https?:[^\s"'<>)]*/i.exec(text)?.[0];
-  if (absolute) return absolute;
-  if (!['.html', '.svg', '.css'].includes(extension.toLowerCase())) return null;
-  if (extension.toLowerCase() === '.css') return cssReference(text) ?? null;
+function cssValue(value) {
+  return value.replace(/\\(?:([\da-f]{1,6})\s?|([^\r\n\f])|\r\n|[\r\n\f])/gi, (_, hex, escaped) => {
+    if (!hex) return escaped ?? '';
+    const point = Number.parseInt(hex, 16);
+    return point && point <= 0x10ffff && !(point >= 0xd800 && point <= 0xdfff) ? String.fromCodePoint(point) : '\ufffd';
+  });
+}
+
+function cssReference(text, imports = true) {
+  // Preserve strings while removing comments, then skip ordinary strings such as
+  // content: "url(https://example.invalid)". Only URL tokens and imports load assets.
+  const css = text.replace(/("(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*')|\/\*[\s\S]*?(?:\*\/|$)/g, (_, string) => string ?? '');
+  const tokens = /(?:(@import)\s*)?(?<![\w-])url\(\s*(?:"((?:\\[\s\S]|[^"\\])*)"|'((?:\\[\s\S]|[^'\\])*)'|((?:\\[\s\S]|[^)"'\\])*))\s*\)|(@import)\s*(?:"((?:\\[\s\S]|[^"\\])*)"|'((?:\\[\s\S]|[^'\\])*)')|"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*'/gi;
+  for (const match of css.matchAll(tokens)) {
+    if (!imports && (match[1] || match[5])) continue;
+    const value = match[2] ?? match[3] ?? match[4] ?? match[6] ?? match[7];
+    if (value !== undefined && anotherOrigin(cssValue(value))) return { rule: match[1] || match[5] ? '@import' : 'url()', value: value.trim() };
+  }
+  return null;
+}
+
+function attributeValue(value) {
+  const named = { amp: '&', quot: '"', apos: "'", lt: '<', gt: '>', colon: ':', sol: '/', Tab: '\t', NewLine: '\n' };
+  return value.replace(/&(?:#(x[\da-f]+|\d+);?|([a-z]+);)/gi, (entity, numeric, name) => {
+    if (!numeric) return named[name] ?? entity;
+    const point = /^x/i.test(numeric) ? Number.parseInt(numeric.slice(1), 16) : Number(numeric);
+    return point && point <= 0x10ffff && !(point >= 0xd800 && point <= 0xdfff) ? String.fromCodePoint(point) : '\ufffd';
+  });
+}
+
+function* srcsetValues(value) {
+  // A data URL can contain commas. Srcset's URL ends at whitespace, with any
+  // trailing commas separating candidates; descriptors end at an unparenthesized comma.
+  let offset = 0;
+  while (offset < value.length) {
+    while (/[\t\n\f\r ,]/.test(value[offset] ?? '') && offset < value.length) offset++;
+    const start = offset;
+    while (offset < value.length && !/[\t\n\f\r ]/.test(value[offset])) offset++;
+    const url = value.slice(start, offset);
+    yield url.replace(/,+$/, '');
+    if (url.endsWith(',')) continue;
+    let depth = 0;
+    while (offset < value.length) {
+      const char = value[offset++];
+      if (char === '(') depth++;
+      else if (char === ')') depth = Math.max(0, depth - 1);
+      else if (char === ',' && depth === 0) break;
+    }
+  }
+}
+
+function loadingReference(text, extension) {
+  const ext = extension.toLowerCase();
+  if (ext === '.css') return cssReference(text);
+  if (!['.html', '.htm', '.svg'].includes(ext)) return null;
   for (const tag of openingTags(text)) {
     for (const attr of tag.attrs) {
-      if (['src', 'href', 'xlink:href', 'srcset'].includes(attr.name)) {
-        const values = attr.name === 'srcset' ? attr.value.split(',') : [attr.value];
+      const decoded = attributeValue(attr.value);
+      if (['src', 'href', 'xlink:href', 'srcset', 'poster', 'data'].includes(attr.name)) {
+        const values = attr.name === 'srcset' ? srcsetValues(decoded) : [decoded];
         for (const value of values) {
-          const ref = /^\s*(\/\/\S+)/.exec(value)?.[1];
-          if (ref) return ref;
+          if (anotherOrigin(value)) return { rule: attr.name, value: value.trim() };
         }
       }
-      const ref = cssReference(attr.value);
-      if (ref) return ref;
+      if (attr.name === 'style') {
+        const ref = cssReference(decoded, false);
+        if (ref) return { ...ref, rule: `style ${ref.rule}` };
+      }
     }
     if (tag.name === 'style') {
       const ref = cssReference(tag.content);
-      if (ref) return ref;
+      if (ref) return { ...ref, rule: `<style> ${ref.rule}` };
     }
   }
   return null;
+}
+
+export function remoteReference(text, extension) {
+  return loadingReference(text, extension)?.value ?? null;
 }
 
 export function protectedPath(path) {
@@ -81,8 +137,8 @@ export async function inspectProject(project) {
       const bytes = await readFile(await realpath(path));
       files.push({ path: name.split(sep).join('/'), sha256: createHash('sha256').update(bytes).digest('hex') });
       try { text = decoder.decode(bytes); } catch { continue; }
-      const ref = remoteReference(text, extname(name));
-      if (ref) throw new Error(`Project file ${name} references ${ref}; use local assets before rendering.`);
+      const ref = loadingReference(text, extname(name));
+      if (ref) throw new Error(`Project file ${name} references ${ref.value} in ${ref.rule}; use local assets before rendering.`);
     }
   }
   await walk(project);

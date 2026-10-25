@@ -94,6 +94,15 @@ export function renderArguments(copy, frames, options) {
     '--frames-cache-dir', 'off', '--lint-verbose'];
 }
 
+export async function writeBrowserWrapper(temporary, executable) {
+  // HyperFrames identifies the headless shell by this basename. Keep all caller
+  // arguments, then append the network policy so earlier flags cannot override it.
+  const wrapper = join(temporary, 'chrome-headless-shell');
+  const quote = (value) => `'${value.replaceAll("'", "'\\''")}'`;
+  await writeFile(wrapper, `#!/bin/sh\nexec ${quote(executable)} "$@" ${quote('--proxy-server=http://127.0.0.1:9')} ${quote('--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE localhost , EXCLUDE 127.0.0.1')}\n`, { flag: 'wx', mode: 0o700 });
+  return wrapper;
+}
+
 async function renderChild(args, cwd, env, logPath) {
   const log = await open(logPath, 'wx');
   try {
@@ -141,10 +150,10 @@ export async function sequence(input, { install = false, runtime: preparedRuntim
   const options = await optionsForSequence(input);
   const project = await inspectProject(options.project);
   const runtime = preparedRuntime ?? await prepareRuntime({ install, gpu: options.gpu });
-  const browser = runtime.chrome.executablePath;
   const temporary = await mkdtemp(join(tmpdir(), 'wiser-video-render-'));
   let logPath;
   try {
+    const browser = await writeBrowserWrapper(temporary, runtime.chrome.executablePath);
     const copy = join(temporary, 'project');
     const home = join(temporary, 'home');
     await mkdir(home);

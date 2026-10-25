@@ -64,15 +64,15 @@ test('relative paths and existing or internal outputs are refused, including sym
   await assert.rejects(canonical(join(path, 'memory/proj'), '--project'), /protected/);
 });
 
-test('remote references are refused by content in arbitrary UTF-8 files, before rendering', async (t) => {
+test('remote loading references are refused before rendering', async (t) => {
   const path = await scratch(t);
   await writeFile(join(path, 'index.html'), '<main data-video-root>Zavvo</main>');
-  await writeFile(join(path, 'zibble.blob'), 'zavvo HTTPS://pluvo.invalid/asset');
-  await assert.rejects(inspectProject(path), /zibble\.blob references HTTPS:\/\/pluvo\.invalid\/asset/);
+  await writeFile(join(path, 'zibble.css'), 'main { background: url(HTTPS://pluvo.invalid/asset) }');
+  await assert.rejects(inspectProject(path), /zibble\.css references HTTPS:\/\/pluvo\.invalid\/asset in url\(\)/);
   const result = run(['sequence', '--project', path, '--output', join(dirname(path), `${path.split('/').at(-1)}-out`), '--width', '640', '--height', '360', '--fps', '8', '--duration', '2']);
   assert.equal(result.status, 1);
   assert.equal(result.stdout, '');
-  assert.match(result.stderr, /zibble\.blob references HTTPS:/);
+  assert.match(result.stderr, /zibble\.css references HTTPS:/);
 });
 
 test('protocol-relative references include HTML attributes, SVG and CSS, but script comments are allowed', () => {
@@ -82,7 +82,7 @@ test('protocol-relative references include HTML attributes, SVG and CSS, but scr
     ['a { background: url( "//pluvo.invalid/a" ) }', '.css'], ['@import "//pluvo.invalid/a";', '.css'],
     ['<style>a { background: url(//pluvo.invalid/a) }</style>', '.html'],
     ['<div style="background:url(//pluvo.invalid/a)">', '.html'],
-    ['<path fill="url(//pluvo.invalid/a)">', '.svg'],
+    ['<path style="fill:url(//pluvo.invalid/a)">', '.svg'],
   ]) assert.match(remoteReference(text, ext), /^\/\/pluvo\.invalid/);
   assert.equal(remoteReference('// zibble', '.js'), null);
   assert.equal(remoteReference('<script>// src="//pluvo.invalid"\nconst zibble = "//pluvo.invalid";</script>', '.html'), null);
