@@ -8,7 +8,9 @@ const attributes = /([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
 // Opening tags with source offsets, skipping comments and raw script/style/text contents.
 // Keeping the original bytes avoids serializing or rewriting a piece's markup and CSS.
 export function openingTags(html) {
-  const pattern = /<!--[\s\S]*?(?:-->|$)|<![^>]*>|<\/?([a-z][\w:-]*)\b((?:[^'"<>]|"[^"]*"|'[^']*')*)>/gi;
+  // A comment ends at --> or --!>, and <!--> and <!---> are complete empty comments, as an HTML parser reads them,
+  // so markup after either is scanned rather than hidden in a comment that never closed.
+  const pattern = /<!--(?:-?>|[\s\S]*?(?:--!?>|$))|<![^>]*>|<\/?([a-z][\w:-]*)\b((?:[^'"<>]|"[^"]*"|'[^']*')*)>/gi;
   const tags = [];
   let match;
   while ((match = pattern.exec(html))) {
@@ -140,8 +142,8 @@ function loadingReference(text, extension, depth = 0) {
         const ref = depth >= 3 ? { rule: 'nesting exceeds depth 3', value: 'srcdoc' } : loadingReference(decoded, '.html', depth + 1);
         if (ref) return { ...ref, rule: `srcdoc ${ref.rule}` };
       }
-      if (['src', 'href', 'xlink:href', 'srcset', 'poster', 'data', 'action', 'formaction', 'background', 'ping'].includes(attr.name)) {
-        const values = attr.name === 'srcset' ? srcsetValues(decoded) : attr.name === 'ping' ? decoded.split(/\s+/) : [decoded];
+      if (['src', 'href', 'xlink:href', 'srcset', 'imagesrcset', 'poster', 'data', 'action', 'formaction', 'background', 'ping'].includes(attr.name)) {
+        const values = attr.name === 'srcset' || attr.name === 'imagesrcset' ? srcsetValues(decoded) : attr.name === 'ping' ? decoded.split(/\s+/) : [decoded];
         for (const value of values) {
           const ref = urlReference(value, depth);
           if (ref) return { ...ref, rule: `${attr.name}${ref.rule ? ` ${ref.rule}` : ''}` };

@@ -7,7 +7,7 @@ import { dirname, extname, isAbsolute, join, relative, sep } from 'node:path';
 import { promisify } from 'node:util';
 import { childEnvironment, prepareRuntime } from './dependencies.mjs';
 import { BROWSER_SWITCHES, optionsForSequence, sequence } from './sequence.mjs';
-import { inspectProject } from './project.mjs';
+import { BRIDGE, inspectProject } from './project.mjs';
 import { RENDER_VERSION, cacheDirectory, cacheKey, canonicalJSON, fileHash, readCache, validFrameHashes, writeCache } from './cache.mjs';
 
 const execute = promisify(execFile);
@@ -79,6 +79,8 @@ export function renderCacheInputs(options, versions, files) {
     width: options.width, height: options.height, fps: options.fps, duration: options.duration,
     frameCount: options.expectedFrames, profile: options.profile,
     browserSwitches: [...BROWSER_SWITCHES],
+    // The bridge script is part of every page rendered, so a change to it alone is a miss.
+    bridgeSha256: createHash('sha256').update(BRIDGE).digest('hex'),
     encoderArguments: encodeArguments('<frames>', '<output>.mp4', options),
     files: files.map(({ path, sha256 }) => ({ path, sha256 })).sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0),
   };

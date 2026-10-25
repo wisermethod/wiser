@@ -73,6 +73,10 @@ const originCases = [
   ['CSS image-set string', '<style>a{background:image-set("local.png" 1x, "https://example.invalid/a" 2x)}</style>', 'image-set()'],
   ['CSS -webkit-image-set string', '<style>a{background:-webkit-image-set("https://example.invalid/a" 1x)}</style>', '-webkit-image-set()'],
   ['CSS image-set escaped string', '<style>a{background:image-set("https\\3a //example.invalid/a" 1x)}</style>', 'image-set()'],
+  ['link imagesrcset', '<link rel="preload" as="image" href="local.png" imagesrcset="https://example.invalid/a.png 2x">', 'imagesrcset'],
+  ['markup after an empty comment', '<!--><img src="https://example.invalid/a">', 'src'],
+  ['markup after an empty comment with a dash', '<!---><img src="https://example.invalid/a">', 'src'],
+  ['markup after a comment closed by --!>', '<!-- x --!><img src="https://example.invalid/a">', 'src'],
   ['CSS image-set nested data', `<style>a{background:image-set("${data('image/svg+xml', '<svg><image href="https://example.invalid/a"/></svg>', true)}" 1x)}</style>`, 'image-set() data:image/svg+xml href'],
 ];
 let nested = '<main>Local</main>';
@@ -174,14 +178,25 @@ test('Chrome 152 render forces reduced motion false, with an opposite-switch tru
     return pixels;
   };
   assert.deepEqual(await render(join(path, 'normal')), [[0, 255, 0], [0, 255, 0]]);
-  // Keep the production wrapper and render path. A second executable wrapper
-  // changes only the media-feature switch before launching the same pinned Chrome.
-  const control = join(path, 'control');
-  await mkdir(control);
-  const wrapper = await writeBrowserWrapper(control, await browserPath());
-  await writeFile(wrapper, (await readFile(wrapper, 'utf8')).replace('--force-prefers-no-reduced-motion', '--force-prefers-reduced-motion'));
-  assert.deepEqual(await render(join(path, 'reduced'), { chrome: { executablePath: wrapper } }), [[255, 0, 0], [255, 0, 0]]);
-  t.diagnostic(`Chrome ${CHROME_BUILD}: --force-prefers-no-reduced-motion => false (green); --force-prefers-reduced-motion => true (red), both frames.`);
+  // Each switch alone, in the pinned Chrome launched directly, never appended to the production list: the reduce
+  // switch must turn the feature on, so the pair shows the switch family is read; and the production switch must
+  // be compiled into the pinned binary by its exact name.
+  const { default: puppeteer } = await ownPackage('puppeteer-core');
+  const alone = async (flag) => {
+    const browser = await puppeteer.launch({ executablePath: await browserPath(), headless: true,
+      args: ['--no-sandbox', flag], userDataDir: join(path, `profile${flag}`) });
+    try {
+      const page = await browser.newPage();
+      await page.setContent('<p>x</p>');
+      return await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
+    } finally { await browser.close(); }
+  };
+  assert.equal(await alone('--force-prefers-reduced-motion'), true);
+  assert.equal(await alone('--force-prefers-no-reduced-motion'), false);
+  const binary = await readFile(await browserPath());
+  assert.ok(binary.includes(Buffer.from('force-prefers-no-reduced-motion')), 'the production switch is compiled into the pinned Chrome');
+  assert.ok(BROWSER_SWITCHES.includes('--force-prefers-no-reduced-motion'));
+  t.diagnostic(`Chrome ${CHROME_BUILD}: alone, --force-prefers-reduced-motion => true and --force-prefers-no-reduced-motion => false; the production render => false (green).`);
 });
 
 test('changing only the wrapper switch list causes a cache miss', async (t) => {
@@ -246,4 +261,14 @@ test('four-step fixture at 0.33 seconds and 10 fps renders exactly three frames'
   assert.equal(decoded.status, 0, decoded.stderr);
   assert.equal(Number(JSON.parse(decoded.stdout).streams[0].nb_read_frames), 3);
   t.diagnostic('0.33 s x 10 fps: renderer reports 3 frames; independent ffprobe decodes 3 frames.');
+});
+
+test('the bridge script is a cache key input, so a change to it alone is a miss', async () => {
+  const { createHash } = await import('node:crypto');
+  const options = { width: 2, height: 2, fps: 1, duration: 1, expectedFrames: 1, profile: 'publish', gop: 1, gpu: 'hardware', capture: 'screenshot' };
+  const versions = { hyperframesVersion: '0.8.134', chromeBuild: CHROME_BUILD, ffmpegVersion: 'fixture' };
+  const inputs = renderCacheInputs(options, versions, []);
+  assert.equal(inputs.bridgeSha256, createHash('sha256').update(BRIDGE).digest('hex'));
+  const changed = { ...inputs, bridgeSha256: createHash('sha256').update(BRIDGE + ' ').digest('hex') };
+  assert.notEqual(cacheKey(changed), cacheKey(inputs));
 });

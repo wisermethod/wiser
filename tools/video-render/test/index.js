@@ -666,7 +666,7 @@ test('cache inputs are canonical, complete, pure and exclude workers, destinatio
   const inputs = renderCacheInputs(f.options, f.versions, files);
   assert.deepEqual({ options: f.options, versions: f.versions, files }, before);
   assert.deepEqual(Object.keys(inputs).sort(), ['toolVersion', 'hyperframesVersion', 'chromeBuild', 'ffmpegVersion',
-    'gpu', 'capture', 'width', 'height', 'fps', 'duration', 'frameCount', 'profile', 'browserSwitches', 'encoderArguments', 'files'].sort());
+    'gpu', 'capture', 'width', 'height', 'fps', 'duration', 'frameCount', 'profile', 'bridgeSha256', 'browserSwitches', 'encoderArguments', 'files'].sort());
   assert.deepEqual(inputs.encoderArguments, encodeArguments('<frames>', '<output>.mp4', f.options));
   assert.deepEqual(inputs.browserSwitches, BROWSER_SWITCHES);
   const reordered = Object.fromEntries(Object.entries(inputs).reverse());
