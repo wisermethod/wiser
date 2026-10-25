@@ -8,9 +8,9 @@ version: 0.10.1
 
 # Cloudflare
 
-DNS on a named zone, every zone the token can see, the settings on a zone, the zone's configuration reads, D1 databases, Pages projects and custom-domain status, Web Analytics sites, redirect rules, Bulk Redirects, rulesets, and signed Worker releases with their static assets and plain variables. Zone Publisher is the DNS consumer. Listing every domain is `cloudflare.zones.list`, not DNS.
+DNS on a named zone, every zone the token can see, the settings on a zone, the zone's configuration reads, D1 databases, Pages projects and custom-domain status, Web Analytics sites, redirect rules, Bulk Redirects, rulesets, and signed Worker releases with their static assets, plain variables, custom domains, free addresses and version history. Zone Publisher is the DNS consumer. Listing every domain is `cloudflare.zones.list`, not DNS.
 
-Not for arbitrary Worker code, R2, KV, cache purging, or mail routing, and not for writes to Workers routes, Access, certificates, Page Rules, or non-redirect phases. The SSL mode is one of the seven settings `zones.update_setting` changes.
+Not for arbitrary Worker code, Worker scheduled triggers, release migrations, restore points or rollback, R2, KV, cache purging, or mail routing, and not for writes to Workers routes, Access, certificates, Page Rules, or non-redirect phases. The SSL mode is one of the seven settings `zones.update_setting` changes.
 
 ## Status
 
@@ -55,6 +55,11 @@ cloudflare.workers.workers_subdomain { account_id }                            c
 cloudflare.workers.get_worker      { account_id, script_name }                  confirmation: none
 cloudflare.workers.deploy_worker_release { account_id, script_name, app, version, database_id, vars } confirmation: always
 cloudflare.workers.delete_worker   { account_id, script_name }                  confirmation: always
+cloudflare.workers.set_vars      { account_id, script_name, app, version, vars } confirmation: always
+cloudflare.workers.add_custom_domain { account_id, script_name, zone_id, hostname } confirmation: always
+cloudflare.workers.remove_custom_domain { account_id, script_name, hostname }    confirmation: always
+cloudflare.workers.set_workers_dev { account_id, script_name, enabled, previews_enabled } confirmation: always
+cloudflare.workers.list_versions { account_id, script_name }                    confirmation: none
 cloudflare.pages.list_projects   { account_id }
 cloudflare.pages.get_project     { account_id, project_name }
 cloudflare.pages.list_deployments { account_id, project_name }
@@ -127,7 +132,7 @@ The zone settings, the zone configuration reads, the Pages domain actions, `rule
 
 ### Worker releases
 
-The `workers` module ships four actions. `workers_subdomain` reads the account's
+The `workers` module ships nine actions. `workers_subdomain` reads the account's
 free address without creating it. `get_worker` reads the active deployment's
 version and binding names and types, retaining only D1's database id; a gradual
 deployment returns `versions` and a null singular `version_id`. `delete_worker`
@@ -175,6 +180,69 @@ address. An account without a subdomain still deploys with a null URL and a reas
 It never creates an account subdomain. Format 2 and the variables are verified by
 fake-provider tests; their live and hosted behavior remains unverified.
 
+`workers.set_vars` takes `account_id`, `script_name`, release `app` and `version`, and
+`vars`. It shares deploy's signature-first verification and exact format-2 shape
+check, fetching only the manifest and signature. Names must be a subset of that
+signed release's `vars_required`; callers cannot supply an allowlist. The deploy's
+non-secret uppercase-name rule and 512 Unicode-character value limit apply.
+Unlisted names are refused before any Cloudflare call; refusals echo neither
+variable names nor values. It reads the existing Worker's bindings, refuses a
+plain variable that would replace a resource or secret, then sends a multipart
+`settings` part to [Patch Worker Script and Version Settings](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/script_and_version_settings/methods/edit/).
+Every other binding is retained by name with `type: "inherit"`, including secrets
+whose contents are unreadable, following Wrangler's
+`copyWorkerVersionWithNewSecrets` inheritance strategy. The accompanying
+[settings read](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/script_and_version_settings/methods/get/)
+supplies those names. No code is uploaded. The PATCH reference does not specify a
+resulting version id, so the action reads [the active deployment](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/deployments/methods/list/) afterward and
+returns only `keys_set` and its single `version_id`. Multiple or missing active
+versions produce a vendor error saying the settings were updated. This reports
+the post-update active version using Wrangler's `fetchLatestDeployment` and
+`fetchDeploymentVersions` reading, rather than attributing an undocumented id to
+the PATCH. A
+concurrent deployment can change that reading. Binding inheritance likewise has
+a read/write race; it follows the API's latest-binding semantics.
+
+`workers.add_custom_domain` takes `account_id`, `script_name`, `zone_id` and
+`hostname`. It reads the hostname first, refusing an attachment to another Worker
+or non-production environment, then sends `hostname`, `service` (the script name)
+and `zone_id` to [Attach Worker Domain](https://developers.cloudflare.com/api/resources/workers/subresources/domains/methods/update/).
+The result confirms that hostname, Worker and zone. This is Workers Custom Domains,
+which manages the hostname's Worker routing, rather than a Workers route pattern.
+
+`workers.remove_custom_domain` takes `account_id`, `script_name` and `hostname`.
+[List Worker Domains](https://developers.cloudflare.com/api/resources/workers/subresources/domains/methods/list/)
+is filtered by hostname without a service filter so another Worker's attachment
+cannot look absent. A malformed, ambiguous or incomplete listing refuses the write.
+The selected domain is [read by id](https://developers.cloudflare.com/api/resources/workers/subresources/domains/methods/get/)
+before [Detach Worker Domain](https://developers.cloudflare.com/api/resources/workers/subresources/domains/methods/delete/).
+Both ownership reads must name this Worker in production; a missing hostname is
+refused. After deletion the id must return 404 and the hostname must be absent.
+A domain still present yields `removed: false`, `read_back: "present"`. Ownership
+can change between the final read and delete; the API offers no conditional delete
+in this reference.
+
+`workers.set_workers_dev` takes `account_id`, `script_name`, `enabled` and
+`previews_enabled`, both required booleans. It sends both unchanged to
+[Update Worker Script Subdomain](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/subdomain/methods/create/)
+and returns only the two reported flags. It [reads the account address](https://developers.cloudflare.com/api/resources/workers/subresources/subdomains/methods/get/) first,
+refusing to enable either flag if none exists. It never creates the account-wide
+subdomain. Disabling both flags is permitted even without an account address.
+
+`workers.list_versions` takes `account_id` and `script_name`. It reads
+[List Versions](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/versions/methods/list/)
+100 at a time and returns `versions`, each with only `id` and `created_on` from
+`metadata.created_on`. No bindings, values, authors or other metadata are returned.
+The reference exposes pagination but no total count in its answer; the action
+continues until a short page, refuses malformed or repeated entries, and reports
+an incomplete listing after 1000 full pages. Version history does not identify the
+active deployment; use `get_worker` before an upgrade and record that version id.
+
+All four settings writes require confirmation every time. They and the version
+read use the `workers` grant and no local files. Their request shapes and refusals
+are fake-provider tested; live and hosted settings behavior remains unverified.
+
+
 ## Credentials
 
 This connector holds none. One token connected on any one module, with no label, serves all five where it is the only Cloudflare credential and no Cloudflare connection carries a label; otherwise a module with no connection of its own answers `needs_connect` and is connected on its own with the same token (`auth.md`). The vendor secret is an API token on the provider's hosted page. A DNS-only token will list nothing on `zones` and 403 on Pages: each module's permissions are on the token, whichever module it was connected as. A 403 on any of the new zone, ruleset or Pages domain reads or writes most often means the token connected for that module lacks the permission `auth.md` names; it is not proof of that, because the provider can also refuse with 403, and `zones.list_access_apps` answers `access_enabled: false` instead where Cloudflare says Access is not enabled, under How settings, redirects and lists behave. Where the permission is missing, edit that same token at Cloudflare and add it. Editing keeps the token's value, so nothing is reconnected. Rolling the token is what changes the value. The Web Analytics actions ride the `pages` grant and need Account / Account Settings: Read for `list_web_analytics_sites` and for `enable_web_analytics` when it attaches a named site, Edit for `enable_web_analytics` when it creates a site and for `delete_web_analytics_site`, with Edit added only for a run that creates or deletes a site and removed afterwards, because Account Settings Edit also lets the token update or delete the whole Cloudflare account, and editing the token keeps its value so nothing is reconnected.
@@ -212,6 +280,10 @@ R2, KV, cache purging, and mail routing are later modules, never extra permissio
 | `rulesets.add_list_items` | Adds redirect items, as one bulk operation | `rulesets.remove_list_items` removes them once their ids are known |
 | `rulesets.remove_list_items` | Removes the named items from a list | Only by adding them again |
 | `rulesets.delete_list` | Deletes the list | No |
+| `workers.set_vars` | Changes plain variables and creates a settings version; other bindings are inherited | Set the previous values again; no values are returned |
+| `workers.add_custom_domain` | Routes the hostname to the Worker | `workers.remove_custom_domain` detaches it |
+| `workers.remove_custom_domain` | Detaches the hostname from the Worker and its previews | Only by adding it again |
+| `workers.set_workers_dev` | Enables or disables free and preview addresses on this Worker | Set the previous flags again |
 | `pages.deploy` | Replaces what production serves. When the kit payload carries the kit's Function, a scheduled article appears at its instant with no further deploy | A later deploy can replace it. A later deploy of the same `dist/` without `site/dist-function/` serves the build-time view. This action does not undo one |
 | `pages.create_project` | Creates a Pages project | `pages.delete_project` removes it |
 | `pages.add_domain` | Attaches a domain to a project and does not create the DNS record | `pages.remove_domain` detaches it |

@@ -504,6 +504,188 @@
             ],
             "additionalProperties": false
           }
+        },
+        "set_vars": {
+          "description": "Set a subset of the signed release vars_required as plain-text variables on an existing Worker, without uploading code. Signature and exact format-2 shape are verified before any Cloudflare call. vars obeys the deploy name and 512 Unicode-character bounds; unlisted names are refused without echoing keys or values. Preserve every other binding by inheritance; refuse replacing a non-plain binding. The answer contains keys_set and the single active version_id read after the update; an unavailable single version is a vendor error.",
+          "privilege": "write",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{32}$"
+              },
+              "script_name": {
+                "type": "string",
+                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"
+              },
+              "app": {
+                "type": "string",
+                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,40}[a-z0-9])?$"
+              },
+              "version": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})$"
+              },
+              "vars": {
+                "type": "object",
+                "propertyNames": {
+                  "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                  "not": {
+                    "pattern": "(^|_)(SECRET|TOKEN|PASSWORD|PASSWD|KEY|CREDENTIALS?|AUTHORIZATION)(_|$)"
+                  }
+                },
+                "additionalProperties": {
+                  "type": "string",
+                  "maxLength": 512
+                }
+              }
+            },
+            "required": [
+              "account_id",
+              "script_name",
+              "app",
+              "version",
+              "vars"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "add_custom_domain": {
+          "description": "Attach a Workers Custom Domain in the named zone. Read the hostname first and refuse an attachment to another Worker or non-production environment; refuse malformed or incomplete domain reads.",
+          "privilege": "write",
+          "risk": "medium",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{32}$"
+              },
+              "script_name": {
+                "type": "string",
+                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"
+              },
+              "zone_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{32}$"
+              },
+              "hostname": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$"
+              }
+            },
+            "required": [
+              "account_id",
+              "script_name",
+              "zone_id",
+              "hostname"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "remove_custom_domain": {
+          "description": "Read a Workers Custom Domain by hostname and id, refuse one attached to another Worker or non-production environment, detach it, and read back both id and hostname to confirm absence. An absent domain is refused; malformed or incomplete reads never authorize deletion.",
+          "privilege": "write",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{32}$"
+              },
+              "script_name": {
+                "type": "string",
+                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"
+              },
+              "hostname": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$"
+              }
+            },
+            "required": [
+              "account_id",
+              "script_name",
+              "hostname"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "set_workers_dev": {
+          "description": "Set the Worker free and preview address flags as supplied. Read the account subdomain first and refuse enabling either flag when absent; never create an account subdomain.",
+          "privilege": "write",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{32}$"
+              },
+              "script_name": {
+                "type": "string",
+                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "previews_enabled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "account_id",
+              "script_name",
+              "enabled",
+              "previews_enabled"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "list_versions": {
+          "description": "Read all Worker version ids and creation times only, paging 100 at a time. A malformed, repeated or incomplete page (1000-page cap) is a vendor error; no binding or value is returned.",
+          "privilege": "read",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{32}$"
+              },
+              "script_name": {
+                "type": "string",
+                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"
+              }
+            },
+            "required": [
+              "account_id",
+              "script_name"
+            ],
+            "additionalProperties": false
+          }
         }
       },
       "unwrap_token": false,

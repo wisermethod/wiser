@@ -146,6 +146,44 @@ function varsShape(vars) {
     && Object.entries(vars).every(([name, value]) => plainName(name) && typeof value === 'string' && [...value].length <= 512);
 }
 
+async function loadManifest(input, ctx) {
+  const loaded = releaseConfig();
+  if (loaded.error) return { error: loaded.error };
+  const config = loaded.config;
+  if (!Object.hasOwn(config.apps, input.app)) return { error: before('release app is not listed') };
+  const fetched = [];
+  const calls = [];
+  const prefix = `${input.app}/${input.version}/`;
+  async function fetchFile(path, maxBytes, hash) {
+    fetched.push(path);
+    try { return await ctx.fetchRelease(config.base + path, { maxBytes }); }
+    catch (err) {
+      if (!err?.object) throw err;
+      if (hash && ['release content-length exceeds maxBytes', 'release body exceeds maxBytes'].includes(err.object.reason)) {
+        return { error: before(`release file mismatch: ${hash}`, { fetched, calls }) };
+      }
+      return { error: { status: err.object.status, reason: 'release fetch refused',
+        ...(Number.isInteger(err.object.http_status) ? { http_status: err.object.http_status } : {}), stage: 'before upload', fetched, calls } };
+    }
+  }
+  const raw = await fetchFile(prefix + 'manifest.json', 1024 * 1024);
+  if (raw.error) return { error: raw.error };
+  const sig = await fetchFile(prefix + 'manifest.sig', 64);
+  if (sig.error) return { error: sig.error };
+  let keyId;
+  for (const key of config.apps[input.app].keys) {
+    const publicKey = await webcrypto.subtle.importKey('raw', Buffer.from(key.ed25519, 'base64'), { name: 'Ed25519' }, false, ['verify']);
+    if (sig.bytes.length === 64 && await webcrypto.subtle.verify('Ed25519', publicKey, sig.bytes, raw.bytes)) { keyId = key.id; break; }
+  }
+  if (!keyId) return { error: before('release signature invalid', { fetched, calls }) };
+  let manifest;
+  try { manifest = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(raw.bytes)); }
+  catch { return { error: before('release manifest malformed', { fetched, calls }) }; }
+  const checked = checkedManifest(manifest, input);
+  if (checked.error) return { error: { ...checked.error, fetched, calls } };
+  return { fetched, calls, prefix, fetchFile, raw, keyId, manifest, checked };
+}
+
 function endpoint(input, tail = '') {
   return `/accounts/${input.account_id}/workers${input.script_name ? `/scripts/${input.script_name}` : ''}${tail}`;
 }
@@ -166,7 +204,7 @@ async function call(ctx, req, calls = []) {
   if (res?.status >= 400) return { error: vendor(req, res.status), codes: res.error?.provider_codes };
   const data = Object.hasOwn(res || {}, 'data') ? res.data : res;
   if (!object(data) || data.success !== true) return { error: vendor(req), codes: data?.errors?.map((e) => e.code) };
-  return { result: data.result };
+  return { result: data.result, info: data.result_info };
 }
 function noSubdomain(reply) {
   // Workers errors documents 10007, and Wrangler's getWorkersDevSubdomain uses
@@ -222,6 +260,26 @@ async function getWorker(input, ctx) {
     bindings: versions.length === 1 ? versions[0].bindings : [], ...(versions.length > 1 ? { versions } : {}) };
 }
 
+// Read by hostname without a service filter: otherwise another Worker's domain
+// would look absent. A malformed or incomplete listing never authorizes a write.
+async function findDomain(input, ctx) {
+  const req = { endpoint: endpoint({ account_id: input.account_id }, '/domains'), method: 'GET',
+    parameters: [{ name: 'hostname', value: input.hostname.toLowerCase(), type: 'query' }] };
+  const reply = await call(ctx, req);
+  if (reply.error) return { error: reply.error };
+  if (!Array.isArray(reply.result) || reply.result.length > 1
+    || (reply.info?.total_pages !== undefined && reply.info.total_pages !== 1 && reply.info.total_pages !== 0)) return { error: vendor(req) };
+  if (!reply.result.length) return { domain: null };
+  const domain = reply.result[0];
+  if (!object(domain) || !string(domain.id, /^(?:[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/)
+    || typeof domain.hostname !== 'string' || domain.hostname.toLowerCase() !== input.hostname.toLowerCase()
+    || typeof domain.service !== 'string') return { error: vendor(req) };
+  return { domain };
+}
+const domainOwner = (domain, input) => domain.service === input.script_name
+  && (!domain.environment || domain.environment === 'production');
+const refused = (reason) => ({ status: 'invalid_arguments', reason });
+
 export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, redact }) {
   // The shape every live multipart through the provider's proxy has used
   // (index.js postDeployment, dns.import_zone, vercel's file upload): the body as
@@ -264,6 +322,107 @@ export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, red
   return {
     workers_subdomain: subdomain,
     get_worker: getWorker,
+    async set_vars(input, ctx) {
+      if (!varsShape(input.vars)) return { ...refused('vars must contain only non-secret uppercase names and strings of at most 512 characters'), field: 'vars' };
+      const loaded = await loadManifest(input, ctx);
+      if (loaded.error) return loaded.error;
+      const { manifest } = loaded;
+      if (!Object.keys(input.vars).every((name) => manifest.worker.vars_required.includes(name))) {
+        return { ...refused('vars contains a name outside release vars_required'), field: 'vars' };
+      }
+      const req = { endpoint: endpoint(input, '/settings'), method: 'GET' };
+      const current = await call(ctx, req);
+      if (current.error) return current.error;
+      const previous = current.result?.bindings;
+      if (!Array.isArray(previous) || previous.some((b) => !object(b) || typeof b.name !== 'string' || typeof b.type !== 'string')
+        || new Set(previous.map((b) => b.name)).size !== previous.length) return vendor(req);
+      // Never turn an existing resource or secret binding into a plain variable.
+      if (previous.some((b) => Object.hasOwn(input.vars, b.name) && b.type !== 'plain_text')) return refused('vars would replace a non-plain binding');
+      // Wrangler inherits unchanged bindings by name, including secrets whose bytes
+      // cannot be read back. No binding value is copied out into an answer.
+      const next = previous.filter((b) => !Object.hasOwn(input.vars, b.name)).map((b) => ({ name: b.name, type: 'inherit' }));
+      next.push(...Object.entries(input.vars).map(([name, text]) => ({ name, text, type: 'plain_text' })));
+      const form = buildMultipart([{ name: 'settings', contentType: 'application/json', value: Buffer.from(JSON.stringify({ bindings: next })) }]);
+      const update = { endpoint: endpoint(input, '/settings'), method: 'PATCH', ...multipart(form) };
+      if (bodyBytes(form) > MAX_UPLOAD_BYTES) return refused('Worker settings request too large');
+      const changed = await call(ctx, update);
+      if (changed.error) return changed.error;
+      // The settings API does not document a version id in its answer. Read the
+      // active deployment instead of treating a binding id as a Worker version.
+      const versionReq = { endpoint: endpoint(input, '/deployments'), method: 'GET' };
+      const after = await call(ctx, versionReq);
+      if (after.error) return after.error;
+      const versions = after.result?.deployments?.[0]?.versions;
+      if (!Array.isArray(versions) || versions.length !== 1 || !string(versions[0].version_id, UUID)) {
+        return { ...vendor(versionReq), reason: 'settings updated; no single active version reported' };
+      }
+      return { keys_set: Object.keys(input.vars), version_id: versions[0].version_id };
+    },
+    async add_custom_domain(input, ctx) {
+      const found = await findDomain(input, ctx);
+      if (found.error) return found.error;
+      if (found.domain && !domainOwner(found.domain, input)) return refused('domain is attached to another Worker');
+      const req = { endpoint: endpoint({ account_id: input.account_id }, '/domains'), method: 'PUT',
+        body: { hostname: input.hostname.toLowerCase(), service: input.script_name, zone_id: input.zone_id } };
+      const reply = await call(ctx, req);
+      if (reply.error) return reply.error;
+      if (typeof reply.result?.hostname !== 'string' || reply.result.hostname.toLowerCase() !== input.hostname.toLowerCase() || !domainOwner(reply.result || {}, input)
+        || reply.result?.zone_id !== input.zone_id) return vendor(req);
+      return { hostname: input.hostname, script_name: input.script_name, attached: true };
+    },
+    async remove_custom_domain(input, ctx) {
+      const found = await findDomain(input, ctx);
+      if (found.error) return found.error;
+      if (!found.domain) return refused('no such Worker custom domain');
+      if (!domainOwner(found.domain, input)) return refused('domain is attached to another Worker');
+      // Read the selected domain again by id immediately before removing it.
+      const read = { endpoint: endpoint({ account_id: input.account_id }, `/domains/${found.domain.id}`), method: 'GET' };
+      const detail = await call(ctx, read);
+      if (detail.error) return detail.error;
+      if (typeof detail.result?.hostname !== 'string' || detail.result.hostname.toLowerCase() !== input.hostname.toLowerCase() || !domainOwner(detail.result || {}, input)) return refused('domain is attached to another Worker');
+      const req = { ...read, method: 'DELETE' };
+      const reply = await call(ctx, req);
+      if (reply.error) return reply.error;
+      const after = await call(ctx, read);
+      if (after.error && after.error.http_status !== 404) return after.error;
+      if (!after.error) return { hostname: input.hostname, removed: false, read_back: 'present' };
+      // Also check the hostname: a replacement id must not count as gone.
+      const remaining = await findDomain(input, ctx);
+      if (remaining.error) return remaining.error;
+      return { hostname: input.hostname, removed: !remaining.domain, read_back: remaining.domain ? 'present' : 'absent' };
+    },
+    async set_workers_dev(input, ctx) {
+      const address = await subdomain(input, ctx);
+      if (address.status) return address;
+      if (!address.exists && (input.enabled || input.previews_enabled)) return refused('account has no workers.dev subdomain; create it separately');
+      const req = { endpoint: endpoint(input, '/subdomain'), method: 'POST',
+        body: { enabled: input.enabled, previews_enabled: input.previews_enabled } };
+      const reply = await call(ctx, req);
+      if (reply.error) return reply.error;
+      if (typeof reply.result?.enabled !== 'boolean' || typeof reply.result?.previews_enabled !== 'boolean') return vendor(req);
+      return { enabled: reply.result.enabled, previews_enabled: reply.result.previews_enabled };
+    },
+    async list_versions(input, ctx) {
+      const versions = [];
+      const seen = new Set();
+      for (let page = 1; page <= 1000; page++) {
+        const req = { endpoint: endpoint(input, '/versions'), method: 'GET', parameters: [
+          { name: 'page', value: String(page), type: 'query' }, { name: 'per_page', value: '100', type: 'query' }] };
+        const reply = await call(ctx, req);
+        if (reply.error) return reply.error;
+        const items = reply.result?.items;
+        if (!Array.isArray(items) || items.length > 100) return vendor(req);
+        for (const item of items) {
+          const time = item?.metadata?.created_on;
+          if (!string(item?.id, UUID) || seen.has(item.id) || typeof time !== 'string'
+            || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(time) || !Number.isFinite(Date.parse(time))) return vendor(req);
+          seen.add(item.id);
+          versions.push({ id: item.id, created_on: time });
+        }
+        if (items.length < 100) return { versions };
+      }
+      return { status: 'vendor_error', reason: 'version listing incomplete' };
+    },
     async delete_worker(input, ctx) {
       const reply = await call(ctx, { endpoint: endpoint(input), method: 'DELETE' });
       if (reply.error) return reply.error.http_status === 404
@@ -275,40 +434,9 @@ export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, red
     },
     async deploy_worker_release(input, ctx) {
       if (!varsShape(input.vars)) return { ...before('vars must contain only non-secret uppercase names and strings of at most 512 characters'), field: 'vars' };
-      const loaded = releaseConfig();
+      const loaded = await loadManifest(input, ctx);
       if (loaded.error) return loaded.error;
-      const config = loaded.config;
-      if (!Object.hasOwn(config.apps, input.app)) return before('release app is not listed');
-      const fetched = [];
-      const calls = [];
-      const prefix = `${input.app}/${input.version}/`;
-      async function fetchFile(path, maxBytes, hash) {
-        fetched.push(path);
-        try { return await ctx.fetchRelease(config.base + path, { maxBytes }); }
-        catch (err) {
-          if (!err?.object) throw err;
-          if (hash && ['release content-length exceeds maxBytes', 'release body exceeds maxBytes'].includes(err.object.reason)) {
-            return { error: before(`release file mismatch: ${hash}`, { fetched, calls }) };
-          }
-          return { error: { status: err.object.status, reason: 'release fetch refused',
-            ...(Number.isInteger(err.object.http_status) ? { http_status: err.object.http_status } : {}), stage: 'before upload', fetched, calls } };
-        }
-      }
-      const raw = await fetchFile(prefix + 'manifest.json', 1024 * 1024);
-      if (raw.error) return raw.error;
-      const sig = await fetchFile(prefix + 'manifest.sig', 64);
-      if (sig.error) return sig.error;
-      let keyId;
-      for (const key of config.apps[input.app].keys) {
-        const publicKey = await webcrypto.subtle.importKey('raw', Buffer.from(key.ed25519, 'base64'), { name: 'Ed25519' }, false, ['verify']);
-        if (sig.bytes.length === 64 && await webcrypto.subtle.verify('Ed25519', publicKey, sig.bytes, raw.bytes)) { keyId = key.id; break; }
-      }
-      if (!keyId) return before('release signature invalid', { fetched, calls });
-      let manifest;
-      try { manifest = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(raw.bytes)); }
-      catch { return before('release manifest malformed', { fetched, calls }); }
-      const checked = checkedManifest(manifest, input);
-      if (checked.error) return { ...checked.error, fetched, calls };
+      const { fetched, calls, prefix, fetchFile, raw, keyId, manifest, checked } = loaded;
       if (Object.keys(input.vars).length !== manifest.worker.vars_required.length
         || !manifest.worker.vars_required.every((name) => Object.hasOwn(input.vars, name))) {
         return { ...before('vars must exactly match release vars_required', { fetched, calls }), field: 'vars' };
