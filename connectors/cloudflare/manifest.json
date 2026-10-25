@@ -401,7 +401,7 @@
           }
         },
         "get_worker": {
-          "description": "Read current deployed Worker version ids and binding names and types; D1 database_id is the only binding id returned.",
+          "description": "Read the live deployment and binding names/types, retaining only D1 database_id. version_id is non-null only for a single version at 100 percent; split traffic or no deployment yields null, never a chosen rollback target. Record this id before the first upgrade write, including set_vars; list_versions is not this read.",
           "privilege": "read",
           "risk": "low",
           "confirmation": "none",
@@ -757,6 +757,110 @@
             "required": [
               "account_id",
               "script_name"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "d1_bookmark": {
+          "description": "Read only the current D1 Time Travel bookmark and bookmark_time, the local UTC time at the start of the read. Cloudflare and Wrangler return no server timestamp; bookmark_time is an observation checkpoint, not a verified bookmark timestamp. Only the documented hex bookmark spelling is returned.",
+          "privilege": "read",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{32}$"
+              },
+              "database_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              }
+            },
+            "required": [
+              "account_id",
+              "database_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "d1_restore": {
+          "description": "Restore to the bookmark at the supplied bookmark_time. Every change after that time is lost. In-flight queries are cancelled. window_days must be the account plan window, 7 or 30 days; a valid UTC bookmark_time (Z, at most millisecond precision) in the future or older than that window or the API's 30 days is refused before any call, naming its age. Keep bookmark/time paired with this account/database; the API does not verify the supplied time or plan. Returns only new bookmark and previous_bookmark, which undoes this restore.",
+          "privilege": "write",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{32}$"
+              },
+              "database_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "bookmark": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{32}$"
+              },
+              "bookmark_time": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?Z$"
+              },
+              "window_days": {
+                "type": "integer",
+                "enum": [
+                  7,
+                  30
+                ]
+              }
+            },
+            "required": [
+              "account_id",
+              "database_id",
+              "bookmark",
+              "bookmark_time",
+              "window_days"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "rollback": {
+          "description": "Deploy the required version_id at 100 percent, replacing whatever versions the live deployment carries. Use get_worker's id recorded before the first upgrade write, set_vars included. Never select a version from history. Read the live deployment back and return only its id when it matches at 100 percent; otherwise report rollback submitted but unverified. Cloudflare may block rollback after a secret change; no force override is used.",
+          "privilege": "write",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{32}$"
+              },
+              "script_name": {
+                "type": "string",
+                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"
+              },
+              "version_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              }
+            },
+            "required": [
+              "account_id",
+              "script_name",
+              "version_id"
             ],
             "additionalProperties": false
           }

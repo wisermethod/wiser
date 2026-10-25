@@ -248,7 +248,8 @@ async function getWorker(input, ctx) {
   if (!Array.isArray(active) || !active.length || active.length > 100) return vendor(req);
   const versions = [];
   for (const version of active) {
-    if (!string(version.version_id, UUID)) return vendor(req);
+    if (!string(version.version_id, UUID) || !Number.isFinite(version.percentage)
+      || version.percentage < 0 || version.percentage > 100) return vendor(req);
     const versionReq = { endpoint: endpoint(input, `/versions/${version.version_id}`), method: 'GET' };
     const detail = await call(ctx, versionReq);
     if (detail.error) return detail.error.http_status === 404 ? { exists: false } : detail.error;
@@ -256,9 +257,17 @@ async function getWorker(input, ctx) {
     if (!names) return vendor(versionReq);
     versions.push({ version_id: version.version_id, percentage: version.percentage, bindings: names });
   }
-  // A gradual deployment has several current versions. Do not invent one id.
-  return { exists: true, version_id: versions.length === 1 ? versions[0].version_id : null,
-    bindings: versions.length === 1 ? versions[0].bindings : [], ...(versions.length > 1 ? { versions } : {}) };
+  // Only one version at 100 percent is a usable pre-upgrade rollback target.
+  const single = singleDeployedVersion(versions);
+  return { exists: true, version_id: single,
+    bindings: single ? versions[0].bindings : [], ...(!single ? { versions,
+      reason: 'live deployment has no single version at 100 percent; record no rollback target' } : {}) };
+}
+
+function singleDeployedVersion(versions) {
+  return Array.isArray(versions) && versions.length === 1
+    && string(versions[0]?.version_id, UUID) && versions[0].percentage === 100
+    ? versions[0].version_id : null;
 }
 
 // Read by hostname without a service filter: otherwise another Worker's domain
@@ -298,6 +307,59 @@ const historyDDL = (table) => `CREATE TABLE IF NOT EXISTS ${table}(
 const recordMigration = (table, name) => `INSERT INTO ${table} (name)\nvalues ('${name.replaceAll("'", "''")}');`;
 const d1Path = (input, id = input.database_id) => `/accounts/${input.account_id}/d1/database${id ? `/${id}` : ''}`;
 const sqlString = (value) => `'${value.replaceAll("'", "''")}'`;
+// Time Travel's documented bookmark spelling. Never return arbitrary vendor text.
+const BOOKMARK = /^[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{32}$/;
+const BOOKMARK_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+async function d1Bookmark(input, ctx) {
+  const req = { endpoint: d1Path(input) + '/time_travel/bookmark', method: 'GET' };
+  // The API (and Wrangler's info command) returns no timestamp. This is the
+  // local request-start checkpoint, not a server-verified bookmark timestamp.
+  const bookmark_time = new Date().toISOString();
+  const reply = await d1Call(ctx, req);
+  if (reply.error) return reply.error;
+  return string(reply.result?.bookmark, BOOKMARK)
+    ? { bookmark: reply.result.bookmark, bookmark_time } : vendor(req);
+}
+
+async function d1Restore(input, ctx) {
+  const time = Date.parse(input.bookmark_time);
+  if (!string(input.bookmark_time, BOOKMARK_TIME) || !Number.isFinite(time)
+    || new Date(time).toISOString().slice(0, 19) !== input.bookmark_time.slice(0, 19)) {
+    return { ...refused('bookmark_time must be a valid UTC date-time ending in Z, with at most millisecond precision'), field: 'bookmark_time' };
+  }
+  const age = (Date.now() - time) / DAY_MS;
+  if (age < 0) return { ...refused('bookmark_time is in the future'), field: 'bookmark_time' };
+  // Check both the supplied account plan and the API ceiling before transport.
+  if (age > input.window_days || age > 30) {
+    return { ...refused(`bookmark age ${age.toFixed(6)} days exceeds the ${input.window_days}-day account window or the API's 30-day limit`),
+      field: 'bookmark_time', age_days: age };
+  }
+  const req = { endpoint: d1Path(input) + '/time_travel/restore', method: 'POST',
+    parameters: [{ name: 'bookmark', value: input.bookmark, type: 'query' }] };
+  const reply = await d1Call(ctx, req);
+  if (reply.error) return reply.error;
+  if (!string(reply.result?.bookmark, BOOKMARK) || !string(reply.result?.previous_bookmark, BOOKMARK)) {
+    return { ...vendor(req), reason: 'restore submitted; new and previous bookmarks not both available' };
+  }
+  return { bookmark: reply.result.bookmark, previous_bookmark: reply.result.previous_bookmark };
+}
+
+async function rollback(input, ctx) {
+  const req = { endpoint: endpoint(input, '/deployments'), method: 'POST',
+    body: { strategy: 'percentage', versions: [{ version_id: input.version_id, percentage: 100 }] } };
+  const reply = await d1Call(ctx, req);
+  if (reply.error) return reply.error;
+  const read = { endpoint: req.endpoint, method: 'GET' };
+  const after = await d1Call(ctx, read);
+  if (after.error) return { ...after.error, reason: 'rollback submitted; active deployment read-back failed' };
+  const version = singleDeployedVersion(after.result?.deployments?.[0]?.versions);
+  if (!version || version !== input.version_id) {
+    return { ...vendor(read), reason: 'rollback submitted; recorded version is not the single live version at 100 percent' };
+  }
+  return { version_id: version };
+}
 
 // Neither an exception, a SQL diagnostic nor a returned row is an answer.
 async function d1Call(ctx, req) {
@@ -555,6 +617,9 @@ export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, red
     workers_subdomain: subdomain,
     d1_migrate: (input, ctx) => migrate(input, ctx, MAX_UPLOAD_BYTES),
     d1_adopt: (input, ctx) => adopt(input, ctx, MAX_UPLOAD_BYTES),
+    d1_bookmark: d1Bookmark,
+    d1_restore: d1Restore,
+    rollback,
     get_worker: getWorker,
     async set_vars(input, ctx) {
       if (!varsShape(input.vars)) return { ...refused('vars must contain only non-secret uppercase names and strings of at most 512 characters'), field: 'vars' };

@@ -20,9 +20,27 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { collectDivergences } from './agreement-harness.js';
+import { call, collectDivergences } from './agreement-harness.js';
 
 const BASELINE = JSON.parse(readFileSync(new URL('./agreement-baseline.json', import.meta.url), 'utf8'));
+
+test('agreement observes transport when a module sanitizes the sentinel exception', async () => {
+  for (const transport of ['proxy', 'http', 'fetchRelease', 'catalog']) {
+    const result = await call(async (input, ctx) => {
+      try { await ctx[transport]({}); }
+      catch { return { status: 'vendor_error' }; }
+    }, {}, 'fixture', 'module', 'action');
+    assert.deepEqual(result, { kind: 'reached' });
+  }
+});
+
+test('agreement distinguishes a refusal before transport from a return or unexpected throw', async () => {
+  assert.deepEqual(await call(() => ({ status: 'invalid_arguments', field: 'bookmark_time' }), {}),
+    { kind: 'refused', field: 'bookmark_time' });
+  assert.deepEqual(await call(() => ({}), {}), { kind: 'returned' });
+  assert.deepEqual(await call(() => { throw new Error('fixture failure'); }, {}),
+    { kind: 'threw', detail: 'fixture failure' });
+});
 
 test('every connector action agrees with its own published schema, in both directions', async () => {
   const { found, errors } = await collectDivergences();

@@ -3,14 +3,14 @@ name: cloudflare
 type: connector
 category: development
 description: Reaches Cloudflare DNS, zones and their settings, the zone's configuration reads, D1 databases, Pages projects, domains and custom-domain status, production deploys of a kit site with its fingerprinted Pages Function, of a site with its Pages Functions, or of a plain static build output, Web Analytics on a Pages project, rulesets, redirect rules and Bulk Redirects, with every removal, setting change, analytics change, redirect write and production deploy confirmed
-version: 0.10.1
+version: 0.10.2
 ---
 
 # Cloudflare
 
-DNS on a named zone, every zone the token can see, the settings on a zone, the zone's configuration reads, D1 databases, Pages projects and custom-domain status, Web Analytics sites, redirect rules, Bulk Redirects, rulesets, and signed Worker releases with their static assets, plain variables, custom domains, free addresses and version history. Zone Publisher is the DNS consumer. Listing every domain is `cloudflare.zones.list`, not DNS.
+DNS on a named zone, every zone the token can see, the settings on a zone, the zone's configuration reads, D1 databases, Pages projects and custom-domain status, Web Analytics sites, redirect rules, Bulk Redirects, rulesets, and signed Worker releases with their static assets, plain variables, custom domains, free addresses, version history, D1 restore points and explicit-version rollback. Zone Publisher is the DNS consumer. Listing every domain is `cloudflare.zones.list`, not DNS.
 
-Not for arbitrary Worker code, Worker scheduled triggers, restore points or rollback, R2, KV, cache purging, or mail routing, and not for writes to Workers routes, Access, certificates, Page Rules, or non-redirect phases. The SSL mode is one of the seven settings `zones.update_setting` changes.
+Not for arbitrary Worker code, Worker scheduled triggers, R2, KV, cache purging, or mail routing, and not for writes to Workers routes, Access, certificates, Page Rules, or non-redirect phases. The SSL mode is one of the seven settings `zones.update_setting` changes.
 
 ## Status
 
@@ -62,6 +62,9 @@ cloudflare.workers.set_workers_dev { account_id, script_name, enabled, previews_
 cloudflare.workers.list_versions { account_id, script_name }                    confirmation: none
 cloudflare.workers.d1_migrate   { account_id, database_id, app, version }        confirmation: always
 cloudflare.workers.d1_adopt     { account_id, database_id, app, version }        confirmation: always
+cloudflare.workers.d1_bookmark  { account_id, database_id }                      confirmation: none
+cloudflare.workers.d1_restore   { account_id, database_id, bookmark, bookmark_time, window_days } confirmation: always
+cloudflare.workers.rollback     { account_id, script_name, version_id }          confirmation: always
 cloudflare.pages.list_projects   { account_id }
 cloudflare.pages.get_project     { account_id, project_name }
 cloudflare.pages.list_deployments { account_id, project_name }
@@ -134,10 +137,15 @@ The zone settings, the zone configuration reads, the Pages domain actions, `rule
 
 ### Worker releases
 
-The `workers` module ships eleven actions. `workers_subdomain` reads the account's
+The `workers` module ships fourteen actions. `workers_subdomain` reads the account's
 free address without creating it. `get_worker` reads the active deployment's
-version and binding names and types, retaining only D1's database id; a gradual
-deployment returns `versions` and a null singular `version_id`. `delete_worker`
+version and binding names and types, retaining only D1's database id. Its singular
+`version_id` names a version only when it is the single version at 100 percent.
+A split deployment returns `versions`, a null singular `version_id` and a reason;
+a caller records no rollback target and stops the upgrade. A sole version below
+100 percent also returns null. Read and record this id before the upgrade's first
+write, including `set_vars`, which publishes a settings version. `list_versions`
+is history, not this read. `delete_worker`
 confirms deletion by reading back, reporting `success: false` if still present.
 A missing Worker is an absent result. Deploying and deleting require confirmation.
 Reads need Account / Workers Scripts / Read; deploy and delete need Edit, the API's
@@ -244,6 +252,89 @@ All four settings writes require confirmation every time. They and the version
 read use the `workers` grant and no local files. Their request shapes and refusals
 are fake-provider tested; live and hosted settings behavior remains unverified.
 
+### Restore points and rollback
+
+`workers.d1_bookmark` takes `account_id` and `database_id`. It calls
+[Get D1 database bookmark](https://developers.cloudflare.com/api/resources/d1/subresources/database/subresources/time_travel/methods/get_bookmark/),
+`GET /accounts/{account_id}/d1/database/{database_id}/time_travel/bookmark`, without
+a timestamp query. The answer contains only `bookmark` and `bookmark_time`.
+The reference returns no time, and Wrangler's `getBookmarkIdFromTimestamp` and
+Time Travel info command return only the bookmark when no timestamp is supplied.
+The chosen reading records local UTC at the start of the current-bookmark GET as
+`bookmark_time`. This is an observation checkpoint, not a server-confirmed time
+encoded in or recovered from the bookmark. It relies on an accurate caller clock
+and stopped writes; network latency and clock skew are not measured. Keep that
+pair with its account and database, never pair a bookmark with another database's
+time. There is no connector cache of restore points. Bookmark inputs and outputs
+accept the documented lowercase hex spelling, three eight-digit groups then one
+32-digit group separated by hyphens; an unfamiliar response is a vendor error.
+
+`workers.d1_restore` requires the same account and database, `bookmark`,
+`bookmark_time` and `window_days`. The caller supplies the account's plan window:
+7 on Workers Free, 30 on Workers Paid, per
+[Time Travel and backups](https://developers.cloudflare.com/d1/reference/time-travel/).
+Before any provider call it parses `bookmark_time` as a valid UTC date-time ending
+in `Z`, with up to three fractional digits, refuses a future time, and refuses an
+age greater than the supplied window or 30 days, reporting the age in days.
+The plan and the bookmark/time pairing are caller facts; this endpoint does not
+verify them. A bookmark can still be unavailable or rate limited at Cloudflare.
+Its confirmation names `bookmark_time` and says every change after that time is
+lost; restoring overwrites the database in place and cancels in-flight queries.
+[Restore D1 Database](https://developers.cloudflare.com/api/resources/d1/subresources/database/subresources/time_travel/methods/restore/)
+is `POST .../time_travel/restore` with a `bookmark` query parameter, no SQL or JSON
+body. This matches Wrangler's `handleRestore`. The result contains only the new
+`bookmark` and `previous_bookmark`, which can undo this restore. Missing either
+is a named vendor error saying the restore was submitted, never an invented undo
+point. Retain the previous bookmark with the same database and the local time
+immediately before the restore if an undo will be needed. Provider diagnostics
+and extra response fields are never copied into an answer.
+
+`workers.rollback` requires `account_id`, `script_name` and `version_id`.
+Missing `version_id` is refused by the gateway schema before confirmation or
+transport. It never looks up a previous version, never lists versions to choose
+one, and replaces whatever traffic split is live with the recorded id at 100
+percent. [Create Worker Deployment](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/deployments/methods/create/)
+is `POST .../scripts/{script_name}/deployments` with
+`{ strategy: "percentage", versions: [{ version_id, percentage: 100 }] }`, matching
+Wrangler's `createDeployment`. No `force` override bypasses Cloudflare's checks
+for changed secrets or other rollback restrictions. It then reads
+[List Worker Deployments](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/deployments/methods/list/)
+and returns only `version_id`, requiring that id alone at 100 percent. The list
+reference identifies the first entry as actively serving traffic, consistent with
+Wrangler's `fetchLatestDeployment`. An empty, split, mismatched
+or failed read-back reports rollback submitted but unverified. A concurrent
+deploy between the write and read can cause that result; the read is not a lock.
+Both restore and rollback require confirmation every time. Their API behavior
+is fake-provider tested; live and hosted restore/rollback remain unverified.
+
+### Upgrade and failure recovery sequence
+
+Run these actions in order and retain each result before the next write:
+
+1. `workers.get_worker`: record its non-null `version_id` for release N, before
+   **any** upgrade write, including `workers.set_vars`. Stop if it cannot name a
+   single version at 100 percent. `workers.list_versions` cannot supply this fact.
+2. Stop application writes. **Unmet:** nothing in this connector stops staff
+   writes. The fork must supply its read-only variable in a release's
+   `vars_required`, enforce it for every writing route (including GET routes that
+   write), and let `workers.set_vars` set it. Until then, the caller stops the
+   automated upgrade and arranges a separately verified write stop with the
+   operator; taking a bookmark alone does not make concurrent staff writes safe.
+   Keep writes stopped through verification and failure recovery.
+3. `workers.d1_bookmark`: retain `bookmark`, `bookmark_time`, account and database
+   together, with the account's 7- or 30-day window.
+4. `workers.deploy_worker_release`: deploy release N+1. Keep any eventual read-only
+   variable set in the new release as well.
+5. `workers.d1_migrate`: apply N+1's verified release migrations.
+6. On failure, `workers.d1_restore` to step 3's pair and window, then
+   `workers.rollback` to step 1's recorded `version_id`, irrespective of the live
+   deployment's versions. Retain `previous_bookmark` for undo. Verify the restored
+   data with `pages.d1_query` against the pre-upgrade table set, counts and seeded
+   values (custom columns included), and verify N's version with `get_worker`.
+   A failed or unverified recovery stops the sequence for the operator.
+7. Resume writes only after the data and serving version are verified. On success
+   verify N+1's data and serving version before clearing the eventual read-only
+   switch. This resume step is also unmet until that switch exists.
 
 ## Credentials
 
@@ -256,7 +347,7 @@ This connector holds none. One token connected on any one module, with no label,
 | `dns` | write | Records in a named zone |
 | `zones` | write | Every zone the token can see, plus accounts, zone settings (seven of them can be changed), and reads of bot management, certificate packs, Workers routes and Access applications |
 | `pages` | write | Pages projects, domains and custom-domain status, production deploys of kit output, including the kit's Function when a scheduled article carried one, production deploys with Pages Functions, plain static deploys, Web Analytics on a Pages project, and the D1 databases a Pages site uses: list, get, create, a read-only query, confirmed writes and migrations, binding, removal, and a confirmed validation retry |
-| `workers` | write | Read deployed Worker versions and binding names, deploy signed releases with D1, assets and plain variables, and delete with a read-back; migrations are verified but not applied |
+| `workers` | write | Read deployed versions and binding names; deploy signed releases with D1, assets and plain variables; apply release migrations and adopt a baseline; take D1 bookmarks, restore and roll back to a recorded version; delete with a read-back |
 | `rulesets` | write | Rulesets, Page Rules, reads of every phase `get_phase_entrypoint` accepts, redirect writes on the two redirect phases, and Bulk Redirect lists |
 
 R2, KV, cache purging, and mail routing are later modules, never extra permissions on these five. A read of a Workers route, an Access application, a certificate pack, a Page Rule or a non-redirect phase does not write it.
@@ -333,6 +424,8 @@ reads and final history record consistent.
 |--------|--------|-----------------|
 | `workers.deploy_worker_release` | Replaces the deployed script, assets, bindings and plain variables | A previous version must be retained separately |
 | `workers.delete_worker` | Removes the Worker | No |
+| `workers.d1_restore` | Overwrites the database at the supplied bookmark; every later change is lost | Restore to the returned previous_bookmark within the account's window |
+| `workers.rollback` | Replaces all live traffic with the supplied version at 100 percent | Deploy another explicitly recorded version id |
 | `dns.delete_record` | Removes the record | No |
 | `dns.batch` | Mixed deletes and writes | No |
 | `dns.import_zone` | Bulk create from BIND | No |

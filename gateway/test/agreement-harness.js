@@ -85,6 +85,9 @@ const CONNECTORS = fileURLToPath(new URL('../../connectors', import.meta.url));
  * wrong entry fails loudly, and a pattern with no entry fails rather than being skipped.
  */
 const PATTERN_OK = {
+  // Time Travel: documented bookmark spelling and a fresh UTC checkpoint.
+  '^[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{32}$': '00000001-00000002-00004e2f-0a83ea2fceebc654de0640c422be4653',
+  '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?Z$': new Date(Date.now() - 60_000).toISOString(),
   '^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$': 'proof-worker',
   '^[a-z0-9](?:[a-z0-9-]{0,40}[a-z0-9])?$': 'wiser-crm',
   '^(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})$': '1.0.0',
@@ -449,18 +452,22 @@ function withGatewayValidation(schema, run) {
 
 const REACHED = Symbol('reached-vendor');
 
-function makeCtx(service, module, action, input) {
-  const reach = () => { const e = new Error('reached vendor'); e[REACHED] = true; throw e; };
+function makeCtx(service, module, action, input, onReach) {
+  const reach = () => { onReach(); const e = new Error('reached vendor'); e[REACHED] = true; throw e; };
   return { service, module, action, input, confirm: true, proxy: reach, http: reach, fetchRelease: reach, catalog: reach, audit() {} };
 }
 
-async function call(fn, input, service, module, action) {
+export async function call(fn, input, service, module, action) {
+  // A module may sanitize every transport exception. Observe the call itself,
+  // so swallowing our sentinel cannot turn valid input into a false divergence.
+  let reached = false;
   try {
-    const res = await fn(input, makeCtx(service, module, action, input));
+    const res = await fn(input, makeCtx(service, module, action, input, () => { reached = true; }));
+    if (reached) return { kind: 'reached' };
     if (res && typeof res === 'object' && res.status === 'invalid_arguments') return { kind: 'refused', field: res.field };
     return { kind: 'returned' };
   } catch (err) {
-    return err[REACHED] ? { kind: 'reached' } : { kind: 'threw', detail: String(err?.message ?? err).slice(0, 80) };
+    return reached || err[REACHED] ? { kind: 'reached' } : { kind: 'threw', detail: String(err?.message ?? err).slice(0, 80) };
   }
 }
 
