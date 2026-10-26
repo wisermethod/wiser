@@ -83,6 +83,7 @@ The other three commands are single operations and take no part in this chain. `
 | `node scripts/edit.js gif --input <path> --output <path.gif>` | Convert a video to an animated GIF | One GIF |
 | `node scripts/edit.js loudness --input <path> --output <path.mp4> --target <LUFS> --true-peak <dBTP>` | Set loudness with copied video and lossless audio | One MP4 |
 | `node scripts/edit.js finish --input <path> [--input <path> ...] --output <path.mp4> --target <LUFS> --true-peak <dBTP>` | Join and finish to H.264 and stereo Opus | One MP4 |
+| `node scripts/edit.js mux --input <video.mp4> --audio <file> [--audio-start <seconds>] --output <path.mp4>` | Copy a silent video and lay narration onto it | One MP4 |
 
 Options:
 
@@ -101,6 +102,8 @@ Options:
 | `--fps <n>` | Sample rate for `frames` and `gif` | 10 |
 | `--target <LUFS>` | Integrated loudness for `loudness` and `finish`, decimal from -40 to -5 | None; required |
 | `--true-peak <dBTP>` | True-peak limit for `loudness` and `finish`, decimal from -9 to 0 | None; required |
+| `--audio <path>` | Audio-only local file for `mux`, absolute, with one mono or stereo stream | None; required for `mux` |
+| `--audio-start <seconds>` | Exact non-negative decimal start after the first shown frame, for `mux` | 0 |
 | `--help` | Print usage and exit | Off |
 
 `edit` needs at least one operation; the five are independent and any combination runs. Every option outside a command's own set is refused rather than ignored, so a caller who reaches for `--trim-start` on `gif` is told it does not apply instead of quietly getting an untrimmed GIF. Before `frames`, pass an empty directory, or a new one when the directory cannot be listed: the reported count includes any `frame_NNNN.png` files already there, and do not treat the count as this run's alone while older frames may sit in it.

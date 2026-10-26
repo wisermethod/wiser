@@ -16,6 +16,7 @@
  */
 
 import { finishCommand } from './finish.js';
+import { muxCommand, startSamples } from './mux.js';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, realpathSync, statSync, unlinkSync } from 'node:fs';
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
@@ -24,7 +25,7 @@ import { fileURLToPath } from 'node:url';
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const TOOL_DIR = resolve(SCRIPT_DIR, '..');
 
-const COMMANDS = new Set(['edit', 'concat', 'frames', 'gif', 'loudness', 'finish']);
+const COMMANDS = new Set(['edit', 'concat', 'frames', 'gif', 'loudness', 'finish', 'mux']);
 const TEXT_POSITIONS = new Set(['top', 'center', 'bottom']);
 
 // atempo follows the video only inside this range; outside it the audio track
@@ -50,6 +51,7 @@ Usage:
   node scripts/edit.js gif    --input <path> --output <path.gif> [--fps N]
   node scripts/edit.js loudness --input <path> --output <path.mp4> --target <LUFS> --true-peak <dBTP>
   node scripts/edit.js finish --input <path> [--input <path> ...] --output <path.mp4> --target <LUFS> --true-peak <dBTP>
+  node scripts/edit.js mux --input <video.mp4> --audio <file> [--audio-start <seconds>] --output <path.mp4>
 
 Commands:
   edit             Apply one or more operations to a single video
@@ -58,6 +60,7 @@ Commands:
   gif              Convert a video to an animated GIF
   loudness         Set loudness, keeping the copied video and audio channels
   finish           Join and encode once to H.264 and stereo Opus
+  mux              Copy a silent picture and lay one narration track onto it
   help             Print this message
 
 Options:
@@ -76,6 +79,9 @@ Options:
   --fps <n>        Sample rate for frames and gif. Default ${DEFAULT_FPS}.
   --target <LUFS>  Required for loudness and finish: decimal from -40 to -5.
   --true-peak <dBTP> Required for loudness and finish: decimal from -9 to 0.
+  --audio <path>  Audio-only local file to read, absolute. Required for mux only.
+  --audio-start <seconds> Narration start after the first shown frame, mux only.
+                   Exact non-negative decimal. Default 0.
   --help, -h       Print this message
 
 Reads the local files the caller names and writes the file or directory the
@@ -103,7 +109,7 @@ if (!COMMANDS.has(command)) {
 
 const VALUE_FLAGS = new Set([
   '--input', '--output', '--trim-start', '--trim-end', '--width', '--height',
-  '--speed', '--text', '--text-position', '--fps', '--target', '--true-peak'
+  '--speed', '--text', '--text-position', '--fps', '--target', '--true-peak', '--audio', '--audio-start'
 ]);
 const BARE_FLAGS = new Set(['--remove-audio']);
 
@@ -167,19 +173,20 @@ if (!['concat', 'finish'].includes(command) && inputsRaw.length > 1) {
   fail(`Error: ${command} takes one --input; got ${inputsRaw.length}. Only concat and finish read more than one video.`);
 }
 
-const inputs = inputsRaw.map((raw) => {
+function localInput(name, raw) {
   if (!isAbsolute(raw)) {
-    fail(`Error: --input must be absolute; got "${raw}". A relative path resolves against whichever directory the caller was in, which is not this tool's directory.`);
+    fail(`Error: ${name} must be absolute; got "${raw}". A relative path resolves against whichever directory the caller was in, which is not this tool's directory.`);
   }
   const path = resolve(raw);
   if (!existsSync(path)) {
     fail(`Error: no file at ${path}. Check the path; an absolute one cannot be misread.`);
   }
   if (!statSync(path).isFile()) {
-    fail(`Error: ${path} is not a file. Point --input at the video file itself, not at a directory.`);
+    fail(`Error: ${path} is not a file. Point ${name} at the ${name === '--input' ? 'video' : 'audio'} file itself, not at a directory.`);
   }
-  return canonical('--input', path);
-});
+  return canonical(name, path);
+}
+const inputs = inputsRaw.map(raw => localInput('--input', raw));
 
 // Output.
 const outputRaw = flag('--output');
@@ -271,7 +278,7 @@ if (outputPath === toolReal || outputPath.startsWith(`${toolReal}${sep}`) || des
   fail(`Error: --output resolves inside this tool directory (${toolReal}). Scripts write only to a work directory in the owning root; pass that path instead.`);
 }
 
-const REQUIRED_EXTENSION = { edit: '.mp4', concat: '.mp4', gif: '.gif', loudness: '.mp4', finish: '.mp4' };
+const REQUIRED_EXTENSION = { edit: '.mp4', concat: '.mp4', gif: '.gif', loudness: '.mp4', finish: '.mp4', mux: '.mp4' };
 const wanted = REQUIRED_EXTENSION[command];
 if (wanted && extname(outputPath).toLowerCase() !== wanted) {
   fail(`Error: --output must end ${wanted} for ${command}; got "${outputPath}".`);
@@ -295,6 +302,14 @@ for (const name of ['--trim-start', '--trim-end', '--width', '--height', '--spee
 refuse('--fps', ['frames', 'gif']);
 refuse('--target', ['loudness', 'finish']);
 refuse('--true-peak', ['loudness', 'finish']);
+refuse('--audio', ['mux']);
+refuse('--audio-start', ['mux']);
+let audio, audioStart;
+if (command === 'mux') {
+  if (!flag('--audio')) fail('Error: --audio is required for mux; pass an absolute path to an audio-only file.');
+  audio = localInput('--audio', flag('--audio'));
+  audioStart = startSamples(flag('--audio-start') ?? '0');
+}
 let target, truePeak;
 if (['loudness', 'finish'].includes(command)) {
   function decimal(name, min, max) {
@@ -415,7 +430,7 @@ function textFilter() {
   return `drawtext=expansion=none:text=${escapeFilterText(text)}:fontsize=${TEXT_FONT_SIZE}:fontcolor=white:borderw=2:bordercolor=black:x=${x}:y=${y}`;
 }
 
-let activeOutput = ['loudness', 'finish'].includes(command) ? null : outputPath;
+let activeOutput = ['loudness', 'finish', 'mux'].includes(command) ? null : outputPath;
 function removePartialOutput() {
   // FFmpeg opens the container before filtergraph binding can fail, so a failed
   // concat (and other file writes) can leave a zero-byte or partial file at the
@@ -447,10 +462,11 @@ function run(args, whatFailed, executable = 'ffmpeg') {
   return result;
 }
 
-if (['loudness', 'finish'].includes(command)) {
+if (['loudness', 'finish', 'mux'].includes(command)) {
   const dependency = spawnSync('ffprobe', ['-version'], { stdio: 'ignore' });
   if (dependency.error || dependency.status !== 0) fail('Error: missing ffprobe; check: ffprobe -version.');
-  const result = finishCommand({ command, inputs, output: outputPath, target, truePeak, run,
+  const handler = command === 'mux' ? muxCommand : finishCommand;
+  const result = handler({ command, inputs, audio, audioStart, output: outputPath, target, truePeak, run,
     setPending(path) { activeOutput = path; }, removePartialOutput });
   process.stdout.write(`${JSON.stringify(result)}\n`);
   return result;
