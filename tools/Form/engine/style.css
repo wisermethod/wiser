@@ -1,0 +1,53 @@
+:root{color-scheme:light;--bg:#fafaf9;--fg:#1c1917;--muted:#635d57;--line:#807870;--card:#ffffff;--accent:#245bcc;--on-accent:#ffffff;--ok:#166534;--bad:#b42318}
+@media(prefers-color-scheme:dark){:root:not([data-theme]){color-scheme:dark;--bg:#1c1917;--fg:#f5f5f4;--muted:#bcb6b1;--line:#96908b;--card:#292524;--accent:#aac4ff;--on-accent:#172554;--ok:#78e3a5;--bad:#ffaaa3}}
+:root[data-theme=dark]{color-scheme:dark;--bg:#1c1917;--fg:#f5f5f4;--muted:#bcb6b1;--line:#96908b;--card:#292524;--accent:#aac4ff;--on-accent:#172554;--ok:#78e3a5;--bad:#ffaaa3}
+:root[data-theme=light]{color-scheme:light;--bg:#fafaf9;--fg:#1c1917;--muted:#635d57;--line:#807870;--card:#ffffff;--accent:#245bcc;--on-accent:#ffffff;--ok:#166534;--bad:#b42318}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font:15px/1.45 ui-sans-serif,system-ui,-apple-system,sans-serif;color:var(--fg);background:var(--bg)}
+#root{max-width:720px;margin:0 auto;padding:14px 16px 18px}
+h1{font-size:18px;margin:0 0 4px}
+.intro,.help{color:var(--muted);margin:0 0 10px}
+.q{border:0;padding:0;margin:0 0 18px;min-width:0}
+legend{font-weight:600;padding:0;margin:0 0 8px}
+.choices{display:flex;flex-wrap:wrap;gap:8px}
+.choice{display:flex;align-items:center;gap:8px;min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);cursor:pointer}
+.choice input{width:18px;height:18px;margin:0;accent-color:var(--accent)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.tile{position:relative;display:block;border:2px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card);cursor:pointer}
+.tile .pic{display:block;width:100%;height:auto;aspect-ratio:3/2}
+.tile-input{position:absolute;opacity:0;width:1px;height:1px}
+.tile-label{display:flex;flex-direction:column;padding:8px 10px 10px;min-height:44px}
+.tile-label small{color:var(--muted)}
+.tile:has(.tile-input:checked){border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.tile:has(.tile-input:focus-visible){outline:3px solid var(--accent);outline-offset:2px}
+.mark{position:absolute;top:8px;right:8px;width:24px;height:24px;background:var(--card);border:2px solid var(--line)}
+.mark.dot{border-radius:50%}
+.mark.check{border-radius:6px}
+.tile:has(.tile-input:checked) .mark{background:var(--accent);border-color:var(--accent)}
+.tile:has(.tile-input:checked) .mark.dot::after{content:"";position:absolute;inset:6px;border-radius:50%;background:var(--on-accent)}
+.tile:has(.tile-input:checked) .mark.check::after{content:"";position:absolute;left:6px;top:2px;width:6px;height:12px;border:solid var(--on-accent);border-width:0 3px 3px 0;transform:rotate(45deg)}
+.slider{display:flex;align-items:center;gap:10px}
+.slider input{flex:1;min-height:44px;accent-color:var(--accent)}
+.end{color:var(--muted);font-size:14px}
+textarea{width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg)}
+button{font:inherit;font-weight:600;min-height:44px;padding:10px 18px;border:0;border-radius:10px;background:var(--accent);color:var(--on-accent);cursor:pointer}
+.status{white-space:pre-wrap;margin:12px 0 0;font-size:14px}
+.status.ok{color:var(--ok)}.status.bad{color:var(--bad)}
+.copy{white-space:pre-wrap;font:13px/1.4 ui-monospace,monospace;color:var(--muted)}
+.foot{color:var(--muted);font-size:12px;margin:14px 0 0}
+#root,legend,.intro,.help,.choice,.tile-label,.end,.status,.copy{overflow-wrap:anywhere}
+legend{max-width:100%}
+.choice{max-width:100%;min-width:44px}
+.choice input{flex-shrink:0}
+.choice small{display:block;color:var(--muted)}
+.choice span{min-width:0}
+.tile{min-width:44px;min-height:44px}
+.mark{box-shadow:0 0 0 2px var(--card)}
+.slider input{min-width:44px;width:0}
+.end{max-width:25%}
+textarea{min-width:44px;min-height:64px;resize:vertical}
+button{min-width:44px;max-width:100%;overflow-wrap:anywhere}
+.choice:has(input:focus-visible),textarea:focus-visible,input[type=range]:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+
+textarea::placeholder{color:var(--muted);opacity:1}
