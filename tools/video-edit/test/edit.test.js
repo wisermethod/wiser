@@ -346,3 +346,20 @@ test('existing destinations are replaced only after success and temporary direct
   const failedDirectory = join(d,'parent-file'); writeFileSync(failedDirectory,'a file');
   const r = runIn('finish',join(failedDirectory,'out.mp4')); assert.equal(r.status,1); assert.equal(r.stdout,''); assert.deepEqual(temps(),[]);
 }));
+
+for (const [fps, group] of [['30', 15], ['25', 13]]) {
+  test(`finish ${fps}/1: x264 writes video-render's publish settings, CRF 16, two B-frames and a closed group of ${group}`, () => inTemp(d => {
+    const input = fixture(d, 'in.mp4', { fps, frames: group * 3 + 1 });
+    const result = success('finish', [input], join(d, 'out.mp4'));
+    const bytes = readFileSync(result.output).toString('latin1');
+    const sei = /x264 - core [^\u0000]*/.exec(bytes);
+    assert.ok(sei, 'no x264 settings string in the stream');
+    const options = Object.fromEntries(sei[0].split(' options: ')[1].split(/\s+/).filter(kv => kv.includes('=')).map(kv => kv.split('=')));
+    assert.equal(options.rc, 'crf'); assert.match(options.crf, /^16\.0/);
+    assert.equal(options.bframes, '2'); assert.equal(options.b_adapt, '0'); assert.equal(options.open_gop, '0');
+    // x264 clamps its minimum interval to keyint / 2 + 1 itself; scenecut=0 and the read-back hold the group fixed.
+    assert.equal(options.keyint, String(group)); assert.equal(options.scenecut, '0');
+    const v = JSON.parse(processRun('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=profile', '-of', 'json', result.output]).stdout).streams[0];
+    assert.equal(v.profile, 'High');
+  }));
+}
