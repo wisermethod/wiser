@@ -26,7 +26,7 @@ node scripts/form.js sample
 node scripts/form.js check --form /absolute/path/form.json
 ```
 
-The command needs only Node, installs nothing, writes nothing, and makes no network request. Its contract is `standards/script-contract.md`, through `system/templates/Script Contract.md`; the caller's guide is `tools/RUNNING.md`.
+The command needs only Node, installs nothing and writes nothing. The local window commands use only this computer's loopback address; the other commands make no network request. Its contract is `standards/script-contract.md`, through `system/templates/Script Contract.md`; the caller's guide is `tools/RUNNING.md`.
 
 ## Usage
 
@@ -41,9 +41,14 @@ The command needs only Node, installs nothing, writes nothing, and makes no netw
 | Flag | Meaning |
 |------|---------|
 | `--help` | Print usage; accepted with every command |
-| `--form <file>` | Required by `check`; absolute path to a form or template JSON file |
+| `--form <file>` | Required by `check`; for `serve`, a form instead of `--sample`; absolute path to JSON |
 | `--template <file>` | Required by `fill`; absolute path to template JSON |
 | `--values <file>` | Required by `fill`; absolute path to a JSON object of slot values |
+| `--sample` | Use the built-in form with `serve`, instead of `--form` |
+| `--ttl <seconds>` | `serve` lifetime, a whole number from 1 to 86400; default 1800 |
+| `--port <n>` | Required by `wait` and `stop`; a whole number from 1 to 65535 |
+| `--code <code>` | Required by `wait` and `stop`; the serving result's 32 lowercase hex characters |
+| `--seconds <n>` | `wait` duration, a whole number from 0 to 3600; default 50 |
 
 No command accepts `--install` or `--env`. Unknown flags are refused by name, including beside help, and point at this command's help. Repeated flags, unused flags, extra arguments and missing flag values are refused. Every input must be a file, at most 262,144 bytes, containing JSON. Paths are canonicalized before reading. Relative paths, `.env` inputs and paths resolving inside a directory named `memory` are refused. A missing file, oversized file, invalid JSON or unreadable path exits 1, naming the cause and pointing at help. A failure leaves stdout empty; success prints one JSON object, except help's usage text.
 
@@ -119,7 +124,7 @@ Tokens in any other value or any key are refused. Every token names a declared s
 
 `engine/engine.js` is a classic script defining `globalThis.WiserForm`. A host checks the form first and calls `WiserForm.render(form, { onSubmit, host, source, sends })`. `onSubmit({ payload, summary })` returns `{ sent, delivery }`. `setHost`, `setTheme`, `metadata`, `readAnswers`, `setStatus` and `showEmpty` serve host integration; `WORDS` is the single home of visible engine wording. The renderer uses safe DOM construction. Its only network activity is loading each declared font with `FontFace`. Samples draw at once, in a generic face until the font arrives, and keep that face if it never does or the browser refuses it. A sample wider than its card is set smaller until it fits, again whenever a face arrives. Before a form arrives, the page shows the shape of one, in no words. `engine/style.css` is the one stylesheet, with host light/dark theme overrides and operating-system theme otherwise. Native controls provide keyboard operation and visible focus rings.
 
-`engine/chat.js` supplies the in-chat transport. Bundle it with the host's esbuild as `bundle: true`, `format: "iife"`, `target: "es2022"`, `minify: true`, using `@modelcontextprotocol/ext-apps` 2.0.0. Pass the resulting script to `composePage({ script })` from `scripts/page.js`; serve the returned HTML as the host's app resource. This tool builds no listener and contains no service code.
+`engine/chat.js` supplies the in-chat transport. Bundle it with the host's esbuild as `bundle: true`, `format: "iife"`, `target: "es2022"`, `minify: true`, using `@modelcontextprotocol/ext-apps` 2.0.0. Pass the resulting script to `composePage({ script })` from `scripts/page.js`; serve the returned HTML as the host's app resource.
 
 The first arriving form wins: tool-call `arguments.form`, tool-result `structuredContent.form`, or ChatGPT's `window.openai.toolOutput.form`. Each is checked before drawing. A refused first form remains refused; later arrivals do not replace it. Without a form after three seconds the engine says “No form arrived”. Refusal and delivery diagnostics are data attributes on `#root` and `#status`, never diagnostic prose on the page.
 
@@ -136,7 +141,38 @@ Answers are read by question position. The message starts `Here are my answers:`
 
 ChatGPT sends the message itself. Claude and Cowork put it in the member's message box. Presence of `window.openai`, or a host name matching `chatgpt` or `openai` ignoring case, selects `Send my answers` and `Sent to the chat.` Otherwise the button reads `Add my answers to the chat`, with `Your answers are in the message box. Press Send when you're ready.` after success. A later press reads `Send again`.
 
-`composePage({ script, form, title })` returns one self-contained HTML page, with English language, viewport meta, inline CSS, `#root`, optional JSON in `#wiser-form` and the inline script. Its title is the supplied title, else the form title, else `Wiser form`. It escapes less-than characters in JSON and closing script sequences in JavaScript. It refuses unsafe DOM sinks, external script/link tags, `src=` or `href=` attributes, and stylesheet imports or URLs in its own markup, style and script; the title and the form are the member's words, escaped, and are not read as code. It reads its stylesheet relative to itself. The JSON element is an embedding facility; the in-chat transport receives the form through the host handoff.
+`composePage({ script, form, title, closes })` returns one self-contained HTML page, with English language, viewport meta, inline CSS, `#root`, optional JSON in `#wiser-form` and the inline script. Optional `closes` is a finite number of milliseconds since 1970, embedded in `#wiser-form-closes`. Its title is the supplied title, else the form title, else `Wiser form`. It escapes less-than characters in JSON and closing script sequences in JavaScript. It refuses unsafe DOM sinks, external script/link tags, `src=` or `href=` attributes, and stylesheet imports or URLs in its own markup, style and script; the title and the form are the member's words, escaped, and are not read as code. It reads its stylesheet relative to itself. The JSON element is an embedding facility; the in-chat transport receives the form through the host handoff.
+
+## The window on a member's computer
+
+Command-line tools show the same form in Browser Control's own window. The Form tool never opens a window and never runs Browser Control. A calling skill opens the address after `serve` returns. The detached listener holds the form and its answers in memory only: no form file, answer file or log is written. It needs no packages or bundler.
+
+```bash
+node scripts/form.js serve --form /absolute/path/form.json --ttl 1800
+node scripts/form.js serve --sample
+node scripts/form.js wait --port 12345 --code 0123456789abcdef0123456789abcdef --seconds 50
+node scripts/form.js stop --port 12345 --code 0123456789abcdef0123456789abcdef
+```
+
+`serve` requires exactly one of `--form` or `--sample`. It checks with `checkForm` before starting anything; an invalid form exits 1 with all problems on stderr. It returns within five seconds. A successful start prints `{ "status": "serving", "url": "http://127.0.0.1:<port>/<code>/", "port": <n>, "code": "<32 lowercase hex characters>", "closes": <milliseconds since 1970>, "wait": "<runnable wait command including this script's absolute path>" }`. The system picks the port, each form gets a fresh one-time code, and the listener outlives the command.
+
+`wait` holds one request for up to `--seconds`. Answers print `{ "status": "answered", "form": <title>, "id": <only if the form has one>, "answers": {...}, "shown": [{ "id": <question id>, "question": <short or label>, "shown": <displayed answer> }] }`. The first collection starts a 60-second replay window, replacing the original closing time; one further `wait` returns those same answers, then the listener stops. Without collection it stops at `closes`. `stop` closes it immediately, including pending waits.
+
+| Status | Caller does next |
+|--------|------------------|
+| `serving` | Open `url` in Browser Control's own window, then run the returned `wait` command |
+| `no-window` | Ask in chat; `reason` names SSH or, on Linux, missing `DISPLAY` and `WAYLAND_DISPLAY`; nothing started |
+| `no-listen` | Ask in chat, or run outside the tool's sandbox; `reason` gives the error code and explains that listening was not allowed; no listener is left |
+| `waiting` | Run `wait` again; the object also carries the form's `url` |
+| `answered` | Read the answers back to the member |
+| `gone` | The form closed; return to the chat |
+| `stopped` | The requested listener has stopped |
+
+Waiting as measured on 2026-10-26: Claude Code runs `wait` in the background with a long `--seconds` and is woken when it ends, running it again on `waiting`. Codex keeps a long command as a session and polls it, so one `wait` serves. Grok Build blocks on each `wait` up to its own limit, about 60 seconds, so it runs `wait --seconds 50` again on `waiting`.
+
+`engine/local.js` runs after the shared engine as a classic script, with `host: "this computer"`, `source: "local"` and `sends: true`. It posts the structured payload plus ordered `shown` entries to `answers` relative to its own address. HTTP 200 shows “Sent. You can close this window.”; 409 shows “These answers were already sent.” Both disable every control. Any other failure shows the engine's `notSent` words, retains answers to copy and leaves retry live. At `closes`, an unsent page shows “This form has closed. Go back to the chat to answer there.” and disables every control without sending a request. A transport may return optional `status` and `disabled` fields alongside `{ sent, delivery }` to finish submission this way; chat keeps its existing behavior.
+
+Only `GET /<code>/`, `POST /<code>/answers`, `GET /<code>/result?wait=<seconds>` and `POST /<code>/stop` exist. Other routes return empty 404 responses. `Host` must be exactly `127.0.0.1:<port>`; a POST's `Origin`, when present, must be `http://127.0.0.1:<port>`; violations are 403. Answers require `application/json` (415 otherwise), at most 64 KB (413 otherwise), and are accepted once (409 thereafter). Invalid answers are 400: title and optional form id must match; question ids must be exact; radios accept their option values or null, checkboxes distinct option values, sliders a number in range, and text at most 1000 code points. `shown` must have one string-valued entry per question, in order. Pages carry `Cache-Control: no-store` and a Content Security Policy permitting only inline scripts and styles, data images, the two `FONT_HOSTS` font origins and same-origin connections, with no form actions or base URL.
 
 ## Verification
 

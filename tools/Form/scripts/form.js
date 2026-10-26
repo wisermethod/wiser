@@ -11,7 +11,14 @@ export const HELP = `Usage: node scripts/form.js <command> [flags]
                                       Fill a template; refusal exits 1
   schema                              Print {schema,limits,fontHosts}
   sample                              Print {form}
-Flags: --help, --form <file>, --template <file>, --values <file>.
+  serve (--form <absolute file> | --sample) [--ttl <seconds>]
+                                      Serve on this computer; never opens a window
+  wait --port <n> --code <code> [--seconds <n>]
+                                      Wait for answers (default 50 seconds)
+  stop --port <n> --code <code>         Stop this form's listener
+Flags: --help, --form <file>, --template <file>, --values <file>, --sample,
+       --ttl <1..86400> (default 1800), --port <1..65535>,
+       --code <32 lowercase hex characters>, --seconds <0..3600> (default 50).
 No --install: this command installs nothing and writes nothing.
 Input files must be JSON, at most 262144 bytes. All paths must be absolute.
 `;
@@ -44,18 +51,40 @@ export function run(args) {
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a.startsWith('-')) {
-      if (!['--help','--form','--template','--values'].includes(a)) fail(`Unknown flag: ${a}.`);
+      if (!['--help','--form','--template','--values','--sample','--ttl','--port','--code','--seconds'].includes(a)) fail(`Unknown flag: ${a}.`);
       if (Object.hasOwn(flags,a)) fail(`Repeated flag: ${a}.`);
-      if (a === '--help') flags[a] = true;
-      else { if (!args[i+1] || args[i+1].startsWith('-')) fail(`${a} needs a file.`); flags[a] = args[++i]; }
+      if (a === '--help' || a === '--sample') flags[a] = true;
+      else { if (!args[i+1] || args[i+1].startsWith('-')) fail(`${a} needs a value.`); flags[a] = args[++i]; }
     } else positionals.push(a);
   }
   const command = positionals[0] ?? 'help';
   if (positionals.length > 1) fail(`Unexpected argument: ${positionals[1]}.`);
-  if (!['help','check','fill','schema','sample'].includes(command)) fail(`Unknown command: ${command}.`);
-  const allowed = command === 'check' ? ['--form'] : command === 'fill' ? ['--template','--values'] : [];
+  if (!['help','check','fill','schema','sample','serve','wait','stop'].includes(command)) fail(`Unknown command: ${command}.`);
+  const allowed = {check:['--form'],fill:['--template','--values'],serve:['--form','--sample','--ttl'],wait:['--port','--code','--seconds'],stop:['--port','--code']}[command] ?? [];
   for (const flag of Object.keys(flags)) if (flag !== '--help' && !allowed.includes(flag)) fail(`Flag ${flag} is not used by ${command}.`);
   if (command === 'help' || flags['--help']) return HELP;
+  const number = (flag,fallback,min,max) => {
+    const raw = flags[flag] ?? String(fallback ?? '');
+    const value = Number(raw);
+    if (!/^\d+$/.test(raw) || !Number.isSafeInteger(value) || value < min || value > max) fail(`${flag} must be a whole number from ${min} to ${max}.`);
+    return value;
+  };
+  if (command === 'serve') {
+    if (Boolean(flags['--form']) === Boolean(flags['--sample'])) fail('serve requires exactly one of --form or --sample.');
+    const ttl = number('--ttl',1800,1,86400);
+    const form = flags['--sample'] ? SAMPLE_FORM : readJson(flags['--form'],'--form');
+    const checked = checkForm(form);
+    if (!checked.ok) fail(checked.problems.map(p => `${p.path || '(form)'}: ${p.message}`).join('\n'));
+    if (Object.hasOwn(process.env,'SSH_CONNECTION') || Object.hasOwn(process.env,'SSH_TTY')) return {status:'no-window',reason:'An SSH session cannot show a window on this computer.'};
+    if (process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) return {status:'no-window',reason:'Neither DISPLAY nor WAYLAND_DISPLAY is set on this computer.'};
+    return import('./local.js').then(({serve}) => serve(form,ttl));
+  }
+  if (command === 'wait' || command === 'stop') {
+    const port = number('--port',undefined,1,65535), code = flags['--code'];
+    if (!/^[a-f0-9]{32}$/.test(code ?? '')) fail('--code must be 32 lowercase hex characters.');
+    const seconds = command === 'wait' ? number('--seconds',50,0,3600) : 0;
+    return import('./local.js').then(({localRequest}) => localRequest({port,code},command === 'wait' ? `result?wait=${seconds}` : 'stop',command === 'wait' ? 'GET' : 'POST',(seconds+5)*1000));
+  }
   for (const flag of allowed) if (!flags[flag]) fail(`Missing required flag: ${flag}.`);
   if (command === 'sample') return {form:SAMPLE_FORM};
   if (command === 'schema') return {schema:formJsonSchema(),limits:FORM_LIMITS,fontHosts:FONT_HOSTS};
@@ -68,8 +97,8 @@ export function run(args) {
   if (!result.ok) fail(result.problems.map(p => `${p.path || '(form)'}: ${p.message}`).join('\n'));
   return result;
 }
-export function main(args = process.argv.slice(2)) {
-  try { const result = run(args); process.stdout.write(typeof result === 'string' ? result : `${JSON.stringify(result)}\n`); return 0; }
+export async function main(args = process.argv.slice(2)) {
+  try { const result = await run(args); process.stdout.write(typeof result === 'string' ? result : `${JSON.stringify(result)}\n`); return 0; }
   catch (error) { process.stderr.write(`${error.message}\n`); return 1; }
 }
-if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(resolve(process.argv[1]))).href) process.exitCode = main();
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(resolve(process.argv[1]))).href) process.exitCode = await main();

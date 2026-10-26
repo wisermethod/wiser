@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 const style = readFileSync(new URL('../engine/style.css',import.meta.url),'utf8');
 const escape = text => String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-export function composePage({script,form,title} = {}) {
+export function composePage({script,form,title,closes} = {}) {
   if (typeof script !== 'string') throw new TypeError('script must be a string.');
+  if (closes !== undefined && !Number.isFinite(closes)) throw new TypeError('closes must be a finite number.');
   if (/@import|url\s*\(/i.test(style)) throw new Error('Refused style: @import or url(.');
   const data = form === undefined ? '' : `<script type="application/json" id="wiser-form">${JSON.stringify(form).replace(/</g,'\\u003c')}</script>`;
   const code = script.replace(/<\/(script)/gi,'<\\/$1');
@@ -15,5 +16,6 @@ export function composePage({script,form,title} = {}) {
     ['innerHTML',/innerHTML/i],['outerHTML',/outerHTML/i],['insertAdjacentHTML',/insertAdjacentHTML/i],['document.write',/document\s*\.\s*write/i],
     ['script src',/<script\b[^>]*\bsrc\s*=/i],['link',/<link\b/i],['src= or href=',/\b(?:src|href)\s*=/i]
   ]) if (pattern.test(shell)) throw new Error(`Refused page: ${name}.`);
-  return head + escape(title ?? form?.title ?? 'Wiser form') + middle + data + tail;
+  const deadline = closes === undefined ? '' : `<script type="application/json" id="wiser-form-closes">${JSON.stringify(closes)}</script>`;
+  return head + escape(title ?? form?.title ?? 'Wiser form') + middle + data + deadline + tail;
 }

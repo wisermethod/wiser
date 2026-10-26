@@ -22,3 +22,11 @@ test('a title holding any text cannot move the form or the script out of place',
  const body=p.slice(p.indexOf('<body>'));assert.ok(body.includes('<script type="application/json" id="wiser-form">'));
  assert.ok(p.includes('<title>\u0000DATA\u0000 &lt;/title&gt;&lt;script&gt;x&lt;/script&gt;</title>'));assert.equal((p.match(/<script\b/g)||[]).length,2);
 });
+test('local transport is a classic script and the closing timestamp is numeric JSON',async()=>{
+ const {readFileSync}=await import('node:fs');const local=readFileSync(new URL('../engine/local.js',import.meta.url),'utf8');
+ assert.doesNotMatch(local,/\b(?:import|export)\s|innerHTML|outerHTML|insertAdjacentHTML|document\.write/);
+ const p=composePage({script:local,closes:1793000000000});
+ assert.equal(JSON.parse(p.match(/id="wiser-form-closes">([^<]*)<\/script>/)[1]),1793000000000);
+ for(const closes of ['1793000000000',NaN,Infinity,null])assert.throws(()=>composePage({script:local,closes}),/finite number/);
+ assert.ok(!composePage({script:local}).includes('id="wiser-form-closes"'));
+});

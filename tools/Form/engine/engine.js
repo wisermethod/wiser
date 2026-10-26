@@ -4,6 +4,9 @@ const WORDS = Object.freeze({
   buttonSends: "Send my answers", buttonDrafts: "Add my answers to the chat", buttonAgain: "Send again",
   sent: "Sent to the chat.", drafted: "Your answers are in the message box. Press Send when you're ready.",
   notSent: "Not sent. Press the button again, or copy the answers below into the chat.",
+  sentHere: "Sent. You can close this window.",
+  alreadySent: "These answers were already sent.",
+  closed: "This form has closed. Go back to the chat to answer there.",
   noFormTitle: "No form arrived", noFormBody: "This page didn't receive a form. Ask in the chat to show it again.",
   refusedTitle: "This form couldn't be shown", refusedBody: "Something in it was set up wrong. Ask in the chat to try again.",
   answersHeading: "Here are my answers:", none: "(none)", sliderValue: "Value:",
@@ -230,12 +233,14 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
     const oneLine = text => String(text).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, " ");
     const summary = [WORDS.answersHeading,...answers.map(a => `- ${oneLine(a.question)}: ${oneLine(a.shown)}`)].join("\n");
     const payload = { form: form.title, ...(form.id === undefined ? {} : {id:form.id}), answers:Object.fromEntries(answers.map(a => [a.id,a.value])) };
-    let sent = false, delivery = "failed";
-    try { const result = await onSubmit({payload,summary}); sent = result.sent; delivery = result.delivery; } catch { /* Keep a copy for retry. */ }
-    setStatus([!sent ? WORDS.notSent : state.sends ? WORDS.sent : WORDS.drafted], sent ? "ok" : "bad");
+    let sent = false, delivery = "failed", status, disabled = false;
+    // A transport can supply its final status and lock the controls; chat keeps its retry behavior.
+    try { const result = await onSubmit({payload,summary}); ({sent,delivery,status,disabled = false} = result); } catch { /* Keep a copy for retry. */ }
+    setStatus([status ?? (!sent ? WORDS.notSent : state.sends ? WORDS.sent : WORDS.drafted)], sent ? "ok" : "bad");
     metadata({delivery});
     document.getElementById("copy").textContent = sent ? "" : summary;
     state.submitted = true; button.textContent = WORDS.buttonAgain; button.disabled = false;
+    if (disabled) for (const control of f.querySelectorAll("input,textarea,select,button,fieldset")) control.disabled = true;
   });
   root.append(f,el("p",{id:"status",class:"status",role:"status","aria-live":"polite"}),el("pre",{id:"copy",class:"copy"}));
   fitSamples();
