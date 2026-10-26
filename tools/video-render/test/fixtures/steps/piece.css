@@ -1,0 +1,18 @@
+html, body { margin: 0; padding: 0; background: white; }
+[data-video-root] { width: 640px; height: 360px; overflow: hidden; }
+.ax-zavvo { --ax-ground: #faf8ed; --ax-ink: #152f4d; --ax-line: #196c78; --ax-box: #d4eae5; --ax-enter: 200ms; --ax-draw: 200ms; --ax-travel: 500ms; }
+.ax-zavvo .ax-stage { aspect-ratio: 16 / 9; }
+.ax-zavvo .ax-box { position: absolute; top: 24cqw; width: 18cqw; height: 10cqw; display: grid; place-items: center; background: var(--ax-box); border: 2px solid var(--ax-ink); z-index: 2; }
+.ax-zavvo .ax-s1 { left: 4cqw; }
+.ax-zavvo .ax-s2 { left: 28.6667cqw; }
+.ax-zavvo .ax-s3 { left: 53.3333cqw; }
+.ax-zavvo .ax-s4 { left: 78cqw; }
+.ax-zavvo .ax-label { margin: 0; font: 600 18px/1.2 system-ui; }
+.ax-zavvo .ax-conclusion { position: absolute; top: 6cqw; width: 100%; text-align: center; font-size: 26px; }
+.ax-zavvo .ax-fly { width: 3cqw; height: 2cqw; }
+@media screen and (prefers-reduced-motion: no-preference) {
+  .ax-zavvo .ax-box { transition: opacity var(--ax-enter) linear, transform var(--ax-enter) linear; }
+  .ax-zavvo .ax-box .ax-label { transition: opacity var(--ax-enter) linear; }
+  .ax-zavvo .ax-armed .ax-box:not(.on) { opacity: 0; transform: translateY(10px); }
+  .ax-zavvo .ax-armed .ax-box:not(.on) .ax-label { opacity: 0; }
+}

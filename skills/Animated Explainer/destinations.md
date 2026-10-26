@@ -1,6 +1,6 @@
 # Destinations
 
-How a finished piece is packaged, rendered and handed over at each of the three places it can go, read at Steps 4, 5 and 7 of `SKILL.md`. The build itself is `build.md`'s. Each section ends in the delivery record the skill's record folder keeps.
+How a finished piece is packaged, rendered and handed over at each of the four places it can go, read at Steps 4, 5 and 7 of `SKILL.md`. The build itself is `build.md`'s. Each section ends in the delivery record the skill's record folder keeps.
 
 ## A kit site
 
@@ -62,3 +62,13 @@ Never wrap the piece in a fragment: it plays when its slide is current, the PNG 
 **Exports.** `tools/deck-export/` Rendering's `pdf` prints the finished picture, and its `png` opens the deck with the export query, so the slide holds its still. Does the request or the deck say it must present with no network? Yes, and the deck is new: it starts from `tools/deck-export/` Scaffolding's offline starter. Yes, and the deck exists and loads reveal.js from the network: put the conversion to the requester, which is a new deck from that offline starter carrying the deck's slides. Yes, and it already loads reveal.js locally: nothing to convert. No, or neither says: the deck stays as it is, and the delivery record says whether it loads reveal.js from the network.
 
 **Delivery record:** the deck's path; the slide's position; the PDF and the PNG; both gates' verdicts; findings on other slides or the shell, for the deck's owner.
+
+## A video
+
+**The project.** The piece becomes one project for `tools/video-render/`, in the record folder, shaped as that tool's `TOOL.md` describes a project: one page, laid out at the caller's frame size, holding the piece and nothing else, with the engine's stylesheet and script, the piece's own stylesheet, and every font and image as local files beside it. The piece is built per `build.md` `## Video`: its root on the render clock, its `data-len` the caller's duration, each beat's `data-at` the caller's time for it, and its line overlays in the frame's own pixels.
+
+**The segment.** `tools/video-render/` `render` writes it at the caller's frame size and rate, in the profile the caller names: one to be joined with other footage, or one to stand alone, which its `TOOL.md` names. Not named: ask. It is called with `--frame-hashes` naming a new file in the record folder, which is the frame-hash list that goes back. The renders `SKILL.md` Step 5 judges are `build.md` `## Renders`' for a video, made from the same project.
+
+**What goes back.** The segment, the project it was rendered from, its decoded-frame hashes, the beat times it used and the text description go back to the skill that ran this one, with the record. This skill uploads nothing, joins nothing, sets no loudness and places nothing.
+
+**Delivery record:** the segment's path, bytes and SHA-256; a SHA-256 of each project file; the frame-hash list's path; the frame size, rate and duration; the beat times used; the hold, and what `build.md` `## Video` says of it; the renders and the still; the text description; and that whether each beat lands on the word its narration names is the caller's to judge.

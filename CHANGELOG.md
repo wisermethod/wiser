@@ -4,6 +4,14 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.25, October 25, 2026
+
+- A new tool, `video-render`, turns an animated web page into video: a video file ready to upload to YouTube, a version made to be joined with other footage and compressed once at the end, or still pictures at the moments you name. On the same computer, the same page gives the same frames every time, and a page you have not changed is not rendered again, so changing one scene of a video re-renders only that scene. The picture has no sound; narration and music are added afterwards. (d54a21e, 3b76852, b3cad8e, b3dc01e, cfcaed8)
+- The page renders on your own computer and reaches nothing on the internet while it does: a page that would load something from another site is refused before anything starts, and the browser it runs can reach only your computer. Files named like keys or passwords are never read. (440c39b, b38bd65, bd56cfc, 893cfa4, cb44427, 847abdb)
+- The first time, it asks before installing its packages and the browser it renders with, about 340 MB in all, and it needs FFmpeg and Node 22 or later. (619f6d9, acbd289, b38bd65)
+- An animated explainer can now be made for a video, not only a page or a slide: give it the video's size, frame rate, length and the moment each step should appear, and it plays once with each step on its moment and holds the finished picture to the end. It never reorders the steps to fit the timing; if the times would, it stops and asks. (7e57493, a563e07, afbc6fc, bd56cfc, e1f8151, 254af65)
+- An explainer made for a video draws no pause button, since the video player has one, and its text is never smaller than 28 pixels on a 1080p frame. One kind of motion does not work in a video yet: something moving on its own, outside any of the explainer's timed steps. (a563e07, b34ab98)
+
 ## v2026.10.24.4, October 24, 2026
 
 - When you finish a session, Wiser now ends with one short message in the same four parts every time: what got done, which files changed, anything waiting on you with its recommendation, and what's next. What's next names your next session, the project or workspace to open it in, and a prompt to copy into the new chat; when nothing is left, it says so. (010099c, 0810c84, fe49ce6)

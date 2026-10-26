@@ -30,7 +30,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 
 | Skill | Description | Owner |
 |-------|-------------|-------|
-| `Animated Explainer/SKILL.md` | One animated explainer, an illustrated picture that moves to show how something works or what happened, true to its sources, built so its finished picture shows wherever motion cannot run, and delivered to a site built with the plugin's site kit, any other site, or one deck slide. | Creative Director |
+| `Animated Explainer/SKILL.md` | One animated explainer, an illustrated picture that moves to show how something works or what happened, true to its sources, built so its finished picture shows wherever motion cannot run, and delivered to a site built with the plugin's site kit, any other site, one deck slide, or a video. | Creative Director |
 | `Color Palette Design/SKILL.md` | Produce a complete OKLCH color palette with defined roles, WCAG-validated contrast, and optional dark mode, derived from brand context and delivered as CSS custom properties | Creative Director |
 | `Component Design/SKILL.md` | Design a single UI component as self-contained, renderable HTML and CSS with every applicable state, semantic markup, and design tokens | Creative Director |
 | `Create Presentation/SKILL.md` | Build a single-file reveal.js HTML slide deck with a narrative arc, conclusion headlines, and brand-consistent design | Ghost Writer, Creative Director |
