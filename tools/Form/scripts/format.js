@@ -47,11 +47,14 @@ export const SAMPLE_FORM = {
 const L = FORM_LIMITS;
 const ID = /^[a-z][a-z0-9-]{0,39}$/;
 const VALUE = /^[a-z0-9][a-z0-9-]{0,39}$/;
-const FAMILY = /^[A-Za-z0-9][A-Za-z0-9 ]{0,39}$/;
+// A family name starts with a letter and keeps one space between words, so CSS reads it as the same name everywhere.
+const FAMILY = /^[A-Za-z][A-Za-z0-9]*(?: [A-Za-z0-9]+)*$/;
 const SLOT = /^[a-z][a-z0-9-]{0,29}$/;
 const CONTROL = /[\u0000-\u001f\u007f-\u009f]/;
 const HEX = /^#(?:[a-f0-9]{3}|[a-f0-9]{6})$/i;
 const GENERICS = ["serif", "sans-serif", "monospace", "system-ui"];
+// Names CSS reads as a keyword rather than a family, refused as declared families whatever their case.
+const RESERVED = [...GENERICS, "cursive", "fantasy", "emoji", "math", "fangsong", "inherit", "initial", "unset", "revert", "default"];
 const MOTIFS = ["dots", "grid", "waves", "arcs", "stripes", "rings", "triangles", "blob"];
 const TYPES = ["radio", "checkbox", "image-radio", "image-checkbox", "slider", "text"];
 const own = (o, k) => Object.hasOwn(o, k);
@@ -122,13 +125,14 @@ function validate(value, template = false) {
   function number(v, p) { if (typeof v !== "number" || !Number.isFinite(v)) { add(p, "Expected a finite number."); return false; } return true; }
   if (!object(value, "", ["id", "title", "intro", "fonts", "questions", ...(template ? ["slots"] : [])], ["title", "questions", ...(template ? ["slots"] : [])])) return { ok: false, problems };
   strings(value, "", [["id",1,L.idMax,ID],["title",1,L.titleMax],["intro",0,L.introMax]]);
-  const families = new Set(GENERICS); let pendingFamily = false;
+  const families = new Set(GENERICS), declared = new Set(); let pendingFamily = false;
   if (own(value, "fonts") && array(value.fonts,"fonts",L.fontsMin,L.fontsMax)) value.fonts.forEach((font,i) => {
     const p = `fonts[${i}]`;
     if (!object(font,p,["family","src"],["family","src"])) return;
     if (own(font,"family") && string(font.family,`${p}.family`,1,L.familyMax,FAMILY)) {
-      if (families.has(font.family) || GENERICS.includes(font.family.toLowerCase())) add(`${p}.family`,"Font family must be unique and not generic.");
-      families.add(font.family);
+      const folded = font.family.toLowerCase();
+      if (declared.has(folded) || RESERVED.includes(folded)) add(`${p}.family`,"Font family must be unique, ignoring case, and not a CSS keyword.");
+      families.add(font.family); declared.add(folded);
     } else if (deferred.has(`${p}.family`)) pendingFamily = true;
     if (own(font,"src") && string(font.src,`${p}.src`,1,L.fontSrcMax)) {
       try {
@@ -262,7 +266,7 @@ export function formJsonSchema() {
   },["id","type","label"],"Only common fields and the fields for the selected type are permitted. No string may contain control characters.");
   return obj({ id:str(L.idMax,"Optional form id: lowercase letter then up to 39 lowercase letters, digits or hyphens.",1,ID.source),
     title:str(L.titleMax,"Required title, 1 to 80 code points.",1),intro:str(L.introMax,"Optional introduction, at most 300 code points."),
-    fonts:arr(obj({family:str(L.familyMax,"Unique nongeneric font family, 1 to 40 ASCII letters, digits or spaces, starting with a letter or digit.",1,FAMILY.source),
+    fonts:arr(obj({family:str(L.familyMax,"Font family name, 1 to 40 characters: ASCII letters and digits, starting with a letter, words separated by single spaces; unique ignoring case; never a CSS keyword: serif, sans-serif, monospace, system-ui, cursive, fantasy, emoji, math, fangsong, inherit, initial, unset, revert, default.",1,FAMILY.source),
       src:str(L.fontSrcMax,"HTTPS font URL, at most 300 code points, origin https://fonts.gstatic.com or https://cdn.jsdelivr.net, no query, fragment or credentials, path ending .woff2, .woff, .ttf or .otf.",1)},["family","src"],"Declared font; no generic family names."),L.fontsMin,L.fontsMax,"Optional 1 to 6 declared fonts."),
     questions:arr(question,L.questionsMin,L.questionsMax,"Required 1 to 12 questions; ids must be unique.")
   },["title","questions"],"Wiser form, JSON Schema draft 2020-12 vocabulary. At most 65536 UTF-8 bytes as JSON.stringify writes it. Lengths count code points; no control characters anywhere. Unknown keys, including submitLabel, are refused. checkForm enforces the conditional and cross-field rules described here.");

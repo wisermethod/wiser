@@ -12,3 +12,8 @@ test('engine is classic, safe DOM only, stylesheet contains no external fetches'
  const {readFileSync}=await import('node:fs');const engine=readFileSync(new URL('../engine/engine.js',import.meta.url),'utf8');const css=readFileSync(new URL('../engine/style.css',import.meta.url),'utf8');
  assert.doesNotMatch(engine,/\b(?:import|export)\s|innerHTML|outerHTML|insertAdjacentHTML|document\.write/);assert.match(engine,/globalThis.WiserForm/);assert.doesNotMatch(css,/@import|url\s*\(/i);
 });
+test('a member\'s words that name a sink, in the title or the form, are not refused as page code',()=>{
+ const form={title:'Do not use innerHTML',questions:[{id:'q',type:'text',label:'Say href=x or document.write'}]};
+ const page=composePage({script:'1',form});assert.ok(page.includes('<title>Do not use innerHTML</title>'));assert.ok(page.includes('document.write'));
+ assert.throws(()=>composePage({script:'document.write(1)',form}),/Refused page/);
+});

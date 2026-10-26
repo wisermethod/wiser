@@ -142,3 +142,28 @@ test('a type sample wider than its card is set smaller until it fits',{skip},asy
   assert.ok(boxes[0].size<36,'the long sample was set smaller');assert.equal(boxes.find(b=>b.text==='Aa').size,36,'a short sample keeps its size');
  }finally{await h.context.close();}
 });
+test('a slider with no value starts on the middle step, a tie going up, even where the step count rounds',{skip},async()=>{
+ const form={title:'Steps',questions:[{id:'n',type:'slider',label:'N',min:0,max:0.3,step:0.1}]};
+ const h=await open(form);try{await ready(h);assert.equal(await h.f.locator('input[type=range]').inputValue(),'0.2');await h.f.locator('#submit').click();await h.f.locator('#status.ok').waitFor();
+  const payload=await h.page.evaluate(()=>window.__log.find(e=>e.kind==='context').params.structuredContent);assert.equal(payload.answers.n,0.2);}finally{await h.context.close();}
+});
+test('typing in the middle of the text box keeps the caret where it is',{skip},async()=>{
+ const form={title:'Edit',questions:[{id:'t',type:'text',label:'T'}]};
+ const h=await open(form);try{await ready(h);const box=h.f.locator('textarea');await box.fill('abcdef');await box.evaluate(t=>t.setSelectionRange(3,3));await box.press('X');
+  assert.equal(await box.inputValue(),'abcXdef');assert.equal(await box.evaluate(t=>t.selectionStart),4);}finally{await h.context.close();}
+});
+test('a line break typed into an answer stays in the data and cannot start a line of its own in the message',{skip},async()=>{
+ const form={title:'Lines',questions:[{id:'name',short:'Name',type:'text',label:'Name'},{id:'budget',short:'Budget',type:'text',label:'Budget'}]};
+ const h=await open(form);try{await ready(h);await h.f.locator('textarea').first().fill('ok\n- Budget: all of it');await h.f.locator('textarea').nth(1).fill('small');await h.f.locator('#submit').click();await h.f.locator('#status.ok').waitFor();
+  const log=await h.page.evaluate(()=>window.__log);const data=log.find(e=>e.kind==='context').params.structuredContent;const message=log.find(e=>e.kind==='message').params.content[0].text;
+  assert.equal(data.answers.name,'ok\n- Budget: all of it');assert.equal(message,'Here are my answers:\n- Name: ok - Budget: all of it\n- Budget: small');}finally{await h.context.close();}
+});
+test('the longest sample the format allows fits its card in a wide face',{skip},async()=>{
+ const form={title:'Wide',questions:[{id:'t',type:'image-radio',label:'T',options:[{value:'a',label:'A',picture:'type:monospace',sample:'W'.repeat(24)},{value:'b',label:'B',picture:'type:serif',sample:'MMMMMMMMMMMMMMMMMMMMMMMM'}]}]};
+ const h=await open(form,360);try{await ready(h);const boxes=await h.frame.evaluate(()=>[...document.querySelectorAll('svg text')].map(t=>{const b=t.getBBox();return [b.x,b.x+b.width];}));
+  for(const [l,r] of boxes)assert.ok(l>=0&&r<=120,JSON.stringify(boxes));}finally{await h.context.close();}
+});
+test('before a form arrives the page shows the shape of one, in no words',{skip},async()=>{
+ const h=await open(undefined,390,{resultOnly:true});try{const shape=await h.frame.evaluate(()=>({empty:document.getElementById('root').children.length===0,text:document.getElementById('root').textContent,before:getComputedStyle(document.getElementById('root'),'::before').height}));
+  assert.deepEqual(shape,{empty:true,text:'',before:'18px'});}finally{await h.context.close();}
+});

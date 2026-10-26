@@ -99,7 +99,7 @@ function fitSamples() {
     const size = Number(text.dataset.size);
     text.setAttribute("font-size", size);
     const width = text.getComputedTextLength();
-    if (width > 108) text.setAttribute("font-size", Math.max(6, Math.floor(size * 108 / width * 10) / 10));
+    if (width > 108) text.setAttribute("font-size", Math.max(0.1, Math.floor(size * 108 / width * 10) / 10));
   }
 }
 document.fonts.addEventListener("loadingdone", fitSamples);
@@ -131,7 +131,8 @@ function questionBlock(q, index) {
     const min = Number.isFinite(q.min) ? q.min : 0;
     const max = Number.isFinite(q.max) ? q.max : 10;
     const step = q.step ?? 1;
-    const value = q.value ?? min + Math.round(((max - min) / step) / 2) * step;
+    // The step nearest the middle, a tie going up, counted in whole steps so rounding cannot leave it off a step.
+    const value = q.value ?? min + Math.round(Math.round((max - min) / step) / 2) * step;
     const out = el("output", { for: id, text: String(value) });
     const input = el("input", { type: "range", id, min, max, step, value, "aria-labelledby": `${id}-legend` });
     out.textContent = input.value;
@@ -142,7 +143,12 @@ function questionBlock(q, index) {
     );
   } else {
     const input = el("textarea", { id, rows: 2, "aria-labelledby": `${id}-legend`, placeholder: q.placeholder || "" });
-    input.addEventListener("input", () => { input.value = [...input.value].slice(0, 1000).join(""); });
+    input.addEventListener("input", (event) => {
+      if (event.isComposing || [...input.value].length <= 1000) return;
+      const caret = input.selectionStart;
+      input.value = [...input.value].slice(0, 1000).join("");
+      input.setSelectionRange(Math.min(caret, input.value.length), Math.min(caret, input.value.length));
+    });
     fieldset.append(input);
   }
   return fieldset;
@@ -200,9 +206,11 @@ function showEmpty(refused = false) {
 function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {}) {
   state.form = form; state.host = host; state.sends = sends; state.submitted = false;
   for (const font of form.fonts || []) {
-    const face = new FontFace(font.family, `url(${JSON.stringify(new URL(font.src).href)})`);
-    document.fonts.add(face);
-    face.load().catch(() => { /* The sample keeps its generic face. */ });
+    try {
+      const face = new FontFace(font.family, `url(${JSON.stringify(new URL(font.src).href)})`);
+      document.fonts.add(face);
+      face.load().catch(() => { /* The sample keeps its generic face. */ });
+    } catch { /* A face this browser refuses leaves its sample in the generic face. */ }
   }
   const root = document.getElementById("root"); root.textContent = "";
   root.append(el("h1",{text:form.title}));
@@ -215,7 +223,8 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
     event.preventDefault(); if (button.disabled) return;
     button.disabled = true;
     const answers = readAnswers();
-    const summary = [WORDS.answersHeading,...answers.map(a => `- ${a.question}: ${a.shown}`)].join("\n");
+    // One line per question: a line break typed into an answer becomes a space here, and stays in the data.
+    const summary = [WORDS.answersHeading,...answers.map(a => `- ${a.question}: ${String(a.shown).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, " ")}`)].join("\n");
     const payload = { form: form.title, ...(form.id === undefined ? {} : {id:form.id}), answers:Object.fromEntries(answers.map(a => [a.id,a.value])) };
     let sent = false, delivery = "failed";
     try { const result = await onSubmit({payload,summary}); sent = result.sent; delivery = result.delivery; } catch { /* Keep a copy for retry. */ }

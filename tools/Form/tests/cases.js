@@ -29,7 +29,7 @@ for(const [path,min,max] of [
 }
 for(const [path,valid,invalid] of [
   ['id','a'+'1'.repeat(39),'A'],['questions[0].id','a'+'1'.repeat(39),'1bad'],
-  ['questions[0].options[0].value','0'+'a'.repeat(39),'Bad'],['fonts[0].family','A'+' '.repeat(39),'A-B']
+  ['questions[0].options[0].value','0'+'a'.repeat(39),'Bad'],['fonts[0].family','A'+'b'.repeat(39),'A-B']
 ]) {
  good(`${path} spelling boundary`,path,valid);bad(`${path} spelling`,path,invalid);bad(`${path} length`,path,'a'.repeat(41));bad(`${path} number`,path,1);
 }
@@ -50,6 +50,9 @@ for(const [path,min,max,make] of [
  for(const n of [min-1,max+1])bad(`${path} count ${n}`,path,Array.from({length:n},(_,i)=>make(i)));
 }
 for(const family of ['serif','sans-serif','monospace','system-ui','Serif'])bad(`generic ${family}`,'fonts[0].family',family);
+// Names CSS would read as a keyword or respell: every generic and CSS-wide keyword in any case, a leading digit, and stray spaces.
+for(const family of ['cursive','Fantasy','emoji','math','fangsong','inherit','INITIAL','unset','revert','default','1Font','A ',' A','Two  Space'])bad(`family ${JSON.stringify(family)}`,'fonts[0].family',family);
+const caseTwin=base();caseTwin.fonts.push({family:'FIXTURE',src:'https://fonts.gstatic.com/b.woff2'});refused.push(['font family repeated in another case','fonts[1].family',caseTwin]);
 const duplicate=base();duplicate.fonts.push(clone(duplicate.fonts[0]));refused.push(['duplicate font','fonts[1].family',duplicate]);
 for(const src of ['http://fonts.gstatic.com/a.ttf','https://evil.test/a.ttf','https://fonts.gstatic.com/a.ttf?q=1','https://fonts.gstatic.com/a.ttf#f','https://u:p@fonts.gstatic.com/a.ttf','https://fonts.gstatic.com/a.svg','https://fonts.gstatic.com/a.ttf?','https://fonts.gstatic.com/a.ttf#','bad','https://fonts.gstatic.com/'+'x'.repeat(300)+'.ttf'])bad(`font URL ${src.slice(0,45)}`,'fonts[0].src',src);
 for(const ext of ['woff2','woff','ttf','otf'])for(const host of ['fonts.gstatic.com','cdn.jsdelivr.net'])good(`font ${host}/${ext}`,'fonts[0].src',`https://${host}/a.${ext}`);
