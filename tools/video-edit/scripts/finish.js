@@ -38,6 +38,26 @@ export function probe(path, run, extra = []) {
   return JSON.parse(run(['-v', 'error', ...extra, '-of', 'json', path], 'inspect media streams', 'ffprobe').stdout);
 }
 
+export function requireConstantFrameRate(path, video, fps, frames, command, run) {
+  function refuse(cause) {
+    throw new Error(`Error: ${command}: input ${path} is not at a constant frame rate; ${cause}. Supply a constant-frame-rate video.`);
+  }
+  const packets = probe(path, run, ['-select_streams', 'v:0', '-show_packets', '-show_entries', 'packet=pts']).packets ?? [];
+  if (packets.length !== frames || packets.some(packet => !/^-?\d+$/.test(String(packet.pts)) || !Number.isSafeInteger(Number(packet.pts)))) {
+    refuse('every decoded frame must have a packet presentation timestamp');
+  }
+  // Packets arrive in decode order with B-frames. Sort their integer PTS to
+  // check display order, allowing half a frame for container clock rounding.
+  const times = packets.map(packet => BigInt(packet.pts)).sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
+  const clock = fraction(video.time_base);
+  for (let n = 0; n < times.length; n++) {
+    const error = (times[n] - times[0]) * clock.p * fps.p - BigInt(n) * fps.q * clock.q;
+    if (2n * (error < 0n ? -error : error) > fps.q * clock.q) {
+      refuse(`frame ${n} is more than half a frame from t(0) + n / fps (${fps.text})`);
+    }
+  }
+}
+
 export function audioSamples(path, run) {
   const frames = probe(path, run, ['-select_streams', 'a:0', '-show_frames', '-show_entries', 'frame=nb_samples']).frames ?? [];
   return frames.reduce((sum, f) => integer(BigInt(sum) + BigInt(f.nb_samples), 'Audio sample count'), 0);
@@ -99,6 +119,7 @@ function inspect(inputs, command, run) {
     const fps = fraction(video.r_frame_rate);
     const frames = integer(video.nb_read_frames, 'Decoded frame count');
     if (!frames || !groupSize(fps)) throw new Error(`Error: finish: input ${path} has no frames or an unsupported frame rate.`);
+    requireConstantFrameRate(path, video, fps, frames, command, run);
     if (audio) {
       const count = audioSamples(path, run);
       // A flushed swresample output contains ceil(sourceSamples * 48000 /
@@ -311,7 +332,6 @@ export function finishCommand({ command, inputs, output, target, truePeak, run, 
         '-c:a', 'pcm_f64le', ...AUDIO_FLAGS, program], 'wrap joined audio');
     }
     const core = normalize(program, directory, target, truePeak, run);
-    mkdirSync(dirname(output), { recursive: true });
     if (command === 'finish') {
       picture = join(directory, 'picture.mp4');
       const args = [...BASE, '-loglevel', 'error'];
@@ -342,6 +362,7 @@ export function finishCommand({ command, inputs, output, target, truePeak, run, 
     // timestamps may be rebased by MP4; the shown frames must keep their times.
     const signedCTS = command === 'loudness' && Number(probe(inputs[0], run,
       ['-select_streams', 'v:0', '-read_intervals', '%+#1', '-show_packets', '-show_entries', 'packet=dts']).packets?.[0]?.dts) < 0;
+    mkdirSync(dirname(output), { recursive: true });
     for (;;) {
       if (command === 'loudness') {
         run([...BASE, '-loglevel', 'error', '-copyts', '-noautorotate', '-i', inputs[0], '-i', core.output,

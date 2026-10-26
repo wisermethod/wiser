@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { AUDIO_FLAGS, BASE } from './loudness.js';
 import { audioSamples, convertedSamples, firstFrameSample, fraction, integer, prepare, probe,
-  samplesAt, verifyAudioClock, verifyCopiedPicture, writeOutput } from './finish.js';
+  requireConstantFrameRate, samplesAt, verifyAudioClock, verifyCopiedPicture, writeOutput } from './finish.js';
 
 export function startSamples(raw) {
   if (!/^(?:\d+(?:\.\d+)?|\.\d+)$/.test(raw)) throw new Error(`Error: --audio-start must be a decimal of 0 or more; got "${raw}".`);
@@ -26,6 +26,7 @@ export function muxCommand({ inputs, audio: path, audioStart, output, run, setPe
   if (audio.channels > 2) throw new Error(`Error: mux: --audio ${path} has more than two channels; provide mono or stereo.`);
   const fps = fraction(video.r_frame_rate), frames = integer(video.nb_read_frames, 'Decoded frame count');
   if (!frames) throw new Error(`Error: mux: video ${input} has no frames.`);
+  requireConstantFrameRate(input, video, fps, frames, 'mux', run);
   const first = integer(firstFrameSample(input, video, run), 'First-frame sample');
   const samples = integer(BigInt(first) + BigInt(samplesAt(frames, fps)), 'Track length');
   const start = integer(BigInt(first) + BigInt(audioStart), '--audio-start sample position');

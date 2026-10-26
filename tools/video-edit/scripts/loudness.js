@@ -16,14 +16,30 @@ export function rateFilter(rate) {
 }
 
 export function measure(path, run, filters = []) {
-  const { stderr } = run([...BASE, '-loglevel', 'info', '-i', path, '-map', '0:a:0', '-vn',
-    '-af', [...filters, 'ebur128=peak=true:framelog=verbose'].join(','), '-f', 'null', '-'], 'measure loudness');
-  const summary = stderr.slice(stderr.lastIndexOf('Summary:'));
+  function summaryFor(extra = []) {
+    const { stderr } = run([...BASE, '-loglevel', 'info', '-i', path, '-map', '0:a:0', '-vn',
+      '-af', [...filters, ...extra, 'ebur128=peak=true:framelog=verbose'].join(','), '-f', 'null', '-'], 'measure loudness');
+    return stderr.slice(stderr.lastIndexOf('Summary:'));
+  }
+  function peakFrom(summary) {
+    const peak = /True peak:\s*Peak:\s*([+-]?(?:[\d.]+|inf)) dBFS/i.exec(summary);
+    if (!peak) throw new Error('Error: Loudness measurement failed: no ebur128 true-peak summary; check the audio stream.');
+    return Number(peak[1].replace(/inf$/i, 'Infinity'));
+  }
+  const summary = summaryFor();
   const integrated = /Integrated loudness:\s*I:\s*([+-]?[\d.]+) LUFS/i.exec(summary);
   const range = /Loudness range:\s*LRA:\s*([+-]?[\d.]+) LU/i.exec(summary);
-  const peak = /True peak:\s*Peak:\s*([+-]?(?:[\d.]+|inf)) dBFS/i.exec(summary);
-  if (!integrated || !range || !peak) throw new Error('Error: Loudness measurement failed: no ebur128 true-peak summary; check the audio stream.');
-  return { integrated: Number(integrated[1]), truePeak: Number(peak[1]), loudnessRange: Number(range[1]) };
+  if (!integrated || !range) throw new Error('Error: Loudness measurement failed: no ebur128 true-peak summary; check the audio stream.');
+  const channels = JSON.parse(run(['-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=channels',
+    '-of', 'json', path], 'read audio channels for true peaks', 'ffprobe').stdout).streams?.[0]?.channels;
+  if (!Number.isSafeInteger(channels) || channels < 1) throw new Error('Error: Loudness measurement failed: audio channel count is unavailable.');
+  // FFmpeg 8's multichannel summary reports only channel 0's peak. Keep the
+  // integrated/LRA reading above on the full mix; meter each channel as mono.
+  let truePeak = channels === 1 ? peakFrom(summary) : -Infinity;
+  if (channels > 1) for (let channel = 0; channel < channels; channel++) {
+    truePeak = Math.max(truePeak, peakFrom(summaryFor([`pan=mono|c0=c${channel}`])));
+  }
+  return { integrated: Number(integrated[1]), truePeak, loudnessRange: Number(range[1]) };
 }
 
 export function gated(reading) {

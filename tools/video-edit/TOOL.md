@@ -90,20 +90,20 @@ The other commands take no part in this chain. `concat` joins whole files, `fram
 - **A resampled length:** audio at another rate, `count` samples at `rate`, lasts `ceil(count × 48000 / rate)` samples at 48 kHz. That is the length `mux` and `finish` test against the time left.
 
 **`mux`** lays one audio file onto one silent video.
-- **The video:** exactly one video stream and no audio stream. A video that already carries audio is refused, since mixing is not here. Its stream is copied: the output's video packets and their times are the input's, bit for bit.
+- **The video:** exactly one video stream and no audio stream, with every frame's presentation time in display order within half a frame of `t(0) + n / fps`. A video that already carries audio is refused, since mixing is not here. Its stream is copied: the output's video packets and their times are the input's, bit for bit.
 - **The audio file:** exactly one audio stream, mono or stereo, and no video stream. At 48 kHz its samples are used as they are. At another rate they are resampled to 48 kHz with the resampler's delay removed, so the first output sample is the first source sample.
 - **The track:** it begins at `--audio-start` and runs exactly to the video's end. Narration that would run past that end is refused, never cut. It is written as 24-bit PCM, its channel count kept.
 
 **`loudness`** sets one video's sound to `--target` and keeps its picture.
 - **The input:** exactly one video stream and exactly one audio stream. The video stream is copied, and every audio sample keeps its time.
-- **The measure:** integrated loudness and true peak, by EBU R128 (`ebur128` with true peak).
+- **The measure:** integrated loudness and range on all channels together, and true peak as the maximum of each channel measured separately as mono, by EBU R128 (`ebur128` with true peak).
 - **The level:** a gain alone, wherever the gained true peak stays at or under `--true-peak`. Otherwise the gain and a limiter run at four times the sample rate. Either way the gain is corrected until the 48 kHz working audio reads within 0.3 LU of the target, and the written file must then read within 0.5 LU, or it is refused.
 - **The output:** 24-bit PCM at 48 kHz, its channel count kept.
 
 Audio with no gated block, nothing above EBU R128's −70 LUFS floor, has no loudness to set and is refused. A caller matching several scenes runs `loudness` on each at one target. Each target applies to the file it writes, so a mono scene is measured as mono.
 
 **`finish`** joins one or more videos in the order given and encodes them once.
-- **Its inputs:** each has one video stream, `yuv420p` tagged BT.709 at TV range with no display matrix, and all share one size and one frame rate. Each has at most one audio stream, of one or two channels.
+- **Its inputs:** each has one video stream, `yuv420p` tagged BT.709 at TV range with no display matrix, and all share one size and one frame rate, with every frame's presentation time in display order within half a frame of `t(0) + n / fps`. Each has at most one audio stream, of one or two channels.
   - A video with no audio counts as silence of its length.
   - An input whose audio runs longer than its picture by more than one frame is refused. A shorter excess is trimmed.
 - **Its picture** is encoded with the settings of `tools/video-render/TOOL.md`'s `publish` profile, which that page states, with one difference: `publish` converts its pages' pixels to BT.709, and `finish` converts nothing. It sets the tags on frames that already carry them, which is why it takes only tagged input. Its frames keep one constant grid from the first: `t(0) + n / fps`.
@@ -239,6 +239,7 @@ The stops every tool shares, an unknown flag and a path that is relative or insi
 | `Error: --audio is required for mux` | No audio file was named | Pass `--audio <path>` |
 | `Error: --audio-start must be a decimal of 0 or more` | A negative, a fraction like `1/2`, or a non-number | Pass seconds as a decimal, such as `0.25` |
 | `Error: mux: video <path> already carries audio` | `mux` lays audio onto a silent video only | Pass the silent picture; mixing two sounds is not here |
+| `Error: <command>: input <path> is not at a constant frame rate; …` | `mux` or `finish` found frame presentation times outside half a frame of `t(0) + n / fps` | Pass a constant-rate video; container timestamp rounding within half a frame is accepted |
 | `Error: mux: --audio <path> holds a video stream` | The audio file holds a picture, often the two arguments swapped | Pass the video as `--input` and an audio-only file as `--audio` |
 | `has more than two channels` | The audio has more than two channels | Pass mono or stereo |
 | `Error: mux: narration <path> with --audio-start would run past the video's end` | The narration, from its start, is longer than the time left | Use an earlier start or a longer video; narration is never cut |

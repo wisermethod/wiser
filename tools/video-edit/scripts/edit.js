@@ -465,7 +465,7 @@ export function main(argv = process.argv.slice(2)) {
     const result = spawnSync(executable, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
       encoding: 'utf8',
-      maxBuffer: 64 * 1024 * 1024
+      maxBuffer: 1024 * 1024 * 1024
     });
     if (result.error || result.status !== 0) {
       removePartialOutput();
