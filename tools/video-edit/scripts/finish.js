@@ -61,8 +61,12 @@ export function firstFrameSample(path, video, run) {
 }
 
 export function audioStartSample(path, audio, run) {
-  const timestamp = audio.start_pts ?? probe(path, run, ['-select_streams', 'a:0', '-read_intervals', '%+#1',
-    '-show_frames', '-show_entries', 'frame=best_effort_timestamp']).frames?.[0]?.best_effort_timestamp;
+  // The first decoded frame's own timestamp, never the stream's start_pts: with
+  // no edit list FFmpeg presents Opus's first decoded sample at its pre-skip,
+  // 312 samples after a start_pts of 0, so start_pts would move the sound early.
+  // A stream starting before 0 yields no frame to that read; its start_pts is then the time.
+  const timestamp = probe(path, run, ['-select_streams', 'a:0', '-read_intervals', '%+#1',
+    '-show_frames', '-show_entries', 'frame=best_effort_timestamp']).frames?.[0]?.best_effort_timestamp ?? audio.start_pts;
   return timestampSamples(timestamp, audio.time_base);
 }
 

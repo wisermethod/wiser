@@ -80,7 +80,7 @@ The other commands take no part in this chain. `concat` joins whole files, `fram
 
 **The audio clock.** One rule binds `mux`, `loudness` and `finish`, the three commands that write audio:
 - **Writing.** The written audio stream starts at time 0, with no edit list, and every sample sits at its own time on the video's clock. The first shown frame's time `f`, read from that frame's own timestamp, falls on sample `floor(f × 48000)`.
-- **Reading.** An input's sample `n` sits at its audio stream's start time plus `n / rate`.
+- **Reading.** An input's sample `n` sits at its first decoded audio frame's own timestamp plus `n / rate`, or at the stream's start time where no first frame can be read. That timestamp is the stream's start only when nothing precedes the first sample: with no edit list, FFmpeg presents Opus's first decoded sample at Opus's pre-skip.
 - **The arithmetic.** Every position is computed in exact integers.
 
 **Sample counts.**

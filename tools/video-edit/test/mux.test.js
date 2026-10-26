@@ -258,3 +258,31 @@ test('mux keeps existing destinations on failure and cleans all scratch files af
   const failed = invoke('mux', [input], join(parent, 'out.mp4'), ['--audio', audio]);
   assert.equal(failed.status, 1); assert.equal(failed.stdout, ''); assert.deepEqual(temps(), before);
 }));
+
+test('loudness and finish keep an Opus input\'s sound at its presented time, past the pre-skip', () => temp(d => {
+  const input = video(d, 'opus-picture.mp4', { fps: '30', frames: 60, bf: 2 }), wav = narration(d);
+  const opus = join(d, 'opus.mp4');
+  ff(['-i', input, '-i', wav, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-af', 'adelay=500:all=1', '-c:a', 'libopus',
+    '-b:a', '384k', '-ac', '2', '-use_editlist', '0', opus]);
+  function presented(path) {
+    const first = probe(path, ['-select_streams', 'a:0', '-read_intervals', '%+#1', '-show_frames',
+      '-show_entries', 'frame=best_effort_timestamp']).frames[0].best_effort_timestamp;
+    const audio = raw(path), n = audio.length / 8 / 2;
+    let peak = 0; for (let k = 0; k < n; k++) peak = Math.max(peak, Math.abs(audio.readDoubleLE(k * 16)));
+    let i = 0; while (i < n && Math.abs(audio.readDoubleLE(i * 16)) < peak / 2) i++;
+    assert.ok(i < n, 'no onset');
+    return Number(first) + i;
+  }
+  function frame0(path) {
+    const v = probe(path, ['-select_streams', 'v:0', '-show_streams', '-show_frames', '-read_intervals', '%+#1',
+      '-show_entries', 'stream=time_base:frame=best_effort_timestamp']);
+    const [p, q] = v.streams[0].time_base.split('/').map(Number);
+    return Math.floor(Number(v.frames[0].best_effort_timestamp) * p * 48000 / q);
+  }
+  const at = presented(opus) - frame0(opus);
+  assert.ok(at > 4800, `the fixture's pulse must sit well after the first frame; got ${at} samples`);
+  const levelled = success('loudness', [opus], join(d, 'levelled.mp4'), ['--target', '-30', '--true-peak', '-1']);
+  assert.ok(Math.abs(presented(levelled.output) - frame0(levelled.output) - at) <= 1);
+  const finished = success('finish', [opus], join(d, 'finished.mp4'), ['--target', '-30', '--true-peak', '-1']);
+  assert.ok(Math.abs(presented(finished.output) - frame0(finished.output) - at) <= 48);
+}));
