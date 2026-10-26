@@ -14,7 +14,7 @@ export const FORM_LIMITS = Object.freeze({
 });
 export const FONT_HOSTS = Object.freeze(["https://fonts.gstatic.com", "https://cdn.jsdelivr.net"]);
 export const SAMPLE_FORM = {
-  title: "Your look: a quick test",
+  title: "Your look",
   intro: "Pick what feels like you. There are no wrong answers.",
   questions: [
     { id: "mood", short: "Colour mood", type: "image-radio", label: "Which colour mood feels most like your work?", options: [
@@ -50,7 +50,8 @@ const VALUE = /^[a-z0-9][a-z0-9-]{0,39}$/;
 // A family name starts with a letter and keeps one space between words, so CSS reads it as the same name everywhere.
 const FAMILY = /^[A-Za-z][A-Za-z0-9]*(?: [A-Za-z0-9]+)*$/;
 const SLOT = /^[a-z][a-z0-9-]{0,29}$/;
-const CONTROL = /[\u0000-\u001f\u007f-\u009f]/;
+// Line and paragraph separators break a line as a newline does, so they are refused with the controls.
+const CONTROL = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/;
 const HEX = /^#(?:[a-f0-9]{3}|[a-f0-9]{6})$/i;
 const GENERICS = ["serif", "sans-serif", "monospace", "system-ui"];
 // Names CSS reads as a keyword rather than a family, refused as declared families whatever their case.
@@ -186,6 +187,10 @@ function validate(value, template = false) {
           const steps = (q.max-q.min)/step;
           if (!(step > 0) || !nearInteger(steps) || Math.round(steps) < L.sliderStepsMin || Math.round(steps) > L.sliderStepsMax) add(`${p}.step`,"Step must be positive and divide the range into 1 to 100 whole steps.");
           if (Number.isFinite(q.value) && (q.value < q.min || q.value > q.max || !nearInteger((q.value-q.min)/step))) add(`${p}.value`,"Value must be in range and on a step.");
+          // Every step must land on a number of its own; far from zero a small step can vanish in rounding.
+          if (step > 0 && nearInteger(steps)) for (let k = 1; k <= Math.min(Math.round(steps), L.sliderStepsMax); k++) {
+            if (!(q.min + k * step > q.min + (k - 1) * step)) { add(`${p}.step`,"Each step must give a distinct value at this range's size."); break; }
+          }
         }
       }
       strings(q,p,[["minLabel",0,L.endLabelMax],["maxLabel",0,L.endLabelMax]]);

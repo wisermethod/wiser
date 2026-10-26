@@ -167,3 +167,10 @@ test('before a form arrives the page shows the shape of one, in no words',{skip}
  const h=await open(undefined,390,{resultOnly:true});try{const shape=await h.frame.evaluate(()=>({empty:document.getElementById('root').children.length===0,text:document.getElementById('root').textContent,before:getComputedStyle(document.getElementById('root'),'::before').height}));
   assert.deepEqual(shape,{empty:true,text:'',before:'18px'});}finally{await h.context.close();}
 });
+test('a hovered button takes its own fill and a pressed one still darkens, with words that never turn pure white',{skip},async()=>{
+ const h=await open(SAMPLE_FORM);try{await ready(h);const button=h.f.locator('#submit');const resting=await button.evaluate(b=>getComputedStyle(b).backgroundColor);
+  await button.hover();const hovered=await button.evaluate(b=>({bg:getComputedStyle(b).backgroundColor,color:getComputedStyle(b).color,filter:getComputedStyle(b).filter}));
+  assert.notEqual(hovered.bg,resting);assert.equal(hovered.filter,'none');assert.notEqual(hovered.color,'rgb(255, 255, 255)');
+  await h.page.mouse.down();const pressed=await button.evaluate(b=>getComputedStyle(b).filter);await h.page.mouse.up();assert.equal(pressed,'brightness(0.9)');
+ }finally{await h.context.close();}
+});

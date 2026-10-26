@@ -1,7 +1,7 @@
-:root{color-scheme:light;--bg:#fafaf9;--fg:#1c1917;--muted:#635d57;--line:#807870;--card:#fffdfa;--accent:#245bcc;--on-accent:#fafaf9;--ok:#166534;--bad:#b42318}
-@media(prefers-color-scheme:dark){:root:not([data-theme]){color-scheme:dark;--bg:#1c1917;--fg:#f5f5f4;--muted:#bcb6b1;--line:#96908b;--card:#292524;--accent:#aac4ff;--on-accent:#172554;--ok:#78e3a5;--bad:#ffaaa3}}
-:root[data-theme=dark]{color-scheme:dark;--bg:#1c1917;--fg:#f5f5f4;--muted:#bcb6b1;--line:#96908b;--card:#292524;--accent:#aac4ff;--on-accent:#172554;--ok:#78e3a5;--bad:#ffaaa3}
-:root[data-theme=light]{color-scheme:light;--bg:#fafaf9;--fg:#1c1917;--muted:#635d57;--line:#807870;--card:#fffdfa;--accent:#245bcc;--on-accent:#fafaf9;--ok:#166534;--bad:#b42318}
+:root{color-scheme:light;--bg:#fafaf9;--fg:#1c1917;--muted:#635d57;--line:#807870;--card:#fffdfa;--accent:#245bcc;--accent-hover:#1c4aa8;--on-accent:#fafaf9;--ok:#166534;--bad:#b42318}
+@media(prefers-color-scheme:dark){:root:not([data-theme]){color-scheme:dark;--bg:#1c1917;--fg:#f5f5f4;--muted:#bcb6b1;--line:#96908b;--card:#292524;--accent:#aac4ff;--accent-hover:#c4d6ff;--on-accent:#172554;--ok:#78e3a5;--bad:#ffaaa3}}
+:root[data-theme=dark]{color-scheme:dark;--bg:#1c1917;--fg:#f5f5f4;--muted:#bcb6b1;--line:#96908b;--card:#292524;--accent:#aac4ff;--accent-hover:#c4d6ff;--on-accent:#172554;--ok:#78e3a5;--bad:#ffaaa3}
+:root[data-theme=light]{color-scheme:light;--bg:#fafaf9;--fg:#1c1917;--muted:#635d57;--line:#807870;--card:#fffdfa;--accent:#245bcc;--accent-hover:#1c4aa8;--on-accent:#fafaf9;--ok:#166534;--bad:#b42318}
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{font:16px/1.45 ui-sans-serif,system-ui,-apple-system,sans-serif;color:var(--fg);background:var(--bg)}
@@ -55,6 +55,6 @@ textarea::placeholder{color:var(--muted);opacity:1}
 /* States: a press, a send in flight, hover where there is one, and the shape of the form before it arrives. */
 button:active:not(:disabled){filter:brightness(.9)}
 button:disabled{opacity:.6;cursor:progress}
-@media(hover:hover){.tile:hover,.choice:hover{border-color:var(--fg)}button:hover:not(:disabled){filter:brightness(1.08)}}
+@media(hover:hover){.tile:hover,.choice:hover{border-color:var(--fg)}button:hover:not(:disabled):not(:active){background:var(--accent-hover)}}
 #root:empty::before{content:"";display:block;width:55%;height:18px;border-radius:6px;background:var(--line);opacity:.3}
 #root:empty::after{content:"";display:block;height:112px;margin-top:16px;border:2px solid var(--line);border-radius:12px;opacity:.3}

@@ -7,10 +7,13 @@ export function composePage({script,form,title} = {}) {
   const data = form === undefined ? '' : `<script type="application/json" id="wiser-form">${JSON.stringify(form).replace(/</g,'\\u003c')}</script>`;
   const code = script.replace(/<\/(script)/gi,'<\\/$1');
   // The checks read the page's own markup, style and script. The title and the form are a member's words, escaped, and never code.
-  const shell = `<!DOCTYPE html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>\u0000TITLE\u0000</title><style>${style}</style></head><body><main id="root"></main>\u0000DATA\u0000<script>${code}</script></body></html>`;
+  const head = '<!DOCTYPE html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>';
+  const middle = `</title><style>${style}</style></head><body><main id="root"></main>`;
+  const tail = `<script>${code}</script></body></html>`;
+  const shell = head + middle + tail;
   for (const [name,pattern] of [
     ['innerHTML',/innerHTML/i],['outerHTML',/outerHTML/i],['insertAdjacentHTML',/insertAdjacentHTML/i],['document.write',/document\s*\.\s*write/i],
     ['script src',/<script\b[^>]*\bsrc\s*=/i],['link',/<link\b/i],['src= or href=',/\b(?:src|href)\s*=/i]
   ]) if (pattern.test(shell)) throw new Error(`Refused page: ${name}.`);
-  return shell.replace('\u0000TITLE\u0000',() => escape(title ?? form?.title ?? 'Wiser form')).replace('\u0000DATA\u0000',() => data);
+  return head + escape(title ?? form?.title ?? 'Wiser form') + middle + data + tail;
 }

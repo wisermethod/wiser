@@ -48,7 +48,7 @@ function picture(desc, sample) {
   const box = svg("svg", { viewBox: "0 0 120 80", role: "img", "aria-hidden": "true", class: "pic" });
   const [kind, name, cols] = String(desc || "").split(":");
   if (kind === "palette") {
-    const c = colours(name, ["#ddd", "#999", "#333"]);
+    const c = colours(name, ["#f5f5f4", "#807870", "#1c1917"]);
     const w = 120 / c.length;
     c.forEach((hex, i) => box.append(svg("rect", { x: i * w, y: 0, width: w + 0.5, height: 80, fill: hex })));
     return box;
@@ -97,9 +97,12 @@ function picture(desc, sample) {
 function fitSamples() {
   for (const text of document.querySelectorAll("svg text[data-size]")) {
     const size = Number(text.dataset.size);
-    text.setAttribute("font-size", size);
-    const width = text.getComputedTextLength();
-    if (width > 108) text.setAttribute("font-size", Math.max(0.1, Math.floor(size * 108 / width * 10) / 10));
+    let fitted = size;
+    text.setAttribute("font-size", fitted);
+    for (let pass = 0, width = text.getComputedTextLength(); width > 108 && pass < 4; pass++, width = text.getComputedTextLength()) {
+      fitted = fitted * 108 / width * 0.99;
+      text.setAttribute("font-size", fitted);
+    }
   }
 }
 document.fonts.addEventListener("loadingdone", fitSamples);
@@ -224,7 +227,8 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
     button.disabled = true;
     const answers = readAnswers();
     // One line per question: a line break typed into an answer becomes a space here, and stays in the data.
-    const summary = [WORDS.answersHeading,...answers.map(a => `- ${a.question}: ${String(a.shown).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, " ")}`)].join("\n");
+    const oneLine = text => String(text).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, " ");
+    const summary = [WORDS.answersHeading,...answers.map(a => `- ${oneLine(a.question)}: ${oneLine(a.shown)}`)].join("\n");
     const payload = { form: form.title, ...(form.id === undefined ? {} : {id:form.id}), answers:Object.fromEntries(answers.map(a => [a.id,a.value])) };
     let sent = false, delivery = "failed";
     try { const result = await onSubmit({payload,summary}); sent = result.sent; delivery = result.delivery; } catch { /* Keep a copy for retry. */ }

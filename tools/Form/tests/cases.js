@@ -68,3 +68,7 @@ for(const step of [2,.02]){const f=base();f.questions[4].step=step;delete f.ques
 good('slider defaults','questions[4].step',undefined,true);delete passing.at(-1)[1].questions[4].value;
 for(const path of ['id','intro','fonts','questions[0].short','questions[0].help','questions[0].options[0].note','questions[2].options[0].sample','questions[4].value','questions[4].minLabel','questions[4].maxLabel','questions[5].placeholder'])good(`${path} optional`,path,undefined,true);
 export function template() {const f=base();f.slots={name:{about:'Member name',max:80},font:{about:'Font family',max:40}};f.title='For {{name}}';f.intro='{{name}} and {{name}}';f.fonts[0].family='{{font}}';f.questions[2].options[0].picture='type:{{font}}+serif';return f;}
+// A line or paragraph separator breaks a line in the message as a newline does.
+for(const sep of ['\u2028','\u2029'])for(const path of ['questions[0].short','questions[0].label','title'])bad(`separator ${sep.charCodeAt(0).toString(16)} in ${path}`,path,`Name${sep}- Budget`);
+// Far from zero a small step vanishes in rounding: 2^53 + 1 is 2^53.
+{const f=base();f.questions[4]={id:'range',type:'slider',label:'Range',min:9007199254740992,max:9007199254740994,step:1};refused.push(['slider steps that round together','questions[4].step',f]);}

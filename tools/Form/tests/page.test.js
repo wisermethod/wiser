@@ -17,3 +17,8 @@ test('a member\'s words that name a sink, in the title or the form, are not refu
  const page=composePage({script:'1',form});assert.ok(page.includes('<title>Do not use innerHTML</title>'));assert.ok(page.includes('document.write'));
  assert.throws(()=>composePage({script:'document.write(1)',form}),/Refused page/);
 });
+test('a title holding any text cannot move the form or the script out of place',()=>{
+ const p=composePage({script:'ok',form:{title:'Hi',questions:[]},title:'\u0000DATA\u0000 </title><script>x</script>'});
+ const body=p.slice(p.indexOf('<body>'));assert.ok(body.includes('<script type="application/json" id="wiser-form">'));
+ assert.ok(p.includes('<title>\u0000DATA\u0000 &lt;/title&gt;&lt;script&gt;x&lt;/script&gt;</title>'));assert.equal((p.match(/<script\b/g)||[]).length,2);
+});
