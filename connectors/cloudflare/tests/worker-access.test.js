@@ -22,10 +22,10 @@ const inputs = {
   set_staff: { account_id: ACCOUNT, policy_id: POLICY, remove: 'one@example.com' },
   get_app: { account_id: ACCOUNT, app_id: ID },
 };
-const app = () => ({ id: ID, type: 'self_hosted', domain: 'crm.example.com', destinations: [{ type: 'public', uri: 'crm.example.com' }],
+const app = () => ({ id: ID, type: 'self_hosted', domain: 'crm.example.com', self_hosted_domains: ['crm.example.com'], destinations: [{ type: 'public', uri: 'crm.example.com' }],
   policies: [attachable()], aud: AUD, client_secret: CLIENT_VALUE, metadata: { token: JWT } });
 const staff = (emails = ['one@example.com', 'two@example.com']) => ({ id: POLICY, name: 'CRM staff', decision: 'allow', reusable: true,
-  include: emails.map((email) => ({ email: { email } })), exclude: [{ email: { email: 'excluded@example.com' } }],
+  include: emails.map((email) => ({ email: { email } })), exclude: [],
   require: [], session_duration: '24h', approval_required: false });
 const ok = (result, info) => ({ status: 200, data: { success: true, result, ...(info ? { result_info: info } : {}), messages: [{ message: JWT }] } });
 const error = (status, codes = [10000]) => ({ status, data: { success: false, errors: codes.map((code) => ({ code, message: secrets.join(' ') })) } });
@@ -43,20 +43,26 @@ async function setup(t, options = {}) {
   let policy = options.policy ?? { ...staff(), exclude: [] };
   let deleted = false;
   let posted = false;
+  let postedApp;
+  let policyDeleted = false;
   env.fake.auth.proxy = async (req) => {
     calls.push(structuredClone(req));
     if (options.responder) return options.responder(req, calls.length);
     if (req.endpoint === ROOT + '/organizations') return options.off ? error(403, [9999]) : ok({ auth_domain: 'team.cloudflareaccess.com', secret: CLIENT_VALUE });
-    if (req.endpoint.startsWith(ROOT + '/apps?')) return ok(options.duplicates ?? [], { total_pages: 1 });
-    if (req.endpoint === ROOT + '/apps' && req.method === 'POST') { posted = true; return ok(options.createdApp ?? { ...app(), policies: req.body.policies.map(({ id }) => id === TOKEN_ID ? agentPolicy() : { ...attachable(), id }) }); }
+    if (req.endpoint.startsWith(ROOT + '/apps?')) return ok(posted ? options.recoveryApps ?? [] : options.duplicates ?? [], options.listInfo ?? { total_pages: 1, total_count: (posted ? options.recoveryApps ?? [] : options.duplicates ?? []).length });
+    if (req.endpoint === ROOT + '/apps' && req.method === 'POST') { posted = true; postedApp = { ...app(), domain: req.body.domain, self_hosted_domains: [req.body.domain], destinations: req.body.destinations, policies: req.body.policies.map(({ id }) => id === TOKEN_ID ? agentPolicy() : { ...attachable(), id }) }; return ok(options.createdApp ?? postedApp); }
     if (req.endpoint === ROOT + '/apps/' + ID && req.method === 'DELETE') {
       if (options.deleteFails) return error(502);
       deleted = true; return ok({ id: ID });
     }
-    if (req.endpoint === ROOT + '/apps/' + ID && req.method === 'GET') return deleted && !options.stillPresent ? error(404) : ok(options.app ?? app());
-    if (req.endpoint === ROOT + '/policies' && req.method === 'POST') return ok({ id: POLICY, ...req.body, secret: CLIENT_VALUE });
+    if (req.endpoint === ROOT + '/apps/' + ID && req.method === 'GET') return deleted && !options.stillPresent ? error(404) : ok(options.app ?? postedApp ?? app());
+    if (req.endpoint === ROOT + '/policies' && req.method === 'POST') { policy = options.createdPolicy ?? { id: POLICY, ...req.body, reusable: true }; return ok({ ...policy, secret: CLIENT_VALUE }); }
+    if (req.endpoint === ROOT + '/policies/' + POLICY && req.method === 'DELETE') {
+      if (options.deleteFails) return error(502);
+      policyDeleted = true; return ok({ id: POLICY });
+    }
     if (req.endpoint === ROOT + '/policies/' + TOKEN_ID && req.method === 'GET') return ok(agentPolicy());
-    if (req.endpoint === ROOT + '/policies/' + POLICY && req.method === 'GET') return options.postPolicyError && posted ? error(502) : ok(posted ? options.postPolicy ?? policy : policy);
+    if (req.endpoint === ROOT + '/policies/' + POLICY && req.method === 'GET') return policyDeleted && !options.stillPresent ? error(404) : options.postPolicyError && posted ? error(502) : ok(posted ? options.postPolicy ?? policy : policy);
     if (req.endpoint === ROOT + '/policies/' + POLICY && req.method === 'PUT') { if (!options.noChange) policy = { id: POLICY, ...req.body, reusable: true }; return ok({ ...policy, secret: CLIENT_VALUE }); }
     assert.fail('unexpected fake request');
   };
@@ -84,6 +90,9 @@ for (const [action, input] of Object.entries(inputs)) {
   test(`${action}: response fields are bounded and token-shaped provider strings are absent`, async (t) => {
     const env = await setup(t); const result = await env.execute(action);
     assert.equal(result.success, true); clean(result);
+    const keys = { create_app: ['success', 'id', 'aud'], create_policy: ['success', 'id'],
+      set_staff: ['success', 'policy_id', 'changed', 'before', 'after'], get_app: ['success', 'id', 'aud', 'hostname', 'policy_ids'] };
+    assert.deepEqual(Object.keys(result).sort(), keys[action].sort());
   });
   if (action !== 'get_app') {
     test(`${action}: confirmation always stops before transport`, async (t) => {
@@ -105,9 +114,9 @@ for (const [action, input] of Object.entries(inputs)) {
   }
 }
 
-test('create_app: one hostname and reusable policy links, no single-header setting', async (t) => {
+test('create_app: one hostname and reusable policy links, single-header setting explicitly disabled', async (t) => {
   const env = await setup(t); const result = await env.execute('create_app');
-  assert.deepEqual(trace(env.calls), [['GET', ROOT + '/organizations'], ['GET', ROOT + '/apps?per_page=1000&page=1'], ['GET', ROOT + '/policies/' + POLICY], ['POST', ROOT + '/apps'], ['GET', ROOT + '/policies/' + POLICY]]);
+  assert.deepEqual(trace(env.calls), [['GET', ROOT + '/organizations'], ['GET', ROOT + '/apps?per_page=1000&page=1'], ['GET', ROOT + '/policies/' + POLICY], ['POST', ROOT + '/apps'], ['GET', ROOT + '/apps/' + ID], ['GET', ROOT + '/policies/' + POLICY]]);
   assert.deepEqual(env.calls.find((req) => req.method === 'POST').body, { type: 'self_hosted', domain: 'crm.example.com', name: 'CRM',
     destinations: [{ type: 'public', uri: 'crm.example.com' }], policies: [{ id: POLICY, precedence: 1 }] });
   assert.deepEqual(result, { success: true, id: ID, aud: AUD });
@@ -121,7 +130,7 @@ for (const duplicate of [{ domain: 'CRM.EXAMPLE.COM' }, { domain: '*.example.com
 }
 test('create_app: duplicate hostname on the second page is refused', async (t) => {
   const env = await setup(t, { responder: (req) => req.endpoint.endsWith('/organizations') ? ok({ auth_domain: 'team.cloudflareaccess.com' })
-    : req.endpoint.endsWith('page=1') ? ok([{ domain: 'elsewhere.example.com' }], { total_pages: 2 }) : ok([app()], { total_pages: 2 }) });
+    : req.endpoint.endsWith('page=1') ? ok([{ domain: 'elsewhere.example.com' }], { total_pages: 2, total_count: 2 }) : ok([app()], { total_pages: 2, total_count: 2 }) });
   assert.equal((await env.execute('create_app')).status, 'invalid_arguments'); assert.equal(env.calls.length, 3);
 });
 test('create_app: unresolved Worker destination prevents a speculative create', async (t) => {
@@ -134,7 +143,7 @@ test('create_policy: Allow emails and Service Auth id request shapes', async (t)
   assert.deepEqual(env.calls[1].body, { name: 'CRM staff', decision: 'allow', include: [{ email: { email: 'one@example.com' } }] });
   env.calls.length = 0;
   const result = await env.execute('create_policy', { account_id: ACCOUNT, name: 'CRM agent', decision: 'non_identity', service_token_id: TOKEN_ID });
-  assert.deepEqual(trace(env.calls), [['GET', ROOT + '/organizations'], ['POST', ROOT + '/policies']]);
+  assert.deepEqual(trace(env.calls), [['GET', ROOT + '/organizations'], ['POST', ROOT + '/policies'], ['GET', ROOT + '/policies/' + POLICY]]);
   assert.deepEqual(env.calls[1].body, { name: 'CRM agent', decision: 'non_identity', include: [{ service_token: { token_id: TOKEN_ID } }] });
   assert.deepEqual(result, { success: true, id: POLICY });
 });
@@ -179,7 +188,7 @@ for (const policy of [{ ...staff(), decision: 'non_identity' }, { ...staff(), in
 }
 test('get_app: only hostname, policy ids and public audience are returned', async (t) => {
   const env = await setup(t); const result = await env.execute('get_app');
-  assert.deepEqual(trace(env.calls), [['GET', ROOT + '/apps/' + ID]]);
+  assert.deepEqual(trace(env.calls), [['GET', ROOT + '/apps/' + ID], ['GET', ROOT + '/policies/' + POLICY]]);
   assert.deepEqual(result, { success: true, id: ID, hostname: 'crm.example.com', policy_ids: [POLICY], aud: AUD });
 });
 for (const response of [{ ...app(), destinations: [{ type: 'public', uri: 'elsewhere.example.com' }] }, { ...app(), aud: JWT }, { ...app(), policies: [{ id: API_TOKEN }] }]) {
@@ -208,7 +217,7 @@ test('all four schemas: recursive field walk has no secret-named input and Q7 se
   for (const [name, action] of Object.entries(actions)) {
     walk(action.input); assert.equal(action.input.additionalProperties, false);
     assert.equal(action.confirmation, name === 'get_app' ? 'none' : 'always');
-    assert.ok(!JSON.stringify(action.input).includes('read_service_tokens_from_header'));
+    assert.equal(Object.hasOwn(action.input.properties, 'read_service_tokens_from_header'), false);
   }
 });
 test('credential-shaped inputs never reach a stop, answer or transport', async (t) => {
@@ -396,7 +405,7 @@ test('fix3 create_app: safe preflight then bypass on post-POST GET removes the c
   const result = await env.execute('create_app');
   assert.equal(result.status, 'vendor_error'); assert.equal(result.policy_id, POLICY); assert.match(result.reason, /decision/);
   assertRemoved(result, env.calls);
-  assert.deepEqual(trace(env.calls).slice(2, 5), [['GET', ROOT + '/policies/' + POLICY], ['POST', ROOT + '/apps'], ['GET', ROOT + '/policies/' + POLICY]]);
+  assert.deepEqual(trace(env.calls).slice(2, 6), [['GET', ROOT + '/policies/' + POLICY], ['POST', ROOT + '/apps'], ['GET', ROOT + '/apps/' + ID], ['GET', ROOT + '/policies/' + POLICY]]);
 });
 test('fix3 create_app: a different response policy id set removes the created app', async (t) => {
   const env = await setup(t, { createdApp: { ...app(), policies: [agentPolicy()] } });
@@ -446,3 +455,134 @@ for (const [label, action, input] of wholeTokenCases) {
     assert.deepEqual(calls, []);
   });
 }
+
+
+// fix4: exercise stored state, counted lists, cleanup and live policy reads.
+const storedAppCases = [
+  ['missing destinations', { destinations: undefined }],
+  ['missing self-hosted domains', { self_hosted_domains: undefined }],
+  ['empty self-hosted domains', { self_hosted_domains: [] }],
+  ['path override', { destinations: [{ type: 'public', uri: 'crm.example.com', overrides: [{ path: '/' }] }] }],
+  ['second destination', { destinations: [{ type: 'public', uri: 'crm.example.com' }, { type: 'public', uri: 'other.example.com' }] }],
+  ['another self-hosted domain', { self_hosted_domains: ['crm.example.com', 'other.example.com'] }],
+  ['header enabled', { read_service_tokens_from_header: true }],
+  ['named single header', { read_service_tokens_from_header: 'Authorization' }],
+  ['wrong type', { type: 'saas' }],
+  ['wrong domain', { domain: 'other.example.com', destinations: [{ type: 'public', uri: 'other.example.com' }] }],
+  ['wrong audience', { aud: 'invalid' }],
+  ['wrong application id', { id: TOKEN_ID }],
+  ['stored policy ids changed', { policies: [agentPolicy()] }],
+];
+for (const [label, fields] of storedAppCases) {
+  test('fix4 create_app: stored application failure is removed: ' + label, async (t) => {
+    const env = await setup(t, { app: { ...app(), ...fields } });
+    const result = await env.execute('create_app');
+    assert.equal(result.status, 'vendor_error'); assertRemoved(result, env.calls);
+    assert.equal(env.calls.filter((req) => req.method === 'GET' && req.endpoint === ROOT + '/apps/' + ID).length, 2);
+  });
+}
+for (const [label, fields] of storedAppCases.filter(([label]) => ['path override', 'second destination', 'another self-hosted domain', 'header enabled'].includes(label))) {
+  test('fix4 create_app: unsafe create answer is removed: ' + label, async (t) => {
+    const env = await setup(t, { createdApp: { ...app(), ...fields }, app: { ...app(), ...fields } });
+    const result = await env.execute('create_app');
+    assert.equal(result.status, 'vendor_error'); assertRemoved(result, env.calls);
+  });
+}
+test('fix4 module: create explicitly disables the single-header setting', async () => {
+  const calls = [];
+  await modules.access.create_app(inputs.create_app, { proxy: async (req) => {
+    calls.push(req);
+    if (req.endpoint.endsWith('/organizations')) return ok({ auth_domain: 'team.cloudflareaccess.com' });
+    if (req.endpoint.includes('/apps?')) return ok([], { total_count: 0 });
+    if (req.endpoint.includes('/policies/')) return ok(attachable());
+    return ok(app());
+  } });
+  assert.equal(Object.hasOwn(calls.find((req) => req.method === 'POST').body, 'read_service_tokens_from_header'), false);
+});
+for (const id of [undefined, 'unusable']) test('fix4 create_app: missing id reconciles by hostname: ' + id, async (t) => {
+  const env = await setup(t, { createdApp: { ...app(), id }, recoveryApps: [app()] });
+  const result = await env.execute('create_app');
+  assert.equal(result.status, 'vendor_error'); assertRemoved(result, env.calls);
+  assert.equal(env.calls.filter((req) => req.endpoint.includes('/apps?')).length, 2);
+});
+test('fix4 create_app: missing id names hostname when removal cannot be confirmed', async (t) => {
+  const env = await setup(t, { createdApp: { ...app(), id: undefined } });
+  const result = await env.execute('create_app');
+  assert.equal(result.status, 'vendor_error'); assert.equal(result.removed, false);
+  assert.equal(result.hostname, inputs.create_app.hostname); assert.match(result.reason, /crm\.example\.com.*removal could not be confirmed/i);
+  assert.equal(env.calls.filter((req) => req.endpoint.includes('/apps?')).length, 2);
+});
+for (const info of [undefined, { total_pages: 1 }, { total_pages: 1, total_count: 250, per_page: 100 }, { total_pages: 1, total_count: '1' }, { total_pages: 1, total_count: 0 }]) {
+  test('fix4 create_app: uncounted or contradictory list refuses POST: ' + JSON.stringify(info), async (t) => {
+    const env = await setup(t, { responder: (req) => {
+      if (req.endpoint.endsWith('/organizations')) return ok({ auth_domain: 'team.cloudflareaccess.com' });
+      if (req.endpoint.includes('/apps?')) return ok([{ domain: 'other.example.com' }], info);
+      if (req.endpoint.includes('/policies/')) return ok(attachable());
+      return ok(app());
+    } });
+    assert.equal((await env.execute('create_app')).status, 'vendor_error');
+    assert.ok(!env.calls.some((req) => req.method === 'POST'));
+  });
+}
+for (const uri of ['https://crm.example.com/path', 'crm.example.com:443', 'https://CRM.EXAMPLE.COM:443/path']) {
+  test('fix4 create_app: normalized duplicate URI refuses POST: ' + uri, async (t) => {
+    const env = await setup(t, { duplicates: [{ destinations: [{ type: 'public', uri }] }] });
+    assert.equal((await env.execute('create_app')).status, 'invalid_arguments');
+    assert.ok(!env.calls.some((req) => req.method === 'POST'));
+  });
+}
+const unsafeCreatedPolicies = [
+  ['everyone', { include: [{ everyone: {} }] }],
+  ['bypass', { decision: 'bypass' }],
+  ['any token', { include: [{ any_valid_service_token: {} }] }],
+  ['wrong emails', { include: [{ email: { email: 'other@example.com' } }] }],
+  ['not reusable', { reusable: false }],
+  ['reusable absent', { reusable: undefined }],
+  ['exclude', { exclude: [{ everyone: {} }] }],
+  ['require', { require: [{ everyone: {} }] }],
+];
+for (const [label, fields] of unsafeCreatedPolicies) test('fix4 create_policy: unsafe stored policy is removed: ' + label, async (t) => {
+  const env = await setup(t, { createdPolicy: { ...attachable(), include: [{ email: { email: 'one@example.com' } }], ...fields } });
+  const result = await env.execute('create_policy');
+  assert.equal(result.status, 'vendor_error'); assert.equal(result.policy_id, POLICY); assert.equal(result.removed, true);
+  assert.match(result.reason, new RegExp(POLICY)); assert.match(result.reason, /was removed/i);
+  assert.deepEqual(trace(env.calls).slice(-3), [['GET', ROOT + '/policies/' + POLICY], ['DELETE', ROOT + '/policies/' + POLICY], ['GET', ROOT + '/policies/' + POLICY]]);
+});
+for (const fields of [{ decision: 'bypass' }, { include: [{ everyone: {} }] }]) test('fix4 get_app: safe embed cannot hide live policy: ' + JSON.stringify(fields), async (t) => {
+  const env = await setup(t, { policy: { ...attachable(), ...fields } });
+  const result = await env.execute('get_app');
+  assert.equal(result.status, 'vendor_error'); assert.equal(result.policy_id, POLICY);
+  assert.deepEqual(trace(env.calls), [['GET', ROOT + '/apps/' + ID], ['GET', ROOT + '/policies/' + POLICY]]);
+});
+for (const fields of [{ exclude: [{ email: { email: 'excluded@example.com' } }] }, { require: [{ everyone: {} }] }, { reusable: undefined }]) {
+  test('fix4 set_staff: unsupported pre-write policy refuses PUT: ' + JSON.stringify(fields), async (t) => {
+    const env = await setup(t, { policy: { ...staff(), ...fields } });
+    assert.equal((await env.execute('set_staff')).status, 'invalid_arguments');
+    assert.deepEqual(env.calls.map((req) => req.method), ['GET', 'GET']);
+  });
+}
+for (const fields of [{ future_grant: true }, { exclude: [{ everyone: {} }] }, { require: [{ everyone: {} }] }, { reusable: false }, { reusable: undefined }]) {
+  for (const unchanged of [false, true]) test('fix4 set_staff: read-back settings mismatch refuses success: ' + JSON.stringify(fields) + ' unchanged=' + unchanged, async (t) => {
+    const env = await setup(t, { responder: (req, n) => {
+      if (n === 1) return ok({ auth_domain: 'team.cloudflareaccess.com' });
+      if (n === 2) return ok(staff());
+      if (req.method === 'PUT') return ok({});
+      return ok({ ...staff(unchanged ? ['one@example.com', 'two@example.com'] : ['two@example.com']), ...fields });
+    } });
+    const input = unchanged ? { account_id: ACCOUNT, policy_id: POLICY, add: 'ONE@example.com' } : inputs.set_staff;
+    assert.equal((await env.execute('set_staff', input)).status, 'vendor_error');
+  });
+}
+test('fix4 docs: edge scope, workers.dev closure, counted reads and live policies are explicit', () => {
+  const guide = readFileSync(new URL('../CONNECTOR.md', import.meta.url), 'utf8');
+  const auth = readFileSync(new URL('../auth.md', import.meta.url), 'utf8');
+  const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url)));
+  for (const text of [guide, auth, manifest.modules.access.actions.create_app.description]) {
+    for (const term of ['workers.dev', 'workers.set_workers_dev', 'proxied', 'valid Access token']) assert.ok(text.includes(term), term);
+  }
+  assert.match(guide, /total_count/); assert.match(guide, /any identity provider the team has/);
+  assert.match(guide, /leaves `read_service_tokens_from_header` out/);
+  assert.match(manifest.modules.access.actions.create_policy.description, /read.back/i);
+  assert.match(manifest.modules.access.actions.get_app.description, /every attached policy/i);
+  assert.match(manifest.modules.access.actions.set_staff.description, /before.*after/i);
+});

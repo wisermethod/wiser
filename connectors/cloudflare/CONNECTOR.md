@@ -3,7 +3,7 @@ name: cloudflare
 type: connector
 category: development
 description: Reaches Cloudflare DNS, zones and their settings, the zone's configuration reads, D1 databases, Pages projects, domains and custom-domain status, production deploys of a kit site with its fingerprinted Pages Function, of a site with its Pages Functions, or of a plain static build output, Web Analytics on a Pages project, rulesets, redirect rules and Bulk Redirects, with every removal, setting change, analytics change, redirect write and production deploy confirmed
-version: 0.10.2
+version: 0.10.3
 ---
 
 # Cloudflare
@@ -351,8 +351,15 @@ Run these actions in order and retain each result before the next write:
 
 ### Access applications and staff
 
-The `access` module protects one public hostname with a self-hosted application
-and named reusable policies. Its three writes require confirmation every time.
+The `access` module protects one public hostname at Cloudflare's edge with a
+self-hosted application and named reusable policies. A proxied DNS record for
+that hostname is required for Access to see its traffic. The application does
+not cover a Worker's other addresses, including its `workers.dev` address, which
+`workers.deploy_worker_release` turns on. The deploy sequence protects the hostname,
+then turns `workers.dev` off with `workers.set_workers_dev` using `enabled: false`.
+The CRM's own wrapper refuses any request without a valid Access token on
+every address. Creating this application alone does not close those other routes.
+Its three writes require confirmation every time.
 Each write first reads the account's Zero Trust organization. A 403 with only
 Cloudflare error code 9999 means Access is not enabled and refuses the write,
 naming Cloudflare Setup as the next step. An absent or incomplete organization also refuses without declaring Access off.
@@ -360,10 +367,14 @@ A plain permission failure stays `vendor_error`; it is not evidence Access is of
 A successful organization read must include a usable team domain. These actions
 never create the organization or change its identity providers. The team must
 already offer emailed-code sign-in if staff are to use it.
+An Allow policy admits the listed emails through any identity provider the team has, so the team should keep only providers it trusts.
 
 `access.create_app` takes `account_id`, `hostname`, `name` and 1 to 50 `policy_ids`.
-It reads every page of the application's list first and refuses a hostname
-already covered, including a wildcard or a path on that hostname. An unresolved
+It reads a counted application list first: the number of object rows read must
+equal a numeric `result_info.total_count`; missing or inconsistent counts refuse
+creation, even if page metadata says the list is finished. It refuses a hostname
+already covered, including a wildcard or a path on that hostname. A scheme and
+port are stripped before comparing destinations. An unresolved
 Worker destination also requires inspection before creating an application.
 The request uses `type: self_hosted`, the primary `domain`, one public
 `destinations` entry, and reusable-policy links with precedence in supplied order.
@@ -373,12 +384,24 @@ Both shapes require `exclude` and `require` to be absent or empty arrays. Any
 other decision or include rule is refused with the policy id and reason.
 The create response must carry the requested policy id set and policy details
 satisfying the same checks. Each linked policy is read again after POST.
-Missing details, a different id set, a failed read or an unsafe policy cause the
+After POST, GET of the stored application must pass the same checker as `get_app`
+and confirm the requested id, hostname and policy id set. It must be self-hosted,
+with that hostname as `domain`, as its one public destination, and
+as its one `self_hosted_domains` entry. Destination overrides must
+be absent or empty, and `read_service_tokens_from_header` must be absent, null or empty.
+Missing details, a different id set, a failed read or an unsafe application or policy cause the
 created application to be deleted and read back absent before `vendor_error`
 reports its removal. If removal cannot be confirmed, the error names the
 application id so it can be checked in Cloudflare.
+When the create response has no usable id, a counted application list is searched
+for one exact hostname match and that application is removed. An ambiguous or
+unreadable list reports by hostname that removal could not be confirmed.
 It returns only `id` and the public audience tag `aud`, beside `success`.
-It has no `read_service_tokens_from_header` input and never sets that property.
+It has no single-header input and leaves `read_service_tokens_from_header` out
+of the create. Cloudflare's [application-create reference](https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/methods/create/)
+marks this property optional and describes it as a header-name string, so leaving
+it out keeps the two-header service-token check; the stored application is then
+read back and refused unless the setting is absent, null or empty.
 Concurrent application creation after the final read is still possible; the
 preflight check is not an atomic reservation.
 
@@ -386,15 +409,21 @@ preflight check is not an atomic reservation.
 `decision: allow` with 1 to 50 `emails`, or `decision: non_identity` with one
 `service_token_id`. The latter is Cloudflare's Service Auth policy. Its include
 rule carries only `service_token: { token_id }`, the existing token's public UUID.
-The result is the reusable policy's `id` and `success`. No action creates a
+The new policy is read back by id. It must pass the supported-shape check, carry
+`reusable: true`, and have exactly the submitted decision and include rules.
+Failure deletes the policy and reads it back absent; `vendor_error` names the id
+and whether removal was confirmed. The result is the checked reusable policy's
+`id` and `success`. No action creates a
 service token or accepts or returns its client secret. The member creates it in
 Cloudflare's dashboard. Its credentials belong only on the connecting service's
 hosted connect page, never in this action's inputs.
 
 `access.set_staff` takes `account_id`, `policy_id` and exactly one of `add` or
 `remove`, each one email. It reads a reusable Allow policy with only explicit
-email includes, preserves the documented writable settings, and refuses an
-unfamiliar setting rather than discarding it. Removal compares emails without
+email includes, requires `reusable: true` and absent or empty `exclude` and
+`require`, preserves the documented writable settings, and refuses an unfamiliar
+setting rather than discarding it. The same unknown-field and supported-shape
+checks run before the write and after it. Removal compares emails without
 case and never removes the last distinct email. Adding an existing email or
 removing an absent one still reads the policy back and returns `changed: false`.
 Every completed call returns the actual email arrays as `before` and `after`;
@@ -406,9 +435,10 @@ Changing a reusable policy affects every application carrying it.
 `access.get_app` reads `account_id` and `app_id`, returning the single `hostname`,
 `policy_ids`, `aud`, `id` and `success`. It refuses an ambiguous application rather
 than imply it protects only one hostname. A non-empty destination `overrides`
-array is reported as `vendor_error`. Every embedded policy must pass the same
-safe-shape checks as `create_app`; if its decision or include is missing, the
-policy is fetched by id and checked. Any failure names the policy and reason.
+array or an enabled single-header setting is reported as `vendor_error`. Every
+attached policy is fetched by id and checked with `accessPolicyProblem`, even
+when the embed contains rules. Embedded rules must also pass the supported-shape
+checks. Any policy failure names the policy and reason.
 App, policy and service token ids use
 UUID spelling; account ids use 32 lowercase hexadecimal characters. Names are
 1 to 100 characters, hostnames at most 253, and emails at most 254. Published
@@ -528,7 +558,7 @@ reads and final history record consistent.
 
 | Action | Effect | Undoable there? |
 |--------|--------|-----------------|
-| `access.create_app` | Protects one hostname with the named reusable policies | Remove the application in Cloudflare; this module has no delete action |
+| `access.create_app` | Protects one hostname at Cloudflare's edge with the named reusable policies; requires proxied DNS and does not cover other Worker addresses | Remove the application in Cloudflare; this module has no delete action |
 | `access.create_policy` | Creates a reusable Allow or Service Auth policy | Remove it in Cloudflare after checking its application links |
 | `access.set_staff` | Replaces the policy's email includes; affects every application using that policy | Call again with the inverse change, subject to the last-email rule |
 | `workers.deploy_worker_release` | Replaces the deployed script, assets, bindings and plain variables | A previous version must be retained separately |

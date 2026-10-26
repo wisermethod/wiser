@@ -378,7 +378,7 @@
       },
       "actions": {
         "create_app": {
-          "description": "Create a self-hosted Access application for one hostname with reusable policy ids, after reading the Zero Trust organization and refusing any existing covering or unresolved application. Reads each policy before POST, checks the response policy id set and details, and reads the linked policies again after POST: only Allow with 1 to 50 explicit email includes or non_identity with exactly one service-token UUID include, with exclude and require absent or empty. A validation failure deletes the created application and reads it back absent; unconfirmed removal is reported by application id. Token-shaped text is refused.",
+          "description": "Create a self-hosted Access application for one hostname at Cloudflare's edge only; proxied DNS is needed for Access to see traffic. Other Worker addresses are not covered: workers.deploy_worker_release enables workers.dev, and the deploy sequence turns it off with workers.set_workers_dev after protecting the hostname. The CRM wrapper refuses requests without a valid Access token on every address. Reads the organization and a counted application list (numeric total_count equal to rows read), refusing covering or unresolved applications. Checks policies before POST and again afterward, and reads the stored application with the get_app checker: the requested hostname and policy ids, self_hosted type, no destination overrides and read_service_tokens_from_header absent or false; explicitly sends false. Any validation failure removes the application and reads it absent, reporting the id and removal result. A missing id is reconciled by hostname, or removal is reported unconfirmed by hostname. Token-shaped text is refused.",
           "risk": "high",
           "confirmation": "always",
           "execution": {
@@ -422,7 +422,7 @@
           }
         },
         "create_policy": {
-          "description": "Create a reusable Allow policy with 1 to 50 emails, or a Service Auth (non_identity) policy with one existing service token id, exactly one shape. Reads the organization first; never creates a service token. Token-shaped text is refused.",
+          "description": "Create a reusable Allow policy with 1 to 50 emails, or a Service Auth (non_identity) policy with one existing service token id, exactly one shape. Reads the organization first, then verifies the stored policy by read-back: supported decision and includes, empty or absent exclude and require, reusable true, and exactly the submitted include. On failure deletes the policy and reads it absent; vendor_error names its id and whether removal was confirmed. Never creates a service token. Token-shaped text is refused.",
           "risk": "high",
           "confirmation": "always",
           "execution": {
@@ -502,7 +502,7 @@
           }
         },
         "set_staff": {
-          "description": "Add or remove exactly one email in a reusable Allow policy after reading the organization and policy; refuse the last email removal. Reads back and returns emails before and after. Refuses non-email includes or unsupported policy settings rather than overwriting them. Token-shaped text is refused.",
+          "description": "Add or remove exactly one email in a reusable Allow policy after reading the organization and policy; refuse the last email removal. Requires reusable true, explicit email includes, and empty or absent exclude and require. Checks unknown fields and supported policy shape before and after writing, including unchanged calls; any read-back mismatch refuses success. Returns actual emails before and after, preserving documented writable settings. Token-shaped text is refused.",
           "risk": "high",
           "confirmation": "always",
           "execution": {
@@ -556,7 +556,7 @@
           }
         },
         "get_app": {
-          "description": "Read a self-hosted Access application hostname, reusable policy ids and audience tag. Refuses an ambiguous or malformed application and destination path overrides. Checks every embedded policy with the create_app safe-shape rules; missing decision or include is resolved by a policy GET. Any policy failure is vendor_error naming the policy and reason.",
+          "description": "Read a self-hosted Access application's hostname, policy ids and audience tag using the same application checker as create_app. Refuses ambiguous or malformed applications, destination overrides, and a single-header service-token setting other than absent or false. Reads every attached policy live even when embedded rules are present; both embedded rules and live policy must pass the supported-shape checks. A policy failure is vendor_error naming the policy and reason.",
           "risk": "low",
           "confirmation": "none",
           "execution": {

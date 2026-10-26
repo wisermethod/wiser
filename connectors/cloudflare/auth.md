@@ -21,6 +21,16 @@ Make an API token the account owns (not a Global API Key, and not a token under 
 
 `pages.add_domain` registers the hostname on the Pages project and does not create the DNS record. That record needs Zone / DNS / Edit, which is the `dns` grant, and Zone Publisher is the skill that publishes it. A Pages Edit token does not do that job.
 
+`access.create_app` protects only its hostname at Cloudflare's edge. It needs a
+proxied DNS record for Access to see that traffic and does not cover the Worker's
+other addresses. `workers.deploy_worker_release` enables `workers.dev`; the deploy
+sequence turns it off with `workers.set_workers_dev` after the hostname is
+protected. The CRM's own wrapper refuses requests without a valid Access token
+on every address. Access creation does not perform those DNS or Worker changes.
+Application and policy creation read back stored state and remove a newly created
+resource when validation fails, reporting whether removal was confirmed.
+Staff changes check supported settings and policy shape before and after writing.
+
 Keep the create-token page open; the value is shown once.
 
 ## On the provider's side

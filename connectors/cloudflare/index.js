@@ -1769,8 +1769,8 @@ function accessNotEnabled(err) {
 
 function hostPart(value) {
   if (typeof value !== 'string' || value.length === 0) return '';
-  const slash = value.indexOf('/');
-  return (slash === -1 ? value : value.slice(0, slash)).toLowerCase().replace(/\.+$/, '');
+  return value.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').split(/[/?#]/)[0]
+    .replace(/:\d+$/, '').toLowerCase().replace(/\.+$/, '');
 }
 
 // Generous on purpose: an application that might apply must not be filtered out.
@@ -2384,25 +2384,40 @@ async function accessTeam(input, ctx) {
   }
   return null;
 }
-async function accessDuplicate(input, ctx) {
+async function accessListApps(input, ctx) {
   const root = `${accessPath(input.account_id)}/apps`;
-  for (let page = 1; ; page += 1) {
+  const apps = [];
+  let total;
+  for (let page = 1; page <= 10000; page += 1) {
     const req = { endpoint: `${root}?per_page=1000&page=${page}`, method: 'GET' };
     const reply = await accessRequest(ctx, req);
     if (reply.error) return reply.error;
     if (!Array.isArray(reply.result) || reply.result.some((app) => !asObject(app))) return accessVendor(req);
-    if (reply.result.some((app) => appMatchesHost(app, input.hostname.toLowerCase()))) {
-      return invalid('hostname', 'An Access application already covers this hostname; read that application instead of creating another.');
+    const incomplete = { ...accessVendor(req), reason: 'Access application listing incomplete; a counted list could not be established.' };
+    if (!Number.isSafeInteger(reply.info?.total_count) || reply.info.total_count < 0
+      || (total !== undefined && total !== reply.info.total_count)) return incomplete;
+    total = reply.info.total_count;
+    apps.push(...reply.result);
+    if (apps.length > total) return incomplete;
+    if (reply.info.total_pages !== undefined && (!Number.isInteger(reply.info.total_pages)
+      || reply.info.total_pages < page || reply.info.total_pages > 10000)) return incomplete;
+    if (apps.length === total) return { apps };
+    if (reply.result.length === 0 || (reply.info.total_pages !== undefined && page >= reply.info.total_pages)) {
+      return incomplete;
     }
-    if (reply.result.some(appHasUnresolvedDestination)) {
-      return invalid('hostname', 'An existing Access application has an unresolved destination; check it before creating another.');
-    }
-    if (reply.info?.total_pages !== undefined) {
-      if (!Number.isInteger(reply.info.total_pages) || reply.info.total_pages < page || reply.info.total_pages > 10000) return accessVendor(req);
-      if (page >= reply.info.total_pages) return null;
-    } else if (reply.result.length < 1000) return null;
-    else return { ...accessVendor(req), reason: 'Access application listing incomplete; duplicate hostname could not be ruled out.' };
   }
+  return { ...accessVendor({ endpoint: root, method: 'GET' }), reason: 'Access application listing exceeded the page bound.' };
+}
+async function accessDuplicate(input, ctx) {
+  const listed = await accessListApps(input, ctx);
+  if (listed.status) return listed;
+  if (listed.apps.some((app) => appMatchesHost(app, input.hostname.toLowerCase()))) {
+    return invalid('hostname', 'An Access application already covers this hostname; read that application instead of creating another.');
+  }
+  if (listed.apps.some(appHasUnresolvedDestination)) {
+    return invalid('hostname', 'An existing Access application has an unresolved destination; check it before creating another.');
+  }
+  return null;
 }
 // Only the two rule shapes create_policy writes can protect a new app.
 // https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/policies/methods/get/
@@ -2437,12 +2452,22 @@ async function accessReadPolicy(account, id, ctx) {
   const problem = accessPolicyProblem(reply.result);
   return problem ? accessPolicyRefusal(id, problem, req) : null;
 }
-async function accessRemoveFailedApp(account, app, failure, ctx) {
-  const id = app?.id;
+async function accessRemoveFailedApp(input, app, failure, ctx) {
+  let id = app?.id;
   if (typeof id !== 'string' || !ACCESS_UUID.test(id)) {
-    return { ...failure, removed: false, reason: 'Application removal could not be confirmed: the create response has no usable application id.' };
+    const hostname = input.hostname.toLowerCase();
+    const listed = await accessListApps(input, ctx);
+    // Only one exact-host application is a cleanup target. A wildcard or an
+    // ambiguous list could belong to a concurrent writer and is never deleted.
+    const matches = listed.apps?.filter((row) => hostPart(row.domain) === hostname
+      || (Array.isArray(row.destinations) && row.destinations.some((destination) => hostPart(destination?.uri) === hostname))) ?? [];
+    if (matches.length !== 1 || typeof matches[0].id !== 'string' || !ACCESS_UUID.test(matches[0].id)) {
+      return { ...failure, hostname, removed: false,
+        reason: `Application for ${hostname}: removal could not be confirmed; the create response has no usable application id and a unique application could not be found.` };
+    }
+    id = matches[0].id;
   }
-  const req = { endpoint: `${accessPath(account)}/apps/${encodeURIComponent(id)}`, method: 'DELETE' };
+  const req = { endpoint: `${accessPath(input.account_id)}/apps/${encodeURIComponent(id)}`, method: 'DELETE' };
   const deleted = await accessRequest(ctx, req);
   const readBack = await accessRequest(ctx, { ...req, method: 'GET' });
   const removed = !deleted.error && readBack.error?.http_status === 404;
@@ -2463,25 +2488,36 @@ function accessAppResult(app, req, detail) {
       const problem = accessPolicyProblem(policy);
       if (problem) return accessPolicyRefusal(policy?.id, problem, req);
     }
-    return out;
   }
   // A public path override skips authentication even when the main URI matches.
   // https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/methods/get/
-  if (Array.isArray(app.destinations) && app.destinations.some((destination) => Array.isArray(destination?.overrides) && destination.overrides.length > 0)) {
+  if (Array.isArray(app.destinations) && app.destinations.some((destination) => Object.hasOwn(destination || {}, 'overrides')
+    && (!Array.isArray(destination.overrides) || destination.overrides.length > 0))) {
     return { ...accessVendor(req), reason: 'Application destination overrides can bypass Access authentication for a path.' };
+  }
+  // An optional header-name string in Cloudflare's application reference; Q7's single-header mode is on only when it names a header.
+  // https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/methods/create/
+  const header = app.read_service_tokens_from_header;
+  if (header !== undefined && header !== null && header !== false && header !== '') {
+    return { ...accessVendor(req), reason: 'Application single-header service-token authentication must be off.' };
   }
   for (const policy of Array.isArray(app.policies) ? app.policies : []) {
     if (asObject(policy) && policy.decision !== undefined && !['allow', 'non_identity'].includes(policy.decision)) {
       return accessPolicyRefusal(policy.id, 'Embedded policy decision must be allow or non_identity.', req);
     }
+    if (policy?.decision !== undefined && policy?.include !== undefined) {
+      const problem = accessPolicyProblem(policy);
+      if (problem) return accessPolicyRefusal(policy.id, problem, req);
+    }
   }
   if (app.type !== 'self_hosted' || !accessHostname(app.domain)) return accessVendor(req);
   const hostname = app.domain.toLowerCase();
-  if (app.destinations !== undefined && (!Array.isArray(app.destinations) || app.destinations.length !== 1
+  if (!Array.isArray(app.destinations) || app.destinations.length !== 1
     || app.destinations[0]?.type !== 'public' || typeof app.destinations[0]?.uri !== 'string'
-    || app.destinations[0].uri.toLowerCase() !== hostname)) return accessVendor(req);
-  if (app.self_hosted_domains !== undefined && (!Array.isArray(app.self_hosted_domains)
-    || app.self_hosted_domains.some((v) => typeof v !== 'string' || v.toLowerCase() !== hostname))) return accessVendor(req);
+    || app.destinations[0].uri.toLowerCase() !== hostname) return accessVendor(req);
+  if (!Array.isArray(app.self_hosted_domains)
+    || app.self_hosted_domains.length !== 1
+    || app.self_hosted_domains.some((v) => typeof v !== 'string' || v.toLowerCase() !== hostname)) return accessVendor(req);
   if (!Array.isArray(app.policies) || app.policies.length < 1 || app.policies.length > 50) {
     return { ...accessVendor(req), reason: 'Application policies must contain 1 to 50 checked policies.' };
   }
@@ -2505,6 +2541,21 @@ function accessStaffEmails(policy) {
 const ACCESS_POLICY_FIELDS = ['name', 'decision', 'include', 'exclude', 'require', 'approval_groups', 'approval_required',
   'connection_rules', 'isolation_required', 'mfa_config', 'purpose_justification_prompt', 'purpose_justification_required', 'session_duration'];
 const ACCESS_POLICY_METADATA = ['id', 'created_at', 'updated_at', 'reusable', 'app_count'];
+function accessStaffProblem(policy, id) {
+  if (!asObject(policy) || policy.id !== id || policy.reusable !== true
+    || Object.keys(policy).some((key) => !ACCESS_POLICY_FIELDS.includes(key) && !ACCESS_POLICY_METADATA.includes(key))) {
+    return 'The policy has unsupported settings or is not reusable; update it in Cloudflare.';
+  }
+  return accessPolicyProblem(policy);
+}
+async function accessRemoveFailedPolicy(account, id, failure, ctx) {
+  const req = { endpoint: `${accessPath(account)}/policies/${encodeURIComponent(id)}`, method: 'DELETE' };
+  const deleted = await accessRequest(ctx, req);
+  const readBack = await accessRequest(ctx, { ...req, method: 'GET' });
+  const removed = !deleted.error && readBack.error?.http_status === 404;
+  return { ...failure, policy_id: id, removed,
+    reason: `Policy ${id} ${removed ? 'was removed' : 'removal could not be confirmed'}. ${failure.reason || 'Created policy could not be validated.'}` };
+}
 const sameStaff = (a, b) => a.length === b.length
   && [...a].map((v) => v.toLowerCase()).sort().every((v, i) => v === [...b].map((x) => x.toLowerCase()).sort()[i]);
 
@@ -2822,10 +2873,22 @@ export const modules = {
       if (reply.error) return reply.error;
       const result = accessAppResult(reply.result, req, false);
       let failure = result.status === 'vendor_error' ? result : null;
+      let stored;
+      if (!failure) {
+        const readReq = { endpoint: `${req.endpoint}/${encodeURIComponent(result.id)}`, method: 'GET' };
+        const readBack = await accessRequest(ctx, readReq);
+        stored = readBack.error || accessAppResult(readBack.result, readReq, true);
+        if (stored.status === 'vendor_error') failure = stored;
+        else if (stored.id !== result.id || stored.hostname !== input.hostname.toLowerCase()) {
+          failure = { ...accessVendor(readReq), reason: 'Stored application id or hostname did not match the request.' };
+        }
+      }
       if (!failure) {
         const expected = new Set(input.policy_ids);
         const actual = new Set(reply.result.policies.map((policy) => policy?.id));
-        if (actual.size !== expected.size || [...actual].some((id) => !expected.has(id))) {
+        const storedIds = new Set(stored.policy_ids);
+        if (actual.size !== expected.size || [...actual].some((id) => !expected.has(id))
+          || storedIds.size !== expected.size || [...storedIds].some((id) => !expected.has(id))) {
           failure = { ...accessVendor(req), reason: 'Created application policy id set did not match the requested policy id set.' };
         }
       }
@@ -2837,8 +2900,8 @@ export const modules = {
           if (failure) break;
         }
       }
-      if (failure) return accessRemoveFailedApp(input.account_id, reply.result, failure, ctx);
-      return result;
+      if (failure) return accessRemoveFailedApp(input, reply.result, failure, ctx);
+      return { success: true, id: stored.id, aud: stored.aud };
     },
     async create_policy(input, ctx) {
       if (!accessName(input?.name)) return invalid('name');
@@ -2857,6 +2920,15 @@ export const modules = {
       const reply = await accessRequest(ctx, req);
       if (reply.error) return reply.error;
       if (!asObject(reply.result) || !ACCESS_UUID.test(reply.result.id)) return accessVendor(req);
+      const id = reply.result.id;
+      const readReq = { endpoint: `${req.endpoint}/${encodeURIComponent(id)}`, method: 'GET' };
+      const readBack = await accessRequest(ctx, readReq);
+      const problem = readBack.error ? 'Created policy could not be read back.' : accessPolicyProblem(readBack.result)
+        || (readBack.result.id !== id ? 'Policy read-back id did not match.' : null)
+        || (readBack.result.reusable !== true ? 'Policy read-back must be reusable.' : null)
+        || (readBack.result.decision !== req.body.decision || JSON.stringify(readBack.result.include) !== JSON.stringify(req.body.include)
+          ? 'Policy read-back did not match the submitted decision and include.' : null);
+      if (problem) return accessRemoveFailedPolicy(input.account_id, id, accessPolicyRefusal(id, problem, readReq), ctx);
       return { success: true, id: reply.result.id };
     },
     async set_staff(input, ctx) {
@@ -2870,9 +2942,8 @@ export const modules = {
       if (first.error) return first.error;
       const before = accessStaffEmails(first.result);
       if (!before) return invalid('policy_id', 'Staff changes require a reusable Allow policy containing only 1 to 50 explicit email includes.');
-      if (Object.keys(first.result).some((key) => !ACCESS_POLICY_FIELDS.includes(key) && !ACCESS_POLICY_METADATA.includes(key)) || first.result.reusable === false) {
-        return invalid('policy_id', 'The policy has unsupported settings or is not reusable; update it in Cloudflare.');
-      }
+      const problem = accessStaffProblem(first.result, input.policy_id);
+      if (problem) return invalid('policy_id', problem);
       const target = (adding ? input.add : input.remove).toLowerCase();
       const present = before.some((email) => email.toLowerCase() === target);
       const after = adding ? present ? [...before] : [...before, input.add] : before.filter((email) => email.toLowerCase() !== target);
@@ -2888,7 +2959,9 @@ export const modules = {
       const last = await accessRequest(ctx, req);
       if (last.error) return last.error;
       const readBack = accessStaffEmails(last.result);
-      if (!readBack || !sameStaff(after, readBack)) return { ...accessVendor(req), reason: 'Staff policy read-back did not confirm the requested emails.' };
+      if (accessStaffProblem(last.result, input.policy_id) || !readBack || !sameStaff(after, readBack)) {
+        return { ...accessVendor(req), reason: 'Staff policy read-back did not confirm the requested emails and supported settings.' };
+      }
       return { success: true, policy_id: input.policy_id, changed, before, after: readBack };
     },
     async get_app(input, ctx) {
@@ -2897,15 +2970,9 @@ export const modules = {
       if (reply.error) return reply.error;
       const result = accessAppResult(reply.result, req, true);
       if (result.status === 'vendor_error') return result;
-      for (const policy of reply.result.policies) {
-        const id = typeof policy === 'string' ? policy : policy.id;
-        if (policy?.decision === undefined || policy?.include === undefined) {
-          const problem = await accessReadPolicy(input.account_id, id, ctx);
-          if (problem) return problem;
-        } else {
-          const problem = accessPolicyProblem(policy);
-          if (problem) return accessPolicyRefusal(id, problem, req);
-        }
+      for (const id of result.policy_ids) {
+        const problem = await accessReadPolicy(input.account_id, id, ctx);
+        if (problem) return problem;
       }
       return result;
     },
