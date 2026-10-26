@@ -60,6 +60,17 @@ function refusal(command, inputs, output, pattern, flags) {
 }
 function rawAudio(path) { return ff(['-i', path, '-map', '0:a:0', '-c:a', 'pcm_f64le', '-f', 'f64le', '-'], true).stdout; }
 function videoHash(path) { return ff(['-noautorotate', '-i', path, '-map', '0:v:0', '-c:v', 'copy', '-f', 'hash', '-hash', 'sha256', '-']).stdout; }
+function frameClock(path, stream, firstOnly = false) {
+  const r = processRun('ffprobe', ['-v', 'error', '-select_streams', stream,
+    ...(firstOnly ? ['-read_intervals', '%+#1'] : []), '-show_streams', '-show_frames',
+    '-show_entries', 'stream=time_base:frame=best_effort_timestamp', '-of', 'json', path]);
+  assert.equal(r.status, 0, r.stderr); return JSON.parse(r.stdout);
+}
+function firstAudioSample(path) {
+  const info = frameClock(path, 'a:0', true);
+  assert.equal(info.streams[0].time_base, '1/48000');
+  return Number(info.frames[0].best_effort_timestamp);
+}
 
 test('exact integer sample arithmetic, including the 3,2,3 fractional join', () => {
   for (const fps of ['30/1', '25/1', '30000/1001']) {
@@ -101,6 +112,24 @@ test('loudness limited: oversampled ceiling, measured gain reduction and repeat 
 }));
 
 for (const fps of ['30/1', '25/1', '30000/1001']) {
+  test(`finish ${fps}: every stored presentation time is exactly on the constant frame grid`, () => inTemp(d => {
+    const inputs = [47, 52, 53].map((frames, i) => fixture(d, `scene${i}.mp4`, { fps, frames }));
+    const result = success('finish', inputs, join(d, 'out.mp4'));
+    const r = processRun('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_streams', '-show_packets',
+      '-show_entries', 'stream=time_base:packet=pts,duration', '-of', 'json', result.output]);
+    assert.equal(r.status, 0, r.stderr);
+    const info = JSON.parse(r.stdout), rate = fraction(fps);
+    const [p, q] = info.streams[0].time_base.split('/').map(BigInt);
+    assert.equal(info.streams[0].time_base, `1/${rate.p}`);
+    const frames = info.packets.sort((a, b) => a.pts - b.pts);
+    assert.equal(frames.length, 152);
+    const first = BigInt(frames[0].pts);
+    frames.forEach((frame, n) => {
+      assert.equal((BigInt(frame.pts) - first) * p * rate.p, BigInt(n) * rate.q * q, `frame ${n}`);
+      assert.equal(BigInt(frame.duration) * p * rate.p, rate.q * q, `frame ${n} duration`);
+    });
+  }));
+
   test(`finish ${fps}: three long scenes, running-total floors, silence and repeat bytes`, () => inTemp(d => {
     const inputs = [47, 52, 53].map((frames, i) => fixture(d, `scene${i}.mp4`, { fps, frames, audio: i === 1 ? null : 'sine=frequency=1000', rate: i === 2 ? 44100 : 48000 }));
     const result = success('finish', inputs, join(d, 'out.mp4'));
@@ -127,12 +156,26 @@ test('44.1 kHz resampling keeps the first sample within one sample', () => inTem
 
 test('finish aligns the first source pulse to its own first shown frame (Opus priming)', () => inTemp(d => {
   const input = fixture(d, 'pulse.mp4', { frames: 91, fps: '30000/1001',
-    audio: "aevalsrc=if(lt(n\\,480)\\,0.4*sin(2*PI*1000*t)\\,0.02*sin(2*PI*1000*t))" });
+    audio: "aevalsrc=if(lt(n\\,480)\\,0.4*cos(2*PI*1000*t)\\,0.02*sin(2*PI*1000*t))" });
   const result = success('finish', [input], join(d, 'out.mp4'));
   const audio = rawAudio(result.output); let max = 0;
   for (let i = 0; i < audio.length; i += 16) max = Math.max(max, Math.abs(audio.readDoubleLE(i)));
   let onset = 0; while (Math.abs(audio.readDoubleLE(onset * 16)) < max / 2) onset++;
-  assert.ok(Math.abs(onset - Math.round(result.audioDelaySeconds * 48000)) <= 48, `onset ${onset}, expected ${result.audioDelaySeconds * 48000}`);
+  const picture = frameClock(result.output, 'v:0', true);
+  const [p, q] = picture.streams[0].time_base.split('/').map(Number);
+  const shownTime = picture.frames[0].best_effort_timestamp * p / q;
+  const presentedTime = (firstAudioSample(result.output) + onset) / 48000;
+  assert.ok(Math.abs(presentedTime - shownTime) <= 1 / 48000, `pulse at ${presentedTime}, first shown frame at ${shownTime}`);
+}));
+
+test('finish refuses a picture delay smaller than the Opus pre-skip without publishing', () => inTemp(d => {
+  const input = fixture(d, 'fast.mp4', { fps: '400', frames: 240 });
+  refusal('finish', [input], join(d, 'out.mp4'), /finish: first-frame audio delay .* smaller than Opus pre-skip/);
+  const output = join(d, 'existing.mp4'); writeFileSync(output, 'existing destination');
+  const r = invoke('finish', [input], output);
+  assert.equal(r.status, 1); assert.equal(r.stdout, ''); assert.match(r.stderr, /smaller than Opus pre-skip/);
+  assert.equal(readFileSync(output, 'utf8'), 'existing destination');
+  assert.ok(!readdirSync(d).some(n => n.startsWith('.wiser-video-edit-')));
 }));
 
 for (const command of ['loudness', 'finish']) {
@@ -248,17 +291,17 @@ for (const fps of ['30/1', '25/1', '30000/1001']) {
     }));
     const result = success('finish', inputs, join(d, 'out.mp4'), ['--target','-30','--true-peak','-1']);
     assert.equal(result.limiterEngaged, false);
-    const audio = rawAudio(result.output);
+    const audio = rawAudio(result.output), origin = firstAudioSample(result.output);
     let running = 0;
     for (let i = 0; i < counts.length; i++) {
       const first = Number(BigInt(running) * 48000n * fraction(fps).q / fraction(fps).p);
       running += counts[i]; if (i === 1) continue;
       const expected = first + Math.floor(2 * 48000 / evalFraction(fps)) + 4800;
       let peak = 0;
-      for (let sample = expected - 100; sample < expected + 600; sample++) peak = Math.max(peak,Math.abs(audio.readDoubleLE(sample * 16)));
-      let onset = expected - 100;
+      for (let sample = expected - origin - 100; sample < expected - origin + 600; sample++) peak = Math.max(peak,Math.abs(audio.readDoubleLE(sample * 16)));
+      let onset = expected - origin - 100;
       while (Math.abs(audio.readDoubleLE(onset * 16)) < peak / 2) onset++;
-      assert.ok(Math.abs(onset - expected) <= 48, `scene ${i}, actual ${onset}, expected ${expected}`);
+      assert.ok(Math.abs(origin + onset - expected) <= 48, `scene ${i}, presented sample ${origin + onset}, expected ${expected}`);
     }
   }));
 }

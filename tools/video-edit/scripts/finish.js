@@ -4,6 +4,9 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { AUDIO_FLAGS, BASE, measure, normalize, rateFilter } from './loudness.js';
 
+// The priming probe and every final encode must use the same Opus settings.
+const OPUS_FLAGS = ['-c:a', 'libopus', '-b:a', '384k', '-vbr', 'off', '-ac', '2', '-ar', '48000', ...AUDIO_FLAGS];
+
 export function fraction(raw) {
   const match = /^(\d+)\/(\d+)$/.exec(raw ?? '');
   if (!match || !BigInt(match[1]) || !BigInt(match[2])) throw new Error('Video frame rate is unavailable; supply a constant-frame-rate video.');
@@ -289,7 +292,7 @@ export function finishCommand({ command, inputs, output, target, truePeak, run, 
   const sources = inspect(inputs, command, run);
   return writeOutput({ output, setPending, removePartialOutput }, ({ directory, pending }) => {
     const program = join(directory, 'program.wav');
-    let details = {}, expected, picture, delay = 0;
+    let details = {}, expected, picture, delay = 0, preSkip = 0;
     if (command === 'loudness') {
       prepare(sources[0], program, run);
     } else {
@@ -321,6 +324,13 @@ export function finishCommand({ command, inputs, output, target, truePeak, run, 
         '-video_track_timescale', String(sources[0].fps.p), '-movflags', '+faststart', '-use_editlist', '0',
         '-fflags', '+bitexact', '-flags:v', '+bitexact', '-map_metadata', '-1', picture], 'encode the joined picture');
       delay = verifyPicture(picture, expected, run).delay;
+      const priming = join(directory, 'opus-priming.mp4');
+      run([...BASE, '-loglevel', 'error', '-i', core.output, '-t', '0.1', '-vn', ...OPUS_FLAGS,
+        '-use_editlist', '0', priming], 'probe the Opus pre-skip');
+      preSkip = integer(probe(priming, run, ['-select_streams', 'a:0', '-show_streams']).streams?.[0]?.initial_padding, 'Opus pre-skip');
+      // With two B-frames this cannot happen below 307 fps: the picture delay
+      // exceeds Opus's 312-sample pre-skip. Never trim program audio to fit it.
+      if (delay < preSkip) throw new Error(`finish: first-frame audio delay ${delay} samples is smaller than Opus pre-skip ${preSkip} samples; no output published.`);
     }
     let after, checks;
     // A copied B-frame track with negative decode timestamps needs signed CTS
@@ -338,18 +348,25 @@ export function finishCommand({ command, inputs, output, target, truePeak, run, 
         verifyAudioClock(pending, run);
         verifyCopiedPicture(inputs[0], pending, run, ['pts', 'duration']);
       } else {
-        run([...BASE, '-loglevel', 'error', '-copyts', '-noautorotate', '-i', picture, '-i', core.output,
-          '-map', '0:v:0', '-map', '1:a:0', '-c:v', 'copy', '-af', `adelay=${delay}S:all=1`,
-          '-c:a', 'libopus', '-b:a', '384k', '-vbr', 'off', '-ac', '2', '-ar', '48000',
-          ...AUDIO_FLAGS, '-flags:v', '+bitexact', '-movflags', '+faststart', '-use_editlist', '0', pending], 'encode finished Opus audio');
+        // No edit list: decoded sample 0 is presented at preSkip / 48000, so
+        // subtract that timestamp from the program's leading sample count.
+        run([...BASE, '-loglevel', 'error', '-noautorotate', '-i', picture, '-i', core.output,
+          '-map', '0:v:0', '-map', '1:a:0', '-c:v', 'copy', '-af', `adelay=${delay - preSkip}S:all=1`,
+          ...OPUS_FLAGS, '-flags:v', '+bitexact', '-video_track_timescale', String(sources[0].fps.p),
+          '-movflags', '+faststart', '-use_editlist', '0', pending], 'encode finished Opus audio');
+        verifyCopiedPicture(picture, pending, run, ['pts', 'duration']);
         const verified = verifyPicture(pending, expected, run);
         verifyAudioClock(pending, run);
         checks = verified.checks;
         requireCheck(checks, 'audioDelay', verified.delay === delay);
-        const audio = probe(pending, run, ['-select_streams', 'a:0', '-show_streams']).streams;
+        const decoded = probe(pending, run, ['-select_streams', 'a:0', '-read_intervals', '%+#1', '-show_streams', '-show_frames',
+          '-show_entries', 'stream=codec_name,channels,sample_rate,time_base,initial_padding:frame=best_effort_timestamp']);
+        const audio = decoded.streams;
         requireCheck(checks, 'opusStereo48k', audio.length === 1 && audio[0].codec_name === 'opus' && audio[0].channels === 2 && audio[0].sample_rate === '48000');
+        requireCheck(checks, 'opusPreSkip', audio[0].initial_padding === preSkip && audio[0].time_base === '1/48000'
+          && Number(decoded.frames?.[0]?.best_effort_timestamp) === preSkip);
         const count = audioSamples(pending, run);
-        requireCheck(checks, 'audioDuration', Math.abs(count - (samplesAt(details.frames, sources[0].fps) + delay)) <= 960);
+        requireCheck(checks, 'audioDuration', Math.abs(count - (samplesAt(details.frames, sources[0].fps) + delay - preSkip)) <= 960);
       }
       after = measure(pending, run);
       if (Math.abs(after.integrated - target) > (command === 'loudness' ? 0.5 : 1)) throw new Error('Written loudness is outside the target tolerance; choose a lower --target.');

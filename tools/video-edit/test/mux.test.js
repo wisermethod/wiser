@@ -65,8 +65,8 @@ function onset(audio, expected, channels = 1, tolerance = 0) {
   while (Math.abs(audio.readDoubleLE(first * channels * 8)) < peak / 2) first++;
   assert.ok(Math.abs(first - expected) <= tolerance, `first narration sample ${first}, expected ${expected} +/- ${tolerance}`);
 }
-function firstSample(path) {
-  const info = probe(path, ['-select_streams', 'v:0', '-show_streams', '-show_frames', '-read_intervals', '%+#1']);
+function firstSample(path, stream = 'v:0') {
+  const info = probe(path, ['-select_streams', stream, '-show_streams', '-show_frames', '-read_intervals', '%+#1']);
   const [p, q] = info.streams[0].time_base.split('/').map(BigInt);
   return Number(BigInt(info.frames[0].best_effort_timestamp) * p * 48000n / q);
 }
@@ -175,10 +175,11 @@ test('mux then finish places three fractional-rate inputs by running totals, dro
   const flags = ['--target', '-30', '--true-peak', '-1'];
   const result = success('finish', inputs, join(d, 'out.mp4'), flags), data = raw(result.output);
   assert.equal(result.limiterEngaged, false); const delay = firstSample(result.output); assert.equal(delay, 3203);
+  const origin = firstSample(result.output, 'a:0');
   let total = 0;
   for (let i = 0; i < counts.length; i++) {
     const position = Number(BigInt(total) * 8008n / 5n);
-    assert.equal(result.offsets[i].firstSample, position); onset(data, delay + position + leads[i], 2, 48);
+    assert.equal(result.offsets[i].firstSample, position); onset(data, delay - origin + position + leads[i], 2, 48);
     total += counts[i];
   }
   noEditList(result.output); assert.equal(probe(result.output, ['-select_streams', 'a:0', '-show_streams']).streams[0].start_pts, 0);
