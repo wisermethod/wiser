@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, realpathSync, rmSync, readdirSync, existsSync, readFileSync, writeFileSync, symlinkSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, readdirSync, existsSync, readFileSync, writeFileSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -329,13 +329,20 @@ test('finish limited path converges on encoded Opus and is byte identical', () =
 }));
 
 test('existing destinations are replaced only after success and temporary directories are removed', () => inTemp(d => {
-  const input = fixture(d), output = join(d,'out.mp4');
-  const temps = () => readdirSync(realpathSync(tmpdir())).filter(n=>n.startsWith('wiser-video-edit-')).sort();
-  const before = temps(); writeFileSync(output,'existing output');
-  const failed = invoke('loudness',[input],output,['--target','-5','--true-peak','-9']);
+  // The tool runs with a temporary directory of its own, so another process's
+  // run at the same moment cannot fail this test, and this run's leftovers can.
+  const input = fixture(d), output = join(d,'out.mp4'), own = join(d,'own-tmp');
+  mkdirSync(own);
+  const runIn = (command, output, flags = ['--target', '-24', '--true-peak', '-1']) => spawnSync(process.execPath,
+    [entry, command, '--input', input, '--output', output, ...flags],
+    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, env: { ...process.env, TMPDIR: own } });
+  const temps = () => readdirSync(own).sort();
+  writeFileSync(output,'existing output');
+  const failed = runIn('loudness',output,['--target','-5','--true-peak','-9']);
   assert.equal(failed.status,1); assert.equal(failed.stdout,''); assert.equal(readFileSync(output,'utf8'),'existing output');
-  assert.deepEqual(temps(),before);
-  success('loudness',[input],output); assert.notEqual(readFileSync(output).toString('ascii',0,8),'existing'); assert.deepEqual(temps(),before);
+  assert.deepEqual(temps(),[]);
+  const ok = runIn('loudness',output); assert.equal(ok.status,0,ok.stderr);
+  assert.notEqual(readFileSync(output).toString('ascii',0,8),'existing'); assert.deepEqual(temps(),[]);
   const failedDirectory = join(d,'parent-file'); writeFileSync(failedDirectory,'a file');
-  const r = invoke('finish',[input],join(failedDirectory,'out.mp4')); assert.equal(r.status,1); assert.equal(r.stdout,''); assert.deepEqual(temps(),before);
+  const r = runIn('finish',join(failedDirectory,'out.mp4')); assert.equal(r.status,1); assert.equal(r.stdout,''); assert.deepEqual(temps(),[]);
 }));
