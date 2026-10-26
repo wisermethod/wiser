@@ -55,7 +55,7 @@ function success(command, inputs, output, flags) {
 function refusal(command, inputs, output, pattern, flags) {
   const before = readdirSync(dirname(output)).sort();
   const r = invoke(command, inputs, output, flags);
-  assert.equal(r.status, 1, r.stderr); assert.equal(r.stdout, ''); assert.match(r.stderr, pattern);
+  assert.equal(r.status, 1, r.stderr); assert.equal(r.stdout, ''); assert.match(r.stderr, /^Error: /); assert.match(r.stderr, pattern);
   assert.ok(!existsSync(output)); assert.deepEqual(readdirSync(dirname(output)).sort(), before);
 }
 function rawAudio(path) { return ff(['-i', path, '-map', '0:a:0', '-c:a', 'pcm_f64le', '-f', 'f64le', '-'], true).stdout; }
@@ -179,7 +179,7 @@ test('finish refuses a picture delay smaller than the Opus pre-skip without publ
 }));
 
 for (const command of ['loudness', 'finish']) {
-  test(`${command}: refuses audio-only, multiple video/audio streams and gated silence`, () => inTemp(d => {
+  test(`${command}: refusals open with Error: for audio-only, multiple video/audio streams and gated silence`, () => inTemp(d => {
     const wav = join(d, 'audio.wav'); ff(['-f', 'lavfi', '-i', 'sine=d=2', wav]);
     refusal(command, [wav], join(d, 'out.mp4'), /exactly one video stream/);
     const input = fixture(d);

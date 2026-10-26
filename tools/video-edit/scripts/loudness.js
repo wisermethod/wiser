@@ -22,12 +22,12 @@ export function measure(path, run, filters = []) {
   const integrated = /Integrated loudness:\s*I:\s*([+-]?[\d.]+) LUFS/i.exec(summary);
   const range = /Loudness range:\s*LRA:\s*([+-]?[\d.]+) LU/i.exec(summary);
   const peak = /True peak:\s*Peak:\s*([+-]?(?:[\d.]+|inf)) dBFS/i.exec(summary);
-  if (!integrated || !range || !peak) throw new Error('Loudness measurement failed: no ebur128 true-peak summary; check the audio stream.');
+  if (!integrated || !range || !peak) throw new Error('Error: Loudness measurement failed: no ebur128 true-peak summary; check the audio stream.');
   return { integrated: Number(integrated[1]), truePeak: Number(peak[1]), loudnessRange: Number(range[1]) };
 }
 
 export function gated(reading) {
-  if (reading.integrated <= -70) throw new Error('Audio has no gated block (integrated loudness is at the -70 LUFS gate floor); supply audible audio.');
+  if (reading.integrated <= -70) throw new Error('Error: Audio has no gated block (integrated loudness is at the -70 LUFS gate floor); supply audible audio.');
 }
 
 function maxReduction(before, after) {
@@ -38,13 +38,13 @@ function maxReduction(before, after) {
     for (;;) {
       const count = readSync(a, left, 0, left.length, null);
       if (!count) break;
-      if (readSync(b, right, 0, count, null) !== count) throw new Error('Limiter sample count changed; no output published.');
+      if (readSync(b, right, 0, count, null) !== count) throw new Error('Error: Limiter sample count changed; no output published.');
       for (let i = 0; i < count; i += 8) {
         const input = Math.abs(left.readDoubleLE(i));
         if (input > 1e-9) minimum = Math.min(minimum, Math.abs(right.readDoubleLE(i)) / input);
       }
     }
-    if (readSync(b, right, 0, 8, null)) throw new Error('Limiter sample count changed; no output published.');
+    if (readSync(b, right, 0, 8, null)) throw new Error('Error: Limiter sample count changed; no output published.');
   } finally { closeSync(a); closeSync(b); }
   return Math.max(0, -20 * Math.log10(Math.max(minimum, 1e-15)));
 }
@@ -65,7 +65,7 @@ export function normalize(source, directory, target, truePeak, run) {
   channelsArgs.push('-ac', String(channels));
 
   function render() {
-    if (++passes > MAX_PASSES) throw new Error(`Loudness did not converge in ${MAX_PASSES} passes; choose a lower --target or a higher --true-peak.`);
+    if (++passes > MAX_PASSES) throw new Error(`Error: Loudness did not converge in ${MAX_PASSES} passes; choose a lower --target or a higher --true-peak.`);
     const gain = `volume=${gainDB.toFixed(10)}dB:precision=double`;
     if (!limiterEngaged) {
       run([...BASE, '-loglevel', 'error', '-i', source, '-af', gain, '-c:a', 'pcm_f64le', ...AUDIO_FLAGS, output], 'apply linear loudness gain');

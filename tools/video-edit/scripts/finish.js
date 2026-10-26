@@ -9,7 +9,7 @@ const OPUS_FLAGS = ['-c:a', 'libopus', '-b:a', '384k', '-vbr', 'off', '-ac', '2'
 
 export function fraction(raw) {
   const match = /^(\d+)\/(\d+)$/.exec(raw ?? '');
-  if (!match || !BigInt(match[1]) || !BigInt(match[2])) throw new Error('Video frame rate is unavailable; supply a constant-frame-rate video.');
+  if (!match || !BigInt(match[1]) || !BigInt(match[2])) throw new Error('Error: Video frame rate is unavailable; supply a constant-frame-rate video.');
   let p = BigInt(match[1]), q = BigInt(match[2]);
   let a = p, b = q;
   while (b) [a, b] = [b, a % b];
@@ -19,7 +19,7 @@ export function fraction(raw) {
 
 export function integer(value, label) {
   const result = Number(value);
-  if (!Number.isSafeInteger(result) || result < 0) throw new Error(`${label} exceeds the supported exact integer range; supply a shorter video.`);
+  if (!Number.isSafeInteger(result) || result < 0) throw new Error(`Error: ${label} exceeds the supported exact integer range; supply a shorter video.`);
   return result;
 }
 
@@ -46,17 +46,17 @@ export function audioSamples(path, run) {
 function floorDivide(n, d) { return n / d - (n < 0n && n % d ? 1n : 0n); }
 
 export function timestampSamples(timestamp, timeBase) {
-  if (!/^-?\d+$/.test(String(timestamp)) || !Number.isSafeInteger(Number(timestamp))) throw new Error('Media timestamp is unavailable or outside the exact integer range.');
+  if (!/^-?\d+$/.test(String(timestamp)) || !Number.isSafeInteger(Number(timestamp))) throw new Error('Error: Media timestamp is unavailable or outside the exact integer range.');
   const clock = fraction(timeBase);
   const sample = Number(floorDivide(BigInt(timestamp) * clock.p * 48000n, clock.q));
-  if (!Number.isSafeInteger(sample)) throw new Error('Media timestamp exceeds the supported exact integer range.');
+  if (!Number.isSafeInteger(sample)) throw new Error('Error: Media timestamp exceeds the supported exact integer range.');
   return sample;
 }
 
 export function firstFrameSample(path, video, run) {
   const first = probe(path, run, ['-select_streams', 'v:0', '-read_intervals', '%+#1', '-show_frames',
     '-show_entries', 'frame=best_effort_timestamp']).frames?.[0];
-  if (!first) throw new Error(`Input ${path} has no first shown video frame.`);
+  if (!first) throw new Error(`Error: Input ${path} has no first shown video frame.`);
   return timestampSamples(first.best_effort_timestamp, video.time_base);
 }
 
@@ -81,20 +81,20 @@ function inspect(inputs, command, run) {
     const info = probe(path, run, ['-count_frames', '-show_streams']);
     const videos = info.streams.filter(s => s.codec_type === 'video');
     const audios = info.streams.filter(s => s.codec_type === 'audio');
-    if (videos.length !== 1) throw new Error(`${command}: input ${path} must have exactly one video stream; audio-only files are refused.`);
+    if (videos.length !== 1) throw new Error(`Error: ${command}: input ${path} must have exactly one video stream; audio-only files are refused.`);
     if (audios.length > 1 || (command === 'loudness' && audios.length !== 1)) {
-      throw new Error(`${command}: input ${path} must have ${command === 'loudness' ? 'exactly' : 'at most'} one audio stream.`);
+      throw new Error(`Error: ${command}: input ${path} must have ${command === 'loudness' ? 'exactly' : 'at most'} one audio stream.`);
     }
     const video = videos[0], audio = audios[0];
     const source = { path, video, audio, firstFrameSample: firstFrameSample(path, video, run),
       audioStartSample: audio ? audioStartSample(path, audio, run) : 0 };
     if (command === 'loudness') return source;
-    if (!tagged(video)) throw new Error(`finish: input ${path} must be yuv420p tagged BT.709 primaries, transfer and matrix at TV range; untagged video is refused.`);
-    if (video.side_data_list?.some(s => /display matrix/i.test(s.side_data_type))) throw new Error(`finish: input ${path} carries a display matrix; remove it explicitly before finishing.`);
-    if (audio && audio.channels > 2) throw new Error(`finish: input ${path} has more than two audio channels; provide mono or stereo.`);
+    if (!tagged(video)) throw new Error(`Error: finish: input ${path} must be yuv420p tagged BT.709 primaries, transfer and matrix at TV range; untagged video is refused.`);
+    if (video.side_data_list?.some(s => /display matrix/i.test(s.side_data_type))) throw new Error(`Error: finish: input ${path} carries a display matrix; remove it explicitly before finishing.`);
+    if (audio && audio.channels > 2) throw new Error(`Error: finish: input ${path} has more than two audio channels; provide mono or stereo.`);
     const fps = fraction(video.r_frame_rate);
     const frames = integer(video.nb_read_frames, 'Decoded frame count');
-    if (!frames || !groupSize(fps)) throw new Error(`finish: input ${path} has no frames or an unsupported frame rate.`);
+    if (!frames || !groupSize(fps)) throw new Error(`Error: finish: input ${path} has no frames or an unsupported frame rate.`);
     if (audio) {
       const count = audioSamples(path, run);
       // A flushed swresample output contains ceil(sourceSamples * 48000 /
@@ -104,7 +104,7 @@ function inspect(inputs, command, run) {
       // an extra sample admitted by rounded container duration fields.
       const start = BigInt(source.audioStartSample) - BigInt(source.firstFrameSample);
       if ((converted + start - BigInt(samplesAt(frames, fps))) * fps.p > 48000n * fps.q) {
-        throw new Error(`finish: input ${path} audio is longer than its picture by more than one frame; shorten the track explicitly.`);
+        throw new Error(`Error: finish: input ${path} audio is longer than its picture by more than one frame; shorten the track explicitly.`);
       }
     }
     return { ...source, fps, frames };
@@ -112,8 +112,8 @@ function inspect(inputs, command, run) {
   if (command === 'finish') {
     const first = sources[0];
     for (const s of sources.slice(1)) {
-      if (s.video.width !== first.video.width || s.video.height !== first.video.height) throw new Error(`finish: input ${s.path} differs in width or height; every input must have the same dimensions.`);
-      if (s.fps.p * first.fps.q !== first.fps.p * s.fps.q) throw new Error(`finish: input ${s.path} differs in frame rate; every input must have the same fps.`);
+      if (s.video.width !== first.video.width || s.video.height !== first.video.height) throw new Error(`Error: finish: input ${s.path} differs in width or height; every input must have the same dimensions.`);
+      if (s.fps.p * first.fps.q !== first.fps.p * s.fps.q) throw new Error(`Error: finish: input ${s.path} differs in frame rate; every input must have the same fps.`);
     }
   }
   return sources;
@@ -129,7 +129,7 @@ export function prepare(source, output, run, { stereo = false, samples = null, o
   // running-total placement and the encoded picture's measured adelay. Mux
   // explicitly places its first source sample at floor(f*48000)+ceil(t*48000).
   const shift = start - origin;
-  if (!Number.isSafeInteger(shift)) throw new Error('Audio placement exceeds the supported exact integer range.');
+  if (!Number.isSafeInteger(shift)) throw new Error('Error: Audio placement exceeds the supported exact integer range.');
   // Reset BEFORE rateFilter: first_pts=0 must see source sample 0, not a
   // container offset. swresample flushes its centred FIR and removes its delay,
   // so the first output sample is the first source sample. At 48 kHz it is absent.
@@ -154,7 +154,7 @@ function joinAudio(sources, offsets, fps, output, directory, run) {
         const track = join(directory, `track-${i}.wav`), raw = join(directory, `track-${i}.f64`);
         prepare(s, track, run, { stereo: true, samples: o.samples, origin: s.firstFrameSample });
         run([...BASE, '-loglevel', 'error', '-i', track, '-c:a', 'pcm_f64le', ...AUDIO_FLAGS, '-f', 'f64le', raw], 'read prepared stereo samples');
-        if (statSync(raw).size !== o.samples * 16) throw new Error('Prepared audio sample count failed; no output published.');
+        if (statSync(raw).size !== o.samples * 16) throw new Error('Error: Prepared audio sample count failed; no output published.');
         const fd = openSync(raw, 'r');
         try { for (;;) { const count = readSync(fd, buffer, 0, buffer.length, null); if (!count) break; writeSync(destination, buffer, 0, count); } }
         finally { closeSync(fd); }
@@ -168,7 +168,7 @@ function joinAudio(sources, offsets, fps, output, directory, run) {
 }
 
 function requireCheck(checks, name, passed) {
-  if (!passed) throw new Error(`finish read-back check ${name} failed; no output published. Correct the input or encoder settings.`);
+  if (!passed) throw new Error(`Error: finish read-back check ${name} failed; no output published. Correct the input or encoder settings.`);
   checks.push(name);
 }
 
@@ -181,12 +181,12 @@ export function mp4Structure(path) {
   function walk(start, end, depth) {
     for (let offset = start; offset < end;) {
       const header = Buffer.alloc(16);
-      if (end - offset < 8 || readSync(file, header, 0, 8, offset) !== 8) throw new Error('Invalid MP4 box header.');
+      if (end - offset < 8 || readSync(file, header, 0, 8, offset) !== 8) throw new Error('Error: Invalid MP4 box header.');
       let length = header.readUInt32BE(0), head = 8;
       const type = header.toString('ascii', 4, 8);
-      if (length === 1) { if (readSync(file, header, 8, 8, offset + 8) !== 8) throw new Error('Invalid MP4 extended header.'); length = Number(header.readBigUInt64BE(8)); head = 16; }
+      if (length === 1) { if (readSync(file, header, 8, 8, offset + 8) !== 8) throw new Error('Error: Invalid MP4 extended header.'); length = Number(header.readBigUInt64BE(8)); head = 16; }
       if (length === 0) length = end - offset;
-      if (!Number.isSafeInteger(length) || length < head || offset + length > end) throw new Error('Invalid MP4 box size.');
+      if (!Number.isSafeInteger(length) || length < head || offset + length > end) throw new Error('Error: Invalid MP4 box size.');
       if (!depth) top.push(type);
       if (type === 'elst') editList = true;
       if (['moov', 'trak', 'edts'].includes(type)) walk(offset + head, offset + length, depth + 1);
@@ -202,7 +202,7 @@ export function verifyAudioClock(path, run) {
   const audios = streams.filter(s => s.codec_type === 'audio');
   if (streams.length !== 2 || streams.filter(s => s.codec_type === 'video').length !== 1 || audios.length !== 1
     || BigInt(audios[0].start_pts) !== 0n || audios[0].sample_rate !== '48000' || mp4Structure(path).editList) {
-    throw new Error('Audio clock read-back failed: expected one video and one 48 kHz audio stream starting at 0, with no edit list; no output published.');
+    throw new Error('Error: Audio clock read-back failed: expected one video and one 48 kHz audio stream starting at 0, with no edit list; no output published.');
   }
   return audios[0];
 }
@@ -220,7 +220,7 @@ export function verifyCopiedPicture(input, output, run, timestamps = ['pts', 'dt
       if (packet[key] === undefined || b[i][key] === undefined) return packet[key] !== b[i][key];
       if (!Number.isSafeInteger(Number(packet[key])) || !Number.isSafeInteger(Number(b[i][key]))) return true;
       return BigInt(packet[key]) * x.p * y.q !== BigInt(b[i][key]) * y.p * x.q;
-    }))) throw new Error('Copied video packet hashes or timestamps differ from the input; no output published.');
+    }))) throw new Error('Error: Copied video packet hashes or timestamps differ from the input; no output published.');
 }
 
 export function verifyPicture(path, expected, run) {
@@ -330,7 +330,7 @@ export function finishCommand({ command, inputs, output, target, truePeak, run, 
       preSkip = integer(probe(priming, run, ['-select_streams', 'a:0', '-show_streams']).streams?.[0]?.initial_padding, 'Opus pre-skip');
       // With two B-frames this cannot happen below 307 fps: the picture delay
       // exceeds Opus's 312-sample pre-skip. Never trim program audio to fit it.
-      if (delay < preSkip) throw new Error(`finish: first-frame audio delay ${delay} samples is smaller than Opus pre-skip ${preSkip} samples; no output published.`);
+      if (delay < preSkip) throw new Error(`Error: finish: first-frame audio delay ${delay} samples is smaller than Opus pre-skip ${preSkip} samples; no output published.`);
     }
     let after, checks;
     // A copied B-frame track with negative decode timestamps needs signed CTS
@@ -369,7 +369,7 @@ export function finishCommand({ command, inputs, output, target, truePeak, run, 
         requireCheck(checks, 'audioDuration', Math.abs(count - (samplesAt(details.frames, sources[0].fps) + delay - preSkip)) <= 960);
       }
       after = measure(pending, run);
-      if (Math.abs(after.integrated - target) > (command === 'loudness' ? 0.5 : 1)) throw new Error('Written loudness is outside the target tolerance; choose a lower --target.');
+      if (Math.abs(after.integrated - target) > (command === 'loudness' ? 0.5 : 1)) throw new Error('Error: Written loudness is outside the target tolerance; choose a lower --target.');
       if (after.truePeak <= truePeak) break;
       core.lowerCeiling(after.truePeak - truePeak);
     }

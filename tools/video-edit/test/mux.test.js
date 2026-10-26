@@ -53,7 +53,7 @@ function mux(input, audio, output, start) {
 function refuse(inputs, output, pattern, flags = []) {
   const parent = dirname(output), before = readdirSync(parent).sort();
   const r = invoke('mux', inputs, output, flags);
-  assert.equal(r.status, 1, r.stderr); assert.equal(r.stdout, ''); assert.match(r.stderr, pattern);
+  assert.equal(r.status, 1, r.stderr); assert.equal(r.stdout, ''); assert.match(r.stderr, /^Error: /); assert.match(r.stderr, pattern);
   assert.deepEqual(readdirSync(parent).sort(), before); assert.ok(!existsSync(output));
 }
 function raw(path) { return ff(['-i', path, '-map', '0:a:0', '-c:a', 'pcm_f64le', '-f', 'f64le', '-'], true); }
@@ -186,7 +186,7 @@ test('mux then finish places three fractional-rate inputs by running totals, dro
   assert.equal(success('finish', inputs, join(d, 'repeat.mp4'), flags).sha256, result.sha256);
 }));
 
-test('mux refuses wrong stream types, multiple streams, multichannel and every overrun before writes', () => temp(d => {
+test('mux: refusals open with Error: for wrong stream types, multiple streams, multichannel and every overrun before writes', () => temp(d => {
   const input = video(d), audio = narration(d), output = join(d, 'out.mp4');
   const av = mux(input, audio, join(d, 'av.mp4')).output;
   refuse([av], output, /video .*already carries audio/, ['--audio', audio]);
