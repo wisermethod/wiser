@@ -1,6 +1,6 @@
 # video-edit Setup
 
-Once per machine. Skip it if `ffmpeg -version` already succeeds and a short `edit` help run works.
+Once per machine. Skip it if `ffmpeg -version` already succeeds and a short `edit` help run works; before the first `mux`, `loudness` or `finish`, run the ffprobe check in section 2, and before the first `finish`, section 4.
 
 Run every command below from this tool's directory when a Node command is shown. On Windows, use Git Bash for shell checks.
 
@@ -43,7 +43,7 @@ Exit 0 means the build has drawtext and a resolvable font. Exit non-zero means e
 Only needed if you will run `finish`:
 
 ```bash
-ffmpeg -hide_banner -encoders | grep -E 'libx264|libopus'
+ffmpeg -hide_banner -encoders | grep -E '^ [A-Z.]{6} (libx264|libopus) '
 ```
 
 A line naming `libx264` and a line naming `libopus` mean the build can encode a finished video. A missing one means every other command still works; only `finish` fails until a build with both encoders is installed. TOOL.md Dependencies names the same check.

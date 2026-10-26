@@ -86,7 +86,8 @@ The other commands take no part in this chain. `concat` joins whole files, `fram
 **Sample counts.**
 - **A video's length:** `N` frames at `p/q` frames per second hold `floor(N × 48000 × q / p)` samples.
 - **A join:** each input starts at the floor of the running total of the frames before it, so a fractional rate such as 30000/1001 never drifts.
-- **A start:** `--audio-start` is read as an exact decimal, never through a float. The narration's first sample lands `ceil(t × 48000)` samples after the first shown frame's. It is the only count that rounds up.
+- **A start:** `--audio-start` is read as an exact decimal, never through a float. The narration's first sample lands `ceil(t × 48000)` samples after the first shown frame's.
+- **A resampled length:** audio at another rate, `count` samples at `rate`, lasts `ceil(count × 48000 / rate)` samples at 48 kHz. That is the length `mux` and `finish` test against the time left.
 
 **`mux`** lays one audio file onto one silent video.
 - **The video:** exactly one video stream and no audio stream. A video that already carries audio is refused, since mixing is not here. Its stream is copied: the output's video packets and their times are the input's, bit for bit.
@@ -96,7 +97,7 @@ The other commands take no part in this chain. `concat` joins whole files, `fram
 **`loudness`** sets one video's sound to `--target` and keeps its picture.
 - **The input:** exactly one video stream and exactly one audio stream. The video stream is copied, and every audio sample keeps its time.
 - **The measure:** integrated loudness and true peak, by EBU R128 (`ebur128` with true peak).
-- **The level:** a gain alone, wherever the gained true peak stays at or under `--true-peak`. Otherwise the gain and a limiter run at four times the sample rate, the gain corrected until the written file reads within 0.5 LU of the target, within 12 passes.
+- **The level:** a gain alone, wherever the gained true peak stays at or under `--true-peak`. Otherwise the gain and a limiter run at four times the sample rate. Either way the gain is corrected until the 48 kHz working audio reads within 0.3 LU of the target, and the written file must then read within 0.5 LU, or it is refused.
 - **The output:** 24-bit PCM at 48 kHz, its channel count kept.
 
 Audio with no gated block, nothing above EBU R128's −70 LUFS floor, has no loudness to set and is refused. A caller matching several scenes runs `loudness` on each at one target. Each target applies to the file it writes, so a mono scene is measured as mono.
@@ -105,11 +106,7 @@ Audio with no gated block, nothing above EBU R128's −70 LUFS floor, has no lou
 - **Its inputs:** each has one video stream, `yuv420p` tagged BT.709 at TV range with no display matrix, and all share one size and one frame rate. Each has at most one audio stream, of one or two channels.
   - A video with no audio counts as silence of its length.
   - An input whose audio runs longer than its picture by more than one frame is refused. A shorter excess is trimmed.
-- **Its picture** is encoded with `tools/video-render/`'s `publish` settings:
-  - H.264 High at CRF 16, two B-frames, and a closed group of `round(fps / 2)` frames, a half rounded up;
-  - the BT.709 tags set on the frames themselves, square pixels, `faststart`, and no edit list.
-
-  Nothing converts its colour. Its frames keep one constant grid from the first: `t(0) + n / fps`.
+- **Its picture** is encoded with the settings of `tools/video-render/TOOL.md`'s `publish` profile, which that page states, with one difference: `publish` converts its pages' pixels to BT.709, and `finish` converts nothing. It sets the tags on frames that already carry them, which is why it takes only tagged input. Its frames keep one constant grid from the first: `t(0) + n / fps`.
 - **Its audio** is each input's track measured from that input's own first shown frame, placed on the running total.
   - A mono track is copied to both channels.
   - The whole is set to `--target` and `--true-peak` on the stereo it will be, by the same core `loudness` uses.
@@ -127,8 +124,10 @@ Audio with no gated block, nothing above EBU R128's −70 LUFS floor, has no lou
   - the copied picture's times;
   - the frame count, and the keyframe spacing with every keyframe an IDR picture;
   - the colour tags, square pixels, `faststart` and no edit list;
-  - Opus stereo at 48 kHz, its pre-skip and its length;
-  - the loudness within 1 LU of the target, and the true peak at or under the limit, on the encoded file. When Opus overshoots the peak, the limiter's ceiling is lowered and the audio encoded again, within the same 12 passes.
+  - Opus stereo at 48 kHz, its pre-skip, and its length within one Opus frame of the picture's;
+  - the loudness within 1 LU of the target, and the true peak at or under the limit, on the encoded file. A file outside the loudness tolerance is refused. When Opus overshoots the peak, the limiter's ceiling is lowered and the audio encoded again.
+
+  The gain corrections and those encodes share one bound of 12 passes, for `loudness` and `finish` alike.
 
 **The same bytes.** The same inputs and flags give byte-identical files on every run, through fixed thread counts and FFmpeg's `bitexact` flags.
 
@@ -168,7 +167,7 @@ Options:
 
 `edit` needs at least one operation; the five are independent and any combination runs. Every option outside a command's own set is refused rather than ignored, so a caller who reaches for `--trim-start` on `gif` is told it does not apply instead of quietly getting an untrimmed GIF. Before `frames`, pass an empty directory, or a new one when the directory cannot be listed: the reported count includes any `frame_NNNN.png` files already there, and do not treat the count as this run's alone while older frames may sit in it.
 
-`--target` and `--true-peak` have no default, so the caller names the level: a scene matched at one level, and a finished video at another. Which levels a production uses is the caller's, not this tool's.
+`--target` and `--true-peak` have no default, so the caller names the level: a scene matched at one level, and a finished video at another. Which levels a production uses is the caller's, not this tool's. Does the request name both numbers? Yes: pass them. Either one is missing: ask for it, and do not take a number from a platform's name; "for YouTube" names the picture settings `finish` writes, not a loudness or a peak.
 
 Outputs are MP4 for every command but `frames` and `gif`, GIF for `gif`, and the extension has to say so. `edit` and `concat` re-encode to H.264 with AAC audio every run; `mux` and `loudness` copy the picture; `finish` encodes as Sound and the final encode says. Paths are absolute because a relative one resolves against whichever directory the caller happened to be in. This tool never picks an output location and never falls back to one: the caller resolves a work directory in the owning root per `standards/conventions.md` and names the file inside it. Missing parent directories are created; a file already there is replaced.
 
@@ -250,9 +249,9 @@ The stops every tool shares, an unknown flag and a path that is relative or insi
 | `Error: Written loudness is outside the target tolerance` | The encoded file missed the target by more than its tolerance | Choose a lower `--target` |
 | `Error: finish: input <path> must be yuv420p tagged BT.709` | An untagged picture, or another colour space or range | Encode the input tagged BT.709 at TV range; guessing an untagged picture's colour would change its pixels |
 | `Error: finish: input <path> carries a display matrix` | The input is meant to be shown rotated or flipped | Write the picture upright first |
-| `differs in width or height` or `differs in frame rate` | The inputs do not share one size and one rate | Bring them to one size and one rate first |
+| `differs in width or height` or `differs in frame rate` | The inputs do not share one size and one rate | Make them at one size and one rate where they are made, as `yuv420p` tagged BT.709 at TV range. `edit` and `concat` write none of those tags, so a file resized or joined there is refused by `finish` |
 | `audio is longer than its picture by more than one frame` | An input's sound runs past its picture | Shorten the track, or give the picture its full length |
-| `first-frame audio delay … is smaller than Opus pre-skip` | A frame rate so high that two frames last less than Opus's pre-skip | Use a frame rate below about 300 fps |
+| `first-frame audio delay … is smaller than Opus pre-skip` | A frame rate so high that two frames last less than Opus's pre-skip | Use a frame rate below 307 fps |
 | `read-back check <name> failed` or `read-back … failed; no output published` | The written file broke a rule its read-back checks | The check is named; run again to a new path, and report it if it repeats |
 | `frames` reports more files than the video should yield | An earlier extraction left frame files in the same directory | Extract into an empty directory; the count is of what is there, not of what this run wrote |
 | The GIF is 480 pixels wide when the video was larger | Expected: GIF output is scaled to 480 wide, height following the aspect ratio | `gif` always scales to 480 wide, so resizing with `edit` first does not change the width, and this tool has no other GIF width. When the request needs another width, say so and ask whether 480 is acceptable; run `gif` only if it is, and produce no GIF when it is not or there is no answer. Otherwise run `gif` |
@@ -269,7 +268,7 @@ The stops every tool shares, an unknown flag and a path that is relative or insi
 - A `--text` carrying a colon, an apostrophe, a comma, a percent sign, or a bracket is drawn in full, and no part of the filter appears in the frame.
 - A `--speed` outside 0.5 to 2.0 reports `audio` as `removed` rather than shipping a track out of sync.
 - A failed FFmpeg pass for `edit`, `concat`, or `gif` leaves no partial or zero-byte file at `--output`.
-- `mux` writes a file whose video packets and their times are the input's, whose narration's first sample sits on `floor(f × 48000) + ceil(t × 48000)`, and whose track ends on the video's last sample.
+- `mux` writes a file whose video packets and their times are the input's, whose narration's first sample and track length are those Sound and the final encode's sample counts give.
 - `loudness` writes a file within 0.5 LU of `--target`, with its true peak at or under `--true-peak` and every audio sample at its time, its picture copied.
 - `finish` writes a file within 1 LU of `--target` with its true peak at or under `--true-peak`, read on the encoded file. Every frame sits on its constant grid, and every input's narration lands where the running total puts it. The file meets the settings Sound and the final encode names.
 - Run twice on the same inputs and flags, `mux`, `loudness` and `finish` each give byte-identical files.
