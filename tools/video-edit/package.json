@@ -1,7 +1,7 @@
 {
   "name": "video-edit",
-  "version": "0.1.2",
-  "description": "Edits a video with FFmpeg and writes the result where the caller names, covering trim, resize, speed, text overlay, audio removal, concatenation, frame extraction, and GIF conversion",
+  "version": "0.2.0",
+  "description": "Edits a video with FFmpeg and writes the result where the caller names, covering trim, resize, speed, text overlay, audio removal, concatenation, frame extraction, GIF conversion, narration laid onto a silent video, loudness set to a named level, and one encode of joined scenes to YouTube's recommended settings",
   "private": true,
   "type": "module",
   "scripts": {

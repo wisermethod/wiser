@@ -4,6 +4,13 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.26, October 26, 2026
+
+- `video-edit` can now lay a narration file onto a silent video, starting at the moment you name. The picture is kept exactly as it was, the narration starts on that moment to the sample and runs to the video's end, and narration longer than the time left is refused rather than cut. (bef870d, f87430d)
+- `video-edit` can set a video's sound to a loudness you name, under a ceiling for its peaks, and keep its picture. Where the peaks allow, the sound is only turned up or down; otherwise just the peaks that would pass the ceiling are limited, on every channel. (09eab4c, a4e4122)
+- `video-edit` can join scenes and encode them once into a video ready to upload to YouTube: its picture with `video-render`'s upload settings, its sound in Opus, and every scene's narration on its own frames. It takes pictures marked BT.709, at one size and one steady frame rate, and refuses anything else rather than guess. (09eab4c, 9403775, a4e4122)
+- Run twice on the same files, each of these gives the same file, byte for byte. They need FFmpeg's ffprobe, and the final encode needs FFmpeg's libx264 and libopus encoders; each is checked before anything is written. (5fe835c, 3c92b60, e53d779)
+
 ## v2026.10.25, October 25, 2026
 
 - A new tool, `video-render`, turns an animated web page into video: a video file ready to upload to YouTube, a version made to be joined with other footage and compressed once at the end, or still pictures at the moments you name. On the same computer, the same page gives the same frames every time, and a page you have not changed is not rendered again, so changing one scene of a video re-renders only that scene. The picture has no sound; narration and music are added afterwards. (d54a21e, 3b76852, b3cad8e, b3dc01e, cfcaed8)
