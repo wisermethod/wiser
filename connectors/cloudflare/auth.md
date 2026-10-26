@@ -23,12 +23,13 @@ Make an API token the account owns (not a Global API Key, and not a token under 
 
 `access.create_app` protects only its hostname at Cloudflare's edge. It needs a
 proxied DNS record for Access to see that traffic and does not cover the Worker's
-other addresses. `workers.deploy_worker_release` enables `workers.dev`; the deploy
-sequence turns it off with `workers.set_workers_dev` after the hostname is
-protected. The CRM's own wrapper refuses requests without a valid Access token
+other addresses. `workers.deploy_worker_release` enables `workers.dev`; the caller
+turns it off with `workers.set_workers_dev` after every deploy, as the upgrade
+sequence in `CONNECTOR.md` says. The CRM's own wrapper refuses requests without a valid Access token
 on every address. Access creation does not perform those DNS or Worker changes.
 Application and policy creation read back stored state and remove a newly created
-resource when validation fails, reporting whether removal was confirmed.
+resource when validation fails, reporting whether removal was confirmed; a policy
+create answered with no usable id is reported by name, unremoved, for a check in Cloudflare.
 Staff changes check supported settings and policy shape before and after writing.
 
 Keep the create-token page open; the value is shown once.

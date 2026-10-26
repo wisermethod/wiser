@@ -2401,7 +2401,12 @@ async function accessListApps(input, ctx) {
     if (apps.length > total) return incomplete;
     if (reply.info.total_pages !== undefined && (!Number.isInteger(reply.info.total_pages)
       || reply.info.total_pages < page || reply.info.total_pages > 10000)) return incomplete;
-    if (apps.length === total) return { apps };
+    if (apps.length === total) {
+      // A count met before the last page, or met by repeated rows, is not a complete list.
+      if (reply.info.total_pages !== undefined && page < reply.info.total_pages) return incomplete;
+      if (new Set(apps.map((app) => app.id)).size !== apps.length) return incomplete;
+      return { apps };
+    }
     if (reply.result.length === 0 || (reply.info.total_pages !== undefined && page >= reply.info.total_pages)) {
       return incomplete;
     }
@@ -2515,9 +2520,10 @@ function accessAppResult(app, req, detail) {
   if (!Array.isArray(app.destinations) || app.destinations.length !== 1
     || app.destinations[0]?.type !== 'public' || typeof app.destinations[0]?.uri !== 'string'
     || app.destinations[0].uri.toLowerCase() !== hostname) return accessVendor(req);
-  if (!Array.isArray(app.self_hosted_domains)
+  // Deprecated by Cloudflare once destinations are sent, so an answer may omit it; present, it names only the hostname.
+  if (app.self_hosted_domains !== undefined && (!Array.isArray(app.self_hosted_domains)
     || app.self_hosted_domains.length !== 1
-    || app.self_hosted_domains.some((v) => typeof v !== 'string' || v.toLowerCase() !== hostname)) return accessVendor(req);
+    || app.self_hosted_domains.some((v) => typeof v !== 'string' || v.toLowerCase() !== hostname))) return accessVendor(req);
   if (!Array.isArray(app.policies) || app.policies.length < 1 || app.policies.length > 50) {
     return { ...accessVendor(req), reason: 'Application policies must contain 1 to 50 checked policies.' };
   }
@@ -2540,7 +2546,7 @@ function accessStaffEmails(policy) {
 // metadata is left out. Unknown settings are refused, never silently discarded.
 const ACCESS_POLICY_FIELDS = ['name', 'decision', 'include', 'exclude', 'require', 'approval_groups', 'approval_required',
   'connection_rules', 'isolation_required', 'mfa_config', 'purpose_justification_prompt', 'purpose_justification_required', 'session_duration'];
-const ACCESS_POLICY_METADATA = ['id', 'created_at', 'updated_at', 'reusable', 'app_count'];
+const ACCESS_POLICY_METADATA = ['id', 'uid', 'account_id', 'created_at', 'updated_at', 'reusable', 'app_count'];
 function accessStaffProblem(policy, id) {
   if (!asObject(policy) || policy.id !== id || policy.reusable !== true
     || Object.keys(policy).some((key) => !ACCESS_POLICY_FIELDS.includes(key) && !ACCESS_POLICY_METADATA.includes(key))) {
@@ -2919,7 +2925,10 @@ export const modules = {
       } };
       const reply = await accessRequest(ctx, req);
       if (reply.error) return reply.error;
-      if (!asObject(reply.result) || !ACCESS_UUID.test(reply.result.id)) return accessVendor(req);
+      if (!asObject(reply.result) || !ACCESS_UUID.test(reply.result.id)) {
+        return { ...accessVendor(req), policy_name: input.name, removed: false,
+          reason: `Cloudflare answered the policy create with no usable id; a policy named ${JSON.stringify(input.name)} may now exist and was not removed. Check it in Cloudflare.` };
+      }
       const id = reply.result.id;
       const readReq = { endpoint: `${req.endpoint}/${encodeURIComponent(id)}`, method: 'GET' };
       const readBack = await accessRequest(ctx, readReq);

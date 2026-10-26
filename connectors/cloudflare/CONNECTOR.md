@@ -337,7 +337,9 @@ Run these actions in order and retain each result before the next write:
 3. `workers.d1_bookmark`: retain `bookmark`, `bookmark_time`, account and database
    together, with the account's 7- or 30-day window.
 4. `workers.deploy_worker_release`: deploy release N+1. Keep any eventual read-only
-   variable set in the new release as well.
+   variable set in the new release as well. The deploy turns the Worker's
+   `workers.dev` address on, so call `workers.set_workers_dev` with `enabled: false`
+   and `previews_enabled: false` straight after it, as after a first install.
 5. `workers.d1_migrate`: apply N+1's verified release migrations.
 6. On failure, `workers.d1_restore` to step 3's pair and window, then
    `workers.rollback` to step 1's recorded `version_id`, irrespective of the live
@@ -355,8 +357,9 @@ The `access` module protects one public hostname at Cloudflare's edge with a
 self-hosted application and named reusable policies. A proxied DNS record for
 that hostname is required for Access to see its traffic. The application does
 not cover a Worker's other addresses, including its `workers.dev` address, which
-`workers.deploy_worker_release` turns on. The deploy sequence protects the hostname,
-then turns `workers.dev` off with `workers.set_workers_dev` using `enabled: false`.
+`workers.deploy_worker_release` turns on. After every deploy, a first install or an
+upgrade (step 4 above), the caller turns `workers.dev` off with `workers.set_workers_dev`
+using `enabled: false`; nothing here does it on its own.
 The CRM's own wrapper refuses any request without a valid Access token on
 every address. Creating this application alone does not close those other routes.
 Its three writes require confirmation every time.

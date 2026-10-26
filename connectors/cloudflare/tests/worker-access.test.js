@@ -460,7 +460,7 @@ for (const [label, action, input] of wholeTokenCases) {
 // fix4: exercise stored state, counted lists, cleanup and live policy reads.
 const storedAppCases = [
   ['missing destinations', { destinations: undefined }],
-  ['missing self-hosted domains', { self_hosted_domains: undefined }],
+  ['two self-hosted domains', { self_hosted_domains: ['crm.example.com', 'other.example.com'] }],
   ['empty self-hosted domains', { self_hosted_domains: [] }],
   ['path override', { destinations: [{ type: 'public', uri: 'crm.example.com', overrides: [{ path: '/' }] }] }],
   ['second destination', { destinations: [{ type: 'public', uri: 'crm.example.com' }, { type: 'public', uri: 'other.example.com' }] }],
@@ -488,7 +488,7 @@ for (const [label, fields] of storedAppCases.filter(([label]) => ['path override
     assert.equal(result.status, 'vendor_error'); assertRemoved(result, env.calls);
   });
 }
-test('fix4 module: create explicitly disables the single-header setting', async () => {
+test('fix4 module: create omits the single-header setting', async () => {
   const calls = [];
   await modules.access.create_app(inputs.create_app, { proxy: async (req) => {
     calls.push(req);
@@ -585,4 +585,49 @@ test('fix4 docs: edge scope, workers.dev closure, counted reads and live policie
   assert.match(manifest.modules.access.actions.create_policy.description, /read.back/i);
   assert.match(manifest.modules.access.actions.get_app.description, /every attached policy/i);
   assert.match(manifest.modules.access.actions.set_staff.description, /before.*after/i);
+});
+
+// Round two of the fresh review, folded back by the briefing session (2026-10-26).
+test('fix5 create_app: a count met before the last page is incomplete', async (t) => {
+  const others = Array.from({ length: 2 }, (_, i) => ({ ...app(), id: `0000000${i}-89ab-cdef-0123-456789abcdef`, domain: `other${i}.example.com`,
+    self_hosted_domains: [`other${i}.example.com`], destinations: [{ type: 'public', uri: `other${i}.example.com` }] }));
+  const env = await setup(t, { duplicates: others, listInfo: { total_pages: 2, total_count: 2 } });
+  const result = await env.execute('create_app');
+  assert.equal(result.status, 'vendor_error');
+  assert.equal(env.calls.some((req) => req.method === 'POST'), false);
+});
+test('fix5 create_app: a repeated application id is incomplete', async (t) => {
+  const other = { ...app(), domain: 'other.example.com', self_hosted_domains: ['other.example.com'], destinations: [{ type: 'public', uri: 'other.example.com' }] };
+  const env = await setup(t, { duplicates: [other, other], listInfo: { total_pages: 1, total_count: 2 } });
+  const result = await env.execute('create_app');
+  assert.equal(result.status, 'vendor_error');
+  assert.equal(env.calls.some((req) => req.method === 'POST'), false);
+});
+test('fix5 get_app: a stored application without the deprecated self_hosted_domains is read', async (t) => {
+  const stored = app(); delete stored.self_hosted_domains;
+  const env = await setup(t, { policy: attachable(), app: stored });
+  const result = await env.execute('get_app');
+  assert.equal(result.success, true);
+  assert.equal(result.hostname, 'crm.example.com');
+});
+test('fix5 set_staff: a policy carrying account_id and uid metadata is changed', async (t) => {
+  const env = await setup(t, { policy: { ...staff(), account_id: ACCOUNT, uid: POLICY } });
+  const result = await env.execute('set_staff');
+  assert.equal(result.success, true);
+});
+test('fix5 create_policy: an answer with no usable id reports the name and that nothing was removed', async (t) => {
+  const env = await setup(t, { createdPolicy: { name: 'CRM staff', decision: 'bypass', include: [{ everyone: {} }], reusable: true } });
+  const result = await env.execute('create_policy');
+  assert.equal(result.status, 'vendor_error');
+  assert.equal(result.removed, false);
+  assert.equal(result.policy_name, 'CRM staff');
+});
+test('fix5 docs: the upgrade sequence turns workers.dev off after each deploy, and the manifest says the header setting is omitted', () => {
+  const guide = readFileSync(new URL('../CONNECTOR.md', import.meta.url), 'utf8');
+  const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url)));
+  const step = guide.split('\n').findIndex((line) => line.startsWith('4. `workers.deploy_worker_release`'));
+  assert.ok(step >= 0);
+  assert.match(guide.split('\n').slice(step, step + 6).join(' '), /workers\.set_workers_dev.*enabled: false/);
+  assert.doesNotMatch(manifest.modules.access.actions.create_app.description, /explicitly sends false/);
+  assert.match(manifest.modules.access.actions.create_app.description, /omit/i);
 });
