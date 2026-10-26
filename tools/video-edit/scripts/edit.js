@@ -15,6 +15,7 @@
  * system/templates/Script Contract.md.
  */
 
+import { finishCommand } from './finish.js';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, realpathSync, statSync, unlinkSync } from 'node:fs';
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
@@ -23,7 +24,7 @@ import { fileURLToPath } from 'node:url';
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const TOOL_DIR = resolve(SCRIPT_DIR, '..');
 
-const COMMANDS = new Set(['edit', 'concat', 'frames', 'gif']);
+const COMMANDS = new Set(['edit', 'concat', 'frames', 'gif', 'loudness', 'finish']);
 const TEXT_POSITIONS = new Set(['top', 'center', 'bottom']);
 
 // atempo follows the video only inside this range; outside it the audio track
@@ -47,16 +48,20 @@ Usage:
   node scripts/edit.js concat --input <path> --input <path> [...] --output <path.mp4>
   node scripts/edit.js frames --input <path> --output <dir> [--fps N]
   node scripts/edit.js gif    --input <path> --output <path.gif> [--fps N]
+  node scripts/edit.js loudness --input <path> --output <path.mp4> --target <LUFS> --true-peak <dBTP>
+  node scripts/edit.js finish --input <path> [--input <path> ...] --output <path.mp4> --target <LUFS> --true-peak <dBTP>
 
 Commands:
   edit             Apply one or more operations to a single video
   concat           Join two or more videos into one, in the order given
   frames           Write a PNG sequence sampled from a video
   gif              Convert a video to an animated GIF
+  loudness         Set loudness, keeping the copied video and audio channels
+  finish           Join and encode once to H.264 and stereo Opus
   help             Print this message
 
 Options:
-  --input <path>   Video to read, absolute. Required. Repeat it for concat.
+  --input <path>   Video to read, absolute. Required. Repeat it for concat or finish.
   --output <path>  File to write, absolute, or the directory for frames.
                    Required, and it may not sit inside this tool directory.
   --trim-start <s> Start of the range to keep, in seconds. Needs --trim-end.
@@ -69,6 +74,8 @@ Options:
   --text-position  top, center, or bottom. Default center.
   --remove-audio   Drop the audio track.
   --fps <n>        Sample rate for frames and gif. Default ${DEFAULT_FPS}.
+  --target <LUFS>  Required for loudness and finish: decimal from -40 to -5.
+  --true-peak <dBTP> Required for loudness and finish: decimal from -9 to 0.
   --help, -h       Print this message
 
 Reads the local files the caller names and writes the file or directory the
@@ -78,17 +85,16 @@ object to stdout; a usage mistake or a pass FFmpeg cannot complete goes to
 stderr with exit 1.`;
 
 function fail(message) {
-  process.stderr.write(`${message}\n`);
-  process.exit(1);
+  throw new Error(message);
 }
 
 // Arguments. Parsed first so help costs nothing: no file read, no FFmpeg.
-const argv = process.argv.slice(2);
+export function main(argv = process.argv.slice(2)) {
 const command = argv[0] ?? 'help';
 
 if (command === 'help' || argv.includes('--help') || argv.includes('-h')) {
   process.stdout.write(`${USAGE}\n`);
-  process.exit(0);
+  return;
 }
 
 if (!COMMANDS.has(command)) {
@@ -97,7 +103,7 @@ if (!COMMANDS.has(command)) {
 
 const VALUE_FLAGS = new Set([
   '--input', '--output', '--trim-start', '--trim-end', '--width', '--height',
-  '--speed', '--text', '--text-position', '--fps'
+  '--speed', '--text', '--text-position', '--fps', '--target', '--true-peak'
 ]);
 const BARE_FLAGS = new Set(['--remove-audio']);
 
@@ -157,8 +163,8 @@ if (inputsRaw.length === 0) {
 if (command === 'concat' && inputsRaw.length < 2) {
   fail(`Error: concat needs two or more --input paths; got ${inputsRaw.length}. One video has nothing to join.`);
 }
-if (command !== 'concat' && inputsRaw.length > 1) {
-  fail(`Error: ${command} takes one --input; got ${inputsRaw.length}. Only concat reads more than one video.`);
+if (!['concat', 'finish'].includes(command) && inputsRaw.length > 1) {
+  fail(`Error: ${command} takes one --input; got ${inputsRaw.length}. Only concat and finish read more than one video.`);
 }
 
 const inputs = inputsRaw.map((raw) => {
@@ -172,7 +178,7 @@ const inputs = inputsRaw.map((raw) => {
   if (!statSync(path).isFile()) {
     fail(`Error: ${path} is not a file. Point --input at the video file itself, not at a directory.`);
   }
-  return path;
+  return canonical('--input', path);
 });
 
 // Output.
@@ -265,7 +271,7 @@ if (outputPath === toolReal || outputPath.startsWith(`${toolReal}${sep}`) || des
   fail(`Error: --output resolves inside this tool directory (${toolReal}). Scripts write only to a work directory in the owning root; pass that path instead.`);
 }
 
-const REQUIRED_EXTENSION = { edit: '.mp4', concat: '.mp4', gif: '.gif' };
+const REQUIRED_EXTENSION = { edit: '.mp4', concat: '.mp4', gif: '.gif', loudness: '.mp4', finish: '.mp4' };
 const wanted = REQUIRED_EXTENSION[command];
 if (wanted && extname(outputPath).toLowerCase() !== wanted) {
   fail(`Error: --output must end ${wanted} for ${command}; got "${outputPath}".`);
@@ -287,6 +293,21 @@ for (const name of ['--trim-start', '--trim-end', '--width', '--height', '--spee
   refuse(name, ['edit']);
 }
 refuse('--fps', ['frames', 'gif']);
+refuse('--target', ['loudness', 'finish']);
+refuse('--true-peak', ['loudness', 'finish']);
+let target, truePeak;
+if (['loudness', 'finish'].includes(command)) {
+  function decimal(name, min, max) {
+    const raw = flag(name);
+    if (raw === undefined) fail(`Error: ${name} is required for ${command}; see node scripts/edit.js help.`);
+    if (!/^-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)$/.test(raw) || !Number.isFinite(Number(raw)) || Number(raw) < min || Number(raw) > max) {
+      fail(`Error: ${name} must be a decimal from ${min} to ${max}; got "${raw}". See node scripts/edit.js help.`);
+    }
+    return Number(raw);
+  }
+  target = decimal('--target', -40, -5);
+  truePeak = decimal('--true-peak', -9, 0);
+}
 
 const fps = values.has('--fps') ? wholeNumber('--fps', flag('--fps'), 1) : DEFAULT_FPS;
 
@@ -394,34 +415,45 @@ function textFilter() {
   return `drawtext=expansion=none:text=${escapeFilterText(text)}:fontsize=${TEXT_FONT_SIZE}:fontcolor=white:borderw=2:bordercolor=black:x=${x}:y=${y}`;
 }
 
+let activeOutput = ['loudness', 'finish'].includes(command) ? null : outputPath;
 function removePartialOutput() {
   // FFmpeg opens the container before filtergraph binding can fail, so a failed
   // concat (and other file writes) can leave a zero-byte or partial file at the
   // caller-named path. Removing it keeps a failure from looking like a product.
   // frames writes into a directory of many files; that path is left alone.
-  if (command === 'frames') return;
+  if (command === 'frames' || !activeOutput) return;
   try {
-    if (existsSync(outputPath) && statSync(outputPath).isFile()) {
-      unlinkSync(outputPath);
+    if (existsSync(activeOutput) && statSync(activeOutput).isFile()) {
+      unlinkSync(activeOutput);
     }
   } catch {
     // Best effort: the failure message below still names the operation.
   }
 }
 
-function run(args, whatFailed) {
+function run(args, whatFailed, executable = 'ffmpeg') {
   // stdin is closed to the child and never read here, so a run with nobody
   // watching fails rather than waiting. FFmpeg's own output is captured and
   // discarded: it quotes full paths and whatever the container's metadata says.
-  const result = spawnSync('ffmpeg', args, {
-    stdio: ['ignore', 'ignore', 'pipe'],
+  const result = spawnSync(executable, args, {
+    stdio: ['ignore', 'pipe', 'pipe'],
     encoding: 'utf8',
-    maxBuffer: 4 * 1024 * 1024
+    maxBuffer: 64 * 1024 * 1024
   });
   if (result.error || result.status !== 0) {
     removePartialOutput();
     fail(`Error: FFmpeg could not ${whatFailed}. Its own message is withheld because it quotes file paths and container metadata; open the input in a player, or run the equivalent FFmpeg command by hand, to see what it says.`);
   }
+  return result;
+}
+
+if (['loudness', 'finish'].includes(command)) {
+  const dependency = spawnSync('ffprobe', ['-version'], { stdio: 'ignore' });
+  if (dependency.error || dependency.status !== 0) fail('Error: missing ffprobe; check: ffprobe -version.');
+  const result = finishCommand({ command, inputs, output: outputPath, target, truePeak, run,
+    setPending(path) { activeOutput = path; }, removePartialOutput });
+  process.stdout.write(`${JSON.stringify(result)}\n`);
+  return result;
 }
 
 mkdirSync(command === 'frames' ? outputPath : dirname(outputPath), { recursive: true });
@@ -531,3 +563,9 @@ if (command === 'edit') {
 }
 
 process.stdout.write(`${JSON.stringify(result)}\n`);
+
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try { main(); } catch (error) { process.stderr.write(`${error.message}\n`); process.exitCode = 1; }
+}
