@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.27, October 27, 2026
+
+- When you finish a session, What's next now lists only the sessions you should start, each with one line saying what that session will do. A plan whose next step happens in another listed session, or that is waiting on you or someone else, gets no prompt of its own: a wait is listed under Waiting on you, with where its plan lives. Every prompt in the message is under What's next, in the same shape. (f19e505, 6e1305d, 5f755ea)
+- A plan whose only remaining step is its own close-out, needing nothing from you, is now closed out before the session ends instead of being handed to another session. (f19e505, 6e1305d)
+- Each suggested session name continues that plan's own sessions, so two suggestions never share a name, and none repeats the session that just ended. (6e1305d, ddcc754, 5f755ea)
+
 ## v2026.10.26, October 26, 2026
 
 - `video-edit` can now lay a narration file onto a silent video, starting at the moment you name. The picture is kept exactly as it was, the narration starts on that moment to the sample and runs to the video's end, and narration longer than the time left is refused rather than cut. (bef870d, f87430d)
