@@ -55,7 +55,7 @@ One figure or one outcome that lands is a once piece, from `starters/once/`. Wit
 
 ## Video
 
-A piece for a video plays its timeline once from the renderer's time, never the browser's clock, so the same time gives the same frame on any render worker. Its root carries `data-clock="render"`, and each engine then runs on its render clock; the piece's markup, its motion block and `## The timeline` stay the one statement of when each element turns on and off. `tools/video-render/` renders the page, and its `TOOL.md` is the one home of what the project holds and how the time reaches the page.
+A piece for a video plays its timeline once from the renderer's time, never the browser's clock, so the same time gives the same frame on every render. Its root carries `data-clock="render"`, and each engine then runs on its render clock; the piece's markup, its motion block and `## The timeline` stay the one statement of when each element turns on and off. `tools/video-render/` renders the page, and its `TOOL.md` is the one home of what the project holds and how the time reaches the page.
 
 - **A loop's timeline, played once.** `data-len` is the video's duration, and any number past the last moment holds, since a video has no closing fade. The cover lifts at 0.3 s as on a page, and the finished picture holds from the end of the last motion to the end.
 - **The five-second sentence.** In a video it is the conclusion marked `data-keep`, so it shows from the first frame; a heading in its place, with the point arriving on a late beat, does not meet `SKILL.md`'s Objective.
