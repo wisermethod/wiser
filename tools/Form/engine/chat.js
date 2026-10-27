@@ -6,6 +6,8 @@ import './engine.js';
 const view = globalThis.WiserForm;
 const app = new App({ name: 'wiser-form', version: '0.1.0' }, { availableDisplayModes: ['inline'] });
 let received = false;
+let connected = false;
+let ending = false;
 let host = 'unknown';
 const sends = () => Boolean(window.openai) || /chatgpt|openai/i.test(host);
 function syncHost() {
@@ -42,13 +44,18 @@ function accept(form,source) {
   if (!checkForm(form).ok) { view.showEmpty(true); return; }
   view.render(form,{onSubmit:deliver,host,source,sends:sends()});
 }
+function giveUp() { if (!received) view.showEmpty(); }
+// The call ended without a form; ChatGPT's own output still has three seconds to bring one.
+function noFormComing() { if (ending) return; ending = true; setTimeout(giveUp,3000); }
 app.ontoolinput = params => accept(params?.arguments?.form,'tool-call');
-app.ontoolresult = params => accept(params?.structuredContent?.form,'tool-result');
+app.ontoolresult = params => { accept(params?.structuredContent?.form,'tool-result'); noFormComing(); };
+app.ontoolcancelled = noFormComing;
 app.onhostcontextchanged = syncHost;
-void app.connect().then(syncHost,() => {});
+void app.connect().then(() => { connected = true; syncHost(); },() => {});
 function directOutput() { accept(window.openai?.toolOutput?.form,'openai'); }
 // The first available source wins; ChatGPT may supply its output at load or later.
 directOutput();
 window.addEventListener('openai:set_globals',directOutput);
 const poll = setInterval(() => { directOutput(); if (received) clearInterval(poll); },100);
-setTimeout(() => { clearInterval(poll); if (!received) view.showEmpty(); },3000);
+// A connected app may draw the page before the member allows the call, as Cowork does, so only a page no app answered gives up here.
+setTimeout(() => { clearInterval(poll); if (!connected) giveUp(); },3000);

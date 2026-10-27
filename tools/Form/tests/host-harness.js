@@ -9,6 +9,8 @@ window.startHost=async (html,args,result,options={})=>{
  bridge.onsizechange=params=>window.__log.push({kind:'size',params});
  bridge.oninitialized=()=>{
   window.__log.push({kind:'initialized'});
+  if(options.hold)return;
+  if(options.cancel){bridge.sendToolCancelled({reason:'test cancel'});return;}
   if(options.resultFirst){bridge.sendToolResult(result);bridge.sendToolInput({arguments:args});}
   else{bridge.sendToolInput({arguments:args});bridge.sendToolResult(result);}
  };
