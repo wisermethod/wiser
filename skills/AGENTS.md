@@ -73,6 +73,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 
 | Skill | Description | Owner |
 |-------|-------------|-------|
+| `Ask in a Form/SKILL.md` | Put a skill's questions to a member as a form they answer by tapping pictures and choices, shown inside the chat, in a window beside a command-line tool, or as chat buttons where neither can show, with the answers read back and handed to the calling skill | Creative Director |
 | `Build Brand/SKILL.md` | Build or rebuild one user root's design.md, by a brief path of about ten minutes for an existing brand, a full path that writes a Playbook first and builds the brand from the person's own answers by reacting to whole brand boards over sessions, or a simple brand made for a person who asks for one, with every claim traced to an answer, a file or the part it came from | Creative Director |
 | `Build Voice/SKILL.md` | Build or rebuild one user root's voice.md, for a personal root as a coach that asks a few short questions about the person and two screens of quick taps, shows them how they come across, and has them correct a first piece, writing samples optional, and for every other type from real writing evidence routed to the register that root's outputs need | Ghost Writer |
 | `Onboard Root/SKILL.md` | Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types | System Expert |

@@ -16,8 +16,8 @@ The one list; a tool's pages point here.
 |------|-------|-------------|
 | Build Brand's font pack | `skills/Build Brand/parts/fonts/`; download in an OS-temporary directory removed at the end, staging inside `fonts/` removed at the end | `skills/Build Brand/scripts/fonts.mjs` |
 | Plugin consent marker | `.wiser-consent` at the plugin root | every tool that installs |
-| Node packages | `node_modules/` in the tool's directory | the 11 tools whose `package.json` declares a dependency; `pages-functions` is about 210 MB of them, Wrangler and its `workerd` runtime |
-| npm's cache and logs | npm's configured cache, `~/.npm` by default, outside this plugin | the same 11, and the shared browser runtime |
+| Node packages | `node_modules/` in the tool's directory | the 12 tools whose `package.json` declares a dependency, Form included (development tests only); `pages-functions` is about 210 MB of them, Wrangler and its `workerd` runtime |
+| npm's cache and logs | npm's configured cache, `~/.npm` by default, outside this plugin | the same 12, and the shared browser runtime |
 | Python packages | `.venv/` in the tool's directory; pip's cache is switched off | `Screen Capture`, `Transcribe Audio`, `knowledge-memory` graph commands |
 | Decoded frames, redaction candidates and publish sibling | one directory in the platform's temporary directory, `wiser-screen-capture-<random>`, removed at the end of the run and after a failure; a `.wiser-screen-capture-*` sibling beside `--output`, removed once the output has its name and after a failure; either can be left by a kill | `Screen Capture` |
 | HyperFrames' pinned `chrome-headless-shell` 152.0.7977.30, about 200 MB on disk | once, into HyperFrames' own cache, `~/.cache/hyperframes/chrome/`, by HyperFrames' installer, `browser ensure`, under the plugin's consent | `video-render` |
@@ -31,6 +31,7 @@ The one list; a tool's pages point here.
 | Person-scoped model weights (speech and Local Graph embeddings). Not work product. Not a secret. | `models/` under the platform user-config directory `gateway/SETUP.md` names (macOS `~/Library/Application Support/wiser/models/`). Transcribe Audio accepts an explicit absolute `--model-cache` and refuses the connector key file; its `--install` consent permits speech-weight downloads. A knowledge-set recipe names a basename inside models/. knowledge-memory reads files already there and never downloads them; missing graph weights stop as `missing-weights`, including with `--install`. Graph ingest on a `retrieval: embedding` recipe reads that folder too, for the tokenizer it cuts the corpus into passages with, and carries the same `missing-weights` stop on the same check, so a set whose weights are absent stops at ingest rather than at its first question. | `Transcribe Audio`, `knowledge-memory` graph embedding recall and graph ingest on `retrieval: embedding` |
 | The deliverable | exactly the path the caller passes | every tool that writes one |
 | A browser profile with live sign-ins, and a trace archive with cookies in it | exactly the `--profile` and `trace stop --output` paths | `Browser Control` |
+| A browser profile and Browser Control's host error log for one form | one directory in the platform's temporary directory, `wiser-form-ask-<random>`, removed at the end, after failure and on SIGINT, SIGTERM or SIGHUP | `Form` `ask`, through `Browser Control` |
 | A session token | `~/.wiser/browser-control/<port>.token`, outside this plugin; left behind by a kill | `Browser Control` |
 | An image written back onto its input | the `--base` path, only with `--confirm` | `image compose` |
 | A dated copy of a deck before an in-place edit | `--archive-dir`, or `zArchive/` beside the deck | `keynote-render` |
@@ -53,6 +54,7 @@ The gateway's writes are listed in `gateway/AGENTS.md`, Everything the gateway w
 | Tool | Description |
 |------|-------------|
 | `Browser Control/TOOL.md` | Drives a persistent Chromium session to read, navigate, and act on pages that need a real browser, answering every command with the page state that followed |
+| `Form/TOOL.md` | Check and fill Wiser forms and draw their questions in a page that returns answers to the chat |
 | `Subagent Runner/TOOL.md` | Run one builder or reviewer through a vendor command-line tool named by flags, or survey the boundary that run would use |
 
 ### Data
