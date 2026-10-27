@@ -1,9 +1,9 @@
 import test,{before,after,afterEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {spawn,execFile} from 'node:child_process';
-import {mkdtemp,mkdir,cp,symlink,writeFile,readFile,readdir,rm,realpath} from 'node:fs/promises';
+import {mkdtemp,mkdir,cp,symlink,writeFile,readFile,readdir,rm,realpath,access} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
-import {join} from 'node:path';
+import {join,basename} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {connect} from 'node:net';
 import {SAMPLE_FORM} from '../scripts/format.js';
@@ -70,11 +70,12 @@ async function waitForFile(file) {
   }
   assert.fail(`test marker did not arrive: ${file}`);
 }
-async function clean({url,profile,reused = false} = {}) {
+async function clean({url,profile,reused = false,kept = false} = {}) {
   assert.deepEqual(await listenerPids(),[],'no form listener process remains');
   if (url) assert.equal(await portOpen(Number(new URL(url).port)),false,'form port closed before output');
-  assert.deepEqual(await profiles(),[],'ask temporary profile removed before output');
-  if (profile && !reused) await assert.rejects(readFile(join(profile,'host-stderr.log')),{code:'ENOENT'});
+  assert.deepEqual(await profiles(),kept ? [basename(profile)] : [],'only an unsettled host keeps its temporary profile');
+  if (kept) await access(profile);
+  if (profile && !reused && !kept) await assert.rejects(readFile(join(profile,'host-stderr.log')),{code:'ENOENT'});
   const status = await bc(['session','status']);
   assert.equal(status.running,reused,'only a reused host may remain');
   assert.equal(await portOpen(4395),reused,'host port closed before output unless reused');
@@ -193,6 +194,17 @@ test('ask reuses a host on 4395 and leaves it running while cleaning its own lis
     assert.deepEqual(json(await run.done),{status:'unanswered'});
     await clean({...status,reused:true});
   } finally { await bc(['session','stop']); }
+});
+for (const missing of [false,true]) test(`ask recovers an orphan host with its profile ${missing ? 'already gone' : 'still present'}`,{timeout:30000},async () => {
+  const profile = await mkdtemp(join(root,'runtime','wiser-form-ask-'));
+  await bc(['session','start','--profile',profile,'--headless']);
+  if (missing) await rm(profile,{recursive:true,force:true});
+  const run = command(script,['ask','--sample','--headless']);
+  const status = await ready(run);
+  assert.equal(status.profile,profile,'navigate the orphan instead of starting another host');
+  const expected = await submit();
+  assert.deepEqual(json(await run.done),expected);
+  await clean(status);
 });
 for (const signal of ['SIGTERM','SIGINT','SIGHUP']) test(`ask ${signal} while waiting cleans the listener, host and profile`,{timeout:30000},async () => {
   const run = command(script,['ask','--sample','--headless']);
@@ -316,7 +328,7 @@ test('ask keeps answered stdout and reports a cleanup failure on stderr',{timeou
     const status = await ready(run),expected = await submit(),output = await run.done;
     assert.deepEqual(json(output,output.stderr),expected);
     assert.equal(output.stderr,'Cleanup: Error: scripted cleanup failure\n');
-    await clean(status);
+    await clean({...status,kept:true});
   });
 });
 for (const stage of ['navigate','emulate']) test(`ask Browser Control ${stage} failure cleans its listener, host and profile`,{timeout:30000},async () => {
@@ -346,4 +358,99 @@ test('ask exception making its profile cleans the already started listener',{tim
   const result = json(await run.done);
   assert.equal(result.status,'no-window'); assert.match(result.reason,/ENOENT/);
   await clean();
+});
+
+test('ask failed start waits for its spawned host to come up late before removing its profile',{timeout:30000},async () => {
+  const server = join(copy,'tools/Browser Control/scripts/server.js'),original = await readFile(server);
+  const held = join(root,'late-held'),release = join(root,'late-release'),failed = join(root,'late-failed'),probe = join(root,'late-probe');
+  await writeFile(server,original.toString().replace('const TOOL_DIR =',`
+    writeFileSync(${JSON.stringify(held)},JSON.stringify({pid:process.pid,profile:process.argv[process.argv.indexOf('--profile')+1]}));
+    while (!existsSync(${JSON.stringify(release)})) await new Promise(done => setTimeout(done,25));
+    const TOOL_DIR =`));
+  try {
+    await withBrowserFault("args[0] === 'session' && args[1] === 'start'",`
+      const {spawn} = await import('node:child_process');
+      const {existsSync,writeFileSync} = await import('node:fs');
+      if (matches) {
+        const child = spawn(process.execPath,[${JSON.stringify(join(copy,'tools/Browser Control/scripts/real-browser.js'))},...args],{detached:true,stdio:'ignore'});
+        child.unref();
+        while (!existsSync(${JSON.stringify(held)})) await new Promise(done => setTimeout(done,25));
+        writeFileSync(${JSON.stringify(failed)},String(child.pid));
+        process.stderr.write('Error: scripted failure before host listens\\n'); process.exit(1);
+      }
+      if (args[1] === 'status' && existsSync(${JSON.stringify(failed)})) {
+        const r = spawnSync(process.execPath,[${JSON.stringify(join(copy,'tools/Browser Control/scripts/real-browser.js'))},...args],{encoding:'utf8'});
+        if (r.status === 0 && !JSON.parse(r.stdout).running) writeFileSync(${JSON.stringify(probe)},'');
+        process.stdout.write(r.stdout); process.stderr.write(r.stderr); process.exit(r.status ?? 1);
+      }`,async () => {
+      const run = command(script,['ask','--sample','--headless']);
+      const {pid,profile} = JSON.parse(await waitForFile(held));
+      await waitForFile(probe);
+      await delay(500);
+      assert.equal(await portOpen(4395),false,'the spawned host is still coming up');
+      await access(profile);
+      assert.equal(run.child.exitCode,null,'a quiet port after start exited is not final');
+      await writeFile(release,'');
+      assert.deepEqual(json(await run.done),{status:'no-window',reason:'Error: scripted failure before host listens'});
+      await clean({profile});
+      assert.throws(() => process.kill(pid,0),{code:'ESRCH'},'late host exited');
+    });
+  } finally {
+    await writeFile(release,'');
+    await writeFile(server,original);
+    try { process.kill(Number(await readFile(failed,'utf8')),'SIGKILL'); } catch (error) { if (!['ENOENT','ESRCH'].includes(error.code)) throw error; }
+  }
+});
+
+for (const failure of ['success while still listening','throw while still listening']) test(`ask stop ${failure} keeps its profile and interrupted result`,{timeout:30000},async () => {
+  await withBrowserFault("args[0] === 'session' && args[1] === 'stop'",`if (matches) {
+    ${failure.startsWith('success') ? "process.stdout.write('{}\\n'); process.exit(0);" : "process.stderr.write('Error: scripted stop failure\\n'); process.exit(1);"}
+  }`,async () => {
+    const run = command(script,['ask','--sample','--headless']);
+    const status = await ready(run); run.child.kill('SIGINT');
+    const output = await run.done;
+    assert.deepEqual(json(output,output.stderr),{status:'interrupted',signal:'SIGINT'});
+    assert.equal(output.stderr,failure.startsWith('success') ? 'Cleanup: The browser host did not stop.\n' : 'Cleanup: Error: scripted stop failure\n');
+    await clean({...status,reused:true,kept:true});
+  });
+});
+
+for (const status of ['interrupted','needs-install']) test(`ask keeps ${status} when listener cleanup fails`,{timeout:30000},async () => {
+  await withLocalFault("if (args[1] === 'stop') throw new Error('scripted listener cleanup failure');",async () => {
+    const run = command(script,['ask','--sample','--headless'],status === 'needs-install' ? {
+      PLAYWRIGHT_BROWSERS_PATH:join(root,'absent-browser')
+    } : {});
+    if (status === 'interrupted') { await ready(run); run.child.kill('SIGTERM'); }
+    const output = await run.done,result = json(output,output.stderr);
+    assert.equal(result.status,status);
+    if (status === 'interrupted') assert.equal(result.signal,'SIGTERM');
+    else assert.match(result.report,/has not authorised an install\./);
+    assert.equal(output.stderr,'Cleanup: scripted listener cleanup failure\n');
+    await clean();
+  });
+});
+
+test('ask retries reset probes until its stopped host refuses connections',{timeout:30000},async () => {
+  const ask = join(copy,'tools/Form/scripts/ask.js'),original = await readFile(ask);
+  const net = join(copy,'tools/Form/scripts/test-net.js'),probes = join(root,'reset-probes');
+  await writeFile(net,`import {connect as realConnect} from 'node:net';
+    import {EventEmitter} from 'node:events';
+    import {appendFileSync} from 'node:fs';
+    let resets = 0;
+    export function connect(options) {
+      if (options.port !== 4395 || resets++ >= 2) return realConnect(options);
+      appendFileSync(${JSON.stringify(probes)},'reset\\n');
+      const socket = new EventEmitter();
+      socket.setTimeout = () => {}; socket.destroy = () => {};
+      queueMicrotask(() => socket.emit('error',Object.assign(new Error('scripted close reset'),{code:'ECONNRESET'})));
+      return socket;
+    }`);
+  await writeFile(ask,original.toString().replace("from 'node:net'","from './test-net.js'"));
+  try {
+    const run = command(script,['ask','--sample','--headless']);
+    const status = await ready(run); run.child.kill('SIGHUP');
+    assert.deepEqual(json(await run.done),{status:'interrupted',signal:'SIGHUP'});
+    assert.equal(await readFile(probes,'utf8'),'reset\nreset\n','retry after both close resets');
+    await clean(status);
+  } finally { await writeFile(ask,original); await rm(net); }
 });
