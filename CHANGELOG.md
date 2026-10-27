@@ -4,6 +4,13 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.27.4, October 27, 2026
+
+- A form's picture questions can now offer an answer in words beside the pictures, such as Neither, so you can say none of them fits rather than leave the question blank. (86dbb47)
+- On a phone, two or three pictures now sit one above another, each beside its label, so every word stays whole; on a wider screen they sit side by side in one row. (86dbb47)
+- The circle you tap to pick a picture now sits beside its label, so it no longer covers part of the picture. (86dbb47)
+- A typeface picture that shows two typefaces now sets your own words in both of them. (86dbb47)
+
 ## v2026.10.27.3, October 27, 2026
 
 - `video-render` now draws every frame of a video in one browser, in order, unless you ask for more, so a page that fades or zooms gives the same frames each time you render it. Split across several browsers, a few of those frames could come out a shade different from one render to the next. One browser can take up to about twice as long; asking for more workers is still faster, and a saved render is kept separately for each number of workers. (c2c66aa, 38fedbd)
