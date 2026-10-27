@@ -30,12 +30,13 @@ export function localRequest({port,code},suffix,method = 'GET',timeout = 5000) {
   });
 }
 
-export async function serve(form,ttl) {
+export async function serve(form,ttl,onChild = () => {}) {
   let child;
   try {
     child = fork(fileURLToPath(new URL('./listener.js',import.meta.url)),[],{
       detached:true,stdio:['ignore','ignore','ignore','ipc'],execArgv:[]
     });
+    onChild(child); // ask retains the handle so cleanup waits for the process too.
     const info = await new Promise((accept,reject) => {
       const timer = setTimeout(() => finish(Object.assign(new Error(),{code:'STARTUP_TIMEOUT'})),4000);
       function finish(error,value) {

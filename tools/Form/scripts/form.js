@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// See standards/script-contract.md and tools/RUNNING.md. No packages, writes or installs.
+// See standards/script-contract.md and tools/RUNNING.md. ask delegates its window to Browser Control.
 import { openSync,readSync,closeSync,realpathSync,statSync } from 'node:fs';
 import { isAbsolute,resolve,basename,dirname,join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -13,13 +13,19 @@ export const HELP = `Usage: node scripts/form.js <command> [flags]
   sample                              Print {form}
   serve (--form <absolute file> | --sample) [--ttl <seconds>]
                                       Serve on this computer; never opens a window
+  ask (--form <absolute file> | --sample) [--ttl <seconds>] [--seconds <1..3600>]
+      [--install] [--headless]         Show a window and wait (default 900 seconds)
+                                      --headless is for checks; members get a visible window
   wait --port <n> --code <code> [--seconds <n>]
                                       Wait for answers (default 50 seconds)
   stop --port <n> --code <code>         Stop this form's listener
 Flags: --help, --form <file>, --template <file>, --values <file>, --sample,
        --ttl <1..86400> (default 1800), --port <1..65535>,
-       --code <32 lowercase hex characters>, --seconds <0..3600> (default 50).
-No --install: this command installs nothing and writes nothing.
+       --code <32 lowercase hex characters>,
+       --seconds <n> (ask: 1..3600, default 900; wait: 0..3600, default 50),
+       --install (ask only: authorise Browser Control's first install),
+       --headless (ask only: checks without a window; members get a visible window).
+Only ask starts Browser Control and creates a temporary profile, removed at the end.
 Input files must be JSON, at most 262144 bytes. All paths must be absolute.
 `;
 const fail = cause => { throw new Error(`${cause} See node scripts/form.js help.`); };
@@ -51,16 +57,16 @@ export function run(args) {
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a.startsWith('-')) {
-      if (!['--help','--form','--template','--values','--sample','--ttl','--port','--code','--seconds'].includes(a)) fail(`Unknown flag: ${a}.`);
+      if (!['--help','--form','--template','--values','--sample','--ttl','--port','--code','--seconds','--install','--headless'].includes(a)) fail(`Unknown flag: ${a}.`);
       if (Object.hasOwn(flags,a)) fail(`Repeated flag: ${a}.`);
-      if (a === '--help' || a === '--sample') flags[a] = true;
+      if (['--help','--sample','--install','--headless'].includes(a)) flags[a] = true;
       else { if (!args[i+1] || args[i+1].startsWith('-')) fail(`${a} needs a value.`); flags[a] = args[++i]; }
     } else positionals.push(a);
   }
   const command = positionals[0] ?? 'help';
   if (positionals.length > 1) fail(`Unexpected argument: ${positionals[1]}.`);
-  if (!['help','check','fill','schema','sample','serve','wait','stop'].includes(command)) fail(`Unknown command: ${command}.`);
-  const allowed = {check:['--form'],fill:['--template','--values'],serve:['--form','--sample','--ttl'],wait:['--port','--code','--seconds'],stop:['--port','--code']}[command] ?? [];
+  if (!['help','check','fill','schema','sample','serve','ask','wait','stop'].includes(command)) fail(`Unknown command: ${command}.`);
+  const allowed = {check:['--form'],fill:['--template','--values'],serve:['--form','--sample','--ttl'],ask:['--form','--sample','--ttl','--seconds','--install','--headless'],wait:['--port','--code','--seconds'],stop:['--port','--code']}[command] ?? [];
   for (const flag of Object.keys(flags)) if (flag !== '--help' && !allowed.includes(flag)) fail(`Flag ${flag} is not used by ${command}.`);
   if (command === 'help' || flags['--help']) return HELP;
   const number = (flag,fallback,min,max) => {
@@ -69,14 +75,16 @@ export function run(args) {
     if (!/^\d+$/.test(raw) || !Number.isSafeInteger(value) || value < min || value > max) fail(`${flag} must be a whole number from ${min} to ${max}.`);
     return value;
   };
-  if (command === 'serve') {
-    if (Boolean(flags['--form']) === Boolean(flags['--sample'])) fail('serve requires exactly one of --form or --sample.');
+  if (command === 'serve' || command === 'ask') {
+    if (Boolean(flags['--form']) === Boolean(flags['--sample'])) fail(`${command} requires exactly one of --form or --sample.`);
     const ttl = number('--ttl',1800,1,86400);
+    const seconds = command === 'ask' ? number('--seconds',900,1,3600) : undefined;
     const form = flags['--sample'] ? SAMPLE_FORM : readJson(flags['--form'],'--form');
     const checked = checkForm(form);
     if (!checked.ok) fail(checked.problems.map(p => `${p.path || '(form)'}: ${p.message}`).join('\n'));
     if (Object.hasOwn(process.env,'SSH_CONNECTION') || Object.hasOwn(process.env,'SSH_TTY')) return {status:'no-window',reason:'An SSH session cannot show a window on this computer.'};
     if (process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) return {status:'no-window',reason:'Neither DISPLAY nor WAYLAND_DISPLAY is set on this computer.'};
+    if (command === 'ask') return import('./ask.js').then(({ask}) => ask(form,{ttl,seconds,install:Boolean(flags['--install']),headless:Boolean(flags['--headless'])}));
     return import('./local.js').then(({serve}) => serve(form,ttl));
   }
   if (command === 'wait' || command === 'stop') {

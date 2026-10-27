@@ -26,7 +26,7 @@ node scripts/form.js sample
 node scripts/form.js check --form /absolute/path/form.json
 ```
 
-The command needs only Node, installs nothing and writes nothing. The local window commands use only this computer's loopback address; the other commands make no network request. Its contract is `standards/script-contract.md`, through `system/templates/Script Contract.md`; the caller's guide is `tools/RUNNING.md`.
+The format commands need only Node, install nothing and write nothing. `ask` also runs Browser Control, which uses the shared browser runtime and can install it on consent. It makes a temporary browser profile and removes it at the end. The local window commands use this computer's loopback address; the format commands make no network request. Its contract is `standards/script-contract.md`, through `system/templates/Script Contract.md`; the caller's guide is `tools/RUNNING.md`.
 
 ## Usage
 
@@ -36,21 +36,27 @@ The command needs only Node, installs nothing and writes nothing. The local wind
 | `node scripts/form.js check --form <file>` | `{ "ok": true or false, "kind": "form" or "template", "problems": [{ "path": "questions[2].options[0].picture", "message": "..." }] }`; exit 0 for either verdict |
 | `node scripts/form.js fill --template <file> --values <file>` | `{ "ok": true, "form": {...} }`; a refusal exits 1 with every problem's path and message on stderr |
 | `node scripts/form.js schema` | `{ "schema": {...}, "limits": {...}, "fontHosts": [...] }` |
+| `node scripts/form.js serve (--form <file> \| --sample) [--ttl <seconds>]` | Start a detached listener and return its address |
+| `node scripts/form.js ask (--form <file> \| --sample) [--ttl <seconds>] [--seconds <n>] [--install] [--headless]` | Show the form in Browser Control, wait, clean up and print one final object |
+| `node scripts/form.js wait --port <n> --code <code> [--seconds <n>]` | Collect answers, or return `waiting` or `gone` |
+| `node scripts/form.js stop --port <n> --code <code>` | Stop the named listener |
 | `node scripts/form.js sample` | `{ "form": {...} }`, the six-question sample |
 
 | Flag | Meaning |
 |------|---------|
 | `--help` | Print usage; accepted with every command |
-| `--form <file>` | Required by `check`; for `serve`, a form instead of `--sample`; absolute path to JSON |
+| `--form <file>` | Required by `check`; for `serve` and `ask`, a form instead of `--sample`; absolute path to JSON |
 | `--template <file>` | Required by `fill`; absolute path to template JSON |
 | `--values <file>` | Required by `fill`; absolute path to a JSON object of slot values |
-| `--sample` | Use the built-in form with `serve`, instead of `--form` |
-| `--ttl <seconds>` | `serve` lifetime, a whole number from 1 to 86400; default 1800 |
+| `--sample` | Use the built-in form with `serve` or `ask`, instead of `--form` |
+| `--ttl <seconds>` | `serve` or `ask` listener lifetime, a whole number from 1 to 86400; default 1800 |
 | `--port <n>` | Required by `wait` and `stop`; a whole number from 1 to 65535 |
 | `--code <code>` | Required by `wait` and `stop`; the serving result's 32 lowercase hex characters |
-| `--seconds <n>` | `wait` duration, a whole number from 0 to 3600; default 50 |
+| `--seconds <n>` | `wait`: 0 to 3600, default 50; `ask`: 1 to 3600, default 900; whole seconds to wait for answers after the page opens |
+| `--install` | `ask` only: pass consent for Browser Control's first install; a yes means running the same `ask` command again with this flag |
+| `--headless` | `ask` only: no visible browser window, for checks and tests; a member always gets a visible window |
 
-No command accepts `--install` or `--env`. Unknown flags are refused by name, including beside help, and point at this command's help. Repeated flags, unused flags, extra arguments and missing flag values are refused. Every input must be a file, at most 262,144 bytes, containing JSON. Paths are canonicalized before reading. Relative paths, `.env` inputs and paths resolving inside a directory named `memory` are refused. A missing file, oversized file, invalid JSON or unreadable path exits 1, naming the cause and pointing at help. A failure leaves stdout empty; success prints one JSON object, except help's usage text.
+Only `ask` accepts `--install`; no command accepts `--env`. Unknown flags are refused by name, including beside help, and point at this command's help. Repeated flags, unused flags, extra arguments and missing flag values are refused. Every input must be a file, at most 262,144 bytes, containing JSON. Paths are canonicalized before reading. Relative paths, `.env` inputs and paths resolving inside a directory named `memory` are refused. A missing file, oversized file, invalid JSON or unreadable path exits 1, naming the cause and pointing at help. A failure leaves stdout empty; success prints one JSON object, except help's usage text.
 
 ## Format
 
@@ -145,11 +151,18 @@ ChatGPT sends the message itself. Claude and Cowork put it in the member's messa
 
 ## The window on a member's computer
 
-Command-line tools show the same form in Browser Control's own window. The Form tool never opens a window and never runs Browser Control. A calling skill opens the address after `serve` returns. The detached listener holds the form and its answers in memory only: no form file, answer file or log is written. It needs no packages or bundler.
+Command-line tools show the same form in Browser Control's own window. With `serve`, a calling skill opens the address after the command returns. The detached listener holds the form and its answers in memory only: no form file, answer file or log is written. It needs no packages or bundler.
+
+Use `ask` when a sandbox refused the listener, so one yes to run that command outside the sandbox covers the whole form. It serves with the same checks and listener, then runs Browser Control's `session status --port 4395`. An existing host is reused and left running. Otherwise it makes a profile in the system temporary directory and starts its own host on that port, passing `--install` and `--headless` through when given. It navigates to the form, sets the viewport to 480 by 900, and waits in the same command for up to `--seconds`, default 900. A member always gets a visible window; `--headless` is only for checks and tests. At the end it stops the listener, stops only a host it started and removes only a profile it made. This also runs after an exception, a window failure, SIGINT, SIGTERM or SIGHUP. Browser Control commands run in separate process groups, so a terminal group signal is remembered until the current operation settles, then cleanup runs once. An unsettled start is checked for up to 65 seconds before its profile can be removed; if it cannot be resolved, the profile is kept and a cleanup failure is reported. Child output is captured. The command prints one final JSON object after cleanup; invalid inputs retain `serve`'s stderr and exit 1.
+
+On answers, `ask` prints exactly `wait`'s `answered` object. Before stopping a serving listener on any other result, it checks once more for answers; an `answered` reply becomes the final result. A cleanup failure after answers writes to stderr and preserves that `answered` object on stdout. On timeout or an expired listener with no answers collected it prints `{ "status": "unanswered" }`. An interrupted run with no answers collected prints `{ "status": "interrupted", "signal": "SIGINT", "SIGTERM" or "SIGHUP" }`. When Browser Control reports its first install, `ask` returns `{ "status": "needs-install", "report": <Browser Control's report>, "reason": "A yes means running ask again with --install." }` with no listener or profile left. Other Browser Control failures return `no-window` with a `reason`. These status objects exit 0; read the status before proceeding.
+
+Measured in Codex on 2026-10-27 with `--sandbox workspace-write --ask-for-approval on-request`: the sandbox refused every connection to the computer's own network. The separate `serve`, Browser Control `session start`, `navigate`, `emulate set`, `wait`, `stop` and `session stop` commands each needed the member's yes, seven requests for one form. `ask` lets the tool ask once for the whole command and its children. Keep `serve`, `wait` and `stop` everywhere else: Grok Build ends a blocking call at its own limit.
 
 ```bash
 node scripts/form.js serve --form /absolute/path/form.json --ttl 1800
 node scripts/form.js serve --sample
+node scripts/form.js ask --sample --seconds 900
 node scripts/form.js wait --port 12345 --code 0123456789abcdef0123456789abcdef --seconds 50
 node scripts/form.js stop --port 12345 --code 0123456789abcdef0123456789abcdef
 ```
@@ -161,8 +174,11 @@ node scripts/form.js stop --port 12345 --code 0123456789abcdef0123456789abcdef
 | Status | Caller does next |
 |--------|------------------|
 | `serving` | Open `url` in Browser Control's own window, then run the returned `wait` command |
-| `no-window` | Ask in chat; `reason` names SSH or, on Linux, missing `DISPLAY` and `WAYLAND_DISPLAY`; nothing started |
+| `no-window` | Ask in chat; `reason` names SSH, missing Linux `DISPLAY` and `WAYLAND_DISPLAY`, or an `ask` window or cleanup failure; an unresolved browser startup keeps its profile |
 | `no-listen` | Ask in chat, or run outside the tool's sandbox; `reason` gives the error code and explains that listening was not allowed; no listener is left |
+| `needs-install` | Put Browser Control's `report` to the member; a yes means running the same `ask` again with `--install`; nothing is left running |
+| `unanswered` | `ask` ended without answers; its listener and any host and profile it made have been removed |
+| `interrupted` | `ask` caught the named `signal` and cleaned up; return to the chat |
 | `waiting` | Run `wait` again; the object also carries the form's `url` |
 | `answered` | Read the answers back to the member |
 | `gone` | The form closed; return to the chat |
@@ -182,9 +198,9 @@ From this directory, with the development packages already installed:
 node --test
 ```
 
-Format, command and page tests use Node built-ins; `schema.test.js` uses development Zod to accept every passing fixture against the published schema. Browser tests use the SDK's `AppBridge` host and the shared `tools/lib/browser-runtime/` launch function. Development dependencies and that runtime can be installed by maintainers with `npm ci` in their respective directories; members do not install them to run commands. Browser tests skip with the missing package named only when the development packages or shared Playwright runtime are absent; launch, build and assertion failures fail the test.
+Format, command and page tests use Node built-ins; `schema.test.js` uses development Zod to accept every passing fixture against the published schema. Browser tests use the SDK's `AppBridge` host and the shared `tools/lib/browser-runtime/` launch function. Development dependencies and that runtime can be installed by maintainers with `npm ci` in their respective directories. Member commands need no development packages; `ask` uses Browser Control's runtime under its normal install consent. Browser tests skip with the missing package named only when the development packages or shared Playwright runtime are absent; launch, build and assertion failures fail the test.
 
-The suite covers boundary and refusal paths, template substitution, package-free commands, source precedence, delivery order and fallback, mouse and keyboard controls at 360, 390 and 720 pixels, longest labels, target sizes, computed light/dark contrast, host theme changes, no-form/refusal states, and local font routing. Browser requests are intercepted and recorded; only the declared fixture font may be requested. Tests write only temporary files and remove them.
+The `ask` tests also cover a scripted answer, timeout, refusals, host reuse, SIGINT, SIGTERM, SIGHUP, the first-install report, Browser Control failures and an exception while making the profile. They check that owned listeners and hosts stop and temporary profiles are removed before output. The suite covers boundary and refusal paths, template substitution, package-free commands, source precedence, delivery order and fallback, mouse and keyboard controls at 360, 390 and 720 pixels, longest labels, target sizes, computed light/dark contrast, host theme changes, no-form/refusal states, and local font routing. Browser requests are intercepted and recorded; only the declared fixture font may be requested. Tests write only temporary files and remove them.
 
 ## Troubleshooting
 
@@ -201,4 +217,4 @@ If the calling request is ambiguous, the calling session clarifies before choosi
 
 ## Success
 
-A check reports every problem by path. A fill changes only tokens and returns a valid form. The page draws checked questions, accepts keyboard and pointer answers, and sends structured answers before their user message with wording appropriate to the host. Commands write nothing and install nothing.
+A check reports every problem by path. A fill changes only tokens and returns a valid form. The page draws checked questions, accepts keyboard and pointer answers, and sends structured answers before their user message with wording appropriate to the host. Format commands write nothing and install nothing. `ask` returns one final result after cleaning up its listener and any browser host and profile it made, leaving a reused host running.
