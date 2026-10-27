@@ -15,14 +15,19 @@ legend{font-weight:600;padding:0;margin:0 0 8px}
 .choice{display:flex;align-items:center;gap:8px;min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);cursor:pointer}
 .choice input{width:18px;height:18px;margin:0;accent-color:var(--accent)}
 .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.tiles[data-count="2"]{grid-template-columns:repeat(2,minmax(0,1fr))}
+.tiles[data-count="3"]{grid-template-columns:repeat(3,minmax(0,1fr))}
+.tiles+.choices{margin-top:8px}
+@media(max-width:559px){.tiles[data-count="2"],.tiles[data-count="3"]{grid-template-columns:minmax(0,1fr)}.tiles[data-count="2"] .tile,.tiles[data-count="3"] .tile{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);align-items:center}}
 .tile{position:relative;display:block;border:2px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card);cursor:pointer}
 .tile .pic{display:block;width:100%;height:auto;aspect-ratio:3/2}
 .tile-input{position:absolute;opacity:0;width:1px;height:1px}
-.tile-label{display:flex;flex-direction:column;padding:8px 12px;min-height:44px}
-.tile-label small{color:var(--muted)}
+.tile-label{display:grid;grid-template-columns:minmax(0,1fr) 24px;column-gap:8px;padding:8px;min-height:44px}
+.tile-label>span{min-width:0}
+.tile-label small{grid-column:1/-1;color:var(--muted)}
 .tile:has(.tile-input:checked){border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
 .tile:has(.tile-input:focus-visible){outline:3px solid var(--accent);outline-offset:2px}
-.mark{position:absolute;top:8px;right:8px;width:24px;height:24px;background:var(--card);border:2px solid var(--line)}
+.mark{position:relative;grid-column:2;grid-row:1;align-self:start;margin-top:calc((1.45em - 24px)/2);width:24px;height:24px;background:var(--card);border:2px solid var(--line)}
 .mark.dot{border-radius:50%}
 .mark.check{border-radius:6px}
 .tile:has(.tile-input:checked) .mark{background:var(--accent);border-color:var(--accent)}

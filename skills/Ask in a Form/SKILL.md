@@ -3,7 +3,7 @@ name: Ask in a Form
 type: skill
 category: onboarding
 description: Put a skill's questions to a member as a form they answer by tapping pictures and choices, shown inside the chat, in a window beside a command-line tool, or as chat buttons where neither can show, with the answers read back and handed to the calling skill
-version: 0.1.0
+version: 0.1.1
 ---
 
 # Ask in a Form
@@ -51,7 +51,7 @@ A host who asks only what the calling skill needs, in a form a member can finish
    - First, on a form being written and on a filled template alike: does any question ask for something a member would not say aloud in the chat, such as a password, a key, a secret code, a recovery phrase, a card or bank detail, or a sign-in? Yes: leave it out, say in one plain line that it is not something to give in a form, and go on with the rest; none left, stop, saying so to the calling skill, or to the member where there is none. No: go on. A filled template goes from here to step 3.
    - Ask only what the calling skill needs. Six questions or fewer: one form. More: the six that decide the most, then a second form after the first's answers, from step 2 again.
    - Each question's `label` is the question in the member's terms; its `short` is the few words it goes by in the answers, such as "Colour mood". A `help` line only where the label cannot carry it.
-   - Options the member should see, not read, are pictures: `palette:` for colours, `motif:` for a pattern's character, `type:` for a typeface, its fonts declared in `fonts`. Each picture differs from its neighbours on the axis the question asks about, and its `label` names what it is in a word or two.
+   - Options the member should see, not read, are pictures: `palette:` for colours, `motif:` for a pattern's character, `type:` for a typeface, its fonts declared in `fonts`. Each picture differs from its neighbours on the axis the question asks about, and its `label` names what it is in a word or two. An answer no picture can show, such as "Neither", is an option with no picture, which the form draws as a word beneath the pictures.
    - A slider for a scale with two named ends; a text box only for what no option can hold.
    - Check it where a shell can run this plugin's tools, `node tools/Form/scripts/form.js check --form <file>`, fixing each part it names; otherwise `show_form` checks it at step 3.
 

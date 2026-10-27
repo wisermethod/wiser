@@ -3,7 +3,7 @@ name: Form
 type: tool
 category: automation
 description: Check and fill Wiser forms and draw their questions in a page that returns answers to the chat
-version: 0.1.0
+version: 0.2.0
 ---
 
 # Form
@@ -83,7 +83,7 @@ Every question has required `id`, `type`, `label` and optional `short`, `help`. 
 | Type | Remaining keys |
 |------|----------------|
 | `radio`, `checkbox` | Required `options`, 2 to 12 entries |
-| `image-radio`, `image-checkbox` | Required `options`, 2 to 8 entries, each with a picture |
+| `image-radio`, `image-checkbox` | Required `options`, 2 to 8 entries, at least two with a picture |
 | `slider` | Required finite numbers `min`, `max`, with `min < max`; optional `step`, `value`, `minLabel`, `maxLabel` |
 | `text` | Optional `placeholder`, at most 120 characters; answer capped at 1000 characters |
 
@@ -96,8 +96,10 @@ An option takes exactly:
 | `value` | Required; `^[a-z0-9][a-z0-9-]{0,39}$`, unique within its question |
 | `label` | Required string, 1 to 60 characters |
 | `note` | Optional string, at most 80 |
-| `picture` | Required on image types, refused on other types |
+| `picture` | Optional on image types; at least two options must have one. Refused on other types |
 | `sample` | Optional only with a `type:` picture, at most 24 characters |
+
+Pictured options draw as tiles, in their order, the pick mark beside each caption's first line, never on the picture. Two or three pictures share one row from a 560-pixel page up; on a narrower page they stack, one per row, each picture beside its caption, so a label such as "Contemporary" stays whole. Four or more use a wrapping grid. Options without pictures draw after the tiles, in their order, as the same word choices `radio` and `checkbox` use. Tiles and words share one question and input group. An option without a picture cannot have a `sample`.
 
 Pictures are drawn in code. They fetch nothing:
 
@@ -105,7 +107,7 @@ Pictures are drawn in code. They fetch nothing:
 |---------|---------|
 | `palette:#hex,#hex,...` | Stripes of 1 to 8 colours; each is exactly `#rgb` or `#rrggbb` |
 | `motif:<name>[:#fg,#bg]` | `dots`, `grid`, `waves`, `arcs`, `stripes`, `rings`, `triangles` or `blob`; either no colours or exactly two |
-| `type:<family>[+<family>][:#fg,#bg]` | A large `sample` (default `Aa`) in the first family; a second family draws `Abc 123` beneath it; either no colours or exactly two |
+| `type:<family>[+<family>][:#fg,#bg]` | A large `sample` (default `Aa`) in the first family; a second family draws the same sample beneath it, or `Abc 123` if no sample was supplied; either no colours or exactly two |
 
 Every type family must be declared in `fonts` or be `serif`, `sans-serif`, `monospace` or `system-ui`. Colours use the same hex grammar for every picture. Motifs and type samples default to dark ink on a light ground. Type sample ink falls back to black or white if the requested pair cannot give the text 4.5:1 contrast.
 

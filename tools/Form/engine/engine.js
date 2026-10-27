@@ -62,14 +62,14 @@ function picture(desc, sample) {
     // A declared face loads in the background; the generic after it shows until it arrives, or if it never does.
     const family = f => ["serif", "sans-serif", "monospace", "system-ui"].includes(f) ? f : `"${f}", sans-serif`;
     const faces = name.split("+");
-    const text = svg("text", { x: 60, y: faces.length > 1 ? 45 : 53, "text-anchor": "middle", "font-size": 36,
+    const text = svg("text", { x: 60, y: faces.length > 1 ? 38 : 53, "text-anchor": "middle", "font-size": 36,
       "font-family": family(faces[0]), fill: textColour(fg, bg), "data-family": faces[0], "data-size": 36 });
     text.textContent = sample ?? WORDS.sampleDefault;
     box.append(text);
     if (faces[1]) {
-      const second = svg("text", { x: 60, y: 66, "text-anchor": "middle", "font-size": 12,
-        "font-family": family(faces[1]), fill: textColour(fg, bg), "data-family": faces[1], "data-size": 12 });
-      second.textContent = WORDS.sampleSecond;
+      const second = svg("text", { x: 60, y: 65, "text-anchor": "middle", "font-size": 18,
+        "font-family": family(faces[1]), fill: textColour(fg, bg), "data-family": faces[1], "data-size": 18 });
+      second.textContent = sample ?? WORDS.sampleSecond;
       box.append(second);
     }
     return box;
@@ -107,8 +107,29 @@ function fitSamples() {
       text.setAttribute("font-size", fitted);
     }
   }
+  // Fit paired faces at one scale, so the second stays half the first, with room between them.
+  for (const box of document.querySelectorAll("svg.pic")) {
+    const texts = [...box.querySelectorAll("text[data-size]")];
+    if (texts.length !== 2) continue;
+    let scale = Math.min(...texts.map(t => Number(t.getAttribute("font-size")) / Number(t.dataset.size)));
+    texts.forEach((t,i) => {
+      const bounds = t.getBBox(), size = Number(t.getAttribute("font-size"));
+      if (bounds.height) scale = Math.min(scale, (i === 0 ? 38 : 24) / bounds.height * size / Number(t.dataset.size));
+    });
+    texts.forEach((t,i) => {
+      t.setAttribute("font-size", Number(t.dataset.size) * scale);
+      const bounds = t.getBBox();
+      t.setAttribute("y", Number(t.getAttribute("y")) + (i === 0 ? 25 : 62) - bounds.y - bounds.height / 2);
+    });
+  }
 }
 document.fonts.addEventListener("loadingdone", fitSamples);
+
+function choice(o, type, id, index) {
+  const input = el("input", { type, name: id, value: o.value, id: `${id}-${index}` });
+  return el("label", { class: "choice", for: input.id }, input,
+    el("span", {}, el("span", { text: o.label }), o.note ? el("small", { text: o.note }) : null));
+}
 
 function questionBlock(q, index) {
   const id = `q-${index}`;
@@ -118,21 +139,21 @@ function questionBlock(q, index) {
   const opts = Array.isArray(q.options) ? q.options : [];
   if (q.type === "radio" || q.type === "checkbox") {
     const list = el("div", { class: "choices" });
-    opts.forEach((o, i) => {
-      const input = el("input", { type: q.type, name: id, value: o.value, id: `${id}-${i}` });
-      list.append(el("label", { class: "choice", for: `${id}-${i}` }, input, el("span", {}, el("span", { text: o.label }), o.note ? el("small", { text: o.note }) : null)));
-    });
+    opts.forEach((o, i) => list.append(choice(o, q.type, id, i)));
     fieldset.append(list);
   } else if (q.type === "image-radio" || q.type === "image-checkbox") {
     const multi = q.type === "image-checkbox";
-    const grid = el("div", { class: "tiles" });
+    const grid = el("div", { class: "tiles", "data-count": opts.filter(o => o.picture).length });
+    const words = el("div", { class: "choices" });
     opts.forEach((o, i) => {
+      if (!o.picture) { words.append(choice(o, multi ? "checkbox" : "radio", id, i)); return; }
       const input = el("input", { type: multi ? "checkbox" : "radio", name: id, value: o.value, id: `${id}-${i}`, class: "tile-input" });
       const mark = el("span", { class: multi ? "mark check" : "mark dot", "aria-hidden": "true" });
-      const caption = el("span", { class: "tile-label" }, el("span", { text: o.label }), o.note ? el("small", { text: o.note }) : null);
-      grid.append(el("label", { class: "tile", for: `${id}-${i}` }, input, picture(o.picture, o.sample), mark, caption));
+      const caption = el("span", { class: "tile-label" }, el("span", { text: o.label }), mark, o.note ? el("small", { text: o.note }) : null);
+      grid.append(el("label", { class: "tile", for: `${id}-${i}` }, input, picture(o.picture, o.sample), caption));
     });
     fieldset.append(grid);
+    if (words.children.length) fieldset.append(words);
   } else if (q.type === "slider") {
     const min = Number.isFinite(q.min) ? q.min : 0;
     const max = Number.isFinite(q.max) ? q.max : 10;
@@ -170,7 +191,9 @@ function readAnswers() {
     if (q.type === "slider") value = Number(box.querySelector("input[type=range]").value);
     else if (q.type === "text") value = [...box.querySelector("textarea").value].slice(0, 1000).join("").trim();
     else {
-      const picked = [...box.querySelectorAll("input:checked")].map((n) => n.value);
+      const checked = new Set([...box.querySelectorAll("input:checked")].map(n => n.value));
+      // Drawing puts words after pictures; answers keep the format's original option order.
+      const picked = opts.filter(o => checked.has(o.value)).map(o => o.value);
       value = q.type === "radio" || q.type === "image-radio" ? (picked[0] ?? null) : picked;
     }
     const shown = Array.isArray(value) ? value.map(label).join(", ") || WORDS.none : value === null || value === "" ? WORDS.none : q.type === "slider" || q.type === "text" ? String(value) : label(value);
