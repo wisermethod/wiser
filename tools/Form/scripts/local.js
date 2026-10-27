@@ -10,7 +10,7 @@ export function localRequest({port,code},suffix,method = 'GET',timeout = 5000) {
       res.setEncoding('utf8');
       res.on('data',chunk => {
         bytes += Buffer.byteLength(chunk);
-        if (bytes > 128*1024) req.destroy(new Error('Listener response exceeds 128 KB. Stop the form and ask in chat.'));
+        if (bytes > 1024*1024) req.destroy(new Error('Listener response exceeds 1 MB. Stop the form and ask in chat.'));
         else body += chunk;
       });
       res.on('error',reject);

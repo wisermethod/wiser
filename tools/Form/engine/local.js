@@ -33,5 +33,10 @@
     for (const control of document.querySelectorAll("#form input,#form textarea,#form select,#form button,#form fieldset")) control.disabled = true;
   }
   const timer = setTimeout(close,Math.max(0,closes-Date.now()));
+  // A window in the background may run its timers late, so any touch or keypress checks the time too.
+  const check = () => { if (expired()) close(); };
+  document.addEventListener("pointerdown",check,true);
+  document.addEventListener("keydown",check,true);
+  setInterval(check,15000);
   if (expired()) close();
 })();

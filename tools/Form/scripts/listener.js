@@ -7,9 +7,12 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 import {checkForm,FONT_HOSTS} from './format.js';
 import {composePage} from './page.js';
 
-const LIMIT = 64*1024;
+// The largest answers a checked form allows, twelve 1000-character texts sent twice in four-byte characters with their labels, fit well inside this.
+const LIMIT = 256*1024;
 const CSP = `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src ${FONT_HOSTS.join(' ')}; connect-src 'self'; form-action 'none'; base-uri 'none'`;
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+// The same allowance format.js gives a slider's steps.
+const onStep = n => Number.isFinite(n) && Math.abs(n-Math.round(n)) <= Number.EPSILON*Math.max(1,Math.abs(n))*8;
 const keys = (value,wanted) => record(value) && Object.keys(value).length === wanted.length && wanted.every(key => Object.hasOwn(value,key));
 
 function validAnswers(payload,form) {
@@ -20,7 +23,7 @@ function validAnswers(payload,form) {
   return form.questions.every(q => {
     const value = payload.answers[q.id];
     if (q.type === 'text') return typeof value === 'string' && [...value].length <= 1000;
-    if (q.type === 'slider') return typeof value === 'number' && Number.isFinite(value) && value >= q.min && value <= q.max;
+    if (q.type === 'slider') return typeof value === 'number' && Number.isFinite(value) && value >= q.min && value <= q.max && onStep((value-q.min)/(q.step ?? 1));
     const allowed = v => typeof v === 'string' && q.options.some(option => option.value === v);
     if (q.type === 'radio' || q.type === 'image-radio') return value === null || allowed(value);
     return Array.isArray(value) && new Set(value).size === value.length && value.every(allowed);
@@ -52,7 +55,7 @@ export async function listen({form,ttl}) {
     if (closing || collections >= 2) return json(res,200,{status:'gone'});
     collections++;
     if (collections === 1) {
-      clearTimeout(ttlTimer);
+      clearTimeout(ttlTimer); clearTimeout(replayTimer);
       replayTimer = setTimeout(shutdown,60000);
     }
     if (collections === 2) res.once('finish',shutdown);
@@ -109,6 +112,9 @@ export async function listen({form,ttl}) {
       if (!validAnswers(payload,form)) return json(res,400,{status:'invalid-answers'});
       if (result) return json(res,409,{status:'already-sent'}); // ONCE_RACE_GUARD
       result = {status:'answered',...payload};
+      // Sent answers outlive the closing time: they are kept until a wait collects them, for up to ten minutes.
+      clearTimeout(ttlTimer);
+      replayTimer = setTimeout(shutdown,600000);
       json(res,200,{status:'accepted'});
       for (const waiting of [...waiters]) waiting(true);
     } else { res.writeHead(404).end(); req.resume(); }

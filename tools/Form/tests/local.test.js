@@ -170,13 +170,13 @@ test('answer validation: exact ids, original types, options, ranges, text code p
   assert.equal((await http(s,'answers',{method:'POST',body:valid})).status,200,'1000 code points and empty choices are valid');
   equal(await wait(s),{status:'answered',...valid},'valid data remains exact');
 });
-test('JSON only, malformed JSON and 64 KB limits with length and chunked bodies',async () => {
+test('JSON only, malformed JSON and 256 KB limits with length and chunked bodies',async () => {
   const s = await serve();
   for (const type of ['text/plain','application/json; charset=utf-8','']) assert.equal((await http(s,'answers',{method:'POST',body:payload(),headers:{'Content-Type':type}})).status,415);
   assert.equal((await http(s,'answers',{method:'POST',body:'{'})).status,400);
-  for (const chunked of [false,true]) assert.equal((await http(s,'answers',{method:'POST',body:'x'.repeat(65537),chunked})).status,413);
-  const raw = JSON.stringify(payload()),boundary = raw+' '.repeat(65536-Buffer.byteLength(raw));
-  assert.equal((await http(s,'answers',{method:'POST',body:boundary})).status,200,'exactly 64 KB is accepted');
+  for (const chunked of [false,true]) assert.equal((await http(s,'answers',{method:'POST',body:'x'.repeat(262145),chunked})).status,413);
+  const raw = JSON.stringify(payload()),boundary = raw+' '.repeat(262144-Buffer.byteLength(raw));
+  assert.equal((await http(s,'answers',{method:'POST',body:boundary})).status,200,'exactly 256 KB is accepted');
 });
 test('stop resolves pending waits, repeated stop and wrong code return gone',async () => {
   const s = await serve(),pending = wait(s,5); await delay(150);
