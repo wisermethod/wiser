@@ -4,6 +4,13 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.27, October 27, 2026
+
+- `video-render` now draws every frame of a video in one browser, in order, unless you ask for more, so a page that fades or zooms gives the same frames each time you render it. Split across several browsers, a few of those frames could come out a shade different from one render to the next. One browser can take up to about twice as long; asking for more workers is still faster, and a saved render is kept separately for each number of workers. (c2c66aa, 38fedbd)
+- Letting `video-render` choose the number of workers itself no longer works with saved renders, since that number can change between runs. (38fedbd)
+- If a browser fails partway through a render, `video-render` now stops and asks you to render again, instead of finishing in a new browser whose frames could differ. (38fedbd, ae682d3)
+- A page made for `video-render` should not mark anything inside a part that zooms with `will-change`, which made one browser draw a few frames differently between renders. (e446ecc, 38fedbd)
+
 ## v2026.10.26, October 26, 2026
 
 - `video-edit` can now lay a narration file onto a silent video, starting at the moment you name. The picture is kept exactly as it was, the narration starts on that moment to the sample and runs to the video's end, and narration longer than the time left is refused rather than cut. (bef870d, f87430d)
