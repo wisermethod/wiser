@@ -71,12 +71,12 @@ A host who asks only what the calling skill needs, in a form a member can finish
    ```
 
 3. **Which way can this app show it?** Take the first that holds:
+   - **A command-line tool on the member's own computer, as Claude Code, Codex and Grok Build are, even where the session has `show_form`**: step 4. Such a tool draws no page, though it can reach `show_form` through an app connection it shares, as Codex reaches ChatGPT's.
    - **The app draws pages in the chat, as ChatGPT, Claude and Cowork do, and the session has `show_form`.** Call it with the form, and say nothing until its answer is read; an app shows its model either the answer's data or its words, so either sign counts. Which answer came back?
      - The form, as `structuredContent.form`, or words that name this form's title and its number of questions, with no error: say "Your form is below. Pick your answers and press the button when you're done." The first time in a conversation, add "If your app asks whether to allow Wiser, allow it. It only shows the form." Then stop and wait: the answers arrive as the member's next message, and the questions are never asked in chat as well.
      - An error whose lines each name a path and a problem: a filled template's goes to step 1's refusal; a written form's parts are fixed, step 2, and `show_form` called again.
      - Words only, saying this app does not show forms in the chat: a shell on the member's own computer, step 4; none, step 5.
      - Anything else: step 5.
-   - **A command-line tool on the member's own computer, as Claude Code, Codex and Grok Build are**: step 4.
    - **The app draws pages but the session has no `show_form`**: say "Forms need a fresh Wiser connection in this app. Reconnecting Wiser in its settings turns them on; for now I'll ask here." and go to step 5 without saying its opening line again.
    - **None of these**: step 5.
 
