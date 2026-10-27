@@ -143,6 +143,13 @@ test('Chrome and lint results come from the actual launch log', () => {
   assert.deepEqual(readRenderLog('[BrowserManager] Browser launched (HeadlessChrome/152.0.7977.30, screenshot)\n  \u26a0 css_transition_used: Zibble\n    Fix: Pluvo'), { chromeBuild: '152.0.7977.30', lintFindings: ['\u26a0 css_transition_used: Zibble'] });
   assert.throws(() => readRenderLog('zibble'), /no launched Chrome build/);
   assert.throws(() => readRenderLog('[BrowserManager] Browser launched (Chrome/151.0.0.0, screenshot)'), /require 152/);
+  // HyperFrames 0.8.134's own warnings when it finishes a failed capture in a fresh browser and exits 0.
+  const launched = '[BrowserManager] Browser launched (HeadlessChrome/152.0.7977.30, screenshot)\n';
+  for (const warning of ['[WARN] [Render] Transient browser failure during sequential capture; retrying once with a fresh session.',
+    '[WARN] [Render] Retrying missing captured frames with fewer workers.',
+    '[WARN] [Render] Parallel capture timed out; retrying missing frames.']) {
+    assert.throws(() => readRenderLog(`${launched}${warning} {"resumeFrom":40}\n${launched}`), /resumed its capture after a browser failure/);
+  }
 });
 
 test('RGBA hashes ignore PNG encoding differences and frame count is enforced', async (t) => {

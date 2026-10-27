@@ -145,6 +145,10 @@ export function readRenderLog(log) {
   const builds = [...text.matchAll(/\[BrowserManager\] Browser launched \((?:HeadlessChrome|Chrome|Chromium)\/(\d+\.\d+\.\d+\.\d+)/g)].map((m) => m[1]);
   if (!builds.length) throw new Error('HyperFrames log contains no launched Chrome build; inspect render.log before trusting the frames.');
   if (builds.some((v) => v !== CHROME_BUILD)) throw new Error(`HyperFrames log reports Chrome ${[...new Set(builds)].join(', ')}; require ${CHROME_BUILD}.`);
+  // HyperFrames 0.8.134 finishes a capture that failed part-way by resuming in a fresh browser, or with fewer
+  // workers, and still exits 0. Frames drawn after that carry another browser's history, so the run is refused.
+  const resumed = text.match(/Transient browser failure during sequential capture|Retrying missing captured frames with fewer workers|Parallel capture timed out; retrying missing frames/);
+  if (resumed) throw new Error(`HyperFrames resumed its capture after a browser failure (${resumed[0]}), so later frames were drawn by a fresh browser; render again to a new output.`);
   const lintFindings = text.split(/\r?\n/).filter((line) => /^\s*[\u2717\u26a0\u2139]\s+/.test(line) || /^\s*Lint:/i.test(line)).map((line) => line.trim());
   return { chromeBuild: builds[0], lintFindings };
 }

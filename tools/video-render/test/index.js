@@ -450,6 +450,7 @@ test('render refuses invalid arguments and unsafe destinations before dependency
     [{ fps: 0 }, /--fps/], [{ fps: 0.5, duration: 10 }, /--fps.*round/],
     [{ duration: -1 }, /--duration/], [{ duration: 0.001 }, /round to at least one/],
     [{ workers: 0 }, /--workers/], [{ workers: 'many' }, /--workers/],
+    [{ workers: 'auto', cache: join(path, 'cache') }, /--cache cannot be used with --workers auto/],
     [{ gpu: 'maybe' }, /--gpu/], [{ capture: 'maybe' }, /--capture/],
     [{ profile: 'lossless' }, /--profile/],
     [{ output: join(project, 'inside.mp4') }, /inside --project/],

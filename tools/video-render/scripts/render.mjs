@@ -45,6 +45,8 @@ export async function optionsForRender(input) {
     const contains = (a, b) => { const rel = relative(a, b); return rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel); };
     if (contains(frameHashes, options.output) || contains(options.output, frameHashes)) throw new Error('--frame-hashes and --output cannot contain each other; choose separate files.');
   }
+  // HyperFrames chooses the count for auto on each run, from a timing of the first frames, so the key cannot name it.
+  if (input.cache !== undefined && options.workers === 'auto') throw new Error('--cache cannot be used with --workers auto, whose worker count can change between runs; name a number of workers.');
   const cache = input.cache === undefined ? null : await cacheDirectory(input.cache, options.project);
   if (cache) {
     const contains = (a, b) => { const rel = relative(a, b); return rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel); };
