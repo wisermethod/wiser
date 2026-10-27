@@ -39,6 +39,8 @@ async function deliver({payload,summary}) {
 function accept(form,source) {
   if (received || form === undefined) return;
   received = true;
+  // A host can hand over objects made in another window, which the checker reads as no plain object; a JSON copy makes the form this page's own.
+  try { form = JSON.parse(JSON.stringify(form)); } catch { /* A form JSON cannot copy is checked as it came, and refused. */ }
   syncHost();
   view.metadata({host,source});
   if (!checkForm(form).ok) { view.showEmpty(true); return; }
