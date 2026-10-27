@@ -268,9 +268,9 @@ test('deployment succeeds with null URL if the account has no subdomain', async 
   assert.equal(result.script_name, INPUT.script_name); assert.equal(result.url, null); assert.match(result.reason, /no workers.dev subdomain/);
   assert.deepEqual(trace(env.calls), [['POST', `${SCRIPT}/assets-upload-session`], ['PUT', SCRIPT], ['POST', `${SCRIPT}/subdomain`], ['GET', `${ROOT}/subdomain`]]); noTokens(result);
 });
-for (const [name, config] of [ ['missing', 'missing'], ['malformed', '{'], ['unlisted base host', { ...FIXTURE_CONFIG, base: 'https://other.example.test/' }], ['wrong key length', { ...FIXTURE_CONFIG, apps: { 'wiser-crm': { keys: [{ id: '0123456789abcdef', ed25519: 'bad' }] } } }] ]) {
+for (const [name, config, reason] of [ ['missing', 'missing', /^release\.json is missing$/], ['malformed', '{', /^release\.json is malformed$/], ['unlisted base host', { ...FIXTURE_CONFIG, base: 'https://other.example.test/' }, /^release\.json is malformed or its base host is not in release_hosts$/], ['wrong key length', { ...FIXTURE_CONFIG, apps: { 'wiser-crm': { keys: [{ id: '0123456789abcdef', ed25519: 'bad' }] } } }, /^release\.json is malformed or its base host is not in release_hosts$/] ]) {
   test(`release.json ${name} refuses before any fetch or proxy call`, async (t) => {
-    const env = await setup(t, { config }); preflight(env, await env.execute(), /release.json/, []);
+    const env = await setup(t, { config }); preflight(env, await env.execute(), reason, []);
   });
 }
 for (const [name, change] of [
