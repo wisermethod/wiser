@@ -92,12 +92,13 @@ async function setup(t, options = {}) {
   const env = await createTestGateway({ home, connectorDirs: [connectors], fetchImpl });
   await putActive(env.store, env.fake, { service: 'cloudflare', module: 'workers' });
   const calls = [];
+  const script = `${ROOT}/scripts/${options.scriptName ?? INPUT.script_name}`;
   let missing;
   const uploaded = new Set();
   env.fake.auth.proxy = async (req) => {
     calls.push(req);
     if (options.responder) return options.responder(req, calls.length);
-    if (req.endpoint === `${SCRIPT}/assets-upload-session`) {
+    if (req.endpoint === `${script}/assets-upload-session`) {
       const hashes = [...new Set(Object.values(req.body.manifest).map((entry) => entry.hash))];
       missing = options.noneMissing ? [] : hashes.slice(1);
       return envelope({ jwt: options.noneMissing ? COMPLETE : UPLOAD, buckets: missing.length ? [missing] : [] });
@@ -108,8 +109,8 @@ async function setup(t, options = {}) {
       for (const [hash] of form) uploaded.add(hash);
       return envelope(uploaded.size === missing.length ? { jwt: COMPLETE } : {});
     }
-    if (req.endpoint === SCRIPT && req.method === 'PUT') return envelope({ id: INPUT.script_name, jwt: COMPLETE });
-    if (req.endpoint === `${SCRIPT}/subdomain`) return options.noSubdomain ? refusal(req, 404, [10007]) : envelope({ enabled: true, previews_enabled: false });
+    if (req.endpoint === script && req.method === 'PUT') return envelope({ id: options.scriptName ?? INPUT.script_name, jwt: COMPLETE });
+    if (req.endpoint === `${script}/subdomain`) return options.noSubdomain ? refusal(req, 404, [10007]) : envelope({ enabled: true, previews_enabled: false });
     if (req.endpoint === `${ROOT}/subdomain`) return options.noSubdomain ? refusal(req, 404, [10007]) : envelope({ subdomain: 'wiser-proof' });
     assert.fail(`unexpected request ${req.method} ${req.endpoint}`);
   };
@@ -544,14 +545,16 @@ test('signature and shape refusals precede exact variable-name comparison', asyn
   const malformed = await setup(t, { assembled: true, change: (m) => { delete m.source.repository; } });
   preflight(malformed, await malformed.execute('deploy_worker_release', { ...INPUT, vars: {} }), /release source malformed/, signedPaths);
 });
-test('provider variable echoes cannot enter deploy results or refusals', async (t) => {
+test('valid subdomain labels are reported while provider diagnostic variable echoes are omitted', async (t) => {
   const env = await setup(t, { noneMissing: true });
   const normal = env.fake.auth.proxy;
   env.fake.auth.proxy = (req) => {
     if (req.endpoint === `${ROOT}/subdomain`) { env.calls.push(req); return envelope({ subdomain: VARS.ACCESS_AUD }); }
     return normal(req);
   };
-  noTokens(await env.execute());
+  const result = await env.execute();
+  assert.equal(result.url, `https://${INPUT.script_name}.${VARS.ACCESS_AUD}.workers.dev/`);
+  noTokens(result, true);
   const refused = await setup(t, { responder: () => { throw { object: { status: 'vendor_error', http_status: 500, reason: Object.values(VARS).join(' ') + UPLOAD + COMPLETE } }; } });
   noTokens(await refused.execute());
 });
@@ -582,10 +585,30 @@ test('short plain variables preserve result hashes, identifiers and vendor statu
   assert.equal(result.app, INPUT.app); assert.equal(result.version, INPUT.version);
   assert.equal(result.manifest_sha256, sha(ASSEMBLED_BYTES));
   assert.deepEqual(result.worker.modules.map((m) => m.sha256), ASSEMBLED.worker.modules.map((m) => m.sha256));
-  assert.equal(result.url, null);
-  assert.equal(result.reason, 'Worker address withheld because it repeats a supplied variable value');
+  assert.equal(result.url, `https://${INPUT.script_name}.wiser-proof.workers.dev/`);
+  assert.equal(result.reason, undefined);
   const failed = await setup(t, { responder: (req) => refusal(req, 500) });
   const error = await failed.execute('deploy_worker_release', { ...INPUT, vars });
   assert.equal(error.status, 'vendor_error');
   assert.equal(error.http_status, 500);
+});
+
+test('deploy reports the live WISER_INSTANCE coincidence in its script address', async (t) => {
+  const scriptName = 'wiser-proof-crm-m6-20261026';
+  const env = await setup(t, { scriptName, noneMissing: true,
+    change: (m) => { m.worker.vars_required.push('WISER_INSTANCE'); } });
+  const result = await env.execute('deploy_worker_release', { ...INPUT, script_name: scriptName, vars: { ...VARS, WISER_INSTANCE: 'wiser-proof' } });
+  assert.equal(result.script_name, scriptName);
+  assert.equal(result.url, `https://${scriptName}.wiser-proof.workers.dev/`);
+  assert.equal(result.reason, undefined); noTokens(result);
+});
+test('deploy rejects a subdomain failing LABEL with vendor_error and no address', async (t) => {
+  const env = await setup(t, { noneMissing: true });
+  const normal = env.fake.auth.proxy;
+  env.fake.auth.proxy = (req) => {
+    if (req.endpoint === `${ROOT}/subdomain`) { env.calls.push(req); return envelope({ subdomain: 'invalid.label/' + UPLOAD }); }
+    return normal(req);
+  };
+  const result = await env.execute();
+  assert.equal(result.status, 'vendor_error'); assert.equal(result.url, undefined); noTokens(result);
 });

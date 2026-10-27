@@ -794,7 +794,7 @@
           }
         },
         "set_vars": {
-          "description": "Set a non-empty subset of the signed release vars_required as plain-text variables on an existing Worker, without uploading code. Signature and exact format-2 shape are verified before any Cloudflare call. vars obeys the deploy name and 512 Unicode-character bounds; unlisted names are refused without echoing keys or values. Preserve every other binding by inheritance; refuse replacing a non-plain binding. Read back binding names and types, never values, and require every set key as plain_text. The answer contains keys_set and version_id only when a single version serves 100 percent of traffic after the update; otherwise report settings updated but unverified.",
+          "description": "Set a non-empty subset of the signed release vars_required as plain-text variables on an existing Worker, without uploading code. Signature and exact format-2 shape are verified before any Cloudflare call. vars obeys the deploy name and 512 Unicode-character bounds; unlisted names are refused without echoing keys or values. Preserve every other binding by inheritance; refuse replacing a non-plain binding. Read back binding names and types, never values, and require every set key as plain_text. The answer contains keys_set and version_id only when a single version serves 100 percent of traffic after the update and it is not the version serving before it; otherwise report settings updated but unverified. Before PATCH, read the active deployment and complete version history; refuse unless a uniquely newest created_on version alone serves 100 percent, including after rollback or when newest timestamps tie. Cloudflare changes variables only on the newest deployed version; roll back to a recorded version or deploy a release instead. Failed PATCH adds integer-only provider_codes with no provider message. Record the read-only true update version_id as stopped N for failure recovery.",
           "privilege": "write",
           "risk": "high",
           "confirmation": "always",
@@ -1054,7 +1054,7 @@
           }
         },
         "rollback": {
-          "description": "Deploy the required version_id at 100 percent, replacing whatever versions the live deployment carries. Use get_worker's id recorded before the first upgrade write, set_vars included. Never select a version from history. Read the live deployment back and return only its id when it matches at 100 percent; otherwise report rollback submitted but unverified. Cloudflare may block rollback after a secret change; no force override is used.",
+          "description": "Deploy the required version_id at 100 percent, replacing whatever versions the live deployment carries. For failure recovery, use the stopped N id recorded from set_vars with WISER_READ_ONLY true. Verify restored data and that stopped version, then resume writes by rollback to get_worker's original N id recorded before any upgrade write, and verify it with get_worker. Never use set_vars to resume after rollback while N+1 remains newest. Never select a version from history. Read the live deployment back and return only its id when it matches at 100 percent; otherwise report rollback submitted but unverified. Cloudflare may block rollback after a secret change; no force override is used.",
           "privilege": "write",
           "risk": "high",
           "confirmation": "always",

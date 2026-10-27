@@ -270,6 +270,28 @@ function singleDeployedVersion(versions) {
     ? versions[0].version_id : null;
 }
 
+async function listVersions(input, ctx) {
+  const versions = [];
+  const seen = new Set();
+  for (let page = 1; page <= 1000; page++) {
+    const req = { endpoint: endpoint(input, '/versions'), method: 'GET', parameters: [
+      { name: 'page', value: String(page), type: 'query' }, { name: 'per_page', value: '100', type: 'query' }] };
+    const reply = await call(ctx, req);
+    if (reply.error) return reply.error;
+    const items = reply.result?.items;
+    if (!Array.isArray(items) || items.length > 100) return vendor(req);
+    for (const item of items) {
+      const time = item?.metadata?.created_on;
+      if (!string(item?.id, UUID) || seen.has(item.id) || typeof time !== 'string'
+        || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(time) || !Number.isFinite(Date.parse(time))) return vendor(req);
+      seen.add(item.id);
+      versions.push({ id: item.id, created_on: time });
+    }
+    if (items.length < 100) return { versions };
+  }
+  return { status: 'vendor_error', reason: 'version listing incomplete' };
+}
+
 // Read by hostname without a service filter: otherwise another Worker's domain
 // would look absent. A malformed or incomplete listing never authorizes a write.
 async function findDomain(input, ctx) {
@@ -647,6 +669,30 @@ export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, red
         || new Set(previous.map((b) => b.name)).size !== previous.length) return vendor(req);
       // Never turn an existing resource or secret binding into a plain variable.
       if (previous.some((b) => Object.hasOwn(input.vars, b.name) && b.type !== 'plain_text')) return refused('vars would replace a non-plain binding');
+      const versionReq = { endpoint: endpoint(input, '/deployments'), method: 'GET' };
+      const active = await call(ctx, versionReq);
+      if (active.error) return active.error;
+      const listed = await listVersions(input, ctx);
+      if (listed.status) return listed;
+      const serving = singleDeployedVersion(active.result?.deployments?.[0]?.versions);
+      let tiedNewest = false;
+      const newest = listed.versions.reduce((latest, item) => {
+        if (!latest) return item;
+        const delta = Date.parse(item.created_on) - Date.parse(latest.created_on);
+        // Cloudflare timestamps can distinguish versions within one millisecond.
+        const fraction = (v) => v.created_on.split('.')[1]?.slice(0, -1) ?? '';
+        const a = fraction(item), b = fraction(latest), width = Math.max(a.length, b.length);
+        if (delta > 0 || (delta === 0 && a.padEnd(width, '0') > b.padEnd(width, '0'))) {
+          tiedNewest = false;
+          return item;
+        }
+        if (delta === 0 && a.padEnd(width, '0') === b.padEnd(width, '0')) tiedNewest = true;
+        return latest;
+      }, null);
+      if (tiedNewest) return refused('Worker version history has tied newest creation times; cannot determine which version is newest. Cloudflare changes variables only on the newest deployed version. Roll back to a recorded version or deploy a release instead.');
+      if (!serving || newest?.id !== serving) {
+        return refused("Worker's newest version is not the one serving, as after a rollback; Cloudflare changes variables only on the newest deployed version. Roll back to a recorded version or deploy a release instead.");
+      }
       // Wrangler inherits unchanged bindings by name, including secrets whose bytes
       // cannot be read back. No binding value is copied out into an answer.
       const next = previous.filter((b) => !Object.hasOwn(input.vars, b.name)).map((b) => ({ name: b.name, type: 'inherit' }));
@@ -655,15 +701,19 @@ export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, red
       const update = { endpoint: endpoint(input, '/settings'), method: 'PATCH', ...multipart(form) };
       if (bodyBytes(form) > MAX_UPLOAD_BYTES) return refused('Worker settings request too large');
       const changed = await call(ctx, update);
-      if (changed.error) return changed.error;
+      if (changed.error) return { ...changed.error, provider_codes: Array.isArray(changed.codes) ? changed.codes.filter(Number.isInteger) : [] };
       // The settings API does not document a version id in its answer. Read the
       // active deployment instead of treating a binding id as a Worker version.
-      const versionReq = { endpoint: endpoint(input, '/deployments'), method: 'GET' };
       const after = await call(ctx, versionReq);
       if (after.error) return { ...after.error, reason: 'settings updated; active deployment read-back failed' };
       const version_id = singleDeployedVersion(after.result?.deployments?.[0]?.versions);
       if (!version_id) {
         return { ...vendor(versionReq), reason: 'settings updated; no single active version at 100 percent reported' };
+      }
+      // Versions are immutable, so the preflight id still serving is the version without
+      // this change: never report it as the new one (a stopped N that is still writable).
+      if (version_id === serving) {
+        return { ...vendor(versionReq), reason: 'settings updated; the serving version is still the version from before the update' };
       }
       // Confirm only the keys we set. Read names and types, never binding values.
       const settings = await call(ctx, req);
@@ -720,27 +770,7 @@ export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, red
       if (typeof reply.result?.enabled !== 'boolean' || typeof reply.result?.previews_enabled !== 'boolean') return vendor(req);
       return { enabled: reply.result.enabled, previews_enabled: reply.result.previews_enabled };
     },
-    async list_versions(input, ctx) {
-      const versions = [];
-      const seen = new Set();
-      for (let page = 1; page <= 1000; page++) {
-        const req = { endpoint: endpoint(input, '/versions'), method: 'GET', parameters: [
-          { name: 'page', value: String(page), type: 'query' }, { name: 'per_page', value: '100', type: 'query' }] };
-        const reply = await call(ctx, req);
-        if (reply.error) return reply.error;
-        const items = reply.result?.items;
-        if (!Array.isArray(items) || items.length > 100) return vendor(req);
-        for (const item of items) {
-          const time = item?.metadata?.created_on;
-          if (!string(item?.id, UUID) || seen.has(item.id) || typeof time !== 'string'
-            || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(time) || !Number.isFinite(Date.parse(time))) return vendor(req);
-          seen.add(item.id);
-          versions.push({ id: item.id, created_on: time });
-        }
-        if (items.length < 100) return { versions };
-      }
-      return { status: 'vendor_error', reason: 'version listing incomplete' };
-    },
+    list_versions: listVersions,
     async delete_worker(input, ctx) {
       const reply = await call(ctx, { endpoint: endpoint(input), method: 'DELETE' });
       if (reply.error) return reply.error.http_status === 404
@@ -788,12 +818,6 @@ export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, red
       const remember = (token) => { if (typeof token === 'string' && token.length) tokens.push(token); };
       const finish = (result) => {
         const out = tokens.reduce((value, token) => redact(value, token), result);
-        // Only the address carries vendor-supplied text in a deploy result.
-        // Never scrub all fields by plain variable values: a value like "1"
-        // would corrupt version ids, file hashes and diagnostics.
-        if (typeof out.url === 'string' && Object.values(input.vars).some((value) => value && out.url.includes(value))) {
-          return { ...out, url: null, reason: 'Worker address withheld because it repeats a supplied variable value' };
-        }
         return out;
       };
       remember(session.result?.jwt);

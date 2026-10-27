@@ -10,6 +10,12 @@ import { createTestGateway, putActive } from '../../../gateway/test/fake-provide
 const ACCOUNT = '0123456789abcdef0123456789abcdef';
 const ZONE = 'abcdef0123456789abcdef0123456789';
 const ID = '12345678-1234-1234-1234-123456789abc';
+const NEWER = '23456789-2345-2345-2345-23456789abcd';
+const version = (id, created_on) => ({ id, metadata: { created_on } });
+const currentVersion = version(ID, '2026-10-25T00:00:00.123456Z');
+// The version a settings update creates; the deployments read after PATCH names it.
+const UPDATED = '34567890-3456-3456-3456-34567890abcd';
+const updatedOnce = (calls, before = [{ version_id: ID, percentage: 100 }]) => calls.some((req) => req.method === 'PATCH') ? [{ version_id: UPDATED, percentage: 100 }] : before;
 const DOMAIN_ID = 'abcdefabcdefabcdefabcdefabcdefab';
 const ROOT = `/accounts/${ACCOUNT}/workers`;
 const SCRIPT = `${ROOT}/scripts/proof-worker`;
@@ -65,7 +71,7 @@ async function setup(t, options = {}) {
     if (options.responder) return options.responder(req, calls.length);
     if (req.endpoint === SCRIPT + '/settings' && req.method === 'GET') return envelope({ bindings: options.bindings ?? currentBindings });
     if (req.endpoint === SCRIPT + '/settings' && req.method === 'PATCH') return envelope({ bindings: [{ name: 'ACCESS_AUD', text: VALUE, type: 'plain_text' }], token: PROVIDER_TOKEN });
-    if (req.endpoint === SCRIPT + '/deployments') return envelope({ deployments: [{ versions: [{ version_id: ID, percentage: 100 }] }] });
+    if (req.endpoint === SCRIPT + '/deployments') return envelope({ deployments: [{ versions: updatedOnce(calls) }] });
     if (req.endpoint === ROOT + '/domains' && req.method === 'GET') return envelope(attached ? [attached] : []);
     if (req.endpoint === ROOT + '/domains' && req.method === 'PUT') { attached = { id: DOMAIN_ID, ...req.body }; return envelope(attached); }
     if (req.endpoint === ROOT + '/domains/' + DOMAIN_ID && req.method === 'GET') return attached ? envelope({ ...attached, ...(options.foreignDetail ? { service: 'other-worker' } : {}) }) : error(404);
@@ -119,10 +125,10 @@ for (const [action, input] of Object.entries(inputs)) {
 test('set_vars: verified manifest then read settings, preserve all other bindings, PATCH multipart, report active id only', async (t) => {
   const env = await setup(t);
   const result = await env.execute('set_vars');
-  assert.deepEqual(result, { keys_set: ['ACCESS_AUD'], version_id: ID }); noValues(result);
+  assert.deepEqual(result, { keys_set: ['ACCESS_AUD'], version_id: UPDATED }); noValues(result);
   assert.deepEqual(env.fetches, ['manifest.json', 'manifest.sig'].map((n) => BASE + 'wiser-crm/1.0.0/' + n));
-  assert.deepEqual(trace(env.calls), [['GET', SCRIPT + '/settings'], ['PATCH', SCRIPT + '/settings'], ['GET', SCRIPT + '/deployments'], ['GET', SCRIPT + '/settings']]);
-  const req = env.calls[1];
+  assert.deepEqual(trace(env.calls), [['GET', SCRIPT + '/settings'], ['GET', SCRIPT + '/deployments'], ['GET', SCRIPT + '/versions'], ['PATCH', SCRIPT + '/settings'], ['GET', SCRIPT + '/deployments'], ['GET', SCRIPT + '/settings']]);
+  const req = env.calls.find((req) => req.method === 'PATCH');
   assert.equal(req.body, undefined);
   const form = await new Response(Buffer.from(req.binary_body.base64, 'base64'), { headers: { 'Content-Type': req.binary_body.content_type } }).formData();
   assert.deepEqual([...form.keys()], ['settings']);
@@ -132,6 +138,94 @@ test('set_vars: verified manifest then read settings, preserve all other binding
     ...currentBindings.filter((b) => b.name !== 'ACCESS_AUD').map((b) => ({ name: b.name, type: 'inherit' })),
     { name: 'ACCESS_AUD', text: VALUE, type: 'plain_text' },
   ] });
+});
+
+// Supply valid settings throughout so an absent preflight really reaches PATCH.
+async function preflightSetup(t, { live = [{ version_id: ID, percentage: 100 }], items = [currentVersion], listingError, deploymentError, patchError } = {}) {
+  const seen = [];
+  return setup(t, { responder: (req) => {
+    seen.push(req);
+    if (req.endpoint.endsWith('/deployments')) return deploymentError ?? envelope({ deployments: [{ versions: updatedOnce(seen, live) }] });
+    if (req.endpoint.endsWith('/versions')) return listingError ?? envelope({ items });
+    if (req.method === 'PATCH') return patchError ?? envelope({});
+    return envelope({ bindings: currentBindings });
+  } });
+}
+for (const [label, items] of [
+  ['newest not serving after rollback', [currentVersion, version(NEWER, '2026-10-26T00:00:00Z')]],
+  ['out-of-order listing still selects newest by time', [version(NEWER, '2026-10-26T00:00:00Z'), currentVersion]],
+  ['submillisecond creation times select newest', [currentVersion, version(NEWER, '2026-10-25T00:00:00.123457Z')]],
+]) test(`set_vars preflight: ${label} refuses without PATCH`, async (t) => {
+  const env = await preflightSetup(t, { items });
+  const result = await env.execute('set_vars');
+  assert.equal(result.status, 'invalid_arguments');
+  assert.match(result.reason, /newest version is not the one serving/);
+  assert.match(result.reason, /rollback/); assert.match(result.reason, /Cloudflare changes variables only on the newest deployed version/);
+  assert.match(result.reason, /recorded version/); assert.match(result.reason, /deploy a release/);
+  assert.ok(!JSON.stringify(result).includes('ACCESS_AUD')); noValues(result);
+  assert.deepEqual(trace(env.calls), [['GET', SCRIPT + '/settings'], ['GET', SCRIPT + '/deployments'], ['GET', SCRIPT + '/versions']]);
+});
+test('set_vars preflight: split deployment refuses without PATCH', async (t) => {
+  const env = await preflightSetup(t, { live: [{ version_id: ID, percentage: 50 }, { version_id: NEWER, percentage: 50 }] });
+  const result = await env.execute('set_vars');
+  assert.equal(result.status, 'invalid_arguments');
+  assert.match(result.reason, /newest version is not the one serving/); noValues(result);
+  assert.equal(env.calls.some((req) => req.method === 'PATCH'), false);
+});
+test('set_vars preflight: newest serving goes ahead even when listed last', async (t) => {
+  const env = await preflightSetup(t, { items: [version(NEWER, '2026-10-24T00:00:00Z'), currentVersion] });
+  assert.deepEqual(await env.execute('set_vars'), { keys_set: ['ACCESS_AUD'], version_id: UPDATED });
+  assert.deepEqual(trace(env.calls).slice(0, 4), [['GET', SCRIPT + '/settings'], ['GET', SCRIPT + '/deployments'], ['GET', SCRIPT + '/versions'], ['PATCH', SCRIPT + '/settings']]);
+});
+for (const time of ['2026-10-25T00:00:00.123456Z', '2026-10-25T00:00:00.1234560Z']) {
+  test(`set_vars preflight: tied newest creation time ${time} refuses without PATCH`, async (t) => {
+    const env = await preflightSetup(t, { items: [currentVersion, version(NEWER, time)] });
+    const result = await env.execute('set_vars');
+    assert.equal(result.status, 'invalid_arguments');
+    assert.match(result.reason, /cannot determine which version is newest/);
+    assert.equal(env.calls.some((req) => req.method === 'PATCH'), false); noValues(result);
+  });
+}
+test('set_vars preflight: failed listing read returns its own vendor error before PATCH', async (t) => {
+  const env = await preflightSetup(t, { listingError: error(503) });
+  const result = await env.execute('set_vars');
+  assert.deepEqual(result, { status: 'vendor_error', method: 'GET', endpoint: '/workers/scripts/proof-worker/versions', http_status: 503 });
+  assert.equal(env.calls.some((req) => req.method === 'PATCH'), false); noValues(result);
+});
+test('set_vars preflight: failed deployment read returns its own vendor error before PATCH', async (t) => {
+  const env = await preflightSetup(t, { deploymentError: error(403) });
+  const result = await env.execute('set_vars');
+  assert.deepEqual(result, { status: 'vendor_error', method: 'GET', endpoint: '/workers/scripts/proof-worker/deployments', http_status: 403 });
+  assert.equal(env.calls.some((req) => req.method === 'PATCH'), false); noValues(result);
+});
+test('set_vars preflight: full version page is followed before deciding newest', async (t) => {
+  let pages = 0;
+  const env = await setup(t, { responder: (req) => {
+    if (req.endpoint.endsWith('/deployments')) return envelope({ deployments: [{ versions: [{ version_id: ID, percentage: 100 }] }] });
+    if (req.endpoint.endsWith('/versions')) {
+      assert.equal(req.parameters[0].value, String(++pages));
+      return envelope({ items: pages === 1 ? [currentVersion, ...Array.from({ length: 99 }, (_, i) => version(`${i.toString(16).padStart(8, '0')}-1234-1234-1234-123456789abc`, '2026-10-24T00:00:00Z'))] : [version(NEWER, '2026-10-26T00:00:00Z')] });
+    }
+    return envelope({ bindings: currentBindings });
+  } });
+  assert.equal((await env.execute('set_vars')).status, 'invalid_arguments');
+  assert.equal(pages, 2); assert.equal(env.calls.some((req) => req.method === 'PATCH'), false);
+});
+for (const items of [[], [currentVersion, currentVersion], [version(ID, 'invalid')]]) test('set_vars preflight: empty or malformed version history never permits PATCH', async (t) => {
+  const env = await preflightSetup(t, { items });
+  assert.equal((await env.execute('set_vars')).status, items.length ? 'vendor_error' : 'invalid_arguments');
+  assert.equal(env.calls.some((req) => req.method === 'PATCH'), false);
+});
+test('set_vars: failed PATCH returns integer provider codes without provider message', async (t) => {
+  // The provider maps Cloudflare errors to provider_codes before ctx.proxy.
+  const env = await preflightSetup(t, { patchError: { status: 400,
+    data: { success: false, errors: [{ code: 10215, message: PROVIDER_TOKEN }] },
+    error: { code: 'vendor_error', method: 'PATCH', endpoint: SCRIPT + '/settings', provider_codes: [10215, '10216', null, 1.5, { code: 7 }] },
+  } });
+  const result = await env.execute('set_vars');
+  assert.deepEqual(result, { status: 'vendor_error', method: 'PATCH', endpoint: '/workers/scripts/proof-worker/settings', http_status: 400, provider_codes: [10215] });
+  assert.equal(env.calls.at(-1).method, 'PATCH'); noValues(result);
+  assert.equal(JSON.stringify(result).includes('message'), false);
 });
 test('set_vars: allowed-names refusal is before any Cloudflare call and echoes neither key nor value', async (t) => {
   const env = await setup(t);
@@ -157,7 +251,7 @@ for (const badVars of [{ ACCESS_TOKEN: VALUE }, { 'BAD-NAME': VALUE }, { ACCESS_
 test('set_vars: Unicode bound counts 512 code points and permits partial updates', async (t) => {
   // ACCESS_AUD is documented as an optional property, not a required update key.
   const env = await setup(t, { bindings: [...currentBindings, { name: 'ACCESS_TEAM_DOMAIN', type: 'plain_text' }] });
-  assert.deepEqual(await env.execute('set_vars', { ...vars, vars: { ACCESS_TEAM_DOMAIN: '\u{1f600}'.repeat(512) } }), { keys_set: ['ACCESS_TEAM_DOMAIN'], version_id: ID });
+  assert.deepEqual(await env.execute('set_vars', { ...vars, vars: { ACCESS_TEAM_DOMAIN: '\u{1f600}'.repeat(512) } }), { keys_set: ['ACCESS_TEAM_DOMAIN'], version_id: UPDATED });
 });
 test('set_vars: an allowed name cannot overwrite a resource or secret binding', async (t) => {
   const env = await setup(t, { bindings: [{ name: 'ACCESS_AUD', type: 'secret_text' }] });
@@ -225,8 +319,12 @@ test('list_versions: reads a second page after a full first page', async (t) => 
 for (const versions of [[{ version_id: ID, percentage: 0 }], [{ version_id: ID }], [{ version_id: ID, percentage: 99 }],
   [{ version_id: ID, percentage: 50 }, { version_id: '23456789-2345-2345-2345-23456789abcd', percentage: 50 }]]) {
   test(`set_vars: unconfirmed traffic ${JSON.stringify(versions)} reports settings updated`, async (t) => {
-    const env = await setup(t, { responder: (req) => req.endpoint.endsWith('/deployments')
-      ? envelope({ deployments: [{ versions }] }) : envelope({ bindings: currentBindings }) });
+    let deployments = 0;
+    const env = await setup(t, { responder: (req) => {
+      if (req.endpoint.endsWith('/deployments')) return envelope({ deployments: [{ versions: ++deployments === 1 ? [{ version_id: ID, percentage: 100 }] : versions }] });
+      if (req.endpoint.endsWith('/versions')) return envelope({ items: [currentVersion] });
+      return envelope({ bindings: currentBindings });
+    } });
     const answer = await env.execute('set_vars');
     assert.equal(answer.status, 'vendor_error'); assert.match(answer.reason, /settings updated/);
     assert.ok(!Object.hasOwn(answer, 'version_id')); noValues(answer);
@@ -243,7 +341,8 @@ for (const bindings of [[], [{ name: 'ACCESS_AUD', type: 'secret_text' }], [{ na
   test('set_vars: read-back must contain each set key once as plain_text', async (t) => {
     let reads = 0;
     const env = await setup(t, { responder: (req) => {
-      if (req.endpoint.endsWith('/deployments')) return envelope({ deployments: [{ versions: [{ version_id: ID, percentage: 100 }] }] });
+      if (req.endpoint.endsWith('/deployments')) return envelope({ deployments: [{ versions: updatedOnce(env.calls) }] });
+      if (req.endpoint.endsWith('/versions')) return envelope({ items: [currentVersion] });
       if (req.method === 'GET') return envelope({ bindings: ++reads === 1 ? currentBindings : bindings });
       return envelope({});
     } });
@@ -258,18 +357,35 @@ test('set_vars: read-back confirms every set key using names/types without readi
   const after = ['ACCESS_AUD', 'ACCESS_TEAM_DOMAIN'].map((name) => ({ name, type: 'plain_text',
     get text() { assert.fail('read-back must never inspect binding values'); } }));
   const env = await setup(t, { responder: (req) => {
-    if (req.endpoint.endsWith('/deployments')) return envelope({ deployments: [{ versions: [{ version_id: ID, percentage: 100 }] }] });
+    if (req.endpoint.endsWith('/deployments')) return envelope({ deployments: [{ versions: updatedOnce(env.calls) }] });
+    if (req.endpoint.endsWith('/versions')) return envelope({ items: [currentVersion] });
     if (req.method === 'GET') return envelope({ bindings: ++reads === 1 ? currentBindings : after });
     return envelope({});
   } });
   const answer = await env.execute('set_vars', { ...vars, vars: { ACCESS_AUD: VALUE, ACCESS_TEAM_DOMAIN: 'example.test' } });
-  assert.deepEqual(answer, { keys_set: ['ACCESS_AUD', 'ACCESS_TEAM_DOMAIN'], version_id: ID });
+  assert.deepEqual(answer, { keys_set: ['ACCESS_AUD', 'ACCESS_TEAM_DOMAIN'], version_id: UPDATED });
   assert.equal(reads, 2); noValues(answer);
+});
+test('set_vars: a read-back still naming the pre-update version is unverified, so it is never recorded as a new version', async (t) => {
+  // Versions are immutable: a deployment still serving the preflight id is the version
+  // without the change, and recording it as stopped N would reopen writes on rollback.
+  const env = await setup(t, { responder: (req) => {
+    if (req.endpoint.endsWith('/deployments')) return envelope({ deployments: [{ versions: [{ version_id: ID, percentage: 100 }] }] });
+    if (req.endpoint.endsWith('/versions')) return envelope({ items: [currentVersion] });
+    if (req.method === 'GET') return envelope({ bindings: currentBindings });
+    return envelope({});
+  } });
+  const answer = await env.execute('set_vars');
+  assert.equal(answer.status, 'vendor_error'); assert.match(answer.reason, /settings updated/);
+  assert.match(answer.reason, /still the version from before the update/);
+  assert.ok(!Object.hasOwn(answer, 'version_id')); assert.ok(!Object.hasOwn(answer, 'keys_set')); noValues(answer);
+  assert.equal(env.calls.filter((req) => req.method === 'PATCH').length, 1);
 });
 test('set_vars: failed settings read-back reports update without leaking diagnostic', async (t) => {
   let reads = 0;
   const env = await setup(t, { responder: (req) => {
-    if (req.endpoint.endsWith('/deployments')) return envelope({ deployments: [{ versions: [{ version_id: ID, percentage: 100 }] }] });
+    if (req.endpoint.endsWith('/deployments')) return envelope({ deployments: [{ versions: updatedOnce(env.calls) }] });
+    if (req.endpoint.endsWith('/versions')) return envelope({ items: [currentVersion] });
     if (req.method === 'GET') return ++reads === 1 ? envelope({ bindings: currentBindings }) : error(500);
     return envelope({});
   } });

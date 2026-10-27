@@ -180,8 +180,9 @@ binding names. No action accepts a client secret or creates a service token.
 Each variable is uploaded in `metadata.bindings` as `{ name, text, type: "plain_text" }`,
 the [PlainText binding in Cloudflare's script-upload reference](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/methods/update/).
 A confirmation shows the values supplied by the call; deploy results and diagnostic
-refusals carry neither variable values nor upload or completion tokens. A vendor
-address repeating a supplied variable value is withheld as a null URL with a reason.
+refusals carry neither variable binding values nor upload or completion tokens. The
+address is built from the caller's script name and the account's validated subdomain
+and is reported whenever the subdomain exists, including coincidental variable matches.
 
 The release allows 50 modules, 20,000 assets, 25 MiB per file and 64 MiB total,
 including migrations. Every file's size and SHA-256 and every request's size are
@@ -193,7 +194,8 @@ paths and vendor calls. Preflight refusals carry `stage: "before upload"`.
 The deployment binds the supplied D1 id and enables the Worker's workers.dev
 address. An account without a subdomain still deploys with a null URL and a reason.
 It never creates an account subdomain. Format 2 and the variables are verified by
-fake-provider tests; their live and hosted behavior remains unverified.
+fake-provider tests and the local live run of 2026-10-26; their hosted behavior
+remains unverified.
 
 `workers.set_vars` takes `account_id`, `script_name`, release `app` and `version`, and
 `vars`. It shares deploy's signature-first verification and exact format-2 shape
@@ -202,7 +204,18 @@ signed release's `vars_required`; callers cannot supply an allowlist. The deploy
 non-secret uppercase-name rule and 512 Unicode-character value limit apply.
 Unlisted names are refused before any Cloudflare call; refusals echo neither
 variable names nor values. It reads the existing Worker's bindings, refuses a
-plain variable that would replace a resource or secret, then sends a multipart
+plain variable that would replace a resource or secret, then reads the active
+deployment and the complete version history through `list_versions`' paging and
+checks. It selects the newest by `created_on`, irrespective of list order. If no
+single version serves 100 percent or that version is not the newest, it refuses
+before any PATCH: the Worker's newest version is not the one serving, as after a
+rollback, and Cloudflare changes variables only on the newest deployed version.
+The caller rolls back to a recorded version or deploys a release instead. Tied
+newest creation times are refused because the newest cannot be determined. Failed
+reads retain their own `vendor_error`; no variable name or value is echoed.
+A failed settings PATCH adds `provider_codes`, an array containing only integer
+Cloudflare codes, with no provider message text; other actions' errors are unchanged.
+When the newest version alone is serving, it sends a multipart
 `settings` part to [Patch Worker Script and Version Settings](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/script_and_version_settings/methods/edit/).
 Every other binding is retained by name with `type: "inherit"`, including secrets
 whose contents are unreadable, following Wrangler's
@@ -210,11 +223,14 @@ whose contents are unreadable, following Wrangler's
 [settings read](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/script_and_version_settings/methods/get/)
 supplies those names. No code is uploaded. The PATCH reference does not specify a
 resulting version id, so the action reads [the active deployment](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/deployments/methods/list/) afterward and
-requires one version serving 100 percent of traffic, then re-reads binding names
+requires one version serving 100 percent of traffic, and that version not the one
+serving before the update: versions are immutable, so the old id still serving is
+the version without the change, never a new one. It then re-reads binding names
 and types without inspecting values. Every key in `keys_set` must appear as
 `plain_text`; other bindings are not confirmed. It returns only `keys_set` and
-`version_id`. Missing keys, non-plain types, or an unconfirmed deployment produce
-a vendor error saying the settings were updated. This reports
+`version_id`. Missing keys, non-plain types, an unconfirmed deployment, or the
+pre-update version still serving produce a vendor error saying the settings were
+updated, with no `version_id` to record. This reports
 the post-update active version using Wrangler's `fetchLatestDeployment` and
 `fetchDeploymentVersions` reading, rather than attributing an undocumented id to
 the PATCH. A
@@ -258,7 +274,10 @@ active deployment; use `get_worker` before an upgrade and record that version id
 
 All four settings writes require confirmation every time. They and the version
 read use the `workers` grant and no local files. Their request shapes and refusals
-are fake-provider tested; live and hosted settings behavior remains unverified.
+are fake-provider tested. The local live run of 2026-10-26 exercised `set_vars`
+and `list_versions`; the new newest-version refusal and PATCH code reporting are
+offline-tested. Custom-domain writes, `set_workers_dev`, and hosted settings
+behavior remain unverified.
 
 ### Restore points and rollback
 
@@ -318,7 +337,8 @@ Wrangler's `fetchLatestDeployment`. An empty, split, mismatched
 or failed read-back reports rollback submitted but unverified. A concurrent
 deploy between the write and read can cause that result; the read is not a lock.
 Both restore and rollback require confirmation every time. Their API behavior
-is fake-provider tested; live and hosted restore/rollback remain unverified.
+is fake-provider tested; the local live run of 2026-10-26 verified restore and
+rollback. The hosted run remains unverified.
 
 ### Upgrade and failure recovery sequence
 
@@ -327,29 +347,33 @@ Run these actions in order and retain each result before the next write:
 1. `workers.get_worker`: record its non-null `version_id` for release N, before
    **any** upgrade write, including `workers.set_vars`. Stop if it cannot name a
    single version at 100 percent. `workers.list_versions` cannot supply this fact.
-2. Stop application writes. **Unmet:** nothing in this connector stops staff
-   writes. The fork must supply its read-only variable in a release's
-   `vars_required`, enforce it for every writing route (including GET routes that
-   write), and let `workers.set_vars` set it. Until then, the caller stops the
-   automated upgrade and arranges a separately verified write stop with the
-   operator; taking a bookmark alone does not make concurrent staff writes safe.
-   Keep writes stopped through verification and failure recovery.
+2. Stop application writes. Wiser CRM releases carry `WISER_READ_ONLY` in
+   `vars_required`; the CRM refuses every write, including GET routes that write,
+   while its value is anything but empty or `false`. Use `workers.set_vars` on N
+   to set `WISER_READ_ONLY` to `true`, and record the answer's `version_id` as
+   **N's stopped version**, separately from step 1's original N id. Stop if the
+   update is unverified. Keep writes stopped through verification and failure recovery.
 3. `workers.d1_bookmark`: retain `bookmark`, `bookmark_time`, account and database
    together, with the account's 7- or 30-day window.
-4. `workers.deploy_worker_release`: deploy release N+1. Keep any eventual read-only
+4. `workers.deploy_worker_release`: deploy release N+1. Keep the read-only
    variable set in the new release as well. The deploy turns the Worker's
    `workers.dev` address on, so call `workers.set_workers_dev` with `enabled: false`
    and `previews_enabled: false` straight after it, as after a first install.
 5. `workers.d1_migrate`: apply N+1's verified release migrations.
 6. On failure, `workers.d1_restore` to step 3's pair and window, then
-   `workers.rollback` to step 1's recorded `version_id`, irrespective of the live
-   deployment's versions. Retain `previous_bookmark` for undo. Verify the restored
-   data with `pages.d1_query` against the pre-upgrade table set, counts and seeded
-   values (custom columns included), and verify N's version with `get_worker`.
-   A failed or unverified recovery stops the sequence for the operator.
-7. Resume writes only after the data and serving version are verified. On success
-   verify N+1's data and serving version before clearing the eventual read-only
-   switch. This resume step is also unmet until that switch exists.
+   `workers.rollback` to step 2's recorded **N's stopped version**, irrespective
+   of the live deployment's versions. This restores N's code with writes still
+   stopped. Retain `previous_bookmark` for undo. Verify the restored data with
+   `pages.d1_query` against the pre-upgrade table set, counts and seeded values
+   (custom columns included), and verify the stopped version serving alone with
+   `get_worker`. A failed or unverified recovery stops the sequence for the operator.
+7. Resume writes only after the data and serving version are verified. On failure,
+   `workers.rollback` to step 1's original N id, restoring its original writable
+   variables, then verify that id serving alone with `workers.get_worker`.
+   Do not use `set_vars` to resume after rollback: N+1 remains the newest version,
+   and Cloudflare changes variables only on the newest deployed version. On success,
+   verify N+1's data and serving version, then clear `WISER_READ_ONLY` with
+   `workers.set_vars` on N+1, which is both newest and deployed.
 
 ### Access applications and staff
 
@@ -567,7 +591,6 @@ reads and final history record consistent.
 | `workers.deploy_worker_release` | Replaces the deployed script, assets, bindings and plain variables | A previous version must be retained separately |
 | `workers.delete_worker` | Removes the Worker | No |
 | `workers.d1_restore` | Overwrites the database at the supplied bookmark; every later change is lost | Restore to the returned previous_bookmark within the account's window |
-| `workers.rollback` | Replaces all live traffic with the supplied version at 100 percent | Deploy another explicitly recorded version id |
 | `dns.delete_record` | Removes the record | No |
 | `dns.batch` | Mixed deletes and writes | No |
 | `dns.import_zone` | Bulk create from BIND | No |
@@ -585,7 +608,8 @@ reads and final history record consistent.
 | `rulesets.delete_list` | Deletes the list | No |
 | `workers.d1_migrate` | Runs verified release SQL and records filenames in the manifest history table | No automatic undo; stop on a failed statement and use the upgrade restore sequence |
 | `workers.d1_adopt` | Creates and deletes a temporary reference database; records a matching baseline on the member database | Member baseline SQL is never run; an unconfirmed reference deletion is a named failure |
-| `workers.set_vars` | Changes plain variables and creates a settings version; other bindings are inherited | Set the previous values again; no values are returned |
+| `workers.rollback` | Deploys the recorded version alone at 100 percent, including its variables | Roll back to another recorded id; recovery uses stopped N first, then original N to resume writes |
+| `workers.set_vars` | Changes plain variables and creates a settings version only when the newest version alone is deployed; other bindings are inherited | Set previous values while newest is deployed, or roll back to a recorded version; no values are returned |
 | `workers.add_custom_domain` | Routes the hostname to the Worker | `workers.remove_custom_domain` detaches it |
 | `workers.remove_custom_domain` | Detaches the hostname from the Worker and its previews | Only by adding it again |
 | `workers.set_workers_dev` | Enables or disables free and preview addresses on this Worker | Set the previous flags again |
