@@ -1,5 +1,4 @@
 import { createHash, randomUUID, webcrypto } from 'node:crypto';
-import { readFileSync } from 'node:fs';
 import { extname } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 
@@ -64,12 +63,15 @@ export function validReleaseConfig(config, hosts) {
       && string(key.ed25519, /^[A-Za-z0-9+/]{43}=$/) && Buffer.from(key.ed25519, 'base64').length === 32
       && Buffer.from(key.ed25519, 'base64').toString('base64') === key.ed25519));
 }
-function releaseConfig() {
+// Both files arrive as JSON modules, never read from disk: the hosted service bundles
+// this module with no files beside it. Imported per call, so a missing or malformed
+// file refuses that call rather than the connector's load.
+async function releaseConfig() {
   let config;
-  try { config = JSON.parse(readFileSync(new URL('./release.json', import.meta.url), 'utf8')); }
-  catch (err) { return { error: before(`release.json is ${err.code === 'ENOENT' ? 'missing' : 'malformed'}`) }; }
+  try { config = (await import('./release.json', { with: { type: 'json' } })).default; }
+  catch (err) { return { error: before(`release.json is ${err.code === 'ERR_MODULE_NOT_FOUND' ? 'missing' : 'malformed'}`) }; }
   let hosts;
-  try { hosts = JSON.parse(readFileSync(new URL('./manifest.json', import.meta.url), 'utf8')).modules.workers.release_hosts; }
+  try { hosts = (await import('./manifest.json', { with: { type: 'json' } })).default.modules.workers.release_hosts; }
   catch { return { error: before('release.json base host is not in release_hosts') }; }
   if (!validReleaseConfig(config, hosts)) return { error: before('release.json is malformed or its base host is not in release_hosts') };
   return { config };
@@ -148,7 +150,7 @@ function varsShape(vars) {
 }
 
 async function loadManifest(input, ctx) {
-  const loaded = releaseConfig();
+  const loaded = await releaseConfig();
   if (loaded.error) return { error: loaded.error };
   const config = loaded.config;
   if (!Object.hasOwn(config.apps, input.app)) return { error: before('release app is not listed') };

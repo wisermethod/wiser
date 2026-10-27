@@ -612,3 +612,10 @@ test('deploy rejects a subdomain failing LABEL with vendor_error and no address'
   const result = await env.execute();
   assert.equal(result.status, 'vendor_error'); assert.equal(result.url, undefined); noTokens(result);
 });
+test('the release module reads nothing from disk, so the hosted bundle can carry it', () => {
+  // The hosted service bundles with node:fs aliased and import.meta.url fixed to one
+  // address, so a file read beside this module finds nothing there.
+  const source = readFileSync(new URL('../worker-release.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /(?:\bfrom\s+|\brequire\s*\(\s*|\bimport\s*\(\s*)['"](?:node:)?fs(?:\/promises)?['"]/);
+  assert.doesNotMatch(source, /import\.meta\.url/);
+});
