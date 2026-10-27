@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import test from 'node:test';
 import { compositionHtml, inspectProject, openingTags, remoteReference } from '../scripts/project.mjs';
-import { BROWSER_SWITCHES, browserPath, canonical, checkRuntime, childEnvironment, hashFrames, hyperframesDuration, optionsForSequence, readRenderLog, renderArguments, TOOL_DIR } from '../scripts/sequence.mjs';
+import { BROWSER_SWITCHES, browserPath, canonical, checkRuntime, childEnvironment, hashFrames, hyperframesDuration, optionsForSequence, readRenderLog, renderArguments, sequence, TOOL_DIR } from '../scripts/sequence.mjs';
 import { parseArguments } from '../scripts/video-render.js';
 
 const cli = join(TOOL_DIR, 'scripts/video-render.js');
@@ -143,13 +143,40 @@ test('Chrome and lint results come from the actual launch log', () => {
   assert.deepEqual(readRenderLog('[BrowserManager] Browser launched (HeadlessChrome/152.0.7977.30, screenshot)\n  \u26a0 css_transition_used: Zibble\n    Fix: Pluvo'), { chromeBuild: '152.0.7977.30', lintFindings: ['\u26a0 css_transition_used: Zibble'] });
   assert.throws(() => readRenderLog('zibble'), /no launched Chrome build/);
   assert.throws(() => readRenderLog('[BrowserManager] Browser launched (Chrome/151.0.0.0, screenshot)'), /require 152/);
-  // HyperFrames 0.8.134's own warnings when it finishes a failed capture in a fresh browser and exits 0.
+  // HyperFrames 0.8.134's own lines when it recovers from a failed capture and still exits 0.
   const launched = '[BrowserManager] Browser launched (HeadlessChrome/152.0.7977.30, screenshot)\n';
-  for (const warning of ['[WARN] [Render] Transient browser failure during sequential capture; retrying once with a fresh session.',
+  for (const line of ['[WARN] [Render] Transient browser failure during sequential capture; retrying once with a fresh session.',
+    '[WARN] [Render] Transient browser failure during capture; retrying once with a fresh session.',
+    '[WARN] [Render] Browser initialization timed out; retrying once with fresh sessions.',
     '[WARN] [Render] Retrying missing captured frames with fewer workers.',
-    '[WARN] [Render] Parallel capture timed out; retrying missing frames.']) {
-    assert.throws(() => readRenderLog(`${launched}${warning} {"resumeFrom":40}\n${launched}`), /resumed its capture after a browser failure/);
+    '[WARN] [Render] Parallel capture timed out; retrying missing frames.',
+    '[WARN] [Render] drawElement capture failed on the parallel disk path; re-rendering via screenshot',
+    '[WARN] [Render] sequential capture stalled; retrying on a fresh screenshot session',
+    '[INFO] [Render] capture failed; re-rendering via a fresh screenshot session']) {
+    assert.throws(() => readRenderLog(`${launched}${line} {"resumeFrom":40}\n${launched}`), /recovered from a failed capture/, line);
   }
+  // A probe retried before any frame, a calibration retry, and a failure that is not retried are not recoveries.
+  for (const line of ['[INFO] Retrying with a fresh browser session... {"attempt":2}',
+    '[WARN] [Render] BeginFrame auto-worker calibration timed out; retrying calibration in screenshot capture mode.',
+    '[WARN] [Render] Capture attempt made no forward progress; composition is likely structurally broken — not retrying.']) {
+    assert.equal(readRenderLog(`${launched}${line}\n`).chromeBuild, '152.0.7977.30', line);
+  }
+});
+
+test('a sequence whose log shows a recovered capture keeps its log and leaves no frames', async (t) => {
+  const path = await scratch(t), project = join(path, 'project'), output = join(path, 'out');
+  await cp(fixture, project, { recursive: true });
+  // A stand-in renderer writes frames and a log in which HyperFrames recovered, then exits 0.
+  const bin = join(path, 'bin'), fake = join(bin, 'node');
+  await mkdir(bin);
+  await writeFile(fake, `#!/bin/sh\nout=""\nwhile [ $# -gt 0 ]; do [ "$1" = "-o" ] && out="$2"; shift; done\nmkdir -p "$out"\n: > "$out/frame_000001.png"\nprintf '%s\\n' '[BrowserManager] Browser launched (HeadlessChrome/152.0.7977.30, screenshot)' '[WARN] [Render] Transient browser failure during capture; retrying once with a fresh session.'\n`, { mode: 0o755 });
+  const previous = process.execPath;
+  Object.defineProperty(process, 'execPath', { value: fake, configurable: true });
+  try {
+    await assert.rejects(sequence({ ...input(project, output) }), /recovered from a failed capture/);
+  } finally { Object.defineProperty(process, 'execPath', { value: previous, configurable: true }); }
+  assert.deepEqual(await readdir(output), ['render.log']);
+  assert.match(await readFile(join(output, 'render.log'), 'utf8'), /retrying once with a fresh session/);
 });
 
 test('RGBA hashes ignore PNG encoding differences and frame count is enforced', async (t) => {
