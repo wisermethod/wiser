@@ -1,0 +1,131 @@
+# Third-party notice: video-render
+
+This tool installs the 123 packages below on the machine that calls it, into this tool's own directory, on the first run that authorizes it with `--install`, and HyperFrames' installer then fetches HyperFrames' pinned `chrome-headless-shell` 152.0.7977.30, Google's Chrome for Testing build, into HyperFrames' own cache. **This repository redistributes none of them.**
+
+Versions and licenses are read from this tool's `package-lock.json`, on 2026-10-25. An optional package installs only where it applies, so one install takes fewer than the table lists.
+
+| Package | Version | License | |
+|---------|---------|---------|--|
+| `@emnapi/runtime` | 1.11.3 | MIT | optional |
+| `@esbuild/aix-ppc64` | 0.25.12 | MIT | optional |
+| `@esbuild/android-arm` | 0.25.12 | MIT | optional |
+| `@esbuild/android-arm64` | 0.25.12 | MIT | optional |
+| `@esbuild/android-x64` | 0.25.12 | MIT | optional |
+| `@esbuild/darwin-arm64` | 0.25.12 | MIT | optional |
+| `@esbuild/darwin-x64` | 0.25.12 | MIT | optional |
+| `@esbuild/freebsd-arm64` | 0.25.12 | MIT | optional |
+| `@esbuild/freebsd-x64` | 0.25.12 | MIT | optional |
+| `@esbuild/linux-arm` | 0.25.12 | MIT | optional |
+| `@esbuild/linux-arm64` | 0.25.12 | MIT | optional |
+| `@esbuild/linux-ia32` | 0.25.12 | MIT | optional |
+| `@esbuild/linux-loong64` | 0.25.12 | MIT | optional |
+| `@esbuild/linux-mips64el` | 0.25.12 | MIT | optional |
+| `@esbuild/linux-ppc64` | 0.25.12 | MIT | optional |
+| `@esbuild/linux-riscv64` | 0.25.12 | MIT | optional |
+| `@esbuild/linux-s390x` | 0.25.12 | MIT | optional |
+| `@esbuild/linux-x64` | 0.25.12 | MIT | optional |
+| `@esbuild/netbsd-arm64` | 0.25.12 | MIT | optional |
+| `@esbuild/netbsd-x64` | 0.25.12 | MIT | optional |
+| `@esbuild/openbsd-arm64` | 0.25.12 | MIT | optional |
+| `@esbuild/openbsd-x64` | 0.25.12 | MIT | optional |
+| `@esbuild/openharmony-arm64` | 0.25.12 | MIT | optional |
+| `@esbuild/sunos-x64` | 0.25.12 | MIT | optional |
+| `@esbuild/win32-arm64` | 0.25.12 | MIT | optional |
+| `@esbuild/win32-ia32` | 0.25.12 | MIT | optional |
+| `@esbuild/win32-x64` | 0.25.12 | MIT | optional |
+| `@hono/node-server` | 2.1.5 | MIT | required |
+| `@img/colour` | 1.1.0 | MIT | required |
+| `@img/sharp-darwin-arm64` | 0.35.5 | Apache-2.0 | optional |
+| `@img/sharp-darwin-x64` | 0.35.5 | Apache-2.0 | optional |
+| `@img/sharp-freebsd-wasm32` | 0.35.5 | Apache-2.0 | optional |
+| `@img/sharp-libvips-darwin-arm64` | 1.3.4 | LGPL-3.0-or-later | optional |
+| `@img/sharp-libvips-darwin-x64` | 1.3.4 | LGPL-3.0-or-later | optional |
+| `@img/sharp-libvips-linux-arm` | 1.3.4 | LGPL-3.0-or-later | optional |
+| `@img/sharp-libvips-linux-arm64` | 1.3.4 | LGPL-3.0-or-later | optional |
+| `@img/sharp-libvips-linux-ppc64` | 1.3.4 | LGPL-3.0-or-later | optional |
+| `@img/sharp-libvips-linux-riscv64` | 1.3.4 | LGPL-3.0-or-later | optional |
+| `@img/sharp-libvips-linux-s390x` | 1.3.4 | LGPL-3.0-or-later | optional |
+| `@img/sharp-libvips-linux-x64` | 1.3.4 | LGPL-3.0-or-later | optional |
+| `@img/sharp-libvips-linuxmusl-arm64` | 1.3.4 | LGPL-3.0-or-later | optional |
+| `@img/sharp-libvips-linuxmusl-x64` | 1.3.4 | LGPL-3.0-or-later | optional |
+| `@img/sharp-linux-arm` | 0.35.5 | Apache-2.0 | optional |
+| `@img/sharp-linux-arm64` | 0.35.5 | Apache-2.0 | optional |
+| `@img/sharp-linux-ppc64` | 0.35.5 | Apache-2.0 | optional |
+| `@img/sharp-linux-riscv64` | 0.35.5 | Apache-2.0 | optional |
+| `@img/sharp-linux-s390x` | 0.35.5 | Apache-2.0 | optional |
+| `@img/sharp-linux-x64` | 0.35.5 | Apache-2.0 | optional |
+| `@img/sharp-linuxmusl-arm64` | 0.35.5 | Apache-2.0 | optional |
+| `@img/sharp-linuxmusl-x64` | 0.35.5 | Apache-2.0 | optional |
+| `@img/sharp-wasm32` | 0.35.5 | Apache-2.0 AND LGPL-3.0-or-later AND MIT | optional |
+| `@img/sharp-webcontainers-wasm32` | 0.35.5 | Apache-2.0 | optional |
+| `@img/sharp-win32-arm64` | 0.35.5 | Apache-2.0 AND LGPL-3.0-or-later | optional |
+| `@img/sharp-win32-ia32` | 0.35.5 | Apache-2.0 AND LGPL-3.0-or-later | optional |
+| `@img/sharp-win32-x64` | 0.35.5 | Apache-2.0 AND LGPL-3.0-or-later | optional |
+| `@puppeteer/browsers` | 3.2.6 | Apache-2.0 | required |
+| `@swc/helpers` | 0.5.23 | Apache-2.0 | required |
+| `adm-zip` | 0.6.1 | MIT | required |
+| `ansi-regex` | 6.4.0 | MIT | required |
+| `ansi-styles` | 6.2.3 | MIT | required |
+| `base64-js` | 1.5.1 | MIT | required |
+| `brotli` | 1.3.3 | MIT | required |
+| `bundle-name` | 4.1.1 | MIT | required |
+| `chromium-bidi` | 157.0.8090-0 | Apache-2.0 | required |
+| `citty` | 0.2.2 | MIT | required |
+| `cliui` | 9.0.1 | ISC | required |
+| `string-width` | 7.2.0 | MIT | required |
+| `clone` | 2.1.2 | MIT | required |
+| `compare-versions` | 6.1.1 | MIT | required |
+| `css-tree` | 3.2.1 | MIT | required |
+| `debug` | 4.4.3 | MIT | required |
+| `default-browser` | 5.5.1 | MIT | required |
+| `default-browser-id` | 5.0.1 | MIT | required |
+| `define-lazy-prop` | 3.0.0 | MIT | required |
+| `detect-libc` | 2.1.2 | Apache-2.0 | required |
+| `devtools-protocol` | 0.0.1704951 | BSD-3-Clause | required |
+| `dfa` | 1.2.0 | MIT | required |
+| `emoji-regex` | 10.6.0 | MIT | required |
+| `esbuild` | 0.25.12 | MIT | required |
+| `escalade` | 3.2.0 | MIT | required |
+| `fast-deep-equal` | 3.1.3 | MIT | required |
+| `fontkit` | 2.0.4 | MIT | required |
+| `get-caller-file` | 2.0.5 | ISC | required |
+| `get-east-asian-width` | 1.7.0 | MIT | required |
+| `giget` | 3.3.1 | MIT | required |
+| `hono` | 4.13.13 | MIT | required |
+| `hyperframes` | 0.8.134 | Apache-2.0 | required |
+| `ignore` | 5.3.2 | MIT | required |
+| `is-docker` | 3.0.0 | MIT | required |
+| `is-inside-container` | 1.0.0 | MIT | required |
+| `is-wsl` | 3.1.1 | MIT | required |
+| `mdn-data` | 2.27.1 | CC0-1.0 | required |
+| `mitt` | 3.0.1 | MIT | required |
+| `modern-tar` | 0.8.6 | MIT | required |
+| `ms` | 2.1.3 | MIT | required |
+| `nanoid` | 3.3.20 | MIT | required |
+| `open` | 10.2.0 | MIT | required |
+| `pako` | 0.2.9 | MIT | required |
+| `picocolors` | 1.1.1 | ISC | required |
+| `postcss` | 8.5.31 | MIT | required |
+| `prettier` | 3.9.10 | MIT | required |
+| `puppeteer-core` | 25.16.0 | Apache-2.0 | required |
+| `restructure` | 3.0.2 | MIT | required |
+| `run-applescript` | 7.1.0 | MIT | required |
+| `semver` | 7.8.5 | ISC | required |
+| `sharp` | 0.35.5 | Apache-2.0 | required |
+| `source-map-js` | 1.2.2 | BSD-3-Clause | required |
+| `string-width` | 8.3.0 | MIT | required |
+| `strip-ansi` | 7.2.0 | MIT | required |
+| `tiny-inflate` | 1.0.3 | MIT | required |
+| `tslib` | 2.8.1 | 0BSD | required |
+| `typed-query-selector` | 2.12.3 | MIT | required |
+| `unicode-properties` | 1.4.1 | MIT | required |
+| `unicode-trie` | 2.0.0 | MIT | required |
+| `webdriver-bidi-protocol` | 1.0.1 | Apache-2.0 | required |
+| `wrap-ansi` | 9.0.2 | MIT | required |
+| `string-width` | 7.2.0 | MIT | required |
+| `ws` | 8.22.0 | MIT | required |
+| `wsl-utils` | 0.1.0 | MIT | required |
+| `y18n` | 5.0.8 | ISC | required |
+| `yargs` | 18.2.0 | MIT | required |
+| `yargs-parser` | 22.0.0 | ISC | required |
+| `zod` | 4.6.7 | MIT | required |

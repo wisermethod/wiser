@@ -1,0 +1,7 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { width: 960px; height: 540px; overflow: hidden; }
+#root { position: relative; background: #f6f3ec; font-family: system-ui, sans-serif; }
+#camera { position: absolute; left: 0; top: 0; width: 640px; height: 400px; transform-origin: 0 0; }
+#still { display: block; width: 100%; height: 100%; border-radius: 8px; box-shadow: 0 16px 48px #0006; }
+#chip { position: absolute; left: 2%; top: 3%; background: #080c14ee; color: #ffffff; font-size: 22px; line-height: 1.3; padding: 6px 14px; border-radius: 10px; opacity: 0; }
+#caption { position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); width: max-content; color: #fff; background: #111e; font-size: 22px; padding: 6px; border-radius: 6px; opacity: 0; }

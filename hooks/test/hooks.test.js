@@ -346,7 +346,7 @@ test('roster keeps offered what the seam gate cannot see or reads as doubtful', 
   ]);
 });
 
-test('the tree excludes seventeen primitives on their own clean none declarations', () => {
+test('the tree excludes twenty-one primitives on their own clean none declarations', () => {
   const gate = seamGate(tempHome());
   const omitted = [];
   const expected = [];
@@ -365,6 +365,7 @@ test('the tree excludes seventeen primitives on their own clean none declaration
   assert.deepEqual(omitted, [
     'skills/Illustrator/SKILL.md',
     'skills/Cloudflare Setup/SKILL.md',
+    'skills/Ask in a Form/SKILL.md',
     'skills/Set Up Wiser/SKILL.md',
     'skills/Commit and Release/SKILL.md',
     'skills/Delegate Build/SKILL.md',
@@ -372,6 +373,7 @@ test('the tree excludes seventeen primitives on their own clean none declaration
     'skills/Save Preference/SKILL.md',
     'skills/Standing Approval/SKILL.md',
     'tools/Browser Control/TOOL.md',
+    'tools/Form/TOOL.md',
     'tools/Subagent Runner/TOOL.md',
     'tools/data/TOOL.md',
     'tools/copy-check/TOOL.md',
@@ -379,6 +381,8 @@ test('the tree excludes seventeen primitives on their own clean none declaration
     'tools/Contact Sheet/TOOL.md',
     'tools/icon-set/TOOL.md',
     'tools/Screen Capture/TOOL.md',
+    'tools/video-render/TOOL.md',
+    'tools/video-edit/TOOL.md',
     'tools/pages-functions/TOOL.md',
   ]);
   const rows = buildRoster(pluginRoot);

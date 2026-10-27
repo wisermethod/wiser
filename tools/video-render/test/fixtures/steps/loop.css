@@ -1,0 +1,249 @@
+/* Animated Explainer, loop starter 0.1.0.
+ *
+ * The rules outside the motion block are the finished picture, and they are what shows with no script,
+ * under reduced motion, in print and in a deck's PDF. Every rule that hides, dims or moves anything sits
+ * inside the motion block at the end, which applies only on a screen whose user has not asked for reduced
+ * motion, so no state the script leaves behind can show a half-drawn picture where motion is not wanted.
+ *
+ * Engine rules, marked so, are scoped under .ax-loop and kept as they are, so including loop.css more than
+ * once is harmless. Geometry rules, marked so, are the placeholder picture: three boxes, two lines, one
+ * flight, in a wide layout and a narrow one. They are scoped under the piece's own class beside .ax-loop,
+ * .ax-demo here, which each piece renames and replaces, so two different pieces on one page never collide.
+ */
+
+/* Engine: the root, its colours and timings, and a reset against the host page's own rules. */
+.ax-loop {
+  --ax-ground: #ffffff;
+  --ax-ink: #1f1f1f;
+  --ax-muted: #5c5c5c;
+  --ax-box: #efefef;
+  --ax-line: #1f1f1f;
+  --ax-focus: #1f1f1f;
+  --ax-font: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --ax-draw: 600ms;
+  --ax-enter: 400ms;
+  --ax-fade: 300ms;
+  --ax-travel: 800ms;
+  --ax-ease-out: cubic-bezier(0.25, 1, 0.5, 1);
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ax-ink);
+  font: normal 400 16px/1.3 var(--ax-font);
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-align: left;
+  text-transform: none;
+}
+.ax-loop, .ax-loop *, .ax-loop *::before, .ax-loop *::after { box-sizing: border-box; }
+
+/* Engine: the text description, read in place of the stage, which is hidden from assistive technology. */
+.ax-loop .ax-desc {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Engine: the frame decides the layout by its width; the stage is the picture, with no padding or border,
+   so its container units, its padding box and the line overlay all measure the same rectangle. */
+.ax-loop .ax-frame {
+  position: relative;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  container-type: inline-size;
+  container-name: ax-loop-frame;
+}
+.ax-loop .ax-stage {
+  position: relative;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  container-type: inline-size;
+  background: var(--ax-ground);
+}
+.ax-loop .ax-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--ax-ground);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+/* Engine: a stage child marked data-keep stays above the cover and carries no timed moment. */
+:where(.ax-loop .ax-stage > [data-keep]) { position: relative; }
+.ax-loop .ax-stage > [data-keep] { z-index: 6; }
+
+/* Engine: lines. Each path's d in the markup is its finished shape in the overlay's own units, so the still
+   shows every line with no script; the script measures them again in CSS pixels. */
+.ax-loop .ax-wires {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  margin: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 1;
+}
+.ax-loop .ax-wires path {
+  fill: none;
+  stroke: var(--ax-line);
+  stroke-width: 2px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.ax-loop .ax-narrow { display: none; }
+
+/* Engine: the flight, which exists only in motion. */
+.ax-loop .ax-fly {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  margin: 0;
+  background: var(--ax-ground);
+  border: 2px solid var(--ax-ink);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* Engine: the pause control, shown only while the script can animate. */
+.ax-loop .ax-btn {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  z-index: 10;
+  display: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ax-muted);
+  font: inherit;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.ax-loop.ax-js .ax-btn { display: grid; }
+.ax-loop .ax-btn::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  background: var(--ax-ground);
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}
+.ax-loop .ax-btn svg {
+  position: relative;
+  display: block;
+  width: 12px;
+  height: 12px;
+  max-width: none;
+  margin: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ax-loop .ax-btn .ax-play { display: none; }
+.ax-loop[data-state="paused"] .ax-btn .ax-pause { display: none; }
+.ax-loop[data-state="paused"] .ax-btn .ax-play { display: block; }
+.ax-loop .ax-btn:hover, .ax-loop .ax-btn:active { color: var(--ax-ink); }
+.ax-loop .ax-btn:focus-visible { outline: 2px solid var(--ax-focus); outline-offset: 0; color: var(--ax-ink); }
+@media print {
+  .ax-loop .ax-btn { display: none !important; }
+}
+
+/* Geometry: three boxes in a row at 16:9, in the stage's own width units. */
+.ax-loop.ax-demo .ax-stage { aspect-ratio: 16 / 9; }
+.ax-loop.ax-demo .ax-box {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0 1cqw;
+  background: var(--ax-box);
+  border: 2px solid var(--ax-ink);
+  border-radius: 1cqw;
+  z-index: 2;
+}
+.ax-loop.ax-demo .ax-label {
+  display: block;
+  margin: 0;
+  padding: 0;
+  color: var(--ax-ink);
+  font: normal 600 max(12px, 1.6cqw)/1.2 var(--ax-font);
+  letter-spacing: normal;
+  text-align: center;
+}
+.ax-loop.ax-demo .ax-a, .ax-loop.ax-demo .ax-b, .ax-loop.ax-demo .ax-c { top: 22cqw; width: 24cqw; height: 12cqw; }
+.ax-loop.ax-demo .ax-a { left: 5cqw; }
+.ax-loop.ax-demo .ax-b { left: 38cqw; }
+.ax-loop.ax-demo .ax-c { left: 71cqw; }
+.ax-loop.ax-demo .ax-fly { width: 6cqw; height: 4cqw; border-radius: 0.6cqw; }
+.ax-loop.ax-demo .ax-conclusion { position: absolute; left: 0; top: 4cqw; width: 100%; }
+
+/* Geometry: the same three boxes stacked at 3:4 when the frame is narrow. */
+@container ax-loop-frame (max-width: 35.999rem) {
+  .ax-loop.ax-demo .ax-stage { aspect-ratio: 3 / 4; }
+  .ax-loop.ax-demo .ax-wide { display: none; }
+  .ax-loop.ax-demo .ax-narrow { display: block; }
+  .ax-loop.ax-demo .ax-a, .ax-loop.ax-demo .ax-b, .ax-loop.ax-demo .ax-c { left: 22cqw; width: 56cqw; height: 18cqw; }
+  .ax-loop.ax-demo .ax-a { top: 12cqw; }
+  .ax-loop.ax-demo .ax-b { top: 58cqw; }
+  .ax-loop.ax-demo .ax-c { top: 104cqw; }
+  .ax-loop.ax-demo .ax-box { border-radius: 2cqw; padding: 0 2cqw; }
+  .ax-loop.ax-demo .ax-label { font-size: max(12px, 4.4cqw); }
+  .ax-loop.ax-demo .ax-conclusion { top: 0; }
+  .ax-loop.ax-demo .ax-fly { width: 12cqw; height: 8cqw; border-radius: 1.2cqw; }
+}
+
+/* The motion block. Engine rules first, then the placeholder's own states. */
+@media screen and (prefers-reduced-motion: no-preference) {
+  .ax-loop .ax-stage::after { transition: opacity var(--ax-fade) var(--ax-ease-out); }
+  .ax-loop .ax-stage.ax-fading::after, .ax-loop .ax-stage.ax-cover::after { opacity: 1; }
+  .ax-loop .ax-stage.ax-cover::after { transition: none; }
+  .ax-loop .ax-stage.ax-fading :not([data-keep], [data-keep] *) { transition-duration: 0s !important; }
+  .ax-loop .ax-armed .ax-wires path { stroke-dasharray: 1; stroke-dashoffset: 0; transition: stroke-dashoffset var(--ax-draw) var(--ax-ease-out); }
+  .ax-loop .ax-armed .ax-wires path:not(.on) { stroke-dashoffset: 1; }
+  .ax-loop .ax-armed .ax-fly.on { animation: ax-loop-fly var(--ax-travel) linear forwards; }
+
+  /* Geometry states: a box waits faint and comes up; the last one arrives. */
+  .ax-loop.ax-demo .ax-box { transition: opacity var(--ax-enter) var(--ax-ease-out), transform var(--ax-enter) var(--ax-ease-out); }
+  .ax-loop.ax-demo .ax-armed .ax-box:not(.on) { opacity: 0.2; }
+  .ax-loop.ax-demo .ax-armed .ax-c:not(.on) { opacity: 0; transform: scale(0.9); }
+}
+@keyframes ax-loop-fly {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.8); animation-timing-function: cubic-bezier(0.25, 1, 0.5, 1); }
+  12% { opacity: 1; transform: translate(0, 0) scale(1); animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
+  88% { opacity: 1; transform: translate(var(--ax-fly-x, 0px), var(--ax-fly-y, 0px)) scale(1); animation-timing-function: cubic-bezier(0.25, 1, 0.5, 1); }
+  100% { opacity: 0; transform: translate(var(--ax-fly-x, 0px), var(--ax-fly-y, 0px)) scale(0.8); }
+}

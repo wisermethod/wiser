@@ -9,7 +9,7 @@ memory:
 gaps:
   - application screen assembly (dashboard, settings, admin panel)
   - brand mark and logo creation
-  - authored motion graphics made outside a page or slide, such as a title sequence
+  - authored motion graphics made outside a page or slide, such as a title sequence; an explainer rendered to a video is `skills/Animated Explainer/`'s
 ---
 
 # Designer
@@ -22,7 +22,7 @@ Use when the job is a design outcome rather than one settled artifact: "design m
 
 Not for a job that is already one artifact with its direction settled. A palette is `skills/Color Palette Design/`, a type system is `skills/Typography Design/`, one component is `skills/Component Design/`, a persuasion page is `skills/Marketing Page Design/`, an animated explainer is `skills/Animated Explainer/`, a still illustration or infographic is `skills/Illustrator/`, and a token system composed from existing color and type is `skills/Design System/`. A brand built or rebuilt from the person's own answers, ending in the root's `design.md`, is `skills/Build Brand/`, invoked directly before any phase here runs. Running the whole arc around a settled single artifact adds phases the request already answered; invoke the owning skill directly.
 
-Not for judging design that exists, which is `experts/Creative Director/`, in its verdict mode for a deliverable and its direction mode for the standing taxonomy. Not for a brand mark: no primitive in this root covers logo creation, declared as a gap, and no part of it is carried here. Not for slide decks (`skills/Create Presentation/`) or for the words in an interface or page (`skills/Content Author/`). Outside its competence and declined rather than approximated: generating imagery from a description, which is `skills/Media Generator/`; charts of data, which are `tools/data/` `chart`; a diagram made to analyse material, which is `skills/Visualizer/`; print production (CMYK, bleed, registration), authored motion graphics made outside a page or slide, such as a title sequence, which no primitive in this root makes, and user research; a generated clip is `skills/Media Generator/`. A picture that moves on a page or a slide to show how something works is `skills/Animated Explainer/`.
+Not for judging design that exists, which is `experts/Creative Director/`, in its verdict mode for a deliverable and its direction mode for the standing taxonomy. Not for a brand mark: no primitive in this root covers logo creation, declared as a gap, and no part of it is carried here. Not for slide decks (`skills/Create Presentation/`) or for the words in an interface or page (`skills/Content Author/`). Outside its competence and declined rather than approximated: generating imagery from a description, which is `skills/Media Generator/`; charts of data, which are `tools/data/` `chart`; a diagram made to analyse material, which is `skills/Visualizer/`; print production (CMYK, bleed, registration), authored motion graphics made outside a page or slide, such as a title sequence, which no primitive in this root makes, and user research; a generated clip is `skills/Media Generator/`. A picture that moves on a page, a slide or in a video to show how something works is `skills/Animated Explainer/`.
 
 ## Objective
 
@@ -102,7 +102,7 @@ The brand row below is Context's direct route. For every other deliverable, buil
 |-------------|-------------|
 | One UI component | `skills/Component Design/` |
 | A persuasion page: landing, product, pricing, campaign, waitlist | `skills/Marketing Page Design/` |
-| An animated explainer: a picture on a page or a slide that moves to show how something works or what happened | `skills/Animated Explainer/` |
+| An animated explainer: a picture on a page, a slide or in a video that moves to show how something works or what happened | `skills/Animated Explainer/` |
 | A still picture that explains or illustrates: an illustration, an infographic, a spot illustration or a diagram drawn as a picture | `skills/Illustrator/` |
 | A brand built or rebuilt from the person's own answers, ending in the root's `design.md` | `skills/Build Brand/` directly, without running Phase 3 first or choosing foundations here |
 | A design system or token set | `skills/Design System/` |
@@ -185,7 +185,7 @@ Six axes, run over the artifact before it goes to review. Contrast thresholds li
 - **Target size.** The visible mark may be small; the hit area may not. Padding extends it.
 - **Semantic structure.** Headings descend without skipping a level, lists are lists, a button is a `<button>` and a link is an `<a>`, navigation and main content sit in their landmarks, every input has a real label rather than a placeholder standing in for one, images carry alternative text (empty for decorative ones), and tables carry scoped headers.
 - **Color independence.** Status, form validation, chart series, and links inside running text each carry a second cue.
-- **Motion.** Animation honors a reduced-motion preference, nothing autoplays without a way to stop it, and nothing flashes. A piece made by `skills/Animated Explainer/` is held instead to The accessibility floor in that skill's `build.md`, under which every loop carries a pause control and a once piece plays once and holds.
+- **Motion.** Animation honors a reduced-motion preference, nothing autoplays without a way to stop it, and nothing flashes. A piece made by `skills/Animated Explainer/` is held instead to The accessibility floor in that skill's `build.md`, which says when a loop carries a pause control, and under which a once piece plays once and holds.
 
 Group the findings blocking, then major, then minor, each naming its location and its fix, which is the order the review expert works in, so the two lists merge instead of competing.
 

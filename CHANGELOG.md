@@ -4,6 +4,42 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.27.3, October 27, 2026
+
+- `video-render` now draws every frame of a video in one browser, in order, unless you ask for more, so a page that fades or zooms gives the same frames each time you render it. Split across several browsers, a few of those frames could come out a shade different from one render to the next. One browser can take up to about twice as long; asking for more workers is still faster, and a saved render is kept separately for each number of workers. (c2c66aa, 38fedbd)
+- Letting `video-render` choose the number of workers itself no longer works with saved renders, since that number can change between runs. (38fedbd)
+- If a browser fails partway through a render, `video-render` now stops and asks you to render again, instead of finishing in a new browser whose frames could differ. (38fedbd, ae682d3)
+- A page made for `video-render` should not mark anything inside a part that zooms with `will-change`, which made one browser draw a few frames differently between renders. (e446ecc, 38fedbd)
+
+## v2026.10.27.2, October 27, 2026
+
+- Wiser skills can now ask you their questions in a form: pictures to tap, choices, checkboxes, a slider and a text box, all at once rather than one question at a time in the chat. In ChatGPT, Claude and Cowork the form shows inside the chat. In ChatGPT your answers go into the chat when you press the button; in Claude and Cowork they are put in the message box for you to send. (5b29428, 153bd6f, 6dbab40, 33968e8, 081e22b, 8e80474)
+- In a command-line tool such as Claude Code, Codex or Grok Build, the form opens in its own browser window beside the chat, and your answers come back to the session when you press Send my answers. The first time, Wiser asks before installing the browser it uses. In Codex with its default settings, Codex asks you once to let the form open. (a45a224, aba7547, 18346c7, 4008a82, 91f2736, cfa5893)
+- Where a form cannot show, Wiser asks the same questions with chat buttons. Either way it reads your answers back in one line so you can correct them. (33968e8, cabafe1)
+- Your answers go only into your conversation, never to Wiser's service. A form shown inside the chat passes through the service on its way to your AI app, and the service keeps none of it. (5b29428, a45a224)
+- If forms never appear in Claude or ChatGPT, reconnect Wiser once in the app's settings: an app connected before today keeps the list of Wiser's tools it read then, and Wiser asks in the chat until you do. (33968e8)
+
+## v2026.10.27, October 27, 2026
+
+- When you finish a session, What's next now lists only the sessions you should start, each with one line saying what that session will do. A plan whose next step happens in another listed session, or that is waiting on you or someone else, gets no prompt of its own: a wait is listed under Waiting on you, with where its plan lives. Every prompt in the message is under What's next, in the same shape. (f19e505, 6e1305d, 5f755ea)
+- A plan whose only remaining step is its own close-out, needing nothing from you, is now closed out before the session ends instead of being handed to another session. (f19e505, 6e1305d)
+- Each suggested session name continues that plan's own sessions, so two suggestions never share a name, and none repeats the session that just ended. (6e1305d, ddcc754, 5f755ea)
+
+## v2026.10.26, October 26, 2026
+
+- `video-edit` can now lay a narration file onto a silent video, starting at the moment you name. The picture is kept exactly as it was, the narration starts on that moment to the sample and runs to the video's end, and narration longer than the time left is refused rather than cut. (bef870d, f87430d)
+- `video-edit` can set a video's sound to a loudness you name, under a ceiling for its peaks, and keep its picture. Where the peaks allow, the sound is only turned up or down; otherwise just the peaks that would pass the ceiling are limited, on every channel. (09eab4c, a4e4122)
+- `video-edit` can join scenes and encode them once into a video ready to upload to YouTube: its picture with `video-render`'s upload settings, its sound in Opus, and every scene's narration on its own frames. It takes pictures marked BT.709, at one size and one steady frame rate, and refuses anything else rather than guess. (09eab4c, 9403775, a4e4122)
+- Run twice on the same files, each of these gives the same file, byte for byte. They need FFmpeg's ffprobe, and the final encode needs FFmpeg's libx264 and libopus encoders; each is checked before anything is written. (5fe835c, 3c92b60, e53d779)
+
+## v2026.10.25, October 25, 2026
+
+- A new tool, `video-render`, turns an animated web page into video: a video file ready to upload to YouTube, a version made to be joined with other footage and compressed once at the end, or still pictures at the moments you name. On the same computer, the same page gives the same frames every time, and a page you have not changed is not rendered again, so changing one scene of a video re-renders only that scene. The picture has no sound; narration and music are added afterwards. (d54a21e, 3b76852, b3cad8e, b3dc01e, cfcaed8)
+- The page renders on your own computer and reaches nothing on the internet while it does: a page that would load something from another site is refused before anything starts, and the browser it runs can reach only your computer. Files named like keys or passwords are never read. (440c39b, b38bd65, bd56cfc, 893cfa4, cb44427, 847abdb)
+- The first time, it asks before installing its packages and the browser it renders with, about 340 MB in all, and it needs FFmpeg and Node 22 or later. (619f6d9, acbd289, b38bd65)
+- An animated explainer can now be made for a video, not only a page or a slide: give it the video's size, frame rate, length and the moment each step should appear, and it plays once with each step on its moment and holds the finished picture to the end. It never reorders the steps to fit the timing; if the times would, it stops and asks. (7e57493, a563e07, afbc6fc, bd56cfc, e1f8151, 254af65)
+- An explainer made for a video draws no pause button, since the video player has one, and its text is never smaller than 28 pixels on a 1080p frame. One kind of motion does not work in a video yet: something moving on its own, outside any of the explainer's timed steps. (a563e07, b34ab98)
+
 ## v2026.10.24.4, October 24, 2026
 
 - When you finish a session, Wiser now ends with one short message in the same four parts every time: what got done, which files changed, anything waiting on you with its recommendation, and what's next. What's next names your next session, the project or workspace to open it in, and a prompt to copy into the new chat; when nothing is left, it says so. (010099c, 0810c84, fe49ce6)
