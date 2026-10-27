@@ -95,7 +95,7 @@ export async function optionsForSequence(input) {
   const duration = number(input.duration, '--duration');
   const expectedFrames = Math.round(duration * fps);
   if (!Number.isSafeInteger(expectedFrames) || expectedFrames < 1) throw new Error('--duration times --fps must round to at least one frame and be a safe integer.');
-  const workers = input.workers === undefined || input.workers === 'auto' ? 'auto' : number(input.workers, '--workers', true);
+  const workers = input.workers === undefined ? 1 : input.workers === 'auto' ? 'auto' : number(input.workers, '--workers', true);
   const gpu = input.gpu ?? 'hardware';
   const capture = input.capture ?? 'screenshot';
   if (!['hardware', 'software'].includes(gpu)) throw new Error('--gpu must be hardware or software; see video-render.js help.');

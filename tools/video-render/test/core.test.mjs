@@ -33,6 +33,7 @@ test('help works in an uninstalled copy and importing the command does no work',
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stderr, '');
     for (const flag of ['project', 'output', 'width', 'height', 'fps', 'duration', 'workers', 'gpu', 'capture', 'help']) assert.match(result.stdout, new RegExp(`--${flag}`));
+    assert.match(result.stdout, /--workers N\|auto\s+Positive integer or auto \(default: 1\)/);
   }
   const work = await scratch(t);
   const result = run(['sequence', '--project', fixture, '--output', join(work, 'out'), '--width', '640', '--height', '360', '--fps', '8', '--duration', '2'], script);
@@ -126,6 +127,18 @@ test('child environment is closed, and every rendering mode is explicit', () => 
   }
 });
 
+test('workers default to one and still accept positive integers and auto', async (t) => {
+  const path = await scratch(t), options = input(fixture, join(path, 'out'));
+  delete options.workers;
+  assert.equal((await optionsForSequence(options)).workers, 1);
+  for (const [workers, expected] of [[1, 1], ['2', 2], ['auto', 'auto']]) {
+    assert.equal((await optionsForSequence({ ...options, workers })).workers, expected);
+  }
+  for (const workers of [0, -1, 1.5, '', 'many']) {
+    await assert.rejects(optionsForSequence({ ...options, workers }), /--workers must be a positive integer/);
+  }
+});
+
 test('Chrome and lint results come from the actual launch log', () => {
   assert.deepEqual(readRenderLog('[BrowserManager] Browser launched (HeadlessChrome/152.0.7977.30, screenshot)\n  \u26a0 css_transition_used: Zibble\n    Fix: Pluvo'), { chromeBuild: '152.0.7977.30', lintFindings: ['\u26a0 css_transition_used: Zibble'] });
   assert.throws(() => readRenderLog('zibble'), /no launched Chrome build/);
@@ -154,8 +167,8 @@ test('real HyperFrames sequence has sixteen frames, stable pixels across workers
   const path = await scratch(t);
   const output = join(path, 'frames');
   const source = await readFile(join(fixture, 'index.html'));
-  const before = new Set((await readdir(tmpdir())).filter((name) => name.startsWith('wiser-video-render-')));
-  const result = run(['sequence', '--project', fixture, '--output', output, '--width', '640', '--height', '360', '--fps', '8', '--duration', '2', '--workers', '1', '--gpu', 'hardware', '--capture', 'screenshot']);
+  const temporary = await scratch(t), env = { ...process.env, TMPDIR: temporary, WISER_ALLOW_INSTALL: '0' };
+  const result = run(['sequence', '--project', fixture, '--output', output, '--width', '640', '--height', '360', '--fps', '8', '--duration', '2', '--workers', '1', '--gpu', 'hardware', '--capture', 'screenshot'], cli, { env });
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stderr, '');
   const report = JSON.parse(result.stdout);
@@ -169,7 +182,8 @@ test('real HyperFrames sequence has sixteen frames, stable pixels across workers
   assert.ok(new Set(frameLines.map((line) => line.slice(0, 64))).size > 5, 'the render must contain motion');
   assert.match(await readFile(report.logPath, 'utf8'), /Browser launched/);
   assert.deepEqual(await readFile(join(fixture, 'index.html')), source);
-  const parallel = run(['sequence', '--project', fixture, '--output', join(path, 'parallel'), '--width', '640', '--height', '360', '--fps', '8', '--duration', '2', '--workers', '2', '--gpu', 'hardware', '--capture', 'screenshot']);
+  assert.deepEqual(await readdir(temporary), []);
+  const parallel = run(['sequence', '--project', fixture, '--output', join(path, 'parallel'), '--width', '640', '--height', '360', '--fps', '8', '--duration', '2', '--workers', '2', '--gpu', 'hardware', '--capture', 'screenshot'], cli, { env });
   assert.equal(parallel.status, 0, parallel.stderr);
   const other = JSON.parse(parallel.stdout);
   assert.equal(other.frameCount, 16);
@@ -195,8 +209,7 @@ test('real HyperFrames sequence has sixteen frames, stable pixels across workers
       assert.equal(frameLines[frame].slice(0, 64), createHash('sha256').update(rgba).digest('hex'), `rendered frame ${frame} must match a direct engine seek`);
     }
   } finally { await browser.close(); }
-  const after = (await readdir(tmpdir())).filter((name) => name.startsWith('wiser-video-render-') && !before.has(name));
-  assert.deepEqual(after, []);
+  assert.deepEqual(await readdir(temporary), []);
   t.diagnostic(JSON.stringify(report));
 });
 
@@ -209,18 +222,17 @@ test('a failed renderer keeps its log and removes the temporary project and home
   // An unusable local binary forces a real child failure without changing the installation.
   await mkdir(join(project, '.hyperframes/bin'), { recursive: true });
   await writeFile(join(project, '.hyperframes/bin', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'), 'Zibble');
-  const before = new Set((await readdir(tmpdir())).filter((name) => name.startsWith('wiser-video-render-')));
+  const temporary = await scratch(t);
   // Satisfy the entry-point system check, then exercise the renderer's separate local-binary failure.
   const bin = join(path, 'bin');
   await mkdir(bin);
   await writeFile(join(bin, 'ffmpeg'), '#!/bin/sh\nif [ ! -f "$0.checked" ]; then\n  : > "$0.checked"\n  printf "ffmpeg version test-fixture\\n"\n  exit 0\nfi\nexit 1\n', { mode: 0o755 });
-  const result = run(['sequence', '--project', project, '--output', output, '--width', '640', '--height', '360', '--fps', '8', '--duration', '2', '--workers', '1'], cli, { env: { PATH: bin, LANG: 'C', HOME: process.env.HOME } });
+  const result = run(['sequence', '--project', project, '--output', output, '--width', '640', '--height', '360', '--fps', '8', '--duration', '2', '--workers', '1'], cli, { env: { PATH: bin, LANG: 'C', HOME: process.env.HOME, TMPDIR: temporary } });
   assert.equal(result.status, 1);
   assert.equal(result.stdout, '');
   assert.match(result.stderr, /HyperFrames render failed/);
   assert.match(await readFile(join(output, 'render.log'), 'utf8'), /FFmpeg|FFprobe/);
-  const after = (await readdir(tmpdir())).filter((name) => name.startsWith('wiser-video-render-') && !before.has(name));
-  assert.deepEqual(after, []);
+  assert.deepEqual(await readdir(temporary), []);
 });
 
 test('HyperFrames is handed a duration whose ceil is exactly round(duration × fps) frames', () => {

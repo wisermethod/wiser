@@ -1,0 +1,7 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { width: 1280px; height: 720px; overflow: hidden; }
+#root { position: relative; background: #f6f3ec; font-family: system-ui, sans-serif; color: #1d2a33; }
+#camera { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform-origin: 0 0; background: #ffffff; }
+.card { position: absolute; width: 280px; height: 120px; padding: 16px; border: 2px solid #c8553d; border-radius: 10px; font-size: 22px; }
+.rule { position: absolute; left: 40px; width: 600px; height: 1px; background: #1d2a33; }
+.small { position: absolute; left: 40px; top: 420px; font-size: 15px; }
