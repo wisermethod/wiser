@@ -14,12 +14,15 @@ test('once render clock in pinned Chromium', { timeout: 60_000 }, async (t) => {
   await checkRuntime();
   const { default: puppeteer } = await import('puppeteer-core');
   const home = await mkdtemp(join(tmpdir(), 'wiser-once-clock-test-'));
-  t.after(() => rm(home, { recursive: true, force: true }));
+  let browser;
+  t.after(async () => {
+    try { await browser?.close(); }
+    finally { await rm(home, { recursive: true, force: true }); }
+  });
   const executablePath = await browserPath();
-  const browser = await puppeteer.launch({ executablePath, headless: true,
+  browser = await puppeteer.launch({ executablePath, headless: true,
     userDataDir: join(home, 'profile'), env: childEnvironment(home, executablePath),
     defaultViewport: { width: 640, height: 360 }, args: ['--disable-background-networking'] });
-  t.after(() => browser.close());
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));

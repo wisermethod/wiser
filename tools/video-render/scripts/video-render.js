@@ -37,7 +37,12 @@ Options:
   --height N               Required. Frame height in pixels, a positive integer.
   --fps N                  Required. Positive frame rate in frames per second.
   --duration S             Required. Positive duration in seconds.
-  --workers N|auto         Positive integer or auto (default: auto).
+  --workers N|auto         Positive integer or auto (default: 1).
+                           One browser draws every frame in order, so a page that
+                           meets TOOL.md's The project draws the same frames on
+                           every run; more workers are faster and may draw it
+                           differently by split, and auto may change its count
+                           between runs, so --cache refuses it.
   --gpu hardware|software  Browser GPU mode (default: hardware).
   --capture screenshot|fast Capture mode (default: screenshot).
   --times T1,T2,...        Frames only. Required, up to 60 unique, finite, non-negative

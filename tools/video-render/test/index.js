@@ -4,6 +4,7 @@ import './clock.test.mjs';
 import './once-clock.test.mjs';
 import './dependencies.test.mjs';
 import './review.test.mjs';
+import './split.test.mjs';
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -37,9 +38,6 @@ function probe(args) {
   const result = spawnSync('ffprobe', args, { encoding: 'utf8', timeout: 30_000, maxBuffer: 16 * 1024 * 1024 });
   assert.equal(result.status, 0, result.stderr);
   return result;
-}
-async function temporaryRenders() {
-  return (await readdir(tmpdir())).filter((name) => /^wiser-video-(?:render|encode|probe|frames)-/.test(name)).sort();
 }
 
 test('the static screen allows SVG namespaces, script URLs, comments and non-loading text', async (t) => {
@@ -143,8 +141,10 @@ test('a real render shows that runtime fetch and image requests both fail behind
     image.src = 'https:' + '//example.com/x.png';
   `);
   await inspectProject(project);
-  const before = await temporaryRenders();
-  const result = run(['sequence', ...flags({ ...values(project, output), fps: 2, duration: 1.5 })]);
+  const temporary = await scratch(t);
+  const result = run(['sequence', ...flags({ ...values(project, output), fps: 2, duration: 1.5 })], {
+    env: { ...process.env, TMPDIR: temporary, WISER_ALLOW_INSTALL: '0' },
+  });
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stderr, '');
   const report = JSON.parse(result.stdout);
@@ -171,7 +171,7 @@ test('a real render shows that runtime fetch and image requests both fail behind
     const lines = (await readFile(report.hashesPath, 'utf8')).trim().split('\n');
     for (const line of lines) assert.equal(line.slice(0, 64), hash(expected), 'each frame must show fetch failed and image failed');
   } finally { await browser.close(); }
-  assert.deepEqual(await temporaryRenders(), before);
+  assert.deepEqual(await readdir(temporary), []);
   t.diagnostic(JSON.stringify({ chromeBuild: report.chromeBuild, frames: report.frameCount, fetch: 'failed', image: 'failed' }));
 });
 
@@ -256,6 +256,7 @@ test('frames refuses invalid times, arguments and unsafe destinations before dep
 test('frames maps zero-based times by floor, clamps to the last core frame and accepts distinct times sharing a frame', async (t) => {
   const path = await scratch(t), input = { ...values(fixture, join(path, 'new')), times: '0,0.56,1.25,2.1,3' };
   const options = await optionsForFrames(input);
+  assert.equal((await optionsForFrames({ ...input, workers: undefined })).workers, 1);
   assert.deepEqual(options.frames, [
     { requestedTime: 0, frame: 0, time: 0, file: 'frame_000000.png' },
     { requestedTime: 0.56, frame: 5, time: 0.5, file: 'frame_000005.png' },
@@ -334,12 +335,13 @@ test('real frames: the time a frame is drawn at names it, and --select after nam
 test('real frames match decoded sequence pixels and PNG bytes at five times, including between frames and past the end', { timeout: 120_000 }, async (t) => {
   const path = await scratch(t), project = join(path, 'project');
   await cp(fixture, project, { recursive: true });
-  const source = await inspectProject(project), before = await temporaryRenders();
+  const source = await inspectProject(project), temporary = await scratch(t);
+  const env = { ...process.env, TMPDIR: temporary, WISER_ALLOW_INSTALL: '0' };
   const input = { ...values(project, join(path, 'stills')), width: 640, height: 360, gpu: 'hardware', capture: 'screenshot' };
-  const result = run(['frames', ...flags({ ...input, times: '2.1,0,0.56,1.25,3' })]);
+  const result = run(['frames', ...flags({ ...input, times: '2.1,0,0.56,1.25,3' })], { env });
   assert.equal(result.status, 0, result.stderr); assert.equal(result.stderr, '');
   const report = JSON.parse(result.stdout);
-  assert.deepEqual(await temporaryRenders(), before);
+  assert.deepEqual(await readdir(temporary), []);
   assert.equal(report.output, input.output);
   assert.equal(report.frameCount, 21);
   assert.equal(report.logPath, null); assert.equal(report.hashesPath, null);
@@ -353,7 +355,7 @@ test('real frames match decoded sequence pixels and PNG bytes at five times, inc
     { requestedTime: 3, frame: 20, time: 2, file: 'frame_000020.png' },
   ]);
   assert.deepEqual((await readdir(input.output)).sort(), ['frame_000000.png', 'frame_000005.png', 'frame_000012.png', 'frame_000020.png', 'frames.json']);
-  const sequence = run(['sequence', ...flags({ ...input, output: join(path, 'sequence') })]);
+  const sequence = run(['sequence', ...flags({ ...input, output: join(path, 'sequence') })], { env });
   assert.equal(sequence.status, 0, sequence.stderr); assert.equal(sequence.stderr, '');
   const reference = JSON.parse(sequence.stdout);
   for (const key of ['hyperframesVersion', 'chromeBuild', 'lintFindings', 'gpu', 'capture', 'frameCount', 'hashesSha256']) assert.deepEqual(report[key], reference[key], key);
@@ -372,7 +374,7 @@ test('real frames match decoded sequence pixels and PNG bytes at five times, inc
   assert.deepEqual((await decode(join(input.output, 'frame_000020.png'))).data,
     (await decode(join(path, 'sequence/frames/frame_000017.png'))).data, 'the finished picture holds through the last frame');
   assert.deepEqual((await inspectProject(project)).files, source.files);
-  assert.deepEqual(await temporaryRenders(), before);
+  assert.deepEqual(await readdir(temporary), []);
   t.diagnostic(JSON.stringify({ frames: report.frames, sequenceFrames: report.frameCount, temporarySequencesRemoved: true }));
 });
 
@@ -385,13 +387,13 @@ test('frames removes the complete temporary sequence after a real renderer failu
   await writeFile(join(project, '.hyperframes/bin/ffmpeg'), 'Zibble');
   await mkdir(bin);
   await writeFile(join(bin, 'ffmpeg'), '#!/bin/sh\nif [ ! -f "$0.checked" ]; then\n  : > "$0.checked"\n  printf "ffmpeg version test-fixture\\n"\n  exit 0\nfi\nexit 1\n', { mode: 0o755 });
-  const before = await temporaryRenders();
+  const temporary = await scratch(t);
   const result = run(['frames', ...flags({ ...values(project, join(path, 'stills')), times: '0' })], {
-    env: { ...process.env, PATH: bin, LANG: 'C', WISER_ALLOW_INSTALL: '0' },
+    env: { ...process.env, PATH: bin, LANG: 'C', TMPDIR: temporary, WISER_ALLOW_INSTALL: '0' },
   });
   assert.equal(result.status, 1); assert.equal(result.stdout, '');
   assert.match(result.stderr, /HyperFrames render failed/);
-  assert.deepEqual(await temporaryRenders(), before);
+  assert.deepEqual(await readdir(temporary), []);
   assert.deepEqual((await readdir(path)).sort(), ['bin', 'project']);
 });
 
@@ -448,6 +450,7 @@ test('render refuses invalid arguments and unsafe destinations before dependency
     [{ fps: 0 }, /--fps/], [{ fps: 0.5, duration: 10 }, /--fps.*round/],
     [{ duration: -1 }, /--duration/], [{ duration: 0.001 }, /round to at least one/],
     [{ workers: 0 }, /--workers/], [{ workers: 'many' }, /--workers/],
+    [{ workers: 'auto', cache: join(path, 'cache') }, /--cache cannot be used with --workers auto/],
     [{ gpu: 'maybe' }, /--gpu/], [{ capture: 'maybe' }, /--capture/],
     [{ profile: 'lossless' }, /--profile/],
     [{ output: join(project, 'inside.mp4') }, /inside --project/],
@@ -531,18 +534,19 @@ test('real render for each profile passes independent ffprobe checks and cleans 
   const css = join(project, 'piece.css');
   await writeFile(css, `${await readFile(css, 'utf8')}\n[data-video-root] { width: 320px; height: 180px; }\n`);
   const source = await readFile(join(project, 'index.html'));
-  const before = await temporaryRenders();
+  const temporary = await scratch(t), env = { ...process.env, TMPDIR: temporary, WISER_ALLOW_INSTALL: '0' };
   for (const profile of ['publish', 'intermediate']) {
     const output = join(path, `${profile}.mp4`), hashes = join(path, 'decoded.sha256');
     const input = { ...values(project, output), gpu: 'hardware', capture: 'screenshot' };
     // Exercise the default publish profile and explicit intermediate profile.
     if (profile === 'intermediate') input.profile = profile;
     else input['frame-hashes'] = hashes;
-    const result = run(['render', ...flags(input)]);
+    const result = run(['render', ...flags(input)], { env });
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stderr, '');
     const report = JSON.parse(result.stdout);
     assert.equal(report.profile, profile);
+    assert.deepEqual(await readdir(temporary), []);
     assert.equal(report.cache, 'off');
     assert.equal(report.key, null);
     assert.equal(report.output, output);
@@ -615,7 +619,7 @@ test('real render for each profile passes independent ffprobe checks and cleans 
     t.diagnostic(JSON.stringify({ profile, frames: report.frameCount, bytes: report.bytes, sha256: report.sha256, checks: report.checks }));
   }
   assert.deepEqual(await readFile(join(project, 'index.html')), source);
-  assert.deepEqual(await temporaryRenders(), before);
+  assert.deepEqual(await readdir(temporary), []);
   assert.deepEqual((await readdir(path)).sort(), ['decoded.sha256', 'intermediate.mp4', 'project', 'publish.mp4']);
 });
 
@@ -658,13 +662,13 @@ const filter = args.indexOf('-vf');
 if (filter >= 0) args[filter + 1] = args[filter + 1].replace('setsar=1', 'setsar=2');
 const child = spawnSync(${JSON.stringify(binary.stdout.trim())}, args, { stdio: 'inherit' });
 process.exit(child.status ?? 1);\n`, { mode: 0o755 });
-  const before = await temporaryRenders();
+  const temporary = await scratch(t);
   const result = run(['render', ...flags({ ...values(fixture, join(path, 'bad.mp4')), duration: 0.1,
-    'frame-hashes': join(path, 'bad.sha256') })], { env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, WISER_ALLOW_INSTALL: '0' } });
+    'frame-hashes': join(path, 'bad.sha256') })], { env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, TMPDIR: temporary, WISER_ALLOW_INSTALL: '0' } });
   assert.equal(result.status, 1);
   assert.equal(result.stdout, '');
   assert.match(result.stderr, /MP4 check squarePixels failed/);
-  assert.deepEqual(await temporaryRenders(), before);
+  assert.deepEqual(await readdir(temporary), []);
   assert.deepEqual(await readdir(path), ['bin']);
 });
 
@@ -717,23 +721,27 @@ for (const [name, change] of [
   assert.ok((await readCache(f.cache, f.key, f.inputs, ['decodedFrameHashes'])).record, 'the old entry is retained for its original inputs');
 });
 
-test('cache inputs are canonical, complete, pure and exclude workers, destinations and environment', async (t) => {
+test('cache inputs are canonical, complete, pure, include workers and exclude destinations and environment', async (t) => {
   const f = await cacheFixture(t), files = (await inspectProject(f.project)).files;
   const before = structuredClone({ options: f.options, versions: f.versions, files });
   const inputs = renderCacheInputs(f.options, f.versions, files);
   assert.deepEqual({ options: f.options, versions: f.versions, files }, before);
   assert.deepEqual(Object.keys(inputs).sort(), ['toolVersion', 'hyperframesVersion', 'chromeBuild', 'ffmpegVersion',
-    'gpu', 'capture', 'width', 'height', 'fps', 'duration', 'frameCount', 'profile', 'bridgeSha256', 'browserSwitches', 'encoderArguments', 'files'].sort());
+    'gpu', 'capture', 'width', 'height', 'fps', 'duration', 'frameCount', 'profile', 'workers', 'bridgeSha256', 'browserSwitches', 'encoderArguments', 'files'].sort());
   assert.deepEqual(inputs.encoderArguments, encodeArguments('<frames>', '<output>.mp4', f.options));
   assert.deepEqual(inputs.browserSwitches, BROWSER_SWITCHES);
   const reordered = Object.fromEntries(Object.entries(inputs).reverse());
   assert.equal(canonicalJSON(inputs), canonicalJSON(reordered));
   assert.equal(f.key, hash(canonicalJSON(inputs)));
+  const same = renderCacheInputs({ ...f.options, output: '/different.mp4', project: '/different',
+    cache: '/another-cache', frameHashes: '/hashes', arbitraryEnvironment: 'ignored' }, f.versions, files.toReversed());
+  assert.equal(cacheKey(same), f.key);
+  assert.ok((await readCache(f.cache, cacheKey(same), same, ['decodedFrameHashes'])).record);
   for (const workers of [2, 'auto']) {
-    const same = renderCacheInputs({ ...f.options, workers, output: '/different.mp4', project: '/different',
-      cache: '/another-cache', frameHashes: '/hashes', arbitraryEnvironment: 'ignored' }, f.versions, files.toReversed());
-    assert.equal(cacheKey(same), f.key);
-    assert.ok((await readCache(f.cache, cacheKey(same), same, ['decodedFrameHashes'])).record);
+    const changed = renderCacheInputs({ ...f.options, workers }, f.versions, files);
+    assert.equal(changed.workers, workers);
+    assert.notEqual(cacheKey(changed), f.key);
+    assert.deepEqual(await readCache(f.cache, cacheKey(changed), changed, ['decodedFrameHashes']), { record: null, reason: null });
   }
   const changedFrameCount = { ...inputs, frameCount: inputs.frameCount + 1 };
   assert.notEqual(cacheKey(changedFrameCount), f.key);
@@ -815,14 +823,15 @@ for (const [name, corrupt, pattern] of [
   assert.equal(hash(await readFile(f.source)), hash('Cache lookup fixture, never published as a rendered video.'));
 });
 
-test('real cache hit copies identical bytes and hashes; workers alone hit; corruption misses and is replaced', { timeout: 120_000 }, async (t) => {
+test('real cache hit copies identical bytes and hashes; workers alone miss with their own entry; corruption misses and is replaced', { timeout: 120_000 }, async (t) => {
   const path = await scratch(t), project = join(path, 'project'), cache = join(path, 'cache');
   await mkdir(project);
   await writeFile(join(project, 'index.html'), '<main data-video-root style="width:32px;height:24px;background:#123456"></main>');
   const input = { ...values(project, join(path, 'first.mp4')), cache, width: 32, height: 24, duration: 0.2 };
-  const before = await temporaryRenders();
+  assert.equal((await optionsForRender({ ...input, workers: undefined })).workers, 1);
+  const temporary = await scratch(t), env = { ...process.env, TMPDIR: temporary, WISER_ALLOW_INSTALL: '0' };
   const execute = (options) => {
-    const result = run(['render', ...flags(options)]);
+    const result = run(['render', ...flags(options)], { env });
     assert.equal(result.status, 0, result.stderr); assert.equal(result.stderr, '');
     return JSON.parse(result.stdout);
   };
@@ -845,8 +854,14 @@ test('real cache hit copies identical bytes and hashes; workers alone hit; corru
   assert.equal(reference.status, 0, reference.stderr); assert.equal(cached.frameHashes, reference.stdout);
   assert.equal(second.hashesSha256, hash(reference.stdout));
   const workers = execute({ ...input, output: join(path, 'workers.mp4'), workers: 2 });
-  assert.equal(workers.cache, 'hit'); assert.equal(workers.key, first.key);
+  assert.equal(workers.cache, 'miss'); assert.notEqual(workers.key, first.key);
   assert.deepEqual(await readFile(workers.output), await readFile(first.output));
+  const workerEntry = JSON.parse(await readFile(join(cache, `${workers.key}.json`), 'utf8'));
+  assert.equal(workerEntry.inputs.workers, 2);
+  assert.equal(cached.inputs.workers, 1);
+  const workersAgain = execute({ ...input, output: join(path, 'workers-again.mp4'), workers: 2 });
+  assert.equal(workersAgain.cache, 'hit'); assert.equal(workersAgain.key, workers.key);
+  assert.deepEqual(await readFile(workersAgain.output), await readFile(workers.output));
   const corrupt = await readFile(join(cache, `${first.key}.mp4`)); corrupt[corrupt.length - 1] ^= 1;
   await writeFile(join(cache, `${first.key}.mp4`), corrupt);
   const replaced = execute({ ...input, output: join(path, 'replaced.mp4') });
@@ -856,8 +871,8 @@ test('real cache hit copies identical bytes and hashes; workers alone hit; corru
   assert.deepEqual(await readFile(replaced.output), await readFile(join(cache, `${first.key}.mp4`)));
   const last = execute({ ...input, output: join(path, 'last.mp4') });
   assert.equal(last.cache, 'hit'); assert.equal(last.cacheReason, undefined);
-  assert.deepEqual((await readdir(cache)).sort(), [`${first.key}.json`, `${first.key}.mp4`]);
-  assert.deepEqual(await temporaryRenders(), before);
+  assert.deepEqual((await readdir(cache)).sort(), [`${first.key}.json`, `${first.key}.mp4`, `${workers.key}.json`, `${workers.key}.mp4`].sort());
+  assert.deepEqual(await readdir(temporary), []);
   t.diagnostic(JSON.stringify({ first: first.cache, second: second.cache, workers: workers.cache,
     replaced: replaced.cache, reason: replaced.cacheReason, last: last.cache, frames: first.frameCount }));
 });

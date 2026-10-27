@@ -4,6 +4,13 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.27.3, October 27, 2026
+
+- `video-render` now draws every frame of a video in one browser, in order, unless you ask for more, so a page that fades or zooms gives the same frames each time you render it. Split across several browsers, a few of those frames could come out a shade different from one render to the next. One browser can take up to about twice as long; asking for more workers is still faster, and a saved render is kept separately for each number of workers. (c2c66aa, 38fedbd)
+- Letting `video-render` choose the number of workers itself no longer works with saved renders, since that number can change between runs. (38fedbd)
+- If a browser fails partway through a render, `video-render` now stops and asks you to render again, instead of finishing in a new browser whose frames could differ. (38fedbd, ae682d3)
+- A page made for `video-render` should not mark anything inside a part that zooms with `will-change`, which made one browser draw a few frames differently between renders. (e446ecc, 38fedbd)
+
 ## v2026.10.27.2, October 27, 2026
 
 - Wiser skills can now ask you their questions in a form: pictures to tap, choices, checkboxes, a slider and a text box, all at once rather than one question at a time in the chat. In ChatGPT, Claude and Cowork the form shows inside the chat. In ChatGPT your answers go into the chat when you press the button; in Claude and Cowork they are put in the message box for you to send. (5b29428, 153bd6f, 6dbab40, 33968e8, 081e22b, 8e80474)

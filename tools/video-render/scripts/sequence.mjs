@@ -95,7 +95,7 @@ export async function optionsForSequence(input) {
   const duration = number(input.duration, '--duration');
   const expectedFrames = Math.round(duration * fps);
   if (!Number.isSafeInteger(expectedFrames) || expectedFrames < 1) throw new Error('--duration times --fps must round to at least one frame and be a safe integer.');
-  const workers = input.workers === undefined || input.workers === 'auto' ? 'auto' : number(input.workers, '--workers', true);
+  const workers = input.workers === undefined ? 1 : input.workers === 'auto' ? 'auto' : number(input.workers, '--workers', true);
   const gpu = input.gpu ?? 'hardware';
   const capture = input.capture ?? 'screenshot';
   if (!['hardware', 'software'].includes(gpu)) throw new Error('--gpu must be hardware or software; see video-render.js help.');
@@ -145,6 +145,12 @@ export function readRenderLog(log) {
   const builds = [...text.matchAll(/\[BrowserManager\] Browser launched \((?:HeadlessChrome|Chrome|Chromium)\/(\d+\.\d+\.\d+\.\d+)/g)].map((m) => m[1]);
   if (!builds.length) throw new Error('HyperFrames log contains no launched Chrome build; inspect render.log before trusting the frames.');
   if (builds.some((v) => v !== CHROME_BUILD)) throw new Error(`HyperFrames log reports Chrome ${[...new Set(builds)].join(', ')}; require ${CHROME_BUILD}.`);
+  // HyperFrames 0.8.134 recovers from a failed capture in a fresh browser, on fewer workers or in another capture
+  // mode, logs a [Render] line that retries or re-renders, and still exits 0. Such frames are not one browser's own
+  // run, so the run is refused. A calibration retry draws no output frame, and "not retrying" ends in a failure.
+  const recovery = text.split(/\r?\n/).find((line) => /\[(?:Render|renderChunk)\]/.test(line)
+    && /\b(?:retrying|re-rendering)\b/i.test(line) && !/not retrying|calibration/i.test(line));
+  if (recovery) throw new Error(`HyperFrames recovered from a failed capture (${recovery.trim()}), so its frames are not one browser's own run; render again to a new output.`);
   const lintFindings = text.split(/\r?\n/).filter((line) => /^\s*[\u2717\u26a0\u2139]\s+/.test(line) || /^\s*Lint:/i.test(line)).map((line) => line.trim());
   return { chromeBuild: builds[0], lintFindings };
 }
@@ -190,7 +196,13 @@ export async function sequence(input, { install = false, runtime: preparedRuntim
     logPath = join(options.output, 'render.log');
     const framesDir = join(options.output, 'frames');
     await renderChild(renderArguments(copy, framesDir, options), copy, renderEnvironment(home, browser), logPath);
-    const log = readRenderLog(await readFile(logPath, 'utf8'));
+    let log;
+    try { log = readRenderLog(await readFile(logPath, 'utf8')); }
+    catch (error) {
+      // Frames the log does not vouch for are never left to be mistaken for a sequence; the log stays.
+      await rm(framesDir, { recursive: true, force: true });
+      throw error;
+    }
     const hashes = await hashFrames(framesDir, options.expectedFrames, options.width, options.height);
     return { hyperframesVersion: HYPERFRAMES_VERSION, ...log, gpu: options.gpu, capture: options.capture,
       ...hashes, logPath, seconds: Math.round((performance.now() - started) / 10) / 100 };

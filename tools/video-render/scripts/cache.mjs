@@ -7,7 +7,7 @@ import { canonical, inside } from './sequence.mjs';
 import { protectedPath } from './project.mjs';
 
 // Raise this whenever the tool changes the bytes a render produces.
-export const RENDER_VERSION = '1.0.0';
+export const RENDER_VERSION = '0.2.0';
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const isHash = (value) => typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
 

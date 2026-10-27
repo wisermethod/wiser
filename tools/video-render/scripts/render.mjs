@@ -45,6 +45,8 @@ export async function optionsForRender(input) {
     const contains = (a, b) => { const rel = relative(a, b); return rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel); };
     if (contains(frameHashes, options.output) || contains(options.output, frameHashes)) throw new Error('--frame-hashes and --output cannot contain each other; choose separate files.');
   }
+  // HyperFrames chooses the count for auto on each run, from a timing of the first frames, so the key cannot name it.
+  if (input.cache !== undefined && options.workers === 'auto') throw new Error('--cache cannot be used with --workers auto, whose worker count can change between runs; name a number of workers.');
   const cache = input.cache === undefined ? null : await cacheDirectory(input.cache, options.project);
   if (cache) {
     const contains = (a, b) => { const rel = relative(a, b); return rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel); };
@@ -69,7 +71,7 @@ export function encodeArguments(frames, output, options) {
   return [...args, '-an', '-movflags', '+faststart', '-use_editlist', '0', '-fflags', '+bitexact', '-flags:v', '+bitexact', output];
 }
 
-// Pure: callers supply version probes and project digests; output paths, workers,
+// Pure: callers supply version probes and project digests; output paths,
 // process state and environment variables never enter the canonical input object.
 export function renderCacheInputs(options, versions, files) {
   return {
@@ -77,7 +79,7 @@ export function renderCacheInputs(options, versions, files) {
     hyperframesVersion: versions.hyperframesVersion, chromeBuild: versions.chromeBuild,
     ffmpegVersion: versions.ffmpegVersion, gpu: options.gpu, capture: options.capture,
     width: options.width, height: options.height, fps: options.fps, duration: options.duration,
-    frameCount: options.expectedFrames, profile: options.profile,
+    frameCount: options.expectedFrames, profile: options.profile, workers: options.workers,
     browserSwitches: [...BROWSER_SWITCHES],
     // The bridge script is part of every page rendered, so a change to it alone is a miss.
     bridgeSha256: createHash('sha256').update(BRIDGE).digest('hex'),

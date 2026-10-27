@@ -2,15 +2,15 @@
 name: video-render
 type: tool
 category: media
-description: Renders one local HTML page whose motion answers the tool's seek to a picture-only MP4, a PNG sequence, or stills at named times, the same frames on every run, under one pinned HyperFrames, with a cache keyed over every input
-version: 0.1.0
+description: Renders one local HTML page whose motion answers the tool's seek to a picture-only MP4, a PNG sequence, or stills at named times, the same frames on every run at a set worker count, under one pinned HyperFrames, with a cache keyed over every input
+version: 0.2.0
 gaps:
   - rendering on Windows or Linux, which no run has tested
 ---
 
 # video-render
 
-One run turns one local page into video frames: a picture-only MP4 in one of two profiles, a numbered PNG sequence, or stills at named times. The same inputs give the same decoded frames on this machine, and a cache hit gives the same bytes.
+One run turns one local page into video frames: a picture-only MP4 in one of two profiles, a numbered PNG sequence, or stills at named times. The same inputs, a set worker count among them, give the same decoded frames on this machine, and a cache hit gives the same bytes.
 
 ## Context
 
@@ -28,7 +28,8 @@ This section is the one home of what a page must be for this tool to render it.
 
 - **One directory**, absolute, holding `index.html` and every file the page loads, as local files.
 - **One root.** `index.html` has exactly one element carrying `data-video-root`, laid out at the frame's size in CSS pixels. The tool sets the renderer's own attributes on that element in its copy of the project; a page carries none of them.
-- **The seek.** On every frame the tool dispatches, on `window`, a `CustomEvent` named `video-render:seek` whose `detail.time` is the frame's time in seconds: frame n shows time n / fps. The page's listener sets the frame for that time before it returns. Frames are drawn in any order and split across several browser processes, so a frame depends on its time alone, never on an earlier seek, the browser's clock, or `requestAnimationFrame` and timers, which do not advance between seeks.
+- **The seek.** On every frame the tool dispatches, on `window`, a `CustomEvent` named `video-render:seek` whose `detail.time` is the frame's time in seconds: frame n shows time n / fps. The page's listener sets the frame for that time before it returns. A render given more than one worker splits the frames among browsers that each start at their own first frame, so the page sets each frame from its time alone, never from an earlier seek, the browser's clock, or `requestAnimationFrame` and timers, which do not advance between seeks.
+- **No `will-change` inside a zoom.** A page marks no element `will-change` that sits inside an element whose scale changes. How Chrome draws such a layer then depends on timing: measured on Chrome 152, elements marked inside a zooming container drew up to three frames differently between two one-worker renders, by up to 4 levels of 255.
 - **Nothing animating at load or at capture.** A page that drives CSS transitions or animations from the seek sets them to the time and freezes them into its elements' styles before returning, as `skills/Animated Explainer/`'s two engines do on their render clock, and a page that seeks a library's own timeline seeks it to the time and writes styles, as GSAP does. A page leaves no CSS animation or Web Animation running or paused at load or when its listener returns: the renderer's own adapters re-time any they find by their own clock, so the frame would not be the page's, measured on HyperFrames 0.8.134. The browser runs with reduced motion forced off, so a page's motion rules always apply.
 - **Nothing from another origin.** A value that loads may not name another origin, a scheme other than `data:` or `blob:`, or `//`: in `src`, `href`, `xlink:href`, `srcset`, `imagesrcset`, `poster`, `data`, `action`, `formaction`, `background` and `ping`; in any attribute or stylesheet's `url(...)`, `@import` and `image-set()`; in a refresh's URL; in an `iframe`'s `srcdoc`; and in the content of a `data:` URL holding CSS, HTML or SVG, to three levels. A refusal names the file, the attribute or rule, and the value. An XML namespace and a script's text are not screened; the browser itself reaches nothing but this machine.
 - **A library is the page's own.** The tool installs no animation, 3D or font library for a page; a page that uses one carries its local copy and that library's own terms.
@@ -71,7 +72,7 @@ Every path is absolute. Every output path is new, outside this tool's directory 
 | `render --project <dir> --output <file.mp4> --width N --height N --fps N --duration S [--profile publish\|intermediate] [--frame-hashes <file>] [--cache <dir>]` | The MP4, and only with `--frame-hashes` its decoded-frame hash list; with `--cache`, an entry in that directory |
 | `frames --project <dir> --output <dir> --width N --height N --fps N --duration S --times T1,T2,... [--select at\|after]` | A new directory with one PNG per frame named and `frames.json` |
 
-`sequence`, `render` and `frames` also take `--workers N|auto` (default `auto`), `--gpu hardware|software` (default `hardware`), `--capture screenshot|fast` (default `screenshot`) and `--install`. Each command answers `help` and `--help` before any dependency check, its help lists every flag, and an unknown flag is refused by name.
+`sequence`, `render` and `frames` also take `--workers N|auto` (default 1, for the reason `## Same frames, and their scope` gives), `--gpu hardware|software` (default `hardware`), `--capture screenshot|fast` (default `screenshot`) and `--install`. Each command answers `help` and `--help` before any dependency check, its help lists every flag, and an unknown flag is refused by name.
 
 - **Frame count.** Every output holds exactly round(duration × fps) frames.
 - **`frames`.** Frame n is drawn at exactly n / fps, and a time names the last frame drawn at or before it, floor(t × fps) in exact arithmetic, chosen by that same division so 4.1 s at 30 fps is frame 123; a time at or past the last frame's time names the last frame. With `--select after`, each time names the frame after that one, the first drawn past it, which is where a moment timed at that time first shows; a time with no frame past it within the duration is refused. At most 60 times, none twice. Its files are named by frame number from 0, `frame_000000.png` for frame 0; read each still's file from `frames.json`.
@@ -89,16 +90,22 @@ Before an MP4 is given its name, `render` reads it back: its frame count; one vi
 
 - this tool's render version;
 - HyperFrames' version, the Chrome build a launch reports, and FFmpeg's version line;
-- the GPU and capture modes;
+- the GPU and capture modes, and the worker count, which with `--cache` is a number;
 - the size, rate, duration and frame count;
 - the profile and its full encoder arguments, the browser's switches, and the SHA-256 of the script that carries the seek to the page;
 - every project file's path and SHA-256.
 
-The number of workers is not in the key, since the frames do not depend on it, for a page that draws each frame from its time alone (`## Same frames, and their scope`). A hit re-hashes the cached MP4 against its record before it is used. A mismatch, or a record that cannot be read, is a miss that replaces the entry, and the result says why. A change to one scene of a video therefore re-renders that scene alone.
+A hit re-hashes the cached MP4 against its record before it is used. A mismatch, or a record that cannot be read, is a miss that replaces the entry, and the result says why. A change to one scene of a video therefore re-renders that scene alone.
 
 ## Same frames, and their scope
 
-On one machine, with one GPU mode and one Chrome build, the same project gives the same decoded frames on every run, however the work is split across workers. Each worker opens the page fresh and starts at its own first frame, so this holds where the page draws every frame from its time alone, as both of Animated Explainer's engines do; a page whose own script carries state from one seek to the next draws differently by split. The browser rasterizes on the CPU and redraws every changed tile in full. Measured on Chrome 152 with a counted figure at 1,280×720: with neither, 119 of its 150 frames differed between one worker and two, and between one and four; with the CPU raster alone, the first frame a worker drew mid-count differed; with partial redraws off alone, nothing changed; with both, one, two, four and the default worker counts drew the same frames, as they did for both engines' measured pieces. The defaults are the modes the measured proofs ran: the hardware GPU for compositing and screenshot capture. Fast capture and the software GPU draw frames that differ from them, so a frame hash recorded in one mode holds only in that mode. Another machine is not promised the same bytes. A reference set made for comparing frames is made again whenever the machine, the mode or the Chrome changes.
+On one machine, with one GPU mode, one Chrome build and one worker count given as a number, the same project gives the same decoded frames on every run that succeeds, for a page that meets The project.
+
+The default is one worker: one browser draws every frame in order. Chrome's drawing carries state from the frames a browser has already drawn, so with more workers, each starting at its own first frame, a page can draw some frames differently by split though it sets each frame from its time alone. Measured on Chrome 152 with the switches below: a container zooming by `transform` drew its settled frames up to 68 levels of 255 apart on glyph edges between one worker and three, and labels fading in over a zooming image drew 1 level apart; one worker drew each the same twice. Both of Animated Explainer's engines drew their measured pieces the same at one worker and three. For `auto`, HyperFrames chooses the count on each run, after timing five frames spread across a render of 60 frames or more, so `auto` promises no repeat and is refused with `--cache`. Where a capture fails part-way, HyperFrames recovers in a fresh browser, on fewer workers or in another capture mode, and reports success; its frames are then not one browser's own run, so the tool refuses any run whose log shows such a recovery and keeps no frame of it.
+
+Which worker count does a render need? Its frames are compared with a frame-hash list or with another render: the default, or one number given on every render compared, with the same `--gpu` and `--capture`. Nothing is compared with it, and it should finish sooner: a number above one, or `auto`; `auto` rendered a 1,920×1,080 scene of 6.5 s in 6.7 s, where one worker took 12.8 s.
+
+The browser rasterizes on the CPU and redraws every changed tile in full. Measured on Chrome 152 with a counted figure at 1,280×720: with neither, 119 of its 150 frames differed between one worker and two, and between one and four; with the CPU raster alone, the first frame a worker drew mid-count differed; with partial redraws off alone, nothing changed; with both, one, two, four and `auto` drew the same frames for that figure. The defaults are the modes the measured proofs ran: the hardware GPU for compositing and screenshot capture. Fast capture and the software GPU draw frames that differ from them, so a frame hash recorded in one mode holds only in that mode. Another machine is not promised the same bytes. A reference set made for comparing frames is made again whenever the machine, the mode, the worker count or the Chrome changes.
 
 ## Output
 
@@ -131,6 +138,8 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 | `index.html has N data-video-root elements` | The page marks no root, or more than one | Mark exactly one element at the frame's size |
 | `Project file … references …` | A loading attribute or rule names another origin | Copy that asset into the project and refer to it locally |
 | `HyperFrames wrote N frames; expected …` | The render stopped early, or the page failed to load | Read `render.log` in the run's output for the page's error, fix it, and render to a new path |
+| `HyperFrames recovered from a failed capture …` | A capture failed part-way, and HyperFrames finished it in a fresh browser, on fewer workers or in another capture mode | Render again to a new path; if it repeats, give fewer workers or close other heavy work |
+| `--cache cannot be used with --workers auto …` | `auto`'s worker count can change between runs, so no key can name it | Give a number of workers, or leave `--workers` out for one |
 | `MP4 check … failed` | The encoded file broke a profile's rule | The named check says which; render again to a new path, and report it if it repeats |
 | `chrome-headless-shell … failed during launch` | The pinned Chrome cannot start | Read `remediation` in `check`'s JSON and take that one step; a launch failure that is not a missing file never earns a fresh download |
 
@@ -139,6 +148,6 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 - `help` prints usage, exits 0, and installs nothing on a copy with no `node_modules/`.
 - `check` exits 0 with one JSON object whose `ready` is true only when Node, FFmpeg, ffprobe, HyperFrames 0.8.134 and the pinned Chrome's launch all hold.
 - `render` writes one MP4 at `--output` that passed every check its profile names, and its JSON names the frame count, the SHA-256 and whether the cache hit.
-- Two runs of the same project with the same flags give the same decoded frames.
+- Two runs of the same project with the same flags, the worker count a number or left out, give the same decoded frames, or the one HyperFrames recovered is refused.
 - A project naming another origin where it loads is refused before anything renders, and a render reaches no other origin.
 - No run reads a credential, and every write is one `tools/AGENTS.md` lists.

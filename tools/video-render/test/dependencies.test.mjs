@@ -202,10 +202,16 @@ test('failure diagnosis distinguishes missing executable from permissions, host 
   ]) assert.equal(launchFailure(new Error(message), phase), expected);
 });
 
-test('real pinned Chrome trial uses a disposable profile and leaves no probe directories', { timeout: 60_000 }, async () => {
-  const before = (await readdir(tmpdir())).filter((name) => name.startsWith('wiser-video-probe-')).sort();
-  const report = await chromeSurvey();
+test('real pinned Chrome trial uses a disposable profile and leaves no probe directories', { timeout: 60_000 }, async (t) => {
+  const temporary = await scratch(t), previous = process.env.TMPDIR;
+  let report;
+  process.env.TMPDIR = temporary;
+  try { report = await chromeSurvey(); }
+  finally {
+    if (previous === undefined) delete process.env.TMPDIR;
+    else process.env.TMPDIR = previous;
+  }
   assert.equal(report.launches, true, report.remediation);
   assert.equal(report.build, CHROME_BUILD);
-  assert.deepEqual((await readdir(tmpdir())).filter((name) => name.startsWith('wiser-video-probe-')).sort(), before);
+  assert.deepEqual(await readdir(temporary), []);
 });
