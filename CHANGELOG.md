@@ -4,6 +4,14 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.27.2, October 27, 2026
+
+- Wiser skills can now ask you their questions in a form: pictures to tap, choices, checkboxes, a slider and a text box, all at once rather than one question at a time in the chat. In ChatGPT, Claude and Cowork the form shows inside the chat. In ChatGPT your answers go into the chat when you press the button; in Claude and Cowork they are put in the message box for you to send. (5b29428, 153bd6f, 6dbab40, 33968e8, 081e22b, 8e80474)
+- In a command-line tool such as Claude Code, Codex or Grok Build, the form opens in its own browser window beside the chat, and your answers come back to the session when you press Send my answers. The first time, Wiser asks before installing the browser it uses. In Codex with its default settings, Codex asks you once to let the form open. (a45a224, aba7547, 18346c7, 4008a82, 91f2736, cfa5893)
+- Where a form cannot show, Wiser asks the same questions with chat buttons. Either way it reads your answers back in one line so you can correct them. (33968e8, cabafe1)
+- Your answers go only into your conversation, never to Wiser's service. A form shown inside the chat passes through the service on its way to your AI app, and the service keeps none of it. (5b29428, a45a224)
+- If forms never appear in Claude or ChatGPT, reconnect Wiser once in the app's settings: an app connected before today keeps the list of Wiser's tools it read then, and Wiser asks in the chat until you do. (33968e8)
+
 ## v2026.10.27, October 27, 2026
 
 - When you finish a session, What's next now lists only the sessions you should start, each with one line saying what that session will do. A plan whose next step happens in another listed session, or that is waiting on you or someone else, gets no prompt of its own: a wait is listed under Waiting on you, with where its plan lives. Every prompt in the message is under What's next, in the same shape. (f19e505, 6e1305d, 5f755ea)
