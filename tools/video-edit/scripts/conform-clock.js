@@ -59,10 +59,10 @@ export function correlate(x, y, policy, originDelta) {
   const low = -BigInt(RADIUS) * originDelta.d - originDelta.n * BigInt(RATE);
   const high = BigInt(RADIUS) * originDelta.d - originDelta.n * BigInt(RATE);
   let lo = Number(-floorDivide(-low, originDelta.d)), hi = Number(floorDivide(high, originDelta.d));
-  // Limit search by the whole-file useful-overlap rule, retaining the fixed
-  // bounded domain independently of the caller's acceptance bound.
-  lo = Math.max(lo, -Math.floor(x.length / 20));
-  hi = Math.min(hi, y.length - Math.ceil(x.length * 19 / 20));
+  // Only the absolute overlap minimum can prune the search before checking
+  // reference silence at the candidate's uncovered edges.
+  lo = Math.max(lo, MIN - x.length);
+  hi = Math.min(hi, y.length - MIN);
   if (!Number.isSafeInteger(lo) || !Number.isSafeInteger(hi) || lo > hi) fail('too little audio overlap within bounded lag search');
   const total = new Float64Array(hi - lo + 1), windows = [], candidates = [];
   for (let s = 0; s < x.length; s += width) {
@@ -74,12 +74,17 @@ export function correlate(x, y, policy, originDelta) {
     const ranked = [];
     for (let shift = lo; shift <= hi; shift++) {
       const from = Math.max(s, -shift), until = Math.min(e, y.length - shift), count = until - from;
-      if (count < MIN || count * 100 < (e - s) * 95) continue;
+      if (count < MIN) continue;
+      // Uncovered silence is not missing clock evidence. Test each uncovered
+      // edge separately, so a loud missing fragment cannot hide in the other.
+      const silent = (a, b) => a === b || (xe[b] - xe[a]) / (b - a) < RMS ** 2;
+      const silentUncovered = silent(s, from) && silent(until, e);
+      if (count * 100 < (e - s) * 95 && !silentUncovered) continue;
       const xx = xe[until] - xe[from], yy = ye[until + shift] - ye[from + shift];
       if (xx / count < RMS ** 2 || yy / count < RMS ** 2) continue;
       // Cauchy-Schwarz bounds the exact result to [-1,1]. Clamp FFT roundoff.
       const score = Math.min(1, Math.max(-1, dot[shift - lo] / Math.sqrt(xx * yy)));
-      ranked.push({ lag_samples: shift, peak: score, overlap_samples: count });
+      ranked.push({ lag_samples: shift, peak: score, overlap_samples: count, silent_uncovered_samples: silentUncovered ? e - s - count : 0 });
     }
     ranked.sort((a, b) => b.peak - a.peak);
     const best = ranked[0]; if (!best) fail('insufficient useful signal or overlap in analysis window');
@@ -102,8 +107,9 @@ export function correlate(x, y, policy, originDelta) {
   // constant-offset model, rather than a set of mutually shifted local fits.
   const [n, d] = whole.lag_seconds.split('/').map(BigInt);
   const drift = acceptDrift([...lags, rat(n, d)], policy.drift);
-  return { algorithm: 'bounded-linear-fft-normalized-v1', rate: RATE, channel_policy: 'arithmetic mean of mono/stereo; refuse mean energy below 1% of strongest channel',
+  return { algorithm: 'bounded-linear-fft-normalized-v2', rate: RATE, channel_policy: 'arithmetic mean of mono/stereo; refuse mean energy below 1% of strongest channel',
     normalization: 'dot / sqrt(overlapping signal energies); no gain, DC removal or time warp', minimum_rms: RMS, minimum_overlap_samples: MIN, minimum_overlap_fraction: '95/100',
+    overlap_rule: 'at least 0.25 seconds; at least 95% of reference interval unless each uncovered edge has RMS below minimum_rms',
     search_seconds: ['-1/1', '1/1'], search_sample_shifts: [lo, hi], ambiguity_margin: 0.000001, ambiguity_exclusion_samples: 1,
     requested_window: text(policy.window), actual_window_samples: width, whole, windows, lag_samples: whole.lag_samples, lag_seconds: whole.lag_seconds, drift_seconds: drift.actual, drift_comparison: drift };
 }

@@ -198,3 +198,68 @@ test('multi-block whole-file correlation and three consecutive 1.5-second window
   assert.equal(r.lag_samples, 1105); assert.equal(r.lag_seconds, '221/9600');
   assert.equal(r.windows.length, 3); assert.ok(r.windows.every(w => w.lag_samples === 1105 && w.peak > 0.999999999)); assert.equal(r.drift_seconds, '0/1');
 });
+
+
+for (const window of [1n, 2n, 4n]) test(`${window}s window: short silent tail permits the last scored window at delayed, one-frame-early audio end`, () => {
+  const x = noise(235200); x.fill(0, x.length - 14400);
+  const y = shifted(x, 1105).subarray(0, x.length - 1920);
+  const r = correlate(x, y, clockPolicy({ window: rat(window) }), rat(0n));
+  assert.equal(r.lag_samples, 1105);
+  assert.equal(r.windows.length, Math.ceil(4.9 / Number(window)));
+  assert.ok(r.windows.every(w => !w.excluded && w.lag_samples === 1105 && w.peak > 0.999999999));
+  assert.ok(r.windows.at(-1).overlap_samples < 0.95 * 43200);
+});
+
+
+async function overlapMutant(d, name, change) {
+  const file = join(d, `${name}.mjs`), original = readFileSync(join(tool, 'scripts/conform-clock.js'), 'utf8');
+  const changed = change(original); assert.notEqual(changed, original);
+  writeFileSync(file, changed.replace("'./conform.js'", JSON.stringify(pathToFileURL(join(tool, 'scripts/conform.js')).href)));
+  return (await import(pathToFileURL(file))).correlate;
+}
+test('silent-tail success assertion fails with the original 95% guard; missing signal refusal fails without silence check', () => temp(async d => {
+  const x = noise(235200); x.fill(0, x.length - 14400);
+  const y = shifted(x, 1105).subarray(0, x.length - 1920), p = clockPolicy({ window: rat(1n) });
+  const check = fn => { const r = fn(x, y, p, rat(0n)); assert.equal(r.windows.at(-1).lag_samples, 1105); assert.ok(!r.windows.at(-1).excluded); };
+  check(correlate);
+  const old = await overlapMutant(d, 'old-overlap', s => s.replace('count * 100 < (e - s) * 95 && !silentUncovered', 'count * 100 < (e - s) * 95'));
+  assert.throws(() => check(old), /floor/);
+  const signal = noise(235200), shortened = shifted(signal, 1105).subarray(0, signal.length - 1920);
+  const refusal = fn => assert.throws(() => fn(signal, shortened, p, rat(0n)), /floor|overlap/);
+  refusal(correlate);
+  const missing = await overlapMutant(d, 'missing-silence-check', s => s.replace('count * 100 < (e - s) * 95 && !silentUncovered', 'false'));
+  assert.throws(() => refusal(missing), /Missing expected exception/);
+}));
+test('uncovered edge silence threshold is strict, with a failing inclusive-threshold control', () => temp(async d => {
+  // Dyadic PCM16 levels keep prefix-energy subtraction exact at the threshold.
+  const x = Float64Array.from(noise(235200), v => Math.round(v * 32768) / 32768), start = x.length - 14400, p = clockPolicy({ window: rat(1n) });
+  x.fill(15 / 32768, start);
+  let r = correlate(x, shifted(x, 1105).subarray(0, x.length - 1920), p, rat(0n));
+  assert.equal(r.windows.at(-1).lag_samples, 1105); assert.equal(r.windows.at(-1).silent_uncovered_samples, 3025);
+  x.fill(16 / 32768, start);
+  const y = shifted(x, 1105).subarray(0, x.length - 1920), check = fn => assert.throws(() => fn(x, y, p, rat(0n)), /floor|overlap/);
+  check(correlate);
+  const inclusive = await overlapMutant(d, 'inclusive-silence', s => s.replace('(xe[b] - xe[a]) / (b - a) < RMS ** 2', '(xe[b] - xe[a]) / (b - a) <= RMS ** 2'));
+  assert.throws(() => check(inclusive), /Missing expected exception/);
+}));
+test('a missing signal edge cannot be diluted by the other silent edge, with a pooled-energy control', () => temp(async d => {
+  const x = noise(); x.fill(32 / 32768, 0, 100); x.fill(0, 40000);
+  const y = x.subarray(100, 40000), p = clockPolicy({ window: rat(1n) });
+  const check = fn => assert.throws(() => fn(x, y, p, rat(0n)), /floor|overlap/);
+  check(correlate);
+  const pooled = await overlapMutant(d, 'pooled-edges', s => s.replace('silent(s, from) && silent(until, e)', '(xe[from] - xe[s] + xe[e] - xe[until]) / (from - s + e - until || 1) < RMS ** 2'));
+  assert.equal(pooled(x, y, p, rat(0n)).lag_samples, -100);
+  assert.throws(() => check(pooled), /Missing expected exception/);
+}));
+test('whole-file search also permits uncovered silence, with an original duration-preclip control', () => temp(async d => {
+  const x = noise(235200); x.fill(0, x.length - 24000);
+  const y = shifted(x, 1105).subarray(0, x.length - 20000), p = clockPolicy({ window: rat(1n) });
+  const check = fn => {
+    const r = fn(x, y, p, rat(0n));
+    assert.equal(r.whole.lag_samples, 1105); assert.ok(r.whole.overlap_samples < 0.95 * x.length);
+    assert.ok(r.windows.every(w => !w.excluded && w.lag_samples === 1105));
+  };
+  check(correlate);
+  const old = await overlapMutant(d, 'duration-preclip', s => s.replace('hi = Math.min(hi, y.length - MIN);', 'hi = Math.min(hi, y.length - Math.ceil(x.length * 19 / 20));'));
+  assert.throws(() => check(old), /overlap/);
+}));

@@ -1,5 +1,5 @@
 // The upload-only implementation. No media dependency is checked at import.
-import { existsSync, mkdtempSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, extname, join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { dependencies, measure, run, screen, strictJSON } from './speech.js';
@@ -107,43 +107,54 @@ function gaplessTag(bytes) {
   return { encoder_identifier: bytes.toString('ascii', at, at + 9), encoder_priming_samples: packed >> 12, encoder_end_padding_samples: packed & 4095 };
 }
 
-// Bounded normalized cross-correlation on the loudest window in each third.
-// Each candidate uses the SAME reference window; overlap cannot improve a peak.
+// Every selected window has real samples over the entire stated lag domain.
+// Divide eligible start positions into thirds so the three witnesses are distinct.
 export function clock(reference, decoded) {
-  const n = reference.length / 2;
-  if (decoded.length !== reference.length || !n) fail('Decoded sample count differs from padded source');
-  const windows = [], radius = 4096, width = Math.min(4096, n);
+  const n = reference.length / 2, radius = 4096, windowSize = 4096, margin = 0.000001;
+  if (decoded.length !== reference.length || !Number.isInteger(n)) fail('Decoded sample count differs from padded source');
+  const positions = n - 2 * radius - windowSize + 1;
+  if (positions < 3) fail('Decoded clock cannot be established: source too short for three distinct inset windows');
+  const x = Float64Array.from({ length: n }, (_, i) => sample(reference, i));
+  const y = Float64Array.from({ length: n }, (_, i) => sample(decoded, i));
+  const windows = [];
   for (let third = 0; third < 3; third++) {
-    const from = Math.floor(third * n / 3), until = Math.floor((third + 1) * n / 3);
+    // An early short witness must see the onset rather than letting a later
+    // loud periodic block conceal missing leading samples.
+    const width = third === 0 ? 512 : windowSize;
+    const from = radius + Math.floor(third * positions / 3), until = radius + Math.floor((third + 1) * positions / 3);
     let start = from, energy = -1;
     for (let at = from; at < until; at += width) {
-      const s = Math.min(at, n - width); let e = 0;
-      for (let j = 0; j < width; j++) e += sample(reference, s + j) ** 2;
-      if (e > energy) { start = s; energy = e; }
+      let e = 0;
+      for (let j = 0; j < width; j++) e += x[at + j] ** 2;
+      if (e > energy) { start = at; energy = e; }
+      if (third === 0 && e / width >= (16 / 32768) ** 2) break;
     }
     if (energy / width < (16 / 32768) ** 2) continue;
-    if (windows.some(w => w.start_sample === start)) continue;
-    const scores = [];
-    const edge = Math.floor(width / 20); // At least 95% real overlap even at an edge.
-    for (let lag = -Math.min(radius, start + edge); lag <= Math.min(radius, n - start - width + edge); lag++) {
+    const score = (signal, lag) => {
       let dot = 0, yy = 0;
       for (let j = 0; j < width; j++) {
-        const index = start + j + lag;
-        const x = sample(reference, start + j), y = index >= 0 && index < n ? sample(decoded, index) : 0;
-        dot += x * y; yy += y * y;
+        const a = x[start + j], b = signal[start + j + lag];
+        dot += a * b; yy += b * b;
       }
-      scores.push({ lag, peak: yy ? dot / Math.sqrt(energy * yy) : -1 });
-    }
+      return yy ? dot / Math.sqrt(energy * yy) : -1;
+    };
+    const referenceEdges = [-radius, radius].map(lag => ({ lag, peak: score(x, lag) }));
+    if (referenceEdges.some(s => 1 - s.peak <= margin)) fail('Decoded clock cannot be established: ambiguous reference autocorrelation at search edge');
+    const scores = [];
+    for (let lag = -radius; lag <= radius; lag++) scores.push({ lag, peak: score(y, lag) });
+    const searchLags = [scores[0].lag, scores.at(-1).lag], scoredLags = scores.length;
     scores.sort((a, b) => b.peak - a.peak);
-    const best = scores[0], runner = scores.find(s => Math.abs(s.lag - best.lag) > 1);
-    if (!best || best.peak < 0.90 || runner && best.peak - runner.peak < 0.000001) fail('Decoded clock cannot be established by unambiguous cross-correlation');
+    // Adjacent samples are rivals too: a broad unresolved peak proves no clock.
+    const best = scores[0], runner = scores[1];
+    if (!best || best.peak < 0.90 || runner && best.peak - runner.peak < margin) fail('Decoded clock cannot be established by unambiguous cross-correlation');
     if (Math.abs(best.lag) > 0) fail(`Decoded clock lag ${best.lag} samples exceeds zero-sample tolerance`);
-    windows.push({ start_sample: start, sample_count: width, ...best, runner_up_peak: runner?.peak ?? null });
+    windows.push({ start_sample: start, sample_count: width, ...best, search_lags: searchLags, scored_lags: scoredLags, runner_up_peak: runner?.peak ?? null, reference_edge_peaks: referenceEdges });
   }
-  if (!windows.length) fail('Decoded clock cannot be established from silence or insufficient signal');
-  return { algorithm: 'thirds-normalized-xcorr-v1', search_radius_samples: radius, window_samples: width,
-    minimum_rms_pcm16: 16, minimum_peak: 0.90, ambiguity_margin: 0.000001, ambiguity_exclusion_samples: 1,
-    tolerance_samples: 0, lag_samples: 0, peak: Math.min(...windows.map(w => w.peak)), windows };
+  if (windows.length < 3) fail('Decoded clock cannot be established from silence or insufficient signal in three distinct windows');
+  const measured = windows.map(w => w.lag).sort((a, b) => a - b);
+  return { algorithm: 'thirds-normalized-xcorr-v2', search_radius_samples: radius, window_samples: windowSize, onset_window_samples: 512,
+    minimum_rms_pcm16: 16, minimum_peak: 0.90, ambiguity_margin: margin, ambiguity_exclusion_samples: 0,
+    tolerance_samples: 0, lag_samples: measured[1], peak: Math.min(...windows.map(w => w.peak)), windows };
 }
 
 function mapping(start, end, pre, lag) {
@@ -218,6 +229,8 @@ export function upload(o) {
     const packets = policy.recipe === 'mp3' ? strictJSON(run('ffprobe', ['-v', 'error', ...local('mp3'), '-show_packets', '-show_entries', 'packet=pts,duration:packet_side_data', '-of', 'json', encoded])).packets : [];
     const skips = packets.flatMap(p => p.side_data_list ?? []).filter(s => s.side_data_type === 'Skip Samples');
     if (policy.recipe === 'mp3' && (!skips.length || skips.some(s => !Number.isSafeInteger(s.skip_samples) || s.skip_samples < 0 || !Number.isSafeInteger(s.discard_padding) || s.discard_padding < 0))) fail('MP3 gapless skip/end-padding metadata is missing or invalid');
+    const headerSkip = skips.reduce((n, s) => n + s.skip_samples, 0);
+    if (correlation.windows.some(w => -headerSkip < w.search_lags[0] || headerSkip > w.search_lags[1])) fail('MP3 header skip exceeds the searched clock radius');
     const gapless = policy.recipe === 'mp3' ? gaplessTag(readFileSync(encoded)) : null;
     if (policy.recipe === 'mp3') {
       const [tbN, tbD] = back.time_base.split('/').map(BigInt);
@@ -225,6 +238,7 @@ export function upload(o) {
         if (!Number.isSafeInteger(p.duration) || p.duration <= 0) fail('Invalid MP3 packet duration');
         return n + BigInt(p.duration);
       }, 0n);
+      // Count identities only. Position is witnessed by all three clock windows.
       const removed = skips.reduce((n, s) => n + s.skip_samples + s.discard_padding, 0);
       if (ticks * tbN * BigInt(rate) !== BigInt(count + removed) * tbD) fail('MP3 packet clock, skip and end padding do not explain decoded count');
       const decoderPriming = skips.reduce((n, s) => n + s.skip_samples, 0) - gapless.encoder_priming_samples;
@@ -267,10 +281,23 @@ export function upload(o) {
     if (!isDeepStrictEqual(measure(input).identity, before)) fail('Source changed before publication');
     rmSync(decodedPath); rmSync(referencePath);
     const receiptIdentity = measure(receiptPath).identity;
-    writeJSON(join(stage, 'complete.json'), { schema: 'speech-upload-complete', version: 1, complete: true,
-      files: { [uploadName]: identity, 'padded.wav': paddedIdentity, 'receipt.json': receiptIdentity } });
-    if (existsSync(output)) fail('Destination already exists');
-    renameSync(stage, output);
+    const completion = { schema: 'speech-upload-complete', version: 1, complete: true,
+      files: { [uploadName]: identity, 'padded.wav': paddedIdentity, 'receipt.json': receiptIdentity } };
+    const marker = join(stage, 'complete.json'); writeJSON(marker, completion);
+    const finalSource = wav(readFileSync(input));
+    if (!isDeepStrictEqual(measure(input).identity, before) || finalSource.rate !== rate || finalSource.channels !== channels ||
+        finalSource.sample_count !== total || !finalSource.format.equals(original.format) ||
+        !finalSource.data.subarray(start * channels * 2, end * channels * 2).equals(expectedPCM.subarray(pre * channels * 2, (pre + end - start) * channels * 2))) fail('Source PCM differs from what was cut before publication');
+    for (const [file, id] of Object.entries(completion.files)) {
+      if (!isDeepStrictEqual(measure(join(stage, file)).identity, id)) fail(`Staged ${file} identity changed after completion`);
+    }
+    if (!isDeepStrictEqual(strictJSON(readFileSync(marker, 'utf8')), completion)) fail('Completion marker readback failed');
+    // mkdir is the exclusive claim; unlike POSIX directory rename it cannot
+    // replace even an empty destination. Each link also has no-replace semantics.
+    // The completion marker is linked last. On failure retain the claimed path
+    // as incomplete; cleanup below owns only this run's staging directory.
+    try { mkdirSync(output); } catch (e) { if (e.code === 'EEXIST') fail('Destination already exists'); throw e; }
+    for (const file of [...Object.keys(completion.files), 'complete.json']) linkSync(join(stage, file), join(output, file));
     return { ok: true, output, receipt: join(output, 'receipt.json'), receipt_identity: receiptIdentity, completion: join(output, 'complete.json'), upload: join(output, uploadName), bytes: identity.bytes, sha256: identity.sha256 };
   } finally { if (existsSync(stage)) rmSync(stage, { recursive: true, force: true }); }
 }

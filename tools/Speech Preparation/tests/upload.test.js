@@ -5,7 +5,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { chmodSync, cpSync, existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { atSample, clock, seconds } from '../scripts/upload.js';
 
 const TOOL = fileURLToPath(new URL('..', import.meta.url));
@@ -50,6 +50,18 @@ function decode(path, mono = false) {
   const r = spawnSync('ffmpeg', ['-nostdin', '-v', 'error', '-xerror', '-protocol_whitelist', 'file,pipe', '-i', path, '-map', '0:a:0', ...(mono ? ['-ac', '1'] : []), '-f', 's16le', '-c:a', 'pcm_s16le', 'pipe:1'], { maxBuffer: 16 * 1024 * 1024 });
   assert.equal(r.status, 0, String(r.stderr)); assert.equal(r.stderr.length, 0); return r.stdout;
 }
+function measuredClock(c, count = Infinity) {
+  assert.equal(c.windows.length, 3);
+  assert.equal(new Set(c.windows.map(w => w.start_sample)).size, 3);
+  for (const w of c.windows) {
+    assert.equal(w.lag, 0);
+    assert.ok(w.start_sample >= 4096);
+    assert.ok(w.start_sample + w.sample_count + 4096 <= count);
+    assert.deepEqual(w.search_lags, [-4096, 4096]); assert.equal(w.scored_lags, 8193);
+    assert.equal(w.reference_edge_peaks.length, 2);
+  }
+  assert.equal(c.lag_samples, c.windows.map(w => w.lag).sort((a, b) => a - b)[1]);
+}
 const read = path => JSON.parse(readFileSync(path, 'utf8'));
 function clean(dir, output) {
   assert.ok(!existsSync(output)); assert.deepEqual(readdirSync(dir).filter(n => n.startsWith('.wiser-speech-upload-')), []);
@@ -84,7 +96,7 @@ for (const rate of [24000, 44100]) for (const channels of [1, 2]) for (const mod
     assert.equal(receipt.mapping.retained_upload_end, pre + end - start);
     assert.equal(receipt.silence.before_samples, pre); assert.equal(receipt.silence.after_samples, post);
     assert.equal(receipt.readback.sample_count, pre + end - start + post);
-    assert.equal(receipt.readback.correlation.lag_samples, 0);
+    measuredClock(receipt.readback.correlation, receipt.padded.sample_count);
     assert.ok(receipt.readback.correlation.peak > 0.999999);
     assert.deepEqual(readFileSync(input), s.bytes);
     assert.deepEqual(readdirSync(output).sort(), ['complete.json', 'padded.wav', 'receipt.json', 'upload.wav']);
@@ -106,7 +118,7 @@ for (const rate of [24000, 44100]) for (const mode of ['whole', 'span']) {
     const data = decode(r.upload), padded = decode(join(output, 'padded.wav'));
     assert.equal(data.length, padded.length); assert.equal(receipt.readback.rate, rate);
     assert.equal(receipt.readback.channels, 1); assert.equal(receipt.encoder.bitrate_bits_per_second, 64000);
-    assert.equal(receipt.readback.correlation.lag_samples, 0); assert.ok(receipt.readback.correlation.peak >= 0.9);
+    measuredClock(receipt.readback.correlation, receipt.padded.sample_count); assert.ok(receipt.readback.correlation.peak >= 0.9);
     assert.ok(receipt.readback.delay.header_skip_samples > 0);
     assert.ok(receipt.readback.delay.end_padding_samples >= 0);
     assert.equal(receipt.readback.sample_count, receipt.padded.sample_count);
@@ -152,14 +164,17 @@ for (const recipe of ['wav', 'mp3']) test(`${recipe}: extensible 3.0 speaker mas
     const rms = pcm => { let energy = 0; for (let i = 0; i < count; i++) energy += pcm.readInt16LE(i * 2) ** 2; return Math.sqrt(energy / count); };
     assert.ok(rms(reference) > 1000);
     assert.ok(rms(decoded) > rms(reference) * 0.8 && rms(decoded) < rms(reference) * 1.2, 'center narration must survive the mono downmix');
-    assert.equal(receipt.readback.correlation.lag_samples, 0);
+    measuredClock(receipt.readback.correlation, receipt.padded.sample_count);
   }
 }));
 
 test('identifiable cut-edge pulses retain both endpoint samples and exclude real neighbours', () => work(({ dir, put, command }) => {
   const s = source(24000), bytes = Buffer.from(s.bytes); bytes.fill(0, 44);
+  // The endpoint assertions stay exact; interior quiet chirps supply the three
+  // unambiguous clock witnesses now required even for a lossless upload.
+  for (let i = 3000; i < 18000; i++) bytes.writeInt16LE(Math.round(s.pcm.readInt16LE(i * 2) / 8), 44 + i * 2);
   // Neighbours are deliberately louder and distinct from the retained endpoints.
-  for (const [i, amplitude] of [[2399, 30000], [2400, 12345], [2401, -8000], [7000, 15000], [13007, -14000], [19198, 7000], [19199, -11223], [19200, -30000]]) bytes.writeInt16LE(amplitude, 44 + i * 2);
+  for (const [i, amplitude] of [[2399, 30000], [2400, 12345], [2401, -8000], [7000, 15000], [10500, 10000], [13007, -14000], [19198, 7000], [19199, -11223], [19200, -30000]]) bytes.writeInt16LE(amplitude, 44 + i * 2);
   const input = put('pulses.wav', bytes), output = join(dir, 'bundle');
   const r = ok(command(args(input, bytes, output, 'wav', ['--start', '0.1', '--end', '0.8', '--pre-guard', '1/2400', '--post-guard', '1/1200'])));
   const decoded = decode(r.upload), values = Array.from({ length: decoded.length / 2 }, (_, i) => decoded.readInt16LE(i * 2));
@@ -185,7 +200,7 @@ test('135.37-second synthetic upload fits without changing the fixed recipe; no 
   assert.ok(result.bytes < 3000000); const receipt = read(result.receipt);
   assert.equal(receipt.readback.sample_count, 3266880);
   assert.equal(receipt.encoder.bitrate_bits_per_second, 64000);
-  assert.equal(receipt.readback.correlation.lag_samples, 0);
+  measuredClock(receipt.readback.correlation, receipt.padded.sample_count);
 }));
 
 for (const recipe of ['wav', 'mp3']) test(`${recipe}: complete byte ceiling equality passes; one byte over and impossible fit refuse and clean`, () => work(({ dir, put, command }) => {
@@ -229,7 +244,7 @@ test('malformed staged receipt is refused before completion', () => work(({ dir,
   refused(command(args(input, s.bytes, output)), /Invalid JSON/); clean(dir, output);
 }));
 test('silence and ambiguous periodic correlation are refused', () => {
-  assert.throws(() => clock(Buffer.alloc(20000), Buffer.alloc(20000)), /silence/);
+  assert.throws(() => clock(Buffer.alloc(40000), Buffer.alloc(40000)), /silence/);
   const tone = Buffer.alloc(24000 * 2);
   for (let i = 0; i < 24000; i++) tone.writeInt16LE(Math.round(10000 * Math.sin(i * 2 * Math.PI / 24)), i * 2);
   assert.throws(() => clock(tone, tone), /unambiguous/);
@@ -311,4 +326,190 @@ test('forced SIGKILL leaves only inventoried incomplete staging; a fresh destina
   ok(command(args(input, s.bytes, output)));
   assert.ok(existsSync(join(output, 'complete.json')));
   assert.ok(existsSync(join(dir, stages[0])), 'a later run never deletes another run staging');
+}));
+
+
+for (const recipe of ['wav', 'mp3']) test(`${recipe}: independently decoded known impulse lands at pre + index - start`, () => work(({ dir, put, command }) => {
+  const s = source(24000, 1, 72000), bytes = Buffer.from(s.bytes);
+  // Quiet nonperiodic clock plus a uniquely louder isolated impulse.
+  for (let i = 44; i < bytes.length; i += 2) bytes.writeInt16LE(Math.round(bytes.readInt16LE(i) / 8), i);
+  const index = 35000, start = 2400, pre = 3000;
+  for (let i = index - 1000; i <= index + 1000; i++) bytes.writeInt16LE(0, 44 + i * 2);
+  bytes.writeInt16LE(30000, 44 + index * 2);
+  const input = put('impulse.wav', bytes), output = join(dir, 'bundle');
+  const r = ok(command(args(input, bytes, output, recipe, ['--start', '0.1', '--end', '2.9', '--pre-guard', '0.125', '--post-guard', '0.2'])));
+  const data = decode(r.upload);
+  const impulsePosition = pcm => {
+    let peak = -1, amplitude = -1;
+    for (let i = 0; i < pcm.length / 2; i++) if (Math.abs(pcm.readInt16LE(2 * i)) > amplitude) { peak = i; amplitude = Math.abs(pcm.readInt16LE(2 * i)); }
+    return peak;
+  };
+  assert.equal(impulsePosition(data), pre + index - start);
+  // The independent sample-position assertion must detect a one-sample slide,
+  // even if a receipt were to continue claiming zero displacement.
+  assert.throws(() => assert.equal(impulsePosition(delayed(data, 1)), pre + index - start), { code: 'ERR_ASSERTION' });
+  measuredClock(read(r.receipt).readback.correlation);
+}));
+function periodic(count = 30000, period = 5000) {
+  const b = Buffer.alloc(count * 2);
+  // All harmonics repeat at exactly the declared period; the higher harmonic
+  // resolves neighbouring samples within the same ambiguity margin.
+  for (let i = 0; i < count; i++) b.writeInt16LE(Math.round(7000 * Math.sin(2 * Math.PI * i / period) + 5000 * Math.sin(2 * Math.PI * 17 * i / period)), 2 * i);
+  return b;
+}
+function delayed(b, lag) { const y = Buffer.alloc(b.length); if (lag >= 0) b.copy(y, lag * 2, 0, b.length - lag * 2); else b.copy(y, 0, -lag * 2); return y; }
+test('periodic clock passes unshifted and refuses a whole-period shift beyond the radius', () => work(async ({ module }) => {
+  const x = periodic(); measuredClock(clock(x, x), x.length / 2);
+  const y = delayed(x, 5000), check = fn => assert.throws(() => fn(x, y), /clock/);
+  check(clock);
+  const bypass = await clockMutant(module, s => s.replace('third === 0 ? 512 : windowSize', 'windowSize').replace('if (third === 0 && e / width >= (16 / 32768) ** 2) break;', ''));
+  assert.throws(() => check(bypass), /Missing expected exception/);
+}));
+test('short clock with codec-sized delay refuses; minimum inset length has a failing removal control', () => work(async ({ module }) => {
+  const x = source(24000, 1, 4096).pcm;
+  assert.throws(() => clock(x, delayed(x, 576)), /too short/);
+  measuredClock(clock(source(24000, 1, 12290).pcm, source(24000, 1, 12290).pcm), 12290);
+  // Isolate the length preflight from the later useful-window count guard.
+  // This shorter source has only one eligible full-radius start position.
+  const short = source(24000, 1, 12288).pcm;
+  const guarded = await clockMutant(module, s => s.replace('windows.length < 3', 'false'));
+  const check = fn => assert.throws(() => fn(short, short), /too short/);
+  check(guarded);
+  const bypass = await clockMutant(module, s => s.replace('positions < 3', 'false'));
+  assert.equal(bypass(short, short).windows.length, 1);
+  assert.throws(() => check(bypass), /Missing expected exception/);
+}));
+async function clockMutant(module, change) {
+  const s = readFileSync(module, 'utf8'), modified = change(s); assert.notEqual(modified, s); writeFileSync(module, modified);
+  return (await import(pathToFileURL(module).href + '?mutant=' + Math.random())).clock;
+}
+test('missing third signal witness and adjacent near-tie guards have failing removal controls', () => work(async ({ module }) => {
+  const original = readFileSync(module, 'utf8'), x = source(24000, 1, 60000).pcm; x.fill(0, 30000 * 2);
+  assert.throws(() => clock(x, x), /three distinct/);
+  const two = await clockMutant(module, s => s.replace('windows.length < 3', 'false'));
+  assert.throws(() => assert.throws(() => two(x, x)), { code: 'ERR_ASSERTION' });
+  writeFileSync(module, original);
+  // One very slow ramp has an unresolved adjacent-sample peak, but no distant
+  // peak within the same margin. The old +/-1 exclusion would certify it.
+  const ramp = Buffer.alloc(60000 * 2); let state = 74123, last = 0;
+  for (let i = 0; i < 60000; i++) {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    last = last * 0.6 + ((state / 4294967296) * 2 - 1) * 10;
+    ramp.writeInt16LE(5000 + Math.round(last), 2 * i);
+  }
+  assert.throws(() => clock(ramp, ramp), /unambiguous/);
+  const adjacent = await clockMutant(module, s => s.replace('const best = scores[0], runner = scores[1];', 'const best = scores[0], runner = scores.find(s => Math.abs(s.lag - best.lag) > 1);'));
+  // Confirm the assertion can fail rather than counting another refusal.
+  assert.throws(() => assert.throws(() => adjacent(ramp, ramp)), { code: 'ERR_ASSERTION' });
+}));
+test('reference edge guard remains independent of decoded peak/lag guards, with removal control', () => work(async ({ module }) => {
+  const x = periodic(30000, 4096);
+  assert.throws(() => clock(x, x), /search edge/);
+  // Isolate this guard from the other, deliberately redundant safeguards:
+  // make decoded ties prefer the central lag and bypass decoded ambiguity.
+  let code = readFileSync(module, 'utf8').replace('scores.sort((a, b) => b.peak - a.peak);', 'scores.sort((a, b) => b.peak - a.peak || Math.abs(a.lag) - Math.abs(b.lag));')
+    .replace('runner && best.peak - runner.peak < margin', 'false');
+  writeFileSync(module, code);
+  const guarded = (await import(pathToFileURL(module).href + '?guarded')).clock;
+  assert.throws(() => guarded(x, x), /search edge/);
+  const bypass = await clockMutant(module, s => s.replace('referenceEdges.some(s => 1 - s.peak <= margin)', 'false'));
+  assert.throws(() => assert.throws(() => bypass(x, x)), { code: 'ERR_ASSERTION' });
+}));
+test('skip/end-discard swap preserves counts but displaced MP3 samples refuse; removing lag guard fails assertion', () => work(({ dir, put, command, module }) => {
+  const s = source(24000, 1, 48000), input = put('source.wav', s.bytes), output = join(dir, 'bundle');
+  mutate(module, "run('ffmpeg', settings, true);", `run('ffmpeg', settings, true);
+    const b = readFileSync(encoded); const at = b.indexOf(Buffer.from('Lavf'));
+    if (at < 0) throw new Error('test encoder identifier not found');
+    const packed = b.readUIntBE(at + 21, 3), priming = packed >> 12, padding = packed & 4095;
+    if (padding < 32) throw new Error('test needs at least 32 padding samples');
+    b.writeUIntBE(((priming + 32) << 12) | (padding - 32), at + 21, 3); writeFileSync(encoded, b);`);
+  const a = args(input, s.bytes, output, 'mp3');
+  const check = r => refused(r, /clock lag/);
+  check(command(a)); clean(dir, output);
+  mutate(module, 'Math.abs(best.lag) > 0', 'false');
+  const r = command(a); ok(r); assert.throws(() => check(r), { code: 'ERR_ASSERTION' });
+  const c = read(join(output, 'receipt.json')).readback.correlation;
+  assert.ok(c.windows.every(w => w.lag === -32)); assert.equal(c.lag_samples, -32);
+}));
+test('header skip outside searched radius refuses, with a removal control', () => work(({ dir, put, command, module }) => {
+  const s = source(), input = put('source.wav', s.bytes), output = join(dir, 'bundle');
+  mutate(module, 'const headerSkip = skips.reduce((n, s) => n + s.skip_samples, 0);', 'const headerSkip = 4097;');
+  const a = args(input, s.bytes, output, 'mp3'); refused(command(a), /header skip/); clean(dir, output);
+  mutate(module, 'correlation.windows.some(w => -headerSkip < w.search_lags[0] || headerSkip > w.search_lags[1])', 'false'); ok(command(a));
+}));
+test('header skip is bounded by every measured search, independently of the stated radius', () => work(({ dir, put, command, module }) => {
+  const s = source(), input = put('source.wav', s.bytes), output = join(dir, 'bundle');
+  mutate(module, 'const headerSkip = skips.reduce((n, s) => n + s.skip_samples, 0);', 'const headerSkip = skips.reduce((n, s) => n + s.skip_samples, 0); correlation.windows[1].search_lags = [-1000, 1000];');
+  const a = args(input, s.bytes, output, 'mp3'), check = r => refused(r, /header skip/);
+  check(command(a)); clean(dir, output);
+  mutate(module, 'correlation.windows.some(w => -headerSkip < w.search_lags[0] || headerSkip > w.search_lags[1])', 'false');
+  const bypassed = command(a); ok(bypassed); assert.throws(() => check(bypassed), { code: 'ERR_ASSERTION' });
+}));
+test('source restored after a different PCM was cut refuses after completion, with removal control', () => work(({ dir, put, command, module }) => {
+  const s = source(), input = put('source.wav', s.bytes), output = join(dir, 'bundle');
+  mutate(module, 'const original = wav(readFileSync(input)),', 'const cutBytes = readFileSync(input); cutBytes.writeInt16LE(1234, 44 + 12000 * 2); const original = wav(cutBytes),');
+  const a = args(input, s.bytes, output); refused(command(a), /Source PCM/); clean(dir, output);
+  mutate(module, '!finalSource.data.subarray(start * channels * 2, end * channels * 2).equals(expectedPCM.subarray(pre * channels * 2, (pre + end - start) * channels * 2))', 'false'); ok(command(a));
+}));
+for (const file of ['upload.wav', 'padded.wav', 'receipt.json']) test(`late ${file} change after completion refuses, with identity guard removal control`, () => work(({ dir, put, command, module }) => {
+  const s = source(), input = put('source.wav', s.bytes), output = join(dir, 'bundle');
+  mutate(module, "const marker = join(stage, 'complete.json'); writeJSON(marker, completion);", `const marker = join(stage, 'complete.json'); writeJSON(marker, completion); writeFileSync(join(stage, '${file}'), Buffer.concat([readFileSync(join(stage, '${file}')), Buffer.from(' ')]));`);
+  const a = args(input, s.bytes, output); refused(command(a), /identity changed after completion/); clean(dir, output);
+  mutate(module, '!isDeepStrictEqual(measure(join(stage, file)).identity, id)', 'false'); ok(command(a));
+}));
+test('late destination collision, including empty directory, is never replaced; only owned staging is cleaned', () => work(({ dir, put, command, module }) => {
+  const s = source(), input = put('source.wav', s.bytes), original = readFileSync(module, 'utf8');
+  for (const empty of [true, false]) {
+    writeFileSync(module, original);
+    mutate(module, 'try { mkdirSync(output); }', `mkdirSync(output); ${empty ? '' : "writeFileSync(join(output, 'keep'), 'keep');"} try { mkdirSync(output); }`);
+    const output = join(dir, empty ? 'empty' : 'nonempty'); refused(command(args(input, s.bytes, output)), /already exists/);
+    assert.deepEqual(readdirSync(output), empty ? [] : ['keep']);
+    assert.deepEqual(readdirSync(dir).filter(n => n.startsWith('.wiser-speech-upload-')), []);
+  }
+}));
+test('empty destination protection assertion fails with directory rename publication', () => work(({ dir, put, command, module }) => {
+  const s = source(), input = put('source.wav', s.bytes), output = join(dir, 'bundle');
+  mutate(module, 'try { mkdirSync(output); }', 'mkdirSync(output); try { mkdirSync(output); }');
+  const a = args(input, s.bytes, output), check = r => refused(r, /already exists/);
+  check(command(a)); assert.deepEqual(readdirSync(output), []);
+  // Retain that destination and exercise the unsafe publication on a fresh path.
+  mutate(module, 'existsSync, linkSync,', 'existsSync, renameSync, linkSync,');
+  mutate(module, "try { mkdirSync(output); } catch (e) { if (e.code === 'EEXIST') fail('Destination already exists'); throw e; }\n    for (const file of [...Object.keys(completion.files), 'complete.json']) linkSync(join(stage, file), join(output, file));", 'renameSync(stage, output);');
+  const replaced = command(args(input, s.bytes, join(dir, 'unguarded'))); ok(replaced);
+  assert.throws(() => check(replaced), { code: 'ERR_ASSERTION' });
+}));
+test('publication links refuse file collision, retain incomplete destination and remove only staging', () => work(({ dir, put, command, module }) => {
+  const s = source(), input = put('source.wav', s.bytes), output = join(dir, 'bundle');
+  mutate(module, "for (const file of [...Object.keys(completion.files), 'complete.json']) linkSync", "writeFileSync(join(output, uploadName), 'keep'); for (const file of [...Object.keys(completion.files), 'complete.json']) linkSync");
+  refused(command(args(input, s.bytes, output)), /EEXIST/);
+  assert.equal(readFileSync(join(output, 'upload.wav'), 'utf8'), 'keep'); assert.ok(!existsSync(join(output, 'complete.json')));
+  assert.deepEqual(readdirSync(dir).filter(n => n.startsWith('.wiser-speech-upload-')), []);
+  // A per-file rename would overwrite the colliding file. Use a fresh
+  // destination to reach that boundary again, without touching retained output.
+  mutate(module, 'existsSync, linkSync,', 'existsSync, renameSync, linkSync,');
+  mutate(module, 'linkSync(join(stage, file), join(output, file))', 'renameSync(join(stage, file), join(output, file))');
+  const bypassed = command(args(input, s.bytes, join(dir, 'unguarded'))); ok(bypassed);
+  assert.throws(() => refused(bypassed, /EEXIST/), { code: 'ERR_ASSERTION' });
+  assert.throws(() => assert.equal(readFileSync(join(dir, 'unguarded', 'upload.wav'), 'utf8'), 'keep'), { code: 'ERR_ASSERTION' });
+}));
+
+
+test('measured search bounds/count and inset assertions fail when a full search is reduced', () => work(async ({ module }) => {
+  const x = source().pcm; measuredClock(clock(x, x), x.length / 2);
+  const reduced = await clockMutant(module, s => s.replace('for (let lag = -radius; lag <= radius; lag++)', 'for (let lag = -204; lag <= 204; lag++)'));
+  assert.throws(() => measuredClock(reduced(x, x), x.length / 2), { code: 'ERR_ASSERTION' });
+}));
+test('MP3 periodic tone passes unshifted and a period-sized decoded delay refuses', () => work(({ dir, put, command, module }) => {
+  const s = source(24000, 1, 30000), bytes = Buffer.from(s.bytes);
+  for (let i = 0; i < 30000; i++) bytes.writeInt16LE(Math.round(7000 * Math.sin(2 * Math.PI * 97 * i / 5000) + 5000 * Math.sin(2 * Math.PI * 167 * i / 5000)), 44 + 2 * i);
+  const input = put('periodic.wav', bytes), r = ok(command(args(input, bytes, join(dir, 'unshifted'), 'mp3', ['--lead', '0', '--tail', '0'])));
+  measuredClock(read(r.receipt).readback.correlation, 30000);
+  mutate(module, 'const decoded = decode(encoded, policy.recipe, decodedPath);', 'const decoded = decode(encoded, policy.recipe, decodedPath); decoded.copyWithin(10000, 0, decoded.length - 10000); decoded.fill(0, 0, 10000);');
+  const output = join(dir, 'shifted'); refused(command(args(input, bytes, output, 'mp3', ['--lead', '0', '--tail', '0'])), /clock/); clean(dir, output);
+}));
+test('completion marker readback guard has a failing removal control', () => work(({ dir, put, command, module }) => {
+  const s = source(), input = put('source.wav', s.bytes), output = join(dir, 'bundle');
+  mutate(module, "const marker = join(stage, 'complete.json'); writeJSON(marker, completion);", "const marker = join(stage, 'complete.json'); writeJSON(marker, {...completion, complete: false});");
+  const a = args(input, s.bytes, output); refused(command(a), /Completion marker/); clean(dir, output);
+  mutate(module, "!isDeepStrictEqual(strictJSON(readFileSync(marker, 'utf8')), completion)", 'false'); ok(command(a));
 }));
