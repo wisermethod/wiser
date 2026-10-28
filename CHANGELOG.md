@@ -4,6 +4,13 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.28, October 28, 2026
+
+- Wiser now asks before installing anything only once per person, not once per copy of the plugin. Your yes is kept in Wiser's own folder on your computer, so a Wiser update no longer asks again. (1c654e6)
+- Browser tools, such as the window a form opens in a command-line tool, now share one set-up per person, so an update no longer downloads it again. A copy of Wiser that already has its own keeps using it. (1c654e6)
+- The simple brand path still fetches its two typefaces without asking, and that fetch no longer counts as your yes for anything else. (1c654e6)
+- When a Wiser skill needs to download something, it now says plainly what, why and how big, for example: "This Wiser skill needs to download and install the sharp image library on your machine in order to edit images and layer one image over another. It's about 17 MB." It names only what that run will download, and adds "if you don't have it yet" for anything it can't check first, such as a browser you may already have. (acfcc39)
+
 ## v2026.10.27.5, October 27, 2026
 
 - Wiser can now connect to ElevenLabs on your own ElevenLabs plan, through the local gateway in a command-line tool such as Claude Code or Codex. It lists your voices and models, makes an instant voice clone from one recording on your computer, and turns a scene of up to 5,000 characters into an MP3 saved on your computer, with each character's timing. You type your key only on the connect page. (aa781f1)
