@@ -25,7 +25,7 @@ function shifted(x, lag, drift = 0) { return Float64Array.from({ length: x.lengt
 function receipt(d, path, count, rate = 48000) {
   const p = join(d, 'receipt.json'); writeFileSync(p, JSON.stringify({ schema: 'speech-upload', version: 1, padded: { file: 'padded.wav', identity: identity(path), rate, channels: 1, sample_count: count }, mapping: { source_zero_at_upload_sample: 12000 }, source: { before: { sha256: '1'.repeat(64) } }, readback: { sample_count: count, delay: { residual_decoded_displacement_samples: 0 } } })); return p;
 }
-function fixture(d, { lag = 0, frames = 25, bf = 0, audio = true, cancel = false, silent = false, aac = false, stereo = false, pictureOffset = '0', audioOffset = '0', rate = 48000 } = {}) {
+function fixture(d, { lag = 0, frames = 25, bf = 0, audio = true, cancel = false, silent = false, aac = false, stereo = false, pictureOffset = '0', audioOffset = '0', rate = 48000, sar = '1' } = {}) {
   const reference = join(d, 'padded.wav'), vendor = join(d, 'vendor.wav'), raw = join(d, 'pictures.yuv'), input = join(d, 'vendor.mp4');
   const x = noise(rate); wave(reference, x, rate); const y = shifted(x, Math.round(lag * rate / 48000));
   wave(vendor, cancel || stereo ? Float64Array.from({ length: y.length * 2 }, (_, i) => (cancel && i % 2 ? -1 : 1) * y[i >> 1]) : silent ? new Float64Array(y.length) : y, rate, cancel || stereo ? 2 : 1);
@@ -36,7 +36,7 @@ function fixture(d, { lag = 0, frames = 25, bf = 0, audio = true, cancel = false
   writeFileSync(raw, bytes);
   ff(['-copyts', '-itsoffset', pictureOffset, '-f', 'rawvideo', '-pixel_format', 'yuv420p', '-video_size', '64x48', '-framerate', '25', '-i', raw,
     ...(audio ? ['-itsoffset', audioOffset, '-i', vendor] : []), '-map', '0:v', ...(audio ? ['-map', '1:a'] : []), '-c:v', 'libx264', '-crf', bf ? '18' : '0', '-threads:v', '1', '-bf', String(bf), '-x264-params', 'b-adapt=0',
-    ...(audio ? ['-c:a', aac ? 'aac' : 'pcm_s16le'] : []), '-vf', 'setsar=1', '-avoid_negative_ts', 'disabled', '-use_editlist', '1', input]);
+    ...(audio ? ['-c:a', aac ? 'aac' : 'pcm_s16le'] : []), '-vf', `setsar=${sar}`, '-avoid_negative_ts', 'disabled', '-use_editlist', '1', input]);
   return { d, input, reference, receipt: receipt(d, reference, x.length, rate), lag };
 }
 function args(f, output = join(f.d, 'bundle'), changes = {}) {
@@ -370,4 +370,15 @@ test('decoder build receipt checks fail on the old placeholder strings', () => t
   check(success(f));
   const placeholder = mutant(d, 'placeholder-builds', s => s.replace('build: ffmpegVersion, probe_build: ffprobeVersion', "build: 'encoder.ffmpeg_version', probe_build: 'encoder.ffprobe_version'"));
   const r = success(f, {}, 'placeholder-output', placeholder); assert.throws(() => check(r), assert.AssertionError);
+}));
+
+test('a source with no stated sample aspect ratio is read as square; a stated non-square ratio refuses', async () => temp(d => {
+  mkdirSync(join(d, 'na')); mkdirSync(join(d, 'wide'));
+  const plain = fixture(join(d, 'na'), { sar: '0' });
+  const probe = JSON.parse(run('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=sample_aspect_ratio', '-of', 'json', plain.input]).stdout).streams[0];
+  assert.ok([undefined, 'N/A', '0:1'].includes(probe.sample_aspect_ratio), `fixture states ${probe.sample_aspect_ratio}`);
+  const result = success(plain);
+  oracle(plain, result);
+  assert.equal(result.detail.treatment.sample_aspect_ratio_read_as, '1:1');
+  refusal(fixture(join(d, 'wide'), { sar: '4/3' }), {}, /square-pixel/);
 }));

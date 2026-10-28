@@ -126,7 +126,9 @@ function dependencies() {
   for (const name of ['scale', 'format', 'setsar', 'setparams', 'aresample', 'asetpts']) if (!new RegExp(`^\\s*\\S+\\s+${name}\\s`, 'm').test(filters)) fail(`missing ${name} filter; check: ffmpeg -filters`);
 }
 function colour(v) {
-  if (v.codec_name !== 'h264' || v.pix_fmt !== 'yuv420p' || v.sample_aspect_ratio !== '1:1') fail('source must be square-pixel H.264 yuv420p');
+  // An absent or unspecified sample aspect ratio (ffprobe's N/A or 0:1) is read as square, as untagged colour is read
+  // through the caller's interpretation; any stated ratio but 1:1 refuses. HeyGen's digital twin renders carry none.
+  if (v.codec_name !== 'h264' || v.pix_fmt !== 'yuv420p' || ![undefined, 'N/A', '0:1', '1:1'].includes(v.sample_aspect_ratio)) fail('source must be square-pixel H.264 yuv420p');
   for (const [key, expected] of Object.entries({ color_primaries: 'bt709', color_transfer: 'bt709', color_space: 'bt709', color_range: 'tv' })) if (v[key] && !['unknown', 'unspecified', expected].includes(v[key])) fail(`source ${key} contradicts bt709-tv`);
   if (v.side_data_list?.some(s => /display matrix/i.test(s.side_data_type)) || Number(v.tags?.rotate ?? 0)) fail('source carries a display matrix or rotation');
 }
@@ -274,7 +276,7 @@ export function conform(argv) {
         audio_minus_picture_origin: text(delta), sample_lag: correlation.lag_samples, lag: text(lag), reference_clock: 'padded sample zero; no lead, guard or encoder delay added' },
       frames: selected.map.map(m => ({ ...m, source_sha256: sourceHashes[m.source_ordinal], output_sha256: readback.frame_sha256[m.output_ordinal] })),
       holds: { counts: selected.held, budgets: p.holds, comparison: '<=', passed: true, ranges: selected.ranges },
-      treatment: { source_colour: o['--source-colour'], source_tags: Object.fromEntries(['color_primaries', 'color_transfer', 'color_space', 'color_range'].map(k => [k, v[k] ?? null])), filter, autorotation: false, audio: 'analysis only; dropped', speed_change: false },
+      treatment: { source_colour: o['--source-colour'], source_sample_aspect_ratio: v.sample_aspect_ratio ?? null, sample_aspect_ratio_read_as: '1:1', source_tags: Object.fromEntries(['color_primaries', 'color_transfer', 'color_space', 'color_range'].map(k => [k, v[k] ?? null])), filter, autorotation: false, audio: 'analysis only; dropped', speed_change: false },
       decoder: { build: ffmpegVersion, probe_build: ffprobeVersion, shared_ffmpeg_arguments: ['-nostdin', '-n', '-v', 'error', '-xerror', '-filter_threads', '1', '-filter_complex_threads', '1'],
         reference_audio: x.analysis, vendor_audio: y.analysis, video: { input_arguments: ['-noautorotate', ...local('mov'), '-i', input], map: '0:v:0', filter,
           output_arguments: ['-an', '-fps_mode', 'passthrough', '-pix_fmt', 'yuv420p', '-c:v', 'rawvideo', '-threads:v', '1'], verification: 'separate source and output framehash decodes; SHA-256 of every planar YUV frame' } },
