@@ -83,4 +83,4 @@ Cognee, provider keys, script-side chat completions, `.env` walkers, loadable ex
 
 ## Grant
 
-Package installation follows `standards/script-contract.md` Dependencies and Runtimes through `--install`, `WISER_ALLOW_INSTALL=1`, or a matching plugin consent marker. Under that consent the tool installs Ladybug and the embedding runtime into its own venv and finishes the command. This contract grants no weight download; missing local weights stop as `missing-weights`.
+Package installation follows `standards/script-contract.md` Dependencies and Runtimes through `--install`, `WISER_ALLOW_INSTALL=1`, or the install consent in `tools/RUNNING.md`. Under that consent the tool installs Ladybug and the embedding runtime into its own venv and finishes the command. This contract grants no weight download; missing local weights stop as `missing-weights`.

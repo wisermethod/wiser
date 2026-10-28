@@ -37,6 +37,7 @@ passage candidate pool; an explicit --top-k governs every path.
 --select accepts a JSON list in place of a file. --candidates-only returns passages alone.
 Unknown, repeated and command-inapplicable flags are refused by name.
 forget without confirm reports the planned store changes and writes nothing.
+Wiser asks once per person; a yes covers this install and later installs by any Wiser tool in any copy.
 --install is a bare flag, accepted on every command; only graph work and check
 need packages. It authorises ladybug==0.20.4, onnxruntime==1.30.0 and
 tokenizers==0.23.2 in this tool .venv (or WISER_ALLOW_INSTALL=1).

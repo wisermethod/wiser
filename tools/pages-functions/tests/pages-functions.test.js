@@ -1,3 +1,4 @@
+import '../../lib/tests/isolated-home.js';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -114,6 +115,7 @@ test('a missing install stops without reading or writing the real consent marker
   writeFileSync(join(plugin, 'tools', 'AGENTS.md'), '# tools\n');
   cpSync(SCRIPT, join(scriptDir, 'pages-functions.js'));
   cpSync(CONSENT, join(plugin, 'tools', 'lib', 'consent.js'));
+  cpSync(new URL('../../lib/user-config.js', import.meta.url), join(plugin, 'tools', 'lib', 'user-config.js'));
   const functionsDir = join(plugin, 'work', 'functions');
   const assets = join(plugin, 'work', 'assets');
   const out = join(plugin, 'work', 'out');

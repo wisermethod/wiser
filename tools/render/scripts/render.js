@@ -19,7 +19,8 @@ import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSyn
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { flagAuthorised, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
+import { INSTALL_SCOPE, flagAuthorised, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
+import { runtimeDir, activeRuntimeDir, personRuntimeDir, installBrowserRuntime } from '../../lib/browser-runtime/browser-runtime.js';
 
 let install = false;
 
@@ -75,12 +76,9 @@ import {
 const HERE = fileURLToPath(import.meta.url);
 const SCRIPT_DIR = dirname(HERE);
 const TOOL_DIR = resolve(SCRIPT_DIR, '..');
-const RUNTIME_DIR = resolve(SCRIPT_DIR, '..', '..', 'lib', 'browser-runtime');
 
-const PLAYWRIGHT_MARKER = join(RUNTIME_DIR, 'node_modules', 'playwright', 'package.json');
 const MERMAID_MARKER = join(TOOL_DIR, 'node_modules', 'mermaid', 'package.json');
 const MERMAID_SCRIPT = join(TOOL_DIR, 'node_modules', 'mermaid', 'dist', 'mermaid.min.js');
-const PLAYWRIGHT_CLI = join(RUNTIME_DIR, 'node_modules', 'playwright', 'cli.js');
 const BROWSER_CHECK = 'npm run check:chromium';
 const SVG_FONT_SETTLE_MS = 500;
 const LAUNCH_OPTIONS = { headless: true };
@@ -112,12 +110,8 @@ Commands:
 
 Run "node scripts/render.js <command> help" for that command's options.
 
-  --install   Authorise the first install in this copy of the plugin.
-              Without it, the first command that needs a package this
-              copy has not installed reports what it would fetch, and
-              from where, and stops. That answer covers every later
-              tool in this copy. WISER_ALLOW_INSTALL=1 does the same
-              for an unattended run.
+  --install          Authorise this install. ${INSTALL_SCOPE}
+                     WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help, -h       Print this message
 
 Needs no credentials and no configuration file, so no command takes --env.
@@ -148,12 +142,8 @@ Options:
                    Default ${HTML_DEFAULT_TIMEOUT_MS}.
   --overwrite      Replace a file already at --output. Without it, a run that
                    would replace one refuses.
-  --install Authorise the first install in this copy of the plugin.
-          Without it, the first command that needs a package this
-          copy has not installed reports what it would fetch, and
-          from where, and stops. That answer covers every later
-          tool in this copy. WISER_ALLOW_INSTALL=1 does the same
-          for an unattended run.
+  --install          Authorise this install. ${INSTALL_SCOPE}
+                     WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help           Print this message
 
 Renders the file the caller names and writes the image the caller names. Needs
@@ -184,12 +174,8 @@ Options:
                    references (default: ${SVG_DEFAULT_TIMEOUT_MS}).
   --overwrite      Replace an existing file at --output. Without it, a run that
                    would replace one refuses.
-  --install Authorise the first install in this copy of the plugin.
-          Without it, the first command that needs a package this
-          copy has not installed reports what it would fetch, and
-          from where, and stops. That answer covers every later
-          tool in this copy. WISER_ALLOW_INSTALL=1 does the same
-          for an unattended run.
+  --install          Authorise this install. ${INSTALL_SCOPE}
+                     WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help           Print this message
 
 Reads the one SVG the caller names and writes the one PNG the caller names.
@@ -221,12 +207,8 @@ Options:
                    (default: ${MERMAID_DEFAULTS.timeout})
   --overwrite      Replace a file already at --output. Without it, an occupied
                    path is refused.
-  --install Authorise the first install in this copy of the plugin.
-          Without it, the first command that needs a package this
-          copy has not installed reports what it would fetch, and
-          from where, and stops. That answer covers every later
-          tool in this copy. WISER_ALLOW_INSTALL=1 does the same
-          for an unattended run.
+  --install          Authorise this install. ${INSTALL_SCOPE}
+                     WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help           Print this message
 
 Success prints one JSON object to stdout. Errors go to stderr with exit 1.`;
@@ -254,12 +236,8 @@ Options:
                    stop. Default ${URL_DEFAULT_TIMEOUT_MS}; minimum 1000.
   --full-page      Capture the whole scrollable page instead of the viewport.
   --overwrite      Replace the file at --output when one is already there.
-  --install Authorise the first install in this copy of the plugin.
-          Without it, the first command that needs a package this
-          copy has not installed reports what it would fetch, and
-          from where, and stops. That answer covers every later
-          tool in this copy. WISER_ALLOW_INSTALL=1 does the same
-          for an unattended run.
+  --install          Authorise this install. ${INSTALL_SCOPE}
+                     WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help           Print this message
 
 Reaches the one address --url names and writes the one file --output names.
@@ -280,12 +258,8 @@ Commands:
   help             Print this message
 
 Options:
-  --install Authorise the first install in this copy of the plugin.
-          Without it, the first command that needs a package this
-          copy has not installed reports what it would fetch, and
-          from where, and stops. That answer covers every later
-          tool in this copy. WISER_ALLOW_INSTALL=1 does the same
-          for an unattended run.
+  --install          Authorise this install. ${INSTALL_SCOPE}
+                     WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help           Print this message
 
 Installs nothing and opens no connection unless --install is passed. Success
@@ -391,12 +365,12 @@ function installPlan(needsMermaid) {
       names = Object.keys(JSON.parse(readFileSync(join(TOOL_DIR, 'package.json'), 'utf8')).dependencies || {});
     } catch { /* the report degrades to a generic list; the refusal still stands */ }
     const packages = names.length
-      ? `Installing fetches ${names.join(', ')} from registry.npmjs.org into ${TOOL_DIR}, and playwright from registry.npmjs.org into ${RUNTIME_DIR}`
-      : `Installing fetches playwright from registry.npmjs.org into ${RUNTIME_DIR}`;
+      ? `Installing fetches ${names.join(', ')} from registry.npmjs.org into ${TOOL_DIR}, and playwright from registry.npmjs.org into ${personRuntimeDir()}`
+      : `Installing fetches playwright from registry.npmjs.org into ${personRuntimeDir()}`;
     return { packages, size: BROWSER_SIZE };
   }
   return {
-    packages: `Installing fetches playwright from registry.npmjs.org into ${RUNTIME_DIR}`,
+    packages: `Installing fetches playwright from registry.npmjs.org into ${personRuntimeDir()}`,
     size: BROWSER_SIZE
   };
 }
@@ -408,12 +382,12 @@ function requireInstallConsent(what, { needsMermaid = false } = {}) {
   }
   if (what === 'browser') {
     fail(
-      `Error: this tool's packages are installed but the Chromium build they drive is not, and this copy of the plugin has not authorised an install. The plugin asks once, on the first install in this copy. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+      `Error: this tool's packages are installed but the Chromium build they drive is not, and this person has not authorised a Wiser install. ${INSTALL_SCOPE} Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
     );
   }
   const { packages, size } = installPlan(needsMermaid);
   fail(
-    `Error: this tool is not installed yet and this copy of the plugin has not authorised an install. The plugin asks once, on the first install in this copy. ${packages}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+    `Error: this tool is not installed yet and this person has not authorised a Wiser install. ${INSTALL_SCOPE} ${packages}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
   );
 }
 
@@ -429,25 +403,25 @@ function npmCi(dir, marker, { unwritable, missing }) {
   if (!existsSync(marker)) fail(missing);
 }
 
-function ensurePlaywright() {
-  if (existsSync(PLAYWRIGHT_MARKER)) return;
-  requireInstallConsent('packages', { needsMermaid: false });
-  npmCi(RUNTIME_DIR, PLAYWRIGHT_MARKER, {
-    unwritable: `Error: cannot install dependencies because ${RUNTIME_DIR} is not writable. This tool installs Playwright into the shared browser runtime on the run that authorises it with --install, so that directory has to be writable. Install this plugin somewhere you own, or make that directory writable, then run the command again.`,
-    missing: `Error: npm ci finished but ${PLAYWRIGHT_MARKER} is still missing. Check that the shared runtime's package.json lists playwright.`
-  });
+async function installRuntime() {
+  process.stderr.write(`First run: installing dependencies in ${personRuntimeDir()}.\n`);
+  try { await installBrowserRuntime(); }
+  catch (error) { fail(`Error: ${error.message}`); }
 }
 
-function ensureMermaidPackages() {
-  const needPlaywright = !existsSync(PLAYWRIGHT_MARKER);
+async function ensurePlaywright() {
+  if (Boolean(activeRuntimeDir())) return;
+  requireInstallConsent('packages', { needsMermaid: false });
+  await installRuntime();
+}
+
+async function ensureMermaidPackages() {
+  const needPlaywright = !Boolean(activeRuntimeDir());
   const needMermaid = !existsSync(MERMAID_MARKER);
   if (!(needPlaywright || needMermaid)) return;
   requireInstallConsent('packages', { needsMermaid: true });
   if (needPlaywright) {
-    npmCi(RUNTIME_DIR, PLAYWRIGHT_MARKER, {
-      unwritable: `Error: cannot install dependencies because ${RUNTIME_DIR} is not writable. This tool installs its dependencies into ${RUNTIME_DIR} on the run that authorises it with --install, so that directory has to be writable. Install this plugin somewhere you own, or make that directory writable, then run the command again.`,
-      missing: `Error: npm ci finished but ${PLAYWRIGHT_MARKER} is still missing. Check that package.json lists every package this script imports.`
-    });
+    await installRuntime();
   }
   if (needMermaid) {
     npmCi(TOOL_DIR, MERMAID_MARKER, {
@@ -642,7 +616,7 @@ async function runHtml(argv) {
   const timeoutRaw = flag('--timeout');
   const timeout = timeoutRaw === undefined ? HTML_DEFAULT_TIMEOUT_MS : positiveInteger('--timeout', timeoutRaw);
 
-  ensurePlaywright();
+  await ensurePlaywright();
   await ensureChromium();
 
   try {
@@ -788,7 +762,7 @@ async function runSvg(argv) {
     targetWidth
   });
 
-  ensurePlaywright();
+  await ensurePlaywright();
   await ensureChromium();
 
   try {
@@ -897,7 +871,7 @@ async function runMermaid(argv) {
     fail(`Error: ${options.outputPath} already exists. Pass --overwrite to replace it, or name a path nothing holds yet.`);
   }
 
-  ensureMermaidPackages();
+  await ensureMermaidPackages();
   await ensureChromium();
 
   if (browserSurvey === null) await chromiumLaunches();
@@ -1057,7 +1031,7 @@ async function runUrl(argv) {
   const checkedOverwrite = validateOverwrite(outputPath, { overwrite: argv.includes('--overwrite') });
   if (!checkedOverwrite.ok) fail(checkedOverwrite.message);
 
-  ensurePlaywright();
+  await ensurePlaywright();
   await ensureChromium();
 
   if (browserSurvey.chromiumLaunch !== true) {
@@ -1110,22 +1084,22 @@ async function runCheck(argv) {
   const usageCmd = 'node scripts/render.js help';
   refuseUnknown(argv, URL_VALUE_FLAGS, URL_BARE_FLAGS, usageCmd);
 
-  if (!existsSync(PLAYWRIGHT_MARKER) && flagAuthorised(install)) {
-    ensurePlaywright();
+  if (!Boolean(activeRuntimeDir()) && flagAuthorised(install)) {
+    await ensurePlaywright();
   }
 
   if (flagAuthorised(install)) await ensureChromium();
 
-  if (browserSurvey === null && !existsSync(PLAYWRIGHT_MARKER)) {
+  if (browserSurvey === null && !Boolean(activeRuntimeDir())) {
     browserSurvey = {
       playwright: false, chromiumBinary: false, chromiumLaunch: false,
       failure: 'artifact',
-      remediation: 'dependency: playwright in the shared browser runtime; check: node_modules/playwright/package.json inside tools/lib/browser-runtime/. Next: run node scripts/render.js check --install to install the packages and the Chromium build in one authorised run, then report on them.'
+      remediation: 'dependency: playwright in the shared browser runtime; check: node_modules/playwright/package.json inside the active browser runtime (tools/AGENTS.md). Next: run node scripts/render.js check --install to install the packages and the Chromium build in one authorised run, then report on them.'
     };
   }
   if (browserSurvey === null) await chromiumLaunches();
 
-  process.stdout.write(`${JSON.stringify({ packages: existsSync(PLAYWRIGHT_MARKER), ...browserSurvey })}\n`);
+  process.stdout.write(`${JSON.stringify({ packages: Boolean(activeRuntimeDir()), ...browserSurvey })}\n`);
   process.exit(0);
 }
 
@@ -1145,6 +1119,11 @@ if (argv[1] === 'help' || argv.includes('--help') || argv.includes('-h')) {
   process.stdout.write(`${SUB_USAGE[command]}\n`);
   process.exit(0);
 }
+
+let RUNTIME_DIR;
+try { RUNTIME_DIR = runtimeDir(); } catch (error) { fail(`Error: ${String(error.message).split('\n')[0]}`); }
+const PLAYWRIGHT_MARKER = join(RUNTIME_DIR, 'node_modules', 'playwright', 'package.json');
+const PLAYWRIGHT_CLI = join(RUNTIME_DIR, 'node_modules', 'playwright', 'cli.js');
 
 
 if (command === 'html') await runHtml(argv);

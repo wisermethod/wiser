@@ -1,8 +1,8 @@
 /**
- * Plugin-copy consent for first-run installs.
+ * Person-scoped and matching plugin-copy consent for first-run installs.
  *
  * Every Node entry script that installs anything imports this file by a path
- * resolved from the script itself. Node built-ins only.
+ * resolved from the script itself. Node built-ins and tools/lib/ only.
  *
  * API:
  *   pluginRoot(fromFile) -> string | null
@@ -15,18 +15,19 @@
  *     True when the tool's parsed install flag is true, or WISER_ALLOW_INSTALL=1.
  *     Does not read process.argv. A value whose text is --install is not consent.
  *   installAuthorised(fromFile, install) -> boolean
- *     True when flagAuthorised(install), or when .wiser-consent at the plugin root
- *     records a realpath equal to the current plugin root. A missing, unreadable,
- *     or mismatched marker is not consent. help never calls this.
+ *     Accept the parsed flag/environment, a matching copy marker, or a valid
+ *     person marker. Help never calls this.
  *   writeConsent(fromFile, tool, install) -> void
- *     When flagAuthorised(install), write .wiser-consent at the plugin root: one JSON
- *     object with realpath, date (YYYY-MM-DD), and the tool that wrote it, mode
- *     0600. A mismatched marker is overwritten. Called at the moment an authorised
- *     install runs, so a survey check without --install never reaches it.
+ *     On explicit consent, write the person marker and the matching copy marker,
+ *     owner-only, at the moment an authorised install runs.
  */
 
-import { chmodSync, existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { closeSync, constants, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
+import { wiserUserConfigDir } from './user-config.js';
+
+export const INSTALL_SCOPE = 'Wiser asks once per person; a yes covers this install and later installs by any Wiser tool in any copy.';
 
 const MARKER_NAME = '.wiser-consent';
 
@@ -76,34 +77,93 @@ export function flagAuthorised(install) {
   return install === true || process.env.WISER_ALLOW_INSTALL === '1';
 }
 
-export function installAuthorised(fromFile, install) {
-  if (flagAuthorised(install)) return true;
-  const root = pluginRoot(fromFile);
-  if (!root) return false;
-  try {
-    const data = JSON.parse(readFileSync(join(root, MARKER_NAME), 'utf8'));
-    return typeof data?.realpath === 'string' && data.realpath === root;
-  } catch {
-    return false;
+// Windows trusts the marker by its location in the person's own profile.
+// POSIX additionally checks the directory and the opened file, without links.
+export function trustedDirectory(dir) {
+  const info = lstatSync(dir);
+  if (!info.isDirectory() || info.isSymbolicLink()) throw new Error('the user-config directory is not a real directory');
+  if (process.platform !== 'win32') {
+    if (info.uid !== process.getuid()) throw new Error('the user-config directory is owned by another user');
+    if (info.mode & 0o022) throw new Error('the user-config directory is writable by group or others');
   }
 }
 
-export function writeConsent(fromFile, tool, install) {
-  if (!flagAuthorised(install)) return;
-  const root = pluginRoot(fromFile);
-  if (!root) return;
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  const body = `${JSON.stringify({
-    realpath: root,
-    date: `${now.getFullYear()}-${month}-${day}`,
-    tool
-  })}\n`;
+function personConsent() {
+  let fd;
   try {
-    writeFileSync(join(root, MARKER_NAME), body);
-    chmodSync(join(root, MARKER_NAME), 0o600);
+    const dir = wiserUserConfigDir();
+    trustedDirectory(dir);
+    fd = openSync(join(dir, MARKER_NAME), constants.O_RDONLY | (constants.O_NOFOLLOW || 0));
+    const info = fstatSync(fd);
+    if (!info.isFile() || (process.platform !== 'win32' &&
+        (info.uid !== process.getuid() || (info.mode & 0o022)))) return false;
+    const data = JSON.parse(readFileSync(fd, 'utf8'));
+    return data?.scope === 'person' && typeof data.tool === 'string' && data.tool.length > 0 &&
+      typeof data.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.date) && !data.date.startsWith('0000-') &&
+      Number.isFinite(Date.parse(data.date)) && new Date(data.date).toISOString().slice(0, 10) === data.date;
+  } catch { return false; }
+  finally { if (fd !== undefined) closeSync(fd); }
+}
+
+export function installAuthorised(fromFile, install) {
+  if (flagAuthorised(install) || personConsent()) return true;
+  const root = pluginRoot(fromFile);
+  if (!root) return false;
+  let fd;
+  try {
+    fd = openSync(join(root, MARKER_NAME), constants.O_RDONLY | (constants.O_NOFOLLOW || 0));
+    if (!fstatSync(fd).isFile()) return false;
+    const data = JSON.parse(readFileSync(fd, 'utf8'));
+    return typeof data?.realpath === 'string' && data.realpath === root;
   } catch {
-    // The authorised install still proceeds; the next tool will ask again.
+    return false;
+  } finally { if (fd !== undefined) closeSync(fd); }
+}
+
+// Publish a new file rather than truncating a potentially linked marker.
+function writeMarker(file, data) {
+  const temporary = `${file}.tmp-${randomUUID()}`;
+  let fd;
+  try {
+    fd = openSync(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW || 0), 0o600);
+    writeFileSync(fd, `${JSON.stringify(data)}\n`);
+    closeSync(fd); fd = undefined;
+    renameSync(temporary, file);
+  } finally {
+    if (fd !== undefined) closeSync(fd);
+    rmSync(temporary, { force: true });
   }
+}
+
+const warned = new Set();
+function copyOnly(error, saved = true) {
+  const reason = String(error.message || error.code || error).split(/[\r\n]/)[0];
+  const message = `${saved ? 'This consent covers only this copy' : 'This run is authorised and no consent was saved'}: ${reason}.`;
+  if (!warned.has(message)) { process.stderr.write(`${message}\n`); warned.add(message); }
+}
+
+export function writeConsent(fromFile, tool, install) {
+  if (!flagAuthorised(install)) {
+    if (!installAuthorised(fromFile, false)) return;
+    // An inherited copy grant still works when the person directory is unsafe.
+    if (!personConsent()) {
+      try { trustedDirectory(wiserUserConfigDir()); } catch (error) { copyOnly(error); }
+    }
+    return;
+  }
+  const root = pluginRoot(fromFile);
+  const date = new Date().toISOString().slice(0, 10);
+  let personError;
+  let copySaved = false;
+  try {
+    const dir = wiserUserConfigDir();
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
+    trustedDirectory(dir);
+    writeMarker(join(dir, MARKER_NAME), { scope: 'person', date, tool });
+  } catch (error) { personError = error; }
+  if (root) {
+    try { writeMarker(join(root, MARKER_NAME), { realpath: root, date, tool }); copySaved = true; }
+    catch { /* Explicit authorisation still permits this install. */ }
+  }
+  if (personError) copyOnly(personError, copySaved);
 }

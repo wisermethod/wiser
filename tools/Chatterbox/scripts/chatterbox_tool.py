@@ -10,6 +10,7 @@ import os
 import platform
 import re
 import shutil
+import stat
 import socket
 import subprocess
 import sys
@@ -55,7 +56,8 @@ Options (closed per command):
   --model-cache DIR  Absolute model base, default person-scoped models/ (tools/AGENTS.md).
   --route-chosen     install only: caller attests the member chose this route.
   --install          install only: authorize packages/weights under tools/RUNNING.md.
-                    WISER_ALLOW_INSTALL=1 or matching plugin consent also authorizes install.
+                      Wiser asks once per person; a yes covers this install and later installs by any Wiser tool in any copy.
+                    WISER_ALLOW_INSTALL=1, valid person or matching copy consent also authorizes install.
                     Neither consent nor environment variables bypass check or route choice.
   --text FILE        synthesize only: UTF-8 scene; <#0.5#>-shaped pause marks are controls, never words.
   --words FILE       synthesize only: strict JSON array matching every spoken whitespace-delimited word.
@@ -127,8 +129,8 @@ def config_dir():
     if sys.platform == "darwin":
         return Path.home() / "Library" / "Application Support" / "wiser"
     if sys.platform == "win32":
-        return Path(os.environ.get("APPDATA", str(Path.home() / "AppData/Roaming"))) / "wiser"
-    return Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))) / "wiser"
+        return Path(os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming") / "wiser"
+    return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "wiser"
 
 
 def same_file(left, right):
@@ -268,20 +270,113 @@ def require_supported(result, chosen):
         raise ToolError("install refused: caller must state the member chose this route with --route-chosen; no install ran.")
 
 
+def trusted_config_dir(directory):
+    # Windows trusts the marker by its location in the person's own profile.
+    info = directory.lstat()
+    if not stat.S_ISDIR(info.st_mode):
+        raise OSError("the user-config directory is not a real directory")
+    if sys.platform != "win32":
+        if info.st_uid != os.getuid():
+            raise OSError("the user-config directory is owned by another user")
+        if info.st_mode & 0o022:
+            raise OSError("the user-config directory is writable by group or others")
+
+
+def person_marker_grants():
+    """Same directory and descriptor trust boundary as tools/lib/consent.js."""
+    try:
+        directory = config_dir()
+        trusted_config_dir(directory)
+        fd = os.open(directory / ".wiser-consent", os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(fd, "r", encoding="utf-8") as stream:
+            info = os.fstat(stream.fileno())
+            if not stat.S_ISREG(info.st_mode):
+                return False
+            if sys.platform != "win32" and (info.st_uid != os.getuid() or info.st_mode & 0o022):
+                return False
+            data = json.load(stream)
+        if (not isinstance(data, dict) or data.get("scope") != "person"
+                or not isinstance(data.get("tool"), str) or not data["tool"]
+                or not isinstance(data.get("date"), str)
+                or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", data["date"])):
+            return False
+        return date.fromisoformat(data["date"]).isoformat() == data["date"]
+    except (OSError, ValueError):
+        return False
+
+
+def write_marker(path, payload):
+    temporary = path.with_name(path.name + ".tmp-" + uuid.uuid4().hex)
+    try:
+        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            stream.write(json.dumps(payload) + "\n")
+        os.replace(temporary, path)
+        return True
+    except OSError:
+        return False  # Explicit authorization still permits this install.
+    finally:
+        try:
+            temporary.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def copy_only(error, saved=True):
+    reason = str(error).splitlines()[0]
+    message = "This consent covers only this copy" if saved else "This run is authorised and no consent was saved"
+    sys.stderr.write(message + ": " + reason + ".\n")
+
+
+def warn_copy_consent():
+    if not person_marker_grants():
+        try:
+            trusted_config_dir(config_dir())
+        except OSError as error:
+            copy_only(error)
+
+
+def write_person_consent(payload, copy_marker=None, realpath=None):
+    person_error = None
+    try:
+        directory = config_dir()
+        missing = []
+        parent = directory
+        while not parent.exists() and not parent.is_symlink():
+            missing.append(parent)
+            parent = parent.parent
+        for parent in reversed(missing):
+            parent.mkdir(mode=0o700, exist_ok=True)
+        trusted_config_dir(directory)
+        if not write_marker(directory / ".wiser-consent", dict(payload, scope="person")):
+            raise OSError("the person marker could not be written")
+    except OSError as error:
+        person_error = error
+    saved = write_marker(copy_marker, dict(payload, realpath=realpath)) if copy_marker is not None else False
+    if person_error is not None:
+        copy_only(person_error, saved)
+
+
 def consent(opts):
     explicit = opts.get("--install") or os.environ.get("WISER_ALLOW_INSTALL") == "1"
     try:
-        marker = read_json(PLUGIN / ".wiser-consent")
+        fd = os.open(PLUGIN / ".wiser-consent", os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(fd, "r", encoding="utf-8") as stream:
+            if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                raise OSError("the copy marker is not a regular file")
+            marker = json.load(stream)
         prior = isinstance(marker, dict) and marker.get("realpath") == str(PLUGIN.resolve())
     except (OSError, ValueError):
         prior = False
-    if not (explicit or prior):
-        raise ToolError("install needs consent: fetch pinned requirements.lock from pypi.org/files.pythonhosted.org "
+    if not (explicit or prior or person_marker_grants()):
+        raise ToolError("Wiser asks once per person; a yes covers this install and later installs by any Wiser tool in any copy. install needs consent: fetch pinned requirements.lock from pypi.org/files.pythonhosted.org "
                         "into %s (about 1.3 GiB), and %s weights (about 3.0 GiB) from huggingface.co "
                         "and cas-bridge.xethub.hf.co/cdn-lfs.huggingface.co/cdn-lfs-us-1.hf.co into the "
                         "versioned --model-cache. Reserve 0.4 GiB for caller alignment and 2 GiB install "
                         "headroom. pip cache is off. Re-run install with --route-chosen --install, or "
                         "WISER_ALLOW_INSTALL=1. See tools/RUNNING.md." % (VENV, MODEL))
+    if not explicit:
+        warn_copy_consent()
     return explicit
 
 
@@ -441,9 +536,8 @@ def install(opts, base):
         raise ToolError("install refuses a linked .venv; use this tool's own environment.")
     explicit = consent(opts)
     if explicit:
-        (PLUGIN / ".wiser-consent").write_text(json.dumps({"realpath": str(PLUGIN.resolve()),
-                                                          "date": date.today().isoformat(), "tool": "Chatterbox"}) + "\n")
-        (PLUGIN / ".wiser-consent").chmod(0o600)
+        payload = {"date": date.today().isoformat(), "tool": "Chatterbox"}
+        write_person_consent(payload, PLUGIN / ".wiser-consent", str(PLUGIN.resolve()))
     env = cache_env(base / ENGINE_FOLDER, offline=False)
     state = package_state()
     rebuilt = state["status"] != "complete"

@@ -3,7 +3,7 @@ name: video-render
 type: tool
 category: media
 description: Renders one local HTML page whose motion answers the tool's seek to a picture-only MP4, a PNG sequence, or stills at named times, the same frames on every run at a set worker count, under one pinned HyperFrames, with a cache keyed over every input
-version: 0.2.0
+version: 0.2.1
 gaps:
   - rendering on Windows or Linux, which no run has tested
 ---

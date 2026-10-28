@@ -3,7 +3,7 @@ name: Transcribe Audio
 type: tool
 category: media
 description: Transcribes an audio file or aligns known English words to its sample clock on this machine
-version: 0.3.1
+version: 0.3.2
 gaps:
   - Speaker labeling, which would say which speaker said each turn
 ---
@@ -54,7 +54,7 @@ Reports what the machine has, installing nothing and downloading nothing:
 {"python":"3.11.9","ffmpeg":true,"packages":false}
 ```
 
-Then transcribe. If this copy of the plugin has not yet authorized an install, the run reports what it would install and stops; `--install` on that run is the answer: it creates this tool's package cache, installs the speech packages into it, and finishes the work, and later tools in this copy install without asking. It prints one JSON object naming the file it wrote.
+Then transcribe. If install consent is absent, the run reports what it would install and stops; `--install` on that run is the answer: it creates this tool's package cache, installs the speech packages into it, and finishes the work. It prints one JSON object naming the file it wrote.
 
 ```bash
 python3 scripts/transcribe.py transcribe --audio /path/to/call.m4a \
@@ -147,7 +147,7 @@ Publication refuses an existing output. A volume without hard links uses an excl
 
 The script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. No command takes `--env`, so that clause has nothing to bind here. What a run writes, and where, is in `tools/AGENTS.md`. Beyond those, three behaviors are worth knowing.
 
-The package cache is this tool's own, per that contract's Runtimes clause. Once `--install` has authorized this copy, a transcription creates a virtual environment beside the scripts, installs the speech packages into it, and finishes the run; nothing is installed into the machine or the user's environment, because the install runs with pip's own download cache switched off rather than leaving it at pip's default outside this tool.
+The package cache is this tool's own, per that contract's Runtimes clause. Once the install is authorized with `--install`, a transcription creates a virtual environment beside the scripts, installs the speech packages into it, and finishes the run; nothing is installed into the machine or the user's environment, because the install runs with pip's own download cache switched off rather than leaving it at pip's default outside this tool.
 
 Arguments are validated before that package install, so a malformed command or a missing FFmpeg costs no download. Only Python's own standard library is used above the install; the speech packages import after it.
 

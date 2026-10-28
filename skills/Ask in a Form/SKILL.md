@@ -3,7 +3,7 @@ name: Ask in a Form
 type: skill
 category: onboarding
 description: Put a skill's questions to a member as a form they answer by tapping pictures and choices, shown inside the chat, in a window beside a command-line tool, or as chat buttons where neither can show, with the answers read back and handed to the calling skill
-version: 0.1.1
+version: 0.1.2
 ---
 
 # Ask in a Form
@@ -87,13 +87,13 @@ A host who asks only what the calling skill needs, in a form a member can finish
       - `no-listen`: the tool the member runs this in kept the command from listening on their computer. Can that tool run one command outside its sandbox on the member's yes, as Codex can with escalated permissions and Claude Code can outside its sandbox, and hold it while it waits, as Grok Build, which ends a long command at its own limit, cannot? No: step 5. Yes: ask them once, in plain words, whether to let it. On a no, step 5. On a yes, run `node tools/Form/scripts/form.js ask --form <file>` that way: it serves the form, opens the window, waits for the answers and closes everything in one command, so their one yes covers the whole form, where each separate command would need its own. Where this tool lets you speak while a command runs, say step 4.3's line once the window is up; otherwise say nothing before it ends, since the question the member just answered told them a window would open. `ask` cleans up after itself each time; when this branch ends, whichever way, remove this form's temporary directory, which a run again below still needs until then. What it prints decides, on this run and on every run of it below:
         - `answered`: step 6.
         - `unanswered`: ask whether to open the form again; yes, run the same `ask` that way once more; no, step 5.
-        - `needs-install`: put its report to the member in plain words, what it is for and its size; on their yes run the same `ask` that way with `--install`; on a no, step 5.
+        - `needs-install`: put its report to the member in plain words, what a yes covers as the report says it, what it is for and its size; on their yes run the same `ask` that way with `--install`; on a no, step 5.
         - `interrupted`: the member stopped it; leave the form and go on with what they ask next.
         - `no-listen` again: the permission did not take; say so, then step 5.
         - Anything else: step 5.
       - Lines that each name a part of the form and a problem: fix them, step 2's check, and run `serve` again.
       - A failure saying the path must be absolute, or that a private path was refused: move the file into this form's temporary directory and run `serve` once more; the same failure again, or a command that cannot run at all, is step 5.
-   2. Open it. Is Browser Control's window already up, `BC session status`? Yes: `BC navigate --url <the address serve printed>`. No: make a second new directory in the system's temporary directory for the window's profile, which holds no sign-in, run `BC session start --profile <that directory>`, then `BC navigate --url <the address>`. Then `BC emulate set --viewport 480x900`. Browser Control's first run in this copy reports what it would install and stops, by `tools/RUNNING.md`: put that report to the member in plain words, what it is for and its size, and on their yes run the same `session start` with `--install`; on a no, step 5. Any other refusal or failure: step 5.
+   2. Open it. Is Browser Control's window already up, `BC session status`? Yes: `BC navigate --url <the address serve printed>`. No: make a second new directory in the system's temporary directory for the window's profile, which holds no sign-in, run `BC session start --profile <that directory>`, then `BC navigate --url <the address>`. Then `BC emulate set --viewport 480x900`. When install consent is needed, Browser Control reports what it would install and stops, by `tools/RUNNING.md`: put that report to the member in plain words, what a yes covers as the report says it, what it is for and its size, and on their yes run the same `session start` with `--install`; on a no, step 5. Any other refusal or failure: step 5.
    3. Say "A form just opened in its own window. Answer there and press Send my answers. I'll pick them up here."
    4. Wait with the `wait` command `serve` printed, as `tools/Form/TOOL.md` says this command-line tool waits. Which status?
       - `waiting`: wait again.

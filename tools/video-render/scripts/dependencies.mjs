@@ -1,3 +1,4 @@
+import { INSTALL_SCOPE } from '../../lib/consent.js';
 import { spawnSync } from 'node:child_process';
 import { readFile, mkdtemp, realpath, rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -17,7 +18,7 @@ export const INSTALL_SIZE = Object.freeze({
 });
 
 export function installPlan(tool = TOOL_DIR) {
-  return `Installing fetches HyperFrames ${HYPERFRAMES_VERSION} and its dependencies from registry.npmjs.org into ${join(tool, 'node_modules')}/ (tools/video-render/node_modules/), measured ${INSTALL_SIZE.packages} bytes on disk on ${INSTALL_SIZE.date} (${INSTALL_SIZE.platform}). A first render also needs HyperFrames' pinned chrome-headless-shell ${CHROME_BUILD}, from Google's Chrome for Testing storage (storage.googleapis.com/chrome-for-testing-public), into ~/.cache/hyperframes/chrome/, measured ${INSTALL_SIZE.chrome} bytes on disk on ${INSTALL_SIZE.date} (${INSTALL_SIZE.platform}). npm also writes its configured download cache and logs outside the plugin. Re-run the same command with --install to authorise and finish it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin.`;
+  return `${INSTALL_SCOPE} Installing fetches HyperFrames ${HYPERFRAMES_VERSION} and its dependencies from registry.npmjs.org into ${join(tool, 'node_modules')}/ (tools/video-render/node_modules/), measured ${INSTALL_SIZE.packages} bytes on disk on ${INSTALL_SIZE.date} (${INSTALL_SIZE.platform}). A first render also needs HyperFrames' pinned chrome-headless-shell ${CHROME_BUILD}, from Google's Chrome for Testing storage (storage.googleapis.com/chrome-for-testing-public), into ~/.cache/hyperframes/chrome/, measured ${INSTALL_SIZE.chrome} bytes on disk on ${INSTALL_SIZE.date} (${INSTALL_SIZE.platform}). npm also writes its configured download cache and logs outside the plugin. Re-run the same command with --install to authorise and finish it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin.`;
 }
 
 export function nodeSurvey(version = process.versions.node) {

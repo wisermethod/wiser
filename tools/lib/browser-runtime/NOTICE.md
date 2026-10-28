@@ -1,6 +1,6 @@
 # Third-party notice: wiser-browser-runtime
 
-This runtime installs the 3 packages below on the machine that calls a browser tool, into this directory on the first run that authorizes it with `--install`. **This repository redistributes none of them.**
+This runtime installs the 3 packages below on the machine that calls a browser tool, into the person-scoped browser runtime, where the copy holds none (`tools/AGENTS.md`), on the first run that authorizes it with `--install`. **This repository redistributes none of them.**
 
 **Versions and licenses are read from this runtime's own `package-lock.json`**, on 2026-09-02, rather than from a list of names, because a license obligation attaches to a version. An optional package installs only where it applies, so one install takes fewer than the table lists.
 

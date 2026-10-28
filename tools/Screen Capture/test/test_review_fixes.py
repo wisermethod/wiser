@@ -1,4 +1,7 @@
 """Review regressions using synthetic files and replaced native boundaries only."""
+import runpy as _runpy
+from pathlib import Path as _IsolationPath
+_runpy.run_path(str(_IsolationPath(__file__).parent / '../../lib/tests/isolated_home.py'))
 import contextlib
 import io
 import json

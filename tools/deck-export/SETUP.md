@@ -2,7 +2,7 @@
 
 Once per machine. Skip it if `node scripts/deck.js check` already reports every field true.
 
-System dependencies are once per machine, packages once per copy (`tools/RUNNING.md`).
+System dependencies are once per machine, shared browser packages once per person (`tools/RUNNING.md`).
 
 Run every command below from this tool's directory. On Windows, use Git Bash; PowerShell and cmd quote arguments differently.
 
@@ -16,7 +16,7 @@ node --version
 
 ## 2. Packages
 
-Nothing to run by hand. Consent is once per copy of the plugin (`tools/RUNNING.md`). This tool holds no credentials, so there is nothing else to configure and no `--env` to resolve.
+Nothing to run by hand. Consent is once per person across plugin copies (`tools/RUNNING.md`). This tool holds no credentials, so there is nothing else to configure and no `--env` to resolve.
 
 ## 3. The browser build
 
@@ -24,7 +24,7 @@ Nothing to run by hand. Consent is once per copy of the plugin (`tools/RUNNING.m
 node scripts/deck.js check
 ```
 
-`chromium: false` is the one system dependency `pdf` and `png` stop on; `scaffold` never needs it. Presence is a trial launch via the shared browser runtime at `tools/lib/browser-runtime/`, which also self-heals the known headless-safe missing-library case where a C compiler is present and forwards `HTTPS_PROXY` / `HTTP_PROXY` into Chromium. When launch still fails, `check` carries a `remediation` line, follow that single step. Install walkthroughs are never written here.
+`chromium: false` is the one system dependency `pdf` and `png` stop on; `scaffold` never needs it. Presence is a trial launch through the active browser runtime (`tools/AGENTS.md`), which also self-heals the known headless-safe missing-library case where a C compiler is present and forwards `HTTPS_PROXY` / `HTTP_PROXY` into Chromium. When launch still fails, `check` carries a `remediation` line, follow that single step. Install walkthroughs are never written here.
 
 A machine that already drives a browser for another primitive in this root usually has the build cached and needs nothing here.
 

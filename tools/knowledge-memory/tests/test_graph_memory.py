@@ -1,8 +1,13 @@
 """Graph contract, real CLI subprocesses and disposable stores outside the tool.
 
-Set WISER_GRAPH_TEST_WORK to a writable test workspace outside the tool. Packages
-must already be installed in the real tool venv; these tests never install them.
+Set WISER_GRAPH_TEST_WORK to a writable test workspace outside the tool, and
+WISER_GRAPH_TEST_MODELS to a folder holding the graph weights, which each test's
+disposable home links as its models/ and only reads. Packages must already be
+installed in the real tool venv; these tests never install them.
 """
+import runpy as _runpy
+from pathlib import Path as _IsolationPath
+_runpy.run_path(str(_IsolationPath(__file__).parent / '../../lib/tests/isolated_home.py'))
 import importlib.util
 import json
 import os
@@ -18,12 +23,33 @@ SCRIPT = TOOL / 'scripts/knowledge_memory.py'
 VENV = TOOL / '.venv' / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python3')
 
 
+def person_models():
+    """The weights folder the runner names in WISER_GRAPH_TEST_MODELS; never found by itself."""
+    folder = os.environ.get('WISER_GRAPH_TEST_MODELS')
+    return Path(folder) if folder else None
+
+
+def link_person_models(home):
+    """Give a disposable home the real weights and nothing else from the person's folder."""
+    models = person_models()
+    if not models or not models.is_dir():
+        return
+    config = home / ('Library/Application Support/wiser' if sys.platform == 'darwin' else '.config/wiser')
+    config.mkdir(mode=0o700, parents=True)
+    (config / 'models').symlink_to(models, target_is_directory=True)
+
+
 class GraphContract(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(prefix='graph-test-', dir=os.environ.get('WISER_GRAPH_TEST_WORK'))
         self.root = Path(self.tmp.name).resolve()
         self.addCleanup(self.tmp.cleanup)
-        self.env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1', PYTHONNOUSERSITE='1')
+        home = self.root / 'home'
+        home.mkdir(mode=0o700)
+        link_person_models(home)
+        self.env = dict(os.environ, HOME=str(home), USERPROFILE=str(home),
+                        XDG_CONFIG_HOME='', APPDATA='',
+                        PYTHONDONTWRITEBYTECODE='1', PYTHONNOUSERSITE='1')
         self.env.pop('WISER_ALLOW_INSTALL', None)
         self.set = self.root / 'fixture'
         (self.set / 'corpus').mkdir(parents=True)

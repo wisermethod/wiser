@@ -2,6 +2,9 @@
 
 The WAV tests use existing numpy/soundfile, never torch or a real model.
 """
+import runpy as _runpy
+from pathlib import Path as _IsolationPath
+_runpy.run_path(str(_IsolationPath(__file__).parent / '../../lib/tests/isolated_home.py'))
 import base64
 import contextlib
 import csv

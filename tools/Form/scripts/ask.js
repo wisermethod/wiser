@@ -11,6 +11,13 @@ const browser = fileURLToPath(new URL('../../Browser Control/scripts/browser.js'
 const port = 4395;
 const delay = ms => new Promise(done => setTimeout(done,ms));
 
+// Browser Control has no structured install refusal. Only its first line can
+// identify one; a later mention in another error's fix is not install consent.
+export function browserInstallRefused(report) {
+  const first = typeof report === 'string' ? report.split(/\r?\n/,1)[0] : '';
+  return /^Error: this tool(?: is not installed yet|\x27s packages are installed but the Chromium build they drive is not).*has not authorised a Wiser install\./i.test(first);
+}
+
 function browserCommand(args,onChild = () => {}) {
   return new Promise((accept,reject) => {
     const child = spawn(process.execPath,[browser,...args,'--port',String(port)],{detached:true,stdio:['ignore','pipe','pipe']});
@@ -151,9 +158,7 @@ export async function ask(form,{ttl,seconds,install,headless}) {
       }
     }
   } catch (error) {
-    // Browser Control has no structured install refusal. Match its refusal
-    // token, not a generic mention of --install in some other failure's fix.
-    needsInstall = /^Error: this tool(?: is not installed yet|\x27s packages are installed but the Chromium build they drive is not).*has not authorised an install\./im.test(error.report || '');
+    needsInstall = browserInstallRefused(error.report);
     result = signal ? interrupted() : needsInstall
       ? {status:'needs-install',report:error.report,reason:'A yes means running ask again with --install.'}
       : {status:'no-window',reason:error.message};

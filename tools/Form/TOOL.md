@@ -3,7 +3,7 @@ name: Form
 type: tool
 category: automation
 description: Check and fill Wiser forms and draw their questions in a page that returns answers to the chat
-version: 0.2.0
+version: 0.2.1
 ---
 
 # Form
@@ -26,7 +26,7 @@ node scripts/form.js sample
 node scripts/form.js check --form /absolute/path/form.json
 ```
 
-The format commands need only Node, install nothing and write nothing. `ask` also runs Browser Control, which uses the shared browser runtime and can install it on consent. It makes a temporary browser profile and removes it after its host stops. The local window commands use this computer's loopback address; the format commands make no network request. Its contract is `standards/script-contract.md`, through `system/templates/Script Contract.md`; the caller's guide is `tools/RUNNING.md`.
+The format commands need only Node, install nothing and write nothing. `ask` also runs Browser Control, which uses the active browser runtime (`tools/AGENTS.md`) and can install it on consent. It makes a temporary browser profile and removes it after its host stops. The local window commands use this computer's loopback address; the format commands make no network request. Its contract is `standards/script-contract.md`, through `system/templates/Script Contract.md`; the caller's guide is `tools/RUNNING.md`.
 
 ## Usage
 
@@ -200,7 +200,7 @@ From this directory, with the development packages already installed:
 node --test
 ```
 
-Format, command and page tests use Node built-ins; `schema.test.js` uses development Zod to accept every passing fixture against the published schema. Browser tests use the SDK's `AppBridge` host and the shared `tools/lib/browser-runtime/` launch function. Development dependencies and that runtime can be installed by maintainers with `npm ci` in their respective directories. Member commands need no development packages; `ask` uses Browser Control's runtime under its normal install consent. Browser tests skip with the missing package named only when the development packages or shared Playwright runtime are absent; launch, build and assertion failures fail the test.
+Format, command and page tests use Node built-ins; `schema.test.js` uses development Zod to accept every passing fixture against the published schema. Browser tests use the SDK's `AppBridge` host and the shared `tools/lib/browser-runtime/` launch function. Development dependencies and that runtime can be installed by maintainers with `npm ci` in their respective directories. Member commands need no development packages; `ask` uses Browser Control's active browser runtime under the install consent in `tools/RUNNING.md`. Browser tests skip with the missing package named only when the development packages or shared Playwright runtime are absent; launch, build and assertion failures fail the test.
 
 The `ask` tests also cover a scripted answer, timeout, refusals, host reuse, SIGINT, SIGTERM, SIGHUP, the first-install report, Browser Control failures and an exception while making the profile. They check that owned listeners and hosts stop and temporary profiles are removed before output, or kept with a cleanup failure when shutdown cannot be confirmed. The suite covers boundary and refusal paths, template substitution, package-free commands, source precedence, delivery order and fallback, mouse and keyboard controls at 360, 390 and 720 pixels, longest labels, target sizes, computed light/dark contrast, host theme changes, no-form/refusal states, and local font routing. Browser requests are intercepted and recorded; only the declared fixture font may be requested. Tests write only temporary files and remove them.
 

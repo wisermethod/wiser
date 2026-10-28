@@ -1,4 +1,7 @@
 """Offline contract tests: standard library, synthetic spans, no model or network."""
+import runpy as _runpy
+from pathlib import Path as _IsolationPath
+_runpy.run_path(str(_IsolationPath(__file__).parent / '../../lib/tests/isolated_home.py'))
 import array
 import contextlib
 import errno

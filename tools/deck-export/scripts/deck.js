@@ -19,22 +19,14 @@ import { accessSync, constants, cpSync, copyFileSync, existsSync, mkdirSync, rea
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { flagAuthorised, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
+import { INSTALL_SCOPE, flagAuthorised, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
+import { runtimeDir, activeRuntimeDir, personRuntimeDir, installBrowserRuntime } from '../../lib/browser-runtime/browser-runtime.js';
 
 const HERE = fileURLToPath(import.meta.url);
 const SCRIPT_DIR = dirname(HERE);
 const TOOL_DIR = resolve(SCRIPT_DIR, '..');
-const RUNTIME_DIR = resolve(SCRIPT_DIR, '..', '..', 'lib', 'browser-runtime');
 const TEMPLATES_DIR = join(TOOL_DIR, 'templates');
 const REVEAL_DIR = join(TOOL_DIR, 'node_modules', 'reveal.js');
-
-// One installed package's own manifest per package this tool imports. An
-// interrupted install leaves node_modules/ behind with nothing in it, so the
-// directory proves nothing. Playwright is checked in the shared runtime.
-const MARKERS = {
-  playwright: join(RUNTIME_DIR, 'node_modules', 'playwright', 'package.json'),
-  'reveal.js': join(REVEAL_DIR, 'package.json')
-};
 
 const COMMANDS = new Set(['scaffold', 'pdf', 'png', 'check']);
 
@@ -84,12 +76,8 @@ Commands:
   help, --help, -h Print this message
 
 Global options:
-  --install        Authorise the first install in this copy of the plugin.
-                   Without it, the first command that needs a package this
-                   copy has not installed reports what it would fetch, and
-                   from where, and stops. That answer covers every later
-                   tool in this copy. WISER_ALLOW_INSTALL=1 does the same
-                   for an unattended run.
+  --install          Authorise this install. ${INSTALL_SCOPE}
+                     WISER_ALLOW_INSTALL=1 does the same for an unattended run.
 
 Scaffold options:
   --output <dir>   Deck project directory, absolute. Required.
@@ -178,8 +166,8 @@ function installPlan() {
     names = Object.keys(JSON.parse(readFileSync(join(TOOL_DIR, 'package.json'), 'utf8')).dependencies || {});
   } catch { /* the report degrades to a generic list; the refusal still stands */ }
   const packages = names.length
-    ? `Installing fetches ${names.join(', ')} from registry.npmjs.org into ${TOOL_DIR}, and playwright from registry.npmjs.org into ${RUNTIME_DIR}`
-    : `Installing fetches playwright from registry.npmjs.org into ${RUNTIME_DIR}`;
+    ? `Installing fetches ${names.join(', ')} from registry.npmjs.org into ${TOOL_DIR}, and playwright from registry.npmjs.org into ${personRuntimeDir()}`
+    : `Installing fetches playwright from registry.npmjs.org into ${personRuntimeDir()}`;
   return {
     packages,
     size: WILL_FETCH_BROWSER
@@ -201,12 +189,12 @@ function requireInstallConsent(what) {
   }
   if (what === 'browser') {
     fail(
-      `Error: this tool's packages are installed but the Chromium build they drive is not, and this copy of the plugin has not authorised an install. The plugin asks once, on the first install in this copy. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+      `Error: this tool's packages are installed but the Chromium build they drive is not, and this person has not authorised a Wiser install. ${INSTALL_SCOPE} Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
     );
   }
   const { packages, size } = installPlan();
   fail(
-    `Error: this tool is not installed yet and this copy of the plugin has not authorised an install. The plugin asks once, on the first install in this copy. ${packages}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+    `Error: this tool is not installed yet and this person has not authorised a Wiser install. ${INSTALL_SCOPE} ${packages}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
   );
 }
 
@@ -398,7 +386,22 @@ function escapeRegExp(text) {
 // Chromium presence, asked of Playwright itself rather than guessed from a path
 // this script builds: the location depends on the platform and on
 // PLAYWRIGHT_BROWSERS_PATH, both of which Playwright already resolves.
-const PLAYWRIGHT_CLI = join(RUNTIME_DIR, 'node_modules', 'playwright', 'cli.js');
+let RUNTIME_DIR;
+function browserRuntimeDir() {
+  if (!RUNTIME_DIR) {
+    try { RUNTIME_DIR = runtimeDir(); } catch (error) { fail(`Error: ${String(error.message).split('\n')[0]}`); }
+  }
+  return RUNTIME_DIR;
+}
+// One installed package's own manifest per package this tool imports. An
+// interrupted install leaves node_modules/ behind with nothing in it, so the
+// directory proves nothing. Playwright is checked in the shared runtime.
+const MARKERS = {
+  get playwright() { return join(browserRuntimeDir(), 'node_modules', 'playwright', 'package.json'); },
+  'reveal.js': join(REVEAL_DIR, 'package.json')
+};
+
+const playwrightCLI = () => join(browserRuntimeDir(), 'node_modules', 'playwright', 'cli.js');
 
 // THE ONLY QUESTION THAT MATTERS, ASKED THE ONLY WAY THAT ANSWERS IT.
 //
@@ -469,8 +472,8 @@ async function chromiumLaunches() {
 // taken from a path is the defect this whole block exists to end.
 function installDestinationForDiagnosis() {
   try {
-    const report = execFileSync(process.execPath, [PLAYWRIGHT_CLI, 'install', 'chromium', '--dry-run'], {
-      cwd: RUNTIME_DIR,
+    const report = execFileSync(process.execPath, [playwrightCLI(), 'install', 'chromium', '--dry-run'], {
+      cwd: browserRuntimeDir(),
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
       timeout: 120000
@@ -549,7 +552,7 @@ async function ensureChromium() {
     const crashedWhat = browserSurvey.launchPhase && browserSurvey.launchPhase !== 'launch'
       ? 'Chromium started and then stopped answering'
       : 'Chromium started and then stopped before it was ready';
-    fail(`Error: ${crashedWhat}, and this message cannot say whether the cause was this machine -- a security tool, an out-of-memory kill, a sandbox policy, or a display a visible window needed and could not get -- or a damaged browser build. ${browserSurvey.remediation || 'The trial launch reported no reason.'} Nothing has been replaced: replacing the build deletes the copy you already have, which is the wrong move when the machine is the cause. If you have ruled the machine out, and accepting that a download which then fails leaves you with neither, replace just this build with: node '${PLAYWRIGHT_CLI}' ${crashedForce}`);
+    fail(`Error: ${crashedWhat}, and this message cannot say whether the cause was this machine -- a security tool, an out-of-memory kill, a sandbox policy, or a display a visible window needed and could not get -- or a damaged browser build. ${browserSurvey.remediation || 'The trial launch reported no reason.'} Nothing has been replaced: replacing the build deletes the copy you already have, which is the wrong move when the machine is the cause. If you have ruled the machine out, and accepting that a download which then fails leaves you with neither, replace just this build with: node '${playwrightCLI()}' ${crashedForce}`);
   }
 
   requireInstallConsent('browser');
@@ -567,8 +570,8 @@ async function ensureChromium() {
   try {
     // Playwright's own installer, run from this tool's own copy rather than a
     // global one, so the version matches the package the lockfile pinned.
-    execFileSync(process.execPath, [PLAYWRIGHT_CLI, 'install', 'chromium'], {
-      cwd: RUNTIME_DIR,
+    execFileSync(process.execPath, [playwrightCLI(), 'install', 'chromium'], {
+      cwd: browserRuntimeDir(),
       stdio: ['ignore', 'ignore', 'inherit']
     });
   } catch {
@@ -594,8 +597,8 @@ async function ensureChromium() {
     const forceArgs = runtime.forceInstallArgs(LAUNCH_OPTIONS);
     process.stderr.write('Replacing the Chromium build this tool drives: the install had nothing to fetch and it still will not launch.\n');
     try {
-      execFileSync(process.execPath, [PLAYWRIGHT_CLI, ...forceArgs], {
-        cwd: RUNTIME_DIR,
+      execFileSync(process.execPath, [playwrightCLI(), ...forceArgs], {
+        cwd: browserRuntimeDir(),
         stdio: ['ignore', 'ignore', 'inherit']
       });
     } catch {
@@ -614,15 +617,22 @@ async function ensureChromium() {
   if (browsersRoot && !isWritable(browsersRoot)) {
     fail(`Error: the Chromium build could not be installed because ${browsersRoot} is not writable. That is where Playwright puts browser builds on this machine, and PLAYWRIGHT_BROWSERS_PATH chooses it when that variable is set. Point it at a directory you own, or make this one writable, then run the command again. tools/AGENTS.md names every path Playwright may use.`);
   }
-  fail(`Error: the Chromium build still cannot launch after an authorised install. ${(browserSurvey && browserSurvey.remediation) || 'The trial launch reported no reason.'} Playwright fetches the build from https://cdn.playwright.dev, falling back to playwright.download.prss.microsoft.com, so a network that blocks those hosts stops here even though npm succeeded. Run this by hand: node '${PLAYWRIGHT_CLI}' install chromium to see Playwright's own message. tools/AGENTS.md names where the build lands.`);
+  fail(`Error: the Chromium build still cannot launch after an authorised install. ${(browserSurvey && browserSurvey.remediation) || 'The trial launch reported no reason.'} Playwright fetches the build from https://cdn.playwright.dev, falling back to playwright.download.prss.microsoft.com, so a network that blocks those hosts stops here even though npm succeeded. Run this by hand: node '${playwrightCLI()}' install chromium to see Playwright's own message. tools/AGENTS.md names where the build lands.`);
 }
 
 // Dependencies. Runs before any package import, and only on a command that
 // imports that package (Script Contract).
-function ensurePackage(name) {
-  if (existsSync(MARKERS[name])) return;
+async function ensurePackage(name) {
+  if (name === 'playwright') browserRuntimeDir();
+  if (name === 'playwright' ? activeRuntimeDir() : existsSync(MARKERS[name])) return;
   requireInstallConsent('packages');
-  const dir = name === 'playwright' ? RUNTIME_DIR : TOOL_DIR;
+  if (name === 'playwright') {
+    log(`First run: installing dependencies in ${personRuntimeDir()}.`);
+    try { await installBrowserRuntime(); }
+    catch (error) { fail(`Error: ${error.message}`); }
+    return;
+  }
+  const dir = TOOL_DIR;
   log(`First run: installing dependencies in ${dir}.`);
   try {
     const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
@@ -677,6 +687,7 @@ function chromiumLaunchMessage(report, error) {
 // alone).
 
 if (command === 'check') {
+  browserRuntimeDir();
   // `check` installs nothing -- unless this run authorised an install, in which
   // case it repairs what it is about to report on rather than reporting a
   // failure the caller has already answered for. Round 7 found this shape in
@@ -685,13 +696,13 @@ if (command === 'check') {
   // all. The same one line answers both, so the printed remedy is true on every
   // command of every browser tool rather than on all but the surveying one.
   if (flagAuthorised(install)) {
-    ensurePackage('reveal.js');
-    ensurePackage('playwright');
+    await ensurePackage('reveal.js');
+    await ensurePackage('playwright');
     await ensureChromium();
   }
   const result = {
     'reveal.js': existsSync(MARKERS['reveal.js']),
-    playwright: existsSync(MARKERS.playwright),
+    playwright: Boolean(activeRuntimeDir()),
     chromium: false
   };
   if (result.playwright) {
@@ -790,7 +801,7 @@ if (command === 'scaffold') {
     }
 
     // The package holding the runtime is the one dependency this path needs.
-    ensurePackage('reveal.js');
+    await ensurePackage('reveal.js');
 
     const themeDir = join(REVEAL_DIR, 'dist', 'theme');
     if (!existsSync(join(REVEAL_DIR, 'dist', 'reveal.js')) || !existsSync(themeDir)) {
@@ -896,7 +907,7 @@ const scale = scaleRaw === undefined ? 2 : positiveInteger('--scale', scaleRaw, 
 const timeoutRaw = flag('--timeout');
 const timeout = timeoutRaw === undefined ? DEFAULT_TIMEOUT_MS : positiveInteger('--timeout', timeoutRaw);
 
-ensurePackage('playwright');
+await ensurePackage('playwright');
 await ensureChromium();
 
 // Shared browser runtime: dynamic import only on commands that need Chromium.

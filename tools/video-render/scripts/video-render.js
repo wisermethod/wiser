@@ -11,10 +11,13 @@ const RENDER_FLAGS = new Set([...VALUE_FLAGS, '--profile', '--frame-hashes', '--
 const FRAMES_FLAGS = new Set([...VALUE_FLAGS, '--times', '--select']);
 const flagsFor = (command) => command === 'render' ? RENDER_FLAGS : command === 'frames' ? FRAMES_FLAGS : VALUE_FLAGS;
 const INSTALL_HELP = `  --install                Authorise packages and the pinned Chrome, then finish this run.
+                           Wiser asks once per person; a yes covers this install and later installs by any Wiser tool in any copy.
                            WISER_ALLOW_INSTALL=1 also authorises work commands.
   --help                   Show help before checking dependencies.`;
 
 export const HELP = `video-render - render one local project to PNG frames or a picture-only MP4
+
+Wiser asks once per person; a yes covers this install and later installs by any Wiser tool in any copy.
 
 Usage:
   node scripts/video-render.js help [sequence|render|frames|check]

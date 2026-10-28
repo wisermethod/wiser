@@ -21,9 +21,11 @@ import json
 import os
 import re
 import shutil
+import stat
+import uuid
 import subprocess
 import sys
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -146,11 +148,12 @@ Options:
   --audio [path]        The audio file, absolute. One of: {formats}
   --output [dir]        Directory the transcript is written into, absolute and
                         outside this tool directory
-  --install             Authorise the first install in this copy of the plugin.
-                        Without it, the first command that needs a package this
-                        copy has not installed reports what it would fetch, and
-                        from where, and stops. That answer covers every later
-                        tool in this copy. WISER_ALLOW_INSTALL=1 does the same
+  --install             Authorise installs for this person across plugin copies.
+                      Wiser asks once per person; a yes covers this install and later installs by any Wiser tool in any copy.
+                        Without consent, a command needing missing packages
+                        reports what it would fetch, and from where, and stops.
+                        That answer covers every later
+                        tool in every copy. WISER_ALLOW_INSTALL=1 does the same
                         for an unattended run.
   --model-cache [dir]   Directory model weights are downloaded into, absolute and
                         outside this tool directory. Omit to use the person-scoped
@@ -501,12 +504,105 @@ def flag_authorised():
     return "--install" in sys.argv or os.environ.get("WISER_ALLOW_INSTALL") == "1"
 
 
+def trusted_config_dir(directory):
+    # Windows trusts the marker by its location in the person's own profile.
+    info = directory.lstat()
+    if not stat.S_ISDIR(info.st_mode):
+        raise OSError("the user-config directory is not a real directory")
+    if sys.platform != "win32":
+        if info.st_uid != os.getuid():
+            raise OSError("the user-config directory is owned by another user")
+        if info.st_mode & 0o022:
+            raise OSError("the user-config directory is writable by group or others")
+
+
+def person_marker_grants():
+    """Same directory and descriptor trust boundary as tools/lib/consent.js."""
+    try:
+        directory = platform_user_config_dir()
+        trusted_config_dir(directory)
+        fd = os.open(directory / ".wiser-consent", os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(fd, "r", encoding="utf-8") as stream:
+            info = os.fstat(stream.fileno())
+            if not stat.S_ISREG(info.st_mode):
+                return False
+            if sys.platform != "win32" and (info.st_uid != os.getuid() or info.st_mode & 0o022):
+                return False
+            data = json.load(stream)
+        if (not isinstance(data, dict) or data.get("scope") != "person"
+                or not isinstance(data.get("tool"), str) or not data["tool"]
+                or not isinstance(data.get("date"), str)
+                or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", data["date"])):
+            return False
+        return date.fromisoformat(data["date"]).isoformat() == data["date"]
+    except (OSError, ValueError):
+        return False
+
+
+def write_marker(path, payload):
+    temporary = path.with_name(path.name + ".tmp-" + uuid.uuid4().hex)
+    try:
+        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            stream.write(json.dumps(payload) + "\n")
+        os.replace(temporary, path)
+        return True
+    except OSError:
+        return False  # Explicit authorization still permits this install.
+    finally:
+        try:
+            temporary.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def copy_only(error, saved=True):
+    reason = str(error).splitlines()[0]
+    message = "This consent covers only this copy" if saved else "This run is authorised and no consent was saved"
+    sys.stderr.write(message + ": " + reason + ".\n")
+
+
+def warn_copy_consent():
+    if not person_marker_grants():
+        try:
+            trusted_config_dir(platform_user_config_dir())
+        except OSError as error:
+            copy_only(error)
+
+
+def write_person_consent(payload, copy_marker=None, realpath=None):
+    person_error = None
+    try:
+        directory = platform_user_config_dir()
+        missing = []
+        parent = directory
+        while not parent.exists() and not parent.is_symlink():
+            missing.append(parent)
+            parent = parent.parent
+        for parent in reversed(missing):
+            parent.mkdir(mode=0o700, exist_ok=True)
+        trusted_config_dir(directory)
+        if not write_marker(directory / ".wiser-consent", dict(payload, scope="person")):
+            raise OSError("the person marker could not be written")
+    except OSError as error:
+        person_error = error
+    saved = write_marker(copy_marker, dict(payload, realpath=realpath)) if copy_marker is not None else False
+    if person_error is not None:
+        copy_only(person_error, saved)
+
+
 def marker_grants():
+    if person_marker_grants():
+        return True
     root = plugin_root()
     if root is None:
         return False
     try:
-        data = json.loads((root / CONSENT_MARKER).read_text(encoding="utf-8"))
+        fd = os.open(root / CONSENT_MARKER, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(fd, "r", encoding="utf-8") as stream:
+            if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                raise OSError("the copy marker is not a regular file")
+            data = json.load(stream)
     except (OSError, ValueError):
         return False
     recorded = data.get("realpath") if isinstance(data, dict) else None
@@ -519,38 +615,28 @@ def install_authorised():
 
 def write_consent():
     if not flag_authorised():
+        warn_copy_consent()
         return
+    payload = {"date": datetime.now().strftime("%Y-%m-%d"), "tool": "Transcribe Audio"}
     root = plugin_root()
-    if root is None:
-        return
-    payload = {
-        "realpath": str(root),
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "tool": "Transcribe Audio",
-    }
-    path = root / CONSENT_MARKER
-    try:
-        path.write_text(json.dumps(payload) + "\n", encoding="utf-8")
-        os.chmod(path, 0o600)
-    except OSError:
-        pass
+    write_person_consent(payload, root / CONSENT_MARKER if root is not None else None, str(root))
 
 
 def require_install_consent(label):
     """Consent before an install, matching the Node tools' Dependencies clause.
 
     This script does not read stdin, so it cannot ask. The plugin asks once, on
-    the first install in this copy, and --install on that run is the answer.
+    the first install for this person, and --install on that run is the answer.
     """
     if install_authorised():
         write_consent()
         return
     fail(
-        "this tool is not installed yet and this copy of the plugin has not authorised an install. "
-        "The plugin asks once, on the first install in this copy. "
+        "this tool is not installed yet and no valid install consent is available. "
+        "Wiser asks once per person; a yes covers this install and later installs by any Wiser tool in any copy. "
         "Installing creates a virtual environment at %s and fetches the %s packages into it "
         "from pypi.org, several hundred megabytes, with pip's own download cache switched off "
-        "so nothing lands outside this tool. tools/AGENTS.md lists every write an install makes. "
+        "and writes person and copy consent markers. tools/AGENTS.md lists every write an install makes. "
         "Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 "
         "for an unattended run. Nothing is read from stdin, so this is the only way to answer."
         % (CACHE_DIR, label)
@@ -727,7 +813,7 @@ if not weights_present:
     if not install_authorised():
         fail(
             "the %s speech model is not on this machine as a file whisper will accept, and "
-            "this copy of the plugin has not authorised a download. That covers three states and they need the "
+            "no valid install consent is available for a download. Wiser asks once per person; a yes covers this install and later installs by any Wiser tool in any copy. That covers three states and they need the "
             "same answer: no file at all, a file whose SHA-256 does not match the one in "
             "whisper's own URL -- which is what an interrupted download leaves, and whisper "
             "re-downloads on it -- and a whisper this script cannot ask, which it treats as "

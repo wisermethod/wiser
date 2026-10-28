@@ -1,3 +1,4 @@
+import '../../lib/tests/isolated-home.js';
 import test,{before,after,afterEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {spawn,execFile} from 'node:child_process';
@@ -17,7 +18,7 @@ let root,copy,script,browser;
 const children = new Set(),seenListeners = new Map();
 
 function env() {
-  const value = {...process.env,TMPDIR:join(root,'runtime'),DISPLAY:':form-test'};
+  const value = {...process.env,HOME:join(root,'home'),USERPROFILE:join(root,'home'),XDG_CONFIG_HOME:'',APPDATA:'',TMPDIR:join(root,'runtime'),DISPLAY:':form-test'};
   delete value.SSH_CONNECTION; delete value.SSH_TTY; delete value.WISER_ALLOW_INSTALL;
   return value;
 }
@@ -38,7 +39,7 @@ async function bc(args) {
   assert.equal(r.code,0,r.stderr); return JSON.parse(r.stdout);
 }
 async function processes() {
-  return new Promise((accept,reject) => execFile('ps',['-axo','pid=,ppid=,command='],(error,out) => error ? reject(error) : accept(out.split('\n'))));
+  return new Promise((accept,reject) => execFile('ps',['-axo','pid=,ppid=,command='],{env:env()},(error,out) => error ? reject(error) : accept(out.split('\n'))));
 }
 async function listenerPids() {
   return (await processes()).filter(line => line.trim().endsWith(join(copy,'tools/Form/scripts/listener.js'))).map(line => Number(line.trim().split(/\s+/)[0]));
@@ -114,6 +115,8 @@ async function copyTool(directory,installed) {
   await cp(join(browserSource,'scripts'),join(directory,'tools/Browser Control/scripts'),{recursive:true});
   await cp(join(browserSource,'package.json'),join(directory,'tools/Browser Control/package.json'));
   await cp(consentSource,join(directory,'tools/lib/consent.js'));
+  await cp(new URL('../../lib/user-config.js',import.meta.url),join(directory,'tools/lib/user-config.js'));
+  if (!installed) await cp(runtimeSource,join(directory,'tools/lib/browser-runtime'),{recursive:true,filter:path => !path.includes('node_modules')});
   await writeFile(join(directory,'package.json'),'{"type":"module"}');
   await writeFile(join(directory,'tools/AGENTS.md'),'Test copy; no install consent.\n');
   if (installed) await symlink(runtimeSource,join(directory,'tools/lib/browser-runtime'),'dir');
@@ -234,7 +237,7 @@ test('ask install reports: package and Chromium consent leave no listener or pro
   const chromiumResult = json(await chromiumRun.done);
   assert.equal(chromiumResult.status,'needs-install');
   assert.match(chromiumResult.report,/Error: this tool's packages are installed but the Chromium build they drive is not/);
-  assert.match(chromiumResult.report,/has not authorised an install\./);
+  assert.match(chromiumResult.report,/has not authorised a Wiser install\./);
   assert.match(chromiumResult.report,/No package is fetched and npm is not run/);
   assert.match(chromiumResult.reason,/yes means running ask again with --install/);
   assert.deepEqual((await processes()).filter(line => line.trim().endsWith(join(chromium,'tools/Form/scripts/listener.js'))),[]);
@@ -424,7 +427,7 @@ for (const status of ['interrupted','needs-install']) test(`ask keeps ${status} 
     const output = await run.done,result = json(output,output.stderr);
     assert.equal(result.status,status);
     if (status === 'interrupted') assert.equal(result.signal,'SIGTERM');
-    else assert.match(result.report,/has not authorised an install\./);
+    else assert.match(result.report,/has not authorised a Wiser install\./);
     assert.equal(output.stderr,'Cleanup: scripted listener cleanup failure\n');
     await clean();
   });

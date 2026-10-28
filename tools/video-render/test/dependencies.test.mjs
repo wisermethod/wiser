@@ -1,3 +1,4 @@
+import './browser-home.mjs';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -19,6 +20,7 @@ async function copyTool(t) {
   await cp(join(TOOL_DIR, 'scripts'), join(tool, 'scripts'), { recursive: true });
   await mkdir(join(path, 'tools/lib'), { recursive: true });
   await cp(join(TOOL_DIR, '../lib/consent.js'), join(path, 'tools/lib/consent.js'));
+  await cp(join(TOOL_DIR, '../lib/user-config.js'), join(path, 'tools/lib/user-config.js'));
   // An empty node_modules must not masquerade as the named package's marker.
   await mkdir(join(tool, 'node_modules'));
   const project = join(path, 'project');

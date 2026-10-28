@@ -1,3 +1,4 @@
+import '../../lib/tests/isolated-home.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {formJsonSchema,checkForm} from '../scripts/format.js';

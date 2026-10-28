@@ -1,3 +1,4 @@
+import { homeEnvironment } from '../../../lib/tests/isolated-home.js';
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 import { spawnSync } from 'node:child_process';
@@ -20,15 +21,17 @@ function copyTool(label) {
   mkdirSync(join(root, 'tools', 'lib'), { recursive: true });
   writeFileSync(join(root, 'tools', 'AGENTS.md'), '# Test plugin\n');
   cpSync(join(TOOL, '..', 'lib', 'consent.js'), join(root, 'tools', 'lib', 'consent.js'));
+  cpSync(join(TOOL, '..', 'lib', 'user-config.js'), join(root, 'tools', 'lib', 'user-config.js'));
   for (const file of ['package.json', 'package-lock.json', 'scripts']) {
     cpSync(join(TOOL, file), join(tool, file), { recursive: true });
   }
+  homeEnvironment(join(root, 'home'));
   return { root, tool, script: join(tool, 'scripts', 'icon-set.js') };
 }
 
 function run(copy, args, env = {}) {
   const result = spawnSync(process.execPath, [copy.script, ...args], {
-    encoding: 'utf8', cwd: TEMP, env: { ...ENV, ...env }, timeout: 120000
+    encoding: 'utf8', cwd: TEMP, env: { ...ENV, ...homeEnvironment(join(copy.root, 'home')), ...env }, timeout: 120000
   });
   assert.ifError(result.error);
   return result;

@@ -8,7 +8,7 @@ import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
-import { installAuthorised, writeConsent } from '../../../tools/lib/consent.js';
+import { INSTALL_SCOPE, installAuthorised, writeConsent } from '../../../tools/lib/consent.js';
 
 const SCRIPT = fileURLToPath(import.meta.url);
 const SKILL = resolve(dirname(SCRIPT), '..');
@@ -18,7 +18,8 @@ Usage: node scripts/fonts.mjs help
        node scripts/fonts.mjs check [--install] [--from <absolute path>] [--family <name>]...
        node scripts/fonts.mjs assets [--library <absolute parts.json>]
        node scripts/fonts.mjs check help
-  --install          Authorize installation and finish this check.
+  --install          Authorise this install. ${INSTALL_SCOPE}
+                     WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --family <name>    Repeatable parts.json fonts key; check/install only these
                      families, including their licences. Omit for the whole pack.
   --from <path>      Request installation from an absolute local pack tar, or a
@@ -34,8 +35,8 @@ With --family it also names the families, and fetches only their individual rele
 assets. Without --family an install fetches the whole pack (about 4.5 MB).
 assets prints a JSON array in parts.json order: asset, path, sha256 and bytes.
 Asset names drop fonts/, replace / with -- and each space with _.
-Installs verify sizes and hashes before writing fonts/ plus the plugin consent
-marker; HTTPS uses OS-temp files removed at the end. No packages, credentials or
+Installs verify sizes and hashes before writing fonts/; consent follows
+tools/RUNNING.md. HTTPS uses OS-temp files removed at the end. No packages, credentials or
 configuration are needed. assets writes nothing and never reads consent.
 Failure: stderr only, exit 1, with the cause and fix. See tools/RUNNING.md.`;
 const hash = data => createHash('sha256').update(data).digest('hex');
@@ -207,7 +208,7 @@ async function install(library, directory, from, authorised) {
   let url;
   try { url = new URL(pack.url); } catch { stop('fontPack.url is invalid'); }
   if (url.protocol !== 'https:' || !pack.name) stop('fontPack needs a name and https URL');
-  if (!installAuthorised(SCRIPT, authorised)) stop(`Installing ${pack.name} fetches ${pack.bytes} bytes (about ${(pack.bytes / 1e6).toFixed(1)} MB) from ${url.hostname} (${pack.url}; GitHub redirects to release-assets.githubusercontent.com)${from ? `, using local copy ${from}` : ''} into ${directory}. Run ${INSTALL} to authorize it; WISER_ALLOW_INSTALL=1 or this plugin's consent marker also authorizes it`);
+  if (!installAuthorised(SCRIPT, authorised)) stop(`${INSTALL_SCOPE} Installing ${pack.name} fetches ${pack.bytes} bytes (about ${(pack.bytes / 1e6).toFixed(1)} MB) from ${url.hostname} (${pack.url}; GitHub redirects to release-assets.githubusercontent.com)${from ? `, using local copy ${from}` : ''} into ${directory}. Run ${INSTALL} to authorize it; WISER_ALLOW_INSTALL=1 or valid person or matching copy consent also authorizes it`);
   // All options and metadata have been checked before consent or temp writes.
   writeConsent(SCRIPT, 'Build Brand fonts', authorised);
   process.stderr.write(`First run: installing dependencies (${pack.name}) in ${directory}.\n`);
@@ -232,8 +233,8 @@ async function installFamilies(library, directory, from, authorised, families) {
   if (base.protocol !== 'https:') stop('fontPack.url and redirects must use https');
   for (const name of expected.keys()) safeTarget(directory, name);
   const bytes = files.reduce((total, file) => total + file.bytes, 0);
-  if (!installAuthorised(SCRIPT, authorised)) stop(`Installing families ${families.join(', ')} fetches ${bytes} bytes from ${base.hostname} (${base.href}; GitHub redirects to release-assets.githubusercontent.com)${from ? `, using local assets ${from}` : ''} into ${directory}. Run ${INSTALL} with --family to authorize it; WISER_ALLOW_INSTALL=1 or this plugin's consent marker also authorizes it`);
-  // A family fetch is scoped and writes no consent record: a later install still asks.
+  if (!installAuthorised(SCRIPT, authorised)) stop(`${INSTALL_SCOPE} Installing families ${families.join(', ')} fetches ${bytes} bytes from ${base.hostname} (${base.href}; GitHub redirects to release-assets.githubusercontent.com)${from ? `, using local assets ${from}` : ''} into ${directory}. Run ${INSTALL} with --family to authorize it; WISER_ALLOW_INSTALL=1 or valid person or matching copy consent also authorizes it`);
+  // The simple path fetches families without asking, so this fetch records no consent.
   process.stderr.write(`First run: installing dependencies (${families.join(', ')}) in ${directory}.\n`);
   const temp = mkdtempSync(join(tmpdir(), 'wiser-brand-fonts-')), verified = new Map();
   try {

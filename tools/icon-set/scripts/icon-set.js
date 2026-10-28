@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { installAuthorised, writeConsent } from '../../lib/consent.js';
+import { INSTALL_SCOPE, installAuthorised, writeConsent } from '../../lib/consent.js';
 import { SETS, WEIGHTS, assetPath, buildSvg, nearestNames, searchIcons } from './lib/icons.js';
 import { parseFlags, readOptions } from './lib/options.js';
 
@@ -12,6 +12,7 @@ const TOOL = resolve(dirname(HERE), '..');
 const packageDir = set => join(TOOL, 'node_modules', SETS[set].package);
 const INSTALL = 'node scripts/icon-set.js check --install';
 const COMMON = `  --install       Authorize the pinned npm install and finish this run.
+                  ${INSTALL_SCOPE}
                   WISER_ALLOW_INSTALL=1 also authorizes it; tools/RUNNING.md.
   --help, -h      Print usage without dependencies or configuration.`;
 const HELP = {
@@ -86,7 +87,7 @@ async function ensurePackages(install, sets) {
   const missing = sets.find(set => !states[set].installed);
   const { package: pkg, version } = SETS[missing];
   if (!installAuthorised(HERE, install)) {
-    throw new Error(`${pkg}@${version} is ${states[missing].state}. Installing fetches @phosphor-icons/core@2.1.1 and healthicons@2.0.0 from registry.npmjs.org into ${join(TOOL, 'node_modules')} (about 4.7 MB compressed together); npm writes its configured cache and logs outside this plugin. Run ${INSTALL} to authorize the install, or repeat this command with --install; WISER_ALLOW_INSTALL=1 also authorizes it`);
+    throw new Error(`${INSTALL_SCOPE} ${pkg}@${version} is ${states[missing].state}. Installing fetches @phosphor-icons/core@2.1.1 and healthicons@2.0.0 from registry.npmjs.org into ${join(TOOL, 'node_modules')} (about 4.7 MB compressed together); npm writes its configured cache and logs outside this plugin. Run ${INSTALL} to authorize the install, or repeat this command with --install; WISER_ALLOW_INSTALL=1 also authorizes it`);
   }
   // npm ci rebuilds both packages: refuse a wrong version of either first.
   for (const set of Object.keys(SETS)) await packageState(set);

@@ -18,16 +18,12 @@ import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
 import { hardenProfile, launchArgs } from './lib/profile.js';
-import { installAuthorised, writeConsent } from '../../lib/consent.js';
+import { INSTALL_SCOPE, installAuthorised, writeConsent } from '../../lib/consent.js';
+import { runtimeDir, activeRuntimeDir, personRuntimeDir, installBrowserRuntime } from '../../lib/browser-runtime/browser-runtime.js';
 
 const HERE = fileURLToPath(import.meta.url);
 const SCRIPT_DIR = dirname(HERE);
 const TOOL_DIR = resolve(SCRIPT_DIR, '..');
-const RUNTIME_DIR = resolve(SCRIPT_DIR, '..', '..', 'lib', 'browser-runtime');
-
-// Playwright's own manifest, in the shared runtime. An interrupted install
-// leaves node_modules/ behind with nothing in it, so the directory proves nothing.
-const DEP_MARKER = join(RUNTIME_DIR, 'node_modules', 'playwright', 'package.json');
 
 // Not 9222: that is Chromium's own remote-debugging port, and a host bound there
 // collides with any browser the user started for debugging.
@@ -119,12 +115,8 @@ Options:
                          storage clear, and upload. Opt-in only; nothing is read
                          from stdin and there is no skip flag.
   --timeout [ms]         Per-action timeout where the command takes one.
-  --install Authorise the first install in this copy of the plugin.
-          Without it, the first command that needs a package this
-          copy has not installed reports what it would fetch, and
-          from where, and stops. That answer covers every later
-          tool in this copy. WISER_ALLOW_INSTALL=1 does the same
-          for an unattended run.
+  --install          Authorise this install. ${INSTALL_SCOPE}
+                     WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help, -h             Print this message
 
 A numeric option takes a whole number and the whole value: "7days" is
@@ -159,6 +151,14 @@ const argv = process.argv.slice(2);
 if (argv.length === 0 || argv[0] === 'help' || argv.includes('--help') || argv.includes('-h')) {
   process.stdout.write(`${USAGE}\n`);
   process.exit(0);
+}
+
+let RUNTIME_DIR, PLAYWRIGHT_CLI;
+function resolveRuntime() {
+  try {
+    RUNTIME_DIR = runtimeDir();
+    PLAYWRIGHT_CLI = join(RUNTIME_DIR, 'node_modules', 'playwright', 'cli.js');
+  } catch (error) { fail(`Error: ${String(error.message).split('\n')[0]}`); }
 }
 
 const COMMANDS = {
@@ -471,11 +471,11 @@ const port = integer('--port', DEFAULT_PORT, { min: 1, max: 65535 });
  * way the request goes out without a token and the host answers 403, which is
  * the message worth showing.
  */
-const TOKEN_FILE = join(homedir(), '.wiser', 'browser-control', `${port}.token`);
+
 
 function sessionToken() {
   try {
-    return readFileSync(TOKEN_FILE, 'utf8').trim();
+    return readFileSync(join(homedir(), '.wiser', 'browser-control', `${port}.token`), 'utf8').trim();
   } catch {
     return '';
   }
@@ -492,7 +492,6 @@ function request(method, path, body) {
         method,
         timeout: 120000,
         headers: {
-          'X-Wiser-Session': sessionToken(),
           ...(payload === undefined
             ? {}
             : { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) })
@@ -512,8 +511,14 @@ function request(method, path, body) {
     );
     req.on('error', (error) => reject(error));
     req.on('timeout', () => { req.destroy(); reject(new Error('the browser host did not answer within 120 seconds')); });
-    if (payload !== undefined) req.write(payload);
-    req.end();
+    req.on('socket', socket => {
+      const send = () => {
+        req.setHeader('X-Wiser-Session', sessionToken());
+        if (payload !== undefined) req.write(payload);
+        req.end();
+      };
+      if (socket.connecting) socket.once('connect', send); else send();
+    });
   });
 }
 
@@ -613,8 +618,8 @@ function installPlan() {
     names = Object.keys(JSON.parse(readFileSync(join(TOOL_DIR, 'package.json'), 'utf8')).dependencies || {});
   } catch { /* the report degrades to a generic list; the refusal still stands */ }
   const packages = names.length
-    ? `Installing fetches ${names.join(', ')} from registry.npmjs.org into ${TOOL_DIR}, and playwright from registry.npmjs.org into ${RUNTIME_DIR}`
-    : `Installing fetches playwright from registry.npmjs.org into ${RUNTIME_DIR}`;
+    ? `Installing fetches ${names.join(', ')} from registry.npmjs.org into ${TOOL_DIR}, and playwright from registry.npmjs.org into ${personRuntimeDir()}`
+    : `Installing fetches playwright from registry.npmjs.org into ${personRuntimeDir()}`;
   return {
     packages,
     size: WILL_FETCH_BROWSER
@@ -626,7 +631,7 @@ function installPlan() {
 // Chromium presence, asked of Playwright itself rather than guessed from a path
 // this script builds: the location depends on the platform and on
 // PLAYWRIGHT_BROWSERS_PATH, both of which Playwright already resolves.
-const PLAYWRIGHT_CLI = join(RUNTIME_DIR, 'node_modules', 'playwright', 'cli.js');
+// PLAYWRIGHT_CLI is resolved only on a launch path.
 
 // THE ONLY QUESTION THAT MATTERS, ASKED THE ONLY WAY THAT ANSWERS IT.
 //
@@ -858,12 +863,12 @@ function requireInstallConsent(what) {
   }
   if (what === 'browser') {
     fail(
-      `Error: this tool's packages are installed but the Chromium build they drive is not, and this copy of the plugin has not authorised an install. The plugin asks once, on the first install in this copy. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+      `Error: this tool's packages are installed but the Chromium build they drive is not, and this person has not authorised a Wiser install. ${INSTALL_SCOPE} Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
     );
   }
   const { packages, size } = installPlan();
   fail(
-    `Error: this tool is not installed yet and this copy of the plugin has not authorised an install. The plugin asks once, on the first install in this copy. ${packages}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+    `Error: this tool is not installed yet and this person has not authorised a Wiser install. ${INSTALL_SCOPE} ${packages}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
   );
 }
 
@@ -962,26 +967,12 @@ if (command === 'session') {
 
   // Dependencies. Before the host is spawned, so a missing install is reported
   // here rather than dying inside a detached child.
-  if (!existsSync(DEP_MARKER)) {
+  resolveRuntime();
+  if (!activeRuntimeDir()) {
     requireInstallConsent('packages');
-  process.stderr.write(`First run: installing dependencies in ${RUNTIME_DIR}.\n`);
-    try {
-      const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-      // stderr only: npm output on stdout would break the empty-stdout-on-failure rule.
-      execFileSync(npm, ['ci'], { cwd: RUNTIME_DIR, stdio: ['ignore', 'ignore', 'inherit'] });
-    } catch {
-    // Two different failures arrive here and they have different fixes, so the
-    // Script Contract's Output and errors clause requires telling them apart:
-    // an unwritable runtime directory is not a broken install, and telling someone
-    // to run "npm ci" by hand where they cannot write cannot succeed.
-    if (!isWritable(RUNTIME_DIR)) {
-      fail(`Error: cannot install dependencies because ${RUNTIME_DIR} is not writable. This tool installs Playwright into the shared browser runtime on the run that authorises it with --install, so that directory has to be writable. Install this plugin somewhere you own, or make that directory writable, then run the command again.`);
-    }
-      fail(`Error: npm ci failed in ${RUNTIME_DIR}. Confirm Node 18 or newer, then that package-lock.json is present and matches package.json, which is what npm ci requires and will not resolve around. Delete node_modules there and run "npm ci" by hand to see npm's own message. A lockfile that is missing or out of step with the manifest is a defect in this copy of the plugin, not something a re-run fixes.`);
-    }
-    if (!existsSync(DEP_MARKER)) {
-      fail(`Error: npm ci finished but ${DEP_MARKER} is still missing. Check that the shared runtime's package.json lists playwright.`);
-    }
+    process.stderr.write(`First run: installing dependencies in ${personRuntimeDir()}.\n`);
+    try { await installBrowserRuntime(); }
+    catch (error) { fail(`Error: ${error.message}`); }
   }
 
   // The Chromium build. `playwright` carries NO install script, so `npm ci`

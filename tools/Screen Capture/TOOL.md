@@ -3,7 +3,7 @@ name: Screen Capture
 type: tool
 category: media
 description: Captures and drives a macOS app window, redacts PNG stills and recordings, and checks every written frame for email-shaped text and declared terms
-version: 0.1.0
+version: 0.1.1
 gaps:
   - Desktop capture and redaction on Windows and Linux
 ---
@@ -74,7 +74,7 @@ Python is this tool's declared interpreter under the Script Contract's Runtimes 
 
 ## Configuration
 
-None: no account, credential file or sign-in. Permissions are described at Quick Start. Package consent follows `tools/RUNNING.md`: `--install` answers for this plugin copy, and `WISER_ALLOW_INSTALL=1` authorizes an unattended install. It fetches roughly 100 MB from `pypi.org` and `files.pythonhosted.org`, into this tool's `.venv`, with pip's download cache off. It accepts binary wheels only; an unsupported interpreter stops rather than compiling. Use the same interpreter for the copy's checks and commands. The full write inventory is `tools/AGENTS.md`.
+None: no account, credential file or sign-in. Permissions are described at Quick Start. Package consent follows `tools/RUNNING.md`: `--install` authorizes the package install, and `WISER_ALLOW_INSTALL=1` authorizes an unattended install. It fetches roughly 100 MB from `pypi.org` and `files.pythonhosted.org`, into this tool's `.venv`, with pip's download cache off. It accepts binary wheels only; an unsupported interpreter stops rather than compiling. Use the same interpreter for the copy's checks and commands. The full write inventory is `tools/AGENTS.md`.
 
 ## Usage
 

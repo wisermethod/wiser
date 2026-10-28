@@ -1,3 +1,6 @@
+import runpy as _runpy
+from pathlib import Path as _IsolationPath
+_runpy.run_path(str(_IsolationPath(__file__).parent / '../../lib/tests/isolated_home.py'))
 import unittest
 from pathlib import Path
 from unittest.mock import patch

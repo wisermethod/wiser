@@ -67,6 +67,7 @@ Options:
   --fps <n>           redact only: a recording's decode rate, positive number; default 30.
                       verify reads every frame a recording holds, at the rate it was written.
   --install           Authorize pinned wheels into this tool's .venv, pip cache off;
+                      Wiser asks once per person; a yes covers this install and later installs by any Wiser tool in any copy.
                       WISER_ALLOW_INSTALL=1 also authorizes an unattended run.
   --help              Print this message before any dependency check.
 

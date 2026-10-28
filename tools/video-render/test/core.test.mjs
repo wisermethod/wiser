@@ -1,3 +1,4 @@
+import './browser-home.mjs';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -27,6 +28,7 @@ test('help works in an uninstalled copy and importing the command does no work',
   await cp(join(TOOL_DIR, 'scripts'), join(path, 'tools/video-render/scripts'), { recursive: true });
   await mkdir(join(path, 'tools/lib'), { recursive: true });
   await cp(join(TOOL_DIR, '../lib/consent.js'), join(path, 'tools/lib/consent.js'));
+  await cp(join(TOOL_DIR, '../lib/user-config.js'), join(path, 'tools/lib/user-config.js'));
   const script = join(path, 'tools/video-render/scripts/video-render.js');
   for (const args of [['help'], ['--help'], ['sequence', '--help']]) {
     const result = run(args, script);
