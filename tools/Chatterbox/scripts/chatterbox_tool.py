@@ -21,6 +21,30 @@ from datetime import date
 from pathlib import Path
 from unittest.mock import patch
 
+INSTALL_ONCE = "You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates."
+INSTALL_HELP = "Say yes to the download this tool needs. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates."
+INSTALL_COPY_ONLY = "Wiser will install this, but it can only remember your yes until the next Wiser update, so you may be asked again then. Reason: "
+INSTALL_NOT_SAVED = "Wiser will install this now, but it couldn't remember your yes, so you'll be asked again next time. Reason: "
+
+
+def install_question(what, purpose, size=None):
+    return ("This Wiser skill needs to download and install " + what + " on your machine in order to " + purpose + "."
+            + (" It's about " + size + "." if size else "") + " " + INSTALL_ONCE)
+
+
+def install_size(size_bytes):
+    def rounded(divisor):
+        return int(size_bytes / divisor + 0.5)
+    if size_bytes < 1000000:
+        kb = max(1, rounded(1000))
+        return "%d KB" % kb if kb < 1000 else "1.0 MB"
+    if size_bytes < 10000000:
+        tenths = rounded(100000)
+        return "%.1f MB" % (tenths / 10) if tenths < 100 else "10 MB"
+    mb = rounded(10000000) * 10 if size_bytes >= 100000000 else rounded(1000000)
+    return "%.1f GB" % (rounded(100000000) / 10) if mb >= 1000 else "%d MB" % mb
+
+
 TOOL = Path(__file__).resolve().parent.parent
 PLUGIN = TOOL.parent.parent
 VENV = TOOL / ".venv"
@@ -55,8 +79,7 @@ Commands: help, check (offline survey), install, trial (fixed shipped 35-word pa
 Options (closed per command):
   --model-cache DIR  Absolute model base, default person-scoped models/ (tools/AGENTS.md).
   --route-chosen     install only: caller attests the member chose this route.
-  --install          install only: authorize packages/weights under tools/RUNNING.md.
-                      Wiser asks once per person; a yes covers this install and later installs by any Wiser tool in any copy.
+  --install          Say yes to the download this tool needs. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.
                     WISER_ALLOW_INSTALL=1, valid person or matching copy consent also authorizes install.
                     Neither consent nor environment variables bypass check or route choice.
   --text FILE        synthesize only: UTF-8 scene; <#0.5#>-shaped pause marks are controls, never words.
@@ -324,8 +347,8 @@ def write_marker(path, payload):
 
 def copy_only(error, saved=True):
     reason = str(error).splitlines()[0]
-    message = "This consent covers only this copy" if saved else "This run is authorised and no consent was saved"
-    sys.stderr.write(message + ": " + reason + ".\n")
+    message = INSTALL_COPY_ONLY if saved else INSTALL_NOT_SAVED
+    sys.stderr.write(message + reason + ".\n")
 
 
 def warn_copy_consent():
@@ -357,7 +380,8 @@ def write_person_consent(payload, copy_marker=None, realpath=None):
         copy_only(person_error, saved)
 
 
-def consent(opts):
+def consent(opts, base=None):
+    """Returns True for an explicit yes, False for a saved one, None when nothing is missing and none is saved."""
     explicit = opts.get("--install") or os.environ.get("WISER_ALLOW_INSTALL") == "1"
     try:
         fd = os.open(PLUGIN / ".wiser-consent", os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
@@ -369,12 +393,27 @@ def consent(opts):
     except (OSError, ValueError):
         prior = False
     if not (explicit or prior or person_marker_grants()):
-        raise ToolError("Wiser asks once per person; a yes covers this install and later installs by any Wiser tool in any copy. install needs consent: fetch pinned requirements.lock from pypi.org/files.pythonhosted.org "
-                        "into %s (about 1.3 GiB), and %s weights (about 3.0 GiB) from huggingface.co "
-                        "and cas-bridge.xethub.hf.co/cdn-lfs.huggingface.co/cdn-lfs-us-1.hf.co into the "
-                        "versioned --model-cache. Reserve 0.4 GiB for caller alignment and 2 GiB install "
-                        "headroom. pip cache is off. Re-run install with --route-chosen --install, or "
-                        "WISER_ALLOW_INSTALL=1. See tools/RUNNING.md." % (VENV, MODEL))
+        # Ask only for what is missing: base is None for the loader repair, which rebuilds the libraries alone.
+        libraries = base is None or package_state()["status"] != "complete"
+        weights = base is not None and weight_state(base)["status"] != "complete"
+        if not (libraries or weights):
+            return None
+        environment, model = SPACE["environment_gib"] * 1024 ** 3, SPACE["weights_gib"] * 1024 ** 3
+        what, size = {
+            (True, True): ("the voice model and the code libraries it needs", install_size(environment + model)),
+            (True, False): ("the code libraries the voice model needs", install_size(environment)),
+            (False, True): ("the voice model", install_size(model)),
+        }[(libraries, weights)]
+        fetches = []
+        if libraries:
+            fetches.append("pinned requirements.lock from pypi.org/files.pythonhosted.org into %s (about 1.3 GiB; pip cache is off)" % VENV)
+        if weights:
+            fetches.append("%s weights (about 3.0 GiB) from huggingface.co and cas-bridge.xethub.hf.co/cdn-lfs.huggingface.co/"
+                           "cdn-lfs-us-1.hf.co into the versioned --model-cache" % MODEL)
+        raise ToolError(install_question(what, "speak your text in your own voice without uploading your recording anywhere", size)
+                        + "\n\nDetails for the assistant: install needs consent: fetch " + ", and ".join(fetches)
+                        + ". Reserve 0.4 GiB for caller alignment and 2 GiB install headroom. Re-run install with "
+                        "--route-chosen --install, or WISER_ALLOW_INSTALL=1. See tools/RUNNING.md.")
     if not explicit:
         warn_copy_consent()
     return explicit
@@ -534,7 +573,7 @@ def install(opts, base):
     require_supported(result, opts.get("--route-chosen", False))
     if VENV.is_symlink():
         raise ToolError("install refuses a linked .venv; use this tool's own environment.")
-    explicit = consent(opts)
+    explicit = consent(opts, base)
     if explicit:
         payload = {"date": date.today().isoformat(), "tool": "Chatterbox"}
         write_person_consent(payload, PLUGIN / ".wiser-consent", str(PLUGIN.resolve()))
@@ -577,6 +616,10 @@ def install(opts, base):
                               env=env, stdout=sys.stdout, stderr=sys.stderr).returncode
     code = finish()
     if code == 2 and not rebuilt:
+        if explicit is None:
+            consent(opts)
+        print("Error: local model loader failed; the authorized installer will rebuild the environment once.",
+              file=sys.stderr)
         rebuild()
         code = finish()
     return 1 if code else 0
@@ -602,11 +645,10 @@ def finish_install(base):
     try:
         return install_weights(base)
     except ModelLoadError:
-        print("Error: local model loader failed; the authorized installer will rebuild the environment once.",
-              file=sys.stderr)
+        # The parent says what happens next: a rebuild where the run is authorised, the question where it is not.
         return 2
     except ToolError as error:
-        print("Error: %s" % error, file=sys.stderr)
+        print(("" if str(error).startswith("This Wiser skill needs to download and install ") else "Error: ") + str(error), file=sys.stderr)
         return 1
     except Exception as error:
         print("Error: local weight installation/validation failed (%s); retry install with consent. "
@@ -883,7 +925,7 @@ def main(argv=None):
         validated = inputs(opts, command)
         return run_engine(command, opts, base, validated)
     except (ToolError, OSError, ValueError, subprocess.SubprocessError) as error:
-        print("Error: %s" % error, file=sys.stderr)
+        print(("" if str(error).startswith("This Wiser skill needs to download and install ") else "Error: ") + str(error), file=sys.stderr)
         return 1
     except Exception as error:
         # Third-party exceptions can contain arbitrary input/provider bodies.

@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { INSTALL_SCOPE, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
+import { INSTALL_HELP, installQuestion, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
 
 const HERE = fileURLToPath(new URL(import.meta.url));
 const TOOL_DIR = dirname(dirname(HERE));
@@ -37,7 +37,7 @@ Options:
   --out <dir>        Where the three build files and build.json are written. Absolute path.
                      Must not exist, or must be an empty directory, and must not resolve
                      inside this tool, inside --functions, or inside --assets
-  --install          Authorise this install. ${INSTALL_SCOPE}
+  --install          ${INSTALL_HELP}
                      WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help, -h         Print this message
 
@@ -140,7 +140,7 @@ function screenOut(out, functionsDir, assetsDir, toolDir) {
 
 function consentStop() {
   fail(
-    `Error: this tool is not installed yet and this person has not authorised a Wiser install. ${INSTALL_SCOPE} Installing fetches wrangler ${WRANGLER_SPEC} and its dependencies from registry.npmjs.org into ${TOOL_DIR}, about 210 MB, and npm writes its own cache outside this plugin. tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+    `${installQuestion("Cloudflare's Wrangler tool", "prepare your website's functions for Cloudflare Pages", '210 MB')}\n\nDetails for the assistant: this tool is not installed yet and this person has not authorised a Wiser install. Installing fetches wrangler ${WRANGLER_SPEC} and its dependencies from registry.npmjs.org into ${TOOL_DIR}, about 210 MB, and npm writes its own cache outside this plugin. tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
   );
 }
 

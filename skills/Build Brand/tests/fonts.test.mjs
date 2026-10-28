@@ -285,7 +285,11 @@ test('family: plain check --family writes nothing without authorization or with 
 });
 test('family: --from without authorization is refused without writes', () => {
   const f = familyFixture(), before = readdirSync(f.root);
-  refused(f.run(['--family', 'Test', '--from', f.assets]), /Test.*github\.com.*into .*fonts.*check --install/, f);
+  const child = f.run(['--family', 'Test', '--from', f.assets]);
+  refused(child, /Test.*uses local assets .*into .*fonts.*check --install/, f);
+  assert.equal(child.stderr.split('\n')[0], "This Wiser skill needs to install the Test typeface on your machine from a copy you already have, in order to set your brand's type. This yes covers only these typefaces.");
+  assert.ok(!child.stderr.split('. ')[0].includes('download'), child.stderr);
+  assert.ok(!/github\.com|bytes|It's about/.test(child.stderr), child.stderr);
   assert.deepEqual(readdirSync(f.root), before); assert.equal(existsSync(join(f.plugin, '.wiser-consent')), false);
 });
 test('family: an existing symlink at the directory, family or member cannot redirect an install', () => {
@@ -395,10 +399,13 @@ test('a plain check surveys with a matching marker too', () => {
   const child = f.run(); assert.equal(child.status, 0); assert.equal(JSON.parse(child.stdout).installed, false); assert.equal(child.stderr, '');
   assert.equal(existsSync(f.directory), false);
 });
-test('without consent an install reports package, host, directory and size and exits 1 without writes', () => {
+test('without consent a local pack install names the local source and exits 1 without writes', () => {
   const f = fixture(), before = readdirSync(f.root);
-  refused(f.run(['--from', f.pack]), /test-fonts-1.*github\.com.*into .*fonts.*check --install/, f);
-  const child = f.run(['--from', f.pack]); assert.ok(child.stderr.includes(String(f.library.fontPack.bytes)));
+  const child = f.run(['--from', f.pack]);
+  refused(child, /test-fonts-1.*uses local copy .*into .*fonts.*check --install/, f);
+  assert.equal(child.stderr.split('\n')[0], "This Wiser skill needs to install Wiser's brand font pack on your machine from a copy you already have, in order to set your brand's type. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.");
+  assert.ok(!child.stderr.split('. ')[0].includes('download'), child.stderr);
+  assert.ok(!/github\.com|bytes|It's about/.test(child.stderr), child.stderr);
   assert.deepEqual(readdirSync(f.root), before); assert.equal(existsSync(join(f.plugin, '.wiser-consent')), false);
 });
 test('environment consent authorizes and records an offline install', () => {

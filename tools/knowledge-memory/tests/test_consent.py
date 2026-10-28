@@ -59,6 +59,44 @@ class GraphConsentTests(unittest.TestCase):
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(self.error):
             self.install(False)
 
+    def test_install_question_copy(self):
+        self.assertEqual(self.app.INSTALL_ONCE, "You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.")
+        self.assertEqual(self.app.INSTALL_HELP, "Say yes to the download this tool needs. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.")
+        self.assertEqual(self.app.INSTALL_COPY_ONLY, 'Wiser will install this, but it can only remember your yes until the next Wiser update, so you may be asked again then. Reason: ')
+        self.assertEqual(self.app.INSTALL_NOT_SAVED, "Wiser will install this now, but it couldn't remember your yes, so you'll be asked again next time. Reason: ")
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            try:
+                self.install(False)
+            except self.error as error:
+                message = stderr.getvalue() or str(error)
+            else:
+                self.fail("missing packages must refuse without consent")
+        self.assertEqual(stdout.getvalue(), "")
+        first, blank, details = message.split("\n", 2)
+        self.assertTrue(first.startswith("This Wiser skill needs to download and install "), first)
+        self.assertTrue(first.endswith(self.app.INSTALL_ONCE), first)
+        purposes = {
+            "Transcribe Audio": ("line up known words with the moments they're spoken in a recording" if self.app.__name__ == "consent_align" else "turn your recordings into text without uploading them anywhere"),
+            "knowledge-memory": "store and search your knowledge as a connected graph",
+            "Chatterbox": "speak your text in your own voice without uploading your recording anywhere",
+            "Screen Capture": "capture and record app windows and blank out private details",
+        }
+        self.assertIn("in order to " + purposes[self.tool_name] + ".", first)
+        what, size = {
+            "Transcribe Audio": (("the word-timing model and the code libraries it needs", "378 MB")
+                                 if self.app.__name__ == "consent_align" else
+                                 ("the base speech-recognition model and the code libraries it needs", "145 MB")),
+            "knowledge-memory": ("the graph database libraries", None),
+            "Chatterbox": ("the voice model and the code libraries it needs", "4.6 GB"),
+            "Screen Capture": ("Apple's screen libraries for Python and an image library", "100 MB"),
+        }[self.tool_name]
+        self.assertEqual(first, "This Wiser skill needs to download and install " + what
+                         + " on your machine in order to " + purposes[self.tool_name] + "."
+                         + (" It's about " + size + "." if size else "") + " " + self.app.INSTALL_ONCE)
+        self.assertEqual(blank, "")
+        self.assertTrue(details.startswith("Details for the assistant: "), details)
+
     def test_person_in_fresh_copy(self):
         self.denied()
         self.assertFalse(self.copy_marker.exists())
@@ -128,8 +166,8 @@ class GraphConsentTests(unittest.TestCase):
         finally:
             self.copy.chmod(0o700)
         warnings = [line for line in output.getvalue().splitlines()
-                    if "consent covers" in line or "no consent was saved" in line]
-        self.assertEqual(warnings, ["This run is authorised and no consent was saved: the user-config directory is writable by group or others."])
+                    if line.startswith("Wiser will install this")]
+        self.assertEqual(warnings, ["Wiser will install this now, but it couldn't remember your yes, so you'll be asked again next time. Reason: the user-config directory is writable by group or others."])
         self.assertFalse(self.copy_marker.exists())
         self.assertFalse(self.marker.exists())
 
@@ -142,8 +180,8 @@ class GraphConsentTests(unittest.TestCase):
         self.assertTrue(self.copy_marker.is_file())
         self.assertFalse(self.marker.exists())
         warnings = [line for line in output.getvalue().splitlines()
-                    if line.startswith("This consent covers only this copy:")]
-        self.assertEqual(warnings, ["This consent covers only this copy: the user-config directory is writable by group or others."])
+                    if line.startswith("Wiser will install this, but it can only remember your yes until the next Wiser update, so you may be asked again then. Reason:")]
+        self.assertEqual(warnings, ["Wiser will install this, but it can only remember your yes until the next Wiser update, so you may be asked again then. Reason: the user-config directory is writable by group or others."])
 
     def test_copy_marker_realpath(self):
         for record in ({"realpath": str(self.root / "other-copy")}, {}, [], "bad"):
@@ -228,8 +266,8 @@ class GraphConsentTests(unittest.TestCase):
                         self.install(True)
                     self.assertEqual(self.marker.read_bytes(), before)
                     self.assertTrue(self.copy_marker.is_file())
-                    self.assertRegex(output.getvalue(), r"This consent covers only this copy: [^\n]+\n")
-                    warning = [line for line in output.getvalue().splitlines() if line.startswith("This consent covers only this copy:")]
+                    self.assertRegex(output.getvalue(), r"Wiser will install this, but it can only remember your yes until the next Wiser update, so you may be asked again then. Reason: [^\n]+\n")
+                    warning = [line for line in output.getvalue().splitlines() if line.startswith("Wiser will install this, but it can only remember your yes until the next Wiser update, so you may be asked again then. Reason:")]
                     self.assertEqual(len(warning), 1)
                     reason = {"symlink": "real directory", "group-writable": "writable by group", "other-owned": "owned by another"}[kind]
                     self.assertIn(reason, warning[0])

@@ -1,7 +1,20 @@
-// The scope sentence tools/lib/consent.js exports as INSTALL_SCOPE, written here so that
-// help and every survey run from this tool's scripts alone; tools/lib/tests/prompts.test.js
-// checks the two agree.
-const INSTALL_SCOPE = 'Wiser asks once per person; a yes covers this install and later installs by any Wiser tool in any copy.';
+// Shared copy, kept local so surveys and help need no installed packages.
+export const INSTALL_ONCE = "You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.";
+export const INSTALL_HELP = "Say yes to the download this tool needs. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.";
+
+export function installQuestion(what, purpose, size) {
+  return 'This Wiser skill needs to download and install ' + what + ' on your machine in order to ' + purpose + '.'
+    + (size ? " It's about " + size + '.' : '') + ' ' + INSTALL_ONCE;
+}
+export function formatInstallSize(bytes) {
+  const kb = Math.max(1, Math.round(bytes / 1000));
+  const tenths = Math.round(bytes / 100000);
+  const mb = bytes / 1e6;
+  if (mb < 1) return kb < 1000 ? `${kb} KB` : '1.0 MB';
+  if (mb < 10) return tenths < 100 ? `${(tenths / 10).toFixed(1)} MB` : '10 MB';
+  const rounded = Math.round(mb / (mb >= 100 ? 10 : 1)) * (mb >= 100 ? 10 : 1);
+  return rounded >= 1000 ? `${(Math.round(bytes / 1e8) / 10).toFixed(1)} GB` : `${rounded} MB`;
+}
 import { spawnSync } from 'node:child_process';
 import { readFile, mkdtemp, realpath, rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -20,8 +33,11 @@ export const INSTALL_SIZE = Object.freeze({
   date: '2026-10-25', platform: 'macOS ARM64', packages: 137646080, chrome: 202039296,
 });
 
-export function installPlan(tool = TOOL_DIR) {
-  return `${INSTALL_SCOPE} Installing fetches HyperFrames ${HYPERFRAMES_VERSION} and its dependencies from registry.npmjs.org into ${join(tool, 'node_modules')}/ (tools/video-render/node_modules/), measured ${INSTALL_SIZE.packages} bytes on disk on ${INSTALL_SIZE.date} (${INSTALL_SIZE.platform}). A first render also needs HyperFrames' pinned chrome-headless-shell ${CHROME_BUILD}, from Google's Chrome for Testing storage (storage.googleapis.com/chrome-for-testing-public), into ~/.cache/hyperframes/chrome/, measured ${INSTALL_SIZE.chrome} bytes on disk on ${INSTALL_SIZE.date} (${INSTALL_SIZE.platform}). npm also writes its configured download cache and logs outside the plugin. Re-run the same command with --install to authorise and finish it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin.`;
+export function installPlan(tool = TOOL_DIR, browserOnly = false) {
+  const size = browserOnly ? formatInstallSize(INSTALL_SIZE.chrome)
+    : `${formatInstallSize(INSTALL_SIZE.packages)}, or about ${formatInstallSize(INSTALL_SIZE.packages + INSTALL_SIZE.chrome)} with Chrome`;
+  const packages = browserOnly ? '' : `Installing fetches HyperFrames ${HYPERFRAMES_VERSION} and its dependencies from registry.npmjs.org into ${join(tool, 'node_modules')}/ (tools/video-render/node_modules/), measured ${INSTALL_SIZE.packages} bytes on disk on ${INSTALL_SIZE.date} (${INSTALL_SIZE.platform}). npm also writes its configured download cache and logs outside the plugin. `;
+  return `${installQuestion(browserOnly ? 'the copy of Chrome the video renderer uses' : "the HyperFrames video renderer (and the copy of Chrome it uses, if you don't have it yet)", 'turn an animated page into a video', size)}\n\nDetails for the assistant: ${packages}${browserOnly ? 'Installing fetches' : 'If missing, this run also fetches'} HyperFrames' pinned chrome-headless-shell ${CHROME_BUILD}, from Google's Chrome for Testing storage (storage.googleapis.com/chrome-for-testing-public), into ~/.cache/hyperframes/chrome/, measured ${INSTALL_SIZE.chrome} bytes on disk on ${INSTALL_SIZE.date} (${INSTALL_SIZE.platform}). Re-run the same command with --install to authorise and finish it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin.`;
 }
 
 export function nodeSurvey(version = process.versions.node) {
@@ -169,14 +185,14 @@ export async function prepareRuntime({ install = false, survey = false, gpu = 'h
     // A plain check ignores even environment/marker consent: it only surveys.
     const mayInstall = !survey || install;
     let consent;
-    async function authorise() {
+    async function authorise(browserOnly = false) {
       consent ??= operations.consent ?? await import('../../lib/consent.js');
-      if (!consent.installAuthorised(HERE, install)) throw new Error(installPlan(tool));
+      if (!consent.installAuthorised(HERE, install)) throw new Error(installPlan(tool, browserOnly));
       consent.writeConsent(HERE, 'video-render', install);
     }
     if (!report.hyperframes.ok && mayInstall) {
       try { await authorise(); } catch (error) {
-        throw new Error(`${report.hyperframes.error ?? `HyperFrames ${report.hyperframes.version} is installed; exactly ${HYPERFRAMES_VERSION} is required.`} ${error.message}`);
+        throw new Error(`${error.message} ${report.hyperframes.error ?? `HyperFrames ${report.hyperframes.version} is installed; exactly ${HYPERFRAMES_VERSION} is required.`}`);
       }
       process.stderr.write(`First run: installing dependencies in ${tool}.\n`);
       runInstaller(run, process.platform === 'win32' ? 'npm.cmd' : 'npm', ['ci'], tool, home, 'npm ci');
@@ -189,7 +205,7 @@ export async function prepareRuntime({ install = false, survey = false, gpu = 'h
         if (report.chrome.failure !== 'missing') throw new Error(report.chrome.remediation);
         // HyperFrames otherwise tries a system package install on Linux ARM64.
         if (process.platform === 'linux' && process.arch === 'arm64') throw new Error(`Pinned chrome-headless-shell ${CHROME_BUILD} is unavailable on Linux ARM64; no system dependency was installed.`);
-        await authorise();
+        await authorise(true);
         process.stderr.write(`First run: installing chrome-headless-shell ${CHROME_BUILD} in ${join(home, '.cache/hyperframes/chrome')}.\n`);
         runInstaller(run, process.execPath, [join(tool, 'node_modules/hyperframes/bin/hyperframes.mjs'), 'browser', 'ensure'], tool, home, 'HyperFrames browser ensure');
         report.chrome = await probe({ tool, home, gpu });

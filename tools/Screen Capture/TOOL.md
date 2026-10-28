@@ -56,7 +56,7 @@ python3 scripts/capture.py verify --input /path/to/work/redacted.png \
   --term 'riley.q@example.org' --term 'Riley Quintero'
 ```
 
-Does the run stop with `packages missing`? Yes: put its consent report to the person, then re-run that command with `--install` on their yes, per `tools/RUNNING.md`. No: read its JSON result or the named refusal in Troubleshooting. A failed redaction check leaves no file at `--output`; inspect the report's `hits` and follow the repair decision under Redaction and its limits.
+Does the run stop with `packages missing`? Yes: say its opening question to the person word for word, and use the details after it only to act on their answer or if they ask; then re-run that command with `--install` on their yes, per `tools/RUNNING.md`. No: read its JSON result or the named refusal in Troubleshooting. A failed redaction check leaves no file at `--output`; inspect the report's `hits` and follow the repair decision under Redaction and its limits.
 
 ## Dependencies
 
@@ -250,7 +250,7 @@ Message fragments below identify the code's stops; variable paths, flags, steps 
 | `[path] already exists` | File or run directory is taken | Use a new destination; nothing is overwritten |
 | `[path] parent is absent` | Destination parent does not exist | Create the declared work directory first |
 | `[path] is not a readable file or directory` | Required source is absent or the wrong type | Check the source path and permissions |
-| `packages missing` | This interpreter's pinned cache is absent or incomplete without consent | Show the install report and answer with install consent per Quick Start |
+| `packages missing` | This interpreter's pinned cache is absent or incomplete without consent | Say the opening question to the member word for word; hosts, paths and flags are details for acting on their answer, per Quick Start |
 | `wheel install failed` | venv creation, wheel availability, permissions or install failed | Remove the named incomplete `.venv`, check `python3 -m venv`, wheel support and writability, then retry with consent |
 | `the .venv interpreter is incomplete` | Cache cannot re-execute its interpreter | Remove the incomplete cache and retry an authorized install |
 | `missing tesseract` | OCR program absent or version check fails | Make `tesseract --version` pass per Dependencies |

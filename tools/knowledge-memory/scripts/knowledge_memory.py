@@ -37,7 +37,7 @@ passage candidate pool; an explicit --top-k governs every path.
 --select accepts a JSON list in place of a file. --candidates-only returns passages alone.
 Unknown, repeated and command-inapplicable flags are refused by name.
 forget without confirm reports the planned store changes and writes nothing.
-Wiser asks once per person; a yes covers this install and later installs by any Wiser tool in any copy.
+--install          Say yes to the download this tool needs. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.
 --install is a bare flag, accepted on every command; only graph work and check
 need packages. It authorises ladybug==0.20.4, onnxruntime==1.30.0 and
 tokenizers==0.23.2 in this tool .venv (or WISER_ALLOW_INSTALL=1).
@@ -1555,5 +1555,5 @@ if __name__ == '__main__':
     try:
         main()
     except Exception as error:
-        print('%s: %s' % (type(error).__name__, error), file=sys.stderr)
+        print(str(error) if str(error).startswith('This Wiser skill needs to download and install ') else '%s: %s' % (type(error).__name__, error), file=sys.stderr)
         sys.exit(1)

@@ -29,7 +29,7 @@ import {
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { INSTALL_SCOPE, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
+import { INSTALL_HELP, installQuestion, formatInstallSize, INSTALL_BYTES, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
 
 const HERE = fileURLToPath(import.meta.url);
 const SCRIPT_DIR = dirname(HERE);
@@ -76,7 +76,7 @@ Commands:
 
 Run "node scripts/data.js <command> help" for that command's options.
 
-  --install          Authorise this install. ${INSTALL_SCOPE}
+  --install          ${INSTALL_HELP}
                      WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help, -h       Print this message
 
@@ -101,7 +101,7 @@ Options:
   --format <fmt>   Force csv, json, or tsv. Omit to auto-detect from the content.
   --delimiter <c>  Field delimiter for delimited text. Omit to auto-detect.
   --no-header      Treat the first row as data; columns are named column_1, column_2, ...
-  --install          Authorise this install. ${INSTALL_SCOPE}
+  --install          ${INSTALL_HELP}
                      WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help, -h       Print this message
 
@@ -134,7 +134,7 @@ Options:
   --column <name>  One header, repeated to name more. The argument after this
                    flag is the name, including a name that contains commas or
                    starts with --. Not valid with --columns.
-  --install          Authorise this install. ${INSTALL_SCOPE}
+  --install          ${INSTALL_HELP}
                      WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help, -h       Print this message
 
@@ -167,7 +167,7 @@ Options:
                    The column name is everything before the last colon.
   --format <fmt>   Force csv, json, or tsv. Omit to auto-detect from the content.
   --delimiter <c>  Field delimiter for delimited text. Omit to auto-detect.
-  --install          Authorise this install. ${INSTALL_SCOPE}
+  --install          ${INSTALL_HELP}
                      WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help, -h       Print this message
 
@@ -195,7 +195,7 @@ Options:
   --how <mode>     inner (default) or left.
   --format <fmt>   Force csv, json, or tsv on both sides. Omit to auto-detect each side.
   --delimiter <c>  Field delimiter for delimited text on both sides. Omit to auto-detect.
-  --install          Authorise this install. ${INSTALL_SCOPE}
+  --install          ${INSTALL_HELP}
                      WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help, -h       Print this message
 
@@ -229,7 +229,7 @@ Options:
   --delimiter <c>  Field delimiter for delimited text. Omit to auto-detect.
   --overwrite      Replace a file already at --output. Without it, an occupied
                    path is refused and nothing is written.
-  --install          Authorise this install. ${INSTALL_SCOPE}
+  --install          ${INSTALL_HELP}
                      WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help, -h       Print this message
 
@@ -260,7 +260,7 @@ Options:
                    the JavaScript double unrounded.
   --format <fmt>   Force json. Omit to read the file as JSON.
   --delimiter <c>  Accepted; compute reads JSON, so the delimiter is unused.
-  --install          Authorise this install. ${INSTALL_SCOPE}
+  --install          ${INSTALL_HELP}
                      WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help, -h       Print this message
 
@@ -443,12 +443,12 @@ function requireInstallConsent(what, install) {
   }
   if (what === 'browser') {
     fail(
-      `Error: this tool's packages are installed but the Chromium build they drive is not, and this person has not authorised a Wiser install. ${INSTALL_SCOPE} Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+      `${installQuestion('a private copy of the Chromium browser', "read your data files and draw charts from them", formatInstallSize(INSTALL_BYTES.chromium))}\n\nDetails for the assistant: this tool's packages are installed but the Chromium build they drive is not, and this person has not authorised a Wiser install. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
     );
   }
   const { list, hosts, size } = installPlan();
   fail(
-    `Error: this tool is not installed yet and this person has not authorised a Wiser install. ${INSTALL_SCOPE} Installing fetches ${list} from ${hosts} into ${TOOL_DIR}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+    `${installQuestion("a spreadsheet-file reader", "read your data files and draw charts from them", formatInstallSize(INSTALL_BYTES.data))}\n\nDetails for the assistant: this tool is not installed yet and this person has not authorised a Wiser install. Installing fetches ${list} from ${hosts} into ${TOOL_DIR}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
   );
 }
 

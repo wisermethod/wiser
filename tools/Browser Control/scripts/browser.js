@@ -18,7 +18,7 @@ import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
 import { hardenProfile, launchArgs } from './lib/profile.js';
-import { INSTALL_SCOPE, installAuthorised, writeConsent } from '../../lib/consent.js';
+import { INSTALL_HELP, installQuestion, formatInstallSize, INSTALL_BYTES, installAuthorised, writeConsent } from '../../lib/consent.js';
 import { runtimeDir, activeRuntimeDir, personRuntimeDir, installBrowserRuntime } from '../../lib/browser-runtime/browser-runtime.js';
 
 const HERE = fileURLToPath(import.meta.url);
@@ -115,7 +115,7 @@ Options:
                          storage clear, and upload. Opt-in only; nothing is read
                          from stdin and there is no skip flag.
   --timeout [ms]         Per-action timeout where the command takes one.
-  --install          Authorise this install. ${INSTALL_SCOPE}
+  --install          ${INSTALL_HELP}
                      WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help, -h             Print this message
 
@@ -623,7 +623,7 @@ function installPlan() {
   return {
     packages,
     size: WILL_FETCH_BROWSER
-      ? ' This run then fetches the Chromium build, several hundred megabytes, from cdn.playwright.dev, or from playwright.download.prss.microsoft.com when Playwright falls back. That build does NOT land here: it goes wherever Playwright keeps browser builds on this machine, which tools/AGENTS.md names for each platform.'
+      ? ' This run then fetches the Chromium build if it is missing, several hundred megabytes, from cdn.playwright.dev, or from playwright.download.prss.microsoft.com when Playwright falls back. That build does NOT land here: it goes wherever Playwright keeps browser builds on this machine, which tools/AGENTS.md names for each platform.'
       : ''
   };
 }
@@ -863,12 +863,12 @@ function requireInstallConsent(what) {
   }
   if (what === 'browser') {
     fail(
-      `Error: this tool's packages are installed but the Chromium build they drive is not, and this person has not authorised a Wiser install. ${INSTALL_SCOPE} Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+      `${installQuestion('a private copy of the Chromium browser', "open web pages in a window of its own, without touching your own browser", formatInstallSize(INSTALL_BYTES.chromium))}\n\nDetails for the assistant: this tool's packages are installed but the Chromium build they drive is not, and this person has not authorised a Wiser install. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
     );
   }
   const { packages, size } = installPlan();
   fail(
-    `Error: this tool is not installed yet and this person has not authorised a Wiser install. ${INSTALL_SCOPE} ${packages}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+    `${installQuestion("the code that drives a browser (and a private copy of the Chromium browser, if you don't have it yet)", "open web pages in a window of its own, without touching your own browser", `${formatInstallSize(INSTALL_BYTES.playwright)}, or about ${formatInstallSize(INSTALL_BYTES.playwright + INSTALL_BYTES.chromium)} with the browser`)}\n\nDetails for the assistant: this tool is not installed yet and this person has not authorised a Wiser install. ${packages}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
   );
 }
 

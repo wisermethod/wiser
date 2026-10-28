@@ -94,7 +94,7 @@ for (const kind of ['symlink','group-writable','other-owned']) test(`user-config
     f.c.writeConsent(f.script,'test',true);
     assert.deepEqual(readFileSync(f.marker),before);
     assert.equal(f.c.installAuthorised(f.script,false),true,'matching copy consent still works');
-    assert.match(stderr,/^This consent covers only this copy: .+\.\n$/);
+    assert.match(stderr,/^Wiser will install this, but it can only remember your yes until the next Wiser update, so you may be asked again then. Reason: .+\.\n$/);
     assert.match(stderr,kind==='symlink'?/real directory/:kind==='group-writable'?/writable by group/:/owned by another/);
   } finally {output.mock.restore();owner?.mock.restore();}
 });

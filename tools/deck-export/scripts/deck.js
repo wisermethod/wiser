@@ -19,7 +19,7 @@ import { accessSync, constants, cpSync, copyFileSync, existsSync, mkdirSync, rea
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { INSTALL_SCOPE, flagAuthorised, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
+import { INSTALL_HELP, installQuestion, formatInstallSize, INSTALL_BYTES, flagAuthorised, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
 import { runtimeDir, activeRuntimeDir, personRuntimeDir, installBrowserRuntime } from '../../lib/browser-runtime/browser-runtime.js';
 
 const HERE = fileURLToPath(import.meta.url);
@@ -76,7 +76,7 @@ Commands:
   help, --help, -h Print this message
 
 Global options:
-  --install          Authorise this install. ${INSTALL_SCOPE}
+  --install          ${INSTALL_HELP}
                      WISER_ALLOW_INSTALL=1 does the same for an unattended run.
 
 Scaffold options:
@@ -161,17 +161,12 @@ function isWritable(dir) {
 const WILL_FETCH_BROWSER = command === 'pdf' || command === 'png' || command === 'check';
 
 function installPlan() {
-  let names = [];
-  try {
-    names = Object.keys(JSON.parse(readFileSync(join(TOOL_DIR, 'package.json'), 'utf8')).dependencies || {});
-  } catch { /* the report degrades to a generic list; the refusal still stands */ }
-  const packages = names.length
-    ? `Installing fetches ${names.join(', ')} from registry.npmjs.org into ${TOOL_DIR}, and playwright from registry.npmjs.org into ${personRuntimeDir()}`
-    : `Installing fetches playwright from registry.npmjs.org into ${personRuntimeDir()}`;
   return {
-    packages,
+    packages: WILL_FETCH_BROWSER
+      ? `Installing fetches playwright from registry.npmjs.org into ${personRuntimeDir()}`
+      : `Installing fetches reveal.js from registry.npmjs.org into ${TOOL_DIR}`,
     size: WILL_FETCH_BROWSER
-      ? ' This run then fetches the Chromium build, several hundred megabytes, from cdn.playwright.dev, or from playwright.download.prss.microsoft.com when Playwright falls back. That build does NOT land here: it goes wherever Playwright keeps browser builds on this machine, which tools/AGENTS.md names for each platform.'
+      ? ' This run then fetches the Chromium build if it is missing, from cdn.playwright.dev, or from playwright.download.prss.microsoft.com when Playwright falls back. The build goes wherever Playwright keeps browser builds on this machine, which tools/AGENTS.md names for each platform.'
       : ''
   };
 }
@@ -189,12 +184,12 @@ function requireInstallConsent(what) {
   }
   if (what === 'browser') {
     fail(
-      `Error: this tool's packages are installed but the Chromium build they drive is not, and this person has not authorised a Wiser install. ${INSTALL_SCOPE} Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+      `${installQuestion('a private copy of the Chromium browser', "build slide decks and save them as PDFs or slide images", formatInstallSize(INSTALL_BYTES.chromium))}\n\nDetails for the assistant: this tool's packages are installed but the Chromium build they drive is not, and this person has not authorised a Wiser install. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
     );
   }
   const { packages, size } = installPlan();
   fail(
-    `Error: this tool is not installed yet and this person has not authorised a Wiser install. ${INSTALL_SCOPE} ${packages}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+    `${installQuestion(WILL_FETCH_BROWSER ? "the code that drives a browser (and a private copy of the Chromium browser, if you don't have it yet)" : 'the reveal.js slide library', "build slide decks and save them as PDFs or slide images", WILL_FETCH_BROWSER ? `${formatInstallSize(INSTALL_BYTES.playwright)}, or about ${formatInstallSize(INSTALL_BYTES.playwright + INSTALL_BYTES.chromium)} with the browser` : formatInstallSize(INSTALL_BYTES.reveal))}\n\nDetails for the assistant: this tool is not installed yet and this person has not authorised a Wiser install. ${packages}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
   );
 }
 

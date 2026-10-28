@@ -59,6 +59,44 @@ class ChatterboxConsentTests(unittest.TestCase):
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(self.error):
             self.install(False)
 
+    def test_install_question_copy(self):
+        self.assertEqual(self.app.INSTALL_ONCE, "You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.")
+        self.assertEqual(self.app.INSTALL_HELP, "Say yes to the download this tool needs. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.")
+        self.assertEqual(self.app.INSTALL_COPY_ONLY, 'Wiser will install this, but it can only remember your yes until the next Wiser update, so you may be asked again then. Reason: ')
+        self.assertEqual(self.app.INSTALL_NOT_SAVED, "Wiser will install this now, but it couldn't remember your yes, so you'll be asked again next time. Reason: ")
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            try:
+                self.install(False)
+            except self.error as error:
+                message = stderr.getvalue() or str(error)
+            else:
+                self.fail("missing packages must refuse without consent")
+        self.assertEqual(stdout.getvalue(), "")
+        first, blank, details = message.split("\n", 2)
+        self.assertTrue(first.startswith("This Wiser skill needs to download and install "), first)
+        self.assertTrue(first.endswith(self.app.INSTALL_ONCE), first)
+        purposes = {
+            "Transcribe Audio": ("line up known words with the moments they're spoken in a recording" if self.app.__name__ == "consent_align" else "turn your recordings into text without uploading them anywhere"),
+            "knowledge-memory": "store and search your knowledge as a connected graph",
+            "Chatterbox": "speak your text in your own voice without uploading your recording anywhere",
+            "Screen Capture": "capture and record app windows and blank out private details",
+        }
+        self.assertIn("in order to " + purposes[self.tool_name] + ".", first)
+        what, size = {
+            "Transcribe Audio": (("the word-timing model and the code libraries it needs", "378 MB")
+                                 if self.app.__name__ == "consent_align" else
+                                 ("the base speech-recognition model and the code libraries it needs", "145 MB")),
+            "knowledge-memory": ("the graph database libraries", None),
+            "Chatterbox": ("the voice model", "3.2 GB"),  # the fixture's libraries are complete
+            "Screen Capture": ("Apple's screen libraries for Python and an image library", "100 MB"),
+        }[self.tool_name]
+        self.assertEqual(first, "This Wiser skill needs to download and install " + what
+                         + " on your machine in order to " + purposes[self.tool_name] + "."
+                         + (" It's about " + size + "." if size else "") + " " + self.app.INSTALL_ONCE)
+        self.assertEqual(blank, "")
+        self.assertTrue(details.startswith("Details for the assistant: "), details)
+
     def test_person_in_fresh_copy(self):
         self.denied()
         self.assertFalse(self.copy_marker.exists())
@@ -70,6 +108,44 @@ class ChatterboxConsentTests(unittest.TestCase):
         self.copy_marker.write_text(json.dumps({"realpath": str(self.root / "old-copy")}))
         with contextlib.redirect_stderr(io.StringIO()):
             self.install(False)
+
+    def test_install_question_size_in_gb(self):
+        with self.assertRaises(cb.ToolError) as failure, \
+                patch.object(cb, "package_state", return_value={"status": "incomplete"}):
+            self.install(False)
+        self.assertEqual(str(failure.exception).split("\n")[0],
+                         "This Wiser skill needs to download and install the voice model and the code libraries it needs on your machine in order to speak your text in your own voice without uploading your recording anywhere. It's about 4.6 GB. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.")
+        for mb, expected in [(0.2, "200 KB"), (4.7, "4.7 MB"), (10, "10 MB"),
+                             (82, "82 MB"), (100, "100 MB"), (138, "140 MB"),
+                             (995, "1.0 GB"), (1000, "1.0 GB"), (4617, "4.6 GB")]:
+            self.assertEqual(cb.install_size(mb * 1e6), expected)
+
+    def test_install_question_names_only_what_is_missing(self):
+        once = " You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates."
+        purpose = " on your machine in order to speak your text in your own voice without uploading your recording anywhere."
+        cases = [({"status": "incomplete"}, {"status": "complete"}, "the code libraries the voice model needs", "1.4 GB", "pypi.org", "huggingface.co"),
+                 ({"status": "complete"}, {"status": "absent"}, "the voice model", "3.2 GB", "huggingface.co", "pypi.org")]
+        for packages, weights, what, size, named, unnamed in cases:
+            with self.subTest(what=what), self.assertRaises(cb.ToolError) as failure, \
+                    patch.object(cb, "package_state", return_value=packages), \
+                    patch.object(cb, "weight_state", return_value=weights):
+                self.install(False)
+            first, blank, details = str(failure.exception).split("\n", 2)
+            self.assertEqual(first, "This Wiser skill needs to download and install " + what + purpose + " It's about " + size + "." + once)
+            self.assertIn(named, details)
+            self.assertNotIn(unnamed, details)
+        # Nothing missing and no saved yes: install asks nothing and fetches nothing.
+        with patch.object(cb, "weight_state", return_value={"status": "complete"}):
+            self.install(False)
+        self.assertFalse(self.marker.exists())
+        # The loader repair then rebuilds the libraries, so it asks for them alone.
+        stderr = io.StringIO()
+        with patch.object(cb, "weight_state", return_value={"status": "complete"}), \
+                patch.object(cb.subprocess, "run", return_value=types.SimpleNamespace(returncode=2)), \
+                contextlib.redirect_stderr(stderr), self.assertRaises(cb.ToolError) as failure:
+            cb.install({"--route-chosen": True, "--install": False}, self.root / "models")
+        self.assertTrue(str(failure.exception).startswith("This Wiser skill needs to download and install the code libraries the voice model needs"), str(failure.exception))
+        self.assertNotIn("rebuild", stderr.getvalue(), "nothing may claim a rebuild before the question is answered")
 
     def test_invalid_person_records(self):
         for record in ({}, [], "broken", {**self.valid, "scope": "copy"},
@@ -128,8 +204,8 @@ class ChatterboxConsentTests(unittest.TestCase):
         finally:
             self.copy.chmod(0o700)
         warnings = [line for line in output.getvalue().splitlines()
-                    if "consent covers" in line or "no consent was saved" in line]
-        self.assertEqual(warnings, ["This run is authorised and no consent was saved: the user-config directory is writable by group or others."])
+                    if line.startswith("Wiser will install this")]
+        self.assertEqual(warnings, ["Wiser will install this now, but it couldn't remember your yes, so you'll be asked again next time. Reason: the user-config directory is writable by group or others."])
         self.assertFalse(self.copy_marker.exists())
         self.assertFalse(self.marker.exists())
 
@@ -142,8 +218,8 @@ class ChatterboxConsentTests(unittest.TestCase):
         self.assertTrue(self.copy_marker.is_file())
         self.assertFalse(self.marker.exists())
         warnings = [line for line in output.getvalue().splitlines()
-                    if line.startswith("This consent covers only this copy:")]
-        self.assertEqual(warnings, ["This consent covers only this copy: the user-config directory is writable by group or others."])
+                    if line.startswith("Wiser will install this, but it can only remember your yes until the next Wiser update, so you may be asked again then. Reason:")]
+        self.assertEqual(warnings, ["Wiser will install this, but it can only remember your yes until the next Wiser update, so you may be asked again then. Reason: the user-config directory is writable by group or others."])
 
     def test_copy_marker_realpath(self):
         for record in ({"realpath": str(self.root / "other-copy")}, {}, [], "bad"):
@@ -228,8 +304,8 @@ class ChatterboxConsentTests(unittest.TestCase):
                         self.install(True)
                     self.assertEqual(self.marker.read_bytes(), before)
                     self.assertTrue(self.copy_marker.is_file())
-                    self.assertRegex(output.getvalue(), r"This consent covers only this copy: [^\n]+\n")
-                    warning = [line for line in output.getvalue().splitlines() if line.startswith("This consent covers only this copy:")]
+                    self.assertRegex(output.getvalue(), r"Wiser will install this, but it can only remember your yes until the next Wiser update, so you may be asked again then. Reason: [^\n]+\n")
+                    warning = [line for line in output.getvalue().splitlines() if line.startswith("Wiser will install this, but it can only remember your yes until the next Wiser update, so you may be asked again then. Reason:")]
                     self.assertEqual(len(warning), 1)
                     reason = {"symlink": "real directory", "group-writable": "writable by group", "other-owned": "owned by another"}[kind]
                     self.assertIn(reason, warning[0])

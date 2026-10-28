@@ -34,13 +34,15 @@ script = TOOL / "scripts/transcribe.py"
 tree = ast.parse(script.read_text(), filename=str(script))
 names = {"trusted_config_dir", "copy_only", "warn_copy_consent", "platform_user_config_dir", "flag_authorised", "marker_grants", "person_marker_grants",
          "write_marker", "write_person_consent", "install_authorised", "write_consent",
-         "require_install_consent", "stop", "fail"}
+         "require_install_consent", "stop", "fail", "install_question", "install_size"}
 header = tree.body[:next(i for i, node in enumerate(tree.body) if isinstance(node, ast.Assign))]
 selected = [node for node in tree.body if (node in header and isinstance(node, (ast.Import, ast.ImportFrom)))
-            or (isinstance(node, ast.FunctionDef) and node.name in names)]
+            or (isinstance(node, ast.FunctionDef) and node.name in names)
+            or (isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and (t.id.startswith("INSTALL_") or t.id == "MODEL_QUESTION_SIZES") for t in node.targets))]
 transcribe = types.ModuleType("consent_transcribe")
 exec(compile(ast.Module(body=selected, type_ignores=[]), str(script), "exec"), transcribe.__dict__)
 transcribe.CONSENT_MARKER = ".wiser-consent"
+transcribe.model = "base"
 
 
 class ConsentCases:
@@ -73,6 +75,44 @@ class ConsentCases:
     def denied(self):
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(self.error):
             self.install(False)
+
+    def test_install_question_copy(self):
+        self.assertEqual(self.app.INSTALL_ONCE, "You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.")
+        self.assertEqual(self.app.INSTALL_HELP, "Say yes to the download this tool needs. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.")
+        self.assertEqual(self.app.INSTALL_COPY_ONLY, 'Wiser will install this, but it can only remember your yes until the next Wiser update, so you may be asked again then. Reason: ')
+        self.assertEqual(self.app.INSTALL_NOT_SAVED, "Wiser will install this now, but it couldn't remember your yes, so you'll be asked again next time. Reason: ")
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            try:
+                self.install(False)
+            except self.error as error:
+                message = stderr.getvalue() or str(error)
+            else:
+                self.fail("missing packages must refuse without consent")
+        self.assertEqual(stdout.getvalue(), "")
+        first, blank, details = message.split("\n", 2)
+        self.assertTrue(first.startswith("This Wiser skill needs to download and install "), first)
+        self.assertTrue(first.endswith(self.app.INSTALL_ONCE), first)
+        purposes = {
+            "Transcribe Audio": ("line up known words with the moments they're spoken in a recording" if self.app.__name__ == "consent_align" else "turn your recordings into text without uploading them anywhere"),
+            "knowledge-memory": "store and search your knowledge as a connected graph",
+            "Chatterbox": "speak your text in your own voice without uploading your recording anywhere",
+            "Screen Capture": "capture and record app windows and blank out private details",
+        }
+        self.assertIn("in order to " + purposes[self.tool_name] + ".", first)
+        what, size = {
+            "Transcribe Audio": (("the code libraries word timing needs (and the word-timing model, if you don't have it yet)", "380 MB for the model, if it's needed, plus the code libraries")
+                                 if self.app.__name__ == "consent_align" else
+                                 ("the code libraries speech recognition needs (and the base speech-recognition model, if you don't have it yet)", "145 MB for the model, if it's needed, plus the code libraries")),
+            "knowledge-memory": ("the graph database libraries", None),
+            "Chatterbox": ("the voice model and the code libraries it needs", "4.6 GB"),
+            "Screen Capture": ("Apple's screen libraries for Python and an image library", "100 MB"),
+        }[self.tool_name]
+        self.assertEqual(first, "This Wiser skill needs to download and install " + what
+                         + " on your machine in order to " + purposes[self.tool_name] + "."
+                         + (" It's about " + size + "." if size else "") + " " + self.app.INSTALL_ONCE)
+        self.assertEqual(blank, "")
+        self.assertTrue(details.startswith("Details for the assistant: "), details)
 
     def test_person_in_fresh_copy(self):
         self.denied()
@@ -143,8 +183,8 @@ class ConsentCases:
         finally:
             self.copy.chmod(0o700)
         warnings = [line for line in output.getvalue().splitlines()
-                    if "consent covers" in line or "no consent was saved" in line]
-        self.assertEqual(warnings, ["This run is authorised and no consent was saved: the user-config directory is writable by group or others."])
+                    if line.startswith("Wiser will install this")]
+        self.assertEqual(warnings, ["Wiser will install this now, but it couldn't remember your yes, so you'll be asked again next time. Reason: the user-config directory is writable by group or others."])
         self.assertFalse(self.copy_marker.exists())
         self.assertFalse(self.marker.exists())
 
@@ -157,8 +197,8 @@ class ConsentCases:
         self.assertTrue(self.copy_marker.is_file())
         self.assertFalse(self.marker.exists())
         warnings = [line for line in output.getvalue().splitlines()
-                    if line.startswith("This consent covers only this copy:")]
-        self.assertEqual(warnings, ["This consent covers only this copy: the user-config directory is writable by group or others."])
+                    if line.startswith("Wiser will install this, but it can only remember your yes until the next Wiser update, so you may be asked again then. Reason:")]
+        self.assertEqual(warnings, ["Wiser will install this, but it can only remember your yes until the next Wiser update, so you may be asked again then. Reason: the user-config directory is writable by group or others."])
 
     def test_copy_marker_realpath(self):
         for record in ({"realpath": str(self.root / "other-copy")}, {}, [], "bad"):
@@ -243,8 +283,8 @@ class ConsentCases:
                         self.install(True)
                     self.assertEqual(self.marker.read_bytes(), before)
                     self.assertTrue(self.copy_marker.is_file())
-                    self.assertRegex(output.getvalue(), r"This consent covers only this copy: [^\n]+\n")
-                    warning = [line for line in output.getvalue().splitlines() if line.startswith("This consent covers only this copy:")]
+                    self.assertRegex(output.getvalue(), r"Wiser will install this, but it can only remember your yes until the next Wiser update, so you may be asked again then. Reason: [^\n]+\n")
+                    warning = [line for line in output.getvalue().splitlines() if line.startswith("Wiser will install this, but it can only remember your yes until the next Wiser update, so you may be asked again then. Reason:")]
                     self.assertEqual(len(warning), 1)
                     reason = {"symlink": "real directory", "group-writable": "writable by group", "other-owned": "owned by another"}[kind]
                     self.assertIn(reason, warning[0])
@@ -299,6 +339,25 @@ class AlignConsentTests(ConsentCases, unittest.TestCase):
         self.config_dir = align.config_dir
         self.stack.enter_context(patch.object(align, "plugin_root", return_value=self.copy))
 
+    def test_library_gate_and_later_weights_gate_name_exact_fetch(self):
+        opts = {"--model-cache": str(self.home / "models")}
+        with patch.object(align, "CACHE_DIR", self.tool / ".venv"), \
+                patch.object(align, "environment_info", return_value={"python": [3, 11], "implementation": "cpython"}):
+            with self.assertRaises(align.AlignmentError) as failure:
+                align.ensure_environment(opts, [])
+        self.assertEqual(str(failure.exception).split("\n")[0],
+                         "This Wiser skill needs to download and install the code libraries word timing needs (and the word-timing model, if you don't have it yet) on your machine in order to line up known words with the moments they're spoken in a recording. It's about 380 MB for the model, if it's needed, plus the code libraries. " + align.INSTALL_ONCE)
+        for text in ("pypi.org", "files.pythonhosted.org", "download.pytorch.org", str(self.home / "models/alignment-models")):
+            self.assertIn(text, str(failure.exception))
+        torch = types.SimpleNamespace(hub=types.SimpleNamespace(download_url_to_file=lambda *a: None))
+        bundle = types.SimpleNamespace(_path="fixture.pt", get_model=lambda **kw: (_ for _ in ()).throw(align.DownloadNeeded()))
+        with self.assertRaises(align.AlignmentError) as failure:
+            align.load_model(torch, bundle, self.home / "models", opts)
+        self.assertEqual(str(failure.exception).split("\n")[0],
+                         "This Wiser skill needs to download and install the word-timing model on your machine in order to line up known words with the moments they're spoken in a recording. It's about 380 MB. " + align.INSTALL_ONCE)
+        self.assertNotIn("pypi.org", str(failure.exception))
+        self.assertNotIn("code libraries", str(failure.exception))
+
     def install(self, explicit):
         align.consent({"--install": explicit}, "synthetic packages missing")
 
@@ -313,15 +372,22 @@ class TranscribeConsentTests(ConsentCases, unittest.TestCase):
                       and node.test.operand.id == "weights_present")
         def stop(message):
             raise RuntimeError(message)
-        state = dict(weights_present=False, install_authorised=lambda: False,
-                     model="base", speech_models=self.home / "speech-models",
-                     MODEL_SIZES={"base": "roughly 145MB"}, fail=stop)
-        with self.assertRaises(RuntimeError) as failure:
-            exec(compile(ast.Module(body=[branch], type_ignores=[]), str(script), "exec"), state)
-        message = str(failure.exception)
-        self.assertIn("Wiser asks once per person; a yes covers this install and later installs by any Wiser tool in any copy.", message)
-        for text in ("openaipublic.azureedge.net", str(state["speech_models"]), "roughly 145MB", "packages are already installed"):
-            self.assertIn(text, message)
+        for model, size, technical in [("base", "145 MB", "roughly 145MB"),
+                                       ("medium", "1.5 GB", "about 1.5GB"),
+                                       ("large", "3.1 GB", "about 3.1GB")]:
+            state = dict(weights_present=False, install_authorised=lambda: False,
+                         model=model, speech_models=self.home / "speech-models",
+                         MODEL_SIZES={model: technical}, MODEL_QUESTION_SIZES=transcribe.MODEL_QUESTION_SIZES,
+                         install_question=transcribe.install_question, fail=stop)
+            with self.subTest(model=model), self.assertRaises(RuntimeError) as failure:
+                exec(compile(ast.Module(body=[branch], type_ignores=[]), str(script), "exec"), state)
+            message = str(failure.exception)
+            self.assertEqual(message.split("\n")[0],
+                             "This Wiser skill needs to download and install the " + model
+                             + " speech-recognition model on your machine in order to turn your recordings into text without uploading them anywhere. It's about "
+                             + size + ". You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.")
+            for text in ("openaipublic.azureedge.net", str(state["speech_models"]), technical, "packages are already installed"):
+                self.assertIn(text, message)
 
     def configure(self):
         self.app = transcribe
@@ -330,6 +396,7 @@ class TranscribeConsentTests(ConsentCases, unittest.TestCase):
         self.config_dir = transcribe.platform_user_config_dir
         self.stack.enter_context(patch.object(transcribe, "plugin_root", return_value=self.copy, create=True))
         transcribe.CACHE_DIR = self.tool / ".venv"
+        transcribe.model_cache = self.home / "models"
 
     def install(self, explicit):
         with patch.object(sys, "argv", ["transcribe.py"] + (["--install"] if explicit else [])):

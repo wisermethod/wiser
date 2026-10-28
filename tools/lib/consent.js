@@ -27,7 +27,27 @@ import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { wiserUserConfigDir } from './user-config.js';
 
-export const INSTALL_SCOPE = 'Wiser asks once per person; a yes covers this install and later installs by any Wiser tool in any copy.';
+export const INSTALL_ONCE = "You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.";
+export const INSTALL_HELP = "Say yes to the download this tool needs. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.";
+
+export const INSTALL_COPY_ONLY = "Wiser will install this, but it can only remember your yes until the next Wiser update, so you may be asked again then. Reason: ";
+export const INSTALL_NOT_SAVED = "Wiser will install this now, but it couldn't remember your yes, so you'll be asked again next time. Reason: ";
+
+export function installQuestion(what, purpose, size) {
+  return 'This Wiser skill needs to download and install ' + what + ' on your machine in order to ' + purpose + '.'
+    + (size ? " It's about " + size + '.' : '') + ' ' + INSTALL_ONCE;
+}
+
+// Decimal units for measured install footprints, rounded for the member question.
+export function formatInstallSize(bytes) {
+  const kb = Math.max(1, Math.round(bytes / 1000));
+  const tenths = Math.round(bytes / 100000);
+  const mb = bytes / 1e6;
+  if (mb < 1) return kb < 1000 ? `${kb} KB` : '1.0 MB';
+  if (mb < 10) return tenths < 100 ? `${(tenths / 10).toFixed(1)} MB` : '10 MB';
+  const rounded = Math.round(mb / (mb >= 100 ? 10 : 1)) * (mb >= 100 ? 10 : 1);
+  return rounded >= 1000 ? `${(Math.round(bytes / 1e8) / 10).toFixed(1)} GB` : `${rounded} MB`;
+}
 
 const MARKER_NAME = '.wiser-consent';
 
@@ -138,7 +158,7 @@ function writeMarker(file, data) {
 const warned = new Set();
 function copyOnly(error, saved = true) {
   const reason = String(error.message || error.code || error).split(/[\r\n]/)[0];
-  const message = `${saved ? 'This consent covers only this copy' : 'This run is authorised and no consent was saved'}: ${reason}.`;
+  const message = `${saved ? INSTALL_COPY_ONLY : INSTALL_NOT_SAVED}${reason}.`;
   if (!warned.has(message)) { process.stderr.write(`${message}\n`); warned.add(message); }
 }
 
@@ -167,3 +187,9 @@ export function writeConsent(fromFile, tool, install) {
   }
   if (personError) copyOnly(personError, copySaved);
 }
+
+// Allocated bytes measured on macOS ARM64, 2026-10-28 (du -sk times 1024).
+export const INSTALL_BYTES = Object.freeze({
+  chromium: 578678784, playwright: 19120128, mermaid: 64602112, reveal: 6045696,
+  image: 16936960, harvester: 3768320, request: 1617920, data: 1499136, keynote: 1310720,
+});

@@ -168,7 +168,7 @@ test('R5 Node untrusted config plus unwritable copy reports no saved consent', a
   const watch = mock.method(process.stderr, 'write', s => { stderr += s; return true; });
   try { c.writeConsent(join(f.copy, 'tools/fake/run.js'), 'R2', true); }
   finally { watch.mock.restore(); fs.chmodSync(f.copy, 0o700); }
-  assert.equal(stderr, 'This run is authorised and no consent was saved: the user-config directory is writable by group or others.\n');
+  assert.equal(stderr, "Wiser will install this now, but it couldn't remember your yes, so you'll be asked again next time. Reason: the user-config directory is writable by group or others.\n");
   assert.equal(fs.existsSync(join(config, '.wiser-consent')), false);
   assert.equal(fs.existsSync(join(f.copy, '.wiser-consent')), false);
 });

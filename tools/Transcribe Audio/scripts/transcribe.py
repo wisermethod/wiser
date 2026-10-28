@@ -28,6 +28,31 @@ import sys
 from datetime import date, datetime
 from pathlib import Path
 
+INSTALL_ONCE = "You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates."
+INSTALL_HELP = "Say yes to the download this tool needs. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates."
+INSTALL_COPY_ONLY = "Wiser will install this, but it can only remember your yes until the next Wiser update, so you may be asked again then. Reason: "
+INSTALL_NOT_SAVED = "Wiser will install this now, but it couldn't remember your yes, so you'll be asked again next time. Reason: "
+
+
+def install_question(what, purpose, size=None):
+    return ("This Wiser skill needs to download and install " + what + " on your machine in order to " + purpose + "."
+            + (" It's about " + size + "." if size else "") + " " + INSTALL_ONCE)
+
+
+def install_size(size_bytes):
+    def rounded(divisor):
+        return int(size_bytes / divisor + 0.5)
+    if size_bytes < 1000000:
+        kb = max(1, rounded(1000))
+        return "%d KB" % kb if kb < 1000 else "1.0 MB"
+    if size_bytes < 10000000:
+        tenths = rounded(100000)
+        return "%.1f MB" % (tenths / 10) if tenths < 100 else "10 MB"
+    mb = rounded(10000000) * 10 if size_bytes >= 100000000 else rounded(1000000)
+    return "%.1f GB" % (rounded(100000000) / 10) if mb >= 1000 else "%d MB" % mb
+
+
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 TOOL_DIR = SCRIPT_DIR.parent
 
@@ -123,6 +148,8 @@ MODEL_SIZES = {
     "large": "about 3.1GB",
 }
 
+MODEL_QUESTION_SIZES = {"tiny": "75 MB", "base": "145 MB", "small": "480 MB", "medium": "1.5 GB", "large": "3.1 GB"}
+
 # The transcription language the engine is pinned to. TOOL.md states the limit.
 LANGUAGE = "en"
 
@@ -148,8 +175,7 @@ Options:
   --audio [path]        The audio file, absolute. One of: {formats}
   --output [dir]        Directory the transcript is written into, absolute and
                         outside this tool directory
-  --install             Authorise installs for this person across plugin copies.
-                      Wiser asks once per person; a yes covers this install and later installs by any Wiser tool in any copy.
+  --install          Say yes to the download this tool needs. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.
                         Without consent, a command needing missing packages
                         reports what it would fetch, and from where, and stops.
                         That answer covers every later
@@ -178,7 +204,7 @@ def stop(message):
 
 def fail(message):
     """A failure, which is every stop but the consent report's re-run notice."""
-    stop("Error: " + message)
+    stop(("" if message.startswith("This Wiser skill needs to download and install ") else "Error: ") + message)
 
 
 def note(message):
@@ -558,8 +584,8 @@ def write_marker(path, payload):
 
 def copy_only(error, saved=True):
     reason = str(error).splitlines()[0]
-    message = "This consent covers only this copy" if saved else "This run is authorised and no consent was saved"
-    sys.stderr.write(message + ": " + reason + ".\n")
+    message = INSTALL_COPY_ONLY if saved else INSTALL_NOT_SAVED
+    sys.stderr.write(message + reason + ".\n")
 
 
 def warn_copy_consent():
@@ -632,14 +658,14 @@ def require_install_consent(label):
         write_consent()
         return
     fail(
+        install_question("the code libraries speech recognition needs (and the %s speech-recognition model, if you don't have it yet)" % model, "turn your recordings into text without uploading them anywhere", MODEL_QUESTION_SIZES[model] + " for the model, if it's needed, plus the code libraries") + "\n\nDetails for the assistant: " +
         "this tool is not installed yet and no valid install consent is available. "
-        "Wiser asks once per person; a yes covers this install and later installs by any Wiser tool in any copy. "
         "Installing creates a virtual environment at %s and fetches the %s packages into it "
-        "from pypi.org, several hundred megabytes, with pip's own download cache switched off "
-        "and writes person and copy consent markers. tools/AGENTS.md lists every write an install makes. "
+        "from pypi.org and files.pythonhosted.org, with pip's own download cache switched off "
+        "and, if needed, fetches the selected speech-recognition model from openaipublic.azureedge.net into %s. It also writes person and copy consent markers. tools/AGENTS.md lists every write an install makes. "
         "Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 "
         "for an unattended run. Nothing is read from stdin, so this is the only way to answer."
-        % (CACHE_DIR, label)
+        % (CACHE_DIR, label, model_cache / "speech-models")
     )
 
 
@@ -812,8 +838,9 @@ if not weights_present:
         write_consent()
     if not install_authorised():
         fail(
+            install_question("the %s speech-recognition model" % model, "turn your recordings into text without uploading them anywhere", MODEL_QUESTION_SIZES[model]) + "\n\nDetails for the assistant: " +
             "the %s speech model is not on this machine as a file whisper will accept, and "
-            "no valid install consent is available for a download. Wiser asks once per person; a yes covers this install and later installs by any Wiser tool in any copy. That covers three states and they need the "
+            "no valid install consent is available for a download. That covers three states and they need the "
             "same answer: no file at all, a file whose SHA-256 does not match the one in "
             "whisper's own URL -- which is what an interrupted download leaves, and whisper "
             "re-downloads on it -- and a whisper this script cannot ask, which it treats as "

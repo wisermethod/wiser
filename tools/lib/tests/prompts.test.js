@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { fixture } from './fixtures.js';
-import { INSTALL_SCOPE } from '../consent.js';
+import { INSTALL_ONCE, INSTALL_HELP } from '../consent.js';
 
 const nodeScripts = [
   'Form/scripts/form.js', 'tag-audit/scripts/tag-audit.js', 'sitemap/scripts/sitemap.js', 'Content Harvester/scripts/harvest.js',
@@ -16,11 +16,11 @@ for (const script of nodeScripts) test(`${script} help states the full consent s
   fixture(t);
   const result=spawnSync(process.execPath,[fileURLToPath(new URL('../../'+script,import.meta.url)),'help'],{env:process.env,encoding:'utf8'});
   assert.equal(result.status,0,result.stderr);assert.equal(result.stderr,'');
-  assert.ok(result.stdout.includes(INSTALL_SCOPE),result.stdout);
+  assert.ok(result.stdout.includes('--install          '+INSTALL_HELP),result.stdout);
 });
 test('video-render\'s install plan states the full consent scope', async () => {
   const { installPlan } = await import('../../video-render/scripts/dependencies.mjs');
-  assert.ok(installPlan().startsWith(INSTALL_SCOPE), installPlan());
+  assert.ok(installPlan().split('\n')[0].endsWith(INSTALL_ONCE), installPlan());
 });
 const pythonScripts = [
   ['Transcribe Audio/scripts/transcribe.py',['help']],
@@ -33,5 +33,5 @@ for (const [script,args] of pythonScripts) test(`${script} ${args.join(' ')} sta
   fixture(t);
   const result=spawnSync('python3.11',[fileURLToPath(new URL('../../'+script,import.meta.url)),...args],{env:process.env,encoding:'utf8'});
   assert.equal(result.status,0,result.stderr);assert.equal(result.stderr,'');
-  assert.ok(result.stdout.includes(INSTALL_SCOPE),result.stdout);
+  assert.ok(result.stdout.includes('--install          '+INSTALL_HELP),result.stdout);
 });

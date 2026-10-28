@@ -25,7 +25,7 @@ import {
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { INSTALL_SCOPE, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
+import { INSTALL_HELP, installQuestion, formatInstallSize, INSTALL_BYTES, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
 
 import {
   ALPHA_ENCODERS,
@@ -89,7 +89,7 @@ Commands:
 
 Run "node scripts/image.js <command> help" for that command's options.
 
-  --install          Authorise this install. ${INSTALL_SCOPE}
+  --install          ${INSTALL_HELP}
                      WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help, -h       Print this message
 
@@ -136,7 +136,7 @@ Operations, applied in this order:
 Other:
   --overwrite         Replace a file already at --output. Without it, an
                       occupied path is refused and nothing is written.
-  --install          Authorise this install. ${INSTALL_SCOPE}
+  --install          ${INSTALL_HELP}
                      WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help              Print this message
 
@@ -169,7 +169,7 @@ Options:
   --confirm          Permits an in-place run, which destroys the base image
                      irrecoverably. Opt-in; never prompted for. --overwrite does
                      not stand in for it, and it does not stand in for --overwrite.
-  --install          Authorise this install. ${INSTALL_SCOPE}
+  --install          ${INSTALL_HELP}
                      WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help             Print this message
 
@@ -262,12 +262,12 @@ function requireInstallConsent(what) {
   }
   if (what === 'browser') {
     fail(
-      `Error: this tool's packages are installed but the Chromium build they drive is not, and this person has not authorised a Wiser install. ${INSTALL_SCOPE} Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+      `${installQuestion('a private copy of the Chromium browser', "edit images and layer one image over another", formatInstallSize(INSTALL_BYTES.chromium))}\n\nDetails for the assistant: this tool's packages are installed but the Chromium build they drive is not, and this person has not authorised a Wiser install. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
     );
   }
   const { list, hosts, size } = installPlan();
   fail(
-    `Error: this tool is not installed yet and this person has not authorised a Wiser install. ${INSTALL_SCOPE} Installing fetches ${list} from ${hosts} into ${TOOL_DIR}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+    `${installQuestion("the sharp image library", "edit images and layer one image over another", formatInstallSize(INSTALL_BYTES.image))}\n\nDetails for the assistant: this tool is not installed yet and this person has not authorised a Wiser install. Installing fetches ${list} from ${hosts} into ${TOOL_DIR}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
   );
 }
 

@@ -21,6 +21,31 @@ from fractions import Fraction
 from pathlib import Path
 from unittest.mock import patch
 
+INSTALL_ONCE = "You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates."
+INSTALL_HELP = "Say yes to the download this tool needs. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates."
+INSTALL_COPY_ONLY = "Wiser will install this, but it can only remember your yes until the next Wiser update, so you may be asked again then. Reason: "
+INSTALL_NOT_SAVED = "Wiser will install this now, but it couldn't remember your yes, so you'll be asked again next time. Reason: "
+
+
+def install_question(what, purpose, size=None):
+    return ("This Wiser skill needs to download and install " + what + " on your machine in order to " + purpose + "."
+            + (" It's about " + size + "." if size else "") + " " + INSTALL_ONCE)
+
+
+def install_size(size_bytes):
+    def rounded(divisor):
+        return int(size_bytes / divisor + 0.5)
+    if size_bytes < 1000000:
+        kb = max(1, rounded(1000))
+        return "%d KB" % kb if kb < 1000 else "1.0 MB"
+    if size_bytes < 10000000:
+        tenths = rounded(100000)
+        return "%.1f MB" % (tenths / 10) if tenths < 100 else "10 MB"
+    mb = rounded(10000000) * 10 if size_bytes >= 100000000 else rounded(1000000)
+    return "%.1f GB" % (rounded(100000000) / 10) if mb >= 1000 else "%d MB" % mb
+
+
+
 TOOL_DIR = Path(__file__).resolve().parent.parent
 CACHE_DIR = TOOL_DIR / ".venv"
 # Both installed 2.8.0 releases' METADATA declare Python 3.9 through 3.13
@@ -41,8 +66,7 @@ Usage: python3 scripts/transcribe.py align --audio [path] --words [json] --outpu
                       start_sample, end_sample (exclusive), first_word, last_word (inclusive).
   --language [code]    en only (default en); no language detection.
   --model-cache [dir]  Absolute directory, default person-scoped models/ (tools/AGENTS.md).
-  --install           Authorize packages and weights under the plugin's install consent.
-                      Wiser asks once per person; a yes covers this install and later installs by any Wiser tool in any copy.
+  --install          Say yes to the download this tool needs. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.
                       WISER_ALLOW_INSTALL=1 also authorizes an unattended install.
   --help, -h          Print usage without packages, configuration or network.
 Requires CPython 3.9-3.13 and torch==2.8.0, torchaudio==2.8.0 in this tool's .venv.
@@ -284,8 +308,8 @@ def write_marker(path, payload):
 
 def copy_only(error, saved=True):
     reason = str(error).splitlines()[0]
-    message = "This consent covers only this copy" if saved else "This run is authorised and no consent was saved"
-    sys.stderr.write(message + ": " + reason + ".\n")
+    message = INSTALL_COPY_ONLY if saved else INSTALL_NOT_SAVED
+    sys.stderr.write(message + reason + ".\n")
 
 
 def warn_copy_consent():
@@ -333,9 +357,9 @@ def authorized(opts):
         return False
 
 
-def consent(opts, reason):
+def consent(opts, reason, libraries=True):
     if not authorized(opts):
-        raise AlignmentError(reason + " Wiser asks once per person; a yes covers this install and later installs by any Wiser tool in any copy. Re-run with --install or WISER_ALLOW_INSTALL=1 to authorize it.")
+        raise AlignmentError(install_question("the code libraries word timing needs (and the word-timing model, if you don't have it yet)" if libraries else "the word-timing model", "line up known words with the moments they're spoken in a recording", install_size(377664473) + " for the model, if it's needed, plus the code libraries" if libraries else install_size(377664473)) + "\n\nDetails for the assistant: " + reason + " Re-run with --install or WISER_ALLOW_INSTALL=1 to authorize it.")
     if not (opts.get("--install") or os.environ.get("WISER_ALLOW_INSTALL") == "1"):
         warn_copy_consent()
     if opts.get("--install") or os.environ.get("WISER_ALLOW_INSTALL") == "1":
@@ -386,7 +410,7 @@ def ensure_environment(opts, args):
                              % (CACHE_DIR, interpreter))
     if not engines_ready(info):
         consent(opts, "Alignment needs torch==2.8.0 and torchaudio==2.8.0 from pypi.org and "
-                "files.pythonhosted.org, several hundred MB in %s (pip cache disabled)." % CACHE_DIR)
+                "files.pythonhosted.org into %s (pip cache disabled). If needed, this run also fetches the word-timing model from download.pytorch.org into %s." % (CACHE_DIR, Path(opts.get("--model-cache", str(config_dir() / "models"))) / "alignment-models"))
         if not interpreter.exists():
             subprocess.run([sys.executable, "-m", "venv", str(CACHE_DIR)], check=True,
                            stdout=sys.stderr)
@@ -435,8 +459,8 @@ def load_model(torch, bundle, cache, opts):
         if not incomplete_weights(error):
             raise AlignmentError("could not load alignment model; check cache permissions and available RAM; no download attempted.") from error
         repair = True
-    consent(opts, "%s weights are absent or incomplete: about 378 MB (377,664,473 bytes), MIT, "
-            "from download.pytorch.org into %s." % (MODEL, folder))
+    consent(opts, "%s weights are absent or incomplete: about %s (377,664,473 bytes), MIT, "
+            "from download.pytorch.org into %s." % (MODEL, install_size(377664473), folder), libraries=False)
     aside = None
     if repair:
         # Retain the unusable artifact; the native downloader only fetches when
@@ -609,7 +633,7 @@ def main(args=None):
         # Never print decoder output or package/model exceptions, which can
         # carry arbitrary bytes from inputs; user-facing errors above are ours.
         message = str(error) if isinstance(error, AlignmentError) else "alignment failed; check audio, engine versions, output permissions and available RAM; no timings written."
-        print("Error: " + message, file=sys.stderr)
+        print(("" if message.startswith("This Wiser skill needs to download and install ") else "Error: ") + message, file=sys.stderr)
         return 1
 
 

@@ -19,7 +19,7 @@ import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSyn
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { INSTALL_SCOPE, flagAuthorised, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
+import { INSTALL_HELP, installQuestion, formatInstallSize, INSTALL_BYTES, flagAuthorised, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
 import { runtimeDir, activeRuntimeDir, personRuntimeDir, installBrowserRuntime } from '../../lib/browser-runtime/browser-runtime.js';
 
 let install = false;
@@ -110,7 +110,7 @@ Commands:
 
 Run "node scripts/render.js <command> help" for that command's options.
 
-  --install          Authorise this install. ${INSTALL_SCOPE}
+  --install          ${INSTALL_HELP}
                      WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help, -h       Print this message
 
@@ -142,7 +142,7 @@ Options:
                    Default ${HTML_DEFAULT_TIMEOUT_MS}.
   --overwrite      Replace a file already at --output. Without it, a run that
                    would replace one refuses.
-  --install          Authorise this install. ${INSTALL_SCOPE}
+  --install          ${INSTALL_HELP}
                      WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help           Print this message
 
@@ -174,7 +174,7 @@ Options:
                    references (default: ${SVG_DEFAULT_TIMEOUT_MS}).
   --overwrite      Replace an existing file at --output. Without it, a run that
                    would replace one refuses.
-  --install          Authorise this install. ${INSTALL_SCOPE}
+  --install          ${INSTALL_HELP}
                      WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help           Print this message
 
@@ -207,7 +207,7 @@ Options:
                    (default: ${MERMAID_DEFAULTS.timeout})
   --overwrite      Replace a file already at --output. Without it, an occupied
                    path is refused.
-  --install          Authorise this install. ${INSTALL_SCOPE}
+  --install          ${INSTALL_HELP}
                      WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help           Print this message
 
@@ -236,7 +236,7 @@ Options:
                    stop. Default ${URL_DEFAULT_TIMEOUT_MS}; minimum 1000.
   --full-page      Capture the whole scrollable page instead of the viewport.
   --overwrite      Replace the file at --output when one is already there.
-  --install          Authorise this install. ${INSTALL_SCOPE}
+  --install          ${INSTALL_HELP}
                      WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help           Print this message
 
@@ -258,7 +258,7 @@ Commands:
   help             Print this message
 
 Options:
-  --install          Authorise this install. ${INSTALL_SCOPE}
+  --install          ${INSTALL_HELP}
                      WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help           Print this message
 
@@ -356,39 +356,42 @@ function flagFrom(argv, name, usageCmd) {
   return value;
 }
 
-const BROWSER_SIZE = ' This run then fetches the Chromium build, several hundred megabytes, from cdn.playwright.dev, or from playwright.download.prss.microsoft.com when Playwright falls back. That build does NOT land here: it goes wherever Playwright keeps browser builds on this machine, which tools/AGENTS.md names for each platform.';
+const BROWSER_SIZE = ' This run then fetches the Chromium build if it is missing, several hundred megabytes, from cdn.playwright.dev, or from playwright.download.prss.microsoft.com when Playwright falls back. That build does NOT land here: it goes wherever Playwright keeps browser builds on this machine, which tools/AGENTS.md names for each platform.';
 
-function installPlan(needsMermaid) {
-  if (needsMermaid) {
-    let names = [];
-    try {
-      names = Object.keys(JSON.parse(readFileSync(join(TOOL_DIR, 'package.json'), 'utf8')).dependencies || {});
-    } catch { /* the report degrades to a generic list; the refusal still stands */ }
-    const packages = names.length
-      ? `Installing fetches ${names.join(', ')} from registry.npmjs.org into ${TOOL_DIR}, and playwright from registry.npmjs.org into ${personRuntimeDir()}`
-      : `Installing fetches playwright from registry.npmjs.org into ${personRuntimeDir()}`;
-    return { packages, size: BROWSER_SIZE };
-  }
-  return {
-    packages: `Installing fetches playwright from registry.npmjs.org into ${personRuntimeDir()}`,
-    size: BROWSER_SIZE
-  };
+function installPlan({ missingMermaid, missingRuntime, missingBrowser }) {
+  const fetches = [];
+  if (missingMermaid) fetches.push(`mermaid and its dependencies from registry.npmjs.org into ${TOOL_DIR}`);
+  if (missingRuntime) fetches.push(`playwright from registry.npmjs.org into ${personRuntimeDir()}`);
+  return (fetches.length ? `Installing fetches ${fetches.join(' and ')}, and npm writes its own cache outside this plugin.` : '')
+    + (missingRuntime || missingBrowser ? BROWSER_SIZE : '');
 }
 
-function requireInstallConsent(what, { needsMermaid = false } = {}) {
+async function requireInstallConsent(what, { needsMermaid = false } = {}) {
   if (installAuthorised(HERE, install)) {
     writeConsent(HERE, 'render', install);
     return;
   }
-  if (what === 'browser') {
-    fail(
-      `Error: this tool's packages are installed but the Chromium build they drive is not, and this person has not authorised a Wiser install. ${INSTALL_SCOPE} Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
-    );
-  }
-  const { packages, size } = installPlan(needsMermaid);
-  fail(
-    `Error: this tool is not installed yet and this person has not authorised a Wiser install. ${INSTALL_SCOPE} ${packages}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
-  );
+  const missingMermaid = needsMermaid && !existsSync(MERMAID_MARKER);
+  const missingRuntime = !activeRuntimeDir();
+  // The same probe ensureChromium uses distinguishes absent artifacts from host
+  // failures. With Playwright present, an absent build is a known part; a failure
+  // ensureChromium still answers with an install, but that is not a known-absent
+  // build, leaves the browser's need unknown, as it is before Playwright exists.
+  const failure = what === 'browser' || missingRuntime || await chromiumLaunches() ? null : browserSurvey.failure;
+  const missingBrowser = what === 'browser' || failure === 'artifact';
+  const maybeBrowser = missingRuntime || (failure !== null && !['artifact', 'host', 'permission', 'crashed'].includes(failure));
+  const parts = [];
+  let bytes = 0;
+  if (missingMermaid) { parts.push('the Mermaid diagram library'); bytes += INSTALL_BYTES.mermaid; }
+  if (missingRuntime) { parts.push('the code that drives a browser'); bytes += INSTALL_BYTES.playwright; }
+  if (missingBrowser) { parts.push('a private copy of the Chromium browser'); bytes += INSTALL_BYTES.chromium; }
+  const named = parts.length < 3 ? parts.join(' and ') : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`;
+  const question = installQuestion(named + (maybeBrowser ? " (and a private copy of the Chromium browser, if you don't have it yet)" : ''),
+    'turn web pages, drawings and diagrams into image files', maybeBrowser
+      ? `${formatInstallSize(bytes)}, or about ${formatInstallSize(bytes + INSTALL_BYTES.chromium)} with the browser`
+      : formatInstallSize(bytes));
+  const details = installPlan({ missingMermaid, missingRuntime, missingBrowser: missingBrowser || maybeBrowser });
+  fail(`${question}\n\nDetails for the assistant: ${details} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`);
 }
 
 function npmCi(dir, marker, { unwritable, missing }) {
@@ -411,7 +414,7 @@ async function installRuntime() {
 
 async function ensurePlaywright() {
   if (Boolean(activeRuntimeDir())) return;
-  requireInstallConsent('packages', { needsMermaid: false });
+  await requireInstallConsent('packages', { needsMermaid: false });
   await installRuntime();
 }
 
@@ -419,7 +422,7 @@ async function ensureMermaidPackages() {
   const needPlaywright = !Boolean(activeRuntimeDir());
   const needMermaid = !existsSync(MERMAID_MARKER);
   if (!(needPlaywright || needMermaid)) return;
-  requireInstallConsent('packages', { needsMermaid: true });
+  await requireInstallConsent('packages', { needsMermaid: true });
   if (needPlaywright) {
     await installRuntime();
   }
@@ -484,7 +487,7 @@ async function ensureChromium() {
     fail(`Error: ${crashedWhat}, and this message cannot say whether the cause was this machine -- a security tool, an out-of-memory kill, a sandbox policy, or a display a visible window needed and could not get -- or a damaged browser build. ${browserSurvey.remediation || 'The trial launch reported no reason.'} Nothing has been replaced: replacing the build deletes the copy you already have, which is the wrong move when the machine is the cause. If you have ruled the machine out, and accepting that a download which then fails leaves you with neither, replace just this build with: node '${PLAYWRIGHT_CLI}' ${crashedForce}`);
   }
 
-  requireInstallConsent('browser');
+  await requireInstallConsent('browser');
 
   process.stderr.write('Installing the Chromium build this tool drives.\n');
   let plainInstallSucceeded = true;

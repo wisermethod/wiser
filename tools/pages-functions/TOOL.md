@@ -89,7 +89,7 @@ Wrangler `4.136.3`, pinned. The install is about 210 MB, because Wrangler loads 
 
 ## Troubleshooting
 
-**The command stops and names `wrangler 4.136.3`, `registry.npmjs.org`, and about 210 MB.** No valid install consent was found. Re-run with `--install`, or set `WISER_ALLOW_INSTALL=1`. Nothing is read from stdin.
+**The command stops with an install question.** Say its opening question to the member word for word; hosts, paths and flags are details for acting on their answer. No valid install consent was found. Re-run with `--install`, or set `WISER_ALLOW_INSTALL=1`. Nothing is read from stdin.
 
 **`Node.js 22 or newer is required`.** The script checked `process.versions.node` and the major version is below 22.
 

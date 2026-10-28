@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { INSTALL_SCOPE } from '../../lib/consent.js';
+import { INSTALL_HELP } from '../../lib/consent.js';
 /**
  * sitemap - a snapshot of the URLs a site publishes, and a diff of two snapshots
  *
@@ -35,7 +35,7 @@ Commands:
 
 Run "node scripts/sitemap.js <command> help" for that command's options.
 
-  --install          Authorise this install. ${INSTALL_SCOPE}
+  --install          ${INSTALL_HELP}
                      WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help, -h       Print this message
 
@@ -68,7 +68,7 @@ Options:
   --date <date>    YYYY-MM-DD stamped as "fetchedAt" (default: today)
   --output <dir>   Also write the snapshot to a file in this directory, an
                    absolute path that must sit outside this tool directory
-  --install          Authorise this install. ${INSTALL_SCOPE}
+  --install          ${INSTALL_HELP}
                      WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help           Print this message
 

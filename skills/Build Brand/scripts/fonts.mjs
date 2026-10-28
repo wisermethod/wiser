@@ -8,7 +8,7 @@ import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
-import { INSTALL_SCOPE, installAuthorised, writeConsent } from '../../../tools/lib/consent.js';
+import { INSTALL_ONCE, INSTALL_HELP, installQuestion, formatInstallSize, installAuthorised, writeConsent } from '../../../tools/lib/consent.js';
 
 const SCRIPT = fileURLToPath(import.meta.url);
 const SKILL = resolve(dirname(SCRIPT), '..');
@@ -18,7 +18,7 @@ Usage: node scripts/fonts.mjs help
        node scripts/fonts.mjs check [--install] [--from <absolute path>] [--family <name>]...
        node scripts/fonts.mjs assets [--library <absolute parts.json>]
        node scripts/fonts.mjs check help
-  --install          Authorise this install. ${INSTALL_SCOPE}
+  --install          ${INSTALL_HELP}
                      WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --family <name>    Repeatable parts.json fonts key; check/install only these
                      families, including their licences. Omit for the whole pack.
@@ -203,12 +203,19 @@ async function download(url, destination, limit, redirects = 0) {
   await pipeline(response, bound, createWriteStream(destination, { flags: 'wx', mode: 0o600 }));
 }
 
+function fontQuestion(what, bytes, from, family = false) {
+  const ending = family ? 'This yes covers only these typefaces.' : INSTALL_ONCE;
+  if (from) return `This Wiser skill needs to install ${what} on your machine from a copy you already have, in order to set your brand's type. ${ending}`;
+  const question = installQuestion(what, "set your brand's type", formatInstallSize(bytes));
+  return family ? question.slice(0, -INSTALL_ONCE.length) + ending : question;
+}
+
 async function install(library, directory, from, authorised) {
   const pack = fingerprint(library.fontPack, 'fontPack'), expected = members(library);
   let url;
   try { url = new URL(pack.url); } catch { stop('fontPack.url is invalid'); }
   if (url.protocol !== 'https:' || !pack.name) stop('fontPack needs a name and https URL');
-  if (!installAuthorised(SCRIPT, authorised)) stop(`${INSTALL_SCOPE} Installing ${pack.name} fetches ${pack.bytes} bytes (about ${(pack.bytes / 1e6).toFixed(1)} MB) from ${url.hostname} (${pack.url}; GitHub redirects to release-assets.githubusercontent.com)${from ? `, using local copy ${from}` : ''} into ${directory}. Run ${INSTALL} to authorize it; WISER_ALLOW_INSTALL=1 or valid person or matching copy consent also authorizes it`);
+  if (!installAuthorised(SCRIPT, authorised)) stop(`${fontQuestion("Wiser's brand font pack", pack.bytes, from)}\n\nDetails for the assistant: ${from ? `Installing ${pack.name} uses local copy ${from} into ${directory}.` : `Installing ${pack.name} fetches ${pack.bytes} bytes (about ${formatInstallSize(pack.bytes)}) from ${url.hostname} (${pack.url}; GitHub redirects to release-assets.githubusercontent.com) into ${directory}.`} Run ${INSTALL} to authorize it; WISER_ALLOW_INSTALL=1 or valid person or matching copy consent also authorizes it`);
   // All options and metadata have been checked before consent or temp writes.
   writeConsent(SCRIPT, 'Build Brand fonts', authorised);
   process.stderr.write(`First run: installing dependencies (${pack.name}) in ${directory}.\n`);
@@ -233,7 +240,8 @@ async function installFamilies(library, directory, from, authorised, families) {
   if (base.protocol !== 'https:') stop('fontPack.url and redirects must use https');
   for (const name of expected.keys()) safeTarget(directory, name);
   const bytes = files.reduce((total, file) => total + file.bytes, 0);
-  if (!installAuthorised(SCRIPT, authorised)) stop(`${INSTALL_SCOPE} Installing families ${families.join(', ')} fetches ${bytes} bytes from ${base.hostname} (${base.href}; GitHub redirects to release-assets.githubusercontent.com)${from ? `, using local assets ${from}` : ''} into ${directory}. Run ${INSTALL} with --family to authorize it; WISER_ALLOW_INSTALL=1 or valid person or matching copy consent also authorizes it`);
+  const familyNames = families.length === 1 ? families[0] : `${families.slice(0, -1).join(', ')} and ${families.at(-1)}`;
+  if (!installAuthorised(SCRIPT, authorised)) stop(`${fontQuestion(`the ${familyNames} ${families.length === 1 ? 'typeface' : 'typefaces'}`, bytes, from, true)}\n\nDetails for the assistant: ${from ? `Installing families ${families.join(', ')} uses local assets ${from} into ${directory}.` : `Installing families ${families.join(', ')} fetches ${bytes} bytes from ${base.hostname} (${base.href}; GitHub redirects to release-assets.githubusercontent.com) into ${directory}.`} Run ${INSTALL} with --family to authorize it; WISER_ALLOW_INSTALL=1 or valid person or matching copy consent also authorizes it`);
   // The simple path fetches families without asking, so this fetch records no consent.
   process.stderr.write(`First run: installing dependencies (${families.join(', ')}) in ${directory}.\n`);
   const temp = mkdtempSync(join(tmpdir(), 'wiser-brand-fonts-')), verified = new Map();
@@ -364,6 +372,6 @@ export async function run(argv) {
 }
 export async function main(argv = process.argv.slice(2)) {
   try { const result = await run(argv); process.stdout.write(`${typeof result === 'string' ? result : JSON.stringify(result)}\n`); }
-  catch (error) { process.stderr.write(`Error: ${error.message}\nRetry with the pinned pack and writable paths; see node scripts/fonts.mjs help.\n`); process.exitCode = 1; }
+  catch (error) { process.stderr.write(`${error.message.startsWith('This Wiser skill needs to ') ? '' : 'Error: '}${error.message}\nRetry with the pinned pack and writable paths; see node scripts/fonts.mjs help.\n`); process.exitCode = 1; }
 }
 if (process.argv[1] && realpathSync(process.argv[1]) === SCRIPT) await main();

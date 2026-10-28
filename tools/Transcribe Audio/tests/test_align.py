@@ -251,7 +251,7 @@ class AlignTests(unittest.TestCase):
             return "model sentinel"
         bundle.get_model = Mock(side_effect=get_model)
         with patch.object(align, "authorized", return_value=False):
-            with self.assertRaisesRegex(align.AlignmentError, "378 MB"):
+            with self.assertRaisesRegex(align.AlignmentError, "380 MB"):
                 align.load_model(torch, bundle, self.folder, {})
         torch.hub.download_url_to_file.assert_not_called()
         weight.parent.mkdir(exist_ok=True)

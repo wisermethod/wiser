@@ -220,7 +220,8 @@ test('ask install reports: package and Chromium consent leave no listener or pro
   while (run.child.exitCode === null) { await observeListener(run.child.pid); await delay(5); }
   const result = json(await run.done);
   assert.equal(result.status,'needs-install');
-  assert.match(result.report,/Error: this tool is not installed yet/);
+  assert.equal(result.question,"This Wiser skill needs to download and install the code that drives a browser (and a private copy of the Chromium browser, if you don't have it yet) on your machine in order to show your form in a window of its own. It's about 19 MB, or about 600 MB with the browser. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.");
+  assert.match(result.report,/Details for the assistant: this tool is not installed yet/);
   assert.match(result.report,/registry\.npmjs\.org/); assert.match(result.report,/cdn\.playwright\.dev/);
   assert.match(result.reason,/yes means running ask again with --install/);
   const leftover = (await processes()).filter(line => line.trim().endsWith(join(missing,'tools/Form/scripts/listener.js')));
@@ -236,7 +237,8 @@ test('ask install reports: package and Chromium consent leave no listener or pro
   while (chromiumRun.child.exitCode === null) { await observeListener(chromiumRun.child.pid); await delay(5); }
   const chromiumResult = json(await chromiumRun.done);
   assert.equal(chromiumResult.status,'needs-install');
-  assert.match(chromiumResult.report,/Error: this tool's packages are installed but the Chromium build they drive is not/);
+  assert.equal(chromiumResult.question,"This Wiser skill needs to download and install a private copy of the Chromium browser on your machine in order to show your form in a window of its own. It's about 580 MB. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.");
+  assert.match(chromiumResult.report,/Details for the assistant: this tool's packages are installed but the Chromium build they drive is not/);
   assert.match(chromiumResult.report,/has not authorised a Wiser install\./);
   assert.match(chromiumResult.report,/No package is fetched and npm is not run/);
   assert.match(chromiumResult.reason,/yes means running ask again with --install/);

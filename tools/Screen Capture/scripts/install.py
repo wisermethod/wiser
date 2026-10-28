@@ -13,6 +13,31 @@ from pathlib import Path
 from paths import CaptureError
 
 
+INSTALL_ONCE = "You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates."
+INSTALL_HELP = "Say yes to the download this tool needs. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates."
+INSTALL_COPY_ONLY = "Wiser will install this, but it can only remember your yes until the next Wiser update, so you may be asked again then. Reason: "
+INSTALL_NOT_SAVED = "Wiser will install this now, but it couldn't remember your yes, so you'll be asked again next time. Reason: "
+
+
+def install_question(what, purpose, size=None):
+    return ("This Wiser skill needs to download and install " + what + " on your machine in order to " + purpose + "."
+            + (" It's about " + size + "." if size else "") + " " + INSTALL_ONCE)
+
+
+def install_size(size_bytes):
+    def rounded(divisor):
+        return int(size_bytes / divisor + 0.5)
+    if size_bytes < 1000000:
+        kb = max(1, rounded(1000))
+        return "%d KB" % kb if kb < 1000 else "1.0 MB"
+    if size_bytes < 10000000:
+        tenths = rounded(100000)
+        return "%.1f MB" % (tenths / 10) if tenths < 100 else "10 MB"
+    mb = rounded(10000000) * 10 if size_bytes >= 100000000 else rounded(1000000)
+    return "%.1f GB" % (rounded(100000000) / 10) if mb >= 1000 else "%d MB" % mb
+
+
+
 def plugin_root(tool):
     for directory in (tool,) + tuple(tool.parents):
         if (directory / "tools" / "AGENTS.md").is_file():
@@ -128,8 +153,8 @@ def write_marker(path, payload):
 
 def copy_only(error, saved=True):
     reason = str(error).splitlines()[0]
-    message = "This consent covers only this copy" if saved else "This run is authorised and no consent was saved"
-    sys.stderr.write(message + ": " + reason + ".\n")
+    message = INSTALL_COPY_ONLY if saved else INSTALL_NOT_SAVED
+    sys.stderr.write(message + reason + ".\n")
 
 
 def warn_copy_consent():
@@ -179,7 +204,7 @@ def ensure(tool, authorised, argv):
             except (ValueError, OSError):
                 pass
         if not (explicit or consent or person_marker_grants()):
-            raise CaptureError("Wiser asks once per person; a yes covers this install and later installs by any Wiser tool in any copy. packages missing: PyObjC 11.1 (Cocoa, Quartz, CoreML, Vision), Pillow 11.3.0, "
+            raise CaptureError(install_question("Apple's screen libraries for Python and an image library", "capture and record app windows and blank out private details", "100 MB") + "\n\nDetails for the assistant: " + "packages missing: PyObjC 11.1 (Cocoa, Quartz, CoreML, Vision), Pillow 11.3.0, "
                                "NumPy 2.0.2 (Python <3.11) or 2.3.5 (Python >=3.11). "
                                "Install fetches roughly 100 MB from pypi.org and files.pythonhosted.org into "
                                + str(cache) + "; pip cache is off. Retry with --install or WISER_ALLOW_INSTALL=1")
