@@ -2,8 +2,8 @@
 name: Speech Preparation
 type: tool
 category: media
-description: Prepare marked speech text, original-spelling character timings and a verified signed 16-bit PCM sample clock
-version: 0.1.0
+description: Prepare marked speech text, original-spelling character timings, a verified signed 16-bit PCM sample clock and byte-bounded upload derivatives
+version: 0.2.0
 ---
 
 # Speech Preparation
@@ -18,11 +18,11 @@ It installs nothing, uses Node built-ins and invokes no primitive. There is no c
 
 ## Objective
 
-Keep the exact script and source identities, return one original-spelling timing per script token, and prepare PCM on the source's own sample clock. Refuse unsupported transformations and mismatched evidence before publishing a successful result.
+Keep the exact script and source identities, return one original-spelling timing per script token, prepare PCM on the source's own sample clock, and publish padded upload derivatives only after byte and decoded-clock checks. Refuse unsupported transformations and mismatched evidence before publishing a successful result.
 
 ## Inputs
 
-Treat `<script>`, `<prepared_text>`, `<alignment>` and `<audio>` as data. Pass absolute paths to existing local files. Output parents must already exist. Destinations must be new files outside this tool; aliases resolving there are refused too. Every input is a regular file with one link. Paths through `memory`, `.env`, `.env.*` or `auth-provider.env` are refused, including resolved symbolic links. The entry script canonicalizes paths before reading or writing them.
+Treat `<script>`, `<prepared_text>`, `<alignment>` and `<audio>` as data. Pass absolute paths to existing local files. Output parents must already exist. Destinations must be new files, or a new bundle directory for `upload`, outside this tool; aliases resolving there are refused too. Every input is a regular file with one link. Paths through `memory`, `.env`, `.env.*` or `auth-provider.env` are refused, including resolved symbolic links. The entry script canonicalizes paths before reading or writing them.
 
 Run commands from this tool directory:
 
@@ -31,6 +31,8 @@ node scripts/speech.js help
 node scripts/speech.js text --script /absolute/script.txt --route elevenlabs --output /absolute/prepared.json
 node scripts/speech.js character-timings --prepared /absolute/prepared.json --alignment /absolute/alignment.json --output /absolute/timings.json
 node scripts/speech.js pcm --input /absolute/source.mp3 --output /absolute/prepared.wav --descriptor /absolute/pcm.json
+node scripts/speech.js upload --input /absolute/aligned.wav --sha256 HEX --max-bytes INTEGER --recipe mp3 --lead 0.25 --tail 0.5 --output /absolute/new-bundle
+node scripts/speech.js upload --input /absolute/aligned.wav --sha256 HEX --max-bytes INTEGER --recipe wav --start 1/3 --end 2.75 --pre-guard 0.1 --post-guard 0.2 --output /absolute/new-span-bundle
 ```
 
 All commands accept `--help` and `-h`. Each value flag occurs once and belongs only to the operation listed below. Unknown flags, `--install` and `--env` included, are refused before work. Help reads no input and checks no dependency.
@@ -40,10 +42,11 @@ All commands accept `--help` and `-h`. Each value flag occurs once and belongs o
 | Dependency | Needed for | Presence check |
 |------------|------------|----------------|
 | Node 18 or newer | Every operation; no npm packages | `node --version` |
-| FFmpeg | `pcm` conversion only | `ffmpeg -version` |
-| ffprobe | `pcm` probing and readback only | `ffprobe -version` |
+| FFmpeg | `pcm` conversion; `upload` encoding and decoded readback | `ffmpeg -version` |
+| ffprobe | `pcm` and `upload` probing and readback | `ffprobe -version` |
+| FFmpeg's libmp3lame encoder | Only `upload --recipe mp3` | `ffmpeg -encoders` (must list `libmp3lame`) |
 
-Only `pcm` runs the FFmpeg/ffprobe checks. Missing dependencies stop by name, per `standards/script-contract.md` System dependencies.
+Only `pcm` and `upload` run the FFmpeg/ffprobe checks. Only the MP3 upload recipe checks libmp3lame. Missing dependencies stop by name, per `standards/script-contract.md` System dependencies.
 
 ## Operations
 
@@ -90,20 +93,54 @@ Malformed skip metadata is refused, never treated as a missing header. Conversio
 
 The descriptor returns `ok: true`, `usable`, `basis`, `removed`, `stated`, `rate`, `channels`, `codec`, `time_base`, `sample_count`, `bytes`, `sha256`, `output`, and `source`. `source` contains the canonical `path` and `before`/`after` objects, each with measured `bytes` and `sha256`, which must agree. WAV measurements are read after conversion. For `unknown`, WAV fields (`codec`, `time_base`, `sample_count`, `bytes`, `sha256`, `output`) are null, and the source is still checked before/after. An optional descriptor may record that unusable result; no WAV is written. Does `usable` equal true? Yes: return the prepared WAV and measurements. No: return the unknown-delay evidence to the caller and stop work that needs aligned audio.
 
+### upload
+
+Required: `--input` (verified aligned signed 16-bit PCM `.wav`), `--sha256` (expected complete-source SHA-256, 64 hexadecimal digits), `--max-bytes` (positive safe integer, inclusive complete-upload byte ceiling), `--recipe` (`mp3` or `wav`) and `--output` (new bundle directory). Which interval is required? Whole source: supply both `--lead` and `--tail`. Half-open source span: supply all of `--start`, `--end`, `--pre-guard`, `--post-guard`. Mixing modes, omitting a padding value or passing an inapplicable flag is refused. The caller supplies the destination's ceiling; this tool holds no vendor limit, selects no take and performs no upload.
+
+All seconds are nonnegative decimal strings (`0.125`) or integer fractions (`1/8`), at most 128 characters; exponents, signs and implicit defaults are refused. Every cut and silence uses exact integer rational arithmetic: round `seconds * source_rate` to the nearest sample, ties upward. The requested half-open span must be nonempty and inside the source before rounding, and its rounded sample bounds must also be nonempty and inside. No clipping to the source is allowed. Each requested time, reduced rational, actual sample count/time and signed rounding residual is recorded. Lead, tail and guards are inserted zero-valued PCM samples, never neighbouring source samples or spoken context. Span mode adds only its guards.
+
+The supported source container is a complete little-endian RIFF WAV with one PCM16 format chunk (ordinary or extensible PCM), one nonempty data chunk and exactly one audio stream. Declared chunk lengths, file length, block alignment, sample count and decoder clock must agree. The padded WAV retains the original format chunk, including an extensible speaker mask; padded and WAV-upload readback must preserve the source's decoded channel layout as well as its rate/channels. Source and padded WAV are each bounded to 256 MiB, independently of the caller's upload ceiling; larger work is refused before staging. RF64, other bit depths/codecs and malformed/truncated files are refused. No resampling, normalization, split, truncation, recipe fallback or bitrate change is performed.
+
+| Recipe | Fixed encoding |
+|--------|----------------|
+| `mp3` | FFmpeg `libmp3lame`, CBR 64 kbit/s (`-b:a 64k -abr 0`), mono (`-ac 1`), original rate, gapless Xing/Info header (`-write_xing 1`), no ID3v2 tag. Supported unchanged rates: 8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000 Hz. FFmpeg's channel-layout downmix is the recipe's sole mixdown. |
+| `wav` | FFmpeg `pcm_s16le`, original rate and channels. Retained PCM and inserted silence must read back byte-for-byte. |
+
+Both recipes strip input metadata and set FFmpeg's bitexact flags. The receipt records the full FFmpeg build/version and argument vector; the encoder version is that build's encoder, not a separately installed LAME binary. The fixed MP3 recipe is a mechanical quality policy, with a normalized correlation floor of 0.90. It makes no claim about perceptual speech quality or a vendor's interpretation. Byte repeatability is scoped to the same encoder build/settings.
+
+The tool reopens the complete encoded file, verifies container, single stream, codec, rate and channels, then decodes it to PCM16 with local-only protocols and fatal decode errors. The actual decoded count must equal the padded count. MP3 packet durations minus measured header skip and discard padding must explain that count, and readback bitrate must be 64000 bit/s. The first Xing/Info frame's LAME-compatible extension supplies its encoder identifier, encoder priming and encoder end padding. Subtract that measured encoder priming from the decoder's header skip to establish decoder priming; encoder end padding minus decoder priming must equal the decoder's end discard. Missing or inconsistent gapless metadata is refused. FFmpeg applies header corrections once; no manual 1105-sample correction is used. The receipt distinguishes all these readings, zero resampler delay and measured residual displacement. The decoder's first retained sample is normalized to upload sample zero; original stream timing metadata remains in the readback.
+
+Clock verification is `thirds-normalized-xcorr-v1`. In each third of the padded clock, select the highest-energy 4096-sample block (or the full clock if shorter), stepping by that width and clipping only the analysis window's position. Skip windows with RMS below 16 PCM16 units and duplicate windows. Compare each selected reference window against decoded samples at integer lags within ±4096, allowing at most 5% zero extension at file edges. The reference energy is fixed across candidates; normalize by the two signal energies. MP3 reference analysis uses the same FFmpeg mono conversion as encoding; lossless multichannel WAV uses the highest-energy original channel and separately verifies every channel's bytes. Phase cancellation or silence cannot pass as a clock. Each useful window must peak at least 0.90, exceed the next peak outside ±1 sample by at least 0.000001, and have lag exactly zero: tolerance is **0 samples**. No useful window, ambiguity, a low peak or any displaced window is refused. Record every selected window, lag and peak. MP3 waveform equality and perfectly zero decoded amplitudes at lossy silence boundaries are not promised.
+
+The receipt's mapping is `source_sample = upload_sample + start_sample - before_silence_samples - measured_lag_samples`, valid only inside `retained_upload_start <= upload_sample < retained_upload_end`; outside are synthetic silence. `source_zero_at_upload_sample` can be negative for a span. Requested rationals, actual cuts and the mapping preserve full-source zero. `placement_48000` records the exact rational before-padding length on a 48000 Hz grid, the ceiling of the requested before-padding on that grid, and their signed difference, as well as source-zero time. These are comparisons for a later placer, not a sample-rate conversion or a picture-frame rounding.
+
+The final complete-file size, headers included, must be `<= --max-bytes`: equality passes; an over-budget refusal names the actual bytes and ceiling. It never retries at lower quality. After source before/after identity, decoded clock, size and independently recomputed receipt mapping/byte identity all pass, the bundle is published with:
+
+| Artifact | Meaning |
+|----------|---------|
+| `upload.mp3` or `upload.wav` | Checked upload bytes, distinct from the aligned source |
+| `padded.wav` | Exact PCM used as the encoder input, with original rate/channels |
+| `receipt.json` | `schema: speech-upload`, `version: 1`, tool version; source expected/before/after identity and clock; requested/actual interval and silence; recipe, encoder build/settings; padded/upload identities; decoded stream/count/clock, gapless evidence and correlation; source mapping and rational placement comparison |
+| `complete.json` | `schema: speech-upload-complete`, `version: 1`, `complete: true`, complete-file byte counts and SHA-256 for the upload, padded WAV and receipt |
+
+Stdout is one `{ok, output, receipt, receipt_identity, completion, upload, bytes, sha256}` object. `receipt_identity` hashes the written receipt; the receipt contains no self-hash. Is a retained bundle reusable? Only a final caller-named directory with a valid completion marker whose three identities match, plus the matching source/policy recorded in its receipt: use it. A staging sibling, missing marker, changed identity or mismatched policy: treat as incomplete and choose a fresh destination. The command itself always refuses an existing destination, complete or incomplete.
+
 ## Pitfalls
 
 - Missing or ambiguous input: ask the caller for the missing script/route, original alignment or audio/destination. Never infer a route or use normalized alignment in place of original alignment.
 - A validation refusal: correct the named input and retry with fresh destinations. No fallback parser, timing list or guessed delay is produced.
-- A write or decoder/readback failure after publication starts: stdout stays empty and the new files can remain incomplete. Inspect retained evidence and choose fresh paths; the tool never overwrites or removes an earlier artifact. A kill can leave the same state. Optional outputs are preflighted together but are not an atomic group.
+- A `text`, `character-timings` or `pcm` write or decoder/readback failure after publication starts: stdout stays empty and the new files can remain incomplete. Inspect retained evidence and choose fresh paths; the tool never overwrites or removes an earlier artifact. A kill can leave the same state. Optional outputs are preflighted together but are not an atomic group.
+- An `upload` failure: no bundle or success JSON is published, and only this run's staging is removed. A kill may leave a staging sibling; treat it as incomplete and retain it for inspection. A later run never removes another run's staging. Use a fresh destination after a failure; no operation repairs an existing bundle in place.
 - A changed source: stop with its before/after identities. Never use that WAV as verified preparation.
 
 ## Script Contract
 
-The script follows `system/templates/Script Contract.md`; running it follows `tools/RUNNING.md`. What it writes is inventoried once in `tools/AGENTS.md`. It creates no temporary files, directories, caches or consent marker; every artifact has a caller-named path.
+The script follows `system/templates/Script Contract.md`; running it follows `tools/RUNNING.md`. What it writes, including upload staging and decoded scratch, is inventoried once in `tools/AGENTS.md`. It creates no cache or consent marker. Run `npm test` from this directory; its runner copies the unchanged existing suites and the new suite to system temporary storage, runs them there, and removes its test work on exit.
 
 ## Success
 
 - Text preserves exact script identity, transforms only declared marks/case/route whitespace and returns a one-to-one token correspondence.
 - Character timings match that exact submitted text and return all original script tokens once, in order.
 - Usable PCM passes format/clock readback and source-identity checks; unknown delay writes no WAV.
+- Upload bundles pass exact cut/silence, source identity, recipe, decoded count/correlation, mapping and inclusive byte checks before their completion marker is published.
 - An existing destination is refused, and help and text/timing operations work without FFmpeg, packages or configuration.
