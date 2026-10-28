@@ -263,6 +263,18 @@ test('MP4 exact cap publishes and streamed cap plus one refuses without a partia
   });
 });
 
+test('malformed MP4 for a 32-character id stays unexpected answer, not a private-address refusal', async (t) => {
+  // HeyGen's signed video path carries the video id (read live 2026-10-28); the guard windows that path.
+  const id = 'f0e1d2c3b4a5968778695a4b3c2d1e0f';
+  const f = await setup(t, { video: true, media: { chunks: [Buffer.from('....ftypisom')] } });
+  const got = await run(f, 'videos.download', { video_id: id });
+  assert.equal(got.status, 'vendor_error');
+  assert.equal(got.reason, 'unexpected answer');
+  assert.notEqual(got.detail, 'private_address');
+  assert.ok(!JSON.stringify(got).includes(id));
+  noFiles(f); noPrivate(got); assert.equal(postCount(f), 0);
+});
+
 test('malformed MP4 and complete container with private address never publish', async (t) => {
   for (const planted of [false, true]) await t.test(String(planted), async (t) => {
     const bytes = planted ? mp4() : Buffer.from('....ftypisom'); if (planted) bytes.write(VIDEO_ADDRESS, 600);

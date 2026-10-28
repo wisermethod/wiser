@@ -309,10 +309,12 @@ export const modules = {
       delete got.video_id;
       if (got.video_status !== 'completed') return got;
       if (!(got.duration > 0) || !text(res.data.video_url)) return unexpected(API + path, 'GET');
+      // Once the media address is remembered, its path holds this id, so nothing after the download
+      // names an endpoint carrying it, or the gateway's guard would turn the answer into a leak.
       let bytes;
       try { bytes = await ctx.downloadMedia({ url: res.data.video_url, media_type: 'video/mp4' }); }
-      catch (error) { return failure(error, API + path, 'GET'); }
-      if (!Buffer.isBuffer(bytes) || bytes.length > MP4_MAX || !inspectMp4(bytes)) return unexpected(API + path, 'GET');
+      catch (error) { return failure(error, API + '/v3/videos', 'GET'); }
+      if (!Buffer.isBuffer(bytes) || bytes.length > MP4_MAX || !inspectMp4(bytes)) return unexpected(API + '/v3/videos', 'GET');
       return { ...got, output_file: { media_type: 'video/mp4', data: bytes } };
     },
   },
