@@ -2,21 +2,25 @@
 name: Transcribe Audio
 type: tool
 category: media
-description: Turns one audio file into a text transcript with a speech model that runs on this machine
-version: 0.2.5
+description: Transcribes an audio file or aligns known English words to its sample clock on this machine
+version: 0.3.2
 gaps:
   - Speaker labeling, which would say which speaker said each turn
 ---
 
 # Transcribe Audio
 
-One run turns a single audio file into a plain text transcript written where the caller asks for it.
+One run transcribes an audio file or aligns supplied words to it, writing where the caller asks.
 
 ## Context
 
+Classifier seam: none.
+
 Use it when a recording has to become text: a call, an interview, a meeting, a voice memo, a piece of media whose words are needed for reading, quoting, or further work. The speech model runs here, so the audio is never uploaded anywhere and a run costs nothing per minute.
 
-Do not use it to interpret what was said. It produces words and timings and nothing else: no summary, no analysis, no decisions, no fact checking. Reading meaning out of a transcript is separate work, done after this tool finishes and equally possible on a transcript this tool never produced.
+Use `align` when the ordered spoken words are already known and their times are needed. Alignment does not establish that the recording said those words; retain the caller's independent transcription/presence check. `transcribe` continues to produce plain text without word spans.
+
+Do not use it to interpret what was said: no summary, analysis, decisions, or fact checking. Reading meaning out of a transcript is separate work.
 
 Do not use it on audio that is not in English. Transcription is pinned to English, so a recording in another language transcribes as though it were English and produces nonsense that the run reports as a success.
 
@@ -28,9 +32,9 @@ A run reaches the network only to fetch what it needs to work, never to send aud
 
 ## Inputs
 
-One audio file, named by `--audio` as an absolute path, in one of these formats: `.flac`, `.m4a`, `.mp3`, `.mp4`, `.mpeg`, `.mpga`, `.ogg`, `.wav`, `.webm`. Length is unbounded; processing time scales with it and with the model chosen.
+One audio file, named by `--audio` as an absolute path, in one of these formats: `.flac`, `.m4a`, `.mp3`, `.mp4`, `.mpeg`, `.mpga`, `.ogg`, `.wav`, `.webm`. Processing time and RAM scale with its length. For alignment, long recordings should supply passage bounds so each inference fits memory.
 
-One required directory, `--output`, absolute and outside this tool's directory, where the transcript file is written. `--model-cache` is optional: omit it and weights use the person-scoped `models/` folder in `tools/AGENTS.md`. An explicit absolute `--model-cache` still wins. A destination that is the connector key file is refused. Do not put weights in a root: the tool screens the key file, not a composed root, so the caller must not pass one.
+For `transcribe`, `--output` is a required absolute directory outside this tool where the transcript is written. For `align`, its file and known-word inputs are specified under Align known words. `--model-cache` is optional: omit it and weights use the person-scoped `models/` folder in `tools/AGENTS.md`. An explicit absolute `--model-cache` still wins. A destination that is the connector key file is refused. Do not put weights in a root: the tool screens the key file, not a composed root, so the caller must not pass one.
 
 ## Quick Start
 
@@ -50,7 +54,7 @@ Reports what the machine has, installing nothing and downloading nothing:
 {"python":"3.11.9","ffmpeg":true,"packages":false}
 ```
 
-Then transcribe. If this copy of the plugin has not yet authorized an install, the run reports what it would install and stops; `--install` on that run is the answer: it creates this tool's package cache, installs the speech packages into it, and finishes the work, and later tools in this copy install without asking. It prints one JSON object naming the file it wrote.
+Then transcribe. If install consent is absent, the run reports what it would install and stops; `--install` on that run is the answer: it creates this tool's package cache, installs the speech packages into it, and finishes the work. It prints one JSON object naming the file it wrote.
 
 ```bash
 python3 scripts/transcribe.py transcribe --audio /path/to/call.m4a \
@@ -69,14 +73,16 @@ This tool's script runs under Python rather than Node, which the Script Contract
 
 | Dependency | Needed for | Present when |
 |------------|------------|--------------|
-| Python 3.8 or newer | Every command; the script is written for this interpreter and creates its package cache with it | `python3 --version` succeeds |
-| FFmpeg | Every transcription; the speech engine decodes audio through it | `ffmpeg -version` succeeds |
+| Python 3.8 or newer | Help, check and transcription, unchanged | `python3 --version` succeeds |
+| CPython 3.9–3.13 | Alignment's interpreter in the tool's `.venv`; another launcher can hand off to it | `.venv/bin/python3 --version` reports a supported minor version (Windows: `.venv/Scripts/python.exe --version`) |
+| FFmpeg | Transcription and alignment decoding | `ffmpeg -version` succeeds |
+| FFprobe | Alignment reads the source sample rate before decoding | `ffprobe -version` succeeds |
 
 The interpreter is the one dependency a script cannot check from inside itself, so the agent runs its check before invoking the script the first time on a machine. The `check` command reports the rest at once, so a machine can be prepared before the first transcription.
 
 ## Configuration
 
-None. No command takes `--env`, no key is read, and no credential is held: the audio file, `--output`, and an optional `--model-cache` are the whole input.
+None. No command takes `--env`, no key is read, and no credential is held. Each operation's local inputs are declared under Usage and Align known words.
 
 ## Usage
 
@@ -85,6 +91,7 @@ None. No command takes `--env`, no key is read, and no credential is held: the a
 | `python3 scripts/transcribe.py help` | Print usage and exit |
 | `python3 scripts/transcribe.py check` | Report the interpreter, FFmpeg, and whether the speech packages are installed |
 | `python3 scripts/transcribe.py transcribe --audio [path] --output [dir] [--model-cache [dir]]` | Write a transcript of one audio file |
+| `python3 scripts/transcribe.py align --audio [path] --words [json] --output [json] [--layout [json]] [--language en] [--model-cache [dir]] [--install]` | Write known-word timings; contract below |
 
 Options:
 
@@ -95,6 +102,8 @@ Options:
 | `--model-cache [dir]` | Directory model weights are downloaded into, absolute and outside this tool directory. Omit for the person-scoped `models/` folder in `tools/AGENTS.md`. The connector key file is refused. | that `models/` folder |
 | `--model [name]` | Speech model: `tiny`, `base`, `small`, `medium`, `large` | `base` |
 | `--help` | Print usage and exit | Off |
+| `--install` | Authorize packages and weights under the plugin consent; `WISER_ALLOW_INSTALL=1` does the same | Off |
+| `-h` | Short alias for `--help` | Off |
 
 Model choice trades time for accuracy, and the weights are downloaded once per model into the person-scoped `models/` folder, or into `--model-cache` when that flag is passed:
 
@@ -108,11 +117,37 @@ Model choice trades time for accuracy, and the weights are downloaded once per m
 
 When the request states more than one of these, pass the first match in the order `large`, then `medium`, then `small`, then `tiny`, from what the request states rather than by listening. A `--model` name outside that list: ask, and do not substitute `base`.
 
+## Align known words
+
+Run `python3 scripts/transcribe.py align --help` for its closed flag set. `--model` belongs only to transcription; alignment always uses torchaudio's English `WAV2VEC2_ASR_BASE_960H`, never MMS_FA or Whisper.
+
+Pass `--audio` in a format listed under Inputs and `--words` as an absolute path to a strict JSON array of spoken words, for example `["Here", "are", "your", "boards."]`. Each string is one word, with its original spelling and punctuation. No control/comparison tags are removed: the caller supplies spoken words without tags. Normalization uppercases ASCII letters, converts curly apostrophes/quotes, strips edge `.,!?;:"()` and quote apostrophes, and retains internal apostrophes. The result must contain English letters with optional internal apostrophes. Digits, accented letters, hyphens, symbols, whitespace, tags and empty tokens are refused by index and original word. Write numbers or abbreviations as spoken words when needed. Nothing is dropped or substituted. `--language` defaults to `en`; any other value is refused by name. The caller supplies the language truthfully; there is no language detector.
+
+`--output` is an absolute **new JSON file** outside this tool, rather than the directory transcription takes. An existing output is refused. The file is an array with exactly one `{text, start, end}` per supplied word, in order and in the supplied spelling. Times are finite seconds relative to decoded audio time zero, within its actual sample count/rate, with `start <= end` and nondecreasing starts. No silence trim or encoder-delay correction is performed: pass the prepared audio the consumer reads. The tool writes no take registry. Success prints one object with `ok: true`, `file`, `model`, `language`, `words`, `sample_rate` and `samples`.
+
+Optionally pass `--layout` as an absolute strict JSON file:
+
+```json
+{"version":1,"sample_rate":24000,"passages":[
+  {"start_sample":0,"end_sample":24000,"first_word":0,"last_word":3}
+]}
+```
+
+Only those keys are accepted. Rates, bounds and indices are integers, never booleans. Sample bounds are zero-based and end-exclusive; nonempty passages must fit the decoded audio and may have gaps but cannot overlap. Word indices are zero-based, `last_word` inclusive; ranges must cover all supplied words exactly once, contiguously and in order. The layout rate must equal the source rate read by FFprobe. Paths, words and layout are validated against the audio **before model loading or package installation**. Source sample counts use a positive whole container sample count agreeing within one 16 kHz sample, otherwise the decoded duration converted to that rate; absent or unusable duration metadata does not fail a successful decode. After conversion to 16 kHz, every passage, including the whole recording without a layout, must satisfy `start < end <= decoded length`.
+
+FFmpeg decodes the whole file to mono 16 kHz signed 16-bit PCM, scaled by 1/32768, with the same command as `whisper.audio.load_audio`. Each passage is cut from that waveform at `int(start_sample / sample_rate * 16000)` and `int(end_sample / sample_rate * 16000)`, then led by 0.3 s of added silence for model context. There is no per-passage resampling. Timings subtract that lead and add the passage offset on the layout's source clock. Its first word starts exactly at the passage's start sample divided by the layout rate, retaining its aligned end. Without a layout, the recording is one passage with the same lead and no first-word anchor.
+
+Alignment pins **torch 2.8.0 and torchaudio 2.8.0** and accepts **CPython 3.9–3.13**, the Python minors listed in both releases' installed `METADATA` Programming Language classifiers. A wheel must also match the host's platform and architecture. The timing proof ran on **CPython 3.9.6 on macOS arm64**; that patch version is evidence, not a requirement. `requirements-align.txt` installs only the two engine packages and their dependencies into this tool's `.venv`. Transcription's `requirements.txt` and install selection are unchanged; alignment neither installs nor imports Whisper. A shared `.venv` with other engine versions needs the pinned alignment versions under the existing install consent. Help and the existing offline `check` import no engine, load no model and neither install nor download anything. `check` retains its transcription survey shape; it does not certify alignment compatibility.
+
+The model is wav2vec 2.0 base, fine-tuned on LibriSpeech 960 h, published by the wav2vec 2.0 authors and redistributed by torchaudio under **MIT**; see `NOTICE.md`. Its one weight file is **377,664,473 bytes, about 378 MB**, from **download.pytorch.org**, into `alignment-models/` under the person-scoped `models/` folder in `tools/AGENTS.md`, or under an explicit absolute `--model-cache`. It is separate from transcription weights. The pinned bundle supplies its filename; the tool first tries the engine's load with downloads blocked. Any load failure except a permission or out-of-memory error is treated as incomplete weights, including a body rejected as not a checkpoint. Without install consent, the original file stays untouched and nothing is fetched. With consent, the tool renames it to `.incomplete-<id>` before the native downloader fetches its replacement. Permission/RAM errors stop without a repair download. Usable weights require no connection. Alignment failure produces no substituted model, recognition, uniformly spaced spans or padded words.
+
+Publication refuses an existing output. A volume without hard links uses an exclusive create and copy instead; the completed JSON is flushed to disk before its temporary sibling is removed. A failed copy removes its partial output and retains the finished `.wiser-align-*` sibling for recovery.
+
 ## Script Contract
 
 The script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. No command takes `--env`, so that clause has nothing to bind here. What a run writes, and where, is in `tools/AGENTS.md`. Beyond those, three behaviors are worth knowing.
 
-The package cache is this tool's own, per that contract's Runtimes clause. Once `--install` has authorized this copy, a transcription creates a virtual environment beside the scripts, installs the speech packages into it, and finishes the run; nothing is installed into the machine or the user's environment, because the install runs with pip's own download cache switched off rather than leaving it at pip's default outside this tool.
+The package cache is this tool's own, per that contract's Runtimes clause. Once the install is authorized with `--install`, a transcription creates a virtual environment beside the scripts, installs the speech packages into it, and finishes the run; nothing is installed into the machine or the user's environment, because the install runs with pip's own download cache switched off rather than leaving it at pip's default outside this tool.
 
 Arguments are validated before that package install, so a malformed command or a missing FFmpeg costs no download. Only Python's own standard library is used above the install; the speech packages import after it.
 
@@ -157,4 +192,6 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 - A `transcribe` missing FFmpeg exits 1 naming the dependency and its check command, stdout empty, having installed nothing.
 - An `--output` or `--model-cache` resolving inside this tool directory is refused before any work runs, whether it is spelled directly, as a case variant, or through a symbolic link standing in for an ancestor.
 - A `transcribe` with no `--model-cache` uses the person-scoped `models/` folder in `tools/AGENTS.md`. A destination that is the connector key file is refused. Missing weights stop named, with no download, until `--install` or `WISER_ALLOW_INSTALL=1`.
-- No run sends audio anywhere; the only outbound requests any run makes are the model downloads and the package install named in Context, and the only files written are the transcript, the model cache, and this tool's own package cache.
+- `align` returns one original-spelling timing per supplied word on the audio's sample clock; a layout anchors every passage's first word exactly to its start sample.
+- Invalid layouts, unsupported words and non-English language codes fail before model loading, with no timing output or fallback.
+- No run sends audio anywhere; outbound requests are only the declared downloads. Deliverable, package and weight writes are inventoried in `tools/AGENTS.md`.

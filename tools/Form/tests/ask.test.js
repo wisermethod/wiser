@@ -1,3 +1,4 @@
+import '../../lib/tests/isolated-home.js';
 import test,{before,after,afterEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {spawn,execFile} from 'node:child_process';
@@ -17,7 +18,7 @@ let root,copy,script,browser;
 const children = new Set(),seenListeners = new Map();
 
 function env() {
-  const value = {...process.env,TMPDIR:join(root,'runtime'),DISPLAY:':form-test'};
+  const value = {...process.env,HOME:join(root,'home'),USERPROFILE:join(root,'home'),XDG_CONFIG_HOME:'',APPDATA:'',TMPDIR:join(root,'runtime'),DISPLAY:':form-test'};
   delete value.SSH_CONNECTION; delete value.SSH_TTY; delete value.WISER_ALLOW_INSTALL;
   return value;
 }
@@ -38,7 +39,7 @@ async function bc(args) {
   assert.equal(r.code,0,r.stderr); return JSON.parse(r.stdout);
 }
 async function processes() {
-  return new Promise((accept,reject) => execFile('ps',['-axo','pid=,ppid=,command='],(error,out) => error ? reject(error) : accept(out.split('\n'))));
+  return new Promise((accept,reject) => execFile('ps',['-axo','pid=,ppid=,command='],{env:env()},(error,out) => error ? reject(error) : accept(out.split('\n'))));
 }
 async function listenerPids() {
   return (await processes()).filter(line => line.trim().endsWith(join(copy,'tools/Form/scripts/listener.js'))).map(line => Number(line.trim().split(/\s+/)[0]));
@@ -114,6 +115,8 @@ async function copyTool(directory,installed) {
   await cp(join(browserSource,'scripts'),join(directory,'tools/Browser Control/scripts'),{recursive:true});
   await cp(join(browserSource,'package.json'),join(directory,'tools/Browser Control/package.json'));
   await cp(consentSource,join(directory,'tools/lib/consent.js'));
+  await cp(new URL('../../lib/user-config.js',import.meta.url),join(directory,'tools/lib/user-config.js'));
+  if (!installed) await cp(runtimeSource,join(directory,'tools/lib/browser-runtime'),{recursive:true,filter:path => !path.includes('node_modules')});
   await writeFile(join(directory,'package.json'),'{"type":"module"}');
   await writeFile(join(directory,'tools/AGENTS.md'),'Test copy; no install consent.\n');
   if (installed) await symlink(runtimeSource,join(directory,'tools/lib/browser-runtime'),'dir');
@@ -217,7 +220,8 @@ test('ask install reports: package and Chromium consent leave no listener or pro
   while (run.child.exitCode === null) { await observeListener(run.child.pid); await delay(5); }
   const result = json(await run.done);
   assert.equal(result.status,'needs-install');
-  assert.match(result.report,/Error: this tool is not installed yet/);
+  assert.equal(result.question,"This Wiser skill needs to download and install the code that drives a browser (and a private copy of the Chromium browser, if you don't have it yet) on your machine in order to show your form in a window of its own. It's about 19 MB, or about 600 MB with the browser. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.");
+  assert.match(result.report,/Details for the assistant: this tool is not installed yet/);
   assert.match(result.report,/registry\.npmjs\.org/); assert.match(result.report,/cdn\.playwright\.dev/);
   assert.match(result.reason,/yes means running ask again with --install/);
   const leftover = (await processes()).filter(line => line.trim().endsWith(join(missing,'tools/Form/scripts/listener.js')));
@@ -233,8 +237,9 @@ test('ask install reports: package and Chromium consent leave no listener or pro
   while (chromiumRun.child.exitCode === null) { await observeListener(chromiumRun.child.pid); await delay(5); }
   const chromiumResult = json(await chromiumRun.done);
   assert.equal(chromiumResult.status,'needs-install');
-  assert.match(chromiumResult.report,/Error: this tool's packages are installed but the Chromium build they drive is not/);
-  assert.match(chromiumResult.report,/has not authorised an install\./);
+  assert.equal(chromiumResult.question,"This Wiser skill needs to download and install a private copy of the Chromium browser on your machine in order to show your form in a window of its own. It's about 580 MB. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.");
+  assert.match(chromiumResult.report,/Details for the assistant: this tool's packages are installed but the Chromium build they drive is not/);
+  assert.match(chromiumResult.report,/has not authorised a Wiser install\./);
   assert.match(chromiumResult.report,/No package is fetched and npm is not run/);
   assert.match(chromiumResult.reason,/yes means running ask again with --install/);
   assert.deepEqual((await processes()).filter(line => line.trim().endsWith(join(chromium,'tools/Form/scripts/listener.js'))),[]);
@@ -424,7 +429,7 @@ for (const status of ['interrupted','needs-install']) test(`ask keeps ${status} 
     const output = await run.done,result = json(output,output.stderr);
     assert.equal(result.status,status);
     if (status === 'interrupted') assert.equal(result.signal,'SIGTERM');
-    else assert.match(result.report,/has not authorised an install\./);
+    else assert.match(result.report,/has not authorised a Wiser install\./);
     assert.equal(output.stderr,'Cleanup: scripted listener cleanup failure\n');
     await clean();
   });

@@ -1,4 +1,7 @@
 """Offline command tests. Every native boundary is denied unless explicitly stubbed."""
+import runpy as _runpy
+from pathlib import Path as _IsolationPath
+_runpy.run_path(str(_IsolationPath(__file__).parent / '../../lib/tests/isolated_home.py'))
 import contextlib
 import ctypes
 import hashlib

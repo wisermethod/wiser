@@ -23,7 +23,7 @@ Flags: --help, --form <file>, --template <file>, --values <file>, --sample,
        --ttl <1..86400> (default 1800), --port <1..65535>,
        --code <32 lowercase hex characters>,
        --seconds <n> (ask: 1..3600, default 900; wait: 0..3600, default 50),
-       --install (ask only: authorise Browser Control's first install),
+       --install          Say yes to the download this tool needs. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.
        --headless (ask only: checks without a window; members get a visible window).
 Only ask starts Browser Control and creates a temporary profile, removed at the end.
 Input files must be JSON, at most 262144 bytes. All paths must be absolute.

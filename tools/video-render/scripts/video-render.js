@@ -4,13 +4,13 @@ import { realpathSync } from 'node:fs';
 import { sequence } from './sequence.mjs';
 import { render } from './render.mjs';
 import { frames } from './frames.mjs';
-import { prepareRuntime } from './dependencies.mjs';
+import { prepareRuntime, INSTALL_HELP as INSTALL_HELP_TEXT } from './dependencies.mjs';
 
 const VALUE_FLAGS = new Set(['--project', '--output', '--width', '--height', '--fps', '--duration', '--workers', '--gpu', '--capture']);
 const RENDER_FLAGS = new Set([...VALUE_FLAGS, '--profile', '--frame-hashes', '--cache']);
 const FRAMES_FLAGS = new Set([...VALUE_FLAGS, '--times', '--select']);
 const flagsFor = (command) => command === 'render' ? RENDER_FLAGS : command === 'frames' ? FRAMES_FLAGS : VALUE_FLAGS;
-const INSTALL_HELP = `  --install                Authorise packages and the pinned Chrome, then finish this run.
+const INSTALL_HELP = `  --install          ${INSTALL_HELP_TEXT}
                            WISER_ALLOW_INSTALL=1 also authorises work commands.
   --help                   Show help before checking dependencies.`;
 
@@ -131,7 +131,7 @@ export async function main(argv = process.argv.slice(2)) {
       : parsed.command === 'frames' ? await frames(parsed.options, { install }) : await sequence(parsed.options, { install });
     process.stdout.write(`${JSON.stringify(result)}\n`);
   } catch (error) {
-    process.stderr.write(`video-render: ${error.message}\n`);
+    process.stderr.write(`${error.message.startsWith('This Wiser skill needs to download and install ') ? '' : 'video-render: '}${error.message}\n`);
     process.exitCode = 1;
   }
 }

@@ -3,7 +3,7 @@ name: knowledge-memory
 type: tool
 category: knowledge
 description: Lints local knowledge wikis, builds and queries a dataset-scoped databased store (SQLite FTS5), and ingests and recalls a local LadybugDB graph, all from session-extracted knowledge with located provenance
-version: 0.6.3
+version: 0.6.4
 gaps:
   - temporal filtering of recall by a date, so an as-of question is answered from the facts the set dates rather than filtered by the engine
   - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
@@ -75,7 +75,7 @@ Graph items contain `name`, `quote`, `source_path`; embedding items also contain
 
 ## Script Contract
 
-The script follows `system/templates/Script Contract.md`, the pointer to `standards/script-contract.md`. Dependencies, Runtimes, Help without configuration, Unknown flags, Output and errors, Where files are written, and Caller-named paths bind this implementation. The entry file remains standard-library; its sibling loads graph dependencies after venv re-exec. `--install`, `WISER_ALLOW_INSTALL=1`, or a matching plugin consent marker permits the package install into this tool's `.venv` from `pypi.org` and `files.pythonhosted.org`, estimated several hundred megabytes including dependencies. pip's cache is off. The authorised run finishes after install. No dotenv or key is accepted; `--env` is refused. Unknown, repeated and inapplicable flags fail before work. Every caller-named path is screened. The write inventory is `tools/AGENTS.md`.
+The script follows `system/templates/Script Contract.md`, the pointer to `standards/script-contract.md`. Dependencies, Runtimes, Help without configuration, Unknown flags, Output and errors, Where files are written, and Caller-named paths bind this implementation. The entry file remains standard-library; its sibling loads graph dependencies after venv re-exec. `--install`, `WISER_ALLOW_INSTALL=1`, the consent in `tools/RUNNING.md` permits the package install into this tool's `.venv` from `pypi.org` and `files.pythonhosted.org`, estimated several hundred megabytes including dependencies. pip's cache is off. The authorised run finishes after install. No dotenv or key is accepted; `--env` is refused. Unknown, repeated and inapplicable flags fail before work. Every caller-named path is screened. The write inventory is `tools/AGENTS.md`.
 
 Success prints one JSON object and exits 0; help prints usage. Failures print only to stderr and exit 1. Rejected nodes, lint findings and failed eval rows are reported results, not command failures. No result promises a composed answer or a model quality judgment.
 

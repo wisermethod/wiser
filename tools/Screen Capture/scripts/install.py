@@ -1,14 +1,41 @@
-"""The tool-local wheel cache and plugin-scoped install consent (stdlib only)."""
+"""The tool-local wheel cache and person- and copy-scoped install consent (stdlib only)."""
 import importlib.metadata
 import json
 import os
 import re
+import stat
+import uuid
 import subprocess
 import sys
 from datetime import date
 from pathlib import Path
 
 from paths import CaptureError
+
+
+INSTALL_ONCE = "You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates."
+INSTALL_HELP = "Say yes to the download this tool needs. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates."
+INSTALL_COPY_ONLY = "Wiser will install this, but it can only remember your yes until the next Wiser update, so you may be asked again then. Reason: "
+INSTALL_NOT_SAVED = "Wiser will install this now, but it couldn't remember your yes, so you'll be asked again next time. Reason: "
+
+
+def install_question(what, purpose, size=None):
+    return ("This Wiser skill needs to download and install " + what + " on your machine in order to " + purpose + "."
+            + (" It's about " + size + "." if size else "") + " " + INSTALL_ONCE)
+
+
+def install_size(size_bytes):
+    def rounded(divisor):
+        return int(size_bytes / divisor + 0.5)
+    if size_bytes < 1000000:
+        kb = max(1, rounded(1000))
+        return "%d KB" % kb if kb < 1000 else "1.0 MB"
+    if size_bytes < 10000000:
+        tenths = rounded(100000)
+        return "%.1f MB" % (tenths / 10) if tenths < 100 else "10 MB"
+    mb = rounded(10000000) * 10 if size_bytes >= 100000000 else rounded(1000000)
+    return "%.1f GB" % (rounded(100000000) / 10) if mb >= 1000 else "%d MB" % mb
+
 
 
 def plugin_root(tool):
@@ -64,6 +91,101 @@ def ready(cache):
         return False
 
 
+def config_dir():
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "wiser"
+    if sys.platform == "win32":
+        return Path(os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming") / "wiser"
+    return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "wiser"
+
+
+def trusted_config_dir(directory):
+    # Windows trusts the marker by its location in the person's own profile.
+    info = directory.lstat()
+    if not stat.S_ISDIR(info.st_mode):
+        raise OSError("the user-config directory is not a real directory")
+    if sys.platform != "win32":
+        if info.st_uid != os.getuid():
+            raise OSError("the user-config directory is owned by another user")
+        if info.st_mode & 0o022:
+            raise OSError("the user-config directory is writable by group or others")
+
+
+def person_marker_grants():
+    """Same directory and descriptor trust boundary as tools/lib/consent.js."""
+    try:
+        directory = config_dir()
+        trusted_config_dir(directory)
+        fd = os.open(directory / ".wiser-consent", os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(fd, "r", encoding="utf-8") as stream:
+            info = os.fstat(stream.fileno())
+            if not stat.S_ISREG(info.st_mode):
+                return False
+            if sys.platform != "win32" and (info.st_uid != os.getuid() or info.st_mode & 0o022):
+                return False
+            data = json.load(stream)
+        if (not isinstance(data, dict) or data.get("scope") != "person"
+                or not isinstance(data.get("tool"), str) or not data["tool"]
+                or not isinstance(data.get("date"), str)
+                or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", data["date"])):
+            return False
+        return date.fromisoformat(data["date"]).isoformat() == data["date"]
+    except (OSError, ValueError):
+        return False
+
+
+def write_marker(path, payload):
+    temporary = path.with_name(path.name + ".tmp-" + uuid.uuid4().hex)
+    try:
+        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            stream.write(json.dumps(payload) + "\n")
+        os.replace(temporary, path)
+        return True
+    except OSError:
+        return False  # Explicit authorization still permits this install.
+    finally:
+        try:
+            temporary.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def copy_only(error, saved=True):
+    reason = str(error).splitlines()[0]
+    message = INSTALL_COPY_ONLY if saved else INSTALL_NOT_SAVED
+    sys.stderr.write(message + reason + ".\n")
+
+
+def warn_copy_consent():
+    if not person_marker_grants():
+        try:
+            trusted_config_dir(config_dir())
+        except OSError as error:
+            copy_only(error)
+
+
+def write_person_consent(payload, copy_marker=None, realpath=None):
+    person_error = None
+    try:
+        directory = config_dir()
+        missing = []
+        parent = directory
+        while not parent.exists() and not parent.is_symlink():
+            missing.append(parent)
+            parent = parent.parent
+        for parent in reversed(missing):
+            parent.mkdir(mode=0o700, exist_ok=True)
+        trusted_config_dir(directory)
+        if not write_marker(directory / ".wiser-consent", dict(payload, scope="person")):
+            raise OSError("the person marker could not be written")
+    except OSError as error:
+        person_error = error
+    saved = write_marker(copy_marker, dict(payload, realpath=realpath)) if copy_marker is not None else False
+    if person_error is not None:
+        copy_only(person_error, saved)
+
+
 def ensure(tool, authorised, argv):
     cache = tool / ".venv"
     python = cache / "bin" / "python3"
@@ -73,20 +195,24 @@ def ensure(tool, authorised, argv):
         consent = False
         if root:
             try:
-                marker = json.loads((root / ".wiser-consent").read_text())
+                fd = os.open(root / ".wiser-consent", os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+                with os.fdopen(fd, "r", encoding="utf-8") as stream:
+                    if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                        raise OSError("the copy marker is not a regular file")
+                    marker = json.load(stream)
                 consent = isinstance(marker, dict) and marker.get("realpath") == str(root)
             except (ValueError, OSError):
                 pass
-        if not explicit and not consent:
-            raise CaptureError("packages missing: PyObjC 11.1 (Cocoa, Quartz, CoreML, Vision), Pillow 11.3.0, "
+        if not (explicit or consent or person_marker_grants()):
+            raise CaptureError(install_question("Apple's screen libraries for Python and an image library", "capture and record app windows and blank out private details", "100 MB") + "\n\nDetails for the assistant: " + "packages missing: PyObjC 11.1 (Cocoa, Quartz, CoreML, Vision), Pillow 11.3.0, "
                                "NumPy 2.0.2 (Python <3.11) or 2.3.5 (Python >=3.11). "
                                "Install fetches roughly 100 MB from pypi.org and files.pythonhosted.org into "
                                + str(cache) + "; pip cache is off. Retry with --install or WISER_ALLOW_INSTALL=1")
-        if explicit and root:
-            payload = {"realpath": str(root), "date": date.today().isoformat(), "tool": "Screen Capture"}
-            marker = root / ".wiser-consent"
-            marker.write_text(json.dumps(payload) + "\n")
-            marker.chmod(0o600)
+        if not explicit:
+            warn_copy_consent()
+        if explicit:
+            payload = {"date": date.today().isoformat(), "tool": "Screen Capture"}
+            write_person_consent(payload, root / ".wiser-consent" if root else None, str(root))
         failure = ("wheel install failed; remove the incomplete .venv at " + str(cache) +
                    " and retry with --install after checking python3 -m venv, pinned wheel support and directory permissions")
         try:

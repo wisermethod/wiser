@@ -5,11 +5,26 @@ import {tmpdir} from 'node:os';
 import {join,dirname,basename} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {connect} from 'node:net';
+import {installQuestion} from '../../lib/consent.js';
 import {serve,localRequest} from './local.js';
 
 const browser = fileURLToPath(new URL('../../Browser Control/scripts/browser.js',import.meta.url));
 const port = 4395;
 const delay = ms => new Promise(done => setTimeout(done,ms));
+
+// Browser Control has no structured install refusal. Only its first line can
+// identify one; a later mention in another error's fix is not install consent.
+export function browserInstallRefused(report) {
+  const first = typeof report === 'string' ? report.split(/\r?\n/,1)[0] : '';
+  return /^This Wiser skill needs to download and install (?:the code that drives a browser \(and a private copy of the Chromium browser, if you don't have it yet\)|a private copy of the Chromium browser) on your machine in order to open web pages in a window of its own, without touching your own browser\./i.test(first);
+}
+
+export function formInstallQuestion(report) {
+  const first = report.split(/\r?\n/,1)[0];
+  const what = first.match(/^This Wiser skill needs to download and install (.+) on your machine in order to /i)[1];
+  const size = first.match(/ It's about (.+)\. You'll only be asked once:/)?.[1];
+  return installQuestion(what, 'show your form in a window of its own', size);
+}
 
 function browserCommand(args,onChild = () => {}) {
   return new Promise((accept,reject) => {
@@ -151,11 +166,9 @@ export async function ask(form,{ttl,seconds,install,headless}) {
       }
     }
   } catch (error) {
-    // Browser Control has no structured install refusal. Match its refusal
-    // token, not a generic mention of --install in some other failure's fix.
-    needsInstall = /^Error: this tool(?: is not installed yet|\x27s packages are installed but the Chromium build they drive is not).*has not authorised an install\./im.test(error.report || '');
+    needsInstall = browserInstallRefused(error.report);
     result = signal ? interrupted() : needsInstall
-      ? {status:'needs-install',report:error.report,reason:'A yes means running ask again with --install.'}
+      ? {status:'needs-install',question:formInstallQuestion(error.report),report:error.report,reason:'A yes means running ask again with --install.'}
       : {status:'no-window',reason:error.message};
   } finally {
     try { await cleanup(); }

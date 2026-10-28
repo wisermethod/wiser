@@ -2,7 +2,7 @@
 
 Once per machine. Skip it if packages are installed and the Chromium check named in TOOL.md Dependencies already passes.
 
-System dependencies are once per machine, packages once per copy (`tools/RUNNING.md`).
+System dependencies are once per machine, shared browser packages once per person (`tools/RUNNING.md`).
 
 Run every command from this tool's directory.
 
@@ -16,7 +16,7 @@ node --version
 
 ## 2. Packages
 
-Nothing to run by hand. Consent is once per copy of the plugin (`tools/RUNNING.md`). Only `mermaid` installs `mermaid` into this tool's directory. Playwright for every subcommand that launches a browser installs into `tools/lib/browser-runtime/`. This tool holds no credentials.
+Nothing to run by hand. Consent is once per person across plugin copies (`tools/RUNNING.md`). Only `mermaid` installs `mermaid` into this tool's directory. Every subcommand that launches a browser uses the active browser runtime, installed once per person where the copy holds none (`tools/AGENTS.md`). This tool holds no credentials.
 
 ## 3. Chromium
 

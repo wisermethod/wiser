@@ -3,7 +3,7 @@ name: render
 type: tool
 category: media
 description: Renders a local HTML file to a PNG or JPEG, an SVG or a Mermaid diagram to a PNG, and captures a PNG of a live web page
-version: 0.2.3
+version: 0.2.4
 ---
 
 # render
@@ -30,7 +30,7 @@ Usage text listing the five subcommands, with nothing installed. `node scripts/r
 node scripts/render.js html --input /path/to/a/work/directory/card.html --output /path/to/a/work/directory/card.png --width 1200 --height 630
 ```
 
-If this copy of the plugin has not yet authorized an install, the run reports that it would install Playwright into `tools/lib/browser-runtime/`, and stops. `--install` on that run is the answer (`tools/RUNNING.md`). It prints one JSON object:
+If this person has not yet authorized a Wiser install, the run reports that it would install Playwright into the active browser runtime (`tools/AGENTS.md`), and stops. `--install` on that run is the answer (`tools/RUNNING.md`). It prints one JSON object:
 
 ```
 {"output":"/path/to/a/work/directory/card.png","format":"png","width":1200,"height":630,"scale":1}
@@ -51,7 +51,7 @@ No command takes `--env`.
 | The Chromium build Playwright drives | `html`, `svg`, `mermaid`, `url` | `node scripts/render.js check` exits 0 with `"chromiumLaunch":true` |
 | `mermaid` | `mermaid` | `node_modules/mermaid/package.json` inside this tool directory |
 
-Playwright and its Chromium build install once, into `tools/lib/browser-runtime/` and Playwright's cache (`tools/AGENTS.md`). Presence is a **trial launch** via the shared runtime at `tools/lib/browser-runtime/`, not a path on disk. A missing OS library is shimmed where a compiler is present, or named with one next step (`tools/AGENTS.md`). The `mermaid` package installs into this tool's directory, and only `mermaid` asks for it. Install steps are never written here. `tools/AGENTS.md` lists every write.
+Playwright uses the active browser runtime; its Chromium build uses Playwright's cache (`tools/AGENTS.md`). Presence is a **trial launch** through the active browser runtime, not a path on disk. A missing OS library is shimmed where a compiler is present, or named with one next step (`tools/AGENTS.md`). The `mermaid` package installs into this tool's directory, and only `mermaid` asks for it. Install steps are never written here. `tools/AGENTS.md` lists every write.
 
 ## html
 

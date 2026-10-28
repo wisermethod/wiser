@@ -3,7 +3,7 @@ name: video-render
 type: tool
 category: media
 description: Renders one local HTML page whose motion answers the tool's seek to a picture-only MP4, a PNG sequence, or stills at named times, the same frames on every run at a set worker count, under one pinned HyperFrames, with a cache keyed over every input
-version: 0.2.0
+version: 0.2.1
 gaps:
   - rendering on Windows or Linux, which no run has tested
 ---
@@ -46,7 +46,7 @@ node scripts/video-render.js render --project /path/to/work/scene --output /path
   --width 1920 --height 1080 --fps 30 --duration 11 --cache /path/to/work/render-cache
 ```
 
-`help` needs nothing installed. `check` installs nothing; read `ready` and its parts, not the exit code. Does a render stop with an install report? Yes: put that report to the person, then re-run the same command with `--install` on their yes, per `tools/RUNNING.md`; the run installs and finishes. No: read its JSON result, or the refusal under Troubleshooting. `SETUP.md` covers a first install.
+`help` needs nothing installed. `check` installs nothing; read `ready` and its parts, not the exit code. Does a render stop with an install report? Yes: say its opening question to the person word for word, and use the details after it only to act on their answer or if they ask; then re-run the same command with `--install` on their yes, per `tools/RUNNING.md`; the run installs and finishes. No: read its JSON result, or the refusal under Troubleshooting. `SETUP.md` covers a first install.
 
 ## Dependencies
 

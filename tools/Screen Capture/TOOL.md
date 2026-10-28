@@ -3,7 +3,7 @@ name: Screen Capture
 type: tool
 category: media
 description: Captures and drives a macOS app window, redacts PNG stills and recordings, and checks every written frame for email-shaped text and declared terms
-version: 0.1.0
+version: 0.1.1
 gaps:
   - Desktop capture and redaction on Windows and Linux
 ---
@@ -56,7 +56,7 @@ python3 scripts/capture.py verify --input /path/to/work/redacted.png \
   --term 'riley.q@example.org' --term 'Riley Quintero'
 ```
 
-Does the run stop with `packages missing`? Yes: put its consent report to the person, then re-run that command with `--install` on their yes, per `tools/RUNNING.md`. No: read its JSON result or the named refusal in Troubleshooting. A failed redaction check leaves no file at `--output`; inspect the report's `hits` and follow the repair decision under Redaction and its limits.
+Does the run stop with `packages missing`? Yes: say its opening question to the person word for word, and use the details after it only to act on their answer or if they ask; then re-run that command with `--install` on their yes, per `tools/RUNNING.md`. No: read its JSON result or the named refusal in Troubleshooting. A failed redaction check leaves no file at `--output`; inspect the report's `hits` and follow the repair decision under Redaction and its limits.
 
 ## Dependencies
 
@@ -74,7 +74,7 @@ Python is this tool's declared interpreter under the Script Contract's Runtimes 
 
 ## Configuration
 
-None: no account, credential file or sign-in. Permissions are described at Quick Start. Package consent follows `tools/RUNNING.md`: `--install` answers for this plugin copy, and `WISER_ALLOW_INSTALL=1` authorizes an unattended install. It fetches roughly 100 MB from `pypi.org` and `files.pythonhosted.org`, into this tool's `.venv`, with pip's download cache off. It accepts binary wheels only; an unsupported interpreter stops rather than compiling. Use the same interpreter for the copy's checks and commands. The full write inventory is `tools/AGENTS.md`.
+None: no account, credential file or sign-in. Permissions are described at Quick Start. Package consent follows `tools/RUNNING.md`: `--install` authorizes the package install, and `WISER_ALLOW_INSTALL=1` authorizes an unattended install. It fetches roughly 100 MB from `pypi.org` and `files.pythonhosted.org`, into this tool's `.venv`, with pip's download cache off. It accepts binary wheels only; an unsupported interpreter stops rather than compiling. Use the same interpreter for the copy's checks and commands. The full write inventory is `tools/AGENTS.md`.
 
 ## Usage
 
@@ -250,7 +250,7 @@ Message fragments below identify the code's stops; variable paths, flags, steps 
 | `[path] already exists` | File or run directory is taken | Use a new destination; nothing is overwritten |
 | `[path] parent is absent` | Destination parent does not exist | Create the declared work directory first |
 | `[path] is not a readable file or directory` | Required source is absent or the wrong type | Check the source path and permissions |
-| `packages missing` | This interpreter's pinned cache is absent or incomplete without consent | Show the install report and answer with install consent per Quick Start |
+| `packages missing` | This interpreter's pinned cache is absent or incomplete without consent | Say the opening question to the member word for word; hosts, paths and flags are details for acting on their answer, per Quick Start |
 | `wheel install failed` | venv creation, wheel availability, permissions or install failed | Remove the named incomplete `.venv`, check `python3 -m venv`, wheel support and writability, then retry with consent |
 | `the .venv interpreter is incomplete` | Cache cannot re-execute its interpreter | Remove the incomplete cache and retry an authorized install |
 | `missing tesseract` | OCR program absent or version check fails | Make `tesseract --version` pass per Dependencies |

@@ -3,7 +3,7 @@ name: Build Brand
 type: skill
 category: onboarding
 description: Build or rebuild one user root's design.md, by a brief path of about ten minutes for an existing brand, a full path that writes a Playbook first and builds the brand from the person's own answers by reacting to whole brand boards over sessions, or a simple brand made for a person who asks for one, with every claim traced to an answer, a file or the part it came from
-version: 0.2.1
+version: 0.2.2
 gaps:
   - naming a brand
   - trademark search

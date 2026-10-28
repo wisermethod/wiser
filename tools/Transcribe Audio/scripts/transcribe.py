@@ -21,10 +21,37 @@ import json
 import os
 import re
 import shutil
+import stat
+import uuid
 import subprocess
 import sys
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
+
+INSTALL_ONCE = "You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates."
+INSTALL_HELP = "Say yes to the download this tool needs. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates."
+INSTALL_COPY_ONLY = "Wiser will install this, but it can only remember your yes until the next Wiser update, so you may be asked again then. Reason: "
+INSTALL_NOT_SAVED = "Wiser will install this now, but it couldn't remember your yes, so you'll be asked again next time. Reason: "
+
+
+def install_question(what, purpose, size=None):
+    return ("This Wiser skill needs to download and install " + what + " on your machine in order to " + purpose + "."
+            + (" It's about " + size + "." if size else "") + " " + INSTALL_ONCE)
+
+
+def install_size(size_bytes):
+    def rounded(divisor):
+        return int(size_bytes / divisor + 0.5)
+    if size_bytes < 1000000:
+        kb = max(1, rounded(1000))
+        return "%d KB" % kb if kb < 1000 else "1.0 MB"
+    if size_bytes < 10000000:
+        tenths = rounded(100000)
+        return "%.1f MB" % (tenths / 10) if tenths < 100 else "10 MB"
+    mb = rounded(10000000) * 10 if size_bytes >= 100000000 else rounded(1000000)
+    return "%.1f GB" % (rounded(100000000) / 10) if mb >= 1000 else "%d MB" % mb
+
+
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 TOOL_DIR = SCRIPT_DIR.parent
@@ -121,6 +148,8 @@ MODEL_SIZES = {
     "large": "about 3.1GB",
 }
 
+MODEL_QUESTION_SIZES = {"tiny": "75 MB", "base": "145 MB", "small": "480 MB", "medium": "1.5 GB", "large": "3.1 GB"}
+
 # The transcription language the engine is pinned to. TOOL.md states the limit.
 LANGUAGE = "en"
 
@@ -131,29 +160,35 @@ USAGE = """Transcribe Audio - turns one audio file into a text transcript on thi
 Usage:
   python3 scripts/transcribe.py help
   python3 scripts/transcribe.py check
+  python3 scripts/transcribe.py align --audio [path] --words [json] --output [json]
+      [--layout [json]] [--language en] [--model-cache [dir]] [--install]
   python3 scripts/transcribe.py transcribe --audio [path] --output [dir]
       [--model-cache [dir]] [--model [name]]
 
 Commands:
   check            Report the interpreter, FFmpeg, and whether the speech packages are installed
   transcribe       Write a transcript of one audio file
+  align            Align known English words; run align --help for its input contract
   help             Print this message
 
 Options:
   --audio [path]        The audio file, absolute. One of: {formats}
   --output [dir]        Directory the transcript is written into, absolute and
                         outside this tool directory
-  --install             Authorise the first install in this copy of the plugin.
-                        Without it, the first command that needs a package this
-                        copy has not installed reports what it would fetch, and
-                        from where, and stops. That answer covers every later
-                        tool in this copy. WISER_ALLOW_INSTALL=1 does the same
+  --install          Say yes to the download this tool needs. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.
+                        Without consent, a command needing missing packages
+                        reports what it would fetch, and from where, and stops.
+                        That answer covers every later
+                        tool in every copy. WISER_ALLOW_INSTALL=1 does the same
                         for an unattended run.
   --model-cache [dir]   Directory model weights are downloaded into, absolute and
                         outside this tool directory. Omit to use the person-scoped
                         models/ folder named in tools/AGENTS.md. An explicit path
                         still wins. The connector key file is refused.
   --model [name]        Speech model: {models}. Default {default}
+  --words [json]        align only: absolute JSON file containing an ordered word array
+  --layout [json]       align only: absolute version-1 passage layout JSON file
+  --language [code]     align only: en (English); other languages are refused
   --help, -h            Print this message
 
 Success prints one JSON object to stdout. Errors go to stderr with exit 1.""".format(
@@ -169,7 +204,7 @@ def stop(message):
 
 def fail(message):
     """A failure, which is every stop but the consent report's re-run notice."""
-    stop("Error: " + message)
+    stop(("" if message.startswith("This Wiser skill needs to download and install ") else "Error: ") + message)
 
 
 def note(message):
@@ -183,6 +218,10 @@ FLAG_OPTIONS = ("--install",)
 
 
 # Arguments. Parsed first so help costs nothing: no install, no configuration.
+if __name__ == "__main__" and sys.argv[1:2] == ["align"]:
+    from align import main
+    sys.exit(main(sys.argv[2:]))
+
 argv = sys.argv[1:]
 command = argv[0] if argv else "help"
 
@@ -491,12 +530,105 @@ def flag_authorised():
     return "--install" in sys.argv or os.environ.get("WISER_ALLOW_INSTALL") == "1"
 
 
+def trusted_config_dir(directory):
+    # Windows trusts the marker by its location in the person's own profile.
+    info = directory.lstat()
+    if not stat.S_ISDIR(info.st_mode):
+        raise OSError("the user-config directory is not a real directory")
+    if sys.platform != "win32":
+        if info.st_uid != os.getuid():
+            raise OSError("the user-config directory is owned by another user")
+        if info.st_mode & 0o022:
+            raise OSError("the user-config directory is writable by group or others")
+
+
+def person_marker_grants():
+    """Same directory and descriptor trust boundary as tools/lib/consent.js."""
+    try:
+        directory = platform_user_config_dir()
+        trusted_config_dir(directory)
+        fd = os.open(directory / ".wiser-consent", os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(fd, "r", encoding="utf-8") as stream:
+            info = os.fstat(stream.fileno())
+            if not stat.S_ISREG(info.st_mode):
+                return False
+            if sys.platform != "win32" and (info.st_uid != os.getuid() or info.st_mode & 0o022):
+                return False
+            data = json.load(stream)
+        if (not isinstance(data, dict) or data.get("scope") != "person"
+                or not isinstance(data.get("tool"), str) or not data["tool"]
+                or not isinstance(data.get("date"), str)
+                or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", data["date"])):
+            return False
+        return date.fromisoformat(data["date"]).isoformat() == data["date"]
+    except (OSError, ValueError):
+        return False
+
+
+def write_marker(path, payload):
+    temporary = path.with_name(path.name + ".tmp-" + uuid.uuid4().hex)
+    try:
+        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            stream.write(json.dumps(payload) + "\n")
+        os.replace(temporary, path)
+        return True
+    except OSError:
+        return False  # Explicit authorization still permits this install.
+    finally:
+        try:
+            temporary.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def copy_only(error, saved=True):
+    reason = str(error).splitlines()[0]
+    message = INSTALL_COPY_ONLY if saved else INSTALL_NOT_SAVED
+    sys.stderr.write(message + reason + ".\n")
+
+
+def warn_copy_consent():
+    if not person_marker_grants():
+        try:
+            trusted_config_dir(platform_user_config_dir())
+        except OSError as error:
+            copy_only(error)
+
+
+def write_person_consent(payload, copy_marker=None, realpath=None):
+    person_error = None
+    try:
+        directory = platform_user_config_dir()
+        missing = []
+        parent = directory
+        while not parent.exists() and not parent.is_symlink():
+            missing.append(parent)
+            parent = parent.parent
+        for parent in reversed(missing):
+            parent.mkdir(mode=0o700, exist_ok=True)
+        trusted_config_dir(directory)
+        if not write_marker(directory / ".wiser-consent", dict(payload, scope="person")):
+            raise OSError("the person marker could not be written")
+    except OSError as error:
+        person_error = error
+    saved = write_marker(copy_marker, dict(payload, realpath=realpath)) if copy_marker is not None else False
+    if person_error is not None:
+        copy_only(person_error, saved)
+
+
 def marker_grants():
+    if person_marker_grants():
+        return True
     root = plugin_root()
     if root is None:
         return False
     try:
-        data = json.loads((root / CONSENT_MARKER).read_text(encoding="utf-8"))
+        fd = os.open(root / CONSENT_MARKER, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(fd, "r", encoding="utf-8") as stream:
+            if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                raise OSError("the copy marker is not a regular file")
+            data = json.load(stream)
     except (OSError, ValueError):
         return False
     recorded = data.get("realpath") if isinstance(data, dict) else None
@@ -509,41 +641,31 @@ def install_authorised():
 
 def write_consent():
     if not flag_authorised():
+        warn_copy_consent()
         return
+    payload = {"date": datetime.now().strftime("%Y-%m-%d"), "tool": "Transcribe Audio"}
     root = plugin_root()
-    if root is None:
-        return
-    payload = {
-        "realpath": str(root),
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "tool": "Transcribe Audio",
-    }
-    path = root / CONSENT_MARKER
-    try:
-        path.write_text(json.dumps(payload) + "\n", encoding="utf-8")
-        os.chmod(path, 0o600)
-    except OSError:
-        pass
+    write_person_consent(payload, root / CONSENT_MARKER if root is not None else None, str(root))
 
 
 def require_install_consent(label):
     """Consent before an install, matching the Node tools' Dependencies clause.
 
     This script does not read stdin, so it cannot ask. The plugin asks once, on
-    the first install in this copy, and --install on that run is the answer.
+    the first install for this person, and --install on that run is the answer.
     """
     if install_authorised():
         write_consent()
         return
     fail(
-        "this tool is not installed yet and this copy of the plugin has not authorised an install. "
-        "The plugin asks once, on the first install in this copy. "
+        install_question("the code libraries speech recognition needs (and the %s speech-recognition model, if you don't have it yet)" % model, "turn your recordings into text without uploading them anywhere", MODEL_QUESTION_SIZES[model] + " for the model, if it's needed, plus the code libraries") + "\n\nDetails for the assistant: " +
+        "this tool is not installed yet and no valid install consent is available. "
         "Installing creates a virtual environment at %s and fetches the %s packages into it "
-        "from pypi.org, several hundred megabytes, with pip's own download cache switched off "
-        "so nothing lands outside this tool. tools/AGENTS.md lists every write an install makes. "
+        "from pypi.org and files.pythonhosted.org, with pip's own download cache switched off "
+        "and, if needed, fetches the selected speech-recognition model from openaipublic.azureedge.net into %s. It also writes person and copy consent markers. tools/AGENTS.md lists every write an install makes. "
         "Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 "
         "for an unattended run. Nothing is read from stdin, so this is the only way to answer."
-        % (CACHE_DIR, label)
+        % (CACHE_DIR, label, model_cache / "speech-models")
     )
 
 
@@ -716,8 +838,9 @@ if not weights_present:
         write_consent()
     if not install_authorised():
         fail(
+            install_question("the %s speech-recognition model" % model, "turn your recordings into text without uploading them anywhere", MODEL_QUESTION_SIZES[model]) + "\n\nDetails for the assistant: " +
             "the %s speech model is not on this machine as a file whisper will accept, and "
-            "this copy of the plugin has not authorised a download. That covers three states and they need the "
+            "no valid install consent is available for a download. That covers three states and they need the "
             "same answer: no file at all, a file whose SHA-256 does not match the one in "
             "whisper's own URL -- which is what an interrupted download leaves, and whisper "
             "re-downloads on it -- and a whisper this script cannot ask, which it treats as "

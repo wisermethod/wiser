@@ -177,8 +177,9 @@ try {
 }
 
 // devices only from playwright; Chromium launch goes through browser-runtime.
-const { devices } = await import(new URL('../../lib/browser-runtime/node_modules/playwright/index.mjs', import.meta.url));
 const runtime = await import(new URL('../../lib/browser-runtime/browser-runtime.js', import.meta.url));
+const module = await runtime.loadPlaywright();
+const devices = module.devices || module.default?.devices;
 
 let context = null;
 let page = null;

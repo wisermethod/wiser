@@ -1,0 +1,6 @@
+# Alignment only. Transcription keeps requirements.txt unchanged.
+# CPython 3.9-3.13: both 2.8.0 releases list these minors in their METADATA
+# Programming Language classifiers. Platform/architecture wheels must exist.
+# The timing proof used CPython 3.9.6; patch versions are not a requirement.
+torch==2.8.0
+torchaudio==2.8.0

@@ -3,7 +3,7 @@ name: sitemap
 type: tool
 category: seo
 description: One deterministic snapshot of the URLs a site publishes in its sitemaps, and one JSON report of what changed between two snapshots of the same site
-version: 0.2.3
+version: 0.2.4
 ---
 
 # sitemap
@@ -34,7 +34,7 @@ Usage text listing the two subcommands, with nothing installed. `node scripts/si
 node scripts/sitemap.js fetch --domain example.com
 ```
 
-If this copy of the plugin has not yet authorized an install, `fetch` reports that it would install `undici` in this tool's directory, and stops. `--install` on that run is the answer (`tools/RUNNING.md`). It prints one JSON object:
+If this person has not yet authorized a Wiser install, `fetch` reports that it would install `undici` in this tool's directory, and stops. `--install` on that run is the answer (`tools/RUNNING.md`). It prints one JSON object:
 
 ```
 {"domain":"example.com","fetchedAt":"2026-07-27","sitemaps":["https://example.com/sitemap.xml"],"urls":[{"loc":"https://example.com/guide/naming","path":"/guide/naming","slug":"naming","segment":"guide","lastmod":"2026-06-02"}],"count":1,"truncated":false}

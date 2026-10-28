@@ -33,7 +33,8 @@ for(const [path,valid,invalid] of [
 ]) {
  good(`${path} spelling boundary`,path,valid);bad(`${path} spelling`,path,invalid);bad(`${path} length`,path,'a'.repeat(41));bad(`${path} number`,path,1);
 }
-for(const path of ['title','questions','questions[0].id','questions[0].type','questions[0].label','questions[0].options','questions[0].options[0].value','questions[0].options[0].label','questions[2].options[0].picture','questions[4].min','questions[4].max','fonts[0].family','fonts[0].src']) bad(`${path} required`,path,undefined,true);
+// Picture is now optional per option; the question-level picture minimum is checked below.
+for(const path of ['title','questions','questions[0].id','questions[0].type','questions[0].label','questions[0].options','questions[0].options[0].value','questions[0].options[0].label','questions[4].min','questions[4].max','fonts[0].family','fonts[0].src']) bad(`${path} required`,path,undefined,true);
 for(const path of ['submitLabel','extra','questions[0].extra','questions[0].placeholder','questions[4].options','questions[5].min','questions[0].options[0].extra','questions[0].options[0].picture','questions[0].options[0].sample','fonts[0].extra']) bad(`${path} unknown`,path,'x');
 for(const path of ['questions','fonts','questions[0].options']) bad(`${path} array type`,path,{});
 for(const path of ['questions[0]','fonts[0]','questions[0].options[0]']) bad(`${path} object type`,path,[]);
@@ -72,3 +73,24 @@ export function template() {const f=base();f.slots={name:{about:'Member name',ma
 for(const sep of ['\u2028','\u2029'])for(const path of ['questions[0].short','questions[0].label','title'])bad(`separator ${sep.charCodeAt(0).toString(16)} in ${path}`,path,`Name${sep}- Budget`);
 // Far from zero a small step vanishes in rounding: 2^53 + 1 is 2^53.
 {const f=base();f.questions[4]={id:'range',type:'slider',label:'Range',min:9007199254740992,max:9007199254740994,step:1};refused.push(['slider steps that round together','questions[4].step',f]);}
+// Change 2: picture questions can mix tiles and words, but still need two pictures.
+export function mixedPictures(type='image-radio') {
+  return {title:'Pictures and words',questions:[{id:'look',type,label:'Which look?',options:[
+    {value:'neither',label:'Neither',note:'Use words instead'},
+    {value:'a',label:'A',picture:'motif:dots'},
+    {value:'b',label:'B',picture:'motif:grid'},
+    {value:'c',label:'C',picture:'motif:waves'}
+  ]}]};
+}
+for(const type of ['image-radio','image-checkbox']) {
+  passing.push([`${type} three pictures and one word`,mixedPictures(type)]);
+  const maximum=mixedPictures(type);maximum.questions[0].options.splice(3,1);
+  for(let i=0;i<5;i++)maximum.questions[0].options.push({value:`word-${i}`,label:'A word'});
+  passing.push([`${type} two pictures and six words`,maximum]);
+  for(const count of [0,1]) {
+    const f=mixedPictures(type);f.questions[0].options.forEach((o,i)=>{if(i>count)delete o.picture;});
+    refused.push([`${type} ${count} pictures`,'questions[0].options',f]);
+  }
+  const sample=mixedPictures(type);sample.questions[0].options[0].sample='Words';
+  refused.push([`${type} sample without picture`,'questions[0].options[0].sample',sample]);
+}

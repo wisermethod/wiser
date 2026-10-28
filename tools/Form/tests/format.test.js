@@ -1,8 +1,9 @@
+import '../../lib/tests/isolated-home.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {checkForm,checkTemplate,fillTemplate,FORM_LIMITS,FONT_HOSTS,SAMPLE_FORM} from '../scripts/format.js';
-import {passing,refused,base,clone,set,template} from './cases.js';
+import {passing,refused,base,clone,set,template,mixedPictures} from './cases.js';
 for(const [name,form] of passing)test(`accept: ${name}`,()=>assert.deepEqual(checkForm(form),{ok:true,problems:[]}));
 for(const [name,path,form] of refused)test(`refuse: ${name}`,()=>{const r=checkForm(form);assert.equal(r.ok,false);assert.ok(r.problems.some(p=>p.path===path),JSON.stringify(r));});
 test('never throws for arbitrary input, even hostile objects',()=>{
@@ -67,4 +68,13 @@ test('wrong non-JSON values keep their field paths; step rounding admits decimal
  for(const value of [1n,()=>{},Symbol('x')]){const f=base();f.questions[4].min=value;const r=checkForm(f);assert.equal(r.ok,false);assert.ok(r.problems.some(p=>p.path==='questions[4].min'),JSON.stringify(r));}
  const f=base();f.questions[4]={id:'range',type:'slider',label:'Range',min:.1,max:.4,step:.003};assert.equal(checkForm(f).ok,true);
  f.questions[4]={id:'range',type:'slider',label:'Range',min:0,max:1.000000005,step:1};assert.ok(checkForm(f).problems.some(p=>p.path==='questions[4].step'));
+});
+test('mixed picture templates keep word values and defer only tokenized picture rules',()=>{
+ const t=mixedPictures();t.slots={label:{about:'Word answer',max:60},picture:{about:'Picture',max:300}};
+ t.questions[0].options[0].label='{{label}}';t.questions[0].options[1].picture='{{picture}}';
+ assert.deepEqual(checkTemplate(t),{ok:true,problems:[]});
+ const filled=fillTemplate(t,{label:'Neither of these',picture:'type:serif'});
+ assert.equal(filled.ok,true,JSON.stringify(filled));assert.equal(filled.form.questions[0].options[0].value,'neither');
+ t.questions[0].options[0].sample='{{label}}';
+ assert.ok(checkTemplate(t).problems.some(p=>p.path==='questions[0].options[0].sample'));
 });

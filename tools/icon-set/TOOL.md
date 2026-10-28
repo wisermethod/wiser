@@ -3,7 +3,7 @@ name: icon-set
 type: tool
 category: media
 description: Searches two pinned open-source sets, Phosphor 2.1.1 (MIT) and Health Icons 2.0.0 (CC0 icons, MIT package), and writes one icon recoloured at the caller's size as an SVG file or a fragment to place inside a drawing
-version: 0.2.0
+version: 0.2.1
 ---
 
 # icon-set
@@ -35,7 +35,7 @@ node scripts/icon-set.js get --set health --name doctor --weight outline --size 
 
 No arguments, `help`, `--help`, and `-h` print usage without anything installed. `node scripts/icon-set.js get help` prints that command's usage; the same form works for `check` and `search`, including `--help` and `-h`.
 
-A missing package stops `search` or `get` with the package, host, destination and the one install command: `node scripts/icon-set.js check --install`. Adding `--install` to the original command authorizes the install and completes that command in the same run. `WISER_ALLOW_INSTALL=1` authorizes an unattended `search` or `get`; a matching plugin consent marker authorizes later installs. A plain `check` always surveys without installing, even with that environment variable or a marker. `tools/RUNNING.md` owns the consent flow.
+A missing package stops `search` or `get` with the package, host, destination and the one install command: `node scripts/icon-set.js check --install`. Adding `--install` to the original command authorizes the install and completes that command in the same run. `WISER_ALLOW_INSTALL=1` authorizes an unattended `search` or `get`; later installs follow the consent in `tools/RUNNING.md`. A plain `check` always surveys without installing, even with that environment variable or a marker. `tools/RUNNING.md` owns the consent flow.
 
 ## Script Contract
 

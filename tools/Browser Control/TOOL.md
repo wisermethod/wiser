@@ -3,7 +3,7 @@ name: Browser Control
 type: tool
 category: automation
 description: Drives a persistent Chromium session to read, navigate, and act on pages that need a real browser, answering every command with the page state that followed
-version: 0.8.0
+version: 0.8.1
 ---
 
 # Browser Control
@@ -35,7 +35,7 @@ node scripts/browser.js snapshot --format interactive
 node scripts/browser.js session stop
 ```
 
-If this copy of the plugin has not yet authorized an install, `session start` reports what it would install and stops; `--install` on that run is the answer, and later tools in this copy install without asking. Every command prints one JSON object:
+If this person has not yet authorized a Wiser install, `session start` reports what it would install and stops; `--install` on that run is the answer, and later tools in every copy install without asking. Every command prints one JSON object:
 
 ```
 {"url":"[address]","title":"[page title]"}
@@ -65,7 +65,7 @@ The pattern that reads a site-specific playbook before improvising travels with 
 |------------|------------|--------------|
 | The Chromium build Playwright drives | `session start` | `npm run check:chromium` exits 0 with `"chromiumLaunch":true` |
 
-Playwright and its Chromium build install once, into `tools/lib/browser-runtime/` and Playwright's cache (`tools/AGENTS.md`). Presence is a **trial launch** via the shared browser runtime at `tools/lib/browser-runtime/`, not a path on disk. A missing OS library is shimmed where a compiler is present, or named with one next step (`tools/AGENTS.md`). The runtime also forwards `HTTPS_PROXY` / `HTTP_PROXY` into Chromium. Install steps are never written here. `tools/AGENTS.md` lists every write.
+Playwright uses the active browser runtime; its Chromium build uses Playwright's cache (`tools/AGENTS.md`). Presence is a **trial launch** through the active browser runtime, not a path on disk. A missing OS library is shimmed where a compiler is present, or named with one next step (`tools/AGENTS.md`). The runtime also forwards `HTTPS_PROXY` / `HTTP_PROXY` into Chromium. Install steps are never written here. `tools/AGENTS.md` lists every write.
 
 ## Session State
 

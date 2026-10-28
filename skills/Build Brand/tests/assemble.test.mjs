@@ -1,3 +1,4 @@
+import '../../../tools/lib/tests/isolated-home.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { copyFileSync, readFileSync, writeFileSync, existsSync, mkdtempSync, mkdirSync, symlinkSync, linkSync, readdirSync, rmSync, realpathSync, chmodSync } from 'node:fs';
@@ -40,6 +41,7 @@ test('family: boards using only two families assemble after only those family as
   for (const dir of [scripts, parts, assets, join(plugin, 'tools/lib')]) mkdirSync(dir, { recursive: true });
   copyFileSync(fileURLToPath(new URL('../scripts/fonts.mjs', import.meta.url)), join(scripts, 'fonts.mjs'));
   copyFileSync(fileURLToPath(new URL('../../../tools/lib/consent.js', import.meta.url)), join(plugin, 'tools/lib/consent.js'));
+  copyFileSync(new URL('../../../tools/lib/user-config.js', import.meta.url), join(plugin, 'tools/lib/user-config.js'));
   writeFileSync(join(plugin, 'tools/AGENTS.md'), '# Isolated test plugin\n');
   const libraryPath = join(parts, 'parts.json'); writeFileSync(libraryPath, JSON.stringify(library));
   const families = ['Fraunces', 'Instrument Sans'];

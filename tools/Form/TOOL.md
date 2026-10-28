@@ -3,7 +3,7 @@ name: Form
 type: tool
 category: automation
 description: Check and fill Wiser forms and draw their questions in a page that returns answers to the chat
-version: 0.1.0
+version: 0.2.1
 ---
 
 # Form
@@ -26,7 +26,7 @@ node scripts/form.js sample
 node scripts/form.js check --form /absolute/path/form.json
 ```
 
-The format commands need only Node, install nothing and write nothing. `ask` also runs Browser Control, which uses the shared browser runtime and can install it on consent. It makes a temporary browser profile and removes it after its host stops. The local window commands use this computer's loopback address; the format commands make no network request. Its contract is `standards/script-contract.md`, through `system/templates/Script Contract.md`; the caller's guide is `tools/RUNNING.md`.
+The format commands need only Node, install nothing and write nothing. `ask` also runs Browser Control, which uses the active browser runtime (`tools/AGENTS.md`) and can install it on consent. It makes a temporary browser profile and removes it after its host stops. The local window commands use this computer's loopback address; the format commands make no network request. Its contract is `standards/script-contract.md`, through `system/templates/Script Contract.md`; the caller's guide is `tools/RUNNING.md`.
 
 ## Usage
 
@@ -83,7 +83,7 @@ Every question has required `id`, `type`, `label` and optional `short`, `help`. 
 | Type | Remaining keys |
 |------|----------------|
 | `radio`, `checkbox` | Required `options`, 2 to 12 entries |
-| `image-radio`, `image-checkbox` | Required `options`, 2 to 8 entries, each with a picture |
+| `image-radio`, `image-checkbox` | Required `options`, 2 to 8 entries, at least two with a picture |
 | `slider` | Required finite numbers `min`, `max`, with `min < max`; optional `step`, `value`, `minLabel`, `maxLabel` |
 | `text` | Optional `placeholder`, at most 120 characters; answer capped at 1000 characters |
 
@@ -96,8 +96,10 @@ An option takes exactly:
 | `value` | Required; `^[a-z0-9][a-z0-9-]{0,39}$`, unique within its question |
 | `label` | Required string, 1 to 60 characters |
 | `note` | Optional string, at most 80 |
-| `picture` | Required on image types, refused on other types |
+| `picture` | Optional on image types; at least two options must have one. Refused on other types |
 | `sample` | Optional only with a `type:` picture, at most 24 characters |
+
+Pictured options draw as tiles, in their order, the pick mark beside each caption's first line, never on the picture. Two or three pictures share one row from a 560-pixel page up; on a narrower page they stack, one per row, each picture beside its caption, so a label such as "Contemporary" stays whole. Four or more use a wrapping grid. Options without pictures draw after the tiles, in their order, as the same word choices `radio` and `checkbox` use. Tiles and words share one question and input group. An option without a picture cannot have a `sample`.
 
 Pictures are drawn in code. They fetch nothing:
 
@@ -105,7 +107,7 @@ Pictures are drawn in code. They fetch nothing:
 |---------|---------|
 | `palette:#hex,#hex,...` | Stripes of 1 to 8 colours; each is exactly `#rgb` or `#rrggbb` |
 | `motif:<name>[:#fg,#bg]` | `dots`, `grid`, `waves`, `arcs`, `stripes`, `rings`, `triangles` or `blob`; either no colours or exactly two |
-| `type:<family>[+<family>][:#fg,#bg]` | A large `sample` (default `Aa`) in the first family; a second family draws `Abc 123` beneath it; either no colours or exactly two |
+| `type:<family>[+<family>][:#fg,#bg]` | A large `sample` (default `Aa`) in the first family; a second family draws the same sample beneath it, or `Abc 123` if no sample was supplied; either no colours or exactly two |
 
 Every type family must be declared in `fonts` or be `serif`, `sans-serif`, `monospace` or `system-ui`. Colours use the same hex grammar for every picture. Motifs and type samples default to dark ink on a light ground. Type sample ink falls back to black or white if the requested pair cannot give the text 4.5:1 contrast.
 
@@ -155,7 +157,7 @@ Command-line tools show the same form in Browser Control's own window. With `ser
 
 Use `ask` when a sandbox refused the listener, so one yes to run that command outside the sandbox covers the whole form. It serves with the same checks and listener, then runs Browser Control's `session status --port 4395`. A host left behind by an earlier `ask`, after a kill or a failed stop, is recovered and stopped by the next one: its profile is named `wiser-form-ask-<random>` directly inside the real system temporary directory, and may already be gone. A host on any other profile is reused and left running. With no running host, it makes a profile in the system temporary directory and starts its own host on that port, passing `--install` and `--headless` through when given. It navigates to the form, sets the viewport to 480 by 900, and waits in the same command for up to `--seconds`, default 900. A member always gets a visible window; `--headless` is only for checks and tests. At the end it stops the listener, stops a host it started or recovered and removes that profile only after confirming shutdown. A failed stop keeps the profile and reports a cleanup failure. This also runs after an exception, a window failure, SIGINT, SIGTERM or SIGHUP. Browser Control commands run in separate process groups, so a terminal group signal is remembered until the current operation settles, then cleanup runs once. An unsettled start is checked for up to 65 seconds before its profile can be removed; if it cannot be resolved, the profile is kept and a cleanup failure is reported. Child output is captured. The command prints one final JSON object after cleanup; invalid inputs retain `serve`'s stderr and exit 1.
 
-On answers, `ask` prints exactly `wait`'s `answered` object. Before stopping a serving listener on any other result, it checks once more for answers; an `answered` reply becomes the final result. A cleanup failure writes to stderr and preserves an `answered`, `interrupted` or `needs-install` result on stdout. On timeout or an expired listener with no answers collected it prints `{ "status": "unanswered" }`. An interrupted run with no answers collected prints `{ "status": "interrupted", "signal": "SIGINT", "SIGTERM" or "SIGHUP" }`. When Browser Control reports its first install, `ask` returns `{ "status": "needs-install", "report": <Browser Control's report>, "reason": "A yes means running ask again with --install." }` with no listener or profile left unless cleanup reports a failure. Other Browser Control failures return `no-window` with a `reason`. These status objects exit 0; read the status before proceeding.
+On answers, `ask` prints exactly `wait`'s `answered` object. Before stopping a serving listener on any other result, it checks once more for answers; an `answered` reply becomes the final result. A cleanup failure writes to stderr and preserves an `answered`, `interrupted` or `needs-install` result on stdout. On timeout or an expired listener with no answers collected it prints `{ "status": "unanswered" }`. An interrupted run with no answers collected prints `{ "status": "interrupted", "signal": "SIGINT", "SIGTERM" or "SIGHUP" }`. When Browser Control reports its first install, `ask` returns `{ "status": "needs-install", "question": <member question for the form>, "report": <Browser Control's report>, "reason": "A yes means running ask again with --install." }` with no listener or profile left unless cleanup reports a failure. Other Browser Control failures return `no-window` with a `reason`. These status objects exit 0; read the status before proceeding.
 
 Measured in Codex on 2026-10-27 with `--sandbox workspace-write --ask-for-approval on-request`: the sandbox refused every connection to the computer's own network. The separate `serve`, Browser Control `session start`, `navigate`, `emulate set`, `wait`, `stop` and `session stop` commands each needed the member's yes, seven requests for one form. `ask` lets the tool ask once for the whole command and its children. Keep `serve`, `wait` and `stop` everywhere else: Grok Build ends a blocking call at its own limit.
 
@@ -176,7 +178,7 @@ node scripts/form.js stop --port 12345 --code 0123456789abcdef0123456789abcdef
 | `serving` | Open `url` in Browser Control's own window, then run the returned `wait` command |
 | `no-window` | Ask in chat; `reason` names SSH, missing Linux `DISPLAY` and `WAYLAND_DISPLAY`, or an `ask` window or cleanup failure; an unresolved browser startup or failed stop keeps its profile |
 | `no-listen` | Ask in chat, or run outside the tool's sandbox; `reason` gives the error code and explains that listening was not allowed; no listener is left |
-| `needs-install` | Put Browser Control's `report` to the member; a yes means running the same `ask` again with `--install`; nothing is left running |
+| `needs-install` | Say `question` to the member word for word; use the details in `report` only to act on their answer or if they ask; a yes means running the same `ask` again with `--install`; nothing is left running |
 | `unanswered` | `ask` ended without answers; its listener and any host and profile it made have been removed |
 | `interrupted` | `ask` caught the named `signal`; return to the chat; any cleanup failure is on stderr |
 | `waiting` | Run `wait` again; the object also carries the form's `url` |
@@ -198,7 +200,7 @@ From this directory, with the development packages already installed:
 node --test
 ```
 
-Format, command and page tests use Node built-ins; `schema.test.js` uses development Zod to accept every passing fixture against the published schema. Browser tests use the SDK's `AppBridge` host and the shared `tools/lib/browser-runtime/` launch function. Development dependencies and that runtime can be installed by maintainers with `npm ci` in their respective directories. Member commands need no development packages; `ask` uses Browser Control's runtime under its normal install consent. Browser tests skip with the missing package named only when the development packages or shared Playwright runtime are absent; launch, build and assertion failures fail the test.
+Format, command and page tests use Node built-ins; `schema.test.js` uses development Zod to accept every passing fixture against the published schema. Browser tests use the SDK's `AppBridge` host and the shared `tools/lib/browser-runtime/` launch function. Development dependencies and that runtime can be installed by maintainers with `npm ci` in their respective directories. Member commands need no development packages; `ask` uses Browser Control's active browser runtime under the install consent in `tools/RUNNING.md`. Browser tests skip with the missing package named only when the development packages or shared Playwright runtime are absent; launch, build and assertion failures fail the test.
 
 The `ask` tests also cover a scripted answer, timeout, refusals, host reuse, SIGINT, SIGTERM, SIGHUP, the first-install report, Browser Control failures and an exception while making the profile. They check that owned listeners and hosts stop and temporary profiles are removed before output, or kept with a cleanup failure when shutdown cannot be confirmed. The suite covers boundary and refusal paths, template substitution, package-free commands, source precedence, delivery order and fallback, mouse and keyboard controls at 360, 390 and 720 pixels, longest labels, target sizes, computed light/dark contrast, host theme changes, no-form/refusal states, and local font routing. Browser requests are intercepted and recorded; only the declared fixture font may be requested. Tests write only temporary files and remove them.
 

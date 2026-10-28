@@ -3,7 +3,7 @@ name: Ask in a Form
 type: skill
 category: onboarding
 description: Put a skill's questions to a member as a form they answer by tapping pictures and choices, shown inside the chat, in a window beside a command-line tool, or as chat buttons where neither can show, with the answers read back and handed to the calling skill
-version: 0.1.0
+version: 0.1.2
 ---
 
 # Ask in a Form
@@ -51,7 +51,7 @@ A host who asks only what the calling skill needs, in a form a member can finish
    - First, on a form being written and on a filled template alike: does any question ask for something a member would not say aloud in the chat, such as a password, a key, a secret code, a recovery phrase, a card or bank detail, or a sign-in? Yes: leave it out, say in one plain line that it is not something to give in a form, and go on with the rest; none left, stop, saying so to the calling skill, or to the member where there is none. No: go on. A filled template goes from here to step 3.
    - Ask only what the calling skill needs. Six questions or fewer: one form. More: the six that decide the most, then a second form after the first's answers, from step 2 again.
    - Each question's `label` is the question in the member's terms; its `short` is the few words it goes by in the answers, such as "Colour mood". A `help` line only where the label cannot carry it.
-   - Options the member should see, not read, are pictures: `palette:` for colours, `motif:` for a pattern's character, `type:` for a typeface, its fonts declared in `fonts`. Each picture differs from its neighbours on the axis the question asks about, and its `label` names what it is in a word or two.
+   - Options the member should see, not read, are pictures: `palette:` for colours, `motif:` for a pattern's character, `type:` for a typeface, its fonts declared in `fonts`. Each picture differs from its neighbours on the axis the question asks about, and its `label` names what it is in a word or two. An answer no picture can show, such as "Neither", is an option with no picture, which the form draws as a word beneath the pictures.
    - A slider for a scale with two named ends; a text box only for what no option can hold.
    - Check it where a shell can run this plugin's tools, `node tools/Form/scripts/form.js check --form <file>`, fixing each part it names; otherwise `show_form` checks it at step 3.
 
@@ -87,13 +87,13 @@ A host who asks only what the calling skill needs, in a form a member can finish
       - `no-listen`: the tool the member runs this in kept the command from listening on their computer. Can that tool run one command outside its sandbox on the member's yes, as Codex can with escalated permissions and Claude Code can outside its sandbox, and hold it while it waits, as Grok Build, which ends a long command at its own limit, cannot? No: step 5. Yes: ask them once, in plain words, whether to let it. On a no, step 5. On a yes, run `node tools/Form/scripts/form.js ask --form <file>` that way: it serves the form, opens the window, waits for the answers and closes everything in one command, so their one yes covers the whole form, where each separate command would need its own. Where this tool lets you speak while a command runs, say step 4.3's line once the window is up; otherwise say nothing before it ends, since the question the member just answered told them a window would open. `ask` cleans up after itself each time; when this branch ends, whichever way, remove this form's temporary directory, which a run again below still needs until then. What it prints decides, on this run and on every run of it below:
         - `answered`: step 6.
         - `unanswered`: ask whether to open the form again; yes, run the same `ask` that way once more; no, step 5.
-        - `needs-install`: put its report to the member in plain words, what it is for and its size; on their yes run the same `ask` that way with `--install`; on a no, step 5.
+        - `needs-install`: say its `question` field to the member word for word, and use the details in `report` only to act on their answer or if they ask; on their yes run the same `ask` that way with `--install`; on a no, step 5.
         - `interrupted`: the member stopped it; leave the form and go on with what they ask next.
         - `no-listen` again: the permission did not take; say so, then step 5.
         - Anything else: step 5.
       - Lines that each name a part of the form and a problem: fix them, step 2's check, and run `serve` again.
       - A failure saying the path must be absolute, or that a private path was refused: move the file into this form's temporary directory and run `serve` once more; the same failure again, or a command that cannot run at all, is step 5.
-   2. Open it. Is Browser Control's window already up, `BC session status`? Yes: `BC navigate --url <the address serve printed>`. No: make a second new directory in the system's temporary directory for the window's profile, which holds no sign-in, run `BC session start --profile <that directory>`, then `BC navigate --url <the address>`. Then `BC emulate set --viewport 480x900`. Browser Control's first run in this copy reports what it would install and stops, by `tools/RUNNING.md`: put that report to the member in plain words, what it is for and its size, and on their yes run the same `session start` with `--install`; on a no, step 5. Any other refusal or failure: step 5.
+   2. Open it. Is Browser Control's window already up, `BC session status`? Yes: `BC navigate --url <the address serve printed>`. No: make a second new directory in the system's temporary directory for the window's profile, which holds no sign-in, run `BC session start --profile <that directory>`, then `BC navigate --url <the address>`. Then `BC emulate set --viewport 480x900`. When install consent is needed, Browser Control reports what it would install and stops, by `tools/RUNNING.md`: the refusal opens with a question written for the member; say it to them word for word, and use the details after it only to act on their answer or if they ask; on their yes run the same `session start` with `--install`; on a no, step 5. Any other refusal or failure: step 5.
    3. Say "A form just opened in its own window. Answer there and press Send my answers. I'll pick them up here."
    4. Wait with the `wait` command `serve` printed, as `tools/Form/TOOL.md` says this command-line tool waits. Which status?
       - `waiting`: wait again.

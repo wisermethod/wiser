@@ -1,3 +1,4 @@
+import '../../lib/tests/isolated-home.js';
 import test,{before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,rm,writeFile} from 'node:fs/promises';
@@ -5,6 +6,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {launch} from '../../lib/browser-runtime/browser-runtime.js';
 import {SAMPLE_FORM,FONT_HOSTS} from '../scripts/format.js';
+import {mixedPictures} from './cases.js';
 import {form,payload,serve,wait,stop,http,cli,dest,equal,delay,sentinel,listeners,cleanupAndScan} from './local-harness.js';
 
 let browser,runtime;
@@ -55,6 +57,25 @@ for (const width of [390,720]) test(`local page ${width}px: two questions, exact
     equal(await wait(s),{status:'answered',...payload(f)},'one replay returns the same result');
     assert.equal((await wait(s)).status,'gone');
   } finally { await h.context.close(); }
+});
+// Change 2: the local listener accepts word values and returns their ordered shown lines.
+for(const width of [360,390,720])test(`local mixed pictures ${width}px: word values survive the listener with exact shown lines`,async()=>{
+ const f=mixedPictures();f.id='mixed';const multi=mixedPictures('image-checkbox').questions[0];multi.id='many';f.questions.push(multi);
+ const s=await serve(f),h=await pageAt(s,width);
+ try{
+  await h.page.locator('.q-image-radio .tile').first().click();
+  await h.page.locator('.q-image-radio .choice').click();
+  await h.page.locator('.q-image-checkbox .choice').click();
+  await h.page.locator('.q-image-checkbox .tile').first().click();
+  assert.deepEqual(await h.page.evaluate(()=>WiserForm.readAnswers().map(a=>({value:a.value,shown:a.shown}))),[
+   {value:'neither',shown:'Neither'},{value:['neither','a'],shown:'Neither, A'}
+  ]);
+  await h.page.locator('#submit').click();await h.page.locator('#status.ok').waitFor();
+  equal(await wait(s),{status:'answered',form:f.title,id:'mixed',answers:{look:'neither',many:['neither','a']},shown:[
+   {id:'look',question:'Which look?',shown:'Neither'},{id:'many',question:'Which look?',shown:'Neither, A'}
+  ]},'listener returns word values and shown lines unchanged');
+  await locked(h.page);assert.deepEqual(h.errors,[]);
+ }finally{await h.context.close();}
 });
 test('wait holds two seconds, later collection, one replay, then gone',async () => {
   const s = await serve(),begin = Date.now();

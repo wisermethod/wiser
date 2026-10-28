@@ -18,7 +18,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { destinationReason, destinationReasonText } from './lib/destination.js';
-import { installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
+import { INSTALL_HELP, installQuestion, formatInstallSize, INSTALL_BYTES, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
 
 const HERE = fileURLToPath(import.meta.url);
 const TOOL_DIR = resolve(dirname(HERE), '..');
@@ -92,12 +92,8 @@ Commands:
 
 Options:
   --url <url>      Page to audit. http or https only; a bare host gains https://
-  --install   Authorise the first install in this copy of the plugin.
-              Without it, the first command that needs a package this
-              copy has not installed reports what it would fetch, and
-              from where, and stops. That answer covers every later
-              tool in this copy. WISER_ALLOW_INSTALL=1 does the same
-              for an unattended run.
+  --install          ${INSTALL_HELP}
+                     WISER_ALLOW_INSTALL=1 does the same for an unattended run.
   --help, -h       Print this message
 
 Detects: Microsoft Clarity, Google Analytics 4, Google Tag Manager, Hotjar,
@@ -202,12 +198,12 @@ function requireInstallConsent(what) {
   }
   if (what === 'browser') {
     fail(
-      `Error: this tool's packages are installed but the Chromium build they drive is not, and this copy of the plugin has not authorised an install. The plugin asks once, on the first install in this copy. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+      `${installQuestion('a private copy of the Chromium browser', "check which analytics and tracking tags a web page uses", formatInstallSize(INSTALL_BYTES.chromium))}\n\nDetails for the assistant: this tool's packages are installed but the Chromium build they drive is not, and this person has not authorised a Wiser install. Installing fetches that build from cdn.playwright.dev, or playwright.download.prss.microsoft.com when Playwright falls back, several hundred megabytes, into wherever Playwright keeps browser builds on this machine. No package is fetched and npm is not run. tools/AGENTS.md lists every write an install makes and names where the build lands. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
     );
   }
   const { list, hosts, size } = installPlan();
   fail(
-    `Error: this tool is not installed yet and this copy of the plugin has not authorised an install. The plugin asks once, on the first install in this copy. Installing fetches ${list} from ${hosts} into ${TOOL_DIR}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+    `${installQuestion("a small web-request library", "check which analytics and tracking tags a web page uses", formatInstallSize(INSTALL_BYTES.request))}\n\nDetails for the assistant: this tool is not installed yet and this person has not authorised a Wiser install. Installing fetches ${list} from ${hosts} into ${TOOL_DIR}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
   );
 }
 

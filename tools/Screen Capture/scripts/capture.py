@@ -66,7 +66,7 @@ Options:
   --region <x,y,w,h>   Repeatable integer rectangle, in the input's pixels; redact only, all frames, no fit.
   --fps <n>           redact only: a recording's decode rate, positive number; default 30.
                       verify reads every frame a recording holds, at the rate it was written.
-  --install           Authorize pinned wheels into this tool's .venv, pip cache off;
+  --install          Say yes to the download this tool needs. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.
                       WISER_ALLOW_INSTALL=1 also authorizes an unattended run.
   --help              Print this message before any dependency check.
 
@@ -194,7 +194,7 @@ def main(argv=None):
         sys.stdout.write(json.dumps(result, separators=(",", ":")) + "\n")
         return 0
     except CaptureError as error:
-        sys.stderr.write("Error: " + str(error) + "\n")
+        sys.stderr.write(("" if str(error).startswith("This Wiser skill needs to download and install ") else "Error: ") + str(error) + "\n")
     except (Exception, KeyboardInterrupt):
         # Native OCR/provider exceptions can contain text. Never echo their body.
         sys.stderr.write("Error: processing failed or was interrupted; check the input, package cache, permissions and disk space, then retry\n")

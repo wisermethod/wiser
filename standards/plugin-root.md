@@ -1,6 +1,6 @@
 ---
 standard: plugin-root
-version: 0.3.1
+version: 0.3.2
 description: One declared plugin-root tree, base or domain, and the clauses used to score its layout
 ---
 
@@ -74,7 +74,7 @@ Family placement is `standards/primitives.md` Placement; connector bodies are th
 Four obligations:
 
 1. The three primitive family directories `skills/`, `experts/`, and `tools/` are flat, and category never becomes a folder tier. **Flat has a test**, because `standards/primitives.md` gives a primitive whatever supporting files it needs: a family directory's immediate children are primitive directories, each holding its typed file. A child that holds no typed file and instead holds primitive directories is category as a folder tier and scores misfiled. Directories **inside** a primitive's own directory belong to that primitive, at any depth, and are never a finding under this clause.
-2. A family directory may also hold a **shared-library directory that a standard in this root names**. Such a directory holds no typed file and is not a category tier; `standards/script-contract.md` Self-contained names the one directory a tool may import from outside its own. A child that holds no typed file and that no standard names scores misfiled.
+2. A family directory may also hold a **shared-library directory that a standard in this root names**. Such a directory holds no typed file and is not a category tier; `standards/script-contract.md` Self-contained names `tools/lib/`, the one in-tree family child with no typed file. The person-scoped browser runtime sits outside the plugin and is not a family directory. A child that holds no typed file and that no standard names scores misfiled.
 3. A family directory that exists carries its `AGENTS.md` index. An existing family directory without that index scores absent.
 4. A family directory that does not exist is not a finding. Which families ship at instantiation is not a conformance requirement. A domain plugin with no `connectors/` is correct rather than incomplete.
 

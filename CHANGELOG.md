@@ -4,6 +4,28 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.28, October 28, 2026
+
+- Wiser now asks before installing anything only once per person, not once per copy of the plugin. Your yes is kept in Wiser's own folder on your computer, so a Wiser update no longer asks again. (1c654e6)
+- Browser tools, such as the window a form opens in a command-line tool, now share one set-up per person, so an update no longer downloads it again. A copy of Wiser that already has its own keeps using it. (1c654e6)
+- The simple brand path still fetches its two typefaces without asking, and that fetch no longer counts as your yes for anything else. (1c654e6)
+- When a Wiser skill needs to download something, it now says plainly what, why and how big, for example: "This Wiser skill needs to download and install the sharp image library on your machine in order to edit images and layer one image over another. It's about 17 MB." It names only what that run will download, and adds "if you don't have it yet" for anything it can't check first, such as a browser you may already have. (acfcc39)
+
+## v2026.10.27.5, October 27, 2026
+
+- Wiser can now connect to ElevenLabs on your own ElevenLabs plan, through the local gateway in a command-line tool such as Claude Code or Codex. It lists your voices and models, makes an instant voice clone from one recording on your computer, and turns a scene of up to 5,000 characters into an MP3 saved on your computer, with each character's timing. You type your key only on the connect page. (aa781f1)
+- Each ElevenLabs narration call asks for your approval, or you can approve a production's narration once, for up to 7 days, from the gateway's own warning. Approving once never replaces the cost estimate you approve first, and making or deleting a voice clone still asks every time. (aa781f1)
+- A free narration option, Chatterbox, speaks in your own voice on an Apple silicon Mac. Nothing downloads until you choose it: Wiser first checks your Mac can run it, then downloads about 4.7 GB and times a short trial in your voice, and turns the option down if your Mac is too slow. Its quality is lower than ElevenLabs', and every recording it makes carries Resemble's inaudible watermark. (aa781f1)
+- `Transcribe Audio` can now time each word of an English recording whose words you already know, so narration can line up with what is on screen. (aa781f1)
+- `Speech Preparation` turns a script's pause and emphasis marks into the form each narration service reads, and ties every word's timing back to the script's own words. (aa781f1)
+
+## v2026.10.27.4, October 27, 2026
+
+- A form's picture questions can now offer an answer in words beside the pictures, such as Neither, so you can say none of them fits rather than leave the question blank. (86dbb47)
+- On a phone, two or three pictures now sit one above another, each beside its label, so every word stays whole; on a wider screen they sit side by side in one row. (86dbb47)
+- The circle you tap to pick a picture now sits beside its label, so it no longer covers part of the picture. (86dbb47)
+- A typeface picture that shows two typefaces now sets your own words in both of them. (86dbb47)
+
 ## v2026.10.27.3, October 27, 2026
 
 - `video-render` now draws every frame of a video in one browser, in order, unless you ask for more, so a page that fades or zooms gives the same frames each time you render it. Split across several browsers, a few of those frames could come out a shade different from one render to the next. One browser can take up to about twice as long; asking for more workers is still faster, and a saved render is kept separately for each number of workers. (c2c66aa, 38fedbd)

@@ -1,3 +1,4 @@
+import { homeEnvironment } from '../../../tools/lib/tests/isolated-home.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -38,6 +39,7 @@ function fixture() {
   const plugin = join(root, 'plugin'), skill = join(plugin, 'skills/Build Brand');
   mkdirSync(join(skill, 'scripts'), { recursive: true }); mkdirSync(join(plugin, 'tools/lib'), { recursive: true });
   copyFileSync(script, join(skill, 'scripts/fonts.mjs')); copyFileSync(consent, join(plugin, 'tools/lib/consent.js'));
+  copyFileSync(new URL('../../../tools/lib/user-config.js', import.meta.url), join(plugin, 'tools/lib/user-config.js'));
   writeFileSync(join(plugin, 'tools/AGENTS.md'), '# Test plugin install boundary\n');
   const entries = [{ name: 'Test Face/face.woff2', data: Buffer.from('tiny test font') }, { name: 'Test Face/OFL.txt', data: Buffer.from('test licence') }];
   const data = tar(entries), pack = join(root, 'pack.tar'), libraryPath = join(root, 'parts.json'), directory = join(root, 'fonts');
@@ -50,7 +52,7 @@ function fixture() {
     } }
   };
   const save = () => writeFileSync(libraryPath, JSON.stringify(library)); save();
-  const env = { ...process.env, WISER_ALLOW_INSTALL: '' };
+  const env = { ...homeEnvironment(join(root, 'home')), WISER_ALLOW_INSTALL: '' };
   const args = ['check', '--library', libraryPath, '--directory', directory];
   const run = (extra = [], environment = {}) => spawnSync(process.execPath, [join(skill, 'scripts/fonts.mjs'), ...args, ...extra], { encoding: 'utf8', env: { ...env, ...environment } });
   const replace = entries => {
@@ -185,6 +187,13 @@ test('family rollback: a later publish restores every requested family and prese
   }
 });
 
+function consentMarkers(dir) {
+  const found = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true, recursive: true })) {
+    if (entry.name === '.wiser-consent') found.push(join(entry.parentPath ?? entry.path, entry.name));
+  }
+  return found;
+}
 test('family: --family installs only its asset-named files and leaves other families untouched', () => {
   const f = familyFixture();
   const child = f.run(['--family', 'Test', '--install', '--from', f.assets]);
@@ -205,7 +214,8 @@ test('family: --family installs only its asset-named files and leaves other fami
   assert.deepEqual(survey.missing, ['fonts/' + f.selected[1].name]);
   assert.deepEqual(survey.changed, ['fonts/' + f.selected[0].name]);
   const unasked = f.run(['--family', 'Test', '--from', f.assets]);
-  assert.notEqual(unasked.status, 0, 'a family fetch left no consent, so a repair without --install still asks');
+  assert.equal(unasked.status, 1, 'a family fetch records no consent, so its repair asks again');
+  assert.deepEqual(consentMarkers(f.root), []);
   const repaired = f.run(['--family', 'Test', '--install', '--from', f.assets]);
   assert.equal(repaired.status, 0, repaired.stderr); assert.equal(JSON.parse(repaired.stdout).installed, true);
   for (const { file, bytes, info } of untouched) {
@@ -219,10 +229,10 @@ test('family: repeatable --family installs the union and names each requested fa
   const child = f.run(['--family', 'Other', '--family', 'Test', '--family', 'Other', '--from', f.assets], { WISER_ALLOW_INSTALL: '1' });
   assert.equal(child.status, 0, child.stderr); assert.deepEqual(JSON.parse(child.stdout).families, ['Other', 'Test']);
   for (const e of f.entries) assert.deepEqual(readFileSync(join(f.directory, e.name)), e.data);
-  // A family fetch is scoped: it leaves no consent record that would let later installs skip the question.
-  assert.equal(existsSync(join(f.plugin, '.wiser-consent')), false);
+  // The simple path fetches families without asking, so a family fetch records no consent.
+  assert.deepEqual(consentMarkers(f.root), []);
   const flagged = familyFixture(), viaFlag = flagged.run(['--install', '--family', 'Test', '--from', flagged.assets]);
-  assert.equal(viaFlag.status, 0, viaFlag.stderr); assert.equal(existsSync(join(flagged.plugin, '.wiser-consent')), false);
+  assert.equal(viaFlag.status, 0, viaFlag.stderr); assert.deepEqual(consentMarkers(flagged.root), []);
 });
 for (const kind of ['bytes', 'sha256']) test(`family: a fetched ${kind} mismatch is refused before any family file is written`, () => {
   const f = familyFixture(), last = f.selected.at(-1), data = Buffer.from(last.data);
@@ -275,7 +285,11 @@ test('family: plain check --family writes nothing without authorization or with 
 });
 test('family: --from without authorization is refused without writes', () => {
   const f = familyFixture(), before = readdirSync(f.root);
-  refused(f.run(['--family', 'Test', '--from', f.assets]), /Test.*github\.com.*into .*fonts.*check --install/, f);
+  const child = f.run(['--family', 'Test', '--from', f.assets]);
+  refused(child, /Test.*uses local assets .*into .*fonts.*check --install/, f);
+  assert.equal(child.stderr.split('\n')[0], "This Wiser skill needs to install the Test typeface on your machine from a copy you already have, in order to set your brand's type. This yes covers only these typefaces.");
+  assert.ok(!child.stderr.split('. ')[0].includes('download'), child.stderr);
+  assert.ok(!/github\.com|bytes|It's about/.test(child.stderr), child.stderr);
   assert.deepEqual(readdirSync(f.root), before); assert.equal(existsSync(join(f.plugin, '.wiser-consent')), false);
 });
 test('family: an existing symlink at the directory, family or member cannot redirect an install', () => {
@@ -385,10 +399,13 @@ test('a plain check surveys with a matching marker too', () => {
   const child = f.run(); assert.equal(child.status, 0); assert.equal(JSON.parse(child.stdout).installed, false); assert.equal(child.stderr, '');
   assert.equal(existsSync(f.directory), false);
 });
-test('without consent an install reports package, host, directory and size and exits 1 without writes', () => {
+test('without consent a local pack install names the local source and exits 1 without writes', () => {
   const f = fixture(), before = readdirSync(f.root);
-  refused(f.run(['--from', f.pack]), /test-fonts-1.*github\.com.*into .*fonts.*check --install/, f);
-  const child = f.run(['--from', f.pack]); assert.ok(child.stderr.includes(String(f.library.fontPack.bytes)));
+  const child = f.run(['--from', f.pack]);
+  refused(child, /test-fonts-1.*uses local copy .*into .*fonts.*check --install/, f);
+  assert.equal(child.stderr.split('\n')[0], "This Wiser skill needs to install Wiser's brand font pack on your machine from a copy you already have, in order to set your brand's type. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates.");
+  assert.ok(!child.stderr.split('. ')[0].includes('download'), child.stderr);
+  assert.ok(!/github\.com|bytes|It's about/.test(child.stderr), child.stderr);
   assert.deepEqual(readdirSync(f.root), before); assert.equal(existsSync(join(f.plugin, '.wiser-consent')), false);
 });
 test('environment consent authorizes and records an offline install', () => {

@@ -167,15 +167,16 @@ function validate(value, template = false) {
     if (typeof q.id === "string") { if (ids.has(q.id)) add(`${p}.id`,"Question id must be unique."); ids.add(q.id); }
     if (own(q,"type") && !TYPES.includes(q.type)) add(`${p}.type`,"Expected a supported question type.");
     if (choice && own(q,"options") && array(q.options,`${p}.options`,L.optionsMin,image ? L.imageOptionsMax : L.optionsMax)) {
-      const values = new Set();
+      const values = new Set(); let pictured = 0;
       q.options.forEach((o,j) => {
         const op = `${p}.options[${j}]`;
-        if (!object(o,op,["value","label","note",...(image ? ["picture","sample"] : [])],["value","label",...(image ? ["picture"] : [])])) return;
+        if (!object(o,op,["value","label","note",...(image ? ["picture","sample"] : [])],["value","label"])) return;
         strings(o,op,[["value",1,L.optionValueMax,VALUE],["label",1,L.optionLabelMax],["note",0,L.noteMax],...(image ? [["sample",0,L.sampleMax]] : [])]);
         if (typeof o.value === "string") { if (values.has(o.value)) add(`${op}.value`,"Option value must be unique."); values.add(o.value); }
-        if (image && own(o,"picture")) picture(o.picture,`${op}.picture`);
+        if (image && own(o,"picture")) { pictured++; picture(o.picture,`${op}.picture`); }
         if (image && own(o,"sample") && !deferred.has(`${op}.picture`) && !(typeof o.picture === "string" && o.picture.startsWith("type:"))) add(`${op}.sample`,"Sample is allowed only with a type picture.");
       });
+      if (image && pictured < L.optionsMin) add(`${p}.options`,"At least two options must have a picture.");
     }
     if (q.type === "slider") {
       for (const k of ["min","max","step","value"]) if (own(q,k)) number(q[k],`${p}.${k}`);
@@ -255,14 +256,14 @@ export function formJsonSchema() {
   const option = obj({
     value: str(L.optionValueMax,"Unique option value: 1 to 40 lowercase letters, digits or hyphens, starting with a letter or digit.",1,VALUE.source),
     label: str(L.optionLabelMax,"Option label, 1 to 60 code points.",1), note: str(L.noteMax,"Optional note, at most 80 code points."),
-    picture: str(L.fontSrcMax,"Image types require a picture; other types refuse it. palette:#hex,#hex,... has 1 to 8 colours, each #rgb or #rrggbb. motif:<name>[:#fg,#bg] uses dots, grid, waves, arcs, stripes, rings, triangles or blob and either no colours or exactly two. type:<family>[+<family>][:#fg,#bg] uses one or two declared font families or serif, sans-serif, monospace, system-ui, and either no colours or exactly two. Nothing is fetched for pictures.",1),
-    sample: str(L.sampleMax,"Only with a type: picture; at most 24 code points, default Aa.")
+    picture: str(L.fontSrcMax,"Optional on image types; at least two options in an image question must have a picture. An option without one is a word choice drawn after the tiles. Other question types refuse it. palette:#hex,#hex,... has 1 to 8 colours, each #rgb or #rrggbb. motif:<name>[:#fg,#bg] uses dots, grid, waves, arcs, stripes, rings, triangles or blob and either no colours or exactly two. type:<family>[+<family>][:#fg,#bg] uses one or two declared font families or serif, sans-serif, monospace, system-ui, and either no colours or exactly two. Nothing is fetched for pictures.",1),
+    sample: str(L.sampleMax,"Only with a type: picture, refused without a picture; at most 24 code points. Both type families draw this sample when supplied; otherwise the first draws Aa and the second Abc 123.")
   },["value","label"],"Options have unique values within their question.");
   const question = obj({
     id: str(L.idMax,"Unique question id: lowercase letter then up to 39 lowercase letters, digits or hyphens.",1,ID.source),
     type: { type:"string",enum:[...TYPES],description:"One of six question types; only that type's keys are accepted by checkForm." },
     label: str(L.questionLabelMax,"Question label, 1 to 200 code points.",1), short: str(L.shortMax,"Optional answer heading, at most 40 code points."),help:str(L.helpMax,"Optional help, at most 300 code points."),
-    options:arr(option,L.optionsMin,L.optionsMax,"Required for choices: 2 to 12 options for radio/checkbox, 2 to 8 for image-radio/image-checkbox. Image options require picture. Other types refuse options."),
+    options:arr(option,L.optionsMin,L.optionsMax,"Required for choices: 2 to 12 options for radio/checkbox, 2 to 8 for image-radio/image-checkbox, with at least two options carrying a picture. Remaining image options may omit picture and draw as word choices after the tiles, in the same input group. Other types refuse options."),
     min:{type:"number",description:"Slider only, required finite minimum below max."},max:{type:"number",description:"Slider only, required finite maximum above min; range must be finite."},
     step:{type:"number",description:"Slider only: positive, default 1. (max-min)/step must be a whole number from 1 to 100."},
     value:{type:"number",description:"Slider only: in range and on a step; default step nearest the middle, ties upward."},

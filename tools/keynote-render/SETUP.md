@@ -16,7 +16,7 @@ node --version
 
 ## 2. Dependency
 
-Nothing to run by hand. Consent is once per copy of the plugin (`tools/RUNNING.md`). A build with no brand file needs nothing installed. This tool holds no credentials, so there is nothing else to configure and no `--env` to resolve.
+Nothing to run by hand. Consent is once per person across plugin copies (`tools/RUNNING.md`). A build with no brand file needs nothing installed. This tool holds no credentials, so there is nothing else to configure and no `--env` to resolve.
 
 ## 3. Runtimes
 

@@ -1,9 +1,11 @@
+import '../../lib/tests/isolated-home.js';
 import test,{before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {existsSync,readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {composePage} from '../scripts/page.js';
 import {SAMPLE_FORM,checkForm} from '../scripts/format.js';
+import {mixedPictures} from './cases.js';
 const missing=[];
 for(const name of ['@modelcontextprotocol/ext-apps','@modelcontextprotocol/client','@modelcontextprotocol/core','zod','esbuild'])if(!existsSync(new URL(`../node_modules/${name}/package.json`,import.meta.url)))missing.push(name);
 if(!existsSync(new URL('../../lib/browser-runtime/browser-runtime.js',import.meta.url))||!existsSync(new URL('../../lib/browser-runtime/node_modules/playwright/package.json',import.meta.url)))missing.push('tools/lib/browser-runtime Playwright');
@@ -86,7 +88,9 @@ for(const [name,form]of [['sample',SAMPLE_FORM],['tailored',tailored]])for(const
  try{await ready(h);assert.equal(await h.f.locator('fieldset').count(),6);assert.equal(await h.f.locator('#submit').innerText(),'Send my answers');await interact(h,keyboard);await delivery(h,form,keyboard);assert.equal(await h.f.locator('#status').innerText(),'Sent to the chat.');assert.equal(await h.f.locator('#submit').innerText(),'Send again');assert.equal(await h.f.locator('#status').getAttribute('data-host'),'chatgpt');assert.equal(await h.f.locator('#root').getAttribute('data-source'),'tool-call');const overflow=await h.frame.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);assert.equal(overflow,0);const marks=await h.f.locator('.tile:has(input:checked) .mark').count();assert.equal(marks,3);}
  finally{await h.context.close();}
 });
-function longest(){const f=structuredClone(SAMPLE_FORM);f.title='T'.repeat(80);f.intro='I'.repeat(300);f.questions.forEach(q=>{q.label='Q'.repeat(200);q.short='S'.repeat(40);q.help='H'.repeat(300);q.options?.forEach(o=>{o.label='O'.repeat(60);o.note='N'.repeat(80);});if(q.type==='slider'){q.minLabel='L'.repeat(24);q.maxLabel='R'.repeat(24);}if(q.type==='text')q.placeholder='P'.repeat(120);});return f;}
+function longest(mixed=false){const f=structuredClone(SAMPLE_FORM);f.title='T'.repeat(80);f.intro='I'.repeat(300);f.questions.forEach(q=>{q.label='Q'.repeat(200);q.short='S'.repeat(40);q.help='H'.repeat(300);q.options?.forEach(o=>{o.label='O'.repeat(60);o.note='N'.repeat(80);});if(q.type==='slider'){q.minLabel='L'.repeat(24);q.maxLabel='R'.repeat(24);}if(q.type==='text')q.placeholder='P'.repeat(120);});
+ if(mixed)for(const [i,count]of [[0,3],[1,2]]){f.questions[i].options.length=count;f.questions[i].options.push({value:'words',label:'O'.repeat(60),note:'N'.repeat(80)});}
+ return f;}
 async function checkLook(h){
  const readings=await h.frame.evaluate(()=>{
   function rgb(s){return(s.match(/[\d.]+/g)||[]).slice(0,3).map(Number);}
@@ -109,9 +113,10 @@ async function checkLook(h){
  assert.equal(readings.overflow,0,'no sideways scroll');for(const r of readings.targets)assert.ok(r.width>=44&&r.height>=44,JSON.stringify(r));
  for(const r of readings.text)assert.ok(r.ratio>=4.5,JSON.stringify(r));for(const r of readings.controls)assert.ok(r.ratio>=3,JSON.stringify(r));
 }
-for(const width of [360,390,720])for(const theme of ['light','dark'])test(`look: longest labels, targets and computed contrast ${width}px ${theme}`,{skip},async()=>{
- const form=longest();assert.equal(checkForm(form).ok,true);const h=await open(form,width,{theme,preference:theme==='dark'?'light':'dark'});
- try{await ready(h);assert.equal(await h.frame.evaluate(()=>document.documentElement.dataset.theme),theme);await h.f.locator('label.tile').first().click();await h.f.locator('label.choice').first().click();await h.f.locator('fieldset[data-type=image-checkbox] label.tile').first().click();await tabTo(h,'submit');await focusRing(h);await checkLook(h);
+for(const width of [360,390,720])for(const theme of ['light','dark'])for(const mixed of [false,true])test(`look: longest labels, targets and computed contrast ${width}px ${theme}${mixed?' mixed pictures':''}`,{skip},async()=>{
+ const form=longest(mixed);assert.equal(checkForm(form).ok,true);const h=await open(form,width,{theme,preference:theme==='dark'?'light':'dark'});
+ // Word options now share the image radio group; keep this plain-radio pick in its own question.
+ try{await ready(h);assert.equal(await h.frame.evaluate(()=>document.documentElement.dataset.theme),theme);await h.f.locator('label.tile').first().click();await h.f.locator('.q-radio label.choice').first().click();await h.f.locator('fieldset[data-type=image-checkbox] label.tile').first().click();await tabTo(h,'submit');await focusRing(h);await checkLook(h);
  await h.page.evaluate(theme=>window.__bridge.setHostContext({theme}),theme==='dark'?'light':'dark');await h.f.locator(`html[data-theme=${theme==='dark'?'light':'dark'}]`).waitFor();await checkLook(h);
  await h.f.locator('#submit').click();await h.f.locator('#status.ok').waitFor();await checkLook(h);
  await h.page.evaluate(()=>{window.__bridge.onmessage=async()=>({isError:true});});await h.f.locator('#submit').click();await h.f.locator('#status.bad').waitFor();await checkLook(h);
@@ -176,5 +181,111 @@ test('a hovered button takes its own fill and a pressed one still darkens, with 
   await button.hover();const hovered=await button.evaluate(b=>({bg:getComputedStyle(b).backgroundColor,color:getComputedStyle(b).color,filter:getComputedStyle(b).filter}));
   assert.notEqual(hovered.bg,resting);assert.equal(hovered.filter,'none');assert.notEqual(hovered.color,'rgb(255, 255, 255)');
   await h.page.mouse.down();const pressed=await button.evaluate(b=>getComputedStyle(b).filter);await h.page.mouse.up();assert.equal(pressed,'brightness(0.9)');
+ }finally{await h.context.close();}
+});
+
+function pictureRow(type,count){return {title:'Compare',questions:[{id:'look',type,label:'Compare these pictures',options:Array.from({length:count},(_,i)=>({value:`v-${i}`,label:'O'.repeat(60),note:'N'.repeat(80),picture:'motif:dots'}))}]};}
+// Change 1: small picture sets keep equal columns; four retain the auto-fill grid.
+for(const width of [360,390,720])for(const type of ['image-radio','image-checkbox'])for(const count of [2,3,4])test(`picture rows: ${count} ${type} tiles at ${width}px fit captions and keep their grid`,{skip},async()=>{
+ const h=await open(pictureRow(type,count),width);
+ try{await ready(h);const tiles=await h.frame.evaluate(()=>[...document.querySelectorAll('.tile')].map(t=>{
+  const b=t.getBoundingClientRect(),p=t.querySelector('.pic').getBoundingClientRect();
+  const caption=t.querySelector('.tile-label');const range=document.createRange();range.selectNodeContents(caption);
+  return {x:b.x,y:b.y,width:b.width,height:b.height,picWidth:p.width,picHeight:p.height,
+   captionFits:[...range.getClientRects()].every(r=>r.left>=b.left&&r.right<=b.right),
+   childrenFit:[caption,...caption.children].every(c=>c.scrollWidth<=c.clientWidth)};
+ }));
+ const columns=count<4?(width<560?1:count):Math.floor((width-32+8)/(140+8));
+ assert.equal(new Set(tiles.map(t=>t.y)).size,Math.ceil(count/columns),JSON.stringify(tiles));
+ for(const [i,t]of tiles.entries()){
+  assert.ok(t.width>=44&&t.height>=44,JSON.stringify(t));assert.ok(Math.abs(t.width-tiles[0].width)<1);
+  assert.ok(Math.abs(t.width-(width-32-8*(columns-1))/columns)<1,'tiles take equal shares of the whole row');
+  assert.ok(Math.abs(t.picWidth/t.picHeight-1.5)<.01,'pictures stay 3 by 2');
+  assert.ok(t.captionFits&&t.childrenFit,'long labels and notes stay inside each tile');
+  if(i%columns)assert.ok(t.x>=tiles[i-1].x+tiles[i-1].width,'tiles do not overlap');
+ }
+ assert.equal(await h.frame.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth),0);
+ assert.deepEqual(h.requests,[]);assert.deepEqual(h.errors,[]);
+ }finally{await h.context.close();}
+});
+// Change 3: the entire mark and its card-coloured halo leave the picture.
+for(const width of [360,390,720])for(const type of ['image-radio','image-checkbox'])test(`picture marks: ${type} at ${width}px sit on the caption's first line`,{skip},async()=>{
+ const h=await open(pictureRow(type,3),width);
+ try{await ready(h);const boxes=await h.frame.evaluate(()=>[...document.querySelectorAll('.tile')].map(t=>{
+  const p=t.querySelector('.pic').getBoundingClientRect(),m=t.querySelector('.mark').getBoundingClientRect();
+  const range=document.createRange();range.selectNodeContents(t.querySelector('.tile-label > span'));const first=range.getClientRects()[0];
+  return {picture:{left:p.left,right:p.right,top:p.top,bottom:p.bottom},mark:{left:m.left,right:m.right,top:m.top,bottom:m.bottom,width:m.width,height:m.height},lineCenter:(first.top+first.bottom)/2};
+ }));
+ for(const {picture:p,mark:m,lineCenter}of boxes){
+  assert.ok(m.bottom+2<=p.top||m.top-2>=p.bottom||m.right+2<=p.left||m.left-2>=p.right,'mark and halo never cover a picture');
+  assert.equal(m.width,24);assert.equal(m.height,24);assert.ok(Math.abs((m.top+m.bottom)/2-lineCenter)<=2,'mark centres on the first label line');
+ }
+ }finally{await h.context.close();}
+});
+// A word a picture row commonly carries is never broken: below 560px two or three pictures stack as rows, each picture beside its caption.
+// 559 and 560 sit either side of the stacking breakpoint (adversarial review, Grok 20261027-123411).
+for(const width of [360,390,559,560,720])for(const count of [2,3])test(`picture rows: ${count} tiles at ${width}px keep a long word such as Contemporary whole`,{skip},async()=>{
+ const form={title:'Compare',questions:[{id:'look',type:'image-radio',label:'Compare these pictures',options:['Contemporary','Geometric','Restrained'].slice(0,count).map((label,i)=>({value:`v-${i}`,label,note:'Simpler letter shapes and newer proportions',picture:'motif:dots'}))}]};
+ const h=await open(form,width);
+ try{await ready(h);const tiles=await h.frame.evaluate(()=>[...document.querySelectorAll('.tile')].map(t=>{
+  const range=document.createRange();range.selectNodeContents(t.querySelector('.tile-label > span'));
+  const b=t.getBoundingClientRect(),p=t.querySelector('.pic').getBoundingClientRect(),c=t.querySelector('.tile-label').getBoundingClientRect();
+  return {lines:range.getClientRects().length,y:b.y,picRight:p.right,captionLeft:c.left};
+ }));
+ for(const t of tiles)assert.equal(t.lines,1,'the label is one unbroken line');
+ if(width<560){assert.equal(new Set(tiles.map(t=>t.y)).size,count,'one tile per row');for(const t of tiles)assert.ok(t.picRight<=t.captionLeft+1,'picture beside its caption');}
+ else assert.equal(new Set(tiles.map(t=>t.y)).size,1,'one row');
+ }finally{await h.context.close();}
+});
+// Change 2: drawing and keyboard order group pictures first; answer order remains the format's order.
+for(const width of [360,390,720])for(const type of ['image-radio','image-checkbox'])for(const keyboard of [false,true])test(`picture words: ${type} at ${width}px by ${keyboard?'keyboard':'mouse'} shares its group and returns words`,{skip},async()=>{
+ const form=mixedPictures(type);form.questions[0].options.splice(2,0,{value:'other',label:'Other'});
+ assert.equal(checkForm(form).ok,true,JSON.stringify(checkForm(form)));
+ const h=await open(form,width);
+ try{await ready(h);assert.deepEqual(await h.f.locator('fieldset input').evaluateAll(inputs=>inputs.map(i=>i.value)),['a','b','c','neither','other']);
+ assert.equal(await h.f.locator('fieldset').count(),1);assert.equal(await h.f.locator('fieldset input[name=q-0]').count(),5);
+ const layout=await h.frame.evaluate(()=>({tiles:document.querySelector('.tiles').getBoundingClientRect().bottom,words:[...document.querySelectorAll('.choice')].map(e=>e.getBoundingClientRect().top)}));
+ assert.ok(layout.words.every(top=>top>=layout.tiles),'words draw after every tile');
+ if(keyboard){
+  await tabTo(h,'q-0-1');await focusRing(h);await h.page.keyboard.press('Space');
+  if(type==='image-radio'){
+   for(const value of ['b','c','neither']){await h.page.keyboard.press('ArrowRight');assert.equal(await h.frame.evaluate(()=>document.activeElement.value),value);}
+  }else{
+   await h.page.keyboard.press('Tab');assert.equal(await h.frame.evaluate(()=>document.activeElement.value),'b');
+   await h.page.keyboard.press('Tab');assert.equal(await h.frame.evaluate(()=>document.activeElement.value),'c');
+   await h.page.keyboard.press('Tab');assert.equal(await h.frame.evaluate(()=>document.activeElement.value),'neither');await h.page.keyboard.press('Space');
+  }
+  await focusRing(h);
+ }else{await h.f.locator('label.tile').first().click();await h.f.locator('label.choice').filter({hasText:'Neither'}).click();}
+ const expected=type==='image-radio'?'neither':['neither','a'];
+ const shown=type==='image-radio'?'Neither':'Neither, A';
+ const answer=await h.frame.evaluate(()=>WiserForm.readAnswers()[0]);assert.deepEqual(answer.value,expected);assert.equal(answer.shown,shown);
+ assert.equal(await h.f.locator('input:checked').count(),type==='image-radio'?1:2);
+ if(type==='image-radio'){
+  await h.f.locator('label.tile').first().click();assert.equal(await h.f.locator('input[value=neither]').isChecked(),false);
+  await h.f.locator('label.choice').filter({hasText:'Neither'}).click();assert.equal(await h.f.locator('input[value=a]').isChecked(),false);
+ }
+ await h.f.locator('#submit').click();await h.f.locator('#status.ok').waitFor();
+ const log=await h.page.evaluate(()=>window.__log);assert.deepEqual(log.find(e=>e.kind==='context').params.structuredContent.answers,{look:expected});
+ assert.equal(log.find(e=>e.kind==='message').params.content[0].text,`Here are my answers:\n- Which look?: ${shown}`);
+ assert.deepEqual(h.requests,[]);assert.deepEqual(h.errors,[]);
+ }finally{await h.context.close();}
+});
+// Change 4: both families show the member's sample; fitting preserves their size relationship.
+for(const width of [360,390,720])for(const font of [true,false])test(`paired type: member words, fallback and fitted boxes at ${width}px font ${font?'loaded':'refused'}`,{skip},async()=>{
+ const form={title:'Type',fonts:[{family:'Member Face',src:'https://fonts.gstatic.com/fixture.ttf'}],questions:[{id:'type',type:'image-radio',label:'Type',options:[
+  {value:'short',label:'Short',picture:'type:Member Face+monospace',sample:'Bake'},
+  {value:'long',label:'Long',picture:'type:serif+Member Face',sample:'W'.repeat(24)},
+  {value:'default',label:'Default',picture:'type:serif+monospace'}
+ ]}]};
+ const h=await open(form,width,{font});
+ try{await ready(h);await h.frame.evaluate(()=>document.fonts.ready);
+ const pairs=await h.frame.evaluate(()=>[...document.querySelectorAll('.pic')].map(p=>[...p.querySelectorAll('text')].map(t=>{const b=t.getBBox();return {text:t.textContent,size:Number(t.getAttribute('font-size')),x:b.x,y:b.y,right:b.x+b.width,bottom:b.y+b.height};})));
+ assert.deepEqual(pairs.map(p=>p.map(t=>t.text)),[['Bake','Bake'],['W'.repeat(24),'W'.repeat(24)],['Aa','Abc 123']]);
+ for(const pair of pairs){assert.ok(pair[1].size>=pair[0].size/2,'second family is at least half the first');
+  assert.ok(pair[0].bottom<=pair[1].y,'the two samples do not overlap');
+  for(const t of pair)assert.ok(t.x>=0&&t.y>=0&&t.right<=120&&t.bottom<=80,JSON.stringify(t));
+ }
+ assert.deepEqual(h.requests,['https://fonts.gstatic.com/fixture.ttf']);assert.deepEqual(h.errors,[]);
  }finally{await h.context.close();}
 });

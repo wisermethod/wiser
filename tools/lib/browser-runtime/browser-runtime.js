@@ -1,13 +1,12 @@
 /**
  * browser-runtime.js: the shared Chromium launch runtime for this plugin's browser tools.
  *
- * One copy, at tools/lib/browser-runtime/, imported by the browser tools by a relative
- * path from their own scripts. Playwright installs here, once, and toolRoot() below is
- * this directory, the nearest package.json above this file.
- *
- * Self-contained per the Script Contract's one allowed exception, tools/lib/: imports
- * only Node built-ins and this directory's own node_modules ('playwright'). No path
- * reaches outside the plugin.
+ * Shared launch code in tools/lib/, with packages reused across plugin copies in
+ * the person's platform user-config runtimes/browser-<lockfile hash> directory.
+ * Existing copy-local packages take priority. Imports only Node built-ins,
+ * tools/lib/ and packages in the selected runtime (Script Contract).
+ * No packages or person-scoped paths are inspected at module load, so help works
+ * on an uninstalled copy without reading HOME.
  *
  * What it does, and why it exists
  * -------------------------------
@@ -35,20 +34,185 @@
  * host class, per the Script Contract's System dependencies clause.
  */
 
-import { existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, lstatSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { execFileSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { execFileSync, spawn } from 'node:child_process';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createHash } from 'node:crypto';
+import { createRequire } from 'node:module';
+import { wiserUserConfigDir } from '../user-config.js';
+import { trustedDirectory } from '../consent.js';
 
 // Playwright is loaded lazily, never at module load. Importing this module must
 // not pull in playwright, so a tool that vendors it still answers `help`/`--help`
 // on a copy that has never been installed (Script Contract: Help without
 // configuration). The browser package is imported only inside the functions that
 // actually touch a browser.
-let _chromium;
+const COPY_RUNTIME_DIR = dirname(fileURLToPath(import.meta.url));
+const marker = dir => join(dir, 'node_modules', 'playwright', 'package.json');
+
+function runtimeLock() {
+  const file = join(COPY_RUNTIME_DIR, 'package-lock.json');
+  try {
+    const bytes = readFileSync(file);
+    const version = JSON.parse(bytes).packages?.['node_modules/playwright']?.version;
+    if (typeof version !== 'string' || !version) throw new Error('no node_modules/playwright version');
+    return { bytes, version };
+  } catch (error) {
+    throw new Error(`cannot read browser runtime lockfile ${file}: ${String(error.message).split('\n')[0]}. Restore the shipped lockfile and run again.`);
+  }
+}
+
+export function runtimeKey(dir = COPY_RUNTIME_DIR) {
+  return createHash('sha256').update(readFileSync(join(dir, 'package-lock.json'))).digest('hex').slice(0, 16);
+}
+
+function completeRuntime(dir, version = runtimeLock().version) {
+  try { return JSON.parse(readFileSync(marker(dir), 'utf8')).version === version; }
+  catch { return false; }
+}
+
+export function personRuntimeDir() {
+  const { bytes } = runtimeLock();
+  return join(wiserUserConfigDir(), 'runtimes', `browser-${createHash('sha256').update(bytes).digest('hex').slice(0, 16)}`);
+}
+
+class RuntimeDirectoryError extends Error {}
+
+function trustedPersonRuntime(target, create = false) {
+  const config = wiserUserConfigDir();
+  try {
+    try { trustedDirectory(config); }
+    catch (error) {
+      if (!create || error.code !== 'ENOENT') throw error;
+      mkdirSync(config, { recursive: true, mode: 0o700 });
+      trustedDirectory(config);
+    }
+  } catch (error) {
+    throw new RuntimeDirectoryError(`cannot use user-config directory ${config}: ${String(error.message).split(/[\r\n]/)[0]}`);
+  }
+  for (const dir of [dirname(target), target]) {
+    let info;
+    try { info = lstatSync(dir); }
+    catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      if (!create) throw error;
+      if (dir === target) continue;
+      try { mkdirSync(dir, { mode: 0o700 }); }
+      catch (mkdirError) { if (mkdirError.code !== 'EEXIST') throw mkdirError; }
+      info = lstatSync(dir);
+    }
+    if (info.isSymbolicLink()) throw new RuntimeDirectoryError(`browser runtime directory ${dir} is a symbolic link; use a real directory.`);
+    // A file at the final path is an incomplete install, repaired at publication.
+    if (!info.isDirectory() && !(create && dir === target && info.isFile())) {
+      throw new RuntimeDirectoryError(`browser runtime parent ${dir} is not a directory. Use a directory for the runtime parent and run again.`);
+    }
+  }
+}
+
+export function activeRuntimeDir() {
+  const { version } = runtimeLock();
+  if (completeRuntime(COPY_RUNTIME_DIR, version)) return COPY_RUNTIME_DIR;
+  const person = personRuntimeDir();
+  try { trustedPersonRuntime(person); } catch { return null; }
+  return completeRuntime(person, version) ? person : null;
+}
+
+// An absent runtime's destination is also used by consent reports and the CLI.
+export function runtimeDir() {
+  return activeRuntimeDir() || personRuntimeDir();
+}
+
+/** Build privately, then publish a complete tree. Never alter a copy-local install. */
+export async function installBrowserRuntime() {
+  const active = activeRuntimeDir();
+  if (active) return active;
+  const target = personRuntimeDir();
+  // Refuse unsafe destinations before creating staging directories or running npm.
+  trustedPersonRuntime(target, true);
+  let temporary;
+  let child;
+  const signals = ['SIGINT', 'SIGTERM', 'SIGHUP'];
+  let interrupted;
+  const handlers = new Map(signals.map(signal => [signal, () => {
+    interrupted = signal;
+    child?.kill(signal);
+  }]));
+  try {
+    mkdirSync(dirname(target), { recursive: true, mode: 0o700 });
+    // A hard kill can leave staging directories. Never touch a fresh sibling.
+    const prefix = `${target.split(/[\\/]/).at(-1)}.tmp-`;
+    for (const name of readdirSync(dirname(target))) {
+      if (!name.startsWith(prefix)) continue;
+      const sibling = join(dirname(target), name);
+      try {
+        const info = lstatSync(sibling);
+        if (info.isDirectory() && Date.now() - info.mtimeMs > 60 * 60 * 1000) rmSync(sibling, { recursive: true, force: true });
+      } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    }
+    temporary = mkdtempSync(`${target}.tmp-`);
+    for (const name of ['package.json', 'package-lock.json']) {
+      copyFileSync(join(COPY_RUNTIME_DIR, name), join(temporary, name));
+    }
+    for (const [signal, handler] of handlers) process.on(signal, handler);
+    await new Promise((accept, reject) => {
+      child = spawn(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['ci'], {
+        cwd: temporary, stdio: ['ignore', 'ignore', 'inherit']
+      });
+      child.once('error', reject);
+      child.once('close', (code, signal) => code === 0 && !interrupted
+        ? accept() : reject(new Error(`npm ci exited ${code ?? signal ?? interrupted}`)));
+    });
+    if (!completeRuntime(temporary)) {
+      throw new Error(`npm ci finished but ${marker(target)} is missing or has the wrong version. Check that the shared runtime's package.json lists playwright.`);
+    }
+    trustedPersonRuntime(target, true);
+    if (completeRuntime(target)) return target;
+    try {
+      renameSync(temporary, target);
+      temporary = undefined;
+    } catch (error) {
+      if (!['EEXIST', 'ENOTEMPTY', 'ENOTDIR', 'EISDIR'].includes(error.code)) throw error;
+      trustedPersonRuntime(target, true);
+      // A concurrent publisher wins only if its version matches the lockfile.
+      if (!completeRuntime(target)) {
+        rmSync(target, { recursive: true, force: true });
+        try { renameSync(temporary, target); temporary = undefined; }
+        catch (retryError) { trustedPersonRuntime(target, true); if (!completeRuntime(target)) throw retryError; }
+      }
+    }
+    return target;
+  } catch (error) {
+    if (error instanceof RuntimeDirectoryError) throw error;
+    if (error.code === 'EEXIST' && existsSync(dirname(target)) && !statSync(dirname(target)).isDirectory()) {
+      throw new Error(`browser runtime parent ${dirname(target)} is not a directory. Use a directory for the runtime parent and run again.`);
+    }
+    if (['EACCES', 'EPERM', 'EROFS'].includes(error.code)) {
+      throw new Error(`cannot install dependencies because ${target} is not writable. This tool installs Playwright into the person-scoped browser runtime on the run that authorises it with --install, so that directory has to be writable. Make that directory writable, then run the command again.`);
+    }
+    if (error.message.startsWith('npm ci finished but')) throw error;
+    throw new Error(`npm ci failed in ${target}. Confirm Node 18 or newer, then that package-lock.json is present and matches package.json, which is what npm ci requires and will not resolve around. Fix the cause and run the command again; the temporary install has been removed.${interrupted ? ` Interrupted by ${interrupted}.` : ''}`);
+  } finally {
+    for (const [signal, handler] of handlers) process.removeListener(signal, handler);
+    if (temporary) rmSync(temporary, { recursive: true, force: true });
+  }
+}
+
+let playwright;
+let playwrightDir;
+export async function loadPlaywright() {
+  const dir = activeRuntimeDir();
+  if (!dir) throw new Error('Playwright is missing; run the browser tool with --install.');
+  if (!playwright || playwrightDir !== dir) {
+    const entry = createRequire(join(dir, 'package.json')).resolve('playwright');
+    playwright = await import(pathToFileURL(entry).href);
+    playwrightDir = dir;
+  }
+  return playwright;
+}
 async function getChromium() {
-  if (!_chromium) ({ chromium: _chromium } = await import('playwright'));
-  return _chromium;
+  const module = await loadPlaywright();
+  return module.chromium || module.default?.chromium;
 }
 
 // Container-safe defaults. --no-sandbox: the Chromium sandbox needs privileges a
@@ -88,50 +252,14 @@ function proxyServer() {
   return typeof s === 'string' && s.trim() ? s.trim() : '';
 }
 
-// Where the compatibility shims are built.
-//
-// Derived from THIS TOOL'S OWN ROOT, and from nothing else. No environment
-// variable is read and no platform is branched on, because both were wrong here
-// before: an earlier revision hardcoded the Linux browser-cache default for
-// every platform, and read the browser-path variable so literally that the
-// documented value "0" - truthy in JavaScript - yielded a RELATIVE path and
-// compiled a shared library into a directory named 0 in whatever directory the
-// caller happened to be standing in.
-//
-// The revision after that asked Node where `playwright` resolved from. That is
-// correct under npm and wrong under a store-linked install: require.resolve
-// returns the REALPATH, so with pnpm or a symlinked node_modules the shims land
-// in a shared package store rather than in this tool, which may be shared
-// between copies or read-only. Reviewers disagreed about whether that is
-// reachable on the supported npm ci path. It does not matter: the tool root is
-// knowable without asking the resolver at all.
-//
-// So: walk up from this file to the nearest package.json, which is the tool's
-// own manifest, and build in the node_modules beside it. That directory is
-// guaranteed writable (the install just wrote it), already ignored by this
-// repository, and inside this tool under every package manager. tools/AGENTS.md
-// states exactly that, and now it is true unconditionally.
-export function toolRoot() {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let up = 0; up < 12; up += 1) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  throw new Error(
-    'cannot place the compatibility shims: no package.json above ' +
-    fileURLToPath(import.meta.url) + ', so this tool has no root to build in'
-  );
-}
+// Retained for importers that need the directory containing the shipped manifest.
+export function toolRoot() { return COPY_RUNTIME_DIR; }
 
-// Exported for the gate check, which calls it rather than reading it. Three
-// rounds of this build produced checks written against the sentence that
-// described this function instead of against the function, and each of them
-// reported zero while the code was wrong. A check that can execute it cannot
-// make that mistake.
+// Compile beside the selected runtime's packages, never in a package-store realpath.
 export function libCacheDir() {
-  return join(toolRoot(), 'node_modules', '.wiser-lib');
+  const dir = activeRuntimeDir();
+  if (!dir) throw new Error('Playwright is missing; no active runtime for compatibility shims.');
+  return join(dir, 'node_modules', '.wiser-lib');
 }
 
 function missingLibs(execPath) {
@@ -577,8 +705,8 @@ export async function check(options = {}) {
     const line = e && e.message ? String(e.message).split('\n')[0].trim() : 'the import failed';
     report.failure = 'host';
     report.remediation =
-      'dependency: the playwright package; check: import it from this tool directory. ' +
-      `Next: the package is present but did not load (${line}); delete node_modules here and re-run the command with --install.`;
+      'dependency: the playwright package; check: import it from the active browser runtime (tools/AGENTS.md). ' +
+      `Next: the package is present but did not load (${line}); delete ${runtimeDir()}/node_modules and re-run the command with --install.`;
     return report;
   }
   let prepared;

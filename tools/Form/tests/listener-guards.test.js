@@ -1,3 +1,4 @@
+import '../../lib/tests/isolated-home.js';
 import test,{after} from 'node:test';
 import assert from 'node:assert/strict';
 import {serve,http,payload,wait,stop,delay,cleanupAndScan} from './local-harness.js';
