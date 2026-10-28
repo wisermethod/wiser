@@ -154,6 +154,23 @@ for (const status of [401, 403]) test(`media HTTP ${status} never probes or chan
   assert.equal(probes, 0); assert.deepEqual(fs.readFileSync(join(s.home, 'connections.json')), before);
 });
 
+for (const [query, content] of [['v=1', '1'], ['X-Amz-SignedHeaders=host', 'host']]) {
+  test(`short query ${query} permits ordinary bytes and result strings`, async (t) => {
+    const data = Buffer.from(content);
+    transport(t, { chunks: [data] });
+    const s = await gateway(t);
+    s.connector.impl.modules.media.render = async (_i, ctx) => ({
+      voice: 'voice 1', duration: '1 second',
+      output_file: { media_type: 'audio/wav', data: await ctx.downloadMedia({ url: `https://${HOST}/take.wav?${query}`, media_type: 'audio/wav' }) },
+    });
+    const answer = await s.gw.callTool('execute', { action: ACTION });
+    assert.ok(answer.file, 'short query values must not refuse a good file');
+    assert.deepEqual(fs.readFileSync(answer.file.path), data);
+    assert.equal(answer.voice, 'voice 1', 'digit 1 in a result must be published');
+    assert.equal(answer.duration, '1 second');
+  });
+}
+
 test('API auth refusal still probes provider and can stop the grant', async (t) => {
   const s = await gateway(t); let probes = 0;
   s.fake.auth.status = async () => { probes++; return 'EXPIRED'; };
@@ -182,7 +199,10 @@ test('policy deny precedes local-only, input validation precedes confirmation', 
 });
 
 for (const canary of [URL_VALUE, SIGNATURE, SIGNATURE.slice(4, 22), '?sig=' + SIGNATURE, '/private/take.wav']) {
-  for (const shape of ['extra', 'headers', 'returned', 'thrown-status', 'error', 'cause', 'bytes']) test(`call-private canary ${[URL_VALUE, SIGNATURE, SIGNATURE.slice(4, 22), '?sig=' + SIGNATURE, '/private/take.wav'].indexOf(canary)} in ${shape} cannot escape or publish a file`, async (t) => {
+  // Partial signatures are string-only windows. Whole needles still screen
+  // file bytes; response-media-guard.test.js proves bytes do not use windows.
+  const shapes = ['extra', 'headers', 'returned', 'thrown-status', 'error', 'cause', ...(canary === SIGNATURE.slice(4, 22) ? [] : ['bytes'])];
+  for (const shape of shapes) test(`call-private canary ${[URL_VALUE, SIGNATURE, SIGNATURE.slice(4, 22), '?sig=' + SIGNATURE, '/private/take.wav'].indexOf(canary)} in ${shape} cannot escape or publish a file`, async (t) => {
     transport(t, { chunks: [wav()] }); const s = await gateway(t);
     s.connector.impl.modules.media.render = async (_i, ctx) => {
       const bytes = await ctx.downloadMedia({ url: URL_VALUE, media_type: 'audio/wav' }); ctx.audit({ note: canary });
@@ -230,7 +250,7 @@ test('load and --check accept WAV/MP4 download; reject absent or invalid same-ac
   }
 });
 
-for (const outcome of ['success', 'returned-status', 'thrown-status', 'error', 'cause', 'tls-error']) test(`real stdio/RPC ${outcome} keeps canaries out of stdout, stderr and audit`, async (t) => {
+for (const outcome of ['success', 'returned-status', 'thrown-status', 'error', 'error-slice-15', 'error-slice-8', 'cause', 'tls-error']) test(`real stdio/RPC ${outcome} keeps canaries out of stdout, stderr and audit`, async (t) => {
   transport(t, { chunks: [wav()], ...(outcome === 'tls-error' ? { tlsError: true } : {}) });
   const s = await gateway(t);
   s.connector.impl.modules.media.render = async (_i, ctx) => {
@@ -238,6 +258,8 @@ for (const outcome of ['success', 'returned-status', 'thrown-status', 'error', '
     if (outcome === 'returned-status') return { status: 'vendor_error', detail: SIGNATURE };
     if (outcome === 'thrown-status') throw new StatusSignal({ status: 'vendor_error', detail: URL_VALUE });
     if (outcome === 'error') throw new Error(SIGNATURE);
+    if (outcome === 'error-slice-15') throw new Error(SIGNATURE.slice(4, 19));
+    if (outcome === 'error-slice-8') throw new Error(SIGNATURE.slice(20, 28));
     if (outcome === 'cause') throw new Error('ordinary', { cause: new Error(SIGNATURE) });
     return { output_file: { media_type: 'audio/wav', data } };
   };
@@ -252,7 +274,8 @@ for (const outcome of ['success', 'returned-status', 'thrown-status', 'error', '
   const rpc = JSON.parse(output); const answer = JSON.parse(rpc.result.content[0].text);
   assert.equal(rpc.id, 1); if (outcome === 'success') assert.ok(answer.file); else assert.equal(fs.existsSync(s.output), false);
   const evidence = JSON.stringify({ rpc, output, errors, audit: fs.readFileSync(s.audit.file, 'utf8') });
-  for (const canary of [URL_VALUE, SIGNATURE, SIGNATURE.slice(4, 22)]) assert.equal(evidence.includes(canary), false);
+  for (const canary of [URL_VALUE, SIGNATURE, SIGNATURE.slice(4, 22), SIGNATURE.slice(4, 19), SIGNATURE.slice(20, 28)]) assert.equal(evidence.includes(canary), false, 'private signature slice escaped RPC or stderr');
+  if (outcome.startsWith('error')) assert.deepEqual(answer, { error: 'internal error' });
 });
 
 test('large guarded file output scans bytes without a decoded copy or typed-array key enumeration', async (t) => {

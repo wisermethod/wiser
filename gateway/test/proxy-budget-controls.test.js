@@ -8,20 +8,28 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { makeHome } from './fake-provider.js';
 const ADAPTER = new URL('../providers/composio/auth-provider.js', import.meta.url).href;
+const CONTEXT = new URL('../src/context.js', import.meta.url).href;
 const HARNESS = new URL('./agreement-harness.js', import.meta.url).href;
 const CONNECTOR = new URL('../../connectors/elevenlabs/index.js', import.meta.url).href;
 const WIRE_TEST = fileURLToPath(new URL('../providers/composio/proxy-budget.test.js', import.meta.url));
 const CONTEXT_TEST = fileURLToPath(new URL('./proxy-budget.test.js', import.meta.url));
 const AGREEMENT_TEST = fileURLToPath(new URL('./agreement.test.js', import.meta.url));
+const UTF16_FAILURE = /measurement must count UTF-8 bytes of the independent wire string[\s\S]*expected: 4100000[\s\S]*actual: 40999\d\d/;
 
-for (const [name, sourceUrl, acceptance, pattern, replacements, expected] of [
+for (const [name, sourceUrl, acceptance, pattern, replacements, expected, unrelated = false] of [
   ['off-by-one inclusive bound', ADAPTER, WIRE_TEST, 'short account JSON', [
     ["Buffer.byteLength(serializedBody, 'utf8') > proxyBodyMaxBytes", "Buffer.byteLength(serializedBody, 'utf8') >= proxyBodyMaxBytes"],
   ], /error: 'vendor_error'/],
+  ['context off-by-one inclusive bound', CONTEXT, CONTEXT_TEST, 'execute retains real adapter', [
+    ['count > proxyBodyMaxBytes', 'count >= proxyBodyMaxBytes'],
+  ], /at-cap execute must reach the real adapter/],
   ['UTF-16 count instead of UTF-8', ADAPTER, WIRE_TEST, 'short account JSON', [
     ["Buffer.byteLength(serializeProxyRequest(request), 'utf8')", 'serializeProxyRequest(request).length'],
     ["Buffer.byteLength(serializedBody, 'utf8')", 'serializedBody.length'],
-  ], /4100000/],
+  ], UTF16_FAILURE],
+  ['UTF-16 oracle false positive on unrelated failure', ADAPTER, WIRE_TEST, 'short account JSON', [
+    ["return Buffer.byteLength(serializeProxyRequest(request), 'utf8');", "throw new Error('invented unrelated failure');"],
+  ], UTF16_FAILURE, true],
   ['second serialization after checking the bound', ADAPTER, WIRE_TEST, 'send serializes only once', [
     ["requestSerialized(apiKey, 'POST', '/tools/execute/proxy', serializedBody)", "request(apiKey, 'POST', '/tools/execute/proxy', proxyRequestBody({ providerAccountId, endpoint, method, body, parameters, binary_body }))"],
   ], /a second serialization can change the checked body/],
@@ -54,7 +62,10 @@ for (const [name, sourceUrl, acceptance, pattern, replacements, expected] of [
   assert.equal(result.signal, null, result.stderr);
   assert.equal(result.status, 1, `${name} escaped detection: ${result.stdout} ${result.stderr}`);
   assert.equal((result.stdout + result.stderr).includes('mutation target absent'), false);
-  assert.match(result.stdout + result.stderr, expected);
+  if (unrelated) {
+    assert.match(result.stdout, /error: 'invented unrelated failure'/);
+    assert.doesNotMatch(result.stdout + result.stderr, expected, 'UTF-16 oracle must reject an unrelated failure despite 4100000 in the test title');
+  } else assert.match(result.stdout + result.stderr, expected);
   assert.match(result.stdout, new RegExp('not ok.*' + pattern));
   t.diagnostic(`${name}: planted child exited 1; acceptance test failed as required`);
 });

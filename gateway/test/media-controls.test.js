@@ -9,8 +9,11 @@ import { spawnSync } from 'node:child_process';
 import { makeHome } from './fake-provider.js';
 const SOURCE = new URL('../src/media-download.js', import.meta.url).href;
 const TEST = fileURLToPath(new URL('./media-download.test.js', import.meta.url));
+const GUARD = new URL('../src/response-headers.js', import.meta.url).href;
+const GUARD_TEST = fileURLToPath(new URL('./response-media-guard.test.js', import.meta.url));
+const OUTPUT_TEST = fileURLToPath(new URL('./media-output.test.js', import.meta.url));
 
-for (const [name, pattern, replacements, expected] of [
+for (const [name, pattern, replacements, expected, sourceUrl = SOURCE, acceptance = TEST] of [
   ['rebinding transport', 'refuses rebinding peer', [
     ['!sameAddress(res.socket?.remoteAddress, selected.address) || ', ''],
     ['!sameAddress(socket.remoteAddress, selected.address) || ', ''],
@@ -28,12 +31,30 @@ for (const [name, pattern, replacements, expected] of [
   ['leaking transport error', 'refuses TLS error without raw failure text', [
     ["req.on('error', () => fail('transport_failed'));", "req.on('error', (err) => { done = true; cleanup(); reject(err); });"],
   ], /private error value escaped/],
+  ['short query value needle', 'short query', [
+    ['if (part.length >= 16) {', 'if (part.length > 0) {'],
+  ], /short query values must not refuse a good file/, GUARD, OUTPUT_TEST],
+  ['overlong address indexing', 'overlong address', [
+    ['if (value.length > MEDIA_URL_VALUE_CAP) return;', ''],
+  ], /oversized addresses must not build windows or parse components/, GUARD, GUARD_TEST],
+  ['overlong address allowed after cancellation', 'overlong address', [
+    ["if (typeof urlValue === 'string' && urlValue.length > MEDIA_URL_VALUE_CAP) return fail('invalid_url');", ''],
+  ], /Missing expected rejection|inactive/, SOURCE, GUARD_TEST],
+  ['unbounded private windows', 'string windows cover', [
+    ['if (windows === MAX_WINDOWS)', 'if (false)'],
+  ], /window construction must have a finite call-wide budget/, GUARD, GUARD_TEST],
+  ['string windows scanned over file bytes', '64 MiB publish scan', [
+    ["[...addresses, 'upload_id=']", "[...addresses, ...mediaFragments, 'upload_id=']"],
+  ], /whole-needle publish scan must accept ordinary media/, GUARD, GUARD_TEST],
+  ['short error slice disclosure', 'real stdio/RPC error-slice', [
+    ['const MEDIA_WINDOW = 8;', 'const MEDIA_WINDOW = 16;'],
+  ], /private signature slice escaped RPC or stderr/, GUARD, OUTPUT_TEST],
 ]) test(`negative control catches ${name}`, (t) => {
   const root = makeHome(); t.after(() => rmSync(root, { force: true, recursive: true }));
   const loader = join(root, 'mutant-loader.mjs');
   writeFileSync(loader, `export async function load(url, context, next) {
     const result = await next(url, context);
-    if (url !== ${JSON.stringify(SOURCE)}) return result;
+    if (url !== ${JSON.stringify(sourceUrl)}) return result;
     let source = String(result.source);
     for (const [before, after] of ${JSON.stringify(replacements)}) {
       if (!source.includes(before)) throw new Error('mutation target absent');
@@ -43,10 +64,11 @@ for (const [name, pattern, replacements, expected] of [
   }\n`);
   const env = { ...process.env }; delete env.NODE_TEST_CONTEXT;
   const result = spawnSync(process.execPath, ['--no-warnings', '--experimental-loader', pathToFileURL(loader).href,
-    '--test', '--test-reporter=tap', '--test-name-pattern', pattern, TEST], { encoding: 'utf8', timeout: 10000, env });
+    '--test', '--test-reporter=tap', '--test-name-pattern', pattern, acceptance], { encoding: 'utf8', timeout: 10000, env });
   assert.equal(result.signal, null, result.stderr);
-  assert.notEqual(result.status, 0, `${name} survived its acceptance test: ${result.stdout} ${result.stderr}`);
+  assert.equal(result.status, 1, `${name} survived its acceptance test: ${result.stdout} ${result.stderr}`);
   assert.equal((result.stdout + result.stderr).includes('mutation target absent'), false);
   assert.match(result.stdout + result.stderr, expected);
   assert.match(result.stdout, new RegExp('not ok.*' + pattern));
+  t.diagnostic(`${name}: planted child exited 1; acceptance test failed as required`);
 });

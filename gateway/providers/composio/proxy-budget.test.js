@@ -69,7 +69,7 @@ for (const [name, account, binary] of [
   req.parameters.push(pad);
   pad.value = 'x'.repeat(CAP - bytes(expectedWire(req)));
   assert.equal(bytes(expectedWire(req)), CAP);
-  assert.equal(await adapter.measureProxyBody(req), CAP);
+  assert.equal(await adapter.measureProxyBody(req), CAP, 'measurement must count UTF-8 bytes of the independent wire string');
   assert.equal(sent.length, 0, 'measurement must never send');
   await adapter.proxy(req, { proxyBodyMaxBytes: CAP });
   assert.equal(sent.length, 1);

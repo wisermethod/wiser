@@ -10,6 +10,7 @@ import { createFakeProviders, createTestGateway, makeHome, putActive, confirmCal
 import { makeCtx } from './agreement-harness.js';
 import { createAuthProvider as localProvider } from '../providers/local-file/auth-provider.js';
 import { createAuthProvider as stubProvider } from '../providers/nango/auth-provider.js';
+import { createAuthProvider as realProvider } from '../providers/composio/auth-provider.js';
 
 const CAP = 4100000;
 const OVER = { status: 'vendor_error', reason: 'proxy_body_too_large' };
@@ -137,6 +138,35 @@ test('gateway snapshots action budget; internal GET and module overrides cannot 
   delete f.fake.auth.measureProxyBody;
   const plain = await f.gw.execute({ action: 'budget-fixture.items.plain', input: { text: 'x'.repeat(500) } });
   assert.equal(plain.status, 200); assert.equal(sent, 1);
+});
+
+test('execute retains real adapter proxy and measurement at the inclusive wire boundary', async (t) => {
+  const f = await gateway(t);
+  const envPath = join(f.home, 'invented-project.txt');
+  writeFileSync(envPath, 'WISER_AUTH_PROVIDER_KEY=invented-offline-key\n');
+  const adapter = realProvider({ envPath });
+  // Leave grant setup fake, but retain both production budget methods intact.
+  f.gw.authProvider = { ...f.fake.auth, proxy: adapter.proxy, measureProxyBody: adapter.measureProxyBody };
+  const sent = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.equal(new URL(url).pathname, '/api/v3.1/tools/execute/proxy');
+    assert.equal(options.method, 'POST');
+    sent.push(options.body);
+    return { status: 200, text: async () => '{"status":200,"data":{"accepted":true}}' };
+  });
+  // Construct the outer wire independently of either production serializer.
+  const wire = (text) => JSON.stringify({ connected_account_id: 'fake-acct-budget-fixture-items',
+    endpoint: '/invented', method: 'GET', body: { text } });
+  const base = '雪𐐀"\\\n';
+  const atCap = base + 'x'.repeat(CAP - Buffer.byteLength(wire(base), 'utf8'));
+  const expected = wire(atCap);
+  assert.equal(Buffer.byteLength(expected, 'utf8'), CAP);
+  const answer = await f.gw.execute({ action: 'budget-fixture.items.run', input: { text: atCap } });
+  assert.deepEqual(answer, { status: 200, data: { accepted: true } }, 'at-cap execute must reach the real adapter');
+  assert.deepEqual(sent, [expected], 'at-cap sends the independently constructed wire exactly once');
+  assert.equal(Buffer.byteLength(wire(atCap + 'x'), 'utf8'), CAP + 1);
+  assert.deepEqual(await f.gw.execute({ action: 'budget-fixture.items.run', input: { text: atCap + 'x' } }), OVER);
+  assert.deepEqual(sent, [expected], 'over-cap execute sends nothing');
 });
 
 test('gateway capability refusal is sanitized and preserves policy, grant, input and confirmation ordering', async (t) => {

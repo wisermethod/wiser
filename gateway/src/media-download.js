@@ -4,6 +4,7 @@ import { isIP } from 'node:net';
 import { checkServerIdentity } from 'node:tls';
 import { setTimeout, clearTimeout } from 'node:timers';
 import { STATUS, statusSignal } from './errors.js';
+import { MEDIA_URL_VALUE_CAP } from './response-headers.js';
 
 const DEADLINE_MS = 120_000;
 const SLAB_BYTES = 64 * 1024;
@@ -117,10 +118,11 @@ export function createMediaDownload({ hosts, mediaTypes, maxBytes, signal, remem
 
       try {
         const urlValue = input?.url;
+        timer = setTimeout(() => fail('deadline'), DEADLINE_MS);
         remember?.(urlValue); // Before any refusal, including invalid options.
+        if (typeof urlValue === 'string' && urlValue.length > MEDIA_URL_VALUE_CAP) return fail('invalid_url');
         if (signal?.aborted) return fail('inactive');
         signal?.addEventListener('abort', inactive, { once: true });
-        timer = setTimeout(() => fail('deadline'), DEADLINE_MS);
         if (!input || typeof input !== 'object' || Array.isArray(input) ||
             Reflect.ownKeys(input).length !== 2 || !Object.hasOwn(input, 'url') || !Object.hasOwn(input, 'media_type')) return fail('invalid_request');
         if (!allowedTypes.has(input.media_type)) return fail('media_type_refused');
