@@ -100,8 +100,13 @@ test('R3 scaffold succeeds without browser lockfile and performs no HOME reads',
   const f = fixture(t), tool = join(f.copy, 'tools/deck-export');
   fs.cpSync(join(source, 'tools/deck-export/scripts'), join(tool, 'scripts'), {recursive:true});
   fs.cpSync(join(source, 'tools/deck-export/templates'), join(tool, 'templates'), {recursive:true});
-  fs.mkdirSync(join(tool, 'node_modules'), {recursive:true});
-  fs.cpSync(join(source, 'tools/deck-export/node_modules/reveal.js'), join(tool, 'node_modules/reveal.js'), {recursive:true});
+  // A stand-in reveal.js holding the files scaffold copies, so the test needs no installed package.
+  const reveal = join(tool, 'node_modules/reveal.js');
+  for (const file of ['dist/reveal.js', 'dist/reset.css', 'dist/reveal.css', 'dist/theme/white.css', 'plugin/highlight/highlight.js', 'plugin/highlight/monokai.css', 'plugin/notes/notes.js']) {
+    fs.mkdirSync(dirname(join(reveal, file)), {recursive:true});
+    fs.writeFileSync(join(reveal, file), `/* stand-in ${file} */\n`);
+  }
+  fs.writeFileSync(join(reveal, 'package.json'), JSON.stringify({name:'reveal.js', version:'0.0.0-test'}));
   fs.rmSync(join(f.runtime, 'package-lock.json'));
   const guard = join(f.root, 'home-guard.mjs'), record = join(f.root, 'home-reads.jsonl');
   fs.writeFileSync(guard, `import fs from 'node:fs';import {syncBuiltinESMExports} from 'node:module';import {fileURLToPath} from 'node:url';
