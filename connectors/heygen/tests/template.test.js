@@ -95,6 +95,7 @@ test('three varied whole scenes and all models preserve bytes, hashes, timings a
   }
   assert.equal(f.media.requests.length,3);
   for (const opt of f.media.options) {
+    assert.equal(opt.path,new URL(ADDRESS).pathname + new URL(ADDRESS).search);
     assert.equal(opt.servername,'resource2.heygen.ai');
     assert.deepEqual(opt.headers,{ Host:'resource2.heygen.ai','Accept-Encoding':'identity' });
     assert.equal(opt.auth,undefined);

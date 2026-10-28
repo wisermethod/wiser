@@ -8,17 +8,26 @@ import { statusSignal, STATUS } from '../../../gateway/src/errors.js';
 export const MODULES = ['speech','voices','avatars','assets','videos','account'];
 export const PRIVATE = 'invented-private-path-123456789';
 export const SIGNATURE = 'invented-signature-value-987654321';
-export const ADDRESS = `https://resource2.heygen.ai/${PRIVATE}/speech.wav?sig=${SIGNATURE}`;
+export const speechAddress = (voiceId) => `https://resource2.heygen.ai/${PRIVATE}/${voiceId}/speech.wav`;
+export const ADDRESS = speechAddress('voice_fake-1');
 export const voice = (extra = {}) => ({ id: 'voice_fake-1', name: 'Invented clone', mode: 'instant', status: 'ACTIVE', language: 'en', preview_audio_url: ADDRESS, ...extra });
 export const characterTimings = (text) => Array.from(text, (text, i) => ({ text, start_time: i / 10, end_time: (i + 1) / 10 }));
 export const scene = (text = 'Hi', model = 'heygen-voice-1-turbo-free') => ({ text, voice_id: 'voice_fake-1', model });
 export const page = (data = [], extra = {}) => ({ data, has_more: false, ...extra });
-export const speechAnswer = (text) => ({ data: { audio_url: ADDRESS, duration: 1.25, original_characters: characterTimings(text), preview: ADDRESS, extra: ADDRESS } });
-export const VIDEO_ADDRESS = `https://files2.heygen.ai/${PRIVATE}/video.mp4?sig=${SIGNATURE}`;
+export const speechAnswer = (text, voiceId = 'voice_fake-1') => ({ data: { audio_url: speechAddress(voiceId), duration: 1.25, original_characters: characterTimings(text), preview: ADDRESS, extra: ADDRESS } });
+export const videoAddress = (videoId) => `https://files2.heygen.ai/${PRIVATE}/${videoId}/video.mp4?sig=${SIGNATURE}`;
+export const VIDEO_ADDRESS = videoAddress('video_fake-1');
 export const avatarGroup = (extra = {}) => ({ id: 'group_fake-1', name: 'Duplicate character', looks_count: 3, preview_image_url: ADDRESS, ...extra });
 export const avatarLook = (extra = {}) => ({ id: 'look_fake-1', group_id: 'group_fake-1', name: 'Duplicate look', avatar_type: 'digital_twin', status: 'completed', default_voice_id: 'voice_fake-1', supported_api_engines: ['avatar_v', 'avatar_iv'], preview_image_url: ADDRESS, preview_video_url: VIDEO_ADDRESS, ...extra });
 export const videoInput = (extra = {}) => ({ avatar_id: 'look_fake-1', script: 'Invented scene.', voice_id: 'voice_fake-1', resolution: '720p', aspect_ratio: '16:9', idempotency_key: 'invented-video-key', ...extra });
-export const videoAnswer = (extra = {}) => ({ id: 'video_fake-1', status: 'completed', duration: 3.97, video_url: VIDEO_ADDRESS, thumbnail_url: VIDEO_ADDRESS, gif_url: ADDRESS, video_page_url: ADDRESS, failure_message: SIGNATURE, extra: ADDRESS, ...extra });
+export const videoAnswer = (extra = {}) => {
+  const videoId = extra.id ?? 'video_fake-1';
+  return { id: videoId, status: 'completed', duration: 3.97, video_url: videoAddress(videoId),
+    thumbnail_url: `https://files2.heygen.ai/${PRIVATE}/${videoId}/thumbnail.jpg?sig=${SIGNATURE}`,
+    gif_url: `https://files2.heygen.ai/${PRIVATE}/${videoId}/preview.gif?sig=${SIGNATURE}`,
+    video_page_url: `https://files2.heygen.ai/${PRIVATE}/${videoId}/page.html`,
+    failure_message: SIGNATURE, extra: ADDRESS, ...extra };
+};
 const box = (type, ...data) => {
   const payload = Buffer.concat(data), header = Buffer.alloc(8);
   header.writeUInt32BE(8 + payload.length); header.write(type, 4); return Buffer.concat([header, payload]);
@@ -58,10 +67,13 @@ export function wire(req) {
 }
 export const hash = (b) => createHash('sha256').update(b).digest('hex');
 export async function setup(t, config = {}) {
+  // Fix the connector's clock too, so offer tests never depend on the run date.
+  const now = config.now ?? (() => Date.parse('2026-10-28T12:00:00.000Z'));
+  t.mock.method(Date, 'now', now);
   const home = fs.realpathSync(makeHome());
   t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   t.mock.method(globalThis, 'fetch', async () => { throw new Error('offline transport'); });
-  const f = await createTestGateway({ home, ...(config.now ? { now: config.now } : {}), outputsDir: config.hosted ? undefined : join(home, 'outputs') });
+  const f = await createTestGateway({ home, now, outputsDir: config.hosted ? undefined : join(home, 'outputs') });
   f.file = join(home, 'sample.mp3'); fs.writeFileSync(f.file, mp3());
   f.calls = []; f.measurements = []; f.reply = null;
   const independentMeasure = (req) => Buffer.byteLength(wire(req), 'utf8');
@@ -74,9 +86,9 @@ export async function setup(t, config = {}) {
   };
   f.defaultReply = (req) => {
     const path = new URL(req.endpoint).pathname;
-    if (path === '/v3/models/audio/tts') return { status: 200, data: speechAnswer(req.body.text) };
+    if (path === '/v3/models/audio/tts') return { status: 200, data: speechAnswer(req.body.text, req.body.voice_id) };
     if (path === '/v3/models/audio/voices' && req.method === 'POST') return { status: 202, data: { data: { voice_id: 'clone_fake-1' } } };
-    if (path === '/v3/models/audio/voices') return { status: 200, data: page([voice()]) };
+    if (path === '/v3/models/audio/voices') return { status: 200, data: page([voice({ id: config.voiceId ?? 'voice_fake-1' })]) };
     if (path.startsWith('/v3/models/audio/voices/')) return { status: 200, data: { data: req.method === 'DELETE' ? { status: 'ok' } : voice({ id: path.split('/').at(-1) }) } };
     if (path === '/v3/users/me') return { status: 200, data: { data: { billing_type: 'wallet', wallet: { currency: 'usd', remaining_balance: 3 }, extra: ADDRESS } } };
     if (path === '/v3/api_keys/self') return { status: 200, data: { data: { scope_mode: 'custom', scopes: ['voices:write','videos:write','assets:write','avatars:read','account:read'], api_key: SIGNATURE } } };

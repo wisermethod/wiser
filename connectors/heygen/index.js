@@ -8,6 +8,7 @@ const VOICES = '/v3/models/audio/voices';
 const BUDGET = 4100000;
 const WAV_MAX = 67108864;
 const MP4_MAX = 268435456;
+const TURBO_FREE_END = Date.parse('2026-12-01T00:00:00.000Z');
 const object = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const id = (v) => typeof v === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(v);
 const text = (v) => typeof v === 'string';
@@ -162,6 +163,8 @@ export const modules = {
     async synthesize(input, ctx) {
       const bad = bounds(input, { text: 5000, language: 32 }, { expressiveness_boost: [0, 1] });
       if (bad) return bad;
+      if (input.model === 'heygen-voice-1-turbo-free' && Date.now() >= TURBO_FREE_END)
+        return invalid('model', 'turbo_free_offer_ended');
       const membership = await privateVoice(ctx, input.voice_id);
       if (membership.stop) return membership.stop;
       if (!membership.found) return invalid('voice_id', 'requires a private instant ACTIVE voice');
@@ -193,7 +196,7 @@ export const modules = {
       if (!Buffer.isBuffer(bytes) || bytes.length > WAV_MAX) return unexpected(API + path, 'POST');
       const wav = inspectWav(bytes, true);
       if (!wav) return unexpected(API + path, 'POST');
-      return { voice_id: input.voice_id, model: input.model, characters, duration: v.duration, sample_duration: wav.duration,
+      return { model: input.model, characters, duration: v.duration, sample_duration: wav.duration,
         original_characters: original, output_file: { media_type: 'audio/wav', data: bytes } };
     },
   },
@@ -302,6 +305,8 @@ export const modules = {
       const res = await request(ctx, path); if (res.stop) return res.stop;
       const got = video(res.data, input.video_id);
       if (!got) return unexpected(API + path, 'GET');
+      // The caller holds this id; HeyGen also embeds it in the private media path.
+      delete got.video_id;
       if (got.video_status !== 'completed') return got;
       if (!(got.duration > 0) || !text(res.data.video_url)) return unexpected(API + path, 'GET');
       let bytes;

@@ -180,7 +180,7 @@ test('poll and resume same video id through all states, unknown state and recogn
     f.reply = () => ({ status: 200, data: { data: videoAnswer({ status, duration: status === 'completed' ? 3.97 : null, failure_code: 'VIDEO_GENERATION_FAILED' }) } });
     const got = await run(f, 'videos.get', { video_id: 'video_fake-1' });
     assert.deepEqual(got, { video_id: 'video_fake-1', video_status: status === 'new_provider_state' ? 'unknown' : status, duration: status === 'completed' ? 3.97 : null, failure_code: 'VIDEO_GENERATION_FAILED' }); noPrivate(got);
-    if (status !== 'completed') { const result = await run(f, 'videos.download', { video_id: 'video_fake-1' }); assert.deepEqual(result, got); }
+    if (status !== 'completed') { const result = await run(f, 'videos.download', { video_id: 'video_fake-1' }); const { video_id, ...metadata } = got; assert.deepEqual(result, metadata); }
   }
   assert.equal(f.media.requests.length, 0); assert.equal(postCount(f), 0); noFiles(f);
   assert.ok(f.calls.every((r) => r.method === 'GET' && r.endpoint.endsWith('/v3/videos/video_fake-1')));
@@ -217,12 +217,13 @@ test('a locally generated H.264 MP4 is independently probed and downloaded byte 
 test('completed MP4 download is byte-identical despite binary/octet-stream, same id, no render, private metadata only', async (t) => {
   const f = await setup(t, { video: true, media: { headers: { 'content-type': 'binary/octet-stream' } } });
   const got = await run(f, 'videos.download', { video_id: 'video_fake-1' });
-  assert.equal(got.video_id, 'video_fake-1'); assert.equal(got.duration, 3.97);
+  assert.equal(got.video_id, undefined); assert.equal(got.duration, 3.97);
   assert.equal(got.file.media_type, 'video/mp4'); assert.equal(got.file.bytes, mp4().length); assert.equal(got.file.sha256, hash(mp4()));
   assert.deepEqual(fs.readFileSync(got.file.path), mp4()); assert.match(got.file.path, /[0-9a-f-]{36}\.mp4$/);
   assert.equal(fs.statSync(got.file.path).mode & 0o777, 0o600); noPrivate(got);
   assert.equal(f.calls.length, 1); assert.equal(postCount(f), 0); assert.equal(f.media.requests.length, 1);
   assert.deepEqual(f.media.options[0].headers, { Host: 'files2.heygen.ai', 'Accept-Encoding': 'identity' });
+  assert.equal(f.media.options[0].path, new URL(VIDEO_ADDRESS).pathname + new URL(VIDEO_ADDRESS).search);
   assert.equal(f.media.options[0].auth, undefined); assert.equal(f.media.options[0].servername, 'files2.heygen.ai');
 });
 

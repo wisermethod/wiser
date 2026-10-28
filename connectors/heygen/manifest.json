@@ -11,7 +11,7 @@
       },
       "actions": {
         "synthesize": {
-          "description": "Synthesize one unchanged scene of 1 to 5000 Unicode code points using an explicit model and an ACTIVE instant voice proved in the private list. Paid models require a self-serve USD API wallet and sufficient balance. No chunking, retry or fallback. Validate exact character timings and PCM16 mono 44100 Hz WAV; download privately once, at most 67108864 bytes. Missing or invalid voice state, pagination, wallet, timings or container stops without a file. Local stdio only.",
+          "description": "Synthesize one unchanged scene of 1 to 5000 Unicode code points using an explicit model and an ACTIVE instant voice proved in the private list. Paid models require a self-serve USD API wallet and sufficient balance. Turbo Free is refused before any request from 2026-12-01 UTC with turbo_free_offer_ended, without changing the model. No chunking, retry or fallback. Validate exact character timings and PCM16 mono 44100 Hz WAV; download privately once, at most 67108864 bytes. Missing or invalid voice state, pagination, wallet, timings or container stops without a file. Local stdio only.",
           "risk": "medium",
           "confirmation": "none",
           "execution": {
@@ -31,6 +31,7 @@
                 "pattern": "^[A-Za-z0-9_-]{1,128}$"
               },
               "model": {
+                "description": "Explicit model, never substituted. heygen-voice-1-turbo-free is available through 2026-11-30 UTC only; after that date, invalid_arguments / turbo_free_offer_ended before any request.",
                 "type": "string",
                 "enum": [
                   "heygen-voice-1",
