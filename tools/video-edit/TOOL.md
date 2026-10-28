@@ -2,8 +2,8 @@
 name: video-edit
 type: tool
 category: media
-description: Edits a video with FFmpeg and writes the result where the caller names, covering trim, resize, speed, text overlay, audio removal, concatenation, frame extraction, GIF conversion, narration laid onto a silent video, loudness set to a named level, and one encode of joined scenes to YouTube's recommended settings
-version: 0.2.0
+description: Edits existing video with FFmpeg, including audio-correlated frame-exact silent conform bundles, trim, resize, speed, text, audio removal, concatenation, sampled frames, GIF, narration mux, loudness and the final joined encode
+version: 0.3.0
 ---
 
 # video-edit
@@ -14,7 +14,7 @@ One video, image sequence, or GIF, written where the caller said, holding what F
 
 Use it when a video already exists and has to come out different: cut to a range, resized to a platform's frame, sped up or slowed down, captioned with a line of text, stripped of its audio, joined end to end with other clips, sampled into stills, or turned into a GIF for somewhere that will not play video. Use it too when a silent video needs its narration laid on (`mux`), when a video's sound has to sit at a named loudness under a true-peak limit (`loudness`), and when scenes have to become one file encoded once to YouTube's recommended settings (`finish`). It is the finishing pass after footage arrives, whatever produced it.
 
-Do not use it to produce video from a description or from a still image; that is generation, it costs money per call, and it routes through `Media Generator`. Do not use it to pull words out of a recording, which is transcription, or to work on a still image, which the image tools do. An audio file enters only as the track `mux` lays onto a video: no command edits an audio file on its own or writes one, and mixing two sounds, such as music under narration, is not here. It decides nothing about the edit: it applies the operations it was given, in the order below, and reports what it wrote.
+Do not use it to produce video from a description or from a still image; that is generation, it costs money per call, and it routes through `Media Generator`. Do not use it to pull words out of a recording, which is transcription, or to work on a still image, which the image tools do. An audio file enters as the track `mux` lays onto a video, or as the reference witness `conform` analyses against the video’s own audio before dropping that track. The conform reference is never written: no command edits an audio file on its own or writes one, and mixing two sounds, such as music under narration, is not here. It decides nothing about the edit: it applies the operations it was given, in the order below, and reports what it wrote.
 
 It authenticates to nothing, holds no credential, reaches no other primitive, and opens no network connection. Every input is a local file that must already exist, which is also what keeps an address out of FFmpeg's hands.
 
@@ -47,12 +47,12 @@ FFmpeg is a separate program, not an npm package, so it is checked rather than i
 
 | Dependency | Needed for | Present when |
 |------------|------------|--------------|
-| FFmpeg | Every command | `ffmpeg -version` succeeds |
+| FFmpeg | Every media command | `ffmpeg -version` succeeds |
 | A drawtext-capable FFmpeg build with a resolvable font | `edit --text` only | `ffmpeg -f lavfi -i color=c=black:s=32x32:d=1 -vf drawtext=text=x -frames:v 1 -f null -` exits 0 |
-| ffprobe, which ships with FFmpeg | `mux`, `loudness` and `finish` | `ffprobe -version` succeeds |
-| FFmpeg's `libx264` and `libopus` encoders | `finish` only | `ffmpeg -hide_banner -encoders` lists both |
+| ffprobe, which ships with FFmpeg | `mux`, `loudness`, `finish` and `conform` | `ffprobe -version` succeeds |
+| FFmpeg's `libx264` and `libopus` encoders | `libx264` for `conform`; both for `finish` | `ffmpeg -hide_banner -encoders` lists both |
 
-The drawtext and encoder rows are the same program in a narrower condition: a build without freetype, `libx264` or `libopus`, or a machine with no font FFmpeg can resolve, runs every other command and fails only on the one that needs it. Each is checked separately so that failure arrives before the pass rather than inside it.
+The drawtext and encoder rows narrow the same program's requirements. Presence checks for text, finish encoders and conform's encoder/filters run only for their own operation. Each is checked separately so that failure arrives before the pass rather than inside it.
 
 This tool imports no npm package, so there is no package install and no consent prompt; Node and FFmpeg are the whole of what it needs.
 
@@ -74,7 +74,50 @@ Audio follows the speed change while a factor stays from 0.5 through 2.0, endpoi
 
 Text is drawn horizontally centered, and `--text-position` chooses the vertical band: `top` sits 50 pixels down, `bottom` sits 100 pixels up from the bottom, `center` is the middle. A caller's text is escaped for both parsers FFmpeg runs it through, so a colon, an apostrophe, a comma, a percent sign, or a bracket is drawn rather than read as part of the filter.
 
-The other commands take no part in this chain. `concat` joins whole files, `frames` samples stills, and `gif` converts; none of them trims, resizes, or captions on the way. `mux`, `loudness` and `finish` are the next section's.
+The other commands take no part in this chain. `concat` joins whole files, `frames` samples stills, and `gif` converts; none of them trims, resizes, or captions on the way. Conform has its own section below, followed by `mux`, `loudness` and `finish`.
+
+## Audio-correlated conform
+
+Use `conform` when one retained video must supply exactly the caller's picture grid, with its own audio establishing correspondence to an identified upload reference. It supplies no mouth judgment and changes no playback speed. It does not invoke another tool, select a take or interpret a production registry.
+
+Every flag below is required, once. Supply all policy values; when any is missing, ask the caller for it. Times accept nonnegative exact decimal or integer-fraction seconds, at most 128 characters. There is no `--fps` alias or vendor preset.
+
+| Flag | Meaning and bound |
+|------|-------------------|
+| `--input`, `--sha256` | Local MP4 and expected complete-file SHA-256 |
+| `--reference`, `--reference-sha256` | Speech Preparation's PCM16 mono/stereo `padded.wav` and expected SHA-256; sample zero is upload sample zero |
+| `--upload-receipt`, `--upload-receipt-sha256` | Its colocated JSON receipt and caller-pinned expected SHA-256 |
+| `--output` | New bundle directory, outside this tool, with an existing parent; existing destinations, including incomplete ones, refuse |
+| `--frames` | Exact positive count N, at most 100000 |
+| `--rate` | Rational p/q, 1 through 240 fps, reduced numerator and denominator at most 1000000 |
+| `--width`, `--height` | Even target dimensions, 2 through 8192 |
+| `--origin` | Exact reference time shown by output frame 0: zero for a full padded scene; positive to start a window after its guard |
+| `--correlation-floor` | Required normalized peak, greater than zero through one, inclusive at the upper bound |
+| `--max-offset` | Maximum absolute measured timestamp-corrected lag, 0 through 1 second inclusive |
+| `--drift-tolerance` | Maximum lag spread over whole-file and useful consecutive-window measurements, 0 through 1 second inclusive |
+| `--window` | Consecutive analysis window length, 0.25 through 60 seconds; floor to whole 48000 Hz samples |
+| `--max-hold-start`, `--max-hold-end` | Independent nonnegative integer budgets for output frames held outside available picture, inclusive |
+| `--source-colour` | Explicit `bt709-tv` interpretation, required even for tagged input; no other interpretation or conversion is supported |
+
+Only `conform` needs its additional checks: `ffmpeg -encoders` must list libx264, and `ffmpeg -filters` must list scale, format, setsar, setparams, aresample and asetpts. Neither new dependency check affects an older command. All input paths are canonical regular files with one link. Protected memory/credential paths and aliases are refused, as are output aliases inside this tool. MP4 and WAV use forced local demuxers and file/pipe protocols; no playlists or network protocols are accepted. Receipt paths are never followed or opened. Reference WAV is limited to 256 MiB, receipt JSON to 4 MiB, decoded audio to 360 seconds per input, and combined source/selected planar picture scratch to 64 GiB. Exceeding a bound refuses.
+
+**Reference identity.** Read `speech-upload` version 1 as data only: the padded hash, bytes, rate, channels and sample count must match measured WAV bytes/decoding, and its decoded residual displacement must be zero. The receipt's source mapping is retained as provenance, never applied to picture time. No other receipt shape is accepted. No source or upload path in the receipt is reopened. No lead, guard or codec priming is added: the padded reference already includes it. A stale or mismatched identity refuses.
+
+**Clock measurement, version 1.** Decode each audio track, retaining its first decoded PTS and native time base. Every decoded audio frame must continue the previous sample clock exactly; absent, multiple, unsupported, discontinuous or undecodable tracks refuse. FFmpeg resets PTS solely for analysis resampling to 48000 Hz with delay compensation. Analyse floating-point samples using the arithmetic mean of mono/stereo channels; refuse stereo whose mean energy is below 1% of its strongest channel, and any whole track below RMS 16/32768. No gain or DC removal is applied.
+
+`bounded-linear-fft-normalized-v1` computes whole-file linear cross-correlation within timestamp-corrected lag [-1,1] seconds, independently of the caller's acceptance bound. Each candidate needs at least 0.25 seconds and 95% of the reference interval overlapping real decoded samples. Normalize the dot product by both overlapping energies. Floating-point FFT roundoff alone is clamped to [-1,1]. The best peak must meet the floor and exceed the next candidate outside its immediate +/-1 sample neighbourhood by at least 0.000001; ties and near-ties refuse. The same bounded search is repeated independently in consecutive reference windows. Silent windows below the same RMS, and a terminal remainder shorter than 0.25 seconds, are recorded as excluded evidence. Every other window must pass peak, ambiguity, overlap and offset checks. A reference longer than one requested window requires at least two useful windows; otherwise drift is unestablished and the run refuses. The largest minus smallest lag, including the whole-file lag, must be <= the drift tolerance. No excluded window is claimed to establish a clock. All floor comparisons are >=; offset, drift and hold comparisons are <= and recorded with actual and limit.
+
+**Sign and selection.** Let k be the measured index shift for which video audio sample j+k matches reference sample j after analysis resampling. The source picture clock starts at its first displayed picture PTS V; its audio sample zero is decoded PTS A. The corrected lag is exactly `A - V + k/48000`. Positive lag selects later source picture. Reference sample zero is zero even if its container timestamps differ. Output frame n selects at exact rational time `origin + n/rate + lag`; it never adds the receipt's padding or encoder delay. Native audio/picture PTS, their normalization and this arithmetic are recorded.
+
+Decode picture PTS in presentation order, including B-frames. Missing, unsafe, duplicate or non-increasing PTS refuse, as does disagreement with the best-effort PTS. Intervals are half-open, from a picture's PTS to the next PTS; an exact boundary takes the later picture. The last interval ends at its decoded positive duration; missing terminal duration refuses. Before the first interval or at/after the last interval's end, hold the first/last picture within the separate edge budgets. Exactly N selections are recorded, including every held range. There is no interpolation or rate/speed filter choosing pictures.
+
+**Pixels and intermediate.** Input must be square-pixel H.264 yuv420p with no display matrix or rotation. Missing colour tags acquire only the caller's explicit BT.709 TV interpretation; any contradictory stream or decoded-frame tag refuses. The declared scale path is Lanczos with explicit BT.709 input/output matrix and TV input/output range, then yuv420p, square pixels and BT.709 parameters. Already interpreted BT.709 samples need no gamut/transfer conversion. Other interpretations require another operation. Encode H.264 libx264 CRF 0, preset medium, one thread, no B-frames, metadata stripped, bitexact flags, faststart, no edit list, target numerator as the MP4 timescale and a zero first-picture origin. This supplies `video-render/TOOL.md`'s intermediate profile. Repeatability is scoped to the same FFmpeg build/settings.
+
+Before publication, independently decode the source again through that scale/colour path and decode every output frame. Each output planar YUV SHA-256 must equal its selected source frame's, in addition to exact count, every rational grid interval, size, codec, tags, SAR, no matrix/edit list and silence. The unchanged `mux`, `loudness` and `finish` accept this segment.
+
+**Bundle and completion.** Only after all checks, before/after input hashes and staged receipt readback pass, publish `segment.mp4`, `receipt.json` and `complete.json` together by renaming a unique staging sibling. `receipt.json` has `schema: video-conform`, `version: 1` and tool version, all three expected/measured input identities, decoded origins/clocks, reference provenance, policy and boundary comparisons, whole/window peaks/lags, offset arithmetic, every output-to-source ordinal/PTS/interval and pixel hash, held ranges, scaling/colour settings, full FFmpeg/ffprobe versions and encoder arguments, output identity and readback. It has no self-hash. `complete.json` has `schema: video-conform-complete`, `version: 1`, `complete: true` and the segment/receipt hashes and sizes. Reuse only a final directory whose marker identities and receipt inputs/policy all match; existence alone proves nothing. Ordinary failure removes only this run's staging, publishes nothing and leaves stdout empty. A kill may leave staging, always incomplete. A later run refuses any existing destination and removes no abandoned staging. Writes are inventoried in `tools/AGENTS.md`.
+
+Success stdout contains `ok`, `output`, `operations: ["conform"]`, `segment`, `receipt`, `receipt_identity`, `completion`, segment `bytes/sha256`, exact `frames/fps`, measured `lag_seconds`, `peak`, `drift_seconds` and start/end `held` counts. Failure names the failing check and the need for corrected inputs or a fresh destination. Missing/ambiguous caller inputs: ask before running. Audio correlation establishes the audio clock; picture performance still needs its caller's judgment.
 
 ## Sound and the final encode
 
@@ -140,11 +183,12 @@ Audio with no gated block, nothing above EBU R128's −70 LUFS floor, has no lou
 | `node scripts/edit.js concat --input <path> --input <path> [...] --output <path.mp4>` | Join two or more videos in the order given | One MP4 |
 | `node scripts/edit.js frames --input <path> --output <dir>` | Sample stills into a directory | `frame_0001.png` onward |
 | `node scripts/edit.js gif --input <path> --output <path.gif>` | Convert a video to an animated GIF | One GIF |
+| `node scripts/edit.js conform <required flags above>` | Conform one audio-witnessed video to an exact silent grid | New segment/receipt/completion bundle |
 | `node scripts/edit.js mux --input <video.mp4> --audio <file> [--audio-start <seconds>] --output <path.mp4>` | Lay one audio file onto one silent video | One MP4 |
 | `node scripts/edit.js loudness --input <path> --output <path.mp4> --target <LUFS> --true-peak <dBTP>` | Set one video's loudness, its picture copied | One MP4 |
 | `node scripts/edit.js finish --input <path> [--input <path> ...] --output <path.mp4> --target <LUFS> --true-peak <dBTP>` | Join videos and encode them once to YouTube's recommended settings | One MP4 |
 
-Options:
+Options for the existing commands (conform has its complete flag table above):
 
 | Option | Effect | Default |
 |--------|--------|---------|
@@ -169,7 +213,7 @@ Options:
 
 `--target` and `--true-peak` have no default, so the caller names the level: a scene matched at one level, and a finished video at another. Which levels a production uses is the caller's, not this tool's. Does the request name both numbers? Yes: pass them. Either one is missing: ask for it, and do not take a number from a platform's name; "for YouTube" names the picture settings `finish` writes, not a loudness or a peak.
 
-Outputs are MP4 for every command but `frames` and `gif`, GIF for `gif`, and the extension has to say so. `edit` and `concat` re-encode to H.264 with AAC audio every run; `mux` and `loudness` copy the picture; `finish` encodes as Sound and the final encode says. Paths are absolute because a relative one resolves against whichever directory the caller happened to be in. This tool never picks an output location and never falls back to one: the caller resolves a work directory in the owning root per `standards/conventions.md` and names the file inside it. Missing parent directories are created; a file already there is replaced.
+`conform` writes the new bundle described above. Other outputs are MP4 for every command but `frames` and `gif`, GIF for `gif`, and the extension has to say so. `edit` and `concat` re-encode to H.264 with AAC audio every run; `mux` and `loudness` copy the picture; `finish` encodes as Sound and the final encode says. Paths are absolute because a relative one resolves against whichever directory the caller happened to be in. This tool never picks an output location and never falls back to one: the caller resolves a work directory in the owning root per `standards/conventions.md` and names the file inside it. Missing parent directories are created; a file already there is replaced by the older file-output commands. Conform always requires a new bundle.
 
 No command takes `--env`. Nothing it does is destructive beyond writing what it was told to write, so no command takes `--confirm`.
 
@@ -177,7 +221,7 @@ No command takes `--env`. Nothing it does is destructive beyond writing what it 
 
 The scripts this tool ships, `scripts/edit.js` and the modules it imports beside it, follow `system/templates/Script Contract.md`; what a user meets when running them is `tools/RUNNING.md`. They import no package, so the contract's dependency install clause has nothing to install and its `--env` clause has nothing to bind. The sections above state what each command does; the contract states how the script behaves getting there.
 
-Every usage mistake is caught before FFmpeg is reached, so a bad path, a bad number, or an option that belongs to another command never starts a pass. No message repeats FFmpeg's own output, which quotes full paths and whatever the container's metadata holds; a run that fails names the operation and the input instead. When FFmpeg fails after opening a file destination (`edit`, `concat`, `gif`), any partial or zero-byte file left at `--output` is removed before the error is printed, so a failed concat does not leave a stub that looks like a finished product; `mux`, `loudness` and `finish` never write `--output` until their file has passed its checks. A `frames` directory is left as it is. Nothing is read from stdin, and FFmpeg is run with stdin closed, so a run with nobody watching fails rather than waiting for a keystroke.
+Every usage mistake is caught before FFmpeg is reached, so a bad path, a bad number, or an option that belongs to another command never starts a pass. No message repeats FFmpeg's own output, which quotes full paths and whatever the container's metadata holds; a run that fails names the operation and the input instead. When FFmpeg fails after opening a file destination (`edit`, `concat`, `gif`), any partial or zero-byte file left at `--output` is removed before the error is printed, so a failed concat does not leave a stub that looks like a finished product; `mux`, `loudness` and `finish` never write `--output` until their file has passed its checks. Conform publishes only its complete checked bundle. A `frames` directory is left as it is. Nothing is read from stdin, and FFmpeg is run with stdin closed, so a run with nobody watching fails rather than waiting for a keystroke.
 
 ## Output
 
@@ -274,4 +318,5 @@ The stops every tool shares, an unknown flag and a path that is relative or insi
 - `finish` writes a file within 1 LU of `--target` with its true peak at or under `--true-peak`, read on the encoded file. Every frame sits on its constant grid, and every input's narration lands where the running total puts it. The file meets the settings Sound and the final encode names.
 - Run twice on the same inputs and flags, `mux`, `loudness` and `finish` each give byte-identical files.
 - Every refusal of `mux`, `loudness` or `finish` exits 1 with stdout empty and writes nothing at `--output` or beside it.
-- No run opens a network connection, reads stdin, repeats FFmpeg's own output, or writes anywhere other than the path the caller named: one file for every command but `frames`, and one PNG per extracted frame inside that directory for `frames`. `mux`, `loudness` and `finish` also write, while they run, the hidden sibling and one temporary directory `tools/AGENTS.md` names, and remove both. A run that fails removes the partial file it had begun at that path, and never removes anything else.
+- `conform` publishes only a complete checked silent intermediate with every decoded frame matching its declared source interval, policy comparisons and input identities. Run `npm test` for the unchanged old suites and offline synthetic conform/negative-control suite, all fixtures in system temporary storage.
+- No run opens a network connection, reads stdin, repeats FFmpeg's own output, or writes anywhere other than the path the caller named: a checked bundle for `conform`, one PNG per extracted frame for `frames`, and one file for the other commands. `mux`, `loudness` and `finish` also write, while they run, the hidden sibling and one temporary directory `tools/AGENTS.md` names, and remove both. A run that fails removes the partial file it had begun at that path, and never removes anything else.

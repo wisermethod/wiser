@@ -17,6 +17,7 @@
 
 import { finishCommand } from './finish.js';
 import { muxCommand, startSamples } from './mux.js';
+import { conform, CONFORM_HELP } from './conform.js';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, realpathSync, statSync, unlinkSync } from 'node:fs';
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
@@ -41,7 +42,7 @@ const TEXT_BOTTOM_MARGIN = 100;
 const GIF_WIDTH = 480;
 const DEFAULT_FPS = 10;
 
-const USAGE = `video-edit - apply FFmpeg edits to a video file
+const USAGE = `video-edit 0.3.0 - apply FFmpeg edits to a video file
 
 Usage:
   node scripts/edit.js help
@@ -88,7 +89,9 @@ Reads the local files the caller names and writes the file or directory the
 caller names. Needs no credentials and no configuration file, so no command
 takes --env, and no command opens a network connection. Success prints one JSON
 object to stdout; a usage mistake or a pass FFmpeg cannot complete goes to
-stderr with exit 1.`;
+stderr with exit 1.
+
+${CONFORM_HELP}`;
 
 function fail(message) {
   throw new Error(message);
@@ -101,6 +104,12 @@ export function main(argv = process.argv.slice(2)) {
   if (command === 'help' || argv.includes('--help') || argv.includes('-h')) {
     process.stdout.write(`${USAGE}\n`);
     return;
+  }
+
+  if (command === 'conform') {
+    const result = conform(argv.slice(1));
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+    return result;
   }
 
   if (!COMMANDS.has(command)) {
