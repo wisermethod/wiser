@@ -31,9 +31,26 @@ for (const [name, pattern, replacements, expected, sourceUrl = SOURCE, acceptanc
   ['leaking transport error', 'refuses TLS error without raw failure text', [
     ["req.on('error', () => fail('transport_failed'));", "req.on('error', (err) => { done = true; cleanup(); reject(err); });"],
   ], /private error value escaped/],
-  ['short query value needle', 'short query', [
-    ['if (part.length >= 16) {', 'if (part.length > 0) {'],
+  ['short component whole needle', '64 MiB short component', [
+    ['if (part.length < 16) return;', 'if (!part) return;'],
+  ], /short components must not refuse a 64 MiB file/, GUARD, OUTPUT_TEST],
+  ['short decoded query value needle', 'short query v=%31', [
+    // Replant the decoded-only whole needle in searchParams, leaving raw
+    // component indexing untouched. A body of "1" must catch this regression.
+    ["for (const segment of part.split('/')) {", "for (const segment of part.split('/')) { if (segment.length > 0) rememberWhole(segment);"],
   ], /short query values must not refuse a good file/, GUARD, OUTPUT_TEST],
+  ['missing path string windows', 'real stdio/RPC error-path-slice', [
+    ['rememberWindows(part, 16, fragments);', ''],
+  ], /private path slice escaped RPC or stderr/, GUARD, OUTPUT_TEST],
+  ['missing bounded invalid-address windows', 'real stdio/RPC error-invalid-slice', [
+    ['rememberWindows(value, 16, fragments);', ''],
+  ], /private path slice escaped RPC or stderr/, GUARD, OUTPUT_TEST],
+  ['unsegmented decoded query windows', 'credential region and date publish', [
+    ["part.split('/')", '[part]'],
+  ], /credential region and date must not refuse publication/, GUARD, OUTPUT_TEST],
+  ['per-parameter file needles', '8192-character many-parameter', [
+    ['for (const [, part] of url.searchParams) {', 'for (const [, part] of url.searchParams) { rememberWhole(part);'],
+  ], /many-parameter byte scan must accept ordinary media/, GUARD, GUARD_TEST],
   ['overlong address indexing', 'overlong address', [
     ['if (value.length > MEDIA_URL_VALUE_CAP) return;', ''],
   ], /oversized addresses must not build windows or parse components/, GUARD, GUARD_TEST],

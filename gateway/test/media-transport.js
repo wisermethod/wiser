@@ -19,7 +19,7 @@ export function transport(t, config = {}) {
     this.resolve6 = (host, cb) => resolve(this, 6, host, cb);
   }
   function resolve(resolver, family, host, cb) {
-    if (host !== HOST) throw new Error('unexpected DNS name');
+    if (host !== (config.host ?? HOST)) throw new Error('unexpected DNS name');
     if (config.slow === 'dns') return;
     queueMicrotask(() => {
       if (resolver.cancelled) return;

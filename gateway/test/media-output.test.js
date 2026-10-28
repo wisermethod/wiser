@@ -154,7 +154,7 @@ for (const status of [401, 403]) test(`media HTTP ${status} never probes or chan
   assert.equal(probes, 0); assert.deepEqual(fs.readFileSync(join(s.home, 'connections.json')), before);
 });
 
-for (const [query, content] of [['v=1', '1'], ['X-Amz-SignedHeaders=host', 'host']]) {
+for (const [query, content] of [['v=1', '1'], ['v=%31', '1'], ['X-Amz-SignedHeaders=host', 'host']]) {
   test(`short query ${query} permits ordinary bytes and result strings`, async (t) => {
     const data = Buffer.from(content);
     transport(t, { chunks: [data] });
@@ -170,6 +170,43 @@ for (const [query, content] of [['v=1', '1'], ['X-Amz-SignedHeaders=host', 'host
     assert.equal(answer.duration, '1 second');
   });
 }
+
+for (const [path, query, marker] of [
+  ['/a', 'sig=' + createHash('sha256').update('invented signature').digest('hex'), '/a'],
+  ['/take.mp4', 'v=1', '?v=1'],
+  ['/take.mp4', 'v=%31', '?v=1'],
+]) test(`64 MiB short component ${path}?${query} permits file and n/a result`, async (t) => {
+  const bytes = Buffer.alloc(64 * 1024 * 1024, 71); bytes.write(marker, bytes.length / 2);
+  const net = transport(t, { host: 'allowed.host', chunks: [bytes] });
+  const s = await gateway(t, { extra: {
+    output_file: { media_types: ['video/mp4'], max_bytes: bytes.length },
+    download_media: { hosts: ['allowed.host'] },
+  } });
+  s.connector.impl.modules.media.render = async (_i, ctx) => ({ title: 'n/a',
+    output_file: { media_type: 'video/mp4', data: await ctx.downloadMedia({ url: `https://allowed.host${path}?${query}`, media_type: 'video/mp4' }) },
+  });
+  const answer = await s.gw.callTool('execute', { action: ACTION });
+  assert.ok(answer.file, 'short components must not refuse a 64 MiB file');
+  assert.equal(answer.title, 'n/a', 'n/a result must be published');
+  assert.equal(answer.file.bytes, bytes.length);
+  assert.equal(answer.file.sha256, createHash('sha256').update(bytes).digest('hex'));
+  assert.deepEqual(fs.readFileSync(answer.file.path), bytes);
+  assert.equal(net.options.length, 1);
+});
+
+test('credential region and date publish while a signature stays private', async (t) => {
+  const bytes = wav(); transport(t, { chunks: [bytes] }); const s = await gateway(t);
+  const credential = 'AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request';
+  s.connector.impl.modules.media.render = async (_i, ctx) => ({ region: 'us-east-1', date: '20130524',
+    output_file: { media_type: 'audio/wav', data: await ctx.downloadMedia({
+      url: `https://${HOST}/take.wav?X-Amz-Credential=${encodeURIComponent(credential)}&sig=${SIGNATURE}`, media_type: 'audio/wav',
+    }) },
+  });
+  const answer = await s.gw.callTool('execute', { action: ACTION });
+  assert.ok(answer.file, 'credential region and date must not refuse publication');
+  assert.equal(answer.region, 'us-east-1'); assert.equal(answer.date, '20130524');
+  assert.deepEqual(fs.readFileSync(answer.file.path), bytes);
+});
 
 test('API auth refusal still probes provider and can stop the grant', async (t) => {
   const s = await gateway(t); let probes = 0;
@@ -201,7 +238,8 @@ test('policy deny precedes local-only, input validation precedes confirmation', 
 for (const canary of [URL_VALUE, SIGNATURE, SIGNATURE.slice(4, 22), '?sig=' + SIGNATURE, '/private/take.wav']) {
   // Partial signatures are string-only windows. Whole needles still screen
   // file bytes; response-media-guard.test.js proves bytes do not use windows.
-  const shapes = ['extra', 'headers', 'returned', 'thrown-status', 'error', 'cause', ...(canary === SIGNATURE.slice(4, 22) ? [] : ['bytes'])];
+  const shapes = ['extra', 'headers', 'returned', 'thrown-status', 'error', 'cause',
+    ...([URL_VALUE, '?sig=' + SIGNATURE, '/private/take.wav'].includes(canary) ? ['bytes'] : [])];
   for (const shape of shapes) test(`call-private canary ${[URL_VALUE, SIGNATURE, SIGNATURE.slice(4, 22), '?sig=' + SIGNATURE, '/private/take.wav'].indexOf(canary)} in ${shape} cannot escape or publish a file`, async (t) => {
     transport(t, { chunks: [wav()] }); const s = await gateway(t);
     s.connector.impl.modules.media.render = async (_i, ctx) => {
@@ -250,16 +288,26 @@ test('load and --check accept WAV/MP4 download; reject absent or invalid same-ac
   }
 });
 
-for (const outcome of ['success', 'returned-status', 'thrown-status', 'error', 'error-slice-15', 'error-slice-8', 'cause', 'tls-error']) test(`real stdio/RPC ${outcome} keeps canaries out of stdout, stderr and audit`, async (t) => {
+for (const outcome of ['success', 'returned-status', 'thrown-status', 'error', 'error-slice-15', 'error-slice-8',
+  'error-credential-slice-8', 'error-path-slice', 'error-invalid-slice', 'cause', 'tls-error']) test(`real stdio/RPC ${outcome} keeps canaries out of stdout, stderr and audit`, async (t) => {
   transport(t, { chunks: [wav()], ...(outcome === 'tls-error' ? { tlsError: true } : {}) });
   const s = await gateway(t);
   s.connector.impl.modules.media.render = async (_i, ctx) => {
-    const data = await ctx.downloadMedia({ url: URL_VALUE, media_type: 'audio/wav' }); ctx.audit(SIGNATURE);
+    let url = URL_VALUE;
+    if (outcome === 'error-path-slice') url = `https://${HOST}/private/user-18392/take.wav`;
+    if (outcome === 'error-credential-slice-8') url += '&credential=' + encodeURIComponent('AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request');
+    if (outcome === 'error-invalid-slice') {
+      try { await ctx.downloadMedia({ url: 'https://[invalid]/private/user-18392/take.wav', media_type: 'audio/wav' }); } catch { throw new Error('/private/user-18392'); }
+      assert.fail('invalid URL must be refused');
+    }
+    const data = await ctx.downloadMedia({ url, media_type: 'audio/wav' }); ctx.audit(SIGNATURE);
     if (outcome === 'returned-status') return { status: 'vendor_error', detail: SIGNATURE };
     if (outcome === 'thrown-status') throw new StatusSignal({ status: 'vendor_error', detail: URL_VALUE });
     if (outcome === 'error') throw new Error(SIGNATURE);
     if (outcome === 'error-slice-15') throw new Error(SIGNATURE.slice(4, 19));
     if (outcome === 'error-slice-8') throw new Error(SIGNATURE.slice(20, 28));
+    if (outcome === 'error-credential-slice-8') throw new Error(SIGNATURE.slice(20, 28));
+    if (outcome === 'error-path-slice') throw new Error('/private/user-18392');
     if (outcome === 'cause') throw new Error('ordinary', { cause: new Error(SIGNATURE) });
     return { output_file: { media_type: 'audio/wav', data } };
   };
@@ -275,6 +323,7 @@ for (const outcome of ['success', 'returned-status', 'thrown-status', 'error', '
   assert.equal(rpc.id, 1); if (outcome === 'success') assert.ok(answer.file); else assert.equal(fs.existsSync(s.output), false);
   const evidence = JSON.stringify({ rpc, output, errors, audit: fs.readFileSync(s.audit.file, 'utf8') });
   for (const canary of [URL_VALUE, SIGNATURE, SIGNATURE.slice(4, 22), SIGNATURE.slice(4, 19), SIGNATURE.slice(20, 28)]) assert.equal(evidence.includes(canary), false, 'private signature slice escaped RPC or stderr');
+  assert.equal(evidence.includes('/private/user-18392'), false, 'private path slice escaped RPC or stderr');
   if (outcome.startsWith('error')) assert.deepEqual(answer, { error: 'internal error' });
 });
 

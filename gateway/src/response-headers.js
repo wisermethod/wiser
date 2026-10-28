@@ -175,37 +175,29 @@ export function createResponseHeaderGuard() {
       // never parses it or builds any substring index.
       if (value.length > MEDIA_URL_VALUE_CAP) return;
       function rememberPart(part) {
-        if (!part) return;
+        if (part.length < 16) return;
         rememberWhole(part);
+        rememberWindows(part, 16, fragments);
       }
       let url;
-      try { url = new URL(value); } catch { return; }
+      try { url = new URL(value); } catch {
+        rememberWindows(value, 16, fragments);
+        return;
+      }
       rememberWhole(url.href);
-      if (url.pathname !== '/') rememberPart(url.pathname);
-      rememberPart(url.search);
-      rememberPart(url.hash);
-      function rememberQuery(query) {
-        for (const pair of query.slice(1).split('&')) {
-          const equals = pair.indexOf('=');
-          const part = equals < 0 ? '' : pair.slice(equals + 1);
-          if (pair.length >= 16) rememberPart(pair);
-          if (part.length >= 16) {
-            rememberPart(part);
-            rememberWindows(part, MEDIA_WINDOW, mediaFragments);
-          }
-        }
-      }
-      rememberQuery(url.search);
-      for (const [key, part] of url.searchParams) {
-        if (`${key}=${part}`.length >= 16) rememberPart(`${key}=${part}`);
-        if (part.length >= 16) {
-          rememberPart(part);
-          rememberWindows(part, MEDIA_WINDOW, mediaFragments);
-        }
-      }
-      // Encoded and decoded path/query forms are both private.
+      // File bytes see only these whole components, never individual query
+      // values. Avoid charging identical raw/decoded forms twice to the budget.
       for (const part of [url.pathname, url.search, url.hash]) {
-        try { if (part && part !== '/') rememberPart(decodeURIComponent(part)); } catch { /* Raw form already held. */ }
+        const forms = new Set([part]);
+        try { forms.add(decodeURIComponent(part)); } catch { /* Raw form still held. */ }
+        for (const form of forms) rememberPart(form);
+      }
+      // URLSearchParams decodes each value once. Short credential segments
+      // (dates, regions, service names) are not private signature windows.
+      for (const [, part] of url.searchParams) {
+        for (const segment of part.split('/')) {
+          if (segment.length >= 16) rememberWindows(segment, MEDIA_WINDOW, mediaFragments);
+        }
       }
     },
     get detail() { return media ? 'private_address' : 'response_header'; },
