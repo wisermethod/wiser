@@ -80,3 +80,21 @@ test('ElevenLabs schema-valid fixtures exercise all five actions at the gateway 
     assert.equal(calls, before + 1);
   }
 });
+
+test('HeyGen schema-valid physical audio fixture exercises all nine part 1 actions at the gateway', async (t) => {
+  const { setup, run, scene, noPrivate } = await import('../../connectors/heygen/tests/fixtures.js');
+  const f = await setup(t);
+  const cases = [ ['speech.synthesize', scene()], ['voices.list', {}], ['voices.get', { voice_id: 'voice_fake-1' }],
+    ['voices.add', { name: 'Invented clone', path: f.file, idempotency_key: 'invented-key-123' }],
+    ['voices.delete', { voice_id: 'voice_fake-1' }], ['avatars.list', {}], ['avatars.list_looks', {}], ['account.wallet', {}], ['account.permissions', {}] ];
+  for (const [id, input] of cases) {
+    const before = f.calls.length;
+    const got = await run(f, id, input);
+    assert.ok(f.calls.length > before, `${id} reaches fake transport`);
+    assert.equal(got.status, undefined, `${id} accepts the independent valid state`);
+    noPrivate(got);
+    const calls = f.calls.length;
+    assert.equal((await f.gw.execute({ action: `heygen.${id}`, input: { ...input, undeclared: 'x' } })).status, 'invalid_arguments');
+    assert.equal(f.calls.length, calls);
+  }
+});

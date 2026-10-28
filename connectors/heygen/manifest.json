@@ -1,0 +1,349 @@
+{
+  "id": "heygen",
+  "service": "heygen",
+  "modules": {
+    "speech": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "HEYGEN",
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "actions": {
+        "synthesize": {
+          "description": "Synthesize one unchanged scene of 1 to 5000 Unicode code points using an explicit model and an ACTIVE instant voice proved in the private list. Paid models require a self-serve USD API wallet and sufficient balance. No chunking, retry or fallback. Validate exact character timings and PCM16 mono 44100 Hz WAV; download privately once, at most 67108864 bytes. Missing or invalid voice state, pagination, wallet, timings or container stops without a file. Local stdio only.",
+          "risk": "medium",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "proxy_body_max_bytes": 4100000,
+          "input": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 5000
+              },
+              "voice_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{1,128}$"
+              },
+              "model": {
+                "type": "string",
+                "enum": [
+                  "heygen-voice-1",
+                  "heygen-voice-1-turbo",
+                  "heygen-voice-1-turbo-free"
+                ]
+              },
+              "language": {
+                "type": "string",
+                "maxLength": 32,
+                "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+              },
+              "expressiveness_boost": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "required": [
+              "text",
+              "voice_id",
+              "model"
+            ],
+            "additionalProperties": false
+          },
+          "output_file": {
+            "media_types": [
+              "audio/wav"
+            ],
+            "max_bytes": 67108864
+          },
+          "download_media": {
+            "hosts": [
+              "files2.heygen.ai",
+              "resource2.heygen.ai"
+            ]
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    },
+    "voices": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "HEYGEN",
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "actions": {
+        "list": {
+          "description": "Read one voice page with optional type, limit (1 to 100) and token (1 to 2048 code points). Omit unsupplied filters. Project ids, names, mode, state, nullable language, preview presence and recognized failure code; reject malformed or contradictory pagination and fields.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "proxy_body_max_bytes": 4100000,
+          "input": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "private",
+                  "public"
+                ]
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "token": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "get": {
+          "description": "Read the named voice, projecting safe metadata under voice with nullable language and distinct PENDING, ACTIVE and FAILED states. Drop previews, raw failure text and extra fields; malformed metadata stops.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "proxy_body_max_bytes": 4100000,
+          "input": {
+            "type": "object",
+            "properties": {
+              "voice_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{1,128}$"
+              }
+            },
+            "required": [
+              "voice_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "add": {
+          "description": "Create an instant clone from exactly one absolute physical MP3 or WAV, 1 to 3000000 bytes inclusive, with a matching complete container. Refuse symlinks at any ancestor, hard links, nonregular or changed files, .env/.env.* and memory components and the person-scoped Wiser credential directory before opening protected content. Name, path and language bounds count code points. Send one inline base64 audio item, supplied or max similarity, supplied or false noise removal, and the required idempotency header; exactly a 202 acknowledgement with voice id means accepted, not ready. Local gateway only: a hosted service must withhold this file-reading action.",
+          "risk": "medium",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "proxy_body_max_bytes": 4100000,
+          "input": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096
+              },
+              "idempotency_key": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9-]{8,64}$"
+              },
+              "language": {
+                "type": "string",
+                "maxLength": 32,
+                "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+              },
+              "similarity": {
+                "type": "string",
+                "enum": [
+                  "medium",
+                  "high",
+                  "extra_high",
+                  "max"
+                ]
+              },
+              "remove_background_noise": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "name",
+              "path",
+              "idempotency_key"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "delete": {
+          "description": "After the caller reads and identifies the clone being lost, prove private-list membership and delete only that id. Reject malformed or repeated pagination. Require data.status ok with no embedded error; a 2xx alone is insufficient. Permanent deletion does not revoke the credential.",
+          "risk": "destructive",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "proxy_body_max_bytes": 4100000,
+          "input": {
+            "type": "object",
+            "properties": {
+              "voice_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{1,128}$"
+              }
+            },
+            "required": [
+              "voice_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    },
+    "avatars": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "HEYGEN",
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "actions": {
+        "list": {
+          "description": "Read one avatar-group page with optional ownership, limit (1 to 50) and token (1 to 2048 code points). Omission requests both ownerships. Project id, name, look count, optional nullable state/consent/default voice and preview presence. Reject malformed fields and contradictory pagination. Page to completion and resolve duplicate names by id.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "proxy_body_max_bytes": 4100000,
+          "input": {
+            "type": "object",
+            "properties": {
+              "ownership": {
+                "type": "string",
+                "enum": [
+                  "public",
+                  "private"
+                ]
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "token": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "list_looks": {
+          "description": "Read one look page with optional group id, ownership, avatar type, limit (1 to 50) and token (1 to 2048 code points). Project id, name, nullable group id, type, state, default voice, supported engines and preview presence. Validate supplied group/type relationships, fields and pagination; never infer group from look id, which may be identical. Select by group and look names and resolve duplicate names by id. Only Avatar IV is planned for part 2 video.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "proxy_body_max_bytes": 4100000,
+          "input": {
+            "type": "object",
+            "properties": {
+              "group_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{1,128}$"
+              },
+              "ownership": {
+                "type": "string",
+                "enum": [
+                  "public",
+                  "private"
+                ]
+              },
+              "avatar_type": {
+                "type": "string",
+                "enum": [
+                  "studio_avatar",
+                  "digital_twin",
+                  "photo_avatar"
+                ]
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "token": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    },
+    "account": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "HEYGEN",
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "actions": {
+        "wallet": {
+          "description": "Read only billing_type and a finite typed wallet currency/balance. A missing wallet is unavailable for this pricing route, never a zero balance. Omit identity, payment and subscription data.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "proxy_body_max_bytes": 4100000,
+          "input": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "permissions": {
+          "description": "Read only non-secret scope_mode and string scopes, never key material. During human connect require custom mode and exactly voices:write, videos:write, assets:write, avatars:read and account:read; full, read-only, missing or broader scopes do not establish this intended shared write grant.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "proxy_body_max_bytes": 4100000,
+          "input": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    }
+  }
+}

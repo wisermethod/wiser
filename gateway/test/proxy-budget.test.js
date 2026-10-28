@@ -59,13 +59,21 @@ test('manifest load and --check validate action-level positive safe-integer budg
   for (const cap of [NaN, Infinity, -Infinity]) await assert.rejects(context(createFakeProviders().auth, cap).proxy({}), unsupported);
 });
 
-test('no shipped connector opts in and all declarations continue loading', async () => {
+test('only heygen opts in, every heygen action at 4,100,000, and all declarations continue loading', async () => {
+  // The connector inventory itself is manifest.test.js's; this test holds who declares a budget.
   const connectors = await loadConnectors([fileURLToPath(new URL('../../connectors', import.meta.url))]);
-  let actions = 0;
-  for (const connector of connectors) for (const module of Object.values(connector.manifest.modules)) for (const action of Object.values(module.actions)) {
-    actions++; assert.equal(Object.hasOwn(action, 'proxy_body_max_bytes'), false);
+  const declaring = [];
+  let heygenActions = 0;
+  for (const connector of connectors) for (const [moduleName, module] of Object.entries(connector.manifest.modules)) for (const [name, action] of Object.entries(module.actions)) {
+    if (connector.manifest.id === 'heygen') heygenActions++;
+    if (Object.hasOwn(action, 'proxy_body_max_bytes')) declaring.push([`${connector.manifest.id}.${moduleName}.${name}`, action.proxy_body_max_bytes]);
   }
-  assert.equal(connectors.length, 30); assert.equal(actions, 245);
+  assert.ok(heygenActions > 0);
+  assert.equal(declaring.length, heygenActions);
+  for (const [id, cap] of declaring) {
+    assert.match(id, /^heygen\./);
+    assert.equal(cap, 4_100_000, id);
+  }
 });
 
 test('context privately binds account, toolkit, default method and budget on every proxy call', async () => {

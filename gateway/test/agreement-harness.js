@@ -56,6 +56,8 @@
  * - **`youtube videos.upload`, `youtube videos.set_thumbnail` and `youtube captions.insert`
  *   `path` are filesystem-state rows of the same permanent class**, added 2026-10-21 with
  *   their actions. Each needs a readable regular file with its closed media extension.
+ * - **`heygen voices.add` uses a complete generated MPEG frame at a physical temporary path.**
+ *   SAMPLE_STATE supplies it before direction A, without accepting a schema divergence.
  * - **`elevenlabs voices.add` needs a readable regular MP3.** Its schema-valid sample
  *   uses a per-run physical file, as the YouTube fixtures do. Filesystem preconditions
  *   remain outside this comparison; schema checks and all constraint mutations still run.
@@ -90,6 +92,7 @@ const CONNECTORS = fileURLToPath(new URL('../../connectors', import.meta.url));
  * wrong entry fails loudly, and a pattern with no entry fails rather than being skipped.
  */
 const PATTERN_OK = {
+  '^[A-Za-z0-9-]{8,64}$': 'invented-key-123',
   '^UC[A-Za-z0-9_-]{22}$': 'UCabcdefghijklmnopqrstuv',
   '^[A-Za-z0-9_-]{11}$': 'abcdefghijk',
   '^[A-Za-z0-9_-]{2,64}$': 'PLexample123',
@@ -201,6 +204,7 @@ let FIXTURE_YOUTUBE_VIDEO = '';
 let FIXTURE_YOUTUBE_THUMBNAIL = '';
 let FIXTURE_YOUTUBE_CAPTION = '';
 let FIXTURE_ELEVENLABS_AUDIO = '';
+let FIXTURE_HEYGEN_AUDIO = '';
 let FIXTURE_FILE = '';
 let FIXTURE_DIST = '';
 let FIXTURE_MIGRATION = '';
@@ -231,6 +235,7 @@ const FIXTURES = {
 // State needed to sample a new action, not an accepted divergence. Legacy FIXTURES
 // above are applied after direction A so their existing baseline stays measurable.
 const SAMPLE_STATE = {
+  'heygen:voices.add': () => ({ path: FIXTURE_HEYGEN_AUDIO }),
   'elevenlabs:voices.add': () => ({ path: FIXTURE_ELEVENLABS_AUDIO }),
 };
 
@@ -519,6 +524,10 @@ export async function collectDivergences() {
   writeFileSync(FIXTURE_YOUTUBE_THUMBNAIL, 'invented thumbnail fixture');
   FIXTURE_YOUTUBE_CAPTION = join(realScratch, 'youtube-caption.srt');
   writeFileSync(FIXTURE_YOUTUBE_CAPTION, '1\n00:00:00,000 --> 00:00:01,000\nInvented caption\n');
+  FIXTURE_HEYGEN_AUDIO = join(realScratch, 'heygen-audio.mp3');
+  const heygenFrame = Buffer.alloc(417);
+  heygenFrame.set([0xff, 0xfb, 0x90, 0]);
+  writeFileSync(FIXTURE_HEYGEN_AUDIO, heygenFrame);
   FIXTURE_ELEVENLABS_AUDIO = join(realScratch, 'elevenlabs-audio.mp3');
   writeFileSync(FIXTURE_ELEVENLABS_AUDIO, 'invented audio fixture');
   FIXTURE_MIGRATION = join(realScratch, 'migration.sql');
