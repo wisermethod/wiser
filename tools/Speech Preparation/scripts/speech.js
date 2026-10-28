@@ -12,17 +12,18 @@ const TOOL = realpathSync(fileURLToPath(new URL('..', import.meta.url)));
 const HELP = `Speech Preparation 0.1.0
 Usage (from this tool directory):
   node scripts/speech.js help
-  node scripts/speech.js text --script /absolute/script.txt --route elevenlabs|chatterbox --output /absolute/prepared.json [--route-text /absolute/route.txt] [--words /absolute/words.json]
+  node scripts/speech.js text --script /absolute/script.txt --route elevenlabs|chatterbox|heygen --output /absolute/prepared.json [--route-text /absolute/route.txt] [--words /absolute/words.json]
   node scripts/speech.js character-timings --prepared /absolute/prepared.json --alignment /absolute/alignment.json --output /absolute/timings.json
   node scripts/speech.js pcm --input /absolute/source.wav|source.mp3 --output /absolute/prepared.wav [--descriptor /absolute/pcm.json]
 Options are command-specific; each takes one value and occurs at most once.
   --script       Exact UTF-8 script; only [pause] and paired <emphasis> marks.
-  --route        elevenlabs (eleven_v4) or chatterbox (English alignment).
+  --route        elevenlabs (eleven_v4), chatterbox (English alignment), heygen (instant voice).
   --output       New JSON file for text/timings, new WAV for pcm.
   --route-text   Optional new file containing exactly the submitted UTF-8 text.
   --words        Optional new JSON array of original script tokens.
   --prepared     Exact text operation result, including word correspondence.
-  --alignment    Original ElevenLabs alignment object, not normalized alignment.
+  --alignment    Original ElevenLabs alignment or HeyGen original_characters object;
+                 never normalized alignment.
   --input        Existing local PCM WAV or MP3, with no other media streams.
   --descriptor   Optional new JSON file containing pcm's returned descriptor.
   --help, -h     Usage without dependencies or configuration; valid on every command.
@@ -220,7 +221,7 @@ function preflightEnglish(tokens) {
   }
 }
 export function prepareText(script, route) {
-  if (!['elevenlabs', 'chatterbox'].includes(route)) refuse('Unsupported route; choose elevenlabs or chatterbox.');
+  if (!['elevenlabs', 'chatterbox', 'heygen'].includes(route)) refuse('Unsupported route; choose elevenlabs, chatterbox or heygen.');
   const parsed = parseScript(script);
   const tokens = parsed.tokens.map(t => t.text);
   if (route === 'chatterbox') preflightEnglish(tokens);
@@ -245,14 +246,28 @@ export function prepareText(script, route) {
 }
 
 export function characterTimings(prepared, alignment) {
-  if (!prepared || prepared.route !== 'elevenlabs') refuse('Character timings require elevenlabs preparation; supply its exact text result.');
+  if (!prepared || !['elevenlabs', 'heygen'].includes(prepared.route)) refuse('Character timings require elevenlabs or heygen preparation; supply its exact text result.');
   const expected = prepareText(prepared.script?.text, prepared.route);
   if (!isDeepStrictEqual(expected, prepared)) refuse('Prepared text or correspondence differs from its script; regenerate with text.');
-  if (!alignment || typeof alignment !== 'object' || Array.isArray(alignment) ||
+  let chars, starts, ends;
+  if (prepared.route === 'heygen') {
+    if (!alignment || typeof alignment !== 'object' || Array.isArray(alignment) ||
+        !isDeepStrictEqual(Object.keys(alignment), ['original_characters']) ||
+        !Array.isArray(alignment.original_characters) || alignment.original_characters.some(c =>
+          !c || typeof c !== 'object' || Array.isArray(c) ||
+          !isDeepStrictEqual(Object.keys(c).sort(), ['end_time', 'start_time', 'text']))) {
+      refuse('Alignment must be an original_characters object with text, start_time and end_time on each character.');
+    }
+    chars = alignment.original_characters.map(c => c.text);
+    starts = alignment.original_characters.map(c => c.start_time);
+    ends = alignment.original_characters.map(c => c.end_time);
+  } else {
+    if (!alignment || typeof alignment !== 'object' || Array.isArray(alignment) ||
       !isDeepStrictEqual(Object.keys(alignment).sort(), ['characters', 'character_start_times_seconds', 'character_end_times_seconds'].sort())) {
-    refuse('Alignment must be the original object with its three character arrays.');
+      refuse('Alignment must be the original object with its three character arrays.');
+    }
+    ({ characters: chars, character_start_times_seconds: starts, character_end_times_seconds: ends } = alignment);
   }
-  const { characters: chars, character_start_times_seconds: starts, character_end_times_seconds: ends } = alignment;
   const sent = points(prepared.submitted.text);
   if (![chars, starts, ends].every(Array.isArray) || !chars.length || chars.length !== starts.length || chars.length !== ends.length ||
       chars.length !== sent.length || chars.some((c, i) => c !== sent[i])) {
