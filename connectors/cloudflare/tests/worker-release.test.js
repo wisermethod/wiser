@@ -13,6 +13,8 @@ const VERSION_ID = '12345678-1234-1234-1234-123456789abc';
 const VARS = { ACCESS_TEAM_DOMAIN: 'fixture-team.example', ACCESS_AUD: 'fixture-audience', AGENT_CLIENT_ID: 'fixture-client-id' };
 const INPUT = { account_id: ACCOUNT, script_name: 'proof-worker', app: 'wiser-crm', version: '1.0.0', database_id: DATABASE, vars: VARS };
 const BASE = 'https://releases.example.test/';
+// The temporary connector copy lists the test host, so no test depends on the host the release ships.
+const TEST_HOSTS = ['releases.example.test'];
 const ROOT = `/accounts/${ACCOUNT}/workers`;
 const SCRIPT = `${ROOT}/scripts/${INPUT.script_name}`;
 const PREFIX = `${INPUT.app}/${INPUT.version}/`;
@@ -84,7 +86,7 @@ async function setup(t, options = {}) {
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ type: 'module' }));
   const manifestPath = join(dir, 'manifest.json');
   const connectorManifest = JSON.parse(readFileSync(manifestPath));
-  connectorManifest.modules.workers.release_hosts = ['releases.example.test'];
+  connectorManifest.modules.workers.release_hosts = TEST_HOSTS;
   writeFileSync(manifestPath, JSON.stringify(connectorManifest));
   writeFileSync(join(dir, 'release.json'), JSON.stringify(FIXTURE_CONFIG));
   if (options.config === 'missing') unlinkSync(join(dir, 'release.json'));
@@ -141,10 +143,10 @@ function preflight(env, result, reason, paths) {
 }
 const signedPaths = [PREFIX + 'manifest.json', PREFIX + 'manifest.sig'];
 
-test('release config keeps the test host and the workers module owns the four actions', () => {
-  assert.equal(CONFIG.base, BASE);
-  assert.ok(Object.hasOwn(CONFIG.apps, INPUT.app));
+test('the shipped release config names a listed host and the workers module owns the four actions', () => {
   const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url)));
+  assert.ok(manifest.modules.workers.release_hosts.includes(new URL(CONFIG.base).hostname));
+  assert.ok(Object.hasOwn(CONFIG.apps, INPUT.app));
   assert.equal(manifest.modules.workers.auth.toolkit, 'CLOUDFLARE_API_KEY');
   assert.equal(manifest.modules.pages.release_hosts, undefined);
   for (const name of ['workers_subdomain', 'get_worker', 'deploy_worker_release', 'delete_worker']) {
@@ -164,8 +166,7 @@ test('assemble format 2 exact bytes signed by a generated key are accepted with 
     assert.equal(form.get(module.name).type, module.type);
     assert.deepEqual(Buffer.from(await form.get(module.name).arrayBuffer()), env.contents.get(module.sha256));
   }
-  const hosts = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url))).modules.workers.release_hosts;
-  assert.ok(env.fetches.every(({ url }) => hosts.includes(new URL(url).hostname)));
+  assert.ok(env.fetches.every(({ url }) => TEST_HOSTS.includes(new URL(url).hostname)));
   assert.deepEqual(result.fetched, [...env.served.keys()]);
   assert.deepEqual(trace(env.calls), [['POST', `${SCRIPT}/assets-upload-session`], ['PUT', SCRIPT], ['POST', `${SCRIPT}/subdomain`], ['GET', `${ROOT}/subdomain`]]);
   assert.ok(ASSEMBLED.migrations.files.length > 0);

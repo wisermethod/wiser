@@ -50,6 +50,10 @@ async function setup(t, options = {}) {
   mkdirSync(dir, { recursive: true });
   for (const name of ['index.js', 'worker-release.js', 'manifest.json']) cpSync(fileURLToPath(new URL('../' + name, import.meta.url)), join(dir, name));
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ type: 'module' }));
+  // List the test host in the copy, so no test depends on the host the release ships.
+  const connectorManifest = JSON.parse(readFileSync(join(dir, 'manifest.json')));
+  connectorManifest.modules.workers.release_hosts = [new URL(BASE).hostname];
+  writeFileSync(join(dir, 'manifest.json'), JSON.stringify(connectorManifest));
   writeFileSync(join(dir, 'release.json'), JSON.stringify({ format: 1, base: BASE,
     apps: { 'wiser-crm': { keys: [{ id: sha(keyBytes).slice(0, 16), ed25519: keyBytes.toString('base64') }] } } }));
   const manifest = structuredClone(fixture);
