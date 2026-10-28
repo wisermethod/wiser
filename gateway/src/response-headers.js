@@ -28,13 +28,14 @@ export function pickResponseHeaders(raw, declared) {
 }
 
 /**
- * Private to one execute call. A delivered upload address is a credential for
- * that upload, including its canonical URL and partial or complete upload id.
+ * Private to one execute call. Tracks delivered upload credentials and media
+ * addresses handed to the downloader, including their private fragments.
  * Neither the tracker nor its contents is exposed on the module's context.
  */
 export function createResponseHeaderGuard() {
   const addresses = new Set();
   const fragments = new Set();
+  let media = false;
   function holds(text) {
     if (addresses.size === 0 || typeof text !== 'string') return false;
     if (text.includes('upload_id=')) return true;
@@ -79,6 +80,34 @@ export function createResponseHeaderGuard() {
     try { return walk(value, 0); } catch { return true; }
   }
 
+  // A file slot is consumed by the writer, not JSON. Scan its bytes without
+  // decoding the whole media file or enumerating millions of typed-array keys.
+  // Other fields keep the ordinary fail-closed walk, including slot metadata.
+  function holdsOutput(value) {
+    if (addresses.size === 0) return false;
+    try {
+      if (!value || typeof value !== 'object' || types.isProxy(value)) return holdsValue(value);
+      const output = Object.getOwnPropertyDescriptor(value, 'output_file');
+      if (!output) return holdsValue(value);
+      if (!Object.hasOwn(output, 'value')) return true;
+      const slot = output.value;
+      if (!slot || typeof slot !== 'object' || types.isProxy(slot)) return holdsValue(value);
+      const data = Object.getOwnPropertyDescriptor(slot, 'data');
+      if (!data || !Object.hasOwn(data, 'value')) return holdsValue(value);
+      const bytes = data.value;
+      if (!Buffer.isBuffer(bytes) && !types.isUint8Array(bytes)) return holdsValue(value);
+      const view = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      for (const text of [...addresses, ...fragments, 'upload_id=']) {
+        if (view.includes(text, 0, 'utf8') || view.includes(text, 0, 'latin1')) return true;
+      }
+      const slotFields = Object.getOwnPropertyDescriptors(slot);
+      slotFields.data = { value: null, enumerable: true, configurable: true };
+      const fields = Object.getOwnPropertyDescriptors(value);
+      fields.output_file = { value: Object.create(Object.getPrototypeOf(slot), slotFields), enumerable: true, configurable: true };
+      return holdsValue(Object.create(Object.getPrototypeOf(value), fields));
+    } catch { return true; }
+  }
+
   // Errors are not plain result objects. Check their message and own string
   // fields, plus one cause's string fields, without following a cause chain.
   function holdsError(err) {
@@ -115,9 +144,37 @@ export function createResponseHeaderGuard() {
         }
       }
     },
+    rememberMediaUrl(value) {
+      if (typeof value !== 'string' || value.length === 0) return;
+      media = true;
+      function rememberPart(part) {
+        if (!part) return;
+        addresses.add(part);
+        if (part.length >= 16) {
+          for (let i = 0; i <= part.length - 16; i += 1) fragments.add(part.slice(i, i + 16));
+        }
+      }
+      addresses.add(value);
+      let url;
+      try { url = new URL(value); } catch { return; }
+      addresses.add(url.href);
+      if (url.pathname !== '/') rememberPart(url.pathname);
+      rememberPart(url.search);
+      rememberPart(url.hash);
+      for (const [key, part] of url.searchParams) {
+        rememberPart(`${key}=${part}`);
+        rememberPart(part);
+      }
+      // Encoded and decoded path/query forms are both private.
+      for (const part of [url.pathname, url.search, url.hash]) {
+        try { if (part && part !== '/') rememberPart(decodeURIComponent(part)); } catch { /* Raw form already held. */ }
+      }
+    },
+    get detail() { return media ? 'private_address' : 'response_header'; },
     get active() { return addresses.size > 0; },
     holds,
     holdsValue,
+    holdsOutput,
     holdsError,
   };
 }

@@ -204,8 +204,9 @@ test('cleanup unlinks only expired matching single-link files and never leaves o
   fs.mkdirSync(outputs);
   const old = oldFile(outputs, `${randomUUID()}.mp3`);
   const partial = oldFile(outputs, `${randomUUID()}.mp3.partial`);
+  const added = ['wav', 'mp4'].flatMap((ext) => ['', '.partial'].map((suffix) => oldFile(outputs, `${randomUUID()}.${ext}${suffix}`)));
   const keep = [];
-  for (const name of ['unmatched.mp3', `${randomUUID()}.wav`, `${randomUUID()}.mp3.extra`, `prefix-${randomUUID()}.mp3`]) keep.push(oldFile(outputs, name));
+  for (const name of ['unmatched.mp3', `${randomUUID()}.flac`, `${randomUUID()}.mp3.extra`, `prefix-${randomUUID()}.mp3`]) keep.push(oldFile(outputs, name));
   const recent = join(outputs, `${randomUUID()}.mp3`);
   fs.writeFileSync(recent, 'new');
   keep.push(recent);
@@ -230,6 +231,7 @@ test('cleanup unlinks only expired matching single-link files and never leaves o
   cleanupOutputs(outputs);
   assert.equal(fs.existsSync(old), false);
   assert.equal(fs.existsSync(partial), false);
+  for (const path of added) assert.equal(fs.existsSync(path), false);
   for (const path of [...keep, outside, ...outsideFiles]) assert.ok(fs.lstatSync(path), path);
   assert.equal(fs.readFileSync(outside, 'utf8'), 'invented old file');
 });

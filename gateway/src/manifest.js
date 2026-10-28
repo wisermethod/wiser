@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { containsUnsafeCodePoint } from './disclosure.js';
 import { OUTPUT_EXTENSIONS } from './file-output.js';
 import { RESPONSE_HEADER_NAMES } from './response-headers.js';
+import { isCanonicalMediaHost } from './media-download.js';
 
 /**
  * The two vocabularies `gateway.js` also needs, for the one path that reads a store
@@ -142,6 +143,21 @@ function validateAction(action, file, field) {
     }
     if (!Number.isSafeInteger(output.max_bytes) || output.max_bytes <= 0) {
       throw validationError(file, `${at}.max_bytes`, 'must be a positive safe integer');
+    }
+  }
+  if (Object.hasOwn(action, 'download_media')) {
+    const download = action.download_media;
+    const at = `${field}.download_media`;
+    requireObject(download, file, at);
+    if (Object.keys(download).some((key) => key !== 'hosts')) {
+      throw validationError(file, at, 'must contain only hosts');
+    }
+    if (!Array.isArray(download.hosts) || download.hosts.length === 0 ||
+        download.hosts.some((host) => !isCanonicalMediaHost(host)) || new Set(download.hosts).size !== download.hosts.length) {
+      throw validationError(file, `${at}.hosts`, 'must list distinct exact canonical DNS hostnames');
+    }
+    if (!Object.hasOwn(action, 'output_file')) {
+      throw validationError(file, at, 'requires output_file on the same action');
     }
   }
 }

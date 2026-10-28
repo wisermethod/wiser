@@ -1,7 +1,8 @@
 /**
  * A connector module may:
  *   import Node built-ins and files inside this directory
- *   call ctx.catalog, ctx.proxy, ctx.http, ctx.audit
+ *   use the ctx capabilities its action is granted by gateway/AGENTS.md
+ *   (the home of optional declarations, file output and failure shapes)
  *   return a result object
  *
  * A connector module may not:
