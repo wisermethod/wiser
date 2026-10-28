@@ -1,4 +1,7 @@
-import { INSTALL_SCOPE } from '../../lib/consent.js';
+// The scope sentence tools/lib/consent.js exports as INSTALL_SCOPE, written here so that
+// help and every survey run from this tool's scripts alone; tools/lib/tests/prompts.test.js
+// checks the two agree.
+const INSTALL_SCOPE = 'Wiser asks once per person; a yes covers this install and later installs by any Wiser tool in any copy.';
 import { spawnSync } from 'node:child_process';
 import { readFile, mkdtemp, realpath, rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';

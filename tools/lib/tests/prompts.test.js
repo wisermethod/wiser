@@ -18,6 +18,10 @@ for (const script of nodeScripts) test(`${script} help states the full consent s
   assert.equal(result.status,0,result.stderr);assert.equal(result.stderr,'');
   assert.ok(result.stdout.includes(INSTALL_SCOPE),result.stdout);
 });
+test('video-render\'s install plan states the full consent scope', async () => {
+  const { installPlan } = await import('../../video-render/scripts/dependencies.mjs');
+  assert.ok(installPlan().startsWith(INSTALL_SCOPE), installPlan());
+});
 const pythonScripts = [
   ['Transcribe Audio/scripts/transcribe.py',['help']],
   ['Transcribe Audio/scripts/transcribe.py',['align','--help']],
