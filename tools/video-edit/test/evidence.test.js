@@ -6,6 +6,7 @@ import { cpSync, existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, rea
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mp4Structure } from '../scripts/finish.js';
 
 const tool = resolve(dirname(fileURLToPath(import.meta.url)), '..'), entry = join(tool, 'scripts/edit.js');
 const id = p => ({ bytes: statSync(p).size, sha256: createHash('sha256').update(readFileSync(p)).digest('hex') });
@@ -53,16 +54,21 @@ function complete(result, name) {
 const rgbFilter = 'scale=iw:ih:flags=bilinear+accurate_rnd:in_color_matrix=bt709:out_color_matrix=bt709:in_range=tv:out_range=pc,format=rgb24';
 const rawRGB = p => ff(['-noautorotate', '-i', p, '-map', '0:v:0', '-an', '-vf', rgbFilter, '-fps_mode', 'passthrough', '-pix_fmt', 'rgb24', '-f', 'rawvideo', '-'], true);
 const rawYUV = p => ff(['-noautorotate', '-i', p, '-map', '0:v:0', '-an', '-fps_mode', 'passthrough', '-pix_fmt', 'yuv420p', '-f', 'rawvideo', '-'], true);
+function reduced(n, d) {
+  let a = n < 0n ? -n : n, b = d;
+  while (b) [a, b] = [b, a % b];
+  return `${n / a}/${d / a}`;
+}
 function exactOracle(input, result, requests) {
   const m = json(result.manifest), info = probe(input), s = info.streams.find(s => s.codec_type === 'video'), frames = info.frames.filter(f => f.media_type === 'video');
-  const pixels = rawRGB(input), size = s.width * s.height * 3, [tp, tq] = s.time_base.split('/').map(Number);
+  const pixels = rawRGB(input), size = s.width * s.height * 3, [tp, tq] = s.time_base.split('/').map(BigInt);
   assert.deepEqual(m.source.before, id(input)); assert.deepEqual(m.source.after, id(input)); assert.equal(m.source.expected_sha256, id(input).sha256);
   assert.equal(m.video.decoded_frame_count, frames.length); assert.equal(m.video.first_displayed_pts, String(frames[0].pts)); assert.equal(m.video.time_base, s.time_base);
   assert.equal(m.requests.length, requests.length);
   requests.forEach((request, index) => {
     const row = m.requests[index], [l, t, r, b] = request.crop ?? [0, 0, s.width, s.height], image = join(result.output, row.image.path);
     assert.equal(row.request_index, index); assert.equal(row.requested_ordinal, request.ordinal); assert.equal(row.actual_ordinal, request.ordinal); assert.equal(row.pts, String(frames[request.ordinal].pts));
-    const [pn, pd] = row.presentation_time.split('/').map(Number); assert.ok(Math.abs(pn / pd - (frames[request.ordinal].pts - frames[0].pts) * tp / tq) < 1e-12);
+    assert.equal(row.presentation_time, reduced((BigInt(frames[request.ordinal].pts) - BigInt(frames[0].pts)) * tp, tq), `presentation_time request ${index}`);
     assert.deepEqual(row.requested_crop, request.crop ?? null); assert.deepEqual(row.applied_crop, [l, t, r, b]); assert.deepEqual(id(image), { sha256: row.image.sha256, bytes: row.image.bytes });
     const expected = Buffer.concat(Array.from({ length: b - t }, (_, y) => pixels.subarray(request.ordinal * size + ((t + y) * s.width + l) * 3, request.ordinal * size + ((t + y) * s.width + r) * 3)));
     const actual = ff(['-i', image, '-pix_fmt', 'rgb24', '-f', 'rawvideo', '-'], true);
@@ -79,8 +85,16 @@ test('exact ordinals: 0, interior, last, unsorted, repeated/full/crop, odd and e
 }));
 test('exact B-frame presentation order and nonzero timestamp origin', () => temp(d => {
   const input = fixture(d, 'bframes', { bf: 2, count: 12 }), info = probe(input); assert.ok(info.frames.some(f => f.pict_type === 'B'));
+  assert.equal(mp4Structure(input).editList, true, 'exercise the edit-listed vendor file itself');
+  const requests = [{ ordinal: 11 }, { ordinal: 0 }, { ordinal: 1 }, { ordinal: 2 }, { ordinal: 5 }];
+  exactOracle(input, success(exactArgs(input, join(d, 'edit-listed'), requests)), requests);
+  // Disable default MOV edit-list handling on all input probes and decodes.
+  // Publication must still succeed, so only the external presentation oracle fails.
+  const ignored = mutant(d, 'ignore-edit-list', 'evidence-media.js', s => s.replace("'-use_absolute_path', '0'", "'-use_absolute_path', '0', '-ignore_editlist', '1'"));
+  const wrong = success(exactArgs(input, join(d, 'ignored-edit-list'), requests), ignored);
+  assert.throws(() => exactOracle(input, wrong, requests), assert.AssertionError);
   const shifted = join(d, 'shifted.mp4'); ff(['-i', input, '-c', 'copy', '-bsf:v', 'setts=pts=PTS+2/TB:dts=DTS+2/TB', '-use_editlist', '0', shifted]);
-  const requests = [{ ordinal: 11 }, { ordinal: 0 }, { ordinal: 5 }]; exactOracle(shifted, success(exactArgs(shifted, join(d, 'out'), requests)), requests);
+  exactOracle(shifted, success(exactArgs(shifted, join(d, 'out'), requests)), requests);
   assert.ok(Number(probe(shifted).frames[0].pts) > 0);
 }));
 test('exact malformed, oversized, out-of-range requests and source identity refuse without writes', () => temp(d => {
@@ -151,11 +165,13 @@ test('planted off-by-one extraction and one-pixel crop shift are rejected by ind
     ['crop', s => s.replace('${applied[0]}:${applied[1]}:exact=1', '${applied[0] + 1}:${applied[1]}:exact=1')]
   ]) refuse(d, a, /ordinal\/crop pixel/, mutant(d, name, 'exact-frames.js', change));
 }));
-test('planted wrong source identity or manifest row fails the receipt/ordinal oracle', () => temp(d => {
+test('planted wrong source identity, ordinal or sub-tolerance rational time fails the manifest oracle', () => temp(d => {
   const input = fixture(d, 'input'), requests = [{ ordinal: 3 }];
-  for (const [name, change] of [['hash', s => s.replace('expected_sha256: o.sha256, before, after', 'expected_sha256: o.sha256, before: {...before, sha256:"0".repeat(64)}, after')], ['row', s => s.replace('actual_ordinal: frame.ordinal', 'actual_ordinal: frame.ordinal + 1')]]) {
+  for (const [name, change] of [['hash', s => s.replace('expected_sha256: o.sha256, before, after', 'expected_sha256: o.sha256, before: {...before, sha256:"0".repeat(64)}, after')], ['row', s => s.replace('actual_ordinal: frame.ordinal', 'actual_ordinal: frame.ordinal + 1')],
+    // Ordinal 3 is exactly 1/10; this reduced fraction is only 1e-13 later.
+    ['time', s => s.replace('presentation_time: frame.time', "presentation_time: '1000000000001/10000000000000'")]]) {
     const p = mutant(d, name, 'exact-frames.js', change), r = success(exactArgs(input, join(d, `out-${name}`), requests), p);
-    assert.throws(() => exactOracle(input, r, requests), assert.AssertionError);
+    assert.throws(() => exactOracle(input, r, requests), name === 'time' ? { code: 'ERR_ASSERTION', message: /presentation_time request 0/ } : assert.AssertionError);
   }
   const p = mutant(d, 'unchecked-hash', 'evidence-media.js', s => s.replace('if (id.sha256 !== expected)', 'if (false)'));
   assert.throws(() => refuse(d, replaceFlag(exactArgs(input, join(d, 'unchecked')), '--sha256', '0'.repeat(64)), /SHA-256/, p), assert.AssertionError);
@@ -172,8 +188,17 @@ test('planted activation, inset mapping, one-pixel/chroma spill and lossy encode
 }));
 test('short-inset and audio refusal assertions fail when their guards are planted away', () => temp(d => {
   const base = fixture(d, 'base'), short = fixture(d, 'short', { count: 2 }), audio = fixture(d, 'audio', { audio: true });
+  const output = join(d, 'out'), a = compArgs(base, short, output), check = r => {
+    assert.equal(r.status, 1, r.stderr); assert.equal(r.stdout, '');
+    assert.match(r.stderr, /Error: video evidence: active interval outside base or inset too short;/);
+    assert.ok(!existsSync(join(output, 'complete.json')));
+  };
+  check(run(process.execPath, [entry, ...a]));
   const p = mutant(d, 'no-length-guard', 'composite.js', s => s.replace('if (end > b.count || insetStart + end - start > i.count)', 'if (false)'));
-  assert.throws(() => refuse(d, compArgs(base, short, join(d, 'out')), /inset too short/, p), assert.AssertionError);
+  const unguarded = run(process.execPath, [p, ...a]);
+  assert.equal(unguarded.status, 1); assert.match(unguarded.stderr, /short decoded frame/);
+  assert.ok(!existsSync(join(output, 'complete.json')));
+  assert.throws(() => check(unguarded), { code: 'ERR_ASSERTION', operator: 'match' });
   const q = mutant(d, 'no-audio-guard', 'evidence-media.js', s => s.replace('silent && streams.length !== 1', 'false'));
   assert.throws(() => refuse(d, compArgs(base, audio, join(d, 'audio-out')), /refuses audio/, q), assert.AssertionError);
 }));
@@ -206,6 +231,21 @@ test('help/import/closed flags precede dependencies; new ffprobe and encoder che
   rmSync(join(d, 'bin', 'ffprobe'));
   const blocked = wrapper(d, 'no-encoders', `const a=process.argv.slice(2);if(a.includes('-encoders')){process.stdout.write('empty\\n');process.exit(0)}if(a.includes('-version'))process.exit(0);throw Error('media must not run');`);
   refuse(d, a, /missing png/, entry, blocked); refuse(d, c, /missing libx264/, entry, blocked);
+}));
+test('missing filter refuses after successful encoder probes; removing the filter loop publishes', () => temp(d => {
+  const base = fixture(d, 'base'), inset = fixture(d, 'inset'), ffmpeg = actual('ffmpeg');
+  // All required filters except scale are advertised. Real encoders and media
+  // calls still work, so bypassing only the filter loop must publish a bundle.
+  const env = wrapper(d, 'no-scale', `const a=process.argv.slice(2);if(a.includes('-filters')){process.stdout.write(' ... format filter\\n ... select filter\\n ... crop filter\\n ... setsar filter\\n ... setparams filter\\n');process.exit(0)}const r=require('node:child_process').spawnSync(${JSON.stringify(ffmpeg)},a,{stdio:'inherit'});process.exit(r.status??1);`);
+  const p = mutant(d, 'no-filter-loop', 'evidence-media.js', s => s.replace("for (const name of composite ? ['scale', 'setsar', 'setparams'] : ['scale', 'format', 'select', 'crop'])", 'for (const name of [])'));
+  const check = r => { assert.equal(r.status, 1, r.stderr); assert.equal(r.stdout, ''); assert.match(r.stderr, /missing scale filter/); };
+  for (const command of ['exact-frames', 'composite']) {
+    const output = join(d, command), a = command === 'composite' ? compArgs(base, inset, output) : exactArgs(base, output);
+    check(refuse(d, a, /missing scale filter/, entry, env)); assert.ok(!existsSync(join(output, 'complete.json')));
+    const unguarded = run(process.execPath, [p, ...a], env); assert.equal(unguarded.status, 0, unguarded.stderr); assert.equal(unguarded.stderr, '');
+    complete(JSON.parse(unguarded.stdout), command === 'composite' ? 'receipt.json' : 'manifest.json');
+    assert.throws(() => check(unguarded), { code: 'ERR_ASSERTION', operator: 'strictEqual' });
+  }
 }));
 test('missing/non-increasing PTS are refused before staging using a local probe stand-in', () => temp(d => {
   const input = fixture(d, 'input'), ffprobe = actual('ffprobe'), bin = join(d, 'probe'); mkdirSync(bin);
@@ -260,10 +300,24 @@ test('conform -> exact-frames -> composite with conformed inset -> unchanged mux
   const opts = { input: vendor, sha256: id(vendor).sha256, reference, 'reference-sha256': id(reference).sha256, 'upload-receipt': receipt, 'upload-receipt-sha256': id(receipt).sha256, output: join(d, 'conformed'), frames: 30, rate: '30/1', width: 64, height: 48, origin: 0, 'correlation-floor': '0.99', 'max-offset': 0, 'drift-tolerance': 0, window: '0.5', 'max-hold-start': 0, 'max-hold-end': 0, 'source-colour': 'bt709-tv' };
   const c = success(['conform', ...Object.entries(opts).flatMap(([k, v]) => [`--${k}`, String(v)])]);
   const requests = [{ ordinal: 29 }, { ordinal: 0 }, { ordinal: 15 }, { ordinal: 15, crop: [4, 8, 60, 48] }]; exactOracle(c.segment, success(exactArgs(c.segment, join(d, 'conform-evidence'), requests)), requests);
-  const base = fixture(d, 'base', { count: 33 }), composite = success(compArgs(base, c.segment, join(d, 'composite'), { start: 1, end: 31, 'inset-start': 0 }));
-  compositeOracle(base, c.segment, composite, { start: 1, end: 31, insetStart: 0 }); exactOracle(composite.segment, success(exactArgs(composite.segment, join(d, 'composite-evidence'), requests)), requests);
-  const mux = success(['mux', '--input', composite.segment, '--audio', reference, '--audio-start', '0.0123', '--output', join(d, 'mux.mp4')]); assert.equal(mux.audioStartSample, 591); assert.equal(mux.frames, 33);
-  for (const command of ['loudness', 'finish']) { const r = success([command, '--input', mux.output, '--output', join(d, `${command}.mp4`), '--target', '-24', '--true-peak', '-1']); assert.ok(r.after.truePeak <= -1); }
+  const expected = Buffer.alloc(33 * 1600 * 2); samples.copy(expected, 591 * 2);
+  const placement = result => {
+    const decoded = ff(['-i', result.output, '-map', '0:a:0', '-c:a', 'pcm_s16le', '-f', 's16le', '-'], true);
+    assert.deepEqual(decoded, expected, 'decoded narration: 591 silent samples, all 48000 source samples, then silence');
+    assert.equal(result.audioStartSample, 591); assert.equal(result.firstFrameSample, 0); assert.equal(result.frames, 33);
+    assert.equal(result.narrationSamples, 48000); assert.equal(result.samples, 52800);
+  };
+  const noDelay = mutant(d, 'no-placement-delay', 'finish.js', s => s.replace('if (shift > 0) filters.push(`adelay=${shift}S:all=1`);', ''));
+  for (const timescale of ['30', '15360']) {
+    const base = fixture(d, `base-${timescale}`, { count: 33, timescale }), composite = success(compArgs(base, c.segment, join(d, `composite-${timescale}`), { start: 1, end: 31, 'inset-start': 0 }));
+    assert.equal(probe(composite.segment).streams[0].time_base, `1/${timescale}`);
+    compositeOracle(base, c.segment, composite, { start: 1, end: 31, insetStart: 0 }); exactOracle(composite.segment, success(exactArgs(composite.segment, join(d, `composite-evidence-${timescale}`), requests)), requests);
+    const a = ['mux', '--input', composite.segment, '--audio', reference, '--audio-start', '0.0123', '--output', join(d, `mux-${timescale}.mp4`)];
+    const mux = success(a); placement(mux); assert.equal(probe(mux.output).streams.find(s => s.codec_type === 'video').time_base, `1/${timescale}`);
+    const unplaced = success(replaceFlag(a, '--output', join(d, `unplaced-${timescale}.mp4`)), noDelay);
+    assert.throws(() => placement(unplaced), { code: 'ERR_ASSERTION', operator: 'deepStrictEqual' });
+    for (const command of ['loudness', 'finish']) { const r = success([command, '--input', mux.output, '--output', join(d, `${command}-${timescale}.mp4`), '--target', '-24', '--true-peak', '-1']); assert.ok(r.after.truePeak <= -1); }
+  }
 }));
 
 

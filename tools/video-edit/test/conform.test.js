@@ -303,10 +303,21 @@ for (const referenceRate of [48000, 44100]) test(`AAC 48k stereo, PCM ${referenc
   // A stand-in models a count-preserving resampler delay only when an unnecessary
   // 48k resampler is present, only on the vendor side. Removing the branch fails.
   const ffmpeg = actual('ffmpeg'), wrapped = standin(d, 'ffmpeg', `const fs=require('node:fs'),a=process.argv.slice(2),r=require('node:child_process').spawnSync(${JSON.stringify(ffmpeg)},a,{stdio:'inherit'});if(r.status===0&&a.at(-1).endsWith('/vendor.f64le')&&a[a.indexOf('-af')+1].includes('aresample')){const p=a.at(-1),b=fs.readFileSync(p);b.copyWithin(97*16,0,b.length-97*16);b.fill(0,0,97*16);fs.writeFileSync(p,b)}process.exit(r.status??1);`);
-  const check = program => { const v = run(process.execPath, [program, ...args(f, join(d, program === entry ? 'branch-ok' : 'branch-mutant'), changes)], wrapped); assert.equal(v.status, 0, v.stderr); assert.equal(JSON.parse(readFileSync(JSON.parse(v.stdout).receipt)).correlation.lag_samples, c.lag_samples); };
-  check(entry);
+  const decode = (program, name) => {
+    const v = run(process.execPath, [program, ...args(f, join(d, name), changes)], wrapped);
+    assert.equal(v.status, 0, v.stderr); assert.equal(v.stderr, '');
+    const result = JSON.parse(v.stdout); assert.ok(existsSync(result.completion));
+    return JSON.parse(readFileSync(result.receipt));
+  };
+  const check = detail => assert.equal(detail.correlation.lag_samples, c.lag_samples);
+  check(decode(entry, 'branch-ok'));
+  // Replace the array spread, not its operand: this must be ONE filter element.
   const always = mutant(d, 'always-resample', s => s.replace("...rateFilter(clock.rate)", "'aresample=48000:first_pts=0'"));
-  assert.throws(() => check(always), assert.AssertionError);
+  const resampled = decode(always, 'branch-mutant'), vendorSettings = resampled.decoder.vendor_audio.settings;
+  assert.equal(vendorSettings[vendorSettings.indexOf('-af') + 1], 'asetpts=N/SR/TB,aresample=48000:first_pts=0');
+  assert.equal(resampled.decoder.vendor_audio.samples, r.detail.decoder.vendor_audio.samples);
+  assert.equal(resampled.correlation.lag_samples, c.lag_samples + 97);
+  assert.throws(() => check(resampled), assert.AssertionError);
 }));
 test('audio PTS/best-effort disagreement refuses; removing only its guard permits publication', () => temp(d => {
   const f = fixture(d), ffprobe = actual('ffprobe');
